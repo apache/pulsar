@@ -168,6 +168,21 @@ public interface ManagedCursor {
                           Object ctx, PositionImpl maxPosition);
 
     /**
+     * Asynchronously read entries from the ManagedLedger.
+     *
+     * @param numberOfEntriesToRead maximum number of entries to return
+     * @param maxSizeBytes          max size in bytes of the entries to return
+     * @param callback              callback object
+     * @param ctx                   opaque context
+     * @param maxPosition           max position can read
+     * @param skipCondition         predicate of read filter out
+     */
+    default void asyncReadEntriesWithSkip(int numberOfEntriesToRead, long maxSizeBytes, ReadEntriesCallback callback,
+                                          Object ctx, PositionImpl maxPosition, Predicate<PositionImpl> skipCondition) {
+        asyncReadEntries(numberOfEntriesToRead, maxSizeBytes, callback, ctx, maxPosition);
+    }
+
+    /**
      * Get 'N'th entry from the mark delete position in the cursor without updating any cursor positions.
      *
      * @param n
@@ -263,6 +278,55 @@ public interface ManagedCursor {
      */
     void asyncReadEntriesOrWait(int maxEntries, long maxSizeBytes, ReadEntriesCallback callback, Object ctx,
                                 PositionImpl maxPosition);
+
+    /**
+     * Asynchronously read entries from the ManagedLedger, up to the specified number and size.
+     *
+     * <p/>If no entries are available, the callback will not be triggered. Instead it will be registered to wait until
+     * a new message will be persisted into the managed ledger
+     *
+     * @see #readEntriesOrWait(int, long)
+     * @param maxEntries
+     *            maximum number of entries to return
+     * @param callback
+     *            callback object
+     * @param ctx
+     *            opaque context
+     * @param maxPosition
+     *            max position can read
+     * @param skipCondition
+     *            predicate of read filter out
+     */
+    default void asyncReadEntriesWithSkipOrWait(int maxEntries, ReadEntriesCallback callback, Object ctx,
+                                                PositionImpl maxPosition, Predicate<PositionImpl> skipCondition) {
+        asyncReadEntriesOrWait(maxEntries, callback, ctx, maxPosition);
+    }
+
+    /**
+     * Asynchronously read entries from the ManagedLedger, up to the specified number and size.
+     *
+     * <p/>If no entries are available, the callback will not be triggered. Instead it will be registered to wait until
+     * a new message will be persisted into the managed ledger
+     *
+     * @see #readEntriesOrWait(int, long)
+     * @param maxEntries
+     *            maximum number of entries to return
+     * @param maxSizeBytes
+     *            max size in bytes of the entries to return
+     * @param callback
+     *            callback object
+     * @param ctx
+     *            opaque context
+     * @param maxPosition
+     *            max position can read
+     * @param skipCondition
+     *            predicate of read filter out
+     */
+    default void asyncReadEntriesWithSkipOrWait(int maxEntries, long maxSizeBytes, ReadEntriesCallback callback,
+                                                Object ctx, PositionImpl maxPosition,
+                                                Predicate<PositionImpl> skipCondition) {
+        asyncReadEntriesOrWait(maxEntries, maxSizeBytes, callback, ctx, maxPosition);
+    }
 
     /**
      * Cancel a previously scheduled asyncReadEntriesOrWait operation.
@@ -574,6 +638,23 @@ public interface ManagedCursor {
             FindEntryCallback callback, Object ctx);
 
     /**
+     * Find the newest entry that matches the given predicate.
+     *
+     * @param constraint
+     *            search only active entries or all entries
+     * @param condition
+     *            predicate that reads an entry an applies a condition
+     * @param callback
+     *            callback object returning the resultant position
+     * @param ctx
+     *            opaque context
+     * @param isFindFromLedger
+     *            find the newest entry from ledger
+     */
+    void asyncFindNewestMatching(FindPositionConstraint constraint, Predicate<Entry> condition,
+            FindEntryCallback callback, Object ctx, boolean isFindFromLedger);
+
+    /**
      * reset the cursor to specified position to enable replay of messages.
      *
      * @param position
@@ -721,6 +802,12 @@ public interface ManagedCursor {
      * @return the estimated size from the mark delete position of the cursor
      */
     long getEstimatedSizeSinceMarkDeletePosition();
+
+    /**
+     * If a ledger is lost, this ledger will be skipped after enabled "autoSkipNonRecoverableData", and the method is
+     * used to delete information about this ledger in the ManagedCursor.
+     */
+    default void skipNonRecoverableLedger(long ledgerId){}
 
     /**
      * Returns cursor throttle mark-delete rate.

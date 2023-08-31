@@ -41,13 +41,13 @@ public class TopicCompactionStrategyTest {
 
     @Test(expectedExceptions = IllegalArgumentException.class)
     public void testLoadInvalidTopicCompactionStrategy() {
-        TopicCompactionStrategy.load("uknown");
+        TopicCompactionStrategy.load("uknown", "uknown");
     }
 
     @Test
     public void testNumericOrderCompactionStrategy() {
         TopicCompactionStrategy<Integer> strategy =
-                TopicCompactionStrategy.load(NumericOrderCompactionStrategy.class.getCanonicalName());
+                TopicCompactionStrategy.load("numeric", NumericOrderCompactionStrategy.class.getCanonicalName());
         Assert.assertFalse(strategy.shouldKeepLeft(1, 2));
         Assert.assertTrue(strategy.shouldKeepLeft(2, 1));
     }

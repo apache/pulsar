@@ -134,6 +134,22 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
+    public void updatePropertiesForAutoCreatedTopicTest() throws Exception {
+        TopicName topicName = TopicName.get(
+                TopicDomain.persistent.value(),
+                NamespaceName.get(myNamespace),
+                "test-" + UUID.randomUUID()
+        );
+        String testTopic = topicName.toString();
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(testTopic).create();
+        HashMap<String, String> properties = new HashMap<>();
+        properties.put("backlogQuotaType", "message_age");
+        admin.topics().updateProperties(testTopic, properties);
+        admin.topics().delete(topicName.toString(), true);
+    }
+
+    @Test
     public void testTopicPolicyInitialValueWithNamespaceAlreadyLoaded() throws Exception{
         TopicName topicName = TopicName.get(
                 TopicDomain.persistent.value(),
@@ -867,6 +883,22 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         log.info("PersistencePolicies: {} will set to the topic: {}", persistencePolicies, persistenceTopic);
         Assert.assertEquals(getPersistencePolicies, persistencePolicies);
         consumer.close();
+    }
+
+    @Test(dataProvider = "invalidPersistentPolicies")
+    public void testSetIncorrectPersistentPolicies(int ensembleSize, int writeQuorum, int ackQuorum) throws Exception {
+        admin.topics().createNonPartitionedTopic(persistenceTopic);
+        PersistencePolicies persistence1 = new PersistencePolicies(ensembleSize, writeQuorum, ackQuorum, 0.0);
+
+        boolean failed = false;
+        try {
+            admin.topicPolicies().setPersistence(persistenceTopic, persistence1);
+        } catch (PulsarAdminException e) {
+            failed = true;
+            Assert.assertEquals(e.getStatusCode(), 400);
+        }
+        assertTrue(failed);
+        admin.topics().delete(persistenceTopic);
     }
 
     @Test
@@ -2983,6 +3015,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
             });
         }
     }
+
     @Test
     public void testGlobalTopicPolicies() throws Exception {
         final String topic = testTopic + UUID.randomUUID();

@@ -19,10 +19,12 @@
 package org.apache.pulsar.broker;
 
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.broker.testcontext.PulsarTestContext;
 import org.apache.pulsar.metadata.TestZKServer;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
+import org.jetbrains.annotations.NotNull;
 
 /**
  * Multiple brokers with a real test Zookeeper server (instead of the mock server)
@@ -50,12 +52,19 @@ public abstract class MultiBrokerTestZKBaseTest extends MultiBrokerBaseTest {
     }
 
     @Override
-    protected MetadataStoreExtended createLocalMetadataStore() throws MetadataStoreException {
-        return MetadataStoreExtended.create(testZKServer.getConnectionString(), MetadataStoreConfig.builder().build());
+    protected PulsarTestContext.Builder createPulsarTestContextBuilder(ServiceConfiguration conf) {
+        return super.createPulsarTestContextBuilder(conf)
+                .localMetadataStore(createMetadataStore(MetadataStoreConfig.METADATA_STORE))
+                .configurationMetadataStore(createMetadataStore(MetadataStoreConfig.CONFIGURATION_METADATA_STORE));
     }
 
-    @Override
-    protected MetadataStoreExtended createConfigurationMetadataStore() throws MetadataStoreException {
-        return MetadataStoreExtended.create(testZKServer.getConnectionString(), MetadataStoreConfig.builder().build());
+    @NotNull
+    protected MetadataStoreExtended createMetadataStore(String metadataStoreName)  {
+        try {
+            return MetadataStoreExtended.create(testZKServer.getConnectionString(),
+                    MetadataStoreConfig.builder().metadataStoreName(metadataStoreName).build());
+        } catch (MetadataStoreException e) {
+            throw new RuntimeException(e);
+        }
     }
 }

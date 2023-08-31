@@ -47,7 +47,6 @@ import javax.ws.rs.core.Response.Status;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.admin.impl.NamespacesBase;
 import org.apache.pulsar.broker.web.RestException;
-import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespace.Mode;
 import org.apache.pulsar.common.naming.NamespaceBundleSplitAlgorithm;
 import org.apache.pulsar.common.naming.NamespaceName;
@@ -249,12 +248,6 @@ public class Namespaces extends NamespacesBase {
                     asyncResponse.resume(Response.noContent().build());
                 })
                 .exceptionally(ex -> {
-                    Throwable cause = FutureUtil.unwrapCompletionException(ex);
-                    if (cause instanceof PulsarAdminException.ConflictException) {
-                        log.info("[{}] There are new topics created during the namespace deletion, "
-                                + "retry to delete the namespace again.", namespaceName);
-                        pulsar().getExecutor().execute(() -> internalDeleteNamespaceAsync(force));
-                    }
                     if (!isRedirectException(ex)) {
                         log.error("[{}] Failed to delete namespace {}", clientAppId(), namespaceName, ex);
                     }
@@ -300,8 +293,8 @@ public class Namespaces extends NamespacesBase {
                                @PathParam("namespace") String namespace) {
         validateNamespaceName(property, cluster, namespace);
         validateNamespaceOperationAsync(NamespaceName.get(property, namespace), NamespaceOperation.GET_PERMISSION)
-                .thenCompose(__ -> getNamespacePoliciesAsync(namespaceName))
-                .thenAccept(policies -> response.resume(policies.auth_policies.getNamespaceAuthentication()))
+                .thenCompose(__ -> getAuthorizationService().getPermissionsAsync(namespaceName))
+                .thenAccept(permissions -> response.resume(permissions))
                 .exceptionally(ex -> {
                     log.error("Failed to get permissions for namespace {}", namespaceName, ex);
                     resumeAsyncResponseExceptionally(response, ex);
@@ -321,8 +314,8 @@ public class Namespaces extends NamespacesBase {
                                             @PathParam("namespace") String namespace) {
         validateNamespaceName(property, cluster, namespace);
         validateNamespaceOperationAsync(NamespaceName.get(property, namespace), NamespaceOperation.GET_PERMISSION)
-                .thenCompose(__ -> getNamespacePoliciesAsync(namespaceName))
-                .thenAccept(policies -> response.resume(policies.auth_policies.getSubscriptionAuthentication()))
+                .thenCompose(__ -> getAuthorizationService().getSubscriptionPermissionsAsync(namespaceName))
+                .thenAccept(permissions -> response.resume(permissions))
                 .exceptionally(ex -> {
                     log.error("[{}] Failed to get permissions on subscription for namespace {}: {} ",
                             clientAppId(), namespaceName,
@@ -887,11 +880,13 @@ public class Namespaces extends NamespacesBase {
     public void unloadNamespaceBundle(@Suspended final AsyncResponse asyncResponse,
             @PathParam("property") String property, @PathParam("cluster") String cluster,
             @PathParam("namespace") String namespace, @PathParam("bundle") String bundleRange,
-            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
+            @QueryParam("destinationBroker") String destinationBroker) {
         validateNamespaceName(property, cluster, namespace);
-        internalUnloadNamespaceBundleAsync(bundleRange, authoritative)
+        internalUnloadNamespaceBundleAsync(bundleRange, destinationBroker, authoritative)
                 .thenAccept(__ -> {
-                    log.info("[{}] Successfully unloaded namespace bundle {}", clientAppId(), bundleRange);
+                    log.info("[{}] Successfully unloaded namespace bundle {}",
+                            clientAppId(), bundleRange);
                     asyncResponse.resume(Response.noContent().build());
                 })
                 .exceptionally(ex -> {

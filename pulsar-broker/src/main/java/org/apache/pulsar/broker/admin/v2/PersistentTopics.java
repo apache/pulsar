@@ -46,6 +46,7 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.admin.impl.PersistentTopicsBase;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.web.RestException;
@@ -380,6 +381,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiParam(value = "Offload policies for the specified topic") OffloadPoliciesImpl offloadPolicies) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
+            .thenAccept(__ -> validateOffloadPolicies(offloadPolicies))
             .thenCompose(__ -> internalSetOffloadPolicies(offloadPolicies, isGlobal))
             .thenRun(() -> asyncResponse.resume(Response.noContent().build()))
             .exceptionally(ex -> {
@@ -775,33 +777,23 @@ public class PersistentTopics extends PersistentTopicsBase {
     }
 
     /**
-     * It updates number of partitions of an existing non-global partitioned topic. It requires partitioned-topic to be
+     * It updates number of partitions of an existing partitioned topic. It requires partitioned-topic to be
      * already exist and number of new partitions must be greater than existing number of partitions. Decrementing
      * number of partitions requires deletion of topic which is not supported.
-     *
-     * Already created partitioned producers and consumers can't see newly created partitions and it requires to
-     * recreate them at application so, newly created producers and consumers can connect to newly added partitions as
-     * well. Therefore, it can violate partition ordering at producers until all producers are restarted at application.
-     *
-     * @param tenant
-     * @param namespace
-     * @param encodedTopic
-     * @param numPartitions
      */
     @POST
     @Path("/{tenant}/{namespace}/{topic}/partitions")
     @ApiOperation(value = "Increment partitions of an existing partitioned topic.",
-            notes = "It only increments partitions of existing non-global partitioned-topic")
+            notes = "It increments partitions of existing partitioned-topic")
     @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Update topic partition successful."),
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
-            @ApiResponse(code = 401,
-                    message = "Don't have permission to administrate resources on this tenant"),
-            @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Tenant does not exist"),
-            @ApiResponse(code = 406, message = "The number of partitions should be more than 0 and"
+            @ApiResponse(code = 401, message = "Unauthenticated"),
+            @ApiResponse(code = 403, message = "Forbidden/Unauthorized"),
+            @ApiResponse(code = 404, message = "Topic does not exist"),
+            @ApiResponse(code = 422, message = "The number of partitions should be more than 0 and"
                     + " less than or equal to maxNumPartitionsPerPartitionedTopic"
                     + " and number of new partitions must be greater than existing number of partitions"),
-            @ApiResponse(code = 409, message = "Partitioned topic does not exist"),
             @ApiResponse(code = 412, message = "Partitioned topic name is invalid"),
             @ApiResponse(code = 500, message = "Internal server error")
     })
@@ -813,21 +805,28 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("namespace") String namespace,
             @ApiParam(value = "Specify topic name", required = true)
             @PathParam("topic") @Encoded String encodedTopic,
-            @QueryParam("updateLocalTopicOnly") @DefaultValue("false") boolean updateLocalTopicOnly,
+            @QueryParam("updateLocalTopicOnly") @DefaultValue("false") boolean updateLocalTopic,
             @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
             @QueryParam("force") @DefaultValue("false") boolean force,
             @ApiParam(value = "The number of partitions for the topic",
                     required = true, type = "int", defaultValue = "0")
                     int numPartitions) {
-        validatePartitionedTopicName(tenant, namespace, encodedTopic);
-        validatePartitionedTopicMetadataAsync()
-                .thenCompose(__ -> internalUpdatePartitionedTopicAsync(numPartitions, updateLocalTopicOnly,
-                        authoritative, force))
-                .thenAccept(__ -> asyncResponse.resume(Response.noContent().build()))
+        validateTopicName(tenant, namespace, encodedTopic);
+        if (topicName.isPartitioned()) {
+            throw new RestException(Response.Status.PRECONDITION_FAILED,
+                    "Partitioned Topic Name should not contain '-partition-'");
+        }
+        validateTopicPolicyOperationAsync(topicName, PolicyName.PARTITION, PolicyOperation.WRITE)
+                .thenCompose(__ -> internalUpdatePartitionedTopicAsync(numPartitions, updateLocalTopic, force))
+                .thenAccept(__ -> {
+                    log.info("[{}][{}] Updated topic partition to {}.", clientAppId(), topicName, numPartitions);
+                    asyncResponse.resume(Response.noContent().build());
+                })
                 .exceptionally(ex -> {
                     if (!isRedirectException(ex)) {
-                        log.error("[{}] Failed to update partitioned topic {}", clientAppId(), topicName, ex);
+                        log.error("[{}][{}] Failed to update partition to {}",
+                                clientAppId(), topicName, numPartitions, ex);
                     }
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
@@ -893,8 +892,15 @@ public class PersistentTopics extends PersistentTopicsBase {
         internalGetPartitionedMetadataAsync(authoritative, checkAllowAutoCreation)
                 .thenAccept(asyncResponse::resume)
                 .exceptionally(ex -> {
-                    if (!isRedirectException(ex)) {
-                        log.error("[{}] Failed to get partitioned metadata topic {}", clientAppId(), topicName, ex);
+                    Throwable t = FutureUtil.unwrapCompletionException(ex);
+                    if (!isRedirectException(t)) {
+                        if (AdminResource.isNotFoundException(t)) {
+                            log.error("[{}] Failed to get partitioned metadata topic {}: {}",
+                                    clientAppId(), topicName, ex.getMessage());
+                        } else {
+                            log.error("[{}] Failed to get partitioned metadata topic {}",
+                                    clientAppId(), topicName, t);
+                        }
                     }
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
@@ -1033,7 +1039,12 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         try {
-            validatePartitionedTopicName(tenant, namespace, encodedTopic);
+            validateTopicName(tenant, namespace, encodedTopic);
+            if (topicName.isPartitioned()) {
+                // There's no way to create the partition topic with `-partition-{index}`, So we can reject it.
+                throw new RestException(Response.Status.PRECONDITION_FAILED,
+                        "Partitioned Topic Name should not contain '-partition-'");
+            }
             internalDeletePartitionedTopic(asyncResponse, authoritative, force);
         } catch (WebApplicationException wae) {
             asyncResponse.resume(wae);
@@ -1108,7 +1119,9 @@ public class PersistentTopics extends PersistentTopicsBase {
                         ex = new RestException(Response.Status.PRECONDITION_FAILED,
                                 t.getMessage());
                     }
-                    if (isManagedLedgerNotFoundException(t)) {
+                    if (t instanceof IllegalStateException){
+                        ex = new RestException(422/* Unprocessable entity*/, t.getMessage());
+                    } else if (isManagedLedgerNotFoundException(t)) {
                         ex = new RestException(Response.Status.NOT_FOUND,
                                 getTopicNotFoundErrorMessage(topicName.toString()));
                     } else if (!isRedirectException(ex)) {
@@ -1180,7 +1193,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @QueryParam("getPreciseBacklog") @DefaultValue("false") boolean getPreciseBacklog,
             @ApiParam(value = "If return backlog size for each subscription, require locking on ledger so be careful "
                     + "not to use when there's heavy traffic.")
-            @QueryParam("subscriptionBacklogSize") @DefaultValue("false") boolean subscriptionBacklogSize,
+            @QueryParam("subscriptionBacklogSize") @DefaultValue("true") boolean subscriptionBacklogSize,
             @ApiParam(value = "If return time of the earliest message in backlog")
             @QueryParam("getEarliestTimeInBacklog") @DefaultValue("false") boolean getEarliestTimeInBacklog) {
         validateTopicName(tenant, namespace, encodedTopic);
@@ -1282,11 +1295,15 @@ public class PersistentTopics extends PersistentTopicsBase {
             @QueryParam("getPreciseBacklog") @DefaultValue("false") boolean getPreciseBacklog,
             @ApiParam(value = "If return backlog size for each subscription, require locking on ledger so be careful "
                     + "not to use when there's heavy traffic.")
-            @QueryParam("subscriptionBacklogSize") @DefaultValue("false") boolean subscriptionBacklogSize,
+            @QueryParam("subscriptionBacklogSize") @DefaultValue("true") boolean subscriptionBacklogSize,
             @ApiParam(value = "If return the earliest time in backlog")
             @QueryParam("getEarliestTimeInBacklog") @DefaultValue("false") boolean getEarliestTimeInBacklog) {
         try {
-            validatePartitionedTopicName(tenant, namespace, encodedTopic);
+            validateTopicName(tenant, namespace, encodedTopic);
+            if (topicName.isPartitioned()) {
+                throw new RestException(Response.Status.PRECONDITION_FAILED,
+                        "Partitioned Topic Name should not contain '-partition-'");
+            }
             internalGetPartitionedStats(asyncResponse, authoritative, perPartition, getPreciseBacklog,
                     subscriptionBacklogSize, getEarliestTimeInBacklog);
         } catch (WebApplicationException wae) {
@@ -1589,7 +1606,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("namespace") String namespace,
             @ApiParam(value = "Specify topic name", required = true)
             @PathParam("topic") @Encoded String topic,
-            @ApiParam(value = "Subscription to create position on", required = true)
+            @ApiParam(value = "Name of subscription to be created", required = true)
             @PathParam("subscriptionName") String encodedSubName,
             @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
@@ -1941,14 +1958,18 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("entryId") long entryId,
             @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
-        try {
-            validateTopicName(tenant, namespace, encodedTopic);
-            internalGetMessageById(asyncResponse, ledgerId, entryId, authoritative);
-        } catch (WebApplicationException wae) {
-            asyncResponse.resume(wae);
-        } catch (Exception e) {
-            asyncResponse.resume(new RestException(e));
-        }
+        validateTopicName(tenant, namespace, encodedTopic);
+        internalGetMessageById(ledgerId, entryId, authoritative)
+                .thenAccept(asyncResponse::resume)
+                .exceptionally(ex -> {
+                    // If the exception is not redirect exception we need to log it.
+                    if (!isRedirectException(ex)) {
+                        log.error("[{}] Failed to get message with ledgerId {} entryId {} from {}",
+                                clientAppId(), ledgerId, entryId, topicName, ex);
+                    }
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
     }
 
     @GET
@@ -2437,7 +2458,7 @@ public class PersistentTopics extends PersistentTopicsBase {
                             clientAppId(),
                             namespaceName,
                             topicName.getLocalName(),
-                            jsonMapper().writeValueAsString(retention));
+                            objectWriter().writeValueAsString(retention));
                 } catch (JsonProcessingException ignore) {
                 }
                 asyncResponse.resume(Response.noContent().build());
@@ -2537,7 +2558,7 @@ public class PersistentTopics extends PersistentTopicsBase {
                             clientAppId(),
                             namespaceName,
                             topicName.getLocalName(),
-                            jsonMapper().writeValueAsString(persistencePolicies));
+                            objectWriter().writeValueAsString(persistencePolicies));
                 } catch (JsonProcessingException ignore) {
                 }
                 asyncResponse.resume(Response.noContent().build());
@@ -3267,6 +3288,44 @@ public class PersistentTopics extends PersistentTopicsBase {
         }
     }
 
+    @POST
+    @Path("/{tenant}/{namespace}/{topic}/trim")
+    @ApiOperation(value = " Trim a topic")
+    @ApiResponses(value = {
+            @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
+            @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant or"
+                    + "subscriber is not authorized to access this operation"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Namespace or topic does not exist"),
+            @ApiResponse(code = 405, message = "Operation is not allowed on the persistent topic"),
+            @ApiResponse(code = 412, message = "Topic name is not valid"),
+            @ApiResponse(code = 500, message = "Internal server error"),
+            @ApiResponse(code = 503, message = "Failed to validate global cluster configuration")})
+    public void trimTopic(
+            @Suspended final AsyncResponse asyncResponse,
+            @ApiParam(value = "Specify the tenant", required = true)
+            @PathParam("tenant") String tenant,
+            @ApiParam(value = "Specify the namespace", required = true)
+            @PathParam("namespace") String namespace,
+            @ApiParam(value = "Specify topic name", required = true)
+            @PathParam("topic") @Encoded String encodedTopic,
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
+        try {
+            validateTopicName(tenant, namespace, encodedTopic);
+            internalTrimTopic(asyncResponse, authoritative).exceptionally(ex -> {
+                // If the exception is not redirect exception we need to log it.
+                if (!isRedirectException(ex)) {
+                    log.error("[{}] Failed to trim topic {}", clientAppId(), topicName, ex);
+                }
+                resumeAsyncResponseExceptionally(asyncResponse, ex);
+                return null;
+            });
+        } catch (Exception e) {
+            asyncResponse.resume(new RestException(e));
+        }
+    }
+
     @GET
     @Path("/{tenant}/{namespace}/{topic}/dispatchRate")
     @ApiOperation(value = "Get dispatch rate configuration for specified topic.")
@@ -3320,7 +3379,7 @@ public class PersistentTopics extends PersistentTopicsBase {
                             tenant,
                             namespace,
                             topicName.getLocalName(),
-                            jsonMapper().writeValueAsString(dispatchRate));
+                            objectWriter().writeValueAsString(dispatchRate));
                 } catch (JsonProcessingException ignore) {}
                 asyncResponse.resume(Response.noContent().build());
             })
@@ -3420,7 +3479,7 @@ public class PersistentTopics extends PersistentTopicsBase {
                             tenant,
                             namespace,
                             topicName.getLocalName(),
-                            jsonMapper().writeValueAsString(dispatchRate));
+                            objectWriter().writeValueAsString(dispatchRate));
                 } catch (JsonProcessingException ignore) {}
                 asyncResponse.resume(Response.noContent().build());
             })
@@ -3616,7 +3675,7 @@ public class PersistentTopics extends PersistentTopicsBase {
                             tenant,
                             namespace,
                             topicName.getLocalName(),
-                            jsonMapper().writeValueAsString(compactionThreshold));
+                            objectWriter().writeValueAsString(compactionThreshold));
                 } catch (JsonProcessingException ignore) {}
                 asyncResponse.resume(Response.noContent().build());
             })
@@ -3715,7 +3774,7 @@ public class PersistentTopics extends PersistentTopicsBase {
                             tenant,
                             namespace,
                             topicName.getLocalName(),
-                            jsonMapper().writeValueAsString(maxConsumersPerSubscription));
+                            objectWriter().writeValueAsString(maxConsumersPerSubscription));
                 } catch (JsonProcessingException ignore) {}
                 asyncResponse.resume(Response.noContent().build());
             })
@@ -3812,7 +3871,7 @@ public class PersistentTopics extends PersistentTopicsBase {
                             namespace,
                             topicName.getLocalName(),
                             isGlobal,
-                            jsonMapper().writeValueAsString(publishRate));
+                            objectWriter().writeValueAsString(publishRate));
                 } catch (JsonProcessingException ignore) {}
                 asyncResponse.resume(Response.noContent().build());
             })
@@ -3915,7 +3974,7 @@ public class PersistentTopics extends PersistentTopicsBase {
                             tenant,
                             namespace,
                             topicName.getLocalName(),
-                            jsonMapper().writeValueAsString(subscriptionTypesEnabled));
+                            objectWriter().writeValueAsString(subscriptionTypesEnabled));
                 } catch (JsonProcessingException ignore) {}
                 asyncResponse.resume(Response.noContent().build());
             })
@@ -4010,7 +4069,7 @@ public class PersistentTopics extends PersistentTopicsBase {
                             namespace,
                             topicName.getLocalName(),
                             isGlobal,
-                            jsonMapper().writeValueAsString(subscribeRate));
+                            objectWriter().writeValueAsString(subscribeRate));
                 } catch (JsonProcessingException ignore) {}
                 asyncResponse.resume(Response.noContent().build());
             })

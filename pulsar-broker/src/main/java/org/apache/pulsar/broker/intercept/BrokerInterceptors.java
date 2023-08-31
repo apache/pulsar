@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.intercept;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableMap;
 import io.netty.buffer.ByteBuf;
 import java.io.IOException;
@@ -276,5 +277,10 @@ public class BrokerInterceptors implements BrokerInterceptor {
 
     private boolean interceptorsEnabled() {
         return interceptors != null && !interceptors.isEmpty();
+    }
+
+    @VisibleForTesting
+    public Map<String, BrokerInterceptorWithClassLoader> getInterceptors() {
+        return interceptors;
     }
 }

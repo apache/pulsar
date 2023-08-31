@@ -159,6 +159,7 @@ public class BrokerStatsBase extends AdminResource {
 
     protected Map<Long, Collection<ResourceUnit>> internalBrokerResourceAvailability(NamespaceName namespace) {
         try {
+            validateSuperUserAccess();
             LoadManager lm = pulsar().getLoadManager().get();
             if (lm instanceof SimpleLoadManagerImpl) {
                 return ((SimpleLoadManagerImpl) lm).getResourceAvailabilityFor(namespace).asMap();

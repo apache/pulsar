@@ -63,6 +63,10 @@ public class ChaosContainer<SelfT extends ChaosContainer<SelfT>> extends Generic
     @Override
     public void stop() {
         beforeStop();
+        doStop();
+    }
+
+    protected void doStop() {
         super.stop();
     }
 

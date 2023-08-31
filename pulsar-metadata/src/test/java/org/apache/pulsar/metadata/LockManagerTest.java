@@ -175,7 +175,7 @@ public class LockManagerTest extends BaseMetadataStoreTest {
         assertEquals(cache.get(key + "/1").join().get(), "lock-1");
 
         store.put(key + "/1",
-                ObjectMapperFactory.getThreadLocal().writeValueAsBytes("value-2"),
+                ObjectMapperFactory.getMapper().writer().writeValueAsBytes("value-2"),
                 Optional.empty(), EnumSet.of(CreateOption.Ephemeral)).join();
 
         lock.updateValue("value-2").join();
@@ -283,7 +283,7 @@ public class LockManagerTest extends BaseMetadataStoreTest {
 
         // Simulate existing lock with same content. The 2nd acquirer will steal the lock
         String path2 = newKey();
-        store1.put(path2, ObjectMapperFactory.getThreadLocal().writeValueAsBytes("value-1"), Optional.of(-1L),
+        store1.put(path2, ObjectMapperFactory.getMapper().writer().writeValueAsBytes("value-1"), Optional.of(-1L),
                 EnumSet.of(CreateOption.Ephemeral)).join();
 
         ResourceLock<String> rl2 = lm2.acquireLock(path2, "value-1").join();

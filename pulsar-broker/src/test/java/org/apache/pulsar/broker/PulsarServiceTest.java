@@ -85,18 +85,8 @@ public class PulsarServiceTest extends MockedPulsarServiceBaseTest {
      */
     @Test
     public void testGetWorkerServiceException() throws Exception {
-        init();
-        ServiceConfiguration configuration = new ServiceConfiguration();
-        configuration.setMetadataStoreUrl("zk:localhost");
-        configuration.setClusterName("clusterName");
-        configuration.setFunctionsWorkerEnabled(false);
-        configuration.setBrokerShutdownTimeoutMs(0L);
-        configuration.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
-        configuration.setBrokerServicePort(Optional.of(0));
-        configuration.setBrokerServicePortTls(Optional.of(0));
-        configuration.setWebServicePort(Optional.of(0));
-        configuration.setWebServicePortTls(Optional.of(0));
-        startBroker(configuration);
+        conf.setFunctionsWorkerEnabled(false);
+        setup();
 
         String errorMessage = "Pulsar Function Worker is not enabled, probably functionsWorkerEnabled is set to false";
 

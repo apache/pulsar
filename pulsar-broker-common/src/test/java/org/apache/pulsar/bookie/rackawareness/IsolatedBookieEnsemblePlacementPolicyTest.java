@@ -339,7 +339,7 @@ public class IsolatedBookieEnsemblePlacementPolicyTest {
      * <pre>
      * a. default-group has all 5 bookies.
      * b. 3 of the default-group bookies have been added to isolated-group without being removed from default-group.
-     * c. isolated-policy-placement should be identify those 3 overlapped bookies and exclude them from blacklisted bookies.
+     * c. isolated-policy-placement should be identify those 3 overlapped bookies and remove them from excluded bookies.
      * </pre>
      *
      * @throws Exception
@@ -494,7 +494,7 @@ public class IsolatedBookieEnsemblePlacementPolicyTest {
                 Optional.empty()).join();
 
         // prepare a custom placement policy and put it into the custom metadata. The isolation policy should decode
-        // from the custom metadata and apply it to the get black list method.
+        // from the custom metadata and apply it to the get excluded list method.
         Map<String, Object> placementPolicyProperties = new HashMap<>();
         placementPolicyProperties.put(
             IsolatedBookieEnsemblePlacementPolicy.ISOLATION_BOOKIE_GROUPS, primaryGroupName);

@@ -33,8 +33,8 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.function.Predicate;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Predicate;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ClearBacklogCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteCallback;
@@ -256,6 +256,11 @@ public class ManagedCursorContainerTest {
         @Override
         public void asyncFindNewestMatching(FindPositionConstraint constraint, Predicate<Entry> condition,
                 AsyncCallbacks.FindEntryCallback callback, Object ctx) {
+        }
+
+        @Override
+        public void asyncFindNewestMatching(FindPositionConstraint constraint, Predicate<Entry> condition,
+                AsyncCallbacks.FindEntryCallback callback, Object ctx, boolean isFindFromLedger) {
         }
 
         @Override

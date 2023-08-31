@@ -20,7 +20,6 @@ package org.apache.bookkeeper.mledger.offload.filesystem.impl;
 
 import static org.apache.bookkeeper.mledger.offload.OffloadUtils.parseLedgerMetadata;
 import io.netty.buffer.ByteBuf;
-import io.netty.buffer.PooledByteBufAllocator;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -40,6 +39,8 @@ import org.apache.bookkeeper.mledger.LedgerOffloaderStats;
 import org.apache.hadoop.io.BytesWritable;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.MapFile;
+import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
+import org.apache.pulsar.common.naming.TopicName;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -51,6 +52,7 @@ public class FileStoreBackedReadHandleImpl implements ReadHandle {
     private final LedgerMetadata ledgerMetadata;
     private final LedgerOffloaderStats offloaderStats;
     private final String managedLedgerName;
+    private final String topicName;
 
     private FileStoreBackedReadHandleImpl(ExecutorService executor, MapFile.Reader reader, long ledgerId,
                                           LedgerOffloaderStats offloaderStats,
@@ -60,13 +62,14 @@ public class FileStoreBackedReadHandleImpl implements ReadHandle {
         this.reader = reader;
         this.offloaderStats = offloaderStats;
         this.managedLedgerName = managedLedgerName;
+        this.topicName = TopicName.fromPersistenceNamingEncoding(managedLedgerName);
         LongWritable key = new LongWritable();
         BytesWritable value = new BytesWritable();
         try {
             key.set(FileSystemManagedLedgerOffloader.METADATA_KEY_INDEX);
             long startReadIndexTime = System.nanoTime();
             reader.get(key, value);
-            offloaderStats.recordReadOffloadIndexLatency(managedLedgerName,
+            offloaderStats.recordReadOffloadIndexLatency(topicName,
                     System.nanoTime() - startReadIndexTime, TimeUnit.NANOSECONDS);
             this.ledgerMetadata = parseLedgerMetadata(ledgerId, value.copyBytes());
         } catch (IOException e) {
@@ -125,17 +128,17 @@ public class FileStoreBackedReadHandleImpl implements ReadHandle {
                 while (entriesToRead > 0) {
                     long startReadTime = System.nanoTime();
                     reader.next(key, value);
-                    this.offloaderStats.recordReadOffloadDataLatency(managedLedgerName,
+                    this.offloaderStats.recordReadOffloadDataLatency(topicName,
                             System.nanoTime() - startReadTime, TimeUnit.NANOSECONDS);
                     int length = value.getLength();
                     long entryId = key.get();
                     if (entryId == nextExpectedId) {
-                        ByteBuf buf = PooledByteBufAllocator.DEFAULT.buffer(length, length);
+                        ByteBuf buf = PulsarByteBufAllocator.DEFAULT.buffer(length, length);
                         entries.add(LedgerEntryImpl.create(ledgerId, entryId, length, buf));
                         buf.writeBytes(value.copyBytes());
                         entriesToRead--;
                         nextExpectedId++;
-                        this.offloaderStats.recordReadOffloadBytes(managedLedgerName, length);
+                        this.offloaderStats.recordReadOffloadBytes(topicName, length);
                     } else if (entryId > lastEntry) {
                         log.info("Expected to read {}, but read {}, which is greater than last entry {}",
                                 nextExpectedId, entryId, lastEntry);
@@ -144,7 +147,7 @@ public class FileStoreBackedReadHandleImpl implements ReadHandle {
             }
                 promise.complete(LedgerEntriesImpl.create(entries));
             } catch (Throwable t) {
-                this.offloaderStats.recordReadOffloadError(managedLedgerName);
+                this.offloaderStats.recordReadOffloadError(topicName);
                 promise.completeExceptionally(t);
                 entries.forEach(LedgerEntry::close);
             }

@@ -20,11 +20,11 @@ package org.apache.pulsar.client.impl.auth.oauth2;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
 import java.io.Reader;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
 
 
 /**
@@ -34,8 +34,6 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class KeyFile {
-
-    private static ObjectMapper objectMapper = new ObjectMapper();
 
     @JsonProperty("type")
     private String type;
@@ -53,14 +51,14 @@ public class KeyFile {
     private String issuerUrl;
 
     public String toJson() throws IOException {
-        return objectMapper.writeValueAsString(this);
+        return ObjectMapperFactory.getMapperWithIncludeAlways().writer().writeValueAsString(this);
     }
 
     public static KeyFile fromJson(String value) throws IOException {
-        return objectMapper.readValue(value, KeyFile.class);
+        return ObjectMapperFactory.getMapper().reader().readValue(value, KeyFile.class);
     }
 
     public static KeyFile fromJson(Reader value) throws IOException {
-        return objectMapper.readValue(value, KeyFile.class);
+        return ObjectMapperFactory.getMapper().reader().readValue(value, KeyFile.class);
     }
 }

@@ -185,7 +185,7 @@ public class LoadSimulationController {
         public synchronized void process(final WatchedEvent event) {
             try {
                 // Get the load report and put this back as a watch.
-                final LoadReport loadReport = ObjectMapperFactory.getThreadLocal()
+                final LoadReport loadReport = ObjectMapperFactory.getMapper().getObjectMapper()
                         .readValue(zkClient.getData(path, this, null), LoadReport.class);
                 for (final Map.Entry<String, NamespaceBundleStats> entry : loadReport.getBundleStats().entrySet()) {
                     final String bundle = entry.getKey();
@@ -250,7 +250,7 @@ public class LoadSimulationController {
             final Map<String, ResourceQuota>[] threadLocalMaps) throws Exception {
         final List<String> children = zkClient.getChildren(path, false);
         if (children.isEmpty()) {
-            threadLocalMaps[random.nextInt(clients.length)].put(path, ObjectMapperFactory.getThreadLocal()
+            threadLocalMaps[random.nextInt(clients.length)].put(path, ObjectMapperFactory.getMapper().getObjectMapper()
                     .readValue(zkClient.getData(path, false, null), ResourceQuota.class));
         } else {
             for (final String child : children) {
@@ -431,7 +431,7 @@ public class LoadSimulationController {
                                 mangledNamespace);
                         try {
                             ZkUtils.createFullPathOptimistic(targetZKClient, oldAPITargetPath,
-                                    ObjectMapperFactory.getThreadLocal().writeValueAsBytes(quota),
+                                    ObjectMapperFactory.getMapper().writer().writeValueAsBytes(quota),
                                     ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
                         } catch (KeeperException.NodeExistsException e) {
                             // Ignore already created nodes.
@@ -441,7 +441,7 @@ public class LoadSimulationController {
                         // Put the bundle data in the new ZooKeeper.
                         try {
                             ZkUtils.createFullPathOptimistic(targetZKClient, newAPITargetPath,
-                                    ObjectMapperFactory.getThreadLocal().writeValueAsBytes(bundleData),
+                                    ObjectMapperFactory.getMapper().writer().writeValueAsBytes(bundleData),
                                     ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
                         } catch (KeeperException.NodeExistsException e) {
                             // Ignore already created nodes.
@@ -492,12 +492,12 @@ public class LoadSimulationController {
                     // Put the bundle data in the new ZooKeeper.
                     try {
                         ZkUtils.createFullPathOptimistic(zkClient, newAPIPath,
-                                ObjectMapperFactory.getThreadLocal().writeValueAsBytes(bundleData),
+                                ObjectMapperFactory.getMapper().writer().writeValueAsBytes(bundleData),
                                 ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
                     } catch (KeeperException.NodeExistsException e) {
                         try {
                             zkClient.setData(newAPIPath,
-                                    ObjectMapperFactory.getThreadLocal().writeValueAsBytes(bundleData), -1);
+                                    ObjectMapperFactory.getMapper().writer().writeValueAsBytes(bundleData), -1);
                         } catch (Exception ex) {
                             throw new RuntimeException(ex);
                         }

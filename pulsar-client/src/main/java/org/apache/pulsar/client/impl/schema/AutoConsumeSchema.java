@@ -57,6 +57,12 @@ public class AutoConsumeSchema implements Schema<GenericRecord> {
 
     private SchemaInfoProvider schemaInfoProvider;
 
+    public static final SchemaInfo SCHEMA_INFO = SchemaInfoImpl.builder()
+            .name("AutoConsume")
+            .type(SchemaType.AUTO_CONSUME)
+            .schema(new byte[0])
+            .build();
+
     private ConcurrentMap<SchemaVersion, Schema<?>> initSchemaMap() {
         ConcurrentMap<SchemaVersion, Schema<?>> schemaMap = new ConcurrentHashMap<>();
         // The Schema.BYTES will not be uploaded to the broker and store in the schema storage,

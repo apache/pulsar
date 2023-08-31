@@ -40,12 +40,27 @@ public class ManagedLedgerInterceptorImpl implements ManagedLedgerInterceptor {
     private static final Logger log = LoggerFactory.getLogger(ManagedLedgerInterceptorImpl.class);
     private static final String INDEX = "index";
     private final Set<BrokerEntryMetadataInterceptor> brokerEntryMetadataInterceptors;
+
+    private final AppendIndexMetadataInterceptor appendIndexMetadataInterceptor;
     private final Set<ManagedLedgerPayloadProcessor.Processor> inputProcessors;
     private final Set<ManagedLedgerPayloadProcessor.Processor> outputProcessors;
 
     public ManagedLedgerInterceptorImpl(Set<BrokerEntryMetadataInterceptor> brokerEntryMetadataInterceptors,
                                         Set<ManagedLedgerPayloadProcessor> brokerEntryPayloadProcessors) {
         this.brokerEntryMetadataInterceptors = brokerEntryMetadataInterceptors;
+
+        // save appendIndexMetadataInterceptor to field
+        AppendIndexMetadataInterceptor appendIndexMetadataInterceptor = null;
+
+        for (BrokerEntryMetadataInterceptor interceptor : this.brokerEntryMetadataInterceptors) {
+            if (interceptor instanceof AppendIndexMetadataInterceptor) {
+                appendIndexMetadataInterceptor = (AppendIndexMetadataInterceptor) interceptor;
+                break;
+            }
+        }
+
+        this.appendIndexMetadataInterceptor = appendIndexMetadataInterceptor;
+
         if (brokerEntryPayloadProcessors != null) {
             this.inputProcessors = new LinkedHashSet<>();
             this.outputProcessors = new LinkedHashSet<>();
@@ -61,12 +76,11 @@ public class ManagedLedgerInterceptorImpl implements ManagedLedgerInterceptor {
 
     public long getIndex() {
         long index = -1;
-        for (BrokerEntryMetadataInterceptor interceptor : brokerEntryMetadataInterceptors) {
-            if (interceptor instanceof AppendIndexMetadataInterceptor) {
-                index = ((AppendIndexMetadataInterceptor) interceptor).getIndex();
-                break;
-            }
+
+        if (appendIndexMetadataInterceptor != null) {
+            return appendIndexMetadataInterceptor.getIndex();
         }
+
         return index;
     }
 
@@ -80,18 +94,22 @@ public class ManagedLedgerInterceptorImpl implements ManagedLedgerInterceptor {
     }
 
     @Override
+    public void afterFailedAddEntry(int numberOfMessages) {
+        if (appendIndexMetadataInterceptor != null) {
+            appendIndexMetadataInterceptor.decreaseWithNumberOfMessages(numberOfMessages);
+        }
+    }
+
+    @Override
     public void onManagedLedgerPropertiesInitialize(Map<String, String> propertiesMap) {
         if (propertiesMap == null || propertiesMap.size() == 0) {
             return;
         }
 
         if (propertiesMap.containsKey(INDEX)) {
-            for (BrokerEntryMetadataInterceptor interceptor : brokerEntryMetadataInterceptors) {
-                if (interceptor instanceof AppendIndexMetadataInterceptor) {
-                  ((AppendIndexMetadataInterceptor) interceptor)
-                          .recoveryIndexGenerator(Long.parseLong(propertiesMap.get(INDEX)));
-                  break;
-                }
+            if (appendIndexMetadataInterceptor != null) {
+                appendIndexMetadataInterceptor.recoveryIndexGenerator(
+                        Long.parseLong(propertiesMap.get(INDEX)));
             }
         }
     }
@@ -99,8 +117,7 @@ public class ManagedLedgerInterceptorImpl implements ManagedLedgerInterceptor {
     @Override
     public CompletableFuture<Void> onManagedLedgerLastLedgerInitialize(String name, LedgerHandle lh) {
         CompletableFuture<Void> promise = new CompletableFuture<>();
-        boolean hasAppendIndexMetadataInterceptor = brokerEntryMetadataInterceptors.stream()
-                .anyMatch(interceptor -> interceptor instanceof AppendIndexMetadataInterceptor);
+        boolean hasAppendIndexMetadataInterceptor = appendIndexMetadataInterceptor != null;
         if (hasAppendIndexMetadataInterceptor && lh.getLastAddConfirmed() >= 0) {
             lh.readAsync(lh.getLastAddConfirmed(), lh.getLastAddConfirmed()).whenComplete((entries, ex) -> {
                 if (ex != null) {
@@ -113,14 +130,9 @@ public class ManagedLedgerInterceptorImpl implements ManagedLedgerInterceptor {
                             if (ledgerEntry != null) {
                                 BrokerEntryMetadata brokerEntryMetadata =
                                         Commands.parseBrokerEntryMetadataIfExist(ledgerEntry.getEntryBuffer());
-                                for (BrokerEntryMetadataInterceptor interceptor : brokerEntryMetadataInterceptors) {
-                                    if (interceptor instanceof AppendIndexMetadataInterceptor) {
-                                        if (brokerEntryMetadata != null && brokerEntryMetadata.hasIndex()) {
-                                            ((AppendIndexMetadataInterceptor) interceptor)
-                                                    .recoveryIndexGenerator(brokerEntryMetadata.getIndex());
-                                        }
-                                        break;
-                                    }
+                                if (brokerEntryMetadata != null && brokerEntryMetadata.hasIndex()) {
+                                    appendIndexMetadataInterceptor.recoveryIndexGenerator(
+                                            brokerEntryMetadata.getIndex());
                                 }
                             }
                             entries.close();
@@ -144,11 +156,8 @@ public class ManagedLedgerInterceptorImpl implements ManagedLedgerInterceptor {
 
     @Override
     public void onUpdateManagedLedgerInfo(Map<String, String> propertiesMap) {
-        for (BrokerEntryMetadataInterceptor interceptor : brokerEntryMetadataInterceptors) {
-            if (interceptor instanceof AppendIndexMetadataInterceptor) {
-                propertiesMap.put(INDEX, String.valueOf(((AppendIndexMetadataInterceptor) interceptor).getIndex()));
-                break;
-            }
+        if (appendIndexMetadataInterceptor != null) {
+            propertiesMap.put(INDEX, String.valueOf(appendIndexMetadataInterceptor.getIndex()));
         }
     }
 

@@ -115,11 +115,9 @@ public class CmdSources extends CmdBase {
             try {
                 processArguments();
             } catch (Exception e) {
-                System.err.println(e.getMessage());
-                System.err.println();
                 String chosenCommand = jcommander.getParsedCommand();
                 getUsageFormatter().usage(chosenCommand);
-                return;
+                throw e;
             }
             runCmd();
         }
@@ -506,7 +504,7 @@ public class CmdSources extends CmdBase {
         }
 
         protected Map<String, Object> parseConfigs(String str) throws JsonProcessingException {
-            ObjectMapper mapper = ObjectMapperFactory.getThreadLocal();
+            ObjectMapper mapper = ObjectMapperFactory.getMapper().getObjectMapper();
             TypeReference<HashMap<String, Object>> typeRef = new TypeReference<HashMap<String, Object>>() {};
 
             return mapper.readValue(str, typeRef);
@@ -618,10 +616,10 @@ public class CmdSources extends CmdBase {
      */
     @Parameters(commandDescription = "List all running Pulsar IO source connectors")
     protected class ListSources extends BaseCommand {
-        @Parameter(names = "--tenant", description = "The sink's tenant")
+        @Parameter(names = "--tenant", description = "The source's tenant")
         protected String tenant;
 
-        @Parameter(names = "--namespace", description = "The sink's namespace")
+        @Parameter(names = "--namespace", description = "The source's namespace")
         protected String namespace;
 
         @Override

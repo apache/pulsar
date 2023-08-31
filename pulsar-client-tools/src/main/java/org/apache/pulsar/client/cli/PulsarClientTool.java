@@ -65,7 +65,7 @@ public class PulsarClientTool {
             names = { "--auth-params" },
             description = "Authentication parameters, whose format is determined by the implementation "
                     + "of method `configure` in authentication plugin class, for example \"key1:val1,key2:val2\" "
-                    + "or \"{\"key1\":\"val1\",\"key2\":\"val2\"}.")
+                    + "or \"{\"key1\":\"val1\",\"key2\":\"val2\"}\".")
         String authParams = null;
 
         @Parameter(names = { "-v", "--version" }, description = "Get version of pulsar client")
@@ -99,6 +99,7 @@ public class PulsarClientTool {
     IUsageFormatter usageFormatter;
     protected CmdProduce produceCommand;
     protected CmdConsume consumeCommand;
+    protected CmdRead readCommand;
     CmdGenerateDocumentation generateDocumentation;
 
     public PulsarClientTool(Properties properties) {
@@ -126,6 +127,7 @@ public class PulsarClientTool {
     protected void initJCommander() {
         produceCommand = new CmdProduce();
         consumeCommand = new CmdConsume();
+        readCommand = new CmdRead();
         generateDocumentation = new CmdGenerateDocumentation();
 
         this.jcommander = new JCommander();
@@ -134,6 +136,7 @@ public class PulsarClientTool {
         jcommander.addObject(rootParams);
         jcommander.addCommand("produce", produceCommand);
         jcommander.addCommand("consume", consumeCommand);
+        jcommander.addCommand("read", readCommand);
         jcommander.addCommand("generate_documentation", generateDocumentation);
     }
 
@@ -196,6 +199,7 @@ public class PulsarClientTool {
         }
         this.produceCommand.updateConfig(clientBuilder, authentication, this.rootParams.serviceURL);
         this.consumeCommand.updateConfig(clientBuilder, authentication, this.rootParams.serviceURL);
+        this.readCommand.updateConfig(clientBuilder, authentication, this.rootParams.serviceURL);
     }
 
     public int run(String[] args) {
@@ -231,6 +235,8 @@ public class PulsarClientTool {
                 return produceCommand.run();
             } else if ("consume".equals(chosenCommand)) {
                 return consumeCommand.run();
+            } else if ("read".equals(chosenCommand)) {
+                return readCommand.run();
             } else if ("generate_documentation".equals(chosenCommand)) {
                 return generateDocumentation.run();
             } else {

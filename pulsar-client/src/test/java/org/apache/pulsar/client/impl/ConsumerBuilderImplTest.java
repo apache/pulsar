@@ -537,7 +537,7 @@ public class ConsumerBuilderImplTest {
         assertEquals(configurationData.getNegativeAckRedeliveryDelayMicros(), TimeUnit.MINUTES.toMicros(1));
         assertEquals(configurationData.getMaxTotalReceiverQueueSizeAcrossPartitions(), 50000);
         assertEquals(configurationData.getConsumerName(), "consumer");
-        assertEquals(configurationData.getAckTimeoutMillis(), 30000);
+        assertEquals(configurationData.getAckTimeoutMillis(), 0);
         assertEquals(configurationData.getTickDurationMillis(), 1000);
         assertEquals(configurationData.getPriorityLevel(), 0);
         assertEquals(configurationData.getMaxPendingChunkedMessage(), 10);

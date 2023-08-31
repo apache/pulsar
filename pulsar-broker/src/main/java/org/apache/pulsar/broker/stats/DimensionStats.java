@@ -64,7 +64,7 @@ public class DimensionStats {
                 defaultRegistry.register(summary);
             } catch (IllegalArgumentException ie) {
                 // it only happens in test-cases when try to register summary multiple times in registry
-                log.warn("{} is already registred {}", name, ie.getMessage());
+                log.warn("{} is already registered {}", name, ie.getMessage());
             }
         }
     }

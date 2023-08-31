@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.compaction;
 
+import com.google.common.annotations.VisibleForTesting;
 import io.netty.buffer.ByteBuf;
 import java.time.Duration;
 import java.util.Iterator;
@@ -38,7 +39,6 @@ import org.apache.pulsar.client.api.CryptoKeyReader;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClient;
-import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.CompactionReaderImpl;
@@ -63,16 +63,29 @@ import org.slf4j.LoggerFactory;
 public class StrategicTwoPhaseCompactor extends TwoPhaseCompactor {
     private static final Logger log = LoggerFactory.getLogger(StrategicTwoPhaseCompactor.class);
     private static final int MAX_OUTSTANDING = 500;
+    private static final int MAX_NUM_MESSAGES_IN_BATCH = 1000;
+    private static final int MAX_BYTES_IN_BATCH = 128 * 1024;
+    private static final int MAX_READER_RECONNECT_WAITING_TIME_IN_MILLIS = 20 * 1000;
     private final Duration phaseOneLoopReadTimeout;
     private final RawBatchMessageContainerImpl batchMessageContainer;
 
+    @VisibleForTesting
     public StrategicTwoPhaseCompactor(ServiceConfiguration conf,
                                       PulsarClient pulsar,
                                       BookKeeper bk,
                                       ScheduledExecutorService scheduler,
                                       int maxNumMessagesInBatch) {
+        this(conf, pulsar, bk, scheduler, maxNumMessagesInBatch, MAX_BYTES_IN_BATCH);
+    }
+
+    private StrategicTwoPhaseCompactor(ServiceConfiguration conf,
+                                      PulsarClient pulsar,
+                                      BookKeeper bk,
+                                      ScheduledExecutorService scheduler,
+                                      int maxNumMessagesInBatch,
+                                      int maxBytesInBatch) {
         super(conf, pulsar, bk, scheduler);
-        batchMessageContainer = new RawBatchMessageContainerImpl(maxNumMessagesInBatch);
+        batchMessageContainer = new RawBatchMessageContainerImpl(maxNumMessagesInBatch, maxBytesInBatch);
         phaseOneLoopReadTimeout = Duration.ofSeconds(conf.getBrokerServiceCompactionPhaseOneLoopTimeInSeconds());
     }
 
@@ -80,7 +93,7 @@ public class StrategicTwoPhaseCompactor extends TwoPhaseCompactor {
                                       PulsarClient pulsar,
                                       BookKeeper bk,
                                       ScheduledExecutorService scheduler) {
-        this(conf, pulsar, bk, scheduler, -1);
+        this(conf, pulsar, bk, scheduler, MAX_NUM_MESSAGES_IN_BATCH, MAX_BYTES_IN_BATCH);
     }
 
     public CompletableFuture<Long> compact(String topic) {
@@ -110,7 +123,7 @@ public class StrategicTwoPhaseCompactor extends TwoPhaseCompactor {
 
         if (!(reader instanceof CompactionReaderImpl<T>)) {
             return CompletableFuture.failedFuture(
-                    new IllegalStateException("reader has to be DelayedAckReaderImpl"));
+                    new IllegalStateException("reader has to be CompactionReaderImpl"));
         }
         return reader.hasMessageAvailableAsync()
                 .thenCompose(available -> {
@@ -284,9 +297,12 @@ public class StrategicTwoPhaseCompactor extends TwoPhaseCompactor {
                 log.info("Resetting cursor to firstId:{}", result.firstId);
                 try {
                     reader.seek(result.firstId);
-                } catch (PulsarClientException e) {
-                    throw new RuntimeException("Failed to reset the cursor to firstId:" + result.firstId, e);
+                } catch (Throwable e) {
+                    throw new RuntimeException(
+                            String.format("Failed while resetting the cursor to firstId:%s", result.firstId), e);
                 }
+                // reconnect after cursor reset.
+                waitForReconnection(reader);
             }
             if (completed) {
                 promise.complete(result);
@@ -299,6 +315,34 @@ public class StrategicTwoPhaseCompactor extends TwoPhaseCompactor {
             return null;
         });
 
+    }
+
+    private <T> void waitForReconnection(Reader<T> reader) {
+        long started = System.currentTimeMillis();
+
+        // initial sleep
+        try {
+            Thread.sleep(100);
+        } catch (InterruptedException e) {
+        }
+        while (!reader.isConnected()) {
+            long now = System.currentTimeMillis();
+            if (now - started > MAX_READER_RECONNECT_WAITING_TIME_IN_MILLIS) {
+                String errorMsg = String.format(
+                        "Reader has not been reconnected for %d secs. Stopping the compaction.",
+                        MAX_READER_RECONNECT_WAITING_TIME_IN_MILLIS / 1000);
+                log.error(errorMsg);
+                throw new RuntimeException(errorMsg);
+            }
+            log.warn(
+                    "Reader has not been reconnected after the cursor reset. elapsed :{} ms. Retrying "
+                            + "soon.", now - started);
+            try {
+                Thread.sleep(100);
+            } catch (InterruptedException e) {
+                log.warn("The thread got interrupted while waiting. continuing", e);
+            }
+        }
     }
 
     private <T> CompletableFuture<Long> phaseTwo(PhaseOneResult<T> phaseOneResult, Reader<T> reader, BookKeeper bk) {
@@ -335,7 +379,7 @@ public class StrategicTwoPhaseCompactor extends TwoPhaseCompactor {
                             });
                 })
                 .thenCompose(v -> {
-                    log.info("Acking ledger id {}", phaseOneResult.firstId);
+                    log.info("Acking ledger id {}", phaseOneResult.lastId);
                     return ((CompactionReaderImpl<T>) reader)
                             .acknowledgeCumulativeAsync(
                                     phaseOneResult.lastId, Map.of(COMPACTED_TOPIC_LEDGER_PROPERTY,
@@ -385,6 +429,7 @@ public class StrategicTwoPhaseCompactor extends TwoPhaseCompactor {
                             promise.completeExceptionally(e);
                             return;
                         }
+                        outstanding.release(MAX_OUTSTANDING);
                         promise.complete(null);
                         return;
                     }

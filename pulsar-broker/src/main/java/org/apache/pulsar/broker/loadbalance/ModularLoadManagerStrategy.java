@@ -47,6 +47,13 @@ public interface ModularLoadManagerStrategy {
             ServiceConfiguration conf);
 
     /**
+     * Triggered when active brokers change.
+     */
+    default void onActiveBrokersChange(Set<String> activeBrokers) {
+
+    }
+
+    /**
      * Create a placement strategy using the configuration.
      *
      * @param conf ServiceConfiguration to use.

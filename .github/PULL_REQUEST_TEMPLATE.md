@@ -1,7 +1,7 @@
 <!--
 ### Contribution Checklist
   
-  - PR title format should be *[type][component] summary*. For details, see *[Guideline - Pulsar PR Naming Convention](https://docs.google.com/document/d/1d8Pw6ZbWk-_pCKdOmdvx9rnhPiyuxwq60_TrD68d7BA/edit#heading=h.trs9rsex3xom)*. 
+  - PR title format should be *[type][component] summary*. For details, see *[Guideline - Pulsar PR Naming Convention](https://pulsar.apache.org/contribute/develop-semantic-title/)*. 
 
   - Fill out the template below to describe the changes contributed by the pull request. That will give reviewers the context they need to do the review.
   
@@ -18,13 +18,13 @@ Fixes #xyz
 
 <!-- or this PR is one task of an issue -->
 
-Master Issue: #xyz
+Main Issue: #xyz
 
 <!-- If the PR belongs to a PIP, please add the PIP link here -->
 
 PIP: #xyz 
 
-<!-- Details of when a PIP is required and how the PIP process work, please see: https://github.com/apache/pulsar/blob/master/wiki/proposals/PIP.md -->
+<!-- Details of when a PIP is required and how the PIP process work, please see: https://github.com/apache/pulsar/blob/master/pip/README.md -->
 
 ### Motivation
 
@@ -75,7 +75,7 @@ This change added tests and can be verified as follows:
 
 <!-- DO NOT REMOVE THIS SECTION. CHECK THE PROPER BOX ONLY. -->
 
-- [ ] `doc` <!-- Your PR contains doc changes. Please attach the local preview screenshots (run `sh start.sh` at `pulsar/site2/website`) to your PR description, or else your PR might not get merged. -->
+- [ ] `doc` <!-- Your PR contains doc changes. -->
 - [ ] `doc-required` <!-- Your PR changes impact docs and you will update later -->
 - [ ] `doc-not-needed` <!-- Your PR changes do not impact docs -->
 - [ ] `doc-complete` <!-- Docs have been already added -->

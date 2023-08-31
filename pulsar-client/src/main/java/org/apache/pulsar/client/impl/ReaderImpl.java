@@ -100,8 +100,13 @@ public class ReaderImpl<T> implements Reader<T> {
 
                 @Override
                 public void received(Consumer<T> consumer, Message<T> msg) {
+                    final MessageId messageId = msg.getMessageId();
                     readerListener.received(ReaderImpl.this, msg);
-                    consumer.acknowledgeCumulativeAsync(msg);
+                    consumer.acknowledgeCumulativeAsync(messageId).exceptionally(ex -> {
+                        log.error("[{}][{}] auto acknowledge message {} cumulative fail.", getTopic(),
+                                getConsumer().getSubscription(), messageId, ex);
+                        return null;
+                    });
                 }
 
                 @Override
@@ -116,11 +121,15 @@ public class ReaderImpl<T> implements Reader<T> {
             consumerConfiguration.setCryptoKeyReader(readerConfiguration.getCryptoKeyReader());
         }
 
+        if (readerConfiguration.getMessageCrypto() != null) {
+            consumerConfiguration.setMessageCrypto(readerConfiguration.getMessageCrypto());
+        }
+
         if (readerConfiguration.getKeyHashRanges() != null) {
             consumerConfiguration.setKeySharedPolicy(
-                KeySharedPolicy
-                    .stickyHashRange()
-                    .ranges(readerConfiguration.getKeyHashRanges())
+                    KeySharedPolicy
+                            .stickyHashRange()
+                            .ranges(readerConfiguration.getKeyHashRanges())
             );
         }
 

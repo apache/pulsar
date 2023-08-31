@@ -67,7 +67,7 @@ public class AlluxioSink implements Sink<GenericObject> {
 
     private FileSystem fileSystem;
     private FileOutStream fileOutStream;
-    private CreateFilePOptions.Builder optionsBuilder;
+
     private long recordsNum;
     private String tmpFilePath;
     private String fileDirPath;
@@ -92,7 +92,7 @@ public class AlluxioSink implements Sink<GenericObject> {
         // initialize FileSystem
         String alluxioMasterHost = alluxioSinkConfig.getAlluxioMasterHost();
         int alluxioMasterPort = alluxioSinkConfig.getAlluxioMasterPort();
-        InstancedConfiguration.defaults().set(PropertyKey.MASTER_HOSTNAME, alluxioMasterHost);
+        configuration.set(PropertyKey.MASTER_HOSTNAME, alluxioMasterHost);
         configuration.set(PropertyKey.MASTER_RPC_PORT, alluxioMasterPort);
         if (alluxioSinkConfig.getSecurityLoginUser() != null) {
             configuration.set(PropertyKey.SECURITY_LOGIN_USERNAME, alluxioSinkConfig.getSecurityLoginUser());
@@ -113,8 +113,6 @@ public class AlluxioSink implements Sink<GenericObject> {
         if (!fileSystem.exists(tmpAlluxioDirPath)) {
             fileSystem.createDirectory(tmpAlluxioDirPath);
         }
-
-        optionsBuilder = FileSystemOptions.createFileDefaults(configuration).toBuilder();
 
         recordsNum = 0;
         recordsToAck = Lists.newArrayList();
@@ -206,6 +204,8 @@ public class AlluxioSink implements Sink<GenericObject> {
     }
 
     private void createTmpFile() throws AlluxioException, IOException {
+        CreateFilePOptions.Builder optionsBuilder =
+                FileSystemOptions.createFileDefaults(configuration).toBuilder();
         UUID id = UUID.randomUUID();
         String fileExtension = alluxioSinkConfig.getFileExtension();
         tmpFilePath = tmpFileDirPath + "/" + id.toString() + "_tmp" + fileExtension;

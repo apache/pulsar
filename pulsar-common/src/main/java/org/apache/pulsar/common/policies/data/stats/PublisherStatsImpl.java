@@ -53,35 +53,13 @@ public class PublisherStatsImpl implements PublisherStats {
     public boolean supportsPartialProducer;
 
     /** Producer name. */
-    @JsonIgnore
-    private int producerNameOffset = -1;
-    @JsonIgnore
-    private int producerNameLength;
-
+    private String producerName;
     /** Address of this publisher. */
-    @JsonIgnore
-    private int addressOffset = -1;
-    @JsonIgnore
-    private int addressLength;
-
+    private String address;
     /** Timestamp of connection. */
-    @JsonIgnore
-    private int connectedSinceOffset = -1;
-    @JsonIgnore
-    private int connectedSinceLength;
-
+    private String connectedSince;
     /** Client library version. */
-    @JsonIgnore
-    private int clientVersionOffset = -1;
-    @JsonIgnore
-    private int clientVersionLength;
-
-    /**
-     * In order to prevent multiple string objects under stats: create a string-buffer that stores data for all string
-     * place-holders.
-     */
-    @JsonIgnore
-    private StringBuilder stringBuffer = new StringBuilder();
+    private String clientVersion;
 
     /** Metadata (key/value strings) associated with this publisher. */
     public Map<String, String> metadata;
@@ -99,61 +77,34 @@ public class PublisherStatsImpl implements PublisherStats {
     }
 
     public String getProducerName() {
-        return producerNameOffset == -1 ? null
-                : stringBuffer.substring(producerNameOffset, producerNameOffset + producerNameLength);
+        return producerName;
     }
 
     public void setProducerName(String producerName) {
-        if (producerName == null) {
-            this.producerNameOffset = -1;
-            return;
-        }
-        this.producerNameOffset = this.stringBuffer.length();
-        this.producerNameLength = producerName.length();
-        this.stringBuffer.append(producerName);
+        this.producerName = producerName;
     }
 
     public String getAddress() {
-        return addressOffset == -1 ? null : stringBuffer.substring(addressOffset, addressOffset + addressLength);
+        return address;
     }
 
     public void setAddress(String address) {
-        if (address == null) {
-            this.addressOffset = -1;
-            return;
-        }
-        this.addressOffset = this.stringBuffer.length();
-        this.addressLength = address.length();
-        this.stringBuffer.append(address);
+        this.address = address;
     }
 
     public String getConnectedSince() {
-        return connectedSinceOffset == -1 ? null
-                : stringBuffer.substring(connectedSinceOffset, connectedSinceOffset + connectedSinceLength);
+        return connectedSince;
     }
 
     public void setConnectedSince(String connectedSince) {
-        if (connectedSince == null) {
-            this.connectedSinceOffset = -1;
-            return;
-        }
-        this.connectedSinceOffset = this.stringBuffer.length();
-        this.connectedSinceLength = connectedSince.length();
-        this.stringBuffer.append(connectedSince);
+        this.connectedSince = connectedSince;
     }
 
     public String getClientVersion() {
-        return clientVersionOffset == -1 ? null
-                : stringBuffer.substring(clientVersionOffset, clientVersionOffset + clientVersionLength);
+        return clientVersion;
     }
 
     public void setClientVersion(String clientVersion) {
-        if (clientVersion == null) {
-            this.clientVersionOffset = -1;
-            return;
-        }
-        this.clientVersionOffset = this.stringBuffer.length();
-        this.clientVersionLength = clientVersion.length();
-        this.stringBuffer.append(clientVersion);
+        this.clientVersion = clientVersion;
     }
 }

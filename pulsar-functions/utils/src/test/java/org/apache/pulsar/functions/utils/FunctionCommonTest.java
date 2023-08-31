@@ -18,7 +18,19 @@
  */
 package org.apache.pulsar.functions.utils;
 
+import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
+import static com.github.tomakehurst.wiremock.client.WireMock.configureFor;
+import static com.github.tomakehurst.wiremock.client.WireMock.get;
+import static com.github.tomakehurst.wiremock.client.WireMock.stubFor;
+import static com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+import static org.testng.Assert.assertEquals;
+import com.github.tomakehurst.wiremock.WireMockServer;
+import java.io.File;
 import java.util.Collection;
+import lombok.Cleanup;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.functions.api.Context;
@@ -26,16 +38,10 @@ import org.apache.pulsar.functions.api.Function;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.functions.api.WindowContext;
 import org.apache.pulsar.functions.api.WindowFunction;
+import org.assertj.core.util.Files;
 import org.testng.Assert;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
-
-import java.io.File;
-import java.util.UUID;
-
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
-import static org.testng.Assert.assertEquals;
 
 /**
  * Unit test of {@link Exceptions}.
@@ -78,12 +84,29 @@ public class FunctionCommonTest {
 
     @Test
     public void testDownloadFile() throws Exception {
-        String jarHttpUrl = "https://repo1.maven.org/maven2/org/apache/pulsar/pulsar-common/2.4.2/pulsar-common-2.4.2.jar";
-        String testDir = FunctionCommonTest.class.getProtectionDomain().getCodeSource().getLocation().getPath();
-        File pkgFile = new File(testDir, UUID.randomUUID().toString());
-        FunctionCommon.downloadFromHttpUrl(jarHttpUrl, pkgFile);
-        Assert.assertTrue(pkgFile.exists());
-        pkgFile.delete();
+        final String jarHttpUrl = "https://repo1.maven.org/maven2/org/apache/pulsar/pulsar-common/2.4.2/pulsar-common-2.4.2.jar";
+        final File file = Files.newTemporaryFile();
+        file.deleteOnExit();
+        assertThat(file.length()).isZero();
+        FunctionCommon.downloadFromHttpUrl(jarHttpUrl, file);
+        assertThat(file.length()).isGreaterThan(0);
+    }
+
+    @Test
+    public void testDownloadFileWithBasicAuth() throws Exception {
+        @Cleanup("stop")
+        WireMockServer server = new WireMockServer(0);
+        server.start();
+        configureFor(server.port());
+        stubFor(get(urlPathEqualTo("/"))
+                .withBasicAuth("foo", "bar")
+                .willReturn(aResponse().withBody("Hello world!").withStatus(200)));
+        final String jarHttpUrl = "http://foo:bar@localhost:" + server.port() + "/";
+        final File file = Files.newTemporaryFile();
+        file.deleteOnExit();
+        assertThat(file.length()).isZero();
+        FunctionCommon.downloadFromHttpUrl(jarHttpUrl, file);
+        assertThat(file.length()).isGreaterThan(0);
     }
 
     @Test

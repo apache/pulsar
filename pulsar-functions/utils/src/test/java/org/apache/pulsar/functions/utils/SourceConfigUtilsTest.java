@@ -22,6 +22,7 @@ import com.google.gson.Gson;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.experimental.Accessors;
+import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.ProducerConfig;
 import org.apache.pulsar.common.functions.Resources;
@@ -370,6 +371,7 @@ public class SourceConfigUtilsTest {
         producerConfig.setMaxPendingMessagesAcrossPartitions(1000);
         producerConfig.setUseThreadLocalProducers(true);
         producerConfig.setBatchBuilder("DEFAULT");
+        producerConfig.setCompressionType(CompressionType.ZSTD);
         sourceConfig.setProducerConfig(producerConfig);
 
         sourceConfig.setConfigs(configs);

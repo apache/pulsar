@@ -19,6 +19,7 @@
 package org.apache.pulsar.bookie.rackawareness;
 
 import static org.apache.pulsar.metadata.bookkeeper.AbstractMetadataDriver.METADATA_STORE_SCHEME;
+import java.lang.reflect.Field;
 import java.net.InetAddress;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -28,8 +29,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
+import org.apache.bookkeeper.client.DefaultBookieAddressResolver;
 import org.apache.bookkeeper.client.ITopologyAwareEnsemblePlacementPolicy;
 import org.apache.bookkeeper.client.RackChangeNotifier;
+import org.apache.bookkeeper.discover.RegistrationClient;
 import org.apache.bookkeeper.meta.exceptions.Code;
 import org.apache.bookkeeper.meta.exceptions.MetadataException;
 import org.apache.bookkeeper.net.AbstractDNSToSwitchMapping;
@@ -119,6 +122,7 @@ public class BookieRackAffinityMapping extends AbstractDNSToSwitchMapping
             racksWithHost = bookieMappingCache.get(BOOKIE_INFO_ROOT_PATH).get()
                     .orElseGet(BookiesRackConfiguration::new);
             updateRacksWithHost(racksWithHost);
+            watchAvailableBookies();
             for (Map<String, BookieInfo> bookieMapping : racksWithHost.values()) {
                 for (String address : bookieMapping.keySet()) {
                     bookieAddressListLastTime.add(BookieId.parse(address));
@@ -130,6 +134,28 @@ public class BookieRackAffinityMapping extends AbstractDNSToSwitchMapping
             }
         } catch (InterruptedException | ExecutionException | MetadataException e) {
             throw new RuntimeException(METADATA_STORE_INSTANCE + " failed to init BookieId list");
+        }
+    }
+
+    private void watchAvailableBookies() {
+        BookieAddressResolver bookieAddressResolver = getBookieAddressResolver();
+        if (bookieAddressResolver instanceof DefaultBookieAddressResolver) {
+            try {
+                Field field = DefaultBookieAddressResolver.class.getDeclaredField("registrationClient");
+                field.setAccessible(true);
+                RegistrationClient registrationClient = (RegistrationClient) field.get(bookieAddressResolver);
+                registrationClient.watchWritableBookies(versioned -> {
+                    try {
+                        racksWithHost = bookieMappingCache.get(BOOKIE_INFO_ROOT_PATH).get()
+                                .orElseGet(BookiesRackConfiguration::new);
+                        updateRacksWithHost(racksWithHost);
+                    } catch (InterruptedException | ExecutionException e) {
+                        LOG.error("Failed to update rack info. ", e);
+                    }
+                });
+            } catch (NoSuchFieldException | IllegalAccessException e) {
+                LOG.error("Failed watch available bookies.", e);
+            }
         }
     }
 

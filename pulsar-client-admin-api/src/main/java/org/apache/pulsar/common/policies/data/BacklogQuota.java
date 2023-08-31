@@ -49,7 +49,7 @@ public interface BacklogQuota {
      *
      * @return quota limit in second
      */
-    int getLimitTimeInSec();
+    int getLimitTime();
 
     RetentionPolicy getPolicy();
 

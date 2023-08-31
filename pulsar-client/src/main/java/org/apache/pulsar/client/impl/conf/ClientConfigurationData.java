@@ -170,7 +170,7 @@ public class ClientConfigurationData implements Serializable, Cloneable {
 
     @ApiModelProperty(
             name = "tlsHostnameVerificationEnable",
-            value = "Whether the hostname is validated when the proxy creates a TLS connection with brokers."
+            value = "Whether the hostname is validated when the client creates a TLS connection with brokers."
     )
     private boolean tlsHostnameVerificationEnable = false;
     @ApiModelProperty(
@@ -379,16 +379,25 @@ public class ClientConfigurationData implements Serializable, Cloneable {
     @Secret
     private String socks5ProxyPassword;
 
+    @ApiModelProperty(
+            name = "description",
+            value = "The extra description of the client version. The length cannot exceed 64."
+    )
+    private String description;
+
+    /**
+     * Gets the authentication settings for the client.
+     *
+     * @return authentication settings for the client or {@link AuthenticationDisabled} when auth has not been specified
+     */
     public Authentication getAuthentication() {
-        if (authentication == null) {
-            this.authentication = AuthenticationDisabled.INSTANCE;
-        }
-        return authentication;
+        return this.authentication != null ? this.authentication : AuthenticationDisabled.INSTANCE;
     }
 
     public void setAuthentication(Authentication authentication) {
         this.authentication = authentication;
     }
+
     public boolean isUseTls() {
         if (useTls) {
             return true;

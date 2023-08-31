@@ -18,6 +18,19 @@
  */
 package org.apache.pulsar.sql.presto.decoder.avro;
 
+import static io.trino.spi.type.BigintType.BIGINT;
+import static io.trino.spi.type.BooleanType.BOOLEAN;
+import static io.trino.spi.type.DoubleType.DOUBLE;
+import static io.trino.spi.type.IntegerType.INTEGER;
+import static io.trino.spi.type.RealType.REAL;
+import static io.trino.spi.type.TimeType.TIME_MILLIS;
+import static io.trino.spi.type.TimestampType.TIMESTAMP_MILLIS;
+import static io.trino.spi.type.VarcharType.VARCHAR;
+import static java.lang.Float.floatToIntBits;
+import static org.apache.pulsar.sql.presto.TestPulsarConnector.getPulsarConnectorId;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.expectThrows;
 import com.google.common.collect.ImmutableList;
 import io.netty.buffer.ByteBuf;
 import io.trino.decoder.DecoderColumnHandle;
@@ -33,6 +46,10 @@ import io.trino.spi.type.Type;
 import io.trino.spi.type.TypeSignatureParameter;
 import io.trino.spi.type.VarcharType;
 import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.LocalTime;
+import java.time.ZoneId;
+import java.time.temporal.ChronoUnit;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -46,25 +63,6 @@ import org.apache.pulsar.sql.presto.decoder.AbstractDecoderTester;
 import org.apache.pulsar.sql.presto.decoder.DecoderTestMessage;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-
-import java.time.LocalDate;
-import java.time.LocalTime;
-import java.time.ZoneId;
-import java.time.temporal.ChronoUnit;
-
-import static io.trino.spi.type.BigintType.BIGINT;
-import static io.trino.spi.type.BooleanType.BOOLEAN;
-import static io.trino.spi.type.DoubleType.DOUBLE;
-import static io.trino.spi.type.IntegerType.INTEGER;
-import static io.trino.spi.type.RealType.REAL;
-import static io.trino.spi.type.TimeType.TIME_MILLIS;
-import static io.trino.spi.type.TimestampType.TIMESTAMP_MILLIS;
-import static io.trino.spi.type.VarcharType.VARCHAR;
-import static java.lang.Float.floatToIntBits;
-import static org.apache.pulsar.sql.presto.TestPulsarConnector.getPulsarConnectorId;
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertTrue;
-import static org.testng.Assert.expectThrows;
 
 public class TestAvroDecoder extends AbstractDecoderTester {
 

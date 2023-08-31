@@ -28,7 +28,7 @@ body:
     attributes:
       label: Search before asking
       description: >
-        Please search [issues](https://github.com/apache/pulsar/issues) to check if your issue has already been reported.
+        Please search [issues](https://github.com/apache/pulsar/issues) to check if your issue has already been reported. First search with the test method name and then with the test class name to see if there are reports for the same test method or the same test class.
       options:
         - label: >
             I searched in the [issues](https://github.com/apache/pulsar/issues) and found nothing similar.
@@ -45,16 +45,12 @@ body:
     attributes:
       label: Exception stacktrace
       description: |
-        A few lines of the stack trace that shows at least the exception message and the line of test code where the stacktrace occurred.
+        Copy-paste the stack trace from the build log. If the stacktrace is >100 lines, you can limit the stack trace to the point where it includes the stack frame for the test method so that it's possible to find out where the exception occurred in the test.
       value: |
-        <!-- optionally provide the full stacktrace -->
+        <!-- copy-paste the stack trace in the code block below -->
+        ```
 
-        <details>
-        <summary>Full exception stacktrace</summary>
-        <pre><code>
-          full exception stacktrace here
-        </code></pre>
-        </details>
+        ```
     validations:
       required: true
   - type: checkboxes

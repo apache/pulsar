@@ -19,6 +19,8 @@
 package org.apache.pulsar.client.impl;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -31,6 +33,7 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiConsumer;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
@@ -40,6 +43,7 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerBuilder;
+import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.TableView;
 import org.apache.pulsar.common.naming.TopicDomain;
@@ -173,6 +177,24 @@ public class TableViewTest extends MockedPulsarServiceBaseTest {
         }
     }
 
+    @Test
+    public void testNewTableView() throws Exception {
+        String topic = "persistent://public/default/new-tableview-test";
+        admin.topics().createPartitionedTopic(topic, 2);
+        Set<String> keys = this.publishMessages(topic, 10, false);
+        @Cleanup
+        TableView<byte[]> tv = pulsarClient.newTableView()
+                .topic(topic)
+                .autoUpdatePartitionsInterval(60, TimeUnit.SECONDS)
+                .create();
+        tv.forEachAndListen((k, v) -> log.info("{} -> {}", k, new String(v)));
+        Awaitility.await().untilAsserted(() -> {
+            log.info("Current tv size: {}", tv.size());
+            assertEquals(tv.size(), 10);
+        });
+        assertEquals(tv.keySet(), keys);
+    }
+
     @Test(timeOut = 30 * 1000, dataProvider = "topicDomain")
     public void testTableViewUpdatePartitions(String topicDomain) throws Exception {
         String topic = topicDomain + "://public/default/tableview-test-update-partitions";
@@ -242,7 +264,7 @@ public class TableViewTest extends MockedPulsarServiceBaseTest {
         tv.close();
 
         @Cleanup
-        TableView<String> tv1 = pulsarClient.newTableViewBuilder(Schema.STRING)
+        TableView<String> tv1 = pulsarClient.newTableView(Schema.STRING)
                 .topic(topic)
                 .autoUpdatePartitionsInterval(5, TimeUnit.SECONDS)
                 .create();
@@ -378,5 +400,42 @@ public class TableViewTest extends MockedPulsarServiceBaseTest {
             assertEquals(tv.size(), count);
         });
         assertEquals(tv.keySet(), keys);
+    }
+
+    @Test(timeOut = 30 * 1000)
+    public void testTableViewTailMessageReadRetry() throws Exception {
+        String topic = "persistent://public/default/tableview-is-interrupted-test";
+        admin.topics().createNonPartitionedTopic(topic);
+        @Cleanup
+        TableView<byte[]> tv = pulsarClient.newTableView(Schema.BYTES)
+                .topic(topic)
+                .autoUpdatePartitionsInterval(60, TimeUnit.SECONDS)
+                .create();
+
+        // inject failure on consumer.receiveAsync()
+        var reader = ((CompletableFuture<Reader<byte[]>>)
+                FieldUtils.readDeclaredField(tv, "reader", true)).join();
+        var consumer = spy((ConsumerImpl<byte[]>)
+                FieldUtils.readDeclaredField(reader, "consumer", true));
+
+        var errorCnt = new AtomicInteger(3);
+        doAnswer(invocationOnMock -> {
+            if (errorCnt.decrementAndGet() > 0) {
+                return CompletableFuture.failedFuture(new RuntimeException());
+            }
+            // Call the real method
+            reset(consumer);
+            return consumer.receiveAsync();
+        }).when(consumer).receiveAsync();
+        FieldUtils.writeDeclaredField(reader, "consumer", consumer, true);
+
+        int msgCnt = 2;
+        this.publishMessages(topic, msgCnt, false, false);
+        Awaitility.await()
+                .atMost(5, TimeUnit.SECONDS)
+                .untilAsserted(() -> {
+            assertEquals(tv.size(), msgCnt);
+        });
+        verify(consumer, times(msgCnt)).receiveAsync();
     }
 }

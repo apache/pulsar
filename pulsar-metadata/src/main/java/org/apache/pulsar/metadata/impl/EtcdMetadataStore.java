@@ -72,8 +72,10 @@ import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.metadata.api.GetResult;
+import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
+import org.apache.pulsar.metadata.api.MetadataStoreProvider;
 import org.apache.pulsar.metadata.api.Notification;
 import org.apache.pulsar.metadata.api.NotificationType;
 import org.apache.pulsar.metadata.api.Stat;
@@ -89,6 +91,7 @@ import org.apache.pulsar.metadata.impl.batching.OpPut;
 @Slf4j
 public class EtcdMetadataStore extends AbstractBatchedMetadataStore {
 
+    static final String ETCD_SCHEME = "etcd";
     static final String ETCD_SCHEME_IDENTIFIER = "etcd:";
 
     private final int leaseTTLSeconds;
@@ -497,4 +500,18 @@ class EtcdConfig {
     private String tlsCertificateFilePath;
 
     private String authority;
+}
+
+class EtcdMetadataStoreProvider implements MetadataStoreProvider {
+
+    @Override
+    public String urlScheme() {
+        return EtcdMetadataStore.ETCD_SCHEME;
+    }
+
+    @Override
+    public MetadataStore create(String metadataURL, MetadataStoreConfig metadataStoreConfig,
+                                boolean enableSessionWatcher) throws MetadataStoreException {
+        return new EtcdMetadataStore(metadataURL, metadataStoreConfig, enableSessionWatcher);
+    }
 }

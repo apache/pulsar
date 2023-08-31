@@ -197,7 +197,7 @@ public class LoadBalancerTest {
             assertTrue(loadReportData.length > 0);
             log.info("LoadReport {}, {}", lookupAddresses[i], new String(loadReportData));
 
-            LoadReport loadReport = ObjectMapperFactory.getThreadLocal().readValue(loadReportData, LoadReport.class);
+            LoadReport loadReport = ObjectMapperFactory.getMapper().reader().readValue(loadReportData, LoadReport.class);
             assertEquals(loadReport.getName(), lookupAddresses[i]);
 
             // Check Initial Ranking is populated in both the brokers
@@ -436,7 +436,7 @@ public class LoadBalancerTest {
     private void printResourceQuotas(Map<String, ResourceQuota> resourceQuotas) throws Exception {
         log.info("Realtime Resource Quota:");
         for (Map.Entry<String, ResourceQuota> entry : resourceQuotas.entrySet()) {
-            String quotaStr = ObjectMapperFactory.getThreadLocal().writeValueAsString(entry.getValue());
+            String quotaStr = ObjectMapperFactory.getMapper().writer().writeValueAsString(entry.getValue());
             log.info(" {}, {}", entry.getKey(), quotaStr);
         }
     }

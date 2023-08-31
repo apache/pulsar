@@ -78,7 +78,7 @@ public class HttpTopicLookupv2Test {
         pulsar = mock(PulsarService.class);
         ns = mock(NamespaceService.class);
         auth = mock(AuthorizationService.class);
-        config = spy(ServiceConfiguration.class);
+        config = new ServiceConfiguration();
         config.setClusterName("use");
         clusters = new TreeSet<>();
         clusters.add("use");
@@ -121,7 +121,7 @@ public class HttpTopicLookupv2Test {
         uriField.set(destLookup, uriInfo);
         URI uri = URI.create("http://localhost:8080/lookup/v2/destination/topic/myprop/usc/ns2/topic1");
         doReturn(uri).when(uriInfo).getRequestUri();
-        doReturn(true).when(config).isAuthorizationEnabled();
+        config.setAuthorizationEnabled(true);
 
         AsyncResponse asyncResponse = mock(AsyncResponse.class);
         destLookup.lookupTopicAsync(asyncResponse, TopicDomain.persistent.value(), "myprop", "usc", "ns2", "topic1", false, null, null);
@@ -146,7 +146,7 @@ public class HttpTopicLookupv2Test {
         uriField.set(destLookup, uriInfo);
         URI uri = URI.create("http://localhost:8080/lookup/v2/destination/topic/myprop/usc/ns2/topic1");
         doReturn(uri).when(uriInfo).getRequestUri();
-        doReturn(true).when(config).isAuthorizationEnabled();
+        config.setAuthorizationEnabled(true);
 
         NamespaceService namespaceService = pulsar.getNamespaceService();
         CompletableFuture<Boolean> future = new CompletableFuture<>();
@@ -173,7 +173,7 @@ public class HttpTopicLookupv2Test {
             return CompletableFuture.completedFuture(null);
         }
     }
-    
+
     @Test
     public void testNotEnoughLookupPermits() throws Exception {
 
@@ -190,7 +190,7 @@ public class HttpTopicLookupv2Test {
         uriField.set(destLookup, uriInfo);
         URI uri = URI.create("http://localhost:8080/lookup/v2/destination/topic/myprop/usc/ns2/topic1");
         doReturn(uri).when(uriInfo).getRequestUri();
-        doReturn(true).when(config).isAuthorizationEnabled();
+        config.setAuthorizationEnabled(true);
 
         AsyncResponse asyncResponse1 = mock(AsyncResponse.class);
         destLookup.lookupTopicAsync(asyncResponse1, TopicDomain.persistent.value(), "myprop", "usc", "ns2", "topic1", false,null, null);
@@ -220,7 +220,7 @@ public class HttpTopicLookupv2Test {
         uriField.setAccessible(true);
         UriInfo uriInfo = mock(UriInfo.class);
         uriField.set(destLookup, uriInfo);
-        doReturn(false).when(config).isAuthorizationEnabled();
+        config.setAuthorizationEnabled(false);
         AsyncResponse asyncResponse = mock(AsyncResponse.class);
         ArgumentCaptor<RestException> arg = ArgumentCaptor.forClass(RestException.class);
 //        // Test policy not found

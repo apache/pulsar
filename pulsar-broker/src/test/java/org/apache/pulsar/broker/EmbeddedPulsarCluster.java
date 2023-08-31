@@ -24,11 +24,11 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import lombok.Builder;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.metadata.bookkeeper.BKCluster;
-import org.junit.platform.commons.util.StringUtils;
 
 
 public class EmbeddedPulsarCluster implements AutoCloseable {
@@ -78,7 +78,7 @@ public class EmbeddedPulsarCluster implements AutoCloseable {
                 .serviceHttpUrl(adminUrl)
                 .build();
 
-        admin.clusters().createCluster(CLUSTER_NAME, ClusterData.builder().serviceUrl(serviceUrl).build());
+        admin.clusters().createCluster(CLUSTER_NAME, ClusterData.builder().brokerServiceUrl(serviceUrl).build());
         admin.tenants().createTenant("public",
                 TenantInfo.builder().allowedClusters(Collections.singleton(CLUSTER_NAME)).build());
         admin.namespaces().createNamespace("public/default", Collections.singleton(CLUSTER_NAME));
@@ -112,7 +112,7 @@ public class EmbeddedPulsarCluster implements AutoCloseable {
         conf.setWebServicePort(Optional.of(0));
         conf.setNumExecutorThreadPoolSize(1);
         conf.setNumCacheExecutorThreadPoolSize(1);
-        conf.setNumWorkerThreadsForNonPersistentTopic(1);
+        conf.setTopicOrderedExecutorThreadNum(1);
         conf.setNumIOThreads(1);
         conf.setNumOrderedExecutorThreads(1);
         conf.setBookkeeperClientNumWorkerThreads(1);

@@ -27,7 +27,6 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -117,6 +116,8 @@ public abstract class KafkaAbstractSource<V> extends PushSource<V> {
         }
         props.put(ConsumerConfig.GROUP_ID_CONFIG, kafkaSourceConfig.getGroupId());
         props.put(ConsumerConfig.FETCH_MIN_BYTES_CONFIG, String.valueOf(kafkaSourceConfig.getFetchMinBytes()));
+        props.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG,
+                String.valueOf(kafkaSourceConfig.isAutoCommitEnabled()));
         props.put(ConsumerConfig.AUTO_COMMIT_INTERVAL_MS_CONFIG,
                 String.valueOf(kafkaSourceConfig.getAutoCommitIntervalMs()));
         props.put(ConsumerConfig.SESSION_TIMEOUT_MS_CONFIG, String.valueOf(kafkaSourceConfig.getSessionTimeoutMs()));
@@ -131,7 +132,6 @@ public abstract class KafkaAbstractSource<V> extends PushSource<V> {
             throw new IllegalArgumentException("Unable to instantiate Kafka consumer", ex);
         }
         this.start();
-        running = true;
     }
 
     protected Properties beforeCreateConsumer(Properties props) {
@@ -156,43 +156,41 @@ public abstract class KafkaAbstractSource<V> extends PushSource<V> {
 
     @SuppressWarnings("unchecked")
     public void start() {
+        LOG.info("Starting subscribe kafka source on {}", kafkaSourceConfig.getTopic());
+        consumer.subscribe(Collections.singletonList(kafkaSourceConfig.getTopic()));
         runnerThread = new Thread(() -> {
-            LOG.info("Starting kafka source on {}", kafkaSourceConfig.getTopic());
-            consumer.subscribe(Collections.singletonList(kafkaSourceConfig.getTopic()));
             LOG.info("Kafka source started.");
             while (running) {
-                ConsumerRecords<Object, Object> consumerRecords = consumer.poll(Duration.ofSeconds(1L));
-                CompletableFuture<?>[] futures = new CompletableFuture<?>[consumerRecords.count()];
-                int index = 0;
-                for (ConsumerRecord<Object, Object> consumerRecord : consumerRecords) {
-                    KafkaRecord record = buildRecord(consumerRecord);
-                    if (LOG.isDebugEnabled()) {
-                        LOG.debug("Write record {} {} {}", record.getKey(), record.getValue(), record.getSchema());
+                try {
+                    ConsumerRecords<Object, Object> consumerRecords = consumer.poll(Duration.ofSeconds(1L));
+                    CompletableFuture<?>[] futures = new CompletableFuture<?>[consumerRecords.count()];
+                    int index = 0;
+                    for (ConsumerRecord<Object, Object> consumerRecord : consumerRecords) {
+                        KafkaRecord<V> record = buildRecord(consumerRecord);
+                        if (LOG.isDebugEnabled()) {
+                            LOG.debug("Write record {} {} {}", record.getKey(), record.getValue(), record.getSchema());
+                        }
+                        consume(record);
+                        futures[index] = record.getCompletableFuture();
+                        index++;
                     }
-                    consume(record);
-                    futures[index] = record.getCompletableFuture();
-                    index++;
-                }
-                if (!kafkaSourceConfig.isAutoCommitEnabled()) {
-                    try {
+                    if (!kafkaSourceConfig.isAutoCommitEnabled()) {
                         CompletableFuture.allOf(futures).get();
                         consumer.commitSync();
-                    } catch (InterruptedException ex) {
-                        break;
-                    } catch (ExecutionException ex) {
-                        LOG.error("Error while processing records", ex);
-                        break;
                     }
+                } catch (Exception e) {
+                    LOG.error("Error while processing records", e);
+                    notifyError(e);
+                    break;
                 }
             }
         });
-        runnerThread.setUncaughtExceptionHandler(
-                (t, e) -> LOG.error("[{}] Error while consuming records", t.getName(), e));
+        running = true;
         runnerThread.setName("Kafka Source Thread");
         runnerThread.start();
     }
 
-    public abstract KafkaRecord buildRecord(ConsumerRecord<Object, Object> consumerRecord);
+    public abstract KafkaRecord<V> buildRecord(ConsumerRecord<Object, Object> consumerRecord);
 
     protected Map<String, String> copyKafkaHeaders(ConsumerRecord<Object, Object> consumerRecord) {
         if (!kafkaSourceConfig.isCopyHeadersEnabled()) {
@@ -210,7 +208,7 @@ public abstract class KafkaAbstractSource<V> extends PushSource<V> {
 
     @Slf4j
     protected static class KafkaRecord<V> implements Record<V> {
-        private final ConsumerRecord<String, ?> record;
+        private final ConsumerRecord<?, ?> record;
         private final V value;
         private final Schema<V> schema;
         private final Map<String, String> properties;
@@ -218,7 +216,7 @@ public abstract class KafkaAbstractSource<V> extends PushSource<V> {
         @Getter
         private final CompletableFuture<Void> completableFuture = new CompletableFuture<>();
 
-        public KafkaRecord(ConsumerRecord<String, ?> record, V value, Schema<V> schema,
+        public KafkaRecord(ConsumerRecord<?, ?> record, V value, Schema<V> schema,
                            Map<String, String> properties) {
             this.record = record;
             this.value = value;
@@ -242,7 +240,7 @@ public abstract class KafkaAbstractSource<V> extends PushSource<V> {
 
         @Override
         public Optional<String> getKey() {
-            return Optional.ofNullable(record.key());
+            return Optional.ofNullable(record.key() instanceof String ? (String) record.key() : null);
         }
 
         @Override
@@ -265,13 +263,14 @@ public abstract class KafkaAbstractSource<V> extends PushSource<V> {
             return properties;
         }
     }
-    protected static class KeyValueKafkaRecord<V> extends KafkaRecord implements KVRecord<Object, Object> {
 
-        private final Schema<Object> keySchema;
-        private final Schema<Object> valueSchema;
+    protected static class KeyValueKafkaRecord<K, W> extends KafkaRecord implements KVRecord<K, W> {
 
-        public KeyValueKafkaRecord(ConsumerRecord record, KeyValue value,
-                                   Schema<Object> keySchema, Schema<Object> valueSchema,
+        private final Schema<K> keySchema;
+        private final Schema<W> valueSchema;
+
+        public KeyValueKafkaRecord(ConsumerRecord<?, ?> record, KeyValue<K, W> value,
+                                   Schema<K> keySchema, Schema<W> valueSchema,
                                    Map<String, String> properties) {
             super(record, value, null, properties);
             this.keySchema = keySchema;
@@ -279,12 +278,12 @@ public abstract class KafkaAbstractSource<V> extends PushSource<V> {
         }
 
         @Override
-        public Schema<Object> getKeySchema() {
+        public Schema<K> getKeySchema() {
             return keySchema;
         }
 
         @Override
-        public Schema<Object> getValueSchema() {
+        public Schema<W> getValueSchema() {
             return valueSchema;
         }
 

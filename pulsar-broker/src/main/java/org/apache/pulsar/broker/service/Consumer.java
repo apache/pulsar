@@ -43,6 +43,7 @@ import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.lang3.mutable.MutableInt;
 import org.apache.commons.lang3.tuple.MutablePair;
+import org.apache.pulsar.broker.authentication.AuthenticationDataSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.api.MessageId;
@@ -56,8 +57,10 @@ import org.apache.pulsar.common.api.proto.KeySharedMeta;
 import org.apache.pulsar.common.api.proto.MessageIdData;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData.ClusterUrl;
+import org.apache.pulsar.common.policies.data.TopicOperation;
 import org.apache.pulsar.common.policies.data.stats.ConsumerStatsImpl;
 import org.apache.pulsar.common.protocol.Commands;
+import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.stats.Rate;
 import org.apache.pulsar.common.util.DateFormatter;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -142,12 +145,24 @@ public class Consumer {
 
     private long negtiveUnackedMsgsTimestamp;
 
+    @Getter
+    private final SchemaType schemaType;
+
     public Consumer(Subscription subscription, SubType subType, String topicName, long consumerId,
                     int priorityLevel, String consumerName,
                     boolean isDurable, TransportCnx cnx, String appId,
                     Map<String, String> metadata, boolean readCompacted,
                     KeySharedMeta keySharedMeta, MessageId startMessageId, long consumerEpoch) {
+        this(subscription, subType, topicName, consumerId, priorityLevel, consumerName, isDurable, cnx, appId,
+                metadata, readCompacted, keySharedMeta, startMessageId, consumerEpoch, null);
+    }
 
+    public Consumer(Subscription subscription, SubType subType, String topicName, long consumerId,
+                    int priorityLevel, String consumerName,
+                    boolean isDurable, TransportCnx cnx, String appId,
+                    Map<String, String> metadata, boolean readCompacted,
+                    KeySharedMeta keySharedMeta, MessageId startMessageId,
+                    long consumerEpoch, SchemaType schemaType) {
         this.subscription = subscription;
         this.subType = subType;
         this.topicName = topicName;
@@ -178,11 +193,7 @@ public class Consumer {
         this.metadata = metadata != null ? metadata : Collections.emptyMap();
 
         stats = new ConsumerStatsImpl();
-        if (cnx.hasHAProxyMessage()) {
-            stats.setAddress(cnx.getHAProxyMessage().sourceAddress() + ":" + cnx.getHAProxyMessage().sourcePort());
-        } else {
-            stats.setAddress(cnx.clientAddress().toString());
-        }
+        stats.setAddress(cnx.clientSourceAddressAndPort());
         stats.consumerName = consumerName;
         stats.setConnectedSince(DateFormatter.now());
         stats.setClientVersion(cnx.getClientVersion());
@@ -204,6 +215,8 @@ public class Consumer {
         this.consumerEpoch = consumerEpoch;
         this.isAcknowledgmentAtBatchIndexLevelEnabled = subscription.getTopic().getBrokerService()
                 .getPulsar().getConfiguration().isAcknowledgmentAtBatchIndexLevelEnabled();
+
+        this.schemaType = schemaType;
     }
 
     @VisibleForTesting
@@ -231,6 +244,7 @@ public class Consumer {
         this.clientAddress = null;
         this.startMessageId = null;
         this.isAcknowledgmentAtBatchIndexLevelEnabled = false;
+        this.schemaType = null;
         MESSAGE_PERMITS_UPDATER.set(this, availablePermits);
     }
 
@@ -347,6 +361,12 @@ public class Consumer {
                 msgOutCounter.add(totalMessages);
                 bytesOutCounter.add(totalBytes);
                 chunkedMessageRate.recordMultipleEvents(totalChunkedMessages, 0);
+            } else {
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}-{}] Sent messages to client fail by IO exception[{}], close the connection"
+                                    + " immediately. Consumer: {}",  topicName, subscription,
+                            status.cause() == null ? "" : status.cause().getMessage(), this.toString());
+                }
             }
         });
         return writeAndFlushPromise;
@@ -467,6 +487,7 @@ public class Consumer {
     private CompletableFuture<Long> individualAckNormal(CommandAck ack, Map<String, Long> properties) {
         List<Position> positionsAcked = new ArrayList<>();
         long totalAckCount = 0;
+        boolean individualAck = false;
         for (int i = 0; i < ack.getMessageIdsCount(); i++) {
             MessageIdData msgId = ack.getMessageIdAt(i);
             PositionImpl position;
@@ -490,13 +511,17 @@ public class Consumer {
             } else {
                 position = PositionImpl.get(msgId.getLedgerId(), msgId.getEntryId());
                 ackedCount = getAckedCountForMsgIdNoAckSets(batchSize, position, ackOwnerConsumer);
+                individualAck = true;
             }
 
-            addAndGetUnAckedMsgs(ackOwnerConsumer, -(int) ackedCount);
-
+            if (individualAck) {
+                if (checkCanRemovePendingAcksAndHandle(position, msgId)) {
+                    addAndGetUnAckedMsgs(ackOwnerConsumer, -(int) ackedCount);
+                }
+            } else {
+                addAndGetUnAckedMsgs(ackOwnerConsumer, -(int) ackedCount);
+            }
             positionsAcked.add(position);
-
-            checkCanRemovePendingAcksAndHandle(position, msgId);
 
             checkAckValidationError(ack, position);
 
@@ -659,10 +684,11 @@ public class Consumer {
         }
     }
 
-    private void checkCanRemovePendingAcksAndHandle(PositionImpl position, MessageIdData msgId) {
+    private boolean checkCanRemovePendingAcksAndHandle(PositionImpl position, MessageIdData msgId) {
         if (Subscription.isIndividualAckMode(subType) && msgId.getAckSetsCount() == 0) {
-            removePendingAcks(position);
+            return removePendingAcks(position);
         }
+        return false;
     }
 
     private Consumer getAckOwnerConsumer(long ledgerId, long entryId) {
@@ -798,6 +824,20 @@ public class Consumer {
         }
     }
 
+    public boolean checkAndApplyTopicMigration() {
+        if (subscription.isSubsciptionMigrated()) {
+            Optional<ClusterUrl> clusterUrl = AbstractTopic.getMigratedClusterUrl(cnx.getBrokerService().getPulsar());
+            if (clusterUrl.isPresent()) {
+                ClusterUrl url = clusterUrl.get();
+                cnx.getCommandSender().sendTopicMigrated(ResourceType.Consumer, consumerId, url.getBrokerServiceUrl(),
+                        url.getBrokerServiceUrlTls());
+                // disconnect consumer after sending migrated cluster url
+                disconnect();
+                return true;
+            }
+        }
+        return false;
+    }
     /**
      * Checks if consumer-blocking on unAckedMessages is allowed for below conditions:<br/>
      * a. consumer must have Shared-subscription<br/>
@@ -885,8 +925,10 @@ public class Consumer {
     public CompletableFuture<Void> checkPermissionsAsync() {
         TopicName topicName = TopicName.get(subscription.getTopicName());
         if (cnx.getBrokerService().getAuthorizationService() != null) {
-            return cnx.getBrokerService().getAuthorizationService().canConsumeAsync(topicName, appId,
-                            cnx.getAuthenticationData(), subscription.getName())
+            AuthenticationDataSubscription authData =
+                    new AuthenticationDataSubscription(cnx.getAuthenticationData(), subscription.getName());
+            return cnx.getBrokerService().getAuthorizationService()
+                    .allowTopicOperationAsync(topicName, TopicOperation.CONSUME, appId, authData)
                     .handle((ok, e) -> {
                         if (e != null) {
                             log.warn("[{}] Get unexpected error while authorizing [{}]  {}", appId,
@@ -927,7 +969,7 @@ public class Consumer {
      *
      * @param position
      */
-    private void removePendingAcks(PositionImpl position) {
+    private boolean removePendingAcks(PositionImpl position) {
         Consumer ackOwnedConsumer = null;
         if (pendingAcks.get(position.getLedgerId(), position.getEntryId()) == null) {
             for (Consumer consumer : subscription.getConsumers()) {
@@ -948,7 +990,7 @@ public class Consumer {
         if (ackedPosition != null) {
             if (!ackOwnedConsumer.getPendingAcks().remove(position.getLedgerId(), position.getEntryId())) {
                 // Message was already removed by the other consumer
-                return;
+                return false;
             }
             if (log.isDebugEnabled()) {
                 log.debug("[{}-{}] consumer {} received ack {}", topicName, subscription, consumerId, position);
@@ -962,7 +1004,9 @@ public class Consumer {
                 ackOwnedConsumer.blockedConsumerOnUnackedMsgs = false;
                 flowConsumerBlockedPermits(ackOwnedConsumer);
             }
+            return true;
         }
+        return false;
     }
 
     public ConcurrentLongLongPairHashMap getPendingAcks() {

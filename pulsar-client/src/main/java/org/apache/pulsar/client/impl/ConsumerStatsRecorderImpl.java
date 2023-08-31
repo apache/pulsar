@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.client.impl;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import io.netty.util.Timeout;
@@ -35,6 +34,7 @@ import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerStats;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -106,9 +106,8 @@ public class ConsumerStatsRecorderImpl implements ConsumerStatsRecorder {
     }
 
     private void init(ConsumerConfigurationData<?> conf) {
-        ObjectMapper m = new ObjectMapper();
-        m.configure(SerializationFeature.FAIL_ON_EMPTY_BEANS, false);
-        ObjectWriter w = m.writer();
+        ObjectWriter w = ObjectMapperFactory.getMapperWithIncludeAlways().writer()
+                .without(SerializationFeature.FAIL_ON_EMPTY_BEANS);
 
         try {
             log.info("Starting Pulsar consumer status recorder with config: {}", w.writeValueAsString(conf));
@@ -239,7 +238,11 @@ public class ConsumerStatsRecorderImpl implements ConsumerStatsRecorder {
     @Override
     public Integer getMsgNumInReceiverQueue() {
         if (consumer instanceof ConsumerBase) {
-            return ((ConsumerBase<?>) consumer).incomingMessages.size();
+            ConsumerBase<?> consumerBase = (ConsumerBase<?>) consumer;
+            if (consumerBase.listener != null){
+                return ConsumerBase.MESSAGE_LISTENER_QUEUE_SIZE_UPDATER.get(consumerBase);
+            }
+            return consumerBase.incomingMessages.size();
         }
         return null;
     }

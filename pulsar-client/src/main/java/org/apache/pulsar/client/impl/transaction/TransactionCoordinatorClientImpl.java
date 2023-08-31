@@ -113,12 +113,8 @@ public class TransactionCoordinatorClientImpl implements TransactionCoordinatorC
     }
 
     private String getTCAssignTopicName(int partition) {
-        if (partition >= 0) {
-            return SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN.toString()
-                    + TopicName.PARTITIONED_TOPIC_SUFFIX + partition;
-        } else {
-            return SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN.toString();
-        }
+        return SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN
+                + TopicName.PARTITIONED_TOPIC_SUFFIX + partition;
     }
 
     @Override

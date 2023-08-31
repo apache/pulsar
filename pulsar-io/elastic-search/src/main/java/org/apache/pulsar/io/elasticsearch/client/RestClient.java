@@ -83,7 +83,6 @@ public abstract class RestClient implements Closeable {
         // idle+expired connection evictor thread
         this.executorService = Executors.newSingleThreadScheduledExecutor();
         this.executorService.scheduleAtFixedRate(() -> {
-                    configCallback.connectionManager.closeExpiredConnections();
                     configCallback.connectionManager.closeIdleConnections(
                             config.getConnectionIdleTimeoutInMs(), TimeUnit.MILLISECONDS);
                 },

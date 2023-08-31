@@ -30,8 +30,10 @@ import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.ConsumerEventListener;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.MessageIdAdv;
 import org.apache.pulsar.client.api.MessageRouter;
 import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
@@ -41,7 +43,9 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.api.TopicMessageId;
 import org.apache.pulsar.client.api.TopicMetadata;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.PartitionedTopicStats;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
@@ -1096,6 +1100,11 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
         admin.topics().createPartitionedTopic(topicName2, 2);
         admin.topics().createPartitionedTopic(topicName3, 3);
 
+        final Set<String> topics = new HashSet<>();
+        topics.add(topicName1);
+        IntStream.range(0, 2).forEach(i -> topics.add(topicName2 + TopicName.PARTITIONED_TOPIC_SUFFIX + i));
+        IntStream.range(0, 3).forEach(i -> topics.add(topicName3 + TopicName.PARTITIONED_TOPIC_SUFFIX + i));
+
         // 1. producer connect
         Producer<byte[]> producer1 = pulsarClient.newProducer().topic(topicName1)
             .enableBatching(false)
@@ -1145,11 +1154,26 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
             }
         });
 
+        List<TopicMessageId> msgIds = consumer.getLastMessageIds();
+        assertEquals(msgIds.size(), 6);
+        assertEquals(msgIds.stream().map(TopicMessageId::getOwnerTopic).collect(Collectors.toSet()), topics);
+        for (TopicMessageId msgId : msgIds) {
+            int numMessages = (int) ((MessageIdAdv) msgId).getEntryId() + 1;
+            if (msgId.getOwnerTopic().equals(topicName1)) {
+                assertEquals(numMessages, totalMessages);
+            } else if (msgId.getOwnerTopic().startsWith(topicName2)) {
+                assertEquals(numMessages, totalMessages / 2);
+            } else {
+                assertEquals(numMessages, totalMessages / 3);
+            }
+        }
+
         for (int i = 0; i < totalMessages; i++) {
             producer1.send((messagePredicate + "producer1-" + i).getBytes());
             producer2.send((messagePredicate + "producer2-" + i).getBytes());
             producer3.send((messagePredicate + "producer3-" + i).getBytes());
         }
+
 
         messageId = consumer.getLastMessageId();
         assertTrue(messageId instanceof MultiMessageIdImpl);
@@ -1168,6 +1192,20 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
                 assertEquals(messageId1.entryId,  totalMessages * 2 / 3  - 1);
             }
         });
+
+        msgIds = consumer.getLastMessageIds();
+        assertEquals(msgIds.size(), 6);
+        assertEquals(msgIds.stream().map(TopicMessageId::getOwnerTopic).collect(Collectors.toSet()), topics);
+        for (TopicMessageId msgId : msgIds) {
+            int numMessages = (int) ((MessageIdAdv) msgId).getEntryId() + 1;
+            if (msgId.getOwnerTopic().equals(topicName1)) {
+                assertEquals(numMessages, totalMessages * 2);
+            } else if (msgId.getOwnerTopic().startsWith(topicName2)) {
+                assertEquals(numMessages, totalMessages);
+            } else {
+                assertEquals(numMessages, totalMessages / 3 * 2);
+            }
+        }
 
         consumer.unsubscribe();
         consumer.close();
@@ -1289,6 +1327,7 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
         assertEquals(admin.topics().getPartitionedTopicMetadata(topicName1).partitions, 3);
 
         consumer.getRecheckPatternTimeout().task().run(consumer.getRecheckPatternTimeout());
+        Assert.assertTrue(consumer.getRecheckPatternTimeout().isCancelled());
 
         Awaitility.await().untilAsserted(() -> {
             Assert.assertEquals(consumer.getPartitionsOfTheTopicMap(), 8);
@@ -1302,6 +1341,57 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
             Assert.assertEquals(consumer.getPartitionsOfTheTopicMap(), 10);
             Assert.assertEquals(consumer.allTopicPartitionsNumber.intValue(), 10);
         });
+    }
+
+    @Test
+    public void testTopicsDistribution() throws Exception {
+        final String topic = "topics-distribution";
+        final int topicCount = 100;
+        final int consumers = 10;
+
+        for (int i = 0; i < topicCount; i++) {
+            admin.topics().createNonPartitionedTopic(topic + "-" + i);
+        }
+
+        CustomizedConsumerEventListener eventListener = new CustomizedConsumerEventListener();
+
+        List<Consumer<?>> consumerList = new ArrayList<>(consumers);
+        for (int i = 0; i < consumers; i++) {
+            consumerList.add(pulsarClient.newConsumer()
+                    .topics(IntStream.range(0, topicCount).mapToObj(j -> topic + "-" + j).toList())
+                    .subscriptionType(SubscriptionType.Failover)
+                    .subscriptionName("my-sub")
+                    .consumerName("consumer-" + i)
+                    .consumerEventListener(eventListener)
+                    .subscribe());
+        }
+
+        log.info("Topics are distributed to consumers as {}", eventListener.getActiveConsumers());
+        Map<String, Integer> assigned = new HashMap<>();
+        eventListener.getActiveConsumers().forEach((k, v) -> assigned.compute(v, (t, c) -> c == null ? 1 : ++ c));
+        assertEquals(assigned.size(), consumers);
+        for (Consumer<?> consumer : consumerList) {
+            consumer.close();
+        }
+    }
+
+    private static class CustomizedConsumerEventListener implements ConsumerEventListener {
+
+        private final Map<String, String> activeConsumers = new HashMap<>();
+
+        @Override
+        public void becameActive(Consumer<?> consumer, int partitionId) {
+            activeConsumers.put(consumer.getTopic(), consumer.getConsumerName());
+        }
+
+        @Override
+        public void becameInactive(Consumer<?> consumer, int partitionId) {
+            //no-op
+        }
+
+        public Map<String, String> getActiveConsumers() {
+            return activeConsumers;
+        }
     }
 
 }

@@ -55,11 +55,13 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import javax.ws.rs.client.InvocationCallback;
 import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.Response.Status;
 import lombok.Builder;
 import lombok.Cleanup;
+import lombok.SneakyThrows;
 import lombok.Value;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.ManagedLedgerInfo;
@@ -73,6 +75,8 @@ import org.apache.pulsar.broker.loadbalance.LeaderBroker;
 import org.apache.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl;
 import org.apache.pulsar.broker.namespace.NamespaceEphemeralData;
 import org.apache.pulsar.broker.namespace.NamespaceService;
+import org.apache.pulsar.broker.testcontext.PulsarTestContext;
+import org.apache.pulsar.broker.testcontext.SpyConfig;
 import org.apache.pulsar.client.admin.LongRunningProcessStatus;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -88,6 +92,7 @@ import org.apache.pulsar.client.api.ConsumerBuilder;
 import org.apache.pulsar.client.api.ConsumerCryptoFailureAction;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.MessageListener;
 import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
@@ -135,6 +140,7 @@ import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.compaction.Compactor;
+import org.apache.pulsar.compaction.PulsarCompactionServiceFactory;
 import org.awaitility.Awaitility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -152,9 +158,6 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
     private static final Logger LOG = LoggerFactory.getLogger(AdminApiTest.class);
 
-    private final String TLS_SERVER_CERT_FILE_PATH = "./src/test/resources/certificate/server.crt";
-    private final String TLS_SERVER_KEY_FILE_PATH = "./src/test/resources/certificate/server.key";
-
     private MockedPulsarService mockPulsarSetup;
 
     private PulsarService otherPulsar;
@@ -170,14 +173,21 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         setupConfigAndStart(null);
     }
 
+    @Override
+    protected void customizeMainPulsarTestContextBuilder(PulsarTestContext.Builder pulsarTestContextBuilder) {
+        pulsarTestContextBuilder.spyConfigCustomizer(
+                // verify(compactor) is used in this test class
+                builder -> builder.compactor(SpyConfig.SpyType.SPY_ALSO_INVOCATIONS));
+    }
+
     private void applyDefaultConfig() {
         conf.setSystemTopicEnabled(false);
         conf.setTopicLevelPoliciesEnabled(false);
         conf.setLoadBalancerEnabled(true);
         conf.setBrokerServicePortTls(Optional.of(0));
         conf.setWebServicePortTls(Optional.of(0));
-        conf.setTlsCertificateFilePath(TLS_SERVER_CERT_FILE_PATH);
-        conf.setTlsKeyFilePath(TLS_SERVER_KEY_FILE_PATH);
+        conf.setTlsCertificateFilePath(BROKER_CERT_FILE_PATH);
+        conf.setTlsKeyFilePath(BROKER_KEY_FILE_PATH);
         conf.setMessageExpiryCheckIntervalInMinutes(1);
         conf.setSubscriptionExpiryCheckIntervalInMinutes(1);
         conf.setBrokerDeleteInactiveTopicsEnabled(false);
@@ -194,7 +204,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
         bundleFactory = new NamespaceBundleFactory(pulsar, Hashing.crc32());
 
-        adminTls = spy(PulsarAdmin.builder().tlsTrustCertsFilePath(TLS_SERVER_CERT_FILE_PATH)
+        adminTls = spy(PulsarAdmin.builder().tlsTrustCertsFilePath(CA_CERT_FILE_PATH)
                 .serviceHttpUrl(brokerUrlTls.toString()).build());
 
         // create otherbroker to test redirect on calls that need
@@ -470,7 +480,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
             throw e;
         }
 
-        // validate regex: invlid regex for primary and seconday
+        // validate regex: invalid regex for primary and secondary
         Map<String, String> parameters = new HashMap<>();
         parameters.put("min_limit", "1");
         parameters.put("usage_threshold", "100");
@@ -684,7 +694,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         configMap.put("brokerShutdownTimeoutMs", Integer.toString(newValue));
 
         pulsar.getLocalMetadataStore().put("/admin/configuration",
-                ObjectMapperFactory.getThreadLocal().writeValueAsBytes(configMap),
+                ObjectMapperFactory.getMapper().writer().writeValueAsBytes(configMap),
                 Optional.empty()).join();
         // wait config to be updated
         Awaitility.await().until(() -> pulsar.getConfiguration().getBrokerShutdownTimeoutMs() == newValue);
@@ -987,6 +997,52 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         assertEquals(admin.topics().getList("prop-xyz/ns1"), new ArrayList<>());
     }
 
+    @Test(dataProvider = "topicName")
+    public void testSkipHoleMessages(String topicName) throws Exception {
+        final String subName = topicName;
+        assertEquals(admin.topics().getList("prop-xyz/ns1"), new ArrayList<>());
+
+        final String persistentTopicName = "persistent://prop-xyz/ns1/" + topicName;
+        // Force to create a topic
+        publishMessagesOnPersistentTopic("persistent://prop-xyz/ns1/" + topicName, 0);
+        assertEquals(admin.topics().getList("prop-xyz/ns1"),
+                List.of("persistent://prop-xyz/ns1/" + topicName));
+
+        // create consumer and subscription
+        @Cleanup
+        PulsarClient client = PulsarClient.builder()
+                .serviceUrl(pulsar.getWebServiceAddress())
+                .statsInterval(0, TimeUnit.SECONDS)
+                .build();
+        AtomicInteger total = new AtomicInteger();
+        Consumer<byte[]> consumer = client.newConsumer().topic(persistentTopicName)
+                .messageListener(new MessageListener<byte[]>() {
+                    @SneakyThrows
+                    @Override
+                    public void received(Consumer<byte[]> consumer, Message<byte[]> msg) {
+                        if (total.get() %2 !=0){
+                            // artificially created 50 hollow messages
+                            consumer.acknowledge(msg);
+                        }
+                        total.incrementAndGet();
+                    }
+                })
+                .subscriptionName(subName)
+                .subscriptionType(SubscriptionType.Exclusive).subscribe();
+
+        assertEquals(admin.topics().getSubscriptions(persistentTopicName), List.of(subName));
+
+        publishMessagesOnPersistentTopic("persistent://prop-xyz/ns1/" + topicName, 100);
+        TimeUnit.SECONDS.sleep(2);
+        TopicStats topicStats = admin.topics().getStats(persistentTopicName);
+        long msgBacklog = topicStats.getSubscriptions().get(subName).getMsgBacklog();
+        log.info("back={}",msgBacklog);
+        int skipNumber = 20;
+        admin.topics().skipMessages(persistentTopicName, subName, skipNumber);
+        topicStats = admin.topics().getStats(persistentTopicName);
+        assertEquals(topicStats.getSubscriptions().get(subName).getMsgBacklog(), msgBacklog - skipNumber);
+    }
+
     @Test(dataProvider = "topicNamesForAllTypes")
     public void partitionedTopics(String topicType, String topicName) throws Exception {
         final String namespace = "prop-xyz/ns1";
@@ -1211,11 +1267,11 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         PartitionedManagedLedgerInfo partitionedManagedLedgerInfo = new PartitionedManagedLedgerInfo();
         partitionedManagedLedgerInfo.version = 0L;
         partitionedManagedLedgerInfo.partitions.put(partitionTopic0,
-            ObjectMapperFactory.getThreadLocal().readValue(partitionTopic0InfoResponse, ManagedLedgerInfo.class));
+            ObjectMapperFactory.getMapper().reader().readValue(partitionTopic0InfoResponse, ManagedLedgerInfo.class));
         partitionedManagedLedgerInfo.partitions.put(partitionTopic1,
-            ObjectMapperFactory.getThreadLocal().readValue(partitionTopic1InfoResponse, ManagedLedgerInfo.class));
+            ObjectMapperFactory.getMapper().reader().readValue(partitionTopic1InfoResponse, ManagedLedgerInfo.class));
 
-        String expectedResult = ObjectMapperFactory.getThreadLocal().writeValueAsString(partitionedManagedLedgerInfo);
+        String expectedResult = ObjectMapperFactory.getMapper().writer().writeValueAsString(partitionedManagedLedgerInfo);
 
         String partitionTopicInfoResponse = admin.topics().getInternalInfo(partitionedTopicName);
         assertEquals(partitionTopicInfoResponse, expectedResult);
@@ -1233,15 +1289,17 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         TopicStats topicStats = admin.topics().getStats(topic, false, false, true);
 
         assertEquals(topicStats.getEarliestMsgPublishTimeInBacklogs(), 0);
-        assertEquals(topicStats.getSubscriptions().get(subName).getEarliestMsgPublishTimeInBacklog(), 0);
+        assertEquals(topicStats.getSubscriptions().get(subName).getEarliestMsgPublishTimeInBacklog(), -1);
+        assertEquals(topicStats.getSubscriptions().get(subName).getBacklogSize(), -1);
 
         // publish several messages
         publishMessagesOnPersistentTopic(topic, 10);
         Thread.sleep(1000);
 
-        topicStats = admin.topics().getStats(topic, false, false, true);
+        topicStats = admin.topics().getStats(topic, false, true, true);
         assertTrue(topicStats.getEarliestMsgPublishTimeInBacklogs() > 0);
         assertTrue(topicStats.getSubscriptions().get(subName).getEarliestMsgPublishTimeInBacklog() > 0);
+        assertTrue(topicStats.getSubscriptions().get(subName).getBacklogSize() > 0);
 
         for (int i = 0; i < 10; i++) {
             Message<byte[]> message = consumer.receive();
@@ -1249,9 +1307,28 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         }
         Thread.sleep(1000);
 
-        topicStats = admin.topics().getStats(topic, false, false, true);
+        topicStats = admin.topics().getStats(topic, false, true, true);
         assertEquals(topicStats.getEarliestMsgPublishTimeInBacklogs(), 0);
-        assertEquals(topicStats.getSubscriptions().get(subName).getEarliestMsgPublishTimeInBacklog(), 0);
+        assertEquals(topicStats.getSubscriptions().get(subName).getEarliestMsgPublishTimeInBacklog(), -1);
+        assertEquals(topicStats.getSubscriptions().get(subName).getBacklogSize(), 0);
+    }
+
+    @Test
+    public void testGetPartitionedStatsContainSubscriptionType() throws Exception {
+        final String topic = "persistent://prop-xyz/ns1/my-topic" + UUID.randomUUID();
+        final int numPartitions = 4;
+        admin.topics().createPartitionedTopic(topic, numPartitions);
+
+        // create consumer and subscription
+        final String subName = "my-sub";
+        @Cleanup Consumer<byte[]> exclusiveConsumer = pulsarClient.newConsumer().topic(topic)
+                .subscriptionName(subName)
+                .subscriptionType(SubscriptionType.Exclusive)
+                .subscribe();
+
+        TopicStats topicStats = admin.topics().getPartitionedStats(topic, false);
+        assertEquals(topicStats.getSubscriptions().size(), 1);
+        assertEquals(topicStats.getSubscriptions().get(subName).getType(), SubscriptionType.Exclusive.toString());
     }
 
 
@@ -1293,8 +1370,8 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         // partitioned internal stats
         PartitionedTopicInternalStats partitionedInternalStats = admin.topics().getPartitionedInternalStats(partitionedTopicName);
 
-        String expectedResult = ObjectMapperFactory.getThreadLocal().writeValueAsString(expectedInternalStats);
-        String result = ObjectMapperFactory.getThreadLocal().writeValueAsString(partitionedInternalStats);
+        String expectedResult = ObjectMapperFactory.getMapper().writer().writeValueAsString(expectedInternalStats);
+        String result = ObjectMapperFactory.getMapper().writer().writeValueAsString(partitionedInternalStats);
 
         assertEquals(result, expectedResult);
     }
@@ -2271,7 +2348,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
     @Test
     public void testJacksonWithTypeDifferences() throws Exception {
         String expectedJson = "{\"adminRoles\":[\"role1\",\"role2\"],\"allowedClusters\":[\"usw\",\"test\"]}";
-        IncompatibleTenantAdmin r1 = ObjectMapperFactory.getThreadLocal().readerFor(IncompatibleTenantAdmin.class)
+        IncompatibleTenantAdmin r1 = ObjectMapperFactory.getMapper().reader().forType(IncompatibleTenantAdmin.class)
                 .readValue(expectedJson);
         assertEquals(r1.allowedClusters, Set.of("test", "usw"));
         assertEquals(r1.someNewIntField, 0);
@@ -3047,7 +3124,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
         // mock actual compaction, we don't need to really run it
         CompletableFuture<Long> promise = new CompletableFuture<Long>();
-        Compactor compactor = pulsar.getCompactor();
+        Compactor compactor = ((PulsarCompactionServiceFactory)pulsar.getCompactionServiceFactory()).getCompactor();
         doReturn(promise).when(compactor).compact(topicName);
         admin.topics().triggerCompaction(topicName);
 
@@ -3083,7 +3160,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
         // mock actual compaction, we don't need to really run it
         CompletableFuture<Long> promise = new CompletableFuture<>();
-        Compactor compactor = pulsar.getCompactor();
+        Compactor compactor = ((PulsarCompactionServiceFactory)pulsar.getCompactionServiceFactory()).getCompactor();
         doReturn(promise).when(compactor).compact(topicName + "-partition-0");
 
         CompletableFuture<Long> promise1 = new CompletableFuture<>();
@@ -3127,7 +3204,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
         // mock actual compaction, we don't need to really run it
         CompletableFuture<Long> promise = new CompletableFuture<Long>();
-        Compactor compactor = pulsar.getCompactor();
+        Compactor compactor = ((PulsarCompactionServiceFactory)pulsar.getCompactionServiceFactory()).getCompactor();
         doReturn(promise).when(compactor).compact(topicName);
         admin.topics().triggerCompaction(topicName);
 

@@ -99,7 +99,7 @@ public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
     @ApiModelProperty(
             name = "negativeAckRedeliveryBackoff",
             value = "Interface for custom message is negativeAcked policy. You can specify `RedeliveryBackoff` for a"
-                    + "consumer."
+                    + " consumer."
     )
     @JsonIgnore
     private RedeliveryBackoff negativeAckRedeliveryBackoff;
@@ -235,7 +235,7 @@ public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
 
     @ApiModelProperty(
             name = "autoAckOldestChunkedMessageOnQueueFull",
-            value = "Whether to automatically acknowledge pending chunked messages when the threashold of"
+            value = "Whether to automatically acknowledge pending chunked messages when the threshold of"
                     + " `maxPendingChunkedMessage` is reached. If set to `false`, these messages will be redelivered"
                     + " by their broker."
     )

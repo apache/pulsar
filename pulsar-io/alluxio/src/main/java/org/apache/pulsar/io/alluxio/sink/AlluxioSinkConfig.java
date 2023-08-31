@@ -99,7 +99,7 @@ public class AlluxioSinkConfig extends AlluxioAbstractConfig implements Serializ
 
     public static AlluxioSinkConfig load(Map<String, Object> map) throws IOException {
         ObjectMapper mapper = new ObjectMapper();
-        return mapper.readValue(new ObjectMapper().writeValueAsString(map), AlluxioSinkConfig.class);
+        return mapper.readValue(mapper.writeValueAsString(map), AlluxioSinkConfig.class);
     }
 
     @Override

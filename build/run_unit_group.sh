@@ -33,19 +33,33 @@ function mvn_test() {
         clean_arg="clean"
         shift
     fi
-    if echo "${FUNCNAME[@]}" | grep "flaky"; then
-      TARGET="verify"
-    else
-      TARGET="verify -Pcoverage"
+    local coverage_arg="-Pcoverage"
+    if [[ "${COLLECT_COVERAGE}" == "false" ]]; then
+      coverage_arg=""
     fi
+    local target="verify"
     if [[ "$1" == "--install" ]]; then
-      TARGET="install"
+      target="install"
       shift
+    fi
+    local use_fail_fast=1
+    if [[ "$GITHUB_ACTIONS" == "true" && "$GITHUB_EVENT_NAME" != "pull_request" ]]; then
+      use_fail_fast=0
+    fi
+    if [[ "$1" == "--no-fail-fast" ]]; then
+      use_fail_fast=0
+      shift;
+    fi
+    local failfast_args
+    if [ $use_fail_fast -eq 1 ]; then
+      failfast_args="-DtestFailFast=true -DtestFailFastFile=/tmp/test_fail_fast_killswitch.$$.$RANDOM.$(date +%s) --fail-fast"
+    else
+      failfast_args="-DtestFailFast=false --fail-at-end"
     fi
     echo "::group::Run tests for " "$@"
     # use "verify" instead of "test" to workaround MDEP-187 issue in pulsar-functions-worker and pulsar-broker projects with the maven-dependency-plugin's copy goal
     # Error message was "Artifact has not been packaged yet. When used on reactor artifact, copy should be executed after packaging: see MDEP-187"
-    $MVN_TEST_OPTIONS $clean_arg $TARGET "$@" "${COMMANDLINE_ARGS[@]}"
+    $MVN_TEST_OPTIONS $failfast_args $clean_arg $target $coverage_arg "$@" "${COMMANDLINE_ARGS[@]}"
     echo "::endgroup::"
     set +x
     "$SCRIPT_DIR/pulsar_ci_tool.sh" move_test_reports
@@ -62,7 +76,7 @@ alias echo='{ [[ $- =~ .*x.* ]] && trace_enabled=1 || trace_enabled=0; set +x; }
 
 # Test Groups  -- start --
 function test_group_broker_group_1() {
-  mvn_test -pl pulsar-broker -Dgroups='broker' -DtestReuseFork=true -DskipAfterFailureCount=1
+  mvn_test -pl pulsar-broker -Dgroups='broker' -DtestReuseFork=true
 }
 
 function test_group_broker_group_2() {
@@ -117,12 +131,12 @@ function print_testng_failures() {
 function test_group_broker_flaky() {
   echo "::endgroup::"
   echo "::group::Running quarantined tests"
-  mvn_test -pl pulsar-broker -Dgroups='quarantine' -DexcludedGroups='' -DfailIfNoTests=false \
+  mvn_test --no-fail-fast -pl pulsar-broker -Dgroups='quarantine' -DexcludedGroups='' -DfailIfNoTests=false \
     -DtestForkCount=2 ||
     print_testng_failures pulsar-broker/target/surefire-reports/testng-failed.xml "Quarantined test failure in" "Quarantined test failures"
   echo "::endgroup::"
   echo "::group::Running flaky tests"
-  mvn_test -pl pulsar-broker -Dgroups='flaky' -DtestForkCount=2
+  mvn_test --no-fail-fast -pl pulsar-broker -Dgroups='flaky' -DtestForkCount=2
   echo "::endgroup::"
 }
 
@@ -157,7 +171,7 @@ function test_group_other() {
     perl -0777 -p -e 's/\n(\S)/,$1/g')
   if [ -n "${modules_with_quarantined_tests}" ]; then
     echo "::group::Running quarantined tests outside of pulsar-broker & pulsar-proxy (if any)"
-    mvn_test -pl "${modules_with_quarantined_tests}" test -Dgroups='quarantine' -DexcludedGroups='' \
+    mvn_test --no-fail-fast -pl "${modules_with_quarantined_tests}" test -Dgroups='quarantine' -DexcludedGroups='' \
       -DfailIfNoTests=false || \
         echo "::warning::There were test failures in the 'quarantine' test group."
     echo "::endgroup::"
@@ -165,7 +179,6 @@ function test_group_other() {
 }
 
 function test_group_pulsar_io() {
-    $MVN_TEST_OPTIONS -pl kafka-connect-avro-converter-shaded clean install
     echo "::group::Running pulsar-io tests"
     mvn_test --install -Ppulsar-io-tests,-main
     echo "::endgroup::"
@@ -175,11 +188,28 @@ function test_group_pulsar_io() {
     echo "::endgroup::"
 }
 
+function test_group_pulsar_io_elastic() {
+    echo "::group::Running elastic-search tests"
+    mvn_test --install -Ppulsar-io-elastic-tests,-main
+    echo "::endgroup::"
+}
+
+function test_group_pulsar_io_kafka_connect() {
+    echo "::group::Running Pulsar IO Kafka connect adaptor tests"
+    mvn_test --install -Ppulsar-io-kafka-connect-tests,-main
+    echo "::endgroup::"
+}
+
 function list_test_groups() {
   declare -F | awk '{print $NF}' | sort | grep -E '^test_group_' | sed 's/^test_group_//g' | tr '[:lower:]' '[:upper:]'
 }
 
 # Test Groups  -- end --
+
+if [[ "$1" == "--list" ]]; then
+  list_test_groups
+  exit 0
+fi
 
 TEST_GROUP=$1
 if [ -z "$TEST_GROUP" ]; then

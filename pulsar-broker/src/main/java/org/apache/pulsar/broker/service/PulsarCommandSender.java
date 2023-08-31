@@ -87,7 +87,7 @@ public interface PulsarCommandSender {
 
     void sendNewTxnResponse(long requestId, TxnID txnID, long tcID);
 
-    void sendNewTxnErrorResponse(long requestId, long txnID, ServerError error, String message);
+    void sendNewTxnErrorResponse(long requestId, long tcID, ServerError error, String message);
 
     void sendEndTxnResponse(long requestId, TxnID txnID, int txnAction);
 

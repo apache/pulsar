@@ -116,7 +116,7 @@ public class PulsarJsonRowDecoderFactory implements PulsarRowDecoderFactory {
     }
 
 
-    private Type parseJsonPrestoType(String fieldname, Schema schema) {
+    private Type parseJsonPrestoType(String fieldName, Schema schema) {
         Schema.Type type = schema.getType();
         LogicalType logicalType  = schema.getLogicalType();
         switch (type) {
@@ -126,7 +126,7 @@ public class PulsarJsonRowDecoderFactory implements PulsarRowDecoderFactory {
             case NULL:
                 throw new UnsupportedOperationException(format(
                         "field '%s' NULL type code should not be reached , "
-                                + "please check the schema or report the bug.", fieldname));
+                                + "please check the schema or report the bug.", fieldName));
             case FIXED:
             case BYTES:
                 //  When the precision <= 0, throw Exception.
@@ -157,10 +157,10 @@ public class PulsarJsonRowDecoderFactory implements PulsarRowDecoderFactory {
             case BOOLEAN:
                 return BooleanType.BOOLEAN;
             case ARRAY:
-                return new ArrayType(parseJsonPrestoType(fieldname, schema.getElementType()));
+                return new ArrayType(parseJsonPrestoType(fieldName, schema.getElementType()));
             case MAP:
                 //The key for an avro map must be string.
-                TypeSignature valueType = parseJsonPrestoType(fieldname, schema.getValueType()).getTypeSignature();
+                TypeSignature valueType = parseJsonPrestoType(fieldName, schema.getValueType()).getTypeSignature();
                 return typeManager.getParameterizedType(StandardTypes.MAP, ImmutableList.of(TypeSignatureParameter.
                         typeParameter(VarcharType.VARCHAR.getTypeSignature()),
                         TypeSignatureParameter.typeParameter(valueType)));
@@ -173,16 +173,16 @@ public class PulsarJsonRowDecoderFactory implements PulsarRowDecoderFactory {
                 } else {
                     throw new UnsupportedOperationException(format(
                             "field '%s' of record type has no fields, "
-                                    + "please check schema definition. ", fieldname));
+                                    + "please check schema definition. ", fieldName));
                 }
             case UNION:
                 for (Schema nestType : schema.getTypes()) {
                     if (nestType.getType() != Schema.Type.NULL) {
-                        return parseJsonPrestoType(fieldname, nestType);
+                        return parseJsonPrestoType(fieldName, nestType);
                     }
                 }
                 throw new UnsupportedOperationException(format(
-                        "field '%s' of UNION type must contains not NULL type.", fieldname));
+                        "field '%s' of UNION type must contains not NULL type.", fieldName));
             default:
                 throw new UnsupportedOperationException(format(
                         "Can't convert from schema type '%s' (%s) to presto type.",

@@ -35,7 +35,7 @@ public class CmdBookies extends CmdBase {
 
         @Override
         void run() throws Exception {
-            print(getAdmin().bookies().getBookiesRackInfo());
+            prettyPrint(getAdmin().bookies().getBookiesRackInfo());
         }
     }
 

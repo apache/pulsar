@@ -18,11 +18,8 @@
  */
 package org.apache.pulsar.testclient;
 
-import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
-import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
-import com.beust.jcommander.ParameterException;
 import com.beust.jcommander.Parameters;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
@@ -86,14 +83,7 @@ public class PerformanceConsumer {
     private static final Recorder cumulativeRecorder = new Recorder(MAX_LATENCY, 5);
 
     @Parameters(commandDescription = "Test pulsar consumer performance.")
-    static class Arguments extends PerformanceBaseArguments {
-
-        @Parameter(description = "persistent://prop/ns/my-topic", required = true)
-        public List<String> topic;
-
-        @Parameter(names = { "-t", "--num-topics" }, description = "Number of topics",
-                validateWith = PositiveNumberParameterValidator.class)
-        public int numTopics = 1;
+    static class Arguments extends PerformanceTopicListArguments {
 
         @Parameter(names = { "-n", "--num-consumers" }, description = "Number of consumers (per subscription), only "
                 + "one consumer is allowed when subscriptionType is Exclusive",
@@ -142,9 +132,6 @@ public class PerformanceConsumer {
                 "--num-messages"},
                 description = "Number of messages to consume in total. If <= 0, it will keep consuming")
         public long numMessages = 0;
-
-        @Parameter(names = { "--auth_plugin" }, description = "Authentication plugin class name", hidden = true)
-        public String deprecatedAuthPluginClassName;
 
         @Parameter(names = { "-mc", "--max_chunked_msg" }, description = "Max pending chunk messages")
         private int maxPendingChunkedMessage = 0;
@@ -199,79 +186,35 @@ public class PerformanceConsumer {
         @Override
         public void fillArgumentsFromProperties(Properties prop) {
         }
+
+        @Override
+        public void validate() throws Exception {
+            super.validate();
+            if (subscriptionType == SubscriptionType.Exclusive && numConsumers > 1) {
+                throw new Exception("Only one consumer is allowed when subscriptionType is Exclusive");
+            }
+
+            if (subscriptions != null && subscriptions.size() != numSubscriptions) {
+                // keep compatibility with the previous version
+                if (subscriptions.size() == 1) {
+                    if (subscriberName == null) {
+                        subscriberName = subscriptions.get(0);
+                    }
+                    List<String> defaultSubscriptions = new ArrayList<>();
+                    for (int i = 0; i < numSubscriptions; i++) {
+                        defaultSubscriptions.add(String.format("%s-%d", subscriberName, i));
+                    }
+                    subscriptions = defaultSubscriptions;
+                } else {
+                    throw new Exception("The size of subscriptions list should be equal to --num-subscriptions");
+                }
+            }
+        }
     }
 
     public static void main(String[] args) throws Exception {
         final Arguments arguments = new Arguments();
-        JCommander jc = new JCommander(arguments);
-        jc.setProgramName("pulsar-perf consume");
-
-        try {
-            jc.parse(args);
-        } catch (ParameterException e) {
-            System.out.println(e.getMessage());
-            jc.usage();
-            PerfClientUtils.exit(1);
-        }
-
-        if (arguments.help) {
-            jc.usage();
-            PerfClientUtils.exit(1);
-        }
-
-        if (isBlank(arguments.authPluginClassName) && !isBlank(arguments.deprecatedAuthPluginClassName)) {
-            arguments.authPluginClassName = arguments.deprecatedAuthPluginClassName;
-        }
-
-        for (String arg : arguments.topic) {
-            if (arg.startsWith("-")) {
-                System.out.printf("invalid option: '%s'\nTo use a topic with the name '%s', "
-                        + "please use a fully qualified topic name\n", arg, arg);
-                jc.usage();
-                PerfClientUtils.exit(1);
-            }
-        }
-
-        if (arguments.topic != null && arguments.topic.size() != arguments.numTopics) {
-            // keep compatibility with the previous version
-            if (arguments.topic.size() == 1) {
-                String prefixTopicName = TopicName.get(arguments.topic.get(0)).toString().trim();
-                List<String> defaultTopics = new ArrayList<>();
-                for (int i = 0; i < arguments.numTopics; i++) {
-                    defaultTopics.add(String.format("%s-%d", prefixTopicName, i));
-                }
-                arguments.topic = defaultTopics;
-            } else {
-                System.out.println("The size of topics list should be equal to --num-topics");
-                jc.usage();
-                PerfClientUtils.exit(1);
-            }
-        }
-
-        if (arguments.subscriptionType == SubscriptionType.Exclusive && arguments.numConsumers > 1) {
-            System.out.println("Only one consumer is allowed when subscriptionType is Exclusive");
-            jc.usage();
-            PerfClientUtils.exit(1);
-        }
-
-        if (arguments.subscriptions != null && arguments.subscriptions.size() != arguments.numSubscriptions) {
-            // keep compatibility with the previous version
-            if (arguments.subscriptions.size() == 1) {
-                if (arguments.subscriberName == null) {
-                    arguments.subscriberName = arguments.subscriptions.get(0);
-                }
-                List<String> defaultSubscriptions = new ArrayList<>();
-                for (int i = 0; i < arguments.numSubscriptions; i++) {
-                    defaultSubscriptions.add(String.format("%s-%d", arguments.subscriberName, i));
-                }
-                arguments.subscriptions = defaultSubscriptions;
-            } else {
-                System.out.println("The size of subscriptions list should be equal to --num-subscriptions");
-                jc.usage();
-                PerfClientUtils.exit(1);
-            }
-        }
-        arguments.fillArgumentsFromProperties();
+        arguments.parseCLI("pulsar-perf consume", args);
 
         // Dump config variables
         PerfClientUtils.printJVMInformation(log);
@@ -449,7 +392,7 @@ public class PerformanceConsumer {
         }
 
         for (int i = 0; i < arguments.numTopics; i++) {
-            final TopicName topicName = TopicName.get(arguments.topic.get(i));
+            final TopicName topicName = TopicName.get(arguments.topics.get(i));
 
             log.info("Adding {} consumers per subscription on topic {}", arguments.numConsumers, topicName);
 

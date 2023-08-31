@@ -27,7 +27,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.pulsar.broker.PulsarService;
-import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.PulsarChannelInitializer;
@@ -68,24 +67,16 @@ public class LookupRetryTest extends MockedPulsarServiceBaseTest {
     }
 
     @Override
-    protected PulsarService newPulsarService(ServiceConfiguration conf) throws Exception {
-        return new PulsarService(conf) {
-            @Override
-            protected BrokerService newBrokerService(PulsarService pulsar) throws Exception {
-                BrokerService broker = new BrokerService(this, ioEventLoopGroup);
-                broker.setPulsarChannelInitializerFactory(
-                        (_pulsar, opts) -> {
-                            return new PulsarChannelInitializer(_pulsar, opts) {
-                                @Override
-                                protected ServerCnx newServerCnx(PulsarService pulsar, String listenerName) throws Exception {
-                                    connectionsCreated.incrementAndGet();
-                                    return new ErrorByTopicServerCnx(pulsar, failureMap);
-                                }
-                            };
-                        });
-                return broker;
-            }
-        };
+    protected BrokerService customizeNewBrokerService(BrokerService brokerService) {
+        brokerService.setPulsarChannelInitializerFactory(
+                (_pulsar, opts) -> new PulsarChannelInitializer(_pulsar, opts) {
+                    @Override
+                    protected ServerCnx newServerCnx(PulsarService pulsar, String listenerName) throws Exception {
+                        connectionsCreated.incrementAndGet();
+                        return new ErrorByTopicServerCnx(pulsar, failureMap);
+                    }
+                });
+        return brokerService;
     }
 
     @AfterClass(alwaysRun = true)

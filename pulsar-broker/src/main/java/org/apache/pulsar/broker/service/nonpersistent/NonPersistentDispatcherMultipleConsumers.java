@@ -35,6 +35,7 @@ import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.stats.Rate;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -47,7 +48,7 @@ public class NonPersistentDispatcherMultipleConsumers extends AbstractDispatcher
     protected final Subscription subscription;
 
     private CompletableFuture<Void> closeFuture = null;
-    private final String name;
+    protected final String name;
     protected final Rate msgDrop;
     protected static final AtomicIntegerFieldUpdater<NonPersistentDispatcherMultipleConsumers>
             TOTAL_AVAILABLE_PERMITS_UPDATER = AtomicIntegerFieldUpdater
@@ -67,20 +68,21 @@ public class NonPersistentDispatcherMultipleConsumers extends AbstractDispatcher
     }
 
     @Override
-    public synchronized void addConsumer(Consumer consumer) throws BrokerServiceException {
+    public synchronized CompletableFuture<Void> addConsumer(Consumer consumer) {
         if (IS_CLOSED_UPDATER.get(this) == TRUE) {
             log.warn("[{}] Dispatcher is already closed. Closing consumer {}", name, consumer);
             consumer.disconnect();
-            return;
+            return CompletableFuture.completedFuture(null);
         }
 
         if (isConsumersExceededOnSubscription()) {
             log.warn("[{}] Attempting to add consumer to subscription which reached max consumers limit", name);
-            throw new ConsumerBusyException("Subscription reached max consumers limit");
+            return FutureUtil.failedFuture(new ConsumerBusyException("Subscription reached max consumers limit"));
         }
 
         consumerList.add(consumer);
         consumerSet.add(consumer);
+        return CompletableFuture.completedFuture(null);
     }
 
     @Override

@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.stats;
 
+import io.prometheus.client.Counter;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -29,8 +30,10 @@ import org.apache.pulsar.common.stats.Metrics;
 /**
  */
 public class BrokerOperabilityMetrics {
+    private static final Counter TOPIC_LOAD_FAILED = Counter.build("topic_load_failed", "-").register();
     private final List<Metrics> metricsList;
     private final String localCluster;
+    private final DimensionStats oldTopicLoadStats;
     private final DimensionStats topicLoadStats;
     private final String brokerName;
     private final LongAdder connectionTotalCreatedCount;
@@ -42,7 +45,8 @@ public class BrokerOperabilityMetrics {
     public BrokerOperabilityMetrics(String localCluster, String brokerName) {
         this.metricsList = new ArrayList<>();
         this.localCluster = localCluster;
-        this.topicLoadStats = new DimensionStats("topic_load_times", 60);
+        this.oldTopicLoadStats = new DimensionStats("topic_load_times", 60);
+        this.topicLoadStats = new DimensionStats("pulsar_topic_load_times", 60);
         this.brokerName = brokerName;
         this.connectionTotalCreatedCount = new LongAdder();
         this.connectionCreateSuccessCount = new LongAdder();
@@ -57,6 +61,7 @@ public class BrokerOperabilityMetrics {
     }
 
     private void generate() {
+        metricsList.add(getOldTopicLoadMetrics());
         metricsList.add(getTopicLoadMetrics());
         metricsList.add(getConnectionMetrics());
     }
@@ -83,8 +88,15 @@ public class BrokerOperabilityMetrics {
         return dimensionMap;
     }
 
+    Metrics getOldTopicLoadMetrics() {
+        Metrics metrics = getDimensionMetrics("topic_load_times", "topic_load", oldTopicLoadStats);
+        return metrics;
+    }
+
     Metrics getTopicLoadMetrics() {
-        return getDimensionMetrics("topic_load_times", "topic_load", topicLoadStats);
+        Metrics metrics = getDimensionMetrics("pulsar_topic_load_times", "topic_load", topicLoadStats);
+        metrics.put("brk_topic_load_failed_count", TOPIC_LOAD_FAILED.get());
+        return metrics;
     }
 
     Metrics getDimensionMetrics(String metricsName, String dimensionName, DimensionStats stats) {
@@ -105,11 +117,17 @@ public class BrokerOperabilityMetrics {
 
     public void reset() {
         metricsList.clear();
+        oldTopicLoadStats.reset();
         topicLoadStats.reset();
     }
 
     public void recordTopicLoadTimeValue(long topicLoadLatencyMs) {
+        oldTopicLoadStats.recordDimensionTimeValue(topicLoadLatencyMs, TimeUnit.MILLISECONDS);
         topicLoadStats.recordDimensionTimeValue(topicLoadLatencyMs, TimeUnit.MILLISECONDS);
+    }
+
+    public void recordTopicLoadFailed() {
+        this.TOPIC_LOAD_FAILED.inc();
     }
 
     public void recordConnectionCreate() {

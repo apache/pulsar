@@ -68,7 +68,7 @@ public abstract class PulsarTokenAuthenticationBaseSuite extends PulsarClusterTe
     protected static final String PROXY_ROLE = "proxy";
     protected static final String REGULAR_USER_ROLE = "client";
 
-    protected ZKContainer<?> cmdContainer;
+    protected ZKContainer cmdContainer;
 
     @BeforeClass(alwaysRun = true)
     @Override
@@ -76,7 +76,7 @@ public abstract class PulsarTokenAuthenticationBaseSuite extends PulsarClusterTe
         incrementSetupNumber();
         // Before starting the cluster, generate the secret key and the token
         // Use Zk container to have 1 container available before starting the cluster
-        this.cmdContainer = new ZKContainer<>("cli-setup");
+        this.cmdContainer = new ZKContainer("cli-setup");
         cmdContainer
                 .withNetwork(Network.newNetwork())
                 .withNetworkAliases(ZKContainer.NAME)

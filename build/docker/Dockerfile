@@ -17,7 +17,7 @@
 # under the License.
 #
 
-FROM ubuntu:20.04
+FROM ubuntu:22.04
 
 # prepare the directory for pulsar related files
 RUN mkdir /pulsar
@@ -80,7 +80,7 @@ RUN dpkg -i crowdin.deb
 
 # Install PIP
 RUN curl https://bootstrap.pypa.io/get-pip.py  | python3 -
-RUN pip3 install pdoc
+RUN pip3 --no-cache-dir install pdoc
 #
 # Installation
 ARG MAVEN_VERSION=3.6.3

@@ -18,8 +18,8 @@
  */
 package org.apache.pulsar.broker.loadbalance.extensions.strategy;
 
-import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import org.apache.pulsar.broker.loadbalance.extensions.LoadManagerContext;
 import org.apache.pulsar.common.naming.ServiceUnitId;
 
@@ -38,6 +38,6 @@ public interface BrokerSelectionStrategy {
      * @param context
      *               The context contains information needed for selection (load data, config, and etc).
      */
-    Optional<String> select(List<String> brokers, ServiceUnitId bundle, LoadManagerContext context);
+    Optional<String> select(Set<String> brokers, ServiceUnitId bundle, LoadManagerContext context);
 
 }

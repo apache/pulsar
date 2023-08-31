@@ -103,7 +103,10 @@ public class BacklogQuotaManager {
             break;
         case producer_exception:
         case producer_request_hold:
-            disconnectProducers(persistentTopic);
+            if (!advanceSlowestSystemCursor(persistentTopic)) {
+                // The slowest is not a system cursor. Disconnecting producers to put backpressure.
+                disconnectProducers(persistentTopic);
+            }
             break;
         default:
             break;
@@ -197,7 +200,7 @@ public class BacklogQuotaManager {
         if (preciseTimeBasedBacklogQuotaCheck) {
             // Set the reduction factor to 90%. The aim is to drop down the backlog to 90% of the quota limit.
             double reductionFactor = 0.9;
-            int target = (int) (reductionFactor * quota.getLimitTimeInSec());
+            int target = (int) (reductionFactor * quota.getLimitTime());
             if (log.isDebugEnabled()) {
                 log.debug("[{}] target backlog expire time is [{}]", persistentTopic.getName(), target);
             }
@@ -226,7 +229,7 @@ public class BacklogQuotaManager {
                     }
                     // Timestamp only > 0 if ledger has been closed
                     if (ledgerInfo.getTimestamp() > 0
-                            && currentMillis - ledgerInfo.getTimestamp() > quota.getLimitTimeInSec() * 1000) {
+                            && currentMillis - ledgerInfo.getTimestamp() > quota.getLimitTime() * 1000) {
                         // skip whole ledger for the slowest cursor
                         PositionImpl nextPosition =
                                 PositionImpl.get(mLedger.getNextValidLedger(ledgerInfo.getLedgerId()), -1);
@@ -267,5 +270,28 @@ public class BacklogQuotaManager {
             return null;
 
         });
+    }
+
+    /**
+     * Advances the slowest cursor if that is a system cursor.
+     *
+     * @param persistentTopic
+     * @return true if the slowest cursor is a system cursor
+     */
+    private boolean advanceSlowestSystemCursor(PersistentTopic persistentTopic) {
+
+        ManagedLedgerImpl mLedger = (ManagedLedgerImpl) persistentTopic.getManagedLedger();
+        ManagedCursor slowestConsumer = mLedger.getSlowestConsumer();
+        if (slowestConsumer == null) {
+            return false;
+        }
+
+        if (PersistentTopic.isDedupCursorName(slowestConsumer.getName())) {
+            persistentTopic.getMessageDeduplication().takeSnapshot();
+            return true;
+        }
+
+        // We may need to check other system cursors here : replicator, compaction
+        return false;
     }
 }
