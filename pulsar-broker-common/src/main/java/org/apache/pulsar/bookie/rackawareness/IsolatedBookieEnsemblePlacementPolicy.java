@@ -19,6 +19,7 @@
 package org.apache.pulsar.bookie.rackawareness;
 
 import static org.apache.pulsar.bookie.rackawareness.BookieRackAffinityMapping.METADATA_STORE_INSTANCE;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Sets;
 import io.netty.util.HashedWheelTimer;
 import java.util.Collections;
@@ -62,6 +63,9 @@ public class IsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePlac
     private ImmutablePair<Set<String>, Set<String>> defaultIsolationGroups;
 
     private MetadataCache<BookiesRackConfiguration> bookieMappingCache;
+
+    @VisibleForTesting
+    long metaOpTimeout = AbstractMetadataDriver.BLOCKING_CALL_TIMEOUT;
 
     private static final String PULSAR_SYSTEM_TOPIC_ISOLATION_GROUP = "*";
 
@@ -183,7 +187,8 @@ public class IsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePlac
         return pair;
     }
 
-    private Set<BookieId> getExcludedBookiesWithIsolationGroups(int ensembleSize,
+    @VisibleForTesting
+    Set<BookieId> getExcludedBookiesWithIsolationGroups(int ensembleSize,
         Pair<Set<String>, Set<String>> isolationGroups) {
         Set<BookieId> excludedBookies = new HashSet<>();
         if (isolationGroups != null && isolationGroups.getLeft().contains(PULSAR_SYSTEM_TOPIC_ISOLATION_GROUP)) {
@@ -193,7 +198,7 @@ public class IsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePlac
             if (bookieMappingCache != null) {
                 Optional<BookiesRackConfiguration> optional =
                         bookieMappingCache.get(BookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH).get(
-                                AbstractMetadataDriver.BLOCKING_CALL_TIMEOUT, TimeUnit.MILLISECONDS);
+                                metaOpTimeout, TimeUnit.MILLISECONDS);
 
                 if (!optional.isPresent()) {
                     throw new KeeperException.NoNodeException(ZkBookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH);
