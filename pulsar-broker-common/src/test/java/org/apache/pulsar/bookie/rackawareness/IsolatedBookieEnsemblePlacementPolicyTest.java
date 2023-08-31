@@ -152,14 +152,14 @@ public class IsolatedBookieEnsemblePlacementPolicyTest {
         CompletableFuture<Optional<BookiesRackConfiguration>> timeoutFuture = new CompletableFuture<>();
         new Thread(() -> {
             try {
-                Thread.sleep(metaOpTimeout + 1000);
+                Thread.sleep(metaOpTimeout + 5000);
             } catch (InterruptedException e) {
                 throw new RuntimeException(e);
             }
             BookiesRackConfiguration rackConfiguration = new BookiesRackConfiguration();
             rackConfiguration.put("group1", mainBookieGroup);
             rackConfiguration.put("group2", secondaryBookieGroup);
-            waitingCompleteFuture.complete(Optional.of(rackConfiguration));
+            timeoutFuture.complete(Optional.of(rackConfiguration));
         }).start();
 
 
