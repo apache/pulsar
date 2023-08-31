@@ -1933,6 +1933,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
         final int numMessages = 1000;
         final int maxKeys = 800;
 
+        @Cleanup
         Producer<byte[]> producer = pulsarClient.newProducer()
             .topic(topic)
             .enableBatching(false)
