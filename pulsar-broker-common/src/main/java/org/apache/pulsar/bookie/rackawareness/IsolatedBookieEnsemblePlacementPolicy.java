@@ -63,7 +63,7 @@ public class IsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePlac
     private ImmutablePair<Set<String>, Set<String>> defaultIsolationGroups;
 
     private MetadataCache<BookiesRackConfiguration> bookieMappingCache;
-    //For test.
+    @VisibleForTesting
     long metaOpTimeout = TimeUnit.SECONDS.toMillis(30);
 
     public IsolatedBookieEnsemblePlacementPolicy() {
