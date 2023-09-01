@@ -97,7 +97,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
     protected static final String TOPIC_MESSAGE_ACK_TEST = NAMESPACE1 + "/message-ack-test";
     protected static final int NUM_PARTITIONS = 16;
     private static final int waitTimeForCanReceiveMSgInSec = 5;
-    private static final int waitTimeForCannotReceiveMSgInSec = 1;
+    private static final int waitTimeForCannotReceiveMSgInSec = 5;
     @BeforeClass
     protected void setup() throws Exception {
         conf.setAcknowledgmentAtBatchIndexLevelEnabled(true);
