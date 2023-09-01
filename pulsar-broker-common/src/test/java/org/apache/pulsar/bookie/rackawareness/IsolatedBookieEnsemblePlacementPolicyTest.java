@@ -107,40 +107,31 @@ public class IsolatedBookieEnsemblePlacementPolicyTest {
         store = mock(MetadataStoreExtended.class);
         MetadataCacheImpl cache = mock(MetadataCacheImpl.class);
         when(store.getMetadataCache(BookiesRackConfiguration.class)).thenReturn(cache);
-        CompletableFuture<Object> completableFuture = CompletableFuture.completedFuture(null);
-        long metaOpTimeout = 3000;
+        CompletableFuture<Optional<BookiesRackConfiguration>> initialFuture = new CompletableFuture<>();
+        //The initialFuture only has group1.
+        BookiesRackConfiguration rackConfiguration1 = new BookiesRackConfiguration();
+        rackConfiguration1.put("group1", mainBookieGroup);
+        initialFuture.complete(Optional.of(rackConfiguration1));
+
+        long waitTime = 2000;
         CompletableFuture<Optional<BookiesRackConfiguration>> waitingCompleteFuture = new CompletableFuture<>();
         new Thread(() -> {
             try {
-                Thread.sleep(metaOpTimeout - 1000);
+                Thread.sleep(waitTime);
             } catch (InterruptedException e) {
                 throw new RuntimeException(e);
             }
-            BookiesRackConfiguration rackConfiguration = new BookiesRackConfiguration();
-            rackConfiguration.put("group1", mainBookieGroup);
-            rackConfiguration.put("group2", secondaryBookieGroup);
-            waitingCompleteFuture.complete(Optional.of(rackConfiguration));
+            //The waitingCompleteFuture has group1 and group2.
+            BookiesRackConfiguration rackConfiguration2 = new BookiesRackConfiguration();
+            rackConfiguration2.put("group1", mainBookieGroup);
+            rackConfiguration2.put("group2", secondaryBookieGroup);
+            waitingCompleteFuture.complete(Optional.of(rackConfiguration2));
         }).start();
 
-        CompletableFuture<Optional<BookiesRackConfiguration>> timeoutFuture = new CompletableFuture<>();
-        new Thread(() -> {
-            try {
-                Thread.sleep(metaOpTimeout + 5000);
-            } catch (InterruptedException e) {
-                throw new RuntimeException(e);
-            }
-            BookiesRackConfiguration rackConfiguration = new BookiesRackConfiguration();
-            rackConfiguration.put("group1", mainBookieGroup);
-            rackConfiguration.put("group2", secondaryBookieGroup);
-            timeoutFuture.complete(Optional.of(rackConfiguration));
-        }).start();
-
-
-        when(cache.get(BookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH)).thenReturn(completableFuture)
-                .thenReturn(waitingCompleteFuture).thenReturn(timeoutFuture);
+        when(cache.get(BookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH)).thenReturn(initialFuture)
+                .thenReturn(waitingCompleteFuture);
 
         IsolatedBookieEnsemblePlacementPolicy isolationPolicy = new IsolatedBookieEnsemblePlacementPolicy();
-        isolationPolicy.metaOpTimeout = metaOpTimeout;
         ClientConfiguration bkClientConf = new ClientConfiguration();
         bkClientConf.setProperty(BookieRackAffinityMapping.METADATA_STORE_INSTANCE, store);
         bkClientConf.setProperty(IsolatedBookieEnsemblePlacementPolicy.ISOLATION_BOOKIE_GROUPS, isolationGroups);
@@ -151,13 +142,20 @@ public class IsolatedBookieEnsemblePlacementPolicyTest {
         groups.setLeft(Sets.newHashSet("group1"));
         groups.setRight(new HashSet<>());
 
+        //The future is waiting done, so use the cached rack config.
         Set<BookieId> blacklist =
                 isolationPolicy.getBlacklistedBookiesWithIsolationGroups(2, groups);
-        assertFalse(blacklist.isEmpty());
+        assertTrue(blacklist.isEmpty());
 
+        Thread.sleep(waitTime);
+
+        //The future is already done, use the newest
         blacklist =
                 isolationPolicy.getBlacklistedBookiesWithIsolationGroups(2, groups);
-        assertTrue(blacklist.isEmpty());
+        assertFalse(blacklist.isEmpty());
+        assertEquals(blacklist.size(), 1);
+        BookieId excludeBookie = blacklist.iterator().next();
+        assertEquals(excludeBookie.toString(), BOOKIE3);
     }
 
     @Test

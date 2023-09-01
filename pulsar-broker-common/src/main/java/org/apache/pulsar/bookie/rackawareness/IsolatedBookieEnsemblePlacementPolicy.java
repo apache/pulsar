@@ -23,14 +23,12 @@ import com.google.common.annotations.VisibleForTesting;
 import io.netty.util.HashedWheelTimer;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
+import java.util.concurrent.CompletableFuture;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.client.BKException.BKNotEnoughBookiesException;
 import org.apache.bookkeeper.client.RackawareEnsemblePlacementPolicy;
@@ -63,8 +61,8 @@ public class IsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePlac
     private ImmutablePair<Set<String>, Set<String>> defaultIsolationGroups;
 
     private MetadataCache<BookiesRackConfiguration> bookieMappingCache;
-    @VisibleForTesting
-    long metaOpTimeout = TimeUnit.SECONDS.toMillis(30);
+
+    private BookiesRackConfiguration cachedRackConfiguration = null;
 
     public IsolatedBookieEnsemblePlacementPolicy() {
         super();
@@ -92,7 +90,9 @@ public class IsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePlac
 
                 // Only add the bookieMappingCache if we have defined an isolation group
                 bookieMappingCache = store.getMetadataCache(BookiesRackConfiguration.class);
-                bookieMappingCache.get(BookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH).join();
+                Optional<BookiesRackConfiguration> optional =
+                        bookieMappingCache.get(BookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH).join();
+                optional.ifPresent(bookiesRackConfiguration -> cachedRackConfiguration = bookiesRackConfiguration);
             }
         }
         if (conf.getProperty(SECONDARY_ISOLATION_BOOKIE_GROUPS) != null) {
@@ -112,7 +112,6 @@ public class IsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePlac
     public PlacementResult<List<BookieId>> newEnsemble(int ensembleSize, int writeQuorumSize, int ackQuorumSize,
             Map<String, byte[]> customMetadata, Set<BookieId> excludeBookies)
             throws BKNotEnoughBookiesException {
-        Map<String, List<String>> isolationGroup = new HashMap<>();
         Set<BookieId> blacklistedBookies = getBlacklistedBookiesWithIsolationGroups(
             ensembleSize, defaultIsolationGroups);
         if (excludeBookies == null) {
@@ -193,14 +192,26 @@ public class IsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePlac
         Set<BookieId> blacklistedBookies = new HashSet<>();
         try {
             if (bookieMappingCache != null) {
-                Optional<BookiesRackConfiguration> optional =
-                        bookieMappingCache.get(BookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH)
-                                .get(metaOpTimeout, TimeUnit.MILLISECONDS);
-                if (!optional.isPresent()) {
-                    throw new KeeperException.NoNodeException(ZkBookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH);
+                CompletableFuture<Optional<BookiesRackConfiguration>> future =
+                        bookieMappingCache.get(BookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH);
+
+                BookiesRackConfiguration allGroupsBookieMapping;
+                Optional<BookiesRackConfiguration> optRes = (future.isDone() && !future.isCompletedExceptionally())
+                        ? future.join() : Optional.empty();
+
+                if (!optRes.isPresent()) {
+                    if (cachedRackConfiguration != null) {
+                        log.debug("The newest rack config is not available now, use the cached rack config : {}",
+                                cachedRackConfiguration);
+                        allGroupsBookieMapping = cachedRackConfiguration;
+                    } else {
+                        throw new KeeperException.NoNodeException(ZkBookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH);
+                    }
+                } else {
+                    cachedRackConfiguration = optRes.get();
+                    allGroupsBookieMapping = optRes.get();
                 }
 
-                BookiesRackConfiguration allGroupsBookieMapping = optional.get();
                 Set<String> allBookies = allGroupsBookieMapping.keySet();
                 int totalAvailableBookiesInPrimaryGroup = 0;
                 Set<String> primaryIsolationGroup = Collections.emptySet();
@@ -249,8 +260,6 @@ public class IsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePlac
                     }
                 }
             }
-        } catch (TimeoutException e) {
-            log.warn("Getting bookie isolation info from metadata store timeout.");
         } catch (Exception e) {
             log.warn("Error getting bookie isolation info from metadata store: {}", e.getMessage());
         }
