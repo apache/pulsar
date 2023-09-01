@@ -323,7 +323,7 @@ public class ConcurrentOpenHashSet<V> {
 
                             // update local variable
                             values = this.values;
-                            bucket = signSafeMod(keyHash, capacity);
+                            bucket = signSafeMod(keyHash, values.length);
                             storedValue = values[bucket];
                         }
 

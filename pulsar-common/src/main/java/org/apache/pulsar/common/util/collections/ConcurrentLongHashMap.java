@@ -338,7 +338,7 @@ public class ConcurrentLongHashMap<V> {
                             // update local variable
                             keys = this.keys;
                             values = this.values;
-                            bucket = signSafeMod(keyHash, capacity);
+                            bucket = signSafeMod(keyHash, values.length);
                             storedKey = keys[bucket];
                             storedValue = values[bucket];
                         }

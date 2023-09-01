@@ -359,7 +359,7 @@ public class ConcurrentLongPairSet implements LongPairSet {
 
                             // update local variable
                             table = this.table;
-                            bucket = signSafeMod(hash, capacity);
+                            bucket = signSafeMod(hash, table.length / 2);
                             storedItem1 = table[bucket];
                             storedItem2 = table[bucket + 1];
                         }

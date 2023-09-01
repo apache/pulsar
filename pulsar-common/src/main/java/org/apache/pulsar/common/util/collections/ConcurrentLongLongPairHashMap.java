@@ -350,7 +350,7 @@ public class ConcurrentLongLongPairHashMap {
                             acquiredLock = true;
                             // update local variable
                             table = this.table;
-                            bucket = signSafeMod(keyHash, capacity);
+                            bucket = signSafeMod(keyHash, table.length / 4);
                             storedKey1 = table[bucket];
                             storedKey2 = table[bucket + 1];
                             storedValue1 = table[bucket + 2];

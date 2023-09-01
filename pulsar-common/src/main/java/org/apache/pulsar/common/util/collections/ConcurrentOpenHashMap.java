@@ -360,7 +360,7 @@ public class ConcurrentOpenHashMap<K, V> {
 
                             // update local variable
                             table = this.table;
-                            bucket = signSafeMod(keyHash, capacity);
+                            bucket = signSafeMod(keyHash, table.length / 2);
                             storedKey = (K) table[bucket];
                             storedValue = (V) table[bucket + 1];
                         }
