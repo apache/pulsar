@@ -165,7 +165,8 @@ public class StrategicCompactionTest extends CompactionTest {
         final String topic =
                 "persistent://my-property/use/my-ns/testSameBatchCompactToSameBatch" + UUID.randomUUID();
 
-        final int messages = 10;
+        // Use odd number to make sure the last message is flush by `reader.hasNext() == false`.
+        final int messages = 11;
 
         // 1.create producer and publish message to the topic.
         ProducerBuilder<Integer> builder = pulsarClient.newProducer(Schema.INT32)
@@ -181,11 +182,6 @@ public class StrategicCompactionTest extends CompactionTest {
                     .value(i)
                     .sendAsync());
         }
-        // Add additional message to make sure the last batch is not full and test flush this batch.
-        futures.add(producer.newMessage().key(String.valueOf(messages))
-                .value(messages)
-                .sendAsync());
-
         FutureUtil.waitForAll(futures).get();
 
         // 2.compact the topic.
@@ -201,24 +197,21 @@ public class StrategicCompactionTest extends CompactionTest {
                 .readCompacted(true)
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest).subscribe()) {
             int received = 0;
-            while(true) {
+            while (true) {
                 Message<Integer> m = consumer.receive(2, TimeUnit.SECONDS);
                 if (m == null) {
                     break;
                 }
-                if (received <= messages - 1) {
-                    MessageIdAdv messageId = (MessageIdAdv) m.getMessageId();
+                MessageIdAdv messageId = (MessageIdAdv) m.getMessageId();
+                if (received < messages - 1) {
                     assertEquals(messageId.getBatchSize(), 2);
                 } else {
-                    MessageIdAdv messageId = (MessageIdAdv) m.getMessageId();
                     assertEquals(messageId.getBatchSize(), 0);
                 }
                 received++;
             }
-            assertEquals(received, messages + 1);
+            assertEquals(received, messages);
         }
 
     }
-
-
 }
