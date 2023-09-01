@@ -103,9 +103,9 @@ public class BundleData implements Comparable<BundleData> {
 
     @Override
     public int compareTo(BundleData o) {
-        int result = this.longTermData.compareTo(o.longTermData);
+        int result = this.shortTermData.compareTo(o.shortTermData);
         if (result == 0) {
-            result = this.shortTermData.compareTo(o.shortTermData);
+            result = this.longTermData.compareTo(o.longTermData);
         }
         return result;
     }
