@@ -244,7 +244,7 @@ public class ConcurrentOpenHashMapTest {
                 }
                 while (true) {
                     try {
-                        map.get("k1");
+                        map.get("k2");
                     } catch (Exception e) {
                         ex.set(e);
                     }

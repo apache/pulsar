@@ -215,7 +215,7 @@ public class ConcurrentOpenHashSetTest {
                 }
                 while (true) {
                     try {
-                        set.contains("k1");
+                        set.contains("k2");
                     } catch (Exception e) {
                         ex.set(e);
                     }
