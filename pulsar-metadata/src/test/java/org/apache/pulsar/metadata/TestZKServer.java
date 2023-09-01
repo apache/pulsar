@@ -40,7 +40,6 @@ import org.apache.zookeeper.server.ZooKeeperServerMain;
 import org.apache.zookeeper.server.embedded.ExitHandler;
 import org.apache.zookeeper.server.embedded.ZooKeeperServerEmbedded;
 import org.assertj.core.util.Files;
-import org.junit.platform.commons.util.ReflectionUtils;
 
 @Slf4j
 public class TestZKServer implements AutoCloseable {
@@ -87,33 +86,40 @@ public class TestZKServer implements AutoCloseable {
 
     @SneakyThrows
     private static ZooKeeperServerMain getZooKeeperServerMain(ZooKeeperServerEmbedded zooKeeperServerEmbedded) {
-        ZooKeeperServerMain zooKeeperServerMain = (ZooKeeperServerMain) ReflectionUtils.
-                tryToReadFieldValue((Class) zooKeeperServerEmbedded.getClass(), "mainsingle", zooKeeperServerEmbedded)
-                .get();
+        ZooKeeperServerMain zooKeeperServerMain = readField(zooKeeperServerEmbedded.getClass(),
+                "mainsingle", zooKeeperServerEmbedded);
         return zooKeeperServerMain;
     }
 
     @SneakyThrows
     private static ContainerManager getContainerManager(ZooKeeperServerMain zooKeeperServerMain) {
-        ContainerManager containerManager = (ContainerManager) ReflectionUtils.
-                tryToReadFieldValue(ZooKeeperServerMain.class, "containerManager", zooKeeperServerMain)
-                .get();
+        ContainerManager containerManager = readField(ZooKeeperServerMain.class, "containerManager", zooKeeperServerMain);
         return containerManager;
     }
 
     @SneakyThrows
     private static ZooKeeperServer getZooKeeperServer(ZooKeeperServerMain zooKeeperServerMain) {
         ServerCnxnFactory serverCnxnFactory = getServerCnxnFactory(zooKeeperServerMain);
-        ZooKeeperServer zkServer = (ZooKeeperServer) ReflectionUtils.
-                tryToReadFieldValue(ServerCnxnFactory.class, "zkServer", serverCnxnFactory)
-                .get();
+        ZooKeeperServer zkServer = readField(ServerCnxnFactory.class, "zkServer", serverCnxnFactory);
         return zkServer;
     }
 
+    @SneakyThrows
+    private static <T> T readField(Class clazz, String field, Object object) {
+        Field declaredField = clazz.getDeclaredField(field);
+        boolean accessible = declaredField.isAccessible();
+        if (!accessible) {
+            declaredField.setAccessible(true);
+        }
+        try {
+            return (T) declaredField.get(object);
+        } finally {
+            declaredField.setAccessible(accessible);
+        }
+    }
+
     private static ServerCnxnFactory getServerCnxnFactory(ZooKeeperServerMain zooKeeperServerMain) throws Exception {
-        ServerCnxnFactory serverCnxnFactory = (ServerCnxnFactory) ReflectionUtils.
-                tryToReadFieldValue(ZooKeeperServerMain.class, "cnxnFactory", zooKeeperServerMain)
-                .get();
+        ServerCnxnFactory serverCnxnFactory = readField(ZooKeeperServerMain.class, "cnxnFactory", zooKeeperServerMain);
         return serverCnxnFactory;
     }
 
