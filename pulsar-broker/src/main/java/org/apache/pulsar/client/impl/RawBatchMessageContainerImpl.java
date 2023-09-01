@@ -49,12 +49,12 @@ public class RawBatchMessageContainerImpl extends BatchMessageContainerImpl {
     private CryptoKeyReader cryptoKeyReader;
     private MessageIdImpl lastAddedMessageId;
 
-    public RawBatchMessageContainerImpl(int maxNumMessagesInBatch, int maxBytesInBatch) {
+    public RawBatchMessageContainerImpl() {
         super();
         this.compressionType = CompressionType.NONE;
         this.compressor = new CompressionCodecNone();
-        this.maxNumMessagesInBatch = maxNumMessagesInBatch;
-        this.maxBytesInBatch = maxBytesInBatch;
+        this.maxNumMessagesInBatch = Integer.MAX_VALUE;
+        this.maxBytesInBatch = Integer.MAX_VALUE;
     }
     private ByteBuf encrypt(ByteBuf compressedPayload) {
         if (msgCrypto == null) {
@@ -100,15 +100,12 @@ public class RawBatchMessageContainerImpl extends BatchMessageContainerImpl {
     @Override
     public boolean haveEnoughSpace(MessageImpl<?> msg) {
         if (lastAddedMessageId == null) {
-            return super.haveEnoughSpace(msg);
+            return true;
         }
         // Keep same batch compact to same batch.
         MessageIdImpl msgId = (MessageIdImpl) msg.getMessageId();
-        if (msgId.getLedgerId() != lastAddedMessageId.getLedgerId()
-                || msgId.getEntryId() != lastAddedMessageId.getEntryId()) {
-            return false;
-        }
-        return super.haveEnoughSpace(msg);
+        return msgId.getLedgerId() == lastAddedMessageId.getLedgerId()
+                && msgId.getEntryId() == lastAddedMessageId.getEntryId();
     }
 
     /**

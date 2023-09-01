@@ -98,7 +98,6 @@ import org.apache.pulsar.common.stats.Metrics;
 import org.apache.pulsar.common.topics.TopicCompactionStrategy;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
-import org.apache.pulsar.compaction.StrategicTwoPhaseCompactor;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.NotificationType;
 import org.apache.pulsar.metadata.api.extended.SessionEvent;
@@ -301,9 +300,6 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
 
             producer = pulsar.getClient().newProducer(schema)
                     .enableBatching(true)
-                    // Make sure input batch size =< compacted output batch,
-                    // Otherwise, the compactor will split the batch to multiple batches.
-                    .batchingMaxMessages(StrategicTwoPhaseCompactor.MAX_NUM_MESSAGES_IN_BATCH)
                     .compressionType(MSG_COMPRESSION_TYPE)
                     .maxPendingMessages(MAX_OUTSTANDING_PUB_MESSAGES)
                     .blockIfQueueFull(true)
