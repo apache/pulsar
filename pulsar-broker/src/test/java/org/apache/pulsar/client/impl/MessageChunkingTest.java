@@ -427,7 +427,7 @@ public class MessageChunkingTest extends ProducerConsumerBase {
         receivedMsg = consumer.receive(5, TimeUnit.SECONDS);
         assertEquals(receivedMsg.getValue(), "chunk-1-0|chunk-1-1|chunk-1-2|");
         consumer.acknowledge(receivedMsg);
-        Assert.assertEquals(((ConsumerImpl<String>) consumer).getAvailablePermits(), 10);
+        Assert.assertEquals(((ConsumerImpl<String>) consumer).getAvailablePermits(), 8);
     }
 
     /**

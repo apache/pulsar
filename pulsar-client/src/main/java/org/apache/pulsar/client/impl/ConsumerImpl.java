@@ -1421,7 +1421,9 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
     private ByteBuf processMessageChunk(ByteBuf compressedPayload, MessageMetadata msgMetadata, MessageIdImpl msgId,
             MessageIdData messageId, ClientCnx cnx) {
-
+        if (msgMetadata.getChunkId() != (msgMetadata.getNumChunksFromMsg() - 1)) {
+            increaseAvailablePermits(cnx);
+        }
         // Lazy task scheduling to expire incomplete chunk message
         if (expireTimeOfIncompleteChunkedMessageMillis > 0 && expireChunkMessageTaskScheduled.compareAndSet(false,
                 true)) {
@@ -1476,7 +1478,6 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 }
                 chunkedMsgCtx.recycle();
                 chunkedMessagesMap.remove(msgMetadata.getUuid());
-                increaseAvailablePermits(cnx);
             }
             pendingChunkedMessageCount++;
             if (maxPendingChunkedMessage > 0 && pendingChunkedMessageCount > maxPendingChunkedMessage) {
@@ -1508,7 +1509,6 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                         msgMetadata.getProducerName(), msgId, chunkedMsgCtx.lastChunkedMessageId,
                         msgMetadata.getChunkId(), msgMetadata.getSequenceId());
                 compressedPayload.release();
-                increaseAvailablePermits(cnx);
                 // Just like the above logic of receiving the first chunk again. We only ack this chunk in the message
                 // duplication case.
                 boolean isDuplicatedChunk = Arrays.stream(chunkedMsgCtx.chunkedMessageIds)
@@ -1531,7 +1531,6 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             }
             chunkedMessagesMap.remove(msgMetadata.getUuid());
             compressedPayload.release();
-            increaseAvailablePermits(cnx);
             if (expireTimeOfIncompleteChunkedMessageMillis > 0
                     && System.currentTimeMillis() > (msgMetadata.getPublishTime()
                             + expireTimeOfIncompleteChunkedMessageMillis)) {
@@ -1550,7 +1549,6 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         // if final chunk is not received yet then release payload and return
         if (msgMetadata.getChunkId() != (msgMetadata.getNumChunksFromMsg() - 1)) {
             compressedPayload.release();
-            increaseAvailablePermits(cnx);
             return null;
         }
 
