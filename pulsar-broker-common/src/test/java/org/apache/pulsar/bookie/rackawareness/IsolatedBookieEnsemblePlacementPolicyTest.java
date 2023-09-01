@@ -149,7 +149,7 @@ public class IsolatedBookieEnsemblePlacementPolicyTest {
 
         Thread.sleep(waitTime);
 
-        //The future is already done, use the newest
+        //The future is already done, use the newest rack config.
         blacklist =
                 isolationPolicy.getBlacklistedBookiesWithIsolationGroups(2, groups);
         assertFalse(blacklist.isEmpty());
