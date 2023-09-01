@@ -440,32 +440,31 @@ public class StrategicTwoPhaseCompactor extends TwoPhaseCompactor {
 
     private CompletableFuture<Boolean> flushBatchMessage(LedgerHandle lh, String topic,
                                                          Semaphore outstanding) {
+        if (batchMessageContainer.getNumMessagesInBatch() <= 0) {
+            return CompletableFuture.completedFuture(false);
+        }
         CompletableFuture<Boolean> bkf = new CompletableFuture<>();
-        if (batchMessageContainer.getNumMessagesInBatch() > 0) {
-            try {
-                ByteBuf serialized = batchMessageContainer.toByteBuf();
-                outstanding.acquire();
-                mxBean.addCompactionWriteOp(topic, serialized.readableBytes());
-                long start = System.nanoTime();
-                lh.asyncAddEntry(serialized,
-                        (rc, ledger, eid, ctx) -> {
-                            outstanding.release();
-                            mxBean.addCompactionLatencyOp(topic, System.nanoTime() - start, TimeUnit.NANOSECONDS);
-                            if (rc != BKException.Code.OK) {
-                                bkf.completeExceptionally(BKException.create(rc));
-                            } else {
-                                bkf.complete(true);
-                            }
-                        }, null);
+        try {
+            ByteBuf serialized = batchMessageContainer.toByteBuf();
+            outstanding.acquire();
+            mxBean.addCompactionWriteOp(topic, serialized.readableBytes());
+            long start = System.nanoTime();
+            lh.asyncAddEntry(serialized,
+                    (rc, ledger, eid, ctx) -> {
+                        outstanding.release();
+                        mxBean.addCompactionLatencyOp(topic, System.nanoTime() - start, TimeUnit.NANOSECONDS);
+                        if (rc != BKException.Code.OK) {
+                            bkf.completeExceptionally(BKException.create(rc));
+                        } else {
+                            bkf.complete(true);
+                        }
+                    }, null);
 
-            } catch (Throwable t) {
-                log.error("Failed to add entry", t);
-                batchMessageContainer.discard((Exception) t);
-                bkf.completeExceptionally(t);
-                return bkf;
-            }
-        } else {
-            bkf.complete(false);
+        } catch (Throwable t) {
+            log.error("Failed to add entry", t);
+            batchMessageContainer.discard((Exception) t);
+            bkf.completeExceptionally(t);
+            return bkf;
         }
         return bkf;
     }
