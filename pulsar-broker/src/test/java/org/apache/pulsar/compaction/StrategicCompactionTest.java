@@ -180,6 +180,9 @@ public class StrategicCompactionTest extends CompactionTest {
                     .value(i)
                     .sendAsync());
         }
+        futures.add(producer.newMessage().key(String.valueOf(messages))
+                .value(messages)
+                .sendAsync());
 
         FutureUtil.waitForAll(futures).get();
 
@@ -201,11 +204,16 @@ public class StrategicCompactionTest extends CompactionTest {
                 if (m == null) {
                     break;
                 }
-                MessageIdImpl messageId = (MessageIdImpl) m.getMessageId();
-                assertEquals(messageId.getBatchSize(), 2);
+                if (received <= messages - 1) {
+                    MessageIdImpl messageId = (MessageIdImpl) m.getMessageId();
+                    assertEquals(messageId.getBatchSize(), 2);
+                } else {
+                    MessageIdImpl messageId = (MessageIdImpl) m.getMessageId();
+                    assertEquals(messageId.getBatchSize(), 0);
+                }
                 received++;
             }
-            assertEquals(received, messages);
+            assertEquals(received, messages + 1);
         }
 
     }

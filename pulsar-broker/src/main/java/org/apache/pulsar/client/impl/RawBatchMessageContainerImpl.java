@@ -54,9 +54,8 @@ public class RawBatchMessageContainerImpl extends BatchMessageContainerImpl {
         super();
         this.compressionType = CompressionType.NONE;
         this.compressor = new CompressionCodecNone();
-        this.maxNumMessagesInBatch = Integer.MAX_VALUE;
-        this.maxBytesInBatch = Integer.MAX_VALUE;
     }
+
     private ByteBuf encrypt(ByteBuf compressedPayload) {
         if (msgCrypto == null) {
             return compressedPayload;
@@ -96,6 +95,11 @@ public class RawBatchMessageContainerImpl extends BatchMessageContainerImpl {
     public boolean add(MessageImpl<?> msg, SendCallback callback) {
         this.lastAddedMessageId = (MessageIdAdv) msg.getMessageId();
         return super.add(msg, callback);
+    }
+
+    @Override
+    protected boolean isBatchFull() {
+        return false;
     }
 
     @Override

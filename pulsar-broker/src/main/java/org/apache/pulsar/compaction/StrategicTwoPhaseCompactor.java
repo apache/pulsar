@@ -425,17 +425,12 @@ public class StrategicTwoPhaseCompactor extends TwoPhaseCompactor {
             return flushBatchMessage(lh, topic, outstanding);
         }
         if (batchMessageContainer.haveEnoughSpace((MessageImpl<?>) m)) {
-            if (batchMessageContainer.add((MessageImpl<?>) m, null)) {
-                return flushBatchMessage(lh, topic, outstanding);
-            }
+            batchMessageContainer.add((MessageImpl<?>) m, null);
             return CompletableFuture.completedFuture(false);
         }
         CompletableFuture<Boolean> f = flushBatchMessage(lh, topic, outstanding);
-        if (batchMessageContainer.add((MessageImpl<?>) m, null)) {
-            return flushBatchMessage(lh, topic, outstanding).thenCombine(f, (a, b) -> a && b);
-        } else {
-            return f;
-        }
+        batchMessageContainer.add((MessageImpl<?>) m, null);
+        return f;
     }
 
     private CompletableFuture<Boolean> flushBatchMessage(LedgerHandle lh, String topic,
