@@ -35,6 +35,7 @@ import io.netty.util.Timeout;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.BitSet;
 import java.util.Collections;
 import java.util.HashMap;
@@ -420,7 +421,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 unsubscribeFuture.completeExceptionally(
                     PulsarClientException.wrap(e.getCause(),
                         String.format("Failed to unsubscribe the subscription %s of topic %s",
-                            topicName.toString(), subscription)));
+                                subscription, topicName.toString())));
                 return null;
             });
         } else {
@@ -613,6 +614,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                     retryLetterProducer = client.newProducer(Schema.AUTO_PRODUCE_BYTES(schema))
                             .topic(this.deadLetterPolicy.getRetryLetterTopic())
                             .enableBatching(false)
+                            .enableChunking(true)
                             .blockIfQueueFull(false)
                             .create();
                 }
@@ -1459,8 +1461,33 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         // discard message if chunk is out-of-order
         if (chunkedMsgCtx == null || chunkedMsgCtx.chunkedMsgBuffer == null
                 || msgMetadata.getChunkId() != (chunkedMsgCtx.lastChunkedMessageId + 1)) {
+            // Filter and ack duplicated chunks instead of discard ctx.
+            // For example:
+            //     Chunk-1 sequence ID: 0, chunk ID: 0, msgID: 1:1
+            //     Chunk-2 sequence ID: 0, chunk ID: 1, msgID: 1:2
+            //     Chunk-3 sequence ID: 0, chunk ID: 2, msgID: 1:3
+            //     Chunk-4 sequence ID: 0, chunk ID: 1, msgID: 1:4
+            //     Chunk-5 sequence ID: 0, chunk ID: 2, msgID: 1:5
+            //     Chunk-6 sequence ID: 0, chunk ID: 3, msgID: 1:6
+            // We should filter and ack chunk-4 and chunk-5.
+            if (chunkedMsgCtx != null && msgMetadata.getChunkId() <= chunkedMsgCtx.lastChunkedMessageId) {
+                log.warn("[{}] Receive a duplicated chunk message with messageId [{}], last-chunk-Id [{}], "
+                                + "chunkId [{}], sequenceId [{}]",
+                        msgMetadata.getProducerName(), msgId, chunkedMsgCtx.lastChunkedMessageId,
+                        msgMetadata.getChunkId(), msgMetadata.getSequenceId());
+                compressedPayload.release();
+                increaseAvailablePermits(cnx);
+                boolean repeatedlyReceived = Arrays.stream(chunkedMsgCtx.chunkedMessageIds)
+                        .anyMatch(messageId1 -> messageId1 != null && messageId1.ledgerId == messageId.getLedgerId()
+                                && messageId1.entryId == messageId.getEntryId());
+                if (!repeatedlyReceived) {
+                    doAcknowledge(msgId, AckType.Individual, Collections.emptyMap(), null);
+                }
+                return null;
+            }
             // means we lost the first chunk: should never happen
-            log.info("Received unexpected chunk messageId {}, last-chunk-id{}, chunkId = {}", msgId,
+            log.info("[{}] [{}] Received unexpected chunk messageId {}, last-chunk-id = {}, chunkId = {}", topic,
+                    subscription, msgId,
                     (chunkedMsgCtx != null ? chunkedMsgCtx.lastChunkedMessageId : null), msgMetadata.getChunkId());
             if (chunkedMsgCtx != null) {
                 if (chunkedMsgCtx.chunkedMsgBuffer != null) {
@@ -2104,6 +2131,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                                     .initialSubscriptionName(this.deadLetterPolicy.getInitialSubscriptionName())
                                     .topic(this.deadLetterPolicy.getDeadLetterTopic())
                                     .blockIfQueueFull(false)
+                                    .enableBatching(false)
+                                    .enableChunking(true)
                                     .createAsync();
                 }
             } finally {
@@ -2472,9 +2501,9 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 return;
             }
 
+            log.warn("[{}] [{}] Could not get connection while getLastMessageId -- Will try again in {} ms",
+                    topic, getHandlerName(), nextDelay);
             ((ScheduledExecutorService) client.getScheduledExecutorProvider().getExecutor()).schedule(() -> {
-                log.warn("[{}] [{}] Could not get connection while getLastMessageId -- Will try again in {} ms",
-                        topic, getHandlerName(), nextDelay);
                 remainingTime.addAndGet(-nextDelay);
                 internalGetLastMessageIdAsync(backoff, remainingTime, future);
             }, nextDelay, TimeUnit.MILLISECONDS);

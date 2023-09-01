@@ -93,6 +93,7 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
+import org.apache.pulsar.client.api.SubscriptionMode;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.ClientCnx;
 import org.apache.pulsar.client.impl.ConnectionPool;
@@ -1757,5 +1758,30 @@ public class BrokerServiceTest extends BrokerTestBase {
         consumer1.acknowledge(message);
         assertEquals(admin.topics().getStats(topicName).getSubscriptions()
                 .get("sub-1").getUnackedMessages(), 0);
+    }
+
+    @Test
+    public void testUnsubscribeNonDurableSub() throws Exception {
+        final String ns = "prop/ns-test";
+        final String topic = ns + "/testUnsubscribeNonDurableSub";
+
+        admin.namespaces().createNamespace(ns, 2);
+        admin.topics().createPartitionedTopic(String.format("persistent://%s", topic), 1);
+
+        pulsarClient.newProducer(Schema.STRING).topic(topic).create().close();
+        @Cleanup
+        Consumer<String> consumer = pulsarClient
+                .newConsumer(Schema.STRING)
+                .topic(topic)
+                .subscriptionMode(SubscriptionMode.NonDurable)
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                .subscriptionName("sub1")
+                .subscriptionType(SubscriptionType.Shared)
+                .subscribe();
+        try {
+            consumer.unsubscribe();
+        } catch (Exception ex) {
+            fail("Unsubscribe failed");
+        }
     }
 }
