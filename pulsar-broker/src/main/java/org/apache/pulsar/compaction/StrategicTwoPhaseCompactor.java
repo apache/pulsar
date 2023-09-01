@@ -346,7 +346,7 @@ public class StrategicTwoPhaseCompactor extends TwoPhaseCompactor {
         CompletableFuture<Void> loopPromise = new CompletableFuture<>();
         phaseTwoLoop(phaseOneResult.topic, phaseOneResult.cache.values().iterator(), ledger,
                 outstanding, loopPromise);
-        loopPromise.thenComposeAsync((v) -> {
+        loopPromise.thenCompose((v) -> {
                     log.info("Flushing batch container numMessagesInBatch:{}",
                             batchMessageContainer.getNumMessagesInBatch());
                     return addToCompactedLedger(ledger, null, reader.getTopic(), outstanding)
@@ -356,7 +356,7 @@ public class StrategicTwoPhaseCompactor extends TwoPhaseCompactor {
                                     return;
                                 }
                             });
-                }, scheduler)
+                })
                 .thenCompose(v -> {
                     log.info("Acking ledger id {}", phaseOneResult.lastId);
                     return ((CompactionReaderImpl<T>) reader)
