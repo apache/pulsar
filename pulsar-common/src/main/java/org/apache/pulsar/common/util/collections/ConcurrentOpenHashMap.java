@@ -627,6 +627,8 @@ public class ConcurrentOpenHashMap<K, V> {
     }
 
     static final int signSafeMod(long n, int max) {
+        // as the ITEM_SIZE of Section is 2, so the index is the multiple of 2
+        // that is to left shift 1 bit
         return (int) (n & (max - 1)) << 1;
     }
 

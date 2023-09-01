@@ -648,6 +648,8 @@ public class ConcurrentLongLongPairHashMap {
     }
 
     static final int signSafeMod(long n, int max) {
+        // as the ITEM_SIZE of Section is 4, so the index is the multiple of 4
+        // that is to left shift 2 bits
         return (int) (n & (max - 1)) << 2;
     }
 
