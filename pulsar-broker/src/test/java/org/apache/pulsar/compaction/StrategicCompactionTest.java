@@ -35,6 +35,7 @@ import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.CryptoKeyReader;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.MessageIdAdv;
 import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerBuilder;
@@ -180,6 +181,7 @@ public class StrategicCompactionTest extends CompactionTest {
                     .value(i)
                     .sendAsync());
         }
+        // Add additional message to make sure the last batch is not full and test flush this batch.
         futures.add(producer.newMessage().key(String.valueOf(messages))
                 .value(messages)
                 .sendAsync());
@@ -205,10 +207,10 @@ public class StrategicCompactionTest extends CompactionTest {
                     break;
                 }
                 if (received <= messages - 1) {
-                    MessageIdImpl messageId = (MessageIdImpl) m.getMessageId();
+                    MessageIdAdv messageId = (MessageIdAdv) m.getMessageId();
                     assertEquals(messageId.getBatchSize(), 2);
                 } else {
-                    MessageIdImpl messageId = (MessageIdImpl) m.getMessageId();
+                    MessageIdAdv messageId = (MessageIdAdv) m.getMessageId();
                     assertEquals(messageId.getBatchSize(), 0);
                 }
                 received++;
