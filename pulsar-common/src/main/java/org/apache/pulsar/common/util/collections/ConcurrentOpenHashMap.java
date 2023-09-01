@@ -619,8 +619,14 @@ public class ConcurrentOpenHashMap<K, V> {
         return hash;
     }
 
-    static final int signSafeMod(long n, int max) {
-        return (int) (n & (max - 1)) << 1;
+    static final int signSafeMod(long dividend, int divisor) {
+        int mod = (int) (dividend % divisor);
+
+        if (mod < 0) {
+            mod += divisor;
+        }
+
+        return mod;
     }
 
     private static int alignToPowerOfTwo(int n) {
