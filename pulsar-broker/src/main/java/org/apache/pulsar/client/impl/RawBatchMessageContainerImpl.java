@@ -23,6 +23,7 @@ import java.nio.ByteBuffer;
 import java.util.Set;
 import org.apache.pulsar.client.api.CryptoKeyReader;
 import org.apache.pulsar.client.api.MessageCrypto;
+import org.apache.pulsar.client.api.MessageIdAdv;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.crypto.MessageCryptoBc;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
@@ -47,7 +48,7 @@ public class RawBatchMessageContainerImpl extends BatchMessageContainerImpl {
     private MessageCrypto<MessageMetadata, MessageMetadata> msgCrypto;
     private Set<String> encryptionKeys;
     private CryptoKeyReader cryptoKeyReader;
-    private MessageIdImpl lastAddedMessageId;
+    private MessageIdAdv lastAddedMessageId;
 
     public RawBatchMessageContainerImpl() {
         super();
@@ -93,7 +94,7 @@ public class RawBatchMessageContainerImpl extends BatchMessageContainerImpl {
 
     @Override
     public boolean add(MessageImpl<?> msg, SendCallback callback) {
-        this.lastAddedMessageId = (MessageIdImpl) msg.getMessageId();
+        this.lastAddedMessageId = (MessageIdAdv) msg.getMessageId();
         return super.add(msg, callback);
     }
 
@@ -103,7 +104,7 @@ public class RawBatchMessageContainerImpl extends BatchMessageContainerImpl {
             return true;
         }
         // Keep same batch compact to same batch.
-        MessageIdImpl msgId = (MessageIdImpl) msg.getMessageId();
+        MessageIdAdv msgId = (MessageIdAdv) msg.getMessageId();
         return msgId.getLedgerId() == lastAddedMessageId.getLedgerId()
                 && msgId.getEntryId() == lastAddedMessageId.getEntryId();
     }
