@@ -296,6 +296,9 @@ public class ConcurrentOpenHashMap<K, V> {
     // A section is a portion of the hash map that is covered by a single
     @SuppressWarnings("serial")
     private static final class Section<K, V> extends StampedLock {
+        // Each item take up 2 continuous array space.
+        private static final int ITEM_SIZE = 2;
+
         // Keys and values are stored interleaved in the table array
         private volatile Object[] table;
 
@@ -317,7 +320,7 @@ public class ConcurrentOpenHashMap<K, V> {
                 float expandFactor, float shrinkFactor) {
             this.capacity = alignToPowerOfTwo(capacity);
             this.initCapacity = this.capacity;
-            this.table = new Object[2 * this.capacity];
+            this.table = new Object[ITEM_SIZE * this.capacity];
             this.size = 0;
             this.usedBuckets = 0;
             this.autoShrink = autoShrink;
@@ -336,7 +339,7 @@ public class ConcurrentOpenHashMap<K, V> {
             // add local variable here, so OutOfBound won't happen
             Object[] table = this.table;
             // calculate table.length / 2 as capacity to avoid rehash changing capacity
-            int bucket = signSafeMod(keyHash, table.length / 2);
+            int bucket = signSafeMod(keyHash, table.length / ITEM_SIZE);
 
             try {
                 while (true) {
@@ -360,7 +363,7 @@ public class ConcurrentOpenHashMap<K, V> {
 
                             // update local variable
                             table = this.table;
-                            bucket = signSafeMod(keyHash, table.length / 2);
+                            bucket = signSafeMod(keyHash, table.length / ITEM_SIZE);
                             storedKey = (K) table[bucket];
                             storedValue = (V) table[bucket + 1];
                         }
@@ -373,7 +376,7 @@ public class ConcurrentOpenHashMap<K, V> {
                         }
                     }
 
-                    bucket = (bucket + 2) & (table.length - 1);
+                    bucket = (bucket + ITEM_SIZE) & (table.length - 1);
                 }
             } finally {
                 if (acquiredLock) {
@@ -426,7 +429,7 @@ public class ConcurrentOpenHashMap<K, V> {
                         }
                     }
 
-                    bucket = (bucket + 2) & (table.length - 1);
+                    bucket = (bucket + ITEM_SIZE) & (table.length - 1);
                 }
             } finally {
                 if (usedBuckets > resizeThresholdUp) {
@@ -455,7 +458,7 @@ public class ConcurrentOpenHashMap<K, V> {
                         if (value == null || value.equals(storedValue)) {
                             SIZE_UPDATER.decrementAndGet(this);
 
-                            int nextInArray = (bucket + 2) & (table.length - 1);
+                            int nextInArray = (bucket + ITEM_SIZE) & (table.length - 1);
                             if (table[nextInArray] == EmptyKey) {
                                 table[bucket] = EmptyKey;
                                 table[bucket + 1] = null;
@@ -463,13 +466,13 @@ public class ConcurrentOpenHashMap<K, V> {
 
                                 // Cleanup all the buckets that were in `DeletedKey` state,
                                 // so that we can reduce unnecessary expansions
-                                int lastBucket = (bucket - 2) & (table.length - 1);
+                                int lastBucket = (bucket - ITEM_SIZE) & (table.length - 1);
                                 while (table[lastBucket] == DeletedKey) {
                                     table[lastBucket] = EmptyKey;
                                     table[lastBucket + 1] = null;
                                     --usedBuckets;
 
-                                    lastBucket = (lastBucket - 2) & (table.length - 1);
+                                    lastBucket = (lastBucket - ITEM_SIZE) & (table.length - 1);
                                 }
                             } else {
                                 table[bucket] = DeletedKey;
@@ -485,7 +488,7 @@ public class ConcurrentOpenHashMap<K, V> {
                         return null;
                     }
 
-                    bucket = (bucket + 2) & (table.length - 1);
+                    bucket = (bucket + ITEM_SIZE) & (table.length - 1);
                 }
 
             } finally {
@@ -534,7 +537,7 @@ public class ConcurrentOpenHashMap<K, V> {
             // Go through all the buckets for this section. We try to renew the stamp only after a validation
             // error, otherwise we keep going with the same.
             long stamp = 0;
-            for (int bucket = 0; bucket < table.length; bucket += 2) {
+            for (int bucket = 0; bucket < table.length; bucket += ITEM_SIZE) {
                 if (stamp == 0) {
                     stamp = tryOptimisticRead();
                 }
@@ -564,10 +567,10 @@ public class ConcurrentOpenHashMap<K, V> {
 
         private void rehash(int newCapacity) {
             // Expand the hashmap
-            Object[] newTable = new Object[2 * newCapacity];
+            Object[] newTable = new Object[ITEM_SIZE * newCapacity];
 
             // Re-hash table
-            for (int i = 0; i < table.length; i += 2) {
+            for (int i = 0; i < table.length; i += ITEM_SIZE) {
                 K storedKey = (K) table[i];
                 V storedValue = (V) table[i + 1];
                 if (storedKey != EmptyKey && storedKey != DeletedKey) {
@@ -583,7 +586,7 @@ public class ConcurrentOpenHashMap<K, V> {
         }
 
         private void shrinkToInitCapacity() {
-            Object[] newTable = new Object[2 * initCapacity];
+            Object[] newTable = new Object[ITEM_SIZE * initCapacity];
 
             table = newTable;
             size = 0;
@@ -608,7 +611,7 @@ public class ConcurrentOpenHashMap<K, V> {
                     return;
                 }
 
-                bucket = (bucket + 2) & (table.length - 1);
+                bucket = (bucket + ITEM_SIZE) & (table.length - 1);
             }
         }
     }
