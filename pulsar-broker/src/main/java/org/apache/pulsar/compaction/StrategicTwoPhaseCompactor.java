@@ -367,7 +367,7 @@ public class StrategicTwoPhaseCompactor extends TwoPhaseCompactor {
         CompletableFuture<Void> loopPromise = new CompletableFuture<>();
         phaseTwoLoop(phaseOneResult.topic, phaseOneResult.cache.values().iterator(), ledger,
                 outstanding, loopPromise);
-        loopPromise.thenCompose((v) -> {
+        loopPromise.thenComposeAsync((v) -> {
                     log.info("Flushing batch container numMessagesInBatch:{}",
                             batchMessageContainer.getNumMessagesInBatch());
                     return addToCompactedLedger(ledger, null, reader.getTopic(), outstanding)
@@ -377,7 +377,7 @@ public class StrategicTwoPhaseCompactor extends TwoPhaseCompactor {
                                     return;
                                 }
                             });
-                })
+                }, scheduler)
                 .thenCompose(v -> {
                     log.info("Acking ledger id {}", phaseOneResult.lastId);
                     return ((CompactionReaderImpl<T>) reader)
@@ -419,8 +419,8 @@ public class StrategicTwoPhaseCompactor extends TwoPhaseCompactor {
                                     if (exception2 != null) {
                                         promise.completeExceptionally(exception2);
                                     }
-                                    phaseTwoLoop(topic, reader, lh, outstanding, promise);
                                 });
+                        phaseTwoLoop(topic, reader, lh, outstanding, promise);
                     } else {
                         try {
                             outstanding.acquire(MAX_OUTSTANDING);
@@ -451,14 +451,12 @@ public class StrategicTwoPhaseCompactor extends TwoPhaseCompactor {
             }
             return CompletableFuture.completedFuture(false);
         }
-        return flushBatchMessage(lh, topic, outstanding)
-                .thenCompose(__ -> {
-                    if (batchMessageContainer.add((MessageImpl<?>) m, null)) {
-                        return flushBatchMessage(lh, topic, outstanding);
-                    } else {
-                        return CompletableFuture.completedFuture(false);
-                    }
-                });
+        CompletableFuture<Boolean> f = flushBatchMessage(lh, topic, outstanding);
+        if (batchMessageContainer.add((MessageImpl<?>) m, null)) {
+            return flushBatchMessage(lh, topic, outstanding).thenCombine(f, (a, b) -> a && b);
+        } else {
+            return f;
+        }
     }
 
     private CompletableFuture<Boolean> flushBatchMessage(LedgerHandle lh, String topic,
