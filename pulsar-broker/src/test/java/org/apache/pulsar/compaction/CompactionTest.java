@@ -25,6 +25,7 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
+import static org.testng.Assert.assertSame;
 import static org.testng.Assert.assertTrue;
 import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
@@ -55,11 +56,14 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerInfo;
 import org.apache.bookkeeper.mledger.Position;
+import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.service.Topic;
+import org.apache.pulsar.broker.service.persistent.PersistentDispatcherSingleActiveConsumer;
+import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.service.persistent.SystemTopic;
 import org.apache.pulsar.client.admin.LongRunningProcessStatus;
@@ -89,6 +93,7 @@ import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.protocol.Markers;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.awaitility.Awaitility;
+import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -1867,6 +1872,57 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
         Awaitility.await()
                 .untilAsserted(() -> Assert.assertEquals(consumer.getStats().getMsgNumInReceiverQueue().intValue(),
                         receiveQueueSize));
+        consumer.close();
+        producer.close();
+    }
+
+    @Test
+    public void testDispatcherMaxReadSizeBytes() throws Exception {
+        final String topicName =
+                "persistent://my-property/use/my-ns/testDispatcherMaxReadSizeBytes" + UUID.randomUUID();
+        final String subName = "my-sub";
+        final int receiveQueueSize = 1;
+        @Cleanup
+        PulsarClient client = newPulsarClient(lookupUrl.toString(), 100);
+        Producer<byte[]> producer = pulsarClient.newProducer(Schema.BYTES)
+                .topic(topicName).create();
+
+        for (int i = 0; i < 10; i+=2) {
+            producer.newMessage().key(null).value(new byte[4*1024*1024]).send();
+        }
+        producer.flush();
+
+        admin.topics().triggerCompaction(topicName);
+
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(admin.topics().compactionStatus(topicName).status,
+                    LongRunningProcessStatus.Status.SUCCESS);
+        });
+
+        admin.topics().unload(topicName);
+
+        ConsumerImpl<byte[]> consumer = (ConsumerImpl<byte[]>) client.newConsumer(Schema.BYTES)
+                .topic(topicName).readCompacted(true).receiverQueueSize(receiveQueueSize).subscriptionName(subName)
+                .subscribe();
+
+        PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName).get();
+        PersistentSubscription persistentSubscription = topic.getSubscriptions().get(subName);
+        PersistentDispatcherSingleActiveConsumer dispatcher =
+                Mockito.spy((PersistentDispatcherSingleActiveConsumer) persistentSubscription.getDispatcher());
+        FieldUtils.writeDeclaredField(persistentSubscription, "dispatcher", dispatcher, true);
+
+        Awaitility.await().untilAsserted(() -> {
+            assertSame(consumer.getStats().getMsgNumInReceiverQueue(), 1);
+        });
+
+        consumer.increaseAvailablePermits(2);
+
+        Thread.sleep(2000);
+
+        Mockito.verify(dispatcher, Mockito.atLeastOnce())
+                .readEntriesComplete(Mockito.argThat(argument -> argument.size() == 1),
+                        Mockito.any(PersistentDispatcherSingleActiveConsumer.ReadEntriesCtx.class));
+
         consumer.close();
         producer.close();
     }
