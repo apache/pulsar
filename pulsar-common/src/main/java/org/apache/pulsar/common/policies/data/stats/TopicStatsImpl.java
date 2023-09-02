@@ -106,7 +106,7 @@ public class TopicStatsImpl implements TopicStats {
     public long abortedTxnCount;
     public long committedTxnCount;
 
-    public boolean isFenced;
+    public boolean fenced;
     public long fencedTimestamp;
     public long pendingAddEntryRequest;
 
@@ -226,7 +226,7 @@ public class TopicStatsImpl implements TopicStats {
         this.ownerBroker = null;
         this.bucketDelayedIndexStats.clear();
         this.msgChunkPublished = false;
-        this.isFenced = false;
+        this.fenced = false;
         this.fencedTimestamp = 0;
         this.pendingAddEntryRequest = 0;
     }
@@ -259,7 +259,7 @@ public class TopicStatsImpl implements TopicStats {
         this.abortedTxnCount = stats.abortedTxnCount;
         this.committedTxnCount = stats.committedTxnCount;
         this.fencedTimestamp = Math.max(stats.fencedTimestamp, fencedTimestamp);
-        this.isFenced = this.isFenced && stats.isFenced;
+        this.fenced = this.fenced && stats.fenced;
         this.pendingAddEntryRequest += stats.pendingAddEntryRequest;
 
         stats.bucketDelayedIndexStats.forEach((k, v) -> {
