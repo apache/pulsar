@@ -96,4 +96,10 @@ public interface TopicStats {
     String getOwnerBroker();
 
     long getDelayedMessageIndexSizeInBytes();
+
+    boolean isFenced();
+
+    long getFencedTimestamp();
+
+    long getPendingAddEntryRequest();
 }

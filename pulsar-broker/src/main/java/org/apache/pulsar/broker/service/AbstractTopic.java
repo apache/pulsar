@@ -101,6 +101,7 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
     protected final ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
 
     protected volatile boolean isFenced;
+    protected volatile long fencedTimestamp;
 
     protected final HierarchyTopicPolicies topicPolicies;
 
