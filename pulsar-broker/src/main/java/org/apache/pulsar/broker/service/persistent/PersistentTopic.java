@@ -2314,7 +2314,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         stats.lastOffloadLedgerId = ledger.getLastOffloadedLedgerId();
         stats.lastOffloadSuccessTimeStamp = ledger.getLastOffloadedSuccessTimestamp();
         stats.lastOffloadFailureTimeStamp = ledger.getLastOffloadedFailureTimestamp();
-        stats.isFenced = isFenced;
+        stats.fenced = isFenced;
         stats.fencedTimestamp = fencedTimestamp;
         stats.pendingAddEntryRequest = pendingWriteOps.get();
 
