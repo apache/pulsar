@@ -281,7 +281,7 @@ public class CompactorTest extends MockedPulsarServiceBaseTest {
         Awaitility.await().untilAsserted(() -> {
             long compactedLedgerId = compactor.compact(topic).join();
             Thread.sleep(300);
-            Optional<CompactedTopicContext> compactedTopicContext = persistentTopic.getCompactedTopic()
+            Optional<CompactedTopicContext> compactedTopicContext = persistentTopic.getCompactedTopicContext();
             Assert.assertTrue(compactedTopicContext.isPresent());
             Assert.assertEquals(compactedTopicContext.get().ledger.getId(), compactedLedgerId);
         });
