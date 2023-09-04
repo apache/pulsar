@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.broker.systopic;
 
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNull;
 import com.google.common.collect.Sets;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -37,6 +39,7 @@ import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.broker.service.schema.SchemaRegistry;
 import org.apache.pulsar.client.admin.ListTopicsOptions;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
@@ -55,6 +58,7 @@ import org.apache.pulsar.common.naming.TopicVersion;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
+import org.apache.pulsar.common.policies.data.TopicPolicies;
 import org.apache.pulsar.common.policies.data.TopicType;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.awaitility.Awaitility;
@@ -298,5 +302,26 @@ public class PartitionedSystemTopicTest extends BrokerTestBase {
         reader2.close();
         writer1.get().close();
         writer2.get().close();
+    }
+
+    @Test
+    public void testDeleteTopicSchemaAndPolicyWhenTopicIsNotLoaded() throws Exception {
+        final String ns = "prop/ns-test";
+        admin.namespaces().createNamespace(ns, 2);
+        final String topicName = "persistent://prop/ns-test/testDeleteTopicSchemaAndPolicyWhenTopicIsNotLoaded";
+        admin.topics().createNonPartitionedTopic(topicName);
+        pulsarClient.newProducer(Schema.STRING).topic(topicName).create().close();
+        admin.topicPolicies().setMaxConsumers(topicName, 2);
+        Awaitility.await().untilAsserted(() -> assertEquals(admin.topicPolicies().getMaxConsumers(topicName), 2));
+        CompletableFuture<Optional<Topic>> topic = pulsar.getBrokerService().getTopic(topicName, false);
+        PersistentTopic persistentTopic = (PersistentTopic) topic.join().get();
+        persistentTopic.close();
+        admin.topics().delete(topicName);
+        TopicPolicies topicPolicies = pulsar.getTopicPoliciesService().getTopicPoliciesIfExists(TopicName.get(topicName));
+        assertNull(topicPolicies);
+        String base = TopicName.get(topicName).getPartitionedTopicName();
+        String id = TopicName.get(base).getSchemaName();
+        CompletableFuture<SchemaRegistry.SchemaAndMetadata> schema = pulsar.getSchemaRegistryService().getSchema(id);
+        assertNull(schema.join());
     }
 }

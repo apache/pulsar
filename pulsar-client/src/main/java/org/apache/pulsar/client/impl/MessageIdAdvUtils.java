@@ -64,6 +64,9 @@ public class MessageIdAdvUtils {
     }
 
     static MessageIdAdv discardBatch(MessageId messageId) {
+        if (messageId instanceof ChunkMessageIdImpl) {
+            return (MessageIdAdv) messageId;
+        }
         MessageIdAdv msgId = (MessageIdAdv) messageId;
         return new MessageIdImpl(msgId.getLedgerId(), msgId.getEntryId(), msgId.getPartitionIndex());
     }

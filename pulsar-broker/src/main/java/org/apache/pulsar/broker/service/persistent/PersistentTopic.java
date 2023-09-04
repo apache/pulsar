@@ -196,6 +196,10 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     private final TopicName shadowSourceTopic;
 
     static final String DEDUPLICATION_CURSOR_NAME = "pulsar.dedup";
+
+    public static boolean isDedupCursorName(String name) {
+        return DEDUPLICATION_CURSOR_NAME.equals(name);
+    }
     private static final String TOPIC_EPOCH_PROPERTY_NAME = "pulsar.topic.epoch";
 
     private static final double MESSAGE_EXPIRY_THRESHOLD = 1.5;
@@ -1166,15 +1170,14 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
     private void asyncDeleteCursorWithClearDelayedMessage(String subscriptionName,
                                                           CompletableFuture<Void> unsubscribeFuture) {
-        if (!isDelayedDeliveryEnabled()
-                || !(brokerService.getDelayedDeliveryTrackerFactory() instanceof BucketDelayedDeliveryTrackerFactory)) {
-            asyncDeleteCursor(subscriptionName, unsubscribeFuture);
-            return;
-        }
-
         PersistentSubscription persistentSubscription = subscriptions.get(subscriptionName);
         if (persistentSubscription == null) {
             log.warn("[{}][{}] Can't find subscription, skip clear delayed message", topic, subscriptionName);
+            unsubscribeFuture.complete(null);
+            return;
+        }
+        if (!isDelayedDeliveryEnabled()
+                || !(brokerService.getDelayedDeliveryTrackerFactory() instanceof BucketDelayedDeliveryTrackerFactory)) {
             asyncDeleteCursor(subscriptionName, unsubscribeFuture);
             return;
         }

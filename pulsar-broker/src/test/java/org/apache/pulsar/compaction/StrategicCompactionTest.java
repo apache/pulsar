@@ -148,5 +148,24 @@ public class StrategicCompactionTest extends CompactionTest {
         Assert.assertEquals(tableView.entrySet(), expectedCopy.entrySet());
     }
 
+    @Override
+    public void testCompactCompressedBatching() throws Exception {
+        compactor = new StrategicTwoPhaseCompactor(conf, pulsarClient, bk, compactionScheduler, 10);
+        super.testCompactCompressedBatching();
+        compactor = new StrategicTwoPhaseCompactor(conf, pulsarClient, bk, compactionScheduler, 1);
+    }
 
+    @Override
+    public void testCompactEncryptedAndCompressedBatching() throws Exception {
+        compactor = new StrategicTwoPhaseCompactor(conf, pulsarClient, bk, compactionScheduler, 10);
+        super.testCompactEncryptedAndCompressedBatching();
+        compactor = new StrategicTwoPhaseCompactor(conf, pulsarClient, bk, compactionScheduler, 1);
+    }
+
+    @Override
+    public void testCompactEncryptedBatching() throws Exception {
+        compactor = new StrategicTwoPhaseCompactor(conf, pulsarClient, bk, compactionScheduler, 10);
+        super.testCompactEncryptedBatching();
+        compactor = new StrategicTwoPhaseCompactor(conf, pulsarClient, bk, compactionScheduler, 1);
+    }
 }
