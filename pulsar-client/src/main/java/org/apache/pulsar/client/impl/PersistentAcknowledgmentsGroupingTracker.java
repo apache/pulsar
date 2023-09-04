@@ -124,6 +124,12 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
             // Already included in a cumulative ack
             return true;
         } else {
+            if (messageId instanceof BatchMessageIdImpl) {
+                BatchMessageIdImpl batchMessageId = (BatchMessageIdImpl) messageId;
+                ConcurrentBitSetRecyclable bitSet =
+                        pendingIndividualBatchIndexAcks.get(MessageIdAdvUtils.discardBatch(messageId));
+                return bitSet != null && !bitSet.get(batchMessageId.getBatchIndex());
+            }
             return pendingIndividualAcks.contains(MessageIdAdvUtils.discardBatch(messageIdAdv));
         }
     }
