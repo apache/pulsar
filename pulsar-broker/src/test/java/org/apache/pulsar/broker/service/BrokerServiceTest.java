@@ -1594,8 +1594,10 @@ public class BrokerServiceTest extends BrokerTestBase {
 
         assertTrue(brokerService.isSystemTopic(TRANSACTION_COORDINATOR_ASSIGN));
         assertTrue(brokerService.isSystemTopic(TRANSACTION_COORDINATOR_LOG));
-        NamespaceName heartbeatNamespaceV1 = NamespaceService.getHeartbeatNamespace(pulsar.getAdvertisedAddress(), pulsar.getConfig());
-        NamespaceName heartbeatNamespaceV2 = NamespaceService.getHeartbeatNamespaceV2(pulsar.getAdvertisedAddress(), pulsar.getConfig());
+        NamespaceName heartbeatNamespaceV1 = NamespaceService
+                .getHeartbeatNamespace(pulsar.getLookupServiceAddress(), pulsar.getConfig());
+        NamespaceName heartbeatNamespaceV2 = NamespaceService
+                .getHeartbeatNamespaceV2(pulsar.getLookupServiceAddress(), pulsar.getConfig());
         assertTrue(brokerService.isSystemTopic("persistent://" + heartbeatNamespaceV1.toString() + "/healthcheck"));
         assertTrue(brokerService.isSystemTopic(heartbeatNamespaceV2.toString() + "/healthcheck"));
     }

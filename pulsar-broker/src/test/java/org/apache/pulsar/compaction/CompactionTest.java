@@ -1773,9 +1773,9 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
     @SneakyThrows
     @Test
     public void testHealthCheckTopicNotCompacted() {
-        NamespaceName heartbeatNamespaceV1 = NamespaceService.getHeartbeatNamespace(pulsar.getAdvertisedAddress(), pulsar.getConfiguration());
+        NamespaceName heartbeatNamespaceV1 = NamespaceService.getHeartbeatNamespace(pulsar.getLookupServiceAddress(), pulsar.getConfiguration());
         String topicV1 = "persistent://" + heartbeatNamespaceV1.toString() + "/healthcheck";
-        NamespaceName heartbeatNamespaceV2 = NamespaceService.getHeartbeatNamespaceV2(pulsar.getAdvertisedAddress(), pulsar.getConfiguration());
+        NamespaceName heartbeatNamespaceV2 = NamespaceService.getHeartbeatNamespaceV2(pulsar.getLookupServiceAddress(), pulsar.getConfiguration());
         String topicV2 = heartbeatNamespaceV2.toString() + "/healthcheck";
         Producer<byte[]> producer1 = pulsarClient.newProducer().topic(topicV1).create();
         Producer<byte[]> producer2 = pulsarClient.newProducer().topic(topicV2).create();
