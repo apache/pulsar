@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker.resources;
 
-import com.google.common.annotations.VisibleForTesting;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.common.naming.NamespaceName;
