@@ -74,7 +74,7 @@ public class IsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePlac
             store = BookieRackAffinityMapping.createMetadataStore(conf);
         } catch (MetadataException e) {
             throw new RuntimeException(METADATA_STORE_INSTANCE + " failed initialized");
-        
+        }
         Set<String> primaryIsolationGroups = new HashSet<>();
         Set<String> secondaryIsolationGroups = new HashSet<>();
         if (conf.getProperty(ISOLATION_BOOKIE_GROUPS) != null) {
