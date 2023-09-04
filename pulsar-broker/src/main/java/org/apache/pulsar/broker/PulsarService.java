@@ -91,6 +91,7 @@ import org.apache.pulsar.broker.loadbalance.LoadSheddingTask;
 import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl;
 import org.apache.pulsar.broker.lookup.v1.TopicLookup;
 import org.apache.pulsar.broker.namespace.NamespaceService;
+import org.apache.pulsar.broker.policies.TableViewTopicPolicyService;
 import org.apache.pulsar.broker.protocol.ProtocolHandlers;
 import org.apache.pulsar.broker.resourcegroup.ResourceGroupService;
 import org.apache.pulsar.broker.resourcegroup.ResourceUsageTopicTransportManager;
@@ -854,7 +855,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
 
             // Start topic level policies service
             if (config.isTopicLevelPoliciesEnabled() && config.isSystemTopicEnabled()) {
-                this.topicPoliciesService = new SystemTopicBasedTopicPoliciesService(this);
+                this.topicPoliciesService = new TableViewTopicPolicyService(this);
             }
 
             this.topicPoliciesService.start();
