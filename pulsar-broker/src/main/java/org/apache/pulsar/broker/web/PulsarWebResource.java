@@ -60,6 +60,7 @@ import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl
 import org.apache.pulsar.broker.namespace.LookupOptions;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.resources.BookieResources;
+import org.apache.pulsar.broker.resources.BundleDataResources;
 import org.apache.pulsar.broker.resources.ClusterResources;
 import org.apache.pulsar.broker.resources.DynamicConfigurationResources;
 import org.apache.pulsar.broker.resources.LocalPoliciesResources;
@@ -1109,6 +1110,10 @@ public abstract class PulsarWebResource {
 
     protected NamespaceResources namespaceResources() {
         return pulsar().getPulsarResources().getNamespaceResources();
+    }
+
+    protected BundleDataResources bundleDataResources() {
+        return pulsar().getPulsarResources().getBundleDataResources();
     }
 
     protected ResourceGroupResources resourceGroupResources() {
