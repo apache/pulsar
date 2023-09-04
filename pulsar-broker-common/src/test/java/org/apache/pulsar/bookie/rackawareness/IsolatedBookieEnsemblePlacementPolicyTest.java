@@ -127,9 +127,10 @@ public class IsolatedBookieEnsemblePlacementPolicyTest {
         Map<String, BookieInfo> mainBookieGroup = new HashMap<>();
         mainBookieGroup.put(BOOKIE1, BookieInfo.builder().rack("rack0").build());
         mainBookieGroup.put(BOOKIE2, BookieInfo.builder().rack("rack1").build());
+        mainBookieGroup.put(BOOKIE3, BookieInfo.builder().rack("rack1").build());
+        mainBookieGroup.put(BOOKIE4, BookieInfo.builder().rack("rack0").build());
 
         Map<String, BookieInfo> secondaryBookieGroup = new HashMap<>();
-        secondaryBookieGroup.put(BOOKIE3, BookieInfo.builder().rack("rack0").build());
 
         store = mock(MetadataStoreExtended.class);
         MetadataCacheImpl cache = mock(MetadataCacheImpl.class);
@@ -138,6 +139,7 @@ public class IsolatedBookieEnsemblePlacementPolicyTest {
         //The initialFuture only has group1.
         BookiesRackConfiguration rackConfiguration1 = new BookiesRackConfiguration();
         rackConfiguration1.put("group1", mainBookieGroup);
+        rackConfiguration1.put("group2", secondaryBookieGroup);
         initialFuture.complete(Optional.of(rackConfiguration1));
 
         long waitTime = 2000;
@@ -150,8 +152,15 @@ public class IsolatedBookieEnsemblePlacementPolicyTest {
             }
             //The waitingCompleteFuture has group1 and group2.
             BookiesRackConfiguration rackConfiguration2 = new BookiesRackConfiguration();
-            rackConfiguration2.put("group1", mainBookieGroup);
-            rackConfiguration2.put("group2", secondaryBookieGroup);
+            Map<String, BookieInfo> mainBookieGroup2 = new HashMap<>();
+            mainBookieGroup2.put(BOOKIE1, BookieInfo.builder().rack("rack0").build());
+            mainBookieGroup2.put(BOOKIE2, BookieInfo.builder().rack("rack1").build());
+            mainBookieGroup2.put(BOOKIE4, BookieInfo.builder().rack("rack0").build());
+
+            Map<String, BookieInfo> secondaryBookieGroup2 = new HashMap<>();
+            secondaryBookieGroup2.put(BOOKIE3, BookieInfo.builder().rack("rack0").build());
+            rackConfiguration2.put("group1", mainBookieGroup2);
+            rackConfiguration2.put("group2", secondaryBookieGroup2);
             waitingCompleteFuture.complete(Optional.of(rackConfiguration2));
         }).start();
 
