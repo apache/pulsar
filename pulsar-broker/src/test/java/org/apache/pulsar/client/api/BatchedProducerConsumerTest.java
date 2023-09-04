@@ -129,5 +129,10 @@ public class BatchedProducerConsumerTest extends ProducerConsumerBase {
         log.info(messagesSent.toString());
         log.info(messagesReceived.toString());
         Assert.assertEquals(messagesReceived.size(), messagesSent.size());
+
+        // cleanup.
+        producer.close();
+        consumer.close();
+        admin.topics().delete(topicName);
     }
 }
