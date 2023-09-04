@@ -1969,12 +1969,13 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
         // Wait for phase one to complete
         Thread.sleep(500);
 
+        // Unload topic make reader of compaction reconnect
         admin.topics().unload(topic);
 
         Awaitility.await().untilAsserted(() -> {
             PersistentTopicInternalStats internalStats = admin.topics().getInternalStats(topic, false);
             // Compacted topic ledger should have same number of entry equals to number of unique key.
-            Assert.assertEquals(expected.size(), internalStats.compactedLedger.entries);
+            Assert.assertEquals(internalStats.compactedLedger.entries, expected.size());
             Assert.assertTrue(internalStats.compactedLedger.ledgerId > -1);
             Assert.assertFalse(internalStats.compactedLedger.offloaded);
         });
