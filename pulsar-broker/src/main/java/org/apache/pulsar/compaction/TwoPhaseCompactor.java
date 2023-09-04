@@ -207,7 +207,7 @@ public class TwoPhaseCompactor extends Compactor {
         reader.seekAsync(from).thenCompose((v) -> {
             Semaphore outstanding = new Semaphore(MAX_OUTSTANDING);
             CompletableFuture<Void> loopPromise = new CompletableFuture<>();
-            phaseTwoLoop(reader, to, latestForKey, ledger, outstanding, loopPromise);
+            phaseTwoLoop(reader, to, latestForKey, ledger, outstanding, loopPromise, MessageId.earliest);
             return loopPromise;
         }).thenCompose((v) -> closeLedger(ledger))
                 .thenCompose((v) -> reader.acknowledgeCumulativeAsync(lastReadId,
@@ -229,7 +229,8 @@ public class TwoPhaseCompactor extends Compactor {
     }
 
     private void phaseTwoLoop(RawReader reader, MessageId to, Map<String, MessageId> latestForKey,
-                              LedgerHandle lh, Semaphore outstanding, CompletableFuture<Void> promise) {
+                              LedgerHandle lh, Semaphore outstanding, CompletableFuture<Void> promise,
+                              MessageId lastCompactedMessageId) {
         if (promise.isDone()) {
             return;
         }
@@ -238,6 +239,12 @@ public class TwoPhaseCompactor extends Compactor {
                 m.close();
                 return;
             }
+
+            if (m.getMessageId().compareTo(lastCompactedMessageId) <= 0) {
+                phaseTwoLoop(reader, to, latestForKey, lh, outstanding, promise, lastCompactedMessageId);
+                return;
+            }
+
             try {
                 MessageId id = m.getMessageId();
                 Optional<RawMessage> messageToAdd = Optional.empty();
@@ -308,7 +315,7 @@ public class TwoPhaseCompactor extends Compactor {
                     }
                     return;
                 }
-                phaseTwoLoop(reader, to, latestForKey, lh, outstanding, promise);
+                phaseTwoLoop(reader, to, latestForKey, lh, outstanding, promise, m.getMessageId());
             } finally {
                 m.close();
             }
