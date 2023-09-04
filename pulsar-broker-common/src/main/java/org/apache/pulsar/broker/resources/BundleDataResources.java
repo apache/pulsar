@@ -26,7 +26,6 @@ import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.policies.data.loadbalancer.BundleData;
 
 public class BundleDataResources extends BaseResources<BundleData> {
-    @VisibleForTesting
     public static final String BUNDLE_DATA_BASE_PATH = "/loadbalance/bundle-data";
 
     public BundleDataResources(MetadataStore store, int operationTimeoutSec) {
