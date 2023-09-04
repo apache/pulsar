@@ -1170,15 +1170,14 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
     private void asyncDeleteCursorWithClearDelayedMessage(String subscriptionName,
                                                           CompletableFuture<Void> unsubscribeFuture) {
-        if (!isDelayedDeliveryEnabled()
-                || !(brokerService.getDelayedDeliveryTrackerFactory() instanceof BucketDelayedDeliveryTrackerFactory)) {
-            asyncDeleteCursor(subscriptionName, unsubscribeFuture);
-            return;
-        }
-
         PersistentSubscription persistentSubscription = subscriptions.get(subscriptionName);
         if (persistentSubscription == null) {
             log.warn("[{}][{}] Can't find subscription, skip clear delayed message", topic, subscriptionName);
+            unsubscribeFuture.complete(null);
+            return;
+        }
+        if (!isDelayedDeliveryEnabled()
+                || !(brokerService.getDelayedDeliveryTrackerFactory() instanceof BucketDelayedDeliveryTrackerFactory)) {
             asyncDeleteCursor(subscriptionName, unsubscribeFuture);
             return;
         }
