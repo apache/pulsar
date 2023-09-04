@@ -46,6 +46,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.collections4.ListUtils;
@@ -224,6 +225,31 @@ public class NamespaceService implements AutoCloseable {
     public CompletableFuture<NamespaceBundle> getBundleAsync(TopicName topic) {
         return bundleFactory.getBundlesAsync(topic.getNamespaceObject())
                 .thenApply(bundles -> bundles.findBundle(topic));
+    }
+
+    /**
+     * Get all of owned bundles in current broker by namespace name.
+     *
+     * @param ns Namespace object
+     * @return A list of namespace bundle which owned by current broker.
+     */
+    public @Nonnull CompletableFuture<List<NamespaceBundle>> getOwnedBundles(@Nonnull NamespaceName ns) {
+        return bundleFactory.getBundlesAsync(ns).thenCompose(bundles -> {
+            final var bundleList = bundles.getBundles();
+            final List<CompletableFuture<NamespaceBundle>> ownedBundles = new ArrayList<>(bundleList.size());
+            for (var bundle : bundleList) {
+                final var tmp = checkOwnershipPresentAsync(bundle)
+                        // using closure to catch bundle obj
+                        .thenApply(present -> present ? bundle : null);
+                ownedBundles.add(tmp);
+            }
+            return FutureUtil.waitForAll(ownedBundles)
+                    .thenApply(__ -> {
+                        // catch ownedBundles
+                        return ownedBundles.stream().map(CompletableFuture::join)
+                                .filter(Objects::nonNull).toList();
+                    });
+        });
     }
 
     public Optional<NamespaceBundle> getBundleIfPresent(TopicName topicName) {

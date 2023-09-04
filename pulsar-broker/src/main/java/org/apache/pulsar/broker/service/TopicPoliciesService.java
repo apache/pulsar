@@ -31,6 +31,11 @@ import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.TopicPolicies;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.jetbrains.annotations.NotNull;
+
+import javax.annotation.Nonnull;
+
+import static java.util.concurrent.CompletableFuture.completedFuture;
 
 /**
  * Topic policies service.
@@ -116,6 +121,9 @@ public interface TopicPoliciesService {
      */
     CompletableFuture<TopicPolicies> getTopicPoliciesBypassCacheAsync(TopicName topicName);
 
+    @Nonnull
+    CompletableFuture<Optional<TopicPolicies>> getTopicPoliciesAsync(@Nonnull TopicName topicName, boolean isGlobal);
+
     /**
      * Add owned namespace bundle async.
      *
@@ -169,19 +177,25 @@ public interface TopicPoliciesService {
 
         @Override
         public CompletableFuture<TopicPolicies> getTopicPoliciesBypassCacheAsync(TopicName topicName) {
-            return CompletableFuture.completedFuture(null);
+            return completedFuture(null);
+        }
+
+        @NotNull
+        @Override
+        public CompletableFuture<Optional<TopicPolicies>> getTopicPoliciesAsync(@NotNull TopicName topicName, boolean isGlobal) {
+            return completedFuture(null);
         }
 
         @Override
         public CompletableFuture<Void> addOwnedNamespaceBundleAsync(NamespaceBundle namespaceBundle) {
             //No-op
-            return CompletableFuture.completedFuture(null);
+            return completedFuture(null);
         }
 
         @Override
         public CompletableFuture<Void> removeOwnedNamespaceBundleAsync(NamespaceBundle namespaceBundle) {
             //No-op
-            return CompletableFuture.completedFuture(null);
+            return completedFuture(null);
         }
 
         @Override
