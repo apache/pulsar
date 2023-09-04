@@ -155,8 +155,23 @@ public class IsolatedBookieEnsemblePlacementPolicyTest {
             waitingCompleteFuture.complete(Optional.of(rackConfiguration2));
         }).start();
 
-        when(cache.get(BookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH)).thenReturn(initialFuture)
-                .thenReturn(waitingCompleteFuture);
+        long longWaitTime = 4000;
+        CompletableFuture<Optional<BookiesRackConfiguration>> emptyFuture = new CompletableFuture<>();
+        new Thread(() -> {
+            try {
+                Thread.sleep(longWaitTime);
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
+            //The emptyFuture means that the zk node /bookies already be removed.
+            emptyFuture.complete(Optional.empty());
+        }).start();
+
+        //Return different future means that cache expire.
+        when(cache.get(BookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH))
+                .thenReturn(initialFuture).thenReturn(initialFuture)
+                .thenReturn(waitingCompleteFuture).thenReturn(waitingCompleteFuture)
+                .thenReturn(emptyFuture).thenReturn(emptyFuture);
 
         IsolatedBookieEnsemblePlacementPolicy isolationPolicy = new IsolatedBookieEnsemblePlacementPolicy();
         ClientConfiguration bkClientConf = new ClientConfiguration();
@@ -169,20 +184,40 @@ public class IsolatedBookieEnsemblePlacementPolicyTest {
         groups.setLeft(Sets.newHashSet("group1"));
         groups.setRight(new HashSet<>());
 
-        //The future is waiting done, so use the cached rack config.
+        //initialFuture, the future is waiting done.
         Set<BookieId> blacklist =
+                isolationPolicy.getExcludedBookiesWithIsolationGroups(2, groups);
+        assertTrue(blacklist.isEmpty());
+
+        //waitingCompleteFuture, the future is waiting done.
+        blacklist =
                 isolationPolicy.getExcludedBookiesWithIsolationGroups(2, groups);
         assertTrue(blacklist.isEmpty());
 
         Thread.sleep(waitTime);
 
-        //The future is already done, use the newest rack config.
+        //waitingCompleteFuture, the future is already done.
         blacklist =
                 isolationPolicy.getExcludedBookiesWithIsolationGroups(2, groups);
         assertFalse(blacklist.isEmpty());
         assertEquals(blacklist.size(), 1);
         BookieId excludeBookie = blacklist.iterator().next();
         assertEquals(excludeBookie.toString(), BOOKIE3);
+
+        //emptyFuture, the future is waiting done.
+        blacklist =
+                isolationPolicy.getExcludedBookiesWithIsolationGroups(2, groups);
+        assertFalse(blacklist.isEmpty());
+        assertEquals(blacklist.size(), 1);
+        excludeBookie = blacklist.iterator().next();
+        assertEquals(excludeBookie.toString(), BOOKIE3);
+
+        Thread.sleep(longWaitTime - waitTime);
+
+        //emptyFuture, the future is already done.
+        blacklist =
+                isolationPolicy.getExcludedBookiesWithIsolationGroups(2, groups);
+        assertTrue(blacklist.isEmpty());
     }
 
     @Test

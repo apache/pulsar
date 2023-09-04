@@ -64,7 +64,7 @@ public class IsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePlac
 
     private static final String PULSAR_SYSTEM_TOPIC_ISOLATION_GROUP = "*";
 
-    private BookiesRackConfiguration cachedRackConfiguration = null;
+    private volatile BookiesRackConfiguration cachedRackConfiguration = null;
 
     public IsolatedBookieEnsemblePlacementPolicy() {
         super();
@@ -90,9 +90,12 @@ public class IsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePlac
             }
             // Only add the bookieMappingCache if we have defined an isolation group
             bookieMappingCache = store.getMetadataCache(BookiesRackConfiguration.class);
-            Optional<BookiesRackConfiguration> optional =
-                    bookieMappingCache.get(BookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH).join();
-            optional.ifPresent(bookiesRackConfiguration -> cachedRackConfiguration = bookiesRackConfiguration);
+            bookieMappingCache.get(BookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH).thenAccept(opt -> opt.ifPresent(
+                            bookiesRackConfiguration -> cachedRackConfiguration = bookiesRackConfiguration))
+                    .exceptionally(e -> {
+                        log.warn("Failed to load bookies rack configuration while initialize the PlacementPolicy.");
+                        return null;
+                    });
         }
         if (conf.getProperty(SECONDARY_ISOLATION_BOOKIE_GROUPS) != null) {
             String secondaryIsolationGroupsString = ConfigurationStringUtil
@@ -194,24 +197,16 @@ public class IsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePlac
         }
         try {
             if (bookieMappingCache != null) {
-                CompletableFuture<Optional<BookiesRackConfiguration>> future =
-                        bookieMappingCache.get(BookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH);
+                bookieMappingCache.get(BookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH)
+                        .thenAccept(opt -> cachedRackConfiguration = opt.orElse(null)).exceptionally(e -> {
+                            log.warn("Failed to update the newest bookies rack config.");
+                            return null;
+                        });
 
-                BookiesRackConfiguration allGroupsBookieMapping;
-                Optional<BookiesRackConfiguration> optRes = (future.isDone() && !future.isCompletedExceptionally())
-                        ? future.join() : Optional.empty();
-
-                if (!optRes.isPresent()) {
-                    if (cachedRackConfiguration != null) {
-                        log.debug("The newest rack config is not available now, use the cached rack config : {}",
-                                cachedRackConfiguration);
-                        allGroupsBookieMapping = cachedRackConfiguration;
-                    } else {
-                        throw new KeeperException.NoNodeException(ZkBookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH);
-                    }
-                } else {
-                    cachedRackConfiguration = optRes.get();
-                    allGroupsBookieMapping = optRes.get();
+                BookiesRackConfiguration allGroupsBookieMapping = cachedRackConfiguration;
+                if (allGroupsBookieMapping == null) {
+                    log.debug("The bookies rack config is not available at now.");
+                    return excludedBookies;
                 }
                 Set<String> allBookies = allGroupsBookieMapping.keySet();
                 int totalAvailableBookiesInPrimaryGroup = 0;
