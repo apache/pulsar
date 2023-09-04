@@ -334,6 +334,37 @@ public class MessageChunkingTest extends ProducerConsumerBase {
     }
 
     @Test
+    public void testResendChunkMessagesWithoutAckHole() throws Exception {
+        log.info("-- Starting {} test --", methodName);
+        final String topicName = "persistent://my-property/my-ns/testResendChunkMessagesWithoutAckHole";
+        final String subName = "my-subscriber-name";
+        @Cleanup
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topicName)
+                .subscriptionName(subName)
+                .maxPendingChunkedMessage(10)
+                .autoAckOldestChunkedMessageOnQueueFull(true)
+                .subscribe();
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topicName)
+                .enableChunking(true)
+                .enableBatching(false)
+                .create();
+
+        sendSingleChunk(producer, "0", 0, 2);
+
+        sendSingleChunk(producer, "0", 0, 2); // Resending the first chunk
+        sendSingleChunk(producer, "0", 1, 2);
+
+        Message<String> receivedMsg = consumer.receive(5, TimeUnit.SECONDS);
+        assertEquals(receivedMsg.getValue(), "chunk-0-0|chunk-0-1|");
+        consumer.acknowledge(receivedMsg);
+        assertEquals(admin.topics().getStats(topicName).getSubscriptions().get(subName)
+                .getNonContiguousDeletedMessagesRanges(), 0);
+    }
+
+    @Test
     public void testResendChunkMessages() throws Exception {
         log.info("-- Starting {} test --", methodName);
         final String topicName = "persistent://my-property/my-ns/testResendChunkMessages";
@@ -371,6 +402,7 @@ public class MessageChunkingTest extends ProducerConsumerBase {
         receivedMsg = consumer.receive(5, TimeUnit.SECONDS);
         assertEquals(receivedMsg.getValue(), "chunk-1-0|chunk-1-1|chunk-1-2|");
         consumer.acknowledge(receivedMsg);
+        Assert.assertEquals(((ConsumerImpl<String>) consumer).getAvailablePermits(), 8);
     }
 
     /**
