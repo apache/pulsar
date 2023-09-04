@@ -52,7 +52,6 @@ public class NamespaceResources extends BaseResources<Policies> {
 
     public static final String POLICIES_READONLY_FLAG_PATH = "/admin/flags/policies-readonly";
     private static final String NAMESPACE_BASE_PATH = "/namespace";
-    private static final String BUNDLE_DATA_BASE_PATH = "/loadbalance/bundle-data";
 
     public NamespaceResources(MetadataStore configurationStore, int operationTimeoutSec) {
         super(configurationStore, Policies.class, operationTimeoutSec);
