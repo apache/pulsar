@@ -24,7 +24,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.BrokerTestUtil;
-import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.ConsumerImpl;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.testng.Assert;
@@ -86,7 +85,7 @@ public class BatchedProducerConsumerTest extends ProducerConsumerBase {
             messagesSent.add(msg);
         }
         producer.flush();
-        FutureUtil.waitForAll(sendTasks);
+        FutureUtil.waitForAll(sendTasks).join();
 
         // Receive messages.
         ArrayList<String> messagesReceived = new ArrayList<>();
@@ -102,23 +101,20 @@ public class BatchedProducerConsumerTest extends ProducerConsumerBase {
                 consumer.acknowledge(message);
                 continue;
             }
-            if (message.getMessageId() instanceof BatchMessageIdImpl batchMessageId) {
-                if (batchMessageId.getBatchIndex() == 1) {
-                    consumer.negativeAcknowledge(message);
-                    index1HasBeenNegativeAcked = true;
-                    continue;
-                }
+            if (((MessageIdAdv) message.getMessageId()).getBatchIndex() == 1) {
+                consumer.negativeAcknowledge(message);
+                index1HasBeenNegativeAcked = true;
+                continue;
             }
             messagesReceived.add(message.getValue());
             consumer.acknowledge(message);
         }
 
-        // Wait the message negative acknowledgment finished.
-        Thread.sleep(redeliveryDelaySeconds * 3);
-
         // Receive negative acked messages.
+        // Wait the message negative acknowledgment finished.
+        int tripleRedeliveryDelaySeconds = redeliveryDelaySeconds * 3;
         while (true) {
-            Message<String> message = consumer.receive(2, TimeUnit.SECONDS);
+            Message<String> message = consumer.receive(tripleRedeliveryDelaySeconds, TimeUnit.SECONDS);
             if (message == null) {
                 break;
             }
@@ -126,8 +122,7 @@ public class BatchedProducerConsumerTest extends ProducerConsumerBase {
             consumer.acknowledge(message);
         }
 
-        log.info(messagesSent.toString());
-        log.info(messagesReceived.toString());
+        log.info("messagesSent: {}, messagesReceived: {}", messagesSent, messagesReceived);
         Assert.assertEquals(messagesReceived.size(), messagesSent.size());
 
         // cleanup.
