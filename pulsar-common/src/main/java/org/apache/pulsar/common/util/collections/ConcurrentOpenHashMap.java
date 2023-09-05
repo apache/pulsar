@@ -272,6 +272,12 @@ public class ConcurrentOpenHashMap<K, V> {
         }
     }
 
+    /**
+     * Iterate over all the entries in the map and apply the processor function to each of them.
+     * <p>
+     * <b>Warning: Do Not Guarantee Thread-Safety.</b>
+     * @param processor
+     */
     public void forEach(BiConsumer<? super K, ? super V> processor) {
         for (int i = 0; i < sections.length; i++) {
             sections[i].forEach(processor);

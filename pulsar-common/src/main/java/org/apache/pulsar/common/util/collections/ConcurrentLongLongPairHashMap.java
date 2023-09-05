@@ -254,6 +254,12 @@ public class ConcurrentLongLongPairHashMap {
         }
     }
 
+    /**
+     * Iterate over all the entries in the map and apply the processor function to each of them.
+     * <p>
+     * <b>Warning: Do Not Guarantee Thread-Safety.</b>
+     * @param processor the processor to process the elements.
+     */
     public void forEach(BiConsumerLongPair processor) {
         for (Section s : sections) {
             s.forEach(processor);

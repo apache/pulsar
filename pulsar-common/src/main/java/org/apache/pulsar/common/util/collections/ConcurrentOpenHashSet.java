@@ -216,6 +216,12 @@ public class ConcurrentOpenHashSet<V> {
         }
     }
 
+    /**
+     * Iterate over all the elements in the set and apply the provided function.
+     * <p>
+     * <b>Warning: Do Not Guarantee Thread-Safety.</b>
+     * @param processor
+     */
     public void forEach(Consumer<? super V> processor) {
         for (int i = 0; i < sections.length; i++) {
             sections[i].forEach(processor);

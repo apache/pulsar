@@ -237,6 +237,12 @@ public class ConcurrentLongPairSet implements LongPairSet {
         }
     }
 
+    /**
+     * Iterate over all the elements in the set and apply the provided function.
+     * <p>
+     * <b>Warning: Do Not Guarantee Thread-Safety.</b>
+     * @param processor the processor to process the elements
+     */
     public void forEach(LongPairConsumer processor) {
         for (int i = 0; i < sections.length; i++) {
             sections[i].forEach(processor);
