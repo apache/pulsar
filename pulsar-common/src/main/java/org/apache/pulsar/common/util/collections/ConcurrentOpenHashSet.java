@@ -220,7 +220,7 @@ public class ConcurrentOpenHashSet<V> {
      * Iterate over all the elements in the set and apply the provided function.
      * <p>
      * <b>Warning: Do Not Guarantee Thread-Safety.</b>
-     * @param processor
+     * @param processor the function to apply to each element
      */
     public void forEach(Consumer<? super V> processor) {
         for (int i = 0; i < sections.length; i++) {
