@@ -650,7 +650,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
 
         NamespaceBundle targetNamespaceBundle =  bundles.findBundle(TopicName.get(topic + "0"));
         String bundle = targetNamespaceBundle.getBundleRange();
-        String path = BUNDLE_DATA_BASE_PATH + "/" + bundle;
+        String path = BUNDLE_DATA_BASE_PATH + "/" + namespace + "/" + bundle;
         NamespaceBundleStats defaultStats = new NamespaceBundleStats();
         defaultStats.msgThroughputIn = 100000;
         defaultStats.msgThroughputOut = 100000;
