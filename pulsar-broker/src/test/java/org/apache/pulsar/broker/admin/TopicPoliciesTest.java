@@ -46,8 +46,8 @@ import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.service.AbstractTopic;
 import org.apache.pulsar.broker.service.PublishRateLimiterImpl;
-import org.apache.pulsar.broker.service.SystemTopicBasedTopicPoliciesService;
 import org.apache.pulsar.broker.service.Topic;
+import org.apache.pulsar.broker.service.TopicPoliciesService;
 import org.apache.pulsar.broker.service.persistent.DispatchRateLimiter;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.service.persistent.SubscribeRateLimiter;
@@ -158,8 +158,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         );
         String topic = topicName.toString();
 
-        SystemTopicBasedTopicPoliciesService policyService =
-                (SystemTopicBasedTopicPoliciesService) pulsar.getTopicPoliciesService();
+        TopicPoliciesService policyService = pulsar.getTopicPoliciesService();
 
         //set up topic with maxSubscriptionsPerTopic = 10
         admin.topics().createNonPartitionedTopic(topic);
@@ -180,7 +179,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         assertFalse(pulsar.getBrokerService().getTopics().containsKey(topic));
         //make sure namespace policy reader is fully started.
         Awaitility.await().untilAsserted(()-> {
-            assertTrue(policyService.getPoliciesCacheInit(topicName.getNamespaceObject()));
+            assertTrue(policyService.get(topicName.getNamespaceObject()));
         });
 
         //load the topic.
