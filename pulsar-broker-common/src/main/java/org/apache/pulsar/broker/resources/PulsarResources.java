@@ -48,7 +48,7 @@ public class PulsarResources {
     @Getter
     private final TopicResources topicResources;
     @Getter
-    private final BundleDataResources bundleDataResources;
+    private final LoadBalanceResources loadBalanceResources;
     @Getter
     private final Optional<MetadataStore> localMetadataStore;
     @Getter
@@ -77,14 +77,14 @@ public class PulsarResources {
             loadReportResources = new LoadManagerReportResources(localMetadataStore, operationTimeoutSec);
             bookieResources = new BookieResources(localMetadataStore, operationTimeoutSec);
             topicResources = new TopicResources(localMetadataStore);
-            bundleDataResources = new BundleDataResources(localMetadataStore, operationTimeoutSec);
+            loadBalanceResources = new LoadBalanceResources(localMetadataStore, operationTimeoutSec);
         } else {
             dynamicConfigResources = null;
             localPolicies = null;
             loadReportResources = null;
             bookieResources = null;
             topicResources = null;
-            bundleDataResources = null;
+            loadBalanceResources = null;
         }
 
         this.localMetadataStore = Optional.ofNullable(localMetadataStore);

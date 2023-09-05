@@ -19,7 +19,7 @@
 package org.apache.pulsar.broker.resources;
 
 import static org.apache.pulsar.broker.resources.BaseResources.joinPath;
-import static org.apache.pulsar.broker.resources.BundleDataResources.BUNDLE_DATA_BASE_PATH;
+import static org.apache.pulsar.broker.resources.LoadBalanceResources.BUNDLE_DATA_BASE_PATH;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.testng.Assert.assertThrows;
@@ -28,16 +28,16 @@ import org.apache.pulsar.metadata.api.MetadataStore;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-public class BundleDataResourcesTest {
+public class LoadBalanceResourcesTest {
     private MetadataStore configurationStore;
     private MetadataStore localStore;
-    private BundleDataResources bundleDataResources;
+    private LoadBalanceResources loadBalanceResources;
 
     @BeforeMethod
     public void setup() {
         localStore = mock(MetadataStore.class);
         configurationStore = mock(MetadataStore.class);
-        bundleDataResources = new BundleDataResources(localStore, 30);
+        loadBalanceResources = new LoadBalanceResources(localStore, 30);
     }
 
     /**
@@ -47,11 +47,11 @@ public class BundleDataResourcesTest {
     public void testDeleteBundleDataAsync() {
         NamespaceName ns = NamespaceName.get("my-tenant/my-ns");
         String namespaceBundlePath = joinPath(BUNDLE_DATA_BASE_PATH, ns.toString());
-        bundleDataResources.deleteBundleDataAsync(ns);
+        loadBalanceResources.getBundleDataResources().deleteBundleDataAsync(ns);
 
         String tenant="my-tenant";
         String tenantBundlePath = joinPath(BUNDLE_DATA_BASE_PATH, tenant);
-        bundleDataResources.deleteBundleDataTenantAsync(tenant);
+        loadBalanceResources.getBundleDataResources().deleteBundleDataTenantAsync(tenant);
 
         verify(localStore).deleteRecursive(namespaceBundlePath);
         verify(localStore).deleteRecursive(tenantBundlePath);

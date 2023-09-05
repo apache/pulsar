@@ -380,7 +380,8 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
     public BundleData getBundleDataOrDefault(final String bundle) {
         BundleData bundleData = null;
         try {
-            Optional<BundleData> optBundleData = pulsarResources.getBundleDataResources().getBundleData(bundle).join();
+            Optional<BundleData> optBundleData =
+                    pulsarResources.getLoadBalanceResources().getBundleDataResources().getBundleData(bundle).join();
             if (optBundleData.isPresent()) {
                 return optBundleData.get();
             }
@@ -1145,7 +1146,8 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
         for (Map.Entry<String, BundleData> entry : loadData.getBundleData().entrySet()) {
             final String bundle = entry.getKey();
             final BundleData data = entry.getValue();
-            futures.add(pulsarResources.getBundleDataResources().updateBundleData(bundle, data));
+            futures.add(
+                    pulsarResources.getLoadBalanceResources().getBundleDataResources().updateBundleData(bundle, data));
         }
 
         // Write the time average broker data to metadata store.
@@ -1166,7 +1168,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
 
     private void deleteBundleDataFromMetadataStore(String bundle) {
         try {
-            pulsarResources.getBundleDataResources().deleteBundleData(bundle).join();
+            pulsarResources.getLoadBalanceResources().getBundleDataResources().deleteBundleData(bundle).join();
         } catch (Exception e) {
             if (!(e.getCause() instanceof NotFoundException)) {
                 log.warn("Failed to delete bundle-data {} from metadata store", bundle, e);

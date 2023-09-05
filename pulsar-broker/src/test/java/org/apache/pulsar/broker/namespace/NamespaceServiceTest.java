@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.broker.namespace;
 
-import static org.apache.pulsar.broker.resources.BundleDataResources.BUNDLE_DATA_BASE_PATH;
+import static org.apache.pulsar.broker.resources.LoadBalanceResources.BUNDLE_DATA_BASE_PATH;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;

@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.testclient;
 
-import static org.apache.pulsar.broker.resources.BundleDataResources.BUNDLE_DATA_BASE_PATH;
+import static org.apache.pulsar.broker.resources.LoadBalanceResources.BUNDLE_DATA_BASE_PATH;
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParameterException;
