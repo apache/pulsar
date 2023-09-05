@@ -196,6 +196,8 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
     }
 
     void configureDefaults(ServiceConfiguration conf) {
+        conf.setWebServicePortTls(Optional.of(0));
+        conf.setBrokerServicePortTls(Optional.of(0));
         conf.setForceDeleteNamespaceAllowed(true);
         conf.setLoadBalancerEnabled(true);
         conf.setEnableNamespaceIsolationUpdateOnTime(true);
