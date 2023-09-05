@@ -41,8 +41,10 @@ import org.apache.pulsar.broker.web.AuthenticationFilter;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
 import org.apache.pulsar.client.api.AuthenticationFactory;
+import org.apache.pulsar.client.api.KeyStoreParams;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.util.SecurityUtility;
+import org.apache.pulsar.common.util.keystoretls.KeyStoreSSLContext;
 import org.apache.pulsar.policies.data.loadbalancer.ServiceLookupData;
 import org.eclipse.jetty.client.HttpClient;
 import org.eclipse.jetty.client.HttpRequest;
@@ -267,20 +269,35 @@ class AdminProxyHandler extends ProxyServlet {
 
                     SSLContext sslCtx;
                     AuthenticationDataProvider authData = auth.getAuthData();
-                    if (authData.hasDataForTls()) {
-                        sslCtx = SecurityUtility.createSslContext(
+                    if (config.isBrokerClientTlsEnabledWithKeyStore()) {
+                        KeyStoreParams params = authData.hasDataForTls() ? authData.getTlsKeyStoreParams() : null;
+                        sslCtx = KeyStoreSSLContext.createClientSslContext(
+                                config.getBrokerClientSslProvider(),
+                                params != null ? params.getKeyStoreType() : null,
+                                params != null ? params.getKeyStorePath() : null,
+                                params != null ? params.getKeyStorePassword() : null,
                                 config.isTlsAllowInsecureConnection(),
-                                trustCertificates,
-                                authData.getTlsCertificates(),
-                                authData.getTlsPrivateKey(),
-                                config.getBrokerClientSslProvider()
-                        );
+                                config.getBrokerClientTlsTrustStoreType(),
+                                config.getBrokerClientTlsTrustStore(),
+                                config.getBrokerClientTlsTrustStorePassword(),
+                                config.getBrokerClientTlsCiphers(),
+                                config.getBrokerClientTlsProtocols());
                     } else {
-                        sslCtx = SecurityUtility.createSslContext(
-                                config.isTlsAllowInsecureConnection(),
-                                trustCertificates,
-                                config.getBrokerClientSslProvider()
-                        );
+                        if (authData.hasDataForTls()) {
+                            sslCtx = SecurityUtility.createSslContext(
+                                    config.isTlsAllowInsecureConnection(),
+                                    trustCertificates,
+                                    authData.getTlsCertificates(),
+                                    authData.getTlsPrivateKey(),
+                                    config.getBrokerClientSslProvider()
+                            );
+                        } else {
+                            sslCtx = SecurityUtility.createSslContext(
+                                    config.isTlsAllowInsecureConnection(),
+                                    trustCertificates,
+                                    config.getBrokerClientSslProvider()
+                            );
+                        }
                     }
 
                     SslContextFactory contextFactory = new SslContextFactory.Client();
