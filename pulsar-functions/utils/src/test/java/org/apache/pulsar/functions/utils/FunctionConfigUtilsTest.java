@@ -156,6 +156,18 @@ public class FunctionConfigUtilsTest {
     }
 
     @Test
+    public void testConvertBatchBuilder() {
+        FunctionConfig functionConfig = createFunctionConfig();
+        functionConfig.setBatchBuilder("KEY_BASED");
+
+        Function.FunctionDetails functionDetails = FunctionConfigUtils.convert(functionConfig, (ClassLoader) null);
+        assertEquals(functionDetails.getSink().getProducerSpec().getBatchBuilder(), "KEY_BASED");
+
+        FunctionConfig convertedConfig = FunctionConfigUtils.convertFromDetails(functionDetails);
+        assertEquals(convertedConfig.getProducerConfig().getBatchBuilder(), "KEY_BASED");
+    }
+
+    @Test
     public void testMergeEqual() {
         FunctionConfig functionConfig = createFunctionConfig();
         FunctionConfig newFunctionConfig = createFunctionConfig();
