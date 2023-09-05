@@ -27,9 +27,7 @@ import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.AutoTopicCreationOverride;
 import org.apache.pulsar.common.policies.data.TopicType;
 import org.apache.pulsar.common.policies.data.impl.AutoTopicCreationOverrideImpl;
-import org.apache.zookeeper.CreateMode;
-import org.apache.zookeeper.ZooDefs;
-import org.apache.zookeeper.ZooKeeper;
+import org.apache.zookeeper.*;
 import org.awaitility.reflect.WhiteboxImpl;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -55,7 +53,8 @@ public class BrokerServiceChaosTest extends CanReconnectZKClientPulsarServiceBas
     public void testFetchPartitionedTopicMetadataWithCacheRefresh() throws Exception {
         final String configMetadataStoreConnectString =
                 WhiteboxImpl.getInternalState(pulsar.getConfigurationMetadataStore(), "zkConnectString");
-        final ZooKeeper anotherZKCli = new ZooKeeper(configMetadataStoreConnectString, 5000, null);
+        final ZooKeeper anotherZKCli = new ZooKeeper(configMetadataStoreConnectString, 5000,
+                watchedEvent -> { });
         // Set policy of auto create topic to PARTITIONED.
         final String ns = defaultTenant + "/ns_" + UUID.randomUUID().toString().replaceAll("-", "");
         final TopicName topicName1 = TopicName.get("persistent://" + ns + "/tp1");
