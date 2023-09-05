@@ -19,8 +19,11 @@
 package org.apache.pulsar.broker.service;
 
 import com.google.common.collect.Lists;
+import java.util.ArrayList;
 import lombok.Cleanup;
 import lombok.SneakyThrows;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.service.persistent.PersistentDispatcherMultipleConsumers;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.api.Consumer;
@@ -28,9 +31,13 @@ import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.impl.BatchMessageIdImpl;
+import org.apache.pulsar.client.impl.ConsumerImpl;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.awaitility.Awaitility;
+import org.testng.Assert;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 import java.util.List;
@@ -39,6 +46,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import static org.testng.Assert.assertEquals;
 
+@Slf4j
 @Test(groups = "broker")
 public class BatchMessageWithBatchIndexLevelTest extends BatchMessageTest {
 
@@ -198,5 +206,85 @@ public class BatchMessageWithBatchIndexLevelTest extends BatchMessageTest {
                     .getUnackedMessages();
             assertEquals(unackedMessages, 10);
         });
+    }
+
+    @Test
+    public void testNegativeAckAndLongAckDelayWillNotLeadRepeatConsume() throws Exception {
+        final String topicName = BrokerTestUtil.newUniqueName("persistent://prop/ns-abc/tp_");
+        final String subscriptionName = "s1";
+        final int redeliveryDelaySeconds = 2;
+
+        // Create producer and consumer.
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topicName)
+                .enableBatching(true)
+                .batchingMaxMessages(1000)
+                .batchingMaxPublishDelay(1, TimeUnit.HOURS)
+                .create();
+        ConsumerImpl<String> consumer = (ConsumerImpl<String>) pulsarClient.newConsumer(Schema.STRING)
+                .topic(topicName)
+                .subscriptionName(subscriptionName)
+                .subscriptionType(SubscriptionType.Shared)
+                .negativeAckRedeliveryDelay(redeliveryDelaySeconds, TimeUnit.SECONDS)
+                .enableBatchIndexAcknowledgment(true)
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                .acknowledgmentGroupTime(1, TimeUnit.HOURS)
+                .subscribe();
+
+        // Send 10 messages in batch.
+        ArrayList<String> messagesSent = new ArrayList<>();
+        List<CompletableFuture<MessageId>> sendTasks = new ArrayList<>();
+        for (int i = 0; i < 10; i++) {
+            String msg = Integer.valueOf(i).toString();
+            sendTasks.add(producer.sendAsync(Integer.valueOf(i).toString()));
+            messagesSent.add(msg);
+        }
+        producer.flush();
+        FutureUtil.waitForAll(sendTasks).join();
+
+        // Receive messages.
+        ArrayList<String> messagesReceived = new ArrayList<>();
+        // NegativeAck "batchMessageIdIndex1" once.
+        boolean index1HasBeenNegativeAcked = false;
+        while (true) {
+            Message<String> message = consumer.receive(2, TimeUnit.SECONDS);
+            if (message == null) {
+                break;
+            }
+            if (index1HasBeenNegativeAcked) {
+                messagesReceived.add(message.getValue());
+                consumer.acknowledge(message);
+                continue;
+            }
+            if (message.getMessageId() instanceof BatchMessageIdImpl batchMessageId) {
+                if (batchMessageId.getBatchIndex() == 1) {
+                    consumer.negativeAcknowledge(message);
+                    index1HasBeenNegativeAcked = true;
+                    continue;
+                }
+            }
+            messagesReceived.add(message.getValue());
+            consumer.acknowledge(message);
+        }
+
+        // Receive negative acked messages.
+        // Wait the message negative acknowledgment finished.
+        int tripleRedeliveryDelaySeconds = redeliveryDelaySeconds * 3;
+        while (true) {
+            Message<String> message = consumer.receive(tripleRedeliveryDelaySeconds, TimeUnit.SECONDS);
+            if (message == null) {
+                break;
+            }
+            messagesReceived.add(message.getValue());
+            consumer.acknowledge(message);
+        }
+
+        log.info("messagesSent: {}, messagesReceived: {}", messagesSent, messagesReceived);
+        Assert.assertEquals(messagesReceived.size(), messagesSent.size());
+
+        // cleanup.
+        producer.close();
+        consumer.close();
+        admin.topics().delete(topicName);
     }
 }
