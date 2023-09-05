@@ -200,9 +200,9 @@ public class BrokerInterceptorWithClassLoader implements BrokerInterceptor {
     }
 
     @Override
-    public void addCustomizeMetrics(PrometheusMetricStreams metricStreams, PulsarService pulsar) {
+    public void addCustomizedMetrics(PrometheusMetricStreams metricStreams, PulsarService pulsar) {
         try (ClassLoaderSwitcher ignored = new ClassLoaderSwitcher(classLoader)) {
-            this.interceptor.addCustomizeMetrics(metricStreams, pulsar);
+            this.interceptor.addCustomizedMetrics(metricStreams, pulsar);
         }
     }
 

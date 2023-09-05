@@ -127,7 +127,7 @@ public class BrokerInterceptorWithClassLoaderTest {
                 assertEquals(Thread.currentThread().getContextClassLoader(), narLoader);
             }
             @Override
-            public void addCustomizeMetrics(PrometheusMetricStreams metricStreams, PulsarService pulsar) {
+            public void addCustomizedMetrics(PrometheusMetricStreams metricStreams, PulsarService pulsar) {
                 assertEquals(Thread.currentThread().getContextClassLoader(), narLoader);
             }
 
@@ -191,7 +191,7 @@ public class BrokerInterceptorWithClassLoaderTest {
                 .beforeSendMessage(mock(Subscription.class), mock(Entry.class), null, null);
         brokerInterceptorWithClassLoader
                 .beforeSendMessage(mock(Subscription.class), mock(Entry.class), null, null, null);
-        brokerInterceptorWithClassLoader.addCustomizeMetrics(mock(PrometheusMetricStreams.class),mock(PulsarService.class));
+        brokerInterceptorWithClassLoader.addCustomizedMetrics(mock(PrometheusMetricStreams.class),mock(PulsarService.class));
         assertEquals(Thread.currentThread().getContextClassLoader(), curClassLoader);
         // test close
         brokerInterceptorWithClassLoader.close();

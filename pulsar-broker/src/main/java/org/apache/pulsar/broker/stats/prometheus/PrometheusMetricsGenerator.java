@@ -187,7 +187,7 @@ public class PrometheusMetricsGenerator {
             SimpleTextOutputStream stream = new SimpleTextOutputStream(buf);
 
             try {
-                pulsar.getBrokerInterceptor().addCustomizeMetrics(metricStreams, pulsar);
+                pulsar.getBrokerInterceptor().addCustomizedMetrics(metricStreams, pulsar);
             } catch (Exception e){
                 log.error("Exception occur when intercept customize metrics.", e);
             }

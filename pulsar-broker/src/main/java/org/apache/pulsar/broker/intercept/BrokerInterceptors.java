@@ -265,10 +265,10 @@ public class BrokerInterceptors implements BrokerInterceptor {
     }
 
     @Override
-    public void addCustomizeMetrics(PrometheusMetricStreams metricStreams, PulsarService pulsar) {
+    public void addCustomizedMetrics(PrometheusMetricStreams metricStreams, PulsarService pulsar) {
         if (interceptorsEnabled()) {
             for (BrokerInterceptorWithClassLoader value : interceptors.values()) {
-                value.addCustomizeMetrics(metricStreams, pulsar);
+                value.addCustomizedMetrics(metricStreams, pulsar);
             }
         }
     }

@@ -229,7 +229,7 @@ public interface BrokerInterceptor extends AutoCloseable {
      * @param metricStreams
      * @param pulsar
      */
-    default void addCustomizeMetrics(PrometheusMetricStreams metricStreams, PulsarService pulsar){
+    default void addCustomizedMetrics(PrometheusMetricStreams metricStreams, PulsarService pulsar){
     }
 
     /**
