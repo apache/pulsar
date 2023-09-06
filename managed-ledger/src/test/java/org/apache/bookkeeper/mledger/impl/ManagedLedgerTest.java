@@ -3969,6 +3969,70 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
     }
 
     @Test
+    public void testIsNoMessagesAfterPos() throws Exception {
+        final byte[] data = new byte[]{1,2,3};
+        final String cursorName = "c1";
+        final String mlName = UUID.randomUUID().toString().replaceAll("-", "");
+        final ManagedLedgerImpl ml = (ManagedLedgerImpl) factory.open(mlName);
+        final ManagedCursor managedCursor = ml.openCursor(cursorName);
+
+        // One ledger.
+        PositionImpl p1 = (PositionImpl) ml.addEntry(data);
+        PositionImpl p2 = (PositionImpl) ml.addEntry(data);
+        PositionImpl p3 = (PositionImpl) ml.addEntry(data);
+        assertFalse(ml.isNoMessagesAfterPos(p1));
+        assertFalse(ml.isNoMessagesAfterPos(p2));
+        assertTrue(ml.isNoMessagesAfterPos(p3));
+        assertTrue(ml.isNoMessagesAfterPos(PositionImpl.get(p3.getLedgerId(), p3.getEntryId() + 1)));
+        assertTrue(ml.isNoMessagesAfterPos(PositionImpl.get(p3.getLedgerId() + 1, -1)));
+
+        // More than one ledger.
+        ml.ledgerClosed(ml.currentLedger);
+        PositionImpl p4 = (PositionImpl) ml.addEntry(data);
+        PositionImpl p5 = (PositionImpl) ml.addEntry(data);
+        PositionImpl p6 = (PositionImpl) ml.addEntry(data);
+        assertFalse(ml.isNoMessagesAfterPos(p1));
+        assertFalse(ml.isNoMessagesAfterPos(p2));
+        assertFalse(ml.isNoMessagesAfterPos(p3));
+        assertFalse(ml.isNoMessagesAfterPos(p4));
+        assertFalse(ml.isNoMessagesAfterPos(p5));
+        assertTrue(ml.isNoMessagesAfterPos(p6));
+        assertTrue(ml.isNoMessagesAfterPos(PositionImpl.get(p6.getLedgerId(), p6.getEntryId() + 1)));
+        assertTrue(ml.isNoMessagesAfterPos(PositionImpl.get(p6.getLedgerId() + 1, -1)));
+
+        // Switch ledger and make the entry id of Last confirmed entry is -1;
+        ml.ledgerClosed(ml.currentLedger);
+        ml.createLedgerAfterClosed();
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(ml.currentLedgerEntries, 0);
+        });
+        ml.lastConfirmedEntry = PositionImpl.get(ml.currentLedger.getId(), -1);
+        assertFalse(ml.isNoMessagesAfterPos(p5));
+        assertTrue(ml.isNoMessagesAfterPos(p6));
+        assertTrue(ml.isNoMessagesAfterPos(PositionImpl.get(p6.getLedgerId(), p6.getEntryId() + 1)));
+        assertTrue(ml.isNoMessagesAfterPos(PositionImpl.get(p6.getLedgerId() + 1, -1)));
+
+        // Trim ledgers to make there is no entries in ML.
+        ml.deleteCursor(cursorName);
+        CompletableFuture<Void> future = new CompletableFuture<>();
+        ml.trimConsumedLedgersInBackground(true, future);
+        future.get();
+        assertEquals(ml.ledgers.size(), 1);
+        assertEquals(ml.lastConfirmedEntry.getEntryId(), -1);
+        assertTrue(ml.isNoMessagesAfterPos(p1));
+        assertTrue(ml.isNoMessagesAfterPos(p2));
+        assertTrue(ml.isNoMessagesAfterPos(p3));
+        assertTrue(ml.isNoMessagesAfterPos(p4));
+        assertTrue(ml.isNoMessagesAfterPos(p5));
+        assertTrue(ml.isNoMessagesAfterPos(p6));
+        assertTrue(ml.isNoMessagesAfterPos(PositionImpl.get(p6.getLedgerId(), p6.getEntryId() + 1)));
+        assertTrue(ml.isNoMessagesAfterPos(PositionImpl.get(p6.getLedgerId() + 1, -1)));
+
+        // cleanup.
+        ml.close();
+    }
+
+    @Test
     public void testGetEstimatedBacklogSize() throws Exception {
         ManagedLedgerConfig config = new ManagedLedgerConfig();
         config.setMaxEntriesPerLedger(2);

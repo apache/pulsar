@@ -65,15 +65,15 @@ A PIP proposal can be in these states:
 The process works in the following way:
 
 1. Fork https://github.com/apache/pulsar repository (Using the fork button on GitHub).
-2. Clone the repository, and on it, copy the file `pip/TEMPLATE.md` and name it `pip-xxx.md`. The number `xxx` should be the next sequential number after the last contributed PIP. You view the list of contributed PIPs (at any status) as a list of Pull Requests having a title starting with `[pip][design] PIP-`. Use the link [here](https://github.com/apache/pulsar/pulls?q=is%3Apr+title%3A%22%5Bpip%5D%5Bdesign%5D+PIP-%22) as shortcut.
+2. Clone the repository, and on it, copy the file `pip/TEMPLATE.md` and name it `pip-xxx.md`. The number `xxx` should be the next sequential number after the last contributed PIP. You view the list of contributed PIPs (at any status) as a list of Pull Requests having a "PIP" label. Use the link [here](https://github.com/apache/pulsar/pulls?q=is%3Apr+label%3APIP+) as shortcut.
 3. Write the proposal following the section outlined by the template and the explanation for each section in the comment it contains (you can delete the comment once done).
    * If you need diagrams, avoid attaching large files. You can use [MermaidJS](https://mermaid.js.org/) as simple language to describe many types of diagrams. 
-4. Create GitHub Pull request (PR). The PR title should be `[pip][design] PIP-xxx: {title}`, where the `xxx` match the number given in previous step (file-name). Replace `{title}` with a short title to your proposal.
+4. Create GitHub Pull request (PR). The PR title should be `[improve][pip] PIP-xxx: {title}`, where the `xxx` match the number given in previous step (file-name). Replace `{title}` with a short title to your proposal.
 5. The author(s) will email the dev@pulsar.apache.org mailing list to kick off a discussion, using subject prefix `[DISCUSS] PIP-xxx: {PIP TITLE}`. The discussion will happen in broader context either on the mailing list or as general comments on the PR. Many of the discussion items will be on particular aspect of the proposal, hence they should be as comments in the PR to specific lines in the proposal file.
 6. Update file with a link to the discussion on the mailing. You can obtain it from [Apache Pony Mail](https://lists.apache.org/list.html?dev@pulsar.apache.org).
 7. Based on the discussion and feedback, some changes might be applied by authors to the text of the proposal. They will be applied as extra commits, making it easier to track the changes.
 8. Once some consensus is reached, there will be a vote to formally approve the proposal. The vote will be held on the dev@pulsar.apache.org mailing list, by
-   sending a message using subject `[VOTE] PIP-xxx: {PIP TITLE}`.
+   sending a message using subject `[VOTE] PIP-xxx: {PIP TITLE}`. Make sure to include a link to the PIP PR in the body of the message.
    Make sure to update the PIP with a link to the vote. You can obtain it from [Apache Pony Mail](https://lists.apache.org/list.html?dev@pulsar.apache.org). 
    Everyone is welcome to vote on the proposal, though only the vote of the PMC members will be considered binding.
    It is required to have a lazy majority of at least 3 binding +1s votes.
@@ -90,7 +90,7 @@ It is advised to create a master GitHub issue to formulate the execution plan an
 You can the view list of PIPs previously managed by GitHub wiki or GitHub issues [here](https://github.com/apache/pulsar/wiki#pulsar-improvement-proposals)
 
 ### List of PIPs
-1. You can view all PIPs (besides the historical ones) as the list of Pull Requests having title starting with `[pip][design] PIP-`. Here is the [link](https://github.com/apache/pulsar/pulls?q=is%3Apr+title%3A%22%5Bpip%5D%5Bdesign%5D+PIP-%22) for it. 
+1. You can view all PIPs (besides the historical ones) as the list of Pull Requests having title starting with `[improve][pip] PIP-`. Here is the [link](https://github.com/apache/pulsar/pulls?q=is%3Apr+title%3A%22%5Bpip%5D%5Bdesign%5D+PIP-%22) for it. 
    - Merged PR means the PIP was accepted.
    - Closed PR means the PIP was rejected.
    - Open PR means the PIP was submitted and is in the process of discussion.

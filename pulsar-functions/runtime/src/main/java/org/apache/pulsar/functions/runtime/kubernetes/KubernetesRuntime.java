@@ -205,9 +205,9 @@ public class KubernetesRuntime implements Runtime {
         this.userCodePkgUrl = userCodePkgUrl;
         this.downloadDirectory =
                 isNotEmpty(downloadDirectory) ? downloadDirectory : this.pulsarRootDir; // for backward comp
-        this.originalCodeFileName = this.downloadDirectory + "/" + originalCodeFileName;
+        this.originalCodeFileName = this.downloadDirectory + "/" + RuntimeUtils.sanitizeFileName(originalCodeFileName);
         this.originalTransformFunctionFileName = isNotEmpty(originalTransformFunctionFileName)
-                ? this.downloadDirectory + "/" + originalTransformFunctionFileName
+                ? this.downloadDirectory + "/" + RuntimeUtils.sanitizeFileName(originalTransformFunctionFileName)
                 : originalTransformFunctionFileName;
         this.pulsarAdminUrl = pulsarAdminUrl;
         this.secretsProviderConfigurator = secretsProviderConfigurator;
@@ -684,10 +684,11 @@ public class KubernetesRuntime implements Runtime {
                 .numRetries(KubernetesRuntimeFactory.numRetries * 2)
                 .sleepBetweenInvocationsMs(KubernetesRuntimeFactory.sleepBetweenRetriesMs * 2)
                 .supplier(() -> {
+                    Map<String, String> validLabels = getLabels(instanceConfig.getFunctionDetails());
                     String labels = String.format("tenant=%s,namespace=%s,name=%s",
-                            instanceConfig.getFunctionDetails().getTenant(),
-                            instanceConfig.getFunctionDetails().getNamespace(),
-                            instanceConfig.getFunctionDetails().getName());
+                            validLabels.get("tenant"),
+                            validLabels.get("namespace"),
+                            validLabels.get("name"));
 
                     V1PodList response;
                     try {

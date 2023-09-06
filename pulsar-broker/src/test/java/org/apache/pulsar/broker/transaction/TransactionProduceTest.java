@@ -230,6 +230,7 @@ public class TransactionProduceTest extends TransactionTestBase {
                 .build().get();
         log.info("init transaction {}.", txn);
 
+        @Cleanup
         Producer<byte[]> incomingProducer = pulsarClient.newProducer()
                 .topic(ACK_COMMIT_TOPIC)
                 .batchingMaxMessages(1)
@@ -241,6 +242,7 @@ public class TransactionProduceTest extends TransactionTestBase {
         }
         log.info("prepare incoming messages finished.");
 
+        @Cleanup
         Consumer<byte[]> consumer = pulsarClient.newConsumer()
                 .topic(ACK_COMMIT_TOPIC)
                 .subscriptionName(subscriptionName)
@@ -292,6 +294,7 @@ public class TransactionProduceTest extends TransactionTestBase {
                 .build().get();
         log.info("init transaction {}.", txn);
 
+        @Cleanup
         Producer<byte[]> incomingProducer = pulsarClient.newProducer()
                 .topic(ACK_ABORT_TOPIC)
                 .batchingMaxMessages(1)
@@ -303,6 +306,7 @@ public class TransactionProduceTest extends TransactionTestBase {
         }
         log.info("prepare incoming messages finished.");
 
+        @Cleanup
         Consumer<byte[]> consumer = pulsarClient.newConsumer()
                 .topic(ACK_ABORT_TOPIC)
                 .subscriptionName(subscriptionName)

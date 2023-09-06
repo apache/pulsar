@@ -18,8 +18,6 @@
  */
 package org.apache.pulsar.io.core;
 
-import java.util.Map;
-import java.util.concurrent.LinkedBlockingQueue;
 import org.apache.pulsar.common.classification.InterfaceAudience;
 import org.apache.pulsar.common.classification.InterfaceStability;
 import org.apache.pulsar.functions.api.Record;
@@ -38,49 +36,10 @@ import org.apache.pulsar.functions.api.Record;
  */
 @InterfaceAudience.Public
 @InterfaceStability.Stable
-public abstract class PushSource<T> implements Source<T> {
-
-    private LinkedBlockingQueue<Record<T>> queue;
-    private static final int DEFAULT_QUEUE_LENGTH = 1000;
-
-    public PushSource() {
-        this.queue = new LinkedBlockingQueue<>(this.getQueueLength());
-    }
+public abstract class PushSource<T> extends AbstractPushSource<T> implements Source<T> {
 
     @Override
     public Record<T> read() throws Exception {
-        return queue.take();
-    }
-
-    /**
-     * Open connector with configuration.
-     *
-     * @param config initialization config
-     * @param sourceContext environment where the source connector is running
-     * @throws Exception IO type exceptions when opening a connector
-     */
-    public abstract void open(Map<String, Object> config, SourceContext sourceContext) throws Exception;
-
-    /**
-     * Attach a consumer function to this Source. This is invoked by the implementation
-     * to pass messages whenever there is data to be pushed to Pulsar.
-     *
-     * @param record next message from source which should be sent to a Pulsar topic
-     */
-    public void consume(Record<T> record) {
-        try {
-            queue.put(record);
-        } catch (InterruptedException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    /**
-     * Get length of the queue that records are push onto.
-     * Users can override this method to customize the queue length
-     * @return queue length
-     */
-    public int getQueueLength() {
-        return DEFAULT_QUEUE_LENGTH;
+        return super.readNext();
     }
 }

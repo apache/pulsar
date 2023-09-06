@@ -47,7 +47,6 @@ import lombok.NoArgsConstructor;
 import lombok.experimental.Accessors;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.broker.loadbalance.BrokerFilterException;
 import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl;
 import org.apache.pulsar.broker.loadbalance.extensions.LoadManagerContext;
 import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannel;
@@ -69,7 +68,7 @@ import org.slf4j.LoggerFactory;
 
 /**
  * Load shedding strategy that unloads bundles from the highest loaded brokers.
- * This strategy is only configurable in the broker load balancer extenstions introduced by
+ * This strategy is only configurable in the broker load balancer extensions introduced by
  * PIP-192[https://github.com/apache/pulsar/issues/16691].
  *
  * This load shedding strategy has the following goals:
@@ -720,8 +719,10 @@ public class TransferShedder implements NamespaceUnloadStrategy {
         Map<String, BrokerLookupData> candidates = new HashMap<>(availableBrokers);
         for (var filter : brokerFilterPipeline) {
             try {
-                filter.filter(candidates, namespaceBundle, context);
-            } catch (BrokerFilterException e) {
+                filter.filterAsync(candidates, namespaceBundle, context)
+                        .get(context.brokerConfiguration().getMetadataStoreOperationTimeoutSeconds(),
+                                TimeUnit.SECONDS);
+            } catch (InterruptedException | ExecutionException | TimeoutException e) {
                 log.error("Failed to filter brokers with filter: {}", filter.getClass().getName(), e);
                 return false;
             }

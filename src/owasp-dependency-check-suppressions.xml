@@ -109,7 +109,15 @@
         <sha1>b87878db57d5cfc2ca7d3972cc8f7486bf02fbca</sha1>
         <cve>CVE-2020-8908</cve>
     </suppress>
-
+    <suppress>
+        <notes><![CDATA[
+    file name: canal.client-1.1.5.jar (shaded: com.google.guava:guava:32.1.1)
+    CVE cannot take effect.
+    Already covered by PR https://github.com/apache/pulsar/pull/20699
+    ]]></notes>
+        <sha1>b87878db57d5cfc2ca7d3972cc8f7486bf02fbca</sha1>
+        <cve>CVE-2023-2976</cve>
+    </suppress>
     <!-- clickhouse: security scan matches client lib to the server CVEs -->
     <suppress>
         <notes><![CDATA[
@@ -180,6 +188,15 @@
     ]]></notes>
         <sha1>fa9a1ccda7d78edb51a3a33d3493566092786a30</sha1>
         <cve>CVE-2021-25263</cve>
+    </suppress>
+    <suppress>
+        <notes><![CDATA[
+    file name: clickhouse-jdbc-0.4.6-all.jar (shaded: com.google.guava:guava:32.1.1)
+    CVE cannot take effect.
+    Already covered by PR https://github.com/apache/pulsar/pull/20699
+    ]]></notes>
+        <sha1>d3b929509399a698915b24ff47db781d0c526760</sha1>
+        <cve>CVE-2023-2976</cve>
     </suppress>
     <suppress>
         <notes><![CDATA[
@@ -433,5 +450,11 @@
        ]]></notes>
         <cve>CVE-2020-8908</cve>
     </suppress>
-
+    <suppress>
+        <notes><![CDATA[
+       This is a false positive in jackson-databind.
+       See https://github.com/FasterXML/jackson-databind/issues/3972#issuecomment-1596604021
+       ]]></notes>
+        <cve>CVE-2023-35116</cve>
+    </suppress>
 </suppressions>

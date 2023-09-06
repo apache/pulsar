@@ -221,7 +221,7 @@ The Apache Software License, Version 2.0
     - jackson-module-jaxb-annotations-2.14.2.jar
     - jackson-module-jsonSchema-2.14.2.jar
  * Guava
-    - guava-32.0.0-jre.jar
+    - guava-32.1.2-jre.jar
     - listenablefuture-9999.0-empty-to-avoid-conflict-with-guava.jar
     - failureaccess-1.0.1.jar
  * Google Guice
@@ -231,21 +231,21 @@ The Apache Software License, Version 2.0
     - commons-compress-1.21.jar
     - commons-lang3-3.11.jar
  * Netty
-    - netty-buffer-4.1.93.Final.jar
-    - netty-codec-4.1.93.Final.jar
-    - netty-codec-dns-4.1.93.Final.jar
-    - netty-codec-http-4.1.93.Final.jar
-    - netty-codec-haproxy-4.1.93.Final.jar
-    - netty-codec-socks-4.1.93.Final.jar
-    - netty-handler-proxy-4.1.93.Final.jar
-    - netty-common-4.1.93.Final.jar
-    - netty-handler-4.1.93.Final.jar
+    - netty-buffer-4.1.94.Final.jar
+    - netty-codec-4.1.94.Final.jar
+    - netty-codec-dns-4.1.94.Final.jar
+    - netty-codec-http-4.1.94.Final.jar
+    - netty-codec-haproxy-4.1.94.Final.jar
+    - netty-codec-socks-4.1.94.Final.jar
+    - netty-handler-proxy-4.1.94.Final.jar
+    - netty-common-4.1.94.Final.jar
+    - netty-handler-4.1.94.Final.jar
     - netty-reactive-streams-2.0.6.jar
-    - netty-resolver-4.1.93.Final.jar
-    - netty-resolver-dns-4.1.93.Final.jar
-    - netty-resolver-dns-classes-macos-4.1.93.Final.jar
-    - netty-resolver-dns-native-macos-4.1.93.Final-osx-aarch_64.jar
-    - netty-resolver-dns-native-macos-4.1.93.Final-osx-x86_64.jar
+    - netty-resolver-4.1.94.Final.jar
+    - netty-resolver-dns-4.1.94.Final.jar
+    - netty-resolver-dns-classes-macos-4.1.94.Final.jar
+    - netty-resolver-dns-native-macos-4.1.94.Final-osx-aarch_64.jar
+    - netty-resolver-dns-native-macos-4.1.94.Final-osx-x86_64.jar
     - netty-tcnative-boringssl-static-2.0.61.Final.jar
     - netty-tcnative-boringssl-static-2.0.61.Final-linux-aarch_64.jar
     - netty-tcnative-boringssl-static-2.0.61.Final-linux-x86_64.jar
@@ -253,24 +253,24 @@ The Apache Software License, Version 2.0
     - netty-tcnative-boringssl-static-2.0.61.Final-osx-x86_64.jar
     - netty-tcnative-boringssl-static-2.0.61.Final-windows-x86_64.jar
     - netty-tcnative-classes-2.0.61.Final.jar
-    - netty-transport-4.1.93.Final.jar
-    - netty-transport-classes-epoll-4.1.93.Final.jar
-    - netty-transport-native-epoll-4.1.93.Final-linux-x86_64.jar
-    - netty-transport-native-unix-common-4.1.93.Final.jar
-    - netty-transport-native-unix-common-4.1.93.Final-linux-x86_64.jar
-    - netty-codec-http2-4.1.93.Final.jar
+    - netty-transport-4.1.94.Final.jar
+    - netty-transport-classes-epoll-4.1.94.Final.jar
+    - netty-transport-native-epoll-4.1.94.Final-linux-x86_64.jar
+    - netty-transport-native-unix-common-4.1.94.Final.jar
+    - netty-transport-native-unix-common-4.1.94.Final-linux-x86_64.jar
+    - netty-codec-http2-4.1.94.Final.jar
     - netty-incubator-transport-classes-io_uring-0.0.21.Final.jar
     - netty-incubator-transport-native-io_uring-0.0.21.Final-linux-x86_64.jar
     - netty-incubator-transport-native-io_uring-0.0.21.Final-linux-aarch_64.jar
  * GRPC
-    - grpc-api-1.45.1.jar
-    - grpc-context-1.45.1.jar
-    - grpc-core-1.45.1.jar
-    - grpc-grpclb-1.45.1.jar
-    - grpc-netty-1.45.1.jar
-    - grpc-protobuf-1.45.1.jar
-    - grpc-protobuf-lite-1.45.1.jar
-    - grpc-stub-1.45.1.jar
+    - grpc-api-1.55.3.jar
+    - grpc-context-1.55.3.jar
+    - grpc-core-1.55.3.jar
+    - grpc-grpclb-1.55.3.jar
+    - grpc-netty-1.55.3.jar
+    - grpc-protobuf-1.55.3.jar
+    - grpc-protobuf-lite-1.55.3.jar
+    - grpc-stub-1.55.3.jar
   * JEtcd
     - jetcd-api-0.7.5.jar
     - jetcd-common-0.7.5.jar
@@ -430,21 +430,21 @@ The Apache Software License, Version 2.0
     - async-http-client-2.12.1.jar
     - async-http-client-netty-utils-2.12.1.jar
   * Apache Bookkeeper
-    - bookkeeper-common-4.16.1.jar
-    - bookkeeper-common-allocator-4.16.1.jar
-    - bookkeeper-proto-4.16.1.jar
-    - bookkeeper-server-4.16.1.jar
-    - bookkeeper-stats-api-4.16.1.jar
-    - bookkeeper-tools-framework-4.16.1.jar
-    - circe-checksum-4.16.1.jar
-    - codahale-metrics-provider-4.16.1.jar
-    - cpu-affinity-4.16.1.jar
-    - http-server-4.16.1.jar
-    - prometheus-metrics-provider-4.16.1.jar
-    - codahale-metrics-provider-4.16.1.jar
-    - bookkeeper-slogger-api-4.16.1.jar
-    - bookkeeper-slogger-slf4j-4.16.1.jar
-    - native-io-4.16.1.jar
+    - bookkeeper-common-4.16.2.jar
+    - bookkeeper-common-allocator-4.16.2.jar
+    - bookkeeper-proto-4.16.2.jar
+    - bookkeeper-server-4.16.2.jar
+    - bookkeeper-stats-api-4.16.2.jar
+    - bookkeeper-tools-framework-4.16.2.jar
+    - circe-checksum-4.16.2.jar
+    - codahale-metrics-provider-4.16.2.jar
+    - cpu-affinity-4.16.2.jar
+    - http-server-4.16.2.jar
+    - prometheus-metrics-provider-4.16.2.jar
+    - codahale-metrics-provider-4.16.2.jar
+    - bookkeeper-slogger-api-4.16.2.jar
+    - bookkeeper-slogger-slf4j-4.16.2.jar
+    - native-io-4.16.2.jar
   * Apache Commons
     - commons-cli-1.5.0.jar
     - commons-codec-1.15.jar
@@ -458,7 +458,7 @@ The Apache Software License, Version 2.0
   * JSON Simple
     - json-simple-1.1.1.jar
   * Snappy
-    - snappy-java-1.1.8.4.jar
+    - snappy-java-1.1.10.1.jar
   * Jackson
     - jackson-module-parameter-names-2.14.2.jar
   * Java Assist
@@ -476,10 +476,8 @@ The Apache Software License, Version 2.0
     - zookeeper-jute-3.8.1.jar
   * Apache Yetus Audience Annotations
     - audience-annotations-0.12.0.jar
-  * Swagger
-    - swagger-annotations-1.6.2.jar
   * Perfmark
-    - perfmark-api-0.19.0.jar
+    - perfmark-api-0.26.0.jar
   * RabbitMQ Java Client
     - amqp-client-5.5.3.jar
   * Stream Lib
@@ -492,7 +490,7 @@ Protocol Buffers License
  * Protocol Buffers
    - protobuf-java-3.19.6.jar
    - protobuf-java-util-3.19.6.jar
-   - proto-google-common-protos-2.0.1.jar
+   - proto-google-common-protos-2.9.0.jar
 
 BSD 3-clause "New" or "Revised" License
   *  RE2J TD -- re2j-td-1.4.jar
@@ -592,7 +590,7 @@ Creative Commons Attribution License
 
 Bouncy Castle License
  * Bouncy Castle -- licenses/LICENSE-bouncycastle.txt
-   - bcpkix-jdk15on-1.69.jar
-   - bcprov-ext-jdk15on-1.69.jar
-   - bcprov-jdk15on-1.69.jar
-   - bcutil-jdk15on-1.69.jar
+   - bcpkix-jdk18on-1.75.jar
+   - bcprov-ext-jdk18on-1.75.jar
+   - bcprov-jdk18on-1.75.jar
+   - bcutil-jdk18on-1.75.jar

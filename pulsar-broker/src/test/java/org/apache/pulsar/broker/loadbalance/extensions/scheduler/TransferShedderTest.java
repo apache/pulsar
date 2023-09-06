@@ -634,7 +634,8 @@ public class TransferShedderTest {
 
 
         // test setLoadBalancerSheddingBundlesWithPoliciesEnabled=false;
-        doReturn(true).when(allocationPoliciesSpy).areIsolationPoliciesPresent(any());
+        doReturn(CompletableFuture.completedFuture(true))
+                .when(allocationPoliciesSpy).areIsolationPoliciesPresentAsync(any());
         ctx.brokerConfiguration().setLoadBalancerTransferEnabled(true);
         ctx.brokerConfiguration().setLoadBalancerSheddingBundlesWithPoliciesEnabled(false);
         res = transferShedder.findBundlesForUnloading(ctx, Map.of(), Map.of());
@@ -679,12 +680,14 @@ public class TransferShedderTest {
         NamespaceBundle namespaceBundle = mock(NamespaceBundle.class);
         doReturn(true).when(namespaceBundle).hasNonPersistentTopic();
         doReturn(namespaceName).when(namespaceBundle).getNamespaceObject();
-        doReturn(false).when(policies).areIsolationPoliciesPresent(any());
+        doReturn(CompletableFuture.completedFuture(false))
+                .when(policies).areIsolationPoliciesPresentAsync(any());
         doReturn(false).when(policies).isPrimaryBroker(any(), any());
         doReturn(false).when(policies).isSecondaryBroker(any(), any());
         doReturn(true).when(policies).isSharedBroker(any());
 
-        doReturn(true).when(policies).areIsolationPoliciesPresent(eq(namespaceName));
+        doReturn(CompletableFuture.completedFuture(true))
+                .when(policies).areIsolationPoliciesPresentAsync(eq(namespaceName));
 
         primary.forEach(broker -> {
             doReturn(true).when(policies).isPrimaryBroker(eq(namespaceName), eq(broker));
@@ -723,8 +726,8 @@ public class TransferShedderTest {
         doAnswer(invocationOnMock -> {
             Map<String, BrokerLookupData> brokers = invocationOnMock.getArgument(0);
             brokers.clear();
-            return brokers;
-        }).when(antiAffinityGroupPolicyHelper).filter(any(), any());
+            return CompletableFuture.completedFuture(brokers);
+        }).when(antiAffinityGroupPolicyHelper).filterAsync(any(), any());
         var res = transferShedder.findBundlesForUnloading(ctx, Map.of(), Map.of());
 
         assertTrue(res.isEmpty());
@@ -737,11 +740,11 @@ public class TransferShedderTest {
             String bundle = invocationOnMock.getArgument(1, String.class);
 
             if (bundle.equalsIgnoreCase(bundleE1)) {
-                return brokers;
+                return CompletableFuture.completedFuture(brokers);
             }
             brokers.clear();
-            return brokers;
-        }).when(antiAffinityGroupPolicyHelper).filter(any(), any());
+            return CompletableFuture.completedFuture(brokers);
+        }).when(antiAffinityGroupPolicyHelper).filterAsync(any(), any());
         var res2 = transferShedder.findBundlesForUnloading(ctx, Map.of(), Map.of());
         var expected2 = new HashSet<>();
         expected2.add(new UnloadDecision(new Unload("broker5", bundleE1, Optional.of("broker1")),
@@ -761,10 +764,10 @@ public class TransferShedderTest {
             }
 
             @Override
-            public Map<String, BrokerLookupData> filter(Map<String, BrokerLookupData> brokers,
-                                                        ServiceUnitId serviceUnit,
-                                                        LoadManagerContext context) throws BrokerFilterException {
-                throw new BrokerFilterException("test");
+            public CompletableFuture<Map<String, BrokerLookupData>> filterAsync(Map<String, BrokerLookupData> brokers,
+                                                                                ServiceUnitId serviceUnit,
+                                                                                LoadManagerContext context) {
+                return FutureUtil.failedFuture(new BrokerFilterException("test"));
             }
         };
         filters.add(filter);

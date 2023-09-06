@@ -18,9 +18,11 @@
  */
 package org.apache.pulsar.broker.transaction;
 
-import static org.junit.Assert.assertEquals;
+import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
+import static org.testng.AssertJUnit.assertEquals;
+import static org.testng.AssertJUnit.assertNotNull;
 import java.lang.reflect.Field;
 import java.util.LinkedList;
 import java.util.NavigableMap;
@@ -29,6 +31,7 @@ import java.util.Queue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
+import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
@@ -47,8 +50,9 @@ import org.apache.pulsar.broker.transaction.buffer.impl.SingleSnapshotAbortedTxn
 import org.apache.pulsar.broker.transaction.buffer.impl.SnapshotSegmentAbortedTxnProcessorImpl;
 import org.apache.pulsar.broker.transaction.buffer.metadata.v2.TransactionBufferSnapshotIndexes;
 import org.apache.pulsar.broker.transaction.buffer.metadata.v2.TransactionBufferSnapshotSegment;
-import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.client.admin.Transactions;
 import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.transaction.Transaction;
@@ -56,6 +60,7 @@ import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.events.EventType;
 import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.TransactionBufferStats;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.awaitility.Awaitility;
 import org.awaitility.reflect.WhiteboxImpl;
@@ -152,7 +157,7 @@ public class SegmentAbortedTxnProcessorTest extends TransactionTestBase {
                 .getDeclaredField("taskQueue");
         taskQueueField.setAccessible(true);
         Queue queue = (Queue) taskQueueField.get(persistentWorker);
-        Awaitility.await().untilAsserted(() -> Assert.assertEquals(queue.size(), 0));
+        Awaitility.await().untilAsserted(() -> assertEquals(queue.size(), 0));
     }
 
     private void verifyAbortedTxnIDAndSegmentIndex(AbortedTxnProcessor processor, int begin, int txnIdSize)
@@ -170,8 +175,8 @@ public class SegmentAbortedTxnProcessorTest extends TransactionTestBase {
         indexField.setAccessible(true);
         LinkedList<TxnID> unsealedSegment = (LinkedList<TxnID>) unsealedSegmentField.get(processor);
         LinkedMap<PositionImpl, TxnID> indexes = (LinkedMap<PositionImpl, TxnID>) indexField.get(processor);
-        Assert.assertEquals(unsealedSegment.size(), txnIdSize % SEGMENT_SIZE);
-        Assert.assertEquals(indexes.size(), txnIdSize / SEGMENT_SIZE);
+        assertEquals(unsealedSegment.size(), txnIdSize % SEGMENT_SIZE);
+        assertEquals(indexes.size(), txnIdSize / SEGMENT_SIZE);
     }
 
     // Verify the update index future can be completed when the queue has other tasks.
@@ -256,6 +261,85 @@ public class SegmentAbortedTxnProcessorTest extends TransactionTestBase {
         processor.closeAsync().get(5, TimeUnit.SECONDS);
     }
 
+    @Test
+    public void testTxnSegmentStats() throws Exception {
+        // Set up test environment
+        String namespace = TENANT + "/testTxnSegmentStats";
+        String topic = "persistent://" + namespace + "/testTxnSegmentStats";
+        this.pulsarService.getConfig().setTransactionBufferSnapshotSegmentSize(8 + topic.length() + SEGMENT_SIZE * 3);
+
+        // Create necessary resources
+        Transactions transactions = admin.transactions();
+        admin.namespaces().createNamespace(namespace);
+        admin.topics().createNonPartitionedTopic(topic);
+
+        // Prepare topic, producer, and consumer
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topic).create();
+        @Cleanup
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic).subscriptionName("my-sub").subscribe();
+
+        // Record the start time of the test
+        long testStartTime = System.currentTimeMillis();
+
+        Transaction transaction = null;
+        // Send messages with transactions and abort them
+        for (int i = 0; i < SEGMENT_SIZE; i++) {
+            transaction = pulsarClient.newTransaction()
+                    .withTransactionTimeout(5, TimeUnit.HOURS).build().get();
+            producer.newMessage(transaction).send();
+            transaction.abort().get();
+        }
+
+        Transaction txn = pulsarClient.newTransaction().withTransactionTimeout(5, TimeUnit.HOURS).build().get();
+        producer.newMessage(txn).send();
+        txn.abort().get();
+
+        // Get the transaction buffer stats without segment stats
+        TransactionBufferStats statsWithoutSegmentStats = transactions
+                .getTransactionBufferStats(topic, false, false);
+        assertNotNull(statsWithoutSegmentStats);
+        assertNotNull(statsWithoutSegmentStats.segmentsStats);
+        assertNull(statsWithoutSegmentStats.segmentsStats.segmentStats);
+        assertEquals(statsWithoutSegmentStats.snapshotType, AbortedTxnProcessor.SnapshotType.Segment.toString());
+
+        // Verify the segment stats
+        assertEquals(statsWithoutSegmentStats.segmentsStats.segmentsSize, 1L);
+        assertEquals(statsWithoutSegmentStats.segmentsStats.unsealedAbortTxnIDSize, 1L);
+        assertEquals(statsWithoutSegmentStats.segmentsStats.currentSegmentCapacity, SEGMENT_SIZE);
+        assertEquals(statsWithoutSegmentStats.totalAbortedTransactions, SEGMENT_SIZE + 1);
+        assertTrue(statsWithoutSegmentStats.segmentsStats.lastTookSnapshotSegmentTimestamp >= testStartTime);
+
+        // Get the transaction buffer stats with segment stats
+        TransactionBufferStats statsWithSegmentStats = transactions
+                .getTransactionBufferStats(topic, false, true);
+        assertNotNull(statsWithSegmentStats);
+        assertNotNull(statsWithSegmentStats.segmentsStats.segmentStats);
+
+        // Verify if the segment stats are present when requested
+        assertEquals(statsWithSegmentStats.segmentsStats.segmentStats.size(), 1);
+        assertEquals(statsWithSegmentStats.segmentsStats.segmentStats.get(0).lastTxnID,
+                transaction.getTxnID().toString());
+
+        // Verify multiple segments
+        for (int i = 0; i < SEGMENT_SIZE * 3; i++) {
+            transaction = pulsarClient.newTransaction()
+                    .withTransactionTimeout(5, TimeUnit.HOURS).build().get();
+            producer.newMessage(transaction).send();
+            transaction.abort().get();
+        }
+        statsWithSegmentStats = transactions.getTransactionBufferStats(topic, false, true);
+
+        // Verify the segment stats
+        assertEquals(statsWithSegmentStats.segmentsStats.segmentsSize, 4L);
+        assertEquals(statsWithSegmentStats.segmentsStats.unsealedAbortTxnIDSize, 1L);
+        assertEquals(statsWithSegmentStats.totalAbortedTransactions, SEGMENT_SIZE * 4 + 1);
+
+        // Reset the configuration
+        this.pulsarService.getConfig()
+                .setTransactionBufferSnapshotSegmentSize(8 + PROCESSOR_TOPIC.length() + SEGMENT_SIZE * 3);
+    }
+
     private void verifySnapshotSegmentsSize(String topic, int size) throws Exception {
         SystemTopicClient.Reader<TransactionBufferSnapshotSegment> reader =
                 pulsarService.getTransactionBufferSnapshotServiceFactory()
@@ -269,7 +353,7 @@ public class SegmentAbortedTxnProcessorTest extends TransactionTestBase {
                 segmentCount++;
             }
         }
-        Assert.assertEquals(segmentCount, size);
+        assertEquals(segmentCount, size);
     }
 
     private void verifySnapshotSegmentsIndexSize(String topic, int size) throws Exception {
@@ -286,7 +370,7 @@ public class SegmentAbortedTxnProcessorTest extends TransactionTestBase {
             }
             System.out.printf("message.getValue().getTopicName() :" + message.getValue().getTopicName());
         }
-        Assert.assertEquals(indexCount, size);
+        assertEquals(indexCount, size);
     }
 
     private void doCompaction(TopicName topic) throws Exception {
@@ -324,7 +408,9 @@ public class SegmentAbortedTxnProcessorTest extends TransactionTestBase {
         // Create a topic, send 10 messages without using transactions, and send 10 messages using transactions.
         // Abort these transactions and verify the data.
         final String topicName = "persistent://" + NAMESPACE2 + "/testSnapshotProcessorUpgrade";
+        @Cleanup
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
+        @Cleanup
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName("test-sub").subscribe();
 
         assertTrue(getSnapshotAbortedTxnProcessor(topicName) instanceof SingleSnapshotAbortedTxnProcessorImpl);
@@ -408,6 +494,7 @@ public class SegmentAbortedTxnProcessorTest extends TransactionTestBase {
 
         // Create a new topic in the namespace
         String topicName = "persistent://" + namespaceName + "/newTopic";
+        @Cleanup
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
         producer.close();
         assertTrue(getSnapshotAbortedTxnProcessor(topicName) instanceof SnapshotSegmentAbortedTxnProcessorImpl);

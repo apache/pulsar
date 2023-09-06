@@ -55,6 +55,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -86,6 +87,10 @@ import org.apache.pulsar.broker.loadbalance.extensions.store.LoadDataStore;
 import org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl;
 import org.apache.pulsar.broker.lookup.LookupResult;
 import org.apache.pulsar.broker.namespace.LookupOptions;
+import org.apache.pulsar.broker.namespace.NamespaceBundleOwnershipListener;
+import org.apache.pulsar.broker.namespace.NamespaceBundleSplitListener;
+import org.apache.pulsar.broker.namespace.NamespaceEphemeralData;
+import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.testcontext.PulsarTestContext;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.impl.TableViewImpl;
@@ -93,11 +98,15 @@ import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.ServiceUnitId;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.naming.TopicVersion;
+import org.apache.pulsar.common.policies.data.BrokerAssignment;
 import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.NamespaceOwnershipStatus;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.data.TopicType;
 import org.apache.pulsar.common.stats.Metrics;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.policies.data.loadbalancer.ResourceUsage;
 import org.apache.pulsar.policies.data.loadbalancer.SystemResourceUsage;
 import org.awaitility.Awaitility;
@@ -125,6 +134,8 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
     private ServiceUnitStateChannelImpl channel1;
     private ServiceUnitStateChannelImpl channel2;
 
+    private final String defaultTestNamespace = "public/test";
+
     @BeforeClass
     @Override
     public void setup() throws Exception {
@@ -135,6 +146,7 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
         conf.setLoadBalancerLoadSheddingStrategy(TransferShedder.class.getName());
         conf.setLoadBalancerSheddingEnabled(false);
         conf.setLoadBalancerDebugModeEnabled(true);
+        conf.setTopicLevelPoliciesEnabled(false);
         super.internalSetup(conf);
         pulsar1 = pulsar;
         ServiceConfiguration defaultConf = getDefaultConf();
@@ -143,6 +155,7 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
         defaultConf.setLoadManagerClassName(ExtensibleLoadManagerImpl.class.getName());
         defaultConf.setLoadBalancerLoadSheddingStrategy(TransferShedder.class.getName());
         defaultConf.setLoadBalancerSheddingEnabled(false);
+        defaultConf.setTopicLevelPoliciesEnabled(false);
         additionalPulsarTestContext = createAdditionalPulsarTestContext(defaultConf);
         pulsar2 = additionalPulsarTestContext.getPulsarService();
 
@@ -158,6 +171,10 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
         admin.namespaces().createNamespace("public/default");
         admin.namespaces().setNamespaceReplicationClusters("public/default",
                 Sets.newHashSet(this.conf.getClusterName()));
+
+        admin.namespaces().createNamespace(defaultTestNamespace);
+        admin.namespaces().setNamespaceReplicationClusters(defaultTestNamespace,
+                Sets.newHashSet(this.conf.getClusterName()));
     }
 
     @Override
@@ -171,7 +188,7 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
 
     @BeforeMethod(alwaysRun = true)
     protected void initializeState() throws PulsarAdminException {
-        admin.namespaces().unload("public/default");
+        admin.namespaces().unload(defaultTestNamespace);
         reset(primaryLoadManager, secondaryLoadManager);
     }
 
@@ -195,7 +212,7 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testAssign() throws Exception {
-        TopicName topicName = TopicName.get("test-assign");
+        TopicName topicName = TopicName.get(defaultTestNamespace + "/test-assign");
         NamespaceBundle bundle = getBundleAsync(pulsar1, topicName).get();
         Optional<BrokerLookupData> brokerLookupData = primaryLoadManager.assign(Optional.empty(), bundle).get();
         assertTrue(brokerLookupData.isPresent());
@@ -220,7 +237,8 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testCheckOwnershipAsync() throws Exception {
-        NamespaceBundle bundle = getBundleAsync(pulsar1, TopicName.get("test-check-ownership")).get();
+        TopicName topicName = TopicName.get(defaultTestNamespace + "/test-check-ownership");
+        NamespaceBundle bundle = getBundleAsync(pulsar1, topicName).get();
         // 1. The bundle is never assigned.
         assertFalse(primaryLoadManager.checkOwnershipAsync(Optional.empty(), bundle).get());
         assertFalse(secondaryLoadManager.checkOwnershipAsync(Optional.empty(), bundle).get());
@@ -240,7 +258,7 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testFilter() throws Exception {
-        TopicName topicName = TopicName.get("test-filter");
+        TopicName topicName = TopicName.get(defaultTestNamespace + "/test-filter");
         NamespaceBundle bundle = getBundleAsync(pulsar1, topicName).get();
 
         doReturn(List.of(new BrokerFilter() {
@@ -250,11 +268,11 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
             }
 
             @Override
-            public Map<String, BrokerLookupData> filter(Map<String, BrokerLookupData> brokers,
-                                                        ServiceUnitId serviceUnit,
-                                                        LoadManagerContext context) throws BrokerFilterException {
+            public CompletableFuture<Map<String, BrokerLookupData>> filterAsync(Map<String, BrokerLookupData> brokers,
+                                                                                ServiceUnitId serviceUnit,
+                                                                                LoadManagerContext context) {
                 brokers.remove(pulsar1.getLookupServiceAddress());
-                return brokers;
+                return CompletableFuture.completedFuture(brokers);
             }
 
         })).when(primaryLoadManager).getBrokerFilterPipeline();
@@ -266,16 +284,16 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testFilterHasException() throws Exception {
-        TopicName topicName = TopicName.get("test-filter-has-exception");
+        TopicName topicName = TopicName.get(defaultTestNamespace + "/test-filter-has-exception");
         NamespaceBundle bundle = getBundleAsync(pulsar1, topicName).get();
 
         doReturn(List.of(new MockBrokerFilter() {
             @Override
-            public Map<String, BrokerLookupData> filter(Map<String, BrokerLookupData> brokers,
-                                                        ServiceUnitId serviceUnit,
-                                                        LoadManagerContext context) throws BrokerFilterException {
-                brokers.clear();
-                throw new BrokerFilterException("Test");
+            public CompletableFuture<Map<String, BrokerLookupData>> filterAsync(Map<String, BrokerLookupData> brokers,
+                                                                                ServiceUnitId serviceUnit,
+                                                                                LoadManagerContext context) {
+                brokers.remove(brokers.keySet().iterator().next());
+                return FutureUtil.failedFuture(new BrokerFilterException("Test"));
             }
         })).when(primaryLoadManager).getBrokerFilterPipeline();
 
@@ -285,19 +303,57 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
 
     @Test(timeOut = 30 * 1000)
     public void testUnloadAdminAPI() throws Exception {
-        TopicName topicName = TopicName.get("test-unload");
+        TopicName topicName = TopicName.get(defaultTestNamespace + "/test-unload");
         NamespaceBundle bundle = getBundleAsync(pulsar1, topicName).get();
 
+        AtomicInteger onloadCount = new AtomicInteger(0);
+        AtomicInteger unloadCount = new AtomicInteger(0);
+
+        NamespaceBundleOwnershipListener listener = new NamespaceBundleOwnershipListener() {
+            @Override
+            public void onLoad(NamespaceBundle bundle) {
+                onloadCount.incrementAndGet();
+            }
+
+            @Override
+            public void unLoad(NamespaceBundle bundle) {
+                unloadCount.incrementAndGet();
+            }
+
+            @Override
+            public boolean test(NamespaceBundle namespaceBundle) {
+                return namespaceBundle.equals(bundle);
+            }
+        };
+        pulsar1.getNamespaceService().addNamespaceBundleOwnershipListener(listener);
+        pulsar2.getNamespaceService().addNamespaceBundleOwnershipListener(listener);
         String broker = admin.lookups().lookupTopic(topicName.toString());
         log.info("Assign the bundle {} to {}", bundle, broker);
 
         checkOwnershipState(broker, bundle);
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(onloadCount.get(), 1);
+            assertEquals(unloadCount.get(), 0);
+        });
+
         admin.namespaces().unloadNamespaceBundle(topicName.getNamespace(), bundle.getBundleRange());
         assertFalse(primaryLoadManager.checkOwnershipAsync(Optional.empty(), bundle).get());
         assertFalse(secondaryLoadManager.checkOwnershipAsync(Optional.empty(), bundle).get());
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(onloadCount.get(), 1);
+            assertEquals(unloadCount.get(), 1);
+        });
 
         broker = admin.lookups().lookupTopic(topicName.toString());
         log.info("Assign the bundle {} to {}", bundle, broker);
+
+        String finalBroker = broker;
+        Awaitility.await().untilAsserted(() -> {
+            checkOwnershipState(finalBroker, bundle);
+            assertEquals(onloadCount.get(), 2);
+            assertEquals(unloadCount.get(), 1);
+        });
+
 
         String dstBrokerUrl = pulsar1.getLookupServiceAddress();
         String dstBrokerServiceUrl;
@@ -310,6 +366,10 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
         checkOwnershipState(broker, bundle);
 
         admin.namespaces().unloadNamespaceBundle(topicName.getNamespace(), bundle.getBundleRange(), dstBrokerUrl);
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(onloadCount.get(), 3);
+            assertEquals(unloadCount.get(), 2);
+        });
 
         assertEquals(admin.lookups().lookupTopic(topicName.toString()), dstBrokerServiceUrl);
 
@@ -337,7 +397,7 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
 
     @Test(timeOut = 30 * 1000)
     public void testSplitBundleAdminAPI() throws Exception {
-        String namespace = "public/default";
+        String namespace = defaultTestNamespace;
         String topic = "persistent://" + namespace + "/test-split";
         admin.topics().createPartitionedTopic(topic, 10);
         BundlesData bundles = admin.namespaces().getBundles(namespace);
@@ -345,6 +405,23 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
         var bundleRanges = bundles.getBoundaries().stream().map(Long::decode).sorted().toList();
 
         String firstBundle = bundleRanges.get(0) + "_" + bundleRanges.get(1);
+
+        AtomicInteger splitCount = new AtomicInteger(0);
+        NamespaceBundleSplitListener namespaceBundleSplitListener = new NamespaceBundleSplitListener() {
+            @Override
+            public void onSplit(NamespaceBundle bundle) {
+                splitCount.incrementAndGet();
+            }
+
+            @Override
+            public boolean test(NamespaceBundle namespaceBundle) {
+                return namespaceBundle
+                        .toString()
+                        .equals(String.format(namespace + "/0x%08x_0x%08x", bundleRanges.get(0), bundleRanges.get(1)));
+            }
+        };
+        pulsar1.getNamespaceService().addNamespaceBundleSplitListener(namespaceBundleSplitListener);
+        pulsar2.getNamespaceService().addNamespaceBundleSplitListener(namespaceBundleSplitListener);
 
         long mid = bundleRanges.get(0) + (bundleRanges.get(1) - bundleRanges.get(0)) / 2;
 
@@ -358,6 +435,7 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
         assertTrue(bundlesData.getBoundaries().contains(lowBundle));
         assertTrue(bundlesData.getBoundaries().contains(midBundle));
         assertTrue(bundlesData.getBoundaries().contains(highBundle));
+        assertEquals(splitCount.get(), 1);
 
         // Test split bundle with invalid bundle range.
         try {
@@ -370,7 +448,7 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
 
     @Test(timeOut = 30 * 1000)
     public void testSplitBundleWithSpecificPositionAdminAPI() throws Exception {
-        String namespace = "public/default";
+        String namespace = defaultTestNamespace;
         String topic = "persistent://" + namespace + "/test-split-with-specific-position";
         admin.topics().createPartitionedTopic(topic, 10);
         BundlesData bundles = admin.namespaces().getBundles(namespace);
@@ -397,7 +475,9 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
     }
     @Test(timeOut = 30 * 1000)
     public void testDeleteNamespaceBundle() throws Exception {
-        TopicName topicName = TopicName.get("test-delete-namespace-bundle");
+        final String namespace = "public/testDeleteNamespaceBundle";
+        admin.namespaces().createNamespace(namespace, 3);
+        TopicName topicName = TopicName.get(namespace + "/test-delete-namespace-bundle");
         NamespaceBundle bundle = getBundleAsync(pulsar1, topicName).get();
 
         String broker = admin.lookups().lookupTopic(topicName.toString());
@@ -446,25 +526,24 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testMoreThenOneFilter() throws Exception {
-        TopicName topicName = TopicName.get("test-filter-has-exception");
+        TopicName topicName = TopicName.get(defaultTestNamespace + "/test-filter-has-exception");
         NamespaceBundle bundle = getBundleAsync(pulsar1, topicName).get();
 
         String lookupServiceAddress1 = pulsar1.getLookupServiceAddress();
         doReturn(List.of(new MockBrokerFilter() {
             @Override
-            public Map<String, BrokerLookupData> filter(Map<String, BrokerLookupData> brokers,
-                                                        ServiceUnitId serviceUnit,
-                                                        LoadManagerContext context) throws BrokerFilterException {
+            public CompletableFuture<Map<String, BrokerLookupData>> filterAsync(Map<String, BrokerLookupData> brokers,
+                                                                                ServiceUnitId serviceUnit,
+                                                                                LoadManagerContext context) {
                 brokers.remove(lookupServiceAddress1);
-                return brokers;
+                return CompletableFuture.completedFuture(brokers);
             }
         },new MockBrokerFilter() {
             @Override
-            public Map<String, BrokerLookupData> filter(Map<String, BrokerLookupData> brokers,
-                                                        ServiceUnitId serviceUnit,
-                                                        LoadManagerContext context) throws BrokerFilterException {
-                brokers.clear();
-                throw new BrokerFilterException("Test");
+            public CompletableFuture<Map<String, BrokerLookupData>> filterAsync(Map<String, BrokerLookupData> brokers,
+                                                                                ServiceUnitId serviceUnit,
+                                                                                LoadManagerContext context) {
+                return FutureUtil.failedFuture(new BrokerFilterException("Test"));
             }
         })).when(primaryLoadManager).getBrokerFilterPipeline();
 
@@ -484,7 +563,7 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
         try (var additionalPulsarTestContext = createAdditionalPulsarTestContext(defaultConf)) {
             // start pulsar3 with old load manager
             var pulsar3 = additionalPulsarTestContext.getPulsarService();
-            String topic = "persistent://public/default/test";
+            String topic = "persistent://" + defaultTestNamespace + "/test";
 
             String lookupResult1 = pulsar3.getAdminClient().lookups().lookupTopic(topic);
             assertEquals(lookupResult1, pulsar3.getBrokerServiceUrl());
@@ -494,7 +573,7 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
             assertEquals(lookupResult1, lookupResult2);
             assertEquals(lookupResult1, lookupResult3);
 
-            NamespaceBundle bundle = getBundleAsync(pulsar1, TopicName.get("test")).get();
+            NamespaceBundle bundle = getBundleAsync(pulsar1, TopicName.get(topic)).get();
             LookupOptions options = LookupOptions.builder()
                     .authoritative(false)
                     .requestHttps(false)
@@ -593,7 +672,7 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
         restartBroker();
         pulsar1 = pulsar;
         setPrimaryLoadManager();
-        admin.namespaces().setNamespaceReplicationClusters("public/default",
+        admin.namespaces().setNamespaceReplicationClusters(defaultTestNamespace,
                 Sets.newHashSet(this.conf.getClusterName()));
 
         var serviceUnitStateChannelPrimaryNew =
@@ -613,10 +692,7 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
-    public void testRoleChange()
-            throws Exception {
-
-
+    public void testRoleChange() throws Exception {
         var topBundlesLoadDataStorePrimary = (LoadDataStore<TopBundlesLoadData>)
                 FieldUtils.readDeclaredField(primaryLoadManager, "topBundlesLoadDataStore", true);
         var topBundlesLoadDataStorePrimarySpy = spy(topBundlesLoadDataStorePrimary);
@@ -888,15 +964,18 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
         defaultConf.setAllowAutoTopicCreation(true);
         defaultConf.setForceDeleteNamespaceAllowed(true);
         defaultConf.setLoadManagerClassName(ExtensibleLoadManagerImpl.class.getName());
+        defaultConf.setLoadBalancerLoadSheddingStrategy(TransferShedder.class.getName());
         defaultConf.setLoadBalancerSheddingEnabled(false);
+        defaultConf.setLoadBalancerDebugModeEnabled(true);
+        defaultConf.setTopicLevelPoliciesEnabled(false);
         try (var additionalPulsarTestContext = createAdditionalPulsarTestContext(defaultConf)) {
             var pulsar3 = additionalPulsarTestContext.getPulsarService();
             ExtensibleLoadManagerImpl ternaryLoadManager = spy((ExtensibleLoadManagerImpl)
                     FieldUtils.readField(pulsar3.getLoadManager().get(), "loadManager", true));
-            String topic = "persistent://public/default/test";
+            String topic = "persistent://" + defaultTestNamespace +"/test";
 
             String lookupResult1 = pulsar3.getAdminClient().lookups().lookupTopic(topic);
-            TopicName topicName = TopicName.get("test");
+            TopicName topicName = TopicName.get(topic);
             NamespaceBundle bundle = getBundleAsync(pulsar1, topicName).get();
             if (!pulsar3.getBrokerServiceUrl().equals(lookupResult1)) {
                 admin.namespaces().unloadNamespaceBundle(topicName.getNamespace(), bundle.getBundleRange(),
@@ -924,6 +1003,144 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
                 assertTrue(secondaryLoadManager.checkOwnershipAsync(Optional.empty(), bundle).get());
             }
         }
+    }
+
+    @Test(timeOut = 30 * 1000)
+    public void testListTopic() throws Exception {
+        final String namespace = "public/testListTopic";
+        admin.namespaces().createNamespace(namespace, 9);
+
+        final String persistentTopicName = TopicName.get(
+                "persistent", NamespaceName.get(namespace),
+                "get_topics_mode_" + UUID.randomUUID()).toString();
+
+        final String nonPersistentTopicName = TopicName.get(
+                "non-persistent", NamespaceName.get(namespace),
+                "get_topics_mode_" + UUID.randomUUID()).toString();
+        admin.topics().createPartitionedTopic(persistentTopicName, 9);
+        admin.topics().createPartitionedTopic(nonPersistentTopicName, 9);
+        pulsarClient.newProducer().topic(persistentTopicName).create().close();
+        pulsarClient.newProducer().topic(nonPersistentTopicName).create().close();
+
+        BundlesData bundlesData = admin.namespaces().getBundles(namespace);
+        List<String> boundaries = bundlesData.getBoundaries();
+        int topicNum = 0;
+        for (int i = 0; i < boundaries.size() - 1; i++) {
+            String bundle = String.format("%s_%s", boundaries.get(i), boundaries.get(i + 1));
+            List<String> topic = admin.topics().getListInBundle(namespace, bundle);
+            if (topic == null) {
+                continue;
+            }
+            topicNum += topic.size();
+            for (String s : topic) {
+                assertFalse(TopicName.get(s).isPersistent());
+            }
+        }
+        assertEquals(topicNum, 9);
+
+        List<String> list = admin.topics().getList(namespace);
+        assertEquals(list.size(), 18);
+        admin.namespaces().deleteNamespace(namespace, true);
+    }
+
+    @Test(timeOut = 30 * 1000)
+    public void testGetOwnedServiceUnitsAndGetOwnedNamespaceStatus() throws Exception {
+        NamespaceName heartbeatNamespacePulsar1V1 =
+                NamespaceService.getHeartbeatNamespace(pulsar1.getLookupServiceAddress(), pulsar1.getConfiguration());
+        NamespaceName heartbeatNamespacePulsar1V2 =
+                NamespaceService.getHeartbeatNamespaceV2(pulsar1.getLookupServiceAddress(), pulsar1.getConfiguration());
+
+        NamespaceName heartbeatNamespacePulsar2V1 =
+                NamespaceService.getHeartbeatNamespace(pulsar2.getLookupServiceAddress(), pulsar2.getConfiguration());
+        NamespaceName heartbeatNamespacePulsar2V2 =
+                NamespaceService.getHeartbeatNamespaceV2(pulsar2.getLookupServiceAddress(), pulsar2.getConfiguration());
+
+        NamespaceBundle bundle1 = pulsar1.getNamespaceService().getNamespaceBundleFactory()
+                .getFullBundle(heartbeatNamespacePulsar1V1);
+        NamespaceBundle bundle2 = pulsar1.getNamespaceService().getNamespaceBundleFactory()
+                .getFullBundle(heartbeatNamespacePulsar1V2);
+
+        NamespaceBundle bundle3 = pulsar2.getNamespaceService().getNamespaceBundleFactory()
+                .getFullBundle(heartbeatNamespacePulsar2V1);
+        NamespaceBundle bundle4 = pulsar2.getNamespaceService().getNamespaceBundleFactory()
+                .getFullBundle(heartbeatNamespacePulsar2V2);
+
+        Set<NamespaceBundle> ownedServiceUnitsByPulsar1 = primaryLoadManager.getOwnedServiceUnits();
+        log.info("Owned service units: {}", ownedServiceUnitsByPulsar1);
+        // heartbeat namespace bundle will own by pulsar1
+        assertEquals(ownedServiceUnitsByPulsar1.size(), 2);
+        assertTrue(ownedServiceUnitsByPulsar1.contains(bundle1));
+        assertTrue(ownedServiceUnitsByPulsar1.contains(bundle2));
+        Set<NamespaceBundle> ownedServiceUnitsByPulsar2 = secondaryLoadManager.getOwnedServiceUnits();
+        log.info("Owned service units: {}", ownedServiceUnitsByPulsar2);
+        assertEquals(ownedServiceUnitsByPulsar2.size(), 2);
+        assertTrue(ownedServiceUnitsByPulsar2.contains(bundle3));
+        assertTrue(ownedServiceUnitsByPulsar2.contains(bundle4));
+        Map<String, NamespaceOwnershipStatus> ownedNamespacesByPulsar1 =
+                admin.brokers().getOwnedNamespaces(conf.getClusterName(), pulsar1.getLookupServiceAddress());
+        Map<String, NamespaceOwnershipStatus> ownedNamespacesByPulsar2 =
+                admin.brokers().getOwnedNamespaces(conf.getClusterName(), pulsar2.getLookupServiceAddress());
+        assertEquals(ownedNamespacesByPulsar1.size(), 2);
+        assertTrue(ownedNamespacesByPulsar1.containsKey(bundle1.toString()));
+        assertTrue(ownedNamespacesByPulsar1.containsKey(bundle2.toString()));
+        assertEquals(ownedNamespacesByPulsar2.size(), 2);
+        assertTrue(ownedNamespacesByPulsar2.containsKey(bundle3.toString()));
+        assertTrue(ownedNamespacesByPulsar2.containsKey(bundle4.toString()));
+
+        String topic = "persistent://" + defaultTestNamespace + "/test-get-owned-service-units";
+        admin.topics().createPartitionedTopic(topic, 1);
+        NamespaceBundle bundle = getBundleAsync(pulsar1, TopicName.get(topic)).join();
+        CompletableFuture<Optional<BrokerLookupData>> owner = primaryLoadManager.assign(Optional.empty(), bundle);
+        assertFalse(owner.join().isEmpty());
+
+        BrokerLookupData brokerLookupData = owner.join().get();
+        if (brokerLookupData.getWebServiceUrl().equals(pulsar1.getWebServiceAddress())) {
+            assertOwnedServiceUnits(pulsar1, primaryLoadManager, bundle);
+        } else {
+            assertOwnedServiceUnits(pulsar2, secondaryLoadManager, bundle);
+        }
+    }
+
+    private void assertOwnedServiceUnits(
+            PulsarService pulsar,
+            ExtensibleLoadManagerImpl extensibleLoadManager,
+            NamespaceBundle bundle) throws PulsarAdminException {
+        Awaitility.await().untilAsserted(() -> {
+            Set<NamespaceBundle> ownedBundles = extensibleLoadManager.getOwnedServiceUnits();
+            assertTrue(ownedBundles.contains(bundle));
+        });
+        Map<String, NamespaceOwnershipStatus> ownedNamespaces =
+                admin.brokers().getOwnedNamespaces(conf.getClusterName(), pulsar.getLookupServiceAddress());
+        assertTrue(ownedNamespaces.containsKey(bundle.toString()));
+        NamespaceOwnershipStatus status = ownedNamespaces.get(bundle.toString());
+        assertTrue(status.is_active);
+        assertFalse(status.is_controlled);
+        assertEquals(status.broker_assignment, BrokerAssignment.shared);
+    }
+
+    @Test(timeOut = 30 * 1000)
+    public void testGetOwnedServiceUnitsWhenLoadManagerNotStart() {
+        ExtensibleLoadManagerImpl loadManager = new ExtensibleLoadManagerImpl();
+        Set<NamespaceBundle> ownedServiceUnits = loadManager.getOwnedServiceUnits();
+        assertNotNull(ownedServiceUnits);
+        assertTrue(ownedServiceUnits.isEmpty());
+    }
+
+    @Test(timeOut = 30 * 1000)
+    public void testTryAcquiringOwnership()
+            throws PulsarAdminException, ExecutionException, InterruptedException {
+        final String namespace = "public/testTryAcquiringOwnership";
+        admin.namespaces().createNamespace(namespace, 1);
+        String topic = "persistent://" + namespace + "/test";
+        NamespaceBundle bundle = getBundleAsync(pulsar1, TopicName.get(topic)).get();
+        NamespaceEphemeralData namespaceEphemeralData = primaryLoadManager.tryAcquiringOwnership(bundle).get();
+        assertEquals(namespaceEphemeralData.getNativeUrl(), pulsar1.getBrokerServiceUrl());
+        admin.namespaces().deleteNamespace(namespace, true);
+    }
+
+    @Test(timeOut = 30 * 1000)
+    public void testHealthcheck() throws PulsarAdminException {
+        admin.brokers().healthcheck(TopicVersion.V2);
     }
 
     private static abstract class MockBrokerFilter implements BrokerFilter {

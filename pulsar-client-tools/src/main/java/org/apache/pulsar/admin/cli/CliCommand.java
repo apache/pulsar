@@ -90,12 +90,11 @@ public abstract class CliCommand {
         String subStr = s.substring(0, s.length() - 1);
         long size;
         try {
-            size = sizeUnit.contains(last)
-                    ? Long.parseLong(subStr)
-                    : Long.parseLong(s);
+            size = SIZE_UNIT.contains(last) ? Long.parseLong(subStr) : Long.parseLong(s);
         } catch (IllegalArgumentException e) {
-            throw new ParameterException(String.format("Invalid size '%s'. Valid formats are: %s",
-                    s, "(4096, 100K, 10M, 16G, 2T)"));
+            throw new ParameterException(
+                    String.format("Invalid size '%s'. Valid formats are: %s",
+                            s, "(4096, 100K, 10M, 16G, 2T)"));
         }
         switch (last) {
         case 'k':
@@ -214,16 +213,24 @@ public abstract class CliCommand {
             if (item instanceof String) {
                 System.out.println(item);
             } else {
-                System.out.println(writer.writeValueAsString(item));
+                prettyPrint(item);
             }
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
     }
 
-    private static ObjectMapper mapper = ObjectMapperFactory.create();
-    private static ObjectWriter writer = mapper.writerWithDefaultPrettyPrinter();
-    private static Set<Character> sizeUnit = Sets.newHashSet('k', 'K', 'm', 'M', 'g', 'G', 't', 'T');
+    <T> void prettyPrint(T item) {
+        try {
+            System.out.println(WRITER.writeValueAsString(item));
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private static final ObjectMapper MAPPER = ObjectMapperFactory.create();
+    private static final ObjectWriter WRITER = MAPPER.writerWithDefaultPrettyPrinter();
+    private static final Set<Character> SIZE_UNIT = Sets.newHashSet('k', 'K', 'm', 'M', 'g', 'G', 't', 'T');
 
     abstract void run() throws Exception;
 }

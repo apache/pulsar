@@ -591,7 +591,7 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
     }
 
     /**
-     * It verifies that client closes the connection on internalSerevrError which is "ServiceNotReady" from Broker-side
+     * It verifies that client closes the connection on internalServerError which is "ServiceNotReady" from Broker-side
      *
      * @throws Exception
      */

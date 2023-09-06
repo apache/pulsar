@@ -33,6 +33,7 @@ import java.util.concurrent.ConcurrentMap;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.service.Topic;
+import org.apache.pulsar.broker.transaction.buffer.AbortedTxnProcessor;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBuffer;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBufferReader;
 import org.apache.pulsar.broker.transaction.buffer.TransactionMeta;
@@ -375,14 +376,25 @@ class InMemTransactionBuffer implements TransactionBuffer {
     }
 
     @Override
+    public AbortedTxnProcessor.SnapshotType getSnapshotType() {
+        return null;
+    }
+
+    @Override
     public TransactionInBufferStats getTransactionInBufferStats(TxnID txnID) {
         return null;
     }
 
     @Override
-    public TransactionBufferStats getStats(boolean lowWaterMarks) {
+    public TransactionBufferStats getStats(boolean lowWaterMarks, boolean segmentStats) {
         return null;
     }
+
+    @Override
+    public TransactionBufferStats getStats(boolean lowWaterMarks) {
+        return getStats(lowWaterMarks, false);
+    }
+
 
     @Override
     public long getOngoingTxnCount() {
