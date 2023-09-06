@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="UTF-8"?>
+<?xml version='1.0' encoding='UTF-8'?>
 <!--
 
     Licensed to the Apache Software Foundation (ASF) under one
@@ -19,18 +19,16 @@
     under the License.
 
 -->
-<FindBugsFilter xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-	xsi:noNamespaceSchemaLocation="http://findbugs.googlecode.com/svn/trunk/findbugs/etc/bugcollection.xsd">
-	<Match>
-		<Or>
-			<Bug pattern="DM_EXIT" />
-
-			<!-- Excluding code generated from protocol buffer -->
-			<Package name="org.apache.pulsar.common.policies.proto" />
-			<Package name="org.apache.bookkeeper.mledger.proto" />
-                        <!-- Excluding ZooKeeper shaded files -->
-			<Package name="org.apache.zookeeper.tnx" />
-			<Package name="org.apache.jute.generated.compiler" />
-		</Or>
-	</Match>
+<FindBugsFilter xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://findbugs.googlecode.com/svn/trunk/findbugs/etc/bugcollection.xsd">
+  <Match>
+    <Or>
+      <Bug pattern="DM_EXIT"/>
+      <!-- Excluding code generated from protocol buffer -->
+      <Package name="org.apache.pulsar.common.policies.proto"/>
+      <Package name="org.apache.bookkeeper.mledger.proto"/>
+      <!-- Excluding ZooKeeper shaded files -->
+      <Package name="org.apache.zookeeper.tnx"/>
+      <Package name="org.apache.jute.generated.compiler"/>
+    </Or>
+  </Match>
 </FindBugsFilter>

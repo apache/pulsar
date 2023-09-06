@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="UTF-8"?>
+<?xml version='1.0' encoding='UTF-8'?>
 <!--
 
     Licensed to the Apache Software Foundation (ASF) under one
@@ -20,19 +20,19 @@
 
 -->
 <Configuration status="INFO">
-    <Appenders>
-        <Console name="Console" target="SYSTEM_OUT">
-            <PatternLayout pattern="%d{ISO8601_OFFSET_DATE_TIME_HHMM} %-5level [%t{12}] %c{1.}@%L - %msg %X%n" />
-        </Console>
-    </Appenders>
-    <Loggers>
-        <Root level="warn">
-            <AppenderRef ref="Console" />
-        </Root>
-        <Logger name="org.eclipse.jetty" level="info"/>
-        <Logger name="org.apache.pulsar" level="info"/>
-        <Logger name="org.apache.bookkeeper" level="info"/>
-        <Logger name="org.apache.kafka" level="info"/>
-        <Logger name="org.testcontainers" level="info"/>
-    </Loggers>
+  <Appenders>
+    <Console name="Console" target="SYSTEM_OUT">
+      <PatternLayout pattern="%d{ISO8601_OFFSET_DATE_TIME_HHMM} %-5level [%t{12}] %c{1.}@%L - %msg %X%n"/>
+    </Console>
+  </Appenders>
+  <Loggers>
+    <Root level="warn">
+      <AppenderRef ref="Console"/>
+    </Root>
+    <Logger name="org.eclipse.jetty" level="info"/>
+    <Logger name="org.apache.pulsar" level="info"/>
+    <Logger name="org.apache.bookkeeper" level="info"/>
+    <Logger name="org.apache.kafka" level="info"/>
+    <Logger name="org.testcontainers" level="info"/>
+  </Loggers>
 </Configuration>

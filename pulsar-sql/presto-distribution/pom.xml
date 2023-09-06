@@ -1,3 +1,4 @@
+<?xml version='1.0' encoding='UTF-8'?>
 <!--
 
     Licensed to the Apache Software Foundation (ASF) under one
@@ -18,19 +19,15 @@
     under the License.
 
 -->
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
-
   <parent>
-    <groupId>org.apache.pulsar</groupId>
+    <groupId>io.streamnative</groupId>
     <artifactId>pulsar-sql</artifactId>
-    <version>2.10.6-SNAPSHOT</version>
+    <version>2.10.5.3</version>
   </parent>
-
   <artifactId>pulsar-presto-distribution</artifactId>
   <name>Pulsar SQL :: Pulsar Presto Distribution</name>
-
   <properties>
     <skipBuildDistribution>false</skipBuildDistribution>
     <jersey.version>2.34</jersey.version>
@@ -44,7 +41,6 @@
     <errorprone.version>2.5.1</errorprone.version>
     <javax.servlet-api>4.0.1</javax.servlet-api>
   </properties>
-
   <dependencies>
     <dependency>
       <groupId>org.glassfish.jersey.core</groupId>
@@ -76,7 +72,6 @@
       <artifactId>jersey-client</artifactId>
       <version>${jersey.version}</version>
     </dependency>
-
     <dependency>
       <groupId>org.codehaus.plexus</groupId>
       <artifactId>plexus-utils</artifactId>
@@ -110,13 +105,11 @@
         </exclusion>
       </exclusions>
     </dependency>
-
     <dependency>
       <groupId>io.prestosql</groupId>
       <artifactId>presto-cli</artifactId>
       <version>${presto.version}</version>
     </dependency>
-
     <dependency>
       <groupId>io.airlift</groupId>
       <artifactId>launcher</artifactId>
@@ -124,7 +117,6 @@
       <type>tar.gz</type>
       <classifier>bin</classifier>
     </dependency>
-
     <dependency>
       <groupId>io.airlift</groupId>
       <artifactId>launcher</artifactId>
@@ -132,75 +124,60 @@
       <type>tar.gz</type>
       <classifier>properties</classifier>
     </dependency>
-
     <dependency>
       <groupId>org.objenesis</groupId>
       <artifactId>objenesis</artifactId>
       <version>${objenesis.version}</version>
     </dependency>
-
     <dependency>
       <groupId>com.twitter.common</groupId>
       <artifactId>objectsize</artifactId>
       <version>${objectsize.version}</version>
     </dependency>
-
     <!-- jackson dependencies -->
-
     <dependency>
       <groupId>com.fasterxml.jackson.core</groupId>
       <artifactId>jackson-core</artifactId>
     </dependency>
-
     <dependency>
       <groupId>com.fasterxml.jackson.core</groupId>
       <artifactId>jackson-databind</artifactId>
     </dependency>
-
     <dependency>
       <groupId>com.fasterxml.jackson.core</groupId>
       <artifactId>jackson-annotations</artifactId>
     </dependency>
-
     <dependency>
       <groupId>com.fasterxml.jackson.datatype</groupId>
       <artifactId>jackson-datatype-joda</artifactId>
     </dependency>
-
     <dependency>
       <groupId>com.fasterxml.jackson.dataformat</groupId>
       <artifactId>jackson-dataformat-yaml</artifactId>
     </dependency>
-
     <dependency>
       <groupId>com.fasterxml.jackson.datatype</groupId>
       <artifactId>jackson-datatype-guava</artifactId>
     </dependency>
-
     <dependency>
       <groupId>com.fasterxml.jackson.datatype</groupId>
       <artifactId>jackson-datatype-jdk8</artifactId>
     </dependency>
-
     <dependency>
       <groupId>com.fasterxml.jackson.datatype</groupId>
       <artifactId>jackson-datatype-jsr310</artifactId>
     </dependency>
-
     <dependency>
       <groupId>com.fasterxml.jackson.dataformat</groupId>
       <artifactId>jackson-dataformat-smile</artifactId>
     </dependency>
-
     <dependency>
       <groupId>${project.groupId}</groupId>
       <artifactId>java-version-trim-agent</artifactId>
       <version>${project.version}</version>
       <scope>provided</scope>
     </dependency>
-
   </dependencies>
-
   <dependencyManagement>
     <dependencies>
       <dependency>
@@ -213,7 +190,6 @@
         <artifactId>netty</artifactId>
         <version>3.10.6.Final</version>
       </dependency>
-
       <dependency>
         <groupId>org.apache.maven</groupId>
         <artifactId>maven-core</artifactId>
@@ -303,7 +279,6 @@
       </dependency>
     </dependencies>
   </dependencyManagement>
-
   <build>
     <plugins>
       <plugin>
@@ -313,7 +288,6 @@
           <skip>${skipBuildDistribution}</skip>
         </configuration>
       </plugin>
-
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-assembly-plugin</artifactId>
@@ -337,7 +311,6 @@
           </execution>
         </executions>
       </plugin>
-
       <plugin>
         <groupId>com.mycila</groupId>
         <artifactId>license-maven-plugin</artifactId>
@@ -362,7 +335,6 @@
       </extension>
     </extensions>
   </build>
-
   <profiles>
     <profile>
       <id>skipBuildDistributionDisabled</id>

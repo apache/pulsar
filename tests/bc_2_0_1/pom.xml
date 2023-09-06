@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="UTF-8"?>
+<?xml version='1.0' encoding='UTF-8'?>
 <!--
 
     Licensed to the Apache Software Foundation (ASF) under one
@@ -19,91 +19,83 @@
     under the License.
 
 -->
-<project xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd" xmlns="http://maven.apache.org/POM/4.0.0"
-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
-    <modelVersion>4.0.0</modelVersion>
-    <parent>
-        <groupId>org.apache.pulsar.tests</groupId>
-        <artifactId>tests-parent</artifactId>
-        <version>2.10.6-SNAPSHOT</version>
-    </parent>
-
-    <artifactId>bc_2_0_1</artifactId>
-    <packaging>jar</packaging>
-    <name>Apache Pulsar :: Tests :: Backwards Client Compatibility 2.0.1-incubating</name>
-
-    <dependencies>
-
-        <dependency>
-            <groupId>org.apache.pulsar</groupId>
-            <artifactId>pulsar-client</artifactId>
-            <version>2.0.1-incubating</version>
-            <scope>test</scope>
-        </dependency>
-
-        <dependency>
-            <groupId>org.testcontainers</groupId>
-            <artifactId>testcontainers</artifactId>
-            <scope>test</scope>
-        </dependency>
-
-    </dependencies>
-
-    <build>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <parent>
+    <groupId>io.streamnative.tests</groupId>
+    <artifactId>tests-parent</artifactId>
+    <version>2.10.5.3</version>
+  </parent>
+  <artifactId>bc_2_0_1</artifactId>
+  <packaging>jar</packaging>
+  <name>Apache Pulsar :: Tests :: Backwards Client Compatibility 2.0.1-incubating</name>
+  <dependencies>
+    <dependency>
+      <groupId>org.apache.pulsar</groupId>
+      <artifactId>pulsar-client</artifactId>
+      <version>2.0.1-incubating</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.testcontainers</groupId>
+      <artifactId>testcontainers</artifactId>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-jar-plugin</artifactId>
+        <executions>
+          <execution>
+            <goals>
+              <goal>test-jar</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <configuration>
+          <!-- only run tests when -DintegrationTests is specified //-->
+          <skipTests>true</skipTests>
+          <systemPropertyVariables>
+            <currentVersion>${project.version}</currentVersion>
+            <maven.buildDirectory>${project.build.directory}</maven.buildDirectory>
+          </systemPropertyVariables>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
+  <profiles>
+    <profile>
+      <id>BackwardsCompatTests</id>
+      <activation>
+        <property>
+          <name>BackwardsCompatTests</name>
+        </property>
+      </activation>
+      <build>
         <plugins>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-jar-plugin</artifactId>
-                <executions>
-                    <execution>
-                        <goals>
-                            <goal>test-jar</goal>
-                        </goals>
-                    </execution>
-                </executions>
-            </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-surefire-plugin</artifactId>
-                <configuration>
-                    <!-- only run tests when -DintegrationTests is specified //-->
-                    <skipTests>true</skipTests>
-                    <systemPropertyVariables>
-                        <currentVersion>${project.version}</currentVersion>
-                        <maven.buildDirectory>${project.build.directory}</maven.buildDirectory>
-                    </systemPropertyVariables>
-                </configuration>
-            </plugin>
-        </plugins>
-    </build>
-
-    <profiles>
-        <profile>
-            <id>BackwardsCompatTests</id>
-            <activation>
-                <property>
-                    <name>BackwardsCompatTests</name>
-                </property>
-            </activation>
-            <build>
-                <plugins>
-                    <plugin>
-                        <groupId>org.apache.maven.plugins</groupId>
-                        <artifactId>maven-surefire-plugin</artifactId>
-                        <configuration>
-                            <argLine>${testJacocoAgentArgument} -XX:+ExitOnOutOfMemoryError -Xmx2G -XX:MaxDirectMemorySize=8G
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-surefire-plugin</artifactId>
+            <configuration>
+              <argLine>${testJacocoAgentArgument} -XX:+ExitOnOutOfMemoryError -Xmx2G -XX:MaxDirectMemorySize=8G
                                 -Dio.netty.leakDetectionLevel=advanced
                                 ${test.additional.args}
                             </argLine>
-                            <skipTests>false</skipTests>
-                            <suiteXmlFiles>
-                                <file>src/test/resources/pulsar.xml</file>
-                            </suiteXmlFiles>
-                            <forkCount>1</forkCount>
-                        </configuration>
-                    </plugin>
-                </plugins>
-            </build>
-        </profile>
-    </profiles>
+              <skipTests>false</skipTests>
+              <suiteXmlFiles>
+                <file>src/test/resources/pulsar.xml</file>
+              </suiteXmlFiles>
+              <forkCount>1</forkCount>
+            </configuration>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+  </profiles>
 </project>

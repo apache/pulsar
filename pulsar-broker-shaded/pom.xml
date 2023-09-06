@@ -1,4 +1,4 @@
-<?xml version="1.0"?>
+<?xml version='1.0' encoding='UTF-8'?>
 <!--
 
     Licensed to the Apache Software Foundation (ASF) under one
@@ -19,21 +19,17 @@
     under the License.
 
 -->
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
   <modelVersion>4.0.0</modelVersion>
-
   <parent>
-    <groupId>org.apache.pulsar</groupId>
+    <groupId>io.streamnative</groupId>
     <artifactId>pulsar</artifactId>
-    <version>2.10.6-SNAPSHOT</version>
+    <version>2.10.5.3</version>
     <relativePath>..</relativePath>
   </parent>
-
   <artifactId>pulsar-broker-shaded</artifactId>
   <packaging>jar</packaging>
   <name>Pulsar Shaded Broker</name>
-
   <dependencies>
     <dependency>
       <groupId>${project.groupId}</groupId>
@@ -41,7 +37,6 @@
       <version>${project.parent.version}</version>
     </dependency>
   </dependencies>
-
   <build>
     <plugins>
       <plugin>
@@ -70,7 +65,6 @@
           </execution>
         </executions>
       </plugin>
-
       <plugin>
         <artifactId>maven-antrun-plugin</artifactId>
         <executions>
@@ -83,15 +77,12 @@
             <configuration>
               <target>
                 <!-- shade the AsyncHttpClient ahc-default.properties files -->
-                <replace token= "org.asynchttpclient."
-                         value="org.apache.pulsar.shade.org.asynchttpclient."
-                         file="${project.build.directory}/classes/org/asynchttpclient/config/ahc-default.properties"/>
+                <replace token="org.asynchttpclient." value="org.apache.pulsar.shade.org.asynchttpclient." file="${project.build.directory}/classes/org/asynchttpclient/config/ahc-default.properties"/>
               </target>
             </configuration>
           </execution>
         </executions>
       </plugin>
-
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-shade-plugin</artifactId>
@@ -105,10 +96,9 @@
               <createDependencyReducedPom>true</createDependencyReducedPom>
               <promoteTransitiveDependencies>true</promoteTransitiveDependencies>
               <minimizeJar>false</minimizeJar>
-
               <artifactSet>
                 <includes>
-                  <include>org.apache.pulsar:*</include>
+                  <include>io.streamnative:*</include>
                   <include>org.apache.bookkeeper*:*</include>
                   <include>commons-*:*</include>
                   <include>org.apache.commons:*</include>
@@ -119,10 +109,9 @@
                   <include>com.google.*:*</include>
                   <include>com.fasterxml.jackson.*:*</include>
                   <include>io.netty:*</include>
-                  <include>org.apache.pulsar:pulsar-common</include>
+                  <include>io.streamnative:pulsar-common</include>
                   <include>org.apache.bookkeeper:circe-checksum</include>
                   <include>com.yahoo.datasketches:sketches-core</include>
-
                   <include>javax.ws.rs:*</include>
                   <include>javax.websocket:*</include>
                   <include>org.glassfish.hk2*:*</include>
@@ -138,7 +127,6 @@
                   <include>org.apache.zookeeper:*</include>
                   <include>jline:*</include>
                   <include>javax.servlet:*</include>
-
                   <include>com.beust:*</include>
                   <include>io.swagger:*</include>
                   <include>joda-time:*</include>
@@ -154,7 +142,7 @@
               </artifactSet>
               <filters>
                 <filter>
-                  <artifact>org.apache.pulsar:pulsar-client-original</artifact>
+                  <artifact>io.streamnative:pulsar-client-original</artifact>
                   <includes>
                     <include>**</include>
                   </includes>
@@ -205,7 +193,6 @@
                   <pattern>com.yahoo.sketches</pattern>
                   <shadedPattern>org.apache.pulsar.shade.com.yahoo.sketches</shadedPattern>
                 </relocation>
-
                 <relocation>
                   <pattern>org.apache.zookeeper</pattern>
                   <shadedPattern>org.apache.pulsar.shade.org.apache.zookeeper</shadedPattern>
@@ -368,6 +355,30 @@
               <arguments>
                 <argument>${project.artifactId}</argument>
               </arguments>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-jar-plugin</artifactId>
+        <version>3.2.0</version>
+        <executions>
+          <execution>
+            <id>default-jar</id>
+            <phase>package</phase>
+            <goals>
+              <goal>jar</goal>
+            </goals>
+          </execution>
+          <execution>
+            <id>javadoc-jar</id>
+            <phase>package</phase>
+            <goals>
+              <goal>jar</goal>
+            </goals>
+            <configuration>
+              <classifier>javadoc</classifier>
             </configuration>
           </execution>
         </executions>

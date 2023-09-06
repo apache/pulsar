@@ -1,3 +1,4 @@
+<?xml version='1.0' encoding='UTF-8'?>
 <!--
 
     Licensed to the Apache Software Foundation (ASF) under one
@@ -18,11 +19,11 @@
     under the License.
 
 -->
-<!DOCTYPE suite SYSTEM "https://testng.org/testng-1.0.dtd" >
+<!DOCTYPE suite SYSTEM "https://testng.org/testng-1.0.dtd">
 <suite name="Pulsar IO Oracle Source Integration Tests" verbose="2" annotations="JDK">
-    <test name="pulsar-function-process-test-suite" preserve-order="true" >
-        <classes>
-            <class name="org.apache.pulsar.tests.integration.io.sources.debezium.PulsarDebeziumOracleSourceTest" />
-        </classes>
-    </test>
+  <test name="pulsar-function-process-test-suite" preserve-order="true">
+    <classes>
+      <class name="org.apache.pulsar.tests.integration.io.sources.debezium.PulsarDebeziumOracleSourceTest"/>
+    </classes>
+  </test>
 </suite>

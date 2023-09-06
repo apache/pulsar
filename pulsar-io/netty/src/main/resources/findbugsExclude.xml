@@ -1,3 +1,4 @@
+<?xml version='1.0' encoding='UTF-8'?>
 <!--
 
     Licensed to the Apache Software Foundation (ASF) under one
@@ -19,16 +20,16 @@
 
 -->
 <FindBugsFilter>
-    <Match>
-        <Package name="org.apache.pulsar.io.netty.http" />
-        <Bug pattern="SE_BAD_FIELD" />
-    </Match>
-    <Match>
-        <Package name="org.apache.pulsar.io.netty.tcp" />
-        <Bug pattern="SE_BAD_FIELD" />
-    </Match>
-    <Match>
-        <Package name="org.apache.pulsar.io.netty.udp" />
-        <Bug pattern="SE_BAD_FIELD" />
-    </Match>
+  <Match>
+    <Package name="org.apache.pulsar.io.netty.http"/>
+    <Bug pattern="SE_BAD_FIELD"/>
+  </Match>
+  <Match>
+    <Package name="org.apache.pulsar.io.netty.tcp"/>
+    <Bug pattern="SE_BAD_FIELD"/>
+  </Match>
+  <Match>
+    <Package name="org.apache.pulsar.io.netty.udp"/>
+    <Bug pattern="SE_BAD_FIELD"/>
+  </Match>
 </FindBugsFilter>

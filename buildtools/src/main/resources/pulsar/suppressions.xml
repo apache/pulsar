@@ -1,4 +1,4 @@
-<?xml version="1.0"?>
+<?xml version='1.0' encoding='UTF-8'?>
 <!--
 
     Licensed to the Apache Software Foundation (ASF) under one
@@ -19,68 +19,59 @@
     under the License.
 
 -->
-<!DOCTYPE suppressions PUBLIC
-        "-//Puppy Crawl//DTD Suppressions 1.1//EN"
-        "http://www.puppycrawl.com/dtds/suppressions_1_1.dtd">
-
+<!DOCTYPE suppressions PUBLIC "-//Puppy Crawl//DTD Suppressions 1.1//EN" "http://www.puppycrawl.com/dtds/suppressions_1_1.dtd">
 <suppressions>
-    <suppress checks="JavadocPackage" files=".*[\\/]src[\\/]test[\\/].*"/>
-    <suppress checks="JavadocPackage" files=".*[\\/]maven-archetypes[\\/].*"/>
-    <suppress checks="JavadocPackage" files=".*[\\/]examples[\\/].*"/>
-
-    <!-- suppress javadoc check for impl classes -->
-    <suppress checks="JavadocType" files=".*Impl\.java$" />
-
-    <!-- suppress all checks in the generated directories -->
-    <suppress checks=".*" files=".+[\\/]generated[\\/].+\.java"/>
-    <suppress checks=".*" files=".+[\\/]generated-sources[\\/].+\.java"/>
-    <suppress checks=".*" files=".+[\\/]generated-test-sources[\\/].+\.java"/>
-
-    <!-- suppress most all checks expect below-->
-    <suppress checks="^(?!.*UnusedImports).*$" files=".*[\\/]src[\\/]test[\\/].*"/>
-
-    <suppress checks="IllegalImport" files="ProxyServiceStarter.java"/>
-
-    <!-- suppress all checks in the copied code -->
-    <suppress checks=".*" files=".+[\\/]com[\\/]scurrilous[\\/]circe[\\/].+\.java"/>
-
-    <suppress checks=".*" files="MLDataFormats.java"/>
-    <suppress checks=".*" files="BitSetRecyclable.java"/>
-    <!-- pulsar io -->
-    <suppress checks="RegexpSinglelineJava" files="KafkaConnectData.java"/>
-    <suppress checks="LineLength" files="KafkaConnectData.java"/>
-    <suppress checks="RegexpSinglelineJava" files="KafkaConnectSink.java"/>
-    <!-- pulsar io es -->
-    <suppress checks="LineLength" files="ElasticSearchConfig.java"/>
-    <suppress checks="LineLength" files="ElasticSearchClient.java"/>
-    <!-- pulsar io flume -->
-    <suppress checks="RegexpSingleline" files="Application.java"/>
-    <suppress checks="RegexpSinglelineJava" files="AbstractConfigurationProvider.java"/>
-    <suppress checks="RegexpSinglelineJava" files="AbstractZooKeeperConfigurationProvider.java"/>
-    <suppress checks="RegexpSinglelineJava" files="PollingPropertiesFileConfigurationProvider.java"/>
-    <suppress checks="RegexpSinglelineJava" files="EnvVarResolverProperties.java"/>
-    <!-- pulsar io hbase -->
-    <suppress checks="RegexpSinglelineJava" files="HbaseAbstractSink.java"/>
-    <suppress checks="RegexpSinglelineJava" files="HbaseAbstractConfig.java"/>
-    <suppress checks="RegexpSinglelineJava" files="HbaseSinkConfig.java"/>
-    <!-- pulsar io kafka -->
-    <suppress checks="FallThrough" files="KafkaConnectData.java"/>
-    <!-- pulsar io influxdb -->
-    <suppress checks="RegexpSinglelineJava" files="InfluxDBSinkConfig.java"/>
-    <!-- pulsar io kinesis -->
-    <suppress checks="LineLength" files="KinesisSinkConfig.java"/>
-    <suppress checks="LineLength" files="KinesisSink.java"/>
-    <suppress checks=".*" files=".+[\\/]org[\\/]apache[\\/]pulsar[\\/]io[\\/]kinesis[\\/]fbs[\\/].+.java"/>
-    <!-- pulsar io mongo -->
-    <suppress checks="RegexpSinglelineJava" files="MongoSink.java"/>
-    <suppress checks="RegexpSinglelineJava" files="MongoConfig.java"/>
-    <!-- pulsar io rabbitmq -->
-    <suppress checks="RegexpSinglelineJava" files="RabbitMQAbstractConfig.java"/>
-    <suppress checks="RegexpSinglelineJava" files="RabbitMQSourceConfig.java"/>
-    <suppress checks="RegexpSinglelineJava" files="RabbitMQSinkConfig.java"/>
-    <!-- pulsar io reids -->
-    <suppress checks="RegexpSinglelineJava" files="RedisAbstractConfig.java"/>
-    <suppress checks="RegexpSinglelineJava" files="RedisSinkConfig.java"/>
-    <!-- pulsar io solr -->
-    <suppress checks="RegexpSinglelineJava" files="SolrSinkConfig.java"/>
+  <suppress checks="JavadocPackage" files=".*[\\/]src[\\/]test[\\/].*"/>
+  <suppress checks="JavadocPackage" files=".*[\\/]maven-archetypes[\\/].*"/>
+  <suppress checks="JavadocPackage" files=".*[\\/]examples[\\/].*"/>
+  <!-- suppress javadoc check for impl classes -->
+  <suppress checks="JavadocType" files=".*Impl\.java$"/>
+  <!-- suppress all checks in the generated directories -->
+  <suppress checks=".*" files=".+[\\/]generated[\\/].+\.java"/>
+  <suppress checks=".*" files=".+[\\/]generated-sources[\\/].+\.java"/>
+  <suppress checks=".*" files=".+[\\/]generated-test-sources[\\/].+\.java"/>
+  <!-- suppress most all checks expect below-->
+  <suppress checks="^(?!.*UnusedImports).*$" files=".*[\\/]src[\\/]test[\\/].*"/>
+  <suppress checks="IllegalImport" files="ProxyServiceStarter.java"/>
+  <!-- suppress all checks in the copied code -->
+  <suppress checks=".*" files=".+[\\/]com[\\/]scurrilous[\\/]circe[\\/].+\.java"/>
+  <suppress checks=".*" files="MLDataFormats.java"/>
+  <suppress checks=".*" files="BitSetRecyclable.java"/>
+  <!-- pulsar io -->
+  <suppress checks="RegexpSinglelineJava" files="KafkaConnectData.java"/>
+  <suppress checks="LineLength" files="KafkaConnectData.java"/>
+  <suppress checks="RegexpSinglelineJava" files="KafkaConnectSink.java"/>
+  <!-- pulsar io es -->
+  <suppress checks="LineLength" files="ElasticSearchConfig.java"/>
+  <suppress checks="LineLength" files="ElasticSearchClient.java"/>
+  <!-- pulsar io flume -->
+  <suppress checks="RegexpSingleline" files="Application.java"/>
+  <suppress checks="RegexpSinglelineJava" files="AbstractConfigurationProvider.java"/>
+  <suppress checks="RegexpSinglelineJava" files="AbstractZooKeeperConfigurationProvider.java"/>
+  <suppress checks="RegexpSinglelineJava" files="PollingPropertiesFileConfigurationProvider.java"/>
+  <suppress checks="RegexpSinglelineJava" files="EnvVarResolverProperties.java"/>
+  <!-- pulsar io hbase -->
+  <suppress checks="RegexpSinglelineJava" files="HbaseAbstractSink.java"/>
+  <suppress checks="RegexpSinglelineJava" files="HbaseAbstractConfig.java"/>
+  <suppress checks="RegexpSinglelineJava" files="HbaseSinkConfig.java"/>
+  <!-- pulsar io kafka -->
+  <suppress checks="FallThrough" files="KafkaConnectData.java"/>
+  <!-- pulsar io influxdb -->
+  <suppress checks="RegexpSinglelineJava" files="InfluxDBSinkConfig.java"/>
+  <!-- pulsar io kinesis -->
+  <suppress checks="LineLength" files="KinesisSinkConfig.java"/>
+  <suppress checks="LineLength" files="KinesisSink.java"/>
+  <suppress checks=".*" files=".+[\\/]org[\\/]apache[\\/]pulsar[\\/]io[\\/]kinesis[\\/]fbs[\\/].+.java"/>
+  <!-- pulsar io mongo -->
+  <suppress checks="RegexpSinglelineJava" files="MongoSink.java"/>
+  <suppress checks="RegexpSinglelineJava" files="MongoConfig.java"/>
+  <!-- pulsar io rabbitmq -->
+  <suppress checks="RegexpSinglelineJava" files="RabbitMQAbstractConfig.java"/>
+  <suppress checks="RegexpSinglelineJava" files="RabbitMQSourceConfig.java"/>
+  <suppress checks="RegexpSinglelineJava" files="RabbitMQSinkConfig.java"/>
+  <!-- pulsar io reids -->
+  <suppress checks="RegexpSinglelineJava" files="RedisAbstractConfig.java"/>
+  <suppress checks="RegexpSinglelineJava" files="RedisSinkConfig.java"/>
+  <!-- pulsar io solr -->
+  <suppress checks="RegexpSinglelineJava" files="SolrSinkConfig.java"/>
 </suppressions>

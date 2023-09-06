@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="UTF-8"?>
+<?xml version='1.0' encoding='UTF-8'?>
 <!--
 
     Licensed to the Apache Software Foundation (ASF) under one
@@ -54,34 +54,32 @@
     <cve>CVE-2021-43045</cve>
   </suppress>
   <suppress base="true">
-    <notes><![CDATA[
+    <notes>
         FP per #3889
-        ]]></notes>
+        </notes>
     <packageUrl regex="true">^pkg:maven/io\.netty/netty\-tcnative\-classes@.*$</packageUrl>
     <cpe>cpe:/a:netty:netty</cpe>
   </suppress>
   <suppress>
-    <notes><![CDATA[
+    <notes>
    file name: netty-tcnative-boringssl-static-2.0.56.Final-osx-aarch_64.jar
-   ]]></notes>
+   </notes>
     <packageUrl regex="true">^pkg:maven/io\.netty/netty\-tcnative\-boringssl\-static@.*$</packageUrl>
     <cpe>cpe:/a:chromium_project:chromium</cpe>
   </suppress>
-
   <!-- CVE-2021-23214 is about PostGre server -->
   <suppress>
-    <notes><![CDATA[
+    <notes>
    file name: debezium-connector-postgres-1.7.2.Final.jar
-   ]]></notes>
+   </notes>
     <sha1>69c1edfa7d89531af511fcd07e8516fa450f746a</sha1>
     <cve>CVE-2021-23214</cve>
   </suppress>
-
-<!--  MariaDB client is being confused with MariaDB server-->
+  <!--  MariaDB client is being confused with MariaDB server-->
   <suppress>
-    <notes><![CDATA[
+    <notes>
    file name: mariadb-java-client-2.7.5.jar
-   ]]></notes>
+   </notes>
     <sha1>9dd29797ecabe7d2e7fa892ec6713a5552cfcc59</sha1>
     <cve>CVE-2022-27376</cve>
     <cve>CVE-2022-27377</cve>
@@ -103,31 +101,26 @@
     <cve>CVE-2022-27455</cve>
     <cve>CVE-2022-27457</cve>
   </suppress>
-
   <!-- google-http-client-gson getting confused with gson-->
   <suppress>
-    <notes><![CDATA[
+    <notes>
    file name: google-http-client-gson-1.41.0.jar
-   ]]></notes>
+   </notes>
     <sha1>1a754a5dd672218a2ac667d7ff2b28df7a5a240e</sha1>
     <cve>CVE-2022-25647</cve>
   </suppress>
-
   <suppress>
     <notes>commons-net is not used at all and therefore commons-net vulnerability CVE-2021-37533 is a false positive.</notes>
     <cve>CVE-2021-37533</cve>
   </suppress>
-
   <suppress>
     <notes>fredsmith utils library is not used at all. CVE-2021-4277 is a false positive.</notes>
     <cve>CVE-2021-4277</cve>
   </suppress>
-
   <suppress>
     <notes>yaml_project is not used at all. Any CVEs reported for yaml_project are false positives.</notes>
     <cpe>cpe:/a:yaml_project:yaml</cpe>
   </suppress>
-
   <suppress>
     <notes>flat_project is not used at all.</notes>
     <cpe>cpe:/a:flat_project:flat</cpe>

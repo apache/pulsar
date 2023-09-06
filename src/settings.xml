@@ -1,3 +1,4 @@
+<?xml version='1.0' encoding='UTF-8'?>
 <!--
 
     Licensed to the Apache Software Foundation (ASF) under one
@@ -26,7 +27,6 @@
       <username>${env.APACHE_USER}</username>
       <password>${env.APACHE_PASSWORD}</password>
     </server>
-    
     <!-- To stage a release of some part of Maven -->
     <server>
       <id>apache.releases.https</id>
@@ -34,7 +34,6 @@
       <password>${env.APACHE_PASSWORD}</password>
     </server>
   </servers>
-
   <profiles>
     <profile>
       <id>apache</id>

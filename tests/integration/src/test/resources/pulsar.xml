@@ -1,3 +1,4 @@
+<?xml version='1.0' encoding='UTF-8'?>
 <!--
 
     Licensed to the Apache Software Foundation (ASF) under one
@@ -18,26 +19,26 @@
     under the License.
 
 -->
-<!DOCTYPE suite SYSTEM "https://testng.org/testng-1.0.dtd" >
+<!DOCTYPE suite SYSTEM "https://testng.org/testng-1.0.dtd">
 <!-- TODO: we have to put suite files in one file to avoid executing TESTNG test suites multiple times.
            see {@link https://github.com/cbeust/testng/issues/508} -->
 <suite name="Pulsar Test Suite" parallel="instances" thread-count="1">
-    <suite-files>
-        <suite-file path="./pulsar-cli.xml" />
-        <suite-file path="./pulsar-schema.xml" />
-        <suite-file path="./pulsar-process.xml" />
-        <suite-file path="./pulsar-sql.xml" />
-        <suite-file path="./pulsar-thread.xml" />
-        <suite-file path="./tiered-jcloud-storage.xml" />
-        <suite-file path="./tiered-filesystem-storage.xml"/>
-        <suite-file path="./pulsar-function.xml" />
-        <suite-file path="./pulsar-messaging.xml" />
-        <suite-file path="./pulsar-backwards-compatibility.xml" />
-        <suite-file path="./pulsar-io-sinks.xml" />
-        <suite-file path="./pulsar-io-sources.xml" />
-        <suite-file path="./pulsar-io-ora-source.xml" />
-        <suite-file path="./pulsar-python.xml" />
-        <suite-file path="./pulsar-semantics.xml" />
-        <suite-file path="./pulsar-upgrade.xml" />
-    </suite-files>
+  <suite-files>
+    <suite-file path="./pulsar-cli.xml"/>
+    <suite-file path="./pulsar-schema.xml"/>
+    <suite-file path="./pulsar-process.xml"/>
+    <suite-file path="./pulsar-sql.xml"/>
+    <suite-file path="./pulsar-thread.xml"/>
+    <suite-file path="./tiered-jcloud-storage.xml"/>
+    <suite-file path="./tiered-filesystem-storage.xml"/>
+    <suite-file path="./pulsar-function.xml"/>
+    <suite-file path="./pulsar-messaging.xml"/>
+    <suite-file path="./pulsar-backwards-compatibility.xml"/>
+    <suite-file path="./pulsar-io-sinks.xml"/>
+    <suite-file path="./pulsar-io-sources.xml"/>
+    <suite-file path="./pulsar-io-ora-source.xml"/>
+    <suite-file path="./pulsar-python.xml"/>
+    <suite-file path="./pulsar-semantics.xml"/>
+    <suite-file path="./pulsar-upgrade.xml"/>
+  </suite-files>
 </suite>

@@ -1,3 +1,4 @@
+<?xml version='1.0' encoding='UTF-8'?>
 <!--
 
     Licensed to the Apache Software Foundation (ASF) under one
@@ -18,9 +19,7 @@
     under the License.
 
 -->
-<assembly xmlns="http://maven.apache.org/ASSEMBLY/2.1.0"
-          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-          xsi:schemaLocation="http://maven.apache.org/ASSEMBLY/2.1.0 http://maven.apache.org/xsd/assembly-2.1.0.xsd">
+<assembly xmlns="http://maven.apache.org/ASSEMBLY/2.1.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/ASSEMBLY/2.1.0 http://maven.apache.org/xsd/assembly-2.1.0.xsd">
   <id>bin</id>
   <formats>
     <format>tar.gz</format>
@@ -38,13 +37,11 @@
       <outputDirectory>.</outputDirectory>
       <fileMode>644</fileMode>
     </file>
-
     <file>
       <source>${basedir}/../../tiered-storage/jcloud/target/tiered-storage-jcloud-${project.version}.nar</source>
       <outputDirectory>offloaders</outputDirectory>
       <fileMode>644</fileMode>
     </file>
-
     <file>
       <source>${basedir}/../../tiered-storage/file-system/target/tiered-storage-file-system-${project.version}.nar</source>
       <outputDirectory>offloaders</outputDirectory>

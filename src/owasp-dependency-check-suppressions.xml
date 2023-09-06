@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="UTF-8"?>
+<?xml version='1.0' encoding='UTF-8'?>
 <!--
 
     Licensed to the Apache Software Foundation (ASF) under one
@@ -20,422 +20,412 @@
 
 -->
 <suppressions xmlns="https://jeremylong.github.io/DependencyCheck/dependency-suppression.1.3.xsd">
-    <!-- add supressions for known vulnerabilities detected by OWASP Dependency Check -->
-    <suppress>
-        <notes>Ignore netty CVEs in GRPC shaded Netty.</notes>
-        <filePath regex="true">.*grpc-netty-shaded.*</filePath>
-        <cpe>cpe:/a:netty:netty</cpe>
-    </suppress>
-    <suppress>
-        <notes>Suppress all pulsar-presto-distribution vulnerabilities</notes>
-        <filePath regex="true">.*pulsar-presto-distribution.*</filePath>
-        <vulnerabilityName regex="true">.*</vulnerabilityName>
-    </suppress>
-    <suppress>
-        <notes>Suppress libthrift-0.12.0.jar vulnerabilities</notes>
-        <gav>org.apache.thrift:libthrift:0.12.0</gav>
-        <vulnerabilityName regex="true">.*</vulnerabilityName>
-    </suppress>
-    <!-- influxdb dependencies -->
-    <suppress>
-        <notes><![CDATA[
+  <!-- add supressions for known vulnerabilities detected by OWASP Dependency Check -->
+  <suppress>
+    <notes>Ignore netty CVEs in GRPC shaded Netty.</notes>
+    <filePath regex="true">.*grpc-netty-shaded.*</filePath>
+    <cpe>cpe:/a:netty:netty</cpe>
+  </suppress>
+  <suppress>
+    <notes>Suppress all pulsar-presto-distribution vulnerabilities</notes>
+    <filePath regex="true">.*pulsar-presto-distribution.*</filePath>
+    <vulnerabilityName regex="true">.*</vulnerabilityName>
+  </suppress>
+  <suppress>
+    <notes>Suppress libthrift-0.12.0.jar vulnerabilities</notes>
+    <gav>org.apache.thrift:libthrift:0.12.0</gav>
+    <vulnerabilityName regex="true">.*</vulnerabilityName>
+  </suppress>
+  <!-- influxdb dependencies -->
+  <suppress>
+    <notes>
        file name: msgpack-core-0.9.0.jar
-       ]]></notes>
-        <sha1>87d9ce0b22de48428fa32bb8ad476e18b6969548</sha1>
-        <cve>CVE-2022-41719</cve>
-    </suppress>
-
-    <!-- see https://github.com/apache/pulsar/pull/16110 -->
-    <suppress>
-        <notes>Suppress Zookeeper 3.6.2 vulnerabilities</notes>
-        <gav regex="true">org\.apache\.zookeeper:.*:3\.6\.2</gav>
-        <vulnerabilityName regex="true">.*</vulnerabilityName>
-    </suppress>
-
-    <!-- see https://github.com/alibaba/canal/issues/4010 -->
-    <suppress>
-        <notes><![CDATA[
+       </notes>
+    <sha1>87d9ce0b22de48428fa32bb8ad476e18b6969548</sha1>
+    <cve>CVE-2022-41719</cve>
+  </suppress>
+  <!-- see https://github.com/apache/pulsar/pull/16110 -->
+  <suppress>
+    <notes>Suppress Zookeeper 3.6.2 vulnerabilities</notes>
+    <gav regex="true">org\.apache\.zookeeper:.*:3\.6\.2</gav>
+    <vulnerabilityName regex="true">.*</vulnerabilityName>
+  </suppress>
+  <!-- see https://github.com/alibaba/canal/issues/4010 -->
+  <suppress>
+    <notes>
        file name: canal.client-1.1.5.jar (shaded: com.google.guava:guava:22.0)
-       ]]></notes>
-        <sha1>b87878db57d5cfc2ca7d3972cc8f7486bf02fbca</sha1>
-        <cve>CVE-2018-10237</cve>
-    </suppress>
-    <suppress>
-        <notes><![CDATA[
+       </notes>
+    <sha1>b87878db57d5cfc2ca7d3972cc8f7486bf02fbca</sha1>
+    <cve>CVE-2018-10237</cve>
+  </suppress>
+  <suppress>
+    <notes>
        file name: canal.client-1.1.5.jar (shaded: com.google.guava:guava:22.0)
-       ]]></notes>
-        <sha1>b87878db57d5cfc2ca7d3972cc8f7486bf02fbca</sha1>
-        <cve>CVE-2020-8908</cve>
-    </suppress>
-
-    <!-- clickhouse: security scan matches client lib to the server CVEs -->
-    <suppress>
-        <notes><![CDATA[
+       </notes>
+    <sha1>b87878db57d5cfc2ca7d3972cc8f7486bf02fbca</sha1>
+    <cve>CVE-2020-8908</cve>
+  </suppress>
+  <!-- clickhouse: security scan matches client lib to the server CVEs -->
+  <suppress>
+    <notes>
     file name: avro-1.10.2.jar
-    ]]></notes>
-        <sha1>a65aaa91c1aeceb3dd4859dbb9765d1c2063f5a2</sha1>
-        <cve>CVE-2021-43045</cve>
-    </suppress>
-    <suppress>
-        <notes><![CDATA[
+    </notes>
+    <sha1>a65aaa91c1aeceb3dd4859dbb9765d1c2063f5a2</sha1>
+    <cve>CVE-2021-43045</cve>
+  </suppress>
+  <suppress>
+    <notes>
     file name: clickhouse-jdbc-0.3.2.jar
-    ]]></notes>
-        <sha1>fa9a1ccda7d78edb51a3a33d3493566092786a30</sha1>
-        <cve>CVE-2018-14668</cve>
-    </suppress>
-    <suppress>
-        <notes><![CDATA[
+    </notes>
+    <sha1>fa9a1ccda7d78edb51a3a33d3493566092786a30</sha1>
+    <cve>CVE-2018-14668</cve>
+  </suppress>
+  <suppress>
+    <notes>
     file name: clickhouse-jdbc-0.3.2.jar
-    ]]></notes>
-        <sha1>fa9a1ccda7d78edb51a3a33d3493566092786a30</sha1>
-        <cve>CVE-2018-14669</cve>
-    </suppress>
-    <suppress>
-        <notes><![CDATA[
+    </notes>
+    <sha1>fa9a1ccda7d78edb51a3a33d3493566092786a30</sha1>
+    <cve>CVE-2018-14669</cve>
+  </suppress>
+  <suppress>
+    <notes>
     file name: clickhouse-jdbc-0.3.2.jar
-    ]]></notes>
-        <sha1>fa9a1ccda7d78edb51a3a33d3493566092786a30</sha1>
-        <cve>CVE-2018-14670</cve>
-    </suppress>
-    <suppress>
-        <notes><![CDATA[
+    </notes>
+    <sha1>fa9a1ccda7d78edb51a3a33d3493566092786a30</sha1>
+    <cve>CVE-2018-14670</cve>
+  </suppress>
+  <suppress>
+    <notes>
     file name: clickhouse-jdbc-0.3.2.jar
-    ]]></notes>
-        <sha1>fa9a1ccda7d78edb51a3a33d3493566092786a30</sha1>
-        <cve>CVE-2018-14671</cve>
-    </suppress>
-    <suppress>
-        <notes><![CDATA[
+    </notes>
+    <sha1>fa9a1ccda7d78edb51a3a33d3493566092786a30</sha1>
+    <cve>CVE-2018-14671</cve>
+  </suppress>
+  <suppress>
+    <notes>
     file name: clickhouse-jdbc-0.3.2.jar
-    ]]></notes>
-        <sha1>fa9a1ccda7d78edb51a3a33d3493566092786a30</sha1>
-        <cve>CVE-2018-14672</cve>
-    </suppress>
-    <suppress>
-        <notes><![CDATA[
+    </notes>
+    <sha1>fa9a1ccda7d78edb51a3a33d3493566092786a30</sha1>
+    <cve>CVE-2018-14672</cve>
+  </suppress>
+  <suppress>
+    <notes>
     file name: clickhouse-jdbc-0.3.2.jar
-    ]]></notes>
-        <sha1>fa9a1ccda7d78edb51a3a33d3493566092786a30</sha1>
-        <cve>CVE-2019-15024</cve>
-    </suppress>
-    <suppress>
-        <notes><![CDATA[
+    </notes>
+    <sha1>fa9a1ccda7d78edb51a3a33d3493566092786a30</sha1>
+    <cve>CVE-2019-15024</cve>
+  </suppress>
+  <suppress>
+    <notes>
     file name: clickhouse-jdbc-0.3.2.jar
-    ]]></notes>
-        <sha1>fa9a1ccda7d78edb51a3a33d3493566092786a30</sha1>
-        <cve>CVE-2019-16535</cve>
-    </suppress>
-    <suppress>
-        <notes><![CDATA[
+    </notes>
+    <sha1>fa9a1ccda7d78edb51a3a33d3493566092786a30</sha1>
+    <cve>CVE-2019-16535</cve>
+  </suppress>
+  <suppress>
+    <notes>
     file name: clickhouse-jdbc-0.3.2.jar
-    ]]></notes>
-        <sha1>fa9a1ccda7d78edb51a3a33d3493566092786a30</sha1>
-        <cve>CVE-2019-18657</cve>
-    </suppress>
-    <suppress>
-        <notes><![CDATA[
+    </notes>
+    <sha1>fa9a1ccda7d78edb51a3a33d3493566092786a30</sha1>
+    <cve>CVE-2019-18657</cve>
+  </suppress>
+  <suppress>
+    <notes>
     file name: clickhouse-jdbc-0.3.2.jar
-    ]]></notes>
-        <sha1>fa9a1ccda7d78edb51a3a33d3493566092786a30</sha1>
-        <cve>CVE-2021-25263</cve>
-    </suppress>
-    <suppress>
-        <notes><![CDATA[
+    </notes>
+    <sha1>fa9a1ccda7d78edb51a3a33d3493566092786a30</sha1>
+    <cve>CVE-2021-25263</cve>
+  </suppress>
+  <suppress>
+    <notes>
      file name: logback-core-1.1.3.jar
-     ]]></notes>
-        <sha1>e3c02049f2dbbc764681b40094ecf0dcbc99b157</sha1>
-        <cpe>cpe:/a:qos:logback</cpe>
-    </suppress>
-    <suppress>
-        <notes><![CDATA[
+     </notes>
+    <sha1>e3c02049f2dbbc764681b40094ecf0dcbc99b157</sha1>
+    <cpe>cpe:/a:qos:logback</cpe>
+  </suppress>
+  <suppress>
+    <notes>
      file name: rocketmq-acl-4.5.2.jar
-     ]]></notes>
-        <sha1>0e2bd9c162280cd79c2ea0f67f174ee5d7b84ddd</sha1>
-        <cpe>cpe:/a:apache:rocketmq</cpe>
-    </suppress>
-    <suppress>
-        <notes><![CDATA[Ignored since we are not vulnerable]]></notes>
-        <packageUrl regex="true">^pkg:maven/org\.springframework/spring.*$</packageUrl>
-        <cve>CVE-2016-1000027</cve>
-    </suppress>
-    <suppress>
-        <notes><![CDATA[
+     </notes>
+    <sha1>0e2bd9c162280cd79c2ea0f67f174ee5d7b84ddd</sha1>
+    <cpe>cpe:/a:apache:rocketmq</cpe>
+  </suppress>
+  <suppress>
+    <notes>Ignored since we are not vulnerable</notes>
+    <packageUrl regex="true">^pkg:maven/org\.springframework/spring.*$</packageUrl>
+    <cve>CVE-2016-1000027</cve>
+  </suppress>
+  <suppress>
+    <notes>
      file name: logback-classic-1.1.3.jar
-     ]]></notes>
-        <sha1>d90276fff414f06cb375f2057f6778cd63c6082f</sha1>
-        <cpe>cpe:/a:qos:logback</cpe>
-    </suppress>
-    <suppress>
-        <notes><![CDATA[
+     </notes>
+    <sha1>d90276fff414f06cb375f2057f6778cd63c6082f</sha1>
+    <cpe>cpe:/a:qos:logback</cpe>
+  </suppress>
+  <suppress>
+    <notes>
      file name: logback-core-1.1.3.jar
-     ]]></notes>
-        <sha1>e3c02049f2dbbc764681b40094ecf0dcbc99b157</sha1>
-        <vulnerabilityName>CVE-2017-5929</vulnerabilityName>
-    </suppress>
-    <suppress>
-        <notes><![CDATA[
+     </notes>
+    <sha1>e3c02049f2dbbc764681b40094ecf0dcbc99b157</sha1>
+    <vulnerabilityName>CVE-2017-5929</vulnerabilityName>
+  </suppress>
+  <suppress>
+    <notes>
      file name: logback-classic-1.1.3.jar
-     ]]></notes>
-        <sha1>d90276fff414f06cb375f2057f6778cd63c6082f</sha1>
-        <cve>CVE-2017-5929</cve>
-    </suppress>
-    <suppress>
-        <notes><![CDATA[
+     </notes>
+    <sha1>d90276fff414f06cb375f2057f6778cd63c6082f</sha1>
+    <cve>CVE-2017-5929</cve>
+  </suppress>
+  <suppress>
+    <notes>
      file name: logback-classic-1.1.3.jar
-     ]]></notes>
-        <sha1>d90276fff414f06cb375f2057f6778cd63c6082f</sha1>
-        <cve>CVE-2021-42550</cve>
-    </suppress>
-
-    <!-- jetcd matched against ETCD server CVEs-->
-    <suppress>
-        <notes><![CDATA[
+     </notes>
+    <sha1>d90276fff414f06cb375f2057f6778cd63c6082f</sha1>
+    <cve>CVE-2021-42550</cve>
+  </suppress>
+  <!-- jetcd matched against ETCD server CVEs-->
+  <suppress>
+    <notes>
        file name: jetcd-core-0.5.11.jar
-       ]]></notes>
-        <sha1>c85851ca3ea8128d480d3f75c568a37e64e8a77b</sha1>
-        <cve>CVE-2020-15106</cve>
-    </suppress>
-    <suppress>
-        <notes><![CDATA[
+       </notes>
+    <sha1>c85851ca3ea8128d480d3f75c568a37e64e8a77b</sha1>
+    <cve>CVE-2020-15106</cve>
+  </suppress>
+  <suppress>
+    <notes>
        file name: jetcd-core-0.5.11.jar
-       ]]></notes>
-        <sha1>c85851ca3ea8128d480d3f75c568a37e64e8a77b</sha1>
-        <cve>CVE-2020-15112</cve>
-    </suppress>
-    <suppress>
-        <notes><![CDATA[
+       </notes>
+    <sha1>c85851ca3ea8128d480d3f75c568a37e64e8a77b</sha1>
+    <cve>CVE-2020-15112</cve>
+  </suppress>
+  <suppress>
+    <notes>
        file name: jetcd-core-0.5.11.jar
-       ]]></notes>
-        <sha1>c85851ca3ea8128d480d3f75c568a37e64e8a77b</sha1>
-        <cve>CVE-2020-15113</cve>
-    </suppress>
-
-    <suppress>
-        <notes><![CDATA[
+       </notes>
+    <sha1>c85851ca3ea8128d480d3f75c568a37e64e8a77b</sha1>
+    <cve>CVE-2020-15113</cve>
+  </suppress>
+  <suppress>
+    <notes>
        file name: jetcd-common-0.5.11.jar
-       ]]></notes>
-        <sha1>6dac6efe035a2be9ba299fbf31be5f903401869f</sha1>
-        <cve>CVE-2020-15106</cve>
-    </suppress>
-    <suppress>
-        <notes><![CDATA[
+       </notes>
+    <sha1>6dac6efe035a2be9ba299fbf31be5f903401869f</sha1>
+    <cve>CVE-2020-15106</cve>
+  </suppress>
+  <suppress>
+    <notes>
        file name: jetcd-common-0.5.11.jar
-       ]]></notes>
-        <sha1>6dac6efe035a2be9ba299fbf31be5f903401869f</sha1>
-        <cve>CVE-2020-15112</cve>
-    </suppress>
-    <suppress>
-        <notes><![CDATA[
+       </notes>
+    <sha1>6dac6efe035a2be9ba299fbf31be5f903401869f</sha1>
+    <cve>CVE-2020-15112</cve>
+  </suppress>
+  <suppress>
+    <notes>
        file name: jetcd-common-0.5.11.jar
-       ]]></notes>
-        <sha1>6dac6efe035a2be9ba299fbf31be5f903401869f</sha1>
-        <cve>CVE-2020-15113</cve>
-    </suppress>
-
-    <!-- bouncycastle misdetections -->
-    <suppress>
-        <notes><![CDATA[
+       </notes>
+    <sha1>6dac6efe035a2be9ba299fbf31be5f903401869f</sha1>
+    <cve>CVE-2020-15113</cve>
+  </suppress>
+  <!-- bouncycastle misdetections -->
+  <suppress>
+    <notes>
        file name: bc-fips-1.0.2.jar
-       ]]></notes>
-        <sha1>4fb5db5f03d00f6a94e43b78d097978190e4abb2</sha1>
-        <cve>CVE-2020-26939</cve>
-    </suppress>
-    <suppress>
-        <notes><![CDATA[
+       </notes>
+    <sha1>4fb5db5f03d00f6a94e43b78d097978190e4abb2</sha1>
+    <cve>CVE-2020-26939</cve>
+  </suppress>
+  <suppress>
+    <notes>
        file name: bcpkix-fips-1.0.2.jar
-       ]]></notes>
-        <sha1>543bc7a08cdba0172e95e536b5f7ca61f021253d</sha1>
-        <cve>CVE-2020-15522</cve>
-    </suppress>
-    <suppress>
-        <notes><![CDATA[
+       </notes>
+    <sha1>543bc7a08cdba0172e95e536b5f7ca61f021253d</sha1>
+    <cve>CVE-2020-15522</cve>
+  </suppress>
+  <suppress>
+    <notes>
        file name: bcpkix-fips-1.0.2.jar
-       ]]></notes>
-        <sha1>543bc7a08cdba0172e95e536b5f7ca61f021253d</sha1>
-        <cve>CVE-2020-26939</cve>
-    </suppress>
-
-    <!-- jclouds/openswift misdetections -->
-    <suppress>
-        <notes><![CDATA[
+       </notes>
+    <sha1>543bc7a08cdba0172e95e536b5f7ca61f021253d</sha1>
+    <cve>CVE-2020-26939</cve>
+  </suppress>
+  <!-- jclouds/openswift misdetections -->
+  <suppress>
+    <notes>
        file name: openstack-swift-2.5.0.jar
-       ]]></notes>
-        <sha1>d99d0eab2e01d69d8a326fc152427fbd759af88a</sha1>
-        <cve>CVE-2016-0738</cve>
-    </suppress>
-    <suppress>
-        <notes><![CDATA[
+       </notes>
+    <sha1>d99d0eab2e01d69d8a326fc152427fbd759af88a</sha1>
+    <cve>CVE-2016-0738</cve>
+  </suppress>
+  <suppress>
+    <notes>
        file name: openstack-swift-2.5.0.jar
-       ]]></notes>
-        <sha1>d99d0eab2e01d69d8a326fc152427fbd759af88a</sha1>
-        <cve>CVE-2017-16613</cve>
-    </suppress>
-    <suppress>
-        <notes><![CDATA[
+       </notes>
+    <sha1>d99d0eab2e01d69d8a326fc152427fbd759af88a</sha1>
+    <cve>CVE-2017-16613</cve>
+  </suppress>
+  <suppress>
+    <notes>
        file name: openstack-keystone-2.5.0.jar
-       ]]></notes>
-        <sha1>a7e89bd278fa8be9fa604dda66d1606de5530797</sha1>
-        <cve>CVE-2018-14432</cve>
-    </suppress>
-    <suppress>
-        <notes><![CDATA[
+       </notes>
+    <sha1>a7e89bd278fa8be9fa604dda66d1606de5530797</sha1>
+    <cve>CVE-2018-14432</cve>
+  </suppress>
+  <suppress>
+    <notes>
        file name: openstack-keystone-2.5.0.jar
-       ]]></notes>
-        <sha1>a7e89bd278fa8be9fa604dda66d1606de5530797</sha1>
-        <cve>CVE-2018-20170</cve>
-    </suppress>
-    <suppress>
-        <notes><![CDATA[
+       </notes>
+    <sha1>a7e89bd278fa8be9fa604dda66d1606de5530797</sha1>
+    <cve>CVE-2018-20170</cve>
+  </suppress>
+  <suppress>
+    <notes>
        file name: openstack-keystone-2.5.0.jar
-       ]]></notes>
-        <sha1>a7e89bd278fa8be9fa604dda66d1606de5530797</sha1>
-        <cve>CVE-2020-12689</cve>
-    </suppress>
-    <suppress>
-        <notes><![CDATA[
+       </notes>
+    <sha1>a7e89bd278fa8be9fa604dda66d1606de5530797</sha1>
+    <cve>CVE-2020-12689</cve>
+  </suppress>
+  <suppress>
+    <notes>
        file name: openstack-keystone-2.5.0.jar
-       ]]></notes>
-        <sha1>a7e89bd278fa8be9fa604dda66d1606de5530797</sha1>
-        <cve>CVE-2020-12690</cve>
-    </suppress>
-    <suppress>
-        <notes><![CDATA[
+       </notes>
+    <sha1>a7e89bd278fa8be9fa604dda66d1606de5530797</sha1>
+    <cve>CVE-2020-12690</cve>
+  </suppress>
+  <suppress>
+    <notes>
        file name: openstack-keystone-2.5.0.jar
-       ]]></notes>
-        <sha1>a7e89bd278fa8be9fa604dda66d1606de5530797</sha1>
-        <cve>CVE-2020-12691</cve>
-    </suppress>
-    <suppress>
-        <notes><![CDATA[
+       </notes>
+    <sha1>a7e89bd278fa8be9fa604dda66d1606de5530797</sha1>
+    <cve>CVE-2020-12691</cve>
+  </suppress>
+  <suppress>
+    <notes>
        file name: openstack-keystone-2.5.0.jar
-       ]]></notes>
-        <sha1>a7e89bd278fa8be9fa604dda66d1606de5530797</sha1>
-        <cve>CVE-2020-12692</cve>
-    </suppress>
-    <suppress>
-        <notes><![CDATA[
+       </notes>
+    <sha1>a7e89bd278fa8be9fa604dda66d1606de5530797</sha1>
+    <cve>CVE-2020-12692</cve>
+  </suppress>
+  <suppress>
+    <notes>
        file name: openstack-keystone-2.5.0.jar
-       ]]></notes>
-        <sha1>a7e89bd278fa8be9fa604dda66d1606de5530797</sha1>
-        <cve>CVE-2021-3563</cve>
-    </suppress>
-
-    <!-- Solr misdetection.
+       </notes>
+    <sha1>a7e89bd278fa8be9fa604dda66d1606de5530797</sha1>
+    <cve>CVE-2021-3563</cve>
+  </suppress>
+  <!-- Solr misdetection.
     Cannot be tied to a sha1,
     mismatches org.apache.pulsar:pulsar-io-solr:2.10.0-SNAPSHOT
     -->
-    <suppress>
-        <notes><![CDATA[
+  <suppress>
+    <notes>
        file name: org.apache.pulsar:pulsar-io-solr:2.10.0-SNAPSHOT
-       ]]></notes>
-        <packageUrl regex="true">^pkg:maven/org\.apache\.pulsar/pulsar\-io\-solr@.*-SNAPSHOT$</packageUrl>
-        <cpe>cpe:/a:apache:pulsar</cpe>
-    </suppress>
-    <suppress>
-        <notes><![CDATA[
+       </notes>
+    <packageUrl regex="true">^pkg:maven/org\.apache\.pulsar/pulsar\-io\-solr@.*-SNAPSHOT$</packageUrl>
+    <cpe>cpe:/a:apache:pulsar</cpe>
+  </suppress>
+  <suppress>
+    <notes>
        file name: org.apache.pulsar:pulsar-io-solr:2.10.0-SNAPSHOT
-       ]]></notes>
-        <packageUrl regex="true">^pkg:maven/org\.apache\.pulsar/pulsar\-io\-solr@.*-SNAPSHOT$</packageUrl>
-        <cpe>cpe:/a:apache:solr</cpe>
-    </suppress>
-
-    <!-- debezium-related misdetections -->
-    <suppress>
-        <notes><![CDATA[
+       </notes>
+    <packageUrl regex="true">^pkg:maven/org\.apache\.pulsar/pulsar\-io\-solr@.*-SNAPSHOT$</packageUrl>
+    <cpe>cpe:/a:apache:solr</cpe>
+  </suppress>
+  <!-- debezium-related misdetections -->
+  <suppress>
+    <notes>
        file name: debezium-connector-mysql-1.7.2.Final.jar
-       ]]></notes>
-        <sha1>a501bd758344d60fd400f5ce58694d52b2dbc6d8</sha1>
-        <cve>CVE-2010-1626</cve>
-        <cve>CVE-2009-4028</cve>
-        <cve>CVE-2007-1420</cve>
-        <cve>CVE-2007-5925</cve>
-        <cve>CVE-2007-2691</cve>
-        <cve>CVE-2009-0819</cve>
-        <cve>CVE-2010-1621</cve>
-        <cve>CVE-2010-3677</cve>
-        <cve>CVE-2010-3682</cve>
-        <cve>CVE-2012-5627</cve>
-        <cve>CVE-2015-2575</cve>
-        <cve>CVE-2017-15945</cve>
-    </suppress>
-    <suppress>
-        <notes><![CDATA[
+       </notes>
+    <sha1>a501bd758344d60fd400f5ce58694d52b2dbc6d8</sha1>
+    <cve>CVE-2010-1626</cve>
+    <cve>CVE-2009-4028</cve>
+    <cve>CVE-2007-1420</cve>
+    <cve>CVE-2007-5925</cve>
+    <cve>CVE-2007-2691</cve>
+    <cve>CVE-2009-0819</cve>
+    <cve>CVE-2010-1621</cve>
+    <cve>CVE-2010-3677</cve>
+    <cve>CVE-2010-3682</cve>
+    <cve>CVE-2012-5627</cve>
+    <cve>CVE-2015-2575</cve>
+    <cve>CVE-2017-15945</cve>
+  </suppress>
+  <suppress>
+    <notes>
        file name: mysql-binlog-connector-java-0.25.3.jar
-       ]]></notes>
-        <sha1>45b3fdd0b953d744a8570f74eb5e1016f8ed5ca9</sha1>
-        <cve>CVE-2007-1420</cve>
-        <cve>CVE-2007-2691</cve>
-        <cve>CVE-2007-5925</cve>
-        <cve>CVE-2009-0819</cve>
-        <cve>CVE-2009-4028</cve>
-        <cve>CVE-2010-1621</cve>
-        <cve>CVE-2010-1626</cve>
-        <cve>CVE-2010-3677</cve>
-        <cve>CVE-2010-3682</cve>
-        <cve>CVE-2012-5627</cve>
-        <cve>CVE-2015-2575</cve>
-        <cve>CVE-2017-15945</cve>
-    </suppress>
-    <suppress>
-        <notes><![CDATA[
+       </notes>
+    <sha1>45b3fdd0b953d744a8570f74eb5e1016f8ed5ca9</sha1>
+    <cve>CVE-2007-1420</cve>
+    <cve>CVE-2007-2691</cve>
+    <cve>CVE-2007-5925</cve>
+    <cve>CVE-2009-0819</cve>
+    <cve>CVE-2009-4028</cve>
+    <cve>CVE-2010-1621</cve>
+    <cve>CVE-2010-1626</cve>
+    <cve>CVE-2010-3677</cve>
+    <cve>CVE-2010-3682</cve>
+    <cve>CVE-2012-5627</cve>
+    <cve>CVE-2015-2575</cve>
+    <cve>CVE-2017-15945</cve>
+  </suppress>
+  <suppress>
+    <notes>
        file name: debezium-connector-postgres-1.7.2.Final.jar
-       ]]></notes>
-        <sha1>69c1edfa7d89531af511fcd07e8516fa450f746a</sha1>
-        <cve>CVE-2007-2138</cve>
-        <cve>CVE-2010-0733</cve>
-        <cve>CVE-2014-0060</cve>
-        <cve>CVE-2014-0061</cve>
-        <cve>CVE-2014-0062</cve>
-        <cve>CVE-2014-0063</cve>
-        <cve>CVE-2014-0064</cve>
-        <cve>CVE-2014-0065</cve>
-        <cve>CVE-2014-0066</cve>
-        <cve>CVE-2014-0067</cve>
-        <cve>CVE-2014-8161</cve>
-        <cve>CVE-2015-0241</cve>
-        <cve>CVE-2015-0242</cve>
-        <cve>CVE-2015-0243</cve>
-        <cve>CVE-2015-0244</cve>
-        <cve>CVE-2015-3166</cve>
-        <cve>CVE-2015-3167</cve>
-        <cve>CVE-2016-0766</cve>
-        <cve>CVE-2016-0768</cve>
-        <cve>CVE-2016-0773</cve>
-        <cve>CVE-2016-5423</cve>
-        <cve>CVE-2016-5424</cve>
-        <cve>CVE-2016-7048</cve>
-        <cve>CVE-2017-14798</cve>
-        <cve>CVE-2017-7484</cve>
-        <cve>CVE-2018-1115</cve>
-        <cve>CVE-2019-10127</cve>
-        <cve>CVE-2019-10128</cve>
-        <cve>CVE-2019-10210</cve>
-        <cve>CVE-2019-10211</cve>
-        <cve>CVE-2020-25694</cve>
-        <cve>CVE-2020-25695</cve>
-        <cve>CVE-2021-3393</cve>
-    </suppress>
-    <suppress>
-        <notes><![CDATA[
+       </notes>
+    <sha1>69c1edfa7d89531af511fcd07e8516fa450f746a</sha1>
+    <cve>CVE-2007-2138</cve>
+    <cve>CVE-2010-0733</cve>
+    <cve>CVE-2014-0060</cve>
+    <cve>CVE-2014-0061</cve>
+    <cve>CVE-2014-0062</cve>
+    <cve>CVE-2014-0063</cve>
+    <cve>CVE-2014-0064</cve>
+    <cve>CVE-2014-0065</cve>
+    <cve>CVE-2014-0066</cve>
+    <cve>CVE-2014-0067</cve>
+    <cve>CVE-2014-8161</cve>
+    <cve>CVE-2015-0241</cve>
+    <cve>CVE-2015-0242</cve>
+    <cve>CVE-2015-0243</cve>
+    <cve>CVE-2015-0244</cve>
+    <cve>CVE-2015-3166</cve>
+    <cve>CVE-2015-3167</cve>
+    <cve>CVE-2016-0766</cve>
+    <cve>CVE-2016-0768</cve>
+    <cve>CVE-2016-0773</cve>
+    <cve>CVE-2016-5423</cve>
+    <cve>CVE-2016-5424</cve>
+    <cve>CVE-2016-7048</cve>
+    <cve>CVE-2017-14798</cve>
+    <cve>CVE-2017-7484</cve>
+    <cve>CVE-2018-1115</cve>
+    <cve>CVE-2019-10127</cve>
+    <cve>CVE-2019-10128</cve>
+    <cve>CVE-2019-10210</cve>
+    <cve>CVE-2019-10211</cve>
+    <cve>CVE-2020-25694</cve>
+    <cve>CVE-2020-25695</cve>
+    <cve>CVE-2021-3393</cve>
+  </suppress>
+  <suppress>
+    <notes>
        file name: protostream-types-4.4.1.Final.jar
-       ]]></notes>
-        <sha1>29b45ebea1e4ce62ab3ec5eb76fa9771f98941b0</sha1>
-        <cve>CVE-2016-0750</cve>
-        <cve>CVE-2017-15089</cve>
-        <cve>CVE-2017-2638</cve>
-        <cve>CVE-2019-10158</cve>
-        <cve>CVE-2019-10174</cve>
-        <cve>CVE-2020-25711</cve>
-    </suppress>
-    <suppress>
-        <notes><![CDATA[
+       </notes>
+    <sha1>29b45ebea1e4ce62ab3ec5eb76fa9771f98941b0</sha1>
+    <cve>CVE-2016-0750</cve>
+    <cve>CVE-2017-15089</cve>
+    <cve>CVE-2017-2638</cve>
+    <cve>CVE-2019-10158</cve>
+    <cve>CVE-2019-10174</cve>
+    <cve>CVE-2020-25711</cve>
+  </suppress>
+  <suppress>
+    <notes>
        file name: mariadb-java-client-2.7.5.jar
-       ]]></notes>
-        <sha1>9dd29797ecabe7d2e7fa892ec6713a5552cfcc59</sha1>
-        <cve>CVE-2020-28912</cve>
-        <cve>CVE-2021-46669</cve>
-        <cve>CVE-2021-46666</cve>
-        <cve>CVE-2021-46667</cve>
-    </suppress>
-
+       </notes>
+    <sha1>9dd29797ecabe7d2e7fa892ec6713a5552cfcc59</sha1>
+    <cve>CVE-2020-28912</cve>
+    <cve>CVE-2021-46669</cve>
+    <cve>CVE-2021-46666</cve>
+    <cve>CVE-2021-46667</cve>
+  </suppress>
 </suppressions>

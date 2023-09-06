@@ -1,3 +1,4 @@
+<?xml version='1.0' encoding='UTF-8'?>
 <!--
 
     Licensed to the Apache Software Foundation (ASF) under one
@@ -18,13 +19,13 @@
     under the License.
 
 -->
-<!DOCTYPE suite SYSTEM "https://testng.org/testng-1.0.dtd" >
+<!DOCTYPE suite SYSTEM "https://testng.org/testng-1.0.dtd">
 <suite name="Pulsar Schema Integration Tests" verbose="2" annotations="JDK">
-    <test name="pulsar-schema-test-suite" preserve-order="true" >
-        <classes>
-            <class name="org.apache.pulsar.tests.integration.schema.SchemaTest" />
-            <class name="org.apache.pulsar.tests.integration.schema.JodaTimeTest" />
-            <class name="org.apache.pulsar.tests.integration.python.PythonSchemaTest" />
-        </classes>
-    </test>
+  <test name="pulsar-schema-test-suite" preserve-order="true">
+    <classes>
+      <class name="org.apache.pulsar.tests.integration.schema.SchemaTest"/>
+      <class name="org.apache.pulsar.tests.integration.schema.JodaTimeTest"/>
+      <class name="org.apache.pulsar.tests.integration.python.PythonSchemaTest"/>
+    </classes>
+  </test>
 </suite>

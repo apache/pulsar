@@ -1,3 +1,4 @@
+<?xml version='1.0' encoding='UTF-8'?>
 <!--
 
     Licensed to the Apache Software Foundation (ASF) under one
@@ -18,9 +19,7 @@
     under the License.
 
 -->
-<assembly xmlns="http://maven.apache.org/ASSEMBLY/2.1.0"
-          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-          xsi:schemaLocation="http://maven.apache.org/ASSEMBLY/2.1.0 http://maven.apache.org/xsd/assembly-2.1.0.xsd">
+<assembly xmlns="http://maven.apache.org/ASSEMBLY/2.1.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/ASSEMBLY/2.1.0 http://maven.apache.org/xsd/assembly-2.1.0.xsd">
   <id>bin</id>
   <formats>
     <format>dir</format>
@@ -38,45 +37,111 @@
       <outputDirectory>.</outputDirectory>
       <fileMode>644</fileMode>
     </file>
-
     <!-- Include all connectors.
          There doesn't seem to be a straight way to automatically
          include all nars and place them in a single directory.
      -->
-
-    <file><source>${basedir}/../../pulsar-io/cassandra/target/pulsar-io-cassandra-${project.version}.nar</source></file>
-    <file><source>${basedir}/../../pulsar-io/twitter/target/pulsar-io-twitter-${project.version}.nar</source></file>
-    <file><source>${basedir}/../../pulsar-io/kafka/target/pulsar-io-kafka-${project.version}.nar</source></file>
-    <file><source>${basedir}/../../pulsar-io/kinesis/target/pulsar-io-kinesis-${project.version}.nar</source></file>
-    <file><source>${basedir}/../../pulsar-io/rabbitmq/target/pulsar-io-rabbitmq-${project.version}.nar</source></file>
-    <file><source>${basedir}/../../pulsar-io/nsq/target/pulsar-io-nsq-${project.version}.nar</source></file>
-    <file><source>${basedir}/../../pulsar-io/jdbc/sqlite/target/pulsar-io-jdbc-sqlite-${project.version}.nar</source></file>
-    <file><source>${basedir}/../../pulsar-io/jdbc/mariadb/target/pulsar-io-jdbc-mariadb-${project.version}.nar</source></file>
-    <file><source>${basedir}/../../pulsar-io/jdbc/clickhouse/target/pulsar-io-jdbc-clickhouse-${project.version}.nar</source></file>
-    <file><source>${basedir}/../../pulsar-io/jdbc/postgres/target/pulsar-io-jdbc-postgres-${project.version}.nar</source></file>
-    <file><source>${basedir}/../../pulsar-io/data-generator/target/pulsar-io-data-generator-${project.version}.nar</source></file>
-    <file><source>${basedir}/../../pulsar-io/batch-data-generator/target/pulsar-io-batch-data-generator-${project.version}.nar</source></file>
-    <file><source>${basedir}/../../pulsar-io/aerospike/target/pulsar-io-aerospike-${project.version}.nar</source></file>
-    <file><source>${basedir}/../../pulsar-io/elastic-search/target/pulsar-io-elastic-search-${project.version}.nar</source></file>
-    <file><source>${basedir}/../../pulsar-io/kafka-connect-adaptor-nar/target/pulsar-io-kafka-connect-adaptor-${project.version}.nar</source></file>
-    <file><source>${basedir}/../../pulsar-io/hbase/target/pulsar-io-hbase-${project.version}.nar</source></file>
-    <file><source>${basedir}/../../pulsar-io/kinesis/target/pulsar-io-kinesis-${project.version}.nar</source></file>
-    <file><source>${basedir}/../../pulsar-io/hdfs2/target/pulsar-io-hdfs2-${project.version}.nar</source></file>
-    <file><source>${basedir}/../../pulsar-io/hdfs3/target/pulsar-io-hdfs3-${project.version}.nar</source></file>
-    <file><source>${basedir}/../../pulsar-io/file/target/pulsar-io-file-${project.version}.nar</source></file>
-    <file><source>${basedir}/../../pulsar-io/data-generator/target/pulsar-io-data-generator-${project.version}.nar</source></file>
-    <file><source>${basedir}/../../pulsar-io/canal/target/pulsar-io-canal-${project.version}.nar</source></file>
-    <file><source>${basedir}/../../pulsar-io/netty/target/pulsar-io-netty-${project.version}.nar</source></file>
-    <file><source>${basedir}/../../pulsar-io/mongo/target/pulsar-io-mongo-${project.version}.nar</source></file>
-    <file><source>${basedir}/../../pulsar-io/debezium/mysql/target/pulsar-io-debezium-mysql-${project.version}.nar</source></file>
-    <file><source>${basedir}/../../pulsar-io/debezium/postgres/target/pulsar-io-debezium-postgres-${project.version}.nar</source></file>
-    <file><source>${basedir}/../../pulsar-io/debezium/oracle/target/pulsar-io-debezium-oracle-${project.version}.nar</source></file>
-    <file><source>${basedir}/../../pulsar-io/debezium/mssql/target/pulsar-io-debezium-mssql-${project.version}.nar</source></file>
-    <file><source>${basedir}/../../pulsar-io/debezium/mongodb/target/pulsar-io-debezium-mongodb-${project.version}.nar</source></file>
-    <file><source>${basedir}/../../pulsar-io/influxdb/target/pulsar-io-influxdb-${project.version}.nar</source></file>
-    <file><source>${basedir}/../../pulsar-io/redis/target/pulsar-io-redis-${project.version}.nar</source></file>
-    <file><source>${basedir}/../../pulsar-io/flume/target/pulsar-io-flume-${project.version}.nar</source></file>
-    <file><source>${basedir}/../../pulsar-io/solr/target/pulsar-io-solr-${project.version}.nar</source></file>
-    <file><source>${basedir}/../../pulsar-io/dynamodb/target/pulsar-io-dynamodb-${project.version}.nar</source></file>
+    <file>
+      <source>${basedir}/../../pulsar-io/cassandra/target/pulsar-io-cassandra-${project.version}.nar</source>
+    </file>
+    <file>
+      <source>${basedir}/../../pulsar-io/twitter/target/pulsar-io-twitter-${project.version}.nar</source>
+    </file>
+    <file>
+      <source>${basedir}/../../pulsar-io/kafka/target/pulsar-io-kafka-${project.version}.nar</source>
+    </file>
+    <file>
+      <source>${basedir}/../../pulsar-io/kinesis/target/pulsar-io-kinesis-${project.version}.nar</source>
+    </file>
+    <file>
+      <source>${basedir}/../../pulsar-io/rabbitmq/target/pulsar-io-rabbitmq-${project.version}.nar</source>
+    </file>
+    <file>
+      <source>${basedir}/../../pulsar-io/nsq/target/pulsar-io-nsq-${project.version}.nar</source>
+    </file>
+    <file>
+      <source>${basedir}/../../pulsar-io/jdbc/sqlite/target/pulsar-io-jdbc-sqlite-${project.version}.nar</source>
+    </file>
+    <file>
+      <source>${basedir}/../../pulsar-io/jdbc/mariadb/target/pulsar-io-jdbc-mariadb-${project.version}.nar</source>
+    </file>
+    <file>
+      <source>${basedir}/../../pulsar-io/jdbc/clickhouse/target/pulsar-io-jdbc-clickhouse-${project.version}.nar</source>
+    </file>
+    <file>
+      <source>${basedir}/../../pulsar-io/jdbc/postgres/target/pulsar-io-jdbc-postgres-${project.version}.nar</source>
+    </file>
+    <file>
+      <source>${basedir}/../../pulsar-io/data-generator/target/pulsar-io-data-generator-${project.version}.nar</source>
+    </file>
+    <file>
+      <source>${basedir}/../../pulsar-io/batch-data-generator/target/pulsar-io-batch-data-generator-${project.version}.nar</source>
+    </file>
+    <file>
+      <source>${basedir}/../../pulsar-io/aerospike/target/pulsar-io-aerospike-${project.version}.nar</source>
+    </file>
+    <file>
+      <source>${basedir}/../../pulsar-io/elastic-search/target/pulsar-io-elastic-search-${project.version}.nar</source>
+    </file>
+    <file>
+      <source>${basedir}/../../pulsar-io/kafka-connect-adaptor-nar/target/pulsar-io-kafka-connect-adaptor-${project.version}.nar</source>
+    </file>
+    <file>
+      <source>${basedir}/../../pulsar-io/hbase/target/pulsar-io-hbase-${project.version}.nar</source>
+    </file>
+    <file>
+      <source>${basedir}/../../pulsar-io/kinesis/target/pulsar-io-kinesis-${project.version}.nar</source>
+    </file>
+    <file>
+      <source>${basedir}/../../pulsar-io/hdfs2/target/pulsar-io-hdfs2-${project.version}.nar</source>
+    </file>
+    <file>
+      <source>${basedir}/../../pulsar-io/hdfs3/target/pulsar-io-hdfs3-${project.version}.nar</source>
+    </file>
+    <file>
+      <source>${basedir}/../../pulsar-io/file/target/pulsar-io-file-${project.version}.nar</source>
+    </file>
+    <file>
+      <source>${basedir}/../../pulsar-io/data-generator/target/pulsar-io-data-generator-${project.version}.nar</source>
+    </file>
+    <file>
+      <source>${basedir}/../../pulsar-io/canal/target/pulsar-io-canal-${project.version}.nar</source>
+    </file>
+    <file>
+      <source>${basedir}/../../pulsar-io/netty/target/pulsar-io-netty-${project.version}.nar</source>
+    </file>
+    <file>
+      <source>${basedir}/../../pulsar-io/mongo/target/pulsar-io-mongo-${project.version}.nar</source>
+    </file>
+    <file>
+      <source>${basedir}/../../pulsar-io/debezium/mysql/target/pulsar-io-debezium-mysql-${project.version}.nar</source>
+    </file>
+    <file>
+      <source>${basedir}/../../pulsar-io/debezium/postgres/target/pulsar-io-debezium-postgres-${project.version}.nar</source>
+    </file>
+    <file>
+      <source>${basedir}/../../pulsar-io/debezium/oracle/target/pulsar-io-debezium-oracle-${project.version}.nar</source>
+    </file>
+    <file>
+      <source>${basedir}/../../pulsar-io/debezium/mssql/target/pulsar-io-debezium-mssql-${project.version}.nar</source>
+    </file>
+    <file>
+      <source>${basedir}/../../pulsar-io/debezium/mongodb/target/pulsar-io-debezium-mongodb-${project.version}.nar</source>
+    </file>
+    <file>
+      <source>${basedir}/../../pulsar-io/influxdb/target/pulsar-io-influxdb-${project.version}.nar</source>
+    </file>
+    <file>
+      <source>${basedir}/../../pulsar-io/redis/target/pulsar-io-redis-${project.version}.nar</source>
+    </file>
+    <file>
+      <source>${basedir}/../../pulsar-io/flume/target/pulsar-io-flume-${project.version}.nar</source>
+    </file>
+    <file>
+      <source>${basedir}/../../pulsar-io/solr/target/pulsar-io-solr-${project.version}.nar</source>
+    </file>
+    <file>
+      <source>${basedir}/../../pulsar-io/dynamodb/target/pulsar-io-dynamodb-${project.version}.nar</source>
+    </file>
   </files>
 </assembly>

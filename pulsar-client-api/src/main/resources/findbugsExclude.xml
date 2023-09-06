@@ -1,3 +1,4 @@
+<?xml version='1.0' encoding='UTF-8'?>
 <!--
 
     Licensed to the Apache Software Foundation (ASF) under one
@@ -36,12 +37,10 @@
     <Class name="org.apache.pulsar.common.schema.SchemaInfo$SchemaInfoBuilder"/>
     <Bug pattern="EI_EXPOSE_REP2"/>
   </Match>
-
   <Match>
     <Class name="org.apache.pulsar.common.api.AuthData"/>
     <Bug pattern="EI_EXPOSE_REP"/>
   </Match>
-
   <!-- The implementation of Schema#encode may have side effect so the return value can be ignored -->
   <Match>
     <Class name="org.apache.pulsar.client.api.Schema"/>

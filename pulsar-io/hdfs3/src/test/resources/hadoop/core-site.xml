@@ -1,3 +1,4 @@
+<?xml version='1.0' encoding='UTF-8'?>
 <!--
 
     Licensed to the Apache Software Foundation (ASF) under one
@@ -19,14 +20,14 @@
 
 -->
 <configuration>
-    <property>
-        <name>fs.defaultFS</name>
-        <value>hdfs://0.0.0.0:8020</value>
-    </property>
-    <property>
-        <name>io.compression.codecs</name>
-        <value>org.apache.hadoop.io.compress.GzipCodec,
+  <property>
+    <name>fs.defaultFS</name>
+    <value>hdfs://0.0.0.0:8020</value>
+  </property>
+  <property>
+    <name>io.compression.codecs</name>
+    <value>org.apache.hadoop.io.compress.GzipCodec,
                org.apache.hadoop.io.compress.DefaultCodec,
                org.apache.hadoop.io.compress.SnappyCodec</value>
-   </property>
+  </property>
 </configuration>

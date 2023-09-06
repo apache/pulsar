@@ -31,21 +31,18 @@
     <!-- main project directory structure -->
     <fileSet>
       <directory>.</directory>
-      <outputDirectory></outputDirectory>
+      <outputDirectory/>
       <useDefaultExcludes>true</useDefaultExcludes>
       <excludes>
         <!-- need special permissions -->
         <exclude>src/*.sh</exclude>
         <exclude>pulsar-client-cpp/docker/*.sh</exclude>
         <exclude>docker/pulsar/scripts/*.sh</exclude>
-
         <!-- Pulsar standalone -->
         <exclude>data/**</exclude>
         <exclude>logs/**</exclude>
-
         <!-- build output -->
         <exclude>%regex[(?!((?!${project.build.directory}/)[^/]+/)*src/).*${project.build.directory}.*]</exclude>
-        
         <!-- NOTE: Most of the following excludes should not be required 
              if the standard release process is followed. This is because the 
              release plugin checks out project sources into a location like
@@ -57,7 +54,6 @@
              or generate a project website, it's definitely possible that some
              of these files will be present. So, it's safer to exclude them.
         -->
-             
         <!-- IDEs -->
         <exclude>%regex[(?!((?!${project.build.directory}/)[^/]+/)*src/)(.*/)?maven-eclipse\.xml]</exclude>
         <exclude>%regex[(?!((?!${project.build.directory}/)[^/]+/)*src/)(.*/)?\.project]</exclude>
@@ -71,12 +67,10 @@
         <exclude>%regex[(?!((?!${project.build.directory}/)[^/]+/)*src/)(.*/)?\.externalToolBuilders(/.*)?]</exclude>
         <exclude>%regex[(?!((?!${project.build.directory}/)[^/]+/)*src/)(.*/)?\.deployables(/.*)?]</exclude>
         <exclude>%regex[(?!((?!${project.build.directory}/)[^/]+/)*src/)(.*/)?\.wtpmodules(/.*)?]</exclude>
-        
         <!-- misc -->
         <exclude>%regex[(?!((?!${project.build.directory}/)[^/]+/)*src/)(.*/)?cobertura\.ser]</exclude>
         <exclude>%regex[(?!((?!${project.build.directory}/)[^/]+/)*src/)(.*/)?pom\.xml\.versionsBackup]</exclude>
         <exclude>%regex[(?!((?!${project.build.directory}/)[^/]+/)*src/)(.*/)?dependency-reduced-pom\.xml]</exclude>
-
         <!-- release-plugin temp files -->
         <exclude>%regex[(?!((?!${project.build.directory}/)[^/]+/)*src/)(.*/)?pom\.xml\.releaseBackup]</exclude>
         <exclude>%regex[(?!((?!${project.build.directory}/)[^/]+/)*src/)(.*/)?release\.properties]</exclude>
@@ -85,7 +79,7 @@
     <!-- license, readme, etc. calculated at build time -->
     <fileSet>
       <directory>${project.build.directory}/maven-shared-archive-resources/META-INF</directory>
-      <outputDirectory></outputDirectory>
+      <outputDirectory/>
     </fileSet>
     <fileSet>
       <directory>src</directory>
