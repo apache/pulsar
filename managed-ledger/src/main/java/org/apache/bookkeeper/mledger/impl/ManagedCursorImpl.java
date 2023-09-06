@@ -451,7 +451,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                     callback.operationComplete();
                 } else {
                     // Need to proceed and read the last entry in the specified ledger to find out the last position
-                    log.info("[{}] Consumer {} meta-data recover from ledger {}", ledger.getName(), name,
+                    log.info("[{}] Cursor {} meta-data recover from ledger {}", ledger.getName(), name,
                             info.getCursorsLedgerId());
                     recoverFromLedger(info, callback);
                 }
@@ -471,16 +471,16 @@ public class ManagedCursorImpl implements ManagedCursor {
         long ledgerId = info.getCursorsLedgerId();
         OpenCallback openCallback = (rc, lh, ctx) -> {
             if (log.isInfoEnabled()) {
-                log.info("[{}] Opened ledger {} for consumer {}. rc={}", ledger.getName(), ledgerId, name, rc);
+                log.info("[{}] Opened ledger {} for cursor {}. rc={}", ledger.getName(), ledgerId, name, rc);
             }
             if (isBkErrorNotRecoverable(rc)) {
-                log.error("[{}] Error opening metadata ledger {} for consumer {}: {}", ledger.getName(), ledgerId, name,
+                log.error("[{}] Error opening metadata ledger {} for cursor {}: {}", ledger.getName(), ledgerId, name,
                         BKException.getMessage(rc));
                 // Rewind to oldest entry available
                 initialize(getRollbackPosition(info), Collections.emptyMap(), Collections.emptyMap(), callback);
                 return;
             } else if (rc != BKException.Code.OK) {
-                log.warn("[{}] Error opening metadata ledger {} for consumer {}: {}", ledger.getName(), ledgerId, name,
+                log.warn("[{}] Error opening metadata ledger {} for cursor {}: {}", ledger.getName(), ledgerId, name,
                         BKException.getMessage(rc));
                 callback.operationFailed(new ManagedLedgerException(BKException.getMessage(rc)));
                 return;
@@ -490,7 +490,7 @@ public class ManagedCursorImpl implements ManagedCursor {
             long lastEntryInLedger = lh.getLastAddConfirmed();
 
             if (lastEntryInLedger < 0) {
-                log.warn("[{}] Error reading from metadata ledger {} for consumer {}: No entries in ledger",
+                log.warn("[{}] Error reading from metadata ledger {} for cursor {}: No entries in ledger",
                         ledger.getName(), ledgerId, name);
                 // Rewind to last cursor snapshot available
                 initialize(getRollbackPosition(info), Collections.emptyMap(), cursorProperties, callback);
@@ -502,13 +502,13 @@ public class ManagedCursorImpl implements ManagedCursor {
                     log.debug("[{}} readComplete rc={} entryId={}", ledger.getName(), rc1, lh1.getLastAddConfirmed());
                 }
                 if (isBkErrorNotRecoverable(rc1)) {
-                    log.error("[{}] Error reading from metadata ledger {} for consumer {}: {}", ledger.getName(),
+                    log.error("[{}] Error reading from metadata ledger {} for cursor {}: {}", ledger.getName(),
                             ledgerId, name, BKException.getMessage(rc1));
                     // Rewind to oldest entry available
                     initialize(getRollbackPosition(info), Collections.emptyMap(), cursorProperties, callback);
                     return;
                 } else if (rc1 != BKException.Code.OK) {
-                    log.warn("[{}] Error reading from metadata ledger {} for consumer {}: {}", ledger.getName(),
+                    log.warn("[{}] Error reading from metadata ledger {} for cursor {}: {}", ledger.getName(),
                             ledgerId, name, BKException.getMessage(rc1));
 
                     callback.operationFailed(createManagedLedgerException(rc1));
@@ -2357,8 +2357,12 @@ public class ManagedCursorImpl implements ManagedCursor {
 
     @Override
     public synchronized String toString() {
-        return MoreObjects.toStringHelper(this).add("ledger", ledger.getName()).add("name", name)
-                .add("ackPos", markDeletePosition).add("readPos", readPosition).toString();
+        return MoreObjects.toStringHelper(this)
+                .add("ledger", ledger.getName())
+                .add("name", name)
+                .add("ackPos", markDeletePosition)
+                .add("readPos", readPosition)
+                .toString();
     }
 
     @Override
@@ -2927,7 +2931,7 @@ public class ManagedCursorImpl implements ManagedCursor {
 
                 if (shouldCloseLedger(lh1)) {
                     if (log.isDebugEnabled()) {
-                        log.debug("[{}] Need to create new metadata ledger for consumer {}", ledger.getName(), name);
+                        log.debug("[{}] Need to create new metadata ledger for cursor {}", ledger.getName(), name);
                     }
                     startCreatingNewMetadataLedger();
                 }
@@ -3006,7 +3010,7 @@ public class ManagedCursorImpl implements ManagedCursor {
 
             @Override
             public void operationFailed(MetaStoreException e) {
-                log.warn("[{}] Failed to update consumer {}", ledger.getName(), name, e);
+                log.warn("[{}] Failed to update cursor metadata {}", ledger.getName(), name, e);
                 // it means it failed to switch the newly created ledger so, it should be
                 // deleted to prevent leak
                 deleteLedgerAsync(lh).thenRun(() -> callback.operationFailed(e));
