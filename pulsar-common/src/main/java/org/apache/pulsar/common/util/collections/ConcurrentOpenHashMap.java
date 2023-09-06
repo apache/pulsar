@@ -35,6 +35,7 @@ import java.util.function.Function;
  * <p>Provides similar methods as a {@code ConcurrentMap<K,V>} but since it's an open hash map with linear probing,
  * no node allocations are required to store the values.
  *
+ * <b>WARN: method forEach do not guarantee thread safety, nor do the keys and values method.</b>
  * @param <V>
  */
 @SuppressWarnings("unchecked")

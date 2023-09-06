@@ -34,6 +34,8 @@ import java.util.concurrent.locks.StampedLock;
  * no node allocations are required to store the keys and values, and no boxing is required.
  *
  * <p>Values <b>MUST</b> be &gt;= 0.
+ * <br>
+ * <b>WARN: method forEach do not guarantee thread safety, nor does the items method.</b>
  */
 public class ConcurrentLongPairSet implements LongPairSet {
 

@@ -36,6 +36,7 @@ import java.util.function.LongFunction;
  * <li>Open hash map with linear probing, no node allocations to store the values
  * </ol>
  *
+ * <b>WARN: method forEach do not guarantee thread safety, nor do the keys and values method.</b>
  * @param <V>
  */
 @SuppressWarnings("unchecked")

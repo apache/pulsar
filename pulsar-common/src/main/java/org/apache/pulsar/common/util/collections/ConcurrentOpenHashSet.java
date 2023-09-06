@@ -35,6 +35,8 @@ import java.util.function.Predicate;
  * <p>Provides similar methods as a {@code ConcurrentMap<K,V>} but since it's an open hash map with linear probing,
  * no node allocations are required to store the values.
  *
+ * <br>
+ * <b>WARN: method forEach do not guarantee thread safety, nor does the items method.</b>
  * @param <V>
  */
 @SuppressWarnings("unchecked")

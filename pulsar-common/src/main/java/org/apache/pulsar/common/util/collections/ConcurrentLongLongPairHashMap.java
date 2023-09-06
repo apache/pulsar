@@ -36,6 +36,8 @@ import java.util.concurrent.locks.StampedLock;
  * no node allocations are required to store the keys and values, and no boxing is required.
  *
  * <p>Keys <strong>MUST</strong> be &gt;= 0.
+ * <br>
+ * <b>WARN: method forEach do not guarantee thread safety, nor do the keys and values method.</b>
  */
 public class ConcurrentLongLongPairHashMap {
 
