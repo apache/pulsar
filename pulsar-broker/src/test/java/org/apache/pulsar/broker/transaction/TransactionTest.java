@@ -746,7 +746,7 @@ public class TransactionTest extends TransactionTestBase {
             return null;
         }).when(managedCursor).asyncReadEntries(anyInt(), any(), any(), any());
 
-        TransactionBuffer buffer2 = new TopicTransactionBuffer(persistentTopic, PositionImpl.EARLIEST);
+        TransactionBuffer buffer2 = new TopicTransactionBuffer(persistentTopic);
         Awaitility.await().atMost(30, TimeUnit.SECONDS).untilAsserted(() ->
                 assertEquals(buffer2.getStats(false, false).state, "Ready"));
         managedCursors.removeCursor("transaction-buffer-sub");
@@ -758,7 +758,7 @@ public class TransactionTest extends TransactionTestBase {
         }).when(managedCursor).asyncReadEntries(anyInt(), any(), any(), any());
 
         managedCursors.add(managedCursor, managedCursor.getMarkDeletedPosition());
-        TransactionBuffer buffer3 = new TopicTransactionBuffer(persistentTopic, PositionImpl.EARLIEST);
+        TransactionBuffer buffer3 = new TopicTransactionBuffer(persistentTopic);
         Awaitility.await().atMost(30, TimeUnit.SECONDS).untilAsserted(() ->
                 assertEquals(buffer3.getStats(false, false).state, "Ready"));
         persistentTopic.getInternalStats(false).thenAccept(internalStats -> {
@@ -988,7 +988,7 @@ public class TransactionTest extends TransactionTestBase {
         doReturn(false).when(managedCursor).hasMoreEntries();
         doReturn(managedCursor).when(managedLedger).newNonDurableCursor(any(), any());
 
-        TopicTransactionBuffer transactionBuffer = new TopicTransactionBuffer(persistentTopic, PositionImpl.EARLIEST);
+        TopicTransactionBuffer transactionBuffer = new TopicTransactionBuffer(persistentTopic);
         Awaitility.await().untilAsserted(() -> Assert.assertTrue(transactionBuffer.checkIfReady()));
     }
 

@@ -315,7 +315,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         if (brokerService.pulsar().getConfiguration().isTransactionCoordinatorEnabled()
                 && !isEventSystemTopic(topicName) || startUsedPosition != null) {
             this.transactionBuffer = brokerService.getPulsar()
-                    .getTransactionBufferProvider().newTransactionBuffer(this, startUsedPosition);
+                    .getTransactionBufferProvider().newTransactionBuffer(this);
         } else {
             this.transactionBuffer = new TransactionBufferDisable();
         }
@@ -411,7 +411,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         if (brokerService.pulsar().getConfiguration().isTransactionCoordinatorEnabled()
                 && !isEventSystemTopic(topicName) || startUsedPosition != null) {
             this.transactionBuffer = brokerService.getPulsar()
-                    .getTransactionBufferProvider().newTransactionBuffer(this, startUsedPosition);
+                    .getTransactionBufferProvider().newTransactionBuffer(this);
         } else {
             this.transactionBuffer = new TransactionBufferDisable();
         }

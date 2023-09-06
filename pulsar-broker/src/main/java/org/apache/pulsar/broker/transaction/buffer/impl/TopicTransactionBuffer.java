@@ -109,10 +109,6 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
     private final AbortedTxnProcessor.SnapshotType snapshotType;
 
     public TopicTransactionBuffer(PersistentTopic topic) {
-        this(topic, PositionImpl.EARLIEST);
-    }
-
-    public TopicTransactionBuffer(PersistentTopic topic, PositionImpl startUsedPosition) {
         super(State.None);
         this.topic = topic;
         this.timer = topic.getBrokerService().getPulsar().getTransactionTimer();
@@ -129,6 +125,8 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
         }
         // TransactionBuffer need to handle transaction messages for consumer.
         // If the transaction buffer had been used, we always need to recover it.
+        PositionImpl startUsedPosition = getPositionFromString(
+                topic.getManagedLedger().getProperties().get(TopicTransactionBuffer.MAX_READ_POSITION));
         if (startUsedPosition != null) {
             this.maxReadPosition = startUsedPosition;
             changeToInitializingState();
@@ -136,6 +134,16 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
         } else {
             this.maxReadPosition = (PositionImpl) topic.getManagedLedger().getLastConfirmedEntry();
         }
+    }
+
+    private PositionImpl getPositionFromString(String positionStr) {
+        String[] strs = positionStr.split(":");
+        if (strs.length != 2) {
+            log.error("TransactionBufferRecover receive a start position {} from topic {} properties",
+                    positionStr, topic.getName());
+            return PositionImpl.EARLIEST;
+        }
+        return new PositionImpl(Integer.parseInt(strs[0]), Integer.parseInt(strs[1]));
     }
 
     private void recover() {

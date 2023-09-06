@@ -32,9 +32,4 @@ public class InMemTransactionBufferProvider implements TransactionBufferProvider
     public TransactionBuffer newTransactionBuffer(Topic originTopic) {
         return new InMemTransactionBuffer(originTopic);
     }
-
-    @Override
-    public TransactionBuffer newTransactionBuffer(Topic originTopic, PositionImpl startUsedPosition) {
-        return new InMemTransactionBuffer(originTopic);
-    }
 }

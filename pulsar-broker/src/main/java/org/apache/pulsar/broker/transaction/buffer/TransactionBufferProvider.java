@@ -20,7 +20,6 @@ package org.apache.pulsar.broker.transaction.buffer;
 
 import com.google.common.annotations.Beta;
 import java.io.IOException;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.common.util.Reflections;
 
@@ -53,13 +52,4 @@ public interface TransactionBufferProvider {
      * @return
      */
     TransactionBuffer newTransactionBuffer(Topic originTopic);
-
-    /**
-     * Open the persistent transaction buffer.
-     *
-     * @param originTopic
-     * @param startUsedPosition The last confirm position before sending the first transaction message.
-     * @return
-     */
-    TransactionBuffer newTransactionBuffer(Topic originTopic, PositionImpl startUsedPosition);
 }
