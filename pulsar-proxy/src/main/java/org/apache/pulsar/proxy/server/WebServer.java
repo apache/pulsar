@@ -247,7 +247,7 @@ public class WebServer {
         servletHolder.setAsyncSupported(true);
         // This method has not historically checked for existing paths, so we don't check here either. The
         // method call is added to reduce code duplication.
-        addServlet(basePath, servletHolder, Collections.singletonList(Pair.of(attribute, attributeValue)), true, false);
+        addServlet(basePath, servletHolder, Collections.singletonList(Pair.of(attribute, attributeValue)), false, false);
     }
 
     public int getExternalServicePort() {

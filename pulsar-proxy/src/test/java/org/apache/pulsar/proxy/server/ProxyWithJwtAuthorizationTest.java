@@ -116,6 +116,7 @@ public class ProxyWithJwtAuthorizationTest extends ProducerConsumerBase {
         proxyConfig.setBrokerClientAuthenticationPlugin(AuthenticationToken.class.getName());
         proxyConfig.setBrokerClientAuthenticationParameters(PROXY_TOKEN);
         proxyConfig.setAuthenticationProviders(providers);
+        proxyConfig.setStatusFilePath("./src/test/resources/vip_status.html");
 
         AuthenticationService authService =
                 new AuthenticationService(PulsarConfigurationLoader.convertFrom(proxyConfig));
@@ -434,6 +435,52 @@ public class ProxyWithJwtAuthorizationTest extends ProducerConsumerBase {
         try {
             Response r = client.target(webServer.getServiceUri()).path("/metrics").request().get();
             Assert.assertEquals(r.getStatus(), Response.Status.UNAUTHORIZED.getStatusCode());
+        } finally {
+            webServer.stop();
+        }
+        log.info("-- Exiting {} test --", methodName);
+    }
+
+    @Test
+    void testGetStats() throws Exception {
+        log.info("-- Starting {} test --", methodName);
+        startProxy();
+        PulsarResources resource = new PulsarResources(new ZKMetadataStore(mockZooKeeper),
+                new ZKMetadataStore(mockZooKeeperGlobal));
+        AuthenticationService authService = new AuthenticationService(
+                PulsarConfigurationLoader.convertFrom(proxyConfig));
+        WebServer webServer = new WebServer(proxyConfig, authService);
+        ProxyServiceStarter.addWebServerHandlers(webServer, proxyConfig, proxyService,
+                new BrokerDiscoveryProvider(proxyConfig, resource));
+        webServer.start();
+        @Cleanup
+        Client client = javax.ws.rs.client.ClientBuilder.newClient(new ClientConfig().register(LoggingFeature.class));
+        try {
+            Response r = client.target(webServer.getServiceUri()).path("/proxy-stats/connections").request().get();
+            Assert.assertEquals(r.getStatus(), Response.Status.OK.getStatusCode());
+        } finally {
+            webServer.stop();
+        }
+        log.info("-- Exiting {} test --", methodName);
+    }
+
+    @Test
+    void testGetStatus() throws Exception {
+        log.info("-- Starting {} test --", methodName);
+        startProxy();
+        PulsarResources resource = new PulsarResources(new ZKMetadataStore(mockZooKeeper),
+                new ZKMetadataStore(mockZooKeeperGlobal));
+        AuthenticationService authService = new AuthenticationService(
+                PulsarConfigurationLoader.convertFrom(proxyConfig));
+        WebServer webServer = new WebServer(proxyConfig, authService);
+        ProxyServiceStarter.addWebServerHandlers(webServer, proxyConfig, proxyService,
+                new BrokerDiscoveryProvider(proxyConfig, resource));
+        webServer.start();
+        @Cleanup
+        Client client = javax.ws.rs.client.ClientBuilder.newClient(new ClientConfig().register(LoggingFeature.class));
+        try {
+            Response r = client.target(webServer.getServiceUri()).path("/status.html").request().get();
+            Assert.assertEquals(r.getStatus(), Response.Status.OK.getStatusCode());
         } finally {
             webServer.stop();
         }
