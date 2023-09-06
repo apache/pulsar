@@ -52,5 +52,14 @@ public interface TransactionBufferProvider {
      * @param originTopic
      * @return
      */
+    TransactionBuffer newTransactionBuffer(Topic originTopic);
+
+    /**
+     * Open the persistent transaction buffer.
+     *
+     * @param originTopic
+     * @param startUsedPosition The last confirm position before sending the first transaction message.
+     * @return
+     */
     TransactionBuffer newTransactionBuffer(Topic originTopic, PositionImpl startUsedPosition);
 }

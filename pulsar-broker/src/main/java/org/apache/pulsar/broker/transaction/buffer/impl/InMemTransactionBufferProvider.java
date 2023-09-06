@@ -29,6 +29,11 @@ import org.apache.pulsar.broker.transaction.buffer.TransactionBufferProvider;
 public class InMemTransactionBufferProvider implements TransactionBufferProvider {
 
     @Override
+    public TransactionBuffer newTransactionBuffer(Topic originTopic) {
+        return new InMemTransactionBuffer(originTopic);
+    }
+
+    @Override
     public TransactionBuffer newTransactionBuffer(Topic originTopic, PositionImpl startUsedPosition) {
         return new InMemTransactionBuffer(originTopic);
     }

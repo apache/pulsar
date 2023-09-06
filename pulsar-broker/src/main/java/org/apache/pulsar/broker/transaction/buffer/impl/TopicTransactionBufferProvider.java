@@ -30,6 +30,11 @@ import org.apache.pulsar.broker.transaction.buffer.TransactionBufferProvider;
 public class TopicTransactionBufferProvider implements TransactionBufferProvider {
 
     @Override
+    public TransactionBuffer newTransactionBuffer(Topic originTopic) {
+        return new TopicTransactionBuffer((PersistentTopic) originTopic);
+    }
+
+    @Override
     public TransactionBuffer newTransactionBuffer(Topic originTopic, PositionImpl startUsedPosition) {
         return new TopicTransactionBuffer((PersistentTopic) originTopic, startUsedPosition);
     }

@@ -108,6 +108,10 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
 
     private final AbortedTxnProcessor.SnapshotType snapshotType;
 
+    public TopicTransactionBuffer(PersistentTopic topic) {
+        this(topic, PositionImpl.EARLIEST);
+    }
+
     public TopicTransactionBuffer(PersistentTopic topic, PositionImpl startUsedPosition) {
         super(State.None);
         this.topic = topic;
@@ -270,16 +274,6 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
         // Return a CompletableFuture that will complete after recovering the transaction buffer,
         // then append the buffer
         return transactionBufferFuture.thenCompose(ignore -> internalAppendBufferToTxn(txnId, sequenceId, buffer));
-    }
-
-    private PositionImpl getPositionFromString(String positionStr) {
-        String[] strs = positionStr.split(":");
-        if (strs.length != 2) {
-            log.error("TransactionBufferRecover receive a start position {} from topic {} properties",
-                    positionStr, topic.getName());
-            return PositionImpl.EARLIEST;
-        }
-        return new PositionImpl(Integer.parseInt(strs[0]), Integer.parseInt(strs[1]));
     }
 
     private CompletableFuture<Position> internalAppendBufferToTxn(TxnID txnId, long sequenceId, ByteBuf buffer) {
