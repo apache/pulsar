@@ -196,8 +196,6 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
     }
 
     void configureDefaults(ServiceConfiguration conf) {
-        conf.setWebServicePortTls(Optional.of(0));
-        conf.setBrokerServicePortTls(Optional.of(0));
         conf.setForceDeleteNamespaceAllowed(true);
         conf.setLoadBalancerEnabled(true);
         conf.setEnableNamespaceIsolationUpdateOnTime(true);
@@ -441,19 +439,13 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         String tenantName = newUniqueName("prop-xyz2");
         admin.tenants().createTenant(tenantName, tenantInfo);
         admin.namespaces().createNamespace(tenantName + "/ns1", Set.of("test"));
-        conf.setBrokerServicePort(Optional.of(1024));
-        conf.setBrokerServicePortTls(Optional.of(1025));
-        conf.setWebServicePort(Optional.of(1026));
-        conf.setWebServicePortTls(Optional.of(1027));
+        ServiceConfiguration config2 = super.getDefaultConf();
         @Cleanup
-        PulsarTestContext pulsarTestContext2 = createAdditionalPulsarTestContext(conf);
+        PulsarTestContext pulsarTestContext2 = createAdditionalPulsarTestContext(config2);
         PulsarService pulsar2 = pulsarTestContext2.getPulsarService();
-        conf.setBrokerServicePort(Optional.of(2048));
-        conf.setBrokerServicePortTls(Optional.of(2049));
-        conf.setWebServicePort(Optional.of(2050));
-        conf.setWebServicePortTls(Optional.of(2051));
+        ServiceConfiguration config3 = super.getDefaultConf();
         @Cleanup
-        PulsarTestContext pulsarTestContext3 = createAdditionalPulsarTestContext(conf);
+        PulsarTestContext pulsarTestContext3 = createAdditionalPulsarTestContext(config3);
         PulsarService pulsar3 = pulsarTestContext.getPulsarService();
         @Cleanup
         PulsarAdmin admin2 = PulsarAdmin.builder().serviceHttpUrl(pulsar2.getWebServiceAddress()).build();
@@ -1317,7 +1309,7 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         String cluster = pulsar.getConfiguration().getClusterName();
         String namespaceRegex = "other/" + cluster + "/other.*";
         String brokerName = pulsar.getAdvertisedAddress();
-        String brokerAddress = brokerName + ":" + pulsar.getConfiguration().getWebServicePortTls().get();
+        String brokerAddress = brokerName + ":" + pulsar.getConfiguration().getWebServicePort().get();
 
         Map<String, String> parameters1 = new HashMap<>();
         parameters1.put("min_limit", "1");
