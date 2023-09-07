@@ -94,7 +94,7 @@ public class ConnectionHandler {
             } else if (state.topic == null) {
                 cnxFuture = state.client.getConnectionToServiceUrl();
             } else {
-                cnxFuture = state.client.getConnection(state.topic, randomKeyForSelectConnection); //
+                cnxFuture = state.client.getConnection(state.topic, randomKeyForSelectConnection);
             }
             cnxFuture.thenCompose(cnx -> connection.connectionOpened(cnx))
                     .thenAccept(__ -> duringConnect.set(false))
