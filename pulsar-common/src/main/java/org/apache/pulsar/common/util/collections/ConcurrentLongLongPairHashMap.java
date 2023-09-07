@@ -39,8 +39,8 @@ import java.util.concurrent.locks.StampedLock;
  * <br>
  * <b>WARN: method forEach do not guarantee thread safety, nor do the keys, values and asMap method.</b>
  * <br>
- * The forEach method is specifically designed for single-threaded usage.
- * When iterating over a map with concurrent writes, it becomes possible for new values to be either observed or not observed.
+ * The forEach method is specifically designed for single-threaded usage. When iterating over a map
+ * with concurrent writes, it becomes possible for new values to be either observed or not observed.
  * There is no guarantee that if we write value1 and value2, and are able to see value2, then we will also see value1.
  * In some cases, it is even possible to encounter two mappings with the same key,
  * leading the keys method to return a List containing two identical keys.
