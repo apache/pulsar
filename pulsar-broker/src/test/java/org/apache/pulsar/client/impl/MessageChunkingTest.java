@@ -320,15 +320,29 @@ public class MessageChunkingTest extends ProducerConsumerBase {
         msg.send();
     }
 
+    /**
+     * This test used to test the consumer configuration of maxPendingChunkedMessage.
+     * If we set maxPendingChunkedMessage is 1 that means only one incomplete chunk message can be store in this
+     * consumer.
+     * For example:
+     * ChunkMessage1 chunk-1: uuid = 0, chunkId = 0, totalChunk = 2;
+     * ChunkMessage2 chunk-1: uuid = 1, chunkId = 0, totalChunk = 2;
+     * ChunkMessage2 chunk-2: uuid = 1, chunkId = 1, totalChunk = 2;
+     * ChunkMessage1 chunk-2: uuid = 0, chunkId = 1, totalChunk = 2;
+     * The chunk-1 in the ChunkMessage1 and ChunkMessage all is incomplete.
+     * chunk-1 in the ChunkMessage1 will be discarded and acked when receive the chunk-1 in the ChunkMessage2.
+     * If ack ChunkMessage2 and redeliver unacknowledged messages, the consumer can not receive any message again.
+     * @throws Exception
+     */
     @Test
     public void testMaxPendingChunkMessages() throws Exception {
         log.info("-- Starting {} test --", methodName);
         final String topicName = "persistent://my-property/my-ns/maxPending";
-
+        final String subName = "my-subscriber-name";
         @Cleanup
         Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
                 .topic(topicName)
-                .subscriptionName("my-subscriber-name")
+                .subscriptionName(subName)
                 .maxPendingChunkedMessage(1)
                 .autoAckOldestChunkedMessageOnQueueFull(true)
                 .subscribe();
@@ -340,28 +354,25 @@ public class MessageChunkingTest extends ProducerConsumerBase {
                 .enableBatching(false)
                 .create();
 
-        Awaitility.await().untilAsserted(() -> {
-            sendSingleChunk(producer, "0", 0, 2);
-            sendSingleChunk(producer, "1", 0, 2);
-            sendSingleChunk(producer, "1", 1, 2);
+        sendSingleChunk(producer, "0", 0, 2);
+        sendSingleChunk(producer, "1", 0, 2);
+        sendSingleChunk(producer, "1", 1, 2);
 
-            // The chunked message of uuid 0 is discarded.
-            Message<String> receivedMsg = consumer.receive(5, TimeUnit.SECONDS);
-            assertEquals(receivedMsg.getValue(), "chunk-1-0|chunk-1-1|");
+        // The chunked message of uuid 0 is discarded.
+        Message<String> receivedMsg = consumer.receive(5, TimeUnit.SECONDS);
+        assertEquals(receivedMsg.getValue(), "chunk-1-0|chunk-1-1|");
 
-            consumer.acknowledge(receivedMsg);
-            consumer.redeliverUnacknowledgedMessages();
+        consumer.acknowledge(receivedMsg);
+        assertEquals(admin.topics().getStats(topicName).getSubscriptions().get(subName)
+                .getNonContiguousDeletedMessagesRanges(), 0);
+        Awaitility.await().untilAsserted(() -> assertEquals(admin.topics().getStats(topicName)
+                .getSubscriptions().get(subName).getNonContiguousDeletedMessagesRanges(), 0));
+        consumer.redeliverUnacknowledgedMessages();
 
-            sendSingleChunk(producer, "0", 1, 2);
+        sendSingleChunk(producer, "0", 1, 2);
 
-            // Ensure that the chunked message of uuid 0 is discarded.
-            Message<String> msg = consumer.receive(5, TimeUnit.SECONDS);
-            if (msg != null) {
-                consumer.acknowledge(msg);
-            }
-            assertNull(msg);
-        });
-
+        // Ensure that the chunked message of uuid 0 is discarded.
+        assertNull(consumer.receive(5, TimeUnit.SECONDS));
     }
 
     @Test
