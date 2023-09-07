@@ -132,7 +132,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
 
     private JavaInstance javaInstance;
     @Getter
-    private Throwable deathException;
+    private volatile Throwable deathException;
 
     // function stats
     private ComponentStatsManager stats;
@@ -345,23 +345,24 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                     // process the synchronous results
                     handleResult(currentRecord, result);
                 }
+
+                if (deathException != null) {
+                    throw deathException;
+                }
             }
         } catch (Throwable t) {
-            if (t instanceof InterruptedException && deathException != null) {
+            if (deathException != null) {
                 log.info("Encountered fatal exception: ", deathException);
-                if (stats != null) {
-                    stats.incrSysExceptions(deathException);
-                }
-                return;
+            } else {
+                log.error("[{}] Uncaught exception in Java Instance", FunctionCommon.getFullyQualifiedInstanceId(
+                        instanceConfig.getFunctionDetails().getTenant(),
+                        instanceConfig.getFunctionDetails().getNamespace(),
+                        instanceConfig.getFunctionDetails().getName(),
+                        instanceConfig.getInstanceId()), t);
+                deathException = t;
             }
-            log.error("[{}] Uncaught exception in Java Instance", FunctionCommon.getFullyQualifiedInstanceId(
-                    instanceConfig.getFunctionDetails().getTenant(),
-                    instanceConfig.getFunctionDetails().getNamespace(),
-                    instanceConfig.getFunctionDetails().getName(),
-                    instanceConfig.getInstanceId()), t);
-            deathException = t;
             if (stats != null) {
-                stats.incrSysExceptions(t);
+                stats.incrSysExceptions(deathException);
             }
         } finally {
             log.info("Closing instance");

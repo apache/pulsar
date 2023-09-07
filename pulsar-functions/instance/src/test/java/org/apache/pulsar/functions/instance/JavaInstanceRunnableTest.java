@@ -395,14 +395,15 @@ public class JavaInstanceRunnableTest {
     public static class TestFunction implements Function<String, CompletableFuture<String>> {
         @Override
         public CompletableFuture<String> process(String input, Context context) throws Exception {
-            return CompletableFuture.completedFuture(input).thenApply((value) -> {
-                if (FailComponentType.FAIL_FUNC.toString().equals(value)) {
+            CompletableFuture<String> future = new CompletableFuture<>();
+            new Thread(() -> {
+                if (FailComponentType.FAIL_FUNC.toString().equals(input)) {
                     context.fatal(new Exception(FailComponentType.FAIL_FUNC.toString()));
-                    return null;
                 } else {
-                    return value;
+                    future.complete(input);
                 }
-            });
+            }).start();
+            return future;
         }
     }
 
@@ -472,19 +473,25 @@ public class JavaInstanceRunnableTest {
                     source.set(sourceConnector);
                 });
 
+        // Fail the connector or function
         if (failComponentType == FailComponentType.FAIL_SOURCE) {
             source.get().fatalConnector();
         } else {
             source.get().pushRecord(failComponentType::toString);
         }
 
+        // Assert that the instance is terminated with the fatal exception
         Awaitility.await()
                 .pollInterval(Duration.ofMillis(200))
                 .atMost(Duration.ofSeconds(10))
                 .ignoreExceptions().untilAsserted(() -> {
-                    Throwable deathException = (Throwable) getPrivateField(javaInstanceRunnable, "deathException");
-                    Assert.assertNotNull(deathException);
-                    Assert.assertEquals(deathException.getMessage(), failComponentType.toString());
+                    Assert.assertNotNull(javaInstanceRunnable.getDeathException());
+                    Assert.assertEquals(javaInstanceRunnable.getDeathException().getMessage(),
+                            failComponentType.toString());
+
+                    // Assert the java instance is closed
+                    Assert.assertFalse(fnThread.isAlive());
+                    Assert.assertFalse((boolean) getPrivateField(javaInstanceRunnable, "isInitialized"));
                 });
     }
 }
