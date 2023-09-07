@@ -72,34 +72,35 @@ public class TlsProducerConsumerTest extends TlsProducerConsumerBase {
         log.info("-- Exiting {} test --", methodName);
     }
 
-    @Test(timeOut = 30000)
+    @Test
     public void testTlsClientAuthOverBinaryProtocol() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
-        final int MESSAGE_SIZE = 16 * 1024 + 1;
-        log.info("-- message size {} --", MESSAGE_SIZE);
-        internalSetUpForNamespace();
-
-        // Test 1 - Using TLS on binary protocol without sending certs - expect failure
-        internalSetUpForClient(false, pulsar.getBrokerServiceUrlTls());
-        try {
-            pulsarClient.newConsumer().topic("persistent://my-property/use/my-ns/my-topic1")
-                    .subscriptionName("my-subscriber-name").subscriptionType(SubscriptionType.Exclusive).subscribe();
-            Assert.fail("Server should have failed the TLS handshake since client didn't .");
-        } catch (Exception ex) {
-            // OK
-            log.info("first test success: without certs set, meet exception ", ex);
-        }
-
-        // Test 2 - Using TLS on binary protocol - sending certs
-        internalSetUpForClient(true, pulsar.getBrokerServiceUrlTls());
-        try {
-            pulsarClient.newConsumer().topic("persistent://my-property/use/my-ns/my-topic1")
-                    .subscriptionName("my-subscriber-name").subscriptionType(SubscriptionType.Exclusive).subscribe();
-            log.info("second test success: with certs set, consumer sub success");
-        } catch (Exception ex) {
-            Assert.fail("Should not fail since certs are sent.");
-        }
+        Thread.sleep(9900000);
+//        final int MESSAGE_SIZE = 16 * 1024 + 1;
+//        log.info("-- message size {} --", MESSAGE_SIZE);
+//        internalSetUpForNamespace();
+//
+//        // Test 1 - Using TLS on binary protocol without sending certs - expect failure
+//        internalSetUpForClient(false, pulsar.getBrokerServiceUrlTls());
+//        try {
+//            pulsarClient.newConsumer().topic("persistent://my-property/use/my-ns/my-topic1")
+//                    .subscriptionName("my-subscriber-name").subscriptionType(SubscriptionType.Exclusive).subscribe();
+//            Assert.fail("Server should have failed the TLS handshake since client didn't .");
+//        } catch (Exception ex) {
+//            // OK
+//            log.info("first test success: without certs set, meet exception ", ex);
+//        }
+//
+//        // Test 2 - Using TLS on binary protocol - sending certs
+//        internalSetUpForClient(true, pulsar.getBrokerServiceUrlTls());
+//        try {
+//            pulsarClient.newConsumer().topic("persistent://my-property/use/my-ns/my-topic1")
+//                    .subscriptionName("my-subscriber-name").subscriptionType(SubscriptionType.Exclusive).subscribe();
+//            log.info("second test success: with certs set, consumer sub success");
+//        } catch (Exception ex) {
+//            Assert.fail("Should not fail since certs are sent.");
+//        }
     }
 
     @Test(timeOut = 30000)

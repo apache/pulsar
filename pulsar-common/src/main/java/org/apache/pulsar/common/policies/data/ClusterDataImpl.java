@@ -30,6 +30,8 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.ProxyProtocol;
 import org.apache.pulsar.common.util.URIPreconditions;
 
+import javax.annotation.Nonnull;
+
 /**
  * The configuration data for a cluster.
  */
@@ -158,7 +160,15 @@ public final class ClusterDataImpl implements  ClusterData, Cloneable {
             name = "brokerClientTrustCertsFilePath",
             value = "Path for the trusted TLS certificate file for outgoing connection to a server (broker)"
     )
+    @Deprecated
     private String brokerClientTrustCertsFilePath;
+
+    @ApiModelProperty(
+            name = "brokerClientTrustCerts",
+            value = "Trusted TLS certificate file for outgoing connection to a server (broker)"
+            + "The format should be <schema>://<data>  e.g: file:///your/cert/path, base64://<base64-encoded>"
+    )
+    private String brokerClientTrustCerts;
     @ApiModelProperty(
             name = "brokerClientKeyFilePath",
             value = "TLS private key file for internal client, "
@@ -243,7 +253,9 @@ public final class ClusterDataImpl implements  ClusterData, Cloneable {
         private String brokerClientTlsKeyStorePassword;
         private String brokerClientCertificateFilePath;
         private String brokerClientKeyFilePath;
+        @Deprecated
         private String brokerClientTrustCertsFilePath;
+        private String brokerClientTrustCerts;
         private String listenerName;
         private boolean migrated;
         private ClusterUrl migratedClusterUrl;
@@ -344,8 +356,15 @@ public final class ClusterDataImpl implements  ClusterData, Cloneable {
             return this;
         }
 
+        @Deprecated
         public ClusterDataImplBuilder brokerClientTrustCertsFilePath(String brokerClientTrustCertsFilePath) {
             this.brokerClientTrustCertsFilePath = brokerClientTrustCertsFilePath;
+            return this;
+        }
+
+        @Override
+        public @Nonnull ClusterDataImplBuilder brokerClientTrustCert(@Nonnull String brokerClientTrustCerts) {
+            this.brokerClientTrustCerts = brokerClientTrustCerts;
             return this;
         }
 
