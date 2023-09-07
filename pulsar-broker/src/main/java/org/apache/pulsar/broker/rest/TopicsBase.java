@@ -53,6 +53,7 @@ import org.apache.avro.io.Decoder;
 import org.apache.avro.io.DecoderFactory;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.admin.impl.PersistentTopicsBase;
 import org.apache.pulsar.broker.authentication.AuthenticationParameters;
@@ -432,8 +433,10 @@ public class TopicsBase extends PersistentTopicsBase {
             }
 
             LookupResult result = optionalResult.get();
-            if (result.getLookupData().getHttpUrl().equals(pulsar().getWebServiceAddress())
-                    || result.getLookupData().getHttpUrlTls().equals(pulsar().getWebServiceAddressTls())) {
+            String httpUrl = result.getLookupData().getHttpUrl();
+            String httpUrlTls = result.getLookupData().getHttpUrlTls();
+            if ((StringUtils.isNotBlank(httpUrl) && httpUrl.equals(pulsar().getWebServiceAddress()))
+                    || (StringUtils.isNotBlank(httpUrlTls) && httpUrlTls.equals(pulsar().getWebServiceAddressTls()))) {
                 // Current broker owns the topic, add to owning topic.
                 if (log.isDebugEnabled()) {
                     log.debug("Complete topic look up for rest produce message request for topic {}, "
@@ -454,12 +457,10 @@ public class TopicsBase extends PersistentTopicsBase {
                 }
                 if (result.isRedirect()) {
                     // Redirect lookup.
-                    completeLookup(Pair.of(Arrays.asList(result.getLookupData().getHttpUrl(),
-                            result.getLookupData().getHttpUrlTls()), false), redirectAddresses, future);
+                    completeLookup(Pair.of(Arrays.asList(httpUrl, httpUrlTls), false), redirectAddresses, future);
                 } else {
                     // Found owner for topic.
-                    completeLookup(Pair.of(Arrays.asList(result.getLookupData().getHttpUrl(),
-                            result.getLookupData().getHttpUrlTls()), true), redirectAddresses, future);
+                    completeLookup(Pair.of(Arrays.asList(httpUrl, httpUrlTls), true), redirectAddresses, future);
                 }
             }
         }).exceptionally(exception -> {
