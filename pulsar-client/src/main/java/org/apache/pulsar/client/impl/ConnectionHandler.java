@@ -43,7 +43,6 @@ public class ConnectionHandler {
     private volatile long epoch = -1L;
     protected volatile long lastConnectionClosedTimestamp = 0L;
     private final AtomicBoolean duringConnect = new AtomicBoolean(false);
-
     protected final int randomKeyForSelectConnection;
 
     interface Connection {
