@@ -39,6 +39,7 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.transaction.TransactionBufferClientException;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.client.impl.ClientCnx;
+import org.apache.pulsar.client.impl.ConnectionPool;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.transaction.TransactionBufferHandler;
 import org.apache.pulsar.common.api.proto.CommandEndTxnOnPartitionResponse;
@@ -61,6 +62,8 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler {
     private final PulsarService pulsarService;
     private final PulsarClientImpl pulsarClient;
 
+    private final int randomKeyForSelectConnection;
+
     private static final AtomicIntegerFieldUpdater<TransactionBufferHandlerImpl> REQUEST_CREDITS_UPDATER =
             AtomicIntegerFieldUpdater.newUpdater(TransactionBufferHandlerImpl.class, "requestCredits");
     private volatile int requestCredits;
@@ -74,6 +77,7 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler {
         this.operationTimeoutInMills = operationTimeoutInMills;
         this.timer = timer;
         this.requestCredits = Math.max(100, maxConcurrentRequests);
+        this.randomKeyForSelectConnection = pulsarClient.getCnxPool().genRandomKeyToSelectCon();
     }
 
     @Override
@@ -296,7 +300,7 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler {
     }
 
     public CompletableFuture<ClientCnx> getClientCnxWithLookup(String topic) {
-        return pulsarClient.getConnection(topic);
+        return pulsarClient.getConnection(topic, randomKeyForSelectConnection);
     }
 
     public CompletableFuture<ClientCnx> getClientCnx(String topic) {
@@ -317,7 +321,8 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler {
                                 }
                                 InetSocketAddress brokerAddress =
                                         InetSocketAddress.createUnresolved(uri.getHost(), uri.getPort());
-                                return pulsarClient.getConnection(brokerAddress, brokerAddress);
+                                return pulsarClient.getConnection(brokerAddress, brokerAddress,
+                                        randomKeyForSelectConnection);
                             } else {
                                 // Bundle is unloading, lookup topic
                                 return getClientCnxWithLookup(topic);

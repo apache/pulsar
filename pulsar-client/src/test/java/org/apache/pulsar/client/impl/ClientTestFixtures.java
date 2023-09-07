@@ -72,11 +72,12 @@ class ClientTestFixtures {
                 .thenReturn(CompletableFuture.completedFuture(mock(ProducerResponse.class)));
         when(clientCnxMock.channel().remoteAddress()).thenReturn(mock(SocketAddress.class));
         when(clientMock.getConnection(any())).thenReturn(CompletableFuture.completedFuture(clientCnxMock));
-        when(clientMock.getConnection(any(), any())).thenReturn(CompletableFuture.completedFuture(clientCnxMock));
+        when(clientMock.getConnection(any(), any(), any())).thenReturn(CompletableFuture.completedFuture(clientCnxMock));
         ConnectionPool connectionPoolMock = mock(ConnectionPool.class);
         when(clientMock.getCnxPool()).thenReturn(connectionPoolMock);
         when(connectionPoolMock.getConnection(any())).thenReturn(CompletableFuture.completedFuture(clientCnxMock));
-        when(connectionPoolMock.getConnection(any(), any())).thenReturn(CompletableFuture.completedFuture(clientCnxMock));
+        when(connectionPoolMock.getConnection(any(), any(), any()))
+                .thenReturn(CompletableFuture.completedFuture(clientCnxMock));
         return clientMock;
     }
 
