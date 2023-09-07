@@ -282,9 +282,14 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
     ContextImpl setupContext() throws PulsarClientException {
         Logger instanceLog = LoggerFactory.getILoggerFactory().getLogger(
                 "function-" + instanceConfig.getFunctionDetails().getName());
+        Thread currentThread = Thread.currentThread();
+        Consumer<Throwable> fatalHandler = throwable -> {
+            this.deathException = throwable;
+            currentThread.interrupt();
+        };
         return new ContextImpl(instanceConfig, instanceLog, client, secretsProvider,
                 collectorRegistry, metricsLabels, this.componentType, this.stats, stateManager,
-                pulsarAdmin, clientBuilder);
+                pulsarAdmin, clientBuilder, fatalHandler);
     }
 
     public interface AsyncResultConsumer {
@@ -342,6 +347,13 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                 }
             }
         } catch (Throwable t) {
+            if (t instanceof InterruptedException && deathException != null) {
+                log.info("Encountered fatal exception: ", deathException);
+                if (stats != null) {
+                    stats.incrSysExceptions(deathException);
+                }
+                return;
+            }
             log.error("[{}] Uncaught exception in Java Instance", FunctionCommon.getFullyQualifiedInstanceId(
                     instanceConfig.getFunctionDetails().getTenant(),
                     instanceConfig.getFunctionDetails().getNamespace(),

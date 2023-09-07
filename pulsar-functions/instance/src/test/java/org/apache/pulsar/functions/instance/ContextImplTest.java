@@ -38,6 +38,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.Consumer;
@@ -117,7 +118,7 @@ public class ContextImplTest {
             client,
             new EnvironmentBasedSecretsProvider(), FunctionCollectorRegistry.getDefaultImplementation(), new String[0],
                 FunctionDetails.ComponentType.FUNCTION, null, new InstanceStateManager(),
-                pulsarAdmin, clientBuilder);
+                pulsarAdmin, clientBuilder, t -> {});
         context.setCurrentMessageContext((Record<String>) () -> null);
     }
 
@@ -231,7 +232,7 @@ public class ContextImplTest {
                 new EnvironmentBasedSecretsProvider(), FunctionCollectorRegistry.getDefaultImplementation(),
                 new String[0],
                 FunctionDetails.ComponentType.FUNCTION, null, new InstanceStateManager(),
-                pulsarAdmin, clientBuilder);
+                pulsarAdmin, clientBuilder, t -> {});
         context.getPulsarAdmin();
     }
 
@@ -245,7 +246,7 @@ public class ContextImplTest {
                 new EnvironmentBasedSecretsProvider(), FunctionCollectorRegistry.getDefaultImplementation(),
                 new String[0],
                 FunctionDetails.ComponentType.FUNCTION, null, new InstanceStateManager(),
-                pulsarAdmin, clientBuilder);
+                pulsarAdmin, clientBuilder, t -> {});
         try {
             context.seek("z", 0, Mockito.mock(MessageId.class));
             Assert.fail("Expected exception");
@@ -276,7 +277,7 @@ public class ContextImplTest {
                 new EnvironmentBasedSecretsProvider(), FunctionCollectorRegistry.getDefaultImplementation(),
                 new String[0],
                 FunctionDetails.ComponentType.FUNCTION, null, new InstanceStateManager(),
-                pulsarAdmin, clientBuilder);
+                pulsarAdmin, clientBuilder, t -> {});
         Consumer<?> mockConsumer = Mockito.mock(Consumer.class);
         when(mockConsumer.getTopic()).thenReturn(TopicName.get("z").toString());
         context.setInputConsumers(Lists.newArrayList(mockConsumer));
@@ -308,7 +309,7 @@ public class ContextImplTest {
                 new EnvironmentBasedSecretsProvider(), FunctionCollectorRegistry.getDefaultImplementation(),
                 new String[0],
                 FunctionDetails.ComponentType.FUNCTION, null, new InstanceStateManager(),
-                pulsarAdmin, clientBuilder);
+                pulsarAdmin, clientBuilder, t -> {});
         Consumer<?> mockConsumer = Mockito.mock(Consumer.class);
         when(mockConsumer.getTopic()).thenReturn(TopicName.get("z").toString());
         context.setInputConsumers(Lists.newArrayList(mockConsumer));
@@ -332,7 +333,7 @@ public class ContextImplTest {
                 new EnvironmentBasedSecretsProvider(), FunctionCollectorRegistry.getDefaultImplementation(),
                 new String[0],
                 FunctionDetails.ComponentType.FUNCTION, null, new InstanceStateManager(),
-                pulsarAdmin, clientBuilder);
+                pulsarAdmin, clientBuilder, t -> {});
         ConsumerImpl<?> consumer1 = Mockito.mock(ConsumerImpl.class);
         when(consumer1.getTopic()).thenReturn(TopicName.get("first").toString());
         ConsumerImpl<?> consumer2 = Mockito.mock(ConsumerImpl.class);
@@ -434,5 +435,24 @@ public class ContextImplTest {
         assertTrue(record.getProperties().containsKey("prop-key"));
         assertEquals(record.getProperties().get("prop-key"), "prop-value");
         assertNull(record.getValue());
+    }
+
+    @Test
+    public void testFatal() {
+        Throwable fatalException = new Exception("test-fatal-exception");
+        AtomicBoolean fatalInvoked = new AtomicBoolean(false);
+        context = new ContextImpl(
+                config,
+                logger,
+                client,
+                new EnvironmentBasedSecretsProvider(), FunctionCollectorRegistry.getDefaultImplementation(),
+                new String[0],
+                FunctionDetails.ComponentType.FUNCTION, null, new InstanceStateManager(),
+                pulsarAdmin, clientBuilder, t -> {
+                    assertEquals(t, fatalException);
+                    fatalInvoked.set(true);
+        });
+        context.fatal(fatalException);
+        assertTrue(fatalInvoked.get());
     }
 }
