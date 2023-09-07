@@ -329,7 +329,7 @@ public class MessageChunkingTest extends ProducerConsumerBase {
      * ChunkMessage2 chunk-1: uuid = 1, chunkId = 0, totalChunk = 2;
      * ChunkMessage2 chunk-2: uuid = 1, chunkId = 1, totalChunk = 2;
      * ChunkMessage1 chunk-2: uuid = 0, chunkId = 1, totalChunk = 2;
-     * The chunk-1 in the ChunkMessage1 and ChunkMessage all is incomplete.
+     * The chunk-1 in the ChunkMessage1 and ChunkMessage2 all is incomplete.
      * chunk-1 in the ChunkMessage1 will be discarded and acked when receive the chunk-1 in the ChunkMessage2.
      * If ack ChunkMessage2 and redeliver unacknowledged messages, the consumer can not receive any message again.
      * @throws Exception
@@ -363,8 +363,6 @@ public class MessageChunkingTest extends ProducerConsumerBase {
         assertEquals(receivedMsg.getValue(), "chunk-1-0|chunk-1-1|");
 
         consumer.acknowledge(receivedMsg);
-        assertEquals(admin.topics().getStats(topicName).getSubscriptions().get(subName)
-                .getNonContiguousDeletedMessagesRanges(), 0);
         Awaitility.await().untilAsserted(() -> assertEquals(admin.topics().getStats(topicName)
                 .getSubscriptions().get(subName).getNonContiguousDeletedMessagesRanges(), 0));
         consumer.redeliverUnacknowledgedMessages();
