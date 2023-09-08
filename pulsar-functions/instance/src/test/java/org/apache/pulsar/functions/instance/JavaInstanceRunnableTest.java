@@ -113,9 +113,9 @@ public class JavaInstanceRunnableTest {
                 .build();
         InstanceConfig config = createInstanceConfig(functionDetails);
         config.setClusterName("test-cluster");
-        return new JavaInstanceRunnable(
-                config, clientBuilder, PulsarClient.builder().serviceUrl("pulsar://localhost:6650").build(), null, null,
-                null, null, null, Thread.currentThread().getContextClassLoader(), null);
+        return new JavaInstanceRunnable(config, clientBuilder,
+                PulsarClient.builder().serviceUrl("pulsar://test-cluster:6650").build(), null, null, null, null, null,
+                Thread.currentThread().getContextClassLoader(), null);
     }
 
     private Method makeAccessible(JavaInstanceRunnable javaInstanceRunnable) throws Exception {
