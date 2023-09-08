@@ -2451,14 +2451,6 @@ flexible messaging model and an intuitive client API.</description>
         <enabled>false</enabled>
       </snapshots>
     </repository>
-    <repository>
-      <id>bk-staging</id>
-      <name>bk-staging</name>
-      <url>https://repository.apache.org/content/repositories/orgapachebookkeeper-1088/</url>
-      <snapshots>
-        <enabled>false</enabled>
-      </snapshots>
-    </repository>
   </repositories>
 
 </project>
