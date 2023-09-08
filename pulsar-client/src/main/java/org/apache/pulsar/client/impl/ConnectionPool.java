@@ -166,7 +166,7 @@ public class ConnectionPool implements AutoCloseable {
     private static final Random random = new Random();
 
     public int genRandomKeyToSelectCon() {
-        return random.nextInt(maxConnectionsPerHosts);
+        return signSafeMod(random.nextInt(), maxConnectionsPerHosts);
     }
 
     public CompletableFuture<ClientCnx> getConnection(final InetSocketAddress address) {
