@@ -2206,4 +2206,55 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
 
         Assert.assertEquals(result, List.of("V3", "V4", "V5"));
     }
+
+    @Test(timeOut = 100000)
+    public void testAcknowledge() throws Exception {
+        final String topicName = "persistent://my-property/use/my-ns/testAcknowledge" + UUID.randomUUID();
+        final String subName = "my-sub";
+        @Cleanup
+        PulsarClient client = newPulsarClient(lookupUrl.toString(), 100);
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .enableBatching(false).topic(topicName).create();
+
+        pulsarClient.newConsumer().topic(topicName).subscriptionName(subName).readCompacted(true).subscribe().close();
+
+        Map<String, String> expected = new HashMap<>();
+        for (int i = 0; i < 10; i++) {
+            producer.newMessage().key(String.valueOf(i)).value(String.valueOf(i)).send();
+            expected.put(String.valueOf(i), String.valueOf(i));
+        }
+        producer.flush();
+
+        admin.topics().triggerCompaction(topicName);
+
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(admin.topics().compactionStatus(topicName).status,
+                    LongRunningProcessStatus.Status.SUCCESS);
+        });
+
+        ConsumerImpl<String> consumer = (ConsumerImpl<String>) client.newConsumer(Schema.STRING)
+                .topic(topicName).readCompacted(true).receiverQueueSize(1).subscriptionName(subName)
+                .isAckReceiptEnabled(true)
+                .subscribe();
+
+        for (int i = 0; i < 10; i++) {
+            Message<String> message = consumer.receive(3, TimeUnit.SECONDS);
+            if (message == null) {
+                break;
+            }
+
+            consumer.acknowledge(message);
+            String remove = expected.remove(message.getKey());
+            Assert.assertEquals(remove, message.getValue());
+        }
+
+        // Make consumer reconnect to broker
+        admin.topics().unload(topicName);
+
+        Message<String> message = consumer.receive(3, TimeUnit.SECONDS);
+        Assert.assertNull(message);
+
+        consumer.close();
+        producer.close();
+    }
 }

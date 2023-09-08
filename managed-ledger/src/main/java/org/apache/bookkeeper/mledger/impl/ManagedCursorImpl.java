@@ -3594,7 +3594,7 @@ public class ManagedCursorImpl implements ManagedCursor {
         return isReadPositionOnTail || isReadPositionChanged;
     }
 
-    private boolean isCompactionCursor() {
+    public boolean isCompactionCursor() {
         return COMPACTION_CURSOR_NAME.equals(name);
     }
 

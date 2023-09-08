@@ -36,6 +36,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.ConcurrentWaitCallbackException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.NoMoreEntriesToReadException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.TooManyRequestsException;
+import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.service.AbstractDispatcherSingleActiveConsumer;
@@ -362,7 +363,11 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
                 }
                 havePendingRead = true;
                 if (consumer.readCompacted()) {
-                    boolean readFromEarliest = isFirstRead && MessageId.earliest.equals(consumer.getStartMessageId());
+                    boolean readFromEarliest = false;
+                    if (!cursor.isDurable() || ((ManagedCursorImpl) cursor).isCompactionCursor()
+                            || cursor.getPersistentMarkDeletedPosition() == null) {
+                        readFromEarliest =  isFirstRead && MessageId.earliest.equals(consumer.getStartMessageId());
+                    }
                     TopicCompactionService topicCompactionService = topic.getTopicCompactionService();
                     CompactedTopicUtils.asyncReadCompactedEntries(topicCompactionService, cursor, messagesToRead,
                             bytesToRead, topic.getMaxReadPosition(), readFromEarliest, this, true, consumer);
