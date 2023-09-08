@@ -166,6 +166,9 @@ public class ConnectionPool implements AutoCloseable {
     private static final Random random = new Random();
 
     public int genRandomKeyToSelectCon() {
+        if (maxConnectionsPerHosts == 0) {
+            return -1;
+        }
         return signSafeMod(random.nextInt(), maxConnectionsPerHosts);
     }
 
