@@ -24,7 +24,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.time.Duration;
@@ -32,8 +32,6 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeSet;
-
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicReference;
@@ -52,6 +50,7 @@ import org.apache.pulsar.functions.api.SerDe;
 import org.apache.pulsar.functions.instance.stats.ComponentStatsManager;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 import org.apache.pulsar.functions.proto.Function.SinkSpec;
+import org.apache.pulsar.functions.proto.Function.SourceSpec;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
 import org.apache.pulsar.functions.secretsprovider.EnvironmentBasedSecretsProvider;
 import org.apache.pulsar.io.core.Sink;
@@ -102,7 +101,7 @@ public class JavaInstanceRunnableTest {
         return javaInstanceRunnable;
     }
 
-    private JavaInstanceRunnable createRunnable(org.apache.pulsar.functions.proto.Function.SourceSpec sourceSpec,
+    private JavaInstanceRunnable createRunnable(SourceSpec sourceSpec,
                                                 String functionClassName, SinkSpec sinkSpec)
             throws PulsarClientException {
         ClientBuilder clientBuilder = mock(ClientBuilder.class);
@@ -452,7 +451,7 @@ public class JavaInstanceRunnableTest {
     @Test(dataProvider = "failComponentType")
     public void testFatalTheInstance(FailComponentType failComponentType) throws Exception {
         JavaInstanceRunnable javaInstanceRunnable = createRunnable(
-                org.apache.pulsar.functions.proto.Function.SourceSpec.newBuilder()
+                SourceSpec.newBuilder()
                         .setClassName(TestSourceConnector.class.getName()).build(),
                 TestFunction.class.getName(),
                 SinkSpec.newBuilder().setClassName(TestSinkConnector.class.getName()).build()
