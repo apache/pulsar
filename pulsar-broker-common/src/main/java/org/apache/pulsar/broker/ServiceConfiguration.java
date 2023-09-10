@@ -853,6 +853,17 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "Enable check for minimum allowed client library version"
     )
     private boolean clientLibraryVersionCheckEnabled = false;
+
+    @FieldContext(
+        category = CATEGORY_SERVER,
+        dynamic = true,
+        doc = "Minimum client version allowed by broker else broker will reject connection."
+              + "(It's useful when client lib doesn't support specific feature and feature "
+              + "might be required by broker to apply globally on all topics."
+              + "(eg: all clients must be on V20 to perform cloud migration)"
+    )
+    private int clientMinVersionAllowed = -1;
+
     @FieldContext(
         category = CATEGORY_SERVER,
         doc = "Path for the file used to determine the rotation status for the broker"
