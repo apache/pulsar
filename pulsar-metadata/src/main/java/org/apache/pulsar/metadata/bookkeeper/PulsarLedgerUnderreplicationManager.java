@@ -848,24 +848,20 @@ public class PulsarLedgerUnderreplicationManager implements LedgerUnderreplicati
     }
 
     @Override
-    public void notifyLostBookieRecoveryDelayChanged(BookkeeperInternalCallbacks.GenericCallback<Void> cb) throws
-            ReplicationException.UnavailableException {
+    public void notifyLostBookieRecoveryDelayChanged(BookkeeperInternalCallbacks.GenericCallback<Void> cb) {
         log.debug("notifyLostBookieRecoveryDelayChanged()");
-        synchronized (this) {
-            lostBookieRecoveryDelayListener = cb;
+        if (lostBookieRecoveryDelayListener != null) {
+            return;
         }
-        try {
-            if (!store.exists(lostBookieRecoveryDelayPath).get(BLOCKING_CALL_TIMEOUT, MILLISECONDS)) {
-                cb.operationComplete(0, null);
-                return;
+        synchronized (this) {
+            if (lostBookieRecoveryDelayListener == null) {
+                lostBookieRecoveryDelayListener = cb;
+                store.registerListener(e -> {
+                    if (lostBookieRecoveryDelayPath.equals(e.getPath())) {
+                        lostBookieRecoveryDelayListener.operationComplete(0, null);
+                    }
+                });
             }
-
-        } catch (ExecutionException | TimeoutException ee) {
-            log.error("Error while checking the state of lostBookieRecoveryDelay", ee);
-            throw new ReplicationException.UnavailableException("Error contacting zookeeper", ee);
-        } catch (InterruptedException ie) {
-            Thread.currentThread().interrupt();
-            throw new ReplicationException.UnavailableException("Interrupted while contacting zookeeper", ie);
         }
     }
 
