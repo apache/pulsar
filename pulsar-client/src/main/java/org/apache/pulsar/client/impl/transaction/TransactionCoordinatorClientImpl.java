@@ -102,9 +102,12 @@ public class TransactionCoordinatorClientImpl implements TransactionCoordinatorC
                                         + "or the transaction coordinator has not initialized"));
                     }
 
-                    STATE_UPDATER.set(TransactionCoordinatorClientImpl.this, State.READY);
-
-                    return FutureUtil.waitForAll(connectFutureList);
+                    return FutureUtil.waitForAll(connectFutureList).thenRun(() -> {
+                        STATE_UPDATER.set(TransactionCoordinatorClientImpl.this, State.READY);
+                    }).exceptionally(ex -> {
+                        STATE_UPDATER.set(TransactionCoordinatorClientImpl.this, State.CLOSED);
+                        return null;
+                    });
                 });
         } else {
             return FutureUtil.failedFuture(
