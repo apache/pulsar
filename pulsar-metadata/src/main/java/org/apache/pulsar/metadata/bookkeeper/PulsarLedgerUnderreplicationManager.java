@@ -112,7 +112,7 @@ public class PulsarLedgerUnderreplicationManager implements LedgerUnderreplicati
     private final MetadataStoreExtended store;
 
     private BookkeeperInternalCallbacks.GenericCallback<Void> replicationEnabledListener;
-    private BookkeeperInternalCallbacks.GenericCallback<Void> lostBookieRecoveryDelayListener;
+    private volatile BookkeeperInternalCallbacks.GenericCallback<Void> lostBookieRecoveryDelayListener;
 
     private static class PulsarUnderreplicatedLedger extends UnderreplicatedLedger {
         PulsarUnderreplicatedLedger(long ledgerId) {
@@ -848,24 +848,18 @@ public class PulsarLedgerUnderreplicationManager implements LedgerUnderreplicati
     }
 
     @Override
-    public void notifyLostBookieRecoveryDelayChanged(BookkeeperInternalCallbacks.GenericCallback<Void> cb) throws
-            ReplicationException.UnavailableException {
-        log.debug("notifyLostBookieRecoveryDelayChanged()");
-        synchronized (this) {
-            lostBookieRecoveryDelayListener = cb;
-        }
-        try {
-            if (!store.exists(lostBookieRecoveryDelayPath).get(BLOCKING_CALL_TIMEOUT, MILLISECONDS)) {
-                cb.operationComplete(0, null);
-                return;
+    public void notifyLostBookieRecoveryDelayChanged(BookkeeperInternalCallbacks.GenericCallback<Void> cb) {
+        if (lostBookieRecoveryDelayListener == null) {
+            synchronized (this) {
+                if (lostBookieRecoveryDelayListener == null) {
+                    lostBookieRecoveryDelayListener = cb;
+                    store.registerListener(e -> {
+                        if (lostBookieRecoveryDelayPath.equals(e.getPath())) {
+                            lostBookieRecoveryDelayListener.operationComplete(0, null);
+                        }
+                    });
+                }
             }
-
-        } catch (ExecutionException | TimeoutException ee) {
-            log.error("Error while checking the state of lostBookieRecoveryDelay", ee);
-            throw new ReplicationException.UnavailableException("Error contacting zookeeper", ee);
-        } catch (InterruptedException ie) {
-            Thread.currentThread().interrupt();
-            throw new ReplicationException.UnavailableException("Interrupted while contacting zookeeper", ie);
         }
     }
 
