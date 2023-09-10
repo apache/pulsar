@@ -86,9 +86,13 @@ public class ConnectionHandler {
         try {
             CompletableFuture<ClientCnx> cnxFuture;
             if (state.redirectedClusterURI != null) {
-                InetSocketAddress address = InetSocketAddress.createUnresolved(state.redirectedClusterURI.getHost(),
-                        state.redirectedClusterURI.getPort());
-                cnxFuture = state.client.getConnection(address, address);
+                if (state.topic == null) {
+                    InetSocketAddress address = InetSocketAddress.createUnresolved(state.redirectedClusterURI.getHost(),
+                            state.redirectedClusterURI.getPort());
+                    cnxFuture = state.client.getConnection(address, address);
+                } else {
+                    cnxFuture = state.client.getConnection(state.topic, (state.redirectedClusterURI.toString()));
+                }
             } else if (state.topic == null) {
                 cnxFuture = state.client.getConnectionToServiceUrl();
             } else {

@@ -100,6 +100,11 @@ public class ClusterMigrationTest {
         };
     }
 
+    @DataProvider(name = "isPersistentTopic")
+    public Object[][] isPersistent() {
+        return new Object[][] { { true }, { false } };
+    }
+
     @BeforeMethod(alwaysRun = true, timeOut = 300000)
     public void setup() throws Exception {
 
@@ -491,6 +496,64 @@ public class ClusterMigrationTest {
         producer1.send("test".getBytes());
         // verify that the producer1 is now connected to migrated cluster "r2" since backlog is cleared.
         assertEquals(topic2.getProducers().size(), 2);
+    }
+
+    @Test(dataProvider = "isPersistentTopic")
+    public void testConsumerConnectOnMigratedTopic(boolean persistent) throws Exception {
+        log.info("--- Starting ReplicatorTest::testClusterMigration ---");
+        final String topicName = BrokerTestUtil
+                .newUniqueName((persistent ? "persistent" : "non-persistent") + "://" + namespace + "/migrationTopic");
+
+        @Cleanup
+        PulsarClient client1 = PulsarClient.builder().serviceUrl(url1.toString()).statsInterval(0, TimeUnit.SECONDS)
+                .build();
+        // cluster-1 producer/consumer
+        Producer<byte[]> producer1 = client1.newProducer().topic(topicName).enableBatching(false)
+                .producerName("cluster1-1").messageRoutingMode(MessageRoutingMode.SinglePartition).create();
+        AbstractTopic topic1 = (AbstractTopic) pulsar1.getBrokerService().getTopic(topicName, false).getNow(null).get();
+        retryStrategically((test) -> !topic1.getProducers().isEmpty(), 5, 500);
+        assertFalse(topic1.getProducers().isEmpty());
+
+        // 2. migrate cluster
+        ClusterUrl migratedUrl = new ClusterUrl(pulsar2.getBrokerServiceUrl(), pulsar2.getBrokerServiceUrlTls());
+        admin1.clusters().updateClusterMigration("r1", true, migratedUrl);
+        retryStrategically((test) -> {
+            try {
+                topic1.checkClusterMigration().get();
+                return true;
+            } catch (Exception e) {
+                // ok
+            }
+            return false;
+        }, 10, 500);
+        topic1.checkClusterMigration().get();
+
+        Consumer<byte[]> consumer1 = client1.newConsumer().topic(topicName).subscriptionType(SubscriptionType.Shared)
+                .subscriptionName("s1").subscribe();
+        retryStrategically((test) -> {
+            try {
+                return pulsar2.getBrokerService().getTopic(topicName, false).getNow(null) != null
+                        && pulsar2.getBrokerService().getTopic(topicName, false).get().isPresent();
+            } catch (Exception e) {
+                return false;
+            }
+        }, 5, 500);
+        AbstractTopic topic2 = (AbstractTopic) pulsar2.getBrokerService().getTopic(topicName, false).getNow(null).get();
+        retryStrategically((test) -> !topic2.getSubscriptions().isEmpty(), 5, 500);
+        assertFalse(topic1.getSubscriptions().isEmpty());
+
+        int n = 5;
+        for (int i = 0; i < n; i++) {
+            producer1.send("test1".getBytes());
+        }
+
+        for (int i = 0; i < n; i++) {
+            Message<byte[]> msg = consumer1.receive();
+            assertEquals(msg.getData(), "test1".getBytes());
+            consumer1.acknowledge(msg);
+        }
+        consumer1.close();
+        producer1.close();
     }
 
     static class TestBroker extends MockedPulsarServiceBaseTest {
