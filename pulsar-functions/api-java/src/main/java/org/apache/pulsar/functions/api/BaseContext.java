@@ -20,6 +20,7 @@ package org.apache.pulsar.functions.api;
 
 import java.nio.ByteBuffer;
 import java.util.concurrent.CompletableFuture;
+import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.common.classification.InterfaceAudience;
@@ -214,6 +215,17 @@ public interface BaseContext {
      * @return the instance of pulsar client builder.
      */
     default ClientBuilder getPulsarClientBuilder() {
+        throw new UnsupportedOperationException("not implemented");
+    }
+
+    /**
+     * Get the pre-configured pulsar admin client.
+     *
+     * You can use this admin client to administrate a Pulsar cluster.
+     *
+     * @return The instance of pulsar admin client
+     */
+    default PulsarAdmin getPulsarAdmin() {
         throw new UnsupportedOperationException("not implemented");
     }
 

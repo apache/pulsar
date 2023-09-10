@@ -22,7 +22,6 @@ import java.util.Collection;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.ConsumerBuilder;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
@@ -112,13 +111,6 @@ public interface Context extends BaseContext {
      * @return Either the user config value associated with a given key or a supplied default value
      */
     Object getUserConfigValueOrDefault(String key, Object defaultValue);
-
-    /**
-     * Get the pulsar admin client.
-     *
-     * @return The instance of pulsar admin client
-     */
-    PulsarAdmin getPulsarAdmin();
 
     /**
      * Publish an object using serDe or schema class for serializing to the topic.
