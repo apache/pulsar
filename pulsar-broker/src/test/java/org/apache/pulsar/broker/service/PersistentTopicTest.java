@@ -105,6 +105,7 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.transaction.TxnID;
+import org.apache.pulsar.client.impl.ConnectionPool;
 import org.apache.pulsar.client.impl.ProducerBuilderImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
@@ -1706,6 +1707,8 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         ManagedCursor cursor = mock(ManagedCursorImpl.class);
         doReturn(remoteCluster).when(cursor).getName();
         PulsarClientImpl pulsarClientMock = mock(PulsarClientImpl.class);
+        ConnectionPool connectionPool = mock(ConnectionPool.class);
+        when(pulsarClientMock.getCnxPool()).thenReturn(connectionPool);
         when(pulsarClientMock.newProducer(any())).thenAnswer(
                 invocation -> {
                     ProducerBuilderImpl producerBuilder =

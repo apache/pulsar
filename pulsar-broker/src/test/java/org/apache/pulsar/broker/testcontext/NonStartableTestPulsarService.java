@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.testcontext;
 
 import static org.apache.pulsar.broker.BrokerTestUtil.spyWithClassAndConstructorArgs;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 import io.netty.channel.EventLoopGroup;
 import java.io.IOException;
 import java.util.Collections;
@@ -42,6 +43,7 @@ import org.apache.pulsar.broker.storage.ManagedLedgerStorage;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBufferProvider;
 import org.apache.pulsar.broker.transaction.pendingack.TransactionPendingAckStoreProvider;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.impl.ConnectionPool;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.common.naming.TopicName;
@@ -76,7 +78,10 @@ class NonStartableTestPulsarService extends AbstractTestPulsarService {
             throw new RuntimeException(e);
         }
         setSchemaRegistryService(spyWithClassAndConstructorArgs(DefaultSchemaRegistryService.class));
-        setClient(mock(PulsarClientImpl.class));
+        PulsarClientImpl mockClient = mock(PulsarClientImpl.class);
+        ConnectionPool connectionPool = mock(ConnectionPool.class);
+        when(mockClient.getCnxPool()).thenReturn(connectionPool);
+        setClient(mockClient);
         this.namespaceService = mock(NamespaceService.class);
         try {
             startNamespaceService();

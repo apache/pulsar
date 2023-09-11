@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.broker.transaction.buffer;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import com.google.common.collect.Multimap;
 import com.google.common.collect.Sets;
@@ -51,6 +53,7 @@ import org.apache.pulsar.client.api.transaction.TransactionBufferClient;
 import org.apache.pulsar.client.api.transaction.TransactionBufferClientException;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.client.impl.ClientCnx;
+import org.apache.pulsar.client.impl.ConnectionPool;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.common.api.proto.TxnAction;
 import org.apache.pulsar.common.naming.NamespaceName;
@@ -253,14 +256,21 @@ public class TransactionBufferClientTest extends TransactionTestBase {
         assertEquals(pending.size(), 1);
     }
 
+    /**
+     * This is a flaky test.
+     */
     @Test
     public void testTransactionBufferClientTimeout() throws Exception {
         PulsarService pulsarService = pulsarServiceList.get(0);
-        PulsarClient mockClient = mock(PulsarClientImpl.class);
+        PulsarClientImpl mockClient = mock(PulsarClientImpl.class);
+        ConnectionPool connectionPool = mock(ConnectionPool.class);
+        when(mockClient.getCnxPool()).thenReturn(connectionPool);
         CompletableFuture<ClientCnx> completableFuture = new CompletableFuture<>();
         ClientCnx clientCnx = mock(ClientCnx.class);
         completableFuture.complete(clientCnx);
         when(((PulsarClientImpl)mockClient).getConnection(anyString())).thenReturn(completableFuture);
+        when(((PulsarClientImpl)mockClient).getConnection(anyString(), anyInt())).thenReturn(completableFuture);
+        when(((PulsarClientImpl)mockClient).getConnection(any(), any(), anyInt())).thenReturn(completableFuture);
         ChannelHandlerContext cnx = mock(ChannelHandlerContext.class);
         when(clientCnx.ctx()).thenReturn(cnx);
         Channel channel = mock(Channel.class);
@@ -287,7 +297,9 @@ public class TransactionBufferClientTest extends TransactionTestBase {
         ConcurrentSkipListMap<Long, Object> outstandingRequests =
                 (ConcurrentSkipListMap<Long, Object>) field.get(transactionBufferHandler);
 
-        assertEquals(outstandingRequests.size(), 1);
+        Awaitility.await().atMost(1, TimeUnit.SECONDS).untilAsserted(() -> {
+            assertEquals(outstandingRequests.size(), 1);
+        });
 
         Awaitility.await().atLeast(2, TimeUnit.SECONDS).until(() -> {
             if (outstandingRequests.size() == 0) {
@@ -307,11 +319,13 @@ public class TransactionBufferClientTest extends TransactionTestBase {
     @Test
     public void testTransactionBufferChannelUnActive() throws PulsarServerException {
         PulsarService pulsarService = pulsarServiceList.get(0);
-        PulsarClient mockClient = mock(PulsarClientImpl.class);
+        PulsarClientImpl mockClient = mock(PulsarClientImpl.class);
+        ConnectionPool connectionPool = mock(ConnectionPool.class);
+        when(mockClient.getCnxPool()).thenReturn(connectionPool);
         CompletableFuture<ClientCnx> completableFuture = new CompletableFuture<>();
         ClientCnx clientCnx = mock(ClientCnx.class);
         completableFuture.complete(clientCnx);
-        when(((PulsarClientImpl)mockClient).getConnection(anyString())).thenReturn(completableFuture);
+        when(((PulsarClientImpl)mockClient).getConnection(anyString(), anyInt())).thenReturn(completableFuture);
         ChannelHandlerContext cnx = mock(ChannelHandlerContext.class);
         when(clientCnx.ctx()).thenReturn(cnx);
         Channel channel = mock(Channel.class);
