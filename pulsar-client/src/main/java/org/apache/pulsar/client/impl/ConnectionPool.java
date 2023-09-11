@@ -173,6 +173,9 @@ public class ConnectionPool implements AutoCloseable {
     }
 
     public CompletableFuture<ClientCnx> getConnection(final InetSocketAddress address) {
+        if (maxConnectionsPerHosts == 0) {
+            return getConnection(address, address, -1);
+        }
         return getConnection(address, address, signSafeMod(random.nextInt(), maxConnectionsPerHosts));
     }
 

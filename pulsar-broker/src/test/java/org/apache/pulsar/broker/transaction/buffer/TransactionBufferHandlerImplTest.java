@@ -82,7 +82,9 @@ public class TransactionBufferHandlerImplTest {
 
     @Test
     public void testMinRequestCredits() throws PulsarServerException {
-        PulsarClient pulsarClient = mock(PulsarClientImpl.class);
+        ConnectionPool connectionPool = mock(ConnectionPool.class);
+        PulsarClientImpl pulsarClient = mock(PulsarClientImpl.class);
+        when(pulsarClient.getCnxPool()).thenReturn(connectionPool);
         PulsarService pulsarService = mock(PulsarService.class);
         when(pulsarService.getClient()).thenReturn(pulsarClient);
         TransactionBufferHandlerImpl handler = spy(new TransactionBufferHandlerImpl(pulsarService, null, 50, 3000));

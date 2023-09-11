@@ -19,6 +19,7 @@
 package org.apache.pulsar.client.impl;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -72,11 +73,12 @@ class ClientTestFixtures {
                 .thenReturn(CompletableFuture.completedFuture(mock(ProducerResponse.class)));
         when(clientCnxMock.channel().remoteAddress()).thenReturn(mock(SocketAddress.class));
         when(clientMock.getConnection(any())).thenReturn(CompletableFuture.completedFuture(clientCnxMock));
-        when(clientMock.getConnection(any(), any(), any())).thenReturn(CompletableFuture.completedFuture(clientCnxMock));
+        when(clientMock.getConnection(any(), any(), anyInt()))
+                .thenReturn(CompletableFuture.completedFuture(clientCnxMock));
         ConnectionPool connectionPoolMock = mock(ConnectionPool.class);
         when(clientMock.getCnxPool()).thenReturn(connectionPoolMock);
         when(connectionPoolMock.getConnection(any())).thenReturn(CompletableFuture.completedFuture(clientCnxMock));
-        when(connectionPoolMock.getConnection(any(), any(), any()))
+        when(connectionPoolMock.getConnection(any(), any(), anyInt()))
                 .thenReturn(CompletableFuture.completedFuture(clientCnxMock));
         return clientMock;
     }
