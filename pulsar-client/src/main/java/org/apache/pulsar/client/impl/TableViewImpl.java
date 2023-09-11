@@ -230,6 +230,11 @@ public class TableViewImpl<T> implements TableView<T> {
         }
     }
 
+    @Override
+    public CompletableFuture<Reader<T>> readAllExistingMessages() {
+        return reader.thenCompose(this::readAllExistingMessages);
+    }
+
     private CompletableFuture<Reader<T>> readAllExistingMessages(Reader<T> reader) {
         long startTime = System.nanoTime();
         AtomicLong messagesRead = new AtomicLong();

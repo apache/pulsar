@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.systopic;
 
 import java.io.IOException;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.service.SystemTopicTxnBufferSnapshotService;
@@ -28,6 +29,7 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.TableView;
 import org.apache.pulsar.common.naming.TopicName;
 
 @Slf4j
@@ -54,6 +56,11 @@ public class  TransactionBufferSnapshotBaseSystemTopicClient<T> extends SystemTo
     protected void removeReader(Reader<T> reader) {
         readers.remove(reader);
         this.systemTopicTxnBufferSnapshotService.removeClient(topicName, this);
+    }
+
+    @Override
+    public CompletableFuture<TableView<T>> getTableView() {
+        return client.newTableView(Schema.AVRO(schemaType)).topic(topicName.toString()).createAsync();
     }
 
     protected static class TransactionBufferSnapshotWriter<T> implements Writer<T> {

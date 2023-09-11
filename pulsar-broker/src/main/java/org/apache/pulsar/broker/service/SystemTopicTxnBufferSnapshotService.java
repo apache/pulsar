@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.service;
 
+import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
@@ -26,8 +27,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.systopic.NamespaceEventsSystemTopicFactory;
 import org.apache.pulsar.broker.systopic.SystemTopicClient;
 import org.apache.pulsar.broker.systopic.SystemTopicClientBase;
+import org.apache.pulsar.broker.transaction.buffer.metadata.TransactionBufferSnapshot;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.TableView;
 import org.apache.pulsar.common.events.EventType;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
@@ -40,7 +43,8 @@ public class SystemTopicTxnBufferSnapshotService<T> {
 
     protected final Class<T> schemaType;
     protected final EventType systemTopicType;
-
+    protected final Map<NamespaceName, CompletableFuture<TableView<T>>> tableViewMap =
+            new HashMap<>();
     private final ConcurrentHashMap<NamespaceName, ReferenceCountedWriter<T>> refCountedWriterMap;
 
     // The class ReferenceCountedWriter will maintain the reference count,
@@ -106,6 +110,20 @@ public class SystemTopicTxnBufferSnapshotService<T> {
 
     public CompletableFuture<SystemTopicClient.Reader<T>> createReader(TopicName topicName) {
         return getTransactionBufferSystemTopicClient(topicName.getNamespaceObject()).newReaderAsync();
+    }
+
+    public CompletableFuture<TableView<T>> getTableView(TopicName topicName) {
+        if (tableViewMap.containsKey(topicName.getNamespaceObject())) {
+            return tableViewMap.get(topicName.getNamespaceObject());
+        } else {
+            synchronized (tableViewMap) {
+                if (tableViewMap.containsKey(topicName.getNamespaceObject())) {
+                    return tableViewMap.get(topicName.getNamespaceObject());
+                } else {
+                    return getTransactionBufferSystemTopicClient(topicName.getNamespaceObject()).getTableView();
+                }
+            }
+        }
     }
 
     public void removeClient(TopicName topicName, SystemTopicClientBase<T> transactionBufferSystemTopicClient) {

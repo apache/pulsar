@@ -110,4 +110,6 @@ public interface TableView<T> extends Closeable {
      * @return a future that can used to track when the table view has been closed.
      */
     CompletableFuture<Void> closeAsync();
+
+    CompletableFuture<Reader<T>> readAllExistingMessages();
 }
