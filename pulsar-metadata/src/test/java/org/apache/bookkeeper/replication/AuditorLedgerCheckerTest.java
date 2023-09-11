@@ -135,8 +135,6 @@ public class AuditorLedgerCheckerTest extends BookKeeperClusterTestCase {
         electionPath = ZKMetadataDriverBase.resolveZkLedgersRootPath(baseConf)
                 + "/underreplication/" + PulsarLedgerAuditorManager.ELECTION_PATH;
 
-        ///ledgers/underreplication/leader
-
         String ledgersRoot = "/ledgers";
         String storeUri = metadataServiceUri.replaceAll("zk://", "").replaceAll("/ledgers", "");
         MetadataStoreExtended store = MetadataStoreExtended.create(storeUri,
