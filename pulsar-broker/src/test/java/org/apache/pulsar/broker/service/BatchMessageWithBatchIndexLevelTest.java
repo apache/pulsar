@@ -369,4 +369,40 @@ public class BatchMessageWithBatchIndexLevelTest extends BatchMessageTest {
         consumer.close();
         admin.topics().delete(topicName);
     }
+
+    @Test
+    public void testMixIndexAndNonIndexUnAckMessageCount() throws Exception {
+        final String topicName = "persistent://prop/ns-abc/testMixIndexAndNonIndexUnAckMessageCount-";
+
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(topicName)
+                .enableBatching(true)
+                .batchingMaxPublishDelay(100, TimeUnit.MILLISECONDS)
+                .create();
+        @Cleanup
+        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+                .topic(topicName)
+                .subscriptionName("sub")
+                .subscriptionType(SubscriptionType.Shared)
+                .acknowledgmentGroupTime(100, TimeUnit.MILLISECONDS)
+                .enableBatchIndexAcknowledgment(true)
+                .isAckReceiptEnabled(true)
+                .subscribe();
+
+        // send two batch messages: [(1), (2,3)]
+        producer.send("1".getBytes());
+        producer.sendAsync("2".getBytes());
+        producer.send("3".getBytes());
+
+        Message<byte[]> message1 = consumer.receive();
+        Message<byte[]> message2 = consumer.receive();
+        Message<byte[]> message3 = consumer.receive();
+        consumer.acknowledgeAsync(message1);
+        consumer.acknowledge(message2);  // send group ack: non-index ack for 1, index ack for 2
+        consumer.acknowledge(message3);  // index ack for 3
+
+        assertEquals(admin.topics().getStats(topicName).getSubscriptions()
+                .get("sub").getUnackedMessages(), 0);
+    }
 }
