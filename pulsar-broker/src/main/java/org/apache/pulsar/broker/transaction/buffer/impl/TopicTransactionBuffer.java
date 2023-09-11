@@ -56,6 +56,7 @@ import org.apache.pulsar.common.policies.data.TransactionInBufferStats;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.Markers;
 import org.apache.pulsar.common.util.Codec;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.RecoverTimeRecord;
 import org.jctools.queues.MessagePassingQueue;
 import org.jctools.queues.SpscArrayQueue;
@@ -209,33 +210,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
 
     @Override
     public CompletableFuture<Void> checkIfTBRecoverCompletely(boolean isTxnEnabled) {
-        if (!isTxnEnabled) {
-            return CompletableFuture.completedFuture(null);
-        } else {
-            CompletableFuture<Void> completableFuture = new CompletableFuture<>();
-            transactionBufferFuture.thenRun(() -> {
-                if (checkIfNoSnapshot()) {
-                    snapshotAbortedTxnProcessor.takeAbortedTxnsSnapshot(maxReadPosition).thenRun(() -> {
-                        if (changeToReadyStateFromNoSnapshot()) {
-                            timer.newTimeout(TopicTransactionBuffer.this,
-                                    takeSnapshotIntervalTime, TimeUnit.MILLISECONDS);
-                        }
-                        completableFuture.complete(null);
-                    }).exceptionally(exception -> {
-                        log.error("Topic {} failed to take snapshot", this.topic.getName());
-                        completableFuture.completeExceptionally(exception);
-                        return null;
-                    });
-                } else {
-                    completableFuture.complete(null);
-                }
-            }).exceptionally(exception -> {
-                log.error("Topic {}: TransactionBuffer recover failed", this.topic.getName(), exception.getCause());
-                completableFuture.completeExceptionally(exception.getCause());
-                return null;
-            });
-            return completableFuture;
-        }
+        return transactionBufferFuture;
     }
 
     @Override
@@ -255,6 +230,38 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
 
     @Override
     public CompletableFuture<Position> appendBufferToTxn(TxnID txnId, long sequenceId, ByteBuf buffer) {
+        return transactionBufferFuture.thenCompose(ignore -> {
+            if (checkIfNoSnapshot()) {
+                CompletableFuture<Void> completableFuture = new CompletableFuture<>();
+                snapshotAbortedTxnProcessor.takeAbortedTxnsSnapshot(maxReadPosition).thenRun(() -> {
+                    if (changeToReadyStateFromNoSnapshot()) {
+                        timer.newTimeout(TopicTransactionBuffer.this,
+                                takeSnapshotIntervalTime, TimeUnit.MILLISECONDS);
+                    } else {
+                        //This case should not happen.
+                        log.error("[{} ]Failed to change state of transaction buffer to Ready from NoSnapshot",
+                                topic.getName());
+                        completableFuture.completeExceptionally(new BrokerServiceException.ServiceUnitNotReadyException(
+                                "Transaction Buffer take first snapshot failed, the current state is: " + getState()));
+                    }
+                    completableFuture.complete(null);
+                }).exceptionally(exception -> {
+                    log.error("Topic {} failed to take snapshot", this.topic.getName());
+                    completableFuture.completeExceptionally(exception);
+                    return null;
+                });
+                return completableFuture.thenCompose(__ -> internalAppendBufferToTxn(txnId, buffer));
+            } else if (checkIfReady()) {
+                return internalAppendBufferToTxn(txnId, buffer);
+            } else {
+                //This case should not happen.
+                return FutureUtil.failedFuture(new BrokerServiceException.ServiceUnitNotReadyException(
+                        "Transaction Buffer recover failed, the current state is: " + getState()));
+            }
+        });
+    }
+
+    private CompletableFuture<Position> internalAppendBufferToTxn(TxnID txnId, ByteBuf buffer) {
         CompletableFuture<Position> completableFuture = new CompletableFuture<>();
         Long lowWaterMark = lowWaterMarks.get(txnId.getMostSigBits());
         if (lowWaterMark != null && lowWaterMark >= txnId.getLeastSigBits()) {

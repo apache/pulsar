@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.transaction.buffer;
 
+import lombok.Cleanup;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
@@ -177,6 +178,34 @@ public class TopicTransactionBufferTest extends TransactionTestBase {
         TopicTransactionBufferState.State expectState = TopicTransactionBufferState.State.Close;
         Assert.assertEquals(ttb.getState(), expectState);
         Assert.assertTrue(f.isCompletedExceptionally());
+    }
+
+    // 1. The state should be NoSnapshot instead of Ready after building producer.
+    // 2. The state should be Ready after sending first transactional message.
+    @Test
+    public void testWriteSnapshotWhenFirstTxnMessageSend() throws Exception {
+        String topic = "persistent://" + NAMESPACE1 + "/testWriteSnapshotWhenFirstTxnMessageSend";
+        admin.topics().createNonPartitionedTopic(topic);
+        PersistentTopic persistentTopic = (PersistentTopic) pulsarServiceList.get(0).getBrokerService()
+                .getTopic(topic, false)
+                .get()
+                .get();
+        persistentTopic.checkIfTransactionBufferRecoverCompletely(true).get();
+        TopicTransactionBuffer topicTransactionBuffer = (TopicTransactionBuffer) persistentTopic.getTransactionBuffer();
+        Assert.assertEquals(topicTransactionBuffer.getState(), TopicTransactionBufferState.State.NoSnapshot);
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient.newProducer()
+        .topic(topic)
+        .create();
+        producer.newMessage().send();
+        Assert.assertEquals(topicTransactionBuffer.getState(), TopicTransactionBufferState.State.NoSnapshot);
+
+        Transaction transaction = pulsarClient.newTransaction()
+                .withTransactionTimeout(5, TimeUnit.HOURS)
+                .build()
+                .get();
+        producer.newMessage(transaction).send();
+        Assert.assertEquals(topicTransactionBuffer.getState(), TopicTransactionBufferState.State.Ready);
     }
 
 }
