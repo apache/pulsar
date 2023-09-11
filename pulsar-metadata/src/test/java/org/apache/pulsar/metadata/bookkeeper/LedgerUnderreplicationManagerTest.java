@@ -40,6 +40,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 import lombok.Cleanup;
@@ -614,6 +615,8 @@ public class LedgerUnderreplicationManagerTest extends BaseMetadataStoreTest {
         final String missingReplica = "localhost:3181";
 
         // disabling replication
+        AtomicInteger callbackCount = new AtomicInteger();
+        lum.notifyLedgerReplicationEnabled((rc, result) -> callbackCount.incrementAndGet());
         lum.disableLedgerReplication();
         log.info("Disabled Ledeger Replication");
 
@@ -631,6 +634,7 @@ public class LedgerUnderreplicationManagerTest extends BaseMetadataStoreTest {
         } catch (TimeoutException te) {
             // expected behaviour, as the replication is disabled
         }
+        assertEquals(callbackCount.get(), 1, "Notify callback times mismatch");
     }
 
     /**
@@ -651,7 +655,8 @@ public class LedgerUnderreplicationManagerTest extends BaseMetadataStoreTest {
             log.debug("Unexpected exception while marking urLedger", e);
             fail("Unexpected exception while marking urLedger" + e.getMessage());
         }
-
+        AtomicInteger callbackCount = new AtomicInteger();
+        lum.notifyLedgerReplicationEnabled((rc, result) -> callbackCount.incrementAndGet());
         // disabling replication
         lum.disableLedgerReplication();
         log.debug("Disabled Ledeger Replication");
@@ -688,6 +693,7 @@ public class LedgerUnderreplicationManagerTest extends BaseMetadataStoreTest {
             znodeLatch.await(5, TimeUnit.SECONDS);
             log.debug("Enabled Ledeger Replication");
             assertEquals(znodeLatch.getCount(), 0, "Failed to disable ledger replication!");
+            assertEquals(callbackCount.get(), 2, "Notify callback times mismatch");
         } finally {
             thread1.interrupt();
         }
@@ -747,6 +753,11 @@ public class LedgerUnderreplicationManagerTest extends BaseMetadataStoreTest {
         curTime = System.currentTimeMillis();
         underReplicaMgr2.setReplicasCheckCTime(curTime);
         assertEquals(underReplicaMgr1.getReplicasCheckCTime(), curTime);
+    }
+
+    @Test(timeOut = 60000, dataProvider = "impl")
+    public void testLostBookieRecoveryDelay() {
+
     }
 
     private void verifyMarkLedgerUnderreplicated(Collection<String> missingReplica) throws Exception {

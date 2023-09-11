@@ -105,14 +105,17 @@ public class PulsarLedgerUnderreplicationManager implements LedgerUnderreplicati
     private final String urLockPath;
     private final String layoutPath;
     private final String lostBookieRecoveryDelayPath;
+    private final String replicationDisablePath;
     private final String checkAllLedgersCtimePath;
     private final String placementPolicyCheckCtimePath;
     private final String replicasCheckCtimePath;
 
     private final MetadataStoreExtended store;
 
-    private BookkeeperInternalCallbacks.GenericCallback<Void> replicationEnabledListener;
-    private BookkeeperInternalCallbacks.GenericCallback<Void> lostBookieRecoveryDelayListener;
+    private final List<BookkeeperInternalCallbacks.GenericCallback<Void>> replicationEnabledCallbacks =
+            new ArrayList<>();
+    private final List<BookkeeperInternalCallbacks.GenericCallback<Void>> lostBookieRecoveryDelayCallbacks =
+            new ArrayList<>();
 
     private static class PulsarUnderreplicatedLedger extends UnderreplicatedLedger {
         PulsarUnderreplicatedLedger(long ledgerId) {
@@ -139,6 +142,7 @@ public class PulsarLedgerUnderreplicationManager implements LedgerUnderreplicati
         urLedgerPath = basePath + BookKeeperConstants.DEFAULT_ZK_LEDGERS_ROOT_PATH;
         urLockPath = basePath + '/' + BookKeeperConstants.UNDER_REPLICATION_LOCK;
         lostBookieRecoveryDelayPath = basePath + '/' + BookKeeperConstants.LOSTBOOKIERECOVERYDELAY_NODE;
+        replicationDisablePath = basePath + '/' + BookKeeperConstants.DISABLE_NODE;
         checkAllLedgersCtimePath = basePath + '/' + BookKeeperConstants.CHECK_ALL_LEDGERS_CTIME;
         placementPolicyCheckCtimePath = basePath + '/' + BookKeeperConstants.PLACEMENT_POLICY_CHECK_CTIME;
         replicasCheckCtimePath = basePath + '/' + BookKeeperConstants.REPLICAS_CHECK_CTIME;
@@ -232,18 +236,26 @@ public class PulsarLedgerUnderreplicationManager implements LedgerUnderreplicati
             synchronized (this) {
                 // Notify that there were some changes on the under-replicated z-nodes
                 notifyAll();
-
-                if (n.getType() == NotificationType.Deleted) {
-                    if (n.getPath().equals(basePath + '/' + BookKeeperConstants.DISABLE_NODE)) {
-                        log.info("LedgerReplication is enabled externally through MetadataStore, "
-                                + "since DISABLE_NODE ZNode is deleted");
-                        if (replicationEnabledListener != null) {
-                            replicationEnabledListener.operationComplete(0, null);
-                        }
-                    } else if (n.getPath().equals(lostBookieRecoveryDelayPath)) {
-                        if (lostBookieRecoveryDelayListener != null) {
-                            lostBookieRecoveryDelayListener.operationComplete(0, null);
-                        }
+                if (lostBookieRecoveryDelayPath.equals(n.getPath())) {
+                    List<BookkeeperInternalCallbacks.GenericCallback<Void>> callbackList;
+                    synchronized (lostBookieRecoveryDelayCallbacks) {
+                        callbackList = new ArrayList<>(lostBookieRecoveryDelayCallbacks);
+                        lostBookieRecoveryDelayCallbacks.clear();
+                    }
+                    for (BookkeeperInternalCallbacks.GenericCallback<Void> callback : callbackList) {
+                        callback.operationComplete(0, null);
+                    }
+                }
+                if (replicationDisablePath.equals(n.getPath()) && n.getType() == NotificationType.Deleted) {
+                    log.info("LedgerReplication is enabled externally through MetadataStore, "
+                            + "since DISABLE_NODE ZNode is deleted");
+                    List<BookkeeperInternalCallbacks.GenericCallback<Void>> callbackList;
+                    synchronized (replicationEnabledCallbacks) {
+                        callbackList = new ArrayList<>(replicationEnabledCallbacks);
+                        replicationEnabledCallbacks.clear();
+                    }
+                    for (BookkeeperInternalCallbacks.GenericCallback<Void> callback : callbackList) {
+                        callback.operationComplete(0, null);
                     }
                 }
             }
@@ -688,8 +700,7 @@ public class PulsarLedgerUnderreplicationManager implements LedgerUnderreplicati
             log.debug("disableLedegerReplication()");
         }
         try {
-            String path = basePath + '/' + BookKeeperConstants.DISABLE_NODE;
-            store.put(path, "".getBytes(UTF_8), Optional.of(-1L))
+            store.put(replicationDisablePath, "".getBytes(UTF_8), Optional.of(-1L))
                     .get(BLOCKING_CALL_TIMEOUT, MILLISECONDS);
             log.info("Auto ledger re-replication is disabled!");
         } catch (ExecutionException | TimeoutException ee) {
@@ -710,7 +721,7 @@ public class PulsarLedgerUnderreplicationManager implements LedgerUnderreplicati
             log.debug("enableLedegerReplication()");
         }
         try {
-            store.delete(basePath + '/' + BookKeeperConstants.DISABLE_NODE, Optional.empty())
+            store.delete(replicationDisablePath, Optional.empty())
                     .get(BLOCKING_CALL_TIMEOUT, MILLISECONDS);
             log.info("Resuming automatic ledger re-replication");
         } catch (ExecutionException | TimeoutException ee) {
@@ -731,7 +742,7 @@ public class PulsarLedgerUnderreplicationManager implements LedgerUnderreplicati
             log.debug("isLedgerReplicationEnabled()");
         }
         try {
-            return !store.exists(basePath + '/' + BookKeeperConstants.DISABLE_NODE)
+            return !store.exists(replicationDisablePath)
                     .get(BLOCKING_CALL_TIMEOUT, MILLISECONDS);
         } catch (ExecutionException | TimeoutException ee) {
             log.error("Error while checking the state of "
@@ -751,13 +762,11 @@ public class PulsarLedgerUnderreplicationManager implements LedgerUnderreplicati
         if (log.isDebugEnabled()) {
             log.debug("notifyLedgerReplicationEnabled()");
         }
-
-        synchronized (this) {
-            replicationEnabledListener = cb;
+        synchronized (replicationEnabledCallbacks) {
+            replicationEnabledCallbacks.add(cb);
         }
-
         try {
-            if (!store.exists(basePath + '/' + BookKeeperConstants.DISABLE_NODE)
+            if (!store.exists(replicationDisablePath)
                     .get(BLOCKING_CALL_TIMEOUT, MILLISECONDS)) {
                 log.info("LedgerReplication is enabled externally through metadata store, "
                         + "since DISABLE_NODE node is deleted");
@@ -851,8 +860,8 @@ public class PulsarLedgerUnderreplicationManager implements LedgerUnderreplicati
     public void notifyLostBookieRecoveryDelayChanged(BookkeeperInternalCallbacks.GenericCallback<Void> cb) throws
             ReplicationException.UnavailableException {
         log.debug("notifyLostBookieRecoveryDelayChanged()");
-        synchronized (this) {
-            lostBookieRecoveryDelayListener = cb;
+        synchronized (lostBookieRecoveryDelayCallbacks) {
+            lostBookieRecoveryDelayCallbacks.add(cb);
         }
         try {
             if (!store.exists(lostBookieRecoveryDelayPath).get(BLOCKING_CALL_TIMEOUT, MILLISECONDS)) {
