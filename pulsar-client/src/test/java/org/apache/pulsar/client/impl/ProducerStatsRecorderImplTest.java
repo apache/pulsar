@@ -42,6 +42,8 @@ public class ProducerStatsRecorderImplTest {
         ClientConfigurationData conf = new ClientConfigurationData();
         conf.setStatsIntervalSeconds(1);
         PulsarClientImpl client = mock(PulsarClientImpl.class);
+        ConnectionPool connectionPool = mock(ConnectionPool.class);
+        when(client.getCnxPool()).thenReturn(connectionPool);
         when(client.getConfiguration()).thenReturn(conf);
         Timer timer = new HashedWheelTimer();
         when(client.timer()).thenReturn(timer);
@@ -62,6 +64,8 @@ public class ProducerStatsRecorderImplTest {
         ClientConfigurationData conf = new ClientConfigurationData();
         conf.setStatsIntervalSeconds(60);
         PulsarClientImpl client = mock(PulsarClientImpl.class);
+        ConnectionPool connectionPool = mock(ConnectionPool.class);
+        when(client.getCnxPool()).thenReturn(connectionPool);
         when(client.getConfiguration()).thenReturn(conf);
         Timer timer = new HashedWheelTimer();
         when(client.timer()).thenReturn(timer);
