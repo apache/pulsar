@@ -756,8 +756,14 @@ public class LedgerUnderreplicationManagerTest extends BaseMetadataStoreTest {
     }
 
     @Test(timeOut = 60000, dataProvider = "impl")
-    public void testLostBookieRecoveryDelay() {
+    public void testLostBookieRecoveryDelay(String provider, Supplier<String> urlSupplier) throws Exception {
+        methodSetup(urlSupplier);
 
+        AtomicInteger callbackCount = new AtomicInteger();
+        lum.notifyLostBookieRecoveryDelayChanged((rc, result) -> callbackCount.incrementAndGet());
+        // disabling replication
+        lum.setLostBookieRecoveryDelay(10);
+        Awaitility.await().until(() -> callbackCount.get() == 2);
     }
 
     private void verifyMarkLedgerUnderreplicated(Collection<String> missingReplica) throws Exception {
