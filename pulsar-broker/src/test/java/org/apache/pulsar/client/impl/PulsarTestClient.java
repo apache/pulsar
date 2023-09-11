@@ -122,7 +122,7 @@ public class PulsarTestClient extends PulsarClientImpl {
             result.completeExceptionally(new IOException("New connections are rejected."));
             return result;
         } else {
-            return super.getConnection(topic);
+            return super.getConnection(topic, getCnxPool().genRandomKeyToSelectCon());
         }
     }
 

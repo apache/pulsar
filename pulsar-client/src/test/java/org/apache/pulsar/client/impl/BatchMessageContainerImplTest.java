@@ -79,6 +79,8 @@ public class BatchMessageContainerImplTest {
         final ProducerConfigurationData producerConfigurationData = new ProducerConfigurationData();
         producerConfigurationData.setCompressionType(CompressionType.NONE);
         PulsarClientImpl pulsarClient = mock(PulsarClientImpl.class);
+        ConnectionPool connectionPool = mock(ConnectionPool.class);
+        when(pulsarClient.getCnxPool()).thenReturn(connectionPool);
         MemoryLimitController memoryLimitController = mock(MemoryLimitController.class);
         when(pulsarClient.getMemoryLimitController()).thenReturn(memoryLimitController);
         try {

@@ -898,15 +898,26 @@ public class PulsarClientImpl implements PulsarClient {
         conf.setTlsTrustStorePassword(tlsTrustStorePassword);
     }
 
+    public CompletableFuture<ClientCnx> getConnection(final String topic, int randomKeyForSelectConnection) {
+        TopicName topicName = TopicName.get(topic);
+        return lookup.getBroker(topicName)
+                .thenCompose(pair -> getConnection(pair.getLeft(), pair.getRight(), randomKeyForSelectConnection));
+    }
+
+    /**
+     * Only for test.
+     */
+    @VisibleForTesting
     public CompletableFuture<ClientCnx> getConnection(final String topic) {
         TopicName topicName = TopicName.get(topic);
         return lookup.getBroker(topicName)
-                .thenCompose(pair -> getConnection(pair.getLeft(), pair.getRight()));
+                .thenCompose(pair -> getConnection(pair.getLeft(), pair.getRight(), cnxPool.genRandomKeyToSelectCon()));
     }
 
     public CompletableFuture<ClientCnx> getConnection(final InetSocketAddress logicalAddress,
-                                                      final InetSocketAddress physicalAddress) {
-        return cnxPool.getConnection(logicalAddress, physicalAddress);
+                                                      final InetSocketAddress physicalAddress,
+                                                      final int randomKeyForSelectConnection) {
+        return cnxPool.getConnection(logicalAddress, physicalAddress, randomKeyForSelectConnection);
     }
 
     /** visible for pulsar-functions. **/
