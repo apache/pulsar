@@ -992,6 +992,11 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
                 handleProducerRemoved(oldProducer);
             }
         } else {
+            // If a producer with the same name tries to use a new connection, async check the old connection is
+            // available. The producers related the connection that not available are automatically cleaned up.
+            if (!Objects.equals(oldProducer.getCnx(), newProducer.getCnx())) {
+                oldProducer.getCnx().checkConnectionLiveness();
+            }
             throw new BrokerServiceException.NamingException(
                     "Producer with name '" + newProducer.getProducerName() + "' is already connected to topic");
         }
