@@ -982,8 +982,7 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
 
     private void tryOverwriteOldProducer(Producer oldProducer, Producer newProducer)
             throws BrokerServiceException {
-        if (newProducer.isSuccessorTo(oldProducer) && !isUserProvidedProducerName(oldProducer)
-                && !isUserProvidedProducerName(newProducer)) {
+        if (newProducer.isSuccessorTo(oldProducer)) {
             oldProducer.close(false);
             if (!producers.replace(newProducer.getProducerName(), oldProducer, newProducer)) {
                 // Met concurrent update, throw exception here so that client can try reconnect later.
