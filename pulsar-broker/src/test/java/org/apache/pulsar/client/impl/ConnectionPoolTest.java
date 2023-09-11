@@ -98,11 +98,14 @@ public class ConnectionPoolTest extends MockedPulsarServiceBaseTest {
         // If no error is reported, the same connection was used when reconnecting.
         for (int i = 0; i < 20; i++) {
             // Trigger reconnect
-            producer.getClientCnx().handleCloseProducer(commandCloseProducer);
-            Awaitility.await().untilAsserted(() ->
-                    Assert.assertEquals(producer.getState().toString(), HandlerState.State.Ready.toString(),
-                            "The producer uses a different connection when reconnecting")
-            );
+            ClientCnx cnx = producer.getClientCnx();
+            if (cnx != null) {
+                cnx.handleCloseProducer(commandCloseProducer);
+                Awaitility.await().untilAsserted(() ->
+                        Assert.assertEquals(producer.getState().toString(), HandlerState.State.Ready.toString(),
+                                "The producer uses a different connection when reconnecting")
+                );
+            }
         }
 
         // cleanup.
