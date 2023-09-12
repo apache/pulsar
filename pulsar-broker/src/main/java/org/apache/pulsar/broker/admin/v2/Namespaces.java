@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker.admin.v2;
 
-import static org.apache.pulsar.common.policies.data.PoliciesUtil.getBundles;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiParam;
@@ -1964,20 +1963,6 @@ public class Namespaces extends NamespacesBase {
     public List<String> getAntiAffinityNamespaces(@PathParam("cluster") String cluster,
             @PathParam("group") String antiAffinityGroup, @QueryParam("tenant") String tenant) {
         return internalGetAntiAffinityNamespaces(cluster, antiAffinityGroup, tenant);
-    }
-
-    private Policies getDefaultPolicesIfNull(Policies policies) {
-        if (policies == null) {
-            policies = new Policies();
-        }
-
-        int defaultNumberOfBundles = config().getDefaultNumberOfNamespaceBundles();
-
-        if (policies.bundles == null) {
-            policies.bundles = getBundles(defaultNumberOfBundles);
-        }
-
-        return policies;
     }
 
     @GET

@@ -1709,5 +1709,25 @@ public class Namespaces extends NamespacesBase {
         internalSetSchemaAutoUpdateCompatibilityStrategy(strategy);
     }
 
+    @PUT
+    @Path("/{property}/{cluster}/{namespace}/policy")
+    @ApiOperation(value = "Creates a new namespace with the specified policies")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Property or cluster or namespace doesn't exist"),
+            @ApiResponse(code = 409, message = "Namespace already exists"),
+            @ApiResponse(code = 412, message = "Namespace name is not valid") })
+    public void createNamespace(@PathParam("property") String property, @PathParam("cluster") String cluster,
+                                @PathParam("namespace") String namespace,
+                                @ApiParam(value = "Policies for the namespace") Policies policies) {
+        validateNamespaceName(property, cluster, namespace);
+        if (!namespaceName.isGlobal()) {
+            // If the namespace is non global, make sure property has the access on the cluster. For global namespace,
+            // same check is made at the time of setting replication.
+            validateClusterForTenant(namespaceName.getTenant(), namespaceName.getCluster());
+        }
+        policies = getDefaultPolicesIfNull(policies);
+        internalCreateNamespace(policies);
+    }
+
     private static final Logger log = LoggerFactory.getLogger(Namespaces.class);
 }
