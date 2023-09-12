@@ -25,6 +25,7 @@ import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.fail;
 
 import com.google.common.collect.Sets;
@@ -32,6 +33,8 @@ import java.time.Duration;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiConsumer;
@@ -437,5 +440,24 @@ public class TableViewTest extends MockedPulsarServiceBaseTest {
             assertEquals(tv.size(), msgCnt);
         });
         verify(consumer, times(msgCnt)).receiveAsync();
+    }
+
+    @Test
+    public void testBuildTableViewWithMessageSendingBriskly() throws Exception {
+        String topic = "persistent://public/default/testBuildTableViewWithMessageSendingBriskly";
+        admin.topics().createPartitionedTopic(topic, 5);
+        int msgCnt = 2000000000;
+        int threadCount = 100;
+        ExecutorService executorService = Executors.newFixedThreadPool(threadCount);
+        executorService.submit(() -> {
+            for (int i = 0; i < threadCount - 1; i++) {
+                executorService.submit(() -> this.publishMessages(topic, msgCnt, false, false));
+            }
+        });
+        CompletableFuture<TableView<byte[]>> tvFuture = pulsarClient.newTableView(Schema.BYTES)
+                .topic(topic)
+                .autoUpdatePartitionsInterval(60, TimeUnit.SECONDS)
+                .createAsync();
+        TableView<byte[]> tableView = tvFuture.get(5, TimeUnit.SECONDS);
     }
 }
