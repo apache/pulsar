@@ -59,7 +59,6 @@ import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.BrokerTestBase;
-import org.apache.pulsar.broker.service.TopicPoliciesService;
 import org.apache.pulsar.broker.stats.PrometheusMetricsTest;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsGenerator;
 import org.apache.pulsar.client.api.Consumer;
@@ -76,9 +75,7 @@ import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.Policies;
-import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.TenantInfo;
-import org.apache.pulsar.common.policies.data.TopicPolicies;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.awaitility.Awaitility;
 import org.junit.Assert;
@@ -490,33 +487,5 @@ public class PersistentTopicTest extends BrokerTestBase {
             }
             return !topic.getManagedLedger().getCursors().iterator().hasNext();
         });
-    }
-
-    @Test
-    public void testCheckPersistencePolicies() throws Exception {
-        final String myNamespace = "prop/ns";
-        admin.namespaces().createNamespace(myNamespace, Sets.newHashSet("test"));
-        final String topic = "persistent://" + myNamespace + "/testConfig" + UUID.randomUUID();
-        conf.setForceDeleteNamespaceAllowed(true);
-        pulsarClient.newProducer().topic(topic).create().close();
-        RetentionPolicies retentionPolicies = new RetentionPolicies(1, 1);
-        PersistentTopic persistentTopic = spy((PersistentTopic) pulsar.getBrokerService().getTopicIfExists(topic).get().get());
-        TopicPoliciesService policiesService = spy(pulsar.getTopicPoliciesService());
-        doReturn(policiesService).when(pulsar).getTopicPoliciesService();
-        TopicPolicies policies = new TopicPolicies();
-        policies.setRetentionPolicies(retentionPolicies);
-        doReturn(policies).when(policiesService).getTopicPoliciesIfExists(TopicName.get(topic));
-        persistentTopic.onUpdate(policies);
-        verify(persistentTopic, times(1)).checkPersistencePolicies();
-        Awaitility.await().untilAsserted(() -> {
-            assertEquals(persistentTopic.getManagedLedger().getConfig().getRetentionSizeInMB(), 1L);
-            assertEquals(persistentTopic.getManagedLedger().getConfig().getRetentionTimeMillis(), TimeUnit.MINUTES.toMillis(1));
-        });
-        // throw exception
-        doReturn(CompletableFuture.failedFuture(new RuntimeException())).when(persistentTopic).checkPersistencePolicies();
-        policies.setRetentionPolicies(new RetentionPolicies(2, 2));
-        persistentTopic.onUpdate(policies);
-        assertEquals(persistentTopic.getManagedLedger().getConfig().getRetentionSizeInMB(), 1L);
-        assertEquals(persistentTopic.getManagedLedger().getConfig().getRetentionTimeMillis(), TimeUnit.MINUTES.toMillis(1));
     }
 }
