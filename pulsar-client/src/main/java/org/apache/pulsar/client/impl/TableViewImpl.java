@@ -291,4 +291,9 @@ public class TableViewImpl<T> implements TableView<T> {
                     return null;
                 });
     }
+
+    @Override
+    public CompletableFuture<Void> readAllExistingMessages() {
+        return reader.thenCompose(this::readAllExistingMessages);
+    }
 }
