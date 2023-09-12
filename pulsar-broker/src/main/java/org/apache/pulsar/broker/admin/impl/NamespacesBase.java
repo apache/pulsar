@@ -2667,4 +2667,5 @@ public abstract class NamespacesBase extends AdminResource {
             throw new RestException(e);
         }
     }
+
 }

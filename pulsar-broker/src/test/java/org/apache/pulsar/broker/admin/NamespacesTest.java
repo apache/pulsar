@@ -2122,7 +2122,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         nsnames.add(NamespaceName.get(this.testTenant, "use", "create-namespace-1"));
         nsnames.add(NamespaceName.get(this.testTenant, "use", "create-namespace-2"));
         nsnames.add(NamespaceName.get(this.testTenant, "usc", "create-other-namespace-1"));
-        createTestNamespaces(nsnames, BundlesData.builder().build());
+        createTestNamespaces(nsnames, new Policies());
 
         try {
             asyncRequests(response -> namespaces.createNamespace(response, this.testTenant, "use", "create-namespace-1",
