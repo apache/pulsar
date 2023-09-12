@@ -16,16 +16,4 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.io.kinesis;
-
-/**
- * This is a stub class for backwards compatibility.  In new code and configurations, please use the plugins
- * from org.apache.pulsar.io.aws
- *
- * @see org.apache.pulsar.io.aws.STSAssumeRoleProviderPlugin
- */
-@Deprecated
-public class STSAssumeRoleProviderPlugin extends org.apache.pulsar.io.aws.STSAssumeRoleProviderPlugin
-        implements AwsCredentialProviderPlugin {
-}
-
+package org.apache.pulsar.cli;

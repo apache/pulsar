@@ -124,7 +124,18 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
             // Already included in a cumulative ack
             return true;
         } else {
-            return pendingIndividualAcks.contains(MessageIdAdvUtils.discardBatch(messageIdAdv));
+            // If "batchIndexAckEnabled" is false, the batched messages acknowledgment will be traced by
+            // pendingIndividualAcks. So no matter what type the message ID is, check with "pendingIndividualAcks"
+            // first.
+            MessageIdAdv key = MessageIdAdvUtils.discardBatch(messageIdAdv);
+            if (pendingIndividualAcks.contains(key)) {
+                return true;
+            }
+            if (messageIdAdv.getBatchIndex() >= 0) {
+                ConcurrentBitSetRecyclable bitSet = pendingIndividualBatchIndexAcks.get(key);
+                return bitSet != null && !bitSet.get(messageIdAdv.getBatchIndex());
+            }
+            return false;
         }
     }
 

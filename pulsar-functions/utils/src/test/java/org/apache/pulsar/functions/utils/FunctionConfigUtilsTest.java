@@ -159,6 +159,18 @@ public class FunctionConfigUtilsTest {
     }
 
     @Test
+    public void testConvertBatchBuilder() {
+        FunctionConfig functionConfig = createFunctionConfig();
+        functionConfig.setBatchBuilder("KEY_BASED");
+
+        Function.FunctionDetails functionDetails = FunctionConfigUtils.convert(functionConfig, (ClassLoader) null);
+        assertEquals(functionDetails.getSink().getProducerSpec().getBatchBuilder(), "KEY_BASED");
+
+        FunctionConfig convertedConfig = FunctionConfigUtils.convertFromDetails(functionDetails);
+        assertEquals(convertedConfig.getProducerConfig().getBatchBuilder(), "KEY_BASED");
+    }
+
+    @Test
     public void testMergeEqual() {
         FunctionConfig functionConfig = createFunctionConfig();
         FunctionConfig newFunctionConfig = createFunctionConfig();
@@ -423,6 +435,30 @@ public class FunctionConfigUtilsTest {
                 windowConfig
         );
         mergedConfig.setWindowConfig(functionConfig.getWindowConfig());
+        assertEquals(
+                new Gson().toJson(functionConfig),
+                new Gson().toJson(mergedConfig)
+        );
+    }
+
+    @Test
+    public void testMergeDifferentProducerConfig() {
+        FunctionConfig functionConfig = createFunctionConfig();
+
+        ProducerConfig producerConfig = new ProducerConfig();
+        producerConfig.setMaxPendingMessages(100);
+        producerConfig.setMaxPendingMessagesAcrossPartitions(1000);
+        producerConfig.setUseThreadLocalProducers(true);
+        producerConfig.setBatchBuilder("DEFAULT");
+        producerConfig.setCompressionType(CompressionType.ZLIB);
+        FunctionConfig newFunctionConfig = createUpdatedFunctionConfig("producerConfig", producerConfig);
+
+        FunctionConfig mergedConfig = FunctionConfigUtils.validateUpdate(functionConfig, newFunctionConfig);
+        assertEquals(
+                mergedConfig.getProducerConfig(),
+                producerConfig
+        );
+        mergedConfig.setProducerConfig(functionConfig.getProducerConfig());
         assertEquals(
                 new Gson().toJson(functionConfig),
                 new Gson().toJson(mergedConfig)

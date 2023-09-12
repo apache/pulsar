@@ -586,11 +586,14 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
             msgMetadata.setProducerName(producerName);
 
-            if (conf.getCompressionType() != CompressionType.NONE) {
-                msgMetadata
-                        .setCompression(CompressionCodecProvider.convertToWireProtocol(conf.getCompressionType()));
+            // The field "uncompressedSize" is zero means the compression info were not set yet.
+            if (msgMetadata.getUncompressedSize() <= 0) {
+                if (conf.getCompressionType() != CompressionType.NONE) {
+                    msgMetadata
+                            .setCompression(CompressionCodecProvider.convertToWireProtocol(conf.getCompressionType()));
+                }
+                msgMetadata.setUncompressedSize(uncompressedSize);
             }
-            msgMetadata.setUncompressedSize(uncompressedSize);
         }
     }
 
@@ -695,6 +698,12 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 op = OpSendMsg.create(msg, null, sequenceId, callback);
                 final MessageMetadata finalMsgMetadata = msgMetadata;
                 op.rePopulate = () -> {
+                    if (msgMetadata.hasChunkId()) {
+                        // The message metadata is shared between all chunks in a large message
+                        // We need to reset the chunk id for each call of this method
+                        // It's safe to do that because there is only 1 thread to manipulate this message metadata
+                        finalMsgMetadata.setChunkId(chunkId);
+                    }
                     op.cmd = sendMessage(producerId, sequenceId, numMessages, messageId, finalMsgMetadata,
                             encryptedPayload);
                 };
