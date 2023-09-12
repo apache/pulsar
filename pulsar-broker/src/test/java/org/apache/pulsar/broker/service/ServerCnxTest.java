@@ -74,6 +74,7 @@ import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.commons.lang3.mutable.MutableInt;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.auth.MockAlwaysExpiredAuthenticationProvider;
@@ -135,6 +136,7 @@ import org.apache.pulsar.common.protocol.ByteBufPair;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.Commands.ChecksumType;
 import org.apache.pulsar.common.protocol.PulsarHandler;
+import org.apache.pulsar.common.protocol.schema.EmptyVersion;
 import org.apache.pulsar.common.topics.TopicList;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
@@ -925,6 +927,67 @@ public class ServerCnxTest {
                     assertEquals(arg.getSubscription(), subscriptionName);
                     return true;
                 }));
+    }
+
+    @Test
+    public void testHandeProducer() throws Exception {
+        final String tName = "persistent://public/default/test-topic";
+        final long producerId = 1;
+        final MutableInt requestId = new MutableInt(1);
+        final Map<String, String> metadata = Collections.emptyMap();
+        final String pName = "p1";
+        resetChannel();
+        assertTrue(channel.isActive());
+        assertEquals(serverCnx.getState(), State.Start);
+
+        // connect.
+        ByteBuf cConnect = Commands.newConnect("none", "", null);
+        channel.writeInbound(cConnect);
+        assertEquals(serverCnx.getState(), State.Connected);
+        assertTrue(getResponse() instanceof CommandConnected);
+
+        // There is an in-progress producer registration.
+        ByteBuf cProducer1 = Commands.newProducer(tName, producerId, requestId.incrementAndGet(), pName, metadata, false);
+        CompletableFuture existingFuture1 = new CompletableFuture();
+        serverCnx.getProducers().put(producerId, existingFuture1);
+        channel.writeInbound(cProducer1);
+        Object response1 = getResponse();
+        assertTrue(response1 instanceof CommandError);
+        CommandError error1 = (CommandError) response1;
+        assertEquals(error1.getError().toString(), ServerError.ServiceNotReady.toString());
+        assertTrue(error1.getMessage().contains("already present on the connection"));
+
+        // There is a failed registration.
+        ByteBuf cProducer2 = Commands.newProducer(tName, producerId, requestId.incrementAndGet(), pName, metadata, false);
+        CompletableFuture existingFuture2 = new CompletableFuture();
+        existingFuture2.completeExceptionally(new BrokerServiceException.ProducerBusyException("123"));
+        serverCnx.getProducers().put(producerId, existingFuture2);
+
+        channel.writeInbound(cProducer2);
+        Object response2 = getResponse();
+        assertTrue(response2 instanceof CommandError);
+        CommandError error2 = (CommandError) response2;
+        assertEquals(error2.getError().toString(), ServerError.ProducerBusy.toString());
+        assertTrue(error2.getMessage().contains("already failed to register present on the connection"));
+
+        // There is an successful registration.
+        ByteBuf cProducer3 = Commands.newProducer(tName, producerId, requestId.incrementAndGet(), pName, metadata, false);
+        CompletableFuture existingFuture3 = new CompletableFuture();
+        org.apache.pulsar.broker.service.Producer serviceProducer =
+                mock(org.apache.pulsar.broker.service.Producer.class);
+        when(serviceProducer.getProducerName()).thenReturn(pName);
+        when(serviceProducer.getSchemaVersion()).thenReturn(new EmptyVersion());
+        existingFuture3.complete(serviceProducer);
+        serverCnx.getProducers().put(producerId, existingFuture3);
+
+        channel.writeInbound(cProducer3);
+        Object response3 = getResponse();
+        assertTrue(response3 instanceof CommandProducerSuccess);
+        CommandProducerSuccess cProducerSuccess = (CommandProducerSuccess) response3;
+        assertEquals(cProducerSuccess.getProducerName(), pName);
+
+        // cleanup.
+        channel.finish();
     }
 
     // This test used to be in the ServerCnxAuthorizationTest class, but it was migrated here because the mocking
