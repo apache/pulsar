@@ -61,7 +61,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertNull;
+import static org.testng.Assert.assertSame;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
@@ -509,16 +509,16 @@ public class ConsumerBuilderImplTest {
         assertTrue(configurationData.isStartPaused());
         assertTrue(configurationData.isAutoScaledReceiverQueueSizeEnabled());
 
-        assertNull(configurationData.getMessageListener());
-        assertNull(configurationData.getConsumerEventListener());
-        assertNull(configurationData.getNegativeAckRedeliveryBackoff());
-        assertNull(configurationData.getAckTimeoutRedeliveryBackoff());
-        assertNull(configurationData.getMessageListener());
-        assertNull(configurationData.getMessageCrypto());
-        assertNull(configurationData.getCryptoKeyReader());
-        assertNull(configurationData.getBatchReceivePolicy());
-        assertNull(configurationData.getKeySharedPolicy());
-        assertNull(configurationData.getPayloadProcessor());
+        assertSame(configurationData.getMessageListener(), messageListener);
+        assertSame(configurationData.getConsumerEventListener(), consumerEventListener);
+        assertSame(configurationData.getNegativeAckRedeliveryBackoff(), negativeAckRedeliveryBackoff);
+        assertSame(configurationData.getAckTimeoutRedeliveryBackoff(), ackTimeoutRedeliveryBackoff);
+        assertSame(configurationData.getMessageListener(), messageListener);
+        assertSame(configurationData.getMessageCrypto(), messageCrypto);
+        assertSame(configurationData.getCryptoKeyReader(), cryptoKeyReader);
+        assertSame(configurationData.getBatchReceivePolicy(), batchReceivePolicy);
+        assertSame(configurationData.getKeySharedPolicy(), keySharedPolicy);
+        assertSame(configurationData.getPayloadProcessor(), payloadProcessor);
     }
 
     @Test
@@ -569,16 +569,16 @@ public class ConsumerBuilderImplTest {
         assertFalse(configurationData.isStartPaused());
         assertFalse(configurationData.isAutoScaledReceiverQueueSizeEnabled());
 
-        assertNull(configurationData.getMessageListener());
-        assertNull(configurationData.getConsumerEventListener());
-        assertNull(configurationData.getNegativeAckRedeliveryBackoff());
-        assertNull(configurationData.getAckTimeoutRedeliveryBackoff());
-        assertNull(configurationData.getMessageListener());
-        assertNull(configurationData.getMessageCrypto());
-        assertNull(configurationData.getCryptoKeyReader());
-        assertNull(configurationData.getBatchReceivePolicy());
-        assertNull(configurationData.getKeySharedPolicy());
-        assertNull(configurationData.getPayloadProcessor());
+        assertNotNull(configurationData.getMessageListener());
+        assertNotNull(configurationData.getConsumerEventListener());
+        assertNotNull(configurationData.getNegativeAckRedeliveryBackoff());
+        assertNotNull(configurationData.getAckTimeoutRedeliveryBackoff());
+        assertNotNull(configurationData.getMessageListener());
+        assertNotNull(configurationData.getMessageCrypto());
+        assertNotNull(configurationData.getCryptoKeyReader());
+        assertNotNull(configurationData.getBatchReceivePolicy());
+        assertNotNull(configurationData.getKeySharedPolicy());
+        assertNotNull(configurationData.getPayloadProcessor());
     }
 
     private ConsumerBuilderImpl<byte[]> createConsumerBuilder() {

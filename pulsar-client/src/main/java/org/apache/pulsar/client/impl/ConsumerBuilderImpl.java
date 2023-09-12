@@ -86,7 +86,39 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
 
     @Override
     public ConsumerBuilder<T> loadConf(Map<String, Object> config) {
-        this.conf = ConfigurationDataUtils.loadData(config, conf, ConsumerConfigurationData.class);
+        MessageListener<T> messageListener =
+            (MessageListener<T>) config.getOrDefault("messageListener", this.conf.getMessageListener());
+        ConsumerEventListener consumerEventListener =
+            (ConsumerEventListener) config.getOrDefault("consumerEventListener", this.conf.getConsumerEventListener());
+        RedeliveryBackoff negativeAckRedeliveryBackoff = (RedeliveryBackoff) config
+            .getOrDefault("negativeAckRedeliveryBackoff", this.conf.getNegativeAckRedeliveryBackoff());
+        RedeliveryBackoff ackTimeoutRedeliveryBackoff = (RedeliveryBackoff) config
+            .getOrDefault("ackTimeoutRedeliveryBackoff", this.conf.getAckTimeoutRedeliveryBackoff());
+        CryptoKeyReader cryptoKeyReader =
+            (CryptoKeyReader) config.getOrDefault("cryptoKeyReader", this.conf.getCryptoKeyReader());
+        MessageCrypto messageCrypto =
+            (MessageCrypto) config.getOrDefault("messageCrypto", this.conf.getMessageCrypto());
+        BatchReceivePolicy batchReceivePolicy =
+            (BatchReceivePolicy) config.getOrDefault("batchReceivePolicy", this.conf.getBatchReceivePolicy());
+        KeySharedPolicy keySharedPolicy =
+            (KeySharedPolicy) config.getOrDefault("keySharedPolicy", this.conf.getKeySharedPolicy());
+        MessagePayloadProcessor payloadProcessor =
+            (MessagePayloadProcessor) config.getOrDefault("payloadProcessor", this.conf.getPayloadProcessor());
+
+        ConsumerConfigurationData<T> configurationData =
+            ConfigurationDataUtils.loadData(config, conf, ConsumerConfigurationData.class);
+
+        configurationData.setMessageListener(messageListener);
+        configurationData.setConsumerEventListener(consumerEventListener);
+        configurationData.setNegativeAckRedeliveryBackoff(negativeAckRedeliveryBackoff);
+        configurationData.setAckTimeoutRedeliveryBackoff(ackTimeoutRedeliveryBackoff);
+        configurationData.setCryptoKeyReader(cryptoKeyReader);
+        configurationData.setMessageCrypto(messageCrypto);
+        configurationData.setBatchReceivePolicy(batchReceivePolicy);
+        configurationData.setKeySharedPolicy(keySharedPolicy);
+        configurationData.setPayloadProcessor(payloadProcessor);
+
+        this.conf = configurationData;
         return this;
     }
 
