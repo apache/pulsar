@@ -44,7 +44,7 @@ public class SystemTopicTxnBufferSnapshotService<T> {
     protected final Class<T> schemaType;
     protected final EventType systemTopicType;
     protected final Map<NamespaceName, CompletableFuture<TableView<T>>> tableViewMap =
-            new HashMap<>();
+            new ConcurrentHashMap<>();
     private final ConcurrentHashMap<NamespaceName, ReferenceCountedWriter<T>> refCountedWriterMap;
 
     // The class ReferenceCountedWriter will maintain the reference count,
