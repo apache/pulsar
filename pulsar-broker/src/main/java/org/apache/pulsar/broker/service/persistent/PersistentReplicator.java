@@ -529,6 +529,12 @@ public abstract class PersistentReplicator extends AbstractReplicator
             public void readEntryComplete(Entry entry, Object ctx) {
                 future.complete(entry);
             }
+
+            @Override
+            public String toString() {
+                return String.format("Replication [{}] peek Nth message",
+                        PersistentReplicator.this.producer.getProducerName());
+            }
         }, null);
 
         return future;

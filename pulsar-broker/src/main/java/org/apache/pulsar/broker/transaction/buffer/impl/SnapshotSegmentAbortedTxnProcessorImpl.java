@@ -322,6 +322,12 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
                                                     hasInvalidIndex.set(true);
                                                 }
                                             }
+
+                                            @Override
+                                            public String toString() {
+                                                return String.format("Transaction buffer [{}] recover from snapshot",
+                                                        SnapshotSegmentAbortedTxnProcessorImpl.this.topic.getName());
+                                            }
                                         }, null);
                             });
                             openManagedLedgerAndHandleSegmentsFuture.complete(null);

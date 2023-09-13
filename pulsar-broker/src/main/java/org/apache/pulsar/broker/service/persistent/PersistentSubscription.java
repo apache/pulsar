@@ -852,6 +852,12 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
             public void readEntryComplete(Entry entry, Object ctx) {
                 future.complete(entry);
             }
+
+            @Override
+            public String toString() {
+                return String.format("Subscription [{}-{}] async replay entries", PersistentSubscription.this.topicName,
+                        PersistentSubscription.this.subName);
+            }
         }, null);
 
         return future;

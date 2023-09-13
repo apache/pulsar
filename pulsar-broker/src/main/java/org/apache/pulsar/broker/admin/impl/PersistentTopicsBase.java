@@ -2824,6 +2824,12 @@ public class PersistentTopicsBase extends AdminResource {
                             }
                         }
                     }
+
+                    @Override
+                    public String toString() {
+                        return String.format("Topic [{}] get entry batch size",
+                                PersistentTopicsBase.this.topicName);
+                    }
                 }, null);
             } catch (NullPointerException npe) {
                 batchSizeFuture.completeExceptionally(new RestException(Status.NOT_FOUND, "Message not found"));
@@ -2921,6 +2927,12 @@ public class PersistentTopicsBase extends AdminResource {
                                     entry.release();
                                 }
                             }
+                        }
+
+                        @Override
+                        public String toString() {
+                            return String.format("Topic [{}] internal get message by id",
+                                    PersistentTopicsBase.this.topicName);
                         }
                     }, null);
             return results;
@@ -3087,6 +3099,12 @@ public class PersistentTopicsBase extends AdminResource {
                             @Override
                             public void readEntryFailed(ManagedLedgerException exception, Object ctx) {
                                 future.completeExceptionally(exception);
+                            }
+
+                            @Override
+                            public String toString() {
+                                return String.format("Topic [{}] internal examine message async",
+                                        PersistentTopicsBase.this.topicName);
                             }
                         }, null);
                         return future;
