@@ -176,7 +176,7 @@ public class ConcurrentLongLongPairHashMapTest {
         assertEquals(map.capacity(), 8);
     }
 
-    @Test
+    @Test(invocationCount = 10)
     public void testConcurrentExpandAndShrinkAndGet()  throws Throwable {
         ConcurrentLongLongPairHashMap map = ConcurrentLongLongPairHashMap.newBuilder()
                 .expectedItems(2)

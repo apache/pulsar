@@ -214,7 +214,7 @@ public class ConcurrentLongHashMapTest {
         assertTrue(map.capacity() == initCapacity);
     }
 
-    @Test
+    @Test(invocationCount = 10)
     public void testConcurrentExpandAndShrinkAndGet()  throws Throwable {
         ConcurrentLongHashMap<String> map = ConcurrentLongHashMap.<String>newBuilder()
                 .expectedItems(2)

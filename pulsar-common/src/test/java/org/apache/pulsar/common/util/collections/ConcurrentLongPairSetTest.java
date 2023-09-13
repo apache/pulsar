@@ -213,7 +213,7 @@ public class ConcurrentLongPairSetTest {
         assertTrue(map.capacity() == initCapacity);
     }
 
-    @Test
+    @Test(invocationCount = 10)
     public void testConcurrentExpandAndShrinkAndGet()  throws Throwable {
         ConcurrentLongPairSet set = ConcurrentLongPairSet.newBuilder()
                 .expectedItems(2)
