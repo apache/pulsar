@@ -2124,6 +2124,12 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 public void readEntryFailed(ManagedLedgerException exception, Object ctx) {
                     entryFuture.completeExceptionally(exception);
                 }
+
+                @Override
+                public String toString() {
+                    return String.format("ServerCnx [{}] get largest batch index when possible",
+                            ServerCnx.this.ctx.channel());
+                }
             }, null);
 
             CompletableFuture<Integer> batchSizeFuture = entryFuture.thenApply(entry -> {
