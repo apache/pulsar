@@ -660,8 +660,9 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 List<CompletableFuture<Void>> futures = new ArrayList<>();
                 // send migration url metadata to producers before disconnecting them
                 if (isMigrated()) {
-                    if (isReplicationBacklogExist()) {
-                        log.info("Topic {} is migrated but replication backlog exists. Closing producers.", topic);
+                    if (!shouldProducerMigrate()) {
+                        log.info("Topic {} is migrated but replication-backlog exists or "
+                                + "subs not created. Closing producers.", topic);
                     } else {
                         producers.forEach((__, producer) -> producer.topicMigrated(getMigratedClusterUrl()));
                     }
@@ -2592,6 +2593,20 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         if (!clusterUrl.isPresent()) {
             return CompletableFuture.completedFuture(null);
         }
+
+        if (isReplicated()) {
+            if (isReplicationBacklogExist()) {
+                if (!ledger.isMigrated()) {
+                    log.info("{} applying migration with replication backlog", topic);
+                    ledger.asyncMigrate();
+                }
+                if (log.isDebugEnabled()) {
+                    log.debug("{} has replication backlog and applied migraiton", topic);
+                }
+                return CompletableFuture.completedFuture(null);
+            }
+        }
+
         return initMigration().thenCompose(subCreated -> {
             migrationSubsCreated = true;
             CompletableFuture<?> migrated = !isMigrated() ? ledger.asyncMigrate()
@@ -2603,7 +2618,9 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                     }
                 });
                 return null;
-            }).thenCompose(__ -> checkAndDisconnectReplicators()).thenCompose(__ -> checkAndUnsubscribeSubscriptions());
+            }).thenCompose(__ -> checkAndDisconnectReplicators())
+                    .thenCompose(__ -> checkAndUnsubscribeSubscriptions())
+                    .thenCompose(__ -> checkAndDisconnectProducers());
         });
     }
 
@@ -2710,6 +2727,15 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         return FutureUtil.waitForAll(futures);
     }
 
+    private CompletableFuture<Void> checkAndDisconnectProducers() {
+        List<CompletableFuture<Void>> futures = new ArrayList<>();
+        producers.forEach((name, producer) -> {
+            futures.add(producer.disconnect());
+        });
+
+        return FutureUtil.waitForAll(futures);
+    }
+
     private CompletableFuture<Void> checkAndDisconnectReplicators() {
         List<CompletableFuture<Void>> futures = new ArrayList<>();
         ConcurrentOpenHashMap<String, Replicator> replicators = getReplicators();
@@ -2721,6 +2747,11 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         return FutureUtil.waitForAll(futures);
     }
 
+    public boolean shouldProducerMigrate() {
+        return !isReplicationBacklogExist() && migrationSubsCreated;
+    }
+
+    @Override
     public boolean isReplicationBacklogExist() {
         ConcurrentOpenHashMap<String, Replicator> replicators = getReplicators();
         if (replicators != null) {
