@@ -19,6 +19,7 @@
 package org.apache.pulsar.common.protocol;
 
 import static org.apache.pulsar.common.util.Runnables.catchingAndLoggingThrowables;
+import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.util.concurrent.ScheduledFuture;
 import java.net.SocketAddress;
@@ -53,7 +54,7 @@ public abstract class PulsarHandler extends PulsarDecoder {
     }
 
     @Override
-    protected final void messageReceived() {
+    protected void messageReceived() {
         waitingForPingResponse = false;
     }
 
@@ -117,19 +118,23 @@ public abstract class PulsarHandler extends PulsarDecoder {
                 log.debug("[{}] Sending ping message", ctx.channel());
             }
             waitingForPingResponse = true;
-            ctx.writeAndFlush(Commands.newPing())
-                    .addListener(future -> {
-                        if (!future.isSuccess()) {
-                            log.warn("[{}] Forcing connection to close since cannot send a ping message.",
-                                    ctx.channel(), future.cause());
-                            ctx.close();
-                        }
-                    });
+            sendPing();
         } else {
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Peer doesn't support keep-alive", ctx.channel());
             }
         }
+    }
+
+    protected ChannelFuture sendPing() {
+        return ctx.writeAndFlush(Commands.newPing())
+                .addListener(future -> {
+                    if (!future.isSuccess()) {
+                        log.warn("[{}] Forcing connection to close since cannot send a ping message.",
+                                ctx.channel(), future.cause());
+                        ctx.close();
+                    }
+                });
     }
 
     public void cancelKeepAliveTask() {

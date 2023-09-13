@@ -934,8 +934,7 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
 
     private void tryOverwriteOldProducer(Producer oldProducer, Producer newProducer)
             throws BrokerServiceException {
-        if (newProducer.isSuccessorTo(oldProducer) && !isUserProvidedProducerName(oldProducer)
-                && !isUserProvidedProducerName(newProducer)) {
+        if (newProducer.isSuccessorTo(oldProducer)) {
             oldProducer.close(false);
             if (!producers.replace(newProducer.getProducerName(), oldProducer, newProducer)) {
                 // Met concurrent update, throw exception here so that client can try reconnect later.
@@ -945,6 +944,11 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
                 handleProducerRemoved(oldProducer);
             }
         } else {
+            // If a producer with the same name tries to use a new connection, async check the old connection is
+            // available. The producers related the connection that not available are automatically cleaned up.
+            if (!Objects.equals(oldProducer.getCnx(), newProducer.getCnx())) {
+                oldProducer.getCnx().checkConnectionLiveness();
+            }
             throw new BrokerServiceException.NamingException(
                     "Producer with name '" + newProducer.getProducerName() + "' is already connected to topic");
         }

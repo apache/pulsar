@@ -31,7 +31,6 @@ import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.matches;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -44,10 +43,13 @@ import com.google.common.collect.Maps;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelHandler;
+import io.netty.channel.DefaultChannelId;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.embedded.EmbeddedChannel;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
+import io.vertx.core.impl.ConcurrentHashSet;
+import java.io.Closeable;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.nio.charset.StandardCharsets;
@@ -63,6 +65,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 import org.apache.bookkeeper.common.util.OrderedExecutor;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.AddEntryCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.CloseCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteCursorCallback;
@@ -74,6 +77,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.commons.lang3.mutable.MutableInt;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.TransactionMetadataStoreService;
@@ -96,6 +100,7 @@ import org.apache.pulsar.broker.service.ServerCnx.State;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.service.schema.DefaultSchemaRegistryService;
 import org.apache.pulsar.broker.service.utils.ClientChannelHelper;
+import org.apache.pulsar.client.api.ProducerAccessMode;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.AuthData;
 import org.apache.pulsar.common.api.proto.AuthMethod;
@@ -109,6 +114,7 @@ import org.apache.pulsar.common.api.proto.CommandCloseProducer;
 import org.apache.pulsar.common.api.proto.CommandConnected;
 import org.apache.pulsar.common.api.proto.CommandError;
 import org.apache.pulsar.common.api.proto.CommandLookupTopicResponse;
+import org.apache.pulsar.common.api.proto.CommandPing;
 import org.apache.pulsar.common.api.proto.CommandProducerSuccess;
 import org.apache.pulsar.common.api.proto.CommandSendError;
 import org.apache.pulsar.common.api.proto.CommandSendReceipt;
@@ -127,6 +133,7 @@ import org.apache.pulsar.common.protocol.ByteBufPair;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.Commands.ChecksumType;
 import org.apache.pulsar.common.protocol.PulsarHandler;
+import org.apache.pulsar.common.protocol.schema.EmptyVersion;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
@@ -142,6 +149,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+@Slf4j
 @SuppressWarnings("unchecked")
 @Test(groups = "broker")
 public class ServerCnxTest {
@@ -171,24 +179,23 @@ public class ServerCnxTest {
     private ManagedCursor cursorMock;
     private OrderedExecutor executor;
     private EventLoopGroup eventLoopGroup;
+    private ConcurrentHashSet<EmbeddedChannel> channelsStoppedAnswerHealthCheck = new ConcurrentHashSet<>();
 
     @BeforeMethod(alwaysRun = true)
     public void setup() throws Exception {
+        channelsStoppedAnswerHealthCheck.clear();
         eventLoopGroup = new NioEventLoopGroup();
         executor = OrderedExecutor.newBuilder().numThreads(1).build();
-        svcConfig = spy(ServiceConfiguration.class);
+        svcConfig = new ServiceConfiguration();
         svcConfig.setBrokerShutdownTimeoutMs(0L);
         svcConfig.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
-        svcConfig.setClusterName("pulsar-cluster");
-        pulsar = spyWithClassAndConstructorArgs(PulsarService.class, svcConfig);
-        doReturn(new DefaultSchemaRegistryService()).when(pulsar).getSchemaRegistryService();
-
         svcConfig.setKeepAliveIntervalSeconds(inSec(1, TimeUnit.SECONDS));
         svcConfig.setBacklogQuotaCheckEnabled(false);
+        svcConfig.setClusterName("use");
+        pulsar = spyWithClassAndConstructorArgs(PulsarService.class, svcConfig);
+        doReturn(new DefaultSchemaRegistryService()).when(pulsar).getSchemaRegistryService();
         doReturn(svcConfig).when(pulsar).getConfiguration();
         doReturn(mock(PulsarResources.class)).when(pulsar).getPulsarResources();
-
-        doReturn("use").when(svcConfig).getClusterName();
 
         mlFactoryMock = mock(ManagedLedgerFactory.class);
         doReturn(mlFactoryMock).when(pulsar).getManagedLedgerFactory();
@@ -874,6 +881,136 @@ public class ServerCnxTest {
                     assertEquals(arg.getSubscription(), subscriptionName);
                     return true;
                 }));
+    }
+
+    @Test
+    public void testHandleProducerAfterClientChannelInactive() throws Exception {
+        final String tName = successTopicName;
+        final long producerId = 1;
+        final MutableInt requestId = new MutableInt(1);
+        final MutableInt epoch = new MutableInt(1);
+        final Map<String, String> metadata = Collections.emptyMap();
+        final String pName = "p1";
+        resetChannel();
+        setChannelConnected();
+
+        // The producer register using the first connection.
+        ByteBuf cmdProducer1 = Commands.newProducer(tName, producerId, requestId.incrementAndGet(),
+                pName, false, metadata, null, epoch.incrementAndGet(), false,
+                ProducerAccessMode.Shared, Optional.empty(), false);
+        channel.writeInbound(cmdProducer1);
+        assertTrue(getResponse() instanceof CommandProducerSuccess);
+        PersistentTopic topicRef = (PersistentTopic) brokerService.getTopicReference(tName).get();
+        assertNotNull(topicRef);
+        assertEquals(topicRef.getProducers().size(), 1);
+
+        // Verify the second producer using a new connection will override the producer who using a stopped channel.
+        channelsStoppedAnswerHealthCheck.add(channel);
+        ClientChannel channel2 = new ClientChannel();
+        setChannelConnected(channel2.serverCnx);
+        Awaitility.await().untilAsserted(() -> {
+            channel.runPendingTasks();
+            ByteBuf cmdProducer2 = Commands.newProducer(tName, producerId, requestId.incrementAndGet(),
+                    pName, false, metadata, null, epoch.incrementAndGet(), false,
+                    ProducerAccessMode.Shared, Optional.empty(), false);
+            channel2.channel.writeInbound(cmdProducer2);
+            assertTrue(getResponse(channel2.channel, channel2.clientChannelHelper) instanceof CommandProducerSuccess);
+            assertEquals(topicRef.getProducers().size(), 1);
+        });
+
+        // cleanup.
+        channel.finish();
+        channel2.close();
+    }
+
+    private class ClientChannel implements Closeable {
+        private ClientChannelHelper clientChannelHelper = new ClientChannelHelper();
+        private ServerCnx serverCnx = new ServerCnx(pulsar);
+        private EmbeddedChannel channel = new EmbeddedChannel(DefaultChannelId.newInstance(),
+                new LengthFieldBasedFrameDecoder(
+                        5 * 1024 * 1024,
+                        0,
+                        4,
+                        0,
+                        4),
+                serverCnx);
+        public ClientChannel() {
+            serverCnx.setAuthRole("");
+        }
+        public void close(){
+            if (channel != null && channel.isActive()) {
+                serverCnx.close();
+                channel.close();
+            }
+        }
+    }
+
+    @Test
+    public void testHandleProducer() throws Exception {
+        final String tName = "persistent://public/default/test-topic";
+        final long producerId = 1;
+        final MutableInt requestId = new MutableInt(1);
+        final MutableInt epoch = new MutableInt(1);
+        final Map<String, String> metadata = Collections.emptyMap();
+        final String pName = "p1";
+        resetChannel();
+        assertTrue(channel.isActive());
+        assertEquals(serverCnx.getState(), State.Start);
+
+        // connect.
+        ByteBuf cConnect = Commands.newConnect("none", "", null);
+        channel.writeInbound(cConnect);
+        assertEquals(serverCnx.getState(), State.Connected);
+        assertTrue(getResponse() instanceof CommandConnected);
+
+        // There is an in-progress producer registration.
+        ByteBuf cProducer1 = Commands.newProducer(tName, producerId, requestId.incrementAndGet(),
+                pName, false, metadata, null, epoch.incrementAndGet(), false,
+                ProducerAccessMode.Shared, Optional.empty(), false);
+        CompletableFuture existingFuture1 = new CompletableFuture();
+        serverCnx.getProducers().put(producerId, existingFuture1);
+        channel.writeInbound(cProducer1);
+        Object response1 = getResponse();
+        assertTrue(response1 instanceof CommandError);
+        CommandError error1 = (CommandError) response1;
+        assertEquals(error1.getError().toString(), ServerError.ServiceNotReady.toString());
+        assertTrue(error1.getMessage().contains("already present on the connection"));
+
+        // There is a failed registration.
+        ByteBuf cProducer2 = Commands.newProducer(tName, producerId, requestId.incrementAndGet(),
+                pName, false, metadata, null, epoch.incrementAndGet(), false,
+                ProducerAccessMode.Shared, Optional.empty(), false);
+        CompletableFuture existingFuture2 = new CompletableFuture();
+        existingFuture2.completeExceptionally(new BrokerServiceException.ProducerBusyException("123"));
+        serverCnx.getProducers().put(producerId, existingFuture2);
+
+        channel.writeInbound(cProducer2);
+        Object response2 = getResponse();
+        assertTrue(response2 instanceof CommandError);
+        CommandError error2 = (CommandError) response2;
+        assertEquals(error2.getError().toString(), ServerError.ProducerBusy.toString());
+        assertTrue(error2.getMessage().contains("already failed to register present on the connection"));
+
+        // There is an successful registration.
+        ByteBuf cProducer3 = Commands.newProducer(tName, producerId, requestId.incrementAndGet(),
+                pName, false, metadata, null, epoch.incrementAndGet(), false,
+                ProducerAccessMode.Shared, Optional.empty(), false);
+        CompletableFuture existingFuture3 = new CompletableFuture();
+        org.apache.pulsar.broker.service.Producer serviceProducer =
+                mock(org.apache.pulsar.broker.service.Producer.class);
+        when(serviceProducer.getProducerName()).thenReturn(pName);
+        when(serviceProducer.getSchemaVersion()).thenReturn(new EmptyVersion());
+        existingFuture3.complete(serviceProducer);
+        serverCnx.getProducers().put(producerId, existingFuture3);
+
+        channel.writeInbound(cProducer3);
+        Object response3 = getResponse();
+        assertTrue(response3 instanceof CommandProducerSuccess);
+        CommandProducerSuccess cProducerSuccess = (CommandProducerSuccess) response3;
+        assertEquals(cProducerSuccess.getProducerName(), pName);
+
+        // cleanup.
+        channel.finish();
     }
 
     // This test used to be in the ServerCnxAuthorizationTest class, but it was migrated here because the mocking
@@ -2341,6 +2478,10 @@ public class ServerCnxTest {
     }
 
     protected void setChannelConnected() throws Exception {
+        setChannelConnected(serverCnx);
+    }
+
+    protected void setChannelConnected(ServerCnx serverCnx) throws Exception {
         Field channelState = ServerCnx.class.getDeclaredField("state");
         channelState.setAccessible(true);
         channelState.set(serverCnx, State.Connected);
@@ -2354,13 +2495,31 @@ public class ServerCnxTest {
     }
 
     protected Object getResponse() throws Exception {
+        return getResponse(channel, clientChannelHelper);
+    }
+
+    protected Object getResponse(EmbeddedChannel channel, ClientChannelHelper clientChannelHelper) throws Exception {
         // Wait at most for 10s to get a response
         final long sleepTimeMs = 10;
         final long iterations = TimeUnit.SECONDS.toMillis(10) / sleepTimeMs;
         for (int i = 0; i < iterations; i++) {
             if (!channel.outboundMessages().isEmpty()) {
                 Object outObject = channel.outboundMessages().remove();
-                return clientChannelHelper.getCommand(outObject);
+                Object cmd = clientChannelHelper.getCommand(outObject);
+                if (cmd instanceof CommandPing) {
+                    if (channelsStoppedAnswerHealthCheck.contains(channel)) {
+                        continue;
+                    }
+                    channel.writeAndFlush(Commands.newPong()).addListener(future -> {
+                        if (!future.isSuccess()) {
+                            log.warn("[{}] Forcing connection to close since cannot send a pong message.",
+                                    channel, future.cause());
+                            channel.close();
+                        }
+                    });
+                    continue;
+                }
+                return cmd;
             } else {
                 Thread.sleep(sleepTimeMs);
             }
