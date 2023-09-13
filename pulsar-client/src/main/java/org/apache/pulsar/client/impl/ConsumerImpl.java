@@ -35,6 +35,7 @@ import io.netty.util.Timeout;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.BitSet;
 import java.util.Collections;
 import java.util.HashMap;
@@ -420,7 +421,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 unsubscribeFuture.completeExceptionally(
                     PulsarClientException.wrap(e.getCause(),
                         String.format("Failed to unsubscribe the subscription %s of topic %s",
-                            topicName.toString(), subscription)));
+                                subscription, topicName.toString())));
                 return null;
             });
         } else {
@@ -613,6 +614,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                     retryLetterProducer = client.newProducer(Schema.AUTO_PRODUCE_BYTES(schema))
                             .topic(this.deadLetterPolicy.getRetryLetterTopic())
                             .enableBatching(false)
+                            .enableChunking(true)
                             .blockIfQueueFull(false)
                             .create();
                 }
@@ -1419,7 +1421,9 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
     private ByteBuf processMessageChunk(ByteBuf compressedPayload, MessageMetadata msgMetadata, MessageIdImpl msgId,
             MessageIdData messageId, ClientCnx cnx) {
-
+        if (msgMetadata.getChunkId() != (msgMetadata.getNumChunksFromMsg() - 1)) {
+            increaseAvailablePermits(cnx);
+        }
         // Lazy task scheduling to expire incomplete chunk message
         if (expireTimeOfIncompleteChunkedMessageMillis > 0 && expireChunkMessageTaskScheduled.compareAndSet(false,
                 true)) {
@@ -1433,7 +1437,48 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
         ChunkedMessageCtx chunkedMsgCtx = chunkedMessagesMap.get(msgMetadata.getUuid());
 
-        if (msgMetadata.getChunkId() == 0 && chunkedMsgCtx == null) {
+        if (msgMetadata.getChunkId() == 0) {
+            if (chunkedMsgCtx != null) {
+                // Handle ack hole case when receive duplicated chunks.
+                // There are two situation that receives chunks with the same sequence ID and chunk ID.
+                // Situation 1 - Message redeliver:
+                // For example:
+                //     Chunk-1 sequence ID: 0, chunk ID: 0, msgID: 1:1
+                //     Chunk-2 sequence ID: 0, chunk ID: 1, msgID: 1:2
+                //     Chunk-3 sequence ID: 0, chunk ID: 0, msgID: 1:1
+                //     Chunk-4 sequence ID: 0, chunk ID: 1, msgID: 1:2
+                //     Chunk-5 sequence ID: 0, chunk ID: 2, msgID: 1:3
+                // In this case, chunk-3 and chunk-4 have the same msgID with chunk-1 and chunk-2.
+                // This may be caused by message redeliver, we can't ack any chunk in this case here.
+                // Situation 2 - Corrupted chunk message
+                // For example:
+                //     Chunk-1 sequence ID: 0, chunk ID: 0, msgID: 1:1
+                //     Chunk-2 sequence ID: 0, chunk ID: 1, msgID: 1:2
+                //     Chunk-3 sequence ID: 0, chunk ID: 0, msgID: 1:3
+                //     Chunk-4 sequence ID: 0, chunk ID: 1, msgID: 1:4
+                //     Chunk-5 sequence ID: 0, chunk ID: 2, msgID: 1:5
+                // In this case, all the chunks with different msgIDs and are persistent in the topic.
+                // But Chunk-1 and Chunk-2 belong to a corrupted chunk message that must be skipped since
+                // they will not be delivered to end users. So we should ack them here to avoid ack hole.
+                boolean isCorruptedChunkMessageDetected = Arrays.stream(chunkedMsgCtx.chunkedMessageIds)
+                        .noneMatch(messageId1 -> messageId1 != null && messageId1.ledgerId == messageId.getLedgerId()
+                                && messageId1.entryId == messageId.getEntryId());
+                if (isCorruptedChunkMessageDetected) {
+                    Arrays.stream(chunkedMsgCtx.chunkedMessageIds).forEach(messageId1 -> {
+                        if (messageId1 != null) {
+                            doAcknowledge(messageId1, AckType.Individual, Collections.emptyMap(), null);
+                        }
+                    });
+                }
+                // The first chunk of a new chunked-message received before receiving other chunks of previous
+                // chunked-message
+                // so, remove previous chunked-message from map and release buffer
+                if (chunkedMsgCtx.chunkedMsgBuffer != null) {
+                    ReferenceCountUtil.safeRelease(chunkedMsgCtx.chunkedMsgBuffer);
+                }
+                chunkedMsgCtx.recycle();
+                chunkedMessagesMap.remove(msgMetadata.getUuid());
+            }
             pendingChunkedMessageCount++;
             if (maxPendingChunkedMessage > 0 && pendingChunkedMessageCount > maxPendingChunkedMessage) {
                 removeOldestPendingChunkedMessage();
@@ -1449,9 +1494,36 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         // discard message if chunk is out-of-order
         if (chunkedMsgCtx == null || chunkedMsgCtx.chunkedMsgBuffer == null
                 || msgMetadata.getChunkId() != (chunkedMsgCtx.lastChunkedMessageId + 1)) {
+            // Filter and ack duplicated chunks instead of discard ctx.
+            // For example:
+            //     Chunk-1 sequence ID: 0, chunk ID: 0, msgID: 1:1
+            //     Chunk-2 sequence ID: 0, chunk ID: 1, msgID: 1:2
+            //     Chunk-3 sequence ID: 0, chunk ID: 2, msgID: 1:3
+            //     Chunk-4 sequence ID: 0, chunk ID: 1, msgID: 1:4
+            //     Chunk-5 sequence ID: 0, chunk ID: 2, msgID: 1:5
+            //     Chunk-6 sequence ID: 0, chunk ID: 3, msgID: 1:6
+            // We should filter and ack chunk-4 and chunk-5.
+            if (chunkedMsgCtx != null && msgMetadata.getChunkId() <= chunkedMsgCtx.lastChunkedMessageId) {
+                log.warn("[{}] Receive a duplicated chunk message with messageId [{}], last-chunk-Id [{}], "
+                                + "chunkId [{}], sequenceId [{}]",
+                        msgMetadata.getProducerName(), msgId, chunkedMsgCtx.lastChunkedMessageId,
+                        msgMetadata.getChunkId(), msgMetadata.getSequenceId());
+                compressedPayload.release();
+                // Just like the above logic of receiving the first chunk again. We only ack this chunk in the message
+                // duplication case.
+                boolean isDuplicatedChunk = Arrays.stream(chunkedMsgCtx.chunkedMessageIds)
+                        .noneMatch(messageId1 -> messageId1 != null && messageId1.ledgerId == messageId.getLedgerId()
+                                && messageId1.entryId == messageId.getEntryId());
+                if (isDuplicatedChunk) {
+                    doAcknowledge(msgId, AckType.Individual, Collections.emptyMap(), null);
+                }
+                return null;
+            }
             // means we lost the first chunk: should never happen
-            log.info("Received unexpected chunk messageId {}, last-chunk-id{}, chunkId = {}", msgId,
-                    (chunkedMsgCtx != null ? chunkedMsgCtx.lastChunkedMessageId : null), msgMetadata.getChunkId());
+            log.info("[{}] [{}] Received unexpected chunk messageId {}, last-chunk-id = {}, chunkId = {}, uuid = {}",
+                    topic, subscription, msgId,
+                    (chunkedMsgCtx != null ? chunkedMsgCtx.lastChunkedMessageId : null), msgMetadata.getChunkId(),
+                    msgMetadata.getUuid());
             if (chunkedMsgCtx != null) {
                 if (chunkedMsgCtx.chunkedMsgBuffer != null) {
                     ReferenceCountUtil.safeRelease(chunkedMsgCtx.chunkedMsgBuffer);
@@ -1460,7 +1532,6 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             }
             chunkedMessagesMap.remove(msgMetadata.getUuid());
             compressedPayload.release();
-            increaseAvailablePermits(cnx);
             if (expireTimeOfIncompleteChunkedMessageMillis > 0
                     && System.currentTimeMillis() > (msgMetadata.getPublishTime()
                             + expireTimeOfIncompleteChunkedMessageMillis)) {
@@ -1479,7 +1550,6 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         // if final chunk is not received yet then release payload and return
         if (msgMetadata.getChunkId() != (msgMetadata.getNumChunksFromMsg() - 1)) {
             compressedPayload.release();
-            increaseAvailablePermits(cnx);
             return null;
         }
 
@@ -1739,7 +1809,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         if (conf.getCryptoKeyReader() == null) {
             switch (conf.getCryptoFailureAction()) {
                 case CONSUME:
-                    log.warn("[{}][{}][{}] CryptoKeyReader interface is not implemented. Consuming encrypted message.",
+                    log.debug("[{}][{}][{}] CryptoKeyReader interface is not implemented. Consuming encrypted message.",
                             topic, subscription, consumerName);
                     return payload.retain();
                 case DISCARD:
@@ -2094,6 +2164,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                                     .initialSubscriptionName(this.deadLetterPolicy.getInitialSubscriptionName())
                                     .topic(this.deadLetterPolicy.getDeadLetterTopic())
                                     .blockIfQueueFull(false)
+                                    .enableBatching(false)
+                                    .enableChunking(true)
                                     .createAsync();
                 }
             } finally {
@@ -2148,100 +2220,108 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 new PulsarClientException("Only support seek by messageId or timestamp"));
     }
 
-    private Optional<CompletableFuture<Void>> seekAsyncCheckState(String seekBy) {
-        if (getState() == State.Closing || getState() == State.Closed) {
-            return Optional.of(FutureUtil
-                    .failedFuture(new PulsarClientException.AlreadyClosedException(
-                            String.format("The consumer %s was already closed when seeking the subscription %s of the"
-                                    + " topic %s to %s", consumerName, subscription, topicName.toString(), seekBy))));
-        }
+    private CompletableFuture<Void> seekAsyncInternal(long requestId, ByteBuf seek, MessageId seekId, String seekBy) {
+        AtomicLong opTimeoutMs = new AtomicLong(client.getConfiguration().getOperationTimeoutMs());
+        Backoff backoff = new BackoffBuilder()
+                .setInitialTime(100, TimeUnit.MILLISECONDS)
+                .setMax(opTimeoutMs.get() * 2, TimeUnit.MILLISECONDS)
+                .setMandatoryStop(0, TimeUnit.MILLISECONDS)
+                .create();
 
-        if (!isConnected()) {
-            return Optional.of(FutureUtil.failedFuture(new PulsarClientException(
-                    String.format("The client is not connected to the broker when seeking the subscription %s of the "
-                            + "topic %s to %s", subscription, topicName.toString(), seekBy))));
-        }
-
-        return Optional.empty();
+        CompletableFuture<Void> seekFuture = new CompletableFuture<>();
+        seekAsyncInternal(requestId, seek, seekId, seekBy, backoff, opTimeoutMs, seekFuture);
+        return seekFuture;
     }
 
-    private CompletableFuture<Void> seekAsyncInternal(long requestId, ByteBuf seek, MessageId seekId, String seekBy) {
-        final CompletableFuture<Void> seekFuture = new CompletableFuture<>();
+    private void seekAsyncInternal(long requestId, ByteBuf seek, MessageId seekId, String seekBy,
+                                   final Backoff backoff, final AtomicLong remainingTime,
+                                   CompletableFuture<Void> seekFuture) {
         ClientCnx cnx = cnx();
+        if (isConnected() && cnx != null) {
+            if (!duringSeek.compareAndSet(false, true)) {
+                final String message = String.format(
+                        "[%s][%s] attempting to seek operation that is already in progress (seek by %s)",
+                        topic, subscription, seekBy);
+                log.warn("[{}][{}] Attempting to seek operation that is already in progress, cancelling {}",
+                        topic, subscription, seekBy);
+                seekFuture.completeExceptionally(new IllegalStateException(message));
+                return;
+            }
+            MessageIdAdv originSeekMessageId = seekMessageId;
+            seekMessageId = (MessageIdAdv) seekId;
+            log.info("[{}][{}] Seeking subscription to {}", topic, subscription, seekBy);
 
-        if (!duringSeek.compareAndSet(false, true)) {
-            final String message = String.format(
-                    "[%s][%s] attempting to seek operation that is already in progress (seek by %s)",
-                    topic, subscription, seekBy);
-            log.warn("[{}][{}] Attempting to seek operation that is already in progress, cancelling {}",
-                    topic, subscription, seekBy);
-            seekFuture.completeExceptionally(new IllegalStateException(message));
-            return seekFuture;
+            cnx.sendRequestWithId(seek, requestId).thenRun(() -> {
+                log.info("[{}][{}] Successfully reset subscription to {}", topic, subscription, seekBy);
+                acknowledgmentsGroupingTracker.flushAndClean();
+
+                lastDequeuedMessageId = MessageId.earliest;
+
+                clearIncomingMessages();
+                seekFuture.complete(null);
+            }).exceptionally(e -> {
+                // re-set duringSeek and seekMessageId if seek failed
+                seekMessageId = originSeekMessageId;
+                duringSeek.set(false);
+                log.error("[{}][{}] Failed to reset subscription: {}", topic, subscription, e.getCause().getMessage());
+
+                seekFuture.completeExceptionally(
+                        PulsarClientException.wrap(e.getCause(),
+                                String.format("Failed to seek the subscription %s of the topic %s to %s",
+                                        subscription, topicName.toString(), seekBy)));
+                return null;
+            });
+        } else {
+            long nextDelay = Math.min(backoff.next(), remainingTime.get());
+            if (nextDelay <= 0) {
+                seekFuture.completeExceptionally(
+                        new PulsarClientException.TimeoutException(
+                                String.format("The subscription %s of the topic %s could not seek "
+                                        + "withing configured timeout", subscription, topicName.toString())));
+                return;
+            }
+
+            ((ScheduledExecutorService) client.getScheduledExecutorProvider().getExecutor()).schedule(() -> {
+                log.warn("[{}] [{}] Could not get connection while seek -- Will try again in {} ms",
+                        topic, getHandlerName(), nextDelay);
+                remainingTime.addAndGet(-nextDelay);
+                seekAsyncInternal(requestId, seek, seekId, seekBy, backoff, remainingTime, seekFuture);
+            }, nextDelay, TimeUnit.MILLISECONDS);
         }
-
-        MessageIdAdv originSeekMessageId = seekMessageId;
-        seekMessageId = (MessageIdAdv) seekId;
-        log.info("[{}][{}] Seeking subscription to {}", topic, subscription, seekBy);
-
-        cnx.sendRequestWithId(seek, requestId).thenRun(() -> {
-            log.info("[{}][{}] Successfully reset subscription to {}", topic, subscription, seekBy);
-            acknowledgmentsGroupingTracker.flushAndClean();
-
-            lastDequeuedMessageId = MessageId.earliest;
-
-            clearIncomingMessages();
-            seekFuture.complete(null);
-        }).exceptionally(e -> {
-            // re-set duringSeek and seekMessageId if seek failed
-            seekMessageId = originSeekMessageId;
-            duringSeek.set(false);
-            log.error("[{}][{}] Failed to reset subscription: {}", topic, subscription, e.getCause().getMessage());
-
-            seekFuture.completeExceptionally(
-                PulsarClientException.wrap(e.getCause(),
-                    String.format("Failed to seek the subscription %s of the topic %s to %s",
-                        subscription, topicName.toString(), seekBy)));
-            return null;
-        });
-        return seekFuture;
     }
 
     @Override
     public CompletableFuture<Void> seekAsync(long timestamp) {
         String seekBy = String.format("the timestamp %d", timestamp);
-        return seekAsyncCheckState(seekBy).orElseGet(() -> {
-            long requestId = client.newRequestId();
-            return seekAsyncInternal(requestId, Commands.newSeek(consumerId, requestId, timestamp),
+        long requestId = client.newRequestId();
+        return seekAsyncInternal(requestId, Commands.newSeek(consumerId, requestId, timestamp),
                 MessageId.earliest, seekBy);
-        });
     }
 
     @Override
     public CompletableFuture<Void> seekAsync(MessageId messageId) {
         String seekBy = String.format("the message %s", messageId.toString());
-        return seekAsyncCheckState(seekBy).orElseGet(() -> {
-            long requestId = client.newRequestId();
-            final MessageIdAdv msgId = (MessageIdAdv) messageId;
-            final MessageIdAdv firstChunkMsgId = msgId.getFirstChunkMessageId();
-            final ByteBuf seek;
-            if (msgId.getFirstChunkMessageId() != null) {
-                seek = Commands.newSeek(consumerId, requestId, firstChunkMsgId.getLedgerId(),
-                        firstChunkMsgId.getEntryId(), new long[0]);
+        long requestId = client.newRequestId();
+        final MessageIdAdv msgId = (MessageIdAdv) messageId;
+        final MessageIdAdv firstChunkMsgId = msgId.getFirstChunkMessageId();
+        final ByteBuf seek;
+        if (msgId.getFirstChunkMessageId() != null) {
+            seek = Commands.newSeek(consumerId, requestId, firstChunkMsgId.getLedgerId(),
+                    firstChunkMsgId.getEntryId(), new long[0]);
+        } else {
+            final long[] ackSetArr;
+            if (MessageIdAdvUtils.isBatch(msgId)) {
+                final BitSetRecyclable ackSet = BitSetRecyclable.create();
+                ackSet.set(0, msgId.getBatchSize());
+                ackSet.clear(0, Math.max(msgId.getBatchIndex(), 0));
+                ackSetArr = ackSet.toLongArray();
+                ackSet.recycle();
             } else {
-                final long[] ackSetArr;
-                if (MessageIdAdvUtils.isBatch(msgId)) {
-                    final BitSetRecyclable ackSet = BitSetRecyclable.create();
-                    ackSet.set(0, msgId.getBatchSize());
-                    ackSet.clear(0, Math.max(msgId.getBatchIndex(), 0));
-                    ackSetArr = ackSet.toLongArray();
-                    ackSet.recycle();
-                } else {
-                    ackSetArr = new long[0];
-                }
-                seek = Commands.newSeek(consumerId, requestId, msgId.getLedgerId(), msgId.getEntryId(), ackSetArr);
+                ackSetArr = new long[0];
             }
-            return seekAsyncInternal(requestId, seek, messageId, seekBy);
-        });
+            seek = Commands.newSeek(consumerId, requestId, msgId.getLedgerId(), msgId.getEntryId(), ackSetArr);
+        }
+        return seekAsyncInternal(requestId, seek, messageId, seekBy);
     }
 
     public boolean hasMessageAvailable() throws PulsarClientException {
@@ -2454,9 +2534,9 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 return;
             }
 
+            log.warn("[{}] [{}] Could not get connection while getLastMessageId -- Will try again in {} ms",
+                    topic, getHandlerName(), nextDelay);
             ((ScheduledExecutorService) client.getScheduledExecutorProvider().getExecutor()).schedule(() -> {
-                log.warn("[{}] [{}] Could not get connection while getLastMessageId -- Will try again in {} ms",
-                        topic, getHandlerName(), nextDelay);
                 remainingTime.addAndGet(-nextDelay);
                 internalGetLastMessageIdAsync(backoff, remainingTime, future);
             }, nextDelay, TimeUnit.MILLISECONDS);

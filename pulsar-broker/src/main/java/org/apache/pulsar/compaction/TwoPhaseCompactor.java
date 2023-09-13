@@ -122,26 +122,32 @@ public class TwoPhaseCompactor extends Compactor {
                 () -> FutureUtil.createTimeoutException("Timeout", getClass(), "phaseOneLoop(...)"));
 
         future.thenAcceptAsync(m -> {
-            try {
+            try (m) {
                 MessageId id = m.getMessageId();
                 boolean deletedMessage = false;
                 boolean replaceMessage = false;
                 mxBean.addCompactionReadOp(reader.getTopic(), m.getHeadersAndPayload().readableBytes());
-                if (RawBatchConverter.isReadableBatch(m)) {
+                MessageMetadata metadata = Commands.parseMessageMetadata(m.getHeadersAndPayload());
+                if (RawBatchConverter.isReadableBatch(metadata)) {
                     try {
+                        int numMessagesInBatch = metadata.getNumMessagesInBatch();
+                        int deleteCnt = 0;
                         for (ImmutableTriple<MessageId, String, Integer> e : extractIdsAndKeysAndSizeFromBatch(m)) {
                             if (e != null) {
                                 if (e.getRight() > 0) {
                                     MessageId old = latestForKey.put(e.getMiddle(), e.getLeft());
-                                    replaceMessage = old != null;
+                                    if (old != null) {
+                                        mxBean.addCompactionRemovedEvent(reader.getTopic());
+                                    }
                                 } else {
-                                    deletedMessage = true;
                                     latestForKey.remove(e.getMiddle());
+                                    deleteCnt++;
+                                    mxBean.addCompactionRemovedEvent(reader.getTopic());
                                 }
                             }
-                            if (replaceMessage || deletedMessage) {
-                                mxBean.addCompactionRemovedEvent(reader.getTopic());
-                            }
+                        }
+                        if (deleteCnt == numMessagesInBatch) {
+                            deletedMessage = true;
                         }
                     } catch (IOException ioe) {
                         log.info("Error decoding batch for message {}. Whole batch will be included in output",
@@ -174,8 +180,6 @@ public class TwoPhaseCompactor extends Compactor {
                             lastMessageId,
                             latestForKey, loopPromise);
                 }
-            } finally {
-                m.close();
             }
         }, scheduler).exceptionally(ex -> {
             loopPromise.completeExceptionally(ex);
@@ -201,7 +205,7 @@ public class TwoPhaseCompactor extends Compactor {
         reader.seekAsync(from).thenCompose((v) -> {
             Semaphore outstanding = new Semaphore(MAX_OUTSTANDING);
             CompletableFuture<Void> loopPromise = new CompletableFuture<>();
-            phaseTwoLoop(reader, to, latestForKey, ledger, outstanding, loopPromise);
+            phaseTwoLoop(reader, to, latestForKey, ledger, outstanding, loopPromise, MessageId.earliest);
             return loopPromise;
         }).thenCompose((v) -> closeLedger(ledger))
                 .thenCompose((v) -> reader.acknowledgeCumulativeAsync(lastReadId,
@@ -223,7 +227,8 @@ public class TwoPhaseCompactor extends Compactor {
     }
 
     private void phaseTwoLoop(RawReader reader, MessageId to, Map<String, MessageId> latestForKey,
-                              LedgerHandle lh, Semaphore outstanding, CompletableFuture<Void> promise) {
+                              LedgerHandle lh, Semaphore outstanding, CompletableFuture<Void> promise,
+                              MessageId lastCompactedMessageId) {
         if (promise.isDone()) {
             return;
         }
@@ -232,6 +237,12 @@ public class TwoPhaseCompactor extends Compactor {
                 m.close();
                 return;
             }
+
+            if (m.getMessageId().compareTo(lastCompactedMessageId) <= 0) {
+                phaseTwoLoop(reader, to, latestForKey, lh, outstanding, promise, lastCompactedMessageId);
+                return;
+            }
+
             try {
                 MessageId id = m.getMessageId();
                 Optional<RawMessage> messageToAdd = Optional.empty();
@@ -272,11 +283,14 @@ public class TwoPhaseCompactor extends Compactor {
                                     }
                                 });
                         if (to.equals(id)) {
+                            // make sure all inflight writes have finished
+                            outstanding.acquire(MAX_OUTSTANDING);
                             addFuture.whenComplete((res, exception2) -> {
                                 if (exception2 == null) {
                                     promise.complete(null);
                                 }
                             });
+                            return;
                         }
                     } catch (InterruptedException ie) {
                         Thread.currentThread().interrupt();
@@ -299,7 +313,7 @@ public class TwoPhaseCompactor extends Compactor {
                     }
                     return;
                 }
-                phaseTwoLoop(reader, to, latestForKey, lh, outstanding, promise);
+                phaseTwoLoop(reader, to, latestForKey, lh, outstanding, promise, m.getMessageId());
             } finally {
                 m.close();
             }

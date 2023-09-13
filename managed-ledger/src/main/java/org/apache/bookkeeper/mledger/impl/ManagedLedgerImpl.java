@@ -1240,6 +1240,10 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
         PositionImpl nextPos = getNextValidPosition(pos);
 
+        if (nextPos.compareTo(lastConfirmedEntry) > 0) {
+            return CompletableFuture.completedFuture(-1L);
+        }
+
         asyncReadEntry(nextPos, new ReadEntryCallback() {
             @Override
             public void readEntryComplete(Entry entry, Object ctx) {
@@ -3546,6 +3550,34 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
 
         return positionToReturn;
+    }
+
+    public boolean isNoMessagesAfterPos(PositionImpl pos) {
+        PositionImpl lac = (PositionImpl) getLastConfirmedEntry();
+        return isNoMessagesAfterPosForSpecifiedLac(lac, pos);
+    }
+
+    private boolean isNoMessagesAfterPosForSpecifiedLac(PositionImpl specifiedLac, PositionImpl pos) {
+        if (pos.compareTo(specifiedLac) >= 0) {
+            return true;
+        }
+        if (specifiedLac.getEntryId() < 0) {
+            // Calculate the meaningful LAC.
+            PositionImpl actLac = getPreviousPosition(specifiedLac);
+            if (actLac.getEntryId() >= 0) {
+                return pos.compareTo(actLac) >= 0;
+            } else {
+                // If the actual LAC is still not meaningful.
+                if (actLac.equals(specifiedLac)) {
+                    // No entries in maneged ledger.
+                    return true;
+                } else {
+                    // Continue to find a valid LAC.
+                    return isNoMessagesAfterPosForSpecifiedLac(actLac, pos);
+                }
+            }
+        }
+        return false;
     }
 
     /**

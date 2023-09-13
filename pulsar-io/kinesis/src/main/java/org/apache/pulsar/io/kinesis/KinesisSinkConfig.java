@@ -18,13 +18,14 @@
  */
 package org.apache.pulsar.io.kinesis;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
-import java.io.File;
-import java.io.IOException;
+import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import java.io.Serializable;
+import java.util.Map;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
+import org.apache.pulsar.io.common.IOConfigUtils;
+import org.apache.pulsar.io.core.SinkContext;
 import org.apache.pulsar.io.core.annotations.FieldDoc;
 
 @Data
@@ -103,9 +104,12 @@ public class KinesisSinkConfig extends BaseKinesisConfig implements Serializable
             help = "The maximum delay(in milliseconds) between retries.")
     private long retryMaxDelayInMillis = 60000;
 
-    public static KinesisSinkConfig load(String yamlFile) throws IOException {
-        ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
-        return mapper.readValue(new File(yamlFile), KinesisSinkConfig.class);
+    public static KinesisSinkConfig load(Map<String, Object> config, SinkContext sinkContext) {
+        KinesisSinkConfig kinesisSinkConfig = IOConfigUtils.loadWithSecrets(config, KinesisSinkConfig.class, sinkContext);
+        checkArgument(isNotBlank(kinesisSinkConfig.getAwsRegion())
+                        || (isNotBlank(kinesisSinkConfig.getAwsEndpoint()) && isNotBlank(kinesisSinkConfig.getCloudwatchEndpoint())),
+                "Either \"awsRegion\" must be set OR all of [\"awsEndpoint\", \"cloudwatchEndpoint\"] must be set.");
+        return kinesisSinkConfig;
     }
 
     public enum MessageFormat {

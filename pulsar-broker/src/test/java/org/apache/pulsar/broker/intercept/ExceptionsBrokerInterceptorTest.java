@@ -46,7 +46,6 @@ public class ExceptionsBrokerInterceptorTest extends ProducerConsumerBase {
     public void setup() throws Exception {
         conf.setSystemTopicEnabled(false);
         conf.setTopicLevelPoliciesEnabled(false);
-        this.conf.setDisableBrokerInterceptors(false);
 
 
         this.enableBrokerInterceptor = true;
