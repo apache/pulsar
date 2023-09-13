@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.auth;
 
 import static org.apache.pulsar.broker.BrokerTestUtil.spyWithoutRecordingInvocations;
+import static org.testng.Assert.assertEquals;
 import com.google.common.collect.Sets;
 import java.lang.reflect.Field;
 import java.net.InetSocketAddress;
@@ -37,11 +38,14 @@ import java.util.function.Consumer;
 import java.util.function.Predicate;
 import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.container.TimeoutHandler;
+import lombok.AllArgsConstructor;
+import lombok.Data;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationProviderTls;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.BrokerTestBase;
+import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.testcontext.PulsarTestContext;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminBuilder;
@@ -51,6 +55,7 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.auth.AuthenticationDisabled;
 import org.apache.pulsar.client.impl.auth.AuthenticationTls;
+import org.apache.pulsar.client.impl.ProducerImpl;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
@@ -59,6 +64,7 @@ import org.apache.pulsar.tests.TestRetrySupport;
 import org.apache.pulsar.utils.ResourceUtils;
 import org.apache.zookeeper.MockZooKeeper;
 import org.awaitility.Awaitility;
+import org.awaitility.reflect.WhiteboxImpl;
 import org.mockito.Mockito;
 import org.mockito.internal.util.MockUtil;
 import org.slf4j.Logger;
@@ -661,6 +667,24 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
                 {1, 1, 0},
                 {1, 0, 1}
         };
+    }
+
+    protected ServiceProducer getServiceProducer(ProducerImpl clientProducer, String topicName) {
+        PersistentTopic persistentTopic =
+                (PersistentTopic) pulsar.getBrokerService().getTopic(topicName, false).join().get();
+        org.apache.pulsar.broker.service.Producer serviceProducer =
+                persistentTopic.getProducers().get(clientProducer.getProducerName());
+        long clientProducerId = WhiteboxImpl.getInternalState(clientProducer, "producerId");
+        assertEquals(serviceProducer.getProducerId(), clientProducerId);
+        assertEquals(serviceProducer.getEpoch(), clientProducer.getConnectionHandler().getEpoch());
+        return new ServiceProducer(serviceProducer, persistentTopic);
+    }
+
+    @Data
+    @AllArgsConstructor
+    public static class ServiceProducer {
+        private org.apache.pulsar.broker.service.Producer serviceProducer;
+        private PersistentTopic persistentTopic;
     }
 
     private static final Logger log = LoggerFactory.getLogger(MockedPulsarServiceBaseTest.class);
