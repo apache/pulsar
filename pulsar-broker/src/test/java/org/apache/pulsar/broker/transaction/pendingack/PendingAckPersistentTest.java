@@ -117,25 +117,17 @@ public class PendingAckPersistentTest extends TransactionTestBase {
                 (TransactionPendingAckStoreProvider) transactionPendingAckStoreProviderField
                         .get(pulsarServiceList.get(0));
         TransactionPendingAckStoreProvider mockProvider = mock(pendingAckStoreProvider.getClass());
-        when(mockProvider.checkInitializedBefore(any())).thenReturn(FutureUtil.failedFuture(new Exception()));
+        when(mockProvider.checkInitializedBefore(any()))
+                .thenReturn(FutureUtil.failedFuture(new Exception("mock fail")))
+                .thenReturn(CompletableFuture.completedFuture(false));
         transactionPendingAckStoreProviderField.set(pulsarServiceList.get(0), mockProvider);
-        try {
-            Awaitility.await().atMost(1, TimeUnit.SECONDS).until(() -> {
-                pulsarClient.newConsumer()
-                        .subscriptionName("subName2")
-                        .topic(topic)
-                        .subscribe();
-                return true;
-            });
-            fail();
-        } catch (Exception e) {
-        }
-        // Correct the transactionPendingAckStoreProvider::checkInitializedBefore.
-        when(mockProvider.checkInitializedBefore(any())).thenReturn(CompletableFuture.completedFuture(false));
-        pulsarClient.newConsumer()
-                .subscriptionName("subName2")
-                .topic(topic)
-                .subscribe();
+        Awaitility.await().until(() -> {
+            pulsarClient.newConsumer()
+                    .subscriptionName("subName2")
+                    .topic(topic)
+                    .subscribe();
+            return true;
+        });
     }
 
     @Test
