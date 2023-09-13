@@ -2419,8 +2419,8 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
             dynamic = true,
             category = CATEGORY_LOAD_BALANCER,
-            doc = "Direct Memory Resource Usage Weight. Direct memory usage cannot accurately reflect the " +
-                    "machine's load, and it is not recommended to use it to score the machine's load."
+            doc = "Direct Memory Resource Usage Weight. Direct memory usage cannot accurately reflect the "
+                    + "machine's load, and it is not recommended to use it to score the machine's load."
     )
     private double loadBalancerDirectMemoryResourceWeight = 0;
 
