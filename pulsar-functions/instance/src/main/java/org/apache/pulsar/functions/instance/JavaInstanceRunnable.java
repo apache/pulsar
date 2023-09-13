@@ -347,12 +347,23 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                 }
 
                 if (deathException != null) {
+                    // Ideally the current java instance thread will be interrupted when the deathException is set.
+                    // But if the CompletableFuture returned by the Pulsar Function is completed exceptionally(the
+                    // function has invoked the fatal method) before being put into the JavaInstance
+                    // .pendingAsyncRequests, the interrupted exception may be thrown when putting this future to
+                    // JavaInstance.pendingAsyncRequests. The interrupted exception would be caught by the JavaInstance
+                    // and be skipped.
+                    // Therefore, we need to handle this case by checking the deathException here and rethrow it.
                     throw deathException;
                 }
             }
         } catch (Throwable t) {
             if (deathException != null) {
-                log.info("Fatal exception occurred in the instance", deathException);
+                log.error("[{}] Fatal exception occurred in the instance", FunctionCommon.getFullyQualifiedInstanceId(
+                        instanceConfig.getFunctionDetails().getTenant(),
+                        instanceConfig.getFunctionDetails().getNamespace(),
+                        instanceConfig.getFunctionDetails().getName(),
+                        instanceConfig.getInstanceId()), deathException);
             } else {
                 log.error("[{}] Uncaught exception in Java Instance", FunctionCommon.getFullyQualifiedInstanceId(
                         instanceConfig.getFunctionDetails().getTenant(),
