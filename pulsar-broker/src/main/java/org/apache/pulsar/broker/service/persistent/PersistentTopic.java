@@ -3123,7 +3123,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 // if AutoSkipNonRecoverableData is set to true, just return true here.
                 return true;
             } else {
-                log.warn("[{}] Error while getting the oldest message", topic, e);
+                log.warn("[{}] [{}] Error while getting the oldest message", topic, cursor.toString(), e);
             }
         } finally {
             if (entry != null) {
