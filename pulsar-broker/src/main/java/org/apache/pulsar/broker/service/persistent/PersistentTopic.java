@@ -2680,7 +2680,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                         (int) (messageTTLInSeconds * MESSAGE_EXPIRY_THRESHOLD), entryTimestamp);
             }
         } catch (Exception e) {
-            log.warn("[{}] Error while getting the oldest message", topic, e);
+            log.warn("[{}] [{}] Error while getting the oldest message", topic, cursor.toString(), e);
         } finally {
             if (entry != null) {
                 entry.release();

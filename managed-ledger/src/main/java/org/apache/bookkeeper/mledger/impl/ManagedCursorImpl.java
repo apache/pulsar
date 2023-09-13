@@ -751,6 +751,11 @@ public class ManagedCursorImpl implements ManagedCursor {
                 result.entry = entry;
                 counter.countDown();
             }
+
+            @Override
+            public String toString() {
+                return String.format("Cursor [{}] get Nth entry", ManagedCursorImpl.this);
+            }
         }, null);
 
         counter.await(ledger.getConfig().getMetadataOperationsTimeoutSeconds(), TimeUnit.SECONDS);
@@ -1447,6 +1452,11 @@ public class ManagedCursorImpl implements ManagedCursor {
                 if (--pendingCallbacks == 0) {
                     callback.readEntriesFailed(exception.get(), ctx);
                 }
+            }
+
+            @Override
+            public String toString() {
+                return String.format("Cursor [{}] async replay entries", ManagedCursorImpl.this);
             }
         };
 
