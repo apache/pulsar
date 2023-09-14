@@ -23,12 +23,14 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import com.google.protobuf.TextFormat;
+import java.lang.reflect.Field;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -54,6 +56,7 @@ import org.apache.bookkeeper.replication.ReplicationException.UnavailableExcepti
 import org.apache.bookkeeper.util.BookKeeperConstants;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.metadata.BaseMetadataStoreTest;
+import org.apache.pulsar.metadata.api.GetResult;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.NotificationType;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
@@ -294,6 +297,69 @@ public class LedgerUnderreplicationManagerTest extends BaseMetadataStoreTest {
 
         Long l = f.get(5, TimeUnit.SECONDS);
         assertEquals(l, lB.get(), "Should be the ledger I marked");
+    }
+
+
+    @Test(timeOut = 10000)
+    public void testZkMetasStoreMarkReplicatedDeleteEmptyParentNodes() throws Exception {
+        methodSetup(stringSupplier(() -> zks.getConnectionString()));
+
+        String missingReplica = "localhost:3181";
+
+        @Cleanup
+        LedgerUnderreplicationManager m1 = lmf.newLedgerUnderreplicationManager();
+
+        Long ledgerA = 0xfeadeefdacL;
+        m1.markLedgerUnderreplicated(ledgerA, missingReplica);
+
+        Field storeField = m1.getClass().getDeclaredField("store");
+        storeField.setAccessible(true);
+        MetadataStoreExtended metadataStore = (MetadataStoreExtended) storeField.get(m1);
+
+        String fiveLevelPath = PulsarLedgerUnderreplicationManager.getUrLedgerPath(urLedgerPath, ledgerA);
+        Optional<GetResult> getResult = metadataStore.get(fiveLevelPath).get(1, TimeUnit.SECONDS);
+        assertTrue(getResult.isPresent());
+
+        String fourLevelPath = fiveLevelPath.substring(0, fiveLevelPath.lastIndexOf("/"));
+        getResult = metadataStore.get(fourLevelPath).get(1, TimeUnit.SECONDS);
+        assertTrue(getResult.isPresent());
+
+        String threeLevelPath = fourLevelPath.substring(0, fourLevelPath.lastIndexOf("/"));
+        getResult = metadataStore.get(threeLevelPath).get(1, TimeUnit.SECONDS);
+        assertTrue(getResult.isPresent());
+
+        String twoLevelPath = fourLevelPath.substring(0, threeLevelPath.lastIndexOf("/"));
+        getResult = metadataStore.get(twoLevelPath).get(1, TimeUnit.SECONDS);
+        assertTrue(getResult.isPresent());
+
+        String oneLevelPath = fourLevelPath.substring(0, twoLevelPath.lastIndexOf("/"));
+        getResult = metadataStore.get(oneLevelPath).get(1, TimeUnit.SECONDS);
+        assertTrue(getResult.isPresent());
+
+        getResult = metadataStore.get(urLedgerPath).get(1, TimeUnit.SECONDS);
+        assertTrue(getResult.isPresent());
+
+        long ledgerToRereplicate = m1.getLedgerToRereplicate();
+        assertEquals(ledgerToRereplicate, ledgerA);
+        m1.markLedgerReplicated(ledgerA);
+
+        getResult = metadataStore.get(fiveLevelPath).get(1, TimeUnit.SECONDS);
+        assertFalse(getResult.isPresent());
+
+        getResult = metadataStore.get(fourLevelPath).get(1, TimeUnit.SECONDS);
+        assertFalse(getResult.isPresent());
+
+        getResult = metadataStore.get(threeLevelPath).get(1, TimeUnit.SECONDS);
+        assertFalse(getResult.isPresent());
+
+        getResult = metadataStore.get(twoLevelPath).get(1, TimeUnit.SECONDS);
+        assertFalse(getResult.isPresent());
+
+        getResult = metadataStore.get(oneLevelPath).get(1, TimeUnit.SECONDS);
+        assertFalse(getResult.isPresent());
+
+        getResult = metadataStore.get(urLedgerPath).get(1, TimeUnit.SECONDS);
+        assertTrue(getResult.isPresent());
     }
 
     /**
