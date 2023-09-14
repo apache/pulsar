@@ -1000,7 +1000,7 @@ public class ServerCnxTest {
         channelsStoppedAnswerHealthCheck.add(channel);
         ClientChannel channel2 = new ClientChannel();
         setChannelConnected(channel2.serverCnx);
-        Awaitility.await().atMost(Duration.ofSeconds(600)).untilAsserted(() -> {
+        Awaitility.await().atMost(Duration.ofSeconds(15)).untilAsserted(() -> {
             channel.runPendingTasks();
             ByteBuf cmdProducer2 = Commands.newProducer(tName, producerId, requestId.incrementAndGet(),
                     pName, false, metadata, null, epoch.incrementAndGet(), false,
@@ -1041,7 +1041,7 @@ public class ServerCnxTest {
         channelsStoppedAnswerHealthCheck.add(channel);
         ClientChannel channel2 = new ClientChannel();
         setChannelConnected(channel2.serverCnx);
-        Awaitility.await().atMost(30, TimeUnit.SECONDS).untilAsserted(() -> {
+        Awaitility.await().atMost(Duration.ofSeconds(15)).untilAsserted(() -> {
             channel.runPendingTasks();
             ByteBuf cmdSubscribe2 = Commands.newSubscribe(tName, sName, consumerId, requestId.incrementAndGet(),
                     CommandSubscribe.SubType.Exclusive, 0, cName2, 0);
