@@ -45,6 +45,7 @@ import static org.testng.Assert.assertTrue;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelHandler;
+import io.netty.channel.DefaultChannelId;
 import io.netty.channel.embedded.EmbeddedChannel;
 import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
 import io.vertx.core.impl.ConcurrentHashSet;
@@ -52,6 +53,7 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -99,6 +101,7 @@ import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.service.utils.ClientChannelHelper;
 import org.apache.pulsar.client.api.ProducerAccessMode;
 import org.apache.pulsar.client.api.transaction.TxnID;
+import org.apache.pulsar.client.util.ConsumerName;
 import org.apache.pulsar.common.api.AuthData;
 import org.apache.pulsar.common.api.proto.AuthMethod;
 import org.apache.pulsar.common.api.proto.BaseCommand;
@@ -997,7 +1000,8 @@ public class ServerCnxTest {
         channelsStoppedAnswerHealthCheck.add(channel);
         ClientChannel channel2 = new ClientChannel();
         setChannelConnected(channel2.serverCnx);
-        Awaitility.await().untilAsserted(() -> {
+        Awaitility.await().atMost(Duration.ofSeconds(600)).untilAsserted(() -> {
+            channel.runPendingTasks();
             ByteBuf cmdProducer2 = Commands.newProducer(tName, producerId, requestId.incrementAndGet(),
                     pName, false, metadata, null, epoch.incrementAndGet(), false,
                     ProducerAccessMode.Shared, Optional.empty(), false);
@@ -1011,10 +1015,52 @@ public class ServerCnxTest {
         channel2.close();
     }
 
+    @Test
+    public void testHandleConsumerAfterClientChannelInactive() throws Exception {
+        final String tName = successTopicName;
+        final long consumerId = 1;
+        final MutableInt requestId = new MutableInt(1);
+        final String sName = successSubName;
+        final String cName1 = ConsumerName.generateRandomName();
+        final String cName2 = ConsumerName.generateRandomName();
+        resetChannel();
+        setChannelConnected();
+
+        // The producer register using the first connection.
+        ByteBuf cmdSubscribe1 = Commands.newSubscribe(tName, sName, consumerId, requestId.incrementAndGet(),
+                SubType.Exclusive, 0, cName1, 0);
+        channel.writeInbound(cmdSubscribe1);
+        assertTrue(getResponse() instanceof CommandSuccess);
+        PersistentTopic topicRef = (PersistentTopic) brokerService.getTopicReference(tName).get();
+        assertNotNull(topicRef);
+        assertNotNull(topicRef.getSubscription(sName).getConsumers());
+        assertEquals(topicRef.getSubscription(sName).getConsumers().size(), 1);
+        assertEquals(topicRef.getSubscription(sName).getConsumers().iterator().next().consumerName(), cName1);
+
+        // Verify the second producer using a new connection will override the producer who using a stopped channel.
+        channelsStoppedAnswerHealthCheck.add(channel);
+        ClientChannel channel2 = new ClientChannel();
+        setChannelConnected(channel2.serverCnx);
+        Awaitility.await().atMost(30, TimeUnit.SECONDS).untilAsserted(() -> {
+            channel.runPendingTasks();
+            ByteBuf cmdSubscribe2 = Commands.newSubscribe(tName, sName, consumerId, requestId.incrementAndGet(),
+                    CommandSubscribe.SubType.Exclusive, 0, cName2, 0);
+            channel2.channel.writeInbound(cmdSubscribe2);
+            assertTrue(getResponse(channel2.channel, channel2.clientChannelHelper) instanceof CommandSuccess);
+            assertEquals(topicRef.getSubscription(sName).getConsumers().size(), 1);
+            assertEquals(topicRef.getSubscription(sName).getConsumers().iterator().next().consumerName(), cName2);
+        });
+
+        // cleanup.
+        channel.finish();
+        channel2.close();
+    }
+
     private class ClientChannel implements Closeable {
         private ClientChannelHelper clientChannelHelper = new ClientChannelHelper();
         private ServerCnx serverCnx = new ServerCnx(pulsar);
-        private EmbeddedChannel channel = new EmbeddedChannel(new LengthFieldBasedFrameDecoder(
+        private EmbeddedChannel channel = new EmbeddedChannel(DefaultChannelId.newInstance(),
+                new LengthFieldBasedFrameDecoder(
                 5 * 1024 * 1024,
                 0,
                 4,
