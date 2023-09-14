@@ -59,6 +59,7 @@ public class BrokerOperabilityMetrics {
     }
 
     private void generate() {
+        reset();
         metricsList.add(getTopicLoadMetrics());
         metricsList.add(getConnectionMetrics());
     }
