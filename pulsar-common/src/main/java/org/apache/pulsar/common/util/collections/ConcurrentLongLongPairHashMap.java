@@ -306,6 +306,8 @@ public class ConcurrentLongLongPairHashMap {
     private static final class Section extends StampedLock {
         // Keys and values are stored interleaved in the table array
         private volatile long[] table;
+        // each item takes 4 elements of the table
+        private static final int ITEM_SIZE = 4;
 
         private volatile int capacity;
         private final int initCapacity;
@@ -326,7 +328,7 @@ public class ConcurrentLongLongPairHashMap {
                 float expandFactor, float shrinkFactor) {
             this.capacity = alignToPowerOfTwo(capacity);
             this.initCapacity = this.capacity;
-            this.table = new long[4 * this.capacity];
+            this.table = new long[ITEM_SIZE * this.capacity];
             this.size = 0;
             this.usedBuckets = 0;
             this.autoShrink = autoShrink;
@@ -342,15 +344,15 @@ public class ConcurrentLongLongPairHashMap {
         LongPair get(long key1, long key2, int keyHash) {
             long stamp = tryOptimisticRead();
             boolean acquiredLock = false;
-            int bucket = signSafeMod(keyHash, capacity);
+            int bucketIndex = signSafeMod(keyHash, capacity) * ITEM_SIZE;
 
             try {
                 while (true) {
                     // First try optimistic locking
-                    long storedKey1 = table[bucket];
-                    long storedKey2 = table[bucket + 1];
-                    long storedValue1 = table[bucket + 2];
-                    long storedValue2 = table[bucket + 3];
+                    long storedKey1 = table[bucketIndex];
+                    long storedKey2 = table[bucketIndex + 1];
+                    long storedValue1 = table[bucketIndex + 2];
+                    long storedValue2 = table[bucketIndex + 3];
 
                     if (!acquiredLock && validate(stamp)) {
                         // The values we have read are consistent
@@ -366,11 +368,11 @@ public class ConcurrentLongLongPairHashMap {
                             stamp = readLock();
                             acquiredLock = true;
 
-                            bucket = signSafeMod(keyHash, capacity);
-                            storedKey1 = table[bucket];
-                            storedKey2 = table[bucket + 1];
-                            storedValue1 = table[bucket + 2];
-                            storedValue2 = table[bucket + 3];
+                            bucketIndex = signSafeMod(keyHash, capacity) * ITEM_SIZE;
+                            storedKey1 = table[bucketIndex];
+                            storedKey2 = table[bucketIndex + 1];
+                            storedValue1 = table[bucketIndex + 2];
+                            storedValue2 = table[bucketIndex + 3];
                         }
 
                         if (key1 == storedKey1 && key2 == storedKey2) {
@@ -381,7 +383,7 @@ public class ConcurrentLongLongPairHashMap {
                         }
                     }
 
-                    bucket = (bucket + 4) & (table.length - 1);
+                    bucketIndex = (bucketIndex + ITEM_SIZE) & (table.length - 1);
                 }
             } finally {
                 if (acquiredLock) {
@@ -392,21 +394,21 @@ public class ConcurrentLongLongPairHashMap {
 
         boolean put(long key1, long key2, long value1, long value2, int keyHash, boolean onlyIfAbsent) {
             long stamp = writeLock();
-            int bucket = signSafeMod(keyHash, capacity);
+            int bucketIndex = signSafeMod(keyHash, capacity) * ITEM_SIZE;
 
             // Remember where we find the first available spot
             int firstDeletedKey = -1;
 
             try {
                 while (true) {
-                    long storedKey1 = table[bucket];
-                    long storedKey2 = table[bucket + 1];
+                    long storedKey1 = table[bucketIndex];
+                    long storedKey2 = table[bucketIndex + 1];
 
                     if (key1 == storedKey1 && key2 == storedKey2) {
                         if (!onlyIfAbsent) {
                             // Over written an old value for same key
-                            table[bucket + 2] = value1;
-                            table[bucket + 3] = value2;
+                            table[bucketIndex + 2] = value1;
+                            table[bucketIndex + 3] = value2;
                             return true;
                         } else {
                             return false;
@@ -415,25 +417,25 @@ public class ConcurrentLongLongPairHashMap {
                         // Found an empty bucket. This means the key is not in the map. If we've already seen a deleted
                         // key, we should write at that position
                         if (firstDeletedKey != -1) {
-                            bucket = firstDeletedKey;
+                            bucketIndex = firstDeletedKey;
                         } else {
                             ++usedBuckets;
                         }
 
-                        table[bucket] = key1;
-                        table[bucket + 1] = key2;
-                        table[bucket + 2] = value1;
-                        table[bucket + 3] = value2;
+                        table[bucketIndex] = key1;
+                        table[bucketIndex + 1] = key2;
+                        table[bucketIndex + 2] = value1;
+                        table[bucketIndex + 3] = value2;
                         SIZE_UPDATER.incrementAndGet(this);
                         return true;
                     } else if (storedKey1 == DeletedKey) {
                         // The bucket contained a different deleted key
                         if (firstDeletedKey == -1) {
-                            firstDeletedKey = bucket;
+                            firstDeletedKey = bucketIndex;
                         }
                     }
 
-                    bucket = (bucket + 4) & (table.length - 1);
+                    bucketIndex = (bucketIndex + ITEM_SIZE) & (table.length - 1);
                 }
             } finally {
                 if (usedBuckets > resizeThresholdUp) {
@@ -452,19 +454,19 @@ public class ConcurrentLongLongPairHashMap {
 
         private boolean remove(long key1, long key2, long value1, long value2, int keyHash) {
             long stamp = writeLock();
-            int bucket = signSafeMod(keyHash, capacity);
+            int bucketIndex = signSafeMod(keyHash, capacity) * ITEM_SIZE;
 
             try {
                 while (true) {
-                    long storedKey1 = table[bucket];
-                    long storedKey2 = table[bucket + 1];
-                    long storedValue1 = table[bucket + 2];
-                    long storedValue2 = table[bucket + 3];
+                    long storedKey1 = table[bucketIndex];
+                    long storedKey2 = table[bucketIndex + 1];
+                    long storedValue1 = table[bucketIndex + 2];
+                    long storedValue2 = table[bucketIndex + 3];
                     if (key1 == storedKey1 && key2 == storedKey2) {
                         if (value1 == ValueNotFound || (value1 == storedValue1 && value2 == storedValue2)) {
                             SIZE_UPDATER.decrementAndGet(this);
 
-                            cleanBucket(bucket);
+                            cleanBucketIndex(bucketIndex);
                             return true;
                         } else {
                             return false;
@@ -474,7 +476,7 @@ public class ConcurrentLongLongPairHashMap {
                         return false;
                     }
 
-                    bucket = (bucket + 4) & (table.length - 1);
+                    bucketIndex = (bucketIndex + ITEM_SIZE) & (table.length - 1);
                 }
 
             } finally {
@@ -499,31 +501,31 @@ public class ConcurrentLongLongPairHashMap {
             }
         }
 
-        private void cleanBucket(int bucket) {
-            int nextInArray = (bucket + 4) & (table.length - 1);
+        private void cleanBucketIndex(int bucketIndex) {
+            int nextInArray = (bucketIndex + ITEM_SIZE) & (table.length - 1);
             if (table[nextInArray] == EmptyKey) {
-                table[bucket] = EmptyKey;
-                table[bucket + 1] = EmptyKey;
-                table[bucket + 2] = ValueNotFound;
-                table[bucket + 3] = ValueNotFound;
+                table[bucketIndex] = EmptyKey;
+                table[bucketIndex + 1] = EmptyKey;
+                table[bucketIndex + 2] = ValueNotFound;
+                table[bucketIndex + 3] = ValueNotFound;
                 --usedBuckets;
 
                 // Cleanup all the buckets that were in `DeletedKey` state, so that we can reduce unnecessary expansions
-                bucket = (bucket - 4) & (table.length - 1);
-                while (table[bucket] == DeletedKey) {
-                    table[bucket] = EmptyKey;
-                    table[bucket + 1] = EmptyKey;
-                    table[bucket + 2] = ValueNotFound;
-                    table[bucket + 3] = ValueNotFound;
+                bucketIndex = (bucketIndex - ITEM_SIZE) & (table.length - 1);
+                while (table[bucketIndex] == DeletedKey) {
+                    table[bucketIndex] = EmptyKey;
+                    table[bucketIndex + 1] = EmptyKey;
+                    table[bucketIndex + 2] = ValueNotFound;
+                    table[bucketIndex + 3] = ValueNotFound;
                     --usedBuckets;
 
-                    bucket = (bucket - 4) & (table.length - 1);
+                    bucketIndex = (bucketIndex - ITEM_SIZE) & (table.length - 1);
                 }
             } else {
-                table[bucket] = DeletedKey;
-                table[bucket + 1] = DeletedKey;
-                table[bucket + 2] = ValueNotFound;
-                table[bucket + 3] = ValueNotFound;
+                table[bucketIndex] = DeletedKey;
+                table[bucketIndex + 1] = DeletedKey;
+                table[bucketIndex + 2] = ValueNotFound;
+                table[bucketIndex + 3] = ValueNotFound;
             }
         }
 
@@ -560,21 +562,21 @@ public class ConcurrentLongLongPairHashMap {
                 }
 
                 // Go through all the buckets for this section
-                for (int bucket = 0; bucket < table.length; bucket += 4) {
-                    long storedKey1 = table[bucket];
-                    long storedKey2 = table[bucket + 1];
-                    long storedValue1 = table[bucket + 2];
-                    long storedValue2 = table[bucket + 3];
+                for (int bucketIndex = 0; bucketIndex < table.length; bucketIndex += ITEM_SIZE) {
+                    long storedKey1 = table[bucketIndex];
+                    long storedKey2 = table[bucketIndex + 1];
+                    long storedValue1 = table[bucketIndex + 2];
+                    long storedValue2 = table[bucketIndex + 3];
 
                     if (!acquiredReadLock && !validate(stamp)) {
                         // Fallback to acquiring read lock
                         stamp = readLock();
                         acquiredReadLock = true;
 
-                        storedKey1 = table[bucket];
-                        storedKey2 = table[bucket + 1];
-                        storedValue1 = table[bucket + 2];
-                        storedValue2 = table[bucket + 3];
+                        storedKey1 = table[bucketIndex];
+                        storedKey2 = table[bucketIndex + 1];
+                        storedValue1 = table[bucketIndex + 2];
+                        storedValue2 = table[bucketIndex + 3];
                     }
 
                     if (storedKey1 != DeletedKey && storedKey1 != EmptyKey) {
@@ -589,11 +591,11 @@ public class ConcurrentLongLongPairHashMap {
         }
 
         private void rehash(int newCapacity) {
-            long[] newTable = new long[4 * newCapacity];
+            long[] newTable = new long[ITEM_SIZE * newCapacity];
             Arrays.fill(newTable, EmptyKey);
 
             // Re-hash table
-            for (int i = 0; i < table.length; i += 4) {
+            for (int i = 0; i < table.length; i += ITEM_SIZE) {
                 long storedKey1 = table[i];
                 long storedKey2 = table[i + 1];
                 long storedValue1 = table[i + 2];
@@ -613,7 +615,7 @@ public class ConcurrentLongLongPairHashMap {
         }
 
         private void shrinkToInitCapacity() {
-            long[] newTable = new long[4 * initCapacity];
+            long[] newTable = new long[ITEM_SIZE * initCapacity];
             Arrays.fill(newTable, EmptyKey);
 
             table = newTable;
@@ -628,21 +630,21 @@ public class ConcurrentLongLongPairHashMap {
 
         private static void insertKeyValueNoLock(long[] table, int capacity, long key1, long key2, long value1,
                 long value2) {
-            int bucket = signSafeMod(hash(key1, key2), capacity);
+            int bucketIndex = signSafeMod(hash(key1, key2), capacity) * ITEM_SIZE;
 
             while (true) {
-                long storedKey1 = table[bucket];
+                long storedKey1 = table[bucketIndex];
 
                 if (storedKey1 == EmptyKey) {
                     // The bucket is empty, so we can use it
-                    table[bucket] = key1;
-                    table[bucket + 1] = key2;
-                    table[bucket + 2] = value1;
-                    table[bucket + 3] = value2;
+                    table[bucketIndex] = key1;
+                    table[bucketIndex + 1] = key2;
+                    table[bucketIndex + 2] = value1;
+                    table[bucketIndex + 3] = value2;
                     return;
                 }
 
-                bucket = (bucket + 4) & (table.length - 1);
+                bucketIndex = (bucketIndex + ITEM_SIZE) & (table.length - 1);
             }
         }
     }
@@ -660,8 +662,14 @@ public class ConcurrentLongLongPairHashMap {
         return hash;
     }
 
-    static final int signSafeMod(long n, int max) {
-        return (int) (n & (max - 1)) << 2;
+    static final int signSafeMod(long dividend, int divisor) {
+        int mod = (int) (dividend % divisor);
+
+        if (mod < 0) {
+            mod += divisor;
+        }
+
+        return mod;
     }
 
     private static int alignToPowerOfTwo(int n) {
