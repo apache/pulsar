@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.service;
 
+import io.netty.util.Timer;
 import org.apache.pulsar.broker.transaction.buffer.metadata.TransactionBufferSnapshot;
 import org.apache.pulsar.broker.transaction.buffer.metadata.v2.TransactionBufferSnapshotIndexes;
 import org.apache.pulsar.broker.transaction.buffer.metadata.v2.TransactionBufferSnapshotSegment;
@@ -34,13 +35,17 @@ public class TransactionBufferSnapshotServiceFactory {
     private SystemTopicTxnBufferSnapshotService<TransactionBufferSnapshotIndexes> txnBufferSnapshotIndexService;
 
     public TransactionBufferSnapshotServiceFactory(PulsarClient pulsarClient) {
+        this(pulsarClient, null);
+    }
+
+    public TransactionBufferSnapshotServiceFactory(PulsarClient pulsarClient, Timer timer) {
         this.txnBufferSnapshotSegmentService = new SystemTopicTxnBufferSnapshotService<>(pulsarClient,
                 EventType.TRANSACTION_BUFFER_SNAPSHOT_SEGMENTS,
-                TransactionBufferSnapshotSegment.class);
+                TransactionBufferSnapshotSegment.class, timer);
         this.txnBufferSnapshotIndexService = new SystemTopicTxnBufferSnapshotService<>(pulsarClient,
-                EventType.TRANSACTION_BUFFER_SNAPSHOT_INDEXES, TransactionBufferSnapshotIndexes.class);
+                EventType.TRANSACTION_BUFFER_SNAPSHOT_INDEXES, TransactionBufferSnapshotIndexes.class, timer);
         this.txnBufferSnapshotService = new SystemTopicTxnBufferSnapshotService<>(pulsarClient,
-                EventType.TRANSACTION_BUFFER_SNAPSHOT, TransactionBufferSnapshot.class);
+                EventType.TRANSACTION_BUFFER_SNAPSHOT, TransactionBufferSnapshot.class, timer);
     }
 
     public SystemTopicTxnBufferSnapshotService<TransactionBufferSnapshotIndexes> getTxnBufferSnapshotIndexService() {
