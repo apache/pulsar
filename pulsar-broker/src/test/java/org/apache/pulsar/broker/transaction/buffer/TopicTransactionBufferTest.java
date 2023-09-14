@@ -22,6 +22,7 @@ import lombok.Cleanup;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
+import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.service.BrokerService;
@@ -31,6 +32,7 @@ import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.transaction.TransactionTestBase;
 import org.apache.pulsar.broker.transaction.buffer.impl.TopicTransactionBuffer;
 import org.apache.pulsar.broker.transaction.buffer.impl.TopicTransactionBufferState;
+import org.apache.pulsar.client.api.MessageIdAdv;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.transaction.Transaction;
 import org.apache.pulsar.common.naming.TopicName;
@@ -180,8 +182,13 @@ public class TopicTransactionBufferTest extends TransactionTestBase {
         Assert.assertTrue(f.isCompletedExceptionally());
     }
 
-    // 1. The state should be NoSnapshot instead of Ready after building producer.
-    // 2. The state should be Ready after sending first transactional message.
+    /**
+     * This test verifies the state changes of a TransactionBuffer within a topic under different conditions.
+     * Initially, the TransactionBuffer is in a NoSnapshot state upon topic creation.
+     * It remains in the NoSnapshot state even after a normal message is sent.
+     * The state changes to Ready only after a transactional message is sent.
+     * The test also ensures that the TransactionBuffer can be correctly recovered after the topic is unloaded.
+     */
     @Test
     public void testWriteSnapshotWhenFirstTxnMessageSend() throws Exception {
         String topic = "persistent://" + NAMESPACE1 + "/testWriteSnapshotWhenFirstTxnMessageSend";
@@ -192,12 +199,14 @@ public class TopicTransactionBufferTest extends TransactionTestBase {
                 .get();
         persistentTopic.checkIfTransactionBufferRecoverCompletely(true).get();
         TopicTransactionBuffer topicTransactionBuffer = (TopicTransactionBuffer) persistentTopic.getTransactionBuffer();
+        // The TransactionBuffer should be in NoSnapshot state when the topic is initially created
         Assert.assertEquals(topicTransactionBuffer.getState(), TopicTransactionBufferState.State.NoSnapshot);
         @Cleanup
         Producer<byte[]> producer = pulsarClient.newProducer()
-        .topic(topic)
-        .create();
+                .topic(topic)
+                .create();
         producer.newMessage().send();
+        // The TransactionBuffer should still be in NoSnapshot state after a normal message is sent by the producer connected to the topic
         Assert.assertEquals(topicTransactionBuffer.getState(), TopicTransactionBufferState.State.NoSnapshot);
 
         Transaction transaction = pulsarClient.newTransaction()
@@ -205,7 +214,24 @@ public class TopicTransactionBufferTest extends TransactionTestBase {
                 .build()
                 .get();
         producer.newMessage(transaction).send();
+
+        MessageIdAdv messageId = (MessageIdAdv) producer.newMessage(transaction).send();
+        // Only after the producer sends a transactional message to this topic, the TransactionBuffer will be in Ready state
         Assert.assertEquals(topicTransactionBuffer.getState(), TopicTransactionBufferState.State.Ready);
+        transaction.commit();
+        admin.topics().unload(topic);
+        PersistentTopic persistentTopic2 = (PersistentTopic) pulsarServiceList.get(0).getBrokerService()
+                .getTopic(topic, false)
+                .get()
+                .get();
+        TopicTransactionBuffer topicTransactionBuffer2 = (TopicTransactionBuffer) persistentTopic2
+                .getTransactionBuffer();
+        // After the topic is unloaded, the TransactionBuffer can be correctly recovered
+        Awaitility.await().untilAsserted(() -> {
+            Assert.assertEquals(topicTransactionBuffer2.getState(), TopicTransactionBufferState.State.Ready);
+            Assert.assertTrue(topicTransactionBuffer2.getMaxReadPosition()
+                    .compareTo(PositionImpl.get(messageId.getLedgerId(), messageId.getEntryId())) > 0);
+        });
     }
 
 }

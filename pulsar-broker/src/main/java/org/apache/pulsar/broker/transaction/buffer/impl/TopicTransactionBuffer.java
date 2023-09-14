@@ -237,6 +237,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                     if (changeToReadyStateFromNoSnapshot()) {
                         timer.newTimeout(TopicTransactionBuffer.this,
                                 takeSnapshotIntervalTime, TimeUnit.MILLISECONDS);
+                        completableFuture.complete(null);
                     } else {
                         //This case should not happen.
                         log.error("[{} ]Failed to change state of transaction buffer to Ready from NoSnapshot",
@@ -244,7 +245,6 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                         completableFuture.completeExceptionally(new BrokerServiceException.ServiceUnitNotReadyException(
                                 "Transaction Buffer take first snapshot failed, the current state is: " + getState()));
                     }
-                    completableFuture.complete(null);
                 }).exceptionally(exception -> {
                     log.error("Topic {} failed to take snapshot", this.topic.getName());
                     completableFuture.completeExceptionally(exception);
