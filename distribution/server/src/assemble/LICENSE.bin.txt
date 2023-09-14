@@ -436,6 +436,8 @@ The Apache Software License, Version 2.0
     - io.grpc-grpc-xds-1.55.3.jar
     - io.grpc-grpc-rls-1.55.3.jar
     - com.google.auto.service-auto-service-annotations-1.0.jar
+    - io.grpc-grpc-servlet-1.55.3.jar
+    - io.grpc-grpc-servlet-jakarta-1.55.3.jar
   * Perfmark
     - io.perfmark-perfmark-api-0.26.0.jar
   * OpenCensus
