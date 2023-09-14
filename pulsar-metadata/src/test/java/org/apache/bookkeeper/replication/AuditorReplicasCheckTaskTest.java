@@ -47,15 +47,19 @@ public class AuditorReplicasCheckTaskTest extends BookKeeperClusterTestCase {
     private LedgerManager ledgerManager;
     private LedgerUnderreplicationManager ledgerUnderreplicationManager;
 
-    public AuditorReplicasCheckTaskTest() {
+    public AuditorReplicasCheckTaskTest() throws Exception {
         super(3);
         baseConf.setPageLimit(1);
         baseConf.setAutoRecoveryDaemonEnabled(false);
+        Class.forName("org.apache.pulsar.metadata.bookkeeper.PulsarMetadataClientDriver");
+        Class.forName("org.apache.pulsar.metadata.bookkeeper.PulsarMetadataBookieDriver");
     }
 
     @Override
     public void setUp() throws Exception {
         super.setUp();
+        baseClientConf.setMetadataServiceUri(
+                metadataServiceUri.replaceAll("zk://", "metadata-store:").replaceAll("/ledgers", ""));
         final BookKeeper bookKeeper = new BookKeeper(baseClientConf);
         admin = new BookKeeperAdmin(bookKeeper, NullStatsLogger.INSTANCE, new ClientConfiguration(baseClientConf));
         LedgerManagerFactory ledgerManagerFactory = bookKeeper.getLedgerManagerFactory();

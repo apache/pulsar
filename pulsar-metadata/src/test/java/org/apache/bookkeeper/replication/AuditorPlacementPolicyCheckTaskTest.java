@@ -7,7 +7,7 @@
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -47,15 +47,19 @@ public class AuditorPlacementPolicyCheckTaskTest extends BookKeeperClusterTestCa
     private LedgerManager ledgerManager;
     private LedgerUnderreplicationManager ledgerUnderreplicationManager;
 
-    public AuditorPlacementPolicyCheckTaskTest() {
+    public AuditorPlacementPolicyCheckTaskTest() throws Exception {
         super(3);
         baseConf.setPageLimit(1);
         baseConf.setAutoRecoveryDaemonEnabled(false);
+        Class.forName("org.apache.pulsar.metadata.bookkeeper.PulsarMetadataClientDriver");
+        Class.forName("org.apache.pulsar.metadata.bookkeeper.PulsarMetadataBookieDriver");
     }
 
     @Override
     public void setUp() throws Exception {
         super.setUp();
+        baseClientConf.setMetadataServiceUri(
+                metadataServiceUri.replaceAll("zk://", "metadata-store:").replaceAll("/ledgers", ""));
         final BookKeeper bookKeeper = new BookKeeper(baseClientConf);
         admin = new BookKeeperAdmin(bookKeeper, NullStatsLogger.INSTANCE, new ClientConfiguration(baseClientConf));
         LedgerManagerFactory ledgerManagerFactory = bookKeeper.getLedgerManagerFactory();

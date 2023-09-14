@@ -33,6 +33,7 @@ import org.apache.bookkeeper.meta.LedgerUnderreplicationManager;
 import org.apache.bookkeeper.net.BookieId;
 import org.apache.bookkeeper.test.BookKeeperClusterTestCase;
 import org.apache.bookkeeper.test.TestCallbacks;
+import org.junit.Before;
 import org.junit.Test;
 
 /**
@@ -40,10 +41,26 @@ import org.junit.Test;
  */
 public class AuditorRollingRestartTest extends BookKeeperClusterTestCase {
 
-    public AuditorRollingRestartTest() {
+    public AuditorRollingRestartTest() throws Exception {
         super(3, 600);
         // run the daemon within the bookie
         setAutoRecoveryEnabled(true);
+        Class.forName("org.apache.pulsar.metadata.bookkeeper.PulsarMetadataClientDriver");
+        Class.forName("org.apache.pulsar.metadata.bookkeeper.PulsarMetadataBookieDriver");
+    }
+
+    @Override
+    protected void startBKCluster(String metadataServiceUri) throws Exception {
+        baseConf.setMetadataServiceUri(
+                metadataServiceUri.replaceAll("zk://", "metadata-store:").replaceAll("/ledgers", ""));
+        super.startBKCluster(metadataServiceUri);
+    }
+
+    @Override
+    public int startNewBookie() throws Exception {
+        baseConf.setMetadataServiceUri(
+                baseConf.getMetadataServiceUri().replaceAll("zk://", "metadata-store:").replaceAll("/ledgers", ""));
+        return super.startNewBookie();
     }
 
     /**
@@ -51,16 +68,18 @@ public class AuditorRollingRestartTest extends BookKeeperClusterTestCase {
      */
     @Test
     public void testAuditingDuringRollingRestart() throws Exception {
+        confByIndex(0).setMetadataServiceUri(
+                zkUtil.getMetadataServiceUri().replaceAll("zk://", "metadata-store:").replaceAll("/ledgers", ""));
         runFunctionWithLedgerManagerFactory(
-            confByIndex(0),
-            mFactory -> {
-                try {
-                    testAuditingDuringRollingRestart(mFactory);
-                } catch (Exception e) {
-                    throw new UncheckedExecutionException(e.getMessage(), e);
+                confByIndex(0),
+                mFactory -> {
+                    try {
+                        testAuditingDuringRollingRestart(mFactory);
+                    } catch (Exception e) {
+                        throw new UncheckedExecutionException(e.getMessage(), e);
+                    }
+                    return null;
                 }
-                return null;
-            }
         );
     }
 
@@ -75,7 +94,7 @@ public class AuditorRollingRestartTest extends BookKeeperClusterTestCase {
         lh.close();
 
         assertEquals("shouldn't be anything under replicated",
-                     underReplicationManager.pollLedgerToRereplicate(), -1);
+                underReplicationManager.pollLedgerToRereplicate(), -1);
         underReplicationManager.disableLedgerReplication();
 
         @Cleanup

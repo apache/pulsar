@@ -25,12 +25,19 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import java.io.IOException;
+import java.lang.reflect.Field;
 import java.util.concurrent.TimeUnit;
 import org.apache.bookkeeper.bookie.BookieImpl;
+import org.apache.bookkeeper.meta.LedgerManagerFactory;
+import org.apache.bookkeeper.meta.MetadataClientDriver;
 import org.apache.bookkeeper.meta.zk.ZKMetadataClientDriver;
 import org.apache.bookkeeper.net.BookieId;
 import org.apache.bookkeeper.test.BookKeeperClusterTestCase;
 import org.apache.bookkeeper.util.TestUtils;
+import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
+import org.apache.pulsar.metadata.bookkeeper.PulsarLedgerManagerFactory;
+import org.apache.pulsar.metadata.bookkeeper.PulsarMetadataClientDriver;
+import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 import org.apache.zookeeper.ZooKeeper;
 import org.awaitility.Awaitility;
 import org.junit.Test;
@@ -40,8 +47,10 @@ import org.junit.Test;
  */
 public class AutoRecoveryMainTest extends BookKeeperClusterTestCase {
 
-    public AutoRecoveryMainTest() {
+    public AutoRecoveryMainTest() throws Exception {
         super(3);
+        Class.forName("org.apache.pulsar.metadata.bookkeeper.PulsarMetadataClientDriver");
+        Class.forName("org.apache.pulsar.metadata.bookkeeper.PulsarMetadataBookieDriver");
     }
 
     /**
@@ -49,6 +58,8 @@ public class AutoRecoveryMainTest extends BookKeeperClusterTestCase {
      */
     @Test
     public void testStartup() throws Exception {
+        confByIndex(0).setMetadataServiceUri(
+                zkUtil.getMetadataServiceUri().replaceAll("zk://", "metadata-store:").replaceAll("/ledgers", ""));
         AutoRecoveryMain main = new AutoRecoveryMain(confByIndex(0));
         try {
             main.start();
@@ -67,6 +78,8 @@ public class AutoRecoveryMainTest extends BookKeeperClusterTestCase {
      */
     @Test
     public void testShutdown() throws Exception {
+        confByIndex(0).setMetadataServiceUri(
+                zkUtil.getMetadataServiceUri().replaceAll("zk://", "metadata-store:").replaceAll("/ledgers", ""));
         AutoRecoveryMain main = new AutoRecoveryMain(confByIndex(0));
         main.start();
         Thread.sleep(500);
@@ -88,6 +101,12 @@ public class AutoRecoveryMainTest extends BookKeeperClusterTestCase {
      */
     @Test
     public void testAutoRecoverySessionLoss() throws Exception {
+        confByIndex(0).setMetadataServiceUri(
+                zkUtil.getMetadataServiceUri().replaceAll("zk://", "metadata-store:").replaceAll("/ledgers", ""));
+        confByIndex(1).setMetadataServiceUri(
+                zkUtil.getMetadataServiceUri().replaceAll("zk://", "metadata-store:").replaceAll("/ledgers", ""));
+        confByIndex(2).setMetadataServiceUri(
+                zkUtil.getMetadataServiceUri().replaceAll("zk://", "metadata-store:").replaceAll("/ledgers", ""));
         /*
          * initialize three AutoRecovery instances.
          */
@@ -99,8 +118,8 @@ public class AutoRecoveryMainTest extends BookKeeperClusterTestCase {
          * start main1, make sure all the components are started and main1 is
          * the current Auditor
          */
-        ZKMetadataClientDriver zkMetadataClientDriver1 = startAutoRecoveryMain(main1);
-        ZooKeeper zk1 = zkMetadataClientDriver1.getZk();
+        PulsarMetadataClientDriver pulsarMetadataClientDriver1 = startAutoRecoveryMain(main1);
+        ZooKeeper zk1 = getZk(pulsarMetadataClientDriver1);
 
         // Wait until auditor gets elected
         for (int i = 0; i < 10; i++) {
@@ -127,10 +146,12 @@ public class AutoRecoveryMainTest extends BookKeeperClusterTestCase {
         /*
          * start main2 and main3
          */
-        ZKMetadataClientDriver zkMetadataClientDriver2 = startAutoRecoveryMain(main2);
-        ZooKeeper zk2 = zkMetadataClientDriver2.getZk();
-        ZKMetadataClientDriver zkMetadataClientDriver3 = startAutoRecoveryMain(main3);
-        ZooKeeper zk3 = zkMetadataClientDriver3.getZk();
+        PulsarMetadataClientDriver pulsarMetadataClientDriver2 = startAutoRecoveryMain(main2);
+        ZooKeeper zk2 = getZk(pulsarMetadataClientDriver2);
+
+        PulsarMetadataClientDriver pulsarMetadataClientDriver3 = startAutoRecoveryMain(main3);
+        ZooKeeper zk3 = getZk(pulsarMetadataClientDriver3);
+
 
         /*
          * make sure AR1 is still the current Auditor and AR2's and AR3's
@@ -174,7 +195,7 @@ public class AutoRecoveryMainTest extends BookKeeperClusterTestCase {
             assertTrue("Auditor of AR3 should be running", main3.auditorElector.getAuditor().isRunning());
         });
 
-        Awaitility.await().untilAsserted(() -> {
+        Awaitility.waitAtMost(100, TimeUnit.SECONDS).untilAsserted(() -> {
             /*
              * since AR3 is current auditor, AR1's auditor should not be running
              * anymore.
@@ -199,13 +220,22 @@ public class AutoRecoveryMainTest extends BookKeeperClusterTestCase {
      * start autoRecoveryMain and make sure all its components are running and
      * myVote node is existing
      */
-    ZKMetadataClientDriver startAutoRecoveryMain(AutoRecoveryMain autoRecoveryMain) throws Exception {
+    PulsarMetadataClientDriver startAutoRecoveryMain(AutoRecoveryMain autoRecoveryMain) throws Exception {
         autoRecoveryMain.start();
-        ZKMetadataClientDriver metadataClientDriver = (ZKMetadataClientDriver) autoRecoveryMain.bkc
+        PulsarMetadataClientDriver pulsarMetadataClientDriver = (PulsarMetadataClientDriver) autoRecoveryMain.bkc
                 .getMetadataClientDriver();
         TestUtils.assertEventuallyTrue("autoRecoveryMain components should be running",
                 () -> autoRecoveryMain.auditorElector.isRunning()
                         && autoRecoveryMain.replicationWorker.isRunning() && autoRecoveryMain.isAutoRecoveryRunning());
-        return metadataClientDriver;
+        return pulsarMetadataClientDriver;
+    }
+
+    private ZooKeeper getZk(PulsarMetadataClientDriver pulsarMetadataClientDriver) throws Exception {
+        PulsarLedgerManagerFactory pulsarLedgerManagerFactory =
+                (PulsarLedgerManagerFactory) pulsarMetadataClientDriver.getLedgerManagerFactory();
+        Field field = pulsarLedgerManagerFactory.getClass().getDeclaredField("store");
+        field.setAccessible(true);
+        ZKMetadataStore zkMetadataStore = (ZKMetadataStore) field.get(pulsarLedgerManagerFactory);
+        return zkMetadataStore.getZkClient();
     }
 }

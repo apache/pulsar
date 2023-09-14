@@ -79,9 +79,11 @@ public class AuditorReplicasCheckTest extends BookKeeperClusterTestCase {
     private MetadataBookieDriver driver;
     private RegistrationManager regManager;
 
-    public AuditorReplicasCheckTest() {
+    public AuditorReplicasCheckTest() throws Exception {
         super(1);
         baseConf.setPageLimit(1); // to make it easy to push ledger out of cache
+        Class.forName("org.apache.pulsar.metadata.bookkeeper.PulsarMetadataClientDriver");
+        Class.forName("org.apache.pulsar.metadata.bookkeeper.PulsarMetadataBookieDriver");
     }
 
     @Before
@@ -89,8 +91,15 @@ public class AuditorReplicasCheckTest extends BookKeeperClusterTestCase {
     public void setUp() throws Exception {
         super.setUp();
         StaticDNSResolver.reset();
-        driver = MetadataDrivers.getBookieDriver(URI.create(confByIndex(0).getMetadataServiceUri()));
-        driver.initialize(confByIndex(0), NullStatsLogger.INSTANCE);
+
+        URI uri = URI.create(confByIndex(0).getMetadataServiceUri().replaceAll("zk://", "metadata-store:")
+                .replaceAll("/ledgers", ""));
+        driver = MetadataDrivers.getBookieDriver(uri);
+        ServerConfiguration serverConfiguration = new ServerConfiguration(confByIndex(0));
+        serverConfiguration.setMetadataServiceUri(
+                serverConfiguration.getMetadataServiceUri().replaceAll("zk://", "metadata-store:")
+                        .replaceAll("/ledgers", ""));
+        driver.initialize(serverConfiguration, NullStatsLogger.INSTANCE);
         regManager = driver.createRegistrationManager();
     }
 

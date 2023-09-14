@@ -31,7 +31,9 @@ import java.util.Set;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper.DigestType;
 import org.apache.bookkeeper.client.LedgerHandle;
+import org.apache.bookkeeper.conf.ClientConfiguration;
 import org.apache.bookkeeper.meta.AbstractZkLedgerManagerFactory;
+import org.apache.bookkeeper.meta.LayoutManager;
 import org.apache.bookkeeper.meta.LedgerManager;
 import org.apache.bookkeeper.meta.LedgerManagerFactory;
 import org.apache.bookkeeper.meta.ZkLayoutManager;
@@ -39,6 +41,10 @@ import org.apache.bookkeeper.meta.zk.ZKMetadataDriverBase;
 import org.apache.bookkeeper.replication.ReplicationException.BKAuditException;
 import org.apache.bookkeeper.test.BookKeeperClusterTestCase;
 import org.apache.bookkeeper.util.ZkUtils;
+import org.apache.pulsar.metadata.api.MetadataStoreConfig;
+import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
+import org.apache.pulsar.metadata.bookkeeper.PulsarLayoutManager;
+import org.apache.pulsar.metadata.bookkeeper.PulsarLedgerManagerFactory;
 import org.apache.zookeeper.KeeperException;
 import org.junit.After;
 import org.junit.Before;
@@ -65,35 +71,41 @@ public class BookieLedgerIndexTest extends BookKeeperClusterTestCase {
     private LedgerManagerFactory newLedgerManagerFactory;
     private LedgerManager ledgerManager;
 
-    public BookieLedgerIndexTest()
-        throws IOException, KeeperException, InterruptedException {
-        this("org.apache.bookkeeper.meta.HierarchicalLedgerManagerFactory");
+    public BookieLedgerIndexTest() throws Exception {
+        this("org.apache.pulsar.metadata.bookkeeper.PulsarLedgerManagerFactory");
     }
 
-    BookieLedgerIndexTest(String ledgerManagerFactory)
-            throws IOException, KeeperException, InterruptedException {
+    BookieLedgerIndexTest(String ledgerManagerFactory) throws Exception {
         super(3);
         LOG.info("Running test case using ledger manager : "
                 + ledgerManagerFactory);
         // set ledger manager name
         baseConf.setLedgerManagerFactoryClassName(ledgerManagerFactory);
         baseClientConf.setLedgerManagerFactoryClassName(ledgerManagerFactory);
+        Class.forName("org.apache.pulsar.metadata.bookkeeper.PulsarMetadataClientDriver");
+        Class.forName("org.apache.pulsar.metadata.bookkeeper.PulsarMetadataBookieDriver");
     }
 
     @Before
     public void setUp() throws Exception {
         super.setUp();
-        baseConf.setMetadataServiceUri(zkUtil.getMetadataServiceUri());
+        baseConf.setMetadataServiceUri(
+                zkUtil.getMetadataServiceUri().replaceAll("zk://", "metadata-store:").replaceAll("/ledgers", ""));
         rng = new Random(System.currentTimeMillis()); // Initialize the Random
         // Number Generator
         entries = new ArrayList<byte[]>(); // initialize the entries list
         ledgerList = new ArrayList<Long>(3);
-        // initialize ledger manager
-        newLedgerManagerFactory = AbstractZkLedgerManagerFactory.newLedgerManagerFactory(
-            baseConf,
-            new ZkLayoutManager(zkc,
-                ZKMetadataDriverBase.resolveZkLedgersRootPath(baseConf), ZkUtils.getACLs(baseConf)));
 
+        String ledgersRoot = "/ledgers";
+        String storeUri = metadataServiceUri.replaceAll("zk://", "").replaceAll("/ledgers", "");
+        MetadataStoreExtended store = MetadataStoreExtended.create(storeUri,
+                MetadataStoreConfig.builder().fsyncEnable(false).build());
+        LayoutManager layoutManager = new PulsarLayoutManager(store, ledgersRoot);
+        newLedgerManagerFactory = new PulsarLedgerManagerFactory();
+
+        ClientConfiguration conf = new ClientConfiguration();
+        conf.setZkLedgersRootPath(ledgersRoot);
+        newLedgerManagerFactory.initialize(conf, layoutManager, 1);
         ledgerManager = newLedgerManagerFactory.newLedgerManager();
     }
 

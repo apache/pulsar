@@ -79,38 +79,41 @@ public class BookieAutoRecoveryTest extends BookKeeperClusterTestCase {
 
     private final String underreplicatedPath = "/ledgers/underreplication/ledgers";
 
-    public BookieAutoRecoveryTest() throws IOException, KeeperException,
-            InterruptedException, UnavailableException, CompatibilityException {
+    public BookieAutoRecoveryTest() throws Exception {
         super(3);
 
         baseConf.setLedgerManagerFactoryClassName(
-                "org.apache.bookkeeper.meta.HierarchicalLedgerManagerFactory");
+                "org.apache.pulsar.metadata.bookkeeper.PulsarLedgerManagerFactory");
         baseConf.setOpenLedgerRereplicationGracePeriod(openLedgerRereplicationGracePeriod);
         baseConf.setRwRereplicateBackoffMs(500);
         baseClientConf.setLedgerManagerFactoryClassName(
-                "org.apache.bookkeeper.meta.HierarchicalLedgerManagerFactory");
+                "org.apache.pulsar.metadata.bookkeeper.PulsarLedgerManagerFactory");
         this.digestType = DigestType.MAC;
         setAutoRecoveryEnabled(true);
+        Class.forName("org.apache.pulsar.metadata.bookkeeper.PulsarMetadataClientDriver");
+        Class.forName("org.apache.pulsar.metadata.bookkeeper.PulsarMetadataBookieDriver");
     }
 
     @Override
     public void setUp() throws Exception {
         super.setUp();
-        baseConf.setMetadataServiceUri(zkUtil.getMetadataServiceUri());
-        baseClientConf.setMetadataServiceUri(zkUtil.getMetadataServiceUri());
+        baseConf.setMetadataServiceUri(
+                zkUtil.getMetadataServiceUri().replaceAll("zk://", "metadata-store:").replaceAll("/ledgers", ""));
+        baseClientConf.setMetadataServiceUri(
+                zkUtil.getMetadataServiceUri().replaceAll("zk://", "metadata-store:").replaceAll("/ledgers", ""));
 
         scheduler = OrderedScheduler.newSchedulerBuilder()
-            .name("test-scheduler")
-            .numThreads(1)
-            .build();
+                .name("test-scheduler")
+                .numThreads(1)
+                .build();
 
         metadataClientDriver = MetadataDrivers.getClientDriver(
-            URI.create(baseClientConf.getMetadataServiceUri()));
+                URI.create(baseClientConf.getMetadataServiceUri()));
         metadataClientDriver.initialize(
-            baseClientConf,
-            scheduler,
-            NullStatsLogger.INSTANCE,
-            Optional.empty());
+                baseClientConf,
+                scheduler,
+                NullStatsLogger.INSTANCE,
+                Optional.empty());
 
         // initialize urReplicationManager
         mFactory = metadataClientDriver.getLedgerManagerFactory();
@@ -342,12 +345,12 @@ public class BookieAutoRecoveryTest extends BookKeeperClusterTestCase {
                     watchUrLedgerNode(getUrLedgerZNode(lh), latch));
         }
         BookieId replicaToKillAddr = listOfLedgerHandle.get(0)
-            .getLedgerMetadata().getAllEnsembles()
-            .get(0L).get(0);
+                .getLedgerMetadata().getAllEnsembles()
+                .get(0L).get(0);
         killBookie(replicaToKillAddr);
         replicaToKillAddr = listOfLedgerHandle.get(0)
-            .getLedgerMetadata().getAllEnsembles()
-            .get(0L).get(0);
+                .getLedgerMetadata().getAllEnsembles()
+                .get(0L).get(0);
         killBookie(replicaToKillAddr);
         // waiting to publish urLedger znode by Auditor
         latch.await();
@@ -386,7 +389,7 @@ public class BookieAutoRecoveryTest extends BookKeeperClusterTestCase {
 
         BookieId replicaToKill = lh.getLedgerMetadata().getAllEnsembles().get(0L).get(2);
         LOG.info("Killing last bookie, {}, in ensemble {}", replicaToKill,
-                 lh.getLedgerMetadata().getAllEnsembles().get(0L));
+                lh.getLedgerMetadata().getAllEnsembles().get(0L));
         killBookie(replicaToKill);
         startNewBookie();
 
@@ -401,7 +404,7 @@ public class BookieAutoRecoveryTest extends BookKeeperClusterTestCase {
 
         replicaToKill = lh.getLedgerMetadata().getAllEnsembles().get(0L).get(1);
         LOG.info("Killing second bookie, {}, in ensemble {}", replicaToKill,
-                 lh.getLedgerMetadata().getAllEnsembles().get(0L));
+                lh.getLedgerMetadata().getAllEnsembles().get(0L));
         killBookie(replicaToKill);
 
         getAuditor(10, TimeUnit.SECONDS).submitAuditTask().get(); // ensure auditor runs
@@ -595,7 +598,7 @@ public class BookieAutoRecoveryTest extends BookKeeperClusterTestCase {
         BookieId inetSocketAddress = openLedger.getLedgerMetadata().getAllEnsembles().get(0L)
                 .get(ledgerReplicaIndex);
         assertEquals("Rereplication has been failed and ledgerReplicaIndex :"
-                + ledgerReplicaIndex, newBookieServer.getBookieId(),
+                        + ledgerReplicaIndex, newBookieServer.getBookieId(),
                 inetSocketAddress);
         openLedger.close();
     }
@@ -608,7 +611,8 @@ public class BookieAutoRecoveryTest extends BookKeeperClusterTestCase {
     }
 
     private List<LedgerHandle> createLedgersAndAddEntries(int numberOfLedgers,
-            int numberOfEntries) throws InterruptedException, BKException {
+                                                          int numberOfEntries)
+            throws InterruptedException, BKException {
         List<LedgerHandle> listOfLedgerHandle = new ArrayList<LedgerHandle>(
                 numberOfLedgers);
         for (int index = 0; index < numberOfLedgers; index++) {
@@ -627,7 +631,7 @@ public class BookieAutoRecoveryTest extends BookKeeperClusterTestCase {
     }
 
     private Stat watchUrLedgerNode(final String znode,
-            final CountDownLatch latch) throws KeeperException,
+                                   final CountDownLatch latch) throws KeeperException,
             InterruptedException {
         return zkc.exists(znode, new Watcher() {
             @Override
