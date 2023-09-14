@@ -49,10 +49,12 @@ class PulsarLedgerAuditorManager implements LedgerAuditorManager {
         this.leaderElection =
                 coordinationService.getLeaderElection(String.class, electionPath, this::handleStateChanges);
         this.leaderElectionState = LeaderElectionState.NoLeader;
-        store.registerSessionListener(n -> {
-            if (SessionEvent.SessionLost == n) {
+        store.registerSessionListener(event -> {
+            if (SessionEvent.SessionLost == event) {
                 sessionExpired = true;
-                notifyAll();
+                synchronized (this) {
+                    notifyAll();
+                }
             }
         });
     }
@@ -80,7 +82,7 @@ class PulsarLedgerAuditorManager implements LedgerAuditorManager {
             try {
                 synchronized (this) {
                     if (sessionExpired) {
-                        throw new IllegalStateException("Zookeeper session expired");
+                        throw new IllegalStateException("Zookeeper session expired, give up to become auditor.");
                     }
                     if (leaderElectionState == LeaderElectionState.Leading) {
                         return;
