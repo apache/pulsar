@@ -447,7 +447,6 @@ public class FunctionConfigUtilsTest {
         producerConfig.setMaxPendingMessagesAcrossPartitions(1000);
         producerConfig.setUseThreadLocalProducers(true);
         producerConfig.setBatchBuilder("DEFAULT");
-        producerConfig.setCompressionType(CompressionType.ZLIB);
         FunctionConfig newFunctionConfig = createUpdatedFunctionConfig("producerConfig", producerConfig);
 
         FunctionConfig mergedConfig = FunctionConfigUtils.validateUpdate(functionConfig, newFunctionConfig);

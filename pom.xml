@@ -1732,7 +1732,7 @@ flexible messaging model and an intuitive client API.</description>
             <exclude>**/_helpers.tpl</exclude>
 
             <!-- project ignored files -->
-            <exclude>*.md</exclude>
+            <exclude>**/*.md</exclude>
             <exclude>.github/**</exclude>
             <exclude>**/*.nar</exclude>
             <exclude>**/.terraform/**</exclude>

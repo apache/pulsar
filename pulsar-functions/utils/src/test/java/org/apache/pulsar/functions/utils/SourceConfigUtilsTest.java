@@ -293,7 +293,6 @@ public class SourceConfigUtilsTest {
         producerConfig.setMaxPendingMessagesAcrossPartitions(1000);
         producerConfig.setUseThreadLocalProducers(true);
         producerConfig.setBatchBuilder("DEFAULT");
-        producerConfig.setCompressionType(CompressionType.ZLIB);
         SourceConfig newSourceConfig = createUpdatedSourceConfig("producerConfig", producerConfig);
 
         SourceConfig mergedConfig = SourceConfigUtils.validateUpdate(sourceConfig, newSourceConfig);
