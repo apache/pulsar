@@ -29,7 +29,6 @@ import io.netty.buffer.PooledByteBufAllocator;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.bookkeeper.client.api.BKException;
 import org.apache.bookkeeper.client.api.LedgerEntry;
@@ -72,7 +71,6 @@ public class RangeEntryCacheImpl implements EntryCache {
     public RangeEntryCacheImpl(RangeEntryCacheManagerImpl manager, ManagedLedgerImpl ml, boolean copyEntries) {
         this.manager = manager;
         this.ml = ml;
-        this.pendingReadsManager = new PendingReadsManager(this);
         this.interceptor = ml.getManagedLedgerInterceptor();
         this.readEntryTimeoutMillis = getManagedLedgerConfig().getReadEntryTimeoutSeconds();
         this.entries = new RangeCache<>(EntryImpl::getLength, EntryImpl::getTimestamp);
@@ -281,14 +279,14 @@ public class RangeEntryCacheImpl implements EntryCache {
     @SuppressWarnings({ "unchecked", "rawtypes" })
     private void asyncReadEntry0(ReadHandle lh, long firstEntry, long lastEntry, boolean isSlowestReader,
             final ReadEntriesCallback callback, Object ctx) {
-        asyncReadEntry0WithLimits(lh, firstEntry, lastEntry, shouldCacheEntry, callback, ctx, null);
+        asyncReadEntry0WithLimits(lh, firstEntry, lastEntry, isSlowestReader, callback, ctx, null);
     }
 
-    void asyncReadEntry0WithLimits(ReadHandle lh, long firstEntry, long lastEntry, boolean shouldCacheEntry,
+    void asyncReadEntry0WithLimits(ReadHandle lh, long firstEntry, long lastEntry, boolean isSlowestReader,
         final ReadEntriesCallback originalCallback, Object ctx, InflightReadsLimiter.Handle handle) {
 
         final AsyncCallbacks.ReadEntriesCallback callback =
-                handlePendingReadsLimits(lh, firstEntry, lastEntry, shouldCacheEntry,
+                handlePendingReadsLimits(lh, firstEntry, lastEntry, isSlowestReader,
                         originalCallback, ctx, handle);
         if (callback == null) {
             return;
@@ -371,8 +369,10 @@ public class RangeEntryCacheImpl implements EntryCache {
     private AsyncCallbacks.ReadEntriesCallback handlePendingReadsLimits(ReadHandle lh,
                                                                         long firstEntry, long lastEntry,
                                                                         boolean shouldCacheEntry,
-                                                                        AsyncCallbacks.ReadEntriesCallback originalCallback,
-                                                                        Object ctx, InflightReadsLimiter.Handle handle) {
+                                                                        AsyncCallbacks.ReadEntriesCallback
+                                                                                originalCallback,
+                                                                        Object ctx,
+                                                                        InflightReadsLimiter.Handle handle) {
         InflightReadsLimiter pendingReadsLimiter = getPendingReadsLimiter();
         if (pendingReadsLimiter.isDisabled()) {
             return originalCallback;

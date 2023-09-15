@@ -527,12 +527,9 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         }
         long size = entries.stream().mapToLong(Entry::getLength).sum();
         updatePendingBytesToDispatch(size);
-        if (sendMessagesToConsumers(readType, entries)) {
-            updatePendingBytesToDispatch(-size);
-            readMoreEntriesAsync();
-        } else {
-            updatePendingBytesToDispatch(-size);
-        }    }
+        sendMessagesToConsumers(readType, entries);
+        updatePendingBytesToDispatch(-size);
+    }
 
     protected final synchronized void sendMessagesToConsumers(ReadType readType, List<Entry> entries) {
         sendInProgress = true;

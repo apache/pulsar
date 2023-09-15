@@ -93,11 +93,8 @@ public class PersistentStreamingDispatcherMultipleConsumers extends PersistentDi
                 .getNextValidPosition((PositionImpl) entry.getPosition()));
         long size = entry.getLength();
         updatePendingBytesToDispatch(size);
-        if (sendMessagesToConsumers(readType, Lists.newArrayList(entry))) {
-            readMoreEntriesAsync();
-        } else {
-            updatePendingBytesToDispatch(-size);
-        }
+        sendMessagesToConsumers(readType, Lists.newArrayList(entry));
+        updatePendingBytesToDispatch(-size);
         ctx.recycle();
     }
 
