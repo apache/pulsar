@@ -72,11 +72,11 @@ public class PulsarCluster {
         CSContainer csContainer = new CSContainer(spec.clusterName)
                 .withNetwork(Network.newNetwork())
                 .withNetworkAliases(CSContainer.NAME);
-        return new PulsarCluster(spec, csContainer, false, false);
+        return new PulsarCluster(spec, csContainer, false);
     }
 
     public static PulsarCluster forSpec(PulsarClusterSpec spec, CSContainer csContainer) {
-        return new PulsarCluster(spec, csContainer, true, false);
+        return new PulsarCluster(spec, csContainer, true);
     }
 
     @Getter
@@ -99,13 +99,10 @@ public class PulsarCluster {
     private Map<String, Map<String, String>> externalServiceEnvs;
     private final boolean enablePrestoWorker;
 
-    private final boolean enableTls;
-
-    private PulsarCluster(PulsarClusterSpec spec, CSContainer csContainer, boolean sharedCsContainer, boolean enableTls) {
+    private PulsarCluster(PulsarClusterSpec spec, CSContainer csContainer, boolean sharedCsContainer) {
 
         this.spec = spec;
         this.sharedCsContainer = sharedCsContainer;
-        this.enableTls = enableTls;
         this.clusterName = spec.clusterName();
         this.network = csContainer.getNetwork();
         this.enablePrestoWorker = spec.enablePrestoWorker();
@@ -135,7 +132,7 @@ public class PulsarCluster {
         this.brokerContainers = Maps.newTreeMap();
         this.workerContainers = Maps.newTreeMap();
 
-        this.proxyContainer = new ProxyContainer(appendClusterName("pulsar-proxy"), ProxyContainer.NAME, enableTls)
+        this.proxyContainer = new ProxyContainer(appendClusterName("pulsar-proxy"), ProxyContainer.NAME, spec.enableTls)
                 .withNetwork(network)
                 .withNetworkAliases(appendClusterName("pulsar-proxy"))
                 .withEnv("zkServers", appendClusterName(ZKContainer.NAME))
@@ -143,7 +140,7 @@ public class PulsarCluster {
                 .withEnv("configurationStoreServers", CSContainer.NAME + ":" + CS_PORT)
                 .withEnv("clusterName", clusterName);
                 // enable mTLS
-        if (enableTls) {
+        if (spec.enableTls) {
             proxyContainer
                 .withEnv("webServicePortTls", String.valueOf(BROKER_HTTPS_PORT))
                 .withEnv("servicePortTls", String.valueOf(BROKER_PORT_TLS))
@@ -190,7 +187,7 @@ public class PulsarCluster {
         // create brokers
         brokerContainers.putAll(
             runNumContainers("broker", spec.numBrokers(), (name) -> {
-                BrokerContainer brokerContainer = new BrokerContainer(clusterName, appendClusterName(name), enableTls)
+                BrokerContainer brokerContainer = new BrokerContainer(clusterName, appendClusterName(name), spec.enableTls)
                         .withNetwork(network)
                         .withNetworkAliases(appendClusterName(name))
                         .withEnv("zkServers", appendClusterName(ZKContainer.NAME))
@@ -202,7 +199,7 @@ public class PulsarCluster {
                         // used in s3 tests
                         .withEnv("AWS_ACCESS_KEY_ID", "accesskey").withEnv("AWS_SECRET_KEY", "secretkey")
                         .withEnv("maxMessageSize", "" + spec.maxMessageSize);
-                    if (enableTls) {
+                    if (spec.enableTls) {
                         // enable mTLS
                         brokerContainer
                             .withEnv("webServicePortTls", String.valueOf(BROKER_HTTPS_PORT))
