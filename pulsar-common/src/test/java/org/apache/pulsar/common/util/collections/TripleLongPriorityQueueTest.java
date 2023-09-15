@@ -54,7 +54,7 @@ public class TripleLongPriorityQueueTest {
         pq.close();
     }
 
-    @Test(timeOut = 1000000)
+    @Test
     public void testLargeQueue() {
         TripleLongPriorityQueue pq = new TripleLongPriorityQueue();
         assertEquals(pq.size(), 0);
