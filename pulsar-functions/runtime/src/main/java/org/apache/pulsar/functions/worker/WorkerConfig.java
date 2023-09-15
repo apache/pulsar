@@ -459,11 +459,12 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
     // @deprecated use "pulsar+ssl://" in serviceUrl to enable
     @Deprecated
     private boolean useTls = false;
+
     @FieldContext(
         category = CATEGORY_SECURITY,
         doc = "Whether to enable hostname verification on TLS connections"
     )
-    private boolean tlsEnableHostnameVerification = false;
+    private boolean tlsEnableHostnameVerification = true;
     @FieldContext(
             category = CATEGORY_SECURITY,
             doc = "Tls cert refresh duration in seconds (set 0 to check on every new connection)"

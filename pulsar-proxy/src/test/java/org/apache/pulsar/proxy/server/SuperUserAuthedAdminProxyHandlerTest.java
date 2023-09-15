@@ -80,6 +80,7 @@ public class SuperUserAuthedAdminProxyHandlerTest extends MockedPulsarServiceBas
         proxyConfig.setWebServicePort(Optional.of(0));
         proxyConfig.setWebServicePortTls(Optional.of(0));
         proxyConfig.setTlsEnabledWithBroker(true);
+        proxyConfig.setAdvertisedAddress("localhost");
 
         // enable tls and auth&auth at proxy
         proxyConfig.setTlsCertificateFilePath(BROKER_CERT_FILE_PATH);

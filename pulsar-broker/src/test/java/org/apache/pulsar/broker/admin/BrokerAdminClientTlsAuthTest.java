@@ -85,7 +85,6 @@ public class BrokerAdminClientTlsAuthTest extends MockedPulsarServiceBaseTest {
     PulsarAdmin buildAdminClient(String user) throws Exception {
         return PulsarAdmin.builder()
             .allowTlsInsecureConnection(false)
-            .enableTlsHostnameVerification(false)
             .serviceHttpUrl(brokerUrlTls.toString())
             .authentication("org.apache.pulsar.client.impl.auth.AuthenticationTls",
                             String.format("tlsCertFile:%s,tlsKeyFile:%s",

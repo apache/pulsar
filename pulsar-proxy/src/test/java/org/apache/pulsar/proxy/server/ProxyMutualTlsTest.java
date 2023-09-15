@@ -40,12 +40,6 @@ import org.testng.annotations.Test;
 
 public class ProxyMutualTlsTest extends MockedPulsarServiceBaseTest {
 
-    private final String TLS_TRUST_CERT_FILE_PATH = "./src/test/resources/authentication/tls/cacert.pem";
-    private final String TLS_PROXY_CERT_FILE_PATH = "./src/test/resources/authentication/tls/server-cert.pem";
-    private final String TLS_PROXY_KEY_FILE_PATH = "./src/test/resources/authentication/tls/server-key.pem";
-    private final String TLS_CLIENT_CERT_FILE_PATH = "./src/test/resources/authentication/tls/client-cert.pem";
-    private final String TLS_CLIENT_KEY_FILE_PATH = "./src/test/resources/authentication/tls/client-key.pem";
-
     private ProxyService proxyService;
     private ProxyConfiguration proxyConfig = new ProxyConfiguration();
 
@@ -59,13 +53,14 @@ public class ProxyMutualTlsTest extends MockedPulsarServiceBaseTest {
         proxyConfig.setServicePortTls(Optional.of(0));
         proxyConfig.setWebServicePort(Optional.of(0));
         proxyConfig.setWebServicePortTls(Optional.of(0));
-        proxyConfig.setTlsCertificateFilePath(TLS_PROXY_CERT_FILE_PATH);
-        proxyConfig.setTlsKeyFilePath(TLS_PROXY_KEY_FILE_PATH);
-        proxyConfig.setTlsTrustCertsFilePath(TLS_TRUST_CERT_FILE_PATH);
+        proxyConfig.setTlsCertificateFilePath(PROXY_CERT_FILE_PATH);
+        proxyConfig.setTlsKeyFilePath(PROXY_KEY_FILE_PATH);
+        proxyConfig.setTlsTrustCertsFilePath(CA_CERT_FILE_PATH);
         proxyConfig.setMetadataStoreUrl(DUMMY_VALUE);
         proxyConfig.setConfigurationMetadataStoreUrl(GLOBAL_DUMMY_VALUE);
         proxyConfig.setTlsRequireTrustedClientCertOnConnect(true);
         proxyConfig.setTlsAllowInsecureConnection(false);
+        proxyConfig.setAdvertisedAddress("localhost");
 
         proxyService = Mockito.spy(new ProxyService(proxyConfig, new AuthenticationService(
                                                             PulsarConfigurationLoader.convertFrom(proxyConfig))));
@@ -89,9 +84,9 @@ public class ProxyMutualTlsTest extends MockedPulsarServiceBaseTest {
         PulsarClient client = PulsarClient.builder()
                 .serviceUrl(proxyService.getServiceUrlTls())
                 .allowTlsInsecureConnection(false)
-                .tlsKeyFilePath(TLS_CLIENT_KEY_FILE_PATH)
-                .tlsCertificateFilePath(TLS_CLIENT_CERT_FILE_PATH)
-                .tlsTrustCertsFilePath(TLS_TRUST_CERT_FILE_PATH)
+                .tlsKeyFilePath(getTlsFileForClient("user1.key-pk8"))
+                .tlsCertificateFilePath(getTlsFileForClient("user1.cert"))
+                .tlsTrustCertsFilePath(CA_CERT_FILE_PATH)
                 .operationTimeout(3, TimeUnit.SECONDS)
                 .build();
         @Cleanup
@@ -109,8 +104,9 @@ public class ProxyMutualTlsTest extends MockedPulsarServiceBaseTest {
         PulsarClient client = PulsarClient.builder()
                 .serviceUrl(proxyService.getServiceUrlTls())
                 .allowTlsInsecureConnection(false)
-                .tlsTrustCertsFilePath(TLS_TRUST_CERT_FILE_PATH)
-                .authentication(new AuthenticationTls(TLS_CLIENT_CERT_FILE_PATH, TLS_CLIENT_KEY_FILE_PATH))
+                .tlsTrustCertsFilePath(CA_CERT_FILE_PATH)
+                .authentication(new AuthenticationTls(getTlsFileForClient("user1.cert"),
+                        getTlsFileForClient("user1.key-pk8")))
                 .operationTimeout(3, TimeUnit.SECONDS)
                 .build();
         @Cleanup
@@ -128,7 +124,7 @@ public class ProxyMutualTlsTest extends MockedPulsarServiceBaseTest {
         PulsarClient client = PulsarClient.builder()
                 .serviceUrl(proxyService.getServiceUrlTls())
                 .allowTlsInsecureConnection(false)
-                .tlsTrustCertsFilePath(TLS_TRUST_CERT_FILE_PATH)
+                .tlsTrustCertsFilePath(CA_CERT_FILE_PATH)
                 .operationTimeout(3, TimeUnit.SECONDS)
                 .build();
 

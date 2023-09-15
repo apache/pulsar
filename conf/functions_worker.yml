@@ -326,7 +326,7 @@ tlsTrustCertsFilePath:
 # Accept untrusted TLS certificate from client
 tlsAllowInsecureConnection: false
 # Whether server hostname must match the common name of the certificate
-tlsEnableHostnameVerification: false
+tlsEnableHostnameVerification: true
 # Tls cert refresh duration in seconds (set 0 to check on every new connection)
 tlsCertRefreshCheckDurationSec: 300
 # Whether client certificates are required for TLS. Connections are rejected if the client
@@ -422,6 +422,11 @@ ignoreUnknownConfigFields: false
 # Configure the DLog bookkeeper client by prefixing configurations with "bookkeeper_". Because these are arbitrary, they
 # must be added to the properties map to get correctly applied. This configuration applies to the Dlog bookkeeper client
 # in both the standalone function workers and function workers initialized in the broker.
+
+properties:
+    # Whether the hostname is validated when the broker creates a TLS connection to a bookkeeper. Only relevant
+    # when TLS is enabled for DLog.
+    bookkeeper_tlsHostnameVerificationEnabled: true
 
 # You can add extra configuration options for the Pulsar Client and the Pulsar Admin Client
 # by prefixing them with "brokerClient_". These configurations are applied after hard coded configuration

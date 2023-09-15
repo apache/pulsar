@@ -41,7 +41,7 @@ public class ProxyProtocolTest extends TlsProducerConsumerBase {
 
         // Client should try to connect to proxy and pass broker-url as SNI header
         String proxyUrl = pulsar.getBrokerServiceUrlTls();
-        String brokerServiceUrl = "pulsar+ssl://unresolvable-address:6651";
+        String brokerServiceUrl = "pulsar+ssl://unresolvable-broker-address:6651";
         String topicName = "persistent://my-property/use/my-ns/my-topic1";
 
         ClientBuilder clientBuilder = PulsarClient.builder().serviceUrl(brokerServiceUrl)

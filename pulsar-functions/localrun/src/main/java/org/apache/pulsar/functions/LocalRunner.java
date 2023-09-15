@@ -48,7 +48,6 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
-import lombok.Builder;
 import lombok.Value;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.common.functions.FunctionConfig;
@@ -220,7 +219,149 @@ public class LocalRunner implements AutoCloseable {
         }
     }
 
-    @Builder
+    public static LocalRunnerBuilder builder() {
+        return new LocalRunnerBuilder();
+    }
+
+    // Use our own Builder class to support setting default values while maintaining the custom logic associated
+    // with the nar directory extraction that is handled in the constructor.
+    public static class LocalRunnerBuilder {
+        private FunctionConfig functionConfig;
+        private SourceConfig sourceConfig;
+        private SinkConfig sinkConfig;
+        private String stateStorageImplClass;
+        private String stateStorageServiceUrl;
+        private String brokerServiceUrl;
+        private String clientAuthPlugin;
+        private String clientAuthParams;
+        private boolean useTls;
+        private boolean tlsAllowInsecureConnection;
+        private boolean tlsHostNameVerificationEnabled = true;
+        private String tlsTrustCertFilePath;
+        private int instanceIdOffset;
+        private RuntimeEnv runtimeEnv;
+        private String secretsProviderClassName;
+        private String secretsProviderConfig;
+        private String narExtractionDirectory;
+        private String connectorsDirectory;
+        private String functionsDirectory;
+        private Integer metricsPortStart;
+        private boolean exitOnError;
+
+        public LocalRunnerBuilder functionConfig(FunctionConfig functionConfig) {
+            this.functionConfig = functionConfig;
+            return this;
+        }
+
+        public LocalRunnerBuilder sourceConfig(SourceConfig sourceConfig) {
+            this.sourceConfig = sourceConfig;
+            return this;
+        }
+
+        public LocalRunnerBuilder sinkConfig(SinkConfig sinkConfig) {
+            this.sinkConfig = sinkConfig;
+            return this;
+        }
+
+        public LocalRunnerBuilder stateStorageServiceUrl(String stateStorageServiceUrl) {
+            this.stateStorageServiceUrl = stateStorageServiceUrl;
+            return this;
+        }
+
+        public LocalRunnerBuilder stateStorageImplClass(String stateStorageImplClass) {
+            this.stateStorageImplClass = stateStorageImplClass;
+            return this;
+        }
+
+        public LocalRunnerBuilder brokerServiceUrl(String brokerServiceUrl) {
+            this.brokerServiceUrl = brokerServiceUrl;
+            return this;
+        }
+
+        public LocalRunnerBuilder clientAuthPlugin(String clientAuthPlugin) {
+            this.clientAuthPlugin = clientAuthPlugin;
+            return this;
+        }
+
+        public LocalRunnerBuilder clientAuthParams(String clientAuthParams) {
+            this.clientAuthParams = clientAuthParams;
+            return this;
+        }
+
+        public LocalRunnerBuilder useTls(boolean useTls) {
+            this.useTls = useTls;
+            return this;
+        }
+
+        public LocalRunnerBuilder tlsAllowInsecureConnection(boolean tlsAllowInsecureConnection) {
+            this.tlsAllowInsecureConnection = tlsAllowInsecureConnection;
+            return this;
+        }
+
+        public LocalRunnerBuilder tlsHostNameVerificationEnabled(boolean tlsHostNameVerificationEnabled) {
+            this.tlsHostNameVerificationEnabled = tlsHostNameVerificationEnabled;
+            return this;
+        }
+
+        public LocalRunnerBuilder tlsTrustCertFilePath(String tlsTrustCertFilePath) {
+            this.tlsTrustCertFilePath = tlsTrustCertFilePath;
+            return this;
+        }
+
+        public LocalRunnerBuilder instanceIdOffset(int instanceIdOffset) {
+            this.instanceIdOffset = instanceIdOffset;
+            return this;
+        }
+
+        public LocalRunnerBuilder runtimeEnv(RuntimeEnv runtimeEnv) {
+            this.runtimeEnv = runtimeEnv;
+            return this;
+        }
+
+        public LocalRunnerBuilder secretsProviderClassName(String secretsProviderClassName) {
+            this.secretsProviderClassName = secretsProviderClassName;
+            return this;
+        }
+
+        public LocalRunnerBuilder secretsProviderConfig(String secretsProviderConfig) {
+            this.secretsProviderConfig = secretsProviderConfig;
+            return this;
+        }
+
+        public LocalRunnerBuilder narExtractionDirectory(String narExtractionDirectory) {
+            this.narExtractionDirectory = narExtractionDirectory;
+            return this;
+        }
+
+        public LocalRunnerBuilder connectorsDirectory(String connectorsDirectory) {
+            this.connectorsDirectory = connectorsDirectory;
+            return this;
+        }
+
+        public LocalRunnerBuilder functionsDirectory(String functionsDirectory) {
+            this.functionsDirectory = functionsDirectory;
+            return this;
+        }
+
+        public LocalRunnerBuilder metricsPortStart(Integer metricsPortStart) {
+            this.metricsPortStart = metricsPortStart;
+            return this;
+        }
+
+        public LocalRunnerBuilder exitOnError(boolean exitOnError) {
+            this.exitOnError = exitOnError;
+            return this;
+        }
+
+        public LocalRunner build() {
+            return new LocalRunner(functionConfig, sourceConfig, sinkConfig, stateStorageImplClass,
+                    stateStorageServiceUrl, brokerServiceUrl, clientAuthPlugin, clientAuthParams, useTls,
+                    tlsAllowInsecureConnection, tlsHostNameVerificationEnabled, tlsTrustCertFilePath,
+                    instanceIdOffset, runtimeEnv, secretsProviderClassName, secretsProviderConfig,
+                    narExtractionDirectory, connectorsDirectory, functionsDirectory, metricsPortStart, exitOnError);
+        }
+    }
+
     public LocalRunner(FunctionConfig functionConfig, SourceConfig sourceConfig, SinkConfig sinkConfig,
                        String stateStorageImplClass, String stateStorageServiceUrl, String brokerServiceUrl,
                        String clientAuthPlugin, String clientAuthParams,

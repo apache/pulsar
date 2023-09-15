@@ -108,7 +108,7 @@ public class PulsarClientTool {
         this.tlsAllowInsecureConnection = Boolean
                 .parseBoolean(properties.getProperty("tlsAllowInsecureConnection", "false"));
         this.tlsEnableHostnameVerification = Boolean
-                .parseBoolean(properties.getProperty("tlsEnableHostnameVerification", "false"));
+                .parseBoolean(properties.getProperty("tlsEnableHostnameVerification", "true"));
         this.useKeyStoreTls = Boolean
                 .parseBoolean(properties.getProperty("useKeyStoreTls", "false"));
         this.tlsTrustStoreType = properties.getProperty("tlsTrustStoreType", "JKS");

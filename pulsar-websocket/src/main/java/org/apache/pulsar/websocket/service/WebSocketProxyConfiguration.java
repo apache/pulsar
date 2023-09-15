@@ -131,7 +131,7 @@ public class WebSocketProxyConfiguration implements PulsarConfiguration {
 
     // Note: name matches the ServiceConfiguration name to ensure correct mapping
     @FieldContext(doc = "Enable TLS hostname verification when connecting to broker")
-    private boolean tlsHostnameVerificationEnabled = false;
+    private boolean tlsHostnameVerificationEnabled = true;
 
     @FieldContext(doc = "Number of IO threads in Pulsar client used in WebSocket proxy")
     private int webSocketNumIoThreads = Runtime.getRuntime().availableProcessors();

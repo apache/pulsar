@@ -67,6 +67,7 @@ public class ProxyTlsTestWithAuth extends MockedPulsarServiceBaseTest {
         proxyConfig.setTlsCertificateFilePath(PROXY_CERT_FILE_PATH);
         proxyConfig.setTlsKeyFilePath(PROXY_KEY_FILE_PATH);
         proxyConfig.setMetadataStoreUrl(DUMMY_VALUE);
+        proxyConfig.setAdvertisedAddress("localhost");
         proxyConfig.setConfigurationMetadataStoreUrl(GLOBAL_DUMMY_VALUE);
         proxyConfig.setBrokerClientAuthenticationPlugin("org.apache.pulsar.client.impl.auth.oauth2.AuthenticationOAuth2");
         proxyConfig.setBrokerClientAuthenticationParameters("{\"grant_type\":\"client_credentials\"," +

@@ -868,6 +868,7 @@ public class KubernetesRuntimeTest {
         V1StatefulSet spec = container.createStatefulSet();
         String expectedDownloadCommand = "pulsar-admin --admin-url " + pulsarAdminUrl
                 + " --auth-plugin com.MyAuth --auth-params {\"authParam1\": \"authParamValue1\"}"
+                + " --tls-enable-hostname-verification false"
                 + " functions download "
                 + "--tenant " + TEST_TENANT
                 + " --namespace " + TEST_NAMESPACE
@@ -894,6 +895,7 @@ public class KubernetesRuntimeTest {
         V1StatefulSet spec = container.createStatefulSet();
         String expectedDownloadCommand = "pulsar-admin --admin-url " + pulsarAdminUrl
                 + " --auth-plugin com.MyAuth --auth-params {\"authParam1\": \"authParamValue1\"}"
+                + " --tls-enable-hostname-verification false"
                 + " functions download "
                 + "--tenant " + TEST_TENANT
                 + " --namespace " + TEST_NAMESPACE
@@ -923,7 +925,7 @@ public class KubernetesRuntimeTest {
         V1StatefulSet spec = container.createStatefulSet();
         String expectedDownloadCommand = "pulsar-admin --admin-url " + pulsarAdminUrl
                 + " --auth-plugin com.MyAuth --auth-params {\"authParam1\": \"authParamValue1\"}"
-                + " --tls-enable-hostname-verification"
+                + " --tls-enable-hostname-verification true"
                 + " --tls-trust-cert-path /my/ca.pem"
                 + " functions download "
                 + "--tenant " + TEST_TENANT

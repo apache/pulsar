@@ -86,7 +86,6 @@ public class ProxyWithAuthorizationNegTest extends ProducerConsumerBase {
         conf.setTlsTrustCertsFilePath(TLS_PROXY_TRUST_CERT_FILE_PATH);
         conf.setTlsCertificateFilePath(TLS_BROKER_CERT_FILE_PATH);
         conf.setTlsKeyFilePath(TLS_BROKER_KEY_FILE_PATH);
-        conf.setTlsAllowInsecureConnection(true);
         conf.setAdvertisedAddress("localhost");
 
         Set<String> superUserRoles = new HashSet<>();
@@ -235,7 +234,7 @@ public class ProxyWithAuthorizationNegTest extends ProducerConsumerBase {
         authParams.put("tlsKeyFile", TLS_SUPERUSER_CLIENT_KEY_FILE_PATH);
 
         admin = spy(PulsarAdmin.builder().serviceHttpUrl(brokerUrlTls.toString())
-                .tlsTrustCertsFilePath(TLS_BROKER_TRUST_CERT_FILE_PATH).allowTlsInsecureConnection(true)
+                .tlsTrustCertsFilePath(TLS_BROKER_TRUST_CERT_FILE_PATH)
                 .authentication(AuthenticationTls.class.getName(), authParams).build());
     }
 
@@ -247,7 +246,7 @@ public class ProxyWithAuthorizationNegTest extends ProducerConsumerBase {
         Authentication authTls = new AuthenticationTls();
         authTls.configure(authParams);
         return PulsarClient.builder().serviceUrl(proxyServiceUrl).statsInterval(0, TimeUnit.SECONDS)
-                .tlsTrustCertsFilePath(TLS_PROXY_TRUST_CERT_FILE_PATH).allowTlsInsecureConnection(true)
+                .tlsTrustCertsFilePath(TLS_PROXY_TRUST_CERT_FILE_PATH)
                 .authentication(authTls).enableTls(true).build();
     }
 }

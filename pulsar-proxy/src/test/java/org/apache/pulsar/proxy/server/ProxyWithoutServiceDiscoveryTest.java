@@ -57,6 +57,9 @@ public class ProxyWithoutServiceDiscoveryTest extends ProducerConsumerBase {
     private ProxyService proxyService;
     private ProxyConfiguration proxyConfig = new ProxyConfiguration();
 
+    // This must be set in order for the proxy and broker to have the hostnames that match the certificates
+    private static final String ADVERTISED_ADDRESS = "127.0.0.1";
+
     @BeforeMethod
     @Override
     protected void setup() throws Exception {
@@ -65,6 +68,7 @@ public class ProxyWithoutServiceDiscoveryTest extends ProducerConsumerBase {
         conf.setAuthenticationEnabled(true);
         conf.setAuthorizationEnabled(true);
 
+        conf.setAdvertisedAddress(ADVERTISED_ADDRESS);
         conf.setBrokerServicePortTls(Optional.of(0));
         conf.setWebServicePortTls(Optional.of(0));
         conf.setTlsTrustCertsFilePath(CA_CERT_FILE_PATH);
@@ -97,6 +101,7 @@ public class ProxyWithoutServiceDiscoveryTest extends ProducerConsumerBase {
         // start proxy service
         proxyConfig.setAuthenticationEnabled(true);
         proxyConfig.setAuthorizationEnabled(false);
+        proxyConfig.setAdvertisedAddress(ADVERTISED_ADDRESS);
         proxyConfig.setBrokerServiceURL(pulsar.getBrokerServiceUrl());
         proxyConfig.setBrokerServiceURLTLS(pulsar.getBrokerServiceUrlTls());
 

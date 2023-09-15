@@ -63,9 +63,9 @@ public abstract class PerformanceBaseArguments {
             "--tls-allow-insecure" }, description = "Allow insecure TLS connection")
     public Boolean tlsAllowInsecureConnection = null;
 
-    @Parameter(names = {
-            "--tls-enable-hostname-verification" }, description = "Enable TLS hostname verification")
-    public Boolean tlsHostnameVerificationEnable = null;
+    @Parameter(names = {"--tls-enable-hostname-verification" }, arity = 1,
+            description = "Enable TLS hostname verification")
+    public Boolean tlsHostnameVerificationEnable = true;
 
     @Parameter(names = { "-c",
             "--max-connections" }, description = "Max number of TCP connections to a single broker")
@@ -146,10 +146,9 @@ public abstract class PerformanceBaseArguments {
                     .getProperty("tlsAllowInsecureConnection", ""));
         }
 
-        if (tlsHostnameVerificationEnable == null) {
-            tlsHostnameVerificationEnable = Boolean.parseBoolean(prop
-                    .getProperty("tlsEnableHostnameVerification", ""));
-
+        String hostnameVerification = prop.getProperty("tlsEnableHostnameVerification");
+        if (hostnameVerification != null) {
+            tlsHostnameVerificationEnable = Boolean.parseBoolean(hostnameVerification);
         }
 
         if (proxyServiceURL == null) {
