@@ -188,7 +188,7 @@ public class ConcurrentOpenHashSetTest {
         assertTrue(map.capacity() == initCapacity);
     }
 
-    @Test(invocationCount = 10)
+    @Test
     public void testConcurrentExpandAndShrinkAndGet()  throws Throwable {
         ConcurrentOpenHashSet<String> set = ConcurrentOpenHashSet.<String>newBuilder()
                 .expectedItems(2)

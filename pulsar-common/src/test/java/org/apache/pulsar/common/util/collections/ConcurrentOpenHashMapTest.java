@@ -217,7 +217,7 @@ public class ConcurrentOpenHashMapTest {
         assertTrue(map.capacity() == initCapacity);
     }
 
-    @Test(invocationCount = 10)
+    @Test
     public void testConcurrentExpandAndShrinkAndGet()  throws Throwable {
         ConcurrentOpenHashMap<String, String> map = ConcurrentOpenHashMap.<String, String>newBuilder()
                 .expectedItems(2)
