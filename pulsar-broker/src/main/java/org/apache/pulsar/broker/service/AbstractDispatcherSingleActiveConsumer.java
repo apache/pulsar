@@ -168,9 +168,18 @@ public abstract class AbstractDispatcherSingleActiveConsumer extends AbstractBas
         if (subscriptionType == SubType.Exclusive && !consumers.isEmpty()) {
             Consumer actConsumer = ACTIVE_CONSUMER_UPDATER.get(this);
             if (actConsumer != null) {
-                actConsumer.cnx().checkConnectionLiveness();
+                return actConsumer.cnx().checkConnectionLiveness().thenCompose(actConsumerStillAlive -> {
+                    if (actConsumerStillAlive) {
+                        return FutureUtil.failedFuture(new ConsumerBusyException("Exclusive consumer is already"
+                                + " connected"));
+                    } else {
+                        return addConsumer(consumer);
+                    }
+                });
+            } else {
+                // It should never happen.
+                return FutureUtil.failedFuture(new ConsumerBusyException("Active consumer is in a strange state."));
             }
-            return FutureUtil.failedFuture(new ConsumerBusyException("Exclusive consumer is already connected"));
         }
 
         if (subscriptionType == SubType.Failover && isConsumersExceededOnSubscription()) {

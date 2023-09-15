@@ -65,6 +65,7 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
@@ -1037,23 +1038,37 @@ public class ServerCnxTest {
         assertEquals(topicRef.getSubscription(sName).getConsumers().size(), 1);
         assertEquals(topicRef.getSubscription(sName).getConsumers().iterator().next().consumerName(), cName1);
 
-        // Verify the second producer using a new connection will override the producer who using a stopped channel.
+        // Verify the second producer using a new connection will override the consumer who using a stopped channel.
         channelsStoppedAnswerHealthCheck.add(channel);
         ClientChannel channel2 = new ClientChannel();
         setChannelConnected(channel2.serverCnx);
-        Awaitility.await().atMost(Duration.ofSeconds(15)).untilAsserted(() -> {
-            channel.runPendingTasks();
-            ByteBuf cmdSubscribe2 = Commands.newSubscribe(tName, sName, consumerId, requestId.incrementAndGet(),
-                    CommandSubscribe.SubType.Exclusive, 0, cName2, 0);
-            channel2.channel.writeInbound(cmdSubscribe2);
-            assertTrue(getResponse(channel2.channel, channel2.clientChannelHelper) instanceof CommandSuccess);
-            assertEquals(topicRef.getSubscription(sName).getConsumers().size(), 1);
-            assertEquals(topicRef.getSubscription(sName).getConsumers().iterator().next().consumerName(), cName2);
-        });
+        ByteBuf cmdSubscribe2 = Commands.newSubscribe(tName, sName, consumerId, requestId.incrementAndGet(),
+                CommandSubscribe.SubType.Exclusive, 0, cName2, 0);
+        channel2.channel.writeInbound(cmdSubscribe2);
+        AtomicBoolean channel1MonitorStopped = startChannelMonitorToHandleUserTask();
+
+        assertTrue(getResponse(channel2.channel, channel2.clientChannelHelper) instanceof CommandSuccess);
+        assertEquals(topicRef.getSubscription(sName).getConsumers().size(), 1);
+        assertEquals(topicRef.getSubscription(sName).getConsumers().iterator().next().consumerName(), cName2);
+        channel1MonitorStopped.set(true);
 
         // cleanup.
         channel.finish();
         channel2.close();
+    }
+
+    private AtomicBoolean startChannelMonitorToHandleUserTask() {
+        AtomicBoolean channel1MonitorStopped = new AtomicBoolean(false);
+        Thread channel1Monitor = new Thread(() -> {
+            while (!channel1MonitorStopped.get()) {
+                channel.runPendingTasks();
+                try {
+                    Thread.sleep(100);
+                } catch (InterruptedException e) {}
+            }
+        });
+        channel1Monitor.start();
+        return channel1MonitorStopped;
     }
 
     private class ClientChannel implements Closeable {
