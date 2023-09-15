@@ -422,7 +422,7 @@ public class ConcurrentLongHashMapTest {
         assertEquals(map.size(), N * nThreads);
     }
 
-    @Test
+    @Test(timeOut = 1000000)
     public void stressConcurrentInsertionsAndReads() throws Throwable {
         ConcurrentLongHashMap<String> map = ConcurrentLongHashMap.<String>newBuilder()
                 .expectedItems(4)
