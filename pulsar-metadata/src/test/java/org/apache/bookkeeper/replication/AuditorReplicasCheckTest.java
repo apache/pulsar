@@ -21,8 +21,8 @@
 package org.apache.bookkeeper.replication;
 
 import static org.apache.bookkeeper.replication.ReplicationStats.AUDITOR_SCOPE;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.testng.AssertJUnit.assertEquals;
+import static org.testng.AssertJUnit.assertTrue;
 import java.net.URI;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
@@ -68,9 +68,9 @@ import org.apache.bookkeeper.util.StaticDNSResolver;
 import org.apache.commons.collections4.map.MultiKeyMap;
 import org.apache.commons.lang3.mutable.MutableObject;
 import org.apache.zookeeper.KeeperException;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
+import org.testng.annotations.AfterTest;
+import org.testng.annotations.BeforeTest;
+import org.testng.annotations.Test;
 
 /**
  * Tests the logic of Auditor's ReplicasCheck.
@@ -86,7 +86,7 @@ public class AuditorReplicasCheckTest extends BookKeeperClusterTestCase {
         Class.forName("org.apache.pulsar.metadata.bookkeeper.PulsarMetadataBookieDriver");
     }
 
-    @Before
+    @BeforeTest
     @Override
     public void setUp() throws Exception {
         super.setUp();
@@ -103,7 +103,7 @@ public class AuditorReplicasCheckTest extends BookKeeperClusterTestCase {
         regManager = driver.createRegistrationManager();
     }
 
-    @After
+    @AfterTest
     @Override
     public void tearDown() throws Exception {
         if (null != regManager) {

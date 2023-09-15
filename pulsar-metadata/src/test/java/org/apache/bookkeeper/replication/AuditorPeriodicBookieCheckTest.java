@@ -21,7 +21,7 @@
 package org.apache.bookkeeper.replication;
 
 import static org.apache.bookkeeper.meta.MetadataDrivers.runFunctionWithLedgerManagerFactory;
-import static org.junit.Assert.assertEquals;
+import static org.testng.AssertJUnit.assertEquals;
 import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.UncheckedExecutionException;
 import lombok.Cleanup;
@@ -33,11 +33,11 @@ import org.apache.bookkeeper.meta.LedgerManager;
 import org.apache.bookkeeper.meta.LedgerUnderreplicationManager;
 import org.apache.bookkeeper.net.BookieSocketAddress;
 import org.apache.bookkeeper.test.BookKeeperClusterTestCase;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.testng.annotations.AfterTest;
+import org.testng.annotations.BeforeTest;
+import org.testng.annotations.Test;
 
 /**
  * This test verifies that the period check on the auditor
@@ -58,7 +58,7 @@ public class AuditorPeriodicBookieCheckTest extends BookKeeperClusterTestCase {
         Class.forName("org.apache.pulsar.metadata.bookkeeper.PulsarMetadataBookieDriver");
     }
 
-    @Before
+    @BeforeTest
     @Override
     public void setUp() throws Exception {
         super.setUp();
@@ -75,7 +75,7 @@ public class AuditorPeriodicBookieCheckTest extends BookKeeperClusterTestCase {
         auditorElector.start();
     }
 
-    @After
+    @AfterTest
     @Override
     public void tearDown() throws Exception {
         auditorElector.shutdown();

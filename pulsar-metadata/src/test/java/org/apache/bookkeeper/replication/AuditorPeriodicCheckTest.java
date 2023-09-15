@@ -21,11 +21,11 @@
 package org.apache.bookkeeper.replication;
 
 import static org.apache.bookkeeper.replication.ReplicationStats.AUDITOR_SCOPE;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotEquals;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.testng.AssertJUnit.assertEquals;
+import static org.testng.AssertJUnit.assertFalse;
+import static org.testng.AssertJUnit.assertNotSame;
+import static org.testng.AssertJUnit.assertTrue;
+import static org.testng.AssertJUnit.fail;
 import io.netty.buffer.ByteBuf;
 import java.io.File;
 import java.io.FileOutputStream;
@@ -73,11 +73,11 @@ import org.apache.bookkeeper.test.TestStatsProvider;
 import org.apache.bookkeeper.test.TestStatsProvider.TestOpStatsLogger;
 import org.apache.bookkeeper.test.TestStatsProvider.TestStatsLogger;
 import org.awaitility.Awaitility;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.testng.annotations.AfterTest;
+import org.testng.annotations.BeforeTest;
+import org.testng.annotations.Test;
 
 /**
  * This test verifies that the period check on the auditor
@@ -99,7 +99,7 @@ public class AuditorPeriodicCheckTest extends BookKeeperClusterTestCase {
         Class.forName("org.apache.pulsar.metadata.bookkeeper.PulsarMetadataBookieDriver");
     }
 
-    @Before
+    @BeforeTest
     @Override
     public void setUp() throws Exception {
         super.setUp();
@@ -130,7 +130,7 @@ public class AuditorPeriodicCheckTest extends BookKeeperClusterTestCase {
         driver.initialize(serverConfiguration, NullStatsLogger.INSTANCE);
     }
 
-    @After
+    @AfterTest
     @Override
     public void tearDown() throws Exception {
         if (null != driver) {
@@ -980,7 +980,7 @@ public class AuditorPeriodicCheckTest extends BookKeeperClusterTestCase {
                 break;
             }
         }
-        assertNotEquals("Couldn't find ensemble bookie in bookie list", -1, bookieIdx);
+        assertNotSame("Couldn't find ensemble bookie in bookie list", -1, bookieIdx);
 
         LOG.info("Killing bookie " + addressByIndex(bookieIdx));
         ServerConfiguration conf = killBookie(bookieIdx);

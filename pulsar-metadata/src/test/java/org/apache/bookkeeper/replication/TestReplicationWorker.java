@@ -22,13 +22,13 @@ package org.apache.bookkeeper.replication;
 import static org.apache.bookkeeper.replication.ReplicationStats.AUDITOR_SCOPE;
 import static org.apache.bookkeeper.replication.ReplicationStats.NUM_ENTRIES_UNABLE_TO_READ_FOR_REPLICATION;
 import static org.apache.bookkeeper.replication.ReplicationStats.REPLICATION_SCOPE;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.testng.AssertJUnit.assertEquals;
+import static org.testng.AssertJUnit.assertFalse;
+import static org.testng.AssertJUnit.assertNotNull;
+import static org.testng.AssertJUnit.assertNotSame;
+import static org.testng.AssertJUnit.assertNull;
+import static org.testng.AssertJUnit.assertTrue;
+import static org.testng.AssertJUnit.fail;
 import io.netty.util.HashedWheelTimer;
 import java.io.IOException;
 import java.lang.reflect.Field;
@@ -92,6 +92,9 @@ import org.apache.bookkeeper.zookeeper.ZooKeeperClient;
 import org.apache.bookkeeper.zookeeper.ZooKeeperWatcherBase;
 import org.apache.commons.lang3.mutable.MutableObject;
 import org.apache.commons.lang3.reflect.FieldUtils;
+import org.apache.pulsar.metadata.bookkeeper.PulsarLedgerManagerFactory;
+import org.apache.pulsar.metadata.bookkeeper.PulsarMetadataClientDriver;
+import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 import org.apache.zookeeper.AsyncCallback.StatCallback;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.WatchedEvent;
@@ -102,9 +105,9 @@ import org.apache.zookeeper.ZooKeeper;
 import org.apache.zookeeper.ZooKeeper.States;
 import org.apache.zookeeper.data.Stat;
 import org.awaitility.Awaitility;
-import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.testng.annotations.Test;
 
 /**
  * Test the ReplicationWroker, where it has to replicate the fragments from
@@ -125,8 +128,10 @@ public class TestReplicationWorker extends BookKeeperClusterTestCase {
     private OrderedScheduler scheduler;
     private String zkLedgersRootPath;
 
-    public TestReplicationWorker() {
-        this("org.apache.bookkeeper.meta.HierarchicalLedgerManagerFactory");
+    public TestReplicationWorker() throws Exception {
+        this("org.apache.pulsar.metadata.bookkeeper.PulsarLedgerManagerFactory");
+        Class.forName("org.apache.pulsar.metadata.bookkeeper.PulsarMetadataClientDriver");
+        Class.forName("org.apache.pulsar.metadata.bookkeeper.PulsarMetadataBookieDriver");
     }
 
     TestReplicationWorker(String ledgerManagerFactory) {
@@ -145,7 +150,6 @@ public class TestReplicationWorker extends BookKeeperClusterTestCase {
     @Override
     public void setUp() throws Exception {
         super.setUp();
-
         zkLedgersRootPath = ZKMetadataDriverBase.resolveZkLedgersRootPath(baseClientConf);
         basePath = zkLedgersRootPath + '/'
                 + BookKeeperConstants.UNDER_REPLICATION_NODE
@@ -153,7 +157,10 @@ public class TestReplicationWorker extends BookKeeperClusterTestCase {
         baseLockPath = zkLedgersRootPath + '/'
                 + BookKeeperConstants.UNDER_REPLICATION_NODE
                 + "/locks";
-
+        baseClientConf.setMetadataServiceUri(
+                zkUtil.getMetadataServiceUri().replaceAll("zk://", "metadata-store:").replaceAll("/ledgers", ""));
+        baseConf.setMetadataServiceUri(
+                zkUtil.getMetadataServiceUri().replaceAll("zk://", "metadata-store:").replaceAll("/ledgers", ""));
         this.scheduler = OrderedScheduler.newSchedulerBuilder()
             .name("test-scheduler")
             .numThreads(1)
@@ -1076,7 +1083,7 @@ public class TestReplicationWorker extends BookKeeperClusterTestCase {
         }
         assertEquals("zkFaultInjectionWrapper should be in connected state", States.CONNECTED,
                 zkFaultInjectionWrapper.getState());
-        assertNotEquals("Session Id of old and new ZK instance should be different", oldZkInstanceSessionId,
+        assertNotSame("Session Id of old and new ZK instance should be different", oldZkInstanceSessionId,
                 zkFaultInjectionWrapper.getSessionId());
 
         /*
@@ -1297,8 +1304,10 @@ public class TestReplicationWorker extends BookKeeperClusterTestCase {
             }
         }
 
-        Stat stat = bkc.getZkHandle()
-                .exists("/ledgers/underreplication/ledgers/0000/0000/0000/0000/urL0000000000", false);
+        ZooKeeper zk = getZk((PulsarMetadataClientDriver) bkc.getMetadataClientDriver());
+
+
+        Stat stat = zk.exists("/ledgers/underreplication/ledgers/0000/0000/0000/0000/urL0000000000", false);
         assertNotNull(stat);
 
         baseConf.setRepairedPlacementPolicyNotAdheringBookieEnable(true);
@@ -1342,8 +1351,7 @@ public class TestReplicationWorker extends BookKeeperClusterTestCase {
         });
 
         Awaitility.await().untilAsserted(() -> {
-            Stat stat1 = bkc.getZkHandle()
-                    .exists("/ledgers/underreplication/ledgers/0000/0000/0000/0000/urL0000000000", false);
+            Stat stat1 = zk.exists("/ledgers/underreplication/ledgers/0000/0000/0000/0000/urL0000000000", false);
             assertNull(stat1);
         });
 
@@ -1421,5 +1429,14 @@ public class TestReplicationWorker extends BookKeeperClusterTestCase {
         assertEquals("PLACEMENT_POLICY_CHECK_TIME SuccessCount", 1,
                 placementPolicyCheckStatsLogger.getSuccessCount());
         return statsLogger;
+    }
+
+    private ZooKeeper getZk(PulsarMetadataClientDriver pulsarMetadataClientDriver) throws Exception {
+        PulsarLedgerManagerFactory pulsarLedgerManagerFactory =
+                (PulsarLedgerManagerFactory) pulsarMetadataClientDriver.getLedgerManagerFactory();
+        Field field = pulsarLedgerManagerFactory.getClass().getDeclaredField("store");
+        field.setAccessible(true);
+        ZKMetadataStore zkMetadataStore = (ZKMetadataStore) field.get(pulsarLedgerManagerFactory);
+        return zkMetadataStore.getZkClient();
     }
 }

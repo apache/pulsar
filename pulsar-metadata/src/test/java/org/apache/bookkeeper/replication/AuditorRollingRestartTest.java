@@ -21,7 +21,7 @@
 package org.apache.bookkeeper.replication;
 
 import static org.apache.bookkeeper.meta.MetadataDrivers.runFunctionWithLedgerManagerFactory;
-import static org.junit.Assert.assertEquals;
+import static org.testng.AssertJUnit.assertEquals;
 import com.google.common.util.concurrent.UncheckedExecutionException;
 import lombok.Cleanup;
 import org.apache.bookkeeper.client.BookKeeper.DigestType;
@@ -33,8 +33,7 @@ import org.apache.bookkeeper.meta.LedgerUnderreplicationManager;
 import org.apache.bookkeeper.net.BookieId;
 import org.apache.bookkeeper.test.BookKeeperClusterTestCase;
 import org.apache.bookkeeper.test.TestCallbacks;
-import org.junit.Before;
-import org.junit.Test;
+import org.testng.annotations.Test;
 
 /**
  * Test auditor behaviours during a rolling restart.
@@ -51,16 +50,7 @@ public class AuditorRollingRestartTest extends BookKeeperClusterTestCase {
 
     @Override
     protected void startBKCluster(String metadataServiceUri) throws Exception {
-        baseConf.setMetadataServiceUri(
-                metadataServiceUri.replaceAll("zk://", "metadata-store:").replaceAll("/ledgers", ""));
-        super.startBKCluster(metadataServiceUri);
-    }
-
-    @Override
-    public int startNewBookie() throws Exception {
-        baseConf.setMetadataServiceUri(
-                baseConf.getMetadataServiceUri().replaceAll("zk://", "metadata-store:").replaceAll("/ledgers", ""));
-        return super.startNewBookie();
+        super.startBKCluster(metadataServiceUri.replaceAll("zk://", "metadata-store:").replaceAll("/ledgers", ""));
     }
 
     /**

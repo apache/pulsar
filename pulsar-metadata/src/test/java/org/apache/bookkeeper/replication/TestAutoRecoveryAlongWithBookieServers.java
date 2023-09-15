@@ -20,8 +20,8 @@
  */
 package org.apache.bookkeeper.replication;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.testng.AssertJUnit.assertEquals;
+import static org.testng.AssertJUnit.assertTrue;
 import java.util.Enumeration;
 import java.util.List;
 import java.util.Map.Entry;
@@ -32,8 +32,8 @@ import org.apache.bookkeeper.meta.zk.ZKMetadataDriverBase;
 import org.apache.bookkeeper.net.BookieId;
 import org.apache.bookkeeper.test.BookKeeperClusterTestCase;
 import org.apache.bookkeeper.util.BookKeeperConstants;
-import org.junit.Before;
-import org.junit.Test;
+import org.testng.annotations.BeforeTest;
+import org.testng.annotations.Test;
 
 /**
  * Test auto recovery.
@@ -43,20 +43,26 @@ public class TestAutoRecoveryAlongWithBookieServers extends
 
     private String basePath = "";
 
-    public TestAutoRecoveryAlongWithBookieServers() {
+    public TestAutoRecoveryAlongWithBookieServers() throws Exception {
         super(3);
         setAutoRecoveryEnabled(true);
-
+        Class.forName("org.apache.pulsar.metadata.bookkeeper.PulsarMetadataClientDriver");
+        Class.forName("org.apache.pulsar.metadata.bookkeeper.PulsarMetadataBookieDriver");
     }
 
-    @Before
+    @BeforeTest
     @Override
     public void setUp() throws Exception {
         super.setUp();
 
         basePath = ZKMetadataDriverBase.resolveZkLedgersRootPath(baseClientConf) + '/'
-            + BookKeeperConstants.UNDER_REPLICATION_NODE
-            + BookKeeperConstants.DEFAULT_ZK_LEDGERS_ROOT_PATH;
+                + BookKeeperConstants.UNDER_REPLICATION_NODE
+                + BookKeeperConstants.DEFAULT_ZK_LEDGERS_ROOT_PATH;
+    }
+
+    @Override
+    protected void startBKCluster(String metadataServiceUri) throws Exception {
+        super.startBKCluster(metadataServiceUri.replaceAll("zk://", "metadata-store:").replaceAll("/ledgers", ""));
     }
 
     /**
@@ -85,7 +91,7 @@ public class TestAutoRecoveryAlongWithBookieServers extends
 
         // Killing all bookies except newly replicated bookie
         for (Entry<Long, ? extends List<BookieId>> entry :
-                 lh.getLedgerMetadata().getAllEnsembles().entrySet()) {
+                lh.getLedgerMetadata().getAllEnsembles().entrySet()) {
             List<BookieId> bookies = entry.getValue();
             for (BookieId bookie : bookies) {
                 if (bookie.equals(newBkAddr)) {

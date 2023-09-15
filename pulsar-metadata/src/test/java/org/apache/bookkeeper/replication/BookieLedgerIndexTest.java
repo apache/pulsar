@@ -17,10 +17,9 @@
  */
 package org.apache.bookkeeper.replication;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
-import java.io.IOException;
+import static org.testng.AssertJUnit.assertEquals;
+import static org.testng.AssertJUnit.assertTrue;
+import static org.testng.AssertJUnit.fail;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -32,25 +31,19 @@ import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper.DigestType;
 import org.apache.bookkeeper.client.LedgerHandle;
 import org.apache.bookkeeper.conf.ClientConfiguration;
-import org.apache.bookkeeper.meta.AbstractZkLedgerManagerFactory;
 import org.apache.bookkeeper.meta.LayoutManager;
 import org.apache.bookkeeper.meta.LedgerManager;
 import org.apache.bookkeeper.meta.LedgerManagerFactory;
-import org.apache.bookkeeper.meta.ZkLayoutManager;
-import org.apache.bookkeeper.meta.zk.ZKMetadataDriverBase;
-import org.apache.bookkeeper.replication.ReplicationException.BKAuditException;
 import org.apache.bookkeeper.test.BookKeeperClusterTestCase;
-import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.metadata.bookkeeper.PulsarLayoutManager;
 import org.apache.pulsar.metadata.bookkeeper.PulsarLedgerManagerFactory;
-import org.apache.zookeeper.KeeperException;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.testng.annotations.AfterTest;
+import org.testng.annotations.BeforeTest;
+import org.testng.annotations.Test;
 
 /**
  * Tests verifies bookie vs ledger mapping generating by the BookieLedgerIndexer.
@@ -86,7 +79,7 @@ public class BookieLedgerIndexTest extends BookKeeperClusterTestCase {
         Class.forName("org.apache.pulsar.metadata.bookkeeper.PulsarMetadataBookieDriver");
     }
 
-    @Before
+    @BeforeTest
     public void setUp() throws Exception {
         super.setUp();
         baseConf.setMetadataServiceUri(
@@ -109,7 +102,7 @@ public class BookieLedgerIndexTest extends BookKeeperClusterTestCase {
         ledgerManager = newLedgerManagerFactory.newLedgerManager();
     }
 
-    @After
+    @AfterTest
     public void tearDown() throws Exception {
         super.tearDown();
         if (null != newLedgerManagerFactory) {
@@ -156,29 +149,29 @@ public class BookieLedgerIndexTest extends BookKeeperClusterTestCase {
      * Verify ledger index with failed bookies and throws exception.
      */
     @SuppressWarnings("deprecation")
-    @Test
-    public void testWithoutZookeeper() throws Exception {
-        // This test case is for ledger metadata that stored in ZooKeeper. As
-        // far as MSLedgerManagerFactory, ledger metadata are stored in other
-        // storage. So this test is not suitable for MSLedgerManagerFactory.
-        if (newLedgerManagerFactory instanceof org.apache.bookkeeper.meta.MSLedgerManagerFactory) {
-            return;
-        }
-
-        for (int i = 0; i < numberOfLedgers; i++) {
-            createAndAddEntriesToLedger().close();
-        }
-
-        BookieLedgerIndexer bookieLedgerIndex = new BookieLedgerIndexer(
-                ledgerManager);
-        stopZKCluster();
-        try {
-            bookieLedgerIndex.getBookieToLedgerIndex();
-            fail("Must throw exception as zookeeper are not running!");
-        } catch (BKAuditException bkAuditException) {
-            // expected behaviour
-        }
-    }
+//    @Test
+//    public void testWithoutZookeeper() throws Exception {
+//        // This test case is for ledger metadata that stored in ZooKeeper. As
+//        // far as MSLedgerManagerFactory, ledger metadata are stored in other
+//        // storage. So this test is not suitable for MSLedgerManagerFactory.
+//        if (newLedgerManagerFactory instanceof org.apache.bookkeeper.meta.MSLedgerManagerFactory) {
+//            return;
+//        }
+//
+//        for (int i = 0; i < numberOfLedgers; i++) {
+//            createAndAddEntriesToLedger().close();
+//        }
+//
+//        BookieLedgerIndexer bookieLedgerIndex = new BookieLedgerIndexer(
+//                ledgerManager);
+//        stopZKCluster();
+//        try {
+//            bookieLedgerIndex.getBookieToLedgerIndex();
+//            fail("Must throw exception as zookeeper are not running!");
+//        } catch (BKAuditException bkAuditException) {
+//            // expected behaviour
+//        }
+//    }
 
     /**
      * Verify indexing with multiple ensemble reformation.

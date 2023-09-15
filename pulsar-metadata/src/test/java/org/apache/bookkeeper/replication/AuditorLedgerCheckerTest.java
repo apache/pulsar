@@ -20,11 +20,12 @@
  */
 package org.apache.bookkeeper.replication;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.testng.AssertJUnit.assertEquals;
+import static org.testng.AssertJUnit.assertFalse;
+import static org.testng.AssertJUnit.assertNotNull;
+import static org.testng.AssertJUnit.assertNotSame;
+import static org.testng.AssertJUnit.assertTrue;
+import static org.testng.AssertJUnit.fail;
 import java.net.URI;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
@@ -78,11 +79,10 @@ import org.apache.pulsar.metadata.bookkeeper.PulsarLedgerManagerFactory;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.WatchedEvent;
 import org.apache.zookeeper.Watcher;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.testng.annotations.BeforeTest;
+import org.testng.annotations.Test;
 
 /**
  * Tests publishing of under replicated ledgers by the Auditor bookie node when
@@ -127,7 +127,7 @@ public class AuditorLedgerCheckerTest extends BookKeeperClusterTestCase {
                 .setLedgerManagerFactoryClassName(ledgerManagerFactoryClass);
     }
 
-    @Before
+    @BeforeTest
     public void setUp() throws Exception {
         super.setUp();
         underreplicatedPath = ZKMetadataDriverBase.resolveZkLedgersRootPath(baseClientConf)
@@ -588,8 +588,8 @@ public class AuditorLedgerCheckerTest extends BookKeeperClusterTestCase {
         Auditor auditorBookiesAuditor = getAuditorBookiesAuditor();
         Future<?> auditTask = auditorBookiesAuditor.getAuditTask();
         int lostBookieRecoveryDelayBeforeChange = auditorBookiesAuditor.getLostBookieRecoveryDelayBeforeChange();
-        Assert.assertEquals("auditTask is supposed to be null", null, auditTask);
-        Assert.assertEquals(
+        assertEquals("auditTask is supposed to be null", null, auditTask);
+        assertEquals(
                 "lostBookieRecoveryDelayBeforeChange of Auditor should be equal to BaseConf's lostBookieRecoveryDelay",
                 lostBookieRecoveryDelayConfValue, lostBookieRecoveryDelayBeforeChange);
 
@@ -638,8 +638,8 @@ public class AuditorLedgerCheckerTest extends BookKeeperClusterTestCase {
         assertEquals("All the ledgers should be marked as underreplicated", ledgerList.size(), urLedgerList.size());
 
         auditTask = auditorBookiesAuditor.getAuditTask();
-        Assert.assertEquals("auditTask is supposed to be null", null, auditTask);
-        Assert.assertEquals(
+        assertEquals("auditTask is supposed to be null", null, auditTask);
+        assertEquals(
                 "lostBookieRecoveryDelayBeforeChange of Auditor should be equal to BaseConf's lostBookieRecoveryDelay",
                 lostBookieRecoveryDelayBeforeChange, auditorBookiesAuditor.getLostBookieRecoveryDelayBeforeChange());
     }
@@ -676,8 +676,8 @@ public class AuditorLedgerCheckerTest extends BookKeeperClusterTestCase {
                 urLedgerList.size());
 
         Future<?> auditTask = auditorBookiesAuditor.getAuditTask();
-        Assert.assertNotEquals("auditTask is not supposed to be null", null, auditTask);
-        Assert.assertEquals(
+        assertNotSame("auditTask is not supposed to be null", null, auditTask);
+        assertEquals(
                 "lostBookieRecoveryDelayBeforeChange of Auditor should be equal to what we set",
                 lostBookieRecoveryDelay, auditorBookiesAuditor.getLostBookieRecoveryDelayBeforeChange());
 
@@ -689,8 +689,8 @@ public class AuditorLedgerCheckerTest extends BookKeeperClusterTestCase {
 
         Thread.sleep(100);
         auditTask = auditorBookiesAuditor.getAuditTask();
-        Assert.assertEquals("auditTask is supposed to be null", null, auditTask);
-        Assert.assertEquals(
+        assertEquals("auditTask is supposed to be null", null, auditTask);
+        assertEquals(
                 "lostBookieRecoveryDelayBeforeChange of Auditor should be equal to previously set value",
                 lostBookieRecoveryDelay, auditorBookiesAuditor.getLostBookieRecoveryDelayBeforeChange());
     }
@@ -727,8 +727,8 @@ public class AuditorLedgerCheckerTest extends BookKeeperClusterTestCase {
                 urLedgerList.size());
 
         Future<?> auditTask = auditorBookiesAuditor.getAuditTask();
-        Assert.assertNotEquals("auditTask is not supposed to be null", null, auditTask);
-        Assert.assertEquals(
+        assertNotSame("auditTask is not supposed to be null", null, auditTask);
+        assertEquals(
                 "lostBookieRecoveryDelayBeforeChange of Auditor should be equal to what we set",
                 lostBookieRecoveryDelay, auditorBookiesAuditor.getLostBookieRecoveryDelayBeforeChange());
 
