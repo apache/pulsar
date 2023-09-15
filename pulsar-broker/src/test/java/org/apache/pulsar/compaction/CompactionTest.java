@@ -80,7 +80,6 @@ import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.ConsumerImpl;
-import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
@@ -540,14 +539,8 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
             Assert.assertEquals(message2.getKey(), "key2");
             Assert.assertEquals(new String(message2.getData()), "my-message-3");
             if (getCompactor() instanceof StrategicTwoPhaseCompactor) {
-                MessageIdImpl id = (MessageIdImpl) messages.get(0).getMessageId();
-                MessageIdImpl id1 = new MessageIdImpl(
-                        id.getLedgerId(), id.getEntryId(), id.getPartitionIndex());
-                Assert.assertEquals(message1.getMessageId(), id1);
-                id = (MessageIdImpl) messages.get(2).getMessageId();
-                MessageIdImpl id2 = new MessageIdImpl(
-                        id.getLedgerId(), id.getEntryId(), id.getPartitionIndex());
-                Assert.assertEquals(message2.getMessageId(), id2);
+                Assert.assertEquals(message1.getMessageId(), messages.get(0).getMessageId());
+                Assert.assertEquals(message2.getMessageId(), messages.get(1).getMessageId());
             } else {
                 Assert.assertEquals(message1.getMessageId(), messages.get(0).getMessageId());
                 Assert.assertEquals(message2.getMessageId(), messages.get(2).getMessageId());
