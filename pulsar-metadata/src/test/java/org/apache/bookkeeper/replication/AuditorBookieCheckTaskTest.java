@@ -47,7 +47,7 @@ import org.apache.bookkeeper.stats.OpStatsLogger;
 import org.apache.bookkeeper.test.TestStatsProvider;
 import org.apache.bookkeeper.versioning.LongVersion;
 import org.apache.bookkeeper.versioning.Versioned;
-import org.testng.annotations.BeforeTest;
+import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 /**
@@ -65,7 +65,7 @@ public class AuditorBookieCheckTaskTest {
     private final AuditorTask.ShutdownTaskHandler shutdownTaskHandler = () -> shutdownCompleted.set(true);
     private long startLedgerId = 0;
 
-    @BeforeTest
+    @BeforeMethod
     public void setup() {
         ServerConfiguration conf = mock(ServerConfiguration.class);
         TestStatsProvider statsProvider = new TestStatsProvider();

@@ -37,6 +37,7 @@ import org.apache.pulsar.metadata.bookkeeper.PulsarLayoutManager;
 import org.apache.pulsar.metadata.bookkeeper.PulsarLedgerManagerFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 /**
@@ -59,6 +60,7 @@ public class AuditorCheckAllLedgersTaskTest extends BookKeeperClusterTestCase {
         baseConf.setAutoRecoveryDaemonEnabled(false);
     }
 
+    @BeforeMethod
     @Override
     public void setUp() throws Exception {
         super.setUp();

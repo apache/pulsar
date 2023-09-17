@@ -62,8 +62,8 @@ import org.apache.bookkeeper.test.TestStatsProvider.TestStatsLogger;
 import org.apache.bookkeeper.util.StaticDNSResolver;
 import org.apache.commons.lang3.mutable.MutableObject;
 import org.apache.zookeeper.KeeperException;
-import org.testng.annotations.AfterTest;
-import org.testng.annotations.BeforeTest;
+import org.testng.annotations.AfterMethod;
+import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 /**
@@ -79,7 +79,7 @@ public class AuditorPlacementPolicyCheckTest extends BookKeeperClusterTestCase {
         Class.forName("org.apache.pulsar.metadata.bookkeeper.PulsarMetadataBookieDriver");
     }
 
-    @BeforeTest
+    @BeforeMethod
     @Override
     public void setUp() throws Exception {
         super.setUp();
@@ -95,7 +95,7 @@ public class AuditorPlacementPolicyCheckTest extends BookKeeperClusterTestCase {
         driver.initialize(serverConfiguration, NullStatsLogger.INSTANCE);
     }
 
-    @AfterTest
+    @AfterMethod
     @Override
     public void tearDown() throws Exception {
         if (null != driver) {

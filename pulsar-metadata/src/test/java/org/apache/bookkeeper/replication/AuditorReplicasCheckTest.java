@@ -68,8 +68,8 @@ import org.apache.bookkeeper.util.StaticDNSResolver;
 import org.apache.commons.collections4.map.MultiKeyMap;
 import org.apache.commons.lang3.mutable.MutableObject;
 import org.apache.zookeeper.KeeperException;
-import org.testng.annotations.AfterTest;
-import org.testng.annotations.BeforeTest;
+import org.testng.annotations.AfterMethod;
+import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 /**
@@ -86,7 +86,7 @@ public class AuditorReplicasCheckTest extends BookKeeperClusterTestCase {
         Class.forName("org.apache.pulsar.metadata.bookkeeper.PulsarMetadataBookieDriver");
     }
 
-    @BeforeTest
+    @BeforeMethod
     @Override
     public void setUp() throws Exception {
         super.setUp();
@@ -103,7 +103,7 @@ public class AuditorReplicasCheckTest extends BookKeeperClusterTestCase {
         regManager = driver.createRegistrationManager();
     }
 
-    @AfterTest
+    @AfterMethod
     @Override
     public void tearDown() throws Exception {
         if (null != regManager) {

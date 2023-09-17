@@ -41,8 +41,8 @@ import org.apache.pulsar.metadata.bookkeeper.PulsarLayoutManager;
 import org.apache.pulsar.metadata.bookkeeper.PulsarLedgerManagerFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.testng.annotations.AfterTest;
-import org.testng.annotations.BeforeTest;
+import org.testng.annotations.AfterMethod;
+import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 /**
@@ -79,7 +79,7 @@ public class BookieLedgerIndexTest extends BookKeeperClusterTestCase {
         Class.forName("org.apache.pulsar.metadata.bookkeeper.PulsarMetadataBookieDriver");
     }
 
-    @BeforeTest
+    @BeforeMethod
     public void setUp() throws Exception {
         super.setUp();
         baseConf.setMetadataServiceUri(
@@ -102,7 +102,7 @@ public class BookieLedgerIndexTest extends BookKeeperClusterTestCase {
         ledgerManager = newLedgerManagerFactory.newLedgerManager();
     }
 
-    @AfterTest
+    @AfterMethod
     public void tearDown() throws Exception {
         super.tearDown();
         if (null != newLedgerManagerFactory) {

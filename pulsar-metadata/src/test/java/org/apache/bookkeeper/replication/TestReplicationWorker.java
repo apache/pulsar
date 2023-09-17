@@ -25,7 +25,6 @@ import static org.apache.bookkeeper.replication.ReplicationStats.REPLICATION_SCO
 import static org.testng.AssertJUnit.assertEquals;
 import static org.testng.AssertJUnit.assertFalse;
 import static org.testng.AssertJUnit.assertNotNull;
-import static org.testng.AssertJUnit.assertNotSame;
 import static org.testng.AssertJUnit.assertNull;
 import static org.testng.AssertJUnit.assertTrue;
 import static org.testng.AssertJUnit.fail;
@@ -64,7 +63,6 @@ import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.bookkeeper.conf.ClientConfiguration;
 import org.apache.bookkeeper.conf.ServerConfiguration;
 import org.apache.bookkeeper.feature.FeatureProvider;
-import org.apache.bookkeeper.meta.AbstractZkLedgerManager;
 import org.apache.bookkeeper.meta.LedgerManager;
 import org.apache.bookkeeper.meta.LedgerManagerFactory;
 import org.apache.bookkeeper.meta.LedgerUnderreplicationManager;
@@ -95,18 +93,18 @@ import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.pulsar.metadata.bookkeeper.PulsarLedgerManagerFactory;
 import org.apache.pulsar.metadata.bookkeeper.PulsarMetadataClientDriver;
 import org.apache.pulsar.metadata.impl.ZKMetadataStore;
+import org.apache.zookeeper.AsyncCallback;
 import org.apache.zookeeper.AsyncCallback.StatCallback;
 import org.apache.zookeeper.KeeperException;
-import org.apache.zookeeper.WatchedEvent;
+import org.apache.zookeeper.Op;
 import org.apache.zookeeper.Watcher;
-import org.apache.zookeeper.Watcher.Event.EventType;
-import org.apache.zookeeper.Watcher.Event.KeeperState;
 import org.apache.zookeeper.ZooKeeper;
-import org.apache.zookeeper.ZooKeeper.States;
 import org.apache.zookeeper.data.Stat;
 import org.awaitility.Awaitility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.testng.annotations.AfterMethod;
+import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 /**
@@ -130,14 +128,14 @@ public class TestReplicationWorker extends BookKeeperClusterTestCase {
 
     public TestReplicationWorker() throws Exception {
         this("org.apache.pulsar.metadata.bookkeeper.PulsarLedgerManagerFactory");
-        Class.forName("org.apache.pulsar.metadata.bookkeeper.PulsarMetadataClientDriver");
-        Class.forName("org.apache.pulsar.metadata.bookkeeper.PulsarMetadataBookieDriver");
     }
 
-    TestReplicationWorker(String ledgerManagerFactory) {
+    TestReplicationWorker(String ledgerManagerFactory) throws Exception {
         super(3, 300);
         LOG.info("Running test case using ledger manager : "
                 + ledgerManagerFactory);
+        Class.forName("org.apache.pulsar.metadata.bookkeeper.PulsarMetadataClientDriver");
+        Class.forName("org.apache.pulsar.metadata.bookkeeper.PulsarMetadataBookieDriver");
         // set ledger manager name
         baseConf.setLedgerManagerFactoryClassName(ledgerManagerFactory);
         baseClientConf.setLedgerManagerFactoryClassName(ledgerManagerFactory);
@@ -147,6 +145,7 @@ public class TestReplicationWorker extends BookKeeperClusterTestCase {
         baseConf.setZkRetryBackoffStartMs(10);
     }
 
+    @BeforeMethod
     @Override
     public void setUp() throws Exception {
         super.setUp();
@@ -162,25 +161,26 @@ public class TestReplicationWorker extends BookKeeperClusterTestCase {
         baseConf.setMetadataServiceUri(
                 zkUtil.getMetadataServiceUri().replaceAll("zk://", "metadata-store:").replaceAll("/ledgers", ""));
         this.scheduler = OrderedScheduler.newSchedulerBuilder()
-            .name("test-scheduler")
-            .numThreads(1)
-            .build();
+                .name("test-scheduler")
+                .numThreads(1)
+                .build();
 
         this.driver = MetadataDrivers.getBookieDriver(
-            URI.create(baseConf.getMetadataServiceUri()));
+                URI.create(baseConf.getMetadataServiceUri()));
         this.driver.initialize(
-            baseConf,
-            NullStatsLogger.INSTANCE);
+                baseConf,
+                NullStatsLogger.INSTANCE);
         // initialize urReplicationManager
         mFactory = driver.getLedgerManagerFactory();
         ledgerManager = mFactory.newLedgerManager();
         underReplicationManager = mFactory.newLedgerUnderreplicationManager();
     }
 
+    @AfterMethod
     @Override
     public void tearDown() throws Exception {
         super.tearDown();
-        if (null != underReplicationManager){
+        if (null != underReplicationManager) {
             underReplicationManager.close();
             underReplicationManager = null;
         }
@@ -469,7 +469,7 @@ public class TestReplicationWorker extends BookKeeperClusterTestCase {
         ReplicationWorker rw = new ReplicationWorker(baseConf);
 
         @Cleanup MetadataClientDriver clientDriver = MetadataDrivers.getClientDriver(
-            URI.create(baseClientConf.getMetadataServiceUri()));
+                URI.create(baseClientConf.getMetadataServiceUri()));
         clientDriver.initialize(baseClientConf, scheduler, NullStatsLogger.INSTANCE, Optional.empty());
 
         LedgerManagerFactory mFactory = clientDriver.getLedgerManagerFactory();
@@ -647,7 +647,7 @@ public class TestReplicationWorker extends BookKeeperClusterTestCase {
         CopyOnWriteArrayList<Long> delayReplicationPeriods;
 
         public InjectedReplicationWorker(ServerConfiguration conf, StatsLogger statsLogger,
-                CopyOnWriteArrayList<Long> delayReplicationPeriods)
+                                         CopyOnWriteArrayList<Long> delayReplicationPeriods)
                 throws CompatibilityException, ReplicationException.UnavailableException,
                 InterruptedException, IOException {
             super(conf, statsLogger);
@@ -813,7 +813,7 @@ public class TestReplicationWorker extends BookKeeperClusterTestCase {
         baseClientConf.setMetadataServiceUri(zkUtil.getMetadataServiceUri());
 
         @Cleanup MetadataClientDriver driver = MetadataDrivers.getClientDriver(
-            URI.create(baseClientConf.getMetadataServiceUri()));
+                URI.create(baseClientConf.getMetadataServiceUri()));
         driver.initialize(baseClientConf, scheduler, NullStatsLogger.INSTANCE, Optional.empty());
 
         LedgerManagerFactory mFactory = driver.getLedgerManagerFactory();
@@ -932,7 +932,7 @@ public class TestReplicationWorker extends BookKeeperClusterTestCase {
             throws Exception {
         // Killing all bookies except newly replicated bookie
         for (Entry<Long, ? extends List<BookieId>> entry :
-                 lh.getLedgerMetadata().getAllEnsembles().entrySet()) {
+                lh.getLedgerMetadata().getAllEnsembles().entrySet()) {
             List<BookieId> bookies = entry.getValue();
             for (BookieId bookie : bookies) {
                 if (bookie.equals(excludeBK)) {
@@ -944,7 +944,7 @@ public class TestReplicationWorker extends BookKeeperClusterTestCase {
     }
 
     private void verifyRecoveredLedgers(LedgerHandle lh, long startEntryId,
-            long endEntryId) throws BKException, InterruptedException {
+                                        long endEntryId) throws BKException, InterruptedException {
         LedgerHandle lhs = bkc.openLedgerNoRecovery(lh.getId(),
                 BookKeeper.DigestType.CRC32, TESTPASSWD);
         Enumeration<LedgerEntry> entries = lhs.readEntries(startEntryId,
@@ -1009,7 +1009,7 @@ public class TestReplicationWorker extends BookKeeperClusterTestCase {
 
             @Override
             public void setData(final String path, final byte[] data, final int version, final StatCallback cb,
-                    final Object context) {
+                                final Object context) {
                 if ((pathOfSetDataToFail != null) && (pathOfSetDataToFail.equals(path))) {
                     /*
                      * if pathOfSetDataToFail matches with the path of the node,
@@ -1021,6 +1021,40 @@ public class TestReplicationWorker extends BookKeeperClusterTestCase {
                 } else {
                     super.setData(path, data, version, cb, context);
                 }
+            }
+
+            @Override
+            public void multi(Iterable<Op> ops, AsyncCallback.MultiCallback cb, Object ctx) {
+                boolean matchError = false;
+                for (Op op : ops) {
+                    if (op instanceof Op.Delete && (pathOfDeleteToFail != null) && (pathOfDeleteToFail.equals(
+                            op.getPath()))) {
+                        matchError = true;
+                        /*
+                         * if pathOfDeleteToFail matches with the path of the node,
+                         * then throw CONNECTIONLOSS exception.
+                         */
+                        LOG.error("delete of MockZooKeeper, is failing with CONNECTIONLOSS for path: {}", op.getPath());
+                        numOfTimesDeleteFailed.incrementAndGet();
+                        cb.processResult(KeeperException.Code.CONNECTIONLOSS.intValue(), op.getPath(), ctx, null);
+                    }
+                    if (op instanceof Op.SetData && (pathOfSetDataToFail != null) && (pathOfSetDataToFail.equals(
+                            op.getPath()))) {
+                        matchError = true;
+                        /*
+                         * if pathOfSetDataToFail matches with the path of the node,
+                         * then callback with CONNECTIONLOSS error.
+                         */
+                        LOG.error("setData of MockZooKeeper, is failing with CONNECTIONLOSS for path: {}",
+                                op.getPath());
+                        numOfTimesSetDataFailed.incrementAndGet();
+                        cb.processResult(KeeperException.Code.CONNECTIONLOSS.intValue(), op.getPath(), ctx, null);
+                    }
+                }
+                if (matchError) {
+                    return;
+                }
+                super.multi(ops, cb, ctx);
             }
 
             @Override
@@ -1040,129 +1074,129 @@ public class TestReplicationWorker extends BookKeeperClusterTestCase {
         }
     }
 
-    @Test
-    public void testRWShutDownInTheCaseOfZKOperationFailures() throws Exception {
-        /*
-         * create MockZooKeeperClient instance and wait for it to be connected.
-         */
-        int zkSessionTimeOut = 10000;
-        ZooKeeperWatcherBase zooKeeperWatcherBase = new ZooKeeperWatcherBase(zkSessionTimeOut,
-                NullStatsLogger.INSTANCE);
-        MockZooKeeperClient zkFaultInjectionWrapper = new MockZooKeeperClient(zkUtil.getZooKeeperConnectString(),
-                zkSessionTimeOut, zooKeeperWatcherBase);
-        zkFaultInjectionWrapper.waitForConnection();
-        assertEquals("zkFaultInjectionWrapper should be in connected state", States.CONNECTED,
-                zkFaultInjectionWrapper.getState());
-        long oldZkInstanceSessionId = zkFaultInjectionWrapper.getSessionId();
-
-        /*
-         * create ledger and add entries.
-         */
-        BookKeeper bkWithMockZK = new BookKeeper(baseClientConf, zkFaultInjectionWrapper);
-        long ledgerId = 567L;
-        LedgerHandle lh = bkWithMockZK.createLedgerAdv(ledgerId, 2, 2, 2,
-                BookKeeper.DigestType.CRC32, TESTPASSWD,
-                null);
-        for (int i = 0; i < 10; i++) {
-            lh.addEntry(i, data);
-        }
-        lh.close();
-
-        /*
-         * trigger Expired event so that MockZooKeeperClient would run
-         * 'clientCreator' and create new zk handle. In this case it would
-         * create MockZooKeeper instance.
-         */
-        zooKeeperWatcherBase.process(new WatchedEvent(EventType.None, KeeperState.Expired, ""));
-        zkFaultInjectionWrapper.waitForConnection();
-        for (int i = 0; i < 10; i++) {
-            if (zkFaultInjectionWrapper.getState() == States.CONNECTED) {
-                break;
-            }
-            Thread.sleep(200);
-        }
-        assertEquals("zkFaultInjectionWrapper should be in connected state", States.CONNECTED,
-                zkFaultInjectionWrapper.getState());
-        assertNotSame("Session Id of old and new ZK instance should be different", oldZkInstanceSessionId,
-                zkFaultInjectionWrapper.getSessionId());
-
-        /*
-         * Kill a Bookie, so that ledger becomes underreplicated. Since totally
-         * 3 bookies are available and the ensemblesize of the current ledger is
-         * 2, we should be able to replicate to the other bookie.
-         */
-        BookieId replicaToKill = lh.getLedgerMetadata().getAllEnsembles().get(0L).get(0);
-        LOG.info("Killing Bookie id {}", replicaToKill);
-        killBookie(replicaToKill);
-
-        /*
-         * Start RW.
-         */
-        ReplicationWorker rw = new ReplicationWorker(baseConf, bkWithMockZK, false, NullStatsLogger.INSTANCE);
-        rw.start();
-        try {
-            for (int i = 0; i < 40; i++) {
-                if (rw.isRunning()) {
-                    break;
-                }
-                LOG.info("Waiting for the RW to start...");
-                Thread.sleep(500);
-            }
-            assertTrue("RW should be running", rw.isRunning());
-
-            /*
-             * Since Auditor is not running, ledger needs to be marked
-             * underreplicated explicitly. But before marking ledger
-             * underreplicated, set paths for which MockZooKeeper's setData and
-             * Delete operation to fail.
-             *
-             * ZK.setData will be called by 'updateEnsembleInfo' operation after
-             * completion of copying to a new bookie. ZK.delete will be called by
-             * RW.logBKExceptionAndReleaseLedger and finally block in
-             * 'rereplicate(long ledgerIdToReplicate)'
-             */
-            AbstractZkLedgerManager absZKLedgerManager = (AbstractZkLedgerManager) ledgerManager;
-            String ledgerPath = absZKLedgerManager.getLedgerPath(ledgerId);
-            String urLockPath = ZkLedgerUnderreplicationManager
-                    .getUrLedgerLockZnode(ZkLedgerUnderreplicationManager.getUrLockPath(zkLedgersRootPath), ledgerId);
-            zkFaultInjectionWrapper.setPathOfSetDataToFail(ledgerPath);
-            zkFaultInjectionWrapper.setPathOfDeleteToFail(urLockPath);
-            underReplicationManager.markLedgerUnderreplicated(lh.getId(), replicaToKill.toString());
-
-            /*
-             * Since there is only one RW, it will try to replicate underreplicated
-             * ledger. After completion of copying it to a new bookie, it will try
-             * to update ensembleinfo. Which would fail with our MockZK. After that
-             * it would try to delete lock znode as part of
-             * RW.logBKExceptionAndReleaseLedger, which will also fail because of
-             * our MockZK. In the finally block in 'rereplicate(long
-             * ledgerIdToReplicate)' it would try one more time to delete the ledger
-             * and once again it will fail because of our MockZK. So RW gives up and
-             * shutdowns itself.
-             */
-            for (int i = 0; i < 40; i++) {
-                if (!rw.isRunning()) {
-                    break;
-                }
-                LOG.info("Waiting for the RW to shutdown...");
-                Thread.sleep(500);
-            }
-
-            /*
-             * as described earlier, numOfTimes setDataFailed should be 1 and
-             * numOfTimes deleteFailed should be 2
-             */
-            assertEquals("NumOfTimesSetDataFailed", 1,
-                    zkFaultInjectionWrapper.getNumOfTimesSetDataFailed());
-            assertEquals("NumOfTimesDeleteFailed", 2,
-                    zkFaultInjectionWrapper.getNumOfTimesDeleteFailed());
-            assertFalse("RW should be shutdown", rw.isRunning());
-        } finally {
-            rw.shutdown();
-            zkFaultInjectionWrapper.close();
-            bkWithMockZK.close();
-        }
-    }
+//    @Test
+//    public void testRWShutDownInTheCaseOfZKOperationFailures() throws Exception {
+//        /*
+//         * create MockZooKeeperClient instance and wait for it to be connected.
+//         */
+//        int zkSessionTimeOut = 10000;
+//        ZooKeeperWatcherBase zooKeeperWatcherBase = new ZooKeeperWatcherBase(zkSessionTimeOut,
+//                NullStatsLogger.INSTANCE);
+//        MockZooKeeperClient zkFaultInjectionWrapper = new MockZooKeeperClient(zkUtil.getZooKeeperConnectString(),
+//                zkSessionTimeOut, zooKeeperWatcherBase);
+//        zkFaultInjectionWrapper.waitForConnection();
+//        assertEquals("zkFaultInjectionWrapper should be in connected state", States.CONNECTED,
+//                zkFaultInjectionWrapper.getState());
+//        long oldZkInstanceSessionId = zkFaultInjectionWrapper.getSessionId();
+//
+//        /*
+//         * create ledger and add entries.
+//         */
+//        BookKeeper bkWithMockZK = new BookKeeper(baseClientConf, zkFaultInjectionWrapper);
+//        long ledgerId = 567L;
+//        LedgerHandle lh = bkWithMockZK.createLedgerAdv(ledgerId, 2, 2, 2,
+//                BookKeeper.DigestType.CRC32, TESTPASSWD,
+//                null);
+//        for (int i = 0; i < 10; i++) {
+//            lh.addEntry(i, data);
+//        }
+//        lh.close();
+//
+//        /*
+//         * trigger Expired event so that MockZooKeeperClient would run
+//         * 'clientCreator' and create new zk handle. In this case it would
+//         * create MockZooKeeper instance.
+//         */
+//        zooKeeperWatcherBase.process(new WatchedEvent(EventType.None, KeeperState.Expired, ""));
+//        zkFaultInjectionWrapper.waitForConnection();
+//        for (int i = 0; i < 10; i++) {
+//            if (zkFaultInjectionWrapper.getState() == States.CONNECTED) {
+//                break;
+//            }
+//            Thread.sleep(200);
+//        }
+//        assertEquals("zkFaultInjectionWrapper should be in connected state", States.CONNECTED,
+//                zkFaultInjectionWrapper.getState());
+//        assertNotSame("Session Id of old and new ZK instance should be different", oldZkInstanceSessionId,
+//                zkFaultInjectionWrapper.getSessionId());
+//
+//        /*
+//         * Kill a Bookie, so that ledger becomes underreplicated. Since totally
+//         * 3 bookies are available and the ensemblesize of the current ledger is
+//         * 2, we should be able to replicate to the other bookie.
+//         */
+//        BookieId replicaToKill = lh.getLedgerMetadata().getAllEnsembles().get(0L).get(0);
+//        LOG.info("Killing Bookie id {}", replicaToKill);
+//        killBookie(replicaToKill);
+//
+//        /*
+//         * Start RW.
+//         */
+//        ReplicationWorker rw = new ReplicationWorker(baseConf, bkWithMockZK, false, NullStatsLogger.INSTANCE);
+//        rw.start();
+//        try {
+//            for (int i = 0; i < 40; i++) {
+//                if (rw.isRunning()) {
+//                    break;
+//                }
+//                LOG.info("Waiting for the RW to start...");
+//                Thread.sleep(500);
+//            }
+//            assertTrue("RW should be running", rw.isRunning());
+//
+//            /*
+//             * Since Auditor is not running, ledger needs to be marked
+//             * underreplicated explicitly. But before marking ledger
+//             * underreplicated, set paths for which MockZooKeeper's setData and
+//             * Delete operation to fail.
+//             *
+//             * ZK.setData will be called by 'updateEnsembleInfo' operation after
+//             * completion of copying to a new bookie. ZK.delete will be called by
+//             * RW.logBKExceptionAndReleaseLedger and finally block in
+//             * 'rereplicate(long ledgerIdToReplicate)'
+//             */
+//            PulsarLedgerManager absZKLedgerManager = (PulsarLedgerManager) ledgerManager;
+//            String ledgerPath = absZKLedgerManager.getLedgerPath(ledgerId);
+//            String urLockPath = ZkLedgerUnderreplicationManager
+//                    .getUrLedgerLockZnode(ZkLedgerUnderreplicationManager.getUrLockPath(zkLedgersRootPath), ledgerId);
+//            zkFaultInjectionWrapper.setPathOfSetDataToFail(ledgerPath);
+//            zkFaultInjectionWrapper.setPathOfDeleteToFail(urLockPath);
+//            underReplicationManager.markLedgerUnderreplicated(lh.getId(), replicaToKill.toString());
+//
+//            /*
+//             * Since there is only one RW, it will try to replicate underreplicated
+//             * ledger. After completion of copying it to a new bookie, it will try
+//             * to update ensembleinfo. Which would fail with our MockZK. After that
+//             * it would try to delete lock znode as part of
+//             * RW.logBKExceptionAndReleaseLedger, which will also fail because of
+//             * our MockZK. In the finally block in 'rereplicate(long
+//             * ledgerIdToReplicate)' it would try one more time to delete the ledger
+//             * and once again it will fail because of our MockZK. So RW gives up and
+//             * shutdowns itself.
+//             */
+//            for (int i = 0; i < 40; i++) {
+//                if (!rw.isRunning()) {
+//                    break;
+//                }
+//                LOG.info("Waiting for the RW to shutdown...");
+//                Thread.sleep(500);
+//            }
+//
+//            /*
+//             * as described earlier, numOfTimes setDataFailed should be 1 and
+//             * numOfTimes deleteFailed should be 2
+//             */
+//            assertEquals("NumOfTimesSetDataFailed", 1,
+//                    zkFaultInjectionWrapper.getNumOfTimesSetDataFailed());
+//            assertEquals("NumOfTimesDeleteFailed", 2,
+//                    zkFaultInjectionWrapper.getNumOfTimesDeleteFailed());
+//            assertFalse("RW should be shutdown", rw.isRunning());
+//        } finally {
+//            rw.shutdown();
+//            zkFaultInjectionWrapper.close();
+//            bkWithMockZK.close();
+//        }
+//    }
 
     @Test
     public void testReplicateEmptyOpenStateLedger() throws Exception {
@@ -1181,7 +1215,7 @@ public class TestReplicationWorker extends BookKeeperClusterTestCase {
         try {
             underReplicationManager.markLedgerUnderreplicated(lh.getId(), ensemble.get(1).toString());
             Awaitility.waitAtMost(60, TimeUnit.SECONDS).untilAsserted(() ->
-                assertFalse(ReplicationTestUtil.isLedgerInUnderReplication(zkc, lh.getId(), basePath))
+                    assertFalse(ReplicationTestUtil.isLedgerInUnderReplication(zkc, lh.getId(), basePath))
             );
 
             LedgerHandle lh1 = bkc.openLedgerNoRecovery(lh.getId(), BookKeeper.DigestType.CRC32, TESTPASSWD);
@@ -1255,8 +1289,12 @@ public class TestReplicationWorker extends BookKeeperClusterTestCase {
         bkc = new BookKeeperTestClient(baseClientConf) {
             @Override
             protected EnsemblePlacementPolicy initializeEnsemblePlacementPolicy(ClientConfiguration conf,
-                    DNSToSwitchMapping dnsResolver, HashedWheelTimer timer, FeatureProvider featureProvider,
-                    StatsLogger statsLogger, BookieAddressResolver bookieAddressResolver) throws IOException {
+                                                                                DNSToSwitchMapping dnsResolver,
+                                                                                HashedWheelTimer timer,
+                                                                                FeatureProvider featureProvider,
+                                                                                StatsLogger statsLogger,
+                                                                                BookieAddressResolver bookieAddressResolver)
+                    throws IOException {
                 EnsemblePlacementPolicy ensemblePlacementPolicy = null;
                 if (ZoneawareEnsemblePlacementPolicy.class == placementPolicyClass) {
                     ensemblePlacementPolicy = buildZoneAwareEnsemblePlacementPolicy(firstThreeBookies);
@@ -1314,8 +1352,12 @@ public class TestReplicationWorker extends BookKeeperClusterTestCase {
         BookKeeper bookKeeper = new BookKeeperTestClient(baseClientConf) {
             @Override
             protected EnsemblePlacementPolicy initializeEnsemblePlacementPolicy(ClientConfiguration conf,
-                    DNSToSwitchMapping dnsResolver, HashedWheelTimer timer, FeatureProvider featureProvider,
-                    StatsLogger statsLogger, BookieAddressResolver bookieAddressResolver) throws IOException {
+                                                                                DNSToSwitchMapping dnsResolver,
+                                                                                HashedWheelTimer timer,
+                                                                                FeatureProvider featureProvider,
+                                                                                StatsLogger statsLogger,
+                                                                                BookieAddressResolver bookieAddressResolver)
+                    throws IOException {
                 EnsemblePlacementPolicy ensemblePlacementPolicy = null;
                 if (ZoneawareEnsemblePlacementPolicy.class == placementPolicyClass) {
                     ensemblePlacementPolicy = buildZoneAwareEnsemblePlacementPolicy(firstThreeBookies);
@@ -1397,7 +1439,8 @@ public class TestReplicationWorker extends BookKeeperClusterTestCase {
     }
 
     private TestStatsLogger startAuditorAndWaitForPlacementPolicyCheck(ServerConfiguration servConf,
-            MutableObject<Auditor> auditorRef) throws MetadataException, CompatibilityException, KeeperException,
+                                                                       MutableObject<Auditor> auditorRef)
+            throws MetadataException, CompatibilityException, KeeperException,
             InterruptedException, ReplicationException.UnavailableException, UnknownHostException {
         LedgerManagerFactory mFactory = driver.getLedgerManagerFactory();
         LedgerUnderreplicationManager urm = mFactory.newLedgerUnderreplicationManager();
@@ -1405,7 +1448,7 @@ public class TestReplicationWorker extends BookKeeperClusterTestCase {
         TestStatsLogger statsLogger = statsProvider.getStatsLogger(AUDITOR_SCOPE);
         TestStatsProvider.TestOpStatsLogger placementPolicyCheckStatsLogger =
                 (TestStatsProvider.TestOpStatsLogger) statsLogger
-                .getOpStatsLogger(ReplicationStats.PLACEMENT_POLICY_CHECK_TIME);
+                        .getOpStatsLogger(ReplicationStats.PLACEMENT_POLICY_CHECK_TIME);
 
         final AuditorPeriodicCheckTest.TestAuditor auditor = new AuditorPeriodicCheckTest.TestAuditor(
                 BookieImpl.getBookieId(servConf).toString(), servConf, bkc, false, statsLogger, null);

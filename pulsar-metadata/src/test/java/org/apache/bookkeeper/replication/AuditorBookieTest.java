@@ -38,6 +38,8 @@ import org.apache.pulsar.metadata.bookkeeper.PulsarLedgerAuditorManager;
 import org.apache.zookeeper.ZooKeeper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.testng.annotations.AfterMethod;
+import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 /**
@@ -61,6 +63,7 @@ public class AuditorBookieTest extends BookKeeperClusterTestCase {
 
     }
 
+    @BeforeMethod
     @Override
     public void setUp() throws Exception {
         super.setUp();
@@ -71,7 +74,7 @@ public class AuditorBookieTest extends BookKeeperClusterTestCase {
         startAuditorElectors();
     }
 
-
+    @AfterMethod
     @Override
     public void tearDown() throws Exception {
         stopAuditorElectors();
@@ -147,9 +150,9 @@ public class AuditorBookieTest extends BookKeeperClusterTestCase {
                 zkUtil.getMetadataServiceUri().replaceAll("zk://", "metadata-store:").replaceAll("/ledgers", ""));
         startAuditorElectors();
         BookieServer newAuditor = waitForNewAuditor(auditor);
-//        assertNotSame(
-//                "Auditor re-election is not happened for auditor failure!",
-//                auditor, newAuditor);
+        assertNotSame(
+                "Auditor re-election is not happened for auditor failure!",
+                auditor, newAuditor);
     }
 
     /**
