@@ -80,6 +80,7 @@ github:
     branch-2.10: {}
     branch-2.11: {}
     branch-3.0: {}
+    branch-3.1: {}
 
 notifications:
   commits:      commits@pulsar.apache.org
