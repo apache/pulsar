@@ -19,6 +19,7 @@
 package org.apache.pulsar.client.impl;
 
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
@@ -121,6 +122,8 @@ public class AutoClusterFailoverTest {
 
         AutoClusterFailover autoClusterFailover = Mockito.spy((AutoClusterFailover) provider);
         PulsarClientImpl pulsarClient = mock(PulsarClientImpl.class);
+        ConnectionPool connectionPool = mock(ConnectionPool.class);
+        when(pulsarClient.getCnxPool()).thenReturn(connectionPool);
         Mockito.doReturn(false).when(autoClusterFailover).probeAvailable(primary);
         Mockito.doReturn(true).when(autoClusterFailover).probeAvailable(secondary);
         Mockito.doReturn(configurationData).when(pulsarClient).getConfiguration();
@@ -163,6 +166,8 @@ public class AutoClusterFailoverTest {
 
         AutoClusterFailover autoClusterFailover = Mockito.spy((AutoClusterFailover) provider);
         PulsarClientImpl pulsarClient = mock(PulsarClientImpl.class);
+        ConnectionPool connectionPool = mock(ConnectionPool.class);
+        when(pulsarClient.getCnxPool()).thenReturn(connectionPool);
         Mockito.doReturn(false).when(autoClusterFailover).probeAvailable(primary);
         Mockito.doReturn(true).when(autoClusterFailover).probeAvailable(secondary);
         Mockito.doReturn(configurationData).when(pulsarClient).getConfiguration();
@@ -217,6 +222,8 @@ public class AutoClusterFailoverTest {
 
         AutoClusterFailover autoClusterFailover = Mockito.spy((AutoClusterFailover) provider);
         PulsarClientImpl pulsarClient = mock(PulsarClientImpl.class);
+        ConnectionPool connectionPool = mock(ConnectionPool.class);
+        when(pulsarClient.getCnxPool()).thenReturn(connectionPool);
         Mockito.doReturn(false).when(autoClusterFailover).probeAvailable(primary);
         Mockito.doReturn(true).when(autoClusterFailover).probeAvailable(secondary);
         Mockito.doReturn(configurationData).when(pulsarClient).getConfiguration();
@@ -270,6 +277,8 @@ public class AutoClusterFailoverTest {
 
         AutoClusterFailover autoClusterFailover = Mockito.spy((AutoClusterFailover) provider);
         PulsarClientImpl pulsarClient = mock(PulsarClientImpl.class);
+        ConnectionPool connectionPool = mock(ConnectionPool.class);
+        when(pulsarClient.getCnxPool()).thenReturn(connectionPool);
         Mockito.doReturn(false).when(autoClusterFailover).probeAvailable(primary);
         Mockito.doReturn(true).when(autoClusterFailover).probeAvailable(secondary);
         Mockito.doReturn(configurationData).when(pulsarClient).getConfiguration();
