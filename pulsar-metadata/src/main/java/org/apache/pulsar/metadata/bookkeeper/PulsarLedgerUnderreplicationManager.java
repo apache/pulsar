@@ -237,25 +237,33 @@ public class PulsarLedgerUnderreplicationManager implements LedgerUnderreplicati
                 // Notify that there were some changes on the under-replicated z-nodes
                 notifyAll();
                 if (lostBookieRecoveryDelayPath.equals(n.getPath())) {
-                    List<BookkeeperInternalCallbacks.GenericCallback<Void>> callbackList;
+                    final List<BookkeeperInternalCallbacks.GenericCallback<Void>> callbackList;
                     synchronized (lostBookieRecoveryDelayCallbacks) {
                         callbackList = new ArrayList<>(lostBookieRecoveryDelayCallbacks);
                         lostBookieRecoveryDelayCallbacks.clear();
                     }
                     for (BookkeeperInternalCallbacks.GenericCallback<Void> callback : callbackList) {
-                        callback.operationComplete(0, null);
+                        try {
+                            callback.operationComplete(0, null);
+                        } catch (Exception e) {
+                            log.warn("lostBookieRecoveryDelayCallbacks handle error", e);
+                        }
                     }
                 }
                 if (replicationDisablePath.equals(n.getPath()) && n.getType() == NotificationType.Deleted) {
                     log.info("LedgerReplication is enabled externally through MetadataStore, "
                             + "since DISABLE_NODE ZNode is deleted");
-                    List<BookkeeperInternalCallbacks.GenericCallback<Void>> callbackList;
+                    final List<BookkeeperInternalCallbacks.GenericCallback<Void>> callbackList;
                     synchronized (replicationEnabledCallbacks) {
                         callbackList = new ArrayList<>(replicationEnabledCallbacks);
                         replicationEnabledCallbacks.clear();
                     }
                     for (BookkeeperInternalCallbacks.GenericCallback<Void> callback : callbackList) {
-                        callback.operationComplete(0, null);
+                        try {
+                            callback.operationComplete(0, null);
+                        } catch (Exception e) {
+                            log.warn("replicationEnabledCallbacks handle error", e);
+                        }
                     }
                 }
             }
