@@ -249,6 +249,7 @@ public class PulsarLedgerUnderreplicationManager implements LedgerUnderreplicati
                             log.warn("lostBookieRecoveryDelayCallbacks handle error", e);
                         }
                     }
+                    return;
                 }
                 if (replicationDisablePath.equals(n.getPath()) && n.getType() == NotificationType.Deleted) {
                     log.info("LedgerReplication is enabled externally through MetadataStore, "
