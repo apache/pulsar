@@ -247,6 +247,7 @@ public interface ConsumerBuilder<T> extends Cloneable {
      *  <li>{@link SubscriptionType#Exclusive} (Default)</li>
      *  <li>{@link SubscriptionType#Failover}</li>
      *  <li>{@link SubscriptionType#Shared}</li>
+     *  <li>{@link SubscriptionType#Key_Shared}</li>
      * </ul>
      *
      * @param subscriptionType
