@@ -38,6 +38,7 @@ import java.util.function.Function;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.IOUtils;
+import org.apache.pulsar.client.impl.auth.AuthenticationTls;
 import org.apache.pulsar.tests.integration.containers.BKContainer;
 import org.apache.pulsar.tests.integration.containers.BrokerContainer;
 import org.apache.pulsar.tests.integration.containers.CSContainer;
@@ -149,7 +150,14 @@ public class PulsarCluster {
                 .withEnv("tlsAllowInsecureConnection", "false")
                 .withEnv("tlsCertificateFilePath", "/pulsar/certificate-authority/server-keys/proxy.cert.pem")
                 .withEnv("tlsKeyFilePath", "/pulsar/certificate-authority/server-keys/proxy.key-pk8.pem")
-                .withEnv("tlsTrustCertsFilePath", "/pulsar/certificate-authority/certs/ca.cert.pem");
+                .withEnv("tlsTrustCertsFilePath", "/pulsar/certificate-authority/certs/ca.cert.pem")
+                .withEnv("brokerClientAuthenticationPlugin", AuthenticationTls.class.getName())
+                .withEnv("brokerClientAuthenticationParameters", String.format("tlsCertFile:%s,tlsKeyFile:%s", "/pulsar/certificate-authority/client-keys/admin.cert.pem", "/pulsar/certificate-authority/client-keys/admin.key-pk8.pem"))
+                .withEnv("tlsEnabledWithBroker", "true")
+                .withEnv("brokerClientTrustCertsFilePath", "/pulsar/certificate-authority/certs/ca.cert.pem")
+                .withEnv("brokerClientCertificateFilePath", "/pulsar/certificate-authority/server-keys/proxy.cert.pem")
+                .withEnv("brokerClientKeyFilePath", "/pulsar/certificate-authority/server-keys/proxy.key-pk8.pem");
+
         }
         if (spec.proxyEnvs != null) {
             spec.proxyEnvs.forEach(this.proxyContainer::withEnv);
@@ -205,11 +213,11 @@ public class PulsarCluster {
                             .withEnv("webServicePortTls", String.valueOf(BROKER_HTTPS_PORT))
                             .withEnv("brokerServicePortTls", String.valueOf(BROKER_PORT_TLS))
                             .withEnv("authenticateOriginalAuthData", "true")
-                            .withEnv("tlsRequireTrustedClientCertOnConnect", "true")
                             .withEnv("tlsAllowInsecureConnection", "false")
+                            .withEnv("tlsRequireTrustedClientCertOnConnect", "true")
+                            .withEnv("tlsTrustCertsFilePath", "/pulsar/certificate-authority/certs/ca.cert.pem")
                             .withEnv("tlsCertificateFilePath", "/pulsar/certificate-authority/server-keys/broker.cert.pem")
-                            .withEnv("tlsKeyFilePath", "/pulsar/certificate-authority/server-keys/broker.key-pk8.pem")
-                            .withEnv("tlsTrustCertsFilePath", "/pulsar/certificate-authority/certs/ca.cert.pem");
+                            .withEnv("tlsKeyFilePath", "/pulsar/certificate-authority/server-keys/broker.key-pk8.pem");
                     }
                     if (spec.queryLastMessage) {
                         brokerContainer.withEnv("bookkeeperExplicitLacIntervalInMills", "10");
