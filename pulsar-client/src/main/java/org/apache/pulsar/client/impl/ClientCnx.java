@@ -1318,7 +1318,7 @@ public class ClientCnx extends PulsarHandler {
             SslHandshakeCompletionEvent sslHandshakeCompletionEvent = (SslHandshakeCompletionEvent) evt;
             if (sslHandshakeCompletionEvent.cause() != null) {
                 log.warn("{} Got ssl handshake exception {}", ctx.channel(),
-                        sslHandshakeCompletionEvent.cause().getMessage());
+                        sslHandshakeCompletionEvent);
             }
         }
         ctx.fireUserEventTriggered(evt);
