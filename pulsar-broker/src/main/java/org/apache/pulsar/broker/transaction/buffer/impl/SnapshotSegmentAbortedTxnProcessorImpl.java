@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.transaction.buffer.impl;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
+import io.prometheus.client.CollectorRegistry;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
@@ -53,6 +54,7 @@ import org.apache.pulsar.broker.transaction.buffer.metadata.v2.TransactionBuffer
 import org.apache.pulsar.broker.transaction.buffer.metadata.v2.TransactionBufferSnapshotIndexesMetadata;
 import org.apache.pulsar.broker.transaction.buffer.metadata.v2.TransactionBufferSnapshotSegment;
 import org.apache.pulsar.broker.transaction.buffer.metadata.v2.TxnIDData;
+import org.apache.pulsar.broker.transaction.buffer.stats.TxnSnapshotSegmentStats;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.transaction.TxnID;
@@ -136,6 +138,7 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
      */
     private final PersistentWorker persistentWorker;
 
+    private final TxnSnapshotSegmentStats txnSnapshotSegmentStats;
     private static final String SNAPSHOT_PREFIX = "multiple-";
 
     public SnapshotSegmentAbortedTxnProcessorImpl(PersistentTopic topic) {
@@ -154,6 +157,9 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
         this.snapshotSegmentCapacity = (topic.getBrokerService().getPulsar()
                 .getConfiguration().getTransactionBufferSnapshotSegmentSize() - 8 - topic.getName().length()) / 3;
         this.unsealedTxnIds = new LinkedList<>();
+        TopicName topicName = TopicName.get(topic.getName());
+        this.txnSnapshotSegmentStats = new TxnSnapshotSegmentStats(topicName.getNamespace(), topicName.getLocalName(),
+                CollectorRegistry.defaultRegistry);
     }
 
     @Override
@@ -245,6 +251,7 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
                         while (reader.hasMoreEvents()) {
                             Message<TransactionBufferSnapshotIndexes> message = reader.readNextAsync()
                                     .get(getSystemClientOperationTimeoutMs(), TimeUnit.MILLISECONDS);
+                            txnSnapshotSegmentStats.recordIndexOpReadSuccess();
                             if (topic.getName().equals(message.getKey())) {
                                 TransactionBufferSnapshotIndexes transactionBufferSnapshotIndexes = message.getValue();
                                 if (transactionBufferSnapshotIndexes != null) {
@@ -256,6 +263,7 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
                             }
                         }
                     } catch (TimeoutException ex) {
+                        txnSnapshotSegmentStats.recordIndexOpReadFail();
                         Throwable t = FutureUtil.unwrapCompletionException(ex);
                         String errorMessage = String.format("[%s] Transaction buffer recover fail by read "
                                 + "transactionBufferSnapshot timeout!", topic.getName());
@@ -295,6 +303,7 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
                                         new AsyncCallbacks.ReadEntryCallback() {
                                             @Override
                                             public void readEntryComplete(Entry entry, Object ctx) {
+                                                txnSnapshotSegmentStats.recordSegmentOpReadSuccess();
                                                 handleSnapshotSegmentEntry(entry);
                                                 indexes.put(new PositionImpl(
                                                                 index.abortedMarkLedgerID,
@@ -317,6 +326,7 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
                                                   the segment can not be read according to the index.
                                                   We update index again if there are invalid indexes.
                                                  */
+                                                txnSnapshotSegmentStats.recordSegmentOpReadFail();
                                                 if (((ManagedLedgerImpl) topic.getManagedLedger())
                                                         .ledgerExists(index.getAbortedMarkLedgerID())) {
                                                     log.error("[{}] Failed to read snapshot segment [{}:{}]",
@@ -706,6 +716,7 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
                                     sealedAbortedTxnIdSegment.size());
                         }
                         this.sequenceID.getAndIncrement();
+                        txnSnapshotSegmentStats.recordSegmentOpAddSuccess();
                     });
             res.exceptionally(e -> {
                 //Just log the error, and the processor will try to take snapshot again when the transactionBuffer
@@ -714,6 +725,7 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
                                 + "for the topic [{}], and the size of the segment is [{}]",
                         this.sequenceID, abortedMarkerPersistentPosition, topic.getName(),
                         sealedAbortedTxnIdSegment.size(), e);
+                txnSnapshotSegmentStats.recordSegmentOpAddFail();
                 return null;
             });
             return res;
@@ -774,6 +786,7 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
                                                 + "whose sequenceId is [{}] and maxReadPosition is [{}]",
                                         this.topic.getName(), this.sequenceID, positionNeedToDelete);
                             }
+                            txnSnapshotSegmentStats.recordSegmentOpDelSuccess();
                             //The index may fail to update but the processor will check
                             //whether the snapshot segment is null, and update the index when recovering.
                             //And if the task is not the newest in the queue, it is no need to update the index.
@@ -784,6 +797,7 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
                     log.warn("[{}] Failed to delete the snapshot segment, "
                                     + "whose sequenceId is [{}] and maxReadPosition is [{}]",
                             this.topic.getName(), this.sequenceID, positionNeedToDelete, e);
+                    txnSnapshotSegmentStats.recordSegmentOpDelFail();
                     return null;
                 });
                 results.add(res);
@@ -793,15 +807,21 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
 
         private CompletableFuture<Void> updateSnapshotIndex(TransactionBufferSnapshotIndexesMetadata snapshotSegment) {
             TransactionBufferSnapshotIndexes snapshotIndexes = new TransactionBufferSnapshotIndexes();
+            txnSnapshotSegmentStats.setSnapshotSegmentTotal(indexes.size());
             CompletableFuture<Void> res = snapshotIndexWriter.getFuture()
                     .thenCompose((indexesWriter) -> {
                         snapshotIndexes.setIndexList(indexes.values().stream().toList());
                         snapshotIndexes.setSnapshot(snapshotSegment);
                         snapshotIndexes.setTopicName(topic.getName());
+                        txnSnapshotSegmentStats.observeSnapshotIndexEntryBytes(calculateSize(snapshotIndexes));
                         return indexesWriter.writeAsync(topic.getName(), snapshotIndexes)
                                 .thenCompose(messageId -> CompletableFuture.completedFuture(null));
                     });
-            res.thenRun(() -> lastSnapshotTimestamps = System.currentTimeMillis()).exceptionally(e -> {
+            res.thenRun(() -> {
+                lastSnapshotTimestamps = System.currentTimeMillis();
+                txnSnapshotSegmentStats.recordIndexOpAddSuccess();
+            }).exceptionally(e -> {
+                txnSnapshotSegmentStats.recordIndexOpAddFail();
                 log.error("[{}] Failed to update snapshot segment index", snapshotIndexes.getTopicName(), e);
                 return null;
             });
@@ -812,12 +832,15 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
             CompletableFuture<Void> res = persistentWorker.clearAllSnapshotSegments()
                     .thenCompose((ignore) -> snapshotIndexWriter.getFuture()
                             .thenCompose(indexesWriter -> indexesWriter.writeAsync(topic.getName(), null)))
-                    .thenRun(() ->
-                            log.debug("Successes to clear the snapshot segment and indexes for the topic [{}]",
-                                    topic.getName()));
+                    .thenRun(() -> {
+                        log.debug("Successes to clear the snapshot segment and indexes for the topic [{}]",
+                                topic.getName());
+                        txnSnapshotSegmentStats.recordIndexOpDelSuccess();
+                    });
             res.exceptionally(e -> {
                 log.error("Failed to clear the snapshot segment and indexes for the topic [{}]",
                         topic.getName(), e);
+                txnSnapshotSegmentStats.recordIndexOpDelFail();
                 return null;
             });
             return res;
@@ -846,10 +869,13 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
                                         .get(getSystemClientOperationTimeoutMs(), TimeUnit.MILLISECONDS);
                                 if (topic.getName().equals(message.getValue().getTopicName())) {
                                    snapshotSegmentsWriter.getFuture().get().write(message.getKey(), null);
+                                    txnSnapshotSegmentStats.recordSegmentOpDelSuccess();
                                 }
+                                txnSnapshotSegmentStats.recordSegmentOpReadSuccess();
                             }
                             return CompletableFuture.completedFuture(null);
                         } catch (Exception ex) {
+                            txnSnapshotSegmentStats.recordSegmentOpDelFail();
                             log.error("[{}] Transaction buffer clear snapshot segments fail!", topic.getName(), ex);
                             return FutureUtil.failedFuture(ex);
                         } finally {
@@ -881,4 +907,24 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
         return segment;
     }
 
+    private int calculateSize(TransactionBufferSnapshotIndexes indexes) {
+        int size = 0;
+
+        // Calculate the size of topicName
+        size += indexes.getTopicName().getBytes().length;
+
+        // Calculate the size of indexList
+        for (TransactionBufferSnapshotIndex index : indexes.getIndexList()) {
+            size += 6 * Long.BYTES; // As each TransactionBufferSnapshotIndex has 6 long type attributes
+        }
+
+        // Calculate the size of snapshot
+        TransactionBufferSnapshotIndexesMetadata snapshot = indexes.getSnapshot();
+        size += 2 * Long.BYTES; // Size of maxReadPositionLedgerId and maxReadPositionEntryId
+        for (TxnIDData txnIDData : snapshot.getAborts()) {
+            size += 2 * Long.BYTES; // Size of mostSigBits and leastSigBits
+        }
+
+        return size;
+    }
 }
