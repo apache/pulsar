@@ -180,7 +180,6 @@ public class PulsarRegistrationClient implements RegistrationClient {
 
     @Override
     public CompletableFuture<Void> watchWritableBookies(RegistrationListener registrationListener) {
-        log.info("{} add new watcher: {}", this.hashCode(), registrationListener);
         writableBookiesWatchers.add(registrationListener);
         return getWritableBookies()
                 .thenAcceptAsync(registrationListener::onBookiesChanged, executor);
@@ -254,7 +253,6 @@ public class PulsarRegistrationClient implements RegistrationClient {
                     }
                     if (path.startsWith(bookieRegistrationPath)) {
                         writableBookieInfo.remove(bookieId);
-                        log.info("{} Received event : {} ready to notify writableBookiesWatchers : {}" , this.hashCode(), n, writableBookiesWatchers);
                         return getWritableBookies().thenAccept(bookies -> {
                             writableBookiesWatchers.forEach(w ->
                                     executor.execute(() -> w.onBookiesChanged(bookies)));
