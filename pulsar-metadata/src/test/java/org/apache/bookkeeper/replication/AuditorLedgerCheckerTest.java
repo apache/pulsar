@@ -1,5 +1,4 @@
 /*
- *
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,7 +15,6 @@
  * KIND, either express or implied.  See the License for the
  * specific language governing permissions and limitations
  * under the License.
- *
  */
 package org.apache.bookkeeper.replication;
 
@@ -105,6 +103,7 @@ public class AuditorLedgerCheckerTest extends BookKeeperClusterTestCase {
     private String underreplicatedPath;
     private Map<String, AuditorElector> auditorElectors = new ConcurrentHashMap<>();
     private LedgerUnderreplicationManager urLedgerMgr;
+
     private Set<Long> urLedgerList;
     private String electionPath;
 
@@ -152,12 +151,10 @@ public class AuditorLedgerCheckerTest extends BookKeeperClusterTestCase {
                 zkUtil.getMetadataServiceUri().replaceAll("zk://", "metadata-store:").replaceAll("/ledgers", ""));
         baseConf.setMetadataServiceUri(
                 zkUtil.getMetadataServiceUri().replaceAll("zk://", "metadata-store:").replaceAll("/ledgers", ""));
-
         startAuditorElectors();
         rng = new Random(System.currentTimeMillis()); // Initialize the Random
         urLedgerList = new HashSet<Long>();
         ledgerList = new ArrayList<Long>(2);
-
     }
 
     @AfterMethod
