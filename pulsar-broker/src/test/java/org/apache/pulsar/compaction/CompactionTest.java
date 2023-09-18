@@ -81,7 +81,6 @@ import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.ConsumerImpl;
-import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
@@ -542,14 +541,8 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
             Assert.assertEquals(message2.getKey(), "key2");
             Assert.assertEquals(new String(message2.getData()), "my-message-3");
             if (getCompactor() instanceof StrategicTwoPhaseCompactor) {
-                MessageIdImpl id = (MessageIdImpl) messages.get(0).getMessageId();
-                MessageIdImpl id1 = new MessageIdImpl(
-                        id.getLedgerId(), id.getEntryId(), id.getPartitionIndex());
-                Assert.assertEquals(message1.getMessageId(), id1);
-                id = (MessageIdImpl) messages.get(2).getMessageId();
-                MessageIdImpl id2 = new MessageIdImpl(
-                        id.getLedgerId(), id.getEntryId(), id.getPartitionIndex());
-                Assert.assertEquals(message2.getMessageId(), id2);
+                Assert.assertEquals(message1.getMessageId(), messages.get(0).getMessageId());
+                Assert.assertEquals(message2.getMessageId(), messages.get(1).getMessageId());
             } else {
                 Assert.assertEquals(message1.getMessageId(), messages.get(0).getMessageId());
                 Assert.assertEquals(message2.getMessageId(), messages.get(2).getMessageId());
@@ -1773,9 +1766,9 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
     @SneakyThrows
     @Test
     public void testHealthCheckTopicNotCompacted() {
-        NamespaceName heartbeatNamespaceV1 = NamespaceService.getHeartbeatNamespace(pulsar.getAdvertisedAddress(), pulsar.getConfiguration());
+        NamespaceName heartbeatNamespaceV1 = NamespaceService.getHeartbeatNamespace(pulsar.getLookupServiceAddress(), pulsar.getConfiguration());
         String topicV1 = "persistent://" + heartbeatNamespaceV1.toString() + "/healthcheck";
-        NamespaceName heartbeatNamespaceV2 = NamespaceService.getHeartbeatNamespaceV2(pulsar.getAdvertisedAddress(), pulsar.getConfiguration());
+        NamespaceName heartbeatNamespaceV2 = NamespaceService.getHeartbeatNamespaceV2(pulsar.getLookupServiceAddress(), pulsar.getConfiguration());
         String topicV2 = heartbeatNamespaceV2.toString() + "/healthcheck";
         Producer<byte[]> producer1 = pulsarClient.newProducer().topic(topicV1).create();
         Producer<byte[]> producer2 = pulsarClient.newProducer().topic(topicV2).create();
@@ -1925,5 +1918,71 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
 
         consumer.close();
         producer.close();
+    }
+
+    @Test
+    public void testCompactionDuplicate() throws Exception {
+        String topic = "persistent://my-property/use/my-ns/testCompactionDuplicate";
+        final int numMessages = 1000;
+        final int maxKeys = 800;
+
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient.newProducer()
+            .topic(topic)
+            .enableBatching(false)
+            .messageRoutingMode(MessageRoutingMode.SinglePartition)
+            .create();
+
+        // trigger compaction (create __compaction cursor)
+        admin.topics().triggerCompaction(topic);
+
+        Map<String, byte[]> expected = new HashMap<>();
+        Random r = new Random(0);
+
+        pulsarClient.newConsumer().topic(topic).subscriptionName("sub1").readCompacted(true).subscribe().close();
+
+        for (int j = 0; j < numMessages; j++) {
+            int keyIndex = r.nextInt(maxKeys);
+            String key = "key" + keyIndex;
+            byte[] data = ("my-message-" + key + "-" + j).getBytes();
+            producer.newMessage().key(key).value(data).send();
+            expected.put(key, data);
+        }
+
+        producer.flush();
+
+        // trigger compaction
+        admin.topics().triggerCompaction(topic);
+
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(admin.topics().compactionStatus(topic).status,
+                    LongRunningProcessStatus.Status.RUNNING);
+        });
+
+        // Wait for phase one to complete
+        Thread.sleep(500);
+
+        // Unload topic make reader of compaction reconnect
+        admin.topics().unload(topic);
+
+        Awaitility.await().untilAsserted(() -> {
+            PersistentTopicInternalStats internalStats = admin.topics().getInternalStats(topic, false);
+            // Compacted topic ledger should have same number of entry equals to number of unique key.
+            Assert.assertEquals(internalStats.compactedLedger.entries, expected.size());
+            Assert.assertTrue(internalStats.compactedLedger.ledgerId > -1);
+            Assert.assertFalse(internalStats.compactedLedger.offloaded);
+        });
+
+        // consumer with readCompacted enabled only get compacted entries
+        try (Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic).subscriptionName("sub1")
+                .readCompacted(true).subscribe()) {
+            while (true) {
+                Message<byte[]> m = consumer.receive(2, TimeUnit.SECONDS);
+                Assert.assertEquals(expected.remove(m.getKey()), m.getData());
+                if (expected.isEmpty()) {
+                    break;
+                }
+            }
+        }
     }
 }

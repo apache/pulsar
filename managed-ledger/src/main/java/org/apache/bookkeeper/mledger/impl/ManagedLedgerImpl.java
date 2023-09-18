@@ -1263,6 +1263,12 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 log.error("Error read entry for position {}", nextPos, exception);
                 future.completeExceptionally(exception);
             }
+
+            @Override
+            public String toString() {
+                return String.format("ML [{}] get earliest message publish time of pos",
+                        ManagedLedgerImpl.this.name);
+            }
         }, null);
 
         return future;
