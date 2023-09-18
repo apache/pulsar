@@ -28,8 +28,13 @@ public class BrokerContainer extends PulsarContainer<BrokerContainer> {
     public static final String NAME = "pulsar-broker";
 
     public BrokerContainer(String clusterName, String hostName) {
-        super(clusterName, hostName, hostName, "bin/run-broker.sh", BROKER_PORT, BROKER_PORT_TLS,
-                BROKER_HTTP_PORT, BROKER_HTTPS_PORT, DEFAULT_HTTP_PATH, DEFAULT_IMAGE_NAME);
+        this(clusterName, hostName, false);
+    }
+
+    public BrokerContainer(String clusterName, String hostName, boolean enableTls) {
+        super(clusterName, hostName, hostName, "bin/run-broker.sh", BROKER_PORT,
+                enableTls ? BROKER_PORT_TLS : 0, BROKER_HTTP_PORT,
+                enableTls ? BROKER_HTTPS_PORT : 0, DEFAULT_HTTP_PATH, DEFAULT_IMAGE_NAME);
         tailContainerLog();
     }
 

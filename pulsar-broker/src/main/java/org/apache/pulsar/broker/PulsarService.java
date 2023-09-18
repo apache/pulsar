@@ -1734,18 +1734,18 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     }
 
     public String getSafeWebServiceAddress() {
-        return webServiceAddress != null ? webServiceAddress : webServiceAddressTls;
+        return webServiceAddressTls != null ? webServiceAddressTls : webServiceAddress;
     }
 
     @Deprecated
     public String getSafeBrokerServiceUrl() {
-        return brokerServiceUrl != null ? brokerServiceUrl : brokerServiceUrlTls;
+        return brokerServiceUrlTls != null ? brokerServiceUrlTls : brokerServiceUrl;
     }
 
     public String getLookupServiceAddress() {
-        return String.format("%s:%s", advertisedAddress, config.getWebServicePort().isPresent()
-                ? config.getWebServicePort().get()
-                : config.getWebServicePortTls().get());
+        return String.format("%s:%s", advertisedAddress, config.getWebServicePortTls().isPresent()
+                ? config.getWebServicePortTls().get()
+                : config.getWebServicePort().orElseThrow());
     }
 
     public TopicPoliciesService getTopicPoliciesService() {
