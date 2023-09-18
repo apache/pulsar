@@ -479,7 +479,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         // request [3]
         doReturn(true).when(loadManager1).isCentralized();
         doReturn(true).when(loadManager2).isCentralized();
-        SimpleResourceUnit resourceUnit = new SimpleResourceUnit(pulsar.getWebServiceAddress(), null);
+        SimpleResourceUnit resourceUnit = new SimpleResourceUnit(pulsar.getWebServiceAddressTls(), null);
         doReturn(Optional.of(resourceUnit)).when(loadManager2).getLeastLoaded(any(ServiceUnitId.class));
         doReturn(Optional.of(resourceUnit)).when(loadManager1).getLeastLoaded(any(ServiceUnitId.class));
 
@@ -512,6 +512,9 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
 
         loadManager1 = null;
         loadManager2 = null;
+
+        conf.setBrokerServicePortTls(Optional.empty());
+        conf.setWebServicePortTls(Optional.empty());
     }
 
     /**
@@ -943,6 +946,8 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         admin.topics().createPartitionedTopic(dest.toString(), totalPartitions);
 
         stopBroker();
+        conf.setBrokerServicePortTls(Optional.empty());
+        conf.setWebServicePortTls(Optional.empty());
         conf.setClientLibraryVersionCheckEnabled(true);
         startBroker();
 
