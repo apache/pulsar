@@ -1057,6 +1057,54 @@ public class ServerCnxTest {
         channel2.close();
     }
 
+    @Test
+    public void testHandleConsumerAfterClientChannelInactiveWithDisabledConnectionCheck() throws Exception {
+        final String tName = successTopicName;
+        final long consumerId = 1;
+        final MutableInt requestId = new MutableInt(1);
+        final String sName = successSubName;
+        final String cName1 = ConsumerName.generateRandomName();
+        final String cName2 = ConsumerName.generateRandomName();
+        // Disabled connection check.
+        pulsar.getConfig().setConnectionLivenessCheckTimeoutMillis(-1);
+        resetChannel();
+        setChannelConnected();
+
+        // The producer register using the first connection.
+        ByteBuf cmdSubscribe1 = Commands.newSubscribe(tName, sName, consumerId, requestId.incrementAndGet(),
+                SubType.Exclusive, 0, cName1, 0);
+        channel.writeInbound(cmdSubscribe1);
+        assertTrue(getResponse() instanceof CommandSuccess);
+        PersistentTopic topicRef = (PersistentTopic) brokerService.getTopicReference(tName).get();
+        assertNotNull(topicRef);
+        assertNotNull(topicRef.getSubscription(sName).getConsumers());
+        assertEquals(topicRef.getSubscription(sName).getConsumers().size(), 1);
+        assertEquals(topicRef.getSubscription(sName).getConsumers().iterator().next().consumerName(), cName1);
+
+        // Verify the second producer using a new connection will override the consumer who using a stopped channel.
+        channelsStoppedAnswerHealthCheck.add(channel);
+        ClientChannel channel2 = new ClientChannel();
+        setChannelConnected(channel2.serverCnx);
+        ByteBuf cmdSubscribe2 = Commands.newSubscribe(tName, sName, consumerId, requestId.incrementAndGet(),
+                CommandSubscribe.SubType.Exclusive, 0, cName2, 0);
+        channel2.channel.writeInbound(cmdSubscribe2);
+        AtomicBoolean channel1MonitorStopped = startChannelMonitorToHandleUserTask();
+
+        Object responseOfConnection2 = getResponse(channel2.channel, channel2.clientChannelHelper);
+        assertTrue(responseOfConnection2 instanceof CommandError);
+        assertTrue(((CommandError) responseOfConnection2).getMessage()
+                .contains("Exclusive consumer is already connected"));
+        assertEquals(topicRef.getSubscription(sName).getConsumers().size(), 1);
+        assertEquals(topicRef.getSubscription(sName).getConsumers().iterator().next().consumerName(), cName1);
+        channel1MonitorStopped.set(true);
+
+        // cleanup.
+        channel.finish();
+        channel2.close();
+        // Reset configuration.
+        pulsar.getConfig().setConnectionLivenessCheckTimeoutMillis(5000);
+    }
+
     private AtomicBoolean startChannelMonitorToHandleUserTask() {
         AtomicBoolean channel1MonitorStopped = new AtomicBoolean(false);
         Thread channel1Monitor = new Thread(() -> {
