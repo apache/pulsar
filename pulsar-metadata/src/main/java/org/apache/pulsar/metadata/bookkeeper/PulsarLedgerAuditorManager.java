@@ -39,7 +39,7 @@ class PulsarLedgerAuditorManager implements LedgerAuditorManager {
     private final LeaderElection<String> leaderElection;
     private LeaderElectionState leaderElectionState;
     private String bookieId;
-    private volatile boolean sessionExpired = false;
+    private boolean sessionExpired = false;
 
     PulsarLedgerAuditorManager(MetadataStoreExtended store, String ledgersRoot) {
         this.coordinationService = new CoordinationServiceImpl(store);
@@ -51,8 +51,8 @@ class PulsarLedgerAuditorManager implements LedgerAuditorManager {
         this.leaderElectionState = LeaderElectionState.NoLeader;
         store.registerSessionListener(event -> {
             if (SessionEvent.SessionLost == event) {
-                sessionExpired = true;
-                synchronized (PulsarLedgerAuditorManager.this) {
+                synchronized (this) {
+                    sessionExpired = true;
                     notifyAll();
                 }
             }
@@ -62,7 +62,7 @@ class PulsarLedgerAuditorManager implements LedgerAuditorManager {
     private void handleStateChanges(LeaderElectionState state) {
         log.info("Auditor leader election state: {} -- BookieId: {}", state, bookieId);
 
-        synchronized (PulsarLedgerAuditorManager.this) {
+        synchronized (this) {
             this.leaderElectionState = state;
             notifyAll();
         }
@@ -74,13 +74,13 @@ class PulsarLedgerAuditorManager implements LedgerAuditorManager {
 
         LeaderElectionState les = leaderElection.elect(bookieId).join();
 
-        synchronized (PulsarLedgerAuditorManager.this) {
+        synchronized (this) {
             leaderElectionState = les;
         }
 
         while (true) {
             try {
-                synchronized (PulsarLedgerAuditorManager.this) {
+                synchronized (this) {
                     if (sessionExpired) {
                         throw new IllegalStateException("Zookeeper session expired, give up to become auditor.");
                     }
