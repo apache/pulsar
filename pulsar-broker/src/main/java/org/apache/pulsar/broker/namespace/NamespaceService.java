@@ -1591,10 +1591,10 @@ public class NamespaceService implements AutoCloseable {
 
     public static NamespaceName getSLAMonitorNamespace(String host, ServiceConfiguration config) {
         Integer port = null;
-        if (config.getWebServicePort().isPresent()) {
-            port = config.getWebServicePort().get();
-        } else if (config.getWebServicePortTls().isPresent()) {
+        if (config.getWebServicePortTls().isPresent()) {
             port = config.getWebServicePortTls().get();
+        } else if (config.getWebServicePort().isPresent()) {
+            port = config.getWebServicePort().get();
         }
         return NamespaceName.get(String.format(SLA_NAMESPACE_FMT, config.getClusterName(), host, port));
     }
