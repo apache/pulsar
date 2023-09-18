@@ -177,4 +177,10 @@ public class PulsarClusterSpec {
      * Additional ports to expose on bookie containers.
      */
     List<Integer> bookieAdditionalPorts;
+
+    /**
+     * Enable TLS for connection.
+     */
+    @Default
+    boolean enableTls = false;
 }
