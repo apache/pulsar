@@ -33,7 +33,9 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -67,11 +69,17 @@ class ClientTestFixtures {
 
     static PulsarClientImpl mockClientCnx(PulsarClientImpl clientMock) {
         ClientCnx clientCnxMock = mock(ClientCnx.class, Mockito.RETURNS_DEEP_STUBS);
+        ConnectionPool connectionPool = mock(ConnectionPool.class);
+        when(clientMock.getCnxPool()).thenReturn(connectionPool);
         when(clientCnxMock.ctx()).thenReturn(mock(ChannelHandlerContext.class));
         when(clientCnxMock.sendRequestWithId(any(), anyLong()))
                 .thenReturn(CompletableFuture.completedFuture(mock(ProducerResponse.class)));
         when(clientCnxMock.channel().remoteAddress()).thenReturn(mock(SocketAddress.class));
-        when(clientMock.getConnection(any())).thenReturn(CompletableFuture.completedFuture(clientCnxMock));
+        when(clientMock.getConnection(anyString(), anyInt()))
+                .thenReturn(CompletableFuture.completedFuture(clientCnxMock));
+        when(clientMock.getConnection(anyString())).thenReturn(CompletableFuture.completedFuture(clientCnxMock));
+        when(clientMock.getConnection(any(), any(), anyInt()))
+                .thenReturn(CompletableFuture.completedFuture(clientCnxMock));
         return clientMock;
     }
 
