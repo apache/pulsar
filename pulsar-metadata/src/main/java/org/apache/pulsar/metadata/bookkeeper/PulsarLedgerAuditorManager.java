@@ -34,7 +34,7 @@ import org.apache.pulsar.metadata.coordination.impl.CoordinationServiceImpl;
 class PulsarLedgerAuditorManager implements LedgerAuditorManager {
 
     private static final String ELECTION_PATH = "leader";
-    private final Object lockObj = new Object();
+
     private final CoordinationService coordinationService;
     private final LeaderElection<String> leaderElection;
     private LeaderElectionState leaderElectionState;
@@ -52,7 +52,7 @@ class PulsarLedgerAuditorManager implements LedgerAuditorManager {
         store.registerSessionListener(event -> {
             if (SessionEvent.SessionLost == event) {
                 sessionExpired = true;
-                synchronized (lockObj) {
+                synchronized (PulsarLedgerAuditorManager.this) {
                     notifyAll();
                 }
             }
@@ -62,7 +62,7 @@ class PulsarLedgerAuditorManager implements LedgerAuditorManager {
     private void handleStateChanges(LeaderElectionState state) {
         log.info("Auditor leader election state: {} -- BookieId: {}", state, bookieId);
 
-        synchronized (lockObj) {
+        synchronized (PulsarLedgerAuditorManager.this) {
             this.leaderElectionState = state;
             notifyAll();
         }
@@ -74,13 +74,13 @@ class PulsarLedgerAuditorManager implements LedgerAuditorManager {
 
         LeaderElectionState les = leaderElection.elect(bookieId).join();
 
-        synchronized (lockObj) {
+        synchronized (PulsarLedgerAuditorManager.this) {
             leaderElectionState = les;
         }
 
         while (true) {
             try {
-                synchronized (lockObj) {
+                synchronized (PulsarLedgerAuditorManager.this) {
                     if (sessionExpired) {
                         throw new IllegalStateException("Zookeeper session expired, give up to become auditor.");
                     }
