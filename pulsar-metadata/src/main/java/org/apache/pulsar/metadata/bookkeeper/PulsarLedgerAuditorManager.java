@@ -52,7 +52,7 @@ class PulsarLedgerAuditorManager implements LedgerAuditorManager {
         store.registerSessionListener(event -> {
             if (SessionEvent.SessionLost == event) {
                 sessionExpired = true;
-                synchronized (this) {
+                synchronized (PulsarLedgerAuditorManager.this) {
                     notifyAll();
                 }
             }
