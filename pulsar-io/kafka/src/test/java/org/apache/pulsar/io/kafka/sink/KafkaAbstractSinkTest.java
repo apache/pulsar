@@ -164,12 +164,12 @@ public class KafkaAbstractSinkTest {
             public CompletableFuture<ByteBuffer> getStateAsync(String key) {
                 return null;
             }
-            
+
             @Override
             public void deleteState(String key) {
-            	
+
             }
-            
+
             @Override
             public CompletableFuture<Void> deleteStateAsync(String key) {
             	return null;
@@ -178,6 +178,11 @@ public class KafkaAbstractSinkTest {
             @Override
             public PulsarClient getPulsarClient() {
                 return null;
+            }
+
+            @Override
+            public void fatal(Throwable t) {
+
             }
         };
         ThrowingRunnable openAndClose = ()->{
