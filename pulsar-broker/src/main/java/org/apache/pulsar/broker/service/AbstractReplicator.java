@@ -21,7 +21,6 @@ package org.apache.pulsar.broker.service;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.commons.lang3.StringUtils;
@@ -63,8 +62,6 @@ public abstract class AbstractReplicator {
 
     protected final String replicatorPrefix;
 
-    protected final AtomicBoolean isDisconnected = new AtomicBoolean(false);
-
     protected static final AtomicReferenceFieldUpdater<AbstractReplicator, State> STATE_UPDATER =
             AtomicReferenceFieldUpdater.newUpdater(AbstractReplicator.class, State.class, "state");
     private volatile State state = State.Stopped;
@@ -72,6 +69,8 @@ public abstract class AbstractReplicator {
     protected enum State {
         Stopped, Starting, Started, Stopping
     }
+
+    private volatile boolean isClosed = false;
 
     public AbstractReplicator(String localCluster, Topic localTopic, String remoteCluster, String remoteTopicName,
                               String replicatorPrefix, BrokerService brokerService, PulsarClientImpl replicationClient)
@@ -119,8 +118,8 @@ public abstract class AbstractReplicator {
     // This method needs to be synchronized with disconnects else if there is a disconnect followed by startProducer
     // the end result can be disconnect.
     public synchronized void startProducer() {
-        if (isDisconnected.get()) {
-            log.info("[{}] Do not start replicator because of replicator is disconnected.", replicatorId);
+        if (isClosed) {
+            log.info("[{}] Do not start replicator because of replicator is already closed.", replicatorId);
             return;
         }
 
@@ -235,9 +234,6 @@ public abstract class AbstractReplicator {
             return disconnectFuture;
         }
 
-        log.info("[{}] Set replicator is disconnected.", replicatorId);
-        isDisconnected.set(true);
-
         if (STATE_UPDATER.get(this) == State.Stopping) {
             // Do nothing since the all "STATE_UPDATER.set(this, Stopping)" instructions are followed by
             // closeProducerAsync()
@@ -252,6 +248,10 @@ public abstract class AbstractReplicator {
         }
 
         return closeProducerAsync();
+    }
+
+    public void close() {
+        isClosed = true;
     }
 
     public CompletableFuture<Void> remove() {

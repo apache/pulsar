@@ -1826,7 +1826,10 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             ledger.asyncDeleteCursor(name, new DeleteCursorCallback() {
                 @Override
                 public void deleteCursorComplete(Object ctx) {
-                    replicators.remove(remoteCluster);
+                    Replicator replicator = replicators.remove(remoteCluster);
+                    if (replicator != null) {
+                        replicator.close();
+                    }
                     future.complete(null);
                 }
 
@@ -1898,7 +1901,10 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             ledger.asyncDeleteCursor(name, new DeleteCursorCallback() {
                 @Override
                 public void deleteCursorComplete(Object ctx) {
-                    shadowReplicators.remove(shadowTopic);
+                    Replicator replicator = shadowReplicators.remove(shadowTopic);
+                    if (replicator != null) {
+                        replicator.close();
+                    }
                     future.complete(null);
                 }
 

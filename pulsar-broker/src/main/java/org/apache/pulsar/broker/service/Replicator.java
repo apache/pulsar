@@ -51,4 +51,7 @@ public interface Replicator {
     boolean isConnected();
 
     long getNumberOfEntriesInBacklog();
+
+    default void close() {
+    }
 }
