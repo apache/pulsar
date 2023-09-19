@@ -465,6 +465,8 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
 
         if (service.getCryptoKeyReader().isPresent()) {
             builder.cryptoKeyReader(service.getCryptoKeyReader().get());
+        } else {
+            // If users want to decrypt messages themselves, they should set "cryptoFailureAction" to "CONSUME".
         }
         return builder;
     }

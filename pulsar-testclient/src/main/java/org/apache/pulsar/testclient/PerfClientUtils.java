@@ -30,7 +30,6 @@ import org.apache.pulsar.client.admin.PulsarAdminBuilder;
 import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.client.api.SizeUnit;
 import org.apache.pulsar.common.util.DirectMemoryUtils;
 import org.slf4j.Logger;
 
@@ -67,7 +66,6 @@ public class PerfClientUtils {
             throws PulsarClientException.UnsupportedAuthenticationException {
 
         ClientBuilder clientBuilder = PulsarClient.builder()
-                .memoryLimit(0, SizeUnit.BYTES)
                 .serviceUrl(arguments.serviceURL)
                 .connectionsPerBroker(arguments.maxConnections)
                 .ioThreads(arguments.ioThreads)

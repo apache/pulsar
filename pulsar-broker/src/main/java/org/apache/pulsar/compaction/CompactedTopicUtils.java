@@ -30,6 +30,7 @@ import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.pulsar.broker.service.Consumer;
@@ -40,13 +41,13 @@ public class CompactedTopicUtils {
 
     @Beta
     public static void asyncReadCompactedEntries(TopicCompactionService topicCompactionService,
-                                                 ManagedCursor cursor, int numberOfEntriesToRead,
+                                                 ManagedCursor cursor, int maxEntries,
                                                  long bytesToRead, boolean readFromEarliest,
                                                  AsyncCallbacks.ReadEntriesCallback callback,
                                                  boolean wait, @Nullable Consumer consumer) {
         Objects.requireNonNull(topicCompactionService);
         Objects.requireNonNull(cursor);
-        checkArgument(numberOfEntriesToRead > 0);
+        checkArgument(maxEntries > 0);
         Objects.requireNonNull(callback);
 
         final PositionImpl readPosition;
@@ -67,14 +68,17 @@ public class CompactedTopicUtils {
                     || readPosition.compareTo(
                     lastCompactedPosition.getLedgerId(), lastCompactedPosition.getEntryId()) > 0) {
                 if (wait) {
-                    cursor.asyncReadEntriesOrWait(numberOfEntriesToRead, bytesToRead, callback, readEntriesCtx,
+                    cursor.asyncReadEntriesOrWait(maxEntries, bytesToRead, callback, readEntriesCtx,
                         PositionImpl.LATEST);
                 } else {
-                    cursor.asyncReadEntries(numberOfEntriesToRead, bytesToRead, callback, readEntriesCtx,
+                    cursor.asyncReadEntries(maxEntries, bytesToRead, callback, readEntriesCtx,
                         PositionImpl.LATEST);
                 }
                 return CompletableFuture.completedFuture(null);
             }
+
+            ManagedCursorImpl managedCursor = (ManagedCursorImpl) cursor;
+            int numberOfEntriesToRead = managedCursor.applyMaxSizeCap(maxEntries, bytesToRead);
 
             return topicCompactionService.readCompactedEntries(readPosition, numberOfEntriesToRead)
                     .thenAccept(entries -> {
@@ -85,7 +89,14 @@ public class CompactedTopicUtils {
                             }
                             cursor.seek(seekToPosition);
                             callback.readEntriesComplete(Collections.emptyList(), readEntriesCtx);
+                            return;
                         }
+
+                        long entriesSize = 0;
+                        for (Entry entry : entries) {
+                            entriesSize += entry.getLength();
+                        }
+                        managedCursor.updateReadStats(entries.size(), entriesSize);
 
                         Entry lastEntry = entries.get(entries.size() - 1);
                         cursor.seek(lastEntry.getPosition().getNext(), true);

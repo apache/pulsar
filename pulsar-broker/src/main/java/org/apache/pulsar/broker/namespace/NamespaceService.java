@@ -133,8 +133,8 @@ public class NamespaceService implements AutoCloseable {
     public static final Pattern HEARTBEAT_NAMESPACE_PATTERN = Pattern.compile("pulsar/[^/]+/([^:]+:\\d+)");
     public static final Pattern HEARTBEAT_NAMESPACE_PATTERN_V2 = Pattern.compile("pulsar/([^:]+:\\d+)");
     public static final Pattern SLA_NAMESPACE_PATTERN = Pattern.compile(SLA_NAMESPACE_PROPERTY + "/[^/]+/([^:]+:\\d+)");
-    public static final String HEARTBEAT_NAMESPACE_FMT = "pulsar/%s/%s:%s";
-    public static final String HEARTBEAT_NAMESPACE_FMT_V2 = "pulsar/%s:%s";
+    public static final String HEARTBEAT_NAMESPACE_FMT = "pulsar/%s/%s";
+    public static final String HEARTBEAT_NAMESPACE_FMT_V2 = "pulsar/%s";
     public static final String SLA_NAMESPACE_FMT = SLA_NAMESPACE_PROPERTY + "/%s/%s:%s";
 
     private final ConcurrentOpenHashMap<ClusterDataImpl, PulsarClientImpl> namespaceClients;
@@ -164,7 +164,7 @@ public class NamespaceService implements AutoCloseable {
      */
     public NamespaceService(PulsarService pulsar) {
         this.pulsar = pulsar;
-        host = pulsar.getAdvertisedAddress();
+        this.host = pulsar.getAdvertisedAddress();
         this.config = pulsar.getConfiguration();
         this.loadManager = pulsar.getLoadManager();
         this.bundleFactory = new NamespaceBundleFactory(pulsar, Hashing.crc32());
@@ -332,15 +332,17 @@ public class NamespaceService implements AutoCloseable {
      * @throws PulsarServerException if an unexpected error occurs
      */
     public void registerBootstrapNamespaces() throws PulsarServerException {
-
+        String lookupServiceAddress = pulsar.getLookupServiceAddress();
         // ensure that we own the heartbeat namespace
-        if (registerNamespace(getHeartbeatNamespace(host, config), true)) {
-            LOG.info("added heartbeat namespace name in local cache: ns={}", getHeartbeatNamespace(host, config));
+        if (registerNamespace(getHeartbeatNamespace(lookupServiceAddress, config), true)) {
+            LOG.info("added heartbeat namespace name in local cache: ns={}",
+                    getHeartbeatNamespace(lookupServiceAddress, config));
         }
 
         // ensure that we own the heartbeat namespace
-        if (registerNamespace(getHeartbeatNamespaceV2(host, config), true)) {
-            LOG.info("added heartbeat namespace name in local cache: ns={}", getHeartbeatNamespaceV2(host, config));
+        if (registerNamespace(getHeartbeatNamespaceV2(lookupServiceAddress, config), true)) {
+            LOG.info("added heartbeat namespace name in local cache: ns={}",
+                    getHeartbeatNamespaceV2(lookupServiceAddress, config));
         }
 
         // we may not need strict ownership checking for bootstrap names for now
@@ -1249,7 +1251,7 @@ public class NamespaceService implements AutoCloseable {
                     bundleOwnedListener.unLoad(bundle);
                 }
             } catch (Throwable t) {
-                LOG.error("Call bundle {} ownership lister error", bundle, t);
+                LOG.error("Call bundle {} ownership listener error", bundle, t);
             }
         }
     }
@@ -1294,7 +1296,7 @@ public class NamespaceService implements AutoCloseable {
                         listener.onLoad(bundle);
                     }
                 } catch (Throwable t) {
-                    LOG.error("Call bundle {} ownership lister error", bundle, t);
+                    LOG.error("Call bundle {} ownership listener error", bundle, t);
                 }
             }
         }
@@ -1579,32 +1581,20 @@ public class NamespaceService implements AutoCloseable {
         LOG.info("Namespace {} unloaded successfully", namespaceName);
     }
 
-    public static NamespaceName getHeartbeatNamespace(String host, ServiceConfiguration config) {
-        Integer port = null;
-        if (config.getWebServicePort().isPresent()) {
-            port = config.getWebServicePort().get();
-        } else if (config.getWebServicePortTls().isPresent()) {
-            port = config.getWebServicePortTls().get();
-        }
-        return NamespaceName.get(String.format(HEARTBEAT_NAMESPACE_FMT, config.getClusterName(), host, port));
+    public static NamespaceName getHeartbeatNamespace(String lookupBroker, ServiceConfiguration config) {
+        return NamespaceName.get(String.format(HEARTBEAT_NAMESPACE_FMT, config.getClusterName(), lookupBroker));
     }
 
-    public static NamespaceName getHeartbeatNamespaceV2(String host, ServiceConfiguration config) {
-        Integer port = null;
-        if (config.getWebServicePort().isPresent()) {
-            port = config.getWebServicePort().get();
-        } else if (config.getWebServicePortTls().isPresent()) {
-            port = config.getWebServicePortTls().get();
-        }
-        return NamespaceName.get(String.format(HEARTBEAT_NAMESPACE_FMT_V2, host, port));
+    public static NamespaceName getHeartbeatNamespaceV2(String lookupBroker, ServiceConfiguration config) {
+        return NamespaceName.get(String.format(HEARTBEAT_NAMESPACE_FMT_V2, lookupBroker));
     }
 
     public static NamespaceName getSLAMonitorNamespace(String host, ServiceConfiguration config) {
         Integer port = null;
-        if (config.getWebServicePort().isPresent()) {
-            port = config.getWebServicePort().get();
-        } else if (config.getWebServicePortTls().isPresent()) {
+        if (config.getWebServicePortTls().isPresent()) {
             port = config.getWebServicePortTls().get();
+        } else if (config.getWebServicePort().isPresent()) {
+            port = config.getWebServicePort().get();
         }
         return NamespaceName.get(String.format(SLA_NAMESPACE_FMT, config.getClusterName(), host, port));
     }

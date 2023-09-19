@@ -28,7 +28,9 @@ import org.apache.pulsar.common.api.proto.CommandWatchTopicListSuccess;
 import org.apache.pulsar.common.api.proto.CommandWatchTopicUpdate;
 import org.apache.pulsar.common.naming.NamespaceName;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -52,6 +54,9 @@ public class TopicListWatcherTest {
     public void setup() {
         listener = mock(TopicsChangedListener.class);
         client = mock(PulsarClientImpl.class);
+        ConnectionPool connectionPool = mock(ConnectionPool.class);
+        when(client.getCnxPool()).thenReturn(connectionPool);
+        when(connectionPool.genRandomKeyToSelectCon()).thenReturn(0);
         when(client.getConfiguration()).thenReturn(new ClientConfigurationData());
         clientCnxFuture = new CompletableFuture<>();
         when(client.getConnectionToServiceUrl()).thenReturn(clientCnxFuture);
@@ -59,6 +64,9 @@ public class TopicListWatcherTest {
         when(client.timer()).thenReturn(timer);
         String topic = "persistent://tenant/ns/topic\\d+";
         when(client.getConnection(topic)).thenReturn(clientCnxFuture);
+        when(client.getConnection(topic, 0)).thenReturn(clientCnxFuture);
+        when(client.getConnection(any(), any(), anyInt())).thenReturn(clientCnxFuture);
+        when(connectionPool.getConnection(any(), any(), anyInt())).thenReturn(clientCnxFuture);
         watcherFuture = new CompletableFuture<>();
         watcher = new TopicListWatcher(listener, client,
                 Pattern.compile(topic), 7,
@@ -67,7 +75,7 @@ public class TopicListWatcherTest {
 
     @Test
     public void testWatcherGrabsConnection() {
-        verify(client).getConnection(any());
+        verify(client).getConnection(anyString(), anyInt());
     }
 
     @Test
