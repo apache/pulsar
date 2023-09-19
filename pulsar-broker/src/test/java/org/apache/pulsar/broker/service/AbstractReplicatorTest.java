@@ -155,6 +155,8 @@ public class AbstractReplicatorTest {
                 replicatorPrefix, broker, remoteClient);
         replicator.startProducer();
         replicator.disconnect();
+        // Mock close replicator.
+        replicator.close();
 
         // Verify task will done.
         Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() -> {
