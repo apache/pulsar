@@ -112,6 +112,68 @@ public class AbstractReplicatorTest {
         });
     }
 
+    @Test
+    public void testExitRetryStartProducerAfterReplicatorDisconnect() throws Exception {
+        final String localCluster = "localCluster";
+        final String remoteCluster = "remoteCluster";
+        final String topicName = "remoteTopicName";
+        final String replicatorPrefix = "pulsar.repl";
+        final DefaultEventLoop eventLoopGroup = new DefaultEventLoop();
+        // Mock services.
+        final ServiceConfiguration pulsarConfig = mock(ServiceConfiguration.class);
+        final PulsarService pulsar = mock(PulsarService.class);
+        final BrokerService broker = mock(BrokerService.class);
+        final Topic localTopic = mock(Topic.class);
+        ConnectionPool connectionPool = mock(ConnectionPool.class);
+        final PulsarClientImpl localClient = mock(PulsarClientImpl.class);
+        when(localClient.getCnxPool()).thenReturn(connectionPool);
+        final PulsarClientImpl remoteClient = mock(PulsarClientImpl.class);
+        when(remoteClient.getCnxPool()).thenReturn(connectionPool);
+        final ProducerBuilder producerBuilder = mock(ProducerBuilder.class);
+        final ConcurrentOpenHashMap<String, CompletableFuture<Optional<Topic>>> topics = new ConcurrentOpenHashMap<>();
+        topics.put(topicName, CompletableFuture.completedFuture(Optional.of(localTopic)));
+        when(broker.executor()).thenReturn(eventLoopGroup);
+        when(broker.getTopics()).thenReturn(topics);
+        when(remoteClient.newProducer(any(Schema.class))).thenReturn(producerBuilder);
+        when(broker.pulsar()).thenReturn(pulsar);
+        when(pulsar.getClient()).thenReturn(localClient);
+        when(pulsar.getConfiguration()).thenReturn(pulsarConfig);
+        when(pulsarConfig.getReplicationProducerQueueSize()).thenReturn(100);
+        when(localTopic.getName()).thenReturn(topicName);
+        when(producerBuilder.topic(any())).thenReturn(producerBuilder);
+        when(producerBuilder.messageRoutingMode(any())).thenReturn(producerBuilder);
+        when(producerBuilder.enableBatching(anyBoolean())).thenReturn(producerBuilder);
+        when(producerBuilder.sendTimeout(anyInt(), any())).thenReturn(producerBuilder);
+        when(producerBuilder.maxPendingMessages(anyInt())).thenReturn(producerBuilder);
+        when(producerBuilder.producerName(anyString())).thenReturn(producerBuilder);
+        // Mock create producer fail.
+        when(producerBuilder.create()).thenThrow(new RuntimeException("mocked ex"));
+        when(producerBuilder.createAsync())
+                .thenReturn(CompletableFuture.failedFuture(new RuntimeException("mocked ex")));
+        // Make race condition: "retry start producer" and "close replicator".
+        final ReplicatorInTest replicator = new ReplicatorInTest(localCluster, localTopic, remoteCluster, topicName,
+                replicatorPrefix, broker, remoteClient);
+        replicator.startProducer();
+        replicator.disconnect();
+
+        // Verify task will done.
+        Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() -> {
+            AtomicInteger taskCounter = new AtomicInteger();
+            CountDownLatch checkTaskFinished = new CountDownLatch(1);
+            eventLoopGroup.execute(() -> {
+                synchronized (replicator) {
+                    LinkedBlockingQueue taskQueue = WhiteboxImpl.getInternalState(eventLoopGroup, "taskQueue");
+                    DefaultPriorityQueue scheduledTaskQueue =
+                            WhiteboxImpl.getInternalState(eventLoopGroup, "scheduledTaskQueue");
+                    taskCounter.set(taskQueue.size() + scheduledTaskQueue.size());
+                    checkTaskFinished.countDown();
+                }
+            });
+            checkTaskFinished.await();
+            Assert.assertEquals(taskCounter.get(), 0);
+        });
+    }
+
     private static class ReplicatorInTest extends AbstractReplicator {
 
         public ReplicatorInTest(String localCluster, Topic localTopic, String remoteCluster, String remoteTopicName,

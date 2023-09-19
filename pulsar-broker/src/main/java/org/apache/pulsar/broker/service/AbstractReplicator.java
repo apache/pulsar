@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.service;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.commons.lang3.StringUtils;
@@ -61,6 +62,8 @@ public abstract class AbstractReplicator {
             TimeUnit.MILLISECONDS);
 
     protected final String replicatorPrefix;
+
+    protected final AtomicBoolean isDisconnected = new AtomicBoolean(false);
 
     protected static final AtomicReferenceFieldUpdater<AbstractReplicator, State> STATE_UPDATER =
             AtomicReferenceFieldUpdater.newUpdater(AbstractReplicator.class, State.class, "state");
@@ -116,6 +119,11 @@ public abstract class AbstractReplicator {
     // This method needs to be synchronized with disconnects else if there is a disconnect followed by startProducer
     // the end result can be disconnect.
     public synchronized void startProducer() {
+        if (isDisconnected.get()) {
+            log.info("[{}] Do not start replicator because of replicator is disconnected.", replicatorId);
+            return;
+        }
+
         if (STATE_UPDATER.get(this) == State.Stopping) {
             long waitTimeMs = backOff.next();
             if (log.isDebugEnabled()) {
@@ -226,6 +234,9 @@ public abstract class AbstractReplicator {
             }
             return disconnectFuture;
         }
+
+        log.info("[{}] Set replicator is disconnected.", replicatorId);
+        isDisconnected.set(true);
 
         if (STATE_UPDATER.get(this) == State.Stopping) {
             // Do nothing since the all "STATE_UPDATER.set(this, Stopping)" instructions are followed by
