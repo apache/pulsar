@@ -31,7 +31,7 @@ import static org.mockito.Mockito.when;
 import static org.testng.AssertJUnit.assertTrue;
 import com.beust.jcommander.internal.Lists;
 import com.beust.jcommander.internal.Sets;
-import com.google.common.collect.Maps;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -102,7 +102,7 @@ public class AuditorBookieCheckTaskTest {
         final long bookie1LedgersCount = 10;
         final long bookie2LedgersCount = 20;
 
-        final Map<String, Set<Long>> bookiesAndLedgers = Maps.newHashMap();
+        final Map<String, Set<Long>> bookiesAndLedgers = new HashMap<>();
         bookiesAndLedgers.put(bookieId1, getLedgers(bookie1LedgersCount));
         bookiesAndLedgers.put(bookieId2, getLedgers(bookie2LedgersCount));
         when(ledgerIndexer.getBookieToLedgerIndex()).thenReturn(bookiesAndLedgers);
