@@ -20,6 +20,7 @@ package org.apache.pulsar.io.elasticsearch;
 
 import co.elastic.clients.transport.ElasticsearchTransport;
 import com.fasterxml.jackson.core.JsonParseException;
+import java.util.concurrent.atomic.AtomicReference;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
@@ -33,6 +34,8 @@ import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.KeyValueEncodingType;
 import org.apache.pulsar.common.schema.SchemaType;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
@@ -89,6 +92,7 @@ public abstract class ElasticSearchSinkTests extends ElasticSearchTestBase {
 
     @Mock
     protected SinkContext mockSinkContext;
+    AtomicReference<Throwable> irrecoverableError = new AtomicReference<>();
     protected Map<String, Object> map;
     protected ElasticSearchSink sink;
 
@@ -135,6 +139,10 @@ public abstract class ElasticSearchSinkTests extends ElasticSearchTestBase {
 
         mockRecord = mock(Record.class);
         mockSinkContext = mock(SinkContext.class);
+        doAnswer(invocation -> {
+            irrecoverableError.set(invocation.getArgument(0));
+            return null;
+        }).when(mockSinkContext).fatal(any(Throwable.class));
 
         when(mockRecord.getValue()).thenAnswer((Answer<GenericObject>) invocation -> new GenericObject() {
             @Override
@@ -480,7 +488,7 @@ public abstract class ElasticSearchSinkTests extends ElasticSearchTestBase {
         assertEquals(sink.getElasticsearchClient().getRestClient().totalHits(index), 1L);
         sink.write(new MockRecordNullValue());
         assertEquals(sink.getElasticsearchClient().getRestClient().totalHits(index), action.equals(ElasticSearchConfig.NullValueAction.DELETE) ? 0L : 1L);
-        assertNull(sink.getElasticsearchClient().irrecoverableError.get());
+        assertNull(irrecoverableError.get());
     }
 
     @Test
@@ -517,7 +525,7 @@ public abstract class ElasticSearchSinkTests extends ElasticSearchTestBase {
 
                 sink.close();
                 verify(restHighLevelClient).close();
-                verify(internalBulkProcessor).awaitClose(Mockito.anyLong(), Mockito.any(TimeUnit.class));
+                verify(internalBulkProcessor).awaitClose(Mockito.anyLong(), any(TimeUnit.class));
                 verify(client).close();
                 verify(restClient).close();
             } else {
