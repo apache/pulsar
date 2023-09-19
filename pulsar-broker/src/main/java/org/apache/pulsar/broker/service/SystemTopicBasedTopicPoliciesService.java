@@ -24,9 +24,11 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.BlockingDeque;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import javax.annotation.Nonnull;
@@ -84,6 +86,8 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
     @VisibleForTesting
     final Map<TopicName, List<TopicPolicyListener<TopicPolicies>>> listeners = new ConcurrentHashMap<>();
 
+    final Map<TopicName, BlockingDeque<CompletableFuture>> results = new ConcurrentHashMap<>();
+
     public SystemTopicBasedTopicPoliciesService(PulsarService pulsarService) {
         this.pulsarService = pulsarService;
         this.clusterName = pulsarService.getConfiguration().getClusterName();
@@ -97,7 +101,10 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
 
     @Override
     public CompletableFuture<Void> updateTopicPoliciesAsync(TopicName topicName, TopicPolicies policies) {
-        return sendTopicPolicyEvent(topicName, ActionType.UPDATE, policies);
+        CompletableFuture<Void> result = new CompletableFuture<>();
+        results.computeIfAbsent(topicName, k -> new LinkedBlockingDeque<>()).add(result);
+        return sendTopicPolicyEvent(topicName, ActionType.UPDATE, policies)
+                .thenCombine(result, (__, ___) -> null);
     }
 
     private CompletableFuture<Void> sendTopicPolicyEvent(TopicName topicName, ActionType actionType,
@@ -420,11 +427,37 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
         });
     }
 
+    private void completeResults(TopicName topicName) {
+        if (results.get(topicName) != null) {
+            BlockingDeque<CompletableFuture> futures = results.get(topicName);
+            CompletableFuture<Void> future;
+            while (true) {
+                future = futures.poll();
+                if (future == null) {
+                    break;
+                }
+                future.complete(null);
+            }
+        }
+    }
+
+    private void completeResults(BlockingDeque<CompletableFuture> futures) {
+        CompletableFuture<Void> future;
+        while (true) {
+            future = futures.poll();
+            if (future == null) {
+                break;
+            }
+            future.complete(null);
+        }
+    }
+
     private void readMorePolicies(SystemTopicClient.Reader<PulsarEvent> reader) {
         reader.readNextAsync()
                 .thenAccept(msg -> {
                     refreshTopicPoliciesCache(msg);
                     notifyListener(msg);
+                    completeResults(TopicName.get(TopicName.get(msg.getKey()).getPartitionedTopicName()));
                 })
                 .whenComplete((__, ex) -> {
                     if (ex == null) {
@@ -627,6 +660,11 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                 topicListeners.remove(listener);
                 if (topicListeners.isEmpty()) {
                     topicListeners = null;
+                    // clear the policy setting result queue
+                    BlockingDeque<CompletableFuture> futures = results.remove(topicName);
+                    if (futures != null) {
+                        completeResults(futures);
+                    }
                 }
             }
             return topicListeners;
