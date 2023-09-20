@@ -2184,14 +2184,14 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
                 Awaitility.await().untilAsserted(() -> {
                     AbstractTopic partition =
                             (AbstractTopic) pulsar.getBrokerService().getTopicIfExists(partitionName).get().get();
-                    assertNull(partition.getHierarchyTopicPolicies().getTopicMaxMessageSize().getTopicValue());
+                    assertNull(partition.getHierarchyTopicPolicies().getTopicMaxMessageSize().getLocalTopicValue());
                 });
             }
         } else {
             Awaitility.await().untilAsserted(() -> {
                 AbstractTopic abstractTopic =
                         (AbstractTopic) pulsar.getBrokerService().getTopicIfExists(topic).get().get();
-                assertNull(abstractTopic.getHierarchyTopicPolicies().getTopicMaxMessageSize().getTopicValue());
+                assertNull(abstractTopic.getHierarchyTopicPolicies().getTopicMaxMessageSize().getLocalTopicValue());
             });
         }
 
@@ -2644,7 +2644,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         subscriptionTypeSet.add(SubscriptionType.Failover);
         admin.topicPolicies().setSubscriptionTypesEnabled(topic, subscriptionTypeSet);
         waitTopicPoliciesApplied(topic, 0, hierarchyTopicPolicies -> {
-            assertTrue(hierarchyTopicPolicies.getSubscriptionTypesEnabled().getTopicValue()
+            assertTrue(hierarchyTopicPolicies.getSubscriptionTypesEnabled().getLocalTopicValue()
                     .contains(CommandSubscribe.SubType.Failover));
         });
 
@@ -2659,7 +2659,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         //clear topic level setting, use ns setting only, which only contains shared.
         admin.topicPolicies().setSubscriptionTypesEnabled(topic, Collections.emptySet());
         waitTopicPoliciesApplied(topic, 0, hierarchyTopicPolicies -> {
-            assertNull(hierarchyTopicPolicies.getSubscriptionTypesEnabled().getTopicValue());
+            assertNull(hierarchyTopicPolicies.getSubscriptionTypesEnabled().getLocalTopicValue());
         });
         pulsarClient.newConsumer().topic(topic)
                 .subscriptionType(SubscriptionType.Shared).subscriptionName("test").subscribe().close();
