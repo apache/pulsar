@@ -350,6 +350,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
 
     @Override
     public Set<String> getAvailableBrokers() {
+        // TODO: filter out the extensible load manager brokers
         try {
             return new HashSet<>(brokersData.listLocks(LoadManager.LOADBALANCE_BROKERS_ROOT)
                     .get(conf.getMetadataStoreOperationTimeoutSeconds(), TimeUnit.SECONDS));
@@ -361,6 +362,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
 
     @Override
     public CompletableFuture<Set<String>> getAvailableBrokersAsync() {
+        // TODO: filter out the extensible load manager brokers
         CompletableFuture<Set<String>> future = new CompletableFuture<>();
         brokersData.listLocks(LoadManager.LOADBALANCE_BROKERS_ROOT)
                 .whenComplete((listLocks, ex) -> {

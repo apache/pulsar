@@ -35,6 +35,9 @@ import static org.apache.pulsar.broker.loadbalance.extensions.models.UnloadDecis
 import static org.apache.pulsar.broker.loadbalance.extensions.models.UnloadDecision.Reason.Overloaded;
 import static org.apache.pulsar.broker.loadbalance.extensions.models.UnloadDecision.Reason.Underloaded;
 import static org.apache.pulsar.broker.loadbalance.extensions.models.UnloadDecision.Reason.Unknown;
+import static org.apache.pulsar.broker.namespace.NamespaceService.getHeartbeatNamespace;
+import static org.apache.pulsar.broker.namespace.NamespaceService.getHeartbeatNamespaceV2;
+import static org.apache.pulsar.broker.namespace.NamespaceService.getSLAMonitorNamespace;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
@@ -594,6 +597,31 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
             assertTrue(webServiceUrl3.isPresent());
             assertEquals(webServiceUrl3.get().toString(), webServiceUrl1.get().toString());
 
+            // Test lookup heartbeat namespace's topic
+            assertLookupHeartbeatOwner(pulsar1, pulsar1.getLookupServiceAddress(), pulsar1.getBrokerServiceUrl());
+            assertLookupHeartbeatOwner(pulsar2, pulsar1.getLookupServiceAddress(), pulsar1.getBrokerServiceUrl());
+            assertLookupHeartbeatOwner(pulsar3, pulsar1.getLookupServiceAddress(), pulsar1.getBrokerServiceUrl());
+
+            assertLookupHeartbeatOwner(pulsar1, pulsar2.getLookupServiceAddress(), pulsar2.getBrokerServiceUrl());
+            assertLookupHeartbeatOwner(pulsar2, pulsar2.getLookupServiceAddress(), pulsar2.getBrokerServiceUrl());
+            assertLookupHeartbeatOwner(pulsar3, pulsar2.getLookupServiceAddress(), pulsar2.getBrokerServiceUrl());
+
+            // The broker3 will not response the assign request, so the lookup from broker1 and broker2 will time out.
+            assertLookupHeartbeatOwner(pulsar3, pulsar3.getLookupServiceAddress(), pulsar3.getBrokerServiceUrl());
+
+            // Test lookup SLA namespace's topic
+            assertLookupSLANamespaceOwner(pulsar1, pulsar1.getLookupServiceAddress());
+            assertLookupSLANamespaceOwner(pulsar2, pulsar1.getLookupServiceAddress());
+            assertLookupSLANamespaceOwner(pulsar3, pulsar1.getLookupServiceAddress());
+
+            assertLookupSLANamespaceOwner(pulsar1, pulsar2.getLookupServiceAddress());
+            assertLookupSLANamespaceOwner(pulsar2, pulsar2.getLookupServiceAddress());
+            assertLookupSLANamespaceOwner(pulsar3, pulsar2.getLookupServiceAddress());
+
+            assertLookupSLANamespaceOwner(pulsar1, pulsar3.getLookupServiceAddress());
+            assertLookupSLANamespaceOwner(pulsar2, pulsar3.getLookupServiceAddress());
+            assertLookupSLANamespaceOwner(pulsar3, pulsar3.getLookupServiceAddress());
+
             // Test deploy new broker with new load manager
             ServiceConfiguration conf = getDefaultConf();
             conf.setAllowAutoTopicCreation(true);
@@ -642,8 +670,74 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
                 assertTrue(webServiceUrl4.isPresent());
                 assertEquals(webServiceUrl4.get().toString(), webServiceUrl1.get().toString());
 
+
+                // Test lookup heartbeat namespace's topic
+                assertLookupHeartbeatOwner(pulsar1, pulsar1.getLookupServiceAddress(), pulsar1.getBrokerServiceUrl());
+                assertLookupHeartbeatOwner(pulsar2, pulsar1.getLookupServiceAddress(), pulsar1.getBrokerServiceUrl());
+                assertLookupHeartbeatOwner(pulsar3, pulsar1.getLookupServiceAddress(), pulsar1.getBrokerServiceUrl());
+                assertLookupHeartbeatOwner(pulsar4, pulsar1.getLookupServiceAddress(), pulsar1.getBrokerServiceUrl());
+
+                assertLookupHeartbeatOwner(pulsar1, pulsar2.getLookupServiceAddress(), pulsar2.getBrokerServiceUrl());
+                assertLookupHeartbeatOwner(pulsar2, pulsar2.getLookupServiceAddress(), pulsar2.getBrokerServiceUrl());
+                assertLookupHeartbeatOwner(pulsar3, pulsar2.getLookupServiceAddress(), pulsar2.getBrokerServiceUrl());
+                assertLookupHeartbeatOwner(pulsar4, pulsar2.getLookupServiceAddress(), pulsar2.getBrokerServiceUrl());
+
+                // The broker3 will not response the assign request,
+                // so the lookup from broker1, broker2 and broker3 will time out.
+                assertLookupHeartbeatOwner(pulsar3, pulsar3.getLookupServiceAddress(), pulsar3.getBrokerServiceUrl());
+
+                assertLookupHeartbeatOwner(pulsar1, pulsar4.getLookupServiceAddress(), pulsar4.getBrokerServiceUrl());
+                assertLookupHeartbeatOwner(pulsar2, pulsar4.getLookupServiceAddress(), pulsar4.getBrokerServiceUrl());
+                assertLookupHeartbeatOwner(pulsar3, pulsar4.getLookupServiceAddress(), pulsar4.getBrokerServiceUrl());
+                assertLookupHeartbeatOwner(pulsar4, pulsar4.getLookupServiceAddress(), pulsar4.getBrokerServiceUrl());
+
+                // Test lookup SLA namespace's topic
+                assertLookupSLANamespaceOwner(pulsar1, pulsar1.getLookupServiceAddress());
+                assertLookupSLANamespaceOwner(pulsar2, pulsar1.getLookupServiceAddress());
+                assertLookupSLANamespaceOwner(pulsar3, pulsar1.getLookupServiceAddress());
+                assertLookupSLANamespaceOwner(pulsar4, pulsar1.getLookupServiceAddress());
+
+                assertLookupSLANamespaceOwner(pulsar1, pulsar2.getLookupServiceAddress());
+                assertLookupSLANamespaceOwner(pulsar2, pulsar2.getLookupServiceAddress());
+                assertLookupSLANamespaceOwner(pulsar3, pulsar2.getLookupServiceAddress());
+                assertLookupSLANamespaceOwner(pulsar4, pulsar2.getLookupServiceAddress());
+
+                assertLookupSLANamespaceOwner(pulsar1, pulsar3.getLookupServiceAddress());
+                assertLookupSLANamespaceOwner(pulsar2, pulsar3.getLookupServiceAddress());
+                assertLookupSLANamespaceOwner(pulsar3, pulsar3.getLookupServiceAddress());
+                assertLookupSLANamespaceOwner(pulsar4, pulsar3.getLookupServiceAddress());
+
+                assertLookupSLANamespaceOwner(pulsar1, pulsar4.getLookupServiceAddress());
+                assertLookupSLANamespaceOwner(pulsar2, pulsar4.getLookupServiceAddress());
+                assertLookupSLANamespaceOwner(pulsar3, pulsar4.getLookupServiceAddress());
+                assertLookupSLANamespaceOwner(pulsar4, pulsar4.getLookupServiceAddress());
             }
         }
+    }
+
+    private void assertLookupHeartbeatOwner(PulsarService pulsar,
+                                            String lookupServiceAddress,
+                                            String expectedBrokerServiceUrl) throws Exception {
+        NamespaceName heartbeatNamespaceV1 =
+                getHeartbeatNamespace(lookupServiceAddress, pulsar.getConfiguration());
+
+        String heartbeatV1Topic = heartbeatNamespaceV1.getPersistentTopicName("test");
+        assertEquals(pulsar.getAdminClient().lookups().lookupTopic(heartbeatV1Topic), expectedBrokerServiceUrl);
+
+        NamespaceName heartbeatNamespaceV2 =
+                getHeartbeatNamespaceV2(lookupServiceAddress, pulsar.getConfiguration());
+
+        String heartbeatV2Topic = heartbeatNamespaceV2.getPersistentTopicName("test");
+        assertEquals(pulsar.getAdminClient().lookups().lookupTopic(heartbeatV2Topic), expectedBrokerServiceUrl);
+    }
+
+    private void assertLookupSLANamespaceOwner(PulsarService pulsar,
+                                               String lookupServiceAddress) throws Exception {
+        NamespaceName slaMonitorNamespace = getSLAMonitorNamespace(lookupServiceAddress, pulsar.getConfiguration());
+        String slaMonitorTopic = slaMonitorNamespace.getPersistentTopicName("test");
+        String result = pulsar.getAdminClient().lookups().lookupTopic(slaMonitorTopic);
+        log.info("Topic {} Lookup result: {}", slaMonitorTopic, result);
+        assertNotNull(result);
     }
 
     @Test
@@ -1043,15 +1137,15 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
         admin.namespaces().deleteNamespace(namespace, true);
     }
 
-    @Test(timeOut = 30 * 1000)
+    @Test(timeOut = 30 * 1000, priority = -1)
     public void testGetOwnedServiceUnitsAndGetOwnedNamespaceStatus() throws Exception {
         NamespaceName heartbeatNamespacePulsar1V1 =
-                NamespaceService.getHeartbeatNamespace(pulsar1.getLookupServiceAddress(), pulsar1.getConfiguration());
+                getHeartbeatNamespace(pulsar1.getLookupServiceAddress(), pulsar1.getConfiguration());
         NamespaceName heartbeatNamespacePulsar1V2 =
                 NamespaceService.getHeartbeatNamespaceV2(pulsar1.getLookupServiceAddress(), pulsar1.getConfiguration());
 
         NamespaceName heartbeatNamespacePulsar2V1 =
-                NamespaceService.getHeartbeatNamespace(pulsar2.getLookupServiceAddress(), pulsar2.getConfiguration());
+                getHeartbeatNamespace(pulsar2.getLookupServiceAddress(), pulsar2.getConfiguration());
         NamespaceName heartbeatNamespacePulsar2V2 =
                 NamespaceService.getHeartbeatNamespaceV2(pulsar2.getLookupServiceAddress(), pulsar2.getConfiguration());
 

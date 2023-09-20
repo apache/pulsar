@@ -1226,38 +1226,27 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
             var stateData = etr.getValue();
             var serviceUnit = etr.getKey();
             var state = state(stateData);
-            if (StringUtils.equals(broker, stateData.dstBroker())) {
-                if (isActiveState(state)) {
-                    if (serviceUnit.startsWith(SYSTEM_NAMESPACE.toString())) {
-                        orphanSystemServiceUnits.put(serviceUnit, stateData);
-                    } else if (serviceUnit.startsWith(heartbeatNamespace)
-                            || serviceUnit.startsWith(heartbeatNamespaceV2)) {
-                        // Skip the heartbeat namespace
-                        log.info("Skip override heartbeat namespace bundle"
-                                + " serviceUnit:{}, stateData:{}", serviceUnit, stateData);
-                        tombstoneAsync(serviceUnit).whenComplete((__, e) -> {
-                            if (e != null) {
-                                log.error("Failed cleaning the heartbeat namespace ownership serviceUnit:{}, "
-                                                + "stateData:{}, cleanupErrorCnt:{}.",
-                                        serviceUnit, stateData,
-                                        totalCleanupErrorCnt.incrementAndGet() - totalCleanupErrorCntStart, e);
-                            }
-                        });
-                    } else {
-                        overrideOwnership(serviceUnit, stateData, broker);
-                    }
-                    orphanServiceUnitCleanupCnt++;
+            if (StringUtils.equals(broker, stateData.dstBroker()) && isActiveState(state)
+                    || StringUtils.equals(broker, stateData.sourceBroker()) && isInFlightState(state)) {
+                if (serviceUnit.startsWith(SYSTEM_NAMESPACE.toString())) {
+                    orphanSystemServiceUnits.put(serviceUnit, stateData);
+                } else if (serviceUnit.startsWith(heartbeatNamespace)
+                        || serviceUnit.startsWith(heartbeatNamespaceV2)) {
+                    // Skip the heartbeat namespace
+                    log.info("Skip override heartbeat namespace bundle"
+                            + " serviceUnit:{}, stateData:{}", serviceUnit, stateData);
+                    tombstoneAsync(serviceUnit).whenComplete((__, e) -> {
+                        if (e != null) {
+                            log.error("Failed cleaning the heartbeat namespace ownership serviceUnit:{}, "
+                                            + "stateData:{}, cleanupErrorCnt:{}.",
+                                    serviceUnit, stateData,
+                                    totalCleanupErrorCnt.incrementAndGet() - totalCleanupErrorCntStart, e);
+                        }
+                    });
+                } else {
+                    overrideOwnership(serviceUnit, stateData, broker);
                 }
-
-            } else if (StringUtils.equals(broker, stateData.sourceBroker())) {
-                if (isInFlightState(state)) {
-                    if (serviceUnit.startsWith(SYSTEM_NAMESPACE.toString())) {
-                        orphanSystemServiceUnits.put(serviceUnit, stateData);
-                    } else {
-                        overrideOwnership(serviceUnit, stateData, broker);
-                    }
-                    orphanServiceUnitCleanupCnt++;
-                }
+                orphanServiceUnitCleanupCnt++;
             }
         }
 

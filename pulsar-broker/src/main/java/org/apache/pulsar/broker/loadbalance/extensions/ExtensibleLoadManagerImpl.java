@@ -86,6 +86,7 @@ import org.apache.pulsar.broker.loadbalance.extensions.strategy.LeastResourceUsa
 import org.apache.pulsar.broker.loadbalance.impl.LoadManagerShared;
 import org.apache.pulsar.broker.loadbalance.impl.SimpleResourceAllocationPolicies;
 import org.apache.pulsar.broker.namespace.NamespaceEphemeralData;
+import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceBundleSplitAlgorithm;
@@ -152,6 +153,9 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
 
     @Getter
     private final List<BrokerFilter> brokerFilterPipeline;
+
+    private final BrokerLoadManagerClassFilter brokerLoadManagerClassFilter;
+
     /**
      * The load data reporter.
      */
@@ -221,7 +225,8 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
      */
     public ExtensibleLoadManagerImpl() {
         this.brokerFilterPipeline = new ArrayList<>();
-        this.brokerFilterPipeline.add(new BrokerLoadManagerClassFilter());
+        this.brokerLoadManagerClassFilter = new BrokerLoadManagerClassFilter();
+        this.brokerFilterPipeline.add(brokerLoadManagerClassFilter);
         this.brokerFilterPipeline.add(new BrokerMaxTopicCountFilter());
         this.brokerFilterPipeline.add(new BrokerVersionFilter());
         // TODO: Make brokerSelectionStrategy configurable.
@@ -377,25 +382,49 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
             if (topic.isPresent() && isInternalTopic(topic.get().toString())) {
                 owner = serviceUnitStateChannel.getChannelOwnerAsync();
             } else {
-                owner = getOwnerAsync(serviceUnit, bundle, false).thenApply(Optional::ofNullable);
+                // Check if this is Heartbeat or SLAMonitor namespace
+                String candidateBroker = NamespaceService.checkHeartbeatNamespace(serviceUnit);
+                if (candidateBroker == null) {
+                    candidateBroker = NamespaceService.checkHeartbeatNamespaceV2(serviceUnit);
+                }
+                if (candidateBroker == null) {
+                    String broker = NamespaceService.getSLAMonitorBrokerName(serviceUnit);
+                    // checking if the broker is up and running
+                    if (broker != null && pulsar.getNamespaceService().isBrokerActive(broker)) {
+                        candidateBroker = broker;
+                    }
+                }
+                if (candidateBroker != null) {
+                    String substring = candidateBroker.substring(candidateBroker.lastIndexOf('/') + 1);
+                    owner = getOrAssignOwnerAsync(bundle, substring).thenApply(Optional::ofNullable);
+                } else {
+                    owner = getOrSelectOwnerAsync(serviceUnit, bundle).thenApply(Optional::ofNullable);
+                }
             }
             return getBrokerLookupData(owner, bundle);
         });
     }
 
-    private CompletableFuture<String> getOwnerAsync(
-            ServiceUnitId serviceUnit, String bundle, boolean ownByLocalBrokerIfAbsent) {
+    private CompletableFuture<String> getOrAssignOwnerAsync(String bundle,
+                                                            String ownerBroker) {
         return serviceUnitStateChannel.getOwnerAsync(bundle).thenCompose(broker -> {
             // If the bundle not assign yet, select and publish assign event to channel.
             if (broker.isEmpty()) {
-                CompletableFuture<Optional<String>> selectedBroker;
-                if (ownByLocalBrokerIfAbsent) {
-                    String brokerId = this.brokerRegistry.getBrokerId();
-                    selectedBroker = CompletableFuture.completedFuture(Optional.of(brokerId));
-                } else {
-                    selectedBroker = this.selectAsync(serviceUnit);
-                }
-                return selectedBroker.thenCompose(brokerOpt -> {
+                assignCounter.incrementSuccess();
+                log.info("Selected new owner broker: {} for bundle: {}.", ownerBroker, bundle);
+                return serviceUnitStateChannel.publishAssignEventAsync(bundle, ownerBroker);
+            }
+            assignCounter.incrementSkip();
+            return CompletableFuture.completedFuture(broker.get());
+        });
+    }
+
+    private CompletableFuture<String> getOrSelectOwnerAsync(ServiceUnitId serviceUnit,
+                                                            String bundle) {
+        return serviceUnitStateChannel.getOwnerAsync(bundle).thenCompose(broker -> {
+            // If the bundle not assign yet, select and publish assign event to channel.
+            if (broker.isEmpty()) {
+                return this.selectAsync(serviceUnit).thenCompose(brokerOpt -> {
                     if (brokerOpt.isPresent()) {
                         assignCounter.incrementSuccess();
                         log.info("Selected new owner broker: {} for bundle: {}.", brokerOpt.get(), bundle);
@@ -444,8 +473,8 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
         log.info("Try acquiring ownership for bundle: {} - {}.", namespaceBundle, brokerRegistry.getBrokerId());
         final String bundle = namespaceBundle.toString();
         return dedupeLookupRequest(bundle, k -> {
-            final CompletableFuture<String> owner =
-                    this.getOwnerAsync(namespaceBundle, bundle, true);
+            String brokerId = this.brokerRegistry.getBrokerId();
+            final CompletableFuture<String> owner = this.getOrAssignOwnerAsync(bundle, brokerId);
             return getBrokerLookupData(owner.thenApply(Optional::ofNullable), bundle);
         }).thenApply(brokerLookupData -> {
             if (brokerLookupData.isEmpty()) {
@@ -619,6 +648,12 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
         Split split = decision.getSplit();
         CompletableFuture<Void> future = serviceUnitStateChannel.publishSplitEventAsync(split);
         return splitManager.waitAsync(future, decision.getSplit().serviceUnit(), decision, timeout, timeoutUnit);
+    }
+
+    public CompletableFuture<Set<String>> getAvailableBrokersAsync() {
+        return brokerRegistry.getAvailableBrokerLookupDataAsync()
+                .thenCompose(m -> brokerLoadManagerClassFilter.filterAsync(m, null, context))
+                .thenApply(Map::keySet);
     }
 
     @Override
