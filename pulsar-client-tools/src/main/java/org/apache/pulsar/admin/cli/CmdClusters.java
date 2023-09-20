@@ -24,6 +24,7 @@ import com.beust.jcommander.Parameters;
 import com.google.common.collect.Sets;
 import java.util.Arrays;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 import lombok.Getter;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.admin.cli.utils.CmdUtils;
@@ -41,8 +42,18 @@ public class CmdClusters extends CmdBase {
 
     @Parameters(commandDescription = "List the existing clusters")
     private class List extends CliCommand {
+
+        @Parameter(names = { "-c", "--current" },
+                description = "Print the current cluster with (*)", required = false)
+        private boolean current = false;
+
         void run() throws PulsarAdminException {
-            print(getAdmin().clusters().getClusters());
+            java.util.List<String> clusters = getAdmin().clusters().getClusters();
+            String clusterName = getAdmin().brokers().getRuntimeConfigurations().get("clusterName");
+            final java.util.List<String> result = clusters.stream().map(c ->
+                    c.equals(clusterName) ? (current ? c + "(*)" : c) : c
+            ).collect(Collectors.toList());
+            print(result);
         }
     }
 

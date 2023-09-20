@@ -1355,12 +1355,6 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private Set<String> brokerInterceptors = new TreeSet<>();
 
     @FieldContext(
-        category = CATEGORY_SERVER,
-        doc = "Enable or disable the broker interceptor, which is only used for testing for now"
-    )
-    private boolean disableBrokerInterceptors = true;
-
-    @FieldContext(
             category = CATEGORY_SERVER,
             doc = "List of interceptors for payload processing.")
     private Set<String> brokerEntryPayloadProcessors = new LinkedHashSet<>();

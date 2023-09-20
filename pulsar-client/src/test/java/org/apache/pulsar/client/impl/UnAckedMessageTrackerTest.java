@@ -29,12 +29,15 @@ import static org.mockito.Mockito.when;
 import io.netty.util.HashedWheelTimer;
 import io.netty.util.Timer;
 import io.netty.util.concurrent.DefaultThreadFactory;
-
+import java.time.Duration;
 import java.util.HashSet;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.MessageIdAdv;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
+import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
+import org.awaitility.Awaitility;
 import org.testng.annotations.Test;
 
 public class UnAckedMessageTrackerTest  {
@@ -42,6 +45,8 @@ public class UnAckedMessageTrackerTest  {
     @Test
     public void testAddAndRemove() {
         PulsarClientImpl client = mock(PulsarClientImpl.class);
+        ConnectionPool connectionPool = mock(ConnectionPool.class);
+        when(client.getCnxPool()).thenReturn(connectionPool);
         Timer timer = new HashedWheelTimer(new DefaultThreadFactory("pulsar-timer", Thread.currentThread().isDaemon()),
                 1, TimeUnit.MILLISECONDS);
         when(client.timer()).thenReturn(timer);
@@ -73,6 +78,52 @@ public class UnAckedMessageTrackerTest  {
         assertTrue(tracker.remove(mid));
         assertTrue(tracker.isEmpty());
         assertEquals(tracker.size(), 0);
+
+        timer.stop();
+    }
+
+    @Test
+    public void testTrackChunkedMessageId() {
+        PulsarClientImpl client = mock(PulsarClientImpl.class);
+        ConnectionPool connectionPool = mock(ConnectionPool.class);
+        when(client.getCnxPool()).thenReturn(connectionPool);
+        Timer timer = new HashedWheelTimer(new DefaultThreadFactory("pulsar-timer", Thread.currentThread().isDaemon()),
+                1, TimeUnit.MILLISECONDS);
+        when(client.timer()).thenReturn(timer);
+
+        ConsumerBase<byte[]> consumer = mock(ConsumerBase.class);
+        doNothing().when(consumer).onAckTimeoutSend(any());
+        doNothing().when(consumer).redeliverUnacknowledgedMessages(any());
+        ConsumerConfigurationData<?> conf = new ConsumerConfigurationData<>();
+        conf.setAckTimeoutMillis(1000);
+        conf.setTickDurationMillis(1000);
+        UnAckedMessageTracker tracker = new UnAckedMessageTracker(client, consumer, conf);
+
+        assertTrue(tracker.isEmpty());
+        assertEquals(tracker.size(), 0);
+
+        // Build chunked message ID
+        MessageIdImpl[] chunkMsgIds = new MessageIdImpl[5];
+        for (int i = 0; i < 5; i++) {
+            chunkMsgIds[i] = new MessageIdImpl(1L, i, -1);
+        }
+        ChunkMessageIdImpl chunkedMessageId =
+                new ChunkMessageIdImpl(chunkMsgIds[0], chunkMsgIds[chunkMsgIds.length - 1]);
+
+        consumer.unAckedChunkedMessageIdSequenceMap =
+                ConcurrentOpenHashMap.<MessageIdAdv, MessageIdImpl[]>newBuilder().build();
+        consumer.unAckedChunkedMessageIdSequenceMap.put(chunkedMessageId, chunkMsgIds);
+
+        // Redeliver chunked message
+        tracker.add(chunkedMessageId);
+
+        Awaitility.await()
+                .pollInterval(Duration.ofMillis(200))
+                .atMost(Duration.ofSeconds(3))
+                .untilAsserted(() -> assertEquals(tracker.size(), 0));
+
+        // Assert that all chunk message ID are removed from unAckedChunkedMessageIdSequenceMap
+        assertEquals(consumer.unAckedChunkedMessageIdSequenceMap.size(), 0);
 
         timer.stop();
     }
