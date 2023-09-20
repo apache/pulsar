@@ -84,6 +84,7 @@ import org.apache.pulsar.common.api.proto.CommandSeek;
 import org.apache.pulsar.common.api.proto.CommandSend;
 import org.apache.pulsar.common.api.proto.CommandSubscribe;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition;
+import org.apache.pulsar.common.api.proto.CommandSubscribe.IsolationLevel;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.api.proto.CommandTcClientConnectResponse;
 import org.apache.pulsar.common.api.proto.CommandTopicMigrated.ResourceType;
@@ -573,18 +574,18 @@ public class Commands {
         return newSubscribe(topic, subscription, consumerId, requestId, subType, priorityLevel, consumerName,
                 true /* isDurable */, null /* startMessageId */, Collections.emptyMap(), false,
                 false /* isReplicated */, InitialPosition.Earliest, resetStartMessageBackInSeconds, null,
-                true /* createTopicIfDoesNotExist */);
+                true /* createTopicIfDoesNotExist */, IsolationLevel.READ_COMMITTED);
     }
 
     public static ByteBuf newSubscribe(String topic, String subscription, long consumerId, long requestId,
             SubType subType, int priorityLevel, String consumerName, boolean isDurable, MessageIdData startMessageId,
             Map<String, String> metadata, boolean readCompacted, boolean isReplicated,
             InitialPosition subscriptionInitialPosition, long startMessageRollbackDurationInSec, SchemaInfo schemaInfo,
-            boolean createTopicIfDoesNotExist) {
+            boolean createTopicIfDoesNotExist, IsolationLevel isolationLevel) {
         return newSubscribe(topic, subscription, consumerId, requestId, subType, priorityLevel, consumerName,
                 isDurable, startMessageId, metadata, readCompacted, isReplicated, subscriptionInitialPosition,
                 startMessageRollbackDurationInSec, schemaInfo, createTopicIfDoesNotExist, null,
-                Collections.emptyMap(), DEFAULT_CONSUMER_EPOCH);
+                Collections.emptyMap(), DEFAULT_CONSUMER_EPOCH, isolationLevel);
     }
 
     public static ByteBuf newSubscribe(String topic, String subscription, long consumerId, long requestId,
@@ -592,7 +593,7 @@ public class Commands {
                Map<String, String> metadata, boolean readCompacted, boolean isReplicated,
                InitialPosition subscriptionInitialPosition, long startMessageRollbackDurationInSec,
                SchemaInfo schemaInfo, boolean createTopicIfDoesNotExist, KeySharedPolicy keySharedPolicy,
-               Map<String, String> subscriptionProperties, long consumerEpoch) {
+               Map<String, String> subscriptionProperties, long consumerEpoch, IsolationLevel isolationLevel) {
         BaseCommand cmd = localCmd(Type.SUBSCRIBE);
         CommandSubscribe subscribe = cmd.setSubscribe()
                 .setTopic(topic)
@@ -607,7 +608,8 @@ public class Commands {
                 .setInitialPosition(subscriptionInitialPosition)
                 .setReplicateSubscriptionState(isReplicated)
                 .setForceTopicCreation(createTopicIfDoesNotExist)
-                .setConsumerEpoch(consumerEpoch);
+                .setConsumerEpoch(consumerEpoch)
+                .setIsolationLevel(isolationLevel);
 
         if (subscriptionProperties != null && !subscriptionProperties.isEmpty()) {
             List<KeyValue> keyValues = new ArrayList<>();

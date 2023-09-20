@@ -832,6 +832,16 @@ public interface ConsumerBuilder<T> extends Cloneable {
     ConsumerBuilder<T> autoScaledReceiverQueueSizeEnabled(boolean enabled);
 
     /**
+     * Sets the {@link SubscriptionIsolationLevel} for the consumer.
+     *
+     * @param subscriptionIsolationLevel If READ_COMMITTED is selected, the Consumer can only consume all transactional messages which have been committed,
+     *                                   else if READ_UNCOMMITTED is selected, the Consumer can consume all messages, even transactional messages which have been aborted.
+     *                                   Note that this is a subscription dimension configuration, and all consumers under the same subscription need to be configured with the same IsolationLevel.
+     * @return the consumer builder instance
+     */
+    ConsumerBuilder<T> subscriptionIsolationLevel(SubscriptionIsolationLevel subscriptionIsolationLevel);
+
+    /**
      * Configure topic specific options to override those set at the {@link ConsumerBuilder} level.
      *
      * @param topicName a topic name

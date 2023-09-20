@@ -50,6 +50,7 @@ import org.apache.pulsar.client.api.RedeliveryBackoff;
 import org.apache.pulsar.client.api.RegexSubscriptionMode;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
+import org.apache.pulsar.client.api.SubscriptionIsolationLevel;
 import org.apache.pulsar.client.api.SubscriptionMode;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.TopicConsumerBuilder;
@@ -536,6 +537,12 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
     @Override
     public ConsumerBuilder<T> autoScaledReceiverQueueSizeEnabled(boolean enabled) {
         conf.setAutoScaledReceiverQueueSizeEnabled(enabled);
+        return this;
+    }
+
+    @Override
+    public ConsumerBuilder<T> subscriptionIsolationLevel(SubscriptionIsolationLevel subscriptionIsolationLevel) {
+        conf.setSubscriptionIsolationLevel(subscriptionIsolationLevel);
         return this;
     }
 

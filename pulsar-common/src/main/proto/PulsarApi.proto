@@ -399,6 +399,14 @@ message CommandSubscribe {
 
     // The consumer epoch, when exclusive and failover consumer redeliver unack message will increase the epoch
     optional uint64 consumer_epoch = 19;
+
+    enum IsolationLevel {
+        READ_COMMITTED = 0;
+        READ_UNCOMMITTED = 1;
+    }
+    // If READ_COMMITTED is selected, the Consumer can only consume all transactional messages which have been committed.
+    // If READ_UNCOMMITTED is selected, the Consumer can consume all messages, even transactional messages which have been aborted.
+    optional IsolationLevel isolation_level = 20 [default = READ_COMMITTED];
 }
 
 message CommandPartitionedTopicMetadata {

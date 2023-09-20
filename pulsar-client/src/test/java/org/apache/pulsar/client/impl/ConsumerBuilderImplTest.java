@@ -52,6 +52,7 @@ import org.apache.pulsar.client.api.RedeliveryBackoff;
 import org.apache.pulsar.client.api.RegexSubscriptionMode;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
+import org.apache.pulsar.client.api.SubscriptionIsolationLevel;
 import org.apache.pulsar.client.api.SubscriptionMode;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
@@ -441,7 +442,8 @@ public class ConsumerBuilderImplTest {
             + "    'ackReceiptEnabled' : true,\n"
             + "    'poolMessages' : true,\n"
             + "    'startPaused' : true,\n"
-            + "    'autoScaledReceiverQueueSizeEnabled' : true\n"
+            + "    'autoScaledReceiverQueueSizeEnabled' : true,\n"
+            + "    'subscriptionIsolationLevel' : 'READ_UNCOMMITTED'\n"
             + "  }").replace("'", "\"");
 
         Map<String, Object> conf = new ObjectMapper().readValue(jsonConf, new TypeReference<HashMap<String,Object>>() {});
@@ -498,6 +500,7 @@ public class ConsumerBuilderImplTest {
         assertEquals(configurationData.getDeadLetterPolicy().getRetryLetterTopic(), "new-retry");
         assertEquals(configurationData.getDeadLetterPolicy().getInitialSubscriptionName(), "new-dlq-sub");
         assertEquals(configurationData.getDeadLetterPolicy().getMaxRedeliverCount(), 2);
+        assertEquals(configurationData.getSubscriptionIsolationLevel(), SubscriptionIsolationLevel.READ_UNCOMMITTED);
         assertTrue(configurationData.isRetryEnable());
         assertFalse(configurationData.isAutoUpdatePartitions());
         assertEquals(configurationData.getAutoUpdatePartitionsIntervalSeconds(), 2);
