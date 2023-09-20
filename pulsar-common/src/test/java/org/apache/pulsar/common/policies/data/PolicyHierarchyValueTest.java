@@ -33,13 +33,20 @@ public class PolicyHierarchyValueTest {
         value.updateNamespaceValue(2);
         Assert.assertEquals(value.get(), Integer.valueOf(2));
 
-        value.updateTopicValue(3);
+        value.updateTopicValue(3, true);
         Assert.assertEquals(value.get(), Integer.valueOf(3));
+
+        value.updateTopicValue(4, false);
+        Assert.assertEquals(value.get(), Integer.valueOf(4));
+
+
+        value.updateTopicValue(null, false);
+        Assert.assertEquals(value.get(), Integer.valueOf(3));
+
+        value.updateTopicValue(null, true);
+        Assert.assertEquals(value.get(), Integer.valueOf(2));
 
         value.updateNamespaceValue(null);
-        Assert.assertEquals(value.get(), Integer.valueOf(3));
-
-        value.updateTopicValue(null);
         Assert.assertEquals(value.get(), Integer.valueOf(1));
     }
 }
