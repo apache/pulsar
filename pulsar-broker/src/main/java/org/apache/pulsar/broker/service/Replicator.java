@@ -52,6 +52,7 @@ public interface Replicator {
 
     long getNumberOfEntriesInBacklog();
 
-    default void close() {
+    default CompletableFuture<Void> close() {
+        return CompletableFuture.completedFuture(null);
     }
 }

@@ -1821,15 +1821,12 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
         String name = PersistentReplicator.getReplicatorName(replicatorPrefix, remoteCluster);
 
-        Optional.ofNullable(replicators.get(remoteCluster)).map(Replicator::disconnect)
+        Optional.ofNullable(replicators.get(remoteCluster)).map(Replicator::close)
                 .orElse(CompletableFuture.completedFuture(null)).thenRun(() -> {
             ledger.asyncDeleteCursor(name, new DeleteCursorCallback() {
                 @Override
                 public void deleteCursorComplete(Object ctx) {
-                    Replicator replicator = replicators.remove(remoteCluster);
-                    if (replicator != null) {
-                        replicator.close();
-                    }
+                    replicators.remove(remoteCluster);
                     future.complete(null);
                 }
 
@@ -1896,15 +1893,12 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         log.info("[{}] Removing shadow topic replicator to {}", topic, shadowTopic);
         final CompletableFuture<Void> future = new CompletableFuture<>();
         String name = ShadowReplicator.getShadowReplicatorName(replicatorPrefix, shadowTopic);
-        shadowReplicators.get(shadowTopic).disconnect().thenRun(() -> {
+        shadowReplicators.get(shadowTopic).close().thenRun(() -> {
 
             ledger.asyncDeleteCursor(name, new DeleteCursorCallback() {
                 @Override
                 public void deleteCursorComplete(Object ctx) {
-                    Replicator replicator = shadowReplicators.remove(shadowTopic);
-                    if (replicator != null) {
-                        replicator.close();
-                    }
+                    shadowReplicators.remove(shadowTopic);
                     future.complete(null);
                 }
 

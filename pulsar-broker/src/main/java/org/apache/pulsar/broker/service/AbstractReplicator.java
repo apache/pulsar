@@ -250,8 +250,9 @@ public abstract class AbstractReplicator {
         return closeProducerAsync();
     }
 
-    public void close() {
+    public CompletableFuture<Void> close() {
         isClosed = true;
+        return disconnect();
     }
 
     public CompletableFuture<Void> remove() {
