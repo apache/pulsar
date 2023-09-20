@@ -130,7 +130,7 @@ public abstract class ElasticSearchClientTests extends ElasticSearchTestBase {
         when(record.getTopicName()).thenReturn(Optional.of(topicName));
         try (ElasticSearchClient client = new ElasticSearchClient(new ElasticSearchConfig()
                 .setElasticSearchUrl("http://" + container.getHttpHostAddress())
-                .setIndexName(INDEX), mock(SinkContext.class))) {
+                .setIndexName(index), mock(SinkContext.class))) {
             assertEquals(client.indexName(record), index);
         }
         try (ElasticSearchClient client = new ElasticSearchClient(new ElasticSearchConfig()

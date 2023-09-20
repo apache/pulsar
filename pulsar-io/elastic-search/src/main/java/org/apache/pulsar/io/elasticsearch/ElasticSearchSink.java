@@ -148,7 +148,6 @@ public class ElasticSearchSink implements Sink<GenericObject> {
                             record.getMessage().map(Message::getMessageId).orElse(null),
                             jsonProcessingException);
                     elasticsearchClient.failed(jsonProcessingException);
-                    throw jsonProcessingException;
                 case FAIL:
                     log.error("Malformed document messageId={}",
                             record.getMessage().map(Message::getMessageId).orElse(null),
