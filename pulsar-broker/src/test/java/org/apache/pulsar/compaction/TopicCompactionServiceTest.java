@@ -21,6 +21,7 @@ package org.apache.pulsar.compaction;
 import static org.apache.pulsar.compaction.Compactor.COMPACTED_TOPIC_LEDGER_PROPERTY;
 import static org.apache.pulsar.compaction.Compactor.COMPACTION_SUBSCRIPTION;
 import static org.testng.Assert.assertEquals;
+import static org.testng.AssertJUnit.assertNotNull;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import java.io.IOException;
 import java.util.List;
@@ -40,8 +41,11 @@ import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.MessageImpl;
+import org.apache.pulsar.common.api.proto.BrokerEntryMetadata;
+import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
+import org.apache.pulsar.common.protocol.Commands;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -55,6 +59,11 @@ public class TopicCompactionServiceTest extends MockedPulsarServiceBaseTest {
     @BeforeMethod
     @Override
     public void setup() throws Exception {
+        conf.setBrokerEntryMetadataInterceptors(org.assertj.core.util.Sets.newTreeSet(
+                "org.apache.pulsar.common.intercept.AppendIndexMetadataInterceptor"
+        ));
+        conf.setExposingBrokerEntryMetadataToClientEnabled(true);
+
         super.internalSetup();
 
         admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
@@ -92,6 +101,8 @@ public class TopicCompactionServiceTest extends MockedPulsarServiceBaseTest {
                 .enableBatching(false)
                 .messageRoutingMode(MessageRoutingMode.SinglePartition)
                 .create();
+
+        long startTime = System.currentTimeMillis();
 
         producer.newMessage()
                 .key("a")
@@ -151,5 +162,21 @@ public class TopicCompactionServiceTest extends MockedPulsarServiceBaseTest {
 
         List<Entry> entries2 = service.readCompactedEntries(PositionImpl.EARLIEST, 1).join();
         assertEquals(entries2.size(), 1);
+
+        Entry entry = service.findEntryByEntryIndex(3).join();
+        BrokerEntryMetadata brokerEntryMetadata = Commands.peekBrokerEntryMetadataIfExist(entry.getDataBuffer());
+        assertNotNull(brokerEntryMetadata);
+        assertEquals(brokerEntryMetadata.getIndex(), 4);
+        MessageMetadata metadata = Commands.parseMessageMetadata(entry.getDataBuffer());
+        assertEquals(metadata.getPartitionKey(), "b");
+        entry.release();
+
+        entry = service.findEntryByPublishTime(startTime).join();
+        brokerEntryMetadata = Commands.peekBrokerEntryMetadataIfExist(entry.getDataBuffer());
+        assertNotNull(brokerEntryMetadata);
+        assertEquals(brokerEntryMetadata.getIndex(), 2);
+        metadata = Commands.parseMessageMetadata(entry.getDataBuffer());
+        assertEquals(metadata.getPartitionKey(), "a");
+        entry.release();
     }
 }
