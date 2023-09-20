@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -161,7 +161,7 @@ public class KubernetesSecretsTokenAuthProvider implements KubernetesFunctionAut
                 .getFullyQualifiedName(funcDetails.getTenant(), funcDetails.getNamespace(), funcDetails.getName());
 
         String secretId = new String(functionAuthData.get().getData());
-        // Make sure secretName is empty.  Defensive programing
+        // Make sure secretName is empty.  Defensive programming
         if (isBlank(secretId)) {
             log.warn("Secret name for function {} is empty.", fqfn);
             return;
@@ -205,8 +205,7 @@ public class KubernetesSecretsTokenAuthProvider implements KubernetesFunctionAut
                 .sleepBetweenInvocationsMs(SLEEP_BETWEEN_RETRIES_MS)
                 .supplier(() -> {
                     try {
-                        coreClient.readNamespacedSecret(secretName, kubeNamespace,
-                                null, null, null);
+                        coreClient.readNamespacedSecret(secretName, kubeNamespace, null);
 
                     } catch (ApiException e) {
                         // statefulset is gone
@@ -305,12 +304,13 @@ public class KubernetesSecretsTokenAuthProvider implements KubernetesFunctionAut
                             .data(buildSecretMap(token));
 
                     try {
-                        coreClient.createNamespacedSecret(kubeNamespace, v1Secret, null, null, null);
+                        coreClient.createNamespacedSecret(kubeNamespace, v1Secret, null, null, null, null);
                     } catch (ApiException e) {
                         if (e.getCode() == HTTP_CONFLICT) {
                             try {
                                 coreClient
-                                        .replaceNamespacedSecret(secretName, kubeNamespace, v1Secret, null, null, null);
+                                        .replaceNamespacedSecret(secretName, kubeNamespace, v1Secret,
+                                                null, null, null, null);
                                 return Actions.ActionResult.builder().success(true).build();
 
                             } catch (ApiException e1) {
@@ -366,7 +366,7 @@ public class KubernetesSecretsTokenAuthProvider implements KubernetesFunctionAut
                             .metadata(new V1ObjectMeta().name(getSecretName(id)))
                             .data(buildSecretMap(token));
                     try {
-                        coreClient.createNamespacedSecret(kubeNamespace, v1Secret, null, null, null);
+                        coreClient.createNamespacedSecret(kubeNamespace, v1Secret, null, null, null, null);
                     } catch (ApiException e) {
                         // already exists
                         if (e.getCode() == HTTP_CONFLICT) {

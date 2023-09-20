@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -120,13 +120,13 @@ public class TokenClient implements ClientCredentialsExchanger {
 
             switch (res.getStatusCode()) {
             case 200:
-                return ObjectMapperFactory.getThreadLocal().reader().readValue(res.getResponseBodyAsBytes(),
+                return ObjectMapperFactory.getMapper().reader().readValue(res.getResponseBodyAsBytes(),
                         TokenResult.class);
 
             case 400: // Bad request
             case 401: // Unauthorized
                 throw new TokenExchangeException(
-                        ObjectMapperFactory.getThreadLocal().reader().readValue(res.getResponseBodyAsBytes(),
+                        ObjectMapperFactory.getMapper().reader().readValue(res.getResponseBodyAsBytes(),
                                 TokenError.class));
 
             default:

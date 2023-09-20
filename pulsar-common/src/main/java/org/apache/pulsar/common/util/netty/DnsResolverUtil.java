@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -50,12 +50,8 @@ public class DnsResolverUtil {
                  | IllegalAccessException e) {
             log.warn("Cannot get DNS TTL settings from sun.net.InetAddressCachePolicy class", e);
         }
-        TTL = useDefaultTTLWhenSetToForever(ttl, DEFAULT_TTL);
-        NEGATIVE_TTL = useDefaultTTLWhenSetToForever(negativeTtl, DEFAULT_NEGATIVE_TTL);
-    }
-
-    private static int useDefaultTTLWhenSetToForever(int ttl, int defaultTtl) {
-        return ttl < 0 ? defaultTtl : ttl;
+        TTL = ttl <= 0 ? DEFAULT_TTL : ttl;
+        NEGATIVE_TTL = negativeTtl < 0 ? DEFAULT_NEGATIVE_TTL : negativeTtl;
     }
 
     private DnsResolverUtil() {

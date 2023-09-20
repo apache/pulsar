@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -63,7 +63,7 @@ public class MessageTest {
         ByteBuffer payload = ByteBuffer.wrap(new byte[0]);
         MessageImpl<byte[]> msg = MessageImpl.create(builder, payload, Schema.BYTES, null);
         msg.setMessageId(new MessageIdImpl(-1, -1, -1));
-        TopicMessageImpl<byte[]> topicMessage = new TopicMessageImpl<>(topicName, topicName, msg, null);
+        TopicMessageImpl<byte[]> topicMessage = new TopicMessageImpl<>(topicName, msg, null);
 
         assertTrue(topicMessage.isReplicated());
         assertEquals(msg.getReplicatedFrom(), from);
@@ -76,7 +76,7 @@ public class MessageTest {
         ByteBuffer payload = ByteBuffer.wrap(new byte[0]);
         MessageImpl<byte[]> msg = MessageImpl.create(builder, payload, Schema.BYTES, null);
         msg.setMessageId(new MessageIdImpl(-1, -1, -1));
-        TopicMessageImpl<byte[]> topicMessage = new TopicMessageImpl<>(topicName, topicName, msg, null);
+        TopicMessageImpl<byte[]> topicMessage = new TopicMessageImpl<>(topicName, msg, null);
 
         assertFalse(topicMessage.isReplicated());
         assertNull(topicMessage.getReplicatedFrom());

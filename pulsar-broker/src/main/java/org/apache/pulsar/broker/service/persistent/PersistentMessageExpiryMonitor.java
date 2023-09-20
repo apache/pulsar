@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -22,25 +22,29 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.LongAdder;
+import javax.annotation.Nullable;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.FindEntryCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.MarkDeleteCallback;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
+import org.apache.bookkeeper.mledger.ManagedLedgerException.LedgerNotExistException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.NonRecoverableLedgerException;
 import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.pulsar.broker.service.MessageExpirer;
 import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.stats.Rate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 /**
  */
-public class PersistentMessageExpiryMonitor implements FindEntryCallback {
+public class PersistentMessageExpiryMonitor implements FindEntryCallback, MessageExpirer {
     private final ManagedCursor cursor;
     private final String subName;
+    private final PersistentTopic topic;
     private final String topicName;
     private final Rate msgExpired;
     private final LongAdder totalMsgExpired;
@@ -55,9 +59,10 @@ public class PersistentMessageExpiryMonitor implements FindEntryCallback {
             expirationCheckInProgressUpdater = AtomicIntegerFieldUpdater
             .newUpdater(PersistentMessageExpiryMonitor.class, "expirationCheckInProgress");
 
-    public PersistentMessageExpiryMonitor(String topicName, String subscriptionName, ManagedCursor cursor,
-                                          PersistentSubscription subscription) {
-        this.topicName = topicName;
+    public PersistentMessageExpiryMonitor(PersistentTopic topic, String subscriptionName, ManagedCursor cursor,
+                                          @Nullable PersistentSubscription subscription) {
+        this.topic = topic;
+        this.topicName = topic.getName();
         this.cursor = cursor;
         this.subName = subscriptionName;
         this.subscription = subscription;
@@ -68,6 +73,7 @@ public class PersistentMessageExpiryMonitor implements FindEntryCallback {
                 && this.cursor.getManagedLedger().getConfig().isAutoSkipNonRecoverableData();
     }
 
+    @Override
     public boolean expireMessages(int messageTTLInSeconds) {
         if (expirationCheckInProgressUpdater.compareAndSet(this, FALSE, TRUE)) {
             log.info("[{}][{}] Starting message expiry check, ttl= {} seconds", topicName, subName,
@@ -94,13 +100,15 @@ public class PersistentMessageExpiryMonitor implements FindEntryCallback {
         }
     }
 
+    @Override
     public boolean expireMessages(Position messagePosition) {
         // If it's beyond last position of this topic, do nothing.
-        if (((PositionImpl) subscription.getTopic().getLastPosition()).compareTo((PositionImpl) messagePosition) < 0) {
+        PositionImpl topicLastPosition = (PositionImpl) this.topic.getLastPosition();
+        if (topicLastPosition.compareTo((PositionImpl) messagePosition) < 0) {
             if (log.isDebugEnabled()) {
                 log.debug("[{}][{}] Ignore expire-message scheduled task, given position {} is beyond "
-                         + "current topic's last position {}", topicName, subName, messagePosition,
-                        subscription.getTopic().getLastPosition());
+                                + "current topic's last position {}", topicName, subName, messagePosition,
+                        topicLastPosition);
             }
             return false;
         }
@@ -191,7 +199,29 @@ public class PersistentMessageExpiryMonitor implements FindEntryCallback {
                 && (exception instanceof NonRecoverableLedgerException)) {
             log.warn("[{}][{}] read failed from ledger at position:{} : {}", topicName, subName, failedReadPosition,
                     exception.getMessage());
-            findEntryComplete(failedReadPosition.get(), ctx);
+            if (exception instanceof LedgerNotExistException) {
+                long failedLedgerId = failedReadPosition.get().getLedgerId();
+                ManagedLedgerImpl ledger = ((ManagedLedgerImpl) cursor.getManagedLedger());
+                Position lastPositionInLedger = ledger.getOptionalLedgerInfo(failedLedgerId)
+                        .map(ledgerInfo -> PositionImpl.get(failedLedgerId, ledgerInfo.getEntries() - 1))
+                        .orElseGet(() -> {
+                            Long nextExistingLedger = ledger.getNextValidLedger(failedReadPosition.get().getLedgerId());
+                            if (nextExistingLedger == null) {
+                                log.info("[{}] [{}] Couldn't find next next valid ledger for expiry monitor when find "
+                                                + "entry failed {}", ledger.getName(), ledger.getName(),
+                                        failedReadPosition);
+                                return (PositionImpl) failedReadPosition.get();
+                            } else {
+                                return PositionImpl.get(nextExistingLedger, -1);
+                            }
+                        });
+                log.info("[{}][{}] ledger not existed, will complete the last position of the non-existed"
+                        + " ledger:{}", topicName, subName, lastPositionInLedger);
+                findEntryComplete(lastPositionInLedger, ctx);
+            } else {
+                findEntryComplete(failedReadPosition.get(), ctx);
+            }
+            return;
         }
         expirationCheckInProgress = FALSE;
         updateRates();

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -23,10 +23,10 @@ import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import com.google.common.base.MoreObjects;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
 import java.time.Clock;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -91,7 +91,7 @@ public class SimpleTypedProducerConsumerTest extends ProducerConsumerBase {
         }
 
         Message<JsonEncodedPojo> msg = null;
-        Set<JsonEncodedPojo> messageSet = Sets.newHashSet();
+        Set<JsonEncodedPojo> messageSet = new HashSet<>();
         for (int i = 0; i < 10; i++) {
             msg = consumer.receive(5, TimeUnit.SECONDS);
             JsonEncodedPojo receivedMessage = msg.getValue();
@@ -207,7 +207,7 @@ public class SimpleTypedProducerConsumerTest extends ProducerConsumerBase {
         }
 
         Message<org.apache.pulsar.client.api.schema.proto.Test.TestMessage> msg = null;
-        Set<org.apache.pulsar.client.api.schema.proto.Test.TestMessage> messageSet = Sets.newHashSet();
+        Set<org.apache.pulsar.client.api.schema.proto.Test.TestMessage> messageSet = new HashSet<>();
         for (int i = 0; i < 10; i++) {
             msg = consumer.receive(5, TimeUnit.SECONDS);
             org.apache.pulsar.client.api.schema.proto.Test.TestMessage receivedMessage = msg.getValue();
@@ -287,7 +287,7 @@ public class SimpleTypedProducerConsumerTest extends ProducerConsumerBase {
        }
 
        Message<AvroEncodedPojo> msg = null;
-       Set<AvroEncodedPojo> messageSet = Sets.newHashSet();
+       Set<AvroEncodedPojo> messageSet = new HashSet<>();
        for (int i = 0; i < 10; i++) {
            msg = consumer.receive(5, TimeUnit.SECONDS);
            AvroEncodedPojo receivedMessage = msg.getValue();
@@ -457,7 +457,7 @@ public class SimpleTypedProducerConsumerTest extends ProducerConsumerBase {
            .subscribe();
 
        Message<GenericRecord> msg = null;
-       Set<String> messageSet = Sets.newHashSet();
+       Set<String> messageSet = new HashSet<>();
        for (int i = 0; i < 10; i++) {
            msg = consumer.receive(5, TimeUnit.SECONDS);
            GenericRecord receivedMessage = msg.getValue();
@@ -505,7 +505,7 @@ public class SimpleTypedProducerConsumerTest extends ProducerConsumerBase {
            .create();
 
        Message<GenericRecord> msg = null;
-       Set<String> messageSet = Sets.newHashSet();
+       Set<String> messageSet = new HashSet<>();
        for (int i = 0; i < 10; i++) {
            msg = reader.readNext();
            GenericRecord receivedMessage = msg.getValue();
@@ -578,7 +578,7 @@ public class SimpleTypedProducerConsumerTest extends ProducerConsumerBase {
             .subscribe();
 
         Message<GenericRecord> msg = null;
-        Set<String> messageSet = Sets.newHashSet();
+        Set<String> messageSet = new HashSet<>();
         for (int i = 0; i < 20; i++) {
             msg = consumer.receive(5, TimeUnit.SECONDS);
             GenericRecord receivedMessage = msg.getValue();

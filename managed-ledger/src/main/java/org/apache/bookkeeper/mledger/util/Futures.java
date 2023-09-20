@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -24,6 +24,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.CloseCallback;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
+import org.apache.pulsar.common.util.FutureUtil;
 
 /**
  * Conveniences to use with {@link CompletableFuture}.
@@ -71,14 +72,16 @@ public class Futures {
     }
 
     public static <T> CompletableFuture<T> executeWithRetry(Supplier<CompletableFuture<T>> op,
-                                                            Class<? extends Exception> needRetryExceptionClass) {
+                                                            Class<? extends Exception> needRetryExceptionClass,
+                                                            int maxRetryTimes) {
         CompletableFuture<T> resultFuture = new CompletableFuture<>();
         op.get().whenComplete((res, ex) -> {
             if (ex == null) {
                 resultFuture.complete(res);
             } else {
-                if (needRetryExceptionClass.isAssignableFrom(ex.getClass())) {
-                    executeWithRetry(op, needRetryExceptionClass).whenComplete((res2, ex2) -> {
+                Throwable throwable = FutureUtil.unwrapCompletionException(ex);
+                if (needRetryExceptionClass.isAssignableFrom(throwable.getClass()) && maxRetryTimes > 0) {
+                    executeWithRetry(op, needRetryExceptionClass, maxRetryTimes - 1).whenComplete((res2, ex2) -> {
                         if (ex2 == null) {
                             resultFuture.complete(res2);
                         } else {

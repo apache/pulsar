@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,23 +18,23 @@
  */
 package org.apache.pulsar.websocket.proxy;
 
+import com.google.gson.Gson;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParseException;
+import com.google.gson.JsonPrimitive;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
-
 import org.eclipse.jetty.websocket.api.RemoteEndpoint;
 import org.eclipse.jetty.websocket.api.Session;
 import org.eclipse.jetty.websocket.api.annotations.OnWebSocketClose;
 import org.eclipse.jetty.websocket.api.annotations.OnWebSocketConnect;
 import org.eclipse.jetty.websocket.api.annotations.OnWebSocketMessage;
 import org.eclipse.jetty.websocket.api.annotations.WebSocket;
-import com.google.gson.Gson;
-import com.google.gson.JsonParseException;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonPrimitive;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -43,16 +43,16 @@ public class SimpleConsumerSocket {
     private static final String X_PULSAR_MESSAGE_ID = "messageId";
     private final CountDownLatch closeLatch;
     private Session session;
-    private final ArrayList<String> consumerBuffer;
-    final ArrayList<JsonObject> messages;
+    private final List<String> consumerBuffer;
+    private final List<JsonObject> messages;
     private final AtomicInteger receivedMessages = new AtomicInteger();
     // Custom message handler to override standard message processing, if it's needed
     private SimpleConsumerMessageHandler customMessageHandler;
 
     public SimpleConsumerSocket() {
         this.closeLatch = new CountDownLatch(1);
-        consumerBuffer = new ArrayList<>();
-        this.messages = new ArrayList<>();
+        consumerBuffer = Collections.synchronizedList(new ArrayList<>());
+        this.messages = Collections.synchronizedList(new ArrayList<>());
     }
 
     public boolean awaitClose(int duration, TimeUnit unit) throws InterruptedException {
@@ -125,7 +125,7 @@ public class SimpleConsumerSocket {
         return this.session;
     }
 
-    public synchronized ArrayList<String> getBuffer() {
+    public List<String> getBuffer() {
         return consumerBuffer;
     }
 
@@ -135,4 +135,7 @@ public class SimpleConsumerSocket {
 
     private static final Logger log = LoggerFactory.getLogger(SimpleConsumerSocket.class);
 
+    public List<JsonObject> getMessages() {
+        return messages;
+    }
 }

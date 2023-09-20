@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.admin.cli;
 
+import static org.apache.pulsar.client.admin.internal.BaseResource.getApiException;
 import com.beust.jcommander.DefaultUsageFormatter;
 import com.beust.jcommander.IUsageFormatter;
 import com.beust.jcommander.JCommander;
@@ -26,10 +27,15 @@ import com.beust.jcommander.ParameterException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.function.Supplier;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.PulsarAdminException.ConnectException;
+import org.apache.pulsar.client.admin.internal.PulsarAdminImpl;
 
 public abstract class CmdBase {
     protected final JCommander jcommander;
@@ -37,12 +43,22 @@ public abstract class CmdBase {
     private PulsarAdmin admin;
     private IUsageFormatter usageFormatter;
 
-    @Parameter(names = { "-h", "--help" }, help = true, hidden = true)
-    private boolean help;
+    /**
+     * Default read timeout in milliseconds.
+     * Used if not found from configuration data in {@link #getReadTimeoutMs()}
+     */
+    private static final long DEFAULT_READ_TIMEOUT_MILLIS = 60000;
+
+    @Parameter(names = { "--help", "-h" }, help = true, hidden = true)
+    private boolean help = false;
+
+    public boolean isHelp() {
+        return help;
+    }
 
     public CmdBase(String cmdName, Supplier<PulsarAdmin> adminSupplier) {
         this.adminSupplier = adminSupplier;
-        jcommander = new JCommander();
+        jcommander = new JCommander(this);
         usageFormatter = new CmdUsageFormatter(jcommander);
         jcommander.setProgramName("pulsar-admin " + cmdName);
         jcommander.setUsageFormatter(usageFormatter);
@@ -78,32 +94,38 @@ public abstract class CmdBase {
         String cmd = jcommander.getParsedCommand();
         if (cmd == null) {
             jcommander.usage();
-            return false;
-        } else {
-            JCommander obj = jcommander.getCommands().get(cmd);
-            CliCommand cmdObj = (CliCommand) obj.getObjects().get(0);
+            return help;
+        }
 
-            try {
-                cmdObj.run();
-                return true;
-            } catch (ParameterException e) {
-                System.err.println(e.getMessage());
-                System.err.println();
-                return false;
-            } catch (ConnectException e) {
-                System.err.println(e.getMessage());
-                System.err.println();
-                System.err.println("Error connecting to: " + getAdmin().getServiceUrl());
-                return false;
-            } catch (PulsarAdminException e) {
-                System.err.println(e.getHttpError());
-                System.err.println();
-                System.err.println("Reason: " + e.getMessage());
-                return false;
-            } catch (Exception e) {
-                e.printStackTrace();
-                return false;
-            }
+        JCommander obj = jcommander.getCommands().get(cmd);
+        CliCommand cmdObj = (CliCommand) obj.getObjects().get(0);
+
+        if (cmdObj.isHelp()) {
+            obj.setProgramName(jcommander.getProgramName() + " " + cmd);
+            obj.usage();
+            return true;
+        }
+
+        try {
+            cmdObj.run();
+            return true;
+        } catch (ParameterException e) {
+            System.err.println(e.getMessage());
+            System.err.println();
+            return false;
+        } catch (ConnectException e) {
+            System.err.println(e.getMessage());
+            System.err.println();
+            System.err.println("Error connecting to: " + getAdmin().getServiceUrl());
+            return false;
+        } catch (PulsarAdminException e) {
+            System.err.println(e.getHttpError());
+            System.err.println();
+            System.err.println("Reason: " + e.getMessage());
+            return false;
+        } catch (Exception e) {
+            e.printStackTrace();
+            return false;
         }
     }
 
@@ -114,6 +136,28 @@ public abstract class CmdBase {
         return admin;
     }
 
+    protected long getReadTimeoutMs() {
+        PulsarAdmin pulsarAdmin = getAdmin();
+        if (pulsarAdmin instanceof PulsarAdminImpl) {
+            return ((PulsarAdminImpl) pulsarAdmin).getClientConfigData().getReadTimeoutMs();
+        }
+        return DEFAULT_READ_TIMEOUT_MILLIS;
+    }
+
+    protected <T> T sync(Supplier<CompletableFuture<T>> executor) throws PulsarAdminException {
+        try {
+            return executor.get().get(getReadTimeoutMs(), TimeUnit.MILLISECONDS);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
+        } catch (ExecutionException e) {
+            throw PulsarAdminException.wrap(getApiException(e.getCause()));
+        } catch (Exception e) {
+            throw PulsarAdminException.wrap(getApiException(e));
+        }
+    }
 
     static Map<String, String> parseListKeyValueMap(List<String> metadata) {
         Map<String, String> map = null;

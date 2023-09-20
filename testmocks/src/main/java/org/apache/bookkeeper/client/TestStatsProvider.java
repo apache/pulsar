@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -59,8 +59,14 @@ public class TestStatsProvider implements StatsProvider {
         }
 
         @Override
-        public void add(long delta) {
+        public void addCount(long delta) {
             updateMax(val.addAndGet(delta));
+        }
+
+        @Override
+        public void addLatency(long eventLatency, TimeUnit unit) {
+            long valueMillis = unit.toMillis(eventLatency);
+            updateMax(val.addAndGet(valueMillis));
         }
 
         @Override

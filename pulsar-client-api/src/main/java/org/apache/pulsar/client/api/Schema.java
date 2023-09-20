@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -384,10 +384,12 @@ public interface Schema<T> extends Cloneable {
     }
 
     /**
-     * Key Value Schema using passed in key and value schemas.
+     * Key Value Schema using passed in key and value schemas with {@link KeyValueEncodingType#INLINE} encoding type.
+     *
+     * @see Schema#KeyValue(Schema, Schema, KeyValueEncodingType)
      */
     static <K, V> Schema<KeyValue<K, V>> KeyValue(Schema<K> key, Schema<V> value) {
-        return DefaultImplementation.getDefaultImplementation().newKeyValueSchema(key, value);
+        return KeyValue(key, value, KeyValueEncodingType.INLINE);
     }
 
     /**

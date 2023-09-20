@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -68,9 +68,7 @@ public class ResourceGroupConfigListener implements Consumer<Notification> {
             final Set<String> existingSet = rgService.resourceGroupGetAll();
             HashSet<String> newSet = new HashSet<>();
 
-            for (String rgName : rgList) {
-                newSet.add(rgName);
-            }
+            newSet.addAll(rgList);
 
             final Sets.SetView<String> deleteList = Sets.difference(existingSet, newSet);
 

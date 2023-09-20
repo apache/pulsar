@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -168,7 +168,7 @@ public class PulsarMockLedgerHandle extends LedgerHandle {
 
     @Override
     public void asyncAddEntry(final ByteBuf data, final AddCallback cb, final Object ctx) {
-        bk.getProgrammedFailure().thenComposeAsync((res) -> {
+        bk.getAddEntryFailure().thenComposeAsync((res) -> {
                 Long delayMillis = bk.addEntryDelaysMillis.poll();
                 if (delayMillis == null) {
                     delayMillis = 1L;

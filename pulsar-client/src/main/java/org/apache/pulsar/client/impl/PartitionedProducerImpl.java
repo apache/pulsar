@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -62,7 +62,7 @@ public class PartitionedProducerImpl<T> extends ProducerBase<T> {
 
     private final ConcurrentOpenHashMap<Integer, ProducerImpl<T>> producers;
     private final MessageRouter routerPolicy;
-    private final ProducerStatsRecorderImpl stats;
+    private final PartitionedTopicProducerStatsRecorderImpl stats;
     private TopicMetadata topicMetadata;
     private final int firstPartitionIndex;
     private String overrideProducerName;
@@ -80,7 +80,9 @@ public class PartitionedProducerImpl<T> extends ProducerBase<T> {
                 ConcurrentOpenHashMap.<Integer, ProducerImpl<T>>newBuilder().build();
         this.topicMetadata = new TopicMetadataImpl(numPartitions);
         this.routerPolicy = getMessageRouter();
-        stats = client.getConfiguration().getStatsIntervalSeconds() > 0 ? new ProducerStatsRecorderImpl() : null;
+        stats = client.getConfiguration().getStatsIntervalSeconds() > 0
+                ? new PartitionedTopicProducerStatsRecorderImpl()
+                : null;
 
         // MaxPendingMessagesAcrossPartitions doesn't support partial partition such as SinglePartition correctly
         int maxPendingMessages = Math.min(conf.getMaxPendingMessages(),
@@ -353,7 +355,8 @@ public class PartitionedProducerImpl<T> extends ProducerBase<T> {
             return null;
         }
         stats.reset();
-        producers.values().forEach(p -> stats.updateCumulativeStats(p.getStats()));
+        producers.forEach(
+                (partition, producer) -> stats.updateCumulativeStats(producer.getTopic(), producer.getStats()));
         return stats;
     }
 

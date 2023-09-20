@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -29,7 +29,7 @@ public enum InactiveTopicDeleteMode {
     delete_when_no_subscriptions,
 
     /**
-     * The topic can be deleted when all subscriptions catchup and no active producers/consumers.
+     * The topic can be deleted when all subscriptions catchup and no active producers.
      */
     delete_when_subscriptions_caught_up
 }

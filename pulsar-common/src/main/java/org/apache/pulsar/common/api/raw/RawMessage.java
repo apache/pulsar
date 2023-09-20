@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -102,7 +102,7 @@ public interface RawMessage {
     Optional<String> getKey();
 
     /**
-     * Get the schema verison of the message.
+     * Get the schema version of the message.
      *
      * @return the schema version of the message
      */

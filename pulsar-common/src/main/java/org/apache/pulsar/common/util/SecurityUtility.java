@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -124,7 +124,15 @@ public class SecurityUtility {
             conscryptClazz = Class.forName("org.conscrypt.Conscrypt");
             conscryptClazz.getMethod("checkAvailability").invoke(null);
         } catch (Throwable e) {
-            log.warn("Conscrypt isn't available. Using JDK default security provider.", e);
+            if (e instanceof ClassNotFoundException) {
+                log.warn("Conscrypt isn't available in the classpath. Using JDK default security provider.");
+            } else if (e.getCause() instanceof UnsatisfiedLinkError) {
+                log.warn("Conscrypt isn't available for {} {}. Using JDK default security provider.",
+                        System.getProperty("os.name"), System.getProperty("os.arch"));
+            } else {
+                log.warn("Conscrypt isn't available. Using JDK default security provider."
+                        + " Cause : {}, Reason : {}", e.getCause(), e.getMessage());
+            }
             return null;
         }
 

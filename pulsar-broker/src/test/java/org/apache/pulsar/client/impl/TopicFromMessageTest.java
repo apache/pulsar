@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,6 +19,8 @@
 package org.apache.pulsar.client.impl;
 
 import com.google.common.collect.Lists;
+import java.util.HashSet;
+import java.util.Set;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
@@ -76,10 +78,14 @@ public class TopicFromMessageTest extends ProducerConsumerBase {
                 .topic("topic1").enableBatching(false).create();
              Producer<byte[]> producer2 = pulsarClient.newProducer()
                 .topic("topic2").enableBatching(false).create()) {
+
+            Set<String> topicSet = new HashSet<>();
+            topicSet.add("persistent://public/default/topic1");
+            topicSet.add("persistent://public/default/topic2");
             producer1.send("foobar".getBytes());
             producer2.send("foobar".getBytes());
-            Assert.assertEquals(consumer.receive().getTopicName(), "persistent://public/default/topic1");
-            Assert.assertEquals(consumer.receive().getTopicName(), "persistent://public/default/topic2");
+            Assert.assertTrue(topicSet.remove(consumer.receive().getTopicName()));
+            Assert.assertTrue(topicSet.remove(consumer.receive().getTopicName()));
         }
     }
 

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -26,6 +26,6 @@ import lombok.Value;
  */
 @Value
 public class BytesWithKafkaSchema {
-    private final ByteBuffer value;
-    private final int schemaId;
+    ByteBuffer value;
+    int schemaId;
 }

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -127,7 +127,7 @@ public class NamespaceBundle implements ServiceUnitId, Comparable<NamespaceBundl
         return String.format("%s/0x%08x_0x%08x", nsname, keyRange.lowerEndpoint(), keyRange.upperEndpoint());
     }
 
-    Range<Long> getKeyRange() {
+    public Range<Long> getKeyRange() {
         return this.keyRange;
     }
 

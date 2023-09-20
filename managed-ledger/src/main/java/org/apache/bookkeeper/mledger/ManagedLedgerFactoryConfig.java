@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -39,7 +39,6 @@ public class ManagedLedgerFactoryConfig {
      */
     private double cacheEvictionWatermark = 0.90;
 
-    private int numManagedLedgerWorkerThreads = Runtime.getRuntime().availableProcessors();
     private int numManagedLedgerSchedulerThreads = Runtime.getRuntime().availableProcessors();
 
     /**
@@ -56,6 +55,11 @@ public class ManagedLedgerFactoryConfig {
      * Whether we should make a copy of the entry payloads when inserting in cache.
      */
     private boolean copyEntriesInCache = false;
+
+    /**
+     * Maximum number of (estimated) data in-flight reading from storage and the cache.
+     */
+    private long managedLedgerMaxReadsInFlightSize = 0;
 
     /**
      * Whether trace managed ledger task execution time.
@@ -88,7 +92,29 @@ public class ManagedLedgerFactoryConfig {
     private String managedLedgerInfoCompressionType = MLDataFormats.CompressionType.NONE.name();
 
     /**
+     * ManagedLedgerInfo compression threshold. If the origin metadata size below configuration.
+     * compression will not apply.
+     */
+    private long managedLedgerInfoCompressionThresholdInBytes = 0;
+
+    /**
      * ManagedCursorInfo compression type. If the compression type is null or invalid, don't compress data.
      */
     private String managedCursorInfoCompressionType = MLDataFormats.CompressionType.NONE.name();
+
+    /**
+     * ManagedCursorInfo compression threshold. If the origin metadata size below configuration.
+     * compression will not apply.
+     */
+    private long managedCursorInfoCompressionThresholdInBytes = 0;
+
+    public MetadataCompressionConfig getCompressionConfigForManagedLedgerInfo() {
+        return new MetadataCompressionConfig(managedLedgerInfoCompressionType,
+                managedLedgerInfoCompressionThresholdInBytes);
+    }
+
+    public MetadataCompressionConfig getCompressionConfigForManagedCursorInfo() {
+        return new MetadataCompressionConfig(managedCursorInfoCompressionType,
+                managedCursorInfoCompressionThresholdInBytes);
+    }
 }

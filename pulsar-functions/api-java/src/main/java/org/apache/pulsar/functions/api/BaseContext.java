@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -217,4 +217,10 @@ public interface BaseContext {
         throw new UnsupportedOperationException("not implemented");
     }
 
+    /**
+     * Terminate the function instance with a fatal exception.
+     *
+     * @param t the fatal exception to be raised
+     */
+    void fatal(Throwable t);
 }

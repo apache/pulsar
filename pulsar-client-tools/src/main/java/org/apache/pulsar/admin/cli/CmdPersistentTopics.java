@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -211,7 +211,7 @@ public class CmdPersistentTopics extends CmdBase {
         }
     }
 
-    @Parameters(commandDescription = "Update existing non-global partitioned topic. "
+    @Parameters(commandDescription = "Update existing partitioned topic. "
             + "New updating number of partitions must be greater than existing number of partitions.")
     private class UpdatePartitionedCmd extends CliCommand {
 
@@ -347,7 +347,7 @@ public class CmdPersistentTopics extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
-            print(persistentTopics.getStats(persistentTopic, getPreciseBacklog));
+            print(getPersistentTopics().getStats(persistentTopic, getPreciseBacklog));
         }
     }
 
@@ -502,7 +502,7 @@ public class CmdPersistentTopics extends CmdBase {
         private java.util.List<String> params;
 
         @Parameter(names = { "-s",
-                "--subscription" }, description = "Subscription to reset position on", required = true)
+                "--subscription" }, description = "Subscription name", required = true)
         private String subscriptionName;
 
         @Parameter(names = { "--messageId",

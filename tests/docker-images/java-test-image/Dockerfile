@@ -17,7 +17,7 @@
 # under the License.
 #
 
-FROM ubuntu:20.04
+FROM ubuntu:22.04
 
 RUN groupadd -g 10001 pulsar
 RUN adduser -u 10000 --gid 10001 --disabled-login --disabled-password --gecos '' pulsar
@@ -34,8 +34,10 @@ WORKDIR /pulsar
 
 ARG DEBIAN_FRONTEND=noninteractive
 ARG UBUNTU_MIRROR=mirror://mirrors.ubuntu.com/mirrors.txt
+ARG UBUNTU_SECURITY_MIRROR=http://security.ubuntu.com/ubuntu/
 
-RUN sed -i "s|http://archive\.ubuntu\.com/ubuntu/|${UBUNTU_MIRROR:-mirror://mirrors.ubuntu.com/mirrors.txt}|g" /etc/apt/sources.list \
+RUN sed -i -e "s|http://archive\.ubuntu\.com/ubuntu/|${UBUNTU_MIRROR:-mirror://mirrors.ubuntu.com/mirrors.txt}|g" \
+     -e "s|http://security\.ubuntu\.com/ubuntu/|${UBUNTU_SECURITY_MIRROR:-http://security.ubuntu.com/ubuntu/}|g" /etc/apt/sources.list \
      && apt-get update \
      && apt-get -y dist-upgrade \
      && apt-get -y install wget apt-transport-https
@@ -61,12 +63,13 @@ RUN apt-get install -y supervisor procps curl less netcat dnsutils iputils-ping
 
 RUN mkdir -p /var/log/pulsar \
     && mkdir -p /var/run/supervisor/ \
-    && mkdir -p /pulsar/ssl
+    && mkdir -p /pulsar/certificate-authority
 
 COPY target/conf /etc/supervisord/conf.d/
 RUN mv /etc/supervisord/conf.d/supervisord.conf /etc/supervisord.conf
 
-COPY target/ssl /pulsar/ssl/
+# TLS certificates
+COPY target/certificate-authority /pulsar/certificate-authority/
 
 COPY target/java-test-functions.jar /pulsar/examples/
 

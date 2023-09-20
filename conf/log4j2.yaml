@@ -78,7 +78,7 @@ Configuration:
             basePath: ${sys:pulsar.log.dir}
             maxDepth: 2
             IfFileName:
-              glob: "*/${sys:pulsar.log.file}*log.gz"
+              glob: "${sys:pulsar.log.file}*log.gz"
             IfLastModified:
               age: 30d
 
@@ -120,7 +120,7 @@ Configuration:
                             basePath: ${sys:pulsar.log.dir}
                             maxDepth: 2
                             IfFileName:
-                              glob: "*/${sys:pulsar.log.file}*log.gz"
+                              glob: "${sys:pulsar.log.file}*log.gz"
                             IfLastModified:
                               age: 30d
                   - ref: "${sys:pulsar.routing.appender.default}"

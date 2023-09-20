@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -31,21 +31,23 @@ import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
+import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
+import com.google.common.hash.Hashing;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.net.URI;
+import java.util.ArrayList;
 import java.util.EnumSet;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
-
 import lombok.Cleanup;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.commons.collections4.CollectionUtils;
@@ -64,13 +66,12 @@ import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.PulsarClient;
-
-import org.apache.pulsar.common.naming.ServiceUnitId;
-import org.apache.pulsar.common.naming.NamespaceBundleSplitAlgorithm;
-import org.apache.pulsar.common.naming.NamespaceBundleFactory;
 import org.apache.pulsar.common.naming.NamespaceBundle;
+import org.apache.pulsar.common.naming.NamespaceBundleFactory;
+import org.apache.pulsar.common.naming.NamespaceBundleSplitAlgorithm;
 import org.apache.pulsar.common.naming.NamespaceBundles;
 import org.apache.pulsar.common.naming.NamespaceName;
+import org.apache.pulsar.common.naming.ServiceUnitId;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.LocalPolicies;
@@ -82,10 +83,10 @@ import org.apache.pulsar.metadata.api.MetadataCache;
 import org.apache.pulsar.metadata.api.Notification;
 import org.apache.pulsar.metadata.api.extended.CreateOption;
 import org.apache.pulsar.policies.data.loadbalancer.AdvertisedListener;
+import org.apache.pulsar.policies.data.loadbalancer.BundleData;
 import org.apache.pulsar.policies.data.loadbalancer.LoadReport;
 import org.apache.pulsar.policies.data.loadbalancer.LocalBrokerData;
 import org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats;
-import org.apache.pulsar.policies.data.loadbalancer.BundleData;
 import org.awaitility.Awaitility;
 import org.mockito.stubbing.Answer;
 import org.slf4j.Logger;
@@ -94,11 +95,6 @@ import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-
-import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
-import com.google.common.hash.Hashing;
 
 @Test(groups = "flaky")
 public class NamespaceServiceTest extends BrokerTestBase {
@@ -159,18 +155,23 @@ public class NamespaceServiceTest extends BrokerTestBase {
         splitBundleSet.removeAll(bundleList);
         assertTrue(splitBundleSet.isEmpty());
 
-        // (2) validate LocalZookeeper policies updated with newly created split
+        // (2) validate localPolicies and policies  updated with newly created split
         // bundles
-        LocalPolicies policies = pulsar.getPulsarResources().getLocalPolicies().getLocalPolicies(nsname).get();
-        NamespaceBundles localZkBundles = bundleFactory.getBundles(nsname, policies.bundles);
+        LocalPolicies localPolicies = pulsar.getPulsarResources().getLocalPolicies().getLocalPolicies(nsname).get();
+        NamespaceBundles localZkBundles = bundleFactory.getBundles(nsname, localPolicies.bundles);
         assertEquals(localZkBundles, updatedNsBundles);
+        log.info("LocalPolicies: {}", localPolicies);
+
+        Policies policies = pulsar.getPulsarResources().getNamespaceResources().getPolicies(nsname).get();
+        NamespaceBundles zkBundles = bundleFactory.getBundles(nsname, policies.bundles);
+        assertEquals(zkBundles, updatedNsBundles);
         log.info("Policies: {}", policies);
 
         // (3) validate ownership of new split bundles by local owner
         bundleList.forEach(b -> {
             try {
                 byte[] data = this.pulsar.getLocalMetadataStore().get(ServiceUnitUtils.path(b)).join().get().getValue();
-                NamespaceEphemeralData node = ObjectMapperFactory.getThreadLocal().readValue(data,
+                NamespaceEphemeralData node = ObjectMapperFactory.getMapper().reader().readValue(data,
                         NamespaceEphemeralData.class);
                 Assert.assertEquals(node.getNativeUrl(), this.pulsar.getBrokerServiceUrl());
             } catch (Exception e) {
@@ -186,7 +187,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
         OwnershipCache MockOwnershipCache = spy(pulsar.getNamespaceService().getOwnershipCache());
 
         ManagedLedger ledger = mock(ManagedLedger.class);
-        when(ledger.getCursors()).thenReturn(Lists.newArrayList());
+        when(ledger.getCursors()).thenReturn(new ArrayList<>());
 
         doReturn(CompletableFuture.completedFuture(null)).when(MockOwnershipCache).disableOwnership(any(NamespaceBundle.class));
         Field ownership = NamespaceService.class.getDeclaredField("ownershipCache");
@@ -240,7 +241,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
         OwnershipCache MockOwnershipCache = spy(pulsar.getNamespaceService().getOwnershipCache());
 
         ManagedLedger ledger = mock(ManagedLedger.class);
-        when(ledger.getCursors()).thenReturn(Lists.newArrayList());
+        when(ledger.getCursors()).thenReturn(new ArrayList<>());
 
         doReturn(CompletableFuture.completedFuture(null)).when(MockOwnershipCache).disableOwnership(any(NamespaceBundle.class));
         Field ownership = NamespaceService.class.getDeclaredField("ownershipCache");
@@ -263,7 +264,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
         OwnershipCache ownershipCache = spy(pulsar.getNamespaceService().getOwnershipCache());
 
         ManagedLedger ledger = mock(ManagedLedger.class);
-        when(ledger.getCursors()).thenReturn(Lists.newArrayList());
+        when(ledger.getCursors()).thenReturn(new ArrayList<>());
 
         doReturn(CompletableFuture.completedFuture(null)).when(ownershipCache).disableOwnership(any(NamespaceBundle.class));
         Field ownership = NamespaceService.class.getDeclaredField("ownershipCache");
@@ -358,12 +359,12 @@ public class NamespaceServiceTest extends BrokerTestBase {
         String path2 = String.format("%s/%s:%s", LoadManager.LOADBALANCE_BROKERS_ROOT, uri2.getHost(), uri2.getPort());
 
         pulsar.getLocalMetadataStore().put(path1,
-                ObjectMapperFactory.getThreadLocal().writeValueAsBytes(lr),
+                ObjectMapperFactory.getMapper().writer().writeValueAsBytes(lr),
                 Optional.empty(),
                 EnumSet.of(CreateOption.Ephemeral)
                 ).join();
         pulsar.getLocalMetadataStore().put(path2,
-                ObjectMapperFactory.getThreadLocal().writeValueAsBytes(ld),
+                ObjectMapperFactory.getMapper().writer().writeValueAsBytes(ld),
                 Optional.empty(),
                 EnumSet.of(CreateOption.Ephemeral)
         ).join();
@@ -386,14 +387,14 @@ public class NamespaceServiceTest extends BrokerTestBase {
         final String listenerUrl = "pulsar://localhost:7000";
         final String listenerUrlTls = "pulsar://localhost:8000";
         final String listener = "listenerName";
-        Map<String, AdvertisedListener> advertisedListeners = Maps.newHashMap();
+        Map<String, AdvertisedListener> advertisedListeners = new HashMap<>();
         advertisedListeners.put(listener, AdvertisedListener.builder().brokerServiceUrl(new URI(listenerUrl)).brokerServiceUrlTls(new URI(listenerUrlTls)).build());
         LocalBrokerData ld = new LocalBrokerData(null, null, candidateBroker, null, advertisedListeners);
         URI uri = new URI(candidateBroker);
         String path = String.format("%s/%s:%s", LoadManager.LOADBALANCE_BROKERS_ROOT, uri.getHost(), uri.getPort());
 
         pulsar.getLocalMetadataStore().put(path,
-                ObjectMapperFactory.getThreadLocal().writeValueAsBytes(ld),
+                ObjectMapperFactory.getMapper().writer().writeValueAsBytes(ld),
                 Optional.empty(),
                 EnumSet.of(CreateOption.Ephemeral)).join();
 
@@ -457,7 +458,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
         bundleList.forEach(b -> {
             try {
                 byte[] data = this.pulsar.getLocalMetadataStore().get(ServiceUnitUtils.path(b)).join().get().getValue();
-                NamespaceEphemeralData node = ObjectMapperFactory.getThreadLocal().readValue(data,
+                NamespaceEphemeralData node = ObjectMapperFactory.getMapper().reader().readValue(data,
                         NamespaceEphemeralData.class);
                 Assert.assertEquals(node.getNativeUrl(), this.pulsar.getBrokerServiceUrl());
             } catch (Exception e) {
@@ -570,7 +571,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
         NamespaceName nsname = NamespaceName.get(namespace);
         NamespaceBundles bundles = namespaceService.getNamespaceBundleFactory().getBundles(nsname);
 
-        Map<String, Integer> topicCount = Maps.newHashMap();
+        Map<String, Integer> topicCount = new HashMap<>();
         int maxTopics = 0;
         String maxBundle = null;
         for (int i = 0; i < totalTopics; i++) {
@@ -654,7 +655,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
         defaultStats.msgThroughputOut = 100000;
         BundleData bd = new BundleData(10, 19, defaultStats);
         bd.setTopics(10);
-        byte[] data = ObjectMapperFactory.getThreadLocal().writeValueAsBytes(bd);
+        byte[] data = ObjectMapperFactory.getMapper().writer().writeValueAsBytes(bd);
         pulsar.getLocalMetadataStore().put(path, data, Optional.empty());
 
         LoadManager loadManager = pulsar.getLoadManager().get();
@@ -663,12 +664,12 @@ public class NamespaceServiceTest extends BrokerTestBase {
                     .getBundleDataOrDefault(namespace + "/" + bundle);
             assertEquals(targetBundleData.getTopics(), 10);
         });
-        
+
         String hotBundle = namespaceService.getNamespaceBundleFactory().getBundleWithHighestThroughputAsync(nsname)
                 .get().getBundleRange();
 
         assertEquals(bundle, hotBundle);
-        
+
         for (int i = 0; i < totalTopics; i++) {
             consumers[i].close();
         }
@@ -682,7 +683,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
 
     @Test
     public void testHeartbeatNamespaceMatch() throws Exception {
-        NamespaceName namespaceName = NamespaceService.getHeartbeatNamespace(pulsar.getAdvertisedAddress(), conf);
+        NamespaceName namespaceName = NamespaceService.getHeartbeatNamespace(pulsar.getLookupServiceAddress(), conf);
         NamespaceBundle namespaceBundle = pulsar.getNamespaceService().getNamespaceBundleFactory().getFullBundle(namespaceName);
         assertTrue(NamespaceService.isSystemServiceNamespace(
                         NamespaceBundle.getBundleNamespace(namespaceBundle.toString())));
@@ -822,10 +823,10 @@ public class NamespaceServiceTest extends BrokerTestBase {
         // Wait until "ModularLoadManager" completes processing the ZK notification.
         ModularLoadManagerWrapper modularLoadManagerWrapper = (ModularLoadManagerWrapper) loadManager;
         ModularLoadManagerImpl modularLoadManager = (ModularLoadManagerImpl) modularLoadManagerWrapper.getLoadManager();
-        ScheduledExecutorService scheduler = (ScheduledExecutorService) FieldUtils.readField(
-                modularLoadManager, "scheduler", true);
+        ExecutorService executors = (ExecutorService) FieldUtils.readField(
+                modularLoadManager, "executors", true);
         CompletableFuture<Void> waitForNoticeHandleFinishByLoadManager = new CompletableFuture<>();
-        scheduler.execute(() -> waitForNoticeHandleFinishByLoadManager.complete(null));
+        executors.execute(() -> waitForNoticeHandleFinishByLoadManager.complete(null));
         waitForNoticeHandleFinishByLoadManager.join();
         // Manually trigger "LoadResourceQuotaUpdaterTask"
         loadManager.writeResourceQuotasToZooKeeper();

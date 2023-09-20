@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,13 +18,12 @@
  */
 package org.apache.pulsar.broker.admin.impl;
 
-import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Objects.isNull;
 import static org.apache.commons.lang.StringUtils.defaultIfEmpty;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Charsets;
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -115,20 +114,20 @@ public class SchemasResourceBase extends AdminResource {
     }
 
     public CompletableFuture<SchemaVersion> postSchemaAsync(PostSchemaPayload payload, boolean authoritative) {
-        return validateDestinationAndAdminOperationAsync(authoritative)
-                .thenCompose(__ -> getSchemaCompatibilityStrategyAsync())
+        return validateOwnershipAndOperationAsync(authoritative, TopicOperation.PRODUCE)
+                .thenCompose(__ -> getSchemaCompatibilityStrategyAsyncWithoutAuth())
                 .thenCompose(schemaCompatibilityStrategy -> {
                     byte[] data;
                     if (SchemaType.KEY_VALUE.name().equals(payload.getType())) {
                         try {
                             data = DefaultImplementation.getDefaultImplementation()
                                     .convertKeyValueDataStringToSchemaInfoSchema(payload.getSchema()
-                                            .getBytes(Charsets.UTF_8));
+                                            .getBytes(StandardCharsets.UTF_8));
                         } catch (IOException conversionError) {
                             throw new RestException(conversionError);
                         }
                     } else {
-                        data = payload.getSchema().getBytes(Charsets.UTF_8);
+                        data = payload.getSchema().getBytes(StandardCharsets.UTF_8);
                     }
                     return pulsar().getSchemaRegistryService()
                             .putSchemaIfAbsent(getSchemaId(),
@@ -148,7 +147,7 @@ public class SchemasResourceBase extends AdminResource {
                 .thenCompose(strategy -> {
                     String schemaId = getSchemaId();
                     return pulsar().getSchemaRegistryService().isCompatible(schemaId,
-                            SchemaData.builder().data(payload.getSchema().getBytes(Charsets.UTF_8))
+                            SchemaData.builder().data(payload.getSchema().getBytes(StandardCharsets.UTF_8))
                                     .isDeleted(false)
                                     .timestamp(clock.millis()).type(SchemaType.valueOf(payload.getType()))
                                     .user(defaultIfEmpty(clientAppId(), ""))
@@ -164,7 +163,7 @@ public class SchemasResourceBase extends AdminResource {
                     String schemaId = getSchemaId();
                     return pulsar().getSchemaRegistryService()
                             .findSchemaVersion(schemaId,
-                                    SchemaData.builder().data(payload.getSchema().getBytes(Charsets.UTF_8))
+                                    SchemaData.builder().data(payload.getSchema().getBytes(StandardCharsets.UTF_8))
                                             .isDeleted(false).timestamp(clock.millis())
                                             .type(SchemaType.valueOf(payload.getType()))
                                             .user(defaultIfEmpty(clientAppId(), ""))
@@ -185,7 +184,7 @@ public class SchemasResourceBase extends AdminResource {
                         DefaultImplementation.getDefaultImplementation()
                                 .decodeKeyValueSchemaInfo(schemaAndMetadata.schema.toSchemaInfo()));
             } else {
-                schemaData = new String(schemaAndMetadata.schema.getData(), UTF_8);
+                schemaData = new String(schemaAndMetadata.schema.getData(), StandardCharsets.UTF_8);
             }
             return GetSchemaResponse.builder().version(getLongSchemaVersion(schemaAndMetadata.version))
                     .type(schemaAndMetadata.schema.getType()).timestamp(schemaAndMetadata.schema.getTimestamp())
@@ -225,6 +224,11 @@ public class SchemasResourceBase extends AdminResource {
                                                                        TopicOperation operation) {
         return validateTopicOwnershipAsync(topicName, authoritative)
                 .thenCompose(__ -> validateTopicOperationAsync(topicName, operation));
+    }
+
+
+    protected boolean shouldPrintErrorLog(Throwable ex) {
+        return !isRedirectException(ex) && !isNotFoundException(ex);
     }
 
     private static final Logger log = LoggerFactory.getLogger(SchemasResourceBase.class);

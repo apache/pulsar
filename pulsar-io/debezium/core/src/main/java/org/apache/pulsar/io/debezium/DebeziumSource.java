@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -20,12 +20,14 @@ package org.apache.pulsar.io.debezium;
 
 import io.debezium.relational.HistorizedRelationalDatabaseConnectorConfig;
 import java.util.Map;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.io.core.SourceContext;
 import org.apache.pulsar.io.kafka.connect.KafkaConnectSource;
 import org.apache.pulsar.io.kafka.connect.PulsarKafkaWorkerConfig;
 
+@Slf4j
 public abstract class DebeziumSource extends KafkaConnectSource {
     private static final String DEFAULT_CONVERTER = "org.apache.kafka.connect.json.JsonConverter";
     private static final String DEFAULT_HISTORY = "org.apache.pulsar.io.debezium.PulsarDatabaseHistory";
@@ -60,11 +62,25 @@ public abstract class DebeziumSource extends KafkaConnectSource {
                 + (StringUtils.isEmpty(namespace) ? TopicName.DEFAULT_NAMESPACE : namespace);
     }
 
+    public static void tryLoadingConfigSecret(String secretName, Map<String, Object> config, SourceContext context) {
+        try {
+            String secret = context.getSecret(secretName);
+            if (secret != null) {
+                config.put(secretName, secret);
+                log.info("Config key {} set from secret.", secretName);
+            }
+        } catch (Exception e) {
+            log.warn("Failed to read secret {}.", secretName, e);
+        }
+    }
+
     public abstract void setDbConnectorTask(Map<String, Object> config) throws Exception;
 
     @Override
     public void open(Map<String, Object> config, SourceContext sourceContext) throws Exception {
         setDbConnectorTask(config);
+        tryLoadingConfigSecret("database.user", config, sourceContext);
+        tryLoadingConfigSecret("database.password", config, sourceContext);
 
         // key.converter
         setConfigIfNull(config, PulsarKafkaWorkerConfig.KEY_CONVERTER_CLASS_CONFIG, DEFAULT_CONVERTER);

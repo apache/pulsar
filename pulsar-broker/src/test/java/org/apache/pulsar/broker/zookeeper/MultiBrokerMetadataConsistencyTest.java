@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,15 +19,19 @@
 package org.apache.pulsar.broker.zookeeper;
 
 import static org.testng.Assert.assertTrue;
+import java.util.ArrayList;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.MultiBrokerBaseTest;
+import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.testcontext.PulsarTestContext;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.metadata.TestZKServer;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
+import org.jetbrains.annotations.NotNull;
 import org.testng.annotations.Test;
 
 @Slf4j
@@ -39,6 +43,9 @@ public class MultiBrokerMetadataConsistencyTest extends MultiBrokerBaseTest {
     }
 
     TestZKServer testZKServer;
+
+    private final List<MetadataStoreExtended> needCloseStore =
+            new ArrayList<>();
 
     @Override
     protected void doInitConf() throws Exception {
@@ -56,16 +63,44 @@ public class MultiBrokerMetadataConsistencyTest extends MultiBrokerBaseTest {
                 log.error("Error in stopping ZK server", e);
             }
         }
+
+        needCloseStore.forEach((storeExtended) -> {
+            try {
+                storeExtended.close();
+            } catch (Exception e) {
+                log.error("error when close storeExtended", e);
+            }
+        });
+
+        needCloseStore.clear();
     }
 
     @Override
-    protected MetadataStoreExtended createLocalMetadataStore() throws MetadataStoreException {
-        return MetadataStoreExtended.create(testZKServer.getConnectionString(), MetadataStoreConfig.builder().build());
+    protected PulsarTestContext.Builder createPulsarTestContextBuilder(ServiceConfiguration conf) {
+        MetadataStoreExtended metadataStore = createMetadataStore(
+                MultiBrokerMetadataConsistencyTest.class.getName()
+                        + "metadata_store");
+
+        MetadataStoreExtended configurationStore = createMetadataStore(
+                MultiBrokerMetadataConsistencyTest.class.getName()
+                        + "configuration_store");
+
+        needCloseStore.add(metadataStore);
+        needCloseStore.add(configurationStore);
+
+        return super.createPulsarTestContextBuilder(conf)
+                .localMetadataStore(metadataStore)
+                .configurationMetadataStore(configurationStore);
     }
 
-    @Override
-    protected MetadataStoreExtended createConfigurationMetadataStore() throws MetadataStoreException {
-        return MetadataStoreExtended.create(testZKServer.getConnectionString(), MetadataStoreConfig.builder().build());
+    @NotNull
+    protected MetadataStoreExtended createMetadataStore(String name) {
+        try {
+            return MetadataStoreExtended.create(testZKServer.getConnectionString(),
+                    MetadataStoreConfig.builder().metadataStoreName(name).build());
+        } catch (MetadataStoreException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     @Test

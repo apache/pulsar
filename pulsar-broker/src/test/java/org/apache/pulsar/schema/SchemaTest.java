@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -34,12 +34,16 @@ import com.google.common.collect.Sets;
 import java.io.ByteArrayInputStream;
 import java.io.Serializable;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
@@ -66,6 +70,7 @@ import org.apache.pulsar.client.api.TypedMessageBuilder;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.client.impl.schema.KeyValueSchemaImpl;
+import org.apache.pulsar.client.impl.schema.ProtobufSchema;
 import org.apache.pulsar.client.impl.schema.SchemaInfoImpl;
 import org.apache.pulsar.client.impl.schema.generic.GenericJsonRecord;
 import org.apache.pulsar.client.impl.schema.writer.AvroWriter;
@@ -107,6 +112,22 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
     @Override
     public void cleanup() throws Exception {
         super.internalCleanup();
+    }
+
+    @Test
+    public void testGetSchemaWhenCreateAutoProduceBytesProducer() throws Exception{
+        final String tenant = PUBLIC_TENANT;
+        final String namespace = "test-namespace-" + randomName(16);
+        final String topic = tenant + "/" + namespace + "/test-getSchema";
+        admin.namespaces().createNamespace(
+                tenant + "/" + namespace,
+                Sets.newHashSet(CLUSTER_NAME)
+        );
+
+        ProtobufSchema<org.apache.pulsar.client.api.schema.proto.Test.TestMessage> protobufSchema =
+                ProtobufSchema.of(org.apache.pulsar.client.api.schema.proto.Test.TestMessage.class);
+        pulsarClient.newProducer(protobufSchema).topic(topic).create();
+        pulsarClient.newProducer(org.apache.pulsar.client.api.Schema.AUTO_PRODUCE_BYTES()).topic(topic).create();
     }
 
     @Test
@@ -1267,6 +1288,84 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
         Message<User> message2 = consumer.receive();
 
         assertThrows(SchemaSerializationException.class, message2::getValue);
+    }
+
+    /**
+     * This test just ensure that schema check still keeps the original logic: if there has any producer, but no schema
+     * was registered, the new consumer could not register new schema.
+     * TODO: I think this design should be improved: if a producer used "AUTO_PRODUCE_BYTES" schema, we should allow
+     *       the new consumer to register new schema. But before we can solve this problem, we need to modify
+     *       "CmdProducer" to let the Broker know that the Producer uses a schema of type "AUTO_PRODUCE_BYTES".
+     */
+    @Test
+    public void testAutoProduceAndSpecifiedConsumer() throws Exception {
+        final String namespace = PUBLIC_TENANT + "/ns_" + randomName(16);
+        admin.namespaces().createNamespace(namespace, Sets.newHashSet(CLUSTER_NAME));
+        final String topicName = "persistent://" + namespace + "/tp_" + randomName(16);
+        admin.topics().createNonPartitionedTopic(topicName);
+
+        Producer producer = pulsarClient.newProducer(Schema.AUTO_PRODUCE_BYTES()).topic(topicName).create();
+        try {
+            pulsarClient.newConsumer(Schema.STRING).topic(topicName).subscriptionName("sub1").subscribe();
+            fail("Should throw ex: Topic does not have schema to check");
+        } catch (Exception ex){
+            assertTrue(ex.getMessage().contains("Topic does not have schema to check"));
+        }
+
+        // Cleanup.
+        producer.close();
+        admin.topics().delete(topicName);
+    }
+
+    @Test
+    public void testCreateSchemaInParallel() throws Exception {
+        final String namespace = "test-namespace-" + randomName(16);
+        String ns = PUBLIC_TENANT + "/" + namespace;
+        admin.namespaces().createNamespace(ns, Sets.newHashSet(CLUSTER_NAME));
+
+        final String topic = getTopicName(ns, "testCreateSchemaInParallel");
+        ExecutorService executor = Executors.newFixedThreadPool(16);
+        List<CompletableFuture<Producer<Schemas.PersonOne>>> producers = new ArrayList<>(16);
+        CountDownLatch latch = new CountDownLatch(16);
+        for (int i = 0; i < 16; i++) {
+            executor.execute(() -> {
+                producers.add(pulsarClient.newProducer(Schema.AVRO(Schemas.PersonOne.class))
+                        .topic(topic).createAsync());
+                latch.countDown();
+            });
+        }
+        latch.await();
+        FutureUtil.waitForAll(producers).join();
+        assertEquals(admin.schemas().getAllSchemas(topic).size(), 1);
+        producers.clear();
+
+        List<CompletableFuture<Producer<Schemas.PersonThree>>> producers2 = new ArrayList<>(16);
+        CountDownLatch latch2 = new CountDownLatch(16);
+        for (int i = 0; i < 16; i++) {
+            executor.execute(() -> {
+                producers2.add(pulsarClient.newProducer(Schema.AVRO(Schemas.PersonThree.class))
+                        .topic(topic).createAsync());
+                latch2.countDown();
+            });
+        }
+        latch2.await();
+        FutureUtil.waitForAll(producers2).join();
+        assertEquals(admin.schemas().getAllSchemas(topic).size(), 2);
+        producers.forEach(p -> {
+            try {
+                p.join().close();
+            } catch (Exception ignore) {
+            }
+        });
+        producers2.forEach(p -> {
+            try {
+                p.join().close();
+            } catch (Exception ignore) {
+            }
+        });
+        producers.clear();
+        producers2.clear();
+        executor.shutdownNow();
     }
 
     @EqualsAndHashCode

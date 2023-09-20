@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -30,16 +30,16 @@ public class CompactionRecord {
             200_000, 1000_000 };
 
     @Getter
-    private long lastCompactionRemovedEventCount = 0L;
+    private volatile long lastCompactionRemovedEventCount = 0L;
     @Getter
-    private long lastCompactionSucceedTimestamp = 0L;
+    private volatile long lastCompactionSucceedTimestamp = 0L;
     @Getter
-    private long lastCompactionFailedTimestamp = 0L;
+    private volatile long lastCompactionFailedTimestamp = 0L;
     @Getter
-    private long lastCompactionDurationTimeInMills = 0L;
+    private volatile long lastCompactionDurationTimeInMills = 0L;
 
     private LongAdder lastCompactionRemovedEventCountOp = new LongAdder();
-    private long lastCompactionStartTimeOp;
+    private volatile long lastCompactionStartTimeOp;
 
     private final LongAdder compactionRemovedEventCount = new LongAdder();
     private final LongAdder compactionSucceedCount = new LongAdder();

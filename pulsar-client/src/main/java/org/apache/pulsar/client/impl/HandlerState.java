@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,12 +18,16 @@
  */
 package org.apache.pulsar.client.impl;
 
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import java.util.function.UnaryOperator;
+import org.apache.commons.lang3.StringUtils;
 
 abstract class HandlerState {
     protected final PulsarClientImpl client;
     protected final String topic;
+    protected volatile URI redirectedClusterURI;
 
     private static final AtomicReferenceFieldUpdater<HandlerState, State> STATE_UPDATER =
             AtomicReferenceFieldUpdater.newUpdater(HandlerState.class, State.class, "state");
@@ -47,6 +51,11 @@ abstract class HandlerState {
         this.client = client;
         this.topic = topic;
         STATE_UPDATER.set(this, State.Uninitialized);
+    }
+
+    protected void setRedirectedClusterURI(String serviceUrl, String serviceUrlTls) throws URISyntaxException {
+        String url = client.conf.isUseTls() && StringUtils.isNotBlank(serviceUrlTls) ? serviceUrlTls : serviceUrl;
+        this.redirectedClusterURI = new URI(url);
     }
 
     // moves the state to ready if it wasn't closed

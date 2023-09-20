@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,8 +19,8 @@
 package org.apache.pulsar.broker.service;
 
 import static org.testng.Assert.assertEquals;
-import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
@@ -86,7 +86,7 @@ public class DistributedIdGeneratorTest {
         @Cleanup("shutdownNow")
         ExecutorService executor = Executors.newCachedThreadPool();
 
-        List<String> results = Collections.synchronizedList(Lists.newArrayList());
+        List<String> results = Collections.synchronizedList(new ArrayList<>());
 
         for (int i = 0; i < Threads; i++) {
             executor.execute(() -> {

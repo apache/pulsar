@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -20,7 +20,6 @@ package org.apache.pulsar.broker.service;
 
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.broker.cache.ConfigurationCacheService;
 import org.apache.pulsar.broker.resources.PulsarResources;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -78,7 +77,6 @@ public class BacklogQuotaManagerConfigurationTest {
 
     private PulsarService getPulsarService() {
         PulsarService pulsarService = mock(PulsarService.class);
-        ConfigurationCacheService configurationCacheService = mock(ConfigurationCacheService.class);
         when(pulsarService.getConfiguration()).thenReturn(serviceConfiguration);
         when(pulsarService.getPulsarResources()).thenReturn(mock(PulsarResources.class));
         return pulsarService;

@@ -19,8 +19,64 @@
 
 -->
 <FindBugsFilter>
-    <Match>
-        <Class name="~org.apache.pulsar.transaction.coordinator.proto.*"/>
-        <Bug pattern="UUF_UNUSED_FIELD"/>
-    </Match>
+  <Match>
+    <Class name="~org.apache.pulsar.transaction.coordinator.proto.*"/>
+    <Bug pattern="UUF_UNUSED_FIELD"/>
+  </Match>
+  <!-- Ignore violations that were present when the rule was enabled -->
+  <Match>
+    <Class name="org.apache.pulsar.transaction.coordinator.impl.MLTransactionLogImpl"/>
+    <Method name="getManagedLedger"/>
+    <Bug pattern="EI_EXPOSE_REP"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.transaction.coordinator.impl.MLTransactionLogImpl"/>
+    <Method name="&lt;init&gt;"/>
+    <Bug pattern="EI_EXPOSE_REP2"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.transaction.coordinator.impl.MLTransactionLogImpl"/>
+    <Method name="&lt;init&gt;"/>
+    <Bug pattern="EI_EXPOSE_REP2"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.transaction.coordinator.impl.MLTransactionLogImpl"/>
+    <Method name="&lt;init&gt;"/>
+    <Bug pattern="EI_EXPOSE_REP2"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.transaction.coordinator.impl.MLTransactionMetadataStore"/>
+    <Method name="getMetadataStoreStats"/>
+    <Bug pattern="EI_EXPOSE_REP"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.transaction.coordinator.impl.MLTransactionMetadataStore"/>
+    <Method name="&lt;init&gt;"/>
+    <Bug pattern="EI_EXPOSE_REP2"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.transaction.coordinator.impl.MLTransactionMetadataStore"/>
+    <Method name="&lt;init&gt;"/>
+    <Bug pattern="EI_EXPOSE_REP2"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.transaction.coordinator.impl.TxnLogBufferedWriter"/>
+    <Method name="&lt;init&gt;"/>
+    <Bug pattern="EI_EXPOSE_REP2"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.transaction.coordinator.impl.TxnLogBufferedWriterMetricsStats"/>
+    <Method name="&lt;init&gt;"/>
+    <Bug pattern="EI_EXPOSE_REP2"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.transaction.coordinator.proto.BatchedTransactionMetadataEntry"/>
+    <Method name="parseFrom"/>
+    <Bug pattern="EI_EXPOSE_REP2"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.transaction.coordinator.proto.TransactionMetadataEntry"/>
+    <Method name="parseFrom"/>
+    <Bug pattern="EI_EXPOSE_REP2"/>
+  </Match>
 </FindBugsFilter>

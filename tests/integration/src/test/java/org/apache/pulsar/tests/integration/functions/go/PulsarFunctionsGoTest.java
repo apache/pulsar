@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -32,6 +32,11 @@ public abstract class PulsarFunctionsGoTest extends PulsarFunctionsTest {
     @Test(enabled = false, groups = {"go_function", "function"})
     public void testGoFunctionLocalRun() throws Exception {
         testFunctionLocalRun(Runtime.GO);
+    }
+
+    @Test(groups = {"go_function", "function"})
+    public void testGoExclamationMultiInputsFunction() throws Exception {
+        testExclamationFunction(Runtime.GO, false, false, true, false);
     }
 
 }

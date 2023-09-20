@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -62,9 +62,11 @@ public class NonPersistentPartitionedTopicStatsTest {
     public void testPartitionedTopicStatsByNullProducerName() {
         final NonPersistentTopicStatsImpl topicStats1 = new NonPersistentTopicStatsImpl();
         final NonPersistentPublisherStatsImpl publisherStats1 = new NonPersistentPublisherStatsImpl();
+        publisherStats1.setMsgRateIn(1);
         publisherStats1.setSupportsPartialProducer(false);
         publisherStats1.setProducerName(null);
         final NonPersistentPublisherStatsImpl publisherStats2 = new NonPersistentPublisherStatsImpl();
+        publisherStats2.setMsgRateIn(2);
         publisherStats2.setSupportsPartialProducer(false);
         publisherStats2.setProducerName(null);
         topicStats1.addPublisher(publisherStats1);
@@ -76,15 +78,22 @@ public class NonPersistentPartitionedTopicStatsTest {
 
         final NonPersistentTopicStatsImpl topicStats2 = new NonPersistentTopicStatsImpl();
         final NonPersistentPublisherStatsImpl publisherStats3 = new NonPersistentPublisherStatsImpl();
+        publisherStats3.setMsgRateIn(3);
         publisherStats3.setSupportsPartialProducer(true);
         publisherStats3.setProducerName(null);
         final NonPersistentPublisherStatsImpl publisherStats4 = new NonPersistentPublisherStatsImpl();
+        publisherStats4.setMsgRateIn(4);
         publisherStats4.setSupportsPartialProducer(true);
         publisherStats4.setProducerName(null);
+        final NonPersistentPublisherStatsImpl publisherStats5 = new NonPersistentPublisherStatsImpl();
+        publisherStats5.setMsgRateIn(5);
+        publisherStats5.setSupportsPartialProducer(true);
+        publisherStats5.setProducerName(null);
         topicStats2.addPublisher(publisherStats3);
         topicStats2.addPublisher(publisherStats4);
+        topicStats2.addPublisher(publisherStats5);
 
-        assertEquals(topicStats2.getPublishers().size(), 2);
+        assertEquals(topicStats2.getPublishers().size(), 3);
         // when the producerName is null, fall back to false
         assertFalse(topicStats2.getPublishers().get(0).isSupportsPartialProducer());
         assertFalse(topicStats2.getPublishers().get(1).isSupportsPartialProducer());
@@ -93,6 +102,9 @@ public class NonPersistentPartitionedTopicStatsTest {
         target.add(topicStats1);
         target.add(topicStats2);
 
-        assertEquals(target.getPublishers().size(), 2);
+        assertEquals(target.getPublishers().size(), 3);
+        assertEquals(target.getPublishers().get(0).getMsgRateIn(), 4);
+        assertEquals(target.getPublishers().get(1).getMsgRateIn(), 6);
+        assertEquals(target.getPublishers().get(2).getMsgRateIn(), 5);
     }
 }

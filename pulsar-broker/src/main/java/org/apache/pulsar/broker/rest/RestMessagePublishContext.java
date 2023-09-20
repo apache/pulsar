@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -53,7 +53,7 @@ public class RestMessagePublishContext implements Topic.PublishContext {
                                 + "triggered send callback.",
                         topic.getName(), ledgerId, entryId);
             }
-            topic.recordAddLatency(System.nanoTime() - startTimeNs, TimeUnit.MICROSECONDS);
+            topic.recordAddLatency(System.nanoTime() - startTimeNs, TimeUnit.NANOSECONDS);
             positionFuture.complete(PositionImpl.get(ledgerId, entryId));
         }
         recycle();

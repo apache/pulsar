@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -29,6 +29,7 @@ import org.apache.pulsar.client.api.MessageId;
  * This is useful when MessageId is need for partition/multi-topics/pattern consumer.
  * e.g. seek(), ackCumulative(), getLastMessageId().
  */
+@Deprecated
 public class MultiMessageIdImpl implements MessageId {
     @Getter
     private Map<String, MessageId> map;
@@ -94,17 +95,15 @@ public class MultiMessageIdImpl implements MessageId {
 
     @Override
     public boolean equals(Object obj) {
-        if (!(obj instanceof MultiMessageIdImpl)) {
-            throw new IllegalArgumentException(
-                "expected MultiMessageIdImpl object. Got instance of " + obj.getClass().getName());
-        }
+        if (obj instanceof MultiMessageIdImpl) {
+            MultiMessageIdImpl other = (MultiMessageIdImpl) obj;
 
-        MultiMessageIdImpl other = (MultiMessageIdImpl) obj;
-
-        try {
-            return compareTo(other) == 0;
-        } catch (IllegalArgumentException e) {
-            return false;
+            try {
+                return compareTo(other) == 0;
+            } catch (IllegalArgumentException e) {
+                return false;
+            }
         }
+        return false;
     }
 }

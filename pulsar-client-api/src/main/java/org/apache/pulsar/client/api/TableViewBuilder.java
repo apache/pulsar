@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.pulsar.client.api;
 
 import java.util.Map;
@@ -92,4 +91,50 @@ public interface TableViewBuilder<T> {
      * @return the {@link TableViewBuilder} builder instance
      */
     TableViewBuilder<T> autoUpdatePartitionsInterval(int interval, TimeUnit unit);
+
+
+    /**
+     * Set the subscription name of the {@link TableView}.
+     *
+     * @param subscriptionName the name of the subscription to the topic
+     * @return the {@link TableViewBuilder} builder instance
+     */
+    TableViewBuilder<T> subscriptionName(String subscriptionName);
+
+    /**
+     * Set the {@link CryptoKeyReader} to decrypt the message payloads.
+     *
+     * @param cryptoKeyReader CryptoKeyReader object
+     * @return the {@link TableViewBuilder} builder instance
+     */
+    TableViewBuilder<T> cryptoKeyReader(CryptoKeyReader cryptoKeyReader);
+
+    /**
+     * Set the default implementation of {@link CryptoKeyReader}.
+     *
+     * <p>Configure the key reader to be used to decrypt message payloads.
+     *
+     * @param privateKey the private key that is always used to decrypt message payloads.
+     * @return the {@link TableViewBuilder} builder instance
+     */
+    TableViewBuilder<T> defaultCryptoKeyReader(String privateKey);
+
+    /**
+     * Set the default implementation of {@link CryptoKeyReader}.
+     *
+     * <p>Configure the key reader to be used to decrypt message payloads.
+     *
+     * @param privateKeys the map of private key names and their URIs
+     *                    used to decrypt message payloads.
+     * @return the {@link TableViewBuilder} builder instance
+     */
+    TableViewBuilder<T> defaultCryptoKeyReader(Map<String, String> privateKeys);
+
+    /**
+     * Set the {@link ConsumerCryptoFailureAction} to specify.
+     *
+     * @param action the action to take when the decoding fails
+     * @return the {@link TableViewBuilder} builder instance
+     */
+    TableViewBuilder<T> cryptoFailureAction(ConsumerCryptoFailureAction action);
 }

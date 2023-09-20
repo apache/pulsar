@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,7 +19,8 @@
 package org.apache.pulsar.broker.delayed;
 
 import com.google.common.annotations.Beta;
-import java.util.Set;
+import java.util.NavigableSet;
+import java.util.concurrent.CompletableFuture;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 
 /**
@@ -58,19 +59,13 @@ public interface DelayedDeliveryTracker extends AutoCloseable {
     /**
      * Get a set of position of messages that have already reached the delivery time.
      */
-    Set<PositionImpl> getScheduledMessages(int maxMessages);
+    NavigableSet<PositionImpl> getScheduledMessages(int maxMessages);
 
     /**
      * Tells whether the dispatcher should pause any message deliveries, until the DelayedDeliveryTracker has
      * more messages available.
      */
     boolean shouldPauseAllDeliveries();
-
-    /**
-     * Tells whether this DelayedDeliveryTracker contains this message index,
-     * if the tracker is not supported it or disabled this feature also will return false.
-     */
-    boolean containsMessage(long ledgerId, long entryId);
 
     /**
      *  Reset tick time use zk policies cache.
@@ -81,8 +76,10 @@ public interface DelayedDeliveryTracker extends AutoCloseable {
 
     /**
      * Clear all delayed messages from the tracker.
+     *
+     * @return CompletableFuture<Void>
      */
-    void clear();
+    CompletableFuture<Void> clear();
 
     /**
      * Close the subscription tracker and release all resources.

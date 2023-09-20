@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -197,7 +197,11 @@ public class TopicListService {
                     if (exception != null) {
                         watcherFuture.completeExceptionally(exception);
                     } else {
-                        watcherFuture.complete(watcher);
+                        if (!watcherFuture.complete(watcher)) {
+                            log.warn("[{}] Watcher future was already completed. Deregistering watcherId={}.",
+                                    connection.getRemoteAddress(), watcherId);
+                            topicResources.deregisterPersistentTopicListener(watcher);
+                        }
                     }
                 });
     }
@@ -207,7 +211,7 @@ public class TopicListService {
         long requestId = commandWatchTopicListClose.getRequestId();
         long watcherId = commandWatchTopicListClose.getWatcherId();
         deleteTopicListWatcher(watcherId);
-        connection.getCommandSender().sendSuccess(requestId);
+        connection.getCommandSender().sendSuccessResponse(requestId);
     }
 
     public void deleteTopicListWatcher(Long watcherId) {

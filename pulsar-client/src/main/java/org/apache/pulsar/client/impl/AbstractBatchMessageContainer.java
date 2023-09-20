@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.impl;
 
+import com.google.common.annotations.VisibleForTesting;
 import java.io.IOException;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
@@ -34,22 +35,24 @@ public abstract class AbstractBatchMessageContainer implements BatchMessageConta
     protected CompressionType compressionType;
     protected CompressionCodec compressor;
     protected String topicName;
-    protected String producerName;
     protected ProducerImpl producer;
 
     protected int maxNumMessagesInBatch;
     protected int maxBytesInBatch;
     protected int numMessagesInBatch = 0;
     protected long currentBatchSizeBytes = 0;
+    protected int batchAllocatedSizeBytes = 0;
 
     protected long currentTxnidMostBits = -1L;
     protected long currentTxnidLeastBits = -1L;
 
     protected static final int INITIAL_BATCH_BUFFER_SIZE = 1024;
+    protected static final int INITIAL_MESSAGES_NUM = 32;
 
     // This will be the largest size for a batch sent from this particular producer. This is used as a baseline to
     // allocate a new buffer that can hold the entire batch without needing costly reallocations
     protected int maxBatchSize = INITIAL_BATCH_BUFFER_SIZE;
+    protected int maxMessagesNum = INITIAL_MESSAGES_NUM;
 
     @Override
     public boolean haveEnoughSpace(MessageImpl<?> msg) {
@@ -71,9 +74,23 @@ public abstract class AbstractBatchMessageContainer implements BatchMessageConta
         return numMessagesInBatch;
     }
 
+    @VisibleForTesting
+    public int getMaxMessagesNum() {
+        return maxMessagesNum;
+    }
+
     @Override
     public long getCurrentBatchSize() {
         return currentBatchSizeBytes;
+    }
+
+    @Override
+    public int getBatchAllocatedSizeBytes() {
+        return batchAllocatedSizeBytes;
+    }
+
+    int getMaxBatchSize() {
+        return maxBatchSize;
     }
 
     @Override
@@ -90,7 +107,6 @@ public abstract class AbstractBatchMessageContainer implements BatchMessageConta
     public void setProducer(ProducerImpl<?> producer) {
         this.producer = producer;
         this.topicName = producer.getTopic();
-        this.producerName = producer.getProducerName();
         this.compressionType = CompressionCodecProvider
                 .convertToWireProtocol(producer.getConfiguration().getCompressionType());
         this.compressor = CompressionCodecProvider.getCompressionCodec(compressionType);

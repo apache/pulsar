@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -20,16 +20,13 @@ package org.apache.pulsar.client.impl;
 
 import static org.apache.pulsar.common.protocol.Commands.newLookupErrorResponse;
 import static org.apache.pulsar.common.protocol.Commands.newPartitionMetadataResponse;
-
 import com.google.common.collect.Sets;
 import java.util.Queue;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
-
 import org.apache.pulsar.broker.PulsarService;
-import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.PulsarChannelInitializer;
@@ -44,20 +41,18 @@ import org.apache.pulsar.common.api.proto.ServerError;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.Assert;
-import org.testng.annotations.AfterMethod;
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 public class LookupRetryTest extends MockedPulsarServiceBaseTest {
-    private static final Logger log = LoggerFactory.getLogger(LookupRetryTest.class);
     private static final String subscription = "reader-sub";
     private final AtomicInteger connectionsCreated = new AtomicInteger(0);
     private final ConcurrentHashMap<String, Queue<LookupError>> failureMap = new ConcurrentHashMap<>();
 
-    @BeforeMethod
+    @BeforeClass
     @Override
     protected void setup() throws Exception {
         conf.setTopicLevelPoliciesEnabled(false);
@@ -69,35 +64,31 @@ public class LookupRetryTest extends MockedPulsarServiceBaseTest {
         admin.tenants().createTenant("public",
                 new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("test")));
         admin.namespaces().createNamespace("public/default", Sets.newHashSet("test"));
-
-        connectionsCreated.set(0);
     }
 
     @Override
-    protected PulsarService newPulsarService(ServiceConfiguration conf) throws Exception {
-        return new PulsarService(conf) {
-            @Override
-            protected BrokerService newBrokerService(PulsarService pulsar) throws Exception {
-                BrokerService broker = new BrokerService(this, ioEventLoopGroup);
-                broker.setPulsarChannelInitializerFactory(
-                        (_pulsar, opts) -> {
-                            return new PulsarChannelInitializer(_pulsar, opts) {
-                                @Override
-                                protected ServerCnx newServerCnx(PulsarService pulsar, String listenerName) throws Exception {
-                                    connectionsCreated.incrementAndGet();
-                                    return new ErrorByTopicServerCnx(pulsar, failureMap);
-                                }
-                            };
-                        });
-                return broker;
-            }
-        };
+    protected BrokerService customizeNewBrokerService(BrokerService brokerService) {
+        brokerService.setPulsarChannelInitializerFactory(
+                (_pulsar, opts) -> new PulsarChannelInitializer(_pulsar, opts) {
+                    @Override
+                    protected ServerCnx newServerCnx(PulsarService pulsar, String listenerName) throws Exception {
+                        connectionsCreated.incrementAndGet();
+                        return new ErrorByTopicServerCnx(pulsar, failureMap);
+                    }
+                });
+        return brokerService;
     }
 
-    @AfterMethod(alwaysRun = true)
+    @AfterClass(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
+    }
+
+    @BeforeMethod(alwaysRun = true)
+    public void reset() {
+        connectionsCreated.set(0);
+        failureMap.clear();
     }
 
     PulsarClient newClient() throws Exception {
@@ -244,7 +235,6 @@ public class LookupRetryTest extends MockedPulsarServiceBaseTest {
 
         try (PulsarClient pulsarClient = PulsarClient.builder().serviceUrl(lookupUrl)
                 .maxNumberOfRejectedRequestPerConnection(100)
-                .maxNumberOfRejectedRequestPerConnection(1)
                 .connectionTimeout(2, TimeUnit.SECONDS)
                 .operationTimeout(1, TimeUnit.SECONDS)
                 .lookupTimeout(10, TimeUnit.SECONDS)

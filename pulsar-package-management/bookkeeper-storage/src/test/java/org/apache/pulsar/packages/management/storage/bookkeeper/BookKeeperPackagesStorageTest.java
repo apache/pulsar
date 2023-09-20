@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -46,7 +46,7 @@ public class BookKeeperPackagesStorageTest extends BookKeeperClusterTestCase {
     }
 
     @BeforeMethod()
-    public void setup() throws Exception {
+    public void start() throws Exception {
         PackagesStorageProvider provider = PackagesStorageProvider
             .newProvider(BookKeeperPackagesStorageProvider.class.getName());
         DefaultPackagesStorageConfiguration configuration = new DefaultPackagesStorageConfiguration();
@@ -58,7 +58,7 @@ public class BookKeeperPackagesStorageTest extends BookKeeperClusterTestCase {
     }
 
     @AfterMethod(alwaysRun = true)
-    public void teardown() throws Exception {
+    public void close() throws Exception {
         if (storage != null) {
             storage.closeAsync().get();
         }

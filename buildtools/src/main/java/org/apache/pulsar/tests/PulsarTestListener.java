@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -44,17 +44,29 @@ public class PulsarTestListener implements ITestListener {
         if (!(result.getThrowable() instanceof SkipException)) {
             System.out.format("!!!!!!!!! FAILURE-- %s.%s(%s)-------\n", result.getTestClass(),
                     result.getMethod().getMethodName(), Arrays.toString(result.getParameters()));
-        }
-        if (result.getThrowable() instanceof ThreadTimeoutException) {
-            System.out.println("====== THREAD DUMPS ======");
-            System.out.println(ThreadDumpUtil.buildThreadDiagnosticString());
+            if (result.getThrowable() != null) {
+                result.getThrowable().printStackTrace();
+                if (result.getThrowable() instanceof ThreadTimeoutException) {
+                    System.out.println("====== THREAD DUMPS ======");
+                    System.out.println(ThreadDumpUtil.buildThreadDiagnosticString());
+                }
+            }
         }
     }
 
     @Override
     public void onTestSkipped(ITestResult result) {
-        System.out.format("~~~~~~~~~ SKIPPED -- %s.%s(%s)-------\n", result.getTestClass(),
-                result.getMethod().getMethodName(), Arrays.toString(result.getParameters()));
+        if (!(result.getThrowable() instanceof SkipException)) {
+            System.out.format("~~~~~~~~~ SKIPPED -- %s.%s(%s)-------\n", result.getTestClass(),
+                    result.getMethod().getMethodName(), Arrays.toString(result.getParameters()));
+            if (result.getThrowable() != null) {
+                result.getThrowable().printStackTrace();
+                if (result.getThrowable() instanceof ThreadTimeoutException) {
+                    System.out.println("====== THREAD DUMPS ======");
+                    System.out.println(ThreadDumpUtil.buildThreadDiagnosticString());
+                }
+            }
+        }
     }
 
     @Override

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -21,17 +21,15 @@ package org.apache.pulsar.broker.loadbalance.impl;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
-
-import com.google.common.collect.Lists;
 import com.google.common.collect.Multimap;
 import com.google.common.collect.Sets;
-
+import java.util.List;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.loadbalance.LoadData;
-import org.apache.pulsar.policies.data.loadbalancer.LocalBrokerData;
-import org.apache.pulsar.policies.data.loadbalancer.ResourceUsage;
 import org.apache.pulsar.policies.data.loadbalancer.BrokerData;
 import org.apache.pulsar.policies.data.loadbalancer.BundleData;
+import org.apache.pulsar.policies.data.loadbalancer.LocalBrokerData;
+import org.apache.pulsar.policies.data.loadbalancer.ResourceUsage;
 import org.apache.pulsar.policies.data.loadbalancer.TimeAverageMessageData;
 import org.testng.annotations.Test;
 
@@ -148,7 +146,7 @@ public class OverloadShedderTest {
 
         Multimap<String, String> bundlesToUnload = os.findBundlesForUnloading(loadData, conf);
         assertFalse(bundlesToUnload.isEmpty());
-        assertEquals(bundlesToUnload.get("broker-1"), Lists.newArrayList("bundle-10", "bundle-9"));
+        assertEquals(bundlesToUnload.get("broker-1"), List.of("bundle-10", "bundle-9"));
     }
 
     @Test
@@ -187,7 +185,7 @@ public class OverloadShedderTest {
 
         Multimap<String, String> bundlesToUnload = os.findBundlesForUnloading(loadData, conf);
         assertFalse(bundlesToUnload.isEmpty());
-        assertEquals(bundlesToUnload.get("broker-1"), Lists.newArrayList("bundle-8", "bundle-7"));
+        assertEquals(bundlesToUnload.get("broker-1"), List.of("bundle-8", "bundle-7"));
     }
 
     @Test

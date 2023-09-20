@@ -18,11 +18,11 @@
 # under the License.
 #
 
-bin/apply-config-from-env.py conf/proxy.conf && \
+bin/apply-config-from-env.py conf/websocket.conf && \
     bin/apply-config-from-env.py conf/pulsar_env.sh
 
 if [ -z "$NO_AUTOSTART" ]; then
-    sed -i 's/autostart=.*/autostart=true/' /etc/supervisord/conf.d/proxy.conf
+    sed -i 's/autostart=.*/autostart=true/' /etc/supervisord/conf.d/websocket.conf
 fi
 
 bin/watch-znode.py -z $zookeeperServers -p /initialized-$clusterName -w

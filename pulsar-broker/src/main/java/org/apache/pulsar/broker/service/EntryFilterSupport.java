@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,53 +18,50 @@
  */
 package org.apache.pulsar.broker.service;
 
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
+import java.util.Collections;
+import java.util.List;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.commons.collections4.CollectionUtils;
-import org.apache.commons.collections4.MapUtils;
 import org.apache.pulsar.broker.service.plugin.EntryFilter;
-import org.apache.pulsar.broker.service.plugin.EntryFilterWithClassLoader;
 import org.apache.pulsar.broker.service.plugin.FilterContext;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 
 public class EntryFilterSupport {
 
-    /**
-     * Entry filters in Broker.
-     * Not set to final, for the convenience of testing mock.
-     */
-    protected ImmutableList<EntryFilterWithClassLoader> entryFilters;
+    protected final List<EntryFilter> entryFilters;
+    protected final boolean hasFilter;
     protected final FilterContext filterContext;
     protected final Subscription subscription;
 
     public EntryFilterSupport(Subscription subscription) {
         this.subscription = subscription;
-        if (subscription != null && subscription.getTopic() != null) {
-            if (MapUtils.isNotEmpty(subscription.getTopic()
-                    .getBrokerService().getEntryFilters())
-                    && !subscription.getTopic().getBrokerService().pulsar()
-                    .getConfiguration().isAllowOverrideEntryFilters()) {
-                this.entryFilters = subscription.getTopic().getBrokerService().getEntryFilters().values().asList();
+        if (subscription != null && subscription.getTopic() != null
+                && !subscription.getTopic().isSystemTopic()) {
+            final BrokerService brokerService = subscription.getTopic().getBrokerService();
+            final boolean allowOverrideEntryFilters = brokerService
+                    .pulsar().getConfiguration().isAllowOverrideEntryFilters();
+            if (!allowOverrideEntryFilters) {
+                this.entryFilters = brokerService.getEntryFilterProvider().getBrokerEntryFilters();
             } else {
-                ImmutableMap<String, EntryFilterWithClassLoader>  entryFiltersMap =
+                List<EntryFilter> topicEntryFilters =
                         subscription.getTopic().getEntryFilters();
-                if (entryFiltersMap != null) {
-                    this.entryFilters = subscription.getTopic().getEntryFilters().values().asList();
+                if (topicEntryFilters != null && !topicEntryFilters.isEmpty()) {
+                    this.entryFilters = topicEntryFilters;
                 } else {
-                    this.entryFilters = ImmutableList.of();
+                    this.entryFilters = brokerService.getEntryFilterProvider().getBrokerEntryFilters();
                 }
             }
             this.filterContext = new FilterContext();
         } else {
-            this.entryFilters = ImmutableList.of();
+            this.entryFilters = Collections.emptyList();
             this.filterContext = FilterContext.FILTER_CONTEXT_DISABLED;
         }
+        hasFilter = CollectionUtils.isNotEmpty(entryFilters);
     }
 
     public EntryFilter.FilterResult runFiltersForEntry(Entry entry, MessageMetadata msgMetadata,
                                                        Consumer consumer) {
-        if (CollectionUtils.isNotEmpty(entryFilters)) {
+        if (hasFilter) {
             fillContext(filterContext, msgMetadata, subscription, consumer);
             return getFilterResult(filterContext, entry, entryFilters);
         } else {
@@ -82,7 +79,7 @@ public class EntryFilterSupport {
 
 
     private static EntryFilter.FilterResult getFilterResult(FilterContext filterContext, Entry entry,
-                                                            ImmutableList<EntryFilterWithClassLoader> entryFilters) {
+                                                            List<EntryFilter> entryFilters) {
         for (EntryFilter entryFilter : entryFilters) {
             EntryFilter.FilterResult filterResult =
                     entryFilter.filterEntry(entry, filterContext);

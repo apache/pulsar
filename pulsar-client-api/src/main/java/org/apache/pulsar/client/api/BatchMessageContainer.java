@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -53,6 +53,12 @@ public interface BatchMessageContainer {
      * @return message batch size in bytes
      */
     long getCurrentBatchSize();
+
+    /**
+     * Get current allocated buffer size of the message batch container in bytes.
+     * @return allocated buffer size in bytes
+     */
+    int getBatchAllocatedSizeBytes();
 
     /**
      * Release the payload and clear the container.

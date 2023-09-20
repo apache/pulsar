@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -174,6 +174,8 @@ public class ZeroQueueConsumerImpl<T> extends ConsumerImpl<T> {
                 }
                 waitingOnListenerForZeroQueueSize = true;
                 trackMessage(message);
+                unAckedMessageTracker.add(
+                        MessageIdAdvUtils.discardBatch(message.getMessageId()), message.getRedeliveryCount());
                 listener.received(ZeroQueueConsumerImpl.this, beforeConsume(message));
             } catch (Throwable t) {
                 log.error("[{}][{}] Message listener error in processing unqueued message: {}", topic, subscription,

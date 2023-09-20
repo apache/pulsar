@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -28,6 +28,7 @@ import lombok.Data;
 public class OpDelete implements MetadataOp {
     private final String path;
     private final Optional<Long> optExpectedVersion;
+    public final long created = System.currentTimeMillis();
 
     private final CompletableFuture<Void> future = new CompletableFuture<>();
 
@@ -39,5 +40,10 @@ public class OpDelete implements MetadataOp {
     @Override
     public int size() {
         return path.length();
+    }
+
+    @Override
+    public long created() {
+        return this.created;
     }
 }

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -118,9 +118,6 @@ public class MessageIdTest extends BrokerTestBase {
             Message<byte[]> message = consumer.receive();
             assertEquals(new String(message.getData()), messagePrefix + i);
             MessageId messageId = message.getMessageId();
-            if (topicType == TopicType.PARTITIONED) {
-                messageId = ((TopicMessageIdImpl) messageId).getInnerMessageId();
-            }
             assertTrue(messageIds.remove(messageId), "Failed to receive message");
         }
         log.info("Remaining message IDs = {}", messageIds);
@@ -166,9 +163,6 @@ public class MessageIdTest extends BrokerTestBase {
 
         for (int i = 0; i < numberOfMessages; i++) {
             MessageId messageId = consumer.receive().getMessageId();
-            if (topicType == TopicType.PARTITIONED) {
-                messageId = ((TopicMessageIdImpl) messageId).getInnerMessageId();
-            }
             assertTrue(messageIds.remove(messageId), "Failed to receive Message");
         }
         log.info("Remaining message IDs = {}", messageIds);

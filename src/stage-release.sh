@@ -26,23 +26,23 @@ if [ $# -eq 0 ]; then
 fi
 
 DEST_PATH=$1
+DEST_PATH="$(cd "$DEST_PATH" && pwd)"
 
 pushd $(dirname "$0")
 PULSAR_PATH=$(git rev-parse --show-toplevel)
 VERSION=`./get-project-version.py`
 popd
 
-cp $PULSAR_PATH/target/apache-pulsar-$VERSION-src.tar.gz $DEST_PATH
+pushd "$(dirname "$0")/.."
+git archive --format=tar.gz --output="$DEST_PATH/apache-pulsar-$VERSION-src.tar.gz" --prefix="apache-pulsar-$VERSION-src/" HEAD
+popd
+
 cp $PULSAR_PATH/distribution/server/target/apache-pulsar-$VERSION-bin.tar.gz $DEST_PATH
 cp $PULSAR_PATH/distribution/offloaders/target/apache-pulsar-offloaders-$VERSION-bin.tar.gz $DEST_PATH
+cp $PULSAR_PATH/distribution/shell/target/apache-pulsar-shell-$VERSION-bin.tar.gz $DEST_PATH
+cp $PULSAR_PATH/distribution/shell/target/apache-pulsar-shell-$VERSION-bin.zip $DEST_PATH
 
 cp -r $PULSAR_PATH/distribution/io/target/apache-pulsar-io-connectors-$VERSION-bin $DEST_PATH/connectors
-
-mkdir $DEST_PATH/RPMS
-cp -r $PULSAR_PATH/pulsar-client-cpp/pkg/rpm/RPMS/x86_64/* $DEST_PATH/RPMS
-
-mkdir $DEST_PATH/DEB
-cp -r $PULSAR_PATH/pulsar-client-cpp/pkg/deb/BUILD/DEB/* $DEST_PATH/DEB
 
 # Sign all files
 cd $DEST_PATH

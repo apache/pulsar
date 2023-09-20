@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,15 +16,21 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+
 package org.apache.pulsar.common.util;
 
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.ObjectReader;
+import com.fasterxml.jackson.databind.ObjectWriter;
 import com.fasterxml.jackson.databind.module.SimpleAbstractTypeResolver;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
-import io.netty.util.concurrent.FastThreadLocal;
+import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import com.fasterxml.jackson.module.paramnames.ParameterNamesModule;
+import java.util.concurrent.atomic.AtomicReference;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.ClassUtils;
 import org.apache.pulsar.client.admin.internal.data.AuthPoliciesImpl;
@@ -108,46 +114,104 @@ import org.apache.pulsar.policies.data.loadbalancer.LoadReportDeserializer;
 @SuppressWarnings("checkstyle:JavadocType")
 @Slf4j
 public class ObjectMapperFactory {
+    public static class MapperReference {
+        private final ObjectMapper objectMapper;
+        private final ObjectWriter objectWriter;
+        private final ObjectReader objectReader;
+
+        MapperReference(ObjectMapper objectMapper) {
+            this.objectMapper = objectMapper;
+            this.objectWriter = objectMapper.writer();
+            this.objectReader = objectMapper.reader();
+        }
+
+        public ObjectMapper getObjectMapper() {
+            return objectMapper;
+        }
+
+        public ObjectWriter writer() {
+            return objectWriter;
+        }
+
+        public ObjectReader reader() {
+            return objectReader;
+        }
+    }
+
+    private static final AtomicReference<MapperReference> MAPPER_REFERENCE =
+            new AtomicReference<>(new MapperReference(createObjectMapperInstance()));
+
+    private static final AtomicReference<MapperReference> INSTANCE_WITH_INCLUDE_ALWAYS =
+            new AtomicReference<>(new MapperReference(createObjectMapperWithIncludeAlways()));
+
+    private static final AtomicReference<MapperReference> YAML_MAPPER_REFERENCE =
+            new AtomicReference<>(new MapperReference(createYamlInstance()));
+
+    private static ObjectMapper createObjectMapperInstance() {
+        return ProtectedObjectMapper.protectedCopyOf(configureObjectMapper(new ObjectMapper()));
+    }
+
+    private static ObjectMapper createObjectMapperWithIncludeAlways() {
+        return MAPPER_REFERENCE
+                .get().getObjectMapper().copy()
+                .setSerializationInclusion(Include.ALWAYS);
+    }
+
     public static ObjectMapper create() {
-        ObjectMapper mapper = new ObjectMapper();
+        return getMapper().getObjectMapper().copy();
+    }
+
+    private static ObjectMapper createYamlInstance() {
+        return ProtectedObjectMapper.protectedCopyOf(configureObjectMapper(new ObjectMapper(new YAMLFactory())));
+    }
+
+    private static ObjectMapper configureObjectMapper(ObjectMapper mapper) {
         // forward compatibility for the properties may go away in the future
         mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
         mapper.configure(DeserializationFeature.READ_UNKNOWN_ENUM_VALUES_AS_NULL, true);
         mapper.setSerializationInclusion(Include.NON_NULL);
+
+        // enable Jackson Java 8 support modules
+        // https://github.com/FasterXML/jackson-modules-java8
+        mapper.registerModule(new ParameterNamesModule())
+            .registerModule(new Jdk8Module())
+            .registerModule(new JavaTimeModule());
+
         setAnnotationsModule(mapper);
         return mapper;
     }
 
     public static ObjectMapper createYaml() {
-        ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
-        // forward compatibility for the properties may go away in the future
-        mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
-        mapper.configure(DeserializationFeature.READ_UNKNOWN_ENUM_VALUES_AS_NULL, true);
-        mapper.setSerializationInclusion(Include.NON_NULL);
-        setAnnotationsModule(mapper);
-        return mapper;
+        return getYamlMapper().getObjectMapper().copy();
     }
 
-    private static final FastThreadLocal<ObjectMapper> JSON_MAPPER = new FastThreadLocal<ObjectMapper>() {
-        @Override
-        protected ObjectMapper initialValue() throws Exception {
-            return create();
-        }
-    };
+    public static MapperReference getMapper() {
+        return MAPPER_REFERENCE.get();
+    }
 
-    private static final FastThreadLocal<ObjectMapper> YAML_MAPPER = new FastThreadLocal<ObjectMapper>() {
-        @Override
-        protected ObjectMapper initialValue() throws Exception {
-            return createYaml();
-        }
-    };
 
+    public static MapperReference getMapperWithIncludeAlways() {
+        return INSTANCE_WITH_INCLUDE_ALWAYS.get();
+    }
+
+    /**
+     * This method is deprecated. Use {@link #getMapper()} and {@link MapperReference#getObjectMapper()}
+     */
+    @Deprecated
     public static ObjectMapper getThreadLocal() {
-        return JSON_MAPPER.get();
+        return getMapper().getObjectMapper();
     }
 
+    public static MapperReference getYamlMapper() {
+        return YAML_MAPPER_REFERENCE.get();
+    }
+
+    /**
+     * This method is deprecated. Use {@link #getYamlMapper()} and {@link MapperReference#getObjectMapper()}
+     */
+    @Deprecated
     public static ObjectMapper getThreadLocalYaml() {
-        return YAML_MAPPER.get();
+        return getYamlMapper().getObjectMapper();
     }
 
     private static void setAnnotationsModule(ObjectMapper mapper) {
@@ -211,5 +275,29 @@ public class ObjectMapperFactory {
         mapper.registerModule(module);
     }
 
+    /**
+     * Clears the caches tied to the ObjectMapper instances and replaces the singleton ObjectMapper instance.
+     *
+     * This can be used in tests to ensure that classloaders and class references don't leak across tests.
+     */
+    public static void clearCaches() {
+        clearTypeFactoryCache(getMapper().getObjectMapper());
+        clearTypeFactoryCache(getYamlMapper().getObjectMapper());
+        clearTypeFactoryCache(getMapperWithIncludeAlways().getObjectMapper());
+        replaceSingletonInstances();
+    }
 
+    private static void clearTypeFactoryCache(ObjectMapper objectMapper) {
+        objectMapper.getTypeFactory().clearCache();
+    }
+
+    /*
+     * Replaces the existing singleton ObjectMapper instances with new instances.
+     * This is used in tests to ensure that classloaders and class references don't leak between tests.
+     */
+    private static void replaceSingletonInstances() {
+        MAPPER_REFERENCE.set(new MapperReference(createObjectMapperInstance()));
+        INSTANCE_WITH_INCLUDE_ALWAYS.set(new MapperReference(createObjectMapperWithIncludeAlways()));
+        YAML_MAPPER_REFERENCE.set(new MapperReference(createYamlInstance()));
+    }
 }

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.pulsar.io.kafka;
 
 import lombok.extern.slf4j.Slf4j;
@@ -33,7 +32,7 @@ import static org.testng.internal.junit.ArrayAsserts.assertArrayEquals;
 public class ByteBufferSchemaWrapperTest {
 
     @Test
-    public void testGetBytesNoCopy() throws Exception {
+    public void testGetBytesNoCopy() {
         byte[] originalArray = {1, 2, 3};
         ByteBuffer wrapped = ByteBuffer.wrap(originalArray);
         assertEquals(0, wrapped.arrayOffset());
@@ -42,7 +41,7 @@ public class ByteBufferSchemaWrapperTest {
     }
 
     @Test
-    public void testGetBytesOffsetZeroDifferentLen() throws Exception {
+    public void testGetBytesOffsetZeroDifferentLen() {
         byte[] originalArray = {1, 2, 3};
         ByteBuffer wrapped = ByteBuffer.wrap(originalArray, 1, 2);
         assertEquals(0, wrapped.arrayOffset());
@@ -53,7 +52,7 @@ public class ByteBufferSchemaWrapperTest {
     }
 
     @Test
-    public void testGetBytesOffsetNonZero() throws Exception {
+    public void testGetBytesOffsetNonZero() {
         byte[] originalArray = {1, 2, 3};
         ByteBuffer wrapped = ByteBuffer.wrap(originalArray);
         wrapped.position(1);
@@ -67,7 +66,7 @@ public class ByteBufferSchemaWrapperTest {
     }
 
     @Test
-    public void testGetBytesOffsetZero() throws Exception {
+    public void testGetBytesOffsetZero() {
         byte[] originalArray = {1, 2, 3};
         ByteBuffer wrapped = ByteBuffer.wrap(originalArray, 0, 2);
         assertEquals(0, wrapped.arrayOffset());

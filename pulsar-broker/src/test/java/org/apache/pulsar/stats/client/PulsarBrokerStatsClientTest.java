@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -126,7 +126,7 @@ public class PulsarBrokerStatsClientTest extends ProducerConsumerBase {
         PersistentTopicInternalStats internalStats = topic.getInternalStats(true).get();
         assertNotNull(internalStats.ledgers.get(0).metadata);
         // For the mock test, the default ensembles is ["192.0.2.1:1234","192.0.2.2:1234","192.0.2.3:1234"]
-        // The registed bookie ID is 192.168.1.1:5000
+        // The registered bookie ID is 192.168.1.1:5000
         assertTrue(internalStats.ledgers.get(0).underReplicated);
 
         CursorStats cursor = internalStats.cursors.get(subscriptionName);
@@ -135,6 +135,7 @@ public class PulsarBrokerStatsClientTest extends ProducerConsumerBase {
                 && (cursor.totalNonContiguousDeletedMessagesRange) < numberOfMsgs / 2);
         assertFalse(cursor.subscriptionHavePendingRead);
         assertFalse(cursor.subscriptionHavePendingReplayRead);
+        assertTrue(cursor.active);
         producer.close();
         consumer.close();
         log.info("-- Exiting {} test --", methodName);

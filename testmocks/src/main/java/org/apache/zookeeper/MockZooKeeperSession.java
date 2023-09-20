@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -46,12 +46,19 @@ public class MockZooKeeperSession extends ZooKeeper {
 
     private static final AtomicInteger sessionIdGenerator = new AtomicInteger(1000);
 
+    private boolean closeMockZooKeeperOnClose;
+
     public static MockZooKeeperSession newInstance(MockZooKeeper mockZooKeeper) {
+        return newInstance(mockZooKeeper, true);
+    }
+
+    public static MockZooKeeperSession newInstance(MockZooKeeper mockZooKeeper, boolean closeMockZooKeeperOnClose) {
         ObjectInstantiator<MockZooKeeperSession> instantiator = objenesis.getInstantiatorOf(MockZooKeeperSession.class);
         MockZooKeeperSession mockZooKeeperSession = instantiator.newInstance();
 
         mockZooKeeperSession.mockZooKeeper = mockZooKeeper;
         mockZooKeeperSession.sessionId = sessionIdGenerator.getAndIncrement();
+        mockZooKeeperSession.closeMockZooKeeperOnClose = closeMockZooKeeperOnClose;
         return mockZooKeeperSession;
     }
 
@@ -212,11 +219,15 @@ public class MockZooKeeperSession extends ZooKeeper {
 
     @Override
     public void close() throws InterruptedException {
-        mockZooKeeper.close();
+        if (closeMockZooKeeperOnClose) {
+            mockZooKeeper.close();
+        }
     }
 
     public void shutdown() throws InterruptedException {
-        mockZooKeeper.shutdown();
+        if (closeMockZooKeeperOnClose) {
+            mockZooKeeper.shutdown();
+        }
     }
 
     Optional<KeeperException.Code> programmedFailure(MockZooKeeper.Op op, String path) {

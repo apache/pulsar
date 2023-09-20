@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -35,6 +35,7 @@ import org.apache.pulsar.bookie.rackawareness.BookieRackAffinityMapping;
 import org.apache.pulsar.broker.resources.NamespaceResources;
 import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.broker.resources.TenantResources;
+import org.apache.pulsar.client.api.ProxyProtocol;
 import org.apache.pulsar.common.conf.InternalConfigurationData;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.SystemTopicNames;
@@ -43,8 +44,8 @@ import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
-import org.apache.pulsar.common.util.CmdGenerateDocs;
 import org.apache.pulsar.common.util.ShutdownUtil;
+import org.apache.pulsar.docs.tools.CmdGenerateDocs;
 import org.apache.pulsar.functions.worker.WorkerUtils;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
@@ -63,9 +64,17 @@ import org.slf4j.LoggerFactory;
  */
 public class PulsarClusterMetadataSetup {
 
+    private static final int DEFAULT_BUNDLE_NUMBER = 16;
+
     private static class Arguments {
         @Parameter(names = { "-c", "--cluster" }, description = "Cluster name", required = true)
         private String cluster;
+
+        @Parameter(names = {"-bn",
+                "--default-namespace-bundle-number"},
+                description = "The bundle numbers for the default namespaces(public/default), default is 16",
+                required = false)
+        private int numberOfDefaultNamespaceBundles;
 
         @Parameter(names = { "-uw",
                 "--web-service-url" }, description = "Web-service URL for new cluster", required = true)
@@ -138,6 +147,16 @@ public class PulsarClusterMetadataSetup {
             description = "The metadata service URI of the existing BookKeeper cluster that you want to use",
             hidden = true)
         private String bookieMetadataServiceUri;
+
+        @Parameter(names = { "-pp",
+                "--proxy-protocol" },
+                description = "Proxy protocol to select type of routing at proxy. Possible Values: [SNI]",
+                required = false)
+        private ProxyProtocol clusterProxyProtocol;
+
+        @Parameter(names = { "-pu",
+                "--proxy-url" }, description = "Proxy-server URL to which to connect.", required = false)
+        private String clusterProxyUrl;
 
         @Parameter(names = { "-h", "--help" }, description = "Show this help message")
         private boolean help = false;
@@ -232,9 +251,11 @@ public class PulsarClusterMetadataSetup {
             System.err.println("Number of transaction coordinators must greater than 0");
             System.exit(1);
         }
-
+        int bundleNumberForDefaultNamespace =
+                arguments.numberOfDefaultNamespaceBundles > 0 ? arguments.numberOfDefaultNamespaceBundles
+                        : DEFAULT_BUNDLE_NUMBER;
         try {
-            initializeCluster(arguments);
+            initializeCluster(arguments, bundleNumberForDefaultNamespace);
         } catch (Exception e) {
             System.err.println("Unexpected error occured.");
             e.printStackTrace(System.err);
@@ -243,7 +264,7 @@ public class PulsarClusterMetadataSetup {
         }
     }
 
-    private static void initializeCluster(Arguments arguments) throws Exception {
+    private static void initializeCluster(Arguments arguments, int bundleNumberForDefaultNamespace) throws Exception {
         log.info("Setting up cluster {} with metadata-store={} configuration-metadata-store={}", arguments.cluster,
                 arguments.metadataStoreUrl, arguments.configurationMetadataStore);
 
@@ -299,6 +320,8 @@ public class PulsarClusterMetadataSetup {
                 .serviceUrlTls(arguments.clusterWebServiceUrlTls)
                 .brokerServiceUrl(arguments.clusterBrokerServiceUrl)
                 .brokerServiceUrlTls(arguments.clusterBrokerServiceUrlTls)
+                .proxyServiceUrl(arguments.clusterProxyUrl)
+                .proxyProtocol(arguments.clusterProxyProtocol)
                 .build();
         if (!resources.getClusterResources().clusterExists(arguments.cluster)) {
             resources.getClusterResources().createCluster(arguments.cluster, clusterData);
@@ -310,7 +333,7 @@ public class PulsarClusterMetadataSetup {
             resources.getClusterResources().createCluster("global", globalClusterData);
         }
 
-        // Create public tenant, whitelisted to use the this same cluster, along with other clusters
+        // Create public tenant, allowed to use this same cluster, along with other clusters
         createTenantIfAbsent(resources, TopicName.PUBLIC_TENANT, arguments.cluster);
 
         // Create system tenant
@@ -318,7 +341,7 @@ public class PulsarClusterMetadataSetup {
 
         // Create default namespace
         createNamespaceIfAbsent(resources, NamespaceName.get(TopicName.PUBLIC_TENANT, TopicName.DEFAULT_NAMESPACE),
-                arguments.cluster);
+                arguments.cluster, bundleNumberForDefaultNamespace);
 
         // Create system namespace
         createNamespaceIfAbsent(resources, NamespaceName.SYSTEM_NAMESPACE, arguments.cluster);
@@ -350,22 +373,37 @@ public class PulsarClusterMetadataSetup {
         }
     }
 
-    static void createNamespaceIfAbsent(PulsarResources resources, NamespaceName namespaceName, String cluster)
-            throws IOException {
+    static void createNamespaceIfAbsent(PulsarResources resources, NamespaceName namespaceName,
+            String cluster, int bundleNumber) throws IOException {
         NamespaceResources namespaceResources = resources.getNamespaceResources();
 
         if (!namespaceResources.namespaceExists(namespaceName)) {
             Policies policies = new Policies();
-            policies.bundles = getBundles(16);
+            policies.bundles = getBundles(bundleNumber);
             policies.replication_clusters = Collections.singleton(cluster);
 
             namespaceResources.createPolicies(namespaceName, policies);
         } else {
-            namespaceResources.setPolicies(namespaceName, policies -> {
-                policies.replication_clusters.add(cluster);
-                return policies;
-            });
+            log.info("Namespace {} already exists.", namespaceName);
+            var replicaClusterFound = false;
+            var policiesOptional = namespaceResources.getPolicies(namespaceName);
+            if (policiesOptional.isPresent() && policiesOptional.get().replication_clusters.contains(cluster)) {
+                replicaClusterFound = true;
+            }
+            if (!replicaClusterFound) {
+                namespaceResources.setPolicies(namespaceName, policies -> {
+                    policies.replication_clusters.add(cluster);
+                    return policies;
+                });
+                log.info("Updated namespace:{} policies. Added the replication cluster:{}",
+                        namespaceName, cluster);
+            }
         }
+    }
+
+    public static void createNamespaceIfAbsent(PulsarResources resources, NamespaceName namespaceName,
+                                               String cluster) throws IOException {
+        createNamespaceIfAbsent(resources, namespaceName, cluster, DEFAULT_BUNDLE_NUMBER);
     }
 
     static void createPartitionedTopic(MetadataStore configStore, TopicName topicName, int numPartitions)

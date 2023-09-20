@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.admin;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
@@ -88,7 +89,6 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
-import org.testng.collections.Lists;
 
 @Slf4j
 @Test(groups = "broker-admin")
@@ -131,6 +131,22 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
     @Override
     public void cleanup() throws Exception {
         super.internalCleanup();
+    }
+
+    @Test
+    public void updatePropertiesForAutoCreatedTopicTest() throws Exception {
+        TopicName topicName = TopicName.get(
+                TopicDomain.persistent.value(),
+                NamespaceName.get(myNamespace),
+                "test-" + UUID.randomUUID()
+        );
+        String testTopic = topicName.toString();
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(testTopic).create();
+        HashMap<String, String> properties = new HashMap<>();
+        properties.put("backlogQuotaType", "message_age");
+        admin.topics().updateProperties(testTopic, properties);
+        admin.topics().delete(topicName.toString(), true);
     }
 
     @Test
@@ -867,6 +883,22 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         log.info("PersistencePolicies: {} will set to the topic: {}", persistencePolicies, persistenceTopic);
         Assert.assertEquals(getPersistencePolicies, persistencePolicies);
         consumer.close();
+    }
+
+    @Test(dataProvider = "invalidPersistentPolicies")
+    public void testSetIncorrectPersistentPolicies(int ensembleSize, int writeQuorum, int ackQuorum) throws Exception {
+        admin.topics().createNonPartitionedTopic(persistenceTopic);
+        PersistencePolicies persistence1 = new PersistencePolicies(ensembleSize, writeQuorum, ackQuorum, 0.0);
+
+        boolean failed = false;
+        try {
+            admin.topicPolicies().setPersistence(persistenceTopic, persistence1);
+        } catch (PulsarAdminException e) {
+            failed = true;
+            Assert.assertEquals(e.getStatusCode(), 400);
+        }
+        assertTrue(failed);
+        admin.topics().delete(persistenceTopic);
     }
 
     @Test
@@ -2983,6 +3015,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
             });
         }
     }
+
     @Test
     public void testGlobalTopicPolicies() throws Exception {
         final String topic = testTopic + UUID.randomUUID();
@@ -3072,25 +3105,55 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
 
         //shadow topic must exist
         Assert.expectThrows(PulsarAdminException.PreconditionFailedException.class, ()->
-                admin.topics().setShadowTopics(sourceTopic, Lists.newArrayList(shadowTopic1)));
+                admin.topics().setShadowTopics(sourceTopic, List.of(shadowTopic1)));
 
         //shadow topic must be persistent topic
         Assert.expectThrows(PulsarAdminException.PreconditionFailedException.class, ()->
                 admin.topics().setShadowTopics(sourceTopic,
-                        Lists.newArrayList("non-persistent://" + myNamespace + "/shadow-test1-" + UUID.randomUUID())));
+                        List.of("non-persistent://" + myNamespace + "/shadow-test1-" + UUID.randomUUID())));
 
         pulsarClient.newProducer().topic(shadowTopic1).create().close();
         pulsarClient.newProducer().topic(shadowTopic2).create().close();
 
-        admin.topics().setShadowTopics(sourceTopic, Lists.newArrayList(shadowTopic1));
+        admin.topics().setShadowTopics(sourceTopic, List.of(shadowTopic1));
         Awaitility.await().untilAsserted(() -> Assert.assertEquals(admin.topics().getShadowTopics(sourceTopic),
-                Lists.newArrayList(shadowTopic1)));
-        admin.topics().setShadowTopics(sourceTopic, Lists.newArrayList(shadowTopic1, shadowTopic2));
+                List.of(shadowTopic1)));
+        admin.topics().setShadowTopics(sourceTopic, List.of(shadowTopic1, shadowTopic2));
         Awaitility.await().untilAsserted(() -> Assert.assertEquals(admin.topics().getShadowTopics(sourceTopic),
-                Lists.newArrayList(shadowTopic1, shadowTopic2)));
+                List.of(shadowTopic1, shadowTopic2)));
 
         admin.topics().removeShadowTopics(sourceTopic);
         Awaitility.await().untilAsserted(() -> assertNull(admin.topics().getShadowTopics(sourceTopic)));
+    }
+
+    @Test
+    public void testGetTopicPoliciesWhenDeleteTopicPolicy() throws Exception {
+        admin.topics().createNonPartitionedTopic(persistenceTopic);
+        admin.topicPolicies().setMaxConsumers(persistenceTopic, 5);
+
+        Integer maxConsumerPerTopic = pulsar
+                .getTopicPoliciesService()
+                .getTopicPoliciesBypassCacheAsync(TopicName.get(persistenceTopic)).get()
+                .getMaxConsumerPerTopic();
+
+        assertEquals(maxConsumerPerTopic, 5);
+        admin.topics().delete(persistenceTopic, true);
+        TopicPolicies topicPolicies =pulsar.getTopicPoliciesService()
+                .getTopicPoliciesBypassCacheAsync(TopicName.get(persistenceTopic)).get(5, TimeUnit.SECONDS);
+        assertNull(topicPolicies);
+    }
+
+    @Test
+    public void testProduceChangesWithEncryptionRequired() throws Exception {
+        final String beforeLac = admin.topics().getInternalStats(topicPolicyEventsTopic).lastConfirmedEntry;
+        admin.namespaces().setEncryptionRequiredStatus(myNamespace, true);
+        // just an update to trigger writes on __change_events
+        admin.topicPolicies().setMaxConsumers(testTopic, 5);
+        Awaitility.await()
+                .untilAsserted(() -> {
+                    final PersistentTopicInternalStats newLac = admin.topics().getInternalStats(topicPolicyEventsTopic);
+                    assertNotEquals(newLac, beforeLac);
+                });
     }
 
 }

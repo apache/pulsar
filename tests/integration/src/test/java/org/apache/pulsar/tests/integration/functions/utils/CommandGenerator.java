@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -46,7 +46,7 @@ public class CommandGenerator {
     private String functionClassName;
     private String sourceTopic;
     private String sourceTopicPattern;
-    private Map<String, String> customSereSourceTopics;
+    private Map<String, String> customSerDeSourceTopics;
     private String sinkTopic;
     private String logTopic;
     private String outputSerDe;
@@ -60,8 +60,12 @@ public class CommandGenerator {
     private Integer slidingIntervalCount;
     private Long slidingIntervalDurationMs;
     private String customSchemaInputs;
+    private String inputTypeClassName;
+    private String outputTypeClassName;
     private String schemaType;
     private SubscriptionInitialPosition subscriptionInitialPosition;
+    private Boolean retainOrdering;
+    private Boolean retainKeyOrdering;
 
     private Map<String, String> userConfig = new HashMap<>();
     public static final String JAVAJAR = "/pulsar/examples/java-test-functions.jar";
@@ -110,6 +114,12 @@ public class CommandGenerator {
         }
         if (customSchemaInputs != null) {
             commandBuilder.append(" --custom-schema-inputs \'" + customSchemaInputs + "\'");
+        }
+        if (inputTypeClassName != null) {
+            commandBuilder.append(" --input-type-class-name " + inputTypeClassName);
+        }
+        if (outputTypeClassName != null) {
+            commandBuilder.append(" --output-type-class-name " + outputTypeClassName);
         }
         if (schemaType != null) {
             commandBuilder.append(" --schema-type " + schemaType);
@@ -174,8 +184,8 @@ public class CommandGenerator {
         if (batchBuilder != null) {
             commandBuilder.append("--batch-builder" + batchBuilder);
         }
-        if (customSereSourceTopics != null && !customSereSourceTopics.isEmpty()) {
-            commandBuilder.append(" --customSerdeInputs \'" + new Gson().toJson(customSereSourceTopics) + "\'");
+        if (customSerDeSourceTopics != null && !customSerDeSourceTopics.isEmpty()) {
+            commandBuilder.append(" --customSerdeInputs \'" + new Gson().toJson(customSerDeSourceTopics) + "\'");
         }
         if (sinkTopic != null) {
             commandBuilder.append(" --output " + sinkTopic);
@@ -207,11 +217,23 @@ public class CommandGenerator {
         if (customSchemaInputs != null) {
             commandBuilder.append(" --custom-schema-inputs \'" + customSchemaInputs + "\'");
         }
+        if (inputTypeClassName != null) {
+            commandBuilder.append(" --input-type-class-name " + inputTypeClassName);
+        }
+        if (outputTypeClassName != null) {
+            commandBuilder.append(" --output-type-class-name " + outputTypeClassName);
+        }
         if (schemaType != null) {
             commandBuilder.append(" --schema-type " + schemaType);
         }
         if (subscriptionInitialPosition != null) {
             commandBuilder.append(" --subs-position " + subscriptionInitialPosition.name());
+        }
+        if (retainOrdering != null) {
+            commandBuilder.append(" --retain-ordering ");
+        }
+        if (retainKeyOrdering != null) {
+            commandBuilder.append(" --retain-key-ordering ");
         }
 
         switch (runtime){
@@ -266,8 +288,8 @@ public class CommandGenerator {
         if (StringUtils.isNotEmpty(sourceTopic)) {
             commandBuilder.append(" --inputs " + sourceTopic);
         }
-        if (customSereSourceTopics != null && !customSereSourceTopics.isEmpty()) {
-            commandBuilder.append(" --customSerdeInputs \'" + new Gson().toJson(customSereSourceTopics) + "\'");
+        if (customSerDeSourceTopics != null && !customSerDeSourceTopics.isEmpty()) {
+            commandBuilder.append(" --customSerdeInputs \'" + new Gson().toJson(customSerDeSourceTopics) + "\'");
         }
         if (batchBuilder != null) {
             commandBuilder.append("--batch-builder" + batchBuilder);
@@ -304,6 +326,12 @@ public class CommandGenerator {
         }
         if (customSchemaInputs != null) {
             commandBuilder.append(" --custom-schema-inputs \'" + customSchemaInputs + "\'");
+        }
+        if (inputTypeClassName != null) {
+            commandBuilder.append(" --input-type-class-name " + inputTypeClassName);
+        }
+        if (outputTypeClassName != null) {
+            commandBuilder.append(" --output-type-class-name " + outputTypeClassName);
         }
         if (schemaType != null) {
             commandBuilder.append(" --schema-type " + schemaType);

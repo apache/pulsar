@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -22,12 +22,14 @@ import io.netty.buffer.ByteBuf;
 import java.io.IOException;
 import java.time.Duration;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
+import java.util.function.BiPredicate;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.LedgerHandle;
@@ -59,7 +61,6 @@ import org.slf4j.LoggerFactory;
 public class TwoPhaseCompactor extends Compactor {
     private static final Logger log = LoggerFactory.getLogger(TwoPhaseCompactor.class);
     private static final int MAX_OUTSTANDING = 500;
-    private static final String COMPACTED_TOPIC_LEDGER_PROPERTY = "CompactedTopicLedger";
     private final Duration phaseOneLoopReadTimeout;
 
     public TwoPhaseCompactor(ServiceConfiguration conf,
@@ -121,27 +122,32 @@ public class TwoPhaseCompactor extends Compactor {
                 () -> FutureUtil.createTimeoutException("Timeout", getClass(), "phaseOneLoop(...)"));
 
         future.thenAcceptAsync(m -> {
-            try {
+            try (m) {
                 MessageId id = m.getMessageId();
                 boolean deletedMessage = false;
                 boolean replaceMessage = false;
                 mxBean.addCompactionReadOp(reader.getTopic(), m.getHeadersAndPayload().readableBytes());
-                if (RawBatchConverter.isReadableBatch(m)) {
+                MessageMetadata metadata = Commands.parseMessageMetadata(m.getHeadersAndPayload());
+                if (RawBatchConverter.isReadableBatch(metadata)) {
                     try {
-                        for (ImmutableTriple<MessageId, String, Integer> e : RawBatchConverter
-                                .extractIdsAndKeysAndSize(m)) {
+                        int numMessagesInBatch = metadata.getNumMessagesInBatch();
+                        int deleteCnt = 0;
+                        for (ImmutableTriple<MessageId, String, Integer> e : extractIdsAndKeysAndSizeFromBatch(m)) {
                             if (e != null) {
                                 if (e.getRight() > 0) {
                                     MessageId old = latestForKey.put(e.getMiddle(), e.getLeft());
-                                    replaceMessage = old != null;
+                                    if (old != null) {
+                                        mxBean.addCompactionRemovedEvent(reader.getTopic());
+                                    }
                                 } else {
-                                    deletedMessage = true;
                                     latestForKey.remove(e.getMiddle());
+                                    deleteCnt++;
+                                    mxBean.addCompactionRemovedEvent(reader.getTopic());
                                 }
                             }
-                            if (replaceMessage || deletedMessage) {
-                                mxBean.addCompactionRemovedEvent(reader.getTopic());
-                            }
+                        }
+                        if (deleteCnt == numMessagesInBatch) {
+                            deletedMessage = true;
                         }
                     } catch (IOException ioe) {
                         log.info("Error decoding batch for message {}. Whole batch will be included in output",
@@ -174,8 +180,6 @@ public class TwoPhaseCompactor extends Compactor {
                             lastMessageId,
                             latestForKey, loopPromise);
                 }
-            } finally {
-                m.close();
             }
         }, scheduler).exceptionally(ex -> {
             loopPromise.completeExceptionally(ex);
@@ -201,7 +205,7 @@ public class TwoPhaseCompactor extends Compactor {
         reader.seekAsync(from).thenCompose((v) -> {
             Semaphore outstanding = new Semaphore(MAX_OUTSTANDING);
             CompletableFuture<Void> loopPromise = new CompletableFuture<>();
-            phaseTwoLoop(reader, to, latestForKey, ledger, outstanding, loopPromise);
+            phaseTwoLoop(reader, to, latestForKey, ledger, outstanding, loopPromise, MessageId.earliest);
             return loopPromise;
         }).thenCompose((v) -> closeLedger(ledger))
                 .thenCompose((v) -> reader.acknowledgeCumulativeAsync(lastReadId,
@@ -223,7 +227,8 @@ public class TwoPhaseCompactor extends Compactor {
     }
 
     private void phaseTwoLoop(RawReader reader, MessageId to, Map<String, MessageId> latestForKey,
-                              LedgerHandle lh, Semaphore outstanding, CompletableFuture<Void> promise) {
+                              LedgerHandle lh, Semaphore outstanding, CompletableFuture<Void> promise,
+                              MessageId lastCompactedMessageId) {
         if (promise.isDone()) {
             return;
         }
@@ -232,13 +237,19 @@ public class TwoPhaseCompactor extends Compactor {
                 m.close();
                 return;
             }
+
+            if (m.getMessageId().compareTo(lastCompactedMessageId) <= 0) {
+                phaseTwoLoop(reader, to, latestForKey, lh, outstanding, promise, lastCompactedMessageId);
+                return;
+            }
+
             try {
                 MessageId id = m.getMessageId();
                 Optional<RawMessage> messageToAdd = Optional.empty();
                 mxBean.addCompactionReadOp(reader.getTopic(), m.getHeadersAndPayload().readableBytes());
                 if (RawBatchConverter.isReadableBatch(m)) {
                     try {
-                        messageToAdd = RawBatchConverter.rebatchMessage(
+                        messageToAdd = rebatchMessage(
                                 m, (key, subid) -> subid.equals(latestForKey.get(key)));
                     } catch (IOException ioe) {
                         log.info("Error decoding batch for message {}. Whole batch will be included in output",
@@ -272,11 +283,14 @@ public class TwoPhaseCompactor extends Compactor {
                                     }
                                 });
                         if (to.equals(id)) {
+                            // make sure all inflight writes have finished
+                            outstanding.acquire(MAX_OUTSTANDING);
                             addFuture.whenComplete((res, exception2) -> {
                                 if (exception2 == null) {
                                     promise.complete(null);
                                 }
                             });
+                            return;
                         }
                     } catch (InterruptedException ie) {
                         Thread.currentThread().interrupt();
@@ -299,7 +313,7 @@ public class TwoPhaseCompactor extends Compactor {
                     }
                     return;
                 }
-                phaseTwoLoop(reader, to, latestForKey, lh, outstanding, promise);
+                phaseTwoLoop(reader, to, latestForKey, lh, outstanding, promise, m.getMessageId());
             } finally {
                 m.close();
             }
@@ -309,7 +323,7 @@ public class TwoPhaseCompactor extends Compactor {
         });
     }
 
-    private CompletableFuture<LedgerHandle> createLedger(BookKeeper bk, Map<String, byte[]> metadata) {
+    protected CompletableFuture<LedgerHandle> createLedger(BookKeeper bk, Map<String, byte[]> metadata) {
         CompletableFuture<LedgerHandle> bkf = new CompletableFuture<>();
 
         try {
@@ -332,7 +346,7 @@ public class TwoPhaseCompactor extends Compactor {
         return bkf;
     }
 
-    private CompletableFuture<Void> deleteLedger(BookKeeper bk, LedgerHandle lh) {
+    protected CompletableFuture<Void> deleteLedger(BookKeeper bk, LedgerHandle lh) {
         CompletableFuture<Void> bkf = new CompletableFuture<>();
         try {
             bk.asyncDeleteLedger(lh.getId(),
@@ -349,7 +363,7 @@ public class TwoPhaseCompactor extends Compactor {
         return bkf;
     }
 
-    private CompletableFuture<Void> closeLedger(LedgerHandle lh) {
+    protected CompletableFuture<Void> closeLedger(LedgerHandle lh) {
         CompletableFuture<Void> bkf = new CompletableFuture<>();
         try {
             lh.asyncClose((rc, ledger, ctx) -> {
@@ -386,7 +400,7 @@ public class TwoPhaseCompactor extends Compactor {
         return bkf;
     }
 
-    private static Pair<String, Integer> extractKeyAndSize(RawMessage m) {
+    protected Pair<String, Integer> extractKeyAndSize(RawMessage m) {
         ByteBuf headersAndPayload = m.getHeadersAndPayload();
         MessageMetadata msgMetadata = Commands.parseMessageMetadata(headersAndPayload);
         if (msgMetadata.hasPartitionKey()) {
@@ -398,6 +412,16 @@ public class TwoPhaseCompactor extends Compactor {
         } else {
             return null;
         }
+    }
+
+    protected List<ImmutableTriple<MessageId, String, Integer>> extractIdsAndKeysAndSizeFromBatch(RawMessage msg)
+            throws IOException {
+        return RawBatchConverter.extractIdsAndKeysAndSize(msg);
+    }
+
+    protected Optional<RawMessage> rebatchMessage(RawMessage msg, BiPredicate<String, MessageId> filter)
+            throws IOException {
+        return RawBatchConverter.rebatchMessage(msg, filter);
     }
 
     private static class PhaseOneResult {

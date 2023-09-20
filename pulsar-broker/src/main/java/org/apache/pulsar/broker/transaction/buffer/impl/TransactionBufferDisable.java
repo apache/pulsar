@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -25,6 +25,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.service.BrokerServiceException;
+import org.apache.pulsar.broker.transaction.buffer.AbortedTxnProcessor;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBuffer;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBufferReader;
 import org.apache.pulsar.broker.transaction.buffer.TransactionMeta;
@@ -79,7 +80,7 @@ public class TransactionBufferDisable implements TransactionBuffer {
     }
 
     @Override
-    public boolean isTxnAborted(TxnID txnID) {
+    public boolean isTxnAborted(TxnID txnID, PositionImpl readPosition) {
         return false;
     }
 
@@ -94,7 +95,17 @@ public class TransactionBufferDisable implements TransactionBuffer {
     }
 
     @Override
+    public AbortedTxnProcessor.SnapshotType getSnapshotType() {
+        return null;
+    }
+
+    @Override
     public TransactionInBufferStats getTransactionInBufferStats(TxnID txnID) {
+        return null;
+    }
+
+    @Override
+    public TransactionBufferStats getStats(boolean lowWaterMarks, boolean segmentStats) {
         return null;
     }
 

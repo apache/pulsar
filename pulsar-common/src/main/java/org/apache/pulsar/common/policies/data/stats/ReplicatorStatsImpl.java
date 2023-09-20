@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -72,7 +72,9 @@ public class ReplicatorStatsImpl implements ReplicatorStats {
         this.msgThroughputOut += stats.msgThroughputOut;
         this.msgRateExpired += stats.msgRateExpired;
         this.replicationBacklog += stats.replicationBacklog;
-        this.connected &= stats.connected;
+        if (this.connected) {
+            this.connected &= stats.connected;
+        }
         this.replicationDelayInSeconds = Math.max(this.replicationDelayInSeconds, stats.replicationDelayInSeconds);
         return this;
     }

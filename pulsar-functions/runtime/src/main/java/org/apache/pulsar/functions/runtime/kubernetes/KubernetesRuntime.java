@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.pulsar.functions.runtime.kubernetes;
 
 import static java.net.HttpURLConnection.HTTP_CONFLICT;
@@ -206,9 +205,9 @@ public class KubernetesRuntime implements Runtime {
         this.userCodePkgUrl = userCodePkgUrl;
         this.downloadDirectory =
                 isNotEmpty(downloadDirectory) ? downloadDirectory : this.pulsarRootDir; // for backward comp
-        this.originalCodeFileName = this.downloadDirectory + "/" + originalCodeFileName;
+        this.originalCodeFileName = this.downloadDirectory + "/" + RuntimeUtils.sanitizeFileName(originalCodeFileName);
         this.originalTransformFunctionFileName = isNotEmpty(originalTransformFunctionFileName)
-                ? this.downloadDirectory + "/" + originalTransformFunctionFileName
+                ? this.downloadDirectory + "/" + RuntimeUtils.sanitizeFileName(originalTransformFunctionFileName)
                 : originalTransformFunctionFileName;
         this.pulsarAdminUrl = pulsarAdminUrl;
         this.secretsProviderConfigurator = secretsProviderConfigurator;
@@ -473,7 +472,7 @@ public class KubernetesRuntime implements Runtime {
                 .supplier(() -> {
                     final V1Service response;
                     try {
-                        response = coreClient.createNamespacedService(jobNamespace, service, null, null, null);
+                        response = coreClient.createNamespacedService(jobNamespace, service, null, null, null, null);
                     } catch (ApiException e) {
                         // already exists
                         if (e.getCode() == HTTP_CONFLICT) {
@@ -562,7 +561,8 @@ public class KubernetesRuntime implements Runtime {
                 .supplier(() -> {
                     final V1StatefulSet response;
                     try {
-                        response = appsClient.createNamespacedStatefulSet(jobNamespace, statefulSet, null, null, null);
+                        response = appsClient.createNamespacedStatefulSet(jobNamespace, statefulSet,
+                                null, null, null, null);
                     } catch (ApiException e) {
                         // already exists
                         if (e.getCode() == HTTP_CONFLICT) {
@@ -658,8 +658,7 @@ public class KubernetesRuntime implements Runtime {
                 .supplier(() -> {
                     V1StatefulSet response;
                     try {
-                        response = appsClient.readNamespacedStatefulSet(statefulSetName, jobNamespace,
-                                null, null, null);
+                        response = appsClient.readNamespacedStatefulSet(statefulSetName, jobNamespace, null);
                     } catch (ApiException e) {
                         // statefulset is gone
                         if (e.getCode() == HTTP_NOT_FOUND) {
@@ -685,10 +684,11 @@ public class KubernetesRuntime implements Runtime {
                 .numRetries(KubernetesRuntimeFactory.numRetries * 2)
                 .sleepBetweenInvocationsMs(KubernetesRuntimeFactory.sleepBetweenRetriesMs * 2)
                 .supplier(() -> {
+                    Map<String, String> validLabels = getLabels(instanceConfig.getFunctionDetails());
                     String labels = String.format("tenant=%s,namespace=%s,name=%s",
-                            instanceConfig.getFunctionDetails().getTenant(),
-                            instanceConfig.getFunctionDetails().getNamespace(),
-                            instanceConfig.getFunctionDetails().getName());
+                            validLabels.get("tenant"),
+                            validLabels.get("namespace"),
+                            validLabels.get("name"));
 
                     V1PodList response;
                     try {
@@ -806,8 +806,7 @@ public class KubernetesRuntime implements Runtime {
                 .supplier(() -> {
                     V1Service response;
                     try {
-                        response = coreClient.readNamespacedService(serviceName, jobNamespace,
-                                null, null, null);
+                        response = coreClient.readNamespacedService(serviceName, jobNamespace, null);
 
                     } catch (ApiException e) {
                         // service is gone
@@ -880,13 +879,23 @@ public class KubernetesRuntime implements Runtime {
         // add auth plugin and parameters if necessary
         if (authenticationEnabled && authConfig != null) {
             if (isNotBlank(authConfig.getClientAuthenticationPlugin())
-                    && isNotBlank(authConfig.getClientAuthenticationParameters())
-                    && instanceConfig.getFunctionAuthenticationSpec() != null) {
+                    && isNotBlank(authConfig.getClientAuthenticationParameters())) {
                 cmd.addAll(Arrays.asList(
                         "--auth-plugin",
                         authConfig.getClientAuthenticationPlugin(),
                         "--auth-params",
                         authConfig.getClientAuthenticationParameters()));
+            }
+            if (authConfig.isTlsAllowInsecureConnection()) {
+                cmd.add("--tls-allow-insecure");
+            }
+            if (authConfig.isTlsHostnameVerificationEnable()) {
+                cmd.add("--tls-enable-hostname-verification");
+            }
+            if (isNotBlank(authConfig.getTlsTrustCertsFilePath())) {
+                cmd.addAll(Arrays.asList(
+                        "--tls-trust-cert-path",
+                        authConfig.getTlsTrustCertsFilePath()));
             }
         }
 

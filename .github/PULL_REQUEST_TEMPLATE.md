@@ -1,7 +1,7 @@
 <!--
 ### Contribution Checklist
   
-  - PR title format should be *[type][component] summary*. For details, see *[Guideline - Pulsar PR Naming Convention](https://docs.google.com/document/d/1d8Pw6ZbWk-_pCKdOmdvx9rnhPiyuxwq60_TrD68d7BA/edit#heading=h.trs9rsex3xom)*. 
+  - PR title format should be *[type][component] summary*. For details, see *[Guideline - Pulsar PR Naming Convention](https://pulsar.apache.org/contribute/develop-semantic-title/)*. 
 
   - Fill out the template below to describe the changes contributed by the pull request. That will give reviewers the context they need to do the review.
   
@@ -14,11 +14,17 @@
 
 <!-- Either this PR fixes an issue, -->
 
-Fixes #<xyz>
+Fixes #xyz
 
 <!-- or this PR is one task of an issue -->
 
-Master Issue: #<xyz>
+Main Issue: #xyz
+
+<!-- If the PR belongs to a PIP, please add the PIP link here -->
+
+PIP: #xyz 
+
+<!-- Details of when a PIP is required and how the PIP process work, please see: https://github.com/apache/pulsar/blob/master/pip/README.md -->
 
 ### Motivation
 
@@ -50,37 +56,35 @@ This change added tests and can be verified as follows:
 
 ### Does this pull request potentially affect one of the following parts:
 
+<!-- DO NOT REMOVE THIS SECTION. CHECK THE PROPER BOX ONLY. -->
+
 *If the box was checked, please highlight the changes*
 
 - [ ] Dependencies (add or upgrade a dependency)
 - [ ] The public API
 - [ ] The schema
 - [ ] The default values of configurations
+- [ ] The threading model
 - [ ] The binary protocol
 - [ ] The REST endpoints
 - [ ] The admin CLI options
+- [ ] The metrics
 - [ ] Anything that affects deployment
 
 ### Documentation
 
 <!-- DO NOT REMOVE THIS SECTION. CHECK THE PROPER BOX ONLY. -->
 
-- [ ] `doc-required` 
-(Your PR needs to update docs and you will update later)
-
-- [ ] `doc-not-needed` 
-(Please explain why)
-
-- [ ] `doc` 
-(Your PR contains doc changes)
-
-- [ ] `doc-complete`
-(Docs have been already added)
+- [ ] `doc` <!-- Your PR contains doc changes. -->
+- [ ] `doc-required` <!-- Your PR changes impact docs and you will update later -->
+- [ ] `doc-not-needed` <!-- Your PR changes do not impact docs -->
+- [ ] `doc-complete` <!-- Docs have been already added -->
 
 ### Matching PR in forked repository
 
-PR in forked repository: <!-- ENTER URL HERE 
+PR in forked repository: <!-- ENTER URL HERE -->
 
+<!--
 After opening this PR, the build in apache/pulsar will fail and instructions will
 be provided for opening a PR in the PR author's forked repository.
 
@@ -91,5 +95,4 @@ a forked repository.
 
 The tests will be run in the forked repository until all PR review comments have
 been handled, the tests pass and the PR is approved by a reviewer.
-
 -->

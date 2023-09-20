@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -153,13 +153,22 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
 
         this.pendingAckStoreProvider = this.persistentSubscription.getTopic()
                         .getBrokerService().getPulsar().getTransactionPendingAckStoreProvider();
-        pendingAckStoreProvider.checkInitializedBefore(persistentSubscription).thenAccept(init -> {
-            if (init) {
-                initPendingAckStore();
-            } else {
-                completeHandleFuture();
-            }
-        });
+
+        pendingAckStoreProvider.checkInitializedBefore(persistentSubscription)
+                .thenAcceptAsync(init -> {
+                    if (init) {
+                        initPendingAckStore();
+                    } else {
+                        completeHandleFuture();
+                    }
+                }, internalPinnedExecutor)
+                .exceptionallyAsync(e -> {
+                    Throwable t = FutureUtil.unwrapCompletionException(e);
+                    changeToErrorState();
+                    exceptionHandleFuture(t);
+                    this.pendingAckStoreFuture.completeExceptionally(t);
+                    return null;
+                }, internalPinnedExecutor);
     }
 
     private void initPendingAckStore() {
@@ -170,13 +179,13 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
                 this.pendingAckStoreFuture.thenAccept(pendingAckStore -> {
                     recoverTime.setRecoverStartTime(System.currentTimeMillis());
                     pendingAckStore.replayAsync(this, internalPinnedExecutor);
-                }).exceptionally(e -> {
-                    acceptQueue.clear();
+                }).exceptionallyAsync(e -> {
+                    handleCacheRequest();
                     changeToErrorState();
                     log.error("PendingAckHandleImpl init fail! TopicName : {}, SubName: {}", topicName, subName, e);
                     exceptionHandleFuture(e.getCause());
                     return null;
-                });
+                }, internalPinnedExecutor);
             }
         }
     }
@@ -190,7 +199,7 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
     public void internalIndividualAcknowledgeMessage(TxnID txnID, List<MutablePair<PositionImpl, Integer>> positions,
                                                      CompletableFuture<Void> completableFuture) {
         if (txnID == null) {
-            completableFuture.completeExceptionally(new NotAllowedException("Positions can not be null."));
+            completableFuture.completeExceptionally(new NotAllowedException("txnID can not be null."));
             return;
 
         }
@@ -928,20 +937,16 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
         return transactionPendingAckStats;
     }
 
-    public synchronized void completeHandleFuture() {
-        if (!this.pendingAckHandleCompletableFuture.isDone()) {
-            this.pendingAckHandleCompletableFuture.complete(PendingAckHandleImpl.this);
-        }
-        if (recoverTime.getRecoverStartTime() == 0L) {
-            return;
-        } else {
+    public void completeHandleFuture() {
+        this.pendingAckHandleCompletableFuture.complete(PendingAckHandleImpl.this);
+        if (recoverTime.getRecoverStartTime() != 0L && recoverTime.getRecoverEndTime() == 0L) {
             recoverTime.setRecoverEndTime(System.currentTimeMillis());
         }
     }
 
-    public synchronized void exceptionHandleFuture(Throwable t) {
-        if (!this.pendingAckHandleCompletableFuture.isDone()) {
-            this.pendingAckHandleCompletableFuture.completeExceptionally(t);
+    public void exceptionHandleFuture(Throwable t) {
+        final boolean completedNow = this.pendingAckHandleCompletableFuture.completeExceptionally(t);
+        if (completedNow) {
             recoverTime.setRecoverEndTime(System.currentTimeMillis());
         }
     }
@@ -968,11 +973,29 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
     }
 
     @Override
-    public CompletableFuture<Void> close() {
+    public CompletableFuture<Void> closeAsync() {
         changeToCloseState();
         synchronized (PendingAckHandleImpl.this) {
             if (this.pendingAckStoreFuture != null) {
-                return this.pendingAckStoreFuture.thenAccept(PendingAckStore::closeAsync);
+                CompletableFuture<Void> closeFuture = new CompletableFuture<>();
+                this.pendingAckStoreFuture.whenComplete((pendingAckStore, e) -> {
+                    if (e != null) {
+                        // init pending ack store fail, close don't need to
+                        // retry and throw exception, complete directly
+                        closeFuture.complete(null);
+                    } else {
+                        pendingAckStore.closeAsync().whenComplete((q, ex) -> {
+                            if (ex != null) {
+                                Throwable t = FutureUtil.unwrapCompletionException(ex);
+                                closeFuture.completeExceptionally(t);
+                            } else {
+                                closeFuture.complete(null);
+                            }
+                        });
+                    }
+                });
+
+                return closeFuture;
             } else {
                 return CompletableFuture.completedFuture(null);
             }
@@ -1036,6 +1059,17 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
     @Override
     public boolean checkIfPendingAckStoreInit() {
         return this.pendingAckStoreFuture != null && this.pendingAckStoreFuture.isDone();
+    }
+
+    @Override
+    public PositionImpl getPositionInPendingAck(PositionImpl position) {
+        if (individualAckPositions != null) {
+            MutablePair<PositionImpl, Integer> positionPair = this.individualAckPositions.get(position);
+            if (positionPair != null) {
+                return positionPair.getLeft();
+            }
+        }
+        return null;
     }
 
     protected void handleCacheRequest() {

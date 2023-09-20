@@ -154,6 +154,7 @@
 #        - jdbc-mariadb
 #        - jdbc-postgres
 #        - jdbc-sqlite
+#        - http
         - kafka
 #        - kafka-connect-adaptor
 #        - kinesis

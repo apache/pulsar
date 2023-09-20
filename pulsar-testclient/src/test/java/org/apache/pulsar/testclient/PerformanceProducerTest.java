@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,7 +18,14 @@
  */
 package org.apache.pulsar.testclient;
 
+import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.fail;
+import com.google.common.collect.Range;
 import com.google.common.collect.Sets;
+import java.util.List;
+import java.util.UUID;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.client.api.ClientBuilder;
@@ -34,13 +41,6 @@ import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-
-import java.util.List;
-import java.util.UUID;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
-import static org.testng.Assert.assertNotNull;
-import static org.testng.Assert.fail;
 
 @Slf4j
 public class PerformanceProducerTest extends MockedPulsarServiceBaseTest {
@@ -236,5 +236,13 @@ public class PerformanceProducerTest extends MockedPulsarServiceBaseTest {
                     assertNotNull(message);
                 });
         consumer.close();
+    }
+
+    @Test
+    public void testRangeConvert() {
+        PerformanceProducer.RangeConvert rangeConvert = new PerformanceProducer.RangeConvert();
+        Range<Long> range = rangeConvert.convert("100,200");
+        Assert.assertEquals(range.lowerEndpoint(), 100);
+        Assert.assertEquals(range.upperEndpoint(), 200);
     }
 }

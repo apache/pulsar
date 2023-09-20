@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -21,10 +21,14 @@ package org.apache.pulsar.common.policies.data;
 import io.swagger.annotations.ApiModel;
 import io.swagger.annotations.ApiModelProperty;
 import java.util.LinkedHashSet;
+import java.util.Objects;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.ProxyProtocol;
+import org.apache.pulsar.common.util.URIPreconditions;
 
 /**
  * The configuration data for a cluster.
@@ -36,6 +40,7 @@ import org.apache.pulsar.client.api.ProxyProtocol;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
+@Slf4j
 public final class ClusterDataImpl implements  ClusterData, Cloneable {
     @ApiModelProperty(
             name = "serviceUrl",
@@ -132,16 +137,56 @@ public final class ClusterDataImpl implements  ClusterData, Cloneable {
     )
     private String brokerClientTlsTrustStorePassword;
     @ApiModelProperty(
-        name = "brokerClientTrustCertsFilePath",
-        value = "Path for the trusted TLS certificate file for outgoing connection to a server (broker)"
+            name = "brokerClientTlsKeyStoreType",
+            value = "TLS KeyStore type configuration for internal client: JKS, PKCS12,"
+                    + " used by the internal client to authenticate with Pulsar brokers"
+    )
+    private String brokerClientTlsKeyStoreType;
+    @ApiModelProperty(
+            name = "brokerClientTlsKeyStore",
+            value = "TLS KeyStore path for internal client, "
+                    + " used by the internal client to authenticate with Pulsar brokers"
+    )
+    private String brokerClientTlsKeyStore;
+    @ApiModelProperty(
+            name = "brokerClientTlsKeyStorePassword",
+            value = "TLS KeyStore password for internal client, "
+                    + " used by the internal client to authenticate with Pulsar brokers"
+    )
+    private String brokerClientTlsKeyStorePassword;
+    @ApiModelProperty(
+            name = "brokerClientTrustCertsFilePath",
+            value = "Path for the trusted TLS certificate file for outgoing connection to a server (broker)"
     )
     private String brokerClientTrustCertsFilePath;
+    @ApiModelProperty(
+            name = "brokerClientKeyFilePath",
+            value = "TLS private key file for internal client, "
+                    + "used by the internal client to authenticate with Pulsar brokers")
+    private String brokerClientKeyFilePath;
+    @ApiModelProperty(
+            name = "brokerClientCertificateFilePath",
+            value = "TLS certificate file for internal client, "
+                    + "used by the internal client to authenticate with Pulsar brokers"
+    )
+    private String brokerClientCertificateFilePath;
     @ApiModelProperty(
             name = "listenerName",
             value = "listenerName when client would like to connect to cluster",
             example = ""
     )
     private String listenerName;
+    @ApiModelProperty(
+            name = "migrated",
+            value = "flag to check if cluster is migrated to different cluster",
+            example = "true/false"
+    )
+    private boolean migrated;
+    @ApiModelProperty(
+            name = "migratedClusterUrl",
+            value = "url of cluster where current cluster is migrated"
+    )
+    private ClusterUrl migratedClusterUrl;
 
     public static ClusterDataImplBuilder builder() {
         return new ClusterDataImplBuilder();
@@ -165,8 +210,15 @@ public final class ClusterDataImpl implements  ClusterData, Cloneable {
                 .brokerClientTlsTrustStoreType(brokerClientTlsTrustStoreType)
                 .brokerClientTlsTrustStore(brokerClientTlsTrustStore)
                 .brokerClientTlsTrustStorePassword(brokerClientTlsTrustStorePassword)
+                .brokerClientTlsKeyStoreType(brokerClientTlsKeyStoreType)
+                .brokerClientTlsKeyStore(brokerClientTlsKeyStore)
+                .brokerClientTlsKeyStorePassword(brokerClientTlsKeyStorePassword)
                 .brokerClientTrustCertsFilePath(brokerClientTrustCertsFilePath)
-                .listenerName(listenerName);
+                .brokerClientCertificateFilePath(brokerClientCertificateFilePath)
+                .brokerClientKeyFilePath(brokerClientKeyFilePath)
+                .listenerName(listenerName)
+                .migrated(migrated)
+                .migratedClusterUrl(migratedClusterUrl);
     }
 
     @Data
@@ -186,8 +238,15 @@ public final class ClusterDataImpl implements  ClusterData, Cloneable {
         private String brokerClientTlsTrustStoreType = "JKS";
         private String brokerClientTlsTrustStore;
         private String brokerClientTlsTrustStorePassword;
+        private String brokerClientTlsKeyStoreType = "JKS";
+        private String brokerClientTlsKeyStore;
+        private String brokerClientTlsKeyStorePassword;
+        private String brokerClientCertificateFilePath;
+        private String brokerClientKeyFilePath;
         private String brokerClientTrustCertsFilePath;
         private String listenerName;
+        private boolean migrated;
+        private ClusterUrl migratedClusterUrl;
 
         ClusterDataImplBuilder() {
         }
@@ -267,13 +326,54 @@ public final class ClusterDataImpl implements  ClusterData, Cloneable {
             return this;
         }
 
+        @Override
+        public ClusterDataImplBuilder brokerClientTlsKeyStoreType(String keyStoreType) {
+            this.brokerClientTlsKeyStoreType = keyStoreType;
+            return this;
+        }
+
+        @Override
+        public ClusterDataImplBuilder brokerClientTlsKeyStorePassword(String keyStorePassword) {
+            this.brokerClientTlsKeyStorePassword = keyStorePassword;
+            return this;
+        }
+
+        @Override
+        public ClusterDataImplBuilder brokerClientTlsKeyStore(String keyStore) {
+            this.brokerClientTlsKeyStore = keyStore;
+            return this;
+        }
+
         public ClusterDataImplBuilder brokerClientTrustCertsFilePath(String brokerClientTrustCertsFilePath) {
             this.brokerClientTrustCertsFilePath = brokerClientTrustCertsFilePath;
             return this;
         }
 
+        @Override
+        public ClusterDataImplBuilder brokerClientCertificateFilePath(String certificateFilePath) {
+            this.brokerClientCertificateFilePath = certificateFilePath;
+            return this;
+        }
+
+        @Override
+        public ClusterDataImplBuilder brokerClientKeyFilePath(String keyFilePath) {
+            this.brokerClientKeyFilePath = keyFilePath;
+            return this;
+        }
+
+
         public ClusterDataImplBuilder listenerName(String listenerName) {
             this.listenerName = listenerName;
+            return this;
+        }
+
+        public ClusterDataImplBuilder migrated(boolean migrated) {
+            this.migrated = migrated;
+            return this;
+        }
+
+        public ClusterDataImplBuilder migratedClusterUrl(ClusterUrl migratedClusterUrl) {
+            this.migratedClusterUrl = migratedClusterUrl;
             return this;
         }
 
@@ -294,8 +394,56 @@ public final class ClusterDataImpl implements  ClusterData, Cloneable {
                     brokerClientTlsTrustStoreType,
                     brokerClientTlsTrustStore,
                     brokerClientTlsTrustStorePassword,
+                    brokerClientTlsKeyStoreType,
+                    brokerClientTlsKeyStore,
+                    brokerClientTlsKeyStorePassword,
                     brokerClientTrustCertsFilePath,
-                    listenerName);
+                    brokerClientKeyFilePath,
+                    brokerClientCertificateFilePath,
+                    listenerName,
+                    migrated,
+                    migratedClusterUrl);
+        }
+    }
+
+    /**
+     * Check cluster data properties by rule, if some property is illegal, it will throw
+     * {@link IllegalArgumentException}.
+     *
+     * @throws IllegalArgumentException exist illegal property.
+     */
+    public void checkPropertiesIfPresent() throws IllegalArgumentException {
+        URIPreconditions.checkURIIfPresent(getServiceUrl(),
+                uri -> Objects.equals(uri.getScheme(), "http"),
+                "Illegal service url, example: http://pulsar.example.com:8080");
+        URIPreconditions.checkURIIfPresent(getServiceUrlTls(),
+                uri -> Objects.equals(uri.getScheme(), "https"),
+                "Illegal service tls url, example: https://pulsar.example.com:8443");
+        URIPreconditions.checkURIIfPresent(getBrokerServiceUrl(),
+                uri -> Objects.equals(uri.getScheme(), "pulsar"),
+                "Illegal broker service url, example: pulsar://pulsar.example.com:6650");
+        URIPreconditions.checkURIIfPresent(getBrokerServiceUrlTls(),
+                uri -> Objects.equals(uri.getScheme(), "pulsar+ssl"),
+                "Illegal broker service tls url, example: pulsar+ssl://pulsar.example.com:6651");
+        URIPreconditions.checkURIIfPresent(getProxyServiceUrl(),
+                uri -> Objects.equals(uri.getScheme(), "pulsar")
+                        || Objects.equals(uri.getScheme(), "pulsar+ssl"),
+                "Illegal proxy service url, example: pulsar+ssl://ats-proxy.example.com:4443 "
+                        + "or pulsar://ats-proxy.example.com:4080");
+
+        warnIfUrlIsNotPresent();
+    }
+
+    private void warnIfUrlIsNotPresent() {
+        if (StringUtils.isEmpty(getServiceUrl()) && StringUtils.isEmpty(getServiceUrlTls())) {
+            log.warn("Service url not found, "
+                    + "please provide either service url, example: http://pulsar.example.com:8080 "
+                    + "or service tls url, example: https://pulsar.example.com:8443");
+        }
+        if (StringUtils.isEmpty(getBrokerServiceUrl()) && StringUtils.isEmpty(getBrokerServiceUrlTls())) {
+            log.warn("Broker service url not found, "
+                    + "please provide either broker service url, example: pulsar://pulsar.example.com:6650 "
+                    + "or broker service tls url, example: pulsar+ssl://pulsar.example.com:6651.");
         }
     }
 }

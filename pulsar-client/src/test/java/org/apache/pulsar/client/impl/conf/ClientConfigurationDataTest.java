@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,30 +16,19 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.pulsar.client.impl.conf;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.ObjectWriter;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import org.apache.pulsar.client.impl.auth.AuthenticationToken;
-import org.testng.Assert;
 import org.testng.annotations.Test;
 
 /**
- * Unit test {@link ClientConfigurationData}.
+ * Unit tests for {@link ClientConfigurationData}.
  */
 public class ClientConfigurationDataTest {
-
-    private final ObjectWriter w;
-
-    {
-        ObjectMapper m = new ObjectMapper();
-        m.configure(SerializationFeature.FAIL_ON_EMPTY_BEANS, false);
-        w = m.writer();
-    }
-
 
     @Test
     public void testDoNotPrintSensitiveInfo() throws JsonProcessingException {
@@ -47,10 +36,10 @@ public class ClientConfigurationDataTest {
         clientConfigurationData.setTlsTrustStorePassword("xxxx");
         clientConfigurationData.setSocks5ProxyPassword("yyyy");
         clientConfigurationData.setAuthentication(new AuthenticationToken("zzzz"));
-        String s = w.writeValueAsString(clientConfigurationData);
-        Assert.assertFalse(s.contains("xxxx"));
-        Assert.assertFalse(s.contains("yyyy"));
-        Assert.assertFalse(s.contains("zzzz"));
+        ObjectMapper objectMapper = new ObjectMapper();
+        objectMapper.configure(SerializationFeature.FAIL_ON_EMPTY_BEANS, false);
+        String serializedConf = objectMapper.writeValueAsString(clientConfigurationData);
+        assertThat(serializedConf).doesNotContain("xxxx", "yyyy", "zzzz");
     }
 
 }

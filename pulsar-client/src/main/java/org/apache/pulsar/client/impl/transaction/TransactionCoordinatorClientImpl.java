@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -97,14 +97,9 @@ public class TransactionCoordinatorClientImpl implements TransactionCoordinatorC
                             handler.start();
                         }
                     } else {
-                        handlers = new TransactionMetaStoreHandler[1];
-                        CompletableFuture<Void> connectFuture = new CompletableFuture<>();
-                        connectFutureList.add(connectFuture);
-                        TransactionMetaStoreHandler handler = new TransactionMetaStoreHandler(0, pulsarClient,
-                                getTCAssignTopicName(-1), connectFuture);
-                        handlers[0] = handler;
-                        handlerMap.put(0, handler);
-                        handler.start();
+                        return FutureUtil.failedFuture(new TransactionCoordinatorClientException(
+                                "The broker doesn't enable the transaction coordinator, "
+                                        + "or the transaction coordinator has not initialized"));
                     }
 
                     STATE_UPDATER.set(TransactionCoordinatorClientImpl.this, State.READY);
@@ -118,12 +113,8 @@ public class TransactionCoordinatorClientImpl implements TransactionCoordinatorC
     }
 
     private String getTCAssignTopicName(int partition) {
-        if (partition >= 0) {
-            return SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN.toString()
-                    + TopicName.PARTITIONED_TOPIC_SUFFIX + partition;
-        } else {
-            return SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN.toString();
-        }
+        return SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN
+                + TopicName.PARTITIONED_TOPIC_SUFFIX + partition;
     }
 
     @Override

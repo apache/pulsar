@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -100,27 +100,18 @@ public class CmdGenerateDocument extends CmdBase {
         }
 
         private void generateDocument(StringBuilder sb, String module, JCommander obj) {
-            sb.append("------------\n\n");
             sb.append("# ").append(module).append("\n\n");
-            sb.append("### Usage\n\n");
-            sb.append("`$").append(module).append("`\n\n");
-            sb.append("------------\n\n");
             sb.append(usageFormatter.getCommandDescription(module)).append("\n");
-            sb.append("\n\n```bdocs-tab:example_shell\n")
+            sb.append("\n\n```shell\n")
                     .append("$ pulsar-admin ").append(module).append(" subcommand")
                     .append("\n```");
             sb.append("\n\n");
             CmdBase cmdObj = (CmdBase) obj.getObjects().get(0);
-            for (String s : cmdObj.jcommander.getCommands().keySet()) {
-                sb.append("* `").append(s).append("`\n");
-            }
             cmdObj.jcommander.getCommands().forEach((subK, subV) -> {
-                sb.append("\n\n## <em>").append(subK).append("</em>\n\n");
+                sb.append("\n\n## ").append(subK).append("\n\n");
                 sb.append(cmdObj.getUsageFormatter().getCommandDescription(subK)).append("\n\n");
-                sb.append("### Usage\n\n");
-                sb.append("------------\n\n");
                 sb.append("**Command:**\n\n");
-                sb.append("```bdocs-tab:example_shell\n$ pulsar-admin ").append(module).append(" ")
+                sb.append("```shell\n$ pulsar-admin ").append(module).append(" ")
                         .append(subK).append(" options").append("\n```\n\n");
                 List<ParameterDescription> options = cmdObj.jcommander.getCommands().get(subK).getParameters();
                 if (options.size() > 0) {

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,6 +19,7 @@
 package org.apache.pulsar.client.admin.internal;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import com.google.gson.Gson;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import java.io.InputStream;
@@ -130,6 +131,8 @@ public class TopicsImpl extends BaseResource implements Topics {
     private static final String ENCRYPTION_PARAM = "X-Pulsar-Base64-encryption-param";
     private static final String ENCRYPTION_KEYS = "X-Pulsar-Base64-encryption-keys";
     // CHECKSTYLE.ON: MemberName
+
+    public static final String PROPERTY_SHADOW_SOURCE_KEY = "PULSAR.SHADOW_SOURCE";
 
     public TopicsImpl(WebTarget web, Authentication auth, long readTimeoutMs) {
         super(auth, readTimeoutMs);
@@ -1144,6 +1147,18 @@ public class TopicsImpl extends BaseResource implements Topics {
     }
 
     @Override
+    public void trimTopic(String topic) throws PulsarAdminException {
+        sync(() -> trimTopicAsync(topic));
+    }
+
+    @Override
+    public CompletableFuture<Void> trimTopicAsync(String topic) {
+        TopicName tn = validateTopic(topic);
+        WebTarget path = topicPath(tn, "trim");
+        return asyncPostRequest(path, Entity.entity("", MediaType.APPLICATION_JSON));
+    }
+
+    @Override
     public LongRunningProcessStatus compactionStatus(String topic)
             throws PulsarAdminException {
         return sync(() -> compactionStatusAsync(topic));
@@ -1377,9 +1392,10 @@ public class TopicsImpl extends BaseResource implements Topics {
 
             for (Entry<String, List<Object>> entry : headers.entrySet()) {
                 String header = entry.getKey();
-                if (header.contains("X-Pulsar-PROPERTY-")) {
-                    String keyName = header.substring("X-Pulsar-PROPERTY-".length());
-                    properties.put(keyName, (String) entry.getValue().get(0));
+                if ("X-Pulsar-PROPERTY".equals(header)) {
+                    Map<String, String> msgPropsTmp = new Gson().fromJson((String) entry.getValue().get(0), Map.class);
+                    properties.putAll(msgPropsTmp);
+                    break;
                 }
             }
 
@@ -2705,7 +2721,43 @@ public class TopicsImpl extends BaseResource implements Topics {
     public CompletableFuture<List<String>> getShadowTopicsAsync(String sourceTopic) {
         TopicName tn = validateTopic(sourceTopic);
         WebTarget path = topicPath(tn, "shadowTopics");
-        return asyncGetRequest(path, new FutureCallback<List<String>>(){});
+        return asyncGetRequest(path, new FutureCallback<List<String>>() {});
+    }
+
+    @Override
+    public String getShadowSource(String shadowTopic) throws PulsarAdminException {
+        return sync(() -> getShadowSourceAsync(shadowTopic));
+    }
+
+    @Override
+    public CompletableFuture<String> getShadowSourceAsync(String shadowTopic) {
+        return getPropertiesAsync(shadowTopic).thenApply(
+                properties -> properties != null ? properties.get(PROPERTY_SHADOW_SOURCE_KEY) : null);
+    }
+
+    @Override
+    public void createShadowTopic(String shadowTopic, String sourceTopic, Map<String, String> properties)
+            throws PulsarAdminException {
+        sync(() -> createShadowTopicAsync(shadowTopic, sourceTopic, properties));
+    }
+
+    @Override
+    public CompletableFuture<Void> createShadowTopicAsync(String shadowTopic, String sourceTopic,
+                                                          Map<String, String> properties) {
+        checkArgument(TopicName.get(shadowTopic).isPersistent(), "Shadow topic must be persistent");
+        checkArgument(TopicName.get(sourceTopic).isPersistent(), "Source topic must be persistent");
+        return getPartitionedTopicMetadataAsync(sourceTopic).thenCompose(sourceTopicMeta -> {
+            HashMap<String, String> shadowProperties = new HashMap<>();
+            if (properties != null) {
+                shadowProperties.putAll(properties);
+            }
+            shadowProperties.put(PROPERTY_SHADOW_SOURCE_KEY, sourceTopic);
+            if (sourceTopicMeta.partitions == PartitionedTopicMetadata.NON_PARTITIONED) {
+                return createNonPartitionedTopicAsync(shadowTopic, shadowProperties);
+            } else {
+                return createPartitionedTopicAsync(shadowTopic, sourceTopicMeta.partitions, shadowProperties);
+            }
+        });
     }
 
     private static final Logger log = LoggerFactory.getLogger(TopicsImpl.class);

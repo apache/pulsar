@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -31,7 +31,6 @@ import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.MoreExecutors;
 import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpResponse;
-import io.netty.handler.ssl.util.InsecureTrustManagerFactory;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.Field;
@@ -41,11 +40,8 @@ import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.URL;
 import java.net.URLConnection;
-import java.security.KeyStore;
-import java.security.PrivateKey;
-import java.security.SecureRandom;
-import java.security.cert.Certificate;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -61,11 +57,9 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 import javax.naming.AuthenticationException;
 import javax.net.ssl.HttpsURLConnection;
-import javax.net.ssl.KeyManager;
-import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
-import javax.net.ssl.TrustManager;
 import lombok.Cleanup;
+import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
@@ -77,7 +71,9 @@ import org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerWrapper;
 import org.apache.pulsar.broker.loadbalance.impl.SimpleResourceUnit;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.service.BrokerService;
+import org.apache.pulsar.broker.testcontext.PulsarTestContext;
 import org.apache.pulsar.common.naming.NamespaceBundle;
+import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.ServiceUnitId;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
@@ -149,7 +145,8 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         conf2.setConfigurationMetadataStoreUrl("zk:localhost:3181");
 
         @Cleanup
-        PulsarService pulsar2 = startBroker(conf2);
+        PulsarTestContext pulsarTestContext2 = createAdditionalPulsarTestContext(conf2);
+        PulsarService pulsar2 = pulsarTestContext2.getPulsarService();
         pulsar.getLoadManager().get().writeLoadReportOnZookeeper();
         pulsar2.getLoadManager().get().writeLoadReportOnZookeeper();
 
@@ -187,7 +184,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         }
 
         Message<byte[]> msg = null;
-        Set<String> messageSet = Sets.newHashSet();
+        Set<String> messageSet = new HashSet<>();
         for (int i = 0; i < 10; i++) {
             msg = consumer.receive(5, TimeUnit.SECONDS);
             String receivedMessage = new String(msg.getData());
@@ -216,10 +213,10 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         @Cleanup("shutdownNow")
         ExecutorService executor = Executors.newFixedThreadPool(10);
         List<Future<?>> list = new ArrayList<>();
+        LocalBrokerData data = loadManager.getLoadManager().updateLocalBrokerData();
+        data.cleanDeltas();
+        data.getBundles().clear();
         for (int i = 0; i < 1000; i++) {
-            LocalBrokerData data = loadManager.getLoadManager().updateLocalBrokerData();
-            data.cleanDeltas();
-            data.getBundles().clear();
             list.add(executor.submit(() -> {
                 try {
                     assertNotNull(loadManager.generateLoadReport());
@@ -276,7 +273,8 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         admin.namespaces().createNamespace(property + "/" + newCluster + "/my-ns");
 
         @Cleanup
-        PulsarService pulsar2 = startBroker(conf2);
+        PulsarTestContext pulsarTestContext2 = createAdditionalPulsarTestContext(conf2);
+        PulsarService pulsar2 = pulsarTestContext2.getPulsarService();
         pulsar.getLoadManager().get().writeLoadReportOnZookeeper();
         pulsar2.getLoadManager().get().writeLoadReportOnZookeeper();
 
@@ -314,7 +312,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         }
 
         Message<byte[]> msg = null;
-        Set<String> messageSet = Sets.newHashSet();
+        Set<String> messageSet = new HashSet<>();
         for (int i = 0; i < 10; i++) {
             msg = consumer.receive(5, TimeUnit.SECONDS);
             String receivedMessage = new String(msg.getData());
@@ -360,7 +358,8 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         conf2.setConfigurationMetadataStoreUrl("zk:localhost:3181");
 
         @Cleanup
-        PulsarService pulsar2 = startBroker(conf2);
+        PulsarTestContext pulsarTestContext2 = createAdditionalPulsarTestContext(conf2);
+        PulsarService pulsar2 = pulsarTestContext2.getPulsarService();
         pulsar.getLoadManager().get().writeLoadReportOnZookeeper();
         pulsar2.getLoadManager().get().writeLoadReportOnZookeeper();
 
@@ -392,7 +391,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         }
 
         Message<byte[]> msg = null;
-        Set<String> messageSet = Sets.newHashSet();
+        Set<String> messageSet = new HashSet<>();
         for (int i = 0; i < 20; i++) {
             msg = consumer.receive(5, TimeUnit.SECONDS);
             assertNotNull(msg, "Message should not be null");
@@ -420,10 +419,6 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
     @Test
     public void testWebserviceServiceTls() throws Exception {
         log.info("-- Starting {} test --", methodName);
-        final String TLS_SERVER_CERT_FILE_PATH = "./src/test/resources/certificate/server.crt";
-        final String TLS_SERVER_KEY_FILE_PATH = "./src/test/resources/certificate/server.key";
-        final String TLS_CLIENT_CERT_FILE_PATH = "./src/test/resources/certificate/client.crt";
-        final String TLS_CLIENT_KEY_FILE_PATH = "./src/test/resources/certificate/client.key";
 
         /**** start broker-2 ****/
         ServiceConfiguration conf2 = new ServiceConfiguration();
@@ -436,23 +431,30 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         conf2.setWebServicePort(Optional.of(0));
         conf2.setWebServicePortTls(Optional.of(0));
         conf2.setAdvertisedAddress("localhost");
-        conf2.setTlsAllowInsecureConnection(true);
-        conf2.setTlsCertificateFilePath(TLS_SERVER_CERT_FILE_PATH);
-        conf2.setTlsKeyFilePath(TLS_SERVER_KEY_FILE_PATH);
+        conf2.setTlsTrustCertsFilePath(CA_CERT_FILE_PATH);
+        conf2.setTlsRequireTrustedClientCertOnConnect(true);
+        conf2.setTlsCertificateFilePath(BROKER_CERT_FILE_PATH);
+        conf2.setTlsKeyFilePath(BROKER_KEY_FILE_PATH);
         conf2.setClusterName(conf.getClusterName());
         conf2.setMetadataStoreUrl("zk:localhost:2181");
         conf2.setConfigurationMetadataStoreUrl("zk:localhost:3181");
+        // Not in use, and because TLS is not configured, it will fail to start
+        conf2.setSystemTopicEnabled(false);
 
         @Cleanup
-        PulsarService pulsar2 = startBroker(conf2);
+        PulsarTestContext pulsarTestContext2 = createAdditionalPulsarTestContext(conf2);
+        PulsarService pulsar2 = pulsarTestContext2.getPulsarService();
 
         // restart broker1 with tls enabled
         conf.setBrokerServicePortTls(Optional.of(0));
         conf.setWebServicePortTls(Optional.of(0));
-        conf.setTlsAllowInsecureConnection(true);
-        conf.setTlsCertificateFilePath(TLS_SERVER_CERT_FILE_PATH);
-        conf.setTlsKeyFilePath(TLS_SERVER_KEY_FILE_PATH);
+        conf.setTlsTrustCertsFilePath(CA_CERT_FILE_PATH);
+        conf.setTlsRequireTrustedClientCertOnConnect(true);
+        conf.setTlsCertificateFilePath(BROKER_CERT_FILE_PATH);
+        conf.setTlsKeyFilePath(BROKER_KEY_FILE_PATH);
         conf.setNumExecutorThreadPoolSize(5);
+        // Not in use, and because TLS is not configured, it will fail to start
+        conf.setSystemTopicEnabled(false);
         stopBroker();
         startBroker();
         pulsar.getLoadManager().get().writeLoadReportOnZookeeper();
@@ -472,7 +474,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         // request [3]
         doReturn(true).when(loadManager1).isCentralized();
         doReturn(true).when(loadManager2).isCentralized();
-        SimpleResourceUnit resourceUnit = new SimpleResourceUnit(pulsar.getWebServiceAddress(), null);
+        SimpleResourceUnit resourceUnit = new SimpleResourceUnit(pulsar.getWebServiceAddressTls(), null);
         doReturn(Optional.of(resourceUnit)).when(loadManager2).getLeastLoaded(any(ServiceUnitId.class));
         doReturn(Optional.of(resourceUnit)).when(loadManager1).getLeastLoaded(any(ServiceUnitId.class));
 
@@ -486,18 +488,8 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         final String lookupResourceUrl = "/lookup/v2/topic/persistent/my-property/my-ns/my-topic1";
 
         // set client cert_key file
-        KeyManager[] keyManagers = null;
-        Certificate[] tlsCert = SecurityUtility.loadCertificatesFromPemFile(TLS_CLIENT_CERT_FILE_PATH);
-        PrivateKey tlsKey = SecurityUtility.loadPrivateKeyFromPemFile(TLS_CLIENT_KEY_FILE_PATH);
-        KeyStore ks = KeyStore.getInstance(KeyStore.getDefaultType());
-        ks.load(null, null);
-        ks.setKeyEntry("private", tlsKey, "".toCharArray(), tlsCert);
-        KeyManagerFactory kmf = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
-        kmf.init(ks, "".toCharArray());
-        keyManagers = kmf.getKeyManagers();
-        TrustManager[] trustManagers = InsecureTrustManagerFactory.INSTANCE.getTrustManagers();
-        SSLContext sslCtx = SSLContext.getInstance("TLS");
-        sslCtx.init(keyManagers, trustManagers, new SecureRandom());
+        SSLContext sslCtx = SecurityUtility.createSslContext(false, CA_CERT_FILE_PATH,
+                getTlsFileForClient("admin.cert"), getTlsFileForClient("admin.key-pk8"), "");
         HttpsURLConnection.setDefaultSSLSocketFactory(sslCtx.getSocketFactory());
 
         // hit broker2 url
@@ -506,15 +498,18 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         con.connect();
         log.info("connected url: {} ", con.getURL());
         // assert connect-url: broker2-https
-        assertEquals(new Integer(con.getURL().getPort()), conf2.getWebServicePortTls().get());
+        assertEquals(Integer.valueOf(con.getURL().getPort()), conf2.getWebServicePortTls().get());
         InputStream is = con.getInputStream();
         // assert redirect-url: broker1-https only
         log.info("redirected url: {}", con.getURL());
-        assertEquals(new Integer(con.getURL().getPort()), conf.getWebServicePortTls().get());
+        assertEquals(Integer.valueOf(con.getURL().getPort()), conf.getWebServicePortTls().get());
         is.close();
 
         loadManager1 = null;
         loadManager2 = null;
+
+        conf.setBrokerServicePortTls(Optional.empty());
+        conf.setWebServicePortTls(Optional.empty());
     }
 
     /**
@@ -554,7 +549,8 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         conf2.setConfigurationMetadataStoreUrl("zk:localhost:3181");
 
         @Cleanup
-        PulsarService pulsar2 = startBroker(conf2);
+        PulsarTestContext pulsarTestContext2 = createAdditionalPulsarTestContext(conf2);
+        PulsarService pulsar2 = pulsarTestContext2.getPulsarService();
         pulsar.getLoadManager().get().writeLoadReportOnZookeeper();
         pulsar2.getLoadManager().get().writeLoadReportOnZookeeper();
 
@@ -670,7 +666,8 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
             startBroker();
 
             @Cleanup
-            PulsarService pulsar2 = startBroker(conf2);
+            PulsarTestContext pulsarTestContext2 = createAdditionalPulsarTestContext(conf2);
+            PulsarService pulsar2 = pulsarTestContext2.getPulsarService();
 
             pulsar.getLoadManager().get().writeLoadReportOnZookeeper();
             pulsar2.getLoadManager().get().writeLoadReportOnZookeeper();
@@ -751,6 +748,11 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
                 assertNotEquals(pulsar2.getNamespaceService().getBundle(topicName), bundleInBroker2);
             });
 
+            // Unload the NamespacePolicies and AntiAffinity check.
+            String currentBroker = String.format("%s:%d", "localhost", pulsar.getListenPortHTTP().get());
+            assertTrue(loadManager.shouldNamespacePoliciesUnload(namespace,"0x00000000_0xffffffff", currentBroker));
+            assertTrue(loadManager.shouldAntiAffinityNamespaceUnload(namespace,"0x00000000_0xffffffff", currentBroker));
+
             // (7) Make lookup request again to Broker-2 which should succeed.
             final String topic3 = "persistent://" + namespace + "/topic3";
             @Cleanup
@@ -764,6 +766,62 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
                 assertNotEquals(bundleInBroker1AfterSplit.toString(), unsplitBundle);
             });
         } finally {
+            conf.setLoadManagerClassName(loadBalancerName);
+        }
+    }
+
+    @Test(timeOut = 20000)
+    public void testSkipSplitBundleIfOnlyOneBroker() throws Exception {
+
+        log.info("-- Starting {} test --", methodName);
+        final String loadBalancerName = conf.getLoadManagerClassName();
+        final int defaultNumberOfNamespaceBundles = conf.getDefaultNumberOfNamespaceBundles();
+        final int loadBalancerNamespaceBundleMaxTopics = conf.getLoadBalancerNamespaceBundleMaxTopics();
+
+        final String namespace = "my-property/my-ns";
+        final String topicName1 = BrokerTestUtil.newUniqueName("persistent://" + namespace + "/tp_");
+        final String topicName2 = BrokerTestUtil.newUniqueName("persistent://" + namespace + "/tp_");
+        try {
+            // configure broker with ModularLoadManager.
+            stopBroker();
+            conf.setDefaultNumberOfNamespaceBundles(1);
+            conf.setLoadBalancerNamespaceBundleMaxTopics(1);
+            conf.setLoadManagerClassName(ModularLoadManagerImpl.class.getName());
+            startBroker();
+            final ModularLoadManagerWrapper modularLoadManagerWrapper =
+                    (ModularLoadManagerWrapper) pulsar.getLoadManager().get();
+            final ModularLoadManagerImpl modularLoadManager =
+                    (ModularLoadManagerImpl) modularLoadManagerWrapper.getLoadManager();
+
+            // Create one topic and trigger tasks, then verify there is only one bundle now.
+            Consumer<byte[]> consumer1 = pulsarClient.newConsumer().topic(topicName1)
+                    .subscriptionName("my-subscriber-name").subscribe();
+            List<NamespaceBundle> bounldes1 = pulsar.getNamespaceService().getNamespaceBundleFactory()
+                    .getBundles(NamespaceName.get(namespace)).getBundles();
+            pulsar.getBrokerService().updateRates();
+            pulsar.getLoadManager().get().writeLoadReportOnZookeeper();
+            pulsar.getLoadManager().get().writeResourceQuotasToZooKeeper();
+            modularLoadManager.updateAll();
+            assertEquals(bounldes1.size(), 1);
+
+            // Create the second topic and trigger tasks, then verify the split task will be skipped.
+            Consumer<byte[]> consumer2 = pulsarClient.newConsumer().topic(topicName2)
+                    .subscriptionName("my-subscriber-name").subscribe();
+            pulsar.getBrokerService().updateRates();
+            pulsar.getLoadManager().get().writeLoadReportOnZookeeper();
+            pulsar.getLoadManager().get().writeResourceQuotasToZooKeeper();
+            modularLoadManager.updateAll();
+            List<NamespaceBundle> bounldes2 = pulsar.getNamespaceService().getNamespaceBundleFactory()
+                    .getBundles(NamespaceName.get(namespace)).getBundles();
+            assertEquals(bounldes2.size(), 1);
+
+            consumer1.close();
+            consumer2.close();
+            admin.topics().delete(topicName1, false);
+            admin.topics().delete(topicName2, false);
+        } finally {
+            conf.setDefaultNumberOfNamespaceBundles(defaultNumberOfNamespaceBundles);
+            conf.setLoadBalancerNamespaceBundleMaxTopics(loadBalancerNamespaceBundleMaxTopics);
             conf.setLoadManagerClassName(loadBalancerName);
         }
     }
@@ -785,6 +843,8 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         admin.topics().createPartitionedTopic(dest.toString(), totalPartitions);
 
         stopBroker();
+        conf.setBrokerServicePortTls(Optional.empty());
+        conf.setWebServicePortTls(Optional.empty());
         conf.setClientLibraryVersionCheckEnabled(true);
         startBroker();
 
@@ -869,7 +929,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
                         return;
                     }
 
-                    PartitionedTopicMetadata data = ObjectMapperFactory.getThreadLocal()
+                    PartitionedTopicMetadata data = ObjectMapperFactory.getMapper().getObjectMapper()
                             .readValue(response.getResponseBodyAsBytes(), PartitionedTopicMetadata.class);
                     future.complete(data);
                 } catch (Exception e) {

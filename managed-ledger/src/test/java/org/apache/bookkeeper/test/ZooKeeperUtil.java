@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -144,8 +144,8 @@ public class ZooKeeperUtil implements ZooKeeperCluster {
 
         if (0 == zooKeeperPort) {
             zooKeeperPort = serverFactory.getLocalPort();
-            zkaddr = new InetSocketAddress(zkaddr.getHostName(), zooKeeperPort);
-            connectString = zkaddr.getHostName() + ":" + zooKeeperPort;
+            zkaddr = new InetSocketAddress(zkaddr.getAddress().getHostAddress(), zooKeeperPort);
+            connectString = zkaddr.getAddress().getHostAddress() + ":" + zooKeeperPort;
         }
 
         boolean b = ClientBase.waitForServerUp(getZooKeeperConnectString(),

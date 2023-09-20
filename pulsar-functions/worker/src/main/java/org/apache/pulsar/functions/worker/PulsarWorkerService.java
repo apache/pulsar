@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -127,51 +127,46 @@ public class PulsarWorkerService implements WorkerService {
             @Override
             public PulsarAdmin newPulsarAdmin(String pulsarServiceUrl, WorkerConfig workerConfig) {
                 // using isBrokerClientAuthenticationEnabled instead of isAuthenticationEnabled in function-worker
+                final String brokerClientAuthenticationPlugin;
+                final String brokerClientAuthenticationParameters;
                 if (workerConfig.isBrokerClientAuthenticationEnabled()) {
-                    return WorkerUtils.getPulsarAdminClient(
+                    brokerClientAuthenticationPlugin = workerConfig.getBrokerClientAuthenticationPlugin();
+                    brokerClientAuthenticationParameters = workerConfig.getBrokerClientAuthenticationParameters();
+                } else {
+                    brokerClientAuthenticationPlugin = null;
+                    brokerClientAuthenticationParameters = null;
+                }
+                return WorkerUtils.getPulsarAdminClient(
                         pulsarServiceUrl,
-                        workerConfig.getBrokerClientAuthenticationPlugin(),
-                        workerConfig.getBrokerClientAuthenticationParameters(),
+                        brokerClientAuthenticationPlugin,
+                        brokerClientAuthenticationParameters,
                         workerConfig.getBrokerClientTrustCertsFilePath(),
                         workerConfig.isTlsAllowInsecureConnection(),
                         workerConfig.isTlsEnableHostnameVerification(),
                         workerConfig);
-                } else {
-                    return WorkerUtils.getPulsarAdminClient(
-                            pulsarServiceUrl,
-                            null,
-                            null,
-                            null,
-                            workerConfig.isTlsAllowInsecureConnection(),
-                            workerConfig.isTlsEnableHostnameVerification(),
-                            workerConfig);
-                }
             }
 
             @Override
             public PulsarClient newPulsarClient(String pulsarServiceUrl, WorkerConfig workerConfig) {
                 // using isBrokerClientAuthenticationEnabled instead of isAuthenticationEnabled in function-worker
+                final String brokerClientAuthenticationPlugin;
+                final String brokerClientAuthenticationParameters;
                 if (workerConfig.isBrokerClientAuthenticationEnabled()) {
-                    return WorkerUtils.getPulsarClient(
+                    brokerClientAuthenticationPlugin = workerConfig.getBrokerClientAuthenticationPlugin();
+                    brokerClientAuthenticationParameters = workerConfig.getBrokerClientAuthenticationParameters();
+                } else {
+                    brokerClientAuthenticationPlugin = null;
+                    brokerClientAuthenticationParameters = null;
+                }
+                return WorkerUtils.getPulsarClient(
                         pulsarServiceUrl,
-                        workerConfig.getBrokerClientAuthenticationPlugin(),
-                        workerConfig.getBrokerClientAuthenticationParameters(),
+                        brokerClientAuthenticationPlugin,
+                        brokerClientAuthenticationParameters,
                         workerConfig.isUseTls(),
                         workerConfig.getBrokerClientTrustCertsFilePath(),
                         workerConfig.isTlsAllowInsecureConnection(),
                         workerConfig.isTlsEnableHostnameVerification(),
                         workerConfig);
-                } else {
-                    return WorkerUtils.getPulsarClient(
-                            pulsarServiceUrl,
-                            null,
-                            null,
-                            null,
-                            null,
-                            workerConfig.isTlsAllowInsecureConnection(),
-                            workerConfig.isTlsEnableHostnameVerification(),
-                            workerConfig);
-                }
             }
         };
     }

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -138,8 +138,11 @@ public class UnAckedMessageTracker implements Closeable {
                         if (!headPartition.isEmpty()) {
                             log.info("[{}] {} messages will be re-delivered", consumerBase, headPartition.size());
                             headPartition.forEach(messageId -> {
-                                addChunkedMessageIdsAndRemoveFromSequenceMap(messageId, messageIds, consumerBase);
-                                messageIds.add(messageId);
+                                if (messageId instanceof ChunkMessageIdImpl) {
+                                    addChunkedMessageIdsAndRemoveFromSequenceMap(messageId, messageIds, consumerBase);
+                                } else {
+                                    messageIds.add(messageId);
+                                }
                                 messageIdPartitionMap.remove(messageId);
                             });
                         }
@@ -189,6 +192,10 @@ public class UnAckedMessageTracker implements Closeable {
     }
 
     public boolean add(MessageId messageId) {
+        if (messageId == null) {
+            return false;
+        }
+
         writeLock.lock();
         try {
             HashSet<MessageId> partition = timePartitions.peekLast();
@@ -217,6 +224,10 @@ public class UnAckedMessageTracker implements Closeable {
     }
 
     public boolean remove(MessageId messageId) {
+        if (messageId == null) {
+            return false;
+        }
+
         writeLock.lock();
         try {
             boolean removed = false;

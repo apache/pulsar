@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.pulsar.io.kafka;
 
 import java.util.Properties;
@@ -30,7 +29,7 @@ import org.apache.pulsar.io.core.annotations.Connector;
 import org.apache.pulsar.io.core.annotations.IOType;
 
 /**
- * Kafka sink should treats incoming messages as pure bytes. So we don't
+ * Kafka sink should treat incoming messages as pure bytes. So we don't
  * apply schema into it.
  */
 @Connector(

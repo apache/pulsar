@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -31,16 +31,20 @@ import java.util.HashSet;
 import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
+import org.apache.pulsar.broker.auth.MockOIDCIdentityProvider;
 import org.apache.pulsar.broker.authentication.AuthenticationProviderToken;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.impl.ProducerImpl;
 import org.apache.pulsar.client.impl.auth.oauth2.AuthenticationFactoryOAuth2;
+import org.apache.pulsar.client.impl.auth.oauth2.AuthenticationOAuth2;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.awaitility.Awaitility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.testng.annotations.AfterClass;
 import org.testng.annotations.AfterMethod;
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
@@ -54,34 +58,46 @@ import org.testng.annotations.Test;
 public class TokenOauth2AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
     private static final Logger log = LoggerFactory.getLogger(TokenOauth2AuthenticatedProducerConsumerTest.class);
 
-    // public key in oauth2 server to verify the client passed in token. get from https://jwt.io/
-    private final String TOKEN_TEST_PUBLIC_KEY = "data:;base64,MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA2tZd/4gJda3U2Pc3tpgRAN7JPGWx/Gn17v/0IiZlNNRbP/Mmf0Vc6G1qsnaRaWNWOR+t6/a6ekFHJMikQ1N2X6yfz4UjMc8/G2FDPRmWjA+GURzARjVhxc/BBEYGoD0Kwvbq/u9CZm2QjlKrYaLfg3AeB09j0btNrDJ8rBsNzU6AuzChRvXj9IdcE/A/4N/UQ+S9cJ4UXP6NJbToLwajQ5km+CnxdGE6nfB7LWHvOFHjn9C2Rb9e37CFlmeKmIVFkagFM0gbmGOb6bnGI8Bp/VNGV0APef4YaBvBTqwoZ1Z4aDHy5eRxXfAMdtBkBupmBXqL6bpd15XRYUbu/7ck9QIDAQAB";
-
-    private final String ADMIN_ROLE = "Xd23RHsUnvUlP7wchjNYOaIfazgeHd9x@clients";
+    private MockOIDCIdentityProvider server;
 
     // Credentials File, which contains "client_id" and "client_secret"
     private final String CREDENTIALS_FILE = "./src/test/resources/authentication/token/credentials_file.json";
+    private final String audience = "my-pulsar-cluster";
+
+    @BeforeClass(alwaysRun = true)
+    protected void setupClass() {
+        String clientSecret = "super-secret-client-secret";
+        server = new MockOIDCIdentityProvider(clientSecret, audience, 3000);
+    }
 
     @BeforeMethod(alwaysRun = true)
     @Override
     protected void setup() throws Exception {
         conf.setAuthenticationEnabled(true);
         conf.setAuthorizationEnabled(true);
-        conf.setAuthenticationRefreshCheckSeconds(5);
+        conf.setAuthenticationRefreshCheckSeconds(1);
 
         Set<String> superUserRoles = new HashSet<>();
-        superUserRoles.add(ADMIN_ROLE);
+        // Matches the role in th credentials file
+        superUserRoles.add("my-admin-role");
         conf.setSuperUserRoles(superUserRoles);
 
         Set<String> providers = new HashSet<>();
         providers.add(AuthenticationProviderToken.class.getName());
         conf.setAuthenticationProviders(providers);
 
+        conf.setBrokerClientAuthenticationPlugin(AuthenticationOAuth2.class.getName());
+        conf.setBrokerClientAuthenticationParameters("{\n"
+                + "  \"privateKey\": \"" + CREDENTIALS_FILE + "\",\n"
+                + "  \"issuerUrl\": \"" + server.getIssuer() + "\",\n"
+                + "  \"audience\": \"" + audience + "\",\n"
+                + "}\n");
+
         conf.setClusterName("test");
 
         // Set provider domain name
         Properties properties = new Properties();
-        properties.setProperty("tokenPublicKey", TOKEN_TEST_PUBLIC_KEY);
+        properties.setProperty("tokenPublicKey", "data:;base64," + server.getBase64EncodedPublicKey());
 
         conf.setProperties(properties);
         super.init();
@@ -94,9 +110,9 @@ public class TokenOauth2AuthenticatedProducerConsumerTest extends ProducerConsum
 
         // AuthenticationOAuth2
         Authentication authentication = AuthenticationFactoryOAuth2.clientCredentials(
-                new URL("https://dev-kt-aa9ne.us.auth0.com"),
+                new URL(server.getIssuer()),
                 path.toUri().toURL(),  // key file path
-                "https://dev-kt-aa9ne.us.auth0.com/api/v2/"
+                audience
         );
 
         admin = spy(PulsarAdmin.builder().serviceHttpUrl(brokerUrl.toString())
@@ -112,6 +128,11 @@ public class TokenOauth2AuthenticatedProducerConsumerTest extends ProducerConsum
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
+    }
+
+    @AfterClass(alwaysRun = true)
+    protected void cleanupAfterClass() {
+        server.stop();
     }
 
     @DataProvider(name = "batch")
@@ -132,7 +153,7 @@ public class TokenOauth2AuthenticatedProducerConsumerTest extends ProducerConsum
         }
 
         Message<byte[]> msg = null;
-        Set<String> messageSet = Sets.newHashSet();
+        Set<String> messageSet = new HashSet<>();
         for (int i = 0; i < 10; i++) {
             msg = consumer.receive(5, TimeUnit.SECONDS);
             String receivedMessage = new String(msg.getData());
@@ -184,7 +205,7 @@ public class TokenOauth2AuthenticatedProducerConsumerTest extends ProducerConsum
         }
 
         Message<byte[]> msg = null;
-        Set<String> messageSet = Sets.newHashSet();
+        Set<String> messageSet = new HashSet<>();
         for (int i = 0; i < 10; i++) {
             msg = consumer.receive(5, TimeUnit.SECONDS);
             String receivedMessage = new String(msg.getData());
@@ -200,12 +221,11 @@ public class TokenOauth2AuthenticatedProducerConsumerTest extends ProducerConsum
         String accessTokenOld = producerImpl.getClientCnx().getAuthenticationDataProvider().getCommandData();
         long lastDisconnectTime = producer.getLastDisconnectedTimestamp();
 
-        // the token expire duration is 10 seconds, so we need to wait for the authenticationData refreshed
+        // the token expire duration is 3 seconds, so we need to wait for the authenticationData refreshed
         Awaitility.await()
-            .atLeast(10, TimeUnit.SECONDS)
-            .atMost(20, TimeUnit.SECONDS)
+            .atMost(10, TimeUnit.SECONDS)
             .with()
-            .pollInterval(Duration.ofSeconds(1))
+            .pollInterval(Duration.ofMillis(250))
             .untilAsserted(() -> {
                 String accessTokenNew = producerImpl.getClientCnx().getAuthenticationDataProvider().getCommandData();
                 assertNotEquals(accessTokenNew, accessTokenOld);
@@ -221,7 +241,7 @@ public class TokenOauth2AuthenticatedProducerConsumerTest extends ProducerConsum
         }
 
         msg = null;
-        messageSet = Sets.newHashSet();
+        messageSet = new HashSet<>();
         for (int i = 0; i < 10; i++) {
             msg = consumer.receive(5, TimeUnit.SECONDS);
             String receivedMessage = new String(msg.getData());

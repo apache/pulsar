@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -66,6 +66,16 @@ public class BookiesApiTest extends MockedPulsarServiceBaseTest {
             fail("should not reach here");
         } catch (PulsarAdminException pae) {
             assertEquals(404, pae.getStatusCode());
+            assertEquals(pae.getHttpError(), "Bookie rack placement configuration not found: " + bookie0);
+        }
+
+        // delete bookie doesn't exist
+        try {
+            admin.bookies().deleteBookieRackInfo(bookie0);
+            fail("should not reach here");
+        } catch (PulsarAdminException pae) {
+            assertEquals(404, pae.getStatusCode());
+            assertEquals(pae.getHttpError(), "Bookie rack placement configuration not found: " + bookie0);
         }
 
         // update the bookie info

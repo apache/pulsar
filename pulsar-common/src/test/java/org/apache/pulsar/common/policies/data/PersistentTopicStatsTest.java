@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -87,9 +87,15 @@ public class PersistentTopicStatsTest {
         topicStats1.averageMsgSize = 1;
         topicStats1.storageSize = 1;
         final PublisherStatsImpl publisherStats1 = new PublisherStatsImpl();
+        publisherStats1.setMsgRateIn(1);
         publisherStats1.setSupportsPartialProducer(false);
         publisherStats1.setProducerName("name1");
+        final PublisherStatsImpl publisherStats2 = new PublisherStatsImpl();
+        publisherStats2.setMsgRateIn(2);
+        publisherStats2.setSupportsPartialProducer(false);
+        publisherStats2.setProducerName("name2");
         topicStats1.addPublisher(publisherStats1);
+        topicStats1.addPublisher(publisherStats2);
         topicStats1.subscriptions.put("test_ns", new SubscriptionStatsImpl());
         topicStats1.replication.put("test_ns", new ReplicatorStatsImpl());
 
@@ -100,10 +106,21 @@ public class PersistentTopicStatsTest {
         topicStats2.msgThroughputOut = 4;
         topicStats2.averageMsgSize = 5;
         topicStats2.storageSize = 6;
-        final PublisherStatsImpl publisherStats2 = new PublisherStatsImpl();
-        publisherStats2.setSupportsPartialProducer(false);
-        publisherStats2.setProducerName("name1");
-        topicStats2.addPublisher(publisherStats2);
+        final PublisherStatsImpl publisherStats3 = new PublisherStatsImpl();
+        publisherStats3.setMsgRateIn(3);
+        publisherStats3.setSupportsPartialProducer(false);
+        publisherStats3.setProducerName("name3");
+        final PublisherStatsImpl publisherStats4 = new PublisherStatsImpl();
+        publisherStats4.setMsgRateIn(4);
+        publisherStats4.setSupportsPartialProducer(false);
+        publisherStats4.setProducerName("name4");
+        final PublisherStatsImpl publisherStats5 = new PublisherStatsImpl();
+        publisherStats5.setMsgRateIn(5);
+        publisherStats5.setSupportsPartialProducer(false);
+        publisherStats5.setProducerName("name5");
+        topicStats2.addPublisher(publisherStats3);
+        topicStats2.addPublisher(publisherStats4);
+        topicStats2.addPublisher(publisherStats5);
         topicStats2.subscriptions.put("test_ns", new SubscriptionStatsImpl());
         topicStats2.replication.put("test_ns", new ReplicatorStatsImpl());
 
@@ -117,7 +134,10 @@ public class PersistentTopicStatsTest {
         assertEquals(target.msgThroughputOut, 5.0);
         assertEquals(target.averageMsgSize, 3.0);
         assertEquals(target.storageSize, 7);
-        assertEquals(target.getPublishers().size(), 1);
+        assertEquals(target.getPublishers().size(), 3);
+        assertEquals(target.getPublishers().get(0).getMsgRateIn(), 4);
+        assertEquals(target.getPublishers().get(1).getMsgRateIn(), 6);
+        assertEquals(target.getPublishers().get(2).getMsgRateIn(), 5);
         assertEquals(target.subscriptions.size(), 1);
         assertEquals(target.replication.size(), 1);
     }

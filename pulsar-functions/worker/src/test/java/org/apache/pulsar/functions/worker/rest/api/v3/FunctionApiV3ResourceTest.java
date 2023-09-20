@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,7 +19,6 @@
 package org.apache.pulsar.functions.worker.rest.api.v3;
 
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doNothing;
@@ -29,6 +28,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import com.google.common.collect.Lists;
 import java.io.File;
@@ -44,7 +44,6 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.TreeMap;
 import java.util.UUID;
 import java.util.function.Consumer;
 import javax.ws.rs.core.Response;
@@ -52,6 +51,7 @@ import javax.ws.rs.core.StreamingOutput;
 import org.apache.distributedlog.api.namespace.Namespace;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.core.config.Configurator;
+import org.apache.pulsar.broker.authentication.AuthenticationParameters;
 import org.apache.pulsar.client.admin.Functions;
 import org.apache.pulsar.client.admin.Namespaces;
 import org.apache.pulsar.client.admin.Packages;
@@ -59,6 +59,7 @@ import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.Tenants;
 import org.apache.pulsar.common.functions.FunctionConfig;
+import org.apache.pulsar.common.functions.UpdateOptionsImpl;
 import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -78,7 +79,8 @@ import org.apache.pulsar.functions.source.TopicSchema;
 import org.apache.pulsar.functions.utils.FunctionCommon;
 import org.apache.pulsar.functions.utils.FunctionConfigUtils;
 import org.apache.pulsar.functions.utils.functions.FunctionArchive;
-import org.apache.pulsar.functions.utils.functions.FunctionUtils;
+import org.apache.pulsar.functions.utils.io.Connector;
+import org.apache.pulsar.functions.worker.ConnectorsManager;
 import org.apache.pulsar.functions.worker.FunctionMetaDataManager;
 import org.apache.pulsar.functions.worker.FunctionRuntimeManager;
 import org.apache.pulsar.functions.worker.FunctionsManager;
@@ -573,7 +575,7 @@ public class FunctionApiV3ResourceTest {
                 details,
                 functionPkgUrl,
                 functionConfig,
-                null, null);
+                null);
 
     }
 
@@ -587,7 +589,7 @@ public class FunctionApiV3ResourceTest {
                 mockedFormData,
                 null,
                 null,
-                null, null);
+                null);
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Function config is not provided")
@@ -602,8 +604,98 @@ public class FunctionApiV3ResourceTest {
                 mockedFormData,
                 null,
                 null,
-                null, null, null);
+                null, null);
     }
+
+    @Test
+    public void testUpdateSourceWithNoChange() throws ClassNotFoundException {
+        mockWorkerUtils();
+
+        FunctionDetails functionDetails = createDefaultFunctionDetails();
+        NarClassLoader mockedClassLoader = mock(NarClassLoader.class);
+        mockStatic(FunctionCommon.class, ctx -> {
+            ctx.when(() -> FunctionCommon.getFunctionTypes(any(FunctionConfig.class), any(Class.class))).thenReturn(new Class[]{String.class, String.class});
+            ctx.when(() -> FunctionCommon.convertRuntime(any(FunctionConfig.Runtime.class))).thenCallRealMethod();
+            ctx.when(() -> FunctionCommon.isFunctionCodeBuiltin(any())).thenReturn(true);
+            ctx.when(() -> FunctionCommon.getClassLoaderFromPackage(any(),any(),any(),any())).thenCallRealMethod();
+            ctx.when(FunctionCommon::createPkgTempFile).thenCallRealMethod();
+        });
+
+        doReturn(Function.class).when(mockedClassLoader).loadClass(anyString());
+
+        FunctionsManager mockedFunctionsManager = mock(FunctionsManager.class);
+        FunctionArchive functionArchive = FunctionArchive.builder()
+                .classLoader(mockedClassLoader)
+                .build();
+        when(mockedFunctionsManager.getFunction("exclamation")).thenReturn(functionArchive);
+        when(mockedFunctionsManager.getFunctionArchive(any())).thenReturn(getPulsarApiExamplesNar().toPath());
+
+        when(mockedWorkerService.getFunctionsManager()).thenReturn(mockedFunctionsManager);
+        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(true);
+
+        // No change on config,
+        FunctionConfig funcConfig = createDefaultFunctionConfig();
+        mockStatic(FunctionConfigUtils.class, ctx -> {
+            ctx.when(() -> FunctionConfigUtils.convertFromDetails(any())).thenReturn(funcConfig);
+            ctx.when(() -> FunctionConfigUtils.validateUpdate(any(), any())).thenCallRealMethod();
+            ctx.when(() -> FunctionConfigUtils.convert(any(FunctionConfig.class), any(ClassLoader.class))).thenReturn(functionDetails);
+            ctx.when(() -> FunctionConfigUtils.convert(any(FunctionConfig.class), any(FunctionConfigUtils.ExtractedFunctionDetails.class))).thenReturn(functionDetails);
+            ctx.when(() -> FunctionConfigUtils.validateJavaFunction(any(), any())).thenCallRealMethod();
+            ctx.when(() -> FunctionConfigUtils.doCommonChecks(any())).thenCallRealMethod();
+            ctx.when(() -> FunctionConfigUtils.collectAllInputTopics(any())).thenCallRealMethod();
+            ctx.when(() -> FunctionConfigUtils.doJavaChecks(any(), any())).thenCallRealMethod();
+        });
+
+        // config has not changes and don't update auth, should fail
+        try {
+            resource.updateFunction(
+                    funcConfig.getTenant(),
+                    funcConfig.getNamespace(),
+                    funcConfig.getName(),
+                    null,
+                    mockedFormData,
+                    null,
+                    funcConfig,
+                    null,
+                    null);
+            fail("Update without changes should fail");
+        } catch (RestException e) {
+            assertTrue(e.getMessage().contains("Update contains no change"));
+        }
+
+        try {
+            UpdateOptionsImpl updateOptions = new UpdateOptionsImpl();
+            updateOptions.setUpdateAuthData(false);
+            resource.updateFunction(
+                    funcConfig.getTenant(),
+                    funcConfig.getNamespace(),
+                    funcConfig.getName(),
+                    null,
+                    mockedFormData,
+                    null,
+                    funcConfig,
+                    null,
+                    updateOptions);
+            fail("Update without changes should fail");
+        } catch (RestException e) {
+            assertTrue(e.getMessage().contains("Update contains no change"));
+        }
+
+        // no changes but set the auth-update flag to true, should not fail
+        UpdateOptionsImpl updateOptions = new UpdateOptionsImpl();
+        updateOptions.setUpdateAuthData(true);
+        resource.updateFunction(
+                funcConfig.getTenant(),
+                funcConfig.getNamespace(),
+                funcConfig.getName(),
+                null,
+                mockedFormData,
+                null,
+                funcConfig,
+                null,
+                updateOptions);
+    }
+
 
     private void registerDefaultFunction() {
         registerDefaultFunctionWithPackageUrl(null);
@@ -619,7 +711,7 @@ public class FunctionApiV3ResourceTest {
             mockedFormData,
             packageUrl,
             functionConfig,
-                null, null);
+                null);
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Function test-function already exists")
@@ -778,6 +870,7 @@ public class FunctionApiV3ResourceTest {
                 .classLoader(mockedClassLoader)
                 .build();
         when(mockedFunctionsManager.getFunction("exclamation")).thenReturn(functionArchive);
+        when(mockedFunctionsManager.getFunctionArchive(any())).thenReturn(getPulsarApiExamplesNar().toPath());
 
         when(mockedWorkerService.getFunctionsManager()).thenReturn(mockedFunctionsManager);
 
@@ -796,7 +889,7 @@ public class FunctionApiV3ResourceTest {
                     mockedFormData,
                     null,
                     functionConfig,
-                    null, null);
+                    null);
         }
     }
 
@@ -853,7 +946,7 @@ public class FunctionApiV3ResourceTest {
                         mockedFormData,
                         null,
                         functionConfig,
-                        null, null);
+                        null);
                 Assert.fail();
             } catch (RuntimeException e) {
                 Assert.assertEquals(e.getMessage(), injectedErrMsg);
@@ -1116,7 +1209,7 @@ public class FunctionApiV3ResourceTest {
             details,
             null,
             functionConfig,
-                null, null, null);
+                null, null);
 
     }
 
@@ -1144,7 +1237,7 @@ public class FunctionApiV3ResourceTest {
             mockedFormData,
             packageUrl,
             functionConfig,
-                null, null, null);
+                null, null);
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Function test-function doesn't exist")
@@ -1218,7 +1311,7 @@ public class FunctionApiV3ResourceTest {
             null,
             filePackageUrl,
             functionConfig,
-                null, null, null);
+                null, null);
 
     }
 
@@ -1332,7 +1425,7 @@ public class FunctionApiV3ResourceTest {
             tenant,
             namespace,
             function,
-                null, null);
+                null);
     }
 
     private void deregisterDefaultFunction() {
@@ -1340,7 +1433,7 @@ public class FunctionApiV3ResourceTest {
             tenant,
             namespace,
             function,
-                null, null);
+                null);
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Function test-function doesn't exist")
@@ -1445,7 +1538,7 @@ public class FunctionApiV3ResourceTest {
         resource.getFunctionInfo(
             tenant,
             namespace,
-            function,null,null
+            function,null
         );
 
     }
@@ -1455,7 +1548,6 @@ public class FunctionApiV3ResourceTest {
             tenant,
             namespace,
             function,
-                null,
                 null
         );
     }
@@ -1540,7 +1632,7 @@ public class FunctionApiV3ResourceTest {
     ) {
         resource.listFunctions(
             tenant,
-            namespace,null,null
+            namespace,null
         );
 
     }
@@ -1548,7 +1640,7 @@ public class FunctionApiV3ResourceTest {
     private List<String> listDefaultFunctions() {
         return resource.listFunctions(
             tenant,
-            namespace,null,null
+            namespace,null
         );
     }
 
@@ -1604,20 +1696,13 @@ public class FunctionApiV3ResourceTest {
         String jarHttpUrl =
                 "https://repo1.maven.org/maven2/org/apache/pulsar/pulsar-common/2.4.2/pulsar-common-2.4.2.jar";
         String testDir = FunctionApiV3ResourceTest.class.getProtectionDomain().getCodeSource().getLocation().getPath();
-        PulsarWorkerService worker = mock(PulsarWorkerService.class);
-        doReturn(true).when(worker).isInitialized();
-        WorkerConfig config = mock(WorkerConfig.class);
-        when(config.isAuthorizationEnabled()).thenReturn(false);
-        when(worker.getWorkerConfig()).thenReturn(config);
-        FunctionsImpl function = new FunctionsImpl(() -> worker);
-        StreamingOutput streamOutput = function.downloadFunction(jarHttpUrl, null, null);
+
+        StreamingOutput streamOutput = resource.downloadFunction(jarHttpUrl, null);
         File pkgFile = new File(testDir, UUID.randomUUID().toString());
         OutputStream output = new FileOutputStream(pkgFile);
         streamOutput.write(output);
         Assert.assertTrue(pkgFile.exists());
-        if (pkgFile.exists()) {
-            pkgFile.delete();
-        }
+        pkgFile.delete();
     }
 
     @Test
@@ -1626,53 +1711,32 @@ public class FunctionApiV3ResourceTest {
         File file = Paths.get(fileUrl.toURI()).toFile();
         String fileLocation = file.getAbsolutePath().replace('\\', '/');
         String testDir = FunctionApiV3ResourceTest.class.getProtectionDomain().getCodeSource().getLocation().getPath();
-        PulsarWorkerService worker = mock(PulsarWorkerService.class);
-        doReturn(true).when(worker).isInitialized();
-        WorkerConfig config = mock(WorkerConfig.class);
-        when(config.isAuthorizationEnabled()).thenReturn(false);
-        when(worker.getWorkerConfig()).thenReturn(config);
-        FunctionsImpl function = new FunctionsImpl(() -> worker);
-        StreamingOutput streamOutput = function.downloadFunction("file:///" + fileLocation, null, null);
+
+        StreamingOutput streamOutput = resource.downloadFunction("file:///" + fileLocation, null);
         File pkgFile = new File(testDir, UUID.randomUUID().toString());
         OutputStream output = new FileOutputStream(pkgFile);
         streamOutput.write(output);
         Assert.assertTrue(pkgFile.exists());
-        if (pkgFile.exists()) {
-            pkgFile.delete();
-        }
+        Assert.assertEquals(file.length(), pkgFile.length());
+        pkgFile.delete();
     }
 
     @Test
-    public void testDownloadFunctionBuiltin() throws Exception {
-        mockStatic(WorkerUtils.class, ctx -> {
-        });
-
+    public void testDownloadFunctionBuiltinConnector() throws Exception {
         URL fileUrl = getClass().getClassLoader().getResource("test_worker_config.yml");
         File file = Paths.get(fileUrl.toURI()).toFile();
         String testDir = FunctionApiV3ResourceTest.class.getProtectionDomain().getCodeSource().getLocation().getPath();
 
-        PulsarWorkerService worker = mock(PulsarWorkerService.class);
-        doReturn(true).when(worker).isInitialized();
+        WorkerConfig config = new WorkerConfig()
+            .setUploadBuiltinSinksSources(false);
+        when(mockedWorkerService.getWorkerConfig()).thenReturn(config);
 
-        WorkerConfig config = mock(WorkerConfig.class);
-        when(config.isAuthorizationEnabled()).thenReturn(false);
-        when(config.getUploadBuiltinSinksSources()).thenReturn(false);
-        when(config.getConnectorsDirectory()).thenReturn("/connectors");
+        Connector connector = Connector.builder().archivePath(file.toPath()).build();
+        ConnectorsManager connectorsManager = mock(ConnectorsManager.class);
+        when(connectorsManager.getConnector("cassandra")).thenReturn(connector);
+        when(mockedWorkerService.getConnectorsManager()).thenReturn(connectorsManager);
 
-        when(worker.getDlogNamespace()).thenReturn(mock(Namespace.class));
-        when(worker.getWorkerConfig()).thenReturn(config);
-        FunctionsImpl function = new FunctionsImpl(() -> worker);
-
-        TreeMap<String, FunctionArchive> functions = new TreeMap<>();
-        FunctionArchive functionArchive = FunctionArchive.builder().archivePath(file.toPath()).build();
-        functions.put("cassandra", functionArchive);
-
-        mockStatic(FunctionUtils.class, ctx -> {
-            ctx.when(() -> FunctionUtils.searchForFunctions(anyString(), anyBoolean())).thenReturn(functions);
-
-        });
-
-        StreamingOutput streamOutput = function.downloadFunction("builtin://cassandra", null, null);
+        StreamingOutput streamOutput = resource.downloadFunction("builtin://cassandra", null);
 
         File pkgFile = new File(testDir, UUID.randomUUID().toString());
         OutputStream output = new FileOutputStream(pkgFile);
@@ -1680,71 +1744,139 @@ public class FunctionApiV3ResourceTest {
         output.flush();
         output.close();
         Assert.assertTrue(pkgFile.exists());
-        if (pkgFile.exists()) {
-            Assert.assertEquals(file.length(), pkgFile.length());
-            pkgFile.delete();
-        } else {
-            fail("expected file");
-        }
+        Assert.assertTrue(pkgFile.exists());
+        Assert.assertEquals(file.length(), pkgFile.length());
+        pkgFile.delete();
     }
 
     @Test
-    public void testDownloadFunctionByName() throws Exception {
+    public void testDownloadFunctionBuiltinFunction() throws Exception {
         URL fileUrl = getClass().getClassLoader().getResource("test_worker_config.yml");
         File file = Paths.get(fileUrl.toURI()).toFile();
-        String fileLocation = file.getAbsolutePath().replace('\\', '/');
         String testDir = FunctionApiV3ResourceTest.class.getProtectionDomain().getCodeSource().getLocation().getPath();
-        doReturn(true).when(mockedWorkerService).isInitialized();
-        WorkerConfig config = mock(WorkerConfig.class);
-        when(config.isAuthorizationEnabled()).thenReturn(false);
+
+        WorkerConfig config = new WorkerConfig()
+            .setUploadBuiltinSinksSources(false);
+        when(mockedWorkerService.getWorkerConfig()).thenReturn(config);
+
+        FunctionsManager functionsManager = mock(FunctionsManager.class);
+        FunctionArchive functionArchive = FunctionArchive.builder().archivePath(file.toPath()).build();
+        when(functionsManager.getFunction("exclamation")).thenReturn(functionArchive);
+        when(mockedWorkerService.getConnectorsManager()).thenReturn(mock(ConnectorsManager.class));
+        when(mockedWorkerService.getFunctionsManager()).thenReturn(functionsManager);
+
+        StreamingOutput streamOutput = resource.downloadFunction("builtin://exclamation", null);
+
+        File pkgFile = new File(testDir, UUID.randomUUID().toString());
+        OutputStream output = new FileOutputStream(pkgFile);
+        streamOutput.write(output);
+        output.flush();
+        output.close();
+        Assert.assertTrue(pkgFile.exists());
+        Assert.assertEquals(file.length(), pkgFile.length());
+        pkgFile.delete();
+    }
+
+    @Test
+    public void testDownloadFunctionBuiltinConnectorByName() throws Exception {
+        URL fileUrl = getClass().getClassLoader().getResource("test_worker_config.yml");
+        File file = Paths.get(fileUrl.toURI()).toFile();
+        String testDir = FunctionApiV3ResourceTest.class.getProtectionDomain().getCodeSource().getLocation().getPath();
+        WorkerConfig config = new WorkerConfig()
+            .setUploadBuiltinSinksSources(false);
         when(mockedWorkerService.getWorkerConfig()).thenReturn(config);
 
         when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(true);
 
         FunctionMetaData metaData = FunctionMetaData.newBuilder()
-                .setPackageLocation(PackageLocationMetaData.newBuilder().setPackagePath("file:///" + fileLocation))
+                .setPackageLocation(PackageLocationMetaData.newBuilder().setPackagePath("builtin://cassandra"))
                 .setTransformFunctionPackageLocation(PackageLocationMetaData.newBuilder().setPackagePath("http://invalid"))
+                .setFunctionDetails(FunctionDetails.newBuilder().setComponentType(FunctionDetails.ComponentType.SINK))
                 .build();
         when(mockedManager.getFunctionMetaData(eq(tenant), eq(namespace), eq(function))).thenReturn(metaData);
 
-        StreamingOutput streamOutput = resource.downloadFunction(tenant, namespace, function, null, null, false);
+        Connector connector = Connector.builder().archivePath(file.toPath()).build();
+        ConnectorsManager connectorsManager = mock(ConnectorsManager.class);
+        when(connectorsManager.getConnector("cassandra")).thenReturn(connector);
+        when(mockedWorkerService.getConnectorsManager()).thenReturn(connectorsManager);
+
+        StreamingOutput streamOutput = resource.downloadFunction(tenant, namespace, function,
+                AuthenticationParameters.builder().build(), false);
         File pkgFile = new File(testDir, UUID.randomUUID().toString());
         OutputStream output = new FileOutputStream(pkgFile);
         streamOutput.write(output);
         Assert.assertTrue(pkgFile.exists());
-        if (pkgFile.exists()) {
-            pkgFile.delete();
-        }
+        Assert.assertEquals(file.length(), pkgFile.length());
+        pkgFile.delete();
+    }
+
+    @Test
+    public void testDownloadFunctionBuiltinFunctionByName() throws Exception {
+        URL fileUrl = getClass().getClassLoader().getResource("test_worker_config.yml");
+        File file = Paths.get(fileUrl.toURI()).toFile();
+        String testDir = FunctionApiV3ResourceTest.class.getProtectionDomain().getCodeSource().getLocation().getPath();
+        WorkerConfig config = new WorkerConfig()
+            .setUploadBuiltinSinksSources(false);
+        when(mockedWorkerService.getWorkerConfig()).thenReturn(config);
+
+        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(true);
+
+        FunctionMetaData metaData = FunctionMetaData.newBuilder()
+            .setPackageLocation(PackageLocationMetaData.newBuilder().setPackagePath("builtin://exclamation"))
+            .setTransformFunctionPackageLocation(PackageLocationMetaData.newBuilder().setPackagePath("http://invalid"))
+            .setFunctionDetails(FunctionDetails.newBuilder().setComponentType(FunctionDetails.ComponentType.FUNCTION))
+            .build();
+        when(mockedManager.getFunctionMetaData(eq(tenant), eq(namespace), eq(function))).thenReturn(metaData);
+
+        FunctionsManager functionsManager = mock(FunctionsManager.class);
+        FunctionArchive functionArchive = FunctionArchive.builder().archivePath(file.toPath()).build();
+        when(functionsManager.getFunction("exclamation")).thenReturn(functionArchive);
+        when(mockedWorkerService.getConnectorsManager()).thenReturn(mock(ConnectorsManager.class));
+        when(mockedWorkerService.getFunctionsManager()).thenReturn(functionsManager);
+
+        StreamingOutput streamOutput = resource.downloadFunction(tenant, namespace, function,
+                AuthenticationParameters.builder().build(), false);
+        File pkgFile = new File(testDir, UUID.randomUUID().toString());
+        OutputStream output = new FileOutputStream(pkgFile);
+        streamOutput.write(output);
+        Assert.assertTrue(pkgFile.exists());
+        Assert.assertEquals(file.length(), pkgFile.length());
+        pkgFile.delete();
     }
 
     @Test
     public void testDownloadTransformFunctionByName() throws Exception {
         URL fileUrl = getClass().getClassLoader().getResource("test_worker_config.yml");
         File file = Paths.get(fileUrl.toURI()).toFile();
-        String fileLocation = file.getAbsolutePath().replace('\\', '/');
         String testDir = FunctionApiV3ResourceTest.class.getProtectionDomain().getCodeSource().getLocation().getPath();
-        doReturn(true).when(mockedWorkerService).isInitialized();
-        WorkerConfig config = mock(WorkerConfig.class);
-        when(config.isAuthorizationEnabled()).thenReturn(false);
-        when(mockedWorkerService.getWorkerConfig()).thenReturn(config);
+
+        WorkerConfig workerConfig = new WorkerConfig()
+            .setUploadBuiltinSinksSources(false);
+        when(mockedWorkerService.getWorkerConfig()).thenReturn(workerConfig);
 
         when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(true);
 
         FunctionMetaData metaData = FunctionMetaData.newBuilder()
                 .setPackageLocation(PackageLocationMetaData.newBuilder().setPackagePath("http://invalid"))
                 .setTransformFunctionPackageLocation(PackageLocationMetaData.newBuilder()
-                        .setPackagePath("file:///" + fileLocation))
+                        .setPackagePath("builtin://exclamation"))
                 .build();
         when(mockedManager.getFunctionMetaData(eq(tenant), eq(namespace), eq(function))).thenReturn(metaData);
 
-        StreamingOutput streamOutput = resource.downloadFunction(tenant, namespace, function, null, null, true);
+        FunctionsManager functionsManager = mock(FunctionsManager.class);
+        FunctionArchive functionArchive = FunctionArchive.builder().archivePath(file.toPath()).build();
+        when(functionsManager.getFunction("exclamation")).thenReturn(functionArchive);
+        when(mockedWorkerService.getConnectorsManager()).thenReturn(mock(ConnectorsManager.class));
+        when(mockedWorkerService.getFunctionsManager()).thenReturn(functionsManager);
+
+        StreamingOutput streamOutput = resource.downloadFunction(tenant, namespace, function,
+                AuthenticationParameters.builder().build(), true);
         File pkgFile = new File(testDir, UUID.randomUUID().toString());
         OutputStream output = new FileOutputStream(pkgFile);
         streamOutput.write(output);
         Assert.assertTrue(pkgFile.exists());
-        if (pkgFile.exists()) {
-            pkgFile.delete();
-        }
+        Assert.assertEquals(file.length(), pkgFile.length());
+        pkgFile.delete();
     }
 
 
@@ -1768,7 +1900,7 @@ public class FunctionApiV3ResourceTest {
         functionConfig.setCustomSerdeInputs(topicsToSerDeClassName);
         functionConfig.setOutput(outputTopic);
         functionConfig.setOutputSerdeClassName(outputSerdeClassName);
-        resource.registerFunction(tenant, namespace, function, null, null, filePackageUrl, functionConfig, null, null);
+        resource.registerFunction(tenant, namespace, function, null, null, filePackageUrl, functionConfig, null);
 
     }
 
@@ -1798,7 +1930,7 @@ public class FunctionApiV3ResourceTest {
         functionConfig.setOutput(outputTopic);
         functionConfig.setOutputSerdeClassName(outputSerdeClassName);
         resource.registerFunction(actualTenant, actualNamespace, actualName, null, null, filePackageUrl, functionConfig,
-                null, null);
+                null);
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Function language runtime is either not set or cannot be determined")
@@ -1820,7 +1952,7 @@ public class FunctionApiV3ResourceTest {
         functionConfig.setCustomSerdeInputs(topicsToSerDeClassName);
         functionConfig.setOutput(outputTopic);
         functionConfig.setOutputSerdeClassName(outputSerdeClassName);
-        resource.registerFunction(tenant, namespace, function, null, null, filePackageUrl, functionConfig, null, null);
+        resource.registerFunction(tenant, namespace, function, null, null, filePackageUrl, functionConfig, null);
 
     }
 

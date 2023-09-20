@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -29,6 +29,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
 import com.google.common.hash.Hasher;
 import com.google.common.hash.Hashing;
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -73,7 +74,7 @@ public class ElasticSearchSink implements Sink<GenericObject> {
 
     @Override
     public void open(Map<String, Object> config, SinkContext sinkContext) throws Exception {
-        elasticSearchConfig = ElasticSearchConfig.load(config);
+        elasticSearchConfig = ElasticSearchConfig.load(config, sinkContext);
         elasticSearchConfig.validate();
         elasticsearchClient = new ElasticSearchClient(elasticSearchConfig);
         if (!Strings.isNullOrEmpty(elasticSearchConfig.getPrimaryFields())) {
@@ -194,12 +195,16 @@ public class ElasticSearchSink implements Sink<GenericObject> {
             } else {
                 key = record.getKey().orElse(null);
                 valueSchema = record.getSchema();
-                value = record.getValue();
+                value = getGenericObjectFromRecord(record);
             }
 
             String id = null;
-            if (!elasticSearchConfig.isKeyIgnore() && key != null && keySchema != null) {
-                id = stringifyKey(keySchema, key);
+            if (!elasticSearchConfig.isKeyIgnore() && key != null) {
+                if (keySchema != null){
+                    id = stringifyKey(keySchema, key);
+                } else {
+                    id = key.toString();
+                }
             }
 
             String doc = null;
@@ -240,20 +245,28 @@ public class ElasticSearchSink implements Sink<GenericObject> {
             if (id != null
                     && idHashingAlgorithm != null
                     && idHashingAlgorithm != ElasticSearchConfig.IdHashingAlgorithm.NONE) {
-                Hasher hasher;
-                switch (idHashingAlgorithm) {
-                    case SHA256:
-                        hasher = Hashing.sha256().newHasher();
-                        break;
-                    case SHA512:
-                        hasher = Hashing.sha512().newHasher();
-                        break;
-                    default:
-                        throw new UnsupportedOperationException("Unsupported IdHashingAlgorithm: "
-                                + idHashingAlgorithm);
+                final byte[] idBytes = id.getBytes(StandardCharsets.UTF_8);
+
+                boolean performHashing = true;
+                if (elasticSearchConfig.isConditionalIdHashing() && idBytes.length <= 512) {
+                    performHashing = false;
                 }
-                hasher.putString(id, StandardCharsets.UTF_8);
-                id = base64Encoder.encodeToString(hasher.hash().asBytes());
+                if (performHashing) {
+                    Hasher hasher;
+                    switch (idHashingAlgorithm) {
+                        case SHA256:
+                            hasher = Hashing.sha256().newHasher();
+                            break;
+                        case SHA512:
+                            hasher = Hashing.sha512().newHasher();
+                            break;
+                        default:
+                            throw new UnsupportedOperationException("Unsupported IdHashingAlgorithm: "
+                                    + idHashingAlgorithm);
+                    }
+                    hasher.putBytes(idBytes);
+                    id = base64Encoder.encodeToString(hasher.hash().asBytes());
+                }
             }
 
             if (log.isDebugEnabled()) {
@@ -270,14 +283,40 @@ public class ElasticSearchSink implements Sink<GenericObject> {
             doc = sanitizeValue(doc);
             return Pair.of(id, doc);
     } else {
-            final byte[] data = record
-                    .getMessage()
-                    .orElseThrow(() -> new IllegalArgumentException("Record does not carry message information"))
-                    .getData();
-            String doc = new String(data, StandardCharsets.UTF_8);
-            doc = sanitizeValue(doc);
-            return Pair.of(null, doc);
+            Message message = record.getMessage().orElse(null);
+            final String rawData;
+            if (message != null) {
+                rawData = new String(message.getData(), StandardCharsets.UTF_8);
+            } else {
+                GenericObject recordObject = getGenericObjectFromRecord(record);
+                rawData = stringifyValue(record.getSchema(), recordObject);
+            }
+            if (rawData == null || rawData.length() == 0){
+                throw new IllegalArgumentException("Record does not carry message information.");
+            }
+            String key = elasticSearchConfig.isKeyIgnore() ? null : record.getKey().map(Object::toString).orElse(null);
+            return Pair.of(key, sanitizeValue(rawData));
         }
+    }
+
+    private GenericObject getGenericObjectFromRecord(Record record){
+        if (record.getValue() == null) {
+            return null;
+        }
+        if (record.getValue() instanceof GenericObject){
+            return (GenericObject) record.getValue();
+        }
+        return new GenericObject() {
+            @Override
+            public SchemaType getSchemaType() {
+                return record.getSchema().getSchemaInfo().getType();
+            }
+
+            @Override
+            public Object getNativeObject() {
+                return record.getValue();
+            }
+        };
     }
 
     private String sanitizeValue(String value) {
@@ -365,17 +404,38 @@ public class ElasticSearchSink implements Sink<GenericObject> {
         return node;
     }
 
-    public static JsonNode extractJsonNode(Schema<?> schema, Object val) {
+    public JsonNode extractJsonNode(Schema<?> schema, Object val) throws JsonProcessingException {
         if (val == null) {
             return null;
         }
         switch (schema.getSchemaInfo().getType()) {
             case JSON:
-                return (JsonNode) ((GenericRecord) val).getNativeObject();
+                Object nativeObject = ((GenericRecord) val).getNativeObject();
+                if (nativeObject instanceof String) {
+                    try {
+                        return objectMapper.readTree((String) nativeObject);
+                    } catch (JsonProcessingException e) {
+                        log.error("Failed to read JSON string: {}", nativeObject, e);
+                        throw e;
+                    }
+                }
+                return (JsonNode) nativeObject;
             case AVRO:
                 org.apache.avro.generic.GenericRecord node = (org.apache.avro.generic.GenericRecord)
                         ((GenericRecord) val).getNativeObject();
                 return JsonConverter.toJson(node);
+            case STRING:
+                try {
+                    return objectMapper.readTree((String) ((GenericObject) val).getNativeObject());
+                } catch (JsonProcessingException e) {
+                    throw new RuntimeException("Error parsing string as JSON.", e);
+                }
+            case BYTES:
+                try {
+                    return objectMapper.readTree((byte[]) ((GenericObject) val).getNativeObject());
+                } catch (IOException e) {
+                    throw new RuntimeException("Error parsing byte[] as JSON.", e);
+                }
             default:
                 throw new UnsupportedOperationException("Unsupported value schemaType="
                         + schema.getSchemaInfo().getType());

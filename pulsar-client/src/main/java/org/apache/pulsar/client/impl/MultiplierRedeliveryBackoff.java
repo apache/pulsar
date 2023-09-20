@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -40,14 +40,6 @@ public class MultiplierRedeliveryBackoff implements RedeliveryBackoff {
 
     public static MultiplierRedeliveryBackoff.MultiplierRedeliveryBackoffBuilder builder() {
         return new MultiplierRedeliveryBackoff.MultiplierRedeliveryBackoffBuilder();
-    }
-
-    public long getMinDelayMs() {
-        return this.minDelayMs;
-    }
-
-    public long getMaxDelayMs() {
-        return this.maxDelayMs;
     }
 
     @Override

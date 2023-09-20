@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -259,12 +259,12 @@ public class IOConfigUtilsTest {
         public CompletableFuture<ByteBuffer> getStateAsync(String key) {
             return null;
         }
-        
+
         @Override
         public void deleteState(String key) {
-        	
+
         }
-        
+
         @Override
         public CompletableFuture<Void> deleteStateAsync(String key) {
         	return null;
@@ -283,6 +283,11 @@ public class IOConfigUtilsTest {
         @Override
         public PulsarClient getPulsarClient() {
             return null;
+        }
+
+        @Override
+        public void fatal(Throwable t) {
+
         }
     }
 
@@ -449,12 +454,12 @@ public class IOConfigUtilsTest {
         public CompletableFuture<ByteBuffer> getStateAsync(String key) {
             return null;
         }
-        
+
         @Override
         public void deleteState(String key) {
-        	
+
         }
-        
+
         @Override
         public CompletableFuture<Void> deleteStateAsync(String key) {
         	return null;
@@ -463,6 +468,11 @@ public class IOConfigUtilsTest {
         @Override
         public PulsarClient getPulsarClient() {
             return null;
+        }
+
+        @Override
+        public void fatal(Throwable t) {
+
         }
     }
 

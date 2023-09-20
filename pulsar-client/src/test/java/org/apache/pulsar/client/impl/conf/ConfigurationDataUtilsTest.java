@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -152,7 +152,9 @@ public class ConfigurationDataUtilsTest {
         assertNotNull(pulsarClient, "Pulsar client built using config should not be null");
 
         assertEquals(pulsarClient.getConfiguration().getServiceUrl(), "pulsar://unknown:6650");
-        assertEquals(pulsarClient.getConfiguration().getNumListenerThreads(), 1, "builder default not set properly");
+        assertEquals(pulsarClient.getConfiguration().getNumListenerThreads(),
+                Runtime.getRuntime().availableProcessors(), "builder default not set properly");
+        assertEquals(pulsarClient.getConfiguration().getNumIoThreads(), Runtime.getRuntime().availableProcessors());
         assertEquals(pulsarClient.getConfiguration().getStatsIntervalSeconds(), 80,
                 "builder default should override if set explicitly");
     }

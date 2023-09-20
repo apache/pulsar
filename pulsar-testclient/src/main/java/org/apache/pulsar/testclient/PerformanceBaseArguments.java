@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,18 +19,27 @@
 package org.apache.pulsar.testclient;
 
 import static org.apache.commons.lang3.StringUtils.isBlank;
+import static org.apache.pulsar.testclient.PerfClientUtils.exit;
+import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParameterException;
+import java.io.File;
 import java.io.FileInputStream;
 import java.util.Properties;
 import lombok.SneakyThrows;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.client.api.ProxyProtocol;
 
-
+/**
+ * PerformanceBaseArguments contains common CLI arguments and parsing logic available to all sub-commands.
+ * Sub-commands should create Argument subclasses and override the `validate` method as necessary.
+ */
 public abstract class PerformanceBaseArguments {
 
-    @Parameter(names = { "-h", "--help" }, description = "Help message", help = true)
+    @Parameter(names = { "-h", "--help" }, description = "Print help message", help = true)
     boolean help;
 
-    @Parameter(names = { "-cf", "--conf-file" }, description = "Configuration file")
+    @Parameter(names = { "-cf", "--conf-file" }, description = "Pulsar configuration file")
     public String confFile;
 
     @Parameter(names = { "-u", "--service-url" }, description = "Pulsar Service URL")
@@ -43,7 +52,7 @@ public abstract class PerformanceBaseArguments {
             names = { "--auth-params" },
             description = "Authentication parameters, whose format is determined by the implementation "
                     + "of method `configure` in authentication plugin class, for example \"key1:val1,key2:val2\" "
-                    + "or \"{\"key1\":\"val1\",\"key2\":\"val2\"}.")
+                    + "or \"{\"key1\":\"val1\",\"key2\":\"val2\"}\".")
     public String authParams;
 
     @Parameter(names = {
@@ -84,6 +93,15 @@ public abstract class PerformanceBaseArguments {
     @Parameter(names = {"-mlr", "--max-lookup-request"}, description = "Maximum number of lookup requests allowed "
             + "on each broker connection to prevent overloading a broker")
     public int maxLookupRequest = 50000;
+
+    @Parameter(names = { "--proxy-url" }, description = "Proxy-server URL to which to connect.")
+    String proxyServiceURL = null;
+
+    @Parameter(names = { "--proxy-protocol" }, description = "Proxy protocol to select type of routing at proxy.")
+    ProxyProtocol proxyProtocol = null;
+
+    @Parameter(names = { "--auth_plugin" }, description = "Authentication plugin class name", hidden = true)
+    public String deprecatedAuthPluginClassName;
 
     public abstract void fillArgumentsFromProperties(Properties prop);
 
@@ -133,7 +151,81 @@ public abstract class PerformanceBaseArguments {
                     .getProperty("tlsEnableHostnameVerification", ""));
 
         }
+
+        if (proxyServiceURL == null) {
+            proxyServiceURL = StringUtils.trimToNull(prop.getProperty("proxyServiceUrl"));
+        }
+
+        if (proxyProtocol == null) {
+            String proxyProtocolString = null;
+            try {
+                proxyProtocolString = StringUtils.trimToNull(prop.getProperty("proxyProtocol"));
+                if (proxyProtocolString != null) {
+                    proxyProtocol = ProxyProtocol.valueOf(proxyProtocolString.toUpperCase());
+                }
+            } catch (IllegalArgumentException e) {
+                System.out.println("Incorrect proxyProtocol name '" + proxyProtocolString + "'");
+                e.printStackTrace();
+                exit(1);
+            }
+
+        }
+
         fillArgumentsFromProperties(prop);
+    }
+
+    /**
+     * Validate the CLI arguments.  Default implementation provides validation for the common arguments.
+     * Each subclass should call super.validate() and provide validation code specific to the sub-command.
+     * @throws Exception
+     */
+    public void validate() throws Exception {
+        if (confFile != null && !confFile.isBlank()) {
+            File configFile = new File(confFile);
+            if (!configFile.exists()) {
+                throw new Exception("config file '" + confFile + "', does not exist");
+            }
+            if (configFile.isDirectory()) {
+                throw new Exception("config file '" + confFile + "', is a directory");
+            }
+        }
+    }
+
+    /**
+     * Parse the command line args.
+     * @param cmdName used for the help message
+     * @param args String[] of CLI args
+     * @throws ParameterException If there is a problem parsing the arguments
+     */
+    public void parseCLI(String cmdName, String[] args) {
+        JCommander jc = new JCommander(this);
+        jc.setProgramName(cmdName);
+
+        try {
+            jc.parse(args);
+        } catch (ParameterException e) {
+            System.out.println("error: " + e.getMessage());
+            jc.usage();
+            PerfClientUtils.exit(1);
+        }
+
+        if (help) {
+            jc.usage();
+            PerfClientUtils.exit(0);
+        }
+
+        fillArgumentsFromProperties();
+
+        if (isBlank(authPluginClassName) && !isBlank(deprecatedAuthPluginClassName)) {
+            authPluginClassName = deprecatedAuthPluginClassName;
+        }
+
+        try {
+            validate();
+        } catch (Exception e) {
+            System.out.println("error: " + e.getMessage());
+            PerfClientUtils.exit(1);
+        }
     }
 
 }

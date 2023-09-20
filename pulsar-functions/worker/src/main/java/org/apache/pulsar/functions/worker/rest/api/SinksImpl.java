@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -38,7 +38,7 @@ import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.Response;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
+import org.apache.pulsar.broker.authentication.AuthenticationParameters;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.common.functions.UpdateOptionsImpl;
 import org.apache.pulsar.common.functions.Utils;
@@ -54,6 +54,7 @@ import org.apache.pulsar.functions.instance.InstanceUtils;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
 import org.apache.pulsar.functions.utils.ComponentTypeUtils;
+import org.apache.pulsar.functions.utils.FunctionMetaDataUtils;
 import org.apache.pulsar.functions.utils.SinkConfigUtils;
 import org.apache.pulsar.functions.utils.io.Connector;
 import org.apache.pulsar.functions.worker.FunctionMetaDataManager;
@@ -77,8 +78,7 @@ public class SinksImpl extends ComponentImpl implements Sinks<PulsarWorkerServic
                              final FormDataContentDisposition fileDetail,
                              final String sinkPkgUrl,
                              final SinkConfig sinkConfig,
-                             final String clientRole,
-                             AuthenticationDataSource clientAuthenticationDataHttps) {
+                             final AuthenticationParameters authParams) {
 
         if (!isWorkerServiceAvailable()) {
             throwUnavailableException();
@@ -97,16 +97,7 @@ public class SinksImpl extends ComponentImpl implements Sinks<PulsarWorkerServic
             throw new RestException(Response.Status.BAD_REQUEST, "Sink config is not provided");
         }
 
-        try {
-            if (!isAuthorizedRole(tenant, namespace, clientRole, clientAuthenticationDataHttps)) {
-                log.warn("{}/{}/{} Client [{}] is not authorized to register {}", tenant, namespace,
-                        sinkName, clientRole, ComponentTypeUtils.toString(componentType));
-                throw new RestException(Response.Status.UNAUTHORIZED, "Client is not authorized to perform operation");
-            }
-        } catch (PulsarAdminException e) {
-            log.error("{}/{}/{} Failed to authorize [{}]", tenant, namespace, sinkName, e);
-            throw new RestException(Response.Status.INTERNAL_SERVER_ERROR, e.getMessage());
-        }
+        throwRestExceptionIfUnauthorizedForNamespace(tenant, namespace, sinkName, "register", authParams);
 
         try {
             // Check tenant exists
@@ -123,8 +114,8 @@ public class SinksImpl extends ComponentImpl implements Sinks<PulsarWorkerServic
                 }
             }
         } catch (PulsarAdminException.NotAuthorizedException e) {
-            log.error("{}/{}/{} Client [{}] is not authorized to operate {} on tenant", tenant, namespace,
-                    sinkName, clientRole, ComponentTypeUtils.toString(componentType));
+            log.error("{}/{}/{} Client is not authorized to operate {} on tenant", tenant, namespace,
+                    sinkName, ComponentTypeUtils.toString(componentType));
             throw new RestException(Response.Status.UNAUTHORIZED, "Client is not authorized to perform operation");
         } catch (PulsarAdminException.NotFoundException e) {
             log.error("{}/{}/{} Tenant {} does not exist", tenant, namespace, sinkName, tenant);
@@ -193,11 +184,12 @@ public class SinksImpl extends ComponentImpl implements Sinks<PulsarWorkerServic
                 worker().getFunctionRuntimeManager()
                         .getRuntimeFactory()
                         .getAuthProvider().ifPresent(functionAuthProvider -> {
-                    if (clientAuthenticationDataHttps != null) {
+                    if (authParams.getClientAuthenticationDataSource() != null) {
 
                         try {
                             Optional<FunctionAuthData> functionAuthData = functionAuthProvider
-                                    .cacheAuthData(finalFunctionDetails, clientAuthenticationDataHttps);
+                                    .cacheAuthData(finalFunctionDetails,
+                                            authParams.getClientAuthenticationDataSource());
 
                             functionAuthData.ifPresent(authData -> functionMetaDataBuilder.setFunctionAuthSpec(
                                     Function.FunctionAuthenticationSpec.newBuilder()
@@ -251,8 +243,7 @@ public class SinksImpl extends ComponentImpl implements Sinks<PulsarWorkerServic
                            final FormDataContentDisposition fileDetail,
                            final String sinkPkgUrl,
                            final SinkConfig sinkConfig,
-                           final String clientRole,
-                           AuthenticationDataSource clientAuthenticationDataHttps,
+                           final AuthenticationParameters authParams,
                            UpdateOptionsImpl updateOptions) {
 
         if (!isWorkerServiceAvailable()) {
@@ -272,17 +263,7 @@ public class SinksImpl extends ComponentImpl implements Sinks<PulsarWorkerServic
             throw new RestException(Response.Status.BAD_REQUEST, "Sink config is not provided");
         }
 
-        try {
-            if (!isAuthorizedRole(tenant, namespace, clientRole, clientAuthenticationDataHttps)) {
-                log.warn("{}/{}/{} Client [{}] is not authorized to update {}", tenant, namespace,
-                        sinkName, clientRole, ComponentTypeUtils.toString(componentType));
-                throw new RestException(Response.Status.UNAUTHORIZED, "Client is not authorized to perform operation");
-
-            }
-        } catch (PulsarAdminException e) {
-            log.error("{}/{}/{} Failed to authorize [{}]", tenant, namespace, sinkName, e);
-            throw new RestException(Response.Status.INTERNAL_SERVER_ERROR, e.getMessage());
-        }
+        throwRestExceptionIfUnauthorizedForNamespace(tenant, namespace, sinkName, "update", authParams);
 
         FunctionMetaDataManager functionMetaDataManager = worker().getFunctionMetaDataManager();
 
@@ -314,7 +295,8 @@ public class SinksImpl extends ComponentImpl implements Sinks<PulsarWorkerServic
             throw new RestException(Response.Status.BAD_REQUEST, e.getMessage());
         }
 
-        if (existingSinkConfig.equals(mergedConfig) && isBlank(sinkPkgUrl) && uploadedInputStream == null) {
+        if (existingSinkConfig.equals(mergedConfig) && isBlank(sinkPkgUrl) && uploadedInputStream == null
+                && (updateOptions == null || !updateOptions.isUpdateAuthData())) {
             log.error("{}/{}/{} Update contains no changes", tenant, namespace, sinkName);
             throw new RestException(Response.Status.BAD_REQUEST, "Update contains no change");
         }
@@ -363,7 +345,7 @@ public class SinksImpl extends ComponentImpl implements Sinks<PulsarWorkerServic
                 worker().getFunctionRuntimeManager()
                         .getRuntimeFactory()
                         .getAuthProvider().ifPresent(functionAuthProvider -> {
-                    if (clientAuthenticationDataHttps != null && updateOptions != null
+                    if (authParams.getClientAuthenticationDataSource() != null && updateOptions != null
                             && updateOptions.isUpdateAuthData()) {
                         // get existing auth data if it exists
                         Optional<FunctionAuthData> existingFunctionAuthData = Optional.empty();
@@ -375,7 +357,7 @@ public class SinksImpl extends ComponentImpl implements Sinks<PulsarWorkerServic
                         try {
                             Optional<FunctionAuthData> newFunctionAuthData = functionAuthProvider
                                     .updateAuthData(finalFunctionDetails, existingFunctionAuthData,
-                                            clientAuthenticationDataHttps);
+                                            authParams.getClientAuthenticationDataSource());
 
                             if (newFunctionAuthData.isPresent()) {
                                 functionMetaDataBuilder.setFunctionAuthSpec(
@@ -398,8 +380,10 @@ public class SinksImpl extends ComponentImpl implements Sinks<PulsarWorkerServic
 
             Function.PackageLocationMetaData.Builder packageLocationMetaDataBuilder;
             if (isNotBlank(sinkPkgUrl) || uploadedInputStream != null) {
+                Function.FunctionMetaData metaData = functionMetaDataBuilder.build();
+                metaData = FunctionMetaDataUtils.incrMetadataVersion(metaData, metaData);
                 try {
-                    packageLocationMetaDataBuilder = getFunctionPackageLocation(functionMetaDataBuilder.build(),
+                    packageLocationMetaDataBuilder = getFunctionPackageLocation(metaData,
                             sinkPkgUrl, fileDetail, componentPackageFile);
                 } catch (Exception e) {
                     log.error("Failed process {} {}/{}/{} package: ", ComponentTypeUtils.toString(componentType),
@@ -433,8 +417,8 @@ public class SinksImpl extends ComponentImpl implements Sinks<PulsarWorkerServic
                                                  Function.FunctionDetails functionDetails, String transformFunction) {
         File functionPackageFile = null;
         try {
-            String builtin = null;
-            if (!transformFunction.startsWith(Utils.BUILTIN)) {
+            String builtin = functionDetails.getBuiltin();
+            if (isBlank(builtin)) {
                 functionPackageFile = getPackageFile(transformFunction);
             }
             Function.PackageLocationMetaData.Builder functionPackageLocation =
@@ -629,12 +613,11 @@ public class SinksImpl extends ComponentImpl implements Sinks<PulsarWorkerServic
                           final String sinkName,
                           final String instanceId,
                           final URI uri,
-                          final String clientRole,
-                          final AuthenticationDataSource clientAuthenticationDataHttps) {
+                          final AuthenticationParameters authParams) {
 
         // validate parameters
-        componentInstanceStatusRequestValidate(tenant, namespace, sinkName, Integer.parseInt(instanceId), clientRole,
-                clientAuthenticationDataHttps);
+        componentInstanceStatusRequestValidate(tenant, namespace, sinkName, Integer.parseInt(instanceId),
+                authParams);
 
 
         SinkStatus.SinkInstanceStatus.SinkInstanceStatusData sinkInstanceStatusData;
@@ -655,11 +638,10 @@ public class SinksImpl extends ComponentImpl implements Sinks<PulsarWorkerServic
                                     final String namespace,
                                     final String componentName,
                                     final URI uri,
-                                    final String clientRole,
-                                    final AuthenticationDataSource clientAuthenticationDataHttps) {
+                                    final AuthenticationParameters authParams) {
 
         // validate parameters
-        componentStatusRequestValidate(tenant, namespace, componentName, clientRole, clientAuthenticationDataHttps);
+        componentStatusRequestValidate(tenant, namespace, componentName, authParams);
 
         SinkStatus sinkStatus;
         try {
@@ -677,38 +659,12 @@ public class SinksImpl extends ComponentImpl implements Sinks<PulsarWorkerServic
     @Override
     public SinkConfig getSinkInfo(final String tenant,
                                   final String namespace,
-                                  final String componentName) {
-
-        if (!isWorkerServiceAvailable()) {
-            throwUnavailableException();
-        }
-
-        // validate parameters
-        try {
-            validateGetFunctionRequestParams(tenant, namespace, componentName, componentType);
-        } catch (IllegalArgumentException e) {
-            log.error("Invalid get {} request @ /{}/{}/{}", ComponentTypeUtils.toString(componentType), tenant,
-                    namespace, componentName, e);
-            throw new RestException(Response.Status.BAD_REQUEST, e.getMessage());
-        }
-
-        FunctionMetaDataManager functionMetaDataManager = worker().getFunctionMetaDataManager();
-        if (!functionMetaDataManager.containsFunction(tenant, namespace, componentName)) {
-            log.error("{} does not exist @ /{}/{}/{}", ComponentTypeUtils.toString(componentType), tenant, namespace,
-                    componentName);
-            throw new RestException(Response.Status.NOT_FOUND,
-                    String.format(ComponentTypeUtils.toString(componentType) + " %s doesn't exist", componentName));
-        }
+                                  final String componentName,
+                                  final AuthenticationParameters authParams) {
+        componentStatusRequestValidate(tenant, namespace, componentName, authParams);
         Function.FunctionMetaData functionMetaData =
-                functionMetaDataManager.getFunctionMetaData(tenant, namespace, componentName);
-        if (!InstanceUtils.calculateSubjectType(functionMetaData.getFunctionDetails()).equals(componentType)) {
-            log.error("{}/{}/{} is not a {}", tenant, namespace, componentName,
-                    ComponentTypeUtils.toString(componentType));
-            throw new RestException(Response.Status.NOT_FOUND,
-                    String.format(ComponentTypeUtils.toString(componentType) + " %s doesn't exist", componentName));
-        }
-        SinkConfig config = SinkConfigUtils.convertFromDetails(functionMetaData.getFunctionDetails());
-        return config;
+                worker().getFunctionMetaDataManager().getFunctionMetaData(tenant, namespace, componentName);
+        return SinkConfigUtils.convertFromDetails(functionMetaData.getFunctionDetails());
     }
 
     @Override

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -22,22 +22,26 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.apache.pulsar.common.protocol.Commands.serializeMetadataAndPayload;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
-import com.google.common.collect.ImmutableMap;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import org.apache.bookkeeper.mledger.Entry;
+import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.impl.EntryImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.service.persistent.DispatchRateLimiter;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.service.plugin.EntryFilter;
-import org.apache.pulsar.broker.service.plugin.EntryFilterWithClassLoader;
+import org.apache.pulsar.broker.service.plugin.EntryFilterProvider;
 import org.apache.pulsar.broker.service.plugin.FilterContext;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.CommandSubscribe;
@@ -60,8 +64,9 @@ public class AbstractBaseDispatcherTest {
     @BeforeMethod
     public void setup() throws Exception {
         this.svcConfig = mock(ServiceConfiguration.class);
+        when(svcConfig.isDispatchThrottlingForFilteredEntriesEnabled()).thenReturn(true);
         this.subscriptionMock = mock(PersistentSubscription.class);
-        this.helper = new AbstractBaseDispatcherTestHelper(this.subscriptionMock, this.svcConfig);
+        this.helper = new AbstractBaseDispatcherTestHelper(this.subscriptionMock, this.svcConfig, null);
     }
 
     @Test
@@ -82,24 +87,37 @@ public class AbstractBaseDispatcherTest {
         Topic mockTopic = mock(Topic.class);
         when(this.subscriptionMock.getTopic()).thenReturn(mockTopic);
 
+        final EntryFilterProvider entryFilterProvider = mock(EntryFilterProvider.class);
+        final ServiceConfiguration serviceConfiguration = mock(ServiceConfiguration.class);
+        when(serviceConfiguration.isAllowOverrideEntryFilters()).thenReturn(true);
+        final PulsarService pulsar = mock(PulsarService.class);
+        when(pulsar.getConfiguration()).thenReturn(serviceConfiguration);
         BrokerService mockBrokerService = mock(BrokerService.class);
+        when(mockBrokerService.pulsar()).thenReturn(pulsar);
+        when(mockBrokerService.getEntryFilterProvider()).thenReturn(entryFilterProvider);
         when(mockTopic.getBrokerService()).thenReturn(mockBrokerService);
-        EntryFilterWithClassLoader mockFilter = mock(EntryFilterWithClassLoader.class);
+        EntryFilter mockFilter = mock(EntryFilter.class);
         when(mockFilter.filterEntry(any(Entry.class), any(FilterContext.class))).thenReturn(
                 EntryFilter.FilterResult.REJECT);
-        ImmutableMap<String, EntryFilterWithClassLoader> entryFilters = ImmutableMap.of("key", mockFilter);
-        when(mockTopic.getEntryFilters()).thenReturn(entryFilters);
+        when(mockTopic.getEntryFilters()).thenReturn(List.of(mockFilter));
+        DispatchRateLimiter subscriptionDispatchRateLimiter = mock(DispatchRateLimiter.class);
 
-        this.helper = new AbstractBaseDispatcherTestHelper(this.subscriptionMock, this.svcConfig);
+        this.helper = new AbstractBaseDispatcherTestHelper(this.subscriptionMock, this.svcConfig,
+                subscriptionDispatchRateLimiter);
 
         List<Entry> entries = new ArrayList<>();
 
-        entries.add(EntryImpl.create(1, 2, createMessage("message1", 1)));
+        Entry e = EntryImpl.create(1, 2, createMessage("message1", 1));
+        long expectedBytePermits = e.getLength();
+        entries.add(e);
         SendMessageInfo sendMessageInfo = SendMessageInfo.getThreadLocal();
         EntryBatchSizes batchSizes = EntryBatchSizes.get(entries.size());
-        //
-        int size = this.helper.filterEntriesForConsumer(entries, batchSizes, sendMessageInfo, null, null, false, null);
+
+        ManagedCursor cursor = mock(ManagedCursor.class);
+
+        int size = this.helper.filterEntriesForConsumer(entries, batchSizes, sendMessageInfo, null, cursor, false, null);
         assertEquals(size, 0);
+        verify(subscriptionDispatchRateLimiter).tryDispatchPermit(1, expectedBytePermits);
     }
 
     @Test
@@ -118,7 +136,7 @@ public class AbstractBaseDispatcherTest {
         PersistentTopic mockTopic = mock(PersistentTopic.class);
         when(this.subscriptionMock.getTopic()).thenReturn(mockTopic);
 
-        when(mockTopic.isTxnAborted(any(TxnID.class))).thenReturn(true);
+        when(mockTopic.isTxnAborted(any(TxnID.class), any())).thenReturn(true);
 
         List<Entry> entries = new ArrayList<>();
         entries.add(EntryImpl.create(1, 1, createTnxMessage("message1", 1)));
@@ -201,9 +219,18 @@ public class AbstractBaseDispatcherTest {
 
     private static class AbstractBaseDispatcherTestHelper extends AbstractBaseDispatcher {
 
+        private final Optional<DispatchRateLimiter> dispatchRateLimiter;
+
         protected AbstractBaseDispatcherTestHelper(Subscription subscription,
-                                                   ServiceConfiguration serviceConfig) {
+                                                   ServiceConfiguration serviceConfig,
+                                                   DispatchRateLimiter rateLimiter) {
             super(subscription, serviceConfig);
+            dispatchRateLimiter = Optional.ofNullable(rateLimiter);
+        }
+
+        @Override
+        public Optional<DispatchRateLimiter> getRateLimiter() {
+            return dispatchRateLimiter;
         }
 
         @Override
@@ -222,8 +249,8 @@ public class AbstractBaseDispatcherTest {
         }
 
         @Override
-        public void addConsumer(Consumer consumer) throws BrokerServiceException {
-
+        public CompletableFuture<Void> addConsumer(Consumer consumer) {
+            return CompletableFuture.completedFuture(null);
         }
 
         @Override

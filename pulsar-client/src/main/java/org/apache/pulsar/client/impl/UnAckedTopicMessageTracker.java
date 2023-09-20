@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -22,6 +22,7 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Map.Entry;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.TopicMessageId;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 
 public class UnAckedTopicMessageTracker extends UnAckedMessageTracker {
@@ -39,8 +40,8 @@ public class UnAckedTopicMessageTracker extends UnAckedMessageTracker {
             while (iterator.hasNext()) {
                 Entry<MessageId, HashSet<MessageId>> entry = iterator.next();
                 MessageId messageId = entry.getKey();
-                if (messageId instanceof TopicMessageIdImpl
-                        && ((TopicMessageIdImpl) messageId).getTopicPartitionName().contains(topicName)) {
+                if (messageId instanceof TopicMessageId
+                        && ((TopicMessageId) messageId).getOwnerTopic().contains(topicName)) {
                     entry.getValue().remove(messageId);
                     iterator.remove();
                     removed++;

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.admin.cli;
 
+import static org.apache.pulsar.admin.cli.utils.CmdUtils.maxValueCheck;
+import static org.apache.pulsar.admin.cli.utils.CmdUtils.positiveCheck;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParameterException;
 import com.beust.jcommander.Parameters;
@@ -25,7 +27,6 @@ import com.beust.jcommander.converters.CommaParameterSplitter;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
-import io.swagger.util.Json;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.HashSet;
@@ -880,13 +881,17 @@ public class CmdNamespaces extends CmdBase {
         @Parameter(names = { "--bundle", "-b" }, description = "{start-boundary}_{end-boundary}")
         private String bundle;
 
+        @Parameter(names = { "--destinationBroker", "-d" },
+                description = "Target brokerWebServiceAddress to which the bundle has to be allocated to")
+        private String destinationBroker;
+
         @Override
         void run() throws PulsarAdminException {
             String namespace = validateNamespace(params);
             if (bundle == null) {
                 getAdmin().namespaces().unload(namespace);
             } else {
-                getAdmin().namespaces().unloadNamespaceBundle(namespace, bundle);
+                getAdmin().namespaces().unloadNamespaceBundle(namespace, bundle, destinationBroker);
             }
         }
     }
@@ -1262,7 +1267,7 @@ public class CmdNamespaces extends CmdBase {
         @Parameter(description = "tenant/namespace", required = true)
         private java.util.List<String> params;
 
-        @Parameter(names = { "-l", "--limit" }, description = "Size limit (eg: 10M, 16G)", required = true)
+        @Parameter(names = { "-l", "--limit" }, description = "Size limit (eg: 10M, 16G)")
         private String limitStr;
 
         @Parameter(names = { "-lt", "--limitTime" },
@@ -1276,8 +1281,8 @@ public class CmdNamespaces extends CmdBase {
         private String policyStr;
 
         @Parameter(names = {"-t", "--type"}, description = "Backlog quota type to set. Valid options are: "
-                + "destination_storage and message_age. "
-                + "destination_storage limits backlog by size (in bytes). "
+                + "destination_storage (default) and message_age. "
+                + "destination_storage limits backlog by size. "
                 + "message_age limits backlog by time, that is, message timestamp (broker or publish timestamp). "
                 + "You can set size or time to control the backlog, or combine them together to control the backlog. ")
         private String backlogQuotaTypeStr = BacklogQuota.BacklogQuotaType.destination_storage.name();
@@ -1285,7 +1290,6 @@ public class CmdNamespaces extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             BacklogQuota.RetentionPolicy policy;
-            long limit = validateSizeString(limitStr);
             BacklogQuota.BacklogQuotaType backlogQuotaType;
 
             try {
@@ -1302,26 +1306,30 @@ public class CmdNamespaces extends CmdBase {
                         backlogQuotaTypeStr, Arrays.toString(BacklogQuota.BacklogQuotaType.values())));
             }
 
-            long limitTimeInSec = -1;
-            if (limitTimeStr != null) {
+            String namespace = validateNamespace(params);
+
+            BacklogQuota.Builder builder = BacklogQuota.builder().retentionPolicy(policy);
+            if (backlogQuotaType == BacklogQuota.BacklogQuotaType.destination_storage) {
+                // set quota by storage size
+                if (limitStr == null) {
+                    throw new ParameterException("Quota type of 'destination_storage' needs a size limit");
+                }
+                long limit = validateSizeString(limitStr);
+                builder.limitSize(limit);
+            } else {
+                // set quota by time
+                if (limitTimeStr == null) {
+                    throw new ParameterException("Quota type of 'message_age' needs a time limit");
+                }
+                long limitTimeInSec;
                 try {
                     limitTimeInSec = RelativeTimeUtil.parseRelativeTimeInSeconds(limitTimeStr);
                 } catch (IllegalArgumentException e) {
                     throw new ParameterException(e.getMessage());
                 }
+                builder.limitTime((int) limitTimeInSec);
             }
-            if (limitTimeInSec > Integer.MAX_VALUE) {
-                throw new ParameterException(
-                        String.format("Time limit cannot be greater than %d seconds", Integer.MAX_VALUE));
-            }
-
-            String namespace = validateNamespace(params);
-            getAdmin().namespaces().setBacklogQuota(namespace,
-                    BacklogQuota.builder().limitSize(limit)
-                            .limitTime((int) limitTimeInSec)
-                            .retentionPolicy(policy)
-                            .build(),
-                    backlogQuotaType);
+            getAdmin().namespaces().setBacklogQuota(namespace, builder.build(), backlogQuotaType);
         }
     }
 
@@ -1378,26 +1386,33 @@ public class CmdNamespaces extends CmdBase {
         private java.util.List<String> params;
 
         @Parameter(names = { "-e",
-                "--bookkeeper-ensemble" }, description = "Number of bookies to use for a topic", required = true)
-        private int bookkeeperEnsemble;
+                "--bookkeeper-ensemble" }, description = "Number of bookies to use for a topic")
+        private int bookkeeperEnsemble = 2;
 
         @Parameter(names = { "-w",
-                "--bookkeeper-write-quorum" }, description = "How many writes to make of each entry", required = true)
-        private int bookkeeperWriteQuorum;
+                "--bookkeeper-write-quorum" }, description = "How many writes to make of each entry")
+        private int bookkeeperWriteQuorum = 2;
 
         @Parameter(names = { "-a",
                 "--bookkeeper-ack-quorum" },
-                description = "Number of acks (guaranteed copies) to wait for each entry", required = true)
-        private int bookkeeperAckQuorum;
+                description = "Number of acks (guaranteed copies) to wait for each entry")
+        private int bookkeeperAckQuorum = 2;
 
         @Parameter(names = { "-r",
                 "--ml-mark-delete-max-rate" },
-                description = "Throttling rate of mark-delete operation (0 means no throttle)", required = true)
-        private double managedLedgerMaxMarkDeleteRate;
+                description = "Throttling rate of mark-delete operation (0 means no throttle)")
+        private double managedLedgerMaxMarkDeleteRate = 0;
 
         @Override
         void run() throws PulsarAdminException {
             String namespace = validateNamespace(params);
+            if (bookkeeperEnsemble <= 0 || bookkeeperWriteQuorum <= 0 || bookkeeperAckQuorum <= 0) {
+                throw new ParameterException("[--bookkeeper-ensemble], [--bookkeeper-write-quorum] "
+                        + "and [--bookkeeper-ack-quorum] must greater than 0.");
+            }
+            if (managedLedgerMaxMarkDeleteRate < 0) {
+                throw new ParameterException("[--ml-mark-delete-max-rate] cannot less than 0.");
+            }
             getAdmin().namespaces().setPersistence(namespace, new PersistencePolicies(bookkeeperEnsemble,
                     bookkeeperWriteQuorum, bookkeeperAckQuorum, managedLedgerMaxMarkDeleteRate));
         }
@@ -2215,7 +2230,7 @@ public class CmdNamespaces extends CmdBase {
         @Parameter(
                 names = {"--bucket", "-b"},
                 description = "Bucket to place offloaded ledger into",
-                required = true)
+                required = false)
         private String bucket;
 
         @Parameter(
@@ -2251,7 +2266,8 @@ public class CmdNamespaces extends CmdBase {
 
         @Parameter(
                 names = {"--maxBlockSize", "-mbs"},
-                description = "Max block size (eg: 32M, 64M), default is 64MB",
+                description = "Max block size (eg: 32M, 64M), default is 64MB"
+                  + "s3 and google-cloud-storage requires this parameter",
                 required = false)
         private String maxBlockSizeStr;
 
@@ -2263,7 +2279,8 @@ public class CmdNamespaces extends CmdBase {
 
         @Parameter(
                 names = {"--offloadAfterElapsed", "-oae"},
-                description = "Offload after elapsed in minutes (or minutes, hours,days,weeks eg: 100m, 3h, 2d, 5w).",
+                description = "Delay time in Millis for deleting the bookkeeper ledger after offload "
+                    + "(or seconds,minutes,hours,days,weeks eg: 10s, 100m, 3h, 2d, 5w).",
                 required = false)
         private String offloadAfterElapsedStr;
 
@@ -2272,6 +2289,13 @@ public class CmdNamespaces extends CmdBase {
                 description = "Offload after threshold size (eg: 1M, 5M)",
                 required = false)
         private String offloadAfterThresholdStr;
+
+        @Parameter(
+                names = {"--offloadAfterThresholdInSeconds", "-oats"},
+                description = "Offload after threshold seconds (or minutes,hours,days,weeks eg: 100m, 3h, 2d, 5w).",
+                required = false
+        )
+        private String offloadAfterThresholdInSecondsStr;
 
         @Parameter(
                 names = {"--offloadedReadPriority", "-orp"},
@@ -2295,20 +2319,6 @@ public class CmdNamespaces extends CmdBase {
                 return false;
             }
             return driver.equalsIgnoreCase(driverNames.get(0)) || driver.equalsIgnoreCase(driverNames.get(1));
-        }
-
-        public boolean positiveCheck(String paramName, long value) {
-            if (value <= 0) {
-                throw new ParameterException(paramName + " is not be negative or 0!");
-            }
-            return true;
-        }
-
-        public boolean maxValueCheck(String paramName, long value, long maxValue) {
-            if (value > maxValue) {
-                throw new ParameterException(paramName + " is not bigger than " + maxValue + "!");
-            }
-            return true;
         }
 
         @Override
@@ -2366,6 +2376,21 @@ public class CmdNamespaces extends CmdBase {
                     offloadAfterThresholdInBytes = offloadAfterThreshold;
                 }
             }
+
+            Long offloadThresholdInSeconds = OffloadPoliciesImpl.DEFAULT_OFFLOAD_THRESHOLD_IN_SECONDS;
+            if (StringUtils.isNotEmpty(offloadAfterThresholdInSecondsStr)) {
+                Long offloadThresholdInSeconds0;
+                try {
+                    offloadThresholdInSeconds0 = TimeUnit.SECONDS.toSeconds(
+                      RelativeTimeUtil.parseRelativeTimeInSeconds(offloadAfterThresholdInSecondsStr.trim()));
+                } catch (IllegalArgumentException exception) {
+                    throw new ParameterException(exception.getMessage());
+                }
+                if (maxValueCheck("OffloadAfterThresholdInSeconds", offloadThresholdInSeconds0, Long.MAX_VALUE)) {
+                    offloadThresholdInSeconds = offloadThresholdInSeconds0;
+                }
+            }
+
             OffloadedReadPriority offloadedReadPriority = OffloadPoliciesImpl.DEFAULT_OFFLOADED_READ_PRIORITY;
 
             if (this.offloadReadPriorityStr != null) {
@@ -2384,7 +2409,7 @@ public class CmdNamespaces extends CmdBase {
                     s3Role, s3RoleSessionName,
                     awsId, awsSecret,
                     maxBlockSizeInBytes, readBufferSizeInBytes, offloadAfterThresholdInBytes,
-                    offloadAfterElapsedInMillis, offloadedReadPriority);
+                    offloadThresholdInSeconds, offloadAfterElapsedInMillis, offloadedReadPriority);
 
             getAdmin().namespaces().setOffloadPolicies(namespace, offloadPolicies);
         }
@@ -2521,8 +2546,9 @@ public class CmdNamespaces extends CmdBase {
 
         @Override
         void run() throws Exception {
-            String namespace = validateNamespace(params);
-            Json.prettyPrint(getAdmin().namespaces().getProperties(namespace));
+            final String namespace = validateNamespace(params);
+            final Map<String, String> properties = getAdmin().namespaces().getProperties(namespace);
+            prettyPrint(properties);
         }
     }
 

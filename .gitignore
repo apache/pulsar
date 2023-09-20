@@ -27,9 +27,11 @@ pulsar-functions/worker/src/test/resources/
 .factorypath
 
 # IntelliJ
-.idea/
+.idea/*
+!.idea/vcs.xml
 *.iml
 *.iws
+.fleet/*
 
 # NetBeans
 nb-configuration.xml
@@ -69,11 +71,6 @@ deployment/terraform-ansible/aws/terraform.tfstate.backup
 # Vagrant
 **/.vagrant
 
-
-pulsar-client-cpp/python/pkg/osx/*/*.bak
-pulsar-client-cpp/python/pkg/osx/*/*.whl
-pulsar-client-cpp/python/wheelhouse
-
 # CI generated files
 .repository
 docker.debug-info
@@ -95,3 +92,8 @@ examples/flink/src/main/java/org/apache/flink/avro/generated
 pulsar-flink/src/test/java/org/apache/flink/avro/generated
 pulsar-client/src/test/java/org/apache/pulsar/client/avro/generated
 /build/
+
+test-reports/
+
+# Gradle Enterprise
+.mvn/.gradle-enterprise/

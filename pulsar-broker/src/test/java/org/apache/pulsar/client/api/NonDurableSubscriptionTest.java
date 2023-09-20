@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,19 +18,16 @@
  */
 package org.apache.pulsar.client.api;
 
-import java.lang.reflect.Field;
-import java.util.UUID;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotNull;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.PulsarService;
-import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.PulsarChannelInitializer;
 import org.apache.pulsar.broker.service.ServerCnx;
-import org.apache.pulsar.broker.service.nonpersistent.NonPersistentSubscription;
-import org.apache.pulsar.broker.service.nonpersistent.NonPersistentTopic;
 import org.apache.pulsar.client.impl.ConsumerImpl;
 import org.apache.pulsar.common.api.proto.CommandFlow;
 import org.testng.Assert;
@@ -38,12 +35,6 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
-
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertNotNull;
-import static org.testng.AssertJUnit.assertFalse;
-import static org.testng.AssertJUnit.assertNull;
-import static org.testng.AssertJUnit.assertTrue;
 
 @Test(groups = "broker-api")
 @Slf4j
@@ -68,31 +59,23 @@ public class NonDurableSubscriptionTest  extends ProducerConsumerBase {
     }
 
     @Override
-    protected PulsarService newPulsarService(ServiceConfiguration conf) throws Exception {
-        return new PulsarService(conf) {
+    protected BrokerService customizeNewBrokerService(BrokerService brokerService) {
+        brokerService.setPulsarChannelInitializerFactory((_pulsar, opts) -> {
+            return new PulsarChannelInitializer(_pulsar, opts) {
+                @Override
+                protected ServerCnx newServerCnx(PulsarService pulsar, String listenerName) throws Exception {
+                    return new ServerCnx(pulsar) {
 
-            @Override
-            protected BrokerService newBrokerService(PulsarService pulsar) throws Exception {
-                BrokerService broker = new BrokerService(this, ioEventLoopGroup);
-                broker.setPulsarChannelInitializerFactory(
-                        (_pulsar, opts) -> {
-                            return new PulsarChannelInitializer(_pulsar, opts) {
-                                @Override
-                                protected ServerCnx newServerCnx(PulsarService pulsar, String listenerName) throws Exception {
-                                    return new ServerCnx(pulsar) {
-
-                                        @Override
-                                        protected void handleFlow(CommandFlow flow) {
-                                            super.handleFlow(flow);
-                                            numFlow.incrementAndGet();
-                                        }
-                                    };
-                                }
-                            };
-                        });
-                return broker;
-            }
-        };
+                        @Override
+                        protected void handleFlow(CommandFlow flow) {
+                            super.handleFlow(flow);
+                            numFlow.incrementAndGet();
+                        }
+                    };
+                }
+            };
+        });
+        return brokerService;
     }
 
     @Test
@@ -193,42 +176,6 @@ public class NonDurableSubscriptionTest  extends ProducerConsumerBase {
         } catch (PulsarClientException.NotAllowedException exception) {
             //ignore
         }
-    }
-
-    @Test(timeOut = 10000)
-    public void testDeleteInactiveNonPersistentSubscription() throws Exception {
-        final String topic = "non-persistent://my-property/my-ns/topic-" + UUID.randomUUID();
-        final String subName = "my-subscriber";
-        admin.topics().createNonPartitionedTopic(topic);
-        // 1 setup consumer
-        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING).topic(topic)
-                .subscriptionName(subName).subscribe();
-        // 3 due to the existence of consumers, subscriptions will not be cleaned up
-        NonPersistentTopic nonPersistentTopic = (NonPersistentTopic) pulsar.getBrokerService().getTopicIfExists(topic).get().get();
-        NonPersistentSubscription nonPersistentSubscription = (NonPersistentSubscription) nonPersistentTopic.getSubscription(subName);
-        assertNotNull(nonPersistentSubscription);
-        assertNotNull(nonPersistentSubscription.getDispatcher());
-        assertTrue(nonPersistentSubscription.getDispatcher().isConsumerConnected());
-        assertFalse(nonPersistentSubscription.isReplicated());
-
-        nonPersistentTopic.checkInactiveSubscriptions();
-        Thread.sleep(500);
-        nonPersistentSubscription = (NonPersistentSubscription) nonPersistentTopic.getSubscription(subName);
-        assertNotNull(nonPersistentSubscription);
-        // remove consumer and wait for cleanup
-        consumer.close();
-        Thread.sleep(500);
-
-        //change last active time to 5 minutes ago
-        Field f = NonPersistentSubscription.class.getDeclaredField("lastActive");
-        f.setAccessible(true);
-        f.set(nonPersistentTopic.getSubscription(subName), System.currentTimeMillis() - TimeUnit.MINUTES.toMillis(5));
-        //without consumers and last active time is 5 minutes ago, subscription should be cleaned up
-        nonPersistentTopic.checkInactiveSubscriptions();
-        Thread.sleep(500);
-        nonPersistentSubscription = (NonPersistentSubscription) nonPersistentTopic.getSubscription(subName);
-        assertNull(nonPersistentSubscription);
-
     }
 
     @DataProvider(name = "subscriptionTypes")

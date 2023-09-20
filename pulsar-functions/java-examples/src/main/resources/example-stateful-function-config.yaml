@@ -19,12 +19,9 @@
 
 tenant: "test"
 namespace: "test-namespace"
-name: "stateful-example"
+name: "word_count"
 className: "org.apache.pulsar.functions.api.examples.WordCountFunction"
-inputs: ["test_stateful_src"]
-userConfig:
-  "PublishTopic": "test_stateful_result"
-
-output: "test_stateful_result"
+inputs: ["test_wordcount_src"]
+output: "test_wordcount_result"
 autoAck: true
 parallelism: 1

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,7 +18,6 @@
  */
 package org.apache.bookkeeper.mledger.impl;
 
-import static org.apache.bookkeeper.mledger.util.SafeRun.safeRun;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNull;
@@ -383,7 +382,7 @@ public class ManagedCursorConcurrencyTest extends MockedBookKeeperTestCase {
         final AtomicInteger iteration = new AtomicInteger(0);
 
         for (int i = 0; i < deleteEntries; i++) {
-            executor.submit(safeRun(() -> {
+            executor.submit(() -> {
                 try {
                     cursor.asyncDelete(addedEntries.get(iteration.getAndIncrement()), new DeleteCallback() {
                         @Override
@@ -403,7 +402,7 @@ public class ManagedCursorConcurrencyTest extends MockedBookKeeperTestCase {
                 } finally {
                     counter.countDown();
                 }
-            }));
+            });
         }
 
         counter.await();

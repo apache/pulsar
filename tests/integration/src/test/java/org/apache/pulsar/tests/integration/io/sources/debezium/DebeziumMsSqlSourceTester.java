@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.tests.integration.io.sources.debezium;
 
+import com.google.common.base.Preconditions;
 import java.util.Map;
 import lombok.Getter;
 import lombok.SneakyThrows;
@@ -27,7 +28,6 @@ import org.apache.pulsar.tests.integration.containers.PulsarContainer;
 import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
 import org.apache.pulsar.tests.integration.io.sources.SourceTester;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
-import org.testcontainers.shaded.com.google.common.base.Preconditions;
 import org.testng.Assert;
 import org.testng.util.Strings;
 

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -79,7 +79,7 @@ public abstract class BrokerTestBase extends MockedPulsarServiceBaseTest {
         }
     }
 
-    void runGC() {
+    protected void runGC() {
         try {
             pulsar.getBrokerService().forEachTopic(topic -> {
                 if (topic instanceof AbstractTopic) {
