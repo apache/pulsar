@@ -27,6 +27,7 @@ import org.apache.pulsar.metadata.api.coordination.CoordinationService;
 import org.apache.pulsar.metadata.api.coordination.LeaderElection;
 import org.apache.pulsar.metadata.api.coordination.LeaderElectionState;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
+import org.apache.pulsar.metadata.api.extended.SessionEvent;
 import org.apache.pulsar.metadata.coordination.impl.CoordinationServiceImpl;
 
 @Slf4j
@@ -38,6 +39,7 @@ public class PulsarLedgerAuditorManager implements LedgerAuditorManager {
     private final LeaderElection<String> leaderElection;
     private LeaderElectionState leaderElectionState;
     private String bookieId;
+    private boolean sessionExpired = false;
 
     PulsarLedgerAuditorManager(MetadataStoreExtended store, String ledgersRoot) {
         this.coordinationService = new CoordinationServiceImpl(store);
@@ -47,6 +49,14 @@ public class PulsarLedgerAuditorManager implements LedgerAuditorManager {
         this.leaderElection =
                 coordinationService.getLeaderElection(String.class, electionPath, this::handleStateChanges);
         this.leaderElectionState = LeaderElectionState.NoLeader;
+        store.registerSessionListener(event -> {
+            if (SessionEvent.SessionLost == event) {
+                synchronized (this) {
+                    sessionExpired = true;
+                    notifyAll();
+                }
+            }
+        });
     }
 
     private void handleStateChanges(LeaderElectionState state) {
@@ -71,6 +81,9 @@ public class PulsarLedgerAuditorManager implements LedgerAuditorManager {
         while (true) {
             try {
                 synchronized (this) {
+                    if (sessionExpired) {
+                        throw new IllegalStateException("Zookeeper session expired, give up to become auditor.");
+                    }
                     if (leaderElectionState == LeaderElectionState.Leading) {
                         return;
                     } else {
