@@ -154,8 +154,7 @@ public class AbstractReplicatorTest {
         final ReplicatorInTest replicator = new ReplicatorInTest(localCluster, localTopic, remoteCluster, topicName,
                 replicatorPrefix, broker, remoteClient);
         replicator.startProducer();
-        replicator.disconnect();
-        // Mock close replicator.
+        // Close replicator.
         replicator.close();
 
         // Verify task will done.
