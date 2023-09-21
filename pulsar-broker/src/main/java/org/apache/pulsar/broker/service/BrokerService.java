@@ -1774,14 +1774,11 @@ public class BrokerService implements Closeable {
                 PersistencePolicies persistencePolicies = null;
                 RetentionPolicies retentionPolicies = null;
                 OffloadPoliciesImpl topicLevelOffloadPolicies = null;
-                final CompletableFuture<Void> topicPolicyStep;
-                {
-                    if (topicPoliciesOptional.isPresent()) {
-                        final TopicPolicies topicPolicies = topicPoliciesOptional.get();
-                        persistencePolicies = topicPolicies.getPersistence();
-                        retentionPolicies = topicPolicies.getRetentionPolicies();
-                        topicLevelOffloadPolicies = topicPolicies.getOffloadPolicies();
-                    }
+                if (topicPoliciesOptional.isPresent()) {
+                    final TopicPolicies topicPolicies = topicPoliciesOptional.get();
+                    persistencePolicies = topicPolicies.getPersistence();
+                    retentionPolicies = topicPolicies.getRetentionPolicies();
+                    topicLevelOffloadPolicies = topicPolicies.getOffloadPolicies();
                 }
 
                 if (persistencePolicies == null) {
