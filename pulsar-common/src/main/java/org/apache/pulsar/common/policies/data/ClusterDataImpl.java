@@ -413,31 +413,29 @@ public final class ClusterDataImpl implements  ClusterData, Cloneable {
      * @throws IllegalArgumentException exist illegal property.
      */
          public void checkPropertiesIfPresent() throws IllegalArgumentException {
+             if (StringUtils.isEmpty(getServiceUrl()) && StringUtils.isEmpty(getServiceUrlTls())) {
+                 throw new IllegalArgumentException("At least one of ServiceUrl or ServiceUrlTls must be set.");
+             }  
+             if (StringUtils.isEmpty(getBrokerServiceUrl()) && StringUtils.isEmpty(getBrokerServiceUrlTls())) {
+                throw new IllegalArgumentException("At least one of BrokerServiceUrl or BrokerServiceUrlTls must be set.");
+             }
                  
-                 if (StringUtils.isEmpty(getServiceUrl()) && StringUtils.isEmpty(getServiceUrlTls())) {
-                         throw new IllegalArgumentException("At least one of ServiceUrl or ServiceUrlTls must be set.");
-                 }
-                 
-                 if (StringUtils.isEmpty(getBrokerServiceUrl()) && StringUtils.isEmpty(getBrokerServiceUrlTls())) {
-                         throw new IllegalArgumentException("At least one of BrokerServiceUrl or BrokerServiceUrlTls must be set.");
-                 }
-                 
-                 URIPreconditions.checkURIIfPresent(getServiceUrl(),
-                        uri -> Objects.equals(uri.getScheme(), "http"),
-                        "Illegal service url, example: http://pulsar.example.com:8080");
-                URIPreconditions.checkURIIfPresent(getServiceUrlTls(),
-                        uri -> Objects.equals(uri.getScheme(), "https"),
-                        "Illegal service tls url, example: https://pulsar.example.com:8443");
-                URIPreconditions.checkURIIfPresent(getBrokerServiceUrl(),
-                        uri -> Objects.equals(uri.getScheme(), "pulsar"),
-                        "Illegal broker service url, example: pulsar://pulsar.example.com:6650");
-                URIPreconditions.checkURIIfPresent(getBrokerServiceUrlTls(),
-                        uri -> Objects.equals(uri.getScheme(), "pulsar+ssl"),
-                        "Illegal broker service tls url, example: pulsar+ssl://pulsar.example.com:6651");
-                URIPreconditions.checkURIIfPresent(getProxyServiceUrl(),
-                        uri -> Objects.equals(uri.getScheme(), "pulsar")
-                                || Objects.equals(uri.getScheme(), "pulsar+ssl"),
-                        "Illegal proxy service url, example: pulsar+ssl://ats-proxy.example.com:4443 "
-                                + "or pulsar://ats-proxy.example.com:4080");
+             URIPreconditions.checkURIIfPresent(getServiceUrl(),
+                    uri -> Objects.equals(uri.getScheme(), "http"),
+                    "Illegal service url, example: http://pulsar.example.com:8080");
+             URIPreconditions.checkURIIfPresent(getServiceUrlTls(),
+                    uri -> Objects.equals(uri.getScheme(), "https"),
+                    "Illegal service tls url, example: https://pulsar.example.com:8443");
+             URIPreconditions.checkURIIfPresent(getBrokerServiceUrl(),
+                    uri -> Objects.equals(uri.getScheme(), "pulsar"),
+                    "Illegal broker service url, example: pulsar://pulsar.example.com:6650");
+             URIPreconditions.checkURIIfPresent(getBrokerServiceUrlTls(),
+                    uri -> Objects.equals(uri.getScheme(), "pulsar+ssl"),
+                    "Illegal broker service tls url, example: pulsar+ssl://pulsar.example.com:6651");
+             URIPreconditions.checkURIIfPresent(getProxyServiceUrl(),
+                    uri -> Objects.equals(uri.getScheme(), "pulsar")
+                            || Objects.equals(uri.getScheme(), "pulsar+ssl"),
+                    "Illegal proxy service url, example: pulsar+ssl://ats-proxy.example.com:4443 "
+                            + "or pulsar://ats-proxy.example.com:4080");
          }
 }
