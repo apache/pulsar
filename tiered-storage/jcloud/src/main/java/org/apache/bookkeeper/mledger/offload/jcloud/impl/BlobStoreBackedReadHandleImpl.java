@@ -151,6 +151,10 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle {
                     log.warn("There hasn't enough data to read, current available data has {} bytes,"
                         + " seek to the first entry {} to avoid EOF exception", inputStream.available(), firstEntry);
                     seekToEntry(firstEntry);
+                    if (dataStream.available() < 12) {
+                        promise.completeExceptionally(new ManagedLedgerException
+                                .NonRecoverableLedgerException("There is no complete data in the ledger: " + ledgerId));
+                    }
                 }
 
                 while (entriesToRead > 0) {

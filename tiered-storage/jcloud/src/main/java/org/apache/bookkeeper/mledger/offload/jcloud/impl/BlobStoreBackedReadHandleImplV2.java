@@ -243,10 +243,19 @@ public class BlobStoreBackedReadHandleImplV2 implements ReadHandle {
                 log.debug("entries are in earlier indices, skip this segment ledger id: {}, begin entry id: {}",
                         ledgerId, startEntryId);
             } else {
-                groupedReaders.add(new GroupedReader(ledgerId, startEntryId, lastEntry, index, inputStreams.get(i),
-                        dataStreams.get(i)));
-                lastEntry = startEntryId - 1;
+                if (dataStreams.get(i).available() < 12) {
+                    log.warn("The blob store offload segment is not enough data for ledger {}", ledgerId);
+                } else {
+                    groupedReaders.add(new GroupedReader(ledgerId, startEntryId, lastEntry, index, inputStreams.get(i),
+                            dataStreams.get(i)));
+                    lastEntry = startEntryId - 1;
+                }
             }
+        }
+
+        if (groupedReaders.size() == 0) {
+            throw new ManagedLedgerException.NonRecoverableLedgerException(
+                    String.format("There is no data for ledger %d, from entry %d to %d", ledgerId, firstEntry, lastEntry));
         }
 
         checkArgument(firstEntry > lastEntry);
