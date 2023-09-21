@@ -65,9 +65,9 @@ public class TopicPoliciesWithBrokerRestartTest extends MockedPulsarServiceBaseT
         }
         // (4) Check configuration
         Awaitility.await().untilAsserted(() -> {
-            PersistentTopic persistentTopic1 = (PersistentTopic)
+            final PersistentTopic persistentTopic1 = (PersistentTopic)
                     pulsar.getBrokerService().getTopic(topicName, true).join().get();
-            ManagedLedgerImpl managedLedger1 = (ManagedLedgerImpl) persistentTopic1.getManagedLedger();
+            final ManagedLedgerImpl managedLedger1 = (ManagedLedgerImpl) persistentTopic1.getManagedLedger();
             Assert.assertEquals(managedLedger1.getConfig().getRetentionSizeInMB(), 20);
             Assert.assertEquals(managedLedger1.getConfig().getRetentionTimeMillis(),
                     TimeUnit.MINUTES.toMillis(20));
@@ -76,9 +76,9 @@ public class TopicPoliciesWithBrokerRestartTest extends MockedPulsarServiceBaseT
         restartBroker();
         // (6) Check configuration again
         admin.lookups().lookupTopic(topicName);
-        PersistentTopic persistentTopic2 = (PersistentTopic)
+        final PersistentTopic persistentTopic2 = (PersistentTopic)
                 pulsar.getBrokerService().getTopic(topicName, true).join().get();
-        ManagedLedgerImpl managedLedger2 = (ManagedLedgerImpl) persistentTopic2.getManagedLedger();
+        final ManagedLedgerImpl managedLedger2 = (ManagedLedgerImpl) persistentTopic2.getManagedLedger();
         Assert.assertEquals(managedLedger2.getConfig().getRetentionSizeInMB(), 20);
         Assert.assertEquals(managedLedger2.getConfig().getRetentionTimeMillis(),
                 TimeUnit.MINUTES.toMillis(20));
