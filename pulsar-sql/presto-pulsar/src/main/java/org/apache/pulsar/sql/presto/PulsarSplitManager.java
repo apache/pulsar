@@ -328,9 +328,6 @@ public class PulsarSplitManager implements ConnectorSplitManager {
                 splits.add(pulsarSplit);
             }
             return splits;
-        } catch (ManagedLedgerException exception){
-            log.error(exception, "Open cursor failed");
-            return Collections.emptyList();
         } finally {
             if (readOnlyCursor != null) {
                 try {
