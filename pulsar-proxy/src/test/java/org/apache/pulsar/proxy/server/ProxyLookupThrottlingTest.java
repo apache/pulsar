@@ -146,5 +146,6 @@ public class ProxyLookupThrottlingTest extends MockedPulsarServiceBaseTest {
 
         // cleanup.
         lookupSemaphore.release(availablePermits);
+        client.close();
     }
 }
