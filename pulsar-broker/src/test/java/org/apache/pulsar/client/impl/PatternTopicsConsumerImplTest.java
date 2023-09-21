@@ -48,6 +48,7 @@ import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.awaitility.Awaitility;
+import org.awaitility.reflect.WhiteboxImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterMethod;
@@ -605,6 +606,10 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
                 .receiverQueueSize(4)
                 .subscribe();
 
+        Awaitility.await().untilAsserted(() -> {
+            CompletableFuture completableFuture = WhiteboxImpl.getInternalState(consumer, "watcherFuture");
+            assertTrue(completableFuture.isDone() && !completableFuture.isCompletedExceptionally());
+        });
         // 1. create partition
         String topicName = "persistent://my-property/my-ns/pattern-topic-1-" + key;
         TenantInfoImpl tenantInfo = createDefaultTenantInfo();
