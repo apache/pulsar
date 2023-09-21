@@ -74,6 +74,7 @@ public class TopicPoliciesWithBrokerRestartTest extends MockedPulsarServiceBaseT
         });
         // (5) Restart broker
         restartBroker();
+        // (6) Check configuration again
         admin.lookups().lookupTopic(topicName);
         PersistentTopic persistentTopic2 = (PersistentTopic)
                 pulsar.getBrokerService().getTopic(topicName, true).join().get();
