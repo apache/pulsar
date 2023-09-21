@@ -31,29 +31,30 @@ public class StandaloneContainer extends PulsarContainer<StandaloneContainer> {
     public static final String NAME = "standalone";
 
     public StandaloneContainer(String clusterName) {
-        super(clusterName,
-            NAME,
-            NAME + "-cluster",
-            "bin/pulsar",
-            BROKER_PORT,
-            BROKER_HTTP_PORT);
+        this(clusterName, DEFAULT_IMAGE_NAME, false);
     }
 
     public StandaloneContainer(String clusterName, String pulsarImageName) {
+        this(clusterName, pulsarImageName, false);
+    }
+
+    public StandaloneContainer(String clusterName, String pulsarImageName, boolean enableTls) {
         super(clusterName,
                 NAME,
                 NAME + "-cluster",
-                "bin/pulsar",
+                "bin/run-standalone.sh",
                 BROKER_PORT,
+                enableTls ? BROKER_PORT_TLS : 0,
                 BROKER_HTTP_PORT,
+                enableTls ? BROKER_HTTPS_PORT : 0,
                 "",
                 pulsarImageName);
+        tailContainerLog();
     }
 
     @Override
     protected void configure() {
         super.configure();
-        setCommand("standalone");
         addEnv("PULSAR_MEM", "-Xms128M -Xmx1g -XX:MaxDirectMemorySize=1g");
     }
 

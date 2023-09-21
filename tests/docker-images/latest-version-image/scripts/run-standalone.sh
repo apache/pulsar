@@ -18,4 +18,7 @@
 # under the License.
 #
 
+bin/apply-config-from-env.py conf/standalone.conf && \
+    bin/apply-config-from-env.py conf/pulsar_env.sh
+
 bin/pulsar standalone

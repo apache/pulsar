@@ -141,6 +141,8 @@ public class PulsarWorkerService implements WorkerService {
                         brokerClientAuthenticationPlugin,
                         brokerClientAuthenticationParameters,
                         workerConfig.getBrokerClientTrustCertsFilePath(),
+                        workerConfig.getTlsKeyFilePath(),
+                        workerConfig.getTlsCertificateFilePath(),
                         workerConfig.isTlsAllowInsecureConnection(),
                         workerConfig.isTlsEnableHostnameVerification(),
                         workerConfig);
@@ -164,6 +166,8 @@ public class PulsarWorkerService implements WorkerService {
                         brokerClientAuthenticationParameters,
                         workerConfig.isUseTls(),
                         workerConfig.getBrokerClientTrustCertsFilePath(),
+                        workerConfig.getTlsKeyFilePath(),
+                        workerConfig.getTlsCertificateFilePath(),
                         workerConfig.isTlsAllowInsecureConnection(),
                         workerConfig.isTlsEnableHostnameVerification(),
                         workerConfig);
@@ -428,10 +432,8 @@ public class PulsarWorkerService implements WorkerService {
                         .buildAdmin();
             }
 
-            final String functionWebServiceUrl = StringUtils.isNotBlank(workerConfig.getFunctionWebServiceUrl())
-                    ? workerConfig.getFunctionWebServiceUrl()
-                    : (workerConfig.getTlsEnabled()
-                        ? workerConfig.getWorkerWebAddressTls() : workerConfig.getWorkerWebAddress());
+            final String functionWebServiceUrl = workerConfig.getTlsEnabled()
+                        ? workerConfig.getWorkerWebAddressTls() : workerConfig.getWorkerWebAddress();
 
             this.brokerAdmin = clientCreator.newPulsarAdmin(workerConfig.getPulsarWebServiceUrl(), workerConfig);
             this.functionAdmin = clientCreator.newPulsarAdmin(functionWebServiceUrl, workerConfig);
