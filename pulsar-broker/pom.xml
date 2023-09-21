@@ -19,14 +19,14 @@
 
 -->
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/maven-v4_0_0.xsd">
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
   <modelVersion>4.0.0</modelVersion>
 
   <parent>
     <groupId>org.apache.pulsar</groupId>
     <artifactId>pulsar</artifactId>
     <version>3.2.0-SNAPSHOT</version>
-    <relativePath>../pom.xml</relativePath>
+    <relativePath>..</relativePath>
   </parent>
 
   <artifactId>pulsar-broker</artifactId>
@@ -157,7 +157,6 @@
       <version>${wiremock.version}</version>
       <scope>test</scope>
     </dependency>
-
 
     <!-- zookeeper server -->
     <dependency>
@@ -755,7 +754,7 @@
                     <version>v2</version>
                     <description>This provides the REST API for admin operations</description>
                     <license>
-                      <url>https://www.apache.org/licenses/LICENSE-2.0.html</url>
+                      <url>http://www.apache.org/licenses/LICENSE-2.0.html</url>
                       <name>Apache 2.0</name>
                     </license>
                   </info>
@@ -774,7 +773,7 @@
                     <version>v2</version>
                     <description>This provides the REST API for lookup operations</description>
                     <license>
-                      <url>https://www.apache.org/licenses/LICENSE-2.0.html</url>
+                      <url>http://www.apache.org/licenses/LICENSE-2.0.html</url>
                       <name>Apache 2.0</name>
                     </license>
                   </info>
@@ -793,7 +792,7 @@
                     <version>v3</version>
                     <description>This provides the REST API for Pulsar Functions operations</description>
                     <license>
-                      <url>https://www.apache.org/licenses/LICENSE-2.0.html</url>
+                      <url>http://www.apache.org/licenses/LICENSE-2.0.html</url>
                       <name>Apache 2.0</name>
                     </license>
                   </info>
@@ -812,7 +811,7 @@
                     <version>v3</version>
                     <description>This provides the REST API for Pulsar Transactions operations</description>
                     <license>
-                      <url>https://www.apache.org/licenses/LICENSE-2.0.html</url>
+                      <url>http://www.apache.org/licenses/LICENSE-2.0.html</url>
                       <name>Apache 2.0</name>
                     </license>
                   </info>
@@ -831,7 +830,7 @@
                     <version>v3</version>
                     <description>This provides the REST API for Pulsar Source operations</description>
                     <license>
-                      <url>https://www.apache.org/licenses/LICENSE-2.0.html</url>
+                      <url>http://www.apache.org/licenses/LICENSE-2.0.html</url>
                       <name>Apache 2.0</name>
                     </license>
                   </info>
@@ -850,7 +849,7 @@
                     <version>v3</version>
                     <description>This provides the REST API for Pulsar Sink operations</description>
                     <license>
-                      <url>https://www.apache.org/licenses/LICENSE-2.0.html</url>
+                      <url>http://www.apache.org/licenses/LICENSE-2.0.html</url>
                       <name>Apache 2.0</name>
                     </license>
                   </info>
@@ -869,7 +868,7 @@
                     <version>v3</version>
                     <description>This provides the REST API for Pulsar Packages operations</description>
                     <license>
-                      <url>https://www.apache.org/licenses/LICENSE-2.0.html</url>
+                      <url>http://www.apache.org/licenses/LICENSE-2.0.html</url>
                       <name>Apache 2.0</name>
                     </license>
                   </info>
