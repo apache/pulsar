@@ -282,8 +282,8 @@ public final class WorkerUtils {
                                                String tlsCertificateFilePath,
                                                Boolean allowTlsInsecureConnection,
                                                Boolean enableTlsHostnameVerification) {
-        return getPulsarClient(pulsarServiceUrl, authPlugin, authParams, useTls, tlsTrustCertsFilePath,
-                tlsKeyFilePath, tlsCertificateFilePath, allowTlsInsecureConnection, enableTlsHostnameVerification, null);
+        return getPulsarClient(pulsarServiceUrl, authPlugin, authParams, useTls, tlsTrustCertsFilePath, tlsKeyFilePath,
+                tlsCertificateFilePath, allowTlsInsecureConnection, enableTlsHostnameVerification, null);
     }
 
     public static PulsarClient getPulsarClient(String pulsarServiceUrl, String authPlugin, String authParams,
