@@ -365,6 +365,7 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
             if (hasMore) {
                 reader.readNextAsync().thenAccept(msg -> {
                     refreshTopicPoliciesCache(msg);
+                    notifyListener(msg);
                     if (log.isDebugEnabled()) {
                         log.debug("[{}] Loop next event reading for system topic.",
                                 reader.getSystemTopic().getTopicName().getNamespaceObject());
@@ -383,18 +384,6 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                 }
                 policyCacheInitMap.computeIfPresent(
                         reader.getSystemTopic().getTopicName().getNamespaceObject(), (k, v) -> true);
-                // replay policy message
-                policiesCache.forEach(((topicName, topicPolicies) -> {
-                    if (listeners.get(topicName) != null) {
-                        for (TopicPolicyListener<TopicPolicies> listener : listeners.get(topicName)) {
-                            try {
-                                listener.onUpdate(topicPolicies);
-                            } catch (Throwable error) {
-                                log.error("[{}] call listener error.", topicName, error);
-                            }
-                        }
-                    }
-                }));
                 future.complete(null);
             }
         });
