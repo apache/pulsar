@@ -354,14 +354,15 @@ public class PersistentTopicsBase extends AdminResource {
                 }
                 if (expectPartitions < currentMetadataPartitions) {
                     throw new RestException(422 /* Unprocessable entity*/,
-                            String.format("Expect partitions %s can't less than current partitions %s.",
+                            String.format("Desired partitions %s can't be less than the current partitions %s.",
                                     expectPartitions, currentMetadataPartitions));
                 }
                 int brokerMaximumPartitionsPerTopic = pulsarService.getConfiguration()
                         .getMaxNumPartitionsPerPartitionedTopic();
                 if (brokerMaximumPartitionsPerTopic != 0 && expectPartitions > brokerMaximumPartitionsPerTopic) {
                     throw new RestException(422 /* Unprocessable entity*/,
-                            String.format("Expect partitions %s grater than maximum partitions per topic %s",
+                            String.format("Desired partitions %s can't be greater than the maximum partitions per"
+                                            + " topic %s.",
                                     expectPartitions, brokerMaximumPartitionsPerTopic));
                 }
                 final PulsarAdmin admin;
