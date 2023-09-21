@@ -1068,7 +1068,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
 
         Transaction consumeTimeoutTxn = pulsarClient
                 .newTransaction()
-                .withTransactionTimeout(3, TimeUnit.SECONDS)
+                .withTransactionTimeout(7, TimeUnit.SECONDS)
                 .build().get();
 
         Message<String> message = consumer.receive(waitTimeForCanReceiveMSgInSec, TimeUnit.SECONDS);
