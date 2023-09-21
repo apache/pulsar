@@ -31,7 +31,7 @@ public class StandaloneContainer extends PulsarContainer<StandaloneContainer> {
     public static final String NAME = "standalone";
 
     public StandaloneContainer(String clusterName) {
-        this(clusterName, DEFAULT_IMAGE_NAME, false);
+        this(clusterName, DEFAULT_IMAGE_NAME);
     }
 
     public StandaloneContainer(String clusterName, String pulsarImageName) {

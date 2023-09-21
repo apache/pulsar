@@ -24,7 +24,7 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 
 public abstract class PulsarStandaloneTestSuite extends PulsarStandaloneTestBase {
-    protected final String imageName;
+    private final String imageName;
 
     protected PulsarStandaloneTestSuite() {
         this(PulsarContainer.DEFAULT_IMAGE_NAME);

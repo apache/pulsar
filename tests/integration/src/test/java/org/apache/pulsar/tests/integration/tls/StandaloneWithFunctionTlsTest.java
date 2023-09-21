@@ -29,7 +29,7 @@ public class StandaloneWithFunctionTlsTest extends PulsarStandaloneTestSuite {
     @Override
     public void setUpCluster() throws Exception {
         enableTls = true;
-        super.startCluster(imageName);
+        super.setUpCluster();
     }
 
     @Test
