@@ -113,7 +113,7 @@ public class LookupProxyHandler {
                 log.debug("Lookup Request ID {} from {} rejected - {}.", clientRequestId, clientAddress,
                         throttlingErrorMessage);
             }
-            proxyConnection.ctx().writeAndFlush(Commands.newLookupErrorResponse(ServerError.ServiceNotReady,
+            proxyConnection.ctx().writeAndFlush(Commands.newLookupErrorResponse(ServerError.TooManyRequests,
                     throttlingErrorMessage, clientRequestId));
         }
 
