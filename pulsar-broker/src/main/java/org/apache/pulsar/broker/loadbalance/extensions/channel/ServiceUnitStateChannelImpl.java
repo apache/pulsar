@@ -1390,16 +1390,45 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
             String srcBroker = stateData.sourceBroker();
             var state = stateData.state();
 
-            if (isActiveState(state)) {
-                if (StringUtils.isNotBlank(srcBroker) && !activeBrokers.contains(srcBroker)) {
-                    inactiveBrokers.add(srcBroker);
-                } else if (StringUtils.isNotBlank(dstBroker) && !activeBrokers.contains(dstBroker)) {
-                    inactiveBrokers.add(dstBroker);
-                } else if (isInFlightState(state)
-                        && now - stateData.timestamp() > inFlightStateWaitingTimeInMillis) {
-                    orphanServiceUnits.put(serviceUnit, stateData);
+            if (isActiveState(state) && StringUtils.isNotBlank(srcBroker) && !activeBrokers.contains(srcBroker)) {
+                inactiveBrokers.add(srcBroker);
+                continue;
+            }
+            if (isActiveState(state) && StringUtils.isNotBlank(dstBroker) && !activeBrokers.contains(dstBroker)) {
+                inactiveBrokers.add(dstBroker);
+                continue;
+            }
+            if (isActiveState(state) && isInFlightState(state)
+                    && now - stateData.timestamp() > inFlightStateWaitingTimeInMillis) {
+                // handle heartbeat namespace
+                if (StringUtils.isNotBlank(dstBroker)) {
+                    String heartbeatNamespace = NamespaceName
+                            .get(String.format(HEARTBEAT_NAMESPACE_FMT, config.getClusterName(), dstBroker))
+                            .toString();
+                    String heartbeatNamespaceV2 =
+                            NamespaceName.get(String.format(HEARTBEAT_NAMESPACE_FMT_V2, dstBroker)).toString();
+                    if (serviceUnit.startsWith(heartbeatNamespace)
+                            || serviceUnit.startsWith(heartbeatNamespaceV2)) {
+                        // Skip the heartbeat namespace
+                        log.info("Skip override orphan heartbeat namespace bundle"
+                                + " serviceUnit:{}, stateData:{}", serviceUnit, stateData);
+                        tombstoneAsync(serviceUnit).whenComplete((__, e) -> {
+                            if (e != null) {
+                                log.error("Failed cleaning the ownership serviceUnit:{}, stateData:{}, "
+                                                + "cleanupErrorCnt:{}.",
+                                        serviceUnit, stateData,
+                                        totalCleanupErrorCnt.incrementAndGet() - totalCleanupErrorCntStart, e);
+                            }
+                        });
+                        serviceUnitTombstoneCleanupCnt++;
+                        continue;
+                    }
                 }
-            } else if (now - stateData.timestamp() > semiTerminalStateWaitingTimeInMillis) {
+                orphanServiceUnits.put(serviceUnit, stateData);
+                continue;
+            }
+
+            if (now - stateData.timestamp() > semiTerminalStateWaitingTimeInMillis) {
                 log.info("Found semi-terminal states to tombstone"
                         + " serviceUnit:{}, stateData:{}", serviceUnit, stateData);
                 tombstoneAsync(serviceUnit).whenComplete((__, e) -> {
