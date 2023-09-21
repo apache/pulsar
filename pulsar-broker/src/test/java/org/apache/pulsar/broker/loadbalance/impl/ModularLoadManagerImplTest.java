@@ -169,6 +169,8 @@ public class ModularLoadManagerImplTest {
         config1.setBrokerShutdownTimeoutMs(0L);
         config1.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
         config1.setBrokerServicePort(Optional.of(0));
+        config1.setBrokerServicePortTls(Optional.of(0));
+        config1.setWebServicePortTls(Optional.of(0));
         pulsar1 = new PulsarService(config1);
         pulsar1.start();
 
@@ -187,6 +189,8 @@ public class ModularLoadManagerImplTest {
         config2.setBrokerShutdownTimeoutMs(0L);
         config2.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
         config2.setBrokerServicePort(Optional.of(0));
+        config2.setBrokerServicePortTls(Optional.of(0));
+        config2.setWebServicePortTls(Optional.of(0));
         pulsar2 = new PulsarService(config2);
         pulsar2.start();
 
@@ -200,6 +204,8 @@ public class ModularLoadManagerImplTest {
         config.setBrokerShutdownTimeoutMs(0L);
         config.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
         config.setBrokerServicePort(Optional.of(0));
+        config.setBrokerServicePortTls(Optional.of(0));
+        config.setWebServicePortTls(Optional.of(0));
         pulsar3 = new PulsarService(config);
 
         secondaryHost = String.format("%s:%d", "localhost", pulsar2.getListenPortHTTP().get());

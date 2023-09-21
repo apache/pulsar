@@ -247,7 +247,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
                 -> admin2.clusters().getCluster(cluster2) != null);
 
         List<String> list = admin1.brokers().getActiveBrokers(cluster2);
-        assertEquals(list.get(0), urlTls2.toString().replace("https://", ""));
+        assertEquals(list.get(0), url2.toString().replace("http://", ""));
         //restore configuration
         pulsar1.getConfiguration().setAuthorizationEnabled(false);
     }

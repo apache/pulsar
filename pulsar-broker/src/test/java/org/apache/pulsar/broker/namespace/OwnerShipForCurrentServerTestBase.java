@@ -80,8 +80,10 @@ public abstract class OwnerShipForCurrentServerTestBase {
             conf.setBrokerShutdownTimeoutMs(0L);
             conf.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
             conf.setBrokerServicePort(Optional.of(0));
+            conf.setBrokerServicePortTls(Optional.of(0));
             conf.setAdvertisedAddress("localhost");
             conf.setWebServicePort(Optional.of(0));
+            conf.setWebServicePortTls(Optional.of(0));
             serviceConfigurationList.add(conf);
 
             PulsarTestContext.Builder testContextBuilder =

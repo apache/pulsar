@@ -28,7 +28,6 @@ import static org.testng.Assert.assertTrue;
 
 import java.lang.reflect.Method;
 import java.net.URL;
-import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.pulsar.broker.BrokerTestUtil;
@@ -477,14 +476,6 @@ public class ClusterMigrationTest {
         protected void setup() throws Exception {
             super.setupWithClusterName(clusterName);
         }
-
-        @Override
-        protected void doInitConf() throws Exception {
-            super.doInitConf();
-            this.conf.setWebServicePortTls(Optional.of(0));
-            this.conf.setBrokerServicePortTls(Optional.of(0));
-        }
-
 
         public PulsarService getPulsarService() {
             return pulsar;
