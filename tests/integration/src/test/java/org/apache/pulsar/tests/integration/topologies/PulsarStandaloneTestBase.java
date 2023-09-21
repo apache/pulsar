@@ -22,7 +22,6 @@ import static org.apache.pulsar.tests.integration.containers.PulsarContainer.BRO
 import static org.apache.pulsar.tests.integration.containers.PulsarContainer.BROKER_PORT_TLS;
 import static org.testng.Assert.assertEquals;
 import java.util.function.Supplier;
-
 import com.google.common.io.Resources;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.IOUtils;
