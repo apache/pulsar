@@ -224,7 +224,7 @@ public abstract class ElasticSearchClientTests extends ElasticSearchTestBase {
         SinkContext sinkContext = mock(SinkContext.class);
         AtomicReference<Throwable> irrecoverableError = new AtomicReference<>();
         doAnswer(invocation -> {
-            irrecoverableError.set(invocation.getArgument(0));
+            irrecoverableError.compareAndSet(null, invocation.getArgument(0));
             return null;
         }).when(sinkContext).fatal(any(Throwable.class));
         try (ElasticSearchClient client = new ElasticSearchClient(config, sinkContext);) {

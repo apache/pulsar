@@ -28,6 +28,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.Callable;
+import java.util.concurrent.atomic.AtomicReference;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.client.api.schema.GenericObject;
@@ -53,6 +54,7 @@ public class ElasticSearchClient implements AutoCloseable {
     final Set<String> indexCache = new HashSet<>();
     final Map<String, String> topicToIndexCache = new HashMap<>();
 
+    final AtomicReference<Exception> irrecoverableError = new AtomicReference<>();
     private final IndexNameFormatter indexNameFormatter;
 
     final SinkContext sinkContext;
@@ -99,6 +101,7 @@ public class ElasticSearchClient implements AutoCloseable {
     }
 
     void failed(Exception e) {
+        irrecoverableError.compareAndSet(null, e);
         sinkContext.fatal(e);
     }
 
@@ -141,6 +144,7 @@ public class ElasticSearchClient implements AutoCloseable {
 
     public void bulkIndex(Record record, Pair<String, String> idAndDoc) throws Exception {
         try {
+            checkNotFailed();
             checkIndexExists(record);
             final String indexName = indexName(record);
             final String documentId = idAndDoc.getLeft();
@@ -169,6 +173,7 @@ public class ElasticSearchClient implements AutoCloseable {
      */
     public boolean indexDocument(Record<GenericObject> record, Pair<String, String> idAndDoc) throws Exception {
         try {
+            checkNotFailed();
             checkIndexExists(record);
 
             final String indexName = indexName(record);
@@ -191,6 +196,7 @@ public class ElasticSearchClient implements AutoCloseable {
 
     public void bulkDelete(Record<GenericObject> record, String id) throws Exception {
         try {
+            checkNotFailed();
             checkIndexExists(record);
 
             final String indexName = indexName(record);
@@ -217,6 +223,7 @@ public class ElasticSearchClient implements AutoCloseable {
      */
     public boolean deleteDocument(Record<GenericObject> record, String id) throws Exception {
         try {
+            checkNotFailed();
             checkIndexExists(record);
             final String indexName = indexName(record);
             final boolean deleted = client.deleteDocument(indexName, id);
@@ -251,6 +258,12 @@ public class ElasticSearchClient implements AutoCloseable {
     @VisibleForTesting
     void setClient(RestClient client) {
         this.client = client;
+    }
+
+    private void checkNotFailed() throws Exception {
+        if (irrecoverableError.get() != null) {
+            throw irrecoverableError.get();
+        }
     }
 
     private void checkIndexExists(Record<GenericObject> record) throws IOException {
