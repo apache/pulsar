@@ -139,6 +139,7 @@ public abstract class ElasticSearchSinkTests extends ElasticSearchTestBase {
 
         mockRecord = mock(Record.class);
         mockSinkContext = mock(SinkContext.class);
+        irrecoverableError.set(null);
         doAnswer(invocation -> {
             irrecoverableError.set(invocation.getArgument(0));
             return null;
