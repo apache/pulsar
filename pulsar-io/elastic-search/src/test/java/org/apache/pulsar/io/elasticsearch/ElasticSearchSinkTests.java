@@ -76,6 +76,7 @@ import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 
+import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.fail;
 
@@ -430,7 +431,7 @@ public abstract class ElasticSearchSinkTests extends ElasticSearchTestBase {
         assertEquals(json, "{\"name\":null,\"userName\":\"boby\",\"email\":null}");
     }
 
-    @Test(expectedExceptions = PulsarClientException.InvalidMessageException.class)
+    @Test
     public void testNullValueFailure() throws Exception {
         String index = "testnullvaluefail";
         map.put("indexName", index);
@@ -439,6 +440,7 @@ public abstract class ElasticSearchSinkTests extends ElasticSearchTestBase {
         sink.open(map, mockSinkContext);
         MockRecordNullValue mockRecordNullValue = new MockRecordNullValue();
         sink.write(mockRecordNullValue);
+        assertNotNull(irrecoverableError.get());
     }
 
     @Test
