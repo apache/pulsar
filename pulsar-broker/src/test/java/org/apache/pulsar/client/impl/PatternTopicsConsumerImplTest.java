@@ -68,6 +68,7 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
         isTcpLookup = true;
         // enabled transaction, to test pattern consumers not subscribe to transaction system topic.
         conf.setTransactionCoordinatorEnabled(true);
+        conf.setSubscriptionPatternMaxLength(10000);
         super.internalSetup();
         super.producerBaseSetup();
     }
@@ -211,6 +212,12 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
             .subscribe();
         assertTrue(consumer.getTopic().startsWith(PatternMultiTopicsConsumerImpl.DUMMY_TOPIC_NAME_PREFIX));
 
+        // Wait topic list watcher creation.
+        Awaitility.await().untilAsserted(() -> {
+            CompletableFuture completableFuture = WhiteboxImpl.getInternalState(consumer, "watcherFuture");
+            assertTrue(completableFuture.isDone() && !completableFuture.isCompletedExceptionally());
+        });
+
         // 4. verify consumer get methods, to get right number of partitions and topics.
         assertSame(pattern, ((PatternMultiTopicsConsumerImpl<?>) consumer).getPattern());
         List<String> topics = ((PatternMultiTopicsConsumerImpl<?>) consumer).getPartitions();
@@ -288,6 +295,12 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
                 .subscribe();
         assertTrue(consumer.getTopic().startsWith(PatternMultiTopicsConsumerImpl.DUMMY_TOPIC_NAME_PREFIX));
 
+        // Wait topic list watcher creation.
+        Awaitility.await().untilAsserted(() -> {
+            CompletableFuture completableFuture = WhiteboxImpl.getInternalState(consumer, "watcherFuture");
+            assertTrue(completableFuture.isDone() && !completableFuture.isCompletedExceptionally());
+        });
+
         // 4. verify consumer get methods, to get right number of partitions and topics.
         assertSame(pattern, ((PatternMultiTopicsConsumerImpl<?>) consumer).getPattern());
         List<String> topics = ((PatternMultiTopicsConsumerImpl<?>) consumer).getPartitions();
@@ -364,6 +377,12 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
             .ackTimeout(ackTimeOutMillis, TimeUnit.MILLISECONDS)
             .subscriptionTopicsMode(RegexSubscriptionMode.NonPersistentOnly)
             .subscribe();
+
+        // Wait topic list watcher creation.
+        Awaitility.await().untilAsserted(() -> {
+            CompletableFuture completableFuture = WhiteboxImpl.getInternalState(consumer, "watcherFuture");
+            assertTrue(completableFuture.isDone() && !completableFuture.isCompletedExceptionally());
+        });
 
         // 4. verify consumer get methods, to get right number of partitions and topics.
         assertSame(pattern, ((PatternMultiTopicsConsumerImpl<?>) consumer).getPattern());
@@ -456,6 +475,12 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
             .ackTimeout(ackTimeOutMillis, TimeUnit.MILLISECONDS)
             .subscribe();
 
+        // Wait topic list watcher creation.
+        Awaitility.await().untilAsserted(() -> {
+            CompletableFuture completableFuture = WhiteboxImpl.getInternalState(consumer, "watcherFuture");
+            assertTrue(completableFuture.isDone() && !completableFuture.isCompletedExceptionally());
+        });
+
         // 4. verify consumer get methods, to get right number of partitions and topics.
         assertSame(pattern, ((PatternMultiTopicsConsumerImpl<?>) consumer).getPattern());
         List<String> topics = ((PatternMultiTopicsConsumerImpl<?>) consumer).getPartitions();
@@ -526,6 +551,11 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
             .ackTimeout(ackTimeOutMillis, TimeUnit.MILLISECONDS)
             .receiverQueueSize(4)
             .subscribe();
+        // Wait topic list watcher creation.
+        Awaitility.await().untilAsserted(() -> {
+            CompletableFuture completableFuture = WhiteboxImpl.getInternalState(consumer, "watcherFuture");
+            assertTrue(completableFuture.isDone() && !completableFuture.isCompletedExceptionally());
+        });
 
         // 3. verify consumer get methods, to get 5 number of partitions and topics.
         assertSame(pattern, ((PatternMultiTopicsConsumerImpl<?>) consumer).getPattern());
@@ -606,10 +636,12 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
                 .receiverQueueSize(4)
                 .subscribe();
 
+        // Wait topic list watcher creation.
         Awaitility.await().untilAsserted(() -> {
             CompletableFuture completableFuture = WhiteboxImpl.getInternalState(consumer, "watcherFuture");
             assertTrue(completableFuture.isDone() && !completableFuture.isCompletedExceptionally());
         });
+
         // 1. create partition
         String topicName = "persistent://my-property/my-ns/pattern-topic-1-" + key;
         TenantInfoImpl tenantInfo = createDefaultTenantInfo();
@@ -669,6 +701,12 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
             .ackTimeout(ackTimeOutMillis, TimeUnit.MILLISECONDS)
             .receiverQueueSize(4)
             .subscribe();
+
+        // Wait topic list watcher creation.
+        Awaitility.await().untilAsserted(() -> {
+            CompletableFuture completableFuture = WhiteboxImpl.getInternalState(consumer, "watcherFuture");
+            assertTrue(completableFuture.isDone() && !completableFuture.isCompletedExceptionally());
+        });
 
         assertTrue(consumer instanceof PatternMultiTopicsConsumerImpl);
 
@@ -780,6 +818,12 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
             .receiverQueueSize(4)
             .subscribe();
 
+        // Wait topic list watcher creation.
+        Awaitility.await().untilAsserted(() -> {
+            CompletableFuture completableFuture = WhiteboxImpl.getInternalState(consumer, "watcherFuture");
+            assertTrue(completableFuture.isDone() && !completableFuture.isCompletedExceptionally());
+        });
+
         assertTrue(consumer instanceof PatternMultiTopicsConsumerImpl);
 
         // 4. verify consumer get methods, to get 0 number of partitions and topics: 6=1+2+3
@@ -865,6 +909,12 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
             .patternAutoDiscoveryPeriod(1)
             .subscriptionName("sub")
             .subscribe();
+
+        // Wait topic list watcher creation.
+        Awaitility.await().untilAsserted(() -> {
+            CompletableFuture completableFuture = WhiteboxImpl.getInternalState(consumer, "watcherFuture");
+            assertTrue(completableFuture.isDone() && !completableFuture.isCompletedExceptionally());
+        });
 
         assertTrue(consumer instanceof PatternMultiTopicsConsumerImpl);
         PatternMultiTopicsConsumerImpl<String> consumerImpl = (PatternMultiTopicsConsumerImpl<String>) consumer;
