@@ -1237,11 +1237,7 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
     /**
      * Get {@link TopicPolicies} for this topic.
      * @return TopicPolicies, if they exist. Otherwise, the value will not be present.
-     * @throws RuntimeException Undefined exception
-     * @deprecated This API deprecated by undefined exception and blocking call.
      */
-
-    @Deprecated
     public Optional<TopicPolicies> getTopicPolicies() {
         return brokerService.getTopicPolicies(TopicName.get(topic));
     }

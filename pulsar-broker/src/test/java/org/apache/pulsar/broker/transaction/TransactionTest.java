@@ -501,6 +501,7 @@ public class TransactionTest extends TransactionTestBase {
                     log.error("Failed to getTopicPolicies of :" + originPersistentTopic);
                     Assert.fail();
                 }
+                TopicPolicies topicPolicies = originPersistentTopic.getTopicPolicies().get();
                 Assert.assertEquals(retentionSizeInMbSetTopic, retentionSize);
                 MLPendingAckStoreProvider mlPendingAckStoreProvider = new MLPendingAckStoreProvider();
                 CompletableFuture<PendingAckStore> future = mlPendingAckStoreProvider.newPendingAckStore(subscription);

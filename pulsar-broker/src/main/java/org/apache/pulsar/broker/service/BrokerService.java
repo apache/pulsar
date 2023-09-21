@@ -3421,25 +3421,19 @@ public class BrokerService implements Closeable {
     public @Nonnull CompletionStage<Boolean> isAllowAutoSubscriptionCreationAsync(@Nonnull TopicName tpName) {
         requireNonNull(tpName);
         // topic level policies
-       return pulsar.getTopicPoliciesService()
-               .getTopicPoliciesAsyncWithRetry(tpName, null, executor(), false)
-                .thenCompose(topicPoliciesOptional -> {
-                    if (topicPoliciesOptional .isPresent() &&
-                        topicPoliciesOptional .get().getAutoSubscriptionCreationOverride() != null) {
-                        return CompletableFuture.completedFuture(topicPoliciesOptional
-                                .get().getAutoSubscriptionCreationOverride().isAllowAutoSubscriptionCreation());
+        final var topicPolicies = getTopicPolicies(tpName);
+        if (topicPolicies.isPresent() && topicPolicies.get().getAutoSubscriptionCreationOverride() != null) {
+            return CompletableFuture.completedFuture(topicPolicies.get().getAutoSubscriptionCreationOverride()
+                    .isAllowAutoSubscriptionCreation());
+        }
+        // namespace level policies
+        return pulsar.getPulsarResources().getNamespaceResources().getPoliciesAsync(tpName.getNamespaceObject())
+                .thenApply(policies -> {
+                    if (policies.isPresent() && policies.get().autoSubscriptionCreationOverride != null) {
+                        return policies.get().autoSubscriptionCreationOverride.isAllowAutoSubscriptionCreation();
                     }
-                    // namespace level policies
-                    return pulsar.getPulsarResources().getNamespaceResources()
-                            .getPoliciesAsync(tpName.getNamespaceObject())
-                            .thenApply(policies -> {
-                                if (policies.isPresent() && policies.get().autoSubscriptionCreationOverride != null) {
-                                    return policies.get()
-                                            .autoSubscriptionCreationOverride.isAllowAutoSubscriptionCreation();
-                                }
-                                // broker level policies
-                                return pulsar.getConfiguration().isAllowAutoSubscriptionCreation();
-                            });
+                    // broker level policies
+                    return pulsar.getConfiguration().isAllowAutoSubscriptionCreation();
                 });
     }
 
@@ -3456,20 +3450,13 @@ public class BrokerService implements Closeable {
      * Get {@link TopicPolicies} for the parameterized topic.
      * @param topicName
      * @return TopicPolicies, if they exist. Otherwise, the value will not be present.
-     * @deprecated This API deprecated by undefined exception and blocking call.
      */
-    @Deprecated
     public Optional<TopicPolicies> getTopicPolicies(TopicName topicName) {
         if (!pulsar().getConfig().isTopicLevelPoliciesEnabled()) {
             return Optional.empty();
         }
-        try {
-            return pulsar.getTopicPoliciesService()
-                    .getTopicPoliciesAsyncWithRetry(topicName, null, executor(), false)
-                    .get(pulsar.getConfiguration().getMetadataStoreOperationTimeoutSeconds(), TimeUnit.SECONDS);
-        } catch (Throwable ex) {
-            throw new RuntimeException(ex);
-        }
+        return Optional.ofNullable(pulsar.getTopicPoliciesService()
+                .getTopicPoliciesIfExists(topicName));
     }
 
     public CompletableFuture<Void> deleteTopicPolicies(TopicName topicName) {
