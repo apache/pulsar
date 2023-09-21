@@ -20,10 +20,6 @@ package org.apache.pulsar.common.policies.data;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotSame;
-import static org.junit.jupiter.api.Assertions.*;
-
-import org.apache.commons.lang3.StringUtils;
-import org.junit.jupiter.api.Test;
 
 import org.apache.pulsar.client.api.ProxyProtocol;
 import org.testng.annotations.Test;
