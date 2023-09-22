@@ -610,16 +610,16 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
             assertLookupHeartbeatOwner(pulsar3, pulsar3.getLookupServiceAddress(), pulsar3.getBrokerServiceUrl());
 
             // Test lookup SLA namespace's topic
-            assertLookupSLANamespaceOwner(pulsar1, pulsar1.getLookupServiceAddress(), Set.of(pulsar1.getBrokerServiceUrl(), pulsar2.getBrokerServiceUrl()));
-            assertLookupSLANamespaceOwner(pulsar2, pulsar1.getLookupServiceAddress(), Set.of(pulsar1.getBrokerServiceUrl(), pulsar2.getBrokerServiceUrl()));
-            assertLookupSLANamespaceOwner(pulsar3, pulsar1.getLookupServiceAddress(), Set.of(pulsar3.getBrokerServiceUrl()));
+            assertLookupSLANamespaceOwner(pulsar1, pulsar1.getLookupServiceAddress(), Set.of(pulsar1.getBrokerServiceUrl()));
+            assertLookupSLANamespaceOwner(pulsar2, pulsar1.getLookupServiceAddress(), Set.of(pulsar1.getBrokerServiceUrl()));
+            assertLookupSLANamespaceOwner(pulsar3, pulsar1.getLookupServiceAddress(), Set.of(pulsar1.getBrokerServiceUrl()));
 
-            assertLookupSLANamespaceOwner(pulsar1, pulsar2.getLookupServiceAddress(), Set.of(pulsar1.getBrokerServiceUrl(), pulsar2.getBrokerServiceUrl()));
-            assertLookupSLANamespaceOwner(pulsar2, pulsar2.getLookupServiceAddress(), Set.of(pulsar1.getBrokerServiceUrl(), pulsar2.getBrokerServiceUrl()));
-            assertLookupSLANamespaceOwner(pulsar3, pulsar2.getLookupServiceAddress(), Set.of(pulsar3.getBrokerServiceUrl()));
+            assertLookupSLANamespaceOwner(pulsar1, pulsar2.getLookupServiceAddress(), Set.of(pulsar2.getBrokerServiceUrl()));
+            assertLookupSLANamespaceOwner(pulsar2, pulsar2.getLookupServiceAddress(), Set.of(pulsar2.getBrokerServiceUrl()));
+            assertLookupSLANamespaceOwner(pulsar3, pulsar2.getLookupServiceAddress(), Set.of(pulsar2.getBrokerServiceUrl()));
 
-            assertLookupSLANamespaceOwner(pulsar1, pulsar3.getLookupServiceAddress(), Set.of(pulsar1.getBrokerServiceUrl(), pulsar2.getBrokerServiceUrl()));
-            assertLookupSLANamespaceOwner(pulsar2, pulsar3.getLookupServiceAddress(), Set.of(pulsar1.getBrokerServiceUrl(), pulsar2.getBrokerServiceUrl()));
+            assertLookupSLANamespaceOwner(pulsar1, pulsar3.getLookupServiceAddress(), Set.of(pulsar3.getBrokerServiceUrl()));
+            assertLookupSLANamespaceOwner(pulsar2, pulsar3.getLookupServiceAddress(), Set.of(pulsar3.getBrokerServiceUrl()));
             assertLookupSLANamespaceOwner(pulsar3, pulsar3.getLookupServiceAddress(), Set.of(pulsar3.getBrokerServiceUrl()));
 
             // Test deploy new broker with new load manager
@@ -692,25 +692,25 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
                 assertLookupHeartbeatOwner(pulsar4, pulsar4.getLookupServiceAddress(), pulsar4.getBrokerServiceUrl());
 
                 // Test lookup SLA namespace's topic
-                assertLookupSLANamespaceOwner(pulsar1, pulsar1.getLookupServiceAddress(), Set.of(pulsar1.getBrokerServiceUrl(), pulsar2.getBrokerServiceUrl(), pulsar4.getBrokerServiceUrl()));
-                assertLookupSLANamespaceOwner(pulsar2, pulsar1.getLookupServiceAddress(), Set.of(pulsar1.getBrokerServiceUrl(), pulsar2.getBrokerServiceUrl(), pulsar4.getBrokerServiceUrl()));
-                assertLookupSLANamespaceOwner(pulsar3, pulsar1.getLookupServiceAddress(), Set.of(pulsar3.getBrokerServiceUrl()));
-                assertLookupSLANamespaceOwner(pulsar4, pulsar1.getLookupServiceAddress(), Set.of(pulsar1.getBrokerServiceUrl(), pulsar2.getBrokerServiceUrl(), pulsar4.getBrokerServiceUrl()));
+                assertLookupSLANamespaceOwner(pulsar1, pulsar1.getLookupServiceAddress(), Set.of(pulsar1.getBrokerServiceUrl()));
+                assertLookupSLANamespaceOwner(pulsar2, pulsar1.getLookupServiceAddress(), Set.of(pulsar1.getBrokerServiceUrl()));
+                assertLookupSLANamespaceOwner(pulsar3, pulsar1.getLookupServiceAddress(), Set.of(pulsar1.getBrokerServiceUrl()));
+                assertLookupSLANamespaceOwner(pulsar4, pulsar1.getLookupServiceAddress(), Set.of(pulsar1.getBrokerServiceUrl()));
 
-                assertLookupSLANamespaceOwner(pulsar1, pulsar2.getLookupServiceAddress(), Set.of(pulsar1.getBrokerServiceUrl(), pulsar2.getBrokerServiceUrl(), pulsar4.getBrokerServiceUrl()));
-                assertLookupSLANamespaceOwner(pulsar2, pulsar2.getLookupServiceAddress(), Set.of(pulsar1.getBrokerServiceUrl(), pulsar2.getBrokerServiceUrl(), pulsar4.getBrokerServiceUrl()));
-                assertLookupSLANamespaceOwner(pulsar3, pulsar2.getLookupServiceAddress(), Set.of(pulsar3.getBrokerServiceUrl()));
-                assertLookupSLANamespaceOwner(pulsar4, pulsar2.getLookupServiceAddress(), Set.of(pulsar1.getBrokerServiceUrl(), pulsar2.getBrokerServiceUrl(), pulsar4.getBrokerServiceUrl()));
+                assertLookupSLANamespaceOwner(pulsar1, pulsar2.getLookupServiceAddress(), Set.of(pulsar2.getBrokerServiceUrl()));
+                assertLookupSLANamespaceOwner(pulsar2, pulsar2.getLookupServiceAddress(), Set.of(pulsar2.getBrokerServiceUrl()));
+                assertLookupSLANamespaceOwner(pulsar3, pulsar2.getLookupServiceAddress(), Set.of(pulsar2.getBrokerServiceUrl()));
+                assertLookupSLANamespaceOwner(pulsar4, pulsar2.getLookupServiceAddress(), Set.of(pulsar2.getBrokerServiceUrl()));
 
-                assertLookupSLANamespaceOwner(pulsar1, pulsar3.getLookupServiceAddress(), Set.of(pulsar1.getBrokerServiceUrl(), pulsar2.getBrokerServiceUrl(), pulsar4.getBrokerServiceUrl()));
-                assertLookupSLANamespaceOwner(pulsar2, pulsar3.getLookupServiceAddress(), Set.of(pulsar1.getBrokerServiceUrl(), pulsar2.getBrokerServiceUrl(), pulsar4.getBrokerServiceUrl()));
+                assertLookupSLANamespaceOwner(pulsar1, pulsar3.getLookupServiceAddress(), Set.of(pulsar3.getBrokerServiceUrl()));
+                assertLookupSLANamespaceOwner(pulsar2, pulsar3.getLookupServiceAddress(), Set.of(pulsar3.getBrokerServiceUrl()));
                 assertLookupSLANamespaceOwner(pulsar3, pulsar3.getLookupServiceAddress(), Set.of(pulsar3.getBrokerServiceUrl()));
-                assertLookupSLANamespaceOwner(pulsar4, pulsar3.getLookupServiceAddress(), Set.of(pulsar1.getBrokerServiceUrl(), pulsar2.getBrokerServiceUrl(), pulsar4.getBrokerServiceUrl()));
+                assertLookupSLANamespaceOwner(pulsar4, pulsar3.getLookupServiceAddress(), Set.of(pulsar3.getBrokerServiceUrl()));
 
-                assertLookupSLANamespaceOwner(pulsar1, pulsar4.getLookupServiceAddress(), Set.of(pulsar1.getBrokerServiceUrl(), pulsar2.getBrokerServiceUrl(), pulsar4.getBrokerServiceUrl()));
-                assertLookupSLANamespaceOwner(pulsar2, pulsar4.getLookupServiceAddress(), Set.of(pulsar1.getBrokerServiceUrl(), pulsar2.getBrokerServiceUrl(), pulsar4.getBrokerServiceUrl()));
-                assertLookupSLANamespaceOwner(pulsar3, pulsar4.getLookupServiceAddress(), Set.of(pulsar3.getBrokerServiceUrl()));
-                assertLookupSLANamespaceOwner(pulsar4, pulsar4.getLookupServiceAddress(), Set.of(pulsar1.getBrokerServiceUrl(), pulsar2.getBrokerServiceUrl(), pulsar4.getBrokerServiceUrl()));
+                assertLookupSLANamespaceOwner(pulsar1, pulsar4.getLookupServiceAddress(), Set.of(pulsar4.getBrokerServiceUrl()));
+                assertLookupSLANamespaceOwner(pulsar2, pulsar4.getLookupServiceAddress(), Set.of(pulsar4.getBrokerServiceUrl()));
+                assertLookupSLANamespaceOwner(pulsar3, pulsar4.getLookupServiceAddress(), Set.of(pulsar4.getBrokerServiceUrl()));
+                assertLookupSLANamespaceOwner(pulsar4, pulsar4.getLookupServiceAddress(), Set.of(pulsar4.getBrokerServiceUrl()));
             }
         }
     }

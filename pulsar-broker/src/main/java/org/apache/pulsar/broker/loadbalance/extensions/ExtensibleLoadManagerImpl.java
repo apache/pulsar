@@ -293,103 +293,108 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
         if (this.started) {
             return;
         }
-        this.brokerRegistry = new BrokerRegistryImpl(pulsar);
-        this.leaderElectionService = new LeaderElectionService(
-                pulsar.getCoordinationService(), pulsar.getSafeWebServiceAddress(), ELECTION_ROOT,
-                state -> {
-                    pulsar.getLoadManagerExecutor().execute(() -> {
-                        if (state == LeaderElectionState.Leading) {
-                            playLeader();
-                        } else {
-                            playFollower();
-                        }
-                    });
-                });
-        this.serviceUnitStateChannel = new ServiceUnitStateChannelImpl(pulsar);
-        this.splitManager = new SplitManager(splitCounter);
-        this.unloadManager = new UnloadManager(unloadCounter);
-        this.serviceUnitStateChannel.listen(unloadManager);
-        this.serviceUnitStateChannel.listen(splitManager);
-        this.leaderElectionService.start();
-        this.serviceUnitStateChannel.start();
-        this.antiAffinityGroupPolicyHelper =
-                new AntiAffinityGroupPolicyHelper(pulsar, serviceUnitStateChannel);
-        antiAffinityGroupPolicyHelper.listenFailureDomainUpdate();
-        this.antiAffinityGroupPolicyFilter = new AntiAffinityGroupPolicyFilter(antiAffinityGroupPolicyHelper);
-        this.brokerFilterPipeline.add(antiAffinityGroupPolicyFilter);
-        SimpleResourceAllocationPolicies policies = new SimpleResourceAllocationPolicies(pulsar);
-        this.isolationPoliciesHelper = new IsolationPoliciesHelper(policies);
-        this.brokerFilterPipeline.add(new BrokerIsolationPoliciesFilter(isolationPoliciesHelper));
-
-        createSystemTopic(pulsar, BROKER_LOAD_DATA_STORE_TOPIC);
-        createSystemTopic(pulsar, TOP_BUNDLES_LOAD_DATA_STORE_TOPIC);
-
         try {
-            this.brokerLoadDataStore = LoadDataStoreFactory
-                    .create(pulsar.getClient(), BROKER_LOAD_DATA_STORE_TOPIC, BrokerLoadData.class);
-            this.brokerLoadDataStore.startTableView();
-            this.topBundlesLoadDataStore = LoadDataStoreFactory
-                    .create(pulsar.getClient(), TOP_BUNDLES_LOAD_DATA_STORE_TOPIC, TopBundlesLoadData.class);
-        } catch (LoadDataStoreException e) {
-            throw new PulsarServerException(e);
+            this.brokerRegistry = new BrokerRegistryImpl(pulsar);
+            this.leaderElectionService = new LeaderElectionService(
+                    pulsar.getCoordinationService(), pulsar.getSafeWebServiceAddress(), ELECTION_ROOT,
+                    state -> {
+                        pulsar.getLoadManagerExecutor().execute(() -> {
+                            if (state == LeaderElectionState.Leading) {
+                                playLeader();
+                            } else {
+                                playFollower();
+                            }
+                        });
+                    });
+            this.serviceUnitStateChannel = new ServiceUnitStateChannelImpl(pulsar);
+            this.brokerRegistry.start();
+            this.splitManager = new SplitManager(splitCounter);
+            this.unloadManager = new UnloadManager(unloadCounter);
+            this.serviceUnitStateChannel.listen(unloadManager);
+            this.serviceUnitStateChannel.listen(splitManager);
+            this.leaderElectionService.start();
+            this.serviceUnitStateChannel.start();
+            this.antiAffinityGroupPolicyHelper =
+                    new AntiAffinityGroupPolicyHelper(pulsar, serviceUnitStateChannel);
+            antiAffinityGroupPolicyHelper.listenFailureDomainUpdate();
+            this.antiAffinityGroupPolicyFilter = new AntiAffinityGroupPolicyFilter(antiAffinityGroupPolicyHelper);
+            this.brokerFilterPipeline.add(antiAffinityGroupPolicyFilter);
+            SimpleResourceAllocationPolicies policies = new SimpleResourceAllocationPolicies(pulsar);
+            this.isolationPoliciesHelper = new IsolationPoliciesHelper(policies);
+            this.brokerFilterPipeline.add(new BrokerIsolationPoliciesFilter(isolationPoliciesHelper));
+
+            createSystemTopic(pulsar, BROKER_LOAD_DATA_STORE_TOPIC);
+            createSystemTopic(pulsar, TOP_BUNDLES_LOAD_DATA_STORE_TOPIC);
+
+            try {
+                this.brokerLoadDataStore = LoadDataStoreFactory
+                        .create(pulsar.getClient(), BROKER_LOAD_DATA_STORE_TOPIC, BrokerLoadData.class);
+                this.brokerLoadDataStore.startTableView();
+                this.topBundlesLoadDataStore = LoadDataStoreFactory
+                        .create(pulsar.getClient(), TOP_BUNDLES_LOAD_DATA_STORE_TOPIC, TopBundlesLoadData.class);
+            } catch (LoadDataStoreException e) {
+                throw new PulsarServerException(e);
+            }
+
+            this.context = LoadManagerContextImpl.builder()
+                    .configuration(conf)
+                    .brokerRegistry(brokerRegistry)
+                    .brokerLoadDataStore(brokerLoadDataStore)
+                    .topBundleLoadDataStore(topBundlesLoadDataStore).build();
+
+            this.brokerLoadDataReporter =
+                    new BrokerLoadDataReporter(pulsar, brokerRegistry.getBrokerId(), brokerLoadDataStore);
+
+            this.topBundleLoadDataReporter =
+                    new TopBundleLoadDataReporter(pulsar, brokerRegistry.getBrokerId(), topBundlesLoadDataStore);
+            this.serviceUnitStateChannel.listen(brokerLoadDataReporter);
+            this.serviceUnitStateChannel.listen(topBundleLoadDataReporter);
+            var interval = conf.getLoadBalancerReportUpdateMinIntervalMillis();
+            this.brokerLoadDataReportTask = this.pulsar.getLoadManagerExecutor()
+                    .scheduleAtFixedRate(() -> {
+                                try {
+                                    brokerLoadDataReporter.reportAsync(false);
+                                    // TODO: update broker load metrics using getLocalData
+                                } catch (Throwable e) {
+                                    log.error("Failed to run the broker load manager executor job.", e);
+                                }
+                            },
+                            interval,
+                            interval, TimeUnit.MILLISECONDS);
+
+            this.topBundlesLoadDataReportTask = this.pulsar.getLoadManagerExecutor()
+                    .scheduleAtFixedRate(() -> {
+                                try {
+                                    // TODO: consider excluding the bundles that are in the process of split.
+                                    topBundleLoadDataReporter.reportAsync(false);
+                                } catch (Throwable e) {
+                                    log.error("Failed to run the top bundles load manager executor job.", e);
+                                }
+                            },
+                            interval,
+                            interval, TimeUnit.MILLISECONDS);
+
+            this.monitorTask = this.pulsar.getLoadManagerExecutor()
+                    .scheduleAtFixedRate(() -> {
+                                monitor();
+                            },
+                            MONITOR_INTERVAL_IN_MILLIS,
+                            MONITOR_INTERVAL_IN_MILLIS, TimeUnit.MILLISECONDS);
+
+            this.unloadScheduler = new UnloadScheduler(
+                    pulsar, pulsar.getLoadManagerExecutor(), unloadManager, context,
+                    serviceUnitStateChannel, unloadCounter, unloadMetrics);
+            this.unloadScheduler.start();
+            this.splitScheduler = new SplitScheduler(
+                    pulsar, serviceUnitStateChannel, splitManager, splitCounter, splitMetrics, context);
+            this.splitScheduler.start();
+            this.initWaiter.countDown();
+            this.started = true;
+        } catch (Exception ex) {
+            if (this.brokerRegistry != null) {
+                brokerRegistry.close();
+            }
         }
-
-        this.brokerRegistry.start();
-
-        this.context = LoadManagerContextImpl.builder()
-                .configuration(conf)
-                .brokerRegistry(brokerRegistry)
-                .brokerLoadDataStore(brokerLoadDataStore)
-                .topBundleLoadDataStore(topBundlesLoadDataStore).build();
-
-        this.brokerLoadDataReporter =
-                new BrokerLoadDataReporter(pulsar, brokerRegistry.getBrokerId(), brokerLoadDataStore);
-
-        this.topBundleLoadDataReporter =
-                new TopBundleLoadDataReporter(pulsar, brokerRegistry.getBrokerId(), topBundlesLoadDataStore);
-        this.serviceUnitStateChannel.listen(brokerLoadDataReporter);
-        this.serviceUnitStateChannel.listen(topBundleLoadDataReporter);
-        var interval = conf.getLoadBalancerReportUpdateMinIntervalMillis();
-        this.brokerLoadDataReportTask = this.pulsar.getLoadManagerExecutor()
-                .scheduleAtFixedRate(() -> {
-                            try {
-                                brokerLoadDataReporter.reportAsync(false);
-                                // TODO: update broker load metrics using getLocalData
-                            } catch (Throwable e) {
-                                log.error("Failed to run the broker load manager executor job.", e);
-                            }
-                        },
-                        interval,
-                        interval, TimeUnit.MILLISECONDS);
-
-        this.topBundlesLoadDataReportTask = this.pulsar.getLoadManagerExecutor()
-                .scheduleAtFixedRate(() -> {
-                            try {
-                                // TODO: consider excluding the bundles that are in the process of split.
-                                topBundleLoadDataReporter.reportAsync(false);
-                            } catch (Throwable e) {
-                                log.error("Failed to run the top bundles load manager executor job.", e);
-                            }
-                        },
-                        interval,
-                        interval, TimeUnit.MILLISECONDS);
-
-        this.monitorTask = this.pulsar.getLoadManagerExecutor()
-                .scheduleAtFixedRate(() -> {
-                            monitor();
-                        },
-                        MONITOR_INTERVAL_IN_MILLIS,
-                        MONITOR_INTERVAL_IN_MILLIS, TimeUnit.MILLISECONDS);
-
-        this.unloadScheduler = new UnloadScheduler(
-                pulsar, pulsar.getLoadManagerExecutor(), unloadManager, context,
-                serviceUnitStateChannel, unloadCounter, unloadMetrics);
-        this.unloadScheduler.start();
-        this.splitScheduler = new SplitScheduler(
-                pulsar, serviceUnitStateChannel, splitManager, splitCounter, splitMetrics, context);
-        this.splitScheduler.start();
-        this.initWaiter.countDown();
-        this.started = true;
     }
 
     @Override
@@ -428,11 +433,7 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
             candidateBroker = NamespaceService.checkHeartbeatNamespaceV2(serviceUnit);
         }
         if (candidateBroker == null) {
-            String broker = NamespaceService.getSLAMonitorBrokerName(serviceUnit);
-            // checking if the broker is up and running
-            if (broker != null && pulsar.getNamespaceService().isBrokerActive(broker)) {
-                candidateBroker = broker;
-            }
+            candidateBroker = NamespaceService.getSLAMonitorBrokerName(serviceUnit);
         }
         if (candidateBroker != null) {
             return candidateBroker.substring(candidateBroker.lastIndexOf('/') + 1);
