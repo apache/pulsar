@@ -309,7 +309,6 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
                     });
                 });
         this.serviceUnitStateChannel = new ServiceUnitStateChannelImpl(pulsar);
-        this.brokerRegistry.start();
         this.splitManager = new SplitManager(splitCounter);
         this.unloadManager = new UnloadManager(unloadCounter);
         this.serviceUnitStateChannel.listen(unloadManager);
@@ -337,6 +336,8 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
         } catch (LoadDataStoreException e) {
             throw new PulsarServerException(e);
         }
+
+        this.brokerRegistry.start();
 
         this.context = LoadManagerContextImpl.builder()
                 .configuration(conf)
