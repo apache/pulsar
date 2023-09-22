@@ -154,8 +154,7 @@ public class AbstractReplicatorTest {
         final ReplicatorInTest replicator = new ReplicatorInTest(localCluster, localTopic, remoteCluster, topicName,
                 replicatorPrefix, broker, remoteClient);
         replicator.startProducer();
-        // Close replicator.
-        replicator.close();
+        replicator.disconnect();
 
         // Verify task will done.
         Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() -> {
