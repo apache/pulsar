@@ -52,6 +52,7 @@ public class AuthenticationTlsHostnameVerificationTest extends ProducerConsumerB
     private String clientTrustCertFilePath = CA_CERT_FILE_PATH;
 
     protected void setup() throws Exception {
+        conf.setTopicLevelPoliciesEnabled(false);
         super.internalSetup();
         super.producerBaseSetup();
         super.stopBroker();

@@ -84,6 +84,7 @@ public class KeyStoreTlsProducerConsumerTestWithAuthTest extends ProducerConsume
     }
 
     protected void internalSetUpForBroker() {
+        conf.setTopicLevelPoliciesEnabled(false);
         conf.setBrokerServicePortTls(Optional.of(0));
         conf.setWebServicePortTls(Optional.of(0));
         conf.setTlsEnabledWithKeyStore(true);
