@@ -317,7 +317,7 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                     createSystemTopicClientWithRetry(namespace);
             readerCaches.put(namespace, readerCompletableFuture);
             ownedBundlesCountPerNamespace.putIfAbsent(namespace, new AtomicInteger(1));
-            final CompletableFuture<Void> readFuture = readerCompletableFuture
+            final CompletableFuture<Void> initFuture = readerCompletableFuture
                     .thenCompose(reader -> {
                         final CompletableFuture<Void> stageFuture = new CompletableFuture<>();
                         initPolicesCache(reader, stageFuture);
@@ -325,7 +325,7 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                                 // Read policies in background
                                 .thenAccept(__ -> readMorePolicies(reader));
                     });
-            readFuture.exceptionally(ex -> {
+            initFuture.exceptionally(ex -> {
                 try {
                     log.error("[{}] Failed to create reader on __change_events topic", namespace, ex);
                     cleanCacheAndCloseReader(namespace, false);
@@ -336,7 +336,7 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                 return null;
             });
             // let caller know we've got an exception.
-            return readFuture;
+            return initFuture;
         });
     }
 
