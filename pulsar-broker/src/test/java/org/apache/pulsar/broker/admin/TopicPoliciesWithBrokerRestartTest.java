@@ -1,5 +1,6 @@
 package org.apache.pulsar.broker.admin;
 
+import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
@@ -57,6 +58,7 @@ public class TopicPoliciesWithBrokerRestartTest extends MockedPulsarServiceBaseT
         }
         admin.topicPolicies().setRetention(topicName, retentionPolicies);
         // (3) Send messages
+        @Cleanup
         final Producer<byte[]> publisher = pulsarClient.newProducer()
                 .topic(topicName)
                 .create();
