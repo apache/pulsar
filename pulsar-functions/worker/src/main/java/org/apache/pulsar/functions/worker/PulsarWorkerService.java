@@ -162,7 +162,6 @@ public class PulsarWorkerService implements WorkerService {
                         pulsarServiceUrl,
                         brokerClientAuthenticationPlugin,
                         brokerClientAuthenticationParameters,
-                        workerConfig.isUseTls(),
                         workerConfig.getBrokerClientTrustCertsFilePath(),
                         workerConfig.isTlsAllowInsecureConnection(),
                         workerConfig.isTlsEnableHostnameVerification(),
