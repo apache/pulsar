@@ -100,15 +100,15 @@ public abstract class PulsarStandaloneTestBase extends PulsarTestBase {
             .withEnv("PULSAR_STANDALONE_USE_ZOOKEEPER", "true");
         if (enableTls) {
             container
-                .withEnv("webServicePortTls", String.valueOf(BROKER_HTTPS_PORT))
-                .withEnv("brokerServicePortTls", String.valueOf(BROKER_PORT_TLS))
+                .withEnv("PULSAR_PREFIX_webServicePortTls", String.valueOf(BROKER_HTTPS_PORT))
+                .withEnv("PULSAR_PREFIX_brokerServicePortTls", String.valueOf(BROKER_PORT_TLS))
                 .withEnv("tlsEnabled", "true")
                 .withEnv("tlsRequireTrustedClientCertOnConnect", "true")
                 .withEnv("tlsAllowInsecureConnection", "false")
                 .withEnv("tlsCertificateFilePath", "/pulsar/certificate-authority/server-keys/broker.cert.pem")
                 .withEnv("tlsKeyFilePath", "/pulsar/certificate-authority/server-keys/broker.key-pk8.pem")
                 .withEnv("tlsTrustCertsFilePath", "/pulsar/certificate-authority/certs/ca.cert.pem")
-                .withEnv("brokerClientAuthenticationEnabled", "true")
+                .withEnv("PULSAR_PREFIX_brokerClientAuthenticationEnabled", "true")
                 .withEnv("brokerClientAuthenticationPlugin", "org.apache.pulsar.client.impl.auth.AuthenticationTls")
                 .withEnv("brokerClientAuthenticationParameters",
                         "{\"tlsCertFile\":\"/pulsar/certificate-authority/client-keys/admin.cert.pem\","
