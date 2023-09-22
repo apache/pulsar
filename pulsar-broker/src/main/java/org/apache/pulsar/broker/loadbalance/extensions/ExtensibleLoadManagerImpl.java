@@ -477,7 +477,8 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
         }).thenCompose(broker -> this.getBrokerRegistry().lookupAsync(broker).thenCompose(brokerLookupData -> {
             if (brokerLookupData.isEmpty()) {
                 String errorMsg = String.format(
-                        "Failed to look up a broker registry:%s for bundle:%s", broker, bundle);
+                        "Failed to lookup broker:%s for bundle:%s, the broker has not been registered.",
+                        broker, bundle);
                 log.error(errorMsg);
                 throw new IllegalStateException(errorMsg);
             }
