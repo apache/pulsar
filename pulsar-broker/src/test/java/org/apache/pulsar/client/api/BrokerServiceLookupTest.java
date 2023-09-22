@@ -32,6 +32,7 @@ import com.google.common.util.concurrent.MoreExecutors;
 import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.ssl.util.InsecureTrustManagerFactory;
+import io.prometheus.client.CollectorRegistry;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.Field;
@@ -80,6 +81,9 @@ import org.apache.pulsar.broker.loadbalance.impl.SimpleResourceUnit;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.testcontext.PulsarTestContext;
+import org.apache.pulsar.client.impl.BinaryProtoLookupService;
+import org.apache.pulsar.client.impl.LookupService;
+import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.ServiceUnitId;
@@ -102,6 +106,7 @@ import org.asynchttpclient.Request;
 import org.asynchttpclient.Response;
 import org.asynchttpclient.channel.DefaultKeepAliveStrategy;
 import org.awaitility.Awaitility;
+import org.awaitility.reflect.WhiteboxImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterMethod;
@@ -837,6 +842,104 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
             conf.setLoadBalancerNamespaceBundleMaxTopics(loadBalancerNamespaceBundleMaxTopics);
             conf.setLoadManagerClassName(loadBalancerName);
         }
+    }
+
+    @Test
+    public void testMergeGetPartitionedMetadataRequests() throws Exception {
+        // Assert the lookup service is a "BinaryProtoLookupService".
+        final PulsarClientImpl pulsarClientImpl = (PulsarClientImpl) pulsarClient;
+        final LookupService lookupService = pulsarClientImpl.getLookup();
+        assertTrue(lookupService instanceof BinaryProtoLookupService);
+
+        final String tpName = BrokerTestUtil.newUniqueName("persistent://public/default/tp");
+        final int topicPartitions = 10;
+        admin.topics().createPartitionedTopic(tpName, topicPartitions);
+
+        // Verify the request is works after merge the requests.
+        List<CompletableFuture<PartitionedTopicMetadata>> futures = new ArrayList<>();
+        for (int i = 0; i < 100; i++) {
+            futures.add(lookupService.getPartitionedTopicMetadata(TopicName.get(tpName)));
+        }
+        for (CompletableFuture<PartitionedTopicMetadata> future : futures) {
+            assertEquals(future.join().partitions, topicPartitions);
+        }
+
+        // cleanup.
+        admin.topics().deletePartitionedTopic(tpName);
+    }
+
+    @Test
+    public void testMergeLookupRequests() throws Exception {
+        // Assert the lookup service is a "BinaryProtoLookupService".
+        final PulsarClientImpl pulsarClientImpl = (PulsarClientImpl) pulsarClient;
+        final LookupService lookupService = pulsarClientImpl.getLookup();
+        assertTrue(lookupService instanceof BinaryProtoLookupService);
+
+        final String tpName = BrokerTestUtil.newUniqueName("persistent://public/default/tp");
+        admin.topics().createNonPartitionedTopic(tpName);
+
+        // Create 1 producer and 100 consumers.
+        List<Producer<String>> producers = new ArrayList<>();
+        List<Consumer<String>> consumers = new ArrayList<>();
+        for (int i = 0; i < 20; i++) {
+            producers.add(pulsarClient.newProducer(Schema.STRING).topic(tpName).create());
+        }
+        for (int i = 0; i < 20; i++) {
+            consumers.add(pulsarClient.newConsumer(Schema.STRING).topic(tpName).subscriptionName("s" + i).subscribe());
+        }
+
+        // Verify the lookup count will be smaller than before improve.
+        int lookupCountBeforeUnload = calculateLookupRequestCount();
+        admin.namespaces().unload(TopicName.get(tpName).getNamespace());
+        Awaitility.await().untilAsserted(() -> {
+            for (Producer p : producers) {
+                assertEquals(WhiteboxImpl.getInternalState(p, "state").toString(), "Ready");
+            }
+            for (Consumer c : consumers) {
+                assertEquals(WhiteboxImpl.getInternalState(c, "state").toString(), "Ready");
+            }
+        });
+        int lookupCountAfterUnload = calculateLookupRequestCount();
+        log.info("lookup count before unload: {}, after unload: {}", lookupCountBeforeUnload, lookupCountAfterUnload);
+        assertTrue(lookupCountAfterUnload < lookupCountBeforeUnload * 2,
+                "the lookup count should be smaller than before improve");
+
+        // Verify the producers and consumers is still works.
+        List<String> messagesSent = new ArrayList<>();
+        int index = 0;
+        for (Producer producer: producers) {
+            String message = Integer.valueOf(index++).toString();
+            producer.send(message);
+            messagesSent.add(message);
+        }
+        HashSet<String> messagesReceived = new HashSet<>();
+        for (Consumer<String> consumer : consumers) {
+            while (true) {
+                Message<String> msg = consumer.receive(2, TimeUnit.SECONDS);
+                if (msg == null) {
+                    break;
+                }
+                messagesReceived.add(msg.getValue());
+            }
+        }
+        assertEquals(messagesReceived.size(), producers.size());
+
+        // cleanup.
+        for (Producer producer: producers) {
+            producer.close();
+        }
+        for (Consumer consumer : consumers) {
+            consumer.close();
+        }
+        admin.topics().delete(tpName);
+    }
+
+    private int calculateLookupRequestCount() throws Exception {
+        int failures = CollectorRegistry.defaultRegistry.getSampleValue("pulsar_broker_lookup_failures_total")
+                .intValue();
+        int answers = CollectorRegistry.defaultRegistry.getSampleValue("pulsar_broker_lookup_answers_total")
+                .intValue();
+        return failures + answers;
     }
 
     @Test(timeOut = 10000)
