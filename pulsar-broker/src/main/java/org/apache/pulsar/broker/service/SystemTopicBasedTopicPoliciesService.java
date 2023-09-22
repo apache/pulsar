@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.service;
 
+import static java.util.Objects.requireNonNull;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Sets;
 import java.util.HashSet;
@@ -58,8 +59,6 @@ import org.apache.pulsar.common.util.FutureUtil;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import static java.util.Objects.*;
 
 /**
  * Cached topic policies service will cache the system topic reader and the topic policies
@@ -332,7 +331,7 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                     cleanCacheAndCloseReader(namespace, false);
                 } catch (Throwable cleanupEx) {
                     // Adding this catch to avoid break callback chain
-                    log.error("[{}] Failed to cleanup reader on __change_events topic", namespace, ex);
+                    log.error("[{}] Failed to cleanup reader on __change_events topic", namespace, cleanupEx);
                 }
                 return null;
             });
