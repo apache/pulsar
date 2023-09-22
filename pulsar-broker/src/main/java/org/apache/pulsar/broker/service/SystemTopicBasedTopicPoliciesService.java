@@ -29,6 +29,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.BiConsumer;
 import javax.annotation.Nonnull;
 import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.pulsar.broker.PulsarServerException;
@@ -365,7 +366,6 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
             if (hasMore) {
                 reader.readNextAsync().thenAccept(msg -> {
                     refreshTopicPoliciesCache(msg);
-                    notifyListener(msg);
                     if (log.isDebugEnabled()) {
                         log.debug("[{}] Loop next event reading for system topic.",
                                 reader.getSystemTopic().getTopicName().getNamespaceObject());
@@ -384,6 +384,23 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                 }
                 policyCacheInitMap.computeIfPresent(
                         reader.getSystemTopic().getTopicName().getNamespaceObject(), (k, v) -> true);
+
+                // replay policy message
+                BiConsumer<TopicName, TopicPolicies> notifyListener = (topicName, topicPolicies) -> {
+                    if (listeners.get(topicName) != null) {
+                        for (TopicPolicyListener<TopicPolicies> listener : listeners.get(topicName)) {
+                            try {
+                                listener.onUpdate(topicPolicies);
+                            } catch (Throwable error) {
+                                log.error("[{}] call listener error.", topicName, error);
+                            }
+                        }
+                    }
+                };
+
+                policiesCache.forEach(notifyListener);
+                globalPoliciesCache.forEach(notifyListener);
+
                 future.complete(null);
             }
         });
