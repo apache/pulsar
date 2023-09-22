@@ -154,8 +154,6 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
     @Getter
     private final List<BrokerFilter> brokerFilterPipeline;
 
-    private final BrokerLoadManagerClassFilter brokerLoadManagerClassFilter;
-
     /**
      * The load data reporter.
      */
@@ -255,8 +253,7 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
      */
     public ExtensibleLoadManagerImpl() {
         this.brokerFilterPipeline = new ArrayList<>();
-        this.brokerLoadManagerClassFilter = new BrokerLoadManagerClassFilter();
-        this.brokerFilterPipeline.add(brokerLoadManagerClassFilter);
+        this.brokerFilterPipeline.add(new BrokerLoadManagerClassFilter());
         this.brokerFilterPipeline.add(new BrokerMaxTopicCountFilter());
         this.brokerFilterPipeline.add(new BrokerVersionFilter());
         // TODO: Make brokerSelectionStrategy configurable.
@@ -680,12 +677,6 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
         Split split = decision.getSplit();
         CompletableFuture<Void> future = serviceUnitStateChannel.publishSplitEventAsync(split);
         return splitManager.waitAsync(future, decision.getSplit().serviceUnit(), decision, timeout, timeoutUnit);
-    }
-
-    public CompletableFuture<Set<String>> getAvailableBrokersAsync() {
-        return brokerRegistry.getAvailableBrokerLookupDataAsync()
-                .thenCompose(m -> brokerLoadManagerClassFilter.filterAsync(m, null, context))
-                .thenApply(Map::keySet);
     }
 
     @Override

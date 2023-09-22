@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.loadbalance.impl;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Multimap;
+import com.google.common.collect.Sets;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.ConcurrentModificationException;
@@ -28,7 +29,6 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -351,8 +351,8 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
     @Override
     public Set<String> getAvailableBrokers() {
         try {
-            return getAvailableBrokersAsync()
-                    .get(conf.getMetadataStoreOperationTimeoutSeconds(), TimeUnit.SECONDS);
+            return new HashSet<>(brokersData.listLocks(LoadManager.LOADBALANCE_BROKERS_ROOT)
+                    .get(conf.getMetadataStoreOperationTimeoutSeconds(), TimeUnit.SECONDS));
         } catch (Exception e) {
             log.warn("Error when trying to get active brokers", e);
             return loadData.getBrokerData().keySet();
@@ -361,37 +361,18 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
 
     @Override
     public CompletableFuture<Set<String>> getAvailableBrokersAsync() {
-        return getAvailableBrokerLookupDataAsync()
-                .thenApply(m -> {
-                    m.entrySet().removeIf(entry -> {
-                        LocalBrokerData value = entry.getValue();
-                        // The load manager class name can be null if the cluster has old version of broker.
-                        return !Objects.equals(value.getLoadManagerClassName(), conf.getLoadManagerClassName());
-                    });
-                    return m.keySet();
-                }).exceptionally(ex -> {
-                    log.warn("Error when trying to get active brokers", ex);
-                    return loadData.getBrokerData().keySet();
-                });
-    }
-
-    public CompletableFuture<Map<String, LocalBrokerData>> getAvailableBrokerLookupDataAsync() {
-        return brokersData.listLocks(LoadManager.LOADBALANCE_BROKERS_ROOT).thenCompose(availableBrokers -> {
-            Map<String, LocalBrokerData> map = new ConcurrentHashMap<>();
-            List<CompletableFuture<Void>> futures = new ArrayList<>();
-            for (String brokerId : availableBrokers) {
-                futures.add(this.brokersData.readLock(
-                        String.format("%s/%s", LoadManager.LOADBALANCE_BROKERS_ROOT, brokerId))
-                        .thenAccept(lookupDataOpt -> {
-                    if (lookupDataOpt.isPresent()) {
-                        map.put(brokerId, lookupDataOpt.get());
+        CompletableFuture<Set<String>> future = new CompletableFuture<>();
+        brokersData.listLocks(LoadManager.LOADBALANCE_BROKERS_ROOT)
+                .whenComplete((listLocks, ex) -> {
+                    if (ex != null){
+                        Throwable realCause = FutureUtil.unwrapCompletionException(ex);
+                        log.warn("Error when trying to get active brokers", realCause);
+                        future.complete(loadData.getBrokerData().keySet());
                     } else {
-                        log.warn("Got an empty lookup data, brokerId: {}", brokerId);
+                        future.complete(Sets.newHashSet(listLocks));
                     }
-                }));
-            }
-            return FutureUtil.waitForAll(futures).thenApply(__ -> map);
-        });
+                });
+        return future;
     }
 
     // Attempt to local the data for the given bundle in metadata store

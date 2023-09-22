@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.loadbalance.extensions;
 
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -84,7 +85,7 @@ public class ExtensibleLoadManagerWrapper implements LoadManager {
 
     @Override
     public CompletableFuture<Set<String>> getAvailableBrokersAsync() {
-        return this.loadManager.getAvailableBrokersAsync();
+        return this.loadManager.getBrokerRegistry().getAvailableBrokersAsync().thenApply(HashSet::new);
     }
 
     @Override
