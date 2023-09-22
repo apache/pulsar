@@ -192,7 +192,8 @@ public interface TopicPoliciesService {
 
         @NotNull
         @Override
-        public CompletableFuture<Optional<TopicPolicies>> getTopicPoliciesAsync(@NotNull TopicName topicName, boolean isGlobal) {
+        public CompletableFuture<Optional<TopicPolicies>> getTopicPoliciesAsync(@NotNull TopicName topicName,
+                                                                                boolean isGlobal) {
             return CompletableFuture.completedFuture(Optional.empty());
         }
 

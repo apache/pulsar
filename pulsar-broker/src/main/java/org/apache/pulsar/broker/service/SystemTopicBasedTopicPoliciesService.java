@@ -252,8 +252,8 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
         requireNonNull(topicName);
         final CompletableFuture<Void> preparedFuture = prepareInitPoliciesCacheAsync(topicName.getNamespaceObject());
         return preparedFuture.thenApply(__ -> {
-            final TopicPolicies candidatePolicies = isGlobal ?
-                    globalPoliciesCache.get(TopicName.get(topicName.getPartitionedTopicName()))
+            final TopicPolicies candidatePolicies = isGlobal
+                    ? globalPoliciesCache.get(TopicName.get(topicName.getPartitionedTopicName()))
                     : policiesCache.get(TopicName.get(topicName.getPartitionedTopicName()));
             return Optional.ofNullable(candidatePolicies);
         });
