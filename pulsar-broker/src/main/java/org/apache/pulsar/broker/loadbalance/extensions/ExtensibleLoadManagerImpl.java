@@ -44,6 +44,7 @@ import java.util.stream.Collectors;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.mutable.MutableObject;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -508,15 +509,23 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
 
     private CompletableFuture<Optional<BrokerLookupData>> dedupeLookupRequest(
             String key, Function<String, CompletableFuture<Optional<BrokerLookupData>>> provider) {
-        CompletableFuture<Optional<BrokerLookupData>> future = lookupRequests.computeIfAbsent(key, provider);
-        future.whenComplete((r, t) -> {
-                    if (t != null) {
+        final MutableObject<CompletableFuture<Optional<BrokerLookupData>>> newFutureCreated = new MutableObject<>();
+        try {
+            return lookupRequests.computeIfAbsent(key, k -> {
+                CompletableFuture<Optional<BrokerLookupData>> future = provider.apply(k);
+                newFutureCreated.setValue(future);
+                return future;
+            });
+        } finally {
+            if (newFutureCreated.getValue() != null) {
+                newFutureCreated.getValue().whenComplete((v, ex) -> {
+                    if (ex != null) {
                         assignCounter.incrementFailure();
                     }
-                    lookupRequests.remove(key);
-                }
-        );
-        return future;
+                    lookupRequests.remove(key, newFutureCreated.getValue());
+                });
+            }
+        }
     }
 
     public CompletableFuture<Optional<String>> selectAsync(ServiceUnitId bundle) {
