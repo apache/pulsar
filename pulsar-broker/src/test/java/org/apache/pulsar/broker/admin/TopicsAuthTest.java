@@ -73,6 +73,7 @@ public class TopicsAuthTest extends MockedPulsarServiceBaseTest {
     @Override
     @BeforeMethod
     protected void setup() throws Exception {
+        conf.setTopicLevelPoliciesEnabled(false);
         // enable auth&auth and use JWT at broker
         conf.setAuthenticationEnabled(true);
         conf.setAuthorizationEnabled(true);

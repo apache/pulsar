@@ -82,6 +82,7 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
 
     protected void setup() throws Exception {
 
+        conf.setTopicLevelPoliciesEnabled(false);
         conf.setAuthenticationEnabled(true);
         conf.setAuthorizationEnabled(true);
 
