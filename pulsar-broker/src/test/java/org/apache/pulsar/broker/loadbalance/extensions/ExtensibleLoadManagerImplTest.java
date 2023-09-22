@@ -597,17 +597,16 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
             assertTrue(webServiceUrl3.isPresent());
             assertEquals(webServiceUrl3.get().toString(), webServiceUrl1.get().toString());
 
-            // Test lookup heartbeat namespace's topic
             List<PulsarService> pulsarServices = List.of(pulsar1, pulsar2, pulsar3);
             for (PulsarService pulsarService : pulsarServices) {
-                assertLookupHeartbeatOwner(pulsarService, pulsar1.getLookupServiceAddress(), pulsar1.getBrokerServiceUrl());
-                assertLookupHeartbeatOwner(pulsarService, pulsar2.getLookupServiceAddress(), pulsar2.getBrokerServiceUrl());
-                assertLookupHeartbeatOwner(pulsarService, pulsar3.getLookupServiceAddress(), pulsar3.getBrokerServiceUrl());
-
+                // Test lookup heartbeat namespace's topic
+                for (PulsarService pulsar : pulsarServices) {
+                    assertLookupHeartbeatOwner(pulsarService, pulsar.getLookupServiceAddress(), pulsar.getBrokerServiceUrl());
+                }
                 // Test lookup SLA namespace's topic
-                assertLookupSLANamespaceOwner(pulsarService, pulsar1.getLookupServiceAddress(), pulsar1.getBrokerServiceUrl());
-                assertLookupSLANamespaceOwner(pulsarService, pulsar2.getLookupServiceAddress(), pulsar2.getBrokerServiceUrl());
-                assertLookupSLANamespaceOwner(pulsarService, pulsar3.getLookupServiceAddress(), pulsar3.getBrokerServiceUrl());
+                for (PulsarService pulsar : pulsarServices) {
+                    assertLookupSLANamespaceOwner(pulsarService, pulsar.getLookupServiceAddress(), pulsar.getBrokerServiceUrl());
+                }
             }
 
             // Test deploy new broker with new load manager
@@ -658,19 +657,16 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
                 assertTrue(webServiceUrl4.isPresent());
                 assertEquals(webServiceUrl4.get().toString(), webServiceUrl1.get().toString());
 
-                // Test lookup heartbeat namespace's topic
                 pulsarServices = List.of(pulsar1, pulsar2, pulsar3, pulsar4);
                 for (PulsarService pulsarService : pulsarServices) {
-                    assertLookupHeartbeatOwner(pulsarService, pulsar1.getLookupServiceAddress(), pulsar1.getBrokerServiceUrl());
-                    assertLookupHeartbeatOwner(pulsarService, pulsar2.getLookupServiceAddress(), pulsar2.getBrokerServiceUrl());
-                    assertLookupHeartbeatOwner(pulsarService, pulsar3.getLookupServiceAddress(), pulsar3.getBrokerServiceUrl());
-                    assertLookupHeartbeatOwner(pulsarService, pulsar4.getLookupServiceAddress(), pulsar4.getBrokerServiceUrl());
-
+                    // Test lookup heartbeat namespace's topic
+                    for (PulsarService pulsar : pulsarServices) {
+                        assertLookupHeartbeatOwner(pulsarService, pulsar.getLookupServiceAddress(), pulsar.getBrokerServiceUrl());
+                    }
                     // Test lookup SLA namespace's topic
-                    assertLookupSLANamespaceOwner(pulsarService, pulsar1.getLookupServiceAddress(), pulsar1.getBrokerServiceUrl());
-                    assertLookupSLANamespaceOwner(pulsarService, pulsar2.getLookupServiceAddress(), pulsar2.getBrokerServiceUrl());
-                    assertLookupSLANamespaceOwner(pulsarService, pulsar3.getLookupServiceAddress(), pulsar3.getBrokerServiceUrl());
-                    assertLookupSLANamespaceOwner(pulsarService, pulsar4.getLookupServiceAddress(), pulsar4.getBrokerServiceUrl());
+                    for (PulsarService pulsar : pulsarServices) {
+                        assertLookupSLANamespaceOwner(pulsarService, pulsar.getLookupServiceAddress(), pulsar.getBrokerServiceUrl());
+                    }
                 }
             }
         }
