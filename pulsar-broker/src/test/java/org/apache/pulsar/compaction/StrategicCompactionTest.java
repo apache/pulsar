@@ -20,7 +20,6 @@ package org.apache.pulsar.compaction;
 
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannelImpl.MSG_COMPRESSION_TYPE;
 import static org.testng.Assert.assertEquals;
-
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -212,5 +211,26 @@ public class StrategicCompactionTest extends CompactionTest {
             assertEquals(received, messages);
         }
 
+    }
+
+    @Override
+    public void testCompactCompressedBatching() throws Exception {
+        compactor = new StrategicTwoPhaseCompactor(conf, pulsarClient, bk, compactionScheduler);
+        super.testCompactCompressedBatching();
+        compactor = new StrategicTwoPhaseCompactor(conf, pulsarClient, bk, compactionScheduler);
+    }
+
+    @Override
+    public void testCompactEncryptedAndCompressedBatching() throws Exception {
+        compactor = new StrategicTwoPhaseCompactor(conf, pulsarClient, bk, compactionScheduler);
+        super.testCompactEncryptedAndCompressedBatching();
+        compactor = new StrategicTwoPhaseCompactor(conf, pulsarClient, bk, compactionScheduler);
+    }
+
+    @Override
+    public void testCompactEncryptedBatching() throws Exception {
+        compactor = new StrategicTwoPhaseCompactor(conf, pulsarClient, bk, compactionScheduler);
+        super.testCompactEncryptedBatching();
+        compactor = new StrategicTwoPhaseCompactor(conf, pulsarClient, bk, compactionScheduler);
     }
 }
