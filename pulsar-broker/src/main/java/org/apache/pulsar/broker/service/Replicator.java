@@ -51,8 +51,4 @@ public interface Replicator {
     boolean isConnected();
 
     long getNumberOfEntriesInBacklog();
-
-    default CompletableFuture<Void> close() {
-        return CompletableFuture.completedFuture(null);
-    }
 }
