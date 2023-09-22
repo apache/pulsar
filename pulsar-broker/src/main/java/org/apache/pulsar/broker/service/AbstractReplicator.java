@@ -118,6 +118,8 @@ public abstract class AbstractReplicator {
     // This method needs to be synchronized with disconnects else if there is a disconnect followed by startProducer
     // the end result can be disconnect.
     public synchronized void startProducer() {
+        // This method comes from some actives call and may be call again after disconnect
+        // so here we will first mark isClosed is false
         isClosed = false;
         startProducerInternal();
     }
