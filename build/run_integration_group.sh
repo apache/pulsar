@@ -129,7 +129,6 @@ test_group_shade_run() {
 }
 
 test_group_backwards_compat() {
-  mvn_run_integration_test "$@" -DintegrationTestSuiteFile=pulsar-backwards-compatibility.xml -DintegrationTests
   mvn_run_integration_test "$@" -DBackwardsCompatTests -DtestForkCount=1 -DtestReuseFork=false
 }
 
