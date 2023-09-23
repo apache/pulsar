@@ -290,7 +290,7 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
             readerCaches.put(namespace, readerCompletableFuture);
             ownedBundlesCountPerNamespace.putIfAbsent(namespace, new AtomicInteger(1));
             readerCompletableFuture.thenAccept(reader -> {
-                initPolicesCache(reader, result);
+                initPolicesCacheAndNotifyListeners(reader, result);
                 result.thenRun(() -> readMorePolicies(reader));
             }).exceptionally(ex -> {
                 log.error("[{}] Failed to create reader on __change_events topic", namespace, ex);
@@ -354,7 +354,7 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                 });
     }
 
-    private void initPolicesCache(SystemTopicClient.Reader<PulsarEvent> reader, CompletableFuture<Void> future) {
+    private void initPolicesCacheAndNotifyListeners(SystemTopicClient.Reader<PulsarEvent> reader, CompletableFuture<Void> future) {
         reader.hasMoreEventsAsync().whenComplete((hasMore, ex) -> {
             if (ex != null) {
                 log.error("[{}] Failed to check the move events for the system topic",
@@ -370,7 +370,7 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                         log.debug("[{}] Loop next event reading for system topic.",
                                 reader.getSystemTopic().getTopicName().getNamespaceObject());
                     }
-                    initPolicesCache(reader, future);
+                    initPolicesCacheAndNotifyListeners(reader, future);
                 }).exceptionally(e -> {
                     log.error("[{}] Failed to read event from the system topic.",
                             reader.getSystemTopic().getTopicName(), e);

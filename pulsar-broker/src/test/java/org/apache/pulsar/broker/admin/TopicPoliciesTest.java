@@ -3028,12 +3028,18 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         SystemTopicBasedTopicPoliciesService topicPoliciesService
                 = (SystemTopicBasedTopicPoliciesService) pulsar.getTopicPoliciesService();
 
+        // the final policies take effect in topic
+        HierarchyTopicPolicies hierarchyTopicPolicies =
+                pulsar.getBrokerService().getTopics().get(topic).get().get().getHierarchyTopicPolicies();
+
         // check global topic policies can be added correctly.
         Awaitility.await().untilAsserted(() -> assertNotNull(topicPoliciesService.getTopicPolicies(TopicName.get(topic), true)));
         TopicPolicies topicPolicies = topicPoliciesService.getTopicPolicies(TopicName.get(topic), true);
         assertNull(topicPoliciesService.getTopicPolicies(TopicName.get(topic)));
         assertEquals(topicPolicies.getRetentionPolicies().getRetentionTimeInMinutes(), 1);
         assertEquals(topicPolicies.getRetentionPolicies().getRetentionSizeInMB(), 2);
+        assertEquals(hierarchyTopicPolicies.getRetentionPolicies().get().getRetentionTimeInMinutes(), 1);
+        assertEquals(hierarchyTopicPolicies.getRetentionPolicies().get().getRetentionSizeInMB(), 2);
 
         // check global topic policies can be updated correctly.
         admin.topicPolicies(true).setRetention(topic, new RetentionPolicies(3, 4));
@@ -3042,6 +3048,8 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
             assertNull(topicPoliciesService.getTopicPolicies(TopicName.get(topic)));
             assertEquals(tempPolicies.getRetentionPolicies().getRetentionTimeInMinutes(), 3);
             assertEquals(tempPolicies.getRetentionPolicies().getRetentionSizeInMB(), 4);
+            assertEquals(hierarchyTopicPolicies.getRetentionPolicies().get().getRetentionTimeInMinutes(), 3);
+            assertEquals(hierarchyTopicPolicies.getRetentionPolicies().get().getRetentionSizeInMB(), 4);
         });
 
         //Local topic policies and global topic policies can exist together.
@@ -3053,12 +3061,69 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         tempPolicies = topicPoliciesService.getTopicPolicies(TopicName.get(topic));
         assertEquals(tempPolicies.getRetentionPolicies().getRetentionTimeInMinutes(), 10);
         assertEquals(tempPolicies.getRetentionPolicies().getRetentionSizeInMB(), 20);
+        assertEquals(hierarchyTopicPolicies.getRetentionPolicies().get().getRetentionTimeInMinutes(), 10);
+        assertEquals(hierarchyTopicPolicies.getRetentionPolicies().get().getRetentionSizeInMB(), 20);
+
+        admin.topicPolicies(true).setRetention(topic, new RetentionPolicies(30, 40));
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(topicPoliciesService.getTopicPolicies(TopicName.get(topic), true).getRetentionPolicies()
+                    .getRetentionTimeInMinutes(), 30);
+            assertEquals(topicPoliciesService.getTopicPolicies(TopicName.get(topic), true).getRetentionPolicies()
+                    .getRetentionSizeInMB(), 40);
+        });
+
+        // the local policies do not overwrite by global policies
+        assertEquals(hierarchyTopicPolicies.getRetentionPolicies().get().getRetentionTimeInMinutes(), 10);
+        assertEquals(hierarchyTopicPolicies.getRetentionPolicies().get().getRetentionSizeInMB(), 20);
 
         // check remove global topic policies can be removed correctly.
         admin.topicPolicies(true).removeRetention(topic);
         Awaitility.await().untilAsserted(() ->
                 assertNull(topicPoliciesService.getTopicPolicies(TopicName.get(topic), true).getRetentionPolicies()));
 
+    }
+
+    @Test
+    public void testInitPolicesCacheAndNotifyListeners() throws Exception {
+        final String topic = testTopic + UUID.randomUUID();
+        admin.topics().createNonPartitionedTopic(topic);
+        pulsarClient.newProducer().topic(topic).create().close();
+
+        // set up policies
+        TopicName topicName = TopicName.get(topic);
+        TopicPolicies localInitPolicy = TopicPolicies.builder().maxConsumerPerTopic(10).build();
+        pulsar.getTopicPoliciesService().updateTopicPoliciesAsync(topicName, localInitPolicy).get();
+        TopicPolicies globalInitPolicy =
+                TopicPolicies.builder().maxConsumerPerTopic(20).maxProducerPerTopic(30).isGlobal(true).build();
+        pulsar.getTopicPoliciesService().updateTopicPoliciesAsync(topicName, globalInitPolicy).get();
+
+
+        // the policies cache
+        SystemTopicBasedTopicPoliciesService topicPoliciesService
+                = (SystemTopicBasedTopicPoliciesService) pulsar.getTopicPoliciesService();
+
+        // reload namespace to trigger init polices cache and notify listeners
+        admin.namespaces().unload(myNamespace);
+        assertNull(topicPoliciesService.getPoliciesCacheInit(NamespaceName.get(myNamespace)));
+        pulsarClient.newProducer().topic(topic).create().close();
+        Awaitility.await().untilAsserted(
+                () -> assertEquals(topicPoliciesService.getPoliciesCacheInit(NamespaceName.get(myNamespace)), true));
+
+        // the final policies take effect in topic
+        HierarchyTopicPolicies hierarchyTopicPolicies =
+                pulsar.getBrokerService().getTopics().get(topic).get().get().getHierarchyTopicPolicies();
+
+        assertEquals(topicPoliciesService.getTopicPolicies(topicName).getMaxConsumerPerTopic(), 10);
+        assertEquals(topicPoliciesService.getTopicPolicies(topicName, true).getMaxConsumerPerTopic(), 20);
+        assertEquals(hierarchyTopicPolicies.getMaxConsumerPerTopic().getGlobalTopicValue(), 20);
+        assertEquals(hierarchyTopicPolicies.getMaxConsumerPerTopic().getLocalTopicValue(), 10);
+        assertEquals(hierarchyTopicPolicies.getMaxConsumerPerTopic().get(), 10);
+
+        assertEquals(topicPoliciesService.getTopicPolicies(topicName).getMaxProducerPerTopic(), null);
+        assertEquals(topicPoliciesService.getTopicPolicies(topicName, true).getMaxProducerPerTopic(), 30);
+        assertEquals(hierarchyTopicPolicies.getMaxProducersPerTopic().getGlobalTopicValue(), 30);
+        assertEquals(hierarchyTopicPolicies.getMaxProducersPerTopic().getLocalTopicValue(), null);
+        assertEquals(hierarchyTopicPolicies.getMaxProducersPerTopic().get(), 30);
     }
 
     @Test
