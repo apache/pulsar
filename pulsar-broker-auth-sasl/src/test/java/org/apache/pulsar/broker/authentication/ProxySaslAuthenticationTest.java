@@ -181,6 +181,7 @@ public class ProxySaslAuthenticationTest extends ProducerConsumerBase {
 	protected void setup() throws Exception {
 		log.info("-- {} --, start at host: {}", methodName, localHostname);
 		isTcpLookup = true;
+		conf.setTopicLevelPoliciesEnabled(false);
 		conf.setAdvertisedAddress(localHostname);
 		conf.setAuthenticationEnabled(true);
 		conf.setSaslJaasClientAllowedIds(".*" + localHostname + ".*");

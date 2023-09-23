@@ -147,6 +147,7 @@ public class BrokerBookieIsolationTest {
         setDefaultIsolationGroup(tenantNamespaceIsolationGroups, zkClient, isolatedBookies);
 
         ServiceConfiguration config = new ServiceConfiguration();
+        config.setTopicLevelPoliciesEnabled(false);
         config.setLoadManagerClassName(ModularLoadManagerImpl.class.getName());
         config.setClusterName(cluster);
         config.setWebServicePort(Optional.of(0));
@@ -304,6 +305,7 @@ public class BrokerBookieIsolationTest {
                 bookies[3].getBookieId());
 
         ServiceConfiguration config = new ServiceConfiguration();
+        config.setTopicLevelPoliciesEnabled(false);
         config.setLoadManagerClassName(ModularLoadManagerImpl.class.getName());
         config.setClusterName(cluster);
         config.setWebServicePort(Optional.of(0));
@@ -615,6 +617,7 @@ public class BrokerBookieIsolationTest {
         config.setAdvertisedAddress("localhost");
         config.setBookkeeperClientIsolationGroups(brokerBookkeeperClientIsolationGroups);
 
+        config.setTopicLevelPoliciesEnabled(false);
         config.setManagedLedgerDefaultEnsembleSize(2);
         config.setManagedLedgerDefaultWriteQuorum(2);
         config.setManagedLedgerDefaultAckQuorum(2);

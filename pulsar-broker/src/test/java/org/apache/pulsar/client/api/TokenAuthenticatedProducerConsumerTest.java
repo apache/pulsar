@@ -82,6 +82,7 @@ public class TokenAuthenticatedProducerConsumerTest extends ProducerConsumerBase
     @BeforeMethod
     @Override
     protected void setup() throws Exception {
+        conf.setTopicLevelPoliciesEnabled(false);
         conf.setAuthenticationEnabled(true);
         conf.setAuthorizationEnabled(true);
 

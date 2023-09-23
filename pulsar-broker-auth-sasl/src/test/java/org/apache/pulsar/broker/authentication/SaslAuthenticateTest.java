@@ -174,6 +174,7 @@ public class SaslAuthenticateTest extends ProducerConsumerBase {
         // use http lookup to verify HttpClient works well.
         isTcpLookup = false;
 
+        conf.setTopicLevelPoliciesEnabled(false);
         conf.setAdvertisedAddress(localHostname);
         conf.setAuthenticationEnabled(true);
         conf.setSaslJaasClientAllowedIds(".*" + "client" + ".*");
