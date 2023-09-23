@@ -76,6 +76,7 @@ public class TokenOauth2AuthenticatedProducerConsumerTest extends ProducerConsum
         conf.setAuthenticationEnabled(true);
         conf.setAuthorizationEnabled(true);
         conf.setAuthenticationRefreshCheckSeconds(1);
+        conf.setTopicLevelPoliciesEnabled(false);
 
         Set<String> superUserRoles = new HashSet<>();
         // Matches the role in th credentials file
