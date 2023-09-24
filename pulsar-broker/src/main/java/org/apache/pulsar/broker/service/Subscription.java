@@ -27,6 +27,7 @@ import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
 import org.apache.pulsar.common.api.proto.CommandAck.AckType;
+import org.apache.pulsar.common.api.proto.CommandSubscribe.IsolationLevel;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.api.proto.ReplicatedSubscriptionsSnapshot;
 
@@ -95,6 +96,8 @@ public interface Subscription extends MessageExpirer {
     SubType getType();
 
     String getTypeString();
+
+    IsolationLevel getIsolationLevel();
 
     void addUnAckedMessages(int unAckMessages);
 

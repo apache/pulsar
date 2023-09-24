@@ -52,6 +52,7 @@ import org.apache.pulsar.broker.service.persistent.DispatchRateLimiter.Type;
 import org.apache.pulsar.broker.transaction.exception.buffer.TransactionBufferException;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.impl.Backoff;
+import org.apache.pulsar.common.api.proto.CommandSubscribe.IsolationLevel;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.compaction.CompactedTopicUtils;
@@ -356,7 +357,7 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
                     ReadEntriesCtx readEntriesCtx =
                             ReadEntriesCtx.create(consumer, consumer.getConsumerEpoch());
                     cursor.asyncReadEntriesOrWait(messagesToRead,
-                            bytesToRead, this, readEntriesCtx, topic.getMaxReadPosition());
+                            bytesToRead, this, readEntriesCtx, getMaxReadPosition());
                 }
             }
         } else {
@@ -364,6 +365,11 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
                 log.debug("[{}-{}] Consumer buffer is full, pause reading", name, consumer);
             }
         }
+    }
+
+    private PositionImpl getMaxReadPosition() {
+        return subscription.getIsolationLevel() == IsolationLevel.READ_COMMITTED ?
+                topic.getMaxReadPosition() : PositionImpl.LATEST;
     }
 
     @Override

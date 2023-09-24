@@ -124,6 +124,7 @@ import org.apache.pulsar.common.api.proto.CommandSeek;
 import org.apache.pulsar.common.api.proto.CommandSend;
 import org.apache.pulsar.common.api.proto.CommandSubscribe;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition;
+import org.apache.pulsar.common.api.proto.CommandSubscribe.IsolationLevel;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.api.proto.CommandTcClientConnectRequest;
 import org.apache.pulsar.common.api.proto.CommandTopicMigrated.ResourceType;
@@ -1145,6 +1146,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
               ? new KeySharedMeta().copyFrom(subscribe.getKeySharedMeta())
               : emptyKeySharedMeta;
         final long consumerEpoch = subscribe.hasConsumerEpoch() ? subscribe.getConsumerEpoch() : DEFAULT_CONSUMER_EPOCH;
+        final IsolationLevel isolationLevel = subscribe.getIsolationLevel();
         final Optional<Map<String, String>> subscriptionProperties = SubscriptionOption.getPropertiesMap(
                 subscribe.getSubscriptionPropertiesList());
 
@@ -1251,6 +1253,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                                 .subscriptionProperties(subscriptionProperties)
                                                 .consumerEpoch(consumerEpoch)
                                                 .schemaType(schema == null ? null : schema.getType())
+                                                .isolationLevel(isolationLevel)
                                                 .build();
                                         if (schema != null && schema.getType() != SchemaType.AUTO_CONSUME) {
                                             return topic.addSchemaIfIdleOrCheckCompatible(schema)

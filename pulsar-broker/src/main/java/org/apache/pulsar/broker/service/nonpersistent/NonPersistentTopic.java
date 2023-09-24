@@ -43,6 +43,7 @@ import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.resources.NamespaceResources;
 import org.apache.pulsar.broker.service.AbstractReplicator;
+import org.apache.pulsar.broker.service.AbstractSubscription;
 import org.apache.pulsar.broker.service.AbstractTopic;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.BrokerServiceException;
@@ -69,6 +70,7 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition;
+import org.apache.pulsar.common.api.proto.CommandSubscribe.IsolationLevel;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.api.proto.KeySharedMeta;
 import org.apache.pulsar.common.naming.TopicName;
@@ -263,7 +265,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
                 option.getStartMessageId(), option.getMetadata(), option.isReadCompacted(),
                 option.getStartMessageRollbackDurationSec(), option.isReplicatedSubscriptionStateArg(),
                 option.getKeySharedMeta(), option.getSubscriptionProperties().orElse(null),
-                option.getSchemaType());
+                option.getSchemaType(), option.getIsolationLevel());
     }
 
     @Override
@@ -273,10 +275,11 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
                                                  Map<String, String> metadata, boolean readCompacted,
                                                  InitialPosition initialPosition,
                                                  long resetStartMessageBackInSec, boolean replicateSubscriptionState,
-                                                 KeySharedMeta keySharedMeta) {
+                                                 KeySharedMeta keySharedMeta,
+                                                 IsolationLevel isolationLevel) {
         return internalSubscribe(cnx, subscriptionName, consumerId, subType, priorityLevel, consumerName,
                 startMessageId, metadata, readCompacted, resetStartMessageBackInSec,
-                replicateSubscriptionState, keySharedMeta, null, null);
+                replicateSubscriptionState, keySharedMeta, null, null, isolationLevel);
     }
 
     private CompletableFuture<Consumer> internalSubscribe(final TransportCnx cnx, String subscriptionName,
@@ -287,7 +290,8 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
                                                           boolean replicateSubscriptionState,
                                                           KeySharedMeta keySharedMeta,
                                                           Map<String, String> subscriptionProperties,
-                                                          SchemaType schemaType) {
+                                                          SchemaType schemaType,
+                                                          IsolationLevel isolationLevel) {
 
         return brokerService.checkTopicNsOwnership(getName()).thenCompose(__ -> {
             final CompletableFuture<Consumer> future = new CompletableFuture<>();
@@ -325,6 +329,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
                 lock.readLock().unlock();
             }
 
+            AbstractSubscription.wrapIsolationLevelToProperties(subscriptionProperties, isolationLevel);
             NonPersistentSubscription subscription = subscriptions.computeIfAbsent(subscriptionName,
                     name -> new NonPersistentSubscription(this, subscriptionName, subscriptionProperties));
 

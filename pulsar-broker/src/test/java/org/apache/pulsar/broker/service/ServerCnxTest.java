@@ -124,6 +124,7 @@ import org.apache.pulsar.common.api.proto.CommandSendError;
 import org.apache.pulsar.common.api.proto.CommandSendReceipt;
 import org.apache.pulsar.common.api.proto.CommandSubscribe;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition;
+import org.apache.pulsar.common.api.proto.CommandSubscribe.IsolationLevel;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.api.proto.CommandSuccess;
 import org.apache.pulsar.common.api.proto.CommandWatchTopicListSuccess;
@@ -2294,6 +2295,33 @@ public class ServerCnxTest {
 
         channel.finish();
     }
+
+    @Test(timeOut = 30000)
+    public void testSubscribeCommandWithIsolationLevel() throws Exception {
+        resetChannel();
+        setChannelConnected();
+        svcConfig.setAuthenticationEnabled(false);
+        svcConfig.setAuthorizationEnabled(false);
+        // test SUBSCRIBE on topic and cursor creation success with 'ReadUnCommitted' isolation level.
+        ByteBuf clientCommand = Commands.newSubscribe(successTopicName, //
+                successSubName, 1 /* consumer id */, 1 /* request id */, SubType.Exclusive, 0,
+                "test" /* consumer name */, 0 /* avoid reseting cursor */, IsolationLevel.READ_UNCOMMITTED);
+        channel.writeInbound(clientCommand);
+        assertTrue(getResponse() instanceof CommandSuccess);
+
+        PersistentTopic topicRef = (PersistentTopic) brokerService.getTopicReference(successTopicName).get();
+
+        assertNotNull(topicRef);
+        assertTrue(topicRef.getSubscriptions().containsKey(successSubName));
+        assertTrue(topicRef.getSubscription(successSubName).getDispatcher().isConsumerConnected());
+        assertEquals(topicRef.getSubscription(successSubName).getIsolationLevel(), IsolationLevel.READ_UNCOMMITTED);
+
+        // Server will not close the connection
+        assertTrue(channel.isOpen());
+
+        channel.finish();
+    }
+
 
     @Test(timeOut = 30000)
     public void testUnsupportedBatchMsgSubscribeCommand() throws Exception {

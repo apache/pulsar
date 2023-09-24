@@ -41,6 +41,7 @@ import org.apache.pulsar.broker.service.Dispatcher;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.common.api.proto.CommandAck.AckType;
+import org.apache.pulsar.common.api.proto.CommandSubscribe.IsolationLevel;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.api.proto.KeySharedMeta;
 import org.apache.pulsar.common.api.proto.KeySharedMode;
@@ -70,6 +71,8 @@ public class NonPersistentSubscription extends AbstractSubscription implements S
 
     private KeySharedMode keySharedMode = null;
 
+    private final IsolationLevel isolationLevel;
+
     public NonPersistentSubscription(NonPersistentTopic topic, String subscriptionName,
                                      Map<String, String> properties) {
         this.topic = topic;
@@ -79,6 +82,7 @@ public class NonPersistentSubscription extends AbstractSubscription implements S
         IS_FENCED_UPDATER.set(this, FALSE);
         this.subscriptionProperties = properties != null
                 ? Collections.unmodifiableMap(properties) : Collections.emptyMap();
+        this.isolationLevel = fetchIsolationLevelFromProperties(properties);
     }
 
     @Override
@@ -234,6 +238,11 @@ public class NonPersistentSubscription extends AbstractSubscription implements S
         }
 
         return "Null";
+    }
+
+    @Override
+    public IsolationLevel getIsolationLevel() {
+        return this.isolationLevel;
     }
 
     @Override

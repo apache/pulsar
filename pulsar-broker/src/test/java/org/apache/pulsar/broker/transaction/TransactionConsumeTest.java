@@ -43,6 +43,7 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.SubscriptionIsolationLevel;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.MessageIdData;
@@ -226,6 +227,89 @@ public class TransactionConsumeTest extends TransactionTestBase {
             log.info("Receive shared normal msg: {}, index: {}", new String(message.getData(), UTF_8), i);
         }
         log.info("TransactionConsumeTest sortedTest finish.");
+    }
+
+    @Test
+    public void testConsumeMessageWithDifferentIsolationLevel() throws Exception {
+        int messageCntBeforeTxn = 10;
+        int transactionMessageCnt = 10;
+        int messageCntAfterTxn = 10;
+        int totalMsgCnt = messageCntBeforeTxn + transactionMessageCnt + messageCntAfterTxn;
+
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(CONSUME_TOPIC)
+                .create();
+
+        @Cleanup
+        Consumer<byte[]> consumerWithReadCommittedIsolationLevel = pulsarClient.newConsumer()
+                .topic(CONSUME_TOPIC)
+                .subscriptionName("read-committed-isolation-test")
+                .subscribe();
+
+        @Cleanup
+        Consumer<byte[]> consumerWithReadUnCommittedIsolationLevel = pulsarClient.newConsumer()
+                .topic(CONSUME_TOPIC)
+                .subscriptionName("read-unCommitted-isolation-test")
+                .subscriptionIsolationLevel(SubscriptionIsolationLevel.READ_UNCOMMITTED)
+                .subscribe();
+
+        Awaitility.await().until(consumerWithReadUnCommittedIsolationLevel::isConnected);
+
+        long mostSigBits = 2L;
+        long leastSigBits = 5L;
+        TxnID txnID = new TxnID(mostSigBits, leastSigBits);
+
+        PersistentTopic persistentTopic = (PersistentTopic) getPulsarServiceList().get(0).getBrokerService()
+                .getTopic(CONSUME_TOPIC, false).get().get();
+        log.info("transactionBuffer init finish.");
+
+        List<String> sendMessageList = new ArrayList<>();
+        sendNormalMessages(producer, 0, messageCntBeforeTxn, sendMessageList);
+        appendTransactionMessages(txnID, persistentTopic, transactionMessageCnt, sendMessageList);
+        sendNormalMessages(producer, messageCntBeforeTxn, messageCntAfterTxn, sendMessageList);
+
+        Message<byte[]> message;
+
+        for (int i = 0; i < totalMsgCnt; i++) {
+            // 1. for consumer 'consumerWithReadUnCommittedIsolationLevel', Because the transaction isolation level is ReadUncommitted, all messages can be read
+            message = consumerWithReadUnCommittedIsolationLevel.receive(500, TimeUnit.MILLISECONDS);
+            Assert.assertNotNull(message);
+            if (i < messageCntBeforeTxn) {
+                log.info("Consumer with ReadUnCommittedIsolationLevel Receive normal msg: {}" + new String(message.getData(), UTF_8));
+            } else {
+                if (i < messageCntBeforeTxn + transactionMessageCnt) {
+                    log.info("Consumer with ReadUnCommittedIsolationLevel Receive txn id: {}, msg: {}", message.getMessageId(), new String(message.getData()));
+                } else {
+                    log.info("Consumer with ReadUnCommittedIsolationLevel Receive normal msg: {}" + new String(message.getData(), UTF_8));
+                }
+            }
+
+            // 2. for consumer 'consumerWithReadCommittedIsolationLevel', Because the transaction isolation level is ReadUnCommitted,
+            // it can only read 'messageCntBeforeTxn' messages before the transaction is committed
+            if (i < messageCntBeforeTxn) {
+                message = consumerWithReadCommittedIsolationLevel.receive(500, TimeUnit.MILLISECONDS);
+                Assert.assertNotNull(message);
+                log.info("Consumer with ReadCommittedIsolationLevel Receive normal msg: {}" + new String(message.getData(), UTF_8));
+            } else {
+                message = consumerWithReadCommittedIsolationLevel.receive(500, TimeUnit.MILLISECONDS);
+                Assert.assertNull(message);
+                log.info("Consumer with ReadCommittedIsolationLevel can't receive message before commit.");
+            }
+        }
+
+        // Now commit the transaction
+        persistentTopic.endTxn(txnID, TxnAction.COMMIT_VALUE, 0L).get();
+        log.info("Commit txn.");
+
+        // 'consumerWithReadCommittedIsolationLevel' receive transaction messages successfully after commit
+        for (int i = 0; i < transactionMessageCnt + messageCntAfterTxn; i++) {
+            message = consumerWithReadCommittedIsolationLevel.receive(5, TimeUnit.SECONDS);
+            Assert.assertNotNull(message);
+            log.info("Consumer with ReadCommittedIsolationLevel Receive txn id: {}, msg: {}", message.getMessageId(), new String(message.getData()));
+        }
+
+        log.info("Consume message with different isolation level test finish.");
     }
 
     @Test

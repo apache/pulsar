@@ -45,6 +45,7 @@ public class SubscriptionOption {
     private Map<String, String> metadata;
     private boolean readCompacted;
     private CommandSubscribe.InitialPosition initialPosition;
+    private CommandSubscribe.IsolationLevel isolationLevel;
     private long startMessageRollbackDurationSec;
     private boolean replicatedSubscriptionStateArg;
     private KeySharedMeta keySharedMeta;

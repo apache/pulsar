@@ -570,7 +570,7 @@ public class Commands {
     }
 
     public static ByteBuf newSubscribe(String topic, String subscription, long consumerId, long requestId,
-            SubType subType, int priorityLevel, String consumerName, long resetStartMessageBackInSeconds) {
+                                       SubType subType, int priorityLevel, String consumerName, long resetStartMessageBackInSeconds) {
         return newSubscribe(topic, subscription, consumerId, requestId, subType, priorityLevel, consumerName,
                 true /* isDurable */, null /* startMessageId */, Collections.emptyMap(), false,
                 false /* isReplicated */, InitialPosition.Earliest, resetStartMessageBackInSeconds, null,
@@ -578,10 +578,19 @@ public class Commands {
     }
 
     public static ByteBuf newSubscribe(String topic, String subscription, long consumerId, long requestId,
-            SubType subType, int priorityLevel, String consumerName, boolean isDurable, MessageIdData startMessageId,
-            Map<String, String> metadata, boolean readCompacted, boolean isReplicated,
-            InitialPosition subscriptionInitialPosition, long startMessageRollbackDurationInSec, SchemaInfo schemaInfo,
-            boolean createTopicIfDoesNotExist, IsolationLevel isolationLevel) {
+                                       SubType subType, int priorityLevel, String consumerName, long resetStartMessageBackInSeconds,
+                                       IsolationLevel isolationLevel) {
+        return newSubscribe(topic, subscription, consumerId, requestId, subType, priorityLevel, consumerName,
+                true /* isDurable */, null /* startMessageId */, Collections.emptyMap(), false,
+                false /* isReplicated */, InitialPosition.Earliest, resetStartMessageBackInSeconds, null,
+                true /* createTopicIfDoesNotExist */, isolationLevel);
+    }
+
+    public static ByteBuf newSubscribe(String topic, String subscription, long consumerId, long requestId,
+                                       SubType subType, int priorityLevel, String consumerName, boolean isDurable, MessageIdData startMessageId,
+                                       Map<String, String> metadata, boolean readCompacted, boolean isReplicated,
+                                       InitialPosition subscriptionInitialPosition, long startMessageRollbackDurationInSec, SchemaInfo schemaInfo,
+                                       boolean createTopicIfDoesNotExist, IsolationLevel isolationLevel) {
         return newSubscribe(topic, subscription, consumerId, requestId, subType, priorityLevel, consumerName,
                 isDurable, startMessageId, metadata, readCompacted, isReplicated, subscriptionInitialPosition,
                 startMessageRollbackDurationInSec, schemaInfo, createTopicIfDoesNotExist, null,

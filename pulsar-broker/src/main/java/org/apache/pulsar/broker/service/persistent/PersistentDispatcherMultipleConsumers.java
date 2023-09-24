@@ -69,6 +69,7 @@ import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.persistent.DispatchRateLimiter.Type;
 import org.apache.pulsar.broker.transaction.exception.buffer.TransactionBufferException;
 import org.apache.pulsar.client.impl.Backoff;
+import org.apache.pulsar.common.api.proto.CommandSubscribe.IsolationLevel;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.policies.data.stats.TopicMetricBean;
@@ -330,6 +331,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                     minReplayedPosition = null;
                 }
 
+                PositionImpl maxReadPosition = getMaxReadPosition();
                 // Filter out and skip read delayed messages exist in DelayedDeliveryTracker
                 if (delayedDeliveryTracker.isPresent()) {
                     Predicate<PositionImpl> skipCondition = null;
@@ -339,10 +341,10 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                                 .containsMessage(position.getLedgerId(), position.getEntryId());
                     }
                     cursor.asyncReadEntriesWithSkipOrWait(messagesToRead, bytesToRead, this, ReadType.Normal,
-                            topic.getMaxReadPosition(), skipCondition);
+                            maxReadPosition, skipCondition);
                 } else {
                     cursor.asyncReadEntriesOrWait(messagesToRead, bytesToRead, this, ReadType.Normal,
-                            topic.getMaxReadPosition());
+                            maxReadPosition);
                 }
             } else {
                 log.debug("[{}] Cannot schedule next read until previous one is done", name);
@@ -352,6 +354,11 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                 log.debug("[{}] Consumer buffer is full, pause reading", name);
             }
         }
+    }
+
+    private PositionImpl getMaxReadPosition() {
+        return subscription.getIsolationLevel() == IsolationLevel.READ_COMMITTED ?
+                topic.getMaxReadPosition() : PositionImpl.LATEST;
     }
 
     @Override
