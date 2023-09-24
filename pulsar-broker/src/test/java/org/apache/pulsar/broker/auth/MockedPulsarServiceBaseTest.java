@@ -54,6 +54,7 @@ import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.ProducerImpl;
+import org.apache.pulsar.client.impl.auth.AuthenticationDisabled;
 import org.apache.pulsar.client.impl.auth.AuthenticationTls;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfo;
@@ -242,13 +243,16 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
             && conf.getAuthenticationProviders().contains(AuthenticationProviderTls.class.getName())
             && !conf.isTlsEnabledWithKeyStore()) {
             // enabled TLS
-            conf.setBrokerClientAuthenticationPlugin(AuthenticationTls.class.getName());
-            conf.setBrokerClientAuthenticationParameters("tlsCertFile:" + BROKER_CERT_FILE_PATH
-                                                         + ",tlsKeyFile:" + BROKER_KEY_FILE_PATH);
-            conf.setBrokerClientTlsEnabled(true);
-            conf.setBrokerClientTrustCertsFilePath(CA_CERT_FILE_PATH);
-            conf.setBrokerClientCertificateFilePath(BROKER_CERT_FILE_PATH);
-            conf.setBrokerClientKeyFilePath(BROKER_KEY_FILE_PATH);
+            if (conf.getBrokerClientAuthenticationPlugin() == null
+                || conf.getBrokerClientAuthenticationPlugin().equals(AuthenticationDisabled.class.getName())) {
+                conf.setBrokerClientAuthenticationPlugin(AuthenticationTls.class.getName());
+                conf.setBrokerClientAuthenticationParameters("tlsCertFile:" + BROKER_CERT_FILE_PATH
+                                                             + ",tlsKeyFile:" + BROKER_KEY_FILE_PATH);
+                conf.setBrokerClientTlsEnabled(true);
+                conf.setBrokerClientTrustCertsFilePath(CA_CERT_FILE_PATH);
+                conf.setBrokerClientCertificateFilePath(BROKER_CERT_FILE_PATH);
+                conf.setBrokerClientKeyFilePath(BROKER_KEY_FILE_PATH);
+            }
         }
         startBroker();
     }
