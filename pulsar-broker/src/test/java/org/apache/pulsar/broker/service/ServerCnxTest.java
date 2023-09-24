@@ -505,6 +505,41 @@ public class ServerCnxTest {
     }
 
     @Test(timeOut = 30000)
+    public void testConnectCommandWithPassingOriginalAuthDataAndSetAnonymousUserRole() throws Exception {
+        AuthenticationService authenticationService = mock(AuthenticationService.class);
+        AuthenticationProvider authenticationProvider = new MockAuthenticationProvider();
+        String authMethodName = authenticationProvider.getAuthMethodName();
+
+        String anonymousUserRole = "admin";
+        when(brokerService.getAuthenticationService()).thenReturn(authenticationService);
+        when(authenticationService.getAuthenticationProvider(authMethodName)).thenReturn(authenticationProvider);
+        when(authenticationService.getAnonymousUserRole()).thenReturn(Optional.of(anonymousUserRole));
+        svcConfig.setAuthenticationEnabled(true);
+        svcConfig.setAuthenticateOriginalAuthData(true);
+        svcConfig.setProxyRoles(Collections.singleton("pass.proxy"));
+        svcConfig.setAnonymousUserRole(anonymousUserRole);
+
+        resetChannel();
+        assertTrue(channel.isActive());
+        assertEquals(serverCnx.getState(), State.Start);
+
+        // When both the proxy and the broker set the anonymousUserRole option
+        // the proxy will use anonymousUserRole to delegate the client's role when connecting.
+        ByteBuf clientCommand = Commands.newConnect(authMethodName, "pass.proxy", 1, null,
+                null, anonymousUserRole, null, null);
+        channel.writeInbound(clientCommand);
+
+        Object response1 = getResponse();
+        assertTrue(response1 instanceof CommandConnected);
+        assertEquals(serverCnx.getState(), State.Connected);
+        assertEquals(serverCnx.getAuthRole(), anonymousUserRole);
+        assertEquals(serverCnx.getPrincipal(), anonymousUserRole);
+        assertEquals(serverCnx.getOriginalPrincipal(), anonymousUserRole);
+        assertTrue(serverCnx.isActive());
+        channel.finish();
+    }
+
+    @Test(timeOut = 30000)
     public void testConnectCommandWithPassingOriginalPrincipal() throws Exception {
         AuthenticationService authenticationService = mock(AuthenticationService.class);
         AuthenticationProvider authenticationProvider = new MockAuthenticationProvider();
