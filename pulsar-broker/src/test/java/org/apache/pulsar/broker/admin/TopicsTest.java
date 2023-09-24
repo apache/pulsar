@@ -108,7 +108,6 @@ public class TopicsTest extends MockedPulsarServiceBaseTest {
     @Override
     @BeforeMethod
     protected void setup() throws Exception {
-        conf.setTopicLevelPoliciesEnabled(false);
         super.internalSetup();
         topics = spy(new Topics());
         topics.setPulsar(pulsar);

@@ -73,7 +73,6 @@ public class TopicsAuthTest extends MockedPulsarServiceBaseTest {
     @Override
     @BeforeMethod
     protected void setup() throws Exception {
-        conf.setTopicLevelPoliciesEnabled(false);
         // enable auth&auth and use JWT at broker
         conf.setAuthenticationEnabled(true);
         conf.setAuthorizationEnabled(true);
@@ -85,6 +84,8 @@ public class TopicsAuthTest extends MockedPulsarServiceBaseTest {
         Set<String> providers = new HashSet<>();
         providers.add(AuthenticationProviderToken.class.getName());
         conf.setAuthenticationProviders(providers);
+        conf.setBrokerClientAuthenticationPlugin(AuthenticationToken.class.getName());
+        conf.setBrokerClientAuthenticationParameters("token:" + ADMIN_TOKEN);
         super.internalSetup();
         PulsarAdminBuilder pulsarAdminBuilder = PulsarAdmin.builder().serviceHttpUrl(brokerUrl != null
                 ? brokerUrl.toString() : brokerUrlTls.toString())

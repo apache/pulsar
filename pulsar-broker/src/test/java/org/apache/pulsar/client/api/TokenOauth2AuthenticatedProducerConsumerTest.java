@@ -27,9 +27,7 @@ import java.net.URL;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.Duration;
-import java.util.HashSet;
-import java.util.Properties;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.broker.auth.MockOIDCIdentityProvider;
 import org.apache.pulsar.broker.authentication.AuthenticationProviderToken;
@@ -39,6 +37,7 @@ import org.apache.pulsar.client.impl.auth.oauth2.AuthenticationFactoryOAuth2;
 import org.apache.pulsar.client.impl.auth.oauth2.AuthenticationOAuth2;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.awaitility.Awaitility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -76,7 +75,6 @@ public class TokenOauth2AuthenticatedProducerConsumerTest extends ProducerConsum
         conf.setAuthenticationEnabled(true);
         conf.setAuthorizationEnabled(true);
         conf.setAuthenticationRefreshCheckSeconds(1);
-        conf.setTopicLevelPoliciesEnabled(false);
 
         Set<String> superUserRoles = new HashSet<>();
         // Matches the role in th credentials file
@@ -88,11 +86,12 @@ public class TokenOauth2AuthenticatedProducerConsumerTest extends ProducerConsum
         conf.setAuthenticationProviders(providers);
 
         conf.setBrokerClientAuthenticationPlugin(AuthenticationOAuth2.class.getName());
-        conf.setBrokerClientAuthenticationParameters("{\n"
-                + "  \"privateKey\": \"" + CREDENTIALS_FILE + "\",\n"
-                + "  \"issuerUrl\": \"" + server.getIssuer() + "\",\n"
-                + "  \"audience\": \"" + audience + "\",\n"
-                + "}\n");
+        final Map<String, String> oauth2Param = new HashMap<>();
+        oauth2Param.put("privateKey", CREDENTIALS_FILE);
+        oauth2Param.put("issuerUrl", server.getIssuer());
+        oauth2Param.put("audience", audience);
+        conf.setBrokerClientAuthenticationParameters(ObjectMapperFactory
+                .getMapper().getObjectMapper().writeValueAsString(oauth2Param));
 
         conf.setClusterName("test");
 

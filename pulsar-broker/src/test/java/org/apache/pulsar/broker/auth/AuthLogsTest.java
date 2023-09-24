@@ -53,7 +53,6 @@ public class AuthLogsTest extends MockedPulsarServiceBaseTest {
     @Override
     public void setup() throws Exception {
         conf.setClusterName("test");
-        conf.setTopicLevelPoliciesEnabled(false);
         conf.setAuthenticationEnabled(true);
         conf.setAuthenticationProviders(
                 Sets.newHashSet("org.apache.pulsar.broker.auth.MockAuthenticationProvider"));
@@ -61,6 +60,8 @@ public class AuthLogsTest extends MockedPulsarServiceBaseTest {
         conf.setAuthorizationEnabled(true);
         conf.setAuthorizationAllowWildcardsMatching(true);
         conf.setSuperUserRoles(Sets.newHashSet("super"));
+        conf.setBrokerClientAuthenticationPlugin(MockAuthentication.class.getName());
+        conf.setBrokerClientAuthenticationParameters("user:pass.pass");
         internalSetup();
 
         try (PulsarAdmin admin = PulsarAdmin.builder()
