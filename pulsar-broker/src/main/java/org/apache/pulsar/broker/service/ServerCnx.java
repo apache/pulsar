@@ -988,7 +988,6 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         try {
             byte[] authData = connect.hasAuthData() ? connect.getAuthData() : emptyArray;
             AuthData clientData = AuthData.of(authData);
-
             // init authentication
             if (connect.hasAuthMethodName()) {
                 authMethod = connect.getAuthMethodName();
@@ -1047,10 +1046,22 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                         .getAuthenticationService()
                         .getAuthenticationProvider(originalAuthMethod);
 
+                /**
+                 * When both the broker and the proxy are configured with anonymousUserRole
+                 * if the client does not configure an authentication method
+                 * the proxy side will set the value of anonymousUserRole to clientAuthRole when it creates a connection
+                 * and the value of clientAuthMethod will be none.
+                 * Similarly, should also set the value of authRole to anonymousUserRole on the broker side.
+                 */
                 if (originalAuthenticationProvider == null) {
-                    throw new AuthenticationException(
-                            String.format("Can't find AuthenticationProvider for original role"
-                                    + " using auth method [%s] is not available", originalAuthMethod));
+                    authRole = getBrokerService().getAuthenticationService().getAnonymousUserRole()
+                            .orElseThrow(() ->
+                                    new AuthenticationException("No anonymous role, and can't find "
+                                            + "AuthenticationProvider for original role using auth method "
+                                            + "[" + originalAuthMethod + "] is not available"));
+                    originalPrincipal = authRole;
+                    completeConnect(clientProtocolVersion, clientVersion);
+                    return;
                 }
 
                 originalAuthDataCopy = AuthData.of(connect.getOriginalAuthData().getBytes());
