@@ -21,7 +21,9 @@ package org.apache.pulsar.broker.transaction.pendingack;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.when;
 import static org.testng.AssertJUnit.assertFalse;
 import static org.testng.AssertJUnit.assertNotNull;
 import static org.testng.AssertJUnit.assertTrue;
@@ -44,6 +46,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.collections4.map.LinkedMap;
+import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.service.AbstractTopic;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.BrokerServiceException;
@@ -97,6 +100,34 @@ public class PendingAckPersistentTest extends TransactionTestBase {
     @AfterMethod(alwaysRun = true)
     protected void cleanup() {
         super.internalCleanup();
+    }
+
+    @Test
+    public void testUnloadSubscriptionWhenFailedInitPendingAck() throws Exception {
+        String topic = NAMESPACE1 + "/testUnloadSubscriptionWhenFailedInitPendingAck";
+        Consumer<byte[]> consumer1 = pulsarClient.newConsumer()
+                .subscriptionName("subName1")
+                .topic(topic)
+                .subscribe();
+        // Fail at transactionPendingAckStoreProvider::checkInitializedBefore.
+        Field transactionPendingAckStoreProviderField = PulsarService.class
+                .getDeclaredField("transactionPendingAckStoreProvider");
+        transactionPendingAckStoreProviderField.setAccessible(true);
+        TransactionPendingAckStoreProvider pendingAckStoreProvider =
+                (TransactionPendingAckStoreProvider) transactionPendingAckStoreProviderField
+                        .get(pulsarServiceList.get(0));
+        TransactionPendingAckStoreProvider mockProvider = mock(pendingAckStoreProvider.getClass());
+        when(mockProvider.checkInitializedBefore(any()))
+                .thenReturn(FutureUtil.failedFuture(new Exception("mock fail")))
+                .thenReturn(CompletableFuture.completedFuture(false));
+        transactionPendingAckStoreProviderField.set(pulsarServiceList.get(0), mockProvider);
+        Awaitility.await().until(() -> {
+            pulsarClient.newConsumer()
+                    .subscriptionName("subName2")
+                    .topic(topic)
+                    .subscribe();
+            return true;
+        });
     }
 
     @Test
