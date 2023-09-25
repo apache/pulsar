@@ -35,6 +35,7 @@ import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.api.proto.KeySharedMeta;
+import org.apache.pulsar.common.api.proto.MessageIdData;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType;
 import org.apache.pulsar.common.policies.data.EntryFilters;
@@ -126,6 +127,14 @@ public interface Topic {
 
         default void setEntryTimestamp(long entryTimestamp) {
 
+        }
+
+        default MessageIdData getMessageIdData() {
+            return null;
+        }
+
+        default ByteBuf getHeaderAndPayload() {
+            return null;
         }
     }
 
