@@ -107,9 +107,9 @@ public class ElasticSearchClient implements AutoCloseable {
     }
 
     void failed(Exception e) {
-        state.set(State.Failed);
-        sinkContext.fatal(e);
-        close();
+        if (state.compareAndSet(State.Open, State.Failed)) {
+            sinkContext.fatal(e);
+        }
     }
 
     void checkForIrrecoverableError(Record<?> record, BulkProcessor.BulkOperationResult result) {
