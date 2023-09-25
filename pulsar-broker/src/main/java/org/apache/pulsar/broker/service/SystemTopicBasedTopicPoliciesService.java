@@ -31,6 +31,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiConsumer;
 import javax.annotation.Nonnull;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
@@ -126,10 +127,13 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
 
                     return systemTopicClient.newWriterAsync()
                             .thenCompose(writer -> {
-                            PulsarEvent event = getPulsarEvent(topicName, actionType, policies);
-                            CompletableFuture<MessageId> writeFuture =
-                                    ActionType.DELETE.equals(actionType) ? writer.deleteAsync(getEventKey(event), event)
-                                            : writer.writeAsync(getEventKey(event), event);
+                                PulsarEvent event = getPulsarEvent(topicName, actionType, policies);
+                                CompletableFuture<MessageId> writeFuture = ActionType.DELETE.equals(actionType) ?
+                                        // need to delete both of local and global policies
+                                        writer.deleteAsync(getLocalEventKey(event), event)
+                                                .thenCombine(writer.deleteAsync(getGlobalEventKey(event), event),
+                                                        (global, local) -> global)
+                                        : writer.writeAsync(getEventKey(event), event);
                             return writeFuture.handle((messageId, e) -> {
                                 if (e != null) {
                                     return CompletableFuture.failedFuture(e);
@@ -452,7 +456,8 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
     private void refreshTopicPoliciesCache(Message<PulsarEvent> msg) {
         // delete policies
         if (msg.getValue() == null) {
-            TopicName topicName = TopicName.get(TopicName.get(msg.getKey()).getPartitionedTopicName());
+            TopicName topicName =
+                    TopicName.get(TopicName.get(getTopicNameFromEventKey(msg.getKey())).getPartitionedTopicName());
             if (hasReplicateTo(msg)) {
                 globalPoliciesCache.remove(topicName);
             } else {
@@ -494,8 +499,7 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                     SystemTopicClient<PulsarEvent> systemTopicClient = namespaceEventsSystemTopicFactory
                             .createTopicPoliciesSystemTopicClient(topicName.getNamespaceObject());
                     systemTopicClient.newWriterAsync().thenAccept(writer
-                            -> writer.deleteAsync(getEventKey(topicName),
-                                    getPulsarEvent(topicName, ActionType.DELETE, null))
+                            -> writer.deleteAsync(msg.getKey(), getPulsarEvent(topicName, ActionType.DELETE, null))
                             .whenComplete((result, e) -> writer.closeAsync().whenComplete((res, ex) -> {
                                 if (ex != null) {
                                     log.error("close writer failed ", ex);
@@ -581,18 +585,50 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
         });
     }
 
+    /**
+     * Get event key from event
+     * @param event
+     * Make sure event.topicPoliciesEvent.policies is not null
+     */
     public static String getEventKey(PulsarEvent event) {
-        return TopicName.get(event.getTopicPoliciesEvent().getDomain(),
-                event.getTopicPoliciesEvent().getTenant(),
-                event.getTopicPoliciesEvent().getNamespace(),
-                event.getTopicPoliciesEvent().getTopic()).toString();
+        boolean isGlobal = event.getTopicPoliciesEvent().getPolicies().isGlobalPolicies();
+        return getEventKey(event, isGlobal);
     }
 
-    public static String getEventKey(TopicName topicName) {
-        return TopicName.get(topicName.getDomain().toString(),
-                topicName.getTenant(),
-                topicName.getNamespace(),
-                TopicName.get(topicName.getPartitionedTopicName()).getLocalName()).toString();
+    public static String getLocalEventKey(PulsarEvent event) {
+        return getEventKey(event, false);
+    }
+
+    public static String getGlobalEventKey(PulsarEvent event) {
+        return getEventKey(event, true);
+    }
+
+    /**
+     * Get event key from event
+     * @param event
+     * @param isGlobal
+     * Use isGlobal to distinguish local and global polices
+     */
+    private static String getEventKey(PulsarEvent event, boolean isGlobal) {
+        return String.join("/", TopicName.get(event.getTopicPoliciesEvent().getDomain(),
+                event.getTopicPoliciesEvent().getTenant(),
+                event.getTopicPoliciesEvent().getNamespace(),
+                event.getTopicPoliciesEvent().getTopic()).toString(), String.valueOf(isGlobal));
+    }
+
+    /**
+     * Get the original topic name
+     * @param key
+     * In order to maintain backwards compatibility, only trim the new format event key
+     * new format: persistent://tenant/namespace/topic/isGlobal
+     * old format: persistent://tenant/namespace/topic
+     */
+    private static String getTopicNameFromEventKey(String key) {
+        if (StringUtils.isNotEmpty(key) && StringUtils.split(key, '/').length == 5) {
+            return key.substring(0, key.lastIndexOf("/"));
+        }
+
+        return key;
     }
 
     @VisibleForTesting

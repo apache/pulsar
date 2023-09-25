@@ -51,6 +51,7 @@ import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.DispatchRateLimiter;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.service.persistent.SubscribeRateLimiter;
+import org.apache.pulsar.client.admin.LongRunningProcessStatus;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerBuilder;
@@ -3125,6 +3126,58 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         assertEquals(hierarchyTopicPolicies.getMaxProducersPerTopic().getLocalTopicValue(), null);
         assertEquals(hierarchyTopicPolicies.getMaxProducersPerTopic().get(), 30);
     }
+
+    @Test
+    public void testInitPolicesCacheAndNotifyListenersAfterCompaction() throws Exception {
+        final String topic = testTopic + UUID.randomUUID();
+        admin.topics().createNonPartitionedTopic(topic);
+        pulsarClient.newProducer().topic(topic).create().close();
+
+        // set up policies
+        TopicName topicName = TopicName.get(topic);
+        TopicPolicies localInitPolicy = TopicPolicies.builder().maxConsumerPerTopic(10).build();
+        pulsar.getTopicPoliciesService().updateTopicPoliciesAsync(topicName, localInitPolicy).get();
+        TopicPolicies globalInitPolicy =
+                TopicPolicies.builder().maxConsumerPerTopic(20).maxProducerPerTopic(30).isGlobal(true).build();
+        pulsar.getTopicPoliciesService().updateTopicPoliciesAsync(topicName, globalInitPolicy).get();
+
+        // Trigger compaction and make sure it is finished.
+        String changeEventTopic = "persistent://" + myNamespace + "/" + SystemTopicNames.NAMESPACE_EVENTS_LOCAL_NAME;
+        PersistentTopic brokerTopic =
+                (PersistentTopic) pulsar.getBrokerService().getTopicIfExists(changeEventTopic).get().get();
+        assertEquals(brokerTopic.compactionStatus().status, LongRunningProcessStatus.Status.NOT_RUN);
+        brokerTopic.triggerCompaction();
+        Awaitility.await().untilAsserted(
+                () -> assertEquals(brokerTopic.compactionStatus().status, LongRunningProcessStatus.Status.SUCCESS));
+
+        // the policies cache
+        SystemTopicBasedTopicPoliciesService topicPoliciesService
+                = (SystemTopicBasedTopicPoliciesService) pulsar.getTopicPoliciesService();
+
+        // reload namespace to trigger init polices cache and notify listeners
+        admin.namespaces().unload(myNamespace);
+        assertNull(topicPoliciesService.getPoliciesCacheInit(NamespaceName.get(myNamespace)));
+        pulsarClient.newProducer().topic(topic).create().close();
+        Awaitility.await().untilAsserted(
+                () -> assertEquals(topicPoliciesService.getPoliciesCacheInit(NamespaceName.get(myNamespace)), true));
+
+        // the final policies take effect in topic
+        HierarchyTopicPolicies hierarchyTopicPolicies =
+                pulsar.getBrokerService().getTopics().get(topic).get().get().getHierarchyTopicPolicies();
+
+        assertEquals(topicPoliciesService.getTopicPolicies(topicName).getMaxConsumerPerTopic(), 10);
+        assertEquals(topicPoliciesService.getTopicPolicies(topicName, true).getMaxConsumerPerTopic(), 20);
+        assertEquals(hierarchyTopicPolicies.getMaxConsumerPerTopic().getGlobalTopicValue(), 20);
+        assertEquals(hierarchyTopicPolicies.getMaxConsumerPerTopic().getLocalTopicValue(), 10);
+        assertEquals(hierarchyTopicPolicies.getMaxConsumerPerTopic().get(), 10);
+
+        assertEquals(topicPoliciesService.getTopicPolicies(topicName).getMaxProducerPerTopic(), null);
+        assertEquals(topicPoliciesService.getTopicPolicies(topicName, true).getMaxProducerPerTopic(), 30);
+        assertEquals(hierarchyTopicPolicies.getMaxProducersPerTopic().getGlobalTopicValue(), 30);
+        assertEquals(hierarchyTopicPolicies.getMaxProducersPerTopic().getLocalTopicValue(), null);
+        assertEquals(hierarchyTopicPolicies.getMaxProducersPerTopic().get(), 30);
+    }
+
 
     @Test
     public void testMaxMessageSizeWithChunking() throws Exception {
