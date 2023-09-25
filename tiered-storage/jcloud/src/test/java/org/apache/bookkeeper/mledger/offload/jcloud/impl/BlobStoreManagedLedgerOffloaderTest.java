@@ -18,15 +18,19 @@
  */
 package org.apache.bookkeeper.mledger.offload.jcloud.impl;
 
+import static org.apache.bookkeeper.mledger.offload.jcloud.impl.OffloadIndexTest.createLedgerMetadata;
 import static org.mockito.AdditionalAnswers.delegatesTo;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 import java.io.IOException;
+import java.lang.reflect.Constructor;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -37,17 +41,22 @@ import java.util.Random;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.api.LedgerEntries;
 import org.apache.bookkeeper.client.api.LedgerEntry;
+import org.apache.bookkeeper.client.api.LedgerMetadata;
 import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.mledger.LedgerOffloader;
 import org.apache.bookkeeper.mledger.LedgerOffloaderStats;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.OffloadedLedgerMetadata;
 import org.apache.bookkeeper.mledger.impl.LedgerOffloaderStatsImpl;
+import org.apache.bookkeeper.mledger.offload.jcloud.BackedInputStream;
+import org.apache.bookkeeper.mledger.offload.jcloud.OffloadIndexBlock;
+import org.apache.bookkeeper.mledger.offload.jcloud.OffloadIndexBlockBuilder;
 import org.apache.bookkeeper.mledger.offload.jcloud.provider.JCloudBlobStoreProvider;
 import org.apache.bookkeeper.mledger.offload.jcloud.provider.TieredStorageConfiguration;
 import org.apache.pulsar.common.naming.TopicName;
@@ -454,6 +463,32 @@ public class BlobStoreManagedLedgerOffloaderTest extends BlobStoreManagedLedgerO
             Assert.fail("Shouldn't have been able to offload");
         } catch (ExecutionException e) {
             assertEquals(e.getCause().getClass(), IllegalArgumentException.class);
+        }
+    }
+
+    @Test
+    public void testThrowNonRecoverableLedgerExceptionAvoidEOFAndNPE() throws Exception {
+        BackedInputStream mockInputStream =  spy(BackedInputStream.class);
+        OffloadIndexBlockBuilder indexBuilder = OffloadIndexBlockBuilder.create();
+        LedgerMetadata metadata = createLedgerMetadata(1);
+        indexBuilder.withLedgerMetadata(metadata).withDataObjectLength(1).withDataBlockHeaderLength(23455);
+
+        indexBuilder.addBlock(0, 2, 64 * 1024 * 1024);
+        indexBuilder.addBlock(1000, 3, 64 * 1024 * 1024);
+        indexBuilder.addBlock(2000, 4, 64 * 1024 * 1024);
+        Constructor<BlobStoreBackedReadHandleImpl> constructMethod = BlobStoreBackedReadHandleImpl.class
+                .getDeclaredConstructor(long.class, OffloadIndexBlock.class,
+                BackedInputStream.class, ExecutorService.class);
+        constructMethod.setAccessible(true);
+        BlobStoreBackedReadHandleImpl readHandle = constructMethod.newInstance(1,
+                indexBuilder.build(),
+                mockInputStream, Executors.newSingleThreadExecutor());
+
+        try {
+            readHandle.read(1, 3);
+            fail();
+        } catch (Exception e) {
+            assertTrue(e.getCause() instanceof ManagedLedgerException.NonRecoverableLedgerException);
         }
     }
 

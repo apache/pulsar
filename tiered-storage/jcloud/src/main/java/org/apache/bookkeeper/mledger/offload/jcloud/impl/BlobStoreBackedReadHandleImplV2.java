@@ -255,7 +255,8 @@ public class BlobStoreBackedReadHandleImplV2 implements ReadHandle {
 
         if (groupedReaders.size() == 0) {
             throw new ManagedLedgerException.NonRecoverableLedgerException(
-                    String.format("There is no data for ledger %d, from entry %d to %d", ledgerId, firstEntry, lastEntry));
+                    String.format("There is no data for ledger %d, from entry %d to %d",
+                            ledgerId, firstEntry, lastEntry));
         }
 
         checkArgument(firstEntry > lastEntry);

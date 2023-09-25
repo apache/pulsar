@@ -154,6 +154,7 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle {
                     if (dataStream.available() < 12) {
                         promise.completeExceptionally(new ManagedLedgerException
                                 .NonRecoverableLedgerException("There is no complete data in the ledger: " + ledgerId));
+                        return;
                     }
                 }
 
