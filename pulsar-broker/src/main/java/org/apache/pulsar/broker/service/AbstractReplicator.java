@@ -89,7 +89,7 @@ public abstract class AbstractReplicator {
                         localTopicName + "-->" + remoteTopicName,
                 StringUtils.equals(localCluster, remoteCluster) ? localCluster : localCluster + "-->" + remoteCluster
         );
-        this.producerBuilder = replicationClient.newProducer(Schema.AUTO_PRODUCE_BYTES()) //
+        this.producerBuilder = replicationClient.newProducer(Schema.BYTES) //
                 .topic(remoteTopicName)
                 .messageRoutingMode(MessageRoutingMode.SinglePartition)
                 .enableBatching(false)
