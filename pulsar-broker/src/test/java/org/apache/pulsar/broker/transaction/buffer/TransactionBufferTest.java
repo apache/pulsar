@@ -31,6 +31,7 @@ import io.netty.buffer.Unpooled;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 
+import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.transaction.exception.buffer.TransactionBufferException;
 import org.apache.pulsar.broker.transaction.buffer.impl.InMemTransactionBufferProvider;

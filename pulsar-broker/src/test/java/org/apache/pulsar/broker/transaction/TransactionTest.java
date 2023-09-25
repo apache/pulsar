@@ -1596,14 +1596,10 @@ public class TransactionTest extends TransactionTestBase {
         when(managedLedger.getLastConfirmedEntry()).thenReturn(position);
         // Create topic.
         persistentTopic.set(new PersistentTopic("topic-a", managedLedger, brokerService));
-        try {
-            // Do check.
-            persistentTopic.get().checkIfTransactionBufferRecoverCompletely(true).get(5, TimeUnit.SECONDS);
-            fail("Expect failure by TB closed, but it is finished.");
-        } catch (ExecutionException executionException){
-            Throwable t = executionException.getCause();
-            Assert.assertTrue(t instanceof BrokerServiceException.ServiceUnitNotReadyException);
-        }
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(persistentTopic.get().getTransactionBuffer().getStats(false).state,
+                    TopicTransactionBufferState.State.Close.toString());
+        });
     }
 
     @Test

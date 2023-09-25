@@ -1483,7 +1483,6 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                     });
 
                     schemaVersionFuture.thenAccept(schemaVersion -> {
-                        topic.checkIfTransactionBufferRecoverCompletely(isTxnEnabled).thenAccept(future -> {
                             CompletionStage<Subscription> createInitSubFuture;
                             if (!Strings.isNullOrEmpty(initialSubscriptionName)
                                     && topic.isPersistent()
@@ -1528,21 +1527,9 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                     return;
                                 }
 
-                                buildProducerAndAddTopic(topic, producerId, producerName, requestId, isEncrypted,
+                            buildProducerAndAddTopic(topic, producerId, producerName, requestId, isEncrypted,
                                     metadata, schemaVersion, epoch, userProvidedProducerName, topicName,
                                     producerAccessMode, topicEpoch, supportsPartialProducer, producerFuture);
-                            });
-                        }).exceptionally(exception -> {
-                            Throwable cause = exception.getCause();
-                            log.error("producerId {}, requestId {} : TransactionBuffer recover failed",
-                                    producerId, requestId, exception);
-                            if (producerFuture.completeExceptionally(exception)) {
-                                commandSender.sendErrorResponse(requestId,
-                                        ServiceUnitNotReadyException.getClientErrorCode(cause),
-                                        cause.getMessage());
-                            }
-                            producers.remove(producerId, producerFuture);
-                            return null;
                         });
                     });
                 });

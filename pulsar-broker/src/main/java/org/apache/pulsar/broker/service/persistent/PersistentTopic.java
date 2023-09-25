@@ -121,6 +121,7 @@ import org.apache.pulsar.broker.stats.ClusterReplicationMetrics;
 import org.apache.pulsar.broker.stats.NamespaceStats;
 import org.apache.pulsar.broker.stats.ReplicationMetrics;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBuffer;
+import org.apache.pulsar.broker.transaction.buffer.impl.TopicTransactionBuffer;
 import org.apache.pulsar.broker.transaction.buffer.impl.TransactionBufferDisable;
 import org.apache.pulsar.broker.transaction.pendingack.impl.MLPendingAckStore;
 import org.apache.pulsar.client.admin.LongRunningProcessStatus;
@@ -309,8 +310,10 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         }
 
         TopicName topicName = TopicName.get(topic);
-        if (brokerService.getPulsar().getConfiguration().isTransactionCoordinatorEnabled()
-                && !isEventSystemTopic(topicName)) {
+        PositionImpl startUsedPosition = getPositionFromString(
+                getManagedLedger().getProperties().get(TopicTransactionBuffer.MAX_READ_POSITION));
+        if (brokerService.pulsar().getConfiguration().isTransactionCoordinatorEnabled()
+                && !isEventSystemTopic(topicName) || startUsedPosition != null) {
             this.transactionBuffer = brokerService.getPulsar()
                     .getTransactionBufferProvider().newTransactionBuffer(this);
         } else {
@@ -402,14 +405,30 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 .build();
         this.backloggedCursorThresholdEntries =
                 brokerService.pulsar().getConfiguration().getManagedLedgerCursorBackloggedThreshold();
-
-        if (brokerService.pulsar().getConfiguration().isTransactionCoordinatorEnabled()) {
+        PositionImpl startUsedPosition = getPositionFromString(
+                getManagedLedger().getProperties().get(TopicTransactionBuffer.MAX_READ_POSITION));
+        TopicName topicName = TopicName.get(topic);
+        if (brokerService.pulsar().getConfiguration().isTransactionCoordinatorEnabled()
+                && !isEventSystemTopic(topicName) || startUsedPosition != null) {
             this.transactionBuffer = brokerService.getPulsar()
                     .getTransactionBufferProvider().newTransactionBuffer(this);
         } else {
             this.transactionBuffer = new TransactionBufferDisable();
         }
         shadowSourceTopic = null;
+    }
+
+    private PositionImpl getPositionFromString(String positionStr) {
+        if (positionStr == null) {
+            return null;
+        }
+        String[] strs = positionStr.split(":");
+        if (strs.length != 2) {
+            log.error("receive a error start position {} from topic {} metadata",
+                    positionStr, topic);
+            return PositionImpl.EARLIEST;
+        }
+        return new PositionImpl(Integer.parseInt(strs[0]), Integer.parseInt(strs[1]));
     }
 
     private void initializeDispatchRateLimiterIfNeeded() {
@@ -698,11 +717,6 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             // Start replication producers if not already
             return startReplProducers().thenApply(__ -> topicEpoch);
         });
-    }
-
-    @Override
-    public CompletableFuture<Void> checkIfTransactionBufferRecoverCompletely(boolean isTxnEnabled) {
-        return getTransactionBuffer().checkIfTBRecoverCompletely(isTxnEnabled);
     }
 
     @Override
