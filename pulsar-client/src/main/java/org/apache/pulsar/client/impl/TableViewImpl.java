@@ -93,7 +93,7 @@ public class TableViewImpl<T> implements TableView<T> {
         return reader.thenCompose((reader) -> {
             if (!isPersistentTopic) {
                 readTailMessages(reader);
-                return CompletableFuture.completedFuture(reader);
+                return CompletableFuture.completedFuture(null);
             }
             return this.readAllExistingMessages(reader);
         }).thenApply(__ -> this);
@@ -230,16 +230,16 @@ public class TableViewImpl<T> implements TableView<T> {
         }
     }
 
-    private CompletableFuture<Reader<T>> readAllExistingMessages(Reader<T> reader) {
+    private CompletableFuture<Void> readAllExistingMessages(Reader<T> reader) {
         long startTime = System.nanoTime();
         AtomicLong messagesRead = new AtomicLong();
 
-        CompletableFuture<Reader<T>> future = new CompletableFuture<>();
+        CompletableFuture<Void> future = new CompletableFuture<>();
         readAllExistingMessages(reader, future, startTime, messagesRead);
         return future;
     }
 
-    private void readAllExistingMessages(Reader<T> reader, CompletableFuture<Reader<T>> future, long startTime,
+    private void readAllExistingMessages(Reader<T> reader, CompletableFuture<Void> future, long startTime,
                                          AtomicLong messagesRead) {
         reader.hasMessageAvailableAsync()
                 .thenAccept(hasMessage -> {
@@ -268,7 +268,7 @@ public class TableViewImpl<T> implements TableView<T> {
                                reader.getTopic(),
                                messagesRead,
                                durationMillis / 1000.0);
-                       future.complete(reader);
+                       future.complete(null);
                        readTailMessages(reader);
                    }
                 });
@@ -290,5 +290,10 @@ public class TableViewImpl<T> implements TableView<T> {
                     }
                     return null;
                 });
+    }
+
+    @Override
+    public CompletableFuture<Void> readAllExistingMessages() {
+        return reader.thenCompose(this::readAllExistingMessages);
     }
 }
