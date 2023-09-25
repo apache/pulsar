@@ -323,7 +323,7 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                         initPolicesCache(reader, stageFuture);
                         return stageFuture
                                 // Read policies in background
-                                .thenAccept(__ -> readMorePolicies(reader));
+                                .thenAccept(__ -> readMorePoliciesAsync(reader));
                     });
             initFuture.exceptionally(ex -> {
                 try {
@@ -460,7 +460,13 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
         });
     }
 
-    private void readMorePolicies(SystemTopicClient.Reader<PulsarEvent> reader) {
+    /**
+     * This is an async method for the background reader to continue syncing new messages.
+     *
+     * Note: You should not do any blocking call here. because it will affect
+     * #{@link SystemTopicBasedTopicPoliciesService#getTopicPoliciesAsync(TopicName)} method to block loading topic.
+     */
+    private void readMorePoliciesAsync(SystemTopicClient.Reader<PulsarEvent> reader) {
         reader.readNextAsync()
                 .thenAccept(msg -> {
                     refreshTopicPoliciesCache(msg);
@@ -468,7 +474,7 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                 })
                 .whenComplete((__, ex) -> {
                     if (ex == null) {
-                        readMorePolicies(reader);
+                        readMorePoliciesAsync(reader);
                     } else {
                         Throwable cause = FutureUtil.unwrapCompletionException(ex);
                         if (cause instanceof PulsarClientException.AlreadyClosedException) {
@@ -477,7 +483,7 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                                     reader.getSystemTopic().getTopicName().getNamespaceObject(), false);
                         } else {
                             log.warn("Read more topic polices exception, read again.", ex);
-                            readMorePolicies(reader);
+                            readMorePoliciesAsync(reader);
                         }
                     }
                 });
