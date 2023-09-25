@@ -54,17 +54,18 @@ public class TopicPoliciesWithBrokerRestartTest extends MockedPulsarServiceBaseT
     @Test
     public void testRetentionWithBrokerRestart() throws Exception {
         final int messages = 1_000;
+        final int topicNum = 500;
         // (1) Init topic
         admin.namespaces().createNamespace("public/retention");
         final String topicName = "persistent://public/retention/retention_with_broker_restart";
         admin.topics().createNonPartitionedTopic(topicName);
-        for (int i = 0; i < 500; i++) {
+        for (int i = 0; i < topicNum; i++) {
             final String shadowTopicNames = topicName + "_" + i;
             admin.topics().createNonPartitionedTopic(shadowTopicNames);
         }
         // (2) Set retention
         final RetentionPolicies retentionPolicies = new RetentionPolicies(20, 20);
-        for (int i = 0; i < 500; i++) {
+        for (int i = 0; i < topicNum; i++) {
             final String shadowTopicNames = topicName + "_" + i;
             admin.topicPolicies().setRetention(shadowTopicNames, retentionPolicies);
         }
@@ -89,12 +90,15 @@ public class TopicPoliciesWithBrokerRestartTest extends MockedPulsarServiceBaseT
         // (5) Restart broker
         restartBroker();
         // (6) Check configuration again
-        admin.lookups().lookupTopic(topicName);
-        final PersistentTopic persistentTopic2 = (PersistentTopic)
-                pulsar.getBrokerService().getTopic(topicName, true).join().get();
-        final ManagedLedgerImpl managedLedger2 = (ManagedLedgerImpl) persistentTopic2.getManagedLedger();
-        Assert.assertEquals(managedLedger2.getConfig().getRetentionSizeInMB(), 20);
-        Assert.assertEquals(managedLedger2.getConfig().getRetentionTimeMillis(),
-                TimeUnit.MINUTES.toMillis(20));
+        for (int i = 0; i < topicNum; i++) {
+            final String shadowTopicNames = topicName + "_" + i;
+            admin.lookups().lookupTopic(shadowTopicNames);
+            final PersistentTopic persistentTopicTmp = (PersistentTopic)
+                    pulsar.getBrokerService().getTopic(shadowTopicNames, true).join().get();
+            final ManagedLedgerImpl managedLedgerTemp = (ManagedLedgerImpl) persistentTopicTmp.getManagedLedger();
+            Assert.assertEquals(managedLedgerTemp.getConfig().getRetentionSizeInMB(), 20);
+            Assert.assertEquals(managedLedgerTemp.getConfig().getRetentionTimeMillis(),
+                    TimeUnit.MINUTES.toMillis(20));
+        }
     }
 }
