@@ -259,9 +259,11 @@ public class TransactionEndToEndTest extends TransactionTestBase {
         final String topicName = NAMESPACE1 + "/testMsgsInPendingAckStateWouldNotGetTheConsumerStuck";
         final String subscription = "test";
 
+        @Cleanup
         Producer<Integer> producer = pulsarClient.newProducer(Schema.INT32)
                 .topic(topicName)
                 .create();
+        @Cleanup
         Consumer<Integer> consumer = pulsarClient.newConsumer(Schema.INT32)
                 .topic(topicName)
                 .subscriptionName(subscription)
@@ -294,6 +296,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
 
         // close and re-create consumer
         consumer.close();
+        @Cleanup
         Consumer<Integer> consumer2 = pulsarClient.newConsumer(Schema.INT32)
                 .topic(topicName)
                 .receiverQueueSize(numStep3Receive)
