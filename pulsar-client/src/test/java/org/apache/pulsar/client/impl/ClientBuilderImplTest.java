@@ -109,6 +109,7 @@ public class ClientBuilderImplTest {
                 Arrays.asList(new InetSocketAddress("1.2.3.4", 53), new InetSocketAddress("localhost",53))).build();
     }
 
+    @Test()
     public void testClientBuilderWithDNSServerIP() throws PulsarClientException {
         PulsarClient.builder().dnsServerAddresses(
                 Arrays.asList(new InetSocketAddress("1.2.3.4", 53))).build();

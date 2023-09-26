@@ -63,6 +63,7 @@ public class ConfigurationDataUtilsTest {
         config.put("authParams", "testAuthParams");
         config.put("authParamMap", authParamMap);
         config.put("dnsLookupBindAddress", "0.0.0.0");
+        config.put("dnsLookupBindPort", 0);
         List<InetSocketAddress> dnsServerAddresses = Arrays.asList(new InetSocketAddress[] {
                 new InetSocketAddress("1.1.1.1", 53), new InetSocketAddress("2.2.2.2",100)
         });
