@@ -279,8 +279,13 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
     }
 
     @Override
-    public TopicPolicies getTopicPoliciesIfExists(TopicName topicName) {
+    public TopicPolicies getLocalTopicPoliciesIfExists(TopicName topicName) {
         return policiesCache.get(TopicName.get(topicName.getPartitionedTopicName()));
+    }
+
+    @Override
+    public TopicPolicies getGlobalTopicPoliciesIfExists(TopicName topicName) {
+        return globalPoliciesCache.get(TopicName.get(topicName.getPartitionedTopicName()));
     }
 
     @Override

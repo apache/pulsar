@@ -2291,7 +2291,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         topicPolicies.setReplicationClusters(topicClusters);
         Optional<TopicPolicies> optionalTopicPolicies = Optional.of(topicPolicies);
         topicPoliciesFuture.complete(optionalTopicPolicies);
-        when(topicPoliciesService.getTopicPoliciesIfExists(any())).thenReturn(topicPolicies);
+        when(topicPoliciesService.getLocalTopicPoliciesIfExists(any())).thenReturn(topicPolicies);
 
         topic = new PersistentTopic(successTopicName, ledgerMock, brokerService);
         topic.initialize().join();

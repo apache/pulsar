@@ -3098,7 +3098,6 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
                 TopicPolicies.builder().maxConsumerPerTopic(20).maxProducerPerTopic(30).isGlobal(true).build();
         pulsar.getTopicPoliciesService().updateTopicPoliciesAsync(topicName, globalInitPolicy).get();
 
-
         // the policies cache
         SystemTopicBasedTopicPoliciesService topicPoliciesService
                 = (SystemTopicBasedTopicPoliciesService) pulsar.getTopicPoliciesService();
@@ -3108,7 +3107,9 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         assertNull(topicPoliciesService.getPoliciesCacheInit(NamespaceName.get(myNamespace)));
         pulsarClient.newProducer().topic(topic).create().close();
         Awaitility.await().untilAsserted(
-                () -> assertEquals(topicPoliciesService.getPoliciesCacheInit(NamespaceName.get(myNamespace)), true));
+                () -> assertEquals(topicPoliciesService.getPoliciesCacheInit(NamespaceName.get(myNamespace)).isDone()
+                        && !topicPoliciesService.getPoliciesCacheInit(NamespaceName.get(myNamespace))
+                        .isCompletedExceptionally(), true));
 
         // the final policies take effect in topic
         HierarchyTopicPolicies hierarchyTopicPolicies =
@@ -3159,7 +3160,9 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         assertNull(topicPoliciesService.getPoliciesCacheInit(NamespaceName.get(myNamespace)));
         pulsarClient.newProducer().topic(topic).create().close();
         Awaitility.await().untilAsserted(
-                () -> assertEquals(topicPoliciesService.getPoliciesCacheInit(NamespaceName.get(myNamespace)), true));
+                () -> assertEquals(topicPoliciesService.getPoliciesCacheInit(NamespaceName.get(myNamespace)).isDone()
+                        && !topicPoliciesService.getPoliciesCacheInit(NamespaceName.get(myNamespace))
+                        .isCompletedExceptionally(), true));
 
         // the final policies take effect in topic
         HierarchyTopicPolicies hierarchyTopicPolicies =

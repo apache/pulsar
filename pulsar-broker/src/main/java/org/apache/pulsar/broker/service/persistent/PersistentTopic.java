@@ -114,6 +114,7 @@ import org.apache.pulsar.broker.service.StreamingStats;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.SubscriptionOption;
 import org.apache.pulsar.broker.service.Topic;
+import org.apache.pulsar.broker.service.TopicPoliciesService;
 import org.apache.pulsar.broker.service.TransportCnx;
 import org.apache.pulsar.broker.service.persistent.DispatchRateLimiter.Type;
 import org.apache.pulsar.broker.service.schema.BookkeeperSchemaStorage;
@@ -3565,10 +3566,11 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     protected CompletableFuture<Void> initTopicPolicy() {
         if (brokerService.pulsar().getConfig().isSystemTopicEnabled()
                 && brokerService.pulsar().getConfig().isTopicLevelPoliciesEnabled()) {
-            return CompletableFuture.completedFuture(null).thenRunAsync(() -> onUpdate(
-                            brokerService.getPulsar().getTopicPoliciesService()
-                                    .getTopicPoliciesIfExists(TopicName.getPartitionedTopicName(topic))),
-                    brokerService.getTopicOrderedExecutor());
+            return CompletableFuture.completedFuture(null).thenRunAsync(() -> {
+                TopicPoliciesService topicPoliciesService = brokerService.getPulsar().getTopicPoliciesService();
+                onUpdate(topicPoliciesService.getLocalTopicPoliciesIfExists(TopicName.getPartitionedTopicName(topic)));
+                onUpdate(topicPoliciesService.getGlobalTopicPoliciesIfExists(TopicName.getPartitionedTopicName(topic)));
+            }, brokerService.getTopicOrderedExecutor());
         }
         return CompletableFuture.completedFuture(null);
     }

@@ -66,11 +66,18 @@ public interface TopicPoliciesService {
     TopicPolicies getTopicPolicies(TopicName topicName) throws TopicPoliciesCacheNotInitException;
 
     /**
-     * Get policies from current cache.
+     * Get local policies from current cache.
      * @param topicName topic name
      * @return the topic policies
      */
-    TopicPolicies getTopicPoliciesIfExists(TopicName topicName);
+    TopicPolicies getLocalTopicPoliciesIfExists(TopicName topicName);
+
+    /**
+     * Get global policies from current cache.
+     * @param topicName topic name
+     * @return the topic policies
+     */
+    TopicPolicies getGlobalTopicPoliciesIfExists(TopicName topicName);
 
     /**
      * Get global policies for a topic async.
@@ -204,7 +211,12 @@ public interface TopicPoliciesService {
         }
 
         @Override
-        public TopicPolicies getTopicPoliciesIfExists(TopicName topicName) {
+        public TopicPolicies getLocalTopicPoliciesIfExists(TopicName topicName) {
+            return null;
+        }
+
+        @Override
+        public TopicPolicies getGlobalTopicPoliciesIfExists(TopicName topicName) {
             return null;
         }
 
