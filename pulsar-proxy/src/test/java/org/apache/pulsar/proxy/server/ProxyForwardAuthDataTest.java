@@ -53,7 +53,7 @@ public class ProxyForwardAuthDataTest extends ProducerConsumerBase {
         conf.setAuthenticationEnabled(true);
         conf.setAuthorizationEnabled(true);
         conf.setBrokerClientAuthenticationPlugin(BasicAuthentication.class.getName());
-        conf.setBrokerClientAuthenticationParameters("authParam:broker");
+        conf.setBrokerClientAuthenticationParameters("authParam:admin");
         conf.setAuthenticateOriginalAuthData(true);
 
         Set<String> superUserRoles = new HashSet<String>();
