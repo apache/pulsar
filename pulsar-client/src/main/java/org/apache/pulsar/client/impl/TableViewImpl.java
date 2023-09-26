@@ -22,10 +22,9 @@ import static org.apache.pulsar.common.topics.TopicCompactionStrategy.TABLE_VIEW
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
@@ -239,20 +238,17 @@ public class TableViewImpl<T> implements TableView<T> {
 
         CompletableFuture<Reader<T>> future = new CompletableFuture<>();
         reader.getLastMessageIdsAsync().thenAccept(lastMessageIds -> {
-            Optional<TopicMessageId> optionalTopicMessageId = lastMessageIds.stream().max(Comparator.naturalOrder());
-            if (!optionalTopicMessageId.isPresent()) {
-                log.error("[{}] Failed to get the last message IDs.", this.conf.getTopicName());
-                future.completeExceptionally(new PulsarClientException("Failed to get the last message IDs."));
-                return;
-            }
-            TopicMessageId maxMessageId = optionalTopicMessageId.get();
-            readAllExistingMessages(reader, future, startTime, messagesRead, maxMessageId);
+            Map<String, TopicMessageId> maxMessageIds = new HashMap<>();
+            lastMessageIds.forEach(topicMessageId -> {
+                maxMessageIds.put(topicMessageId.getOwnerTopic(), topicMessageId);
+            });
+            readAllExistingMessages(reader, future, startTime, messagesRead, maxMessageIds);
         });
         return future;
     }
 
     private void readAllExistingMessages(Reader<T> reader, CompletableFuture<Reader<T>> future, long startTime,
-                                         AtomicLong messagesRead, TopicMessageId maxMessageId) {
+                                         AtomicLong messagesRead, Map<String, TopicMessageId> maxMessageIds) {
         reader.hasMessageAvailableAsync()
                 .thenAccept(hasMessage -> {
                    if (hasMessage) {
@@ -260,10 +256,16 @@ public class TableViewImpl<T> implements TableView<T> {
                                .thenAccept(msg -> {
                                   messagesRead.incrementAndGet();
                                   handleMessage(msg);
-                                  if (msg.getMessageId().compareTo(maxMessageId) < 0) {
-                                      readAllExistingMessages(reader, future, startTime, messagesRead, maxMessageId);
-                                  } else {
+                                  // The message is read one by one in a single thread,
+                                  // so it's fine that uses a hashmap to store last message ID.
+                                  TopicMessageId maxMessageId = maxMessageIds.get(msg.getTopicName());
+                                  if (maxMessageId != null && msg.getMessageId().compareTo(maxMessageId) >= 0) {
+                                      maxMessageIds.remove(msg.getTopicName());
+                                  }
+                                  if (maxMessageIds.size() == 0) {
                                       future.complete(reader);
+                                  } else {
+                                      readAllExistingMessages(reader, future, startTime, messagesRead, maxMessageIds);
                                   }
                                }).exceptionally(ex -> {
                                    if (ex.getCause() instanceof PulsarClientException.AlreadyClosedException) {
