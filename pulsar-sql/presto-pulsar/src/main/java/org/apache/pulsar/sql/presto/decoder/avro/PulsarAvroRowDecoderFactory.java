@@ -122,10 +122,11 @@ public class PulsarAvroRowDecoderFactory implements PulsarRowDecoderFactory {
         LogicalType logicalType  = schema.getLogicalType();
         switch (type) {
             case STRING:
-            case ENUM:
                 if (logicalType != null && logicalType.equals(LogicalTypes.uuid())) {
                     return UuidType.UUID;
                 }
+                return createUnboundedVarcharType();
+            case ENUM:
                 return createUnboundedVarcharType();
             case NULL:
                 throw new UnsupportedOperationException(
