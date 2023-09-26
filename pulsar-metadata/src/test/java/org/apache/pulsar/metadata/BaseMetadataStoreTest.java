@@ -29,6 +29,8 @@ import java.util.concurrent.CompletionException;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
+
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.tests.TestRetrySupport;
 import org.assertj.core.util.Files;
 import org.testng.annotations.AfterClass;
@@ -91,6 +93,10 @@ public abstract class BaseMetadataStoreTest extends TestRetrySupport {
     }
 
     private synchronized String getEtcdClusterConnectString() {
+        String etcdUrl = System.getProperty("pulsar.metadatastore.etcd.url");
+        if(StringUtils.isNotBlank(etcdUrl)){
+            return etcdUrl;
+        }
         if (etcdCluster == null) {
             etcdCluster = EtcdClusterExtension.builder().withClusterName("test").withNodes(1).withSsl(false).build()
                     .cluster();
