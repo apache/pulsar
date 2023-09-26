@@ -42,19 +42,26 @@ public class StandaloneContainer extends PulsarContainer<StandaloneContainer> {
         super(clusterName,
                 NAME,
                 NAME + "-cluster",
-                "bin/run-standalone.sh",
+                pulsarImageName.endsWith("latest") ? "bin/run-standalone.sh" : "bin/pulsar",
                 BROKER_PORT,
                 enableTls ? BROKER_PORT_TLS : 0,
                 BROKER_HTTP_PORT,
                 enableTls ? BROKER_HTTPS_PORT : 0,
                 "",
                 pulsarImageName);
-        tailContainerLog();
+        if (pulsarImageName.endsWith("latest")) {
+            tailContainerLog();
+        }
     }
+
+
 
     @Override
     protected void configure() {
         super.configure();
+        if (!getDockerImageName().endsWith("latest")) {
+            setCommand("standalone");
+        }
         addEnv("PULSAR_MEM", "-Xms128M -Xmx1g -XX:MaxDirectMemorySize=1g");
     }
 
