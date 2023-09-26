@@ -2335,7 +2335,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     public CompletableFuture<Boolean> hasMessageAvailableAsync() {
         final CompletableFuture<Boolean> booleanFuture = new CompletableFuture<>();
 
-        if (!incomingMessages.isEmpty()) {
+        if (incomingMessages != null && !incomingMessages.isEmpty()) {
             return CompletableFuture.completedFuture(true);
         }
 
