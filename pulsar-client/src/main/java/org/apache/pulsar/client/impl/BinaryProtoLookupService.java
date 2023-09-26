@@ -26,10 +26,12 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
+import org.apache.commons.lang3.mutable.MutableObject;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SchemaSerializationException;
@@ -55,6 +57,12 @@ public class BinaryProtoLookupService implements LookupService {
     private final ExecutorService executor;
     private final String listenerName;
     private final int maxLookupRedirects;
+
+    private final ConcurrentHashMap<TopicName, CompletableFuture<Pair<InetSocketAddress, InetSocketAddress>>>
+            lookupInProgress = new ConcurrentHashMap<>();
+
+    private final ConcurrentHashMap<TopicName, CompletableFuture<PartitionedTopicMetadata>>
+            partitionedMetadataInProgress = new ConcurrentHashMap<>();
 
     public BinaryProtoLookupService(PulsarClientImpl client,
                                     String serviceUrl,
@@ -92,7 +100,21 @@ public class BinaryProtoLookupService implements LookupService {
      * @return broker-socket-address that serves given topic
      */
     public CompletableFuture<Pair<InetSocketAddress, InetSocketAddress>> getBroker(TopicName topicName) {
-        return findBroker(serviceNameResolver.resolveHost(), false, topicName, 0);
+        final MutableObject<CompletableFuture> newFutureCreated = new MutableObject<>();
+        try {
+            return lookupInProgress.computeIfAbsent(topicName, tpName -> {
+                CompletableFuture<Pair<InetSocketAddress, InetSocketAddress>> newFuture =
+                        findBroker(serviceNameResolver.resolveHost(), false, topicName, 0);
+                newFutureCreated.setValue(newFuture);
+                return newFuture;
+            });
+        } finally {
+            if (newFutureCreated.getValue() != null) {
+                newFutureCreated.getValue().whenComplete((v, ex) -> {
+                    lookupInProgress.remove(topicName, newFutureCreated.getValue());
+                });
+            }
+        }
     }
 
     /**
@@ -100,7 +122,21 @@ public class BinaryProtoLookupService implements LookupService {
      *
      */
     public CompletableFuture<PartitionedTopicMetadata> getPartitionedTopicMetadata(TopicName topicName) {
-        return getPartitionedTopicMetadata(serviceNameResolver.resolveHost(), topicName);
+        final MutableObject<CompletableFuture> newFutureCreated = new MutableObject<>();
+        try {
+            return partitionedMetadataInProgress.computeIfAbsent(topicName, tpName -> {
+                CompletableFuture<PartitionedTopicMetadata> newFuture =
+                        getPartitionedTopicMetadata(serviceNameResolver.resolveHost(), topicName);
+                newFutureCreated.setValue(newFuture);
+                return newFuture;
+            });
+        } finally {
+            if (newFutureCreated.getValue() != null) {
+                newFutureCreated.getValue().whenComplete((v, ex) -> {
+                    partitionedMetadataInProgress.remove(topicName, newFutureCreated.getValue());
+                });
+            }
+        }
     }
 
     private CompletableFuture<Pair<InetSocketAddress, InetSocketAddress>> findBroker(InetSocketAddress socketAddress,
