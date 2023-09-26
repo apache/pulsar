@@ -38,6 +38,7 @@ import org.apache.pulsar.metadata.bookkeeper.PulsarLayoutManager;
 import org.apache.pulsar.metadata.bookkeeper.PulsarLedgerManagerFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
@@ -84,6 +85,21 @@ public class AuditorCheckAllLedgersTaskTest extends BookKeeperClusterTestCase {
         baseConf.setAuditorMaxNumberOfConcurrentOpenLedgerOperations(maxNumberOfConcurrentOpenLedgerOperations);
         baseConf.setAuditorAcquireConcurrentOpenLedgerOperationsTimeoutMSec(
                 acquireConcurrentOpenLedgerOperationsTimeoutMSec);
+    }
+
+    @AfterMethod
+    @Override
+    public void tearDown() throws Exception {
+        if (ledgerManager != null) {
+            ledgerManager.close();
+        }
+        if (ledgerUnderreplicationManager != null) {
+            ledgerUnderreplicationManager.close();
+        }
+        if (admin != null) {
+            admin.close();
+        }
+        super.tearDown();
     }
 
     @Test

@@ -26,10 +26,10 @@ import java.util.Map.Entry;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.LedgerEntry;
 import org.apache.bookkeeper.client.LedgerHandle;
-import org.apache.bookkeeper.meta.zk.ZKMetadataDriverBase;
 import org.apache.bookkeeper.net.BookieId;
 import org.apache.bookkeeper.test.BookKeeperClusterTestCase;
 import org.apache.bookkeeper.util.BookKeeperConstants;
+import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
@@ -52,10 +52,15 @@ public class TestAutoRecoveryAlongWithBookieServers extends
     @Override
     public void setUp() throws Exception {
         super.setUp();
-
-        basePath = ZKMetadataDriverBase.resolveZkLedgersRootPath(baseClientConf) + '/'
+        basePath = BookKeeperConstants.DEFAULT_ZK_LEDGERS_ROOT_PATH + '/'
                 + BookKeeperConstants.UNDER_REPLICATION_NODE
                 + BookKeeperConstants.DEFAULT_ZK_LEDGERS_ROOT_PATH;
+    }
+
+    @AfterMethod
+    @Override
+    public void tearDown() throws Exception {
+        super.tearDown();
     }
 
     @Override

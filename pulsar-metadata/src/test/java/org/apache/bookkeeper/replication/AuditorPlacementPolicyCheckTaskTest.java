@@ -35,6 +35,7 @@ import org.apache.bookkeeper.test.BookKeeperClusterTestCase;
 import org.apache.bookkeeper.test.TestStatsProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
@@ -68,6 +69,18 @@ public class AuditorPlacementPolicyCheckTaskTest extends BookKeeperClusterTestCa
         LedgerManagerFactory ledgerManagerFactory = bookKeeper.getLedgerManagerFactory();
         ledgerManager = ledgerManagerFactory.newLedgerManager();
         ledgerUnderreplicationManager = ledgerManagerFactory.newLedgerUnderreplicationManager();
+    }
+
+    @AfterMethod
+    @Override
+    public void tearDown() throws Exception {
+        if (ledgerManager != null) {
+            ledgerManager.close();
+        }
+        if (ledgerUnderreplicationManager != null) {
+            ledgerUnderreplicationManager.close();
+        }
+        super.tearDown();
     }
 
     @Test

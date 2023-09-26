@@ -179,12 +179,23 @@ public class TestReplicationWorker extends BookKeeperClusterTestCase {
     @Override
     public void tearDown() throws Exception {
         super.tearDown();
+        if (null != ledgerManager) {
+            ledgerManager.close();
+            ledgerManager = null;
+        }
         if (null != underReplicationManager) {
             underReplicationManager.close();
             underReplicationManager = null;
         }
         if (null != driver) {
             driver.close();
+        }
+        if (null != scheduler) {
+            scheduler.shutdown();
+            scheduler = null;
+        }
+        if (null != mFactory) {
+            mFactory.close();
         }
     }
 
@@ -955,248 +966,6 @@ public class TestReplicationWorker extends BookKeeperClusterTestCase {
         }
     }
 
-    class MockZooKeeperClient extends ZooKeeperClient {
-        private final String connectString;
-        private final int sessionTimeoutMs;
-        private final ZooKeeperWatcherBase watcherManager;
-        private volatile String pathOfSetDataToFail;
-        private volatile String pathOfDeleteToFail;
-        private AtomicInteger numOfTimesSetDataFailed = new AtomicInteger();
-        private AtomicInteger numOfTimesDeleteFailed = new AtomicInteger();
-
-        MockZooKeeperClient(String connectString, int sessionTimeoutMs, ZooKeeperWatcherBase watcher)
-                throws IOException {
-            /*
-             * in OperationalRetryPolicy maxRetries is set to 0. So it wont
-             * retry incase of any error/exception.
-             */
-            super(connectString, sessionTimeoutMs, watcher,
-                    new BoundExponentialBackoffRetryPolicy(sessionTimeoutMs, sessionTimeoutMs, Integer.MAX_VALUE),
-                    new BoundExponentialBackoffRetryPolicy(sessionTimeoutMs, sessionTimeoutMs, 0),
-                    NullStatsLogger.INSTANCE, 1, 0, false);
-            this.connectString = connectString;
-            this.sessionTimeoutMs = sessionTimeoutMs;
-            this.watcherManager = watcher;
-        }
-
-        @Override
-        protected ZooKeeper createZooKeeper() throws IOException {
-            return new MockZooKeeper(this.connectString, this.sessionTimeoutMs, this.watcherManager, false);
-        }
-
-        private void setPathOfSetDataToFail(String pathOfSetDataToFail) {
-            this.pathOfSetDataToFail = pathOfSetDataToFail;
-        }
-
-        private void setPathOfDeleteToFail(String pathOfDeleteToFail) {
-            this.pathOfDeleteToFail = pathOfDeleteToFail;
-        }
-
-        private int getNumOfTimesSetDataFailed() {
-            return numOfTimesSetDataFailed.get();
-        }
-
-        private int getNumOfTimesDeleteFailed() {
-            return numOfTimesDeleteFailed.get();
-        }
-
-        class MockZooKeeper extends ZooKeeper {
-            public MockZooKeeper(String connectString, int sessionTimeout, Watcher watcher, boolean canBeReadOnly)
-                    throws IOException {
-                super(connectString, sessionTimeout, watcher, canBeReadOnly);
-            }
-
-            @Override
-            public void setData(final String path, final byte[] data, final int version, final StatCallback cb,
-                                final Object context) {
-                if ((pathOfSetDataToFail != null) && (pathOfSetDataToFail.equals(path))) {
-                    /*
-                     * if pathOfSetDataToFail matches with the path of the node,
-                     * then callback with CONNECTIONLOSS error.
-                     */
-                    LOG.error("setData of MockZooKeeper, is failing with CONNECTIONLOSS for path: {}", path);
-                    numOfTimesSetDataFailed.incrementAndGet();
-                    cb.processResult(KeeperException.Code.CONNECTIONLOSS.intValue(), path, context, null);
-                } else {
-                    super.setData(path, data, version, cb, context);
-                }
-            }
-
-            @Override
-            public void multi(Iterable<Op> ops, AsyncCallback.MultiCallback cb, Object ctx) {
-                boolean matchError = false;
-                for (Op op : ops) {
-                    if (op instanceof Op.Delete && (pathOfDeleteToFail != null) && (pathOfDeleteToFail.equals(
-                            op.getPath()))) {
-                        matchError = true;
-                        /*
-                         * if pathOfDeleteToFail matches with the path of the node,
-                         * then throw CONNECTIONLOSS exception.
-                         */
-                        LOG.error("delete of MockZooKeeper, is failing with CONNECTIONLOSS for path: {}", op.getPath());
-                        numOfTimesDeleteFailed.incrementAndGet();
-                        cb.processResult(KeeperException.Code.CONNECTIONLOSS.intValue(), op.getPath(), ctx, null);
-                    }
-                    if (op instanceof Op.SetData && (pathOfSetDataToFail != null) && (pathOfSetDataToFail.equals(
-                            op.getPath()))) {
-                        matchError = true;
-                        /*
-                         * if pathOfSetDataToFail matches with the path of the node,
-                         * then callback with CONNECTIONLOSS error.
-                         */
-                        LOG.error("setData of MockZooKeeper, is failing with CONNECTIONLOSS for path: {}",
-                                op.getPath());
-                        numOfTimesSetDataFailed.incrementAndGet();
-                        cb.processResult(KeeperException.Code.CONNECTIONLOSS.intValue(), op.getPath(), ctx, null);
-                    }
-                }
-                if (matchError) {
-                    return;
-                }
-                super.multi(ops, cb, ctx);
-            }
-
-            @Override
-            public void delete(final String path, final int version) throws KeeperException, InterruptedException {
-                if ((pathOfDeleteToFail != null) && (pathOfDeleteToFail.equals(path))) {
-                    /*
-                     * if pathOfDeleteToFail matches with the path of the node,
-                     * then throw CONNECTIONLOSS exception.
-                     */
-                    LOG.error("delete of MockZooKeeper, is failing with CONNECTIONLOSS for path: {}", path);
-                    numOfTimesDeleteFailed.incrementAndGet();
-                    throw new KeeperException.ConnectionLossException();
-                } else {
-                    super.delete(path, version);
-                }
-            }
-        }
-    }
-
-//    @Test
-//    public void testRWShutDownInTheCaseOfZKOperationFailures() throws Exception {
-//        /*
-//         * create MockZooKeeperClient instance and wait for it to be connected.
-//         */
-//        int zkSessionTimeOut = 10000;
-//        ZooKeeperWatcherBase zooKeeperWatcherBase = new ZooKeeperWatcherBase(zkSessionTimeOut,
-//                NullStatsLogger.INSTANCE);
-//        MockZooKeeperClient zkFaultInjectionWrapper = new MockZooKeeperClient(zkUtil.getZooKeeperConnectString(),
-//                zkSessionTimeOut, zooKeeperWatcherBase);
-//        zkFaultInjectionWrapper.waitForConnection();
-//        assertEquals("zkFaultInjectionWrapper should be in connected state", States.CONNECTED,
-//                zkFaultInjectionWrapper.getState());
-//        long oldZkInstanceSessionId = zkFaultInjectionWrapper.getSessionId();
-//
-//        /*
-//         * create ledger and add entries.
-//         */
-//        BookKeeper bkWithMockZK = new BookKeeper(baseClientConf, zkFaultInjectionWrapper);
-//        long ledgerId = 567L;
-//        LedgerHandle lh = bkWithMockZK.createLedgerAdv(ledgerId, 2, 2, 2,
-//                BookKeeper.DigestType.CRC32, TESTPASSWD,
-//                null);
-//        for (int i = 0; i < 10; i++) {
-//            lh.addEntry(i, data);
-//        }
-//        lh.close();
-//
-//        /*
-//         * trigger Expired event so that MockZooKeeperClient would run
-//         * 'clientCreator' and create new zk handle. In this case it would
-//         * create MockZooKeeper instance.
-//         */
-//        zooKeeperWatcherBase.process(new WatchedEvent(EventType.None, KeeperState.Expired, ""));
-//        zkFaultInjectionWrapper.waitForConnection();
-//        for (int i = 0; i < 10; i++) {
-//            if (zkFaultInjectionWrapper.getState() == States.CONNECTED) {
-//                break;
-//            }
-//            Thread.sleep(200);
-//        }
-//        assertEquals("zkFaultInjectionWrapper should be in connected state", States.CONNECTED,
-//                zkFaultInjectionWrapper.getState());
-//        assertNotSame("Session Id of old and new ZK instance should be different", oldZkInstanceSessionId,
-//                zkFaultInjectionWrapper.getSessionId());
-//
-//        /*
-//         * Kill a Bookie, so that ledger becomes underreplicated. Since totally
-//         * 3 bookies are available and the ensemblesize of the current ledger is
-//         * 2, we should be able to replicate to the other bookie.
-//         */
-//        BookieId replicaToKill = lh.getLedgerMetadata().getAllEnsembles().get(0L).get(0);
-//        LOG.info("Killing Bookie id {}", replicaToKill);
-//        killBookie(replicaToKill);
-//
-//        /*
-//         * Start RW.
-//         */
-//        ReplicationWorker rw = new ReplicationWorker(baseConf, bkWithMockZK, false, NullStatsLogger.INSTANCE);
-//        rw.start();
-//        try {
-//            for (int i = 0; i < 40; i++) {
-//                if (rw.isRunning()) {
-//                    break;
-//                }
-//                LOG.info("Waiting for the RW to start...");
-//                Thread.sleep(500);
-//            }
-//            assertTrue("RW should be running", rw.isRunning());
-//
-//            /*
-//             * Since Auditor is not running, ledger needs to be marked
-//             * underreplicated explicitly. But before marking ledger
-//             * underreplicated, set paths for which MockZooKeeper's setData and
-//             * Delete operation to fail.
-//             *
-//             * ZK.setData will be called by 'updateEnsembleInfo' operation after
-//             * completion of copying to a new bookie. ZK.delete will be called by
-//             * RW.logBKExceptionAndReleaseLedger and finally block in
-//             * 'rereplicate(long ledgerIdToReplicate)'
-//             */
-//            PulsarLedgerManager absZKLedgerManager = (PulsarLedgerManager) ledgerManager;
-//            String ledgerPath = absZKLedgerManager.getLedgerPath(ledgerId);
-//            String urLockPath = ZkLedgerUnderreplicationManager
-//                    .getUrLedgerLockZnode(ZkLedgerUnderreplicationManager.getUrLockPath(zkLedgersRootPath), ledgerId);
-//            zkFaultInjectionWrapper.setPathOfSetDataToFail(ledgerPath);
-//            zkFaultInjectionWrapper.setPathOfDeleteToFail(urLockPath);
-//            underReplicationManager.markLedgerUnderreplicated(lh.getId(), replicaToKill.toString());
-//
-//            /*
-//             * Since there is only one RW, it will try to replicate underreplicated
-//             * ledger. After completion of copying it to a new bookie, it will try
-//             * to update ensembleinfo. Which would fail with our MockZK. After that
-//             * it would try to delete lock znode as part of
-//             * RW.logBKExceptionAndReleaseLedger, which will also fail because of
-//             * our MockZK. In the finally block in 'rereplicate(long
-//             * ledgerIdToReplicate)' it would try one more time to delete the ledger
-//             * and once again it will fail because of our MockZK. So RW gives up and
-//             * shutdowns itself.
-//             */
-//            for (int i = 0; i < 40; i++) {
-//                if (!rw.isRunning()) {
-//                    break;
-//                }
-//                LOG.info("Waiting for the RW to shutdown...");
-//                Thread.sleep(500);
-//            }
-//
-//            /*
-//             * as described earlier, numOfTimes setDataFailed should be 1 and
-//             * numOfTimes deleteFailed should be 2
-//             */
-//            assertEquals("NumOfTimesSetDataFailed", 1,
-//                    zkFaultInjectionWrapper.getNumOfTimesSetDataFailed());
-//            assertEquals("NumOfTimesDeleteFailed", 2,
-//                    zkFaultInjectionWrapper.getNumOfTimesDeleteFailed());
-//            assertFalse("RW should be shutdown", rw.isRunning());
-//        } finally {
-//            rw.shutdown();
-//            zkFaultInjectionWrapper.close();
-//            bkWithMockZK.close();
-//        }
-//    }
-
     @Test
     public void testReplicateEmptyOpenStateLedger() throws Exception {
         LedgerHandle lh = bkc.createLedger(3, 3, 2, BookKeeper.DigestType.CRC32, TESTPASSWD);
@@ -1285,6 +1054,7 @@ public class TestReplicationWorker extends BookKeeperClusterTestCase {
 
         baseClientConf.setProperty("reppDnsResolverClass", StaticDNSResolver.class.getName());
         baseClientConf.setProperty("enforceStrictZoneawarePlacement", false);
+        bkc.close();
         bkc = new BookKeeperTestClient(baseClientConf) {
             @Override
             protected EnsemblePlacementPolicy initializeEnsemblePlacementPolicy(ClientConfiguration conf,
@@ -1405,6 +1175,8 @@ public class TestReplicationWorker extends BookKeeperClusterTestCase {
         if (checkReplicationStats == null) {
             rw.shutdown();
         }
+        baseConf.setRepairedPlacementPolicyNotAdheringBookieEnable(true);
+        bookKeeper.close();
     }
 
     private EnsemblePlacementPolicy buildRackAwareEnsemblePlacementPolicy(List<BookieId> bookieIds) {

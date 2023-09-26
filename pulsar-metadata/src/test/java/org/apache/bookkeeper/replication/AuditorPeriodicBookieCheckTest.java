@@ -77,7 +77,6 @@ public class AuditorPeriodicBookieCheckTest extends BookKeeperClusterTestCase {
     @Override
     public void tearDown() throws Exception {
         auditorElector.shutdown();
-
         super.tearDown();
     }
 

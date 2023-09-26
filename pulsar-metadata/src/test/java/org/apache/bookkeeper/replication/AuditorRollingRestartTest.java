@@ -31,6 +31,8 @@ import org.apache.bookkeeper.meta.LedgerUnderreplicationManager;
 import org.apache.bookkeeper.net.BookieId;
 import org.apache.bookkeeper.test.BookKeeperClusterTestCase;
 import org.apache.bookkeeper.test.TestCallbacks;
+import org.testng.annotations.AfterMethod;
+import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 /**
@@ -44,6 +46,18 @@ public class AuditorRollingRestartTest extends BookKeeperClusterTestCase {
         setAutoRecoveryEnabled(true);
         Class.forName("org.apache.pulsar.metadata.bookkeeper.PulsarMetadataClientDriver");
         Class.forName("org.apache.pulsar.metadata.bookkeeper.PulsarMetadataBookieDriver");
+    }
+
+    @BeforeMethod
+    @Override
+    public void setUp() throws Exception {
+        super.setUp();
+    }
+
+    @AfterMethod
+    @Override
+    public void tearDown() throws Exception {
+        super.tearDown();
     }
 
     @Override
