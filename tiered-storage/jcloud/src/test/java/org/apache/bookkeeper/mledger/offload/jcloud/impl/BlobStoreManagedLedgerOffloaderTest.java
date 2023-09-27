@@ -471,7 +471,8 @@ public class BlobStoreManagedLedgerOffloaderTest extends BlobStoreManagedLedgerO
         BackedInputStream mockInputStream =  spy(BackedInputStream.class);
         OffloadIndexBlockBuilder indexBuilder = OffloadIndexBlockBuilder.create();
         LedgerMetadata metadata = createLedgerMetadata(1);
-        indexBuilder.withLedgerMetadata(metadata).withDataObjectLength(1).withDataBlockHeaderLength(23455);
+        indexBuilder.withLedgerMetadata(metadata).withDataObjectLength(1)
+                .withDataBlockHeaderLength(23455);
 
         indexBuilder.addBlock(0, 2, 64 * 1024 * 1024);
         indexBuilder.addBlock(1000, 3, 64 * 1024 * 1024);

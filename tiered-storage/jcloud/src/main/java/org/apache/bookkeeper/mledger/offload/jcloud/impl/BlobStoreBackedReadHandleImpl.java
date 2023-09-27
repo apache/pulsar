@@ -23,6 +23,7 @@ import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import io.netty.buffer.ByteBuf;
 import java.io.DataInputStream;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
@@ -151,11 +152,6 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle {
                     log.warn("There hasn't enough data to read, current available data has {} bytes,"
                         + " seek to the first entry {} to avoid EOF exception", inputStream.available(), firstEntry);
                     seekToEntry(firstEntry);
-                    if (dataStream.available() < 12) {
-                        promise.completeExceptionally(new ManagedLedgerException
-                                .NonRecoverableLedgerException("There is no complete data in the ledger: " + ledgerId));
-                        return;
-                    }
                 }
 
                 while (entriesToRead > 0) {
@@ -207,7 +203,12 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle {
             } catch (Throwable t) {
                 log.error("Failed to read entries {} - {} from the offloader in ledger {}",
                     firstEntry, lastEntry, ledgerId, t);
-                promise.completeExceptionally(t);
+                if (t instanceof FileNotFoundException) {
+                    promise.completeExceptionally(new ManagedLedgerException
+                            .NonRecoverableLedgerException("The blobstore file does not exist for ledger:" + ledgerId));
+                } else {
+                    promise.completeExceptionally(t);
+                }
                 entries.forEach(LedgerEntry::close);
             }
         });
@@ -290,8 +291,11 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle {
             try (InputStream payLoadStream = blob.getPayload().openStream()) {
                 index = (OffloadIndexBlock) indexBuilder.fromStream(payLoadStream);
             } catch (IOException e) {
+                if (!blobStore.blobExists(bucket, indexKey)) {
+                    throw new FileNotFoundException("The index file in the blob store does not exist!");
+                }
                 // retry to avoid the network issue caused read failure
-                log.warn("Failed to get index block from the offoaded index file {}, still have {} times to retry",
+                log.warn("Failed to get index block from the offloaded index file {}, still have {} times to retry",
                     indexKey, retryCount, e);
                 lastException = e;
                 continue;

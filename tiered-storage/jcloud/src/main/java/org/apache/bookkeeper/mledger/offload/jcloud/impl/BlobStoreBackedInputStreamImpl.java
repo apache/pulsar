@@ -19,6 +19,7 @@
 package org.apache.bookkeeper.mledger.offload.jcloud.impl;
 
 import io.netty.buffer.ByteBuf;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.concurrent.TimeUnit;
@@ -120,6 +121,9 @@ public class BlobStoreBackedInputStreamImpl extends BackedInputStream {
             } catch (Throwable e) {
                 if (null != this.offloaderStats) {
                     this.offloaderStats.recordReadOffloadError(this.topicName);
+                }
+                if (!blobStore.blobExists(bucket, key)) {
+                    throw new FileNotFoundException("The file in the blobstore does not exist!");
                 }
                 throw new IOException("Error reading from BlobStore", e);
             }

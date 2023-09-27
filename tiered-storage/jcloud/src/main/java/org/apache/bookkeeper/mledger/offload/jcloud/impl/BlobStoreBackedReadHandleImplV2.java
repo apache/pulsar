@@ -21,6 +21,7 @@ package org.apache.bookkeeper.mledger.offload.jcloud.impl;
 import static com.google.common.base.Preconditions.checkArgument;
 import io.netty.buffer.ByteBuf;
 import java.io.DataInputStream;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
@@ -224,7 +225,13 @@ public class BlobStoreBackedReadHandleImplV2 implements ReadHandle {
                         }
                     }
                 } catch (Throwable t) {
-                    promise.completeExceptionally(t);
+                    if (t instanceof FileNotFoundException) {
+                        promise.completeExceptionally(new ManagedLedgerException
+                                .NonRecoverableLedgerException(
+                                        "The blobstore file does not exist for ledger:" + ledgerId));
+                    } else {
+                        promise.completeExceptionally(t);
+                    }
                     entries.forEach(LedgerEntry::close);
                 }
 
@@ -243,20 +250,10 @@ public class BlobStoreBackedReadHandleImplV2 implements ReadHandle {
                 log.debug("entries are in earlier indices, skip this segment ledger id: {}, begin entry id: {}",
                         ledgerId, startEntryId);
             } else {
-                if (dataStreams.get(i).available() < 12) {
-                    log.warn("The blob store offload segment is not enough data for ledger {}", ledgerId);
-                } else {
-                    groupedReaders.add(new GroupedReader(ledgerId, startEntryId, lastEntry, index, inputStreams.get(i),
-                            dataStreams.get(i)));
-                    lastEntry = startEntryId - 1;
-                }
+                groupedReaders.add(new GroupedReader(ledgerId, startEntryId, lastEntry, index, inputStreams.get(i),
+                        dataStreams.get(i)));
+                lastEntry = startEntryId - 1;
             }
-        }
-
-        if (groupedReaders.size() == 0) {
-            throw new ManagedLedgerException.NonRecoverableLedgerException(
-                    String.format("There is no data for ledger %d, from entry %d to %d",
-                            ledgerId, firstEntry, lastEntry));
         }
 
         checkArgument(firstEntry > lastEntry);
@@ -328,9 +325,22 @@ public class BlobStoreBackedReadHandleImplV2 implements ReadHandle {
             log.debug("indexKey blob: {} {}", indexKey, blob);
             versionCheck.check(indexKey, blob);
             OffloadIndexBlockV2Builder indexBuilder = OffloadIndexBlockV2Builder.create();
-            OffloadIndexBlockV2 index;
-            try (InputStream payloadStream = blob.getPayload().openStream()) {
-                index = indexBuilder.fromStream(payloadStream);
+            OffloadIndexBlockV2 index = null;
+            int retryCount = 3;
+            while (retryCount > 0) {
+                try (InputStream payloadStream = blob.getPayload().openStream()) {
+                    index = indexBuilder.fromStream(payloadStream);
+                } catch (IOException e) {
+                    if (!blobStore.blobExists(bucket, indexKey)) {
+                        throw new FileNotFoundException("The index file in the blob store does not exist!");
+                    }
+                    // retry to avoid the network issue caused read failure
+                    log.warn("Failed to get index block from the offloaded index file {}, still have {} times to retry",
+                            indexKey, retryCount, e);
+                    if (--retryCount == 0) {
+                        throw e;
+                    }
+                }
             }
 
             BackedInputStream inputStream = new BlobStoreBackedInputStreamImpl(blobStore, bucket, key,
