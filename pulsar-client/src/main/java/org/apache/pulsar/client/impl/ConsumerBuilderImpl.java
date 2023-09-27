@@ -371,10 +371,9 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
 
     @Override
     public ConsumerBuilder<T> properties(@NonNull Map<String, String> properties) {
-        properties.entrySet().forEach(entry ->
-                checkArgument(
-                        StringUtils.isNotBlank(entry.getKey()) && StringUtils.isNotBlank(entry.getValue()),
-                        "properties' key/value cannot be blank"));
+        properties.forEach((key, value) -> checkArgument(
+            StringUtils.isNotBlank(key) && StringUtils.isNotBlank(value),
+            "properties' key/value cannot be blank"));
         conf.getProperties().putAll(properties);
         return this;
     }

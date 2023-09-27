@@ -92,28 +92,9 @@ public abstract class KafkaAbstractSource<V> extends PushSource<V> {
             props.putAll(kafkaSourceConfig.getConsumerConfigProperties());
         }
         props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, kafkaSourceConfig.getBootstrapServers());
-        if (StringUtils.isNotEmpty(kafkaSourceConfig.getSecurityProtocol())) {
-            props.put(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, kafkaSourceConfig.getSecurityProtocol());
-        }
-        if (StringUtils.isNotEmpty(kafkaSourceConfig.getSaslMechanism())) {
-            props.put(SaslConfigs.SASL_MECHANISM, kafkaSourceConfig.getSaslMechanism());
-        }
-        if (StringUtils.isNotEmpty(kafkaSourceConfig.getSaslJaasConfig())) {
-            props.put(SaslConfigs.SASL_JAAS_CONFIG, kafkaSourceConfig.getSaslJaasConfig());
-        }
-        if (StringUtils.isNotEmpty(kafkaSourceConfig.getSslEnabledProtocols())) {
-            props.put(SslConfigs.SSL_ENABLED_PROTOCOLS_CONFIG, kafkaSourceConfig.getSslEnabledProtocols());
-        }
-        if (StringUtils.isNotEmpty(kafkaSourceConfig.getSslEndpointIdentificationAlgorithm())) {
-            props.put(SslConfigs.SSL_ENDPOINT_IDENTIFICATION_ALGORITHM_CONFIG,
-                    kafkaSourceConfig.getSslEndpointIdentificationAlgorithm());
-        }
-        if (StringUtils.isNotEmpty(kafkaSourceConfig.getSslTruststoreLocation())) {
-            props.put(SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG, kafkaSourceConfig.getSslTruststoreLocation());
-        }
-        if (StringUtils.isNotEmpty(kafkaSourceConfig.getSslTruststorePassword())) {
-            props.put(SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG, kafkaSourceConfig.getSslTruststorePassword());
-        }
+        isNotEmpty(props, kafkaSourceConfig.getSecurityProtocol(), kafkaSourceConfig.getSaslMechanism(), kafkaSourceConfig.getSaslJaasConfig(),
+            kafkaSourceConfig.getSslEnabledProtocols(), kafkaSourceConfig.getSslEndpointIdentificationAlgorithm(),
+            kafkaSourceConfig.getSslTruststoreLocation(), kafkaSourceConfig.getSslTruststorePassword());
         props.put(ConsumerConfig.GROUP_ID_CONFIG, kafkaSourceConfig.getGroupId());
         props.put(ConsumerConfig.FETCH_MIN_BYTES_CONFIG, String.valueOf(kafkaSourceConfig.getFetchMinBytes()));
         props.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG,
@@ -132,6 +113,32 @@ public abstract class KafkaAbstractSource<V> extends PushSource<V> {
             throw new IllegalArgumentException("Unable to instantiate Kafka consumer", ex);
         }
         this.start();
+    }
+
+    static void isNotEmpty(Properties props, String securityProtocol, String saslMechanism, String saslJaasConfig, String sslEnabledProtocols,
+        String sslEndpointIdentificationAlgorithm, String sslTruststoreLocation, String sslTruststorePassword) {
+        if (StringUtils.isNotEmpty(securityProtocol)) {
+            props.put(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, securityProtocol);
+        }
+        if (StringUtils.isNotEmpty(saslMechanism)) {
+            props.put(SaslConfigs.SASL_MECHANISM, saslMechanism);
+        }
+        if (StringUtils.isNotEmpty(saslJaasConfig)) {
+            props.put(SaslConfigs.SASL_JAAS_CONFIG, saslJaasConfig);
+        }
+        if (StringUtils.isNotEmpty(sslEnabledProtocols)) {
+            props.put(SslConfigs.SSL_ENABLED_PROTOCOLS_CONFIG, sslEnabledProtocols);
+        }
+        if (StringUtils.isNotEmpty(sslEndpointIdentificationAlgorithm)) {
+            props.put(SslConfigs.SSL_ENDPOINT_IDENTIFICATION_ALGORITHM_CONFIG,
+                sslEndpointIdentificationAlgorithm);
+        }
+        if (StringUtils.isNotEmpty(sslTruststoreLocation)) {
+            props.put(SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG, sslTruststoreLocation);
+        }
+        if (StringUtils.isNotEmpty(sslTruststorePassword)) {
+            props.put(SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG, sslTruststorePassword);
+        }
     }
 
     protected Properties beforeCreateConsumer(Properties props) {

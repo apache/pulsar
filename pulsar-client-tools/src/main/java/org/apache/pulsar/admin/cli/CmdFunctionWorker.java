@@ -40,7 +40,7 @@ public class CmdFunctionWorker extends CmdBase {
             runCmd();
         }
 
-        void processArguments() throws Exception {
+        void processArguments() {
         }
 
         abstract void runCmd() throws Exception;
@@ -102,7 +102,7 @@ public class CmdFunctionWorker extends CmdBase {
         }
     }
 
-    public CmdFunctionWorker(Supplier<PulsarAdmin> admin) throws PulsarClientException {
+    public CmdFunctionWorker(Supplier<PulsarAdmin> admin) {
         super("functions-worker", admin);
         jcommander.addCommand("function-stats", new FunctionsStats());
         jcommander.addCommand("monitoring-metrics", new CmdMonitoringMetrics());

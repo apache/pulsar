@@ -173,18 +173,14 @@ public class AuthenticationSasl implements Authentication, EncodedAuthentication
 
     // role token exists but expired return true
     private boolean isRoleTokenExpired(Map<String, String> responseHeaders) {
-        if ((saslRoleToken != null)
+        return (saslRoleToken != null)
             && (responseHeaders != null)
             // header type match
             && (responseHeaders.get(SASL_HEADER_TYPE) != null && responseHeaders.get(SASL_HEADER_TYPE)
-                    .equalsIgnoreCase(SASL_TYPE_VALUE))
+            .equalsIgnoreCase(SASL_TYPE_VALUE))
             // header state expired
             && (responseHeaders.get(SASL_HEADER_STATE) != null && responseHeaders.get(SASL_HEADER_STATE)
-                    .equalsIgnoreCase(SASL_AUTH_ROLE_TOKEN_EXPIRED))) {
-            return true;
-        } else {
-            return false;
-        }
+            .equalsIgnoreCase(SASL_AUTH_ROLE_TOKEN_EXPIRED));
     }
 
     @SneakyThrows(Exception.class)
@@ -197,9 +193,7 @@ public class AuthenticationSasl implements Authentication, EncodedAuthentication
             authData,
             previousResHeaders);
 
-        headers.forEach(entry -> {
-            builder.header(entry.getKey(), entry.getValue());
-        });
+        headers.forEach(entry -> builder.header(entry.getKey(), entry.getValue()));
         return builder;
     }
 

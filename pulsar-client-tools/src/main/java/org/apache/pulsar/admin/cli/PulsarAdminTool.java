@@ -193,17 +193,24 @@ public class PulsarAdminTool {
     private void addCommand(Map.Entry<String, Class<?>> c, Supplier<PulsarAdmin> admin) throws Exception {
         // To remain backwards compatibility for "source" and "sink" commands
         // TODO eventually remove this
-        if (c.getKey().equals("sources") || c.getKey().equals("source")) {
-            jcommander.addCommand("sources", c.getValue().getConstructor(Supplier.class).newInstance(admin), "source");
-        } else if (c.getKey().equals("sinks") || c.getKey().equals("sink")) {
-            jcommander.addCommand("sinks", c.getValue().getConstructor(Supplier.class).newInstance(admin), "sink");
-        } else if (c.getKey().equals("functions")) {
-            jcommander.addCommand(c.getKey(), c.getValue().getConstructor(Supplier.class).newInstance(admin));
-        } else {
-            // Other mode, all components are initialized.
-            if (c.getValue() != null) {
+        switch (c.getKey()) {
+            case "sources":
+            case "source":
+                jcommander.addCommand("sources", c.getValue().getConstructor(Supplier.class).newInstance(admin), "source");
+                break;
+            case "sinks":
+            case "sink":
+                jcommander.addCommand("sinks", c.getValue().getConstructor(Supplier.class).newInstance(admin), "sink");
+                break;
+            case "functions":
                 jcommander.addCommand(c.getKey(), c.getValue().getConstructor(Supplier.class).newInstance(admin));
-            }
+                break;
+            default:
+                // Other mode, all components are initialized.
+                if (c.getValue() != null) {
+                    jcommander.addCommand(c.getKey(), c.getValue().getConstructor(Supplier.class).newInstance(admin));
+                }
+                break;
         }
     }
 

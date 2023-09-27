@@ -96,28 +96,9 @@ public abstract class KafkaAbstractSink<K, V> implements Sink<byte[]> {
         }
 
         props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, kafkaSinkConfig.getBootstrapServers());
-        if (StringUtils.isNotEmpty(kafkaSinkConfig.getSecurityProtocol())) {
-            props.put(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, kafkaSinkConfig.getSecurityProtocol());
-        }
-        if (StringUtils.isNotEmpty(kafkaSinkConfig.getSaslMechanism())) {
-            props.put(SaslConfigs.SASL_MECHANISM, kafkaSinkConfig.getSaslMechanism());
-        }
-        if (StringUtils.isNotEmpty(kafkaSinkConfig.getSaslJaasConfig())) {
-            props.put(SaslConfigs.SASL_JAAS_CONFIG, kafkaSinkConfig.getSaslJaasConfig());
-        }
-        if (StringUtils.isNotEmpty(kafkaSinkConfig.getSslEnabledProtocols())) {
-            props.put(SslConfigs.SSL_ENABLED_PROTOCOLS_CONFIG, kafkaSinkConfig.getSslEnabledProtocols());
-        }
-        if (StringUtils.isNotEmpty(kafkaSinkConfig.getSslEndpointIdentificationAlgorithm())) {
-            props.put(SslConfigs.SSL_ENDPOINT_IDENTIFICATION_ALGORITHM_CONFIG,
-                    kafkaSinkConfig.getSslEndpointIdentificationAlgorithm());
-        }
-        if (StringUtils.isNotEmpty(kafkaSinkConfig.getSslTruststoreLocation())) {
-            props.put(SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG, kafkaSinkConfig.getSslTruststoreLocation());
-        }
-        if (StringUtils.isNotEmpty(kafkaSinkConfig.getSslTruststorePassword())) {
-            props.put(SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG, kafkaSinkConfig.getSslTruststorePassword());
-        }
+        KafkaAbstractSource.isNotEmpty(props, kafkaSinkConfig.getSecurityProtocol(), kafkaSinkConfig.getSaslMechanism(),
+            kafkaSinkConfig.getSaslJaasConfig(), kafkaSinkConfig.getSslEnabledProtocols(), kafkaSinkConfig.getSslEndpointIdentificationAlgorithm(),
+            kafkaSinkConfig.getSslTruststoreLocation(), kafkaSinkConfig.getSslTruststorePassword());
         props.put(ProducerConfig.ACKS_CONFIG, kafkaSinkConfig.getAcks());
         props.put(ProducerConfig.BATCH_SIZE_CONFIG, String.valueOf(kafkaSinkConfig.getBatchSize()));
         props.put(ProducerConfig.MAX_REQUEST_SIZE_CONFIG, String.valueOf(kafkaSinkConfig.getMaxRequestSize()));
