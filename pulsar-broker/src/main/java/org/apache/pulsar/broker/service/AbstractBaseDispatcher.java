@@ -213,12 +213,7 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
                 this.filterAcceptedMsgs.add(entryMsgCnt);
             }
 
-            totalEntries++;
             int batchSize = msgMetadata.getNumMessagesInBatch();
-            totalMessages += batchSize;
-            totalBytes += metadataAndPayload.readableBytes();
-            totalChunkedMessages += msgMetadata.hasChunkId() ? 1 : 0;
-            batchSizes.setBatchSize(i, batchSize);
             long[] ackSet = null;
             if (indexesAcks != null && cursor != null) {
                 PositionImpl position = PositionImpl.get(entry.getLedgerId(), entry.getEntryId());
@@ -261,6 +256,12 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
                     indexesAcks.setIndexesAcks(i, null);
                 }
             }
+
+            totalEntries++;
+            totalMessages += batchSize;
+            totalBytes += metadataAndPayload.readableBytes();
+            totalChunkedMessages += msgMetadata.hasChunkId() ? 1 : 0;
+            batchSizes.setBatchSize(i, batchSize);
 
             BrokerInterceptor interceptor = subscription.interceptor();
             if (null != interceptor) {
