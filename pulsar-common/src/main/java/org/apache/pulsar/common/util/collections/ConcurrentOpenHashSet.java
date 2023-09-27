@@ -312,16 +312,16 @@ public class ConcurrentOpenHashSet<V> {
         }
 
         boolean contains(V value, int keyHash) {
-            int bucket = keyHash;
-
             long stamp = tryOptimisticRead();
             boolean acquiredLock = false;
 
+            // add local variable here, so OutOfBound won't happen
+            V[] values = this.values;
+            // calculate table.length as capacity to avoid rehash changing capacity
+            int bucket = signSafeMod(keyHash, values.length);
+
             try {
                 while (true) {
-                    int capacity = this.capacity;
-                    bucket = signSafeMod(bucket, capacity);
-
                     // First try optimistic locking
                     V storedValue = values[bucket];
 
@@ -339,13 +339,10 @@ public class ConcurrentOpenHashSet<V> {
                             stamp = readLock();
                             acquiredLock = true;
 
+                            // update local variable
+                            values = this.values;
+                            bucket = signSafeMod(keyHash, values.length);
                             storedValue = values[bucket];
-                        }
-
-                        if (capacity != this.capacity) {
-                            // There has been a rehashing. We need to restart the search
-                            bucket = keyHash;
-                            continue;
                         }
 
                         if (value.equals(storedValue)) {
@@ -355,8 +352,7 @@ public class ConcurrentOpenHashSet<V> {
                             return false;
                         }
                     }
-
-                    ++bucket;
+                    bucket = (bucket + 1) & (values.length - 1);
                 }
             } finally {
                 if (acquiredLock) {

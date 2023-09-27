@@ -990,7 +990,6 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         try {
             byte[] authData = connect.hasAuthData() ? connect.getAuthData() : emptyArray;
             AuthData clientData = AuthData.of(authData);
-
             // init authentication
             if (connect.hasAuthMethodName()) {
                 authMethod = connect.getAuthMethodName();
@@ -1049,10 +1048,22 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                         .getAuthenticationService()
                         .getAuthenticationProvider(originalAuthMethod);
 
+                /**
+                 * When both the broker and the proxy are configured with anonymousUserRole
+                 * if the client does not configure an authentication method
+                 * the proxy side will set the value of anonymousUserRole to clientAuthRole when it creates a connection
+                 * and the value of clientAuthMethod will be none.
+                 * Similarly, should also set the value of authRole to anonymousUserRole on the broker side.
+                 */
                 if (originalAuthenticationProvider == null) {
-                    throw new AuthenticationException(
-                            String.format("Can't find AuthenticationProvider for original role"
-                                    + " using auth method [%s] is not available", originalAuthMethod));
+                    authRole = getBrokerService().getAuthenticationService().getAnonymousUserRole()
+                            .orElseThrow(() ->
+                                    new AuthenticationException("No anonymous role, and can't find "
+                                            + "AuthenticationProvider for original role using auth method "
+                                            + "[" + originalAuthMethod + "] is not available"));
+                    originalPrincipal = authRole;
+                    completeConnect(clientProtocolVersion, clientVersion);
+                    return;
                 }
 
                 originalAuthDataCopy = AuthData.of(connect.getOriginalAuthData().getBytes());
@@ -1398,36 +1409,36 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             CompletableFuture<Producer> existingProducerFuture = producers.putIfAbsent(producerId, producerFuture);
 
             if (existingProducerFuture != null) {
-                if (existingProducerFuture.isDone() && !existingProducerFuture.isCompletedExceptionally()) {
-                    Producer producer = existingProducerFuture.getNow(null);
-                    log.info("[{}] Producer with the same id is already created:"
-                            + " producerId={}, producer={}", remoteAddress, producerId, producer);
-                    commandSender.sendProducerSuccessResponse(requestId, producer.getProducerName(),
-                            producer.getSchemaVersion());
-                    return null;
-                } else {
+                if (!existingProducerFuture.isDone()) {
                     // There was an early request to create a producer with same producerId.
                     // This can happen when client timeout is lower than the broker timeouts.
                     // We need to wait until the previous producer creation request
                     // either complete or fails.
-                    ServerError error = null;
-                    if (!existingProducerFuture.isDone()) {
-                        error = ServerError.ServiceNotReady;
-                    } else {
-                        error = getErrorCode(existingProducerFuture);
-                        // remove producer with producerId as it's already completed with exception
-                        producers.remove(producerId, existingProducerFuture);
-                    }
                     log.warn("[{}][{}] Producer with id is already present on the connection, producerId={}",
                             remoteAddress, topicName, producerId);
-                    commandSender.sendErrorResponse(requestId, error, "Producer is already present on the connection");
-                    return null;
+                    commandSender.sendErrorResponse(requestId, ServerError.ServiceNotReady,
+                            "Producer is already present on the connection");
+                } else if (existingProducerFuture.isCompletedExceptionally()) {
+                    // remove producer with producerId as it's already completed with exception
+                    log.warn("[{}][{}] Producer with id is failed to register present on the connection, producerId={}",
+                            remoteAddress, topicName, producerId);
+                    ServerError error = getErrorCode(existingProducerFuture);
+                    producers.remove(producerId, existingProducerFuture);
+                    commandSender.sendErrorResponse(requestId, error,
+                            "Producer is already failed to register present on the connection");
+                } else {
+                    Producer producer = existingProducerFuture.getNow(null);
+                    log.info("[{}] [{}] Producer with the same id is already created:"
+                            + " producerId={}, producer={}", remoteAddress, topicName, producerId, producer);
+                    commandSender.sendProducerSuccessResponse(requestId, producer.getProducerName(),
+                            producer.getSchemaVersion());
                 }
+                return null;
             }
 
             if (log.isDebugEnabled()) {
-                log.debug("[{}][{}] Creating producer. producerId={}, schema is {}", remoteAddress, topicName,
-                        producerId, schema == null ? "absent" : "present");
+                log.debug("[{}][{}] Creating producer. producerId={}, producerName={}, schema is {}", remoteAddress,
+                        topicName, producerId, producerName, schema == null ? "absent" : "present");
             }
 
             service.getOrCreateTopic(topicName.toString()).thenCompose((Topic topic) -> {
@@ -1741,17 +1752,15 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             return;
         }
 
-        // This position is only used for shadow replicator
-        Position position = send.hasMessageId()
-                ? PositionImpl.get(send.getMessageId().getLedgerId(), send.getMessageId().getEntryId()) : null;
+        MessageIdData messageIdData = send.hasMessageId() ? send.getMessageId() : null;
 
         // Persist the message
         if (send.hasHighestSequenceId() && send.getSequenceId() <= send.getHighestSequenceId()) {
             producer.publishMessage(send.getProducerId(), send.getSequenceId(), send.getHighestSequenceId(),
-                    headersAndPayload, send.getNumMessages(), send.isIsChunk(), send.isMarker(), position);
+                    headersAndPayload, send.getNumMessages(), send.isIsChunk(), send.isMarker(), messageIdData);
         } else {
             producer.publishMessage(send.getProducerId(), send.getSequenceId(), headersAndPayload,
-                    send.getNumMessages(), send.isIsChunk(), send.isMarker(), position);
+                    send.getNumMessages(), send.isIsChunk(), send.isMarker(), messageIdData);
         }
     }
 
@@ -2123,6 +2132,12 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 @Override
                 public void readEntryFailed(ManagedLedgerException exception, Object ctx) {
                     entryFuture.completeExceptionally(exception);
+                }
+
+                @Override
+                public String toString() {
+                    return String.format("ServerCnx [{}] get largest batch index when possible",
+                            ServerCnx.this.ctx.channel());
                 }
             }, null);
 
