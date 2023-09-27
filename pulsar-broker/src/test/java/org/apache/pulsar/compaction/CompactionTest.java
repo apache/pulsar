@@ -2248,6 +2248,9 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
             Assert.assertEquals(remove, message.getValue());
         }
 
+        Awaitility.await().untilAsserted(() ->
+                assertEquals(admin.topics().getStats(topicName, true).getSubscriptions().get(subName).getMsgBacklog(), 0));
+
         // Make consumer reconnect to broker
         admin.topics().unload(topicName);
 

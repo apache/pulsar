@@ -103,7 +103,8 @@ public class CompactedTopicImpl implements CompactedTopic {
             PositionImpl cursorPosition;
             boolean readFromEarliest = false;
             if (!cursor.isDurable() || ((ManagedCursorImpl) cursor).isCompactionCursor()
-                    || cursor.getPersistentMarkDeletedPosition() == null) {
+                    || cursor.getMarkDeletedPosition() == null
+                    || cursor.getMarkDeletedPosition().getEntryId() == -1L) {
                 readFromEarliest = isFirstRead && MessageId.earliest.equals(consumer.getStartMessageId());
             }
             if (readFromEarliest){
