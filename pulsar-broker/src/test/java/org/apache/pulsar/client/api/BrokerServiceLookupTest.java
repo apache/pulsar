@@ -27,6 +27,7 @@ import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
+import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
 import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.MoreExecutors;
 import io.netty.handler.codec.http.HttpRequest;
@@ -71,9 +72,13 @@ import org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl;
 import org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerWrapper;
 import org.apache.pulsar.broker.loadbalance.impl.SimpleResourceUnit;
 import org.apache.pulsar.broker.namespace.NamespaceService;
+import org.apache.pulsar.broker.namespace.OwnedBundle;
+import org.apache.pulsar.broker.namespace.OwnershipCache;
+import org.apache.pulsar.broker.namespace.ServiceUnitUtils;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.testcontext.PulsarTestContext;
 import org.apache.pulsar.client.impl.BinaryProtoLookupService;
+import org.apache.pulsar.client.impl.ClientCnx;
 import org.apache.pulsar.client.impl.LookupService;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.common.naming.NamespaceBundle;
@@ -87,6 +92,7 @@ import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.common.util.SecurityUtility;
 import org.apache.pulsar.policies.data.loadbalancer.LocalBrokerData;
 import org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats;
+import org.apache.zookeeper.KeeperException;
 import org.asynchttpclient.AsyncCompletionHandler;
 import org.asynchttpclient.AsyncHttpClient;
 import org.asynchttpclient.AsyncHttpClientConfig;
@@ -1103,6 +1109,103 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         @Override
         public String authenticate(AuthenticationDataSource authData) throws AuthenticationException {
             return "invalid";
+        }
+    }
+
+    @Test
+    public void testLookupConnectionNotCloseIfGetUnloadingExOrMetadataEx() throws Exception {
+        String tpName = BrokerTestUtil.newUniqueName("persistent://public/default/tp");
+        admin.topics().createNonPartitionedTopic(tpName);
+        PulsarClientImpl pulsarClientImpl = (PulsarClientImpl) pulsarClient;
+        Producer<String> producer = pulsarClientImpl.newProducer(Schema.STRING).topic(tpName).create();
+        Consumer<String> consumer = pulsarClientImpl.newConsumer(Schema.STRING).topic(tpName)
+                .subscriptionName("s1").isAckReceiptEnabled(true).subscribe();
+        LookupService lookupService = pulsarClientImpl.getLookup();
+        assertTrue(lookupService instanceof BinaryProtoLookupService);
+        ClientCnx lookupConnection = pulsarClientImpl.getCnxPool().getConnection(lookupService.resolveHost()).join();
+
+        // Verify the socket will not be closed if the bundle is unloading.
+        BundleOfTopic bundleOfTopic = new BundleOfTopic(tpName);
+        bundleOfTopic.setBundleIsUnloading();
+        try {
+            lookupService.getBroker(TopicName.get(tpName)).get();
+            fail("It should failed due to the namespace bundle is unloading.");
+        } catch (Exception ex) {
+            assertTrue(ex.getMessage().contains("is being unloaded"));
+        }
+        // Do unload topic, trigger producer & consumer reconnection.
+        pulsar.getBrokerService().getTopic(tpName, false).join().get().close(true);
+        assertTrue(lookupConnection.ctx().channel().isActive());
+        bundleOfTopic.setBundleIsNotUnloading();
+        //  Assert producer & consumer could reconnect successful.
+        producer.send("1");
+        HashSet<String> messagesReceived = new HashSet<>();
+        while (true) {
+            Message<String> msg = consumer.receive(2, TimeUnit.SECONDS);
+            if (msg == null) {
+                break;
+            }
+            messagesReceived.add(msg.getValue());
+        }
+        assertTrue(messagesReceived.contains("1"));
+
+        // Verify the socket will not be closed if get a metadata ex.
+        bundleOfTopic.releaseBundleLockAndMakeAcquireFail();
+        try {
+            lookupService.getBroker(TopicName.get(tpName)).get();
+            fail("It should failed due to the acquire bundle lock fail.");
+        } catch (Exception ex) {
+            assertTrue(ex.getMessage().contains("OperationTimeout"));
+        }
+        // Do unload topic, trigger producer & consumer reconnection.
+        pulsar.getBrokerService().getTopic(tpName, false).join().get().close(true);
+        assertTrue(lookupConnection.ctx().channel().isActive());
+        bundleOfTopic.makeAcquireBundleLockSuccess();
+        // Assert producer could reconnect successful.
+        producer.send("2");
+        while (true) {
+            Message<String> msg = consumer.receive(2, TimeUnit.SECONDS);
+            if (msg == null) {
+                break;
+            }
+            messagesReceived.add(msg.getValue());
+        }
+        assertTrue(messagesReceived.contains("2"));
+
+        // cleanup.
+        producer.close();
+        consumer.close();
+        admin.topics().delete(tpName);
+    }
+
+    private class BundleOfTopic {
+
+        private NamespaceBundle namespaceBundle;
+        private OwnershipCache ownershipCache;
+        private AsyncLoadingCache<NamespaceBundle, OwnedBundle> ownedBundlesCache;
+
+        public BundleOfTopic(String tpName) {
+            namespaceBundle = pulsar.getNamespaceService().getBundle(TopicName.get(tpName));
+            ownershipCache = pulsar.getNamespaceService().getOwnershipCache();
+            ownedBundlesCache = WhiteboxImpl.getInternalState(ownershipCache, "ownedBundlesCache");
+        }
+
+        private void setBundleIsUnloading() {
+            ownedBundlesCache.get(namespaceBundle).join().setActive(false);
+        }
+
+        private void setBundleIsNotUnloading() {
+            ownedBundlesCache.get(namespaceBundle).join().setActive(true);
+        }
+
+        private void releaseBundleLockAndMakeAcquireFail() throws Exception {
+            ownedBundlesCache.synchronous().invalidateAll();
+            mockZooKeeper.delete(ServiceUnitUtils.path(namespaceBundle), -1);
+            mockZooKeeper.setAlwaysFail(KeeperException.Code.OPERATIONTIMEOUT);
+        }
+
+        private void makeAcquireBundleLockSuccess() throws Exception {
+            mockZooKeeper.unsetAlwaysFail();
         }
     }
 }
