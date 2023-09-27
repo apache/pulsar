@@ -25,6 +25,7 @@ import static org.testng.AssertJUnit.assertTrue;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.util.concurrent.TimeUnit;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.bookie.BookieImpl;
 import org.apache.bookkeeper.net.BookieId;
 import org.apache.bookkeeper.test.BookKeeperClusterTestCase;
@@ -41,6 +42,7 @@ import org.testng.annotations.Test;
 /**
  * Test the AuditorPeer.
  */
+@Slf4j
 public class AutoRecoveryMainTest extends BookKeeperClusterTestCase {
 
     public AutoRecoveryMainTest() throws Exception {
@@ -66,6 +68,7 @@ public class AutoRecoveryMainTest extends BookKeeperClusterTestCase {
      */
     @Test
     public void testStartup() throws Exception {
+        log.info("testStartup()");
         confByIndex(0).setMetadataServiceUri(
                 zkUtil.getMetadataServiceUri().replaceAll("zk://", "metadata-store:").replaceAll("/ledgers", ""));
         AutoRecoveryMain main = new AutoRecoveryMain(confByIndex(0));
@@ -86,6 +89,7 @@ public class AutoRecoveryMainTest extends BookKeeperClusterTestCase {
      */
     @Test
     public void testShutdown() throws Exception {
+        log.info("testShutdown()");
         confByIndex(0).setMetadataServiceUri(
                 zkUtil.getMetadataServiceUri().replaceAll("zk://", "metadata-store:").replaceAll("/ledgers", ""));
         AutoRecoveryMain main = new AutoRecoveryMain(confByIndex(0));
@@ -109,6 +113,7 @@ public class AutoRecoveryMainTest extends BookKeeperClusterTestCase {
      */
     @Test
     public void testAutoRecoverySessionLoss() throws Exception {
+        log.info("testAutoRecoverySessionLoss()");
         confByIndex(0).setMetadataServiceUri(
                 zkUtil.getMetadataServiceUri().replaceAll("zk://", "metadata-store:").replaceAll("/ledgers", ""));
         confByIndex(1).setMetadataServiceUri(
