@@ -937,7 +937,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                             + "AuthenticationProvider for original role using auth method "
                                             + "[" + originalAuthMethod + "] is not available"));
                     originalPrincipal = authRole;
-                    completeConnect(clientProtocolVersion, clientVersion);
+                    completeConnect(clientProtocolVersion, clientVersion, enableSubscriptionPatternEvaluation);
                     return;
                 }
 
