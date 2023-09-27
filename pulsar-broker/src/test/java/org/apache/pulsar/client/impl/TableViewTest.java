@@ -20,16 +20,20 @@ package org.apache.pulsar.client.impl;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.fail;
 
 import com.google.common.collect.Sets;
+import java.lang.reflect.Method;
 import java.time.Duration;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -39,6 +43,7 @@ import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
+import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
@@ -46,6 +51,7 @@ import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.TableView;
+import org.apache.pulsar.client.api.TopicMessageId;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
@@ -437,5 +443,56 @@ public class TableViewTest extends MockedPulsarServiceBaseTest {
             assertEquals(tv.size(), msgCnt);
         });
         verify(consumer, times(msgCnt)).receiveAsync();
+    }
+
+    @Test
+    public void testBuildTableViewWithMessagesAlwaysAvailable() throws Exception {
+        String topic = "persistent://public/default/testBuildTableViewWithMessagesAlwaysAvailable";
+        admin.topics().createPartitionedTopic(topic, 10);
+        @Cleanup
+        Reader<byte[]> reader = pulsarClient.newReader()
+                .topic(topic)
+                .startMessageId(MessageId.earliest)
+                .create();
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(topic)
+                .create();
+        // Prepare real data to do test.
+        for (int i = 0; i < 1000; i++) {
+            producer.newMessage().send();
+        }
+        List<TopicMessageId> lastMessageIds = reader.getLastMessageIds();
+
+        // Use mock reader to build tableview. In the old implementation, the readAllExistingMessages method
+        // will not be completed because the `mockReader.hasMessageAvailable()` always return ture.
+        Reader<byte[]> mockReader = spy(reader);
+        when(mockReader.hasMessageAvailable()).thenReturn(true);
+        when(mockReader.getLastMessageIdsAsync()).thenReturn(CompletableFuture.completedFuture(lastMessageIds));
+        AtomicInteger index = new AtomicInteger(lastMessageIds.size());
+        when(mockReader.readNextAsync()).thenAnswer(invocation -> {
+            Message<byte[]> message = spy(Message.class);
+            int localIndex = index.decrementAndGet();
+            when(message.getTopicName()).thenReturn(lastMessageIds.get(localIndex).getOwnerTopic());
+            when(message.getMessageId()).thenReturn(lastMessageIds.get(localIndex));
+            when(message.hasKey()).thenReturn(false);
+            doNothing().when(message).release();
+            return CompletableFuture.completedFuture(message);
+        });
+        @Cleanup
+        TableViewImpl<byte[]> tableView = (TableViewImpl<byte[]>) pulsarClient.newTableView()
+                .topic(topic)
+                .createAsync()
+                .get();
+        TableViewImpl<byte[]> mockTableView = spy(tableView);
+        Method readAllExistingMessagesMethod = TableViewImpl.class
+                .getDeclaredMethod("readAllExistingMessages", Reader.class);
+        readAllExistingMessagesMethod.setAccessible(true);
+        CompletableFuture<Reader<?>> future =
+                (CompletableFuture<Reader<?>>) readAllExistingMessagesMethod.invoke(mockTableView, mockReader);
+
+        // The future will complete after receive all the messages from lastMessageIds.
+        future.get(3, TimeUnit.SECONDS);
+        assertEquals(index.get(), 0);
     }
 }

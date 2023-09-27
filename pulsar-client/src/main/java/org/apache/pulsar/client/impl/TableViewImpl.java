@@ -22,6 +22,7 @@ import static org.apache.pulsar.common.topics.TopicCompactionStrategy.TABLE_VIEW
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -41,6 +42,7 @@ import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.ReaderBuilder;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.TableView;
+import org.apache.pulsar.client.api.TopicMessageId;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.topics.TopicCompactionStrategy;
 
@@ -235,12 +237,18 @@ public class TableViewImpl<T> implements TableView<T> {
         AtomicLong messagesRead = new AtomicLong();
 
         CompletableFuture<Reader<T>> future = new CompletableFuture<>();
-        readAllExistingMessages(reader, future, startTime, messagesRead);
+        reader.getLastMessageIdsAsync().thenAccept(lastMessageIds -> {
+            Map<String, TopicMessageId> maxMessageIds = new HashMap<>();
+            lastMessageIds.forEach(topicMessageId -> {
+                maxMessageIds.put(topicMessageId.getOwnerTopic(), topicMessageId);
+            });
+            readAllExistingMessages(reader, future, startTime, messagesRead, maxMessageIds);
+        });
         return future;
     }
 
     private void readAllExistingMessages(Reader<T> reader, CompletableFuture<Reader<T>> future, long startTime,
-                                         AtomicLong messagesRead) {
+                                         AtomicLong messagesRead, Map<String, TopicMessageId> maxMessageIds) {
         reader.hasMessageAvailableAsync()
                 .thenAccept(hasMessage -> {
                    if (hasMessage) {
@@ -248,7 +256,17 @@ public class TableViewImpl<T> implements TableView<T> {
                                .thenAccept(msg -> {
                                   messagesRead.incrementAndGet();
                                   handleMessage(msg);
-                                  readAllExistingMessages(reader, future, startTime, messagesRead);
+                                  // The message is read one by one in a single thread,
+                                  // so it's fine that uses a hashmap to store last message ID.
+                                  TopicMessageId maxMessageId = maxMessageIds.get(msg.getTopicName());
+                                  if (maxMessageId != null && msg.getMessageId().compareTo(maxMessageId) >= 0) {
+                                      maxMessageIds.remove(msg.getTopicName());
+                                  }
+                                  if (maxMessageIds.size() == 0) {
+                                      future.complete(reader);
+                                  } else {
+                                      readAllExistingMessages(reader, future, startTime, messagesRead, maxMessageIds);
+                                  }
                                }).exceptionally(ex -> {
                                    if (ex.getCause() instanceof PulsarClientException.AlreadyClosedException) {
                                        log.error("Reader {} was closed while reading existing messages.",
