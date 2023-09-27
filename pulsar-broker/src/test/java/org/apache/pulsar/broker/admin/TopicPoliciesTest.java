@@ -3085,10 +3085,18 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
-    public void testInitPolicesCacheAndNotifyListeners() throws Exception {
+    public void testInitTopicPolicy() throws Exception {
+        // create topic
         final String topic = testTopic + UUID.randomUUID();
         admin.topics().createNonPartitionedTopic(topic);
         pulsarClient.newProducer().topic(topic).create().close();
+
+        // unload
+        admin.namespaces().unload(myNamespace);
+        // the policies cache
+        SystemTopicBasedTopicPoliciesService topicPoliciesService
+                = (SystemTopicBasedTopicPoliciesService) pulsar.getTopicPoliciesService();
+        assertNull(topicPoliciesService.getPoliciesCacheInit(NamespaceName.get(myNamespace)));
 
         // set up policies
         TopicName topicName = TopicName.get(topic);
@@ -3098,18 +3106,14 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
                 TopicPolicies.builder().maxConsumerPerTopic(20).maxProducerPerTopic(30).isGlobal(true).build();
         pulsar.getTopicPoliciesService().updateTopicPoliciesAsync(topicName, globalInitPolicy).get();
 
-        // the policies cache
-        SystemTopicBasedTopicPoliciesService topicPoliciesService
-                = (SystemTopicBasedTopicPoliciesService) pulsar.getTopicPoliciesService();
-
-        // reload namespace to trigger init polices cache and notify listeners
-        admin.namespaces().unload(myNamespace);
-        assertNull(topicPoliciesService.getPoliciesCacheInit(NamespaceName.get(myNamespace)));
-        pulsarClient.newProducer().topic(topic).create().close();
         Awaitility.await().untilAsserted(
                 () -> assertEquals(topicPoliciesService.getPoliciesCacheInit(NamespaceName.get(myNamespace)).isDone()
                         && !topicPoliciesService.getPoliciesCacheInit(NamespaceName.get(myNamespace))
                         .isCompletedExceptionally(), true));
+
+        // load up topic after the corresponding namespace's policy caches initialization to make sure the topic
+        // polices applied in `org.apache.pulsar.broker.service.persistent.PersistentTopic.initTopicPolicy`
+        pulsarClient.newProducer().topic(topic).create().close();
 
         // the final policies take effect in topic
         HierarchyTopicPolicies hierarchyTopicPolicies =
@@ -3129,12 +3133,13 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
-    public void testInitPolicesCacheAndNotifyListenersAfterCompaction() throws Exception {
+    public void testInitPolicesCacheAndNotifyListeners() throws Exception {
+        // create topic
         final String topic = testTopic + UUID.randomUUID();
         admin.topics().createNonPartitionedTopic(topic);
         pulsarClient.newProducer().topic(topic).create().close();
 
-        // set up policies
+        // set up policies for testTopic
         TopicName topicName = TopicName.get(topic);
         TopicPolicies localInitPolicy = TopicPolicies.builder().maxConsumerPerTopic(10).build();
         pulsar.getTopicPoliciesService().updateTopicPoliciesAsync(topicName, localInitPolicy).get();
@@ -3142,32 +3147,41 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
                 TopicPolicies.builder().maxConsumerPerTopic(20).maxProducerPerTopic(30).isGlobal(true).build();
         pulsar.getTopicPoliciesService().updateTopicPoliciesAsync(topicName, globalInitPolicy).get();
 
-        // Trigger compaction and make sure it is finished.
-        String changeEventTopic = "persistent://" + myNamespace + "/" + SystemTopicNames.NAMESPACE_EVENTS_LOCAL_NAME;
-        PersistentTopic brokerTopic =
-                (PersistentTopic) pulsar.getBrokerService().getTopicIfExists(changeEventTopic).get().get();
-        assertEquals(brokerTopic.compactionStatus().status, LongRunningProcessStatus.Status.NOT_RUN);
-        brokerTopic.triggerCompaction();
-        Awaitility.await().untilAsserted(
-                () -> assertEquals(brokerTopic.compactionStatus().status, LongRunningProcessStatus.Status.SUCCESS));
+        /*
+          if the topic initialization is completed before the corresponding namespace's policy caches initialization,
+           the topic policies will be applied in
+          `org.apache.pulsar.broker.service.SystemTopicBasedTopicPoliciesService.initPolicesCacheAndNotifyListeners`,
+          otherwise it will be applied in
+          `org.apache.pulsar.broker.service.persistent.PersistentTopic.initTopicPolicy`
 
-        // the policies cache
-        SystemTopicBasedTopicPoliciesService topicPoliciesService
-                = (SystemTopicBasedTopicPoliciesService) pulsar.getTopicPoliciesService();
+          the topicPolicyEventsTopic initialization always completed before the corresponding namespace's policy
+          caches initialization, use topicPolicyEventsTopic to verify `initPolicesCacheAndNotifyListeners`
+         */
+        // set up policies for eventsTopic
+        TopicName eventsTopicName = TopicName.get(topicPolicyEventsTopic);
+        TopicPolicies eventsLocalInitPolicy = TopicPolicies.builder().maxConsumerPerTopic(40).build();
+        pulsar.getTopicPoliciesService().updateTopicPoliciesAsync(eventsTopicName, eventsLocalInitPolicy).get();
+        TopicPolicies eventsGlobalInitPolicy =
+                TopicPolicies.builder().maxConsumerPerTopic(50).maxProducerPerTopic(60).isGlobal(true).build();
+        pulsar.getTopicPoliciesService().updateTopicPoliciesAsync(eventsTopicName, eventsGlobalInitPolicy).get();
 
         // reload namespace to trigger init polices cache and notify listeners
         admin.namespaces().unload(myNamespace);
+        // the policies cache
+        SystemTopicBasedTopicPoliciesService topicPoliciesService
+                = (SystemTopicBasedTopicPoliciesService) pulsar.getTopicPoliciesService();
         assertNull(topicPoliciesService.getPoliciesCacheInit(NamespaceName.get(myNamespace)));
+
         pulsarClient.newProducer().topic(topic).create().close();
         Awaitility.await().untilAsserted(
                 () -> assertEquals(topicPoliciesService.getPoliciesCacheInit(NamespaceName.get(myNamespace)).isDone()
                         && !topicPoliciesService.getPoliciesCacheInit(NamespaceName.get(myNamespace))
                         .isCompletedExceptionally(), true));
 
+        // check testTopic start
         // the final policies take effect in topic
         HierarchyTopicPolicies hierarchyTopicPolicies =
                 pulsar.getBrokerService().getTopics().get(topic).get().get().getHierarchyTopicPolicies();
-
         assertEquals(topicPoliciesService.getTopicPolicies(topicName).getMaxConsumerPerTopic(), 10);
         assertEquals(topicPoliciesService.getTopicPolicies(topicName, true).getMaxConsumerPerTopic(), 20);
         assertEquals(hierarchyTopicPolicies.getMaxConsumerPerTopic().getGlobalTopicValue(), 20);
@@ -3179,8 +3193,114 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         assertEquals(hierarchyTopicPolicies.getMaxProducersPerTopic().getGlobalTopicValue(), 30);
         assertEquals(hierarchyTopicPolicies.getMaxProducersPerTopic().getLocalTopicValue(), null);
         assertEquals(hierarchyTopicPolicies.getMaxProducersPerTopic().get(), 30);
+        // check testTopic end
+
+        // check eventsTopic start
+        // the final policies take effect in topic
+        HierarchyTopicPolicies eventsHierarchyTopicPolicies =
+                pulsar.getBrokerService().getTopics().get(topicPolicyEventsTopic).get().get().getHierarchyTopicPolicies();
+        assertEquals(topicPoliciesService.getTopicPolicies(eventsTopicName).getMaxConsumerPerTopic(), 40);
+        assertEquals(topicPoliciesService.getTopicPolicies(eventsTopicName, true).getMaxConsumerPerTopic(), 50);
+        assertEquals(eventsHierarchyTopicPolicies.getMaxConsumerPerTopic().getGlobalTopicValue(), 50);
+        assertEquals(eventsHierarchyTopicPolicies.getMaxConsumerPerTopic().getLocalTopicValue(), 40);
+        assertEquals(eventsHierarchyTopicPolicies.getMaxConsumerPerTopic().get(), 40);
+
+        assertEquals(topicPoliciesService.getTopicPolicies(eventsTopicName).getMaxProducerPerTopic(), null);
+        assertEquals(topicPoliciesService.getTopicPolicies(eventsTopicName, true).getMaxProducerPerTopic(), 60);
+        assertEquals(eventsHierarchyTopicPolicies.getMaxProducersPerTopic().getGlobalTopicValue(), 60);
+        assertEquals(eventsHierarchyTopicPolicies.getMaxProducersPerTopic().getLocalTopicValue(), null);
+        assertEquals(eventsHierarchyTopicPolicies.getMaxProducersPerTopic().get(), 60);
+        // check eventsTopic end
     }
 
+    @Test
+    public void testInitPolicesCacheAndNotifyListenersAfterCompaction() throws Exception {
+        // create topic
+        final String topic = testTopic + UUID.randomUUID();
+        admin.topics().createNonPartitionedTopic(topic);
+        pulsarClient.newProducer().topic(topic).create().close();
+
+        // set up policies for testTopic
+        TopicName topicName = TopicName.get(topic);
+        TopicPolicies localInitPolicy = TopicPolicies.builder().maxConsumerPerTopic(10).build();
+        pulsar.getTopicPoliciesService().updateTopicPoliciesAsync(topicName, localInitPolicy).get();
+        TopicPolicies globalInitPolicy =
+                TopicPolicies.builder().maxConsumerPerTopic(20).maxProducerPerTopic(30).isGlobal(true).build();
+        pulsar.getTopicPoliciesService().updateTopicPoliciesAsync(topicName, globalInitPolicy).get();
+
+        /*
+          if the topic initialization is completed before the corresponding namespace's policy caches initialization,
+           the topic policies will be applied in
+          `org.apache.pulsar.broker.service.SystemTopicBasedTopicPoliciesService.initPolicesCacheAndNotifyListeners`,
+          otherwise it will be applied in
+          `org.apache.pulsar.broker.service.persistent.PersistentTopic.initTopicPolicy`
+
+          the topicPolicyEventsTopic initialization always completed before the corresponding namespace's policy
+          caches initialization, use topicPolicyEventsTopic to verify `initPolicesCacheAndNotifyListeners`
+         */
+        // set up policies for eventsTopic
+        TopicName eventsTopicName = TopicName.get(topicPolicyEventsTopic);
+        TopicPolicies eventsLocalInitPolicy = TopicPolicies.builder().maxConsumerPerTopic(40).build();
+        pulsar.getTopicPoliciesService().updateTopicPoliciesAsync(eventsTopicName, eventsLocalInitPolicy).get();
+        TopicPolicies eventsGlobalInitPolicy =
+                TopicPolicies.builder().maxConsumerPerTopic(50).maxProducerPerTopic(60).isGlobal(true).build();
+        pulsar.getTopicPoliciesService().updateTopicPoliciesAsync(eventsTopicName, eventsGlobalInitPolicy).get();
+
+        // Trigger compaction and make sure it is finished.
+        PersistentTopic brokerTopic =
+                (PersistentTopic) pulsar.getBrokerService().getTopicIfExists(topicPolicyEventsTopic).get().get();
+        assertEquals(brokerTopic.compactionStatus().status, LongRunningProcessStatus.Status.NOT_RUN);
+        brokerTopic.triggerCompaction();
+        Awaitility.await().untilAsserted(
+                () -> assertEquals(brokerTopic.compactionStatus().status, LongRunningProcessStatus.Status.SUCCESS));
+
+        // reload namespace to trigger init polices cache and notify listeners
+        admin.namespaces().unload(myNamespace);
+        // the policies cache
+        SystemTopicBasedTopicPoliciesService topicPoliciesService
+                = (SystemTopicBasedTopicPoliciesService) pulsar.getTopicPoliciesService();
+        assertNull(topicPoliciesService.getPoliciesCacheInit(NamespaceName.get(myNamespace)));
+
+        pulsarClient.newProducer().topic(topic).create().close();
+        Awaitility.await().untilAsserted(
+                () -> assertEquals(topicPoliciesService.getPoliciesCacheInit(NamespaceName.get(myNamespace)).isDone()
+                        && !topicPoliciesService.getPoliciesCacheInit(NamespaceName.get(myNamespace))
+                        .isCompletedExceptionally(), true));
+
+        // check testTopic start
+        // the final policies take effect in topic
+        HierarchyTopicPolicies hierarchyTopicPolicies =
+                pulsar.getBrokerService().getTopics().get(topic).get().get().getHierarchyTopicPolicies();
+        assertEquals(topicPoliciesService.getTopicPolicies(topicName).getMaxConsumerPerTopic(), 10);
+        assertEquals(topicPoliciesService.getTopicPolicies(topicName, true).getMaxConsumerPerTopic(), 20);
+        assertEquals(hierarchyTopicPolicies.getMaxConsumerPerTopic().getGlobalTopicValue(), 20);
+        assertEquals(hierarchyTopicPolicies.getMaxConsumerPerTopic().getLocalTopicValue(), 10);
+        assertEquals(hierarchyTopicPolicies.getMaxConsumerPerTopic().get(), 10);
+
+        assertEquals(topicPoliciesService.getTopicPolicies(topicName).getMaxProducerPerTopic(), null);
+        assertEquals(topicPoliciesService.getTopicPolicies(topicName, true).getMaxProducerPerTopic(), 30);
+        assertEquals(hierarchyTopicPolicies.getMaxProducersPerTopic().getGlobalTopicValue(), 30);
+        assertEquals(hierarchyTopicPolicies.getMaxProducersPerTopic().getLocalTopicValue(), null);
+        assertEquals(hierarchyTopicPolicies.getMaxProducersPerTopic().get(), 30);
+        // check testTopic end
+
+        // check eventsTopic start
+        // the final policies take effect in topic
+        HierarchyTopicPolicies eventsHierarchyTopicPolicies =
+                pulsar.getBrokerService().getTopics().get(topicPolicyEventsTopic).get().get().getHierarchyTopicPolicies();
+        assertEquals(topicPoliciesService.getTopicPolicies(eventsTopicName).getMaxConsumerPerTopic(), 40);
+        assertEquals(topicPoliciesService.getTopicPolicies(eventsTopicName, true).getMaxConsumerPerTopic(), 50);
+        assertEquals(eventsHierarchyTopicPolicies.getMaxConsumerPerTopic().getGlobalTopicValue(), 50);
+        assertEquals(eventsHierarchyTopicPolicies.getMaxConsumerPerTopic().getLocalTopicValue(), 40);
+        assertEquals(eventsHierarchyTopicPolicies.getMaxConsumerPerTopic().get(), 40);
+
+        assertEquals(topicPoliciesService.getTopicPolicies(eventsTopicName).getMaxProducerPerTopic(), null);
+        assertEquals(topicPoliciesService.getTopicPolicies(eventsTopicName, true).getMaxProducerPerTopic(), 60);
+        assertEquals(eventsHierarchyTopicPolicies.getMaxProducersPerTopic().getGlobalTopicValue(), 60);
+        assertEquals(eventsHierarchyTopicPolicies.getMaxProducersPerTopic().getLocalTopicValue(), null);
+        assertEquals(eventsHierarchyTopicPolicies.getMaxProducersPerTopic().get(), 60);
+        // check eventsTopic end
+    }
 
     @Test
     public void testMaxMessageSizeWithChunking() throws Exception {
