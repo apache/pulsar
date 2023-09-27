@@ -112,6 +112,10 @@ public interface Topic {
         default boolean isChunked() {
             return false;
         }
+
+        default ByteBuf getHeaderAndPayload() {
+            return null;
+        }
     }
 
     CompletableFuture<Void> initialize();
