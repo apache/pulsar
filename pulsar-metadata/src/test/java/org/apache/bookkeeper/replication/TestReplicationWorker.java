@@ -1168,7 +1168,7 @@ public class TestReplicationWorker extends BookKeeperClusterTestCase {
         if (checkReplicationStats == null) {
             rw.shutdown();
         }
-        baseConf.setRepairedPlacementPolicyNotAdheringBookieEnable(true);
+        baseConf.setRepairedPlacementPolicyNotAdheringBookieEnable(false);
         bookKeeper.close();
     }
 
