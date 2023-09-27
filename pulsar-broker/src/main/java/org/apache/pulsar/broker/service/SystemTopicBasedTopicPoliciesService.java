@@ -131,11 +131,11 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                     return systemTopicClient.newWriterAsync()
                             .thenCompose(writer -> {
                                 PulsarEvent event = getPulsarEvent(topicName, actionType, policies);
-                                CompletableFuture<MessageId> writeFuture = ActionType.DELETE.equals(actionType) ?
+                                CompletableFuture<MessageId> writeFuture = ActionType.DELETE.equals(actionType)
                                         // need to delete both of local and global policies
-                                        writer.deleteAsync(getLocalEventKey(event), event)
-                                                .thenCombine(writer.deleteAsync(getGlobalEventKey(event), event),
-                                                        (global, local) -> global)
+                                        ? writer.deleteAsync(getLocalEventKey(event), event)
+                                        .thenCombine(writer.deleteAsync(getGlobalEventKey(event), event),
+                                                (global, local) -> global)
                                         : writer.writeAsync(getEventKey(event), event);
                             return writeFuture.handle((messageId, e) -> {
                                 if (e != null) {
@@ -403,7 +403,8 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                 });
     }
 
-    private void initPolicesCacheAndNotifyListeners(SystemTopicClient.Reader<PulsarEvent> reader, CompletableFuture<Void> future) {
+    private void initPolicesCacheAndNotifyListeners(SystemTopicClient.Reader<PulsarEvent> reader,
+                                                    CompletableFuture<Void> future) {
         reader.hasMoreEventsAsync().whenComplete((hasMore, ex) -> {
             if (ex != null) {
                 log.error("[{}] Failed to check the move events for the system topic",
@@ -635,7 +636,7 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
     }
 
     /**
-     * Get event key from event
+     * Get event key from event.
      * @param event
      * Make sure event.topicPoliciesEvent.policies is not null
      */
@@ -653,7 +654,7 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
     }
 
     /**
-     * Get event key from event
+     * Get event key from event.
      * @param event
      * @param isGlobal
      * Use isGlobal to distinguish local and global polices
@@ -666,7 +667,7 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
     }
 
     /**
-     * Get the original topic name
+     * Get the original topic name.
      * @param key
      * In order to maintain backwards compatibility, only trim the new format event key
      * new format: persistent://tenant/namespace/topic/isGlobal
