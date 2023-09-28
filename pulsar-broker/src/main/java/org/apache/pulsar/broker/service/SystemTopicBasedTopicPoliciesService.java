@@ -470,6 +470,8 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
 
         policyCacheInitMap.compute(namespace, (k, v) -> {
             policiesCache.entrySet().removeIf(entry -> Objects.equals(entry.getKey().getNamespaceObject(), namespace));
+            globalPoliciesCache.entrySet()
+                    .removeIf(entry -> Objects.equals(entry.getKey().getNamespaceObject(), namespace));
             return null;
         });
     }
@@ -540,6 +542,7 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                     // However, due to compatibility, it is temporarily retained here
                     // and can be deleted in the future.
                     policiesCache.remove(topicName);
+                    globalPoliciesCache.remove(topicName);
                     try {
                         createSystemTopicFactoryIfNeeded();
                     } catch (PulsarServerException e) {
@@ -728,6 +731,11 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
     @VisibleForTesting
     protected Map<TopicName, TopicPolicies> getPoliciesCache() {
         return policiesCache;
+    }
+
+    @VisibleForTesting
+    protected Map<TopicName, TopicPolicies> getGlobalPoliciesCache() {
+        return globalPoliciesCache;
     }
 
     @VisibleForTesting

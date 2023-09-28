@@ -245,19 +245,26 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
         TopicName topicName = TopicName.get(topic);
         admin.topics().createPartitionedTopic(topic, 3);
         pulsarClient.newProducer().topic(topic).create().close();
-        admin.topics().setMaxConsumers(topic, 1000);
+
+        admin.topicPolicies().setMaxConsumers(topic, 1000);
+        admin.topicPolicies(true).setMaxConsumers(topic, 2000);
         Awaitility.await().untilAsserted(() ->
                 assertNotNull(admin.topics().getMaxConsumers(topic)));
+
         Map<TopicName, TopicPolicies> map = systemTopicBasedTopicPoliciesService.getPoliciesCache();
+        Map<TopicName, TopicPolicies> globalMap = systemTopicBasedTopicPoliciesService.getGlobalPoliciesCache();
         Map<TopicName, List<TopicPolicyListener<TopicPolicies>>> listMap =
                 systemTopicBasedTopicPoliciesService.getListeners();
+
         assertNotNull(map.get(topicName));
         assertEquals(map.get(topicName).getMaxConsumerPerTopic().intValue(), 1000);
+        assertEquals(globalMap.get(topicName).getMaxConsumerPerTopic().intValue(), 2000);
         assertNotNull(listMap.get(topicName).get(0));
 
         admin.topics().deletePartitionedTopic(topic, true);
         admin.namespaces().unload(NAMESPACE1);
         assertNull(map.get(topicName));
+        assertNull(globalMap.get(topicName));
         assertNull(listMap.get(topicName));
     }
 
