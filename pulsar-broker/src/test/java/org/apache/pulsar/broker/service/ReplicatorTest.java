@@ -1803,4 +1803,77 @@ public class ReplicatorTest extends ReplicatorTestBase {
 
         Assert.assertThrows(PulsarClientException.ProducerBusyException.class, () -> new MessageProducer(url2, dest2));
     }
+
+    @Test
+    public void testReplicatorProducerByBytesSchema() throws Exception {
+        config1.setBrokerDeduplicationEnabled(true);
+        config1.setBrokerDeduplicationEnabled(true);
+        config2.setBrokerDeduplicationEnabled(true);
+        PulsarClient client1 = pulsar1.getClient();
+        PulsarClient client2 = pulsar2.getClient();
+        PulsarClient client3 = pulsar3.getClient();
+        final TopicName topic = TopicName
+                .get(BrokerTestUtil.newUniqueName("persistent://pulsar/ns/testReplicatorProducerByBytesSchema"));
+
+        final String subName = "my-sub";
+
+        // set the schema type to String
+        @Cleanup
+        Producer<String> producer1 = client1.newProducer(Schema.JSON(String.class))
+                .topic(topic.toString())
+                .enableBatching(false)
+                .create();
+
+        @Cleanup
+        Producer<String> producer2 = client2.newProducer(Schema.JSON(String.class))
+                .topic(topic.toString())
+                .enableBatching(false)
+                .create();
+
+        producer1.sendAsync("msg-1");
+        producer2.sendAsync("msg-2");
+
+        // verify the message replicate is normal
+        Awaitility.await().untilAsserted(() -> {
+            assertTrue(admin1.topics().getStats(topic.toString()).getMsgInCounter() > 1);
+            assertTrue(admin2.topics().getStats(topic.toString()).getMsgInCounter() > 1);
+            assertTrue(admin3.topics().getStats(topic.toString()).getMsgInCounter() > 1);
+        });
+
+        // verify the schema replicate is normal
+        Awaitility.await().untilAsserted(() -> {
+            assertTrue(admin1.topics().getInternalStats(topic.toString()).schemaLedgers.size() > 0);
+            assertTrue(admin2.topics().getInternalStats(topic.toString()).schemaLedgers.size() > 0);
+            assertTrue(admin3.topics().getInternalStats(topic.toString()).schemaLedgers.size() > 0);
+        });
+
+        // verify the geo-replication is working properly from the consumer side
+        admin1.topics().createSubscription(topic.toString(), subName, MessageId.latest);
+        admin2.topics().createSubscription(topic.toString(), subName, MessageId.latest);
+        admin3.topics().createSubscription(topic.toString(), subName, MessageId.latest);
+
+        @Cleanup
+        Consumer<String> consumer1 = client1.newConsumer(Schema.JSON(String.class))
+                .topic(topic.toString())
+                .subscriptionName(subName)
+                .subscribe();
+        @Cleanup
+        Consumer<String> consumer2 = client2.newConsumer(Schema.JSON(String.class))
+                .topic(topic.toString())
+                .subscriptionName(subName)
+                .subscribe();
+
+        @Cleanup
+        Consumer<String> consumer3 = client3.newConsumer(Schema.JSON(String.class))
+                .topic(topic.toString())
+                .subscriptionName(subName)
+                .subscribe();
+
+        String msg = "verify-msg";
+        producer1.send(msg);
+
+        assertEquals(consumer1.receive().getValue(), msg);
+        assertEquals(consumer2.receive().getValue(), msg);
+        assertEquals(consumer3.receive().getValue(), msg);
+    }
 }
