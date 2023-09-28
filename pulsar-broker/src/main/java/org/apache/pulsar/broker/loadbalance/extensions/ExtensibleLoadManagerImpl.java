@@ -97,7 +97,6 @@ import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.stats.Metrics;
 import org.apache.pulsar.common.util.FutureUtil;
-import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.metadata.api.coordination.LeaderElectionState;
 import org.slf4j.Logger;
 
@@ -184,10 +183,8 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
     // record split metrics
     private final AtomicReference<List<Metrics>> splitMetrics = new AtomicReference<>();
 
-    private final ConcurrentOpenHashMap<String, CompletableFuture<Optional<BrokerLookupData>>>
-            lookupRequests = ConcurrentOpenHashMap.<String,
-                    CompletableFuture<Optional<BrokerLookupData>>>newBuilder()
-            .build();
+    private final ConcurrentHashMap<String, CompletableFuture<Optional<BrokerLookupData>>>
+            lookupRequests = new ConcurrentHashMap<>();
     private final CountDownLatch initWaiter = new CountDownLatch(1);
 
     /**
