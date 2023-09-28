@@ -19,17 +19,29 @@
 package org.apache.pulsar.client.api;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertNotNull;
+import static org.testng.AssertJUnit.assertTrue;
+import java.lang.reflect.Method;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.bookkeeper.client.LedgerHandle;
+import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
+import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.PulsarChannelInitializer;
 import org.apache.pulsar.broker.service.ServerCnx;
+import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.impl.ConsumerImpl;
+import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.api.proto.CommandFlow;
+import org.awaitility.Awaitility;
+import org.awaitility.reflect.WhiteboxImpl;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -38,7 +50,7 @@ import org.testng.annotations.Test;
 
 @Test(groups = "broker-api")
 @Slf4j
-public class NonDurableSubscriptionTest  extends ProducerConsumerBase {
+public class NonDurableSubscriptionTest extends ProducerConsumerBase {
 
     private final AtomicInteger numFlow = new AtomicInteger(0);
 
@@ -253,5 +265,80 @@ public class NonDurableSubscriptionTest  extends ProducerConsumerBase {
         consumer.close();
 
         assertEquals(numFlow.get(), numPartitions);
+    }
+
+    private void trimLedgers(final String tpName) {
+        // Wait for topic loading.
+        org.awaitility.Awaitility.await().untilAsserted(() -> {
+            PersistentTopic persistentTopic =
+                    (PersistentTopic) pulsar.getBrokerService().getTopic(tpName, false).join().get();
+            assertNotNull(persistentTopic);
+        });
+        PersistentTopic persistentTopic =
+                (PersistentTopic) pulsar.getBrokerService().getTopic(tpName, false).join().get();
+        ManagedLedgerImpl ml = (ManagedLedgerImpl) persistentTopic.getManagedLedger();
+        CompletableFuture<Void> trimLedgersTask = new CompletableFuture<>();
+        ml.trimConsumedLedgersInBackground(trimLedgersTask);
+        trimLedgersTask.join();
+    }
+
+    private void switchLedgerManually(final String tpName) throws Exception {
+        Method ledgerClosed =
+                ManagedLedgerImpl.class.getDeclaredMethod("ledgerClosed", new Class[]{LedgerHandle.class});
+        Method createLedgerAfterClosed =
+                ManagedLedgerImpl.class.getDeclaredMethod("createLedgerAfterClosed", new Class[0]);
+        ledgerClosed.setAccessible(true);
+        createLedgerAfterClosed.setAccessible(true);
+
+        // Wait for topic create.
+        org.awaitility.Awaitility.await().untilAsserted(() -> {
+            PersistentTopic persistentTopic =
+                    (PersistentTopic) pulsar.getBrokerService().getTopic(tpName, false).join().get();
+            assertNotNull(persistentTopic);
+        });
+
+        // Switch ledger.
+        PersistentTopic persistentTopic =
+                (PersistentTopic) pulsar.getBrokerService().getTopic(tpName, false).join().get();
+        ManagedLedgerImpl ml = (ManagedLedgerImpl) persistentTopic.getManagedLedger();
+        LedgerHandle currentLedger1 = WhiteboxImpl.getInternalState(ml, "currentLedger");
+        ledgerClosed.invoke(ml, new Object[]{currentLedger1});
+        createLedgerAfterClosed.invoke(ml, new Object[0]);
+        Awaitility.await().untilAsserted(() -> {
+            LedgerHandle currentLedger2 = WhiteboxImpl.getInternalState(ml, "currentLedger");
+            assertNotEquals(currentLedger1.getId(), currentLedger2.getId());
+        });
+    }
+
+    @Test
+    public void testTrimLedgerIfNoDurableCursor() throws Exception {
+        final String nonDurableCursor = "non-durable-cursor";
+        final String topicName = BrokerTestUtil.newUniqueName("persistent://public/default/tp");
+        Reader<String> reader = pulsarClient.newReader(Schema.STRING).topic(topicName).receiverQueueSize(1)
+                .subscriptionName(nonDurableCursor).startMessageId(MessageIdImpl.earliest).create();
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topicName).create();
+        MessageIdImpl msgSent = (MessageIdImpl) producer.send("1");
+
+        // Trigger switch ledger.
+        // Trigger a trim ledgers task, and verify trim ledgers successful.
+        switchLedgerManually(topicName);
+        trimLedgers(topicName);
+
+        // Since there is one message in the incoming queue, so the method "reader.hasMessageAvailable" should return
+        // true.
+        boolean hasMessageAvailable = reader.hasMessageAvailable();
+        Message<String> msgReceived = reader.readNext(2, TimeUnit.SECONDS);
+        if (msgReceived == null) {
+            assertFalse(hasMessageAvailable);
+        } else {
+            log.info("receive msg: {}", msgReceived.getValue());
+            assertTrue(hasMessageAvailable);
+            assertEquals(msgReceived.getValue(), "1");
+        }
+
+        // cleanup.
+        reader.close();
+        producer.close();
+        admin.topics().delete(topicName);
     }
 }
