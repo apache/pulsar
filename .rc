@@ -1,0 +1,9 @@
+function mvn() {
+    DOCKER_IMAGE=apachepulsar/pulsar-build:ubuntu-20.04
+    DOCKER_RUN_OPTS="--rm -it -v ${PWD}/.m2:/root/.m2 -v ${PWD}:${PWD} -w ${PWD} ${DOCKER_RUN_EXTRA_OPTS}"
+    if [ -n "$ZSH_VERSION" ]; then
+        docker run ${=DOCKER_RUN_OPTS} ${DOCKER_IMAGE} mvn "$@"
+    else
+        docker run ${DOCKER_RUN_OPTS} ${DOCKER_IMAGE} mvn "$@"
+    fi
+}

@@ -1482,6 +1482,7 @@ flexible messaging model and an intuitive client API.</description>
               <excludes>
                 <exclude>LICENSE</exclude>
                 <exclude>NOTICE</exclude>
+                <exclude>Makefile</exclude>
                 <exclude>**/*.txt</exclude>
                 <exclude>**/*.pem</exclude>
                 <exclude>**/*.crt</exclude>

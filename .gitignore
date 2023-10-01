@@ -43,6 +43,8 @@ nb-configuration.xml
 # Maven
 log/
 target/
+.mvn/wrapper/maven-wrapper.jar
+.m2
 
 # Python
 *.pyc
@@ -93,3 +95,12 @@ examples/flink/src/main/java/org/apache/flink/avro/generated
 pulsar-flink/src/test/java/org/apache/flink/avro/generated
 pulsar-client/src/test/java/org/apache/pulsar/client/avro/generated
 /build/
+
+test-reports/
+
+# Gradle Enterprise
+.mvn/.gradle-enterprise/
+
+# Emacs
+*~
+>>>>>>> f3e10eb86c (chore: local, docker-based build)
