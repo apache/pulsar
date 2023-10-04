@@ -376,7 +376,6 @@ public class Producer {
         private long sequenceId;
         private long ledgerId;
         private long entryId;
-        private MessageIdData messageIdData;
         private ByteBuf headerAndPayload;
         private Rate rateIn;
         private int msgSize;
@@ -569,7 +568,6 @@ public class Producer {
             callback.startTimeNs = startTimeNs;
             callback.isMarker = isMarker;
             callback.headerAndPayload = headersAndPayload;
-            callback.messageIdData = messageIdData;
             callback.ledgerId = messageIdData == null ? -1 : messageIdData.getLedgerId();
             callback.entryId = messageIdData == null ? -1 : messageIdData.getEntryId();
             if (callback.propertyMap != null) {
@@ -594,7 +592,6 @@ public class Producer {
             callback.chunked = chunked;
             callback.isMarker = isMarker;
             callback.headerAndPayload = headersAndPayload;
-            callback.messageIdData = messageIdData;
             callback.ledgerId = messageIdData == null ? -1 : messageIdData.getLedgerId();
             callback.entryId = messageIdData == null ? -1 : messageIdData.getEntryId();
             if (callback.propertyMap != null) {
@@ -616,11 +613,6 @@ public class Producer {
         @Override
         public boolean isMarkerMessage() {
             return isMarker;
-        }
-
-        @Override
-        public MessageIdData getMessageIdData() {
-            return messageIdData;
         }
 
         @Override
@@ -654,7 +646,6 @@ public class Producer {
             startTimeNs = -1L;
             chunked = false;
             isMarker = false;
-            messageIdData = null;
             headerAndPayload = null;
             if (propertyMap != null) {
                 propertyMap.clear();
