@@ -1622,11 +1622,11 @@ public class BrokerService implements Closeable {
                     );
                 }
 
+
                 ManagedLedgerConfig managedLedgerConfig = new ManagedLedgerConfig();
                 managedLedgerConfig.setEnsembleSize(persistencePolicies.getBookkeeperEnsemble());
                 managedLedgerConfig.setWriteQuorumSize(persistencePolicies.getBookkeeperWriteQuorum());
                 managedLedgerConfig.setAckQuorumSize(persistencePolicies.getBookkeeperAckQuorum());
-
                 if (localPolicies.isPresent() && localPolicies.get().bookieAffinityGroup != null) {
                     managedLedgerConfig
                             .setBookKeeperEnsemblePlacementPolicyClassName(
@@ -1712,6 +1712,7 @@ public class BrokerService implements Closeable {
 
                 return managedLedgerConfig;
             });
+
         });
     }
 
