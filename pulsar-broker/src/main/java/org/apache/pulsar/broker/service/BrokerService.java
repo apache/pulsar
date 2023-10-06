@@ -1576,7 +1576,7 @@ public class BrokerService implements Closeable {
         final CompletableFuture<Optional<TopicPolicies>> topicPoliciesFuture;
         if (pulsar.getConfig().isTopicLevelPoliciesEnabled()
             && !NamespaceService.isSystemServiceNamespace(namespace.toString())
-            && !SystemTopicNames.isTopicPoliciesSystemTopic(topicName.toString())) {
+            && !EventsTopicNames.isTopicPoliciesSystemTopic(topicName.toString())) {
             topicPoliciesFuture = pulsar.getTopicPoliciesService().getTopicPoliciesAsync(topicName);
         } else {
             topicPoliciesFuture = CompletableFuture.completedFuture(Optional.empty());
