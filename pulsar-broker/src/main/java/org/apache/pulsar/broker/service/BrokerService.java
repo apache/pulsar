@@ -1712,7 +1712,6 @@ public class BrokerService implements Closeable {
 
                 return managedLedgerConfig;
             });
-
         });
     }
 
