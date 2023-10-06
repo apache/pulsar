@@ -1616,9 +1616,10 @@ public class BrokerService implements Closeable {
                 managedLedgerConfig.setAckQuorumSize(persistencePolicies.getBookkeeperAckQuorum());
 
                 if (localPolicies.isPresent() && localPolicies.get().bookieAffinityGroup != null) {
-                    managedLedgerConfig.setBookKeeperEnsemblePlacementPolicyClassName(
-                            IsolatedBookieEnsemblePlacementPolicy.class);
-                    Map<String, Object> properties = new HashMap<>();
+                    managedLedgerConfig
+                            .setBookKeeperEnsemblePlacementPolicyClassName(
+                                    IsolatedBookieEnsemblePlacementPolicy.class);
+                    Map<String, Object> properties = Maps.newHashMap();
                     properties.put(IsolatedBookieEnsemblePlacementPolicy.ISOLATION_BOOKIE_GROUPS,
                             localPolicies.get().bookieAffinityGroup.getBookkeeperAffinityGroupPrimary());
                     properties.put(IsolatedBookieEnsemblePlacementPolicy.SECONDARY_ISOLATION_BOOKIE_GROUPS,
