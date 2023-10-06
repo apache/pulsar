@@ -37,6 +37,14 @@ import java.util.concurrent.TimeUnit;
 @Test(groups = "broker-admin")
 public class TopicPoliciesWithBrokerRestartTest extends MockedPulsarServiceBaseTest {
 
+
+    @Override
+    protected void doInitConf() throws Exception {
+        super.doInitConf();
+        conf.setSystemTopicEnabled(true);
+        conf.setTopicLevelPoliciesEnabled(true);
+    }
+
     @Override
     @BeforeClass(alwaysRun = true)
     protected void setup() throws Exception {
