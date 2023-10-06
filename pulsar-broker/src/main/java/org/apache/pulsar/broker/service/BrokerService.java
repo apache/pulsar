@@ -146,18 +146,7 @@ import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
-import org.apache.pulsar.common.policies.data.AutoSubscriptionCreationOverride;
-import org.apache.pulsar.common.policies.data.AutoTopicCreationOverride;
-import org.apache.pulsar.common.policies.data.BacklogQuota;
-import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
-import org.apache.pulsar.common.policies.data.PersistencePolicies;
-import org.apache.pulsar.common.policies.data.PersistentOfflineTopicStats;
-import org.apache.pulsar.common.policies.data.Policies;
-import org.apache.pulsar.common.policies.data.PublishRate;
-import org.apache.pulsar.common.policies.data.RetentionPolicies;
-import org.apache.pulsar.common.policies.data.TopicPolicies;
-import org.apache.pulsar.common.policies.data.TopicType;
+import org.apache.pulsar.common.policies.data.*;
 import org.apache.pulsar.common.policies.data.stats.TopicStatsImpl;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.stats.Metrics;
@@ -1626,51 +1615,24 @@ public class BrokerService implements Closeable {
                 managedLedgerConfig.setWriteQuorumSize(persistencePolicies.getBookkeeperWriteQuorum());
                 managedLedgerConfig.setAckQuorumSize(persistencePolicies.getBookkeeperAckQuorum());
 
-                if (serviceConfig.isStrictBookieAffinityEnabled()) {
+                if (localPolicies.isPresent() && localPolicies.get().bookieAffinityGroup != null) {
                     managedLedgerConfig.setBookKeeperEnsemblePlacementPolicyClassName(
                             IsolatedBookieEnsemblePlacementPolicy.class);
-                    if (localPolicies.isPresent() && localPolicies.get().bookieAffinityGroup != null) {
-                        Map<String, Object> properties = new HashMap<>();
-                        properties.put(IsolatedBookieEnsemblePlacementPolicy.ISOLATION_BOOKIE_GROUPS,
-                                localPolicies.get().bookieAffinityGroup.getBookkeeperAffinityGroupPrimary());
-                        properties.put(IsolatedBookieEnsemblePlacementPolicy.SECONDARY_ISOLATION_BOOKIE_GROUPS,
-                                localPolicies.get().bookieAffinityGroup.getBookkeeperAffinityGroupSecondary());
-                        managedLedgerConfig.setBookKeeperEnsemblePlacementPolicyProperties(properties);
-                    } else if (isSystemTopic(topicName)) {
-                        Map<String, Object> properties = new HashMap<>();
-                        properties.put(IsolatedBookieEnsemblePlacementPolicy.ISOLATION_BOOKIE_GROUPS, "*");
-                        properties.put(IsolatedBookieEnsemblePlacementPolicy
-                                .SECONDARY_ISOLATION_BOOKIE_GROUPS, "*");
-                        managedLedgerConfig.setBookKeeperEnsemblePlacementPolicyProperties(properties);
-                    } else {
-                        Map<String, Object> properties = new HashMap<>();
-                        properties.put(IsolatedBookieEnsemblePlacementPolicy.ISOLATION_BOOKIE_GROUPS, "");
-                        properties.put(IsolatedBookieEnsemblePlacementPolicy.SECONDARY_ISOLATION_BOOKIE_GROUPS, "");
-                        managedLedgerConfig.setBookKeeperEnsemblePlacementPolicyProperties(properties);
-                    }
-                } else {
-                    if (localPolicies.isPresent() && localPolicies.get().bookieAffinityGroup != null) {
-                        managedLedgerConfig.setBookKeeperEnsemblePlacementPolicyClassName(
-                                IsolatedBookieEnsemblePlacementPolicy.class);
-                        Map<String, Object> properties = new HashMap<>();
-                        properties.put(IsolatedBookieEnsemblePlacementPolicy.ISOLATION_BOOKIE_GROUPS,
-                                localPolicies.get().bookieAffinityGroup.getBookkeeperAffinityGroupPrimary());
-                        properties.put(IsolatedBookieEnsemblePlacementPolicy.SECONDARY_ISOLATION_BOOKIE_GROUPS,
-                                localPolicies.get().bookieAffinityGroup.getBookkeeperAffinityGroupSecondary());
-                        managedLedgerConfig.setBookKeeperEnsemblePlacementPolicyProperties(properties);
-                    }
+                    Map<String, Object> properties = new HashMap<>();
+                    properties.put(IsolatedBookieEnsemblePlacementPolicy.ISOLATION_BOOKIE_GROUPS,
+                            localPolicies.get().bookieAffinityGroup.getBookkeeperAffinityGroupPrimary());
+                    properties.put(IsolatedBookieEnsemblePlacementPolicy.SECONDARY_ISOLATION_BOOKIE_GROUPS,
+                            localPolicies.get().bookieAffinityGroup.getBookkeeperAffinityGroupSecondary());
+                    managedLedgerConfig.setBookKeeperEnsemblePlacementPolicyProperties(properties);
                 }
-
                 managedLedgerConfig.setThrottleMarkDelete(persistencePolicies.getManagedLedgerMaxMarkDeleteRate());
                 managedLedgerConfig.setDigestType(serviceConfig.getManagedLedgerDigestType());
                 managedLedgerConfig.setPassword(serviceConfig.getManagedLedgerPassword());
 
                 managedLedgerConfig
                         .setMaxUnackedRangesToPersist(serviceConfig.getManagedLedgerMaxUnackedRangesToPersist());
-                managedLedgerConfig.setPersistentUnackedRangesWithMultipleEntriesEnabled(
-                        serviceConfig.isPersistentUnackedRangesWithMultipleEntriesEnabled());
-                managedLedgerConfig.setMaxUnackedRangesToPersistInMetadataStore(
-                        serviceConfig.getManagedLedgerMaxUnackedRangesToPersistInMetadataStore());
+                managedLedgerConfig.setMaxUnackedRangesToPersistInZk(
+                        serviceConfig.getManagedLedgerMaxUnackedRangesToPersistInZooKeeper());
                 managedLedgerConfig.setMaxEntriesPerLedger(serviceConfig.getManagedLedgerMaxEntriesPerLedger());
                 managedLedgerConfig
                         .setMinimumRolloverTime(serviceConfig.getManagedLedgerMinLedgerRolloverTimeMinutes(),
@@ -1705,12 +1667,6 @@ public class BrokerService implements Closeable {
                         serviceConfig.getManagedLedgerInactiveLedgerRolloverTimeSeconds(), TimeUnit.SECONDS);
                 managedLedgerConfig.setCacheEvictionByMarkDeletedPosition(
                         serviceConfig.isCacheEvictionByMarkDeletedPosition());
-                managedLedgerConfig.setMinimumBacklogCursorsForCaching(
-                        serviceConfig.getManagedLedgerMinimumBacklogCursorsForCaching());
-                managedLedgerConfig.setMinimumBacklogEntriesForCaching(
-                        serviceConfig.getManagedLedgerMinimumBacklogEntriesForCaching());
-                managedLedgerConfig.setMaxBacklogBetweenCursorsForCaching(
-                        serviceConfig.getManagedLedgerMaxBacklogBetweenCursorsForCaching());
 
                 OffloadPoliciesImpl nsLevelOffloadPolicies =
                         (OffloadPoliciesImpl) policies.map(p -> p.offload_policies).orElse(null);
@@ -1740,6 +1696,7 @@ public class BrokerService implements Closeable {
                         serviceConfig.isAcknowledgmentAtBatchIndexLevelEnabled());
                 managedLedgerConfig.setNewEntriesCheckDelayInMillis(
                         serviceConfig.getManagedLedgerNewEntriesCheckDelayInMillis());
+
                 return managedLedgerConfig;
             });
         });
