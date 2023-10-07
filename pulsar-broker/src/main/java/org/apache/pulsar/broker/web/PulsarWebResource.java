@@ -528,6 +528,7 @@ public abstract class PulsarWebResource {
         pulsar.getPulsarResources().getClusterResources().getClusterAsync(cluster)
                 .whenComplete((clusterDataResult, ex) -> {
                     if (ex != null) {
+                        log.warn("[{}] Load cluster data failed: requested={}", clientAppId, cluster);
                         clusterDataFuture.completeExceptionally(FutureUtil.unwrapCompletionException(ex));
                         return;
                     }
