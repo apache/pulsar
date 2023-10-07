@@ -740,7 +740,7 @@ public abstract class BookKeeperClusterTestCase {
         int port = conf.getBookiePort();
         Awaitility.await().atMost(30, TimeUnit.SECONDS).until(() ->
                 metadataStore.exists(
-                getLedgersRootPath() + "/available/" + InetAddress.getLocalHost().getHostAddress() + ":" + port).join()
+                getLedgersRootPath() + "/available/" + address).join()
         );
         bkc.readBookiesBlocking();
 
