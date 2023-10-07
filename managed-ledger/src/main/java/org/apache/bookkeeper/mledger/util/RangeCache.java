@@ -27,7 +27,6 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentNavigableMap;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.atomic.AtomicLong;
-import org.apache.commons.lang3.mutable.MutableBoolean;
 import org.apache.commons.lang3.tuple.Pair;
 
 /**
@@ -74,13 +73,18 @@ public class RangeCache<Key extends Comparable<Key>, Value extends ReferenceCoun
      * @return whether the entry was inserted in the cache
      */
     public boolean put(Key key, Value value) {
-        MutableBoolean flag = new MutableBoolean();
-        entries.computeIfAbsent(key, (k) -> {
-            size.addAndGet(weighter.getSize(value));
-            flag.setValue(true);
-            return value;
-        });
-        return flag.booleanValue();
+        // retain value so that it's not released before we put it in the cache and calculate the weight
+        value.retain();
+        try {
+            if (entries.putIfAbsent(key, value) == null) {
+                size.addAndGet(weighter.getSize(value));
+                return true;
+            } else {
+                return false;
+            }
+        } finally {
+            value.release();
+        }
     }
 
     public boolean exists(Key key) {
@@ -242,7 +246,6 @@ public class RangeCache<Key extends Comparable<Key>, Value extends ReferenceCoun
             value.release();
         }
 
-        entries.clear();
         size.getAndAdd(-removedSize);
         return Pair.of(removedCount, removedSize);
     }
