@@ -552,6 +552,7 @@ public class NonDurableSubscriptionTest  extends ProducerConsumerBase {
             assertTrue(actMarkDeletedPos.compareTo(expectedMarkDeletedPos) >= 0);
         });
 
+
         // cleanup.
         reader.close();
         producer.close();
