@@ -25,7 +25,6 @@ import static org.testng.AssertJUnit.assertTrue;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.util.concurrent.TimeUnit;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.bookie.BookieImpl;
 import org.apache.bookkeeper.net.BookieId;
 import org.apache.bookkeeper.util.TestUtils;
