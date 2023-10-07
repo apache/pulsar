@@ -27,9 +27,7 @@ import java.net.URL;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.Duration;
-import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
@@ -41,7 +39,6 @@ import org.apache.pulsar.client.impl.auth.oauth2.AuthenticationFactoryOAuth2;
 import org.apache.pulsar.client.impl.auth.oauth2.AuthenticationOAuth2;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
-import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.awaitility.Awaitility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -90,12 +87,11 @@ public class TokenOauth2AuthenticatedProducerConsumerTest extends ProducerConsum
         conf.setAuthenticationProviders(providers);
 
         conf.setBrokerClientAuthenticationPlugin(AuthenticationOAuth2.class.getName());
-        final Map<String, String> oauth2Param = new HashMap<>();
-        oauth2Param.put("privateKey", CREDENTIALS_FILE);
-        oauth2Param.put("issuerUrl", server.getIssuer());
-        oauth2Param.put("audience", audience);
-        conf.setBrokerClientAuthenticationParameters(ObjectMapperFactory
-                .getMapper().getObjectMapper().writeValueAsString(oauth2Param));
+        conf.setBrokerClientAuthenticationParameters("{\n"
+                + "  \"privateKey\": \"" + CREDENTIALS_FILE + "\",\n"
+                + "  \"issuerUrl\": \"" + server.getIssuer() + "\",\n"
+                + "  \"audience\": \"" + audience + "\",\n"
+                + "}\n");
 
         conf.setClusterName("test");
 

@@ -32,7 +32,6 @@ import java.util.function.Supplier;
 
 import io.jsonwebtoken.SignatureAlgorithm;
 import lombok.Cleanup;
-import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.authentication.AuthenticationProviderTls;
 import org.apache.pulsar.broker.authentication.AuthenticationProviderToken;
@@ -50,7 +49,6 @@ import org.apache.pulsar.client.impl.auth.AuthenticationKeyStoreTls;
 import org.apache.pulsar.client.impl.auth.AuthenticationToken;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
-import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -85,7 +83,6 @@ public class KeyStoreTlsProducerConsumerTestWithAuthTest extends ProducerConsume
         super.internalCleanup();
     }
 
-    @SneakyThrows
     protected void internalSetUpForBroker() {
         conf.setBrokerServicePortTls(Optional.of(0));
         conf.setWebServicePortTls(Optional.of(0));
@@ -117,25 +114,6 @@ public class KeyStoreTlsProducerConsumerTestWithAuthTest extends ProducerConsume
 
         conf.setAuthenticationProviders(providers);
         conf.setNumExecutorThreadPoolSize(5);
-        Set<String> tlsProtocols = Sets.newConcurrentHashSet();
-        tlsProtocols.add("TLSv1.3");
-        tlsProtocols.add("TLSv1.2");
-        conf.setBrokerClientAuthenticationPlugin(AuthenticationKeyStoreTls.class.getName());
-        Map<String, String> authParams = new HashMap<>();
-        authParams.put(AuthenticationKeyStoreTls.KEYSTORE_TYPE, KEYSTORE_TYPE);
-        authParams.put(AuthenticationKeyStoreTls.KEYSTORE_PATH, CLIENT_KEYSTORE_FILE_PATH);
-        authParams.put(AuthenticationKeyStoreTls.KEYSTORE_PW, CLIENT_KEYSTORE_PW);
-        conf.setBrokerClientAuthenticationParameters(ObjectMapperFactory.getMapper()
-                .getObjectMapper().writeValueAsString(authParams));
-        conf.setBrokerClientTlsEnabled(true);
-        conf.setBrokerClientTlsEnabledWithKeyStore(true);
-        conf.setBrokerClientTlsTrustStore(BROKER_TRUSTSTORE_FILE_PATH);
-        conf.setBrokerClientTlsTrustStorePassword(BROKER_TRUSTSTORE_PW);
-        conf.setBrokerClientTlsKeyStore(CLIENT_KEYSTORE_FILE_PATH);
-        conf.setBrokerClientTlsKeyStoreType(KEYSTORE_TYPE);
-        conf.setBrokerClientTlsKeyStorePassword(CLIENT_KEYSTORE_PW);
-        conf.setBrokerClientTlsProtocols(tlsProtocols);
-
     }
 
     protected void internalSetUpForClient(boolean addCertificates, String lookupUrl) throws Exception {

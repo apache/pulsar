@@ -60,8 +60,6 @@ public class AuthLogsTest extends MockedPulsarServiceBaseTest {
         conf.setAuthorizationEnabled(true);
         conf.setAuthorizationAllowWildcardsMatching(true);
         conf.setSuperUserRoles(Sets.newHashSet("super"));
-        conf.setBrokerClientAuthenticationPlugin(MockAuthentication.class.getName());
-        conf.setBrokerClientAuthenticationParameters("user:pass.pass");
         internalSetup();
 
         try (PulsarAdmin admin = PulsarAdmin.builder()
