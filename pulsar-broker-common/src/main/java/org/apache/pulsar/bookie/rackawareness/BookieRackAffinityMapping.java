@@ -120,8 +120,6 @@ public class BookieRackAffinityMapping extends AbstractDNSToSwitchMapping
             store.registerListener(this::handleUpdates);
             racksWithHost = bookieMappingCache.get(BOOKIE_INFO_ROOT_PATH).get()
                     .orElseGet(BookiesRackConfiguration::new);
-            updateRacksWithHost(racksWithHost);
-            watchAvailableBookies();
             for (Map<String, BookieInfo> bookieMapping : racksWithHost.values()) {
                 for (String address : bookieMapping.keySet()) {
                     bookieAddressListLastTime.add(BookieId.parse(address));
@@ -131,6 +129,8 @@ public class BookieRackAffinityMapping extends AbstractDNSToSwitchMapping
                             bookieAddressListLastTime);
                 }
             }
+            updateRacksWithHost(racksWithHost);
+            watchAvailableBookies();
         } catch (InterruptedException | ExecutionException | MetadataException e) {
             throw new RuntimeException(METADATA_STORE_INSTANCE + " failed to init BookieId list");
         }

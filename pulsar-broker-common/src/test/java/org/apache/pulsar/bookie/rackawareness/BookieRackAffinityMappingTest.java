@@ -254,6 +254,7 @@ public class BookieRackAffinityMappingTest {
                 bkClientConf.getTimeoutTimerNumTicks());
 
         RackawareEnsemblePlacementPolicy repp = new RackawareEnsemblePlacementPolicy();
+        mapping.registerRackChangeListener(repp);
         Class<?> clazz1 = Class.forName("org.apache.bookkeeper.client.TopologyAwareEnsemblePlacementPolicy");
         Field field1 = clazz1.getDeclaredField("knownBookies");
         field1.setAccessible(true);
@@ -321,6 +322,22 @@ public class BookieRackAffinityMappingTest {
         assertEquals(knownBookies.size(), 3);
         assertEquals(knownBookies.get(BOOKIE1.toBookieId()).getNetworkLocation(), "/rack0");
         assertEquals(knownBookies.get(BOOKIE2.toBookieId()).getNetworkLocation(), "/rack1");
+        assertEquals(knownBookies.get(BOOKIE3.toBookieId()).getNetworkLocation(), "/default-rack");
+
+        //remove bookie2 rack, the bookie2 rack should be /default-rack
+        data = "{\"group1\": {\"" + BOOKIE1
+                + "\": {\"rack\": \"/rack0\", \"hostname\": \"bookie1.example.com\"}}}";
+        store.put(BookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH, data.getBytes(), Optional.empty()).join();
+        Awaitility.await().atMost(30, TimeUnit.SECONDS).until(() -> ((BookiesRackConfiguration)field.get(mapping)).get("group1").size() == 1);
+
+        racks = mapping
+                .resolve(Lists.newArrayList(BOOKIE1.getHostName(), BOOKIE2.getHostName(), BOOKIE3.getHostName()))
+                .stream().filter(Objects::nonNull).toList();
+        assertEquals(racks.size(), 1);
+        assertEquals(racks.get(0), "/rack0");
+        assertEquals(knownBookies.size(), 3);
+        assertEquals(knownBookies.get(BOOKIE1.toBookieId()).getNetworkLocation(), "/rack0");
+        assertEquals(knownBookies.get(BOOKIE2.toBookieId()).getNetworkLocation(), "/default-rack");
         assertEquals(knownBookies.get(BOOKIE3.toBookieId()).getNetworkLocation(), "/default-rack");
 
         timer.stop();
