@@ -3639,7 +3639,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             return false;
         } else if (position.getEntryId() < 0) {
             return false;
-        } else if (position.getLedgerId() == currentLedger.getId()) {
+        } else if (currentLedger != null && position.getLedgerId() == currentLedger.getId()) {
             // If current ledger is empty, the largest read position can be "{current_ledger: 0}".
             // Else, the read position can be set to "{LAC + 1}" when subscribe at LATEST,
             return (position.getLedgerId() == lac.getLedgerId() && position.getEntryId() <= lac.getEntryId() + 1)
