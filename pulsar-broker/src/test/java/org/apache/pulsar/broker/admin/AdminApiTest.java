@@ -99,6 +99,7 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
+import org.apache.pulsar.client.api.SubscriptionIsolationLevel;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.lookup.data.LookupData;
@@ -1329,6 +1330,25 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         TopicStats topicStats = admin.topics().getPartitionedStats(topic, false);
         assertEquals(topicStats.getSubscriptions().size(), 1);
         assertEquals(topicStats.getSubscriptions().get(subName).getType(), SubscriptionType.Exclusive.toString());
+    }
+
+    @Test
+    public void testGetPartitionedStatsContainSubscriptionIsolationLevel() throws Exception {
+        final String topic = "persistent://prop-xyz/ns1/my-topic" + UUID.randomUUID();
+        final int numPartitions = 4;
+        admin.topics().createPartitionedTopic(topic, numPartitions);
+
+        // create consumer and subscription
+        final String subName = "my-sub";
+        @Cleanup Consumer<byte[]> exclusiveConsumer = pulsarClient.newConsumer().topic(topic)
+                .subscriptionName(subName)
+                .subscriptionType(SubscriptionType.Exclusive)
+                .subscriptionIsolationLevel(SubscriptionIsolationLevel.READ_UNCOMMITTED)
+                .subscribe();
+
+        TopicStats topicStats = admin.topics().getPartitionedStats(topic, false);
+        assertEquals(topicStats.getSubscriptions().size(), 1);
+        assertEquals(topicStats.getSubscriptions().get(subName).getSubscriptionIsolationLevel(), SubscriptionIsolationLevel.READ_UNCOMMITTED.toString());
     }
 
 

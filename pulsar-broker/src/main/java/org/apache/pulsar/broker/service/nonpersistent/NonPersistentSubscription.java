@@ -472,6 +472,7 @@ public class NonPersistentSubscription extends AbstractSubscription implements S
 
         subStats.type = getTypeString();
         subStats.msgDropRate = dispatcher.getMessageDropRate().getValueRate();
+        subStats.subscriptionIsolationLevel = this.isolationLevel.toString();
 
         KeySharedMode keySharedMode = this.keySharedMode;
         if (getType() == SubType.Key_Shared && keySharedMode != null) {
