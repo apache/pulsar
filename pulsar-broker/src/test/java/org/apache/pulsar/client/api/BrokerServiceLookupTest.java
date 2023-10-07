@@ -923,9 +923,9 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
     }
 
     private int calculateLookupRequestCount() throws Exception {
-        int failures = CollectorRegistry.defaultRegistry.getSampleValue("pulsar_broker_lookup_failures_total")
+        int failures = CollectorRegistry.defaultRegistry.getSampleValue("pulsar_broker_lookup_failures")
                 .intValue();
-        int answers = CollectorRegistry.defaultRegistry.getSampleValue("pulsar_broker_lookup_answers_total")
+        int answers = CollectorRegistry.defaultRegistry.getSampleValue("pulsar_broker_lookup_answers")
                 .intValue();
         return failures + answers;
     }
