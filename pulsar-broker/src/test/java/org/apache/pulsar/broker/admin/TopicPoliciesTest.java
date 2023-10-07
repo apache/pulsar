@@ -27,6 +27,7 @@ import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -41,6 +42,7 @@ import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
+import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.ConfigHelper;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.namespace.NamespaceService;
@@ -83,6 +85,7 @@ import org.apache.pulsar.common.policies.data.SubscribeRate;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.data.TopicPolicies;
 import org.apache.pulsar.common.policies.data.TopicStats;
+import org.apache.pulsar.common.policies.data.impl.DispatchRateImpl;
 import org.assertj.core.api.Assertions;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
@@ -3211,6 +3214,52 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         assertEquals(eventsHierarchyTopicPolicies.getMaxProducersPerTopic().getLocalTopicValue(), null);
         assertEquals(eventsHierarchyTopicPolicies.getMaxProducersPerTopic().get(), 60);
         // check eventsTopic end
+    }
+
+    @Test
+    public void testGetTopicPoliciesWhenDeleteTopicPolicy2() throws Exception {
+        final String tpName = BrokerTestUtil.newUniqueName("persistent://" + myNamespace + "/tp");
+        final String subscriptionName = "s1";
+        final int dispatchThrottlingRateInMsg = 1000;
+        admin.topics().createNonPartitionedTopic(tpName);
+        PersistentTopic persistentTopic1 =
+                (PersistentTopic) pulsar.getBrokerService().getTopic(tpName, false).join().get();
+        admin.topics().createSubscription(tpName, subscriptionName, MessageId.earliest);
+        Producer producer = pulsarClient.newProducer().topic(tpName).create();
+
+        // Set global policy.
+        DispatchRate dispatchRate = new DispatchRateImpl(dispatchThrottlingRateInMsg, 1, false, 1);
+        admin.topicPolicies(true).setDispatchRate(tpName, dispatchRate);
+
+        // Assert policy was affected.
+        Awaitility.await().ignoreExceptions().untilAsserted(() -> {
+            HierarchyTopicPolicies policies = persistentTopic1.getHierarchyTopicPolicies();
+            assertNotNull(policies);
+            assertEquals(policies.getDispatchRate().get().getDispatchThrottlingRateInMsg(),
+                    dispatchThrottlingRateInMsg);
+            DispatchRate dispatchRateAp = admin.topicPolicies(true).getDispatchRate(tpName, true);
+            assertEquals(dispatchRateAp.getDispatchThrottlingRateInMsg(), dispatchThrottlingRateInMsg);
+        });
+
+        // Unload topic and check again.
+        admin.topics().unload(tpName);
+        // Wait topic load complete.
+        producer.send("1".getBytes(StandardCharsets.UTF_8));
+        PersistentTopic persistentTopic2 =
+                (PersistentTopic) pulsar.getBrokerService().getTopic(tpName, false).join().get();
+        // Assert policy was affected.
+        Awaitility.await().ignoreExceptions().untilAsserted(() -> {
+            HierarchyTopicPolicies policies = persistentTopic2.getHierarchyTopicPolicies();
+            assertNotNull(policies);
+            assertEquals(policies.getDispatchRate().get().getDispatchThrottlingRateInMsg(),
+                    dispatchThrottlingRateInMsg);
+            DispatchRate dispatchRateAp = admin.topicPolicies(true).getDispatchRate(tpName, true);
+            assertEquals(dispatchRateAp.getDispatchThrottlingRateInMsg(), dispatchThrottlingRateInMsg);
+        });
+
+        // cleanup.
+        producer.close();
+        admin.topics().delete(tpName, false);
     }
 
     @Test
