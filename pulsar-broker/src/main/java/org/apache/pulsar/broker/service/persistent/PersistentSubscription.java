@@ -1259,7 +1259,7 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
     }
 
     @Override
-    public boolean isSubsciptionMigrated() {
+    public boolean isSubscriptionMigrated() {
         log.info("backlog for {} - {}", topicName, cursor.getNumberOfEntriesInBacklog(true));
         return topic.isMigrated() && cursor.getNumberOfEntriesInBacklog(true) <= 0;
     }
