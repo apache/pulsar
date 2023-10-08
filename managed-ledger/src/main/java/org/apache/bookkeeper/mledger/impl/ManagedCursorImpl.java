@@ -1107,6 +1107,9 @@ public class ManagedCursorImpl implements ManagedCursor {
                     messagesConsumedCounter, markDeletePosition, readPosition);
         }
         if (isPrecise) {
+            if (markDeletePosition.compareTo(ledger.getLastPosition()) >= 0) {
+                return 0;
+            }
             return getNumberOfEntries(Range.openClosed(markDeletePosition, ledger.getLastPosition()));
         }
 

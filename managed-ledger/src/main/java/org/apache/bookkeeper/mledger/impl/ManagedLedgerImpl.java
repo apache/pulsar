@@ -3630,23 +3630,30 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
      * @return true if the position is valid, false otherwise
      */
     public boolean isValidPosition(PositionImpl position) {
-        PositionImpl last = lastConfirmedEntry;
+        PositionImpl lac = lastConfirmedEntry;
         if (log.isDebugEnabled()) {
-            log.debug("IsValid position: {} -- last: {}", position, last);
+            log.debug("IsValid position: {} -- last: {}", position, lac);
         }
 
-        if (position.getEntryId() < 0) {
+        if (!ledgers.containsKey(position.getLedgerId())){
             return false;
-        } else if (position.getLedgerId() > last.getLedgerId()) {
+        } else if (position.getEntryId() < 0) {
             return false;
-        } else if (position.getLedgerId() == last.getLedgerId()) {
-            return position.getEntryId() <= (last.getEntryId() + 1);
+        } else if (currentLedger != null && position.getLedgerId() == currentLedger.getId()) {
+            // If current ledger is empty, the largest read position can be "{current_ledger: 0}".
+            // Else, the read position can be set to "{LAC + 1}" when subscribe at LATEST,
+            return (position.getLedgerId() == lac.getLedgerId() && position.getEntryId() <= lac.getEntryId() + 1)
+                    || position.getEntryId() == 0;
+        } else if (position.getLedgerId() == lac.getLedgerId()) {
+            // The ledger witch maintains LAC was closed, and there is an empty current ledger.
+            // If entry id is larger than LAC, it should be "{current_ledger: 0}".
+            return position.getEntryId() <= lac.getEntryId();
         } else {
             // Look in the ledgers map
             LedgerInfo ls = ledgers.get(position.getLedgerId());
 
             if (ls == null) {
-                if (position.getLedgerId() < last.getLedgerId()) {
+                if (position.getLedgerId() < lac.getLedgerId()) {
                     // Pointing to a non-existing ledger that is older than the current ledger is invalid
                     return false;
                 } else {
