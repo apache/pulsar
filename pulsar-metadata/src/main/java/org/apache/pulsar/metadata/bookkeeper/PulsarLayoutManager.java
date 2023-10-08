@@ -34,7 +34,7 @@ import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 
 
-class PulsarLayoutManager implements LayoutManager {
+public class PulsarLayoutManager implements LayoutManager {
 
     @Getter(AccessLevel.PACKAGE)
     private final MetadataStoreExtended store;
@@ -44,7 +44,7 @@ class PulsarLayoutManager implements LayoutManager {
 
     private final String layoutPath;
 
-    PulsarLayoutManager(MetadataStoreExtended store, String ledgersRootPath) {
+    public PulsarLayoutManager(MetadataStoreExtended store, String ledgersRootPath) {
         this.ledgersRootPath = ledgersRootPath;
         this.store = store;
         this.layoutPath = ledgersRootPath + "/" + BookKeeperConstants.LAYOUT_ZNODE;

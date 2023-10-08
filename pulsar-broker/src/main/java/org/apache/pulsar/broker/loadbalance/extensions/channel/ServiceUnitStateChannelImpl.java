@@ -41,8 +41,6 @@ import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUni
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannelImpl.MetadataState.Stable;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannelImpl.MetadataState.Unstable;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateData.state;
-import static org.apache.pulsar.broker.namespace.NamespaceService.HEARTBEAT_NAMESPACE_FMT;
-import static org.apache.pulsar.broker.namespace.NamespaceService.HEARTBEAT_NAMESPACE_FMT_V2;
 import static org.apache.pulsar.common.naming.NamespaceName.SYSTEM_NAMESPACE;
 import static org.apache.pulsar.common.topics.TopicCompactionStrategy.TABLE_VIEW_TAG;
 import static org.apache.pulsar.metadata.api.extended.SessionEvent.SessionLost;
@@ -94,7 +92,6 @@ import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceBundleFactory;
 import org.apache.pulsar.common.naming.NamespaceBundleSplitAlgorithm;
 import org.apache.pulsar.common.naming.NamespaceBundles;
-import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.stats.Metrics;
@@ -1216,48 +1213,19 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         log.info("Started ownership cleanup for the inactive broker:{}", broker);
         int orphanServiceUnitCleanupCnt = 0;
         long totalCleanupErrorCntStart = totalCleanupErrorCnt.get();
-        String heartbeatNamespace =
-                NamespaceName.get(String.format(HEARTBEAT_NAMESPACE_FMT, config.getClusterName(), broker)).toString();
-        String heartbeatNamespaceV2 =
-                NamespaceName.get(String.format(HEARTBEAT_NAMESPACE_FMT_V2, broker)).toString();
-
         Map<String, ServiceUnitStateData> orphanSystemServiceUnits = new HashMap<>();
         for (var etr : tableview.entrySet()) {
             var stateData = etr.getValue();
             var serviceUnit = etr.getKey();
             var state = state(stateData);
-            if (StringUtils.equals(broker, stateData.dstBroker())) {
-                if (isActiveState(state)) {
-                    if (serviceUnit.startsWith(SYSTEM_NAMESPACE.toString())) {
-                        orphanSystemServiceUnits.put(serviceUnit, stateData);
-                    } else if (serviceUnit.startsWith(heartbeatNamespace)
-                            || serviceUnit.startsWith(heartbeatNamespaceV2)) {
-                        // Skip the heartbeat namespace
-                        log.info("Skip override heartbeat namespace bundle"
-                                + " serviceUnit:{}, stateData:{}", serviceUnit, stateData);
-                        tombstoneAsync(serviceUnit).whenComplete((__, e) -> {
-                            if (e != null) {
-                                log.error("Failed cleaning the heartbeat namespace ownership serviceUnit:{}, "
-                                                + "stateData:{}, cleanupErrorCnt:{}.",
-                                        serviceUnit, stateData,
-                                        totalCleanupErrorCnt.incrementAndGet() - totalCleanupErrorCntStart, e);
-                            }
-                        });
-                    } else {
-                        overrideOwnership(serviceUnit, stateData, broker);
-                    }
-                    orphanServiceUnitCleanupCnt++;
+            if (StringUtils.equals(broker, stateData.dstBroker()) && isActiveState(state)
+                    || StringUtils.equals(broker, stateData.sourceBroker()) && isInFlightState(state)) {
+                if (serviceUnit.startsWith(SYSTEM_NAMESPACE.toString())) {
+                    orphanSystemServiceUnits.put(serviceUnit, stateData);
+                } else {
+                    overrideOwnership(serviceUnit, stateData, broker);
                 }
-
-            } else if (StringUtils.equals(broker, stateData.sourceBroker())) {
-                if (isInFlightState(state)) {
-                    if (serviceUnit.startsWith(SYSTEM_NAMESPACE.toString())) {
-                        orphanSystemServiceUnits.put(serviceUnit, stateData);
-                    } else {
-                        overrideOwnership(serviceUnit, stateData, broker);
-                    }
-                    orphanServiceUnitCleanupCnt++;
-                }
+                orphanServiceUnitCleanupCnt++;
             }
         }
 
@@ -1401,16 +1369,21 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
             String srcBroker = stateData.sourceBroker();
             var state = stateData.state();
 
-            if (isActiveState(state)) {
-                if (StringUtils.isNotBlank(srcBroker) && !activeBrokers.contains(srcBroker)) {
-                    inactiveBrokers.add(srcBroker);
-                } else if (StringUtils.isNotBlank(dstBroker) && !activeBrokers.contains(dstBroker)) {
-                    inactiveBrokers.add(dstBroker);
-                } else if (isInFlightState(state)
-                        && now - stateData.timestamp() > inFlightStateWaitingTimeInMillis) {
-                    orphanServiceUnits.put(serviceUnit, stateData);
-                }
-            } else if (now - stateData.timestamp() > semiTerminalStateWaitingTimeInMillis) {
+            if (isActiveState(state) && StringUtils.isNotBlank(srcBroker) && !activeBrokers.contains(srcBroker)) {
+                inactiveBrokers.add(srcBroker);
+                continue;
+            }
+            if (isActiveState(state) && StringUtils.isNotBlank(dstBroker) && !activeBrokers.contains(dstBroker)) {
+                inactiveBrokers.add(dstBroker);
+                continue;
+            }
+            if (isActiveState(state) && isInFlightState(state)
+                    && now - stateData.timestamp() > inFlightStateWaitingTimeInMillis) {
+                orphanServiceUnits.put(serviceUnit, stateData);
+                continue;
+            }
+
+            if (now - stateData.timestamp() > semiTerminalStateWaitingTimeInMillis) {
                 log.info("Found semi-terminal states to tombstone"
                         + " serviceUnit:{}, stateData:{}", serviceUnit, stateData);
                 tombstoneAsync(serviceUnit).whenComplete((__, e) -> {
