@@ -70,7 +70,7 @@ public class NonDurableCursorImpl extends ManagedCursorImpl {
     private void recoverCursor(PositionImpl mdPosition) {
         Pair<PositionImpl, Long> lastEntryAndCounter = ledger.getLastPositionAndCounter();
         this.readPosition = isReadCompacted() ? mdPosition.getNext() : ledger.getNextValidPosition(mdPosition);
-        markDeletePosition = mdPosition;
+        markDeletePosition = ledger.getPreviousPosition(this.readPosition);
 
         // Initialize the counter such that the difference between the messages written on the ML and the
         // messagesConsumed is equal to the current backlog (negated).
