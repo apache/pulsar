@@ -87,6 +87,13 @@
 
     <!-- zookeeper server -->
     <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>testmocks</artifactId>
+      <version>${project.version}</version>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
       <groupId>org.xerial.snappy</groupId>
       <artifactId>snappy-java</artifactId>
       <scope>test</scope>
