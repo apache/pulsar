@@ -31,7 +31,6 @@ import org.apache.bookkeeper.conf.ServerConfiguration;
 import org.apache.bookkeeper.meta.zk.ZKMetadataDriverBase;
 import org.apache.bookkeeper.net.BookieId;
 import org.apache.bookkeeper.proto.BookieServer;
-import org.apache.bookkeeper.test.BookKeeperClusterTestCase;
 import org.apache.pulsar.metadata.bookkeeper.PulsarLedgerAuditorManager;
 import org.apache.zookeeper.ZooKeeper;
 import org.slf4j.Logger;
