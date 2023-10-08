@@ -58,6 +58,7 @@ import org.apache.pulsar.broker.loadbalance.LoadSheddingStrategy;
 import org.apache.pulsar.broker.loadbalance.ModularLoadManager;
 import org.apache.pulsar.broker.loadbalance.ModularLoadManagerStrategy;
 import org.apache.pulsar.broker.loadbalance.impl.LoadManagerShared.BrokerTopicLoadingPredicate;
+import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.broker.stats.prometheus.metrics.Summary;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.util.ExecutorProvider;
@@ -91,9 +92,6 @@ import org.slf4j.LoggerFactory;
 public class ModularLoadManagerImpl implements ModularLoadManager {
     private static final Logger log = LoggerFactory.getLogger(ModularLoadManagerImpl.class);
 
-    // Path to ZNode whose children contain BundleData jsons for each bundle (new API version of ResourceQuota).
-    public static final String BUNDLE_DATA_PATH = "/loadbalance/bundle-data";
-
     // Default message rate to assume for unseen bundles.
     public static final double DEFAULT_MESSAGE_RATE = 50;
 
@@ -120,7 +118,6 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
     private LockManager<LocalBrokerData> brokersData;
     private ResourceLock<LocalBrokerData> brokerDataLock;
 
-    private MetadataCache<BundleData> bundlesCache;
     private MetadataCache<ResourceQuota> resourceQuotaCache;
     private MetadataCache<TimeAverageBrokerData> timeAverageBrokerDataCache;
 
@@ -171,6 +168,8 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
 
     // Pulsar service used to initialize this.
     private PulsarService pulsar;
+
+    private PulsarResources pulsarResources;
 
     // Executor service used to update broker data.
     private final ExecutorService executors;
@@ -243,8 +242,8 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
     @Override
     public void initialize(final PulsarService pulsar) {
         this.pulsar = pulsar;
+        this.pulsarResources = pulsar.getPulsarResources();
         brokersData = pulsar.getCoordinationService().getLockManager(LocalBrokerData.class);
-        bundlesCache = pulsar.getLocalMetadataStore().getMetadataCache(BundleData.class);
         resourceQuotaCache = pulsar.getLocalMetadataStore().getMetadataCache(ResourceQuota.class);
         timeAverageBrokerDataCache = pulsar.getLocalMetadataStore().getMetadataCache(TimeAverageBrokerData.class);
         pulsar.getLocalMetadataStore().registerListener(this::handleDataNotification);
@@ -273,7 +272,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
 
         LoadManagerShared.refreshBrokerToFailureDomainMap(pulsar, brokerToFailureDomainMap);
         // register listeners for domain changes
-        pulsar.getPulsarResources().getClusterResources().getFailureDomainResources()
+        pulsarResources.getClusterResources().getFailureDomainResources()
                 .registerListener(__ -> {
                     executors.execute(
                             () -> LoadManagerShared.refreshBrokerToFailureDomainMap(pulsar, brokerToFailureDomainMap));
@@ -381,7 +380,8 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
     public BundleData getBundleDataOrDefault(final String bundle) {
         BundleData bundleData = null;
         try {
-            Optional<BundleData> optBundleData = bundlesCache.get(getBundleDataPath(bundle)).join();
+            Optional<BundleData> optBundleData =
+                    pulsarResources.getLoadBalanceResources().getBundleDataResources().getBundleData(bundle).join();
             if (optBundleData.isPresent()) {
                 return optBundleData.get();
             }
@@ -416,11 +416,6 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
             bundleData = new BundleData(NUM_SHORT_SAMPLES, NUM_LONG_SAMPLES, defaultStats);
         }
         return bundleData;
-    }
-
-    // Get the metadata store path for the given bundle full name.
-    public static String getBundleDataPath(final String bundle) {
-        return BUNDLE_DATA_PATH + "/" + bundle;
     }
 
     // Use the Pulsar client to acquire the namespace bundle stats.
@@ -1151,8 +1146,8 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
         for (Map.Entry<String, BundleData> entry : loadData.getBundleData().entrySet()) {
             final String bundle = entry.getKey();
             final BundleData data = entry.getValue();
-            futures.add(bundlesCache.readModifyUpdateOrCreate(getBundleDataPath(bundle), __ -> data)
-                    .thenApply(__ -> null));
+            futures.add(
+                    pulsarResources.getLoadBalanceResources().getBundleDataResources().updateBundleData(bundle, data));
         }
 
         // Write the time average broker data to metadata store.
@@ -1173,7 +1168,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
 
     private void deleteBundleDataFromMetadataStore(String bundle) {
         try {
-            bundlesCache.delete(getBundleDataPath(bundle)).join();
+            pulsarResources.getLoadBalanceResources().getBundleDataResources().deleteBundleData(bundle).join();
         } catch (Exception e) {
             if (!(e.getCause() instanceof NotFoundException)) {
                 log.warn("Failed to delete bundle-data {} from metadata store", bundle, e);
