@@ -457,4 +457,16 @@
        ]]></notes>
         <cve>CVE-2023-35116</cve>
     </suppress>
+    <suppress>
+        <notes><![CDATA[
+   This is a false positive in avro-protobuf. The vulnerability is in Hamba avro golang library.
+   ]]></notes>
+        <cve>CVE-2023-37475</cve>
+    </suppress>
+    <suppress>
+        <notes><![CDATA[
+    This CVE can be suppressed since it is covered in Pulsar by hostname verification changes made in https://github.com/apache/pulsar/pull/15824.
+   ]]></notes>
+        <cve>CVE-2023-4586</cve>
+    </suppress>
 </suppressions>

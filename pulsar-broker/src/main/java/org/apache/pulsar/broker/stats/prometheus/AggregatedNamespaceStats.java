@@ -34,7 +34,7 @@ public class AggregatedNamespaceStats {
     public double throughputIn;
     public double throughputOut;
 
-    public long messageAckRate;
+    public double messageAckRate;
     public long bytesInCounter;
     public long msgInCounter;
     public long bytesOutCounter;
@@ -64,7 +64,7 @@ public class AggregatedNamespaceStats {
     long compactionCompactedEntriesCount;
     long compactionCompactedEntriesSize;
     StatsBuckets compactionLatencyBuckets = new StatsBuckets(CompactionRecord.WRITE_LATENCY_BUCKETS_USEC);
-    int delayedMessageIndexSizeInBytes;
+    long delayedMessageIndexSizeInBytes;
 
     Map<String, TopicMetricBean> bucketDelayedIndexStats = new HashMap<>();
 
@@ -182,14 +182,34 @@ public class AggregatedNamespaceStats {
         rateOut = 0;
         throughputIn = 0;
         throughputOut = 0;
+        messageAckRate = 0;
+        bytesInCounter = 0;
+        msgInCounter = 0;
+
+        bytesOutCounter = 0;
+        msgOutCounter = 0;
 
         msgBacklog = 0;
         msgDelayed = 0;
+        ongoingTxnCount = 0;
+        abortedTxnCount = 0;
+        committedTxnCount = 0;
+
         backlogQuotaLimit = 0;
         backlogQuotaLimitTime = -1;
 
         replicationStats.clear();
         subscriptionStats.clear();
+
+        compactionRemovedEventCount = 0;
+        compactionSucceedCount = 0;
+        compactionFailedCount = 0;
+        compactionDurationTimeInMills = 0;
+        compactionReadThroughput = 0;
+        compactionWriteThroughput = 0;
+        compactionCompactedEntriesCount = 0;
+        compactionCompactedEntriesSize = 0;
+
         delayedMessageIndexSizeInBytes = 0;
         bucketDelayedIndexStats.clear();
     }

@@ -135,7 +135,7 @@ public class NamespaceService implements AutoCloseable {
     public static final Pattern SLA_NAMESPACE_PATTERN = Pattern.compile(SLA_NAMESPACE_PROPERTY + "/[^/]+/([^:]+:\\d+)");
     public static final String HEARTBEAT_NAMESPACE_FMT = "pulsar/%s/%s";
     public static final String HEARTBEAT_NAMESPACE_FMT_V2 = "pulsar/%s";
-    public static final String SLA_NAMESPACE_FMT = SLA_NAMESPACE_PROPERTY + "/%s/%s:%s";
+    public static final String SLA_NAMESPACE_FMT = SLA_NAMESPACE_PROPERTY + "/%s/%s";
 
     private final ConcurrentOpenHashMap<ClusterDataImpl, PulsarClientImpl> namespaceClients;
 
@@ -189,7 +189,7 @@ public class NamespaceService implements AutoCloseable {
         CompletableFuture<Optional<LookupResult>> future = getBundleAsync(topic)
                 .thenCompose(bundle -> {
                     // Do redirection if the cluster is in rollback or deploying.
-                    return redirectManager.findRedirectLookupResultAsync().thenCompose(optResult -> {
+                    return findRedirectLookupResultAsync(bundle).thenCompose(optResult -> {
                         if (optResult.isPresent()) {
                             LOG.info("[{}] Redirect lookup request to {} for topic {}",
                                     pulsar.getSafeWebServiceAddress(), optResult.get(), topic);
@@ -219,6 +219,13 @@ public class NamespaceService implements AutoCloseable {
         });
 
         return future;
+    }
+
+    private CompletableFuture<Optional<LookupResult>> findRedirectLookupResultAsync(ServiceUnitId bundle) {
+        if (isSLAOrHeartbeatNamespace(bundle.getNamespaceObject().toString())) {
+            return CompletableFuture.completedFuture(Optional.empty());
+        }
+        return redirectManager.findRedirectLookupResultAsync();
     }
 
     public CompletableFuture<NamespaceBundle> getBundleAsync(TopicName topic) {
@@ -288,8 +295,7 @@ public class NamespaceService implements AutoCloseable {
     private CompletableFuture<Optional<URL>> internalGetWebServiceUrl(@Nullable ServiceUnitId topic,
                                                                       NamespaceBundle bundle,
                                                                       LookupOptions options) {
-
-        return redirectManager.findRedirectLookupResultAsync().thenCompose(optResult -> {
+        return findRedirectLookupResultAsync(bundle).thenCompose(optResult -> {
             if (optResult.isPresent()) {
                 LOG.info("[{}] Redirect lookup request to {} for topic {}",
                         pulsar.getSafeWebServiceAddress(), optResult.get(), topic);
@@ -695,7 +701,7 @@ public class NamespaceService implements AutoCloseable {
         return lookupFuture;
     }
 
-    private boolean isBrokerActive(String candidateBroker) {
+    public boolean isBrokerActive(String candidateBroker) {
         String candidateBrokerHostAndPort = parseHostAndPort(candidateBroker);
         Set<String> availableBrokers = getAvailableBrokers();
         if (availableBrokers.contains(candidateBrokerHostAndPort)) {
@@ -1564,7 +1570,7 @@ public class NamespaceService implements AutoCloseable {
     }
 
     public void unloadSLANamespace() throws Exception {
-        NamespaceName namespaceName = getSLAMonitorNamespace(host, config);
+        NamespaceName namespaceName = getSLAMonitorNamespace(pulsar.getLookupServiceAddress(), config);
 
         LOG.info("Checking owner for SLA namespace {}", namespaceName);
 
@@ -1589,14 +1595,8 @@ public class NamespaceService implements AutoCloseable {
         return NamespaceName.get(String.format(HEARTBEAT_NAMESPACE_FMT_V2, lookupBroker));
     }
 
-    public static NamespaceName getSLAMonitorNamespace(String host, ServiceConfiguration config) {
-        Integer port = null;
-        if (config.getWebServicePortTls().isPresent()) {
-            port = config.getWebServicePortTls().get();
-        } else if (config.getWebServicePort().isPresent()) {
-            port = config.getWebServicePort().get();
-        }
-        return NamespaceName.get(String.format(SLA_NAMESPACE_FMT, config.getClusterName(), host, port));
+    public static NamespaceName getSLAMonitorNamespace(String lookupBroker, ServiceConfiguration config) {
+        return NamespaceName.get(String.format(SLA_NAMESPACE_FMT, config.getClusterName(), lookupBroker));
     }
 
     public static String checkHeartbeatNamespace(ServiceUnitId ns) {
@@ -1640,7 +1640,7 @@ public class NamespaceService implements AutoCloseable {
      * @param namespace the namespace name
      * @return True if namespace is HEARTBEAT_NAMESPACE or SLA_NAMESPACE
      */
-    public static boolean filterNamespaceForShedding(String namespace) {
+    public static boolean isSLAOrHeartbeatNamespace(String namespace) {
         return SLA_NAMESPACE_PATTERN.matcher(namespace).matches()
                 || HEARTBEAT_NAMESPACE_PATTERN.matcher(namespace).matches()
                 || HEARTBEAT_NAMESPACE_PATTERN_V2.matcher(namespace).matches();
@@ -1653,14 +1653,16 @@ public class NamespaceService implements AutoCloseable {
     }
 
     public boolean registerSLANamespace() throws PulsarServerException {
-        boolean isNameSpaceRegistered = registerNamespace(getSLAMonitorNamespace(host, config), false);
+        String lookupServiceAddress = pulsar.getLookupServiceAddress();
+        boolean isNameSpaceRegistered = registerNamespace(getSLAMonitorNamespace(lookupServiceAddress, config), false);
         if (isNameSpaceRegistered) {
             if (LOG.isDebugEnabled()) {
                 LOG.debug("Added SLA Monitoring namespace name in local cache: ns={}",
-                        getSLAMonitorNamespace(host, config));
+                        getSLAMonitorNamespace(lookupServiceAddress, config));
             }
         } else if (LOG.isDebugEnabled()) {
-            LOG.debug("SLA Monitoring not owned by the broker: ns={}", getSLAMonitorNamespace(host, config));
+            LOG.debug("SLA Monitoring not owned by the broker: ns={}",
+                    getSLAMonitorNamespace(lookupServiceAddress, config));
         }
         return isNameSpaceRegistered;
     }

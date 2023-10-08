@@ -31,9 +31,9 @@ import org.apache.pulsar.metadata.api.extended.SessionEvent;
 import org.apache.pulsar.metadata.coordination.impl.CoordinationServiceImpl;
 
 @Slf4j
-class PulsarLedgerAuditorManager implements LedgerAuditorManager {
+public class PulsarLedgerAuditorManager implements LedgerAuditorManager {
 
-    private static final String ELECTION_PATH = "leader";
+    public static final String ELECTION_PATH = "leader";
 
     private final CoordinationService coordinationService;
     private final LeaderElection<String> leaderElection;
