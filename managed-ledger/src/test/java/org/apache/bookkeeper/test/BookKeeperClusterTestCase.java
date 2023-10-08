@@ -55,7 +55,6 @@ import org.apache.bookkeeper.conf.AbstractConfiguration;
 import org.apache.bookkeeper.conf.ClientConfiguration;
 import org.apache.bookkeeper.conf.ServerConfiguration;
 import org.apache.bookkeeper.conf.TestBKConfiguration;
-import org.apache.bookkeeper.meta.zk.ZKMetadataDriverBase;
 import org.apache.bookkeeper.metastore.InMemoryMetaStore;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.net.BookieId;
@@ -489,7 +488,7 @@ public abstract class BookKeeperClusterTestCase {
     public ServerConfiguration killBookieAndWaitForZK(int index) throws Exception {
         ServerTester tester = servers.get(index); // IKTODO: this method is awful
         ServerConfiguration ret = killBookie(index);
-        while (zkc.exists(ZKMetadataDriverBase.resolveZkLedgersRootPath(baseConf) + "/" + AVAILABLE_NODE + "/"
+        while (zkc.exists("/ledgers/" + AVAILABLE_NODE + "/"
                 + tester.getServer().getBookieId().toString(), false) != null) {
             Thread.sleep(500);
         }
@@ -700,7 +699,7 @@ public abstract class BookKeeperClusterTestCase {
         int port = conf.getBookiePort();
 
         Awaitility.await().atMost(30, TimeUnit.SECONDS).until(() -> {
-            while (zkc.exists(ZKMetadataDriverBase.resolveZkLedgersRootPath(conf) + "/" + AVAILABLE_NODE + "/"
+            while (zkc.exists("/ledgers" + AVAILABLE_NODE + "/"
                     + tester.getServer().getBookieId().toString(), false) == null) {
                 Thread.sleep(100);
             }
