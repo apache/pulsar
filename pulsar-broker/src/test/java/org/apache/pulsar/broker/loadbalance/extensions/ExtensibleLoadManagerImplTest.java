@@ -149,7 +149,7 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
         conf.setLoadBalancerLoadSheddingStrategy(TransferShedder.class.getName());
         conf.setLoadBalancerSheddingEnabled(false);
         conf.setLoadBalancerDebugModeEnabled(true);
-        conf.setTopicLevelPoliciesEnabled(false);
+        conf.setTopicLevelPoliciesEnabled(true);
         super.internalSetup(conf);
         pulsar1 = pulsar;
         ServiceConfiguration defaultConf = getDefaultConf();
@@ -158,7 +158,7 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
         defaultConf.setLoadManagerClassName(ExtensibleLoadManagerImpl.class.getName());
         defaultConf.setLoadBalancerLoadSheddingStrategy(TransferShedder.class.getName());
         defaultConf.setLoadBalancerSheddingEnabled(false);
-        defaultConf.setTopicLevelPoliciesEnabled(false);
+        defaultConf.setTopicLevelPoliciesEnabled(true);
         additionalPulsarTestContext = createAdditionalPulsarTestContext(defaultConf);
         pulsar2 = additionalPulsarTestContext.getPulsarService();
 

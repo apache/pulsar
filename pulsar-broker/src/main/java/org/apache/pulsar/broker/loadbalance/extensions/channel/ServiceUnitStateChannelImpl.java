@@ -503,13 +503,22 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
             case Splitting -> {
                 return CompletableFuture.completedFuture(Optional.of(data.sourceBroker()));
             }
-            case Assigning, Releasing -> {
+            case Assigning -> {
                 return deferGetOwnerRequest(serviceUnit).whenComplete((__, e) -> {
                     if (e != null) {
                         ownerLookUpCounters.get(state).getFailure().incrementAndGet();
                     }
-                }).thenApply(
-                        broker -> broker == null ? Optional.empty() : Optional.of(broker));
+                }).thenApply(broker -> broker == null ? Optional.empty() : Optional.of(broker));
+            }
+            case Releasing -> {
+                if (isTransferCommand(data)) {
+                    return deferGetOwnerRequest(serviceUnit).whenComplete((__, e) -> {
+                        if (e != null) {
+                            ownerLookUpCounters.get(state).getFailure().incrementAndGet();
+                        }
+                    }).thenApply(broker -> broker == null ? Optional.empty() : Optional.of(broker));
+                }
+                return CompletableFuture.completedFuture(Optional.empty());
             }
             case Init, Free -> {
                 return CompletableFuture.completedFuture(Optional.empty());
