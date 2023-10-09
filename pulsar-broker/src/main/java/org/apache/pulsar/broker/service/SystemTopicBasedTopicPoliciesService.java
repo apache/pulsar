@@ -26,6 +26,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -78,6 +79,8 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
     final Map<TopicName, TopicPolicies> policiesCache = new ConcurrentHashMap<>();
 
     final Map<TopicName, TopicPolicies> globalPoliciesCache = new ConcurrentHashMap<>();
+
+    private final Set<String> hasOldKeyTopics = new HashSet<>();
 
     private final Map<NamespaceName, AtomicInteger> ownedBundlesCountPerNamespace = new ConcurrentHashMap<>();
 
@@ -536,6 +539,20 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                     } else {
                         policiesCache.put(topicName, event.getPolicies());
                     }
+
+                    // Since PR #21212, we changed the rule of key building
+                    // due to compatibility, we need to delete the old key if the topic has any new key
+                    // this branch can be deleted in the future.
+                    String oldKey = topicName.toString();
+                    if (isOldKey(msg.getKey())) {
+                        hasOldKeyTopics.add(oldKey);
+                    } else {
+                        if (hasOldKeyTopics.contains(oldKey)) {
+                            deleteTopicPolices(oldKey, topicName);
+                            hasOldKeyTopics.remove(oldKey);
+                        }
+                    }
+
                     break;
                 case DELETE:
                     // Since PR #11928, this branch is no longer needed.
@@ -549,15 +566,7 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                         log.error("Failed to create system topic factory");
                         break;
                     }
-                    SystemTopicClient<PulsarEvent> systemTopicClient = namespaceEventsSystemTopicFactory
-                            .createTopicPoliciesSystemTopicClient(topicName.getNamespaceObject());
-                    systemTopicClient.newWriterAsync().thenAccept(writer
-                            -> writer.deleteAsync(msg.getKey(), getPulsarEvent(topicName, ActionType.DELETE, null))
-                            .whenComplete((result, e) -> writer.closeAsync().whenComplete((res, ex) -> {
-                                if (ex != null) {
-                                    log.error("close writer failed ", ex);
-                                }
-                            })));
+                    deleteTopicPolices(msg.getKey(), topicName);
                     break;
                 case NONE:
                     break;
@@ -566,6 +575,18 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                     break;
             }
         }
+    }
+
+    private void deleteTopicPolices(String key, TopicName topicName) {
+        SystemTopicClient<PulsarEvent> systemTopicClient = namespaceEventsSystemTopicFactory
+                .createTopicPoliciesSystemTopicClient(topicName.getNamespaceObject());
+        systemTopicClient.newWriterAsync().thenAccept(writer
+                -> writer.deleteAsync(key, getPulsarEvent(topicName, ActionType.DELETE, null))
+                .whenComplete((result, e) -> writer.closeAsync().whenComplete((res, ex) -> {
+                    if (ex != null) {
+                        log.error("close writer failed ", ex);
+                    }
+                })));
     }
 
     private boolean hasReplicateTo(Message<?> message) {
@@ -682,6 +703,17 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
         }
 
         return key;
+    }
+
+    /**
+     * Check the key format.
+     * @param key
+     * new format: persistent://tenant/namespace/topic/isGlobal
+     * old format: persistent://tenant/namespace/topic
+     */
+    @Deprecated
+    private static boolean isOldKey(String key) {
+        return StringUtils.split(key, '/').length == 4;
     }
 
     @VisibleForTesting
