@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.loadbalance.impl;
 
 import static java.lang.Thread.sleep;
 import static org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl.TIME_AVERAGE_BROKER_ZPATH;
+import static org.apache.pulsar.broker.resources.LoadBalanceResources.BUNDLE_DATA_BASE_PATH;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
@@ -290,7 +291,7 @@ public class ModularLoadManagerImplTest {
         final TimeAverageMessageData longTermMessageData = new TimeAverageMessageData(1000);
         longTermMessageData.setMsgRateIn(1000);
         bundleData.setLongTermData(longTermMessageData);
-        final String firstBundleDataPath = String.format("%s/%s", ModularLoadManagerImpl.BUNDLE_DATA_PATH, bundles[0]);
+        final String firstBundleDataPath = String.format("%s/%s", BUNDLE_DATA_BASE_PATH, bundles[0]);
         // Write long message rate for first bundle to ensure that even bundle distribution is not a coincidence of
         // balancing by message rate. If we were balancing by message rate, one of the brokers should only have this
         // one bundle.
@@ -386,7 +387,7 @@ public class ModularLoadManagerImplTest {
         final TimeAverageMessageData longTermMessageData = new TimeAverageMessageData(1000);
         longTermMessageData.setMsgRateIn(1000);
         bundleData.setLongTermData(longTermMessageData);
-        final String firstBundleDataPath = String.format("%s/%s", ModularLoadManagerImpl.BUNDLE_DATA_PATH, bundles[0]);
+        final String firstBundleDataPath = String.format("%s/%s", BUNDLE_DATA_BASE_PATH, bundles[0]);
         pulsar1.getLocalMetadataStore().getMetadataCache(BundleData.class).create(firstBundleDataPath, bundleData).join();
         String maxTopicOwnedBroker = primaryLoadManager.selectBrokerForAssignment(bundles[0]).get();
 
@@ -843,7 +844,7 @@ public class ModularLoadManagerImplTest {
         String topicToFindBundle = topicName + 0;
         NamespaceBundle bundleWillBeSplit = pulsar1.getNamespaceService().getBundle(TopicName.get(topicToFindBundle));
 
-        String bundleDataPath = ModularLoadManagerImpl.BUNDLE_DATA_PATH + "/" + tenant + "/" + namespace;
+        String bundleDataPath = BUNDLE_DATA_BASE_PATH + "/" + tenant + "/" + namespace;
         CompletableFuture<List<String>> children = bundlesCache.getChildren(bundleDataPath);
         List<String> bundles = children.join();
         assertTrue(bundles.contains(bundleWillBeSplit.getBundleRange()));
