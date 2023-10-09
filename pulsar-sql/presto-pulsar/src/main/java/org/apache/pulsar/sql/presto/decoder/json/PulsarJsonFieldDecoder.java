@@ -58,6 +58,7 @@ import io.trino.spi.type.TimestampType;
 import io.trino.spi.type.Timestamps;
 import io.trino.spi.type.TinyintType;
 import io.trino.spi.type.Type;
+import io.trino.spi.type.UuidType;
 import io.trino.spi.type.VarbinaryType;
 import io.trino.spi.type.VarcharType;
 import java.util.Iterator;
@@ -126,7 +127,8 @@ public class PulsarJsonFieldDecoder
                 TimestampType.TIMESTAMP_MILLIS,
                 DateType.DATE,
                 TimeType.TIME_MILLIS,
-                RealType.REAL
+                RealType.REAL,
+                UuidType.UUID
         ).contains(type)) {
             return true;
         }
