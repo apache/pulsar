@@ -219,7 +219,7 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
         }
     }
 
-    private void setEnsemblePlacementPolicy(ClientConfiguration bkConf, ServiceConfiguration conf, MetadataStore store,
+    static void setEnsemblePlacementPolicy(ClientConfiguration bkConf, ServiceConfiguration conf, MetadataStore store,
                                             Class<? extends EnsemblePlacementPolicy> policyClass) {
         bkConf.setEnsemblePlacementPolicy(policyClass);
         bkConf.setProperty(BookieRackAffinityMapping.METADATA_STORE_INSTANCE, store);
