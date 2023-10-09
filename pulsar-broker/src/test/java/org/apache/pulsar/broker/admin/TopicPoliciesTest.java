@@ -3278,14 +3278,12 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         admin.topicPolicies(false).setDispatchRate(tpName, dispatchRateLocal);
         admin.topicPolicies(true).setDispatchRate(tpName, dispatchRateGlobal);
 
-        // Trigger __change_events compaction and clear topic policies cache.
+        // Trigger __change_events compaction.
         triggerAndWaitNewTopicCompaction(tpNameChangeEvents);
-        clearTopicPoliciesCache();
 
-        // Reload the topic policies.
-        // Verify the local policies was affected.
+        // Create a new SystemTopicBasedTopicPoliciesService and verify the local policies was affected.
         Optional<TopicPolicies> topicPoliciesOptional =
-                pulsar.getTopicPoliciesService().getTopicPoliciesAsync(TopicName.get(tpName)).join();
+                new SystemTopicBasedTopicPoliciesService(pulsar).getTopicPoliciesAsync(TopicName.get(tpName)).join();
         assertTrue(topicPoliciesOptional.isPresent());
         assertEquals(topicPoliciesOptional.get().getDispatchRate().getDispatchThrottlingRateInMsg(),
                 rateMsgLocal);
