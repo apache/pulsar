@@ -233,7 +233,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
     private static final Random random = new Random(System.currentTimeMillis());
     private long maximumRolloverTimeMs;
-    protected final Supplier<Boolean> mlOwnershipChecker;
+    protected final Supplier<CompletableFuture<Boolean>> mlOwnershipChecker;
 
     volatile PositionImpl lastConfirmedEntry;
 
@@ -337,7 +337,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     }
     public ManagedLedgerImpl(ManagedLedgerFactoryImpl factory, BookKeeper bookKeeper, MetaStore store,
             ManagedLedgerConfig config, OrderedScheduler scheduledExecutor,
-            final String name, final Supplier<Boolean> mlOwnershipChecker) {
+            final String name, final Supplier<CompletableFuture<Boolean>> mlOwnershipChecker) {
         this.factory = factory;
         this.bookKeeper = bookKeeper;
         this.config = config;

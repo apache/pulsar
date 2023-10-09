@@ -3389,7 +3389,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
             @Override
             public void openLedgerFailed(ManagedLedgerException exception, Object ctx) {
             }
-        }, checkOwnershipFlag ? () -> true : null, null);
+        }, checkOwnershipFlag ? () -> CompletableFuture.completedFuture(true) : null, null);
         latch.await();
     }
 
