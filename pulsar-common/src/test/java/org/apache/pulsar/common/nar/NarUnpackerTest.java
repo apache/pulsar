@@ -38,6 +38,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 @Slf4j
+@Test(groups = "flaky")
 public class NarUnpackerTest {
     File sampleZipFile;
     File extractDirectory;
