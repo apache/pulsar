@@ -1752,15 +1752,17 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             return;
         }
 
-        MessageIdData messageIdData = send.hasMessageId() ? send.getMessageId() : null;
+        // This position is only used for shadow replicator
+        Position position = send.hasMessageId()
+                ? PositionImpl.get(send.getMessageId().getLedgerId(), send.getMessageId().getEntryId()) : null;
 
         // Persist the message
         if (send.hasHighestSequenceId() && send.getSequenceId() <= send.getHighestSequenceId()) {
             producer.publishMessage(send.getProducerId(), send.getSequenceId(), send.getHighestSequenceId(),
-                    headersAndPayload, send.getNumMessages(), send.isIsChunk(), send.isMarker(), messageIdData);
+                    headersAndPayload, send.getNumMessages(), send.isIsChunk(), send.isMarker(), position);
         } else {
             producer.publishMessage(send.getProducerId(), send.getSequenceId(), headersAndPayload,
-                    send.getNumMessages(), send.isIsChunk(), send.isMarker(), messageIdData);
+                    send.getNumMessages(), send.isIsChunk(), send.isMarker(), position);
         }
     }
 
