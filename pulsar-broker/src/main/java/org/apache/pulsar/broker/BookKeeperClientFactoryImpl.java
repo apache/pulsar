@@ -227,6 +227,9 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
             bkConf.setProperty(REPP_DNS_RESOLVER_CLASS, conf.getProperties().getProperty(REPP_DNS_RESOLVER_CLASS,
                     BookieRackAffinityMapping.class.getName()));
 
+            bkConf.setMinNumRacksPerWriteQuorum(conf.getBookkeeperClientMinNumRacksPerWriteQuorum());
+            bkConf.setEnforceMinNumRacksPerWriteQuorum(conf.isBookkeeperClientEnforceMinNumRacksPerWriteQuorum());
+
             bkConf.setProperty(NET_TOPOLOGY_SCRIPT_FILE_NAME_KEY,
                 conf.getProperties().getProperty(
                     NET_TOPOLOGY_SCRIPT_FILE_NAME_KEY,
