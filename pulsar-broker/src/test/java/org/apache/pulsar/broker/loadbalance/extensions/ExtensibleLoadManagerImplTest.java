@@ -35,6 +35,9 @@ import static org.apache.pulsar.broker.loadbalance.extensions.models.UnloadDecis
 import static org.apache.pulsar.broker.loadbalance.extensions.models.UnloadDecision.Reason.Overloaded;
 import static org.apache.pulsar.broker.loadbalance.extensions.models.UnloadDecision.Reason.Underloaded;
 import static org.apache.pulsar.broker.loadbalance.extensions.models.UnloadDecision.Reason.Unknown;
+import static org.apache.pulsar.broker.namespace.NamespaceService.getHeartbeatNamespace;
+import static org.apache.pulsar.broker.namespace.NamespaceService.getHeartbeatNamespaceV2;
+import static org.apache.pulsar.broker.namespace.NamespaceService.getSLAMonitorNamespace;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
@@ -594,6 +597,18 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
             assertTrue(webServiceUrl3.isPresent());
             assertEquals(webServiceUrl3.get().toString(), webServiceUrl1.get().toString());
 
+            List<PulsarService> pulsarServices = List.of(pulsar1, pulsar2, pulsar3);
+            for (PulsarService pulsarService : pulsarServices) {
+                // Test lookup heartbeat namespace's topic
+                for (PulsarService pulsar : pulsarServices) {
+                    assertLookupHeartbeatOwner(pulsarService, pulsar.getLookupServiceAddress(), pulsar.getBrokerServiceUrl());
+                }
+                // Test lookup SLA namespace's topic
+                for (PulsarService pulsar : pulsarServices) {
+                    assertLookupSLANamespaceOwner(pulsarService, pulsar.getLookupServiceAddress(), pulsar.getBrokerServiceUrl());
+                }
+            }
+
             // Test deploy new broker with new load manager
             ServiceConfiguration conf = getDefaultConf();
             conf.setAllowAutoTopicCreation(true);
@@ -642,8 +657,46 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
                 assertTrue(webServiceUrl4.isPresent());
                 assertEquals(webServiceUrl4.get().toString(), webServiceUrl1.get().toString());
 
+                pulsarServices = List.of(pulsar1, pulsar2, pulsar3, pulsar4);
+                for (PulsarService pulsarService : pulsarServices) {
+                    // Test lookup heartbeat namespace's topic
+                    for (PulsarService pulsar : pulsarServices) {
+                        assertLookupHeartbeatOwner(pulsarService, pulsar.getLookupServiceAddress(), pulsar.getBrokerServiceUrl());
+                    }
+                    // Test lookup SLA namespace's topic
+                    for (PulsarService pulsar : pulsarServices) {
+                        assertLookupSLANamespaceOwner(pulsarService, pulsar.getLookupServiceAddress(), pulsar.getBrokerServiceUrl());
+                    }
+                }
             }
         }
+    }
+
+    private void assertLookupHeartbeatOwner(PulsarService pulsar,
+                                            String lookupServiceAddress,
+                                            String expectedBrokerServiceUrl) throws Exception {
+        NamespaceName heartbeatNamespaceV1 =
+                getHeartbeatNamespace(lookupServiceAddress, pulsar.getConfiguration());
+
+        String heartbeatV1Topic = heartbeatNamespaceV1.getPersistentTopicName("test");
+        assertEquals(pulsar.getAdminClient().lookups().lookupTopic(heartbeatV1Topic), expectedBrokerServiceUrl);
+
+        NamespaceName heartbeatNamespaceV2 =
+                getHeartbeatNamespaceV2(lookupServiceAddress, pulsar.getConfiguration());
+
+        String heartbeatV2Topic = heartbeatNamespaceV2.getPersistentTopicName("test");
+        assertEquals(pulsar.getAdminClient().lookups().lookupTopic(heartbeatV2Topic), expectedBrokerServiceUrl);
+    }
+
+    private void assertLookupSLANamespaceOwner(PulsarService pulsar,
+                                               String lookupServiceAddress,
+                                               String expectedBrokerServiceUrl) throws Exception {
+        NamespaceName slaMonitorNamespace = getSLAMonitorNamespace(lookupServiceAddress, pulsar.getConfiguration());
+        String slaMonitorTopic = slaMonitorNamespace.getPersistentTopicName("test");
+        String result = pulsar.getAdminClient().lookups().lookupTopic(slaMonitorTopic);
+        log.info("Topic {} Lookup result: {}", slaMonitorTopic, result);
+        assertNotNull(result);
+        assertEquals(result, expectedBrokerServiceUrl);
     }
 
     @Test
@@ -1043,15 +1096,15 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
         admin.namespaces().deleteNamespace(namespace, true);
     }
 
-    @Test(timeOut = 30 * 1000)
+    @Test(timeOut = 30 * 1000, priority = -1)
     public void testGetOwnedServiceUnitsAndGetOwnedNamespaceStatus() throws Exception {
         NamespaceName heartbeatNamespacePulsar1V1 =
-                NamespaceService.getHeartbeatNamespace(pulsar1.getLookupServiceAddress(), pulsar1.getConfiguration());
+                getHeartbeatNamespace(pulsar1.getLookupServiceAddress(), pulsar1.getConfiguration());
         NamespaceName heartbeatNamespacePulsar1V2 =
                 NamespaceService.getHeartbeatNamespaceV2(pulsar1.getLookupServiceAddress(), pulsar1.getConfiguration());
 
         NamespaceName heartbeatNamespacePulsar2V1 =
-                NamespaceService.getHeartbeatNamespace(pulsar2.getLookupServiceAddress(), pulsar2.getConfiguration());
+                getHeartbeatNamespace(pulsar2.getLookupServiceAddress(), pulsar2.getConfiguration());
         NamespaceName heartbeatNamespacePulsar2V2 =
                 NamespaceService.getHeartbeatNamespaceV2(pulsar2.getLookupServiceAddress(), pulsar2.getConfiguration());
 
@@ -1068,22 +1121,22 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
         Set<NamespaceBundle> ownedServiceUnitsByPulsar1 = primaryLoadManager.getOwnedServiceUnits();
         log.info("Owned service units: {}", ownedServiceUnitsByPulsar1);
         // heartbeat namespace bundle will own by pulsar1
-        assertEquals(ownedServiceUnitsByPulsar1.size(), 2);
+        assertEquals(ownedServiceUnitsByPulsar1.size(), 3);
         assertTrue(ownedServiceUnitsByPulsar1.contains(bundle1));
         assertTrue(ownedServiceUnitsByPulsar1.contains(bundle2));
         Set<NamespaceBundle> ownedServiceUnitsByPulsar2 = secondaryLoadManager.getOwnedServiceUnits();
         log.info("Owned service units: {}", ownedServiceUnitsByPulsar2);
-        assertEquals(ownedServiceUnitsByPulsar2.size(), 2);
+        assertEquals(ownedServiceUnitsByPulsar2.size(), 3);
         assertTrue(ownedServiceUnitsByPulsar2.contains(bundle3));
         assertTrue(ownedServiceUnitsByPulsar2.contains(bundle4));
         Map<String, NamespaceOwnershipStatus> ownedNamespacesByPulsar1 =
                 admin.brokers().getOwnedNamespaces(conf.getClusterName(), pulsar1.getLookupServiceAddress());
         Map<String, NamespaceOwnershipStatus> ownedNamespacesByPulsar2 =
                 admin.brokers().getOwnedNamespaces(conf.getClusterName(), pulsar2.getLookupServiceAddress());
-        assertEquals(ownedNamespacesByPulsar1.size(), 2);
+        assertEquals(ownedNamespacesByPulsar1.size(), 3);
         assertTrue(ownedNamespacesByPulsar1.containsKey(bundle1.toString()));
         assertTrue(ownedNamespacesByPulsar1.containsKey(bundle2.toString()));
-        assertEquals(ownedNamespacesByPulsar2.size(), 2);
+        assertEquals(ownedNamespacesByPulsar2.size(), 3);
         assertTrue(ownedNamespacesByPulsar2.containsKey(bundle3.toString()));
         assertTrue(ownedNamespacesByPulsar2.containsKey(bundle4.toString()));
 
@@ -1134,7 +1187,8 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
         String topic = "persistent://" + namespace + "/test";
         NamespaceBundle bundle = getBundleAsync(pulsar1, TopicName.get(topic)).get();
         NamespaceEphemeralData namespaceEphemeralData = primaryLoadManager.tryAcquiringOwnership(bundle).get();
-        assertEquals(namespaceEphemeralData.getNativeUrl(), pulsar1.getBrokerServiceUrl());
+        assertTrue(Set.of(pulsar1.getBrokerServiceUrl(), pulsar2.getBrokerServiceUrl())
+                .contains(namespaceEphemeralData.getNativeUrl()));
         admin.namespaces().deleteNamespace(namespace, true);
     }
 

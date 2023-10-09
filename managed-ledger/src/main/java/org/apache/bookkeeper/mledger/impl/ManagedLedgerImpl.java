@@ -529,7 +529,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     return;
                 }
 
-                log.info("[{}] Created ledger {}", name, lh.getId());
+                log.info("[{}] Created ledger {} after closed {}", name, lh.getId(),
+                        currentLedger == null ? "null" : currentLedger.getId());
                 STATE_UPDATER.set(this, State.LedgerOpened);
                 updateLastLedgerCreatedTimeAndScheduleRolloverTask();
                 currentLedger = lh;
@@ -1770,7 +1771,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
     synchronized void createLedgerAfterClosed() {
         if (isNeededCreateNewLedgerAfterCloseLedger()) {
-            log.info("[{}] Creating a new ledger after closed", name);
+            log.info("[{}] Creating a new ledger after closed {}", name,
+                    currentLedger == null ? "null" : currentLedger.getId());
             STATE_UPDATER.set(this, State.CreatingLedger);
             this.lastLedgerCreationInitiationTimestamp = System.currentTimeMillis();
             mbean.startDataLedgerCreateOp();
@@ -2848,15 +2850,14 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             return;
         }
 
-        // need to move mark delete for non-durable cursors to the first ledger NOT marked for deletion
-        // calling getNumberOfEntries latter for a ledger that is already deleted will be problematic and return
-        // incorrect results
-        Long firstNonDeletedLedger = ledgers.higherKey(ledgersToDelete.get(ledgersToDelete.size() - 1).getLedgerId());
-        if (firstNonDeletedLedger == null) {
-            throw new LedgerNotExistException("First non deleted Ledger is not found");
+        // Just ack messages like a consumer. Normally, consumers will not confirm a position that does not exist, so
+        // find the latest existing position to ack.
+        PositionImpl highestPositionToDelete = calculateLastEntryInLedgerList(ledgersToDelete);
+        if (highestPositionToDelete == null) {
+            log.warn("[{}] The ledgers to be trim are all empty, skip to advance non-durable cursors: {}",
+                    name, ledgersToDelete);
+            return;
         }
-        PositionImpl highestPositionToDelete = new PositionImpl(firstNonDeletedLedger, -1);
-
         cursors.forEach(cursor -> {
             // move the mark delete position to the highestPositionToDelete only if it is smaller than the add confirmed
             // to prevent the edge case where the cursor is caught up to the latest and highestPositionToDelete may be
@@ -2878,6 +2879,19 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 }, null);
             }
         });
+    }
+
+    /**
+     * @return null if all ledgers is empty.
+     */
+    private PositionImpl calculateLastEntryInLedgerList(List<LedgerInfo> ledgersToDelete) {
+        for (int i = ledgersToDelete.size() - 1; i >= 0; i--) {
+            LedgerInfo ledgerInfo = ledgersToDelete.get(i);
+            if (ledgerInfo != null && ledgerInfo.hasEntries() && ledgerInfo.getEntries() > 0) {
+                return PositionImpl.get(ledgerInfo.getLedgerId(), ledgerInfo.getEntries() - 1);
+            }
+        }
+        return null;
     }
 
     /**
@@ -3628,23 +3642,30 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
      * @return true if the position is valid, false otherwise
      */
     public boolean isValidPosition(PositionImpl position) {
-        PositionImpl last = lastConfirmedEntry;
+        PositionImpl lac = lastConfirmedEntry;
         if (log.isDebugEnabled()) {
-            log.debug("IsValid position: {} -- last: {}", position, last);
+            log.debug("IsValid position: {} -- last: {}", position, lac);
         }
 
-        if (position.getEntryId() < 0) {
+        if (!ledgers.containsKey(position.getLedgerId())){
             return false;
-        } else if (position.getLedgerId() > last.getLedgerId()) {
+        } else if (position.getEntryId() < 0) {
             return false;
-        } else if (position.getLedgerId() == last.getLedgerId()) {
-            return position.getEntryId() <= (last.getEntryId() + 1);
+        } else if (currentLedger != null && position.getLedgerId() == currentLedger.getId()) {
+            // If current ledger is empty, the largest read position can be "{current_ledger: 0}".
+            // Else, the read position can be set to "{LAC + 1}" when subscribe at LATEST,
+            return (position.getLedgerId() == lac.getLedgerId() && position.getEntryId() <= lac.getEntryId() + 1)
+                    || position.getEntryId() == 0;
+        } else if (position.getLedgerId() == lac.getLedgerId()) {
+            // The ledger witch maintains LAC was closed, and there is an empty current ledger.
+            // If entry id is larger than LAC, it should be "{current_ledger: 0}".
+            return position.getEntryId() <= lac.getEntryId();
         } else {
             // Look in the ledgers map
             LedgerInfo ls = ledgers.get(position.getLedgerId());
 
             if (ls == null) {
-                if (position.getLedgerId() < last.getLedgerId()) {
+                if (position.getLedgerId() < lac.getLedgerId()) {
                     // Pointing to a non-existing ledger that is older than the current ledger is invalid
                     return false;
                 } else {

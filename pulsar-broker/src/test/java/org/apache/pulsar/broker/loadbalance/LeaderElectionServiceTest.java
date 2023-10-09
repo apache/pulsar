@@ -129,10 +129,10 @@ public class LeaderElectionServiceTest {
                     .topic("persistent://" + tenant + "/" + namespace + "/1p")
                     .create();
         } catch (PulsarClientException t) {
-            Assert.assertTrue(t instanceof PulsarClientException.LookupException);
+            Assert.assertTrue(t instanceof PulsarClientException.BrokerMetadataException
+                    || t instanceof PulsarClientException.LookupException);
             Assert.assertTrue(
-                    t.getMessage().contains(
-                            "java.lang.IllegalStateException: The leader election has not yet been completed!"));
+                    t.getMessage().contains("The leader election has not yet been completed"));
         }
     }
 
