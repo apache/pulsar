@@ -132,7 +132,6 @@ import org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.common.policies.data.EnsemblePlacementPolicyConfig;
 import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats;
 import org.apache.pulsar.common.policies.data.OffloadPolicies;
-import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
 import org.apache.pulsar.common.policies.data.OffloadedReadPriority;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.protocol.Commands;
@@ -2482,7 +2481,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             return;
         }
 
-        final OffloadPoliciesImpl policies = config.getLedgerOffloader().getOffloadPolicies();
+        final OffloadPolicies policies = config.getLedgerOffloader().getOffloadPolicies();
         final long offloadThresholdInBytes =
                 Optional.ofNullable(policies.getManagedLedgerOffloadThresholdInBytes()).orElse(-1L);
         final long offloadThresholdInSeconds =
