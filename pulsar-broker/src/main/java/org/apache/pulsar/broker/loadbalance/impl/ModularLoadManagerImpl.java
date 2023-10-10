@@ -34,9 +34,9 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.Lock;
@@ -172,7 +172,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
     private PulsarResources pulsarResources;
 
     // Executor service used to update broker data.
-    private final ExecutorService executors;
+    private final ScheduledExecutorService scheduler;
 
     // check if given broker can load persistent/non-persistent topic
     private final BrokerTopicLoadingPredicate brokerTopicLoadingPredicate;
@@ -197,6 +197,8 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
     private final Lock lock = new ReentrantLock();
     private final Set<String> knownBrokers = new HashSet<>();
     private Map<String, String> bundleBrokerAffinityMap;
+    // flag to indicate whether the load data is old.
+    private volatile boolean oldFlag = false;
 
     /**
      * Initializes fields which do not depend on PulsarService. initialize(PulsarService) should subsequently be called.
@@ -212,7 +214,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
         loadData = new LoadData();
         loadSheddingPipeline = new ArrayList<>();
         preallocatedBundleToBroker = new ConcurrentHashMap<>();
-        executors = Executors.newSingleThreadExecutor(
+        scheduler = Executors.newSingleThreadScheduledExecutor(
                 new ExecutorProvider.ExtendedThreadFactory("pulsar-modular-load-manager"));
         this.brokerToFailureDomainMap = new HashMap<>();
         this.bundleBrokerAffinityMap = new ConcurrentHashMap<>();
@@ -274,11 +276,16 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
         // register listeners for domain changes
         pulsarResources.getClusterResources().getFailureDomainResources()
                 .registerListener(__ -> {
-                    executors.execute(
+                    scheduler.execute(
                             () -> LoadManagerShared.refreshBrokerToFailureDomainMap(pulsar, brokerToFailureDomainMap));
                 });
 
         loadSheddingPipeline.add(createLoadSheddingStrategy());
+    }
+
+    private boolean isLeader() {
+        return pulsar.getLeaderElectionService() != null
+                && pulsar.getLeaderElectionService().isLeader();
     }
 
     public void handleDataNotification(Notification t) {
@@ -287,11 +294,14 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
                     .thenAccept(brokers -> {
                         reapDeadBrokerPreallocations(brokers);
                     });
+            oldFlag = true;
 
-            try {
-                executors.execute(ModularLoadManagerImpl.this::updateAll);
-            } catch (RejectedExecutionException e) {
-                // Executor is shutting down
+            if (isLeader()) {
+                try {
+                    scheduler.submit(ModularLoadManagerImpl.this::updateAll);
+                } catch (RejectedExecutionException e) {
+                    // Executor is shutting down
+                }
             }
         }
     }
@@ -474,6 +484,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
         updateBundleData();
         // broker has latest load-report: check if any bundle requires split
         checkNamespaceBundleSplit();
+        oldFlag = false;
     }
 
     private synchronized void cleanupDeadBrokersData() {
@@ -828,6 +839,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
 
     /**
      * As the leader broker, find a suitable broker for the assignment of the given bundle.
+     * If leader broker is inactive, decision will be made by the current broker.
      *
      * @param serviceUnit
      *            ServiceUnitId for the bundle.
@@ -835,6 +847,20 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
      */
     @Override
     public Optional<String> selectBrokerForAssignment(final ServiceUnitId serviceUnit) {
+        if (!isLeader() && oldFlag) {
+            log.info("Make decision on follower broker, but the LoadData is old," +
+                    " need to update LoadData before make decision");
+            updateAll();
+            // invalidate all cache after some times in case of non-leader broker requesting
+            // metadata store continuously.
+            scheduler.schedule(() -> {
+                bundlesCache.invalidateAll();
+                brokersData.releaseAllResourcesInCache();
+                oldFlag = true;
+            }, Math.min(conf.getLoadBalancerResourceQuotaUpdateIntervalMinutes(),
+                    conf.getLoadBalancerReportUpdateMaxIntervalMinutes()), TimeUnit.MINUTES);
+        }
+
         // Use brokerCandidateCache as a lock to reduce synchronization.
         long startTime = System.nanoTime();
 
@@ -998,7 +1024,6 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
 
             timeAverageBrokerDataCache.readModifyUpdateOrCreate(timeAverageZPath,
                     __ -> new TimeAverageBrokerData()).join();
-            updateAll();
         } catch (Exception e) {
             log.error("Unable to acquire lock for broker: [{}]", brokerZnodePath, e);
             throw new PulsarServerException(e);
@@ -1013,7 +1038,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
      */
     @Override
     public void stop() throws PulsarServerException {
-        executors.shutdownNow();
+        scheduler.shutdownNow();
 
         try {
             brokersData.close();
