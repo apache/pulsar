@@ -41,6 +41,7 @@ import org.apache.bookkeeper.mledger.Position;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.service.persistent.ReplicatedSubscriptionsController;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
@@ -50,6 +51,7 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.policies.data.PartitionedTopicStats;
+import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.awaitility.Awaitility;
@@ -93,8 +95,7 @@ public class ReplicatorSubscriptionTest extends ReplicatorTestBase {
         // it shows that subscription replication has no impact in behavior for this test case
         boolean replicateSubscriptionState = true;
 
-        admin1.namespaces().createNamespace(namespace);
-        admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r1", "r2"));
+        createNamespaceReplicatedOnR1AndR2(namespace);
 
         @Cleanup
         PulsarClient client1 = PulsarClient.builder().serviceUrl(url1.toString())
@@ -254,8 +255,7 @@ public class ReplicatorSubscriptionTest extends ReplicatorTestBase {
         String topicName = "persistent://" + namespace + "/mytopic";
         String subscriptionName = "cluster-subscription";
 
-        admin1.namespaces().createNamespace(namespace);
-        admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r1", "r2"));
+        createNamespaceReplicatedOnR1AndR2(namespace);
 
         @Cleanup
         PulsarClient client1 = PulsarClient.builder()
@@ -344,8 +344,7 @@ public class ReplicatorSubscriptionTest extends ReplicatorTestBase {
         // TODO: duplications shouldn't be allowed, change to "false" when fixing the issue
         final boolean allowDuplicates = true;
 
-        admin1.namespaces().createNamespace(namespace);
-        admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r1", "r2"));
+        createNamespaceReplicatedOnR1AndR2(namespace);
 
         @Cleanup
         final PulsarClient client1 = PulsarClient.builder().serviceUrl(url1.toString())
@@ -454,7 +453,7 @@ public class ReplicatorSubscriptionTest extends ReplicatorTestBase {
         final String subName1 = "sub1";
         final String subName2 = "sub2";
 
-        admin1.namespaces().createNamespace(namespace);
+        createNamespaceReplicatedOnR1AndR2(namespace);
         admin1.topics().createNonPartitionedTopic(topicName1);
         admin1.topics().createPartitionedTopic(topicName2, 3);
 
@@ -516,8 +515,7 @@ public class ReplicatorSubscriptionTest extends ReplicatorTestBase {
         // TODO: duplications shouldn't be allowed, change to "false" when fixing the issue
         final boolean allowDuplicates = true;
 
-        admin1.namespaces().createNamespace(namespace);
-        admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r1", "r2"));
+        createNamespaceReplicatedOnR1AndR2(namespace);
         admin1.topics().createPartitionedTopic(topicName, 2);
 
         @Cleanup
@@ -630,8 +628,7 @@ public class ReplicatorSubscriptionTest extends ReplicatorTestBase {
         String topicName = "persistent://" + namespace + "/when-replicator-producer-is-closed";
         String subscriptionName = "sub";
 
-        admin1.namespaces().createNamespace(namespace);
-        admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r1", "r2"));
+        createNamespaceReplicatedOnR1AndR2(namespace);
 
         @Cleanup
         PulsarClient client1 = PulsarClient.builder().serviceUrl(url1.toString())
@@ -743,4 +740,13 @@ public class ReplicatorSubscriptionTest extends ReplicatorTestBase {
                 .close();
     }
 
+    private void createNamespaceReplicatedOnR1AndR2(String namespace) throws PulsarAdminException {
+        createNamespace(namespace, "r1", "r2");
+    }
+
+    private void createNamespace(String namespace, String... replicationClusters) throws PulsarAdminException {
+        Policies namespacePolicies = new Policies();
+        namespacePolicies.replication_clusters = Sets.newHashSet(replicationClusters);
+        admin1.namespaces().createNamespace(namespace, namespacePolicies);
+    }
 }
