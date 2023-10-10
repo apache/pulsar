@@ -93,6 +93,7 @@ import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.stats.AnalyzeSubscriptionBacklogResult;
 import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.DateFormatter;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -330,7 +331,9 @@ public class TopicsImpl extends BaseResource implements Topics {
 
     public CompletableFuture<Void> createPartitionedTopicAsync(
             String topic, int numPartitions, boolean createLocalTopicOnly, Map<String, String> properties) {
-        checkArgument(numPartitions > 0, "Number of partitions should be more than 0");
+        if (numPartitions <= 0) {
+            return FutureUtil.failedFuture(new IllegalArgumentException("Number of partitions must be more than 0"));
+        }
         TopicName tn = validateTopic(topic);
         WebTarget path = topicPath(tn, "partitions")
                 .queryParam("createLocalTopicOnly", Boolean.toString(createLocalTopicOnly));
@@ -383,7 +386,9 @@ public class TopicsImpl extends BaseResource implements Topics {
     @Override
     public CompletableFuture<Void> updatePartitionedTopicAsync(String topic, int numPartitions,
             boolean updateLocalTopicOnly, boolean force) {
-        checkArgument(numPartitions > 0, "Number of partitions must be more than 0");
+        if (numPartitions <= 0) {
+            return FutureUtil.failedFuture(new IllegalArgumentException("Number of partitions must be more than 0"));
+        }
         TopicName tn = validateTopic(topic);
         WebTarget path = topicPath(tn, "partitions");
         path = path.queryParam("updateLocalTopicOnly", Boolean.toString(updateLocalTopicOnly)).queryParam("force",
@@ -879,7 +884,9 @@ public class TopicsImpl extends BaseResource implements Topics {
 
     @Override
     public CompletableFuture<List<Message<byte[]>>> peekMessagesAsync(String topic, String subName, int numMessages) {
-        checkArgument(numMessages > 0);
+        if (numMessages <= 0) {
+            return FutureUtil.failedFuture(new IllegalArgumentException("numMessages must be positive"));
+        }
         CompletableFuture<List<Message<byte[]>>> future = new CompletableFuture<List<Message<byte[]>>>();
         peekMessagesAsync(topic, subName, numMessages, new ArrayList<>(), future, 1);
         return future;
@@ -2744,8 +2751,12 @@ public class TopicsImpl extends BaseResource implements Topics {
     @Override
     public CompletableFuture<Void> createShadowTopicAsync(String shadowTopic, String sourceTopic,
                                                           Map<String, String> properties) {
-        checkArgument(TopicName.get(shadowTopic).isPersistent(), "Shadow topic must be persistent");
-        checkArgument(TopicName.get(sourceTopic).isPersistent(), "Source topic must be persistent");
+        if (!TopicName.get(shadowTopic).isPersistent()) {
+            return FutureUtil.failedFuture(new IllegalArgumentException("Shadow topic must be persistent"));
+        }
+        if (!TopicName.get(sourceTopic).isPersistent()) {
+            return FutureUtil.failedFuture(new IllegalArgumentException("Source topic must be persistent"));
+        }
         return getPartitionedTopicMetadataAsync(sourceTopic).thenCompose(sourceTopicMeta -> {
             HashMap<String, String> shadowProperties = new HashMap<>();
             if (properties != null) {

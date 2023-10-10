@@ -3108,10 +3108,14 @@ public class BrokerService implements Closeable {
                                                                                         Optional<Policies> policies) {
         final int defaultNumPartitions = pulsar.getBrokerService().getDefaultNumPartitions(topicName, policies);
         final int maxPartitions = pulsar().getConfig().getMaxNumPartitionsPerPartitionedTopic();
-        checkArgument(defaultNumPartitions > 0,
-                "Default number of partitions should be more than 0");
-        checkArgument(maxPartitions <= 0 || defaultNumPartitions <= maxPartitions,
-                "Number of partitions should be less than or equal to " + maxPartitions);
+        if (defaultNumPartitions <= 0) {
+            return FutureUtil.failedFuture(
+                    new IllegalArgumentException("Default number of partitions should be more than 0"));
+        }
+        if (maxPartitions > 0 && defaultNumPartitions > maxPartitions) {
+            return FutureUtil.failedFuture(new IllegalArgumentException(
+                    "Number of partitions should be less than or equal to " + maxPartitions));
+        }
 
         PartitionedTopicMetadata configMetadata = new PartitionedTopicMetadata(defaultNumPartitions);
 

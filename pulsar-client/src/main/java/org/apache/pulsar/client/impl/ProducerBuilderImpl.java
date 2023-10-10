@@ -93,8 +93,10 @@ public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
     @Override
     public CompletableFuture<Producer<T>> createAsync() {
         // config validation
-        checkArgument(!(conf.isBatchingEnabled() && conf.isChunkingEnabled()),
-                "Batching and chunking of messages can't be enabled together");
+        if (conf.isBatchingEnabled() && conf.isChunkingEnabled()) {
+            return FutureUtil.failedFuture(
+                    new IllegalArgumentException("Batching and chunking of messages can't be enabled together"));
+        }
         if (conf.getTopicName() == null) {
             return FutureUtil
                     .failedFuture(new IllegalArgumentException("Topic name must be set on the producer builder"));

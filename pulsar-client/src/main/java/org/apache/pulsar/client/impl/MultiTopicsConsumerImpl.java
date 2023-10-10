@@ -430,10 +430,14 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                 cancellationHandler.setCancelAction(() -> pendingReceives.remove(result));
             } else {
                 decreaseIncomingMessageSize(message);
-                checkState(message instanceof TopicMessageImpl);
-                unAckedMessageTracker.add(message.getMessageId(), message.getRedeliveryCount());
-                resumeReceivingFromPausedConsumersIfNeeded();
-                result.complete(message);
+                if (message instanceof TopicMessageImpl) {
+                    unAckedMessageTracker.add(message.getMessageId(), message.getRedeliveryCount());
+                    resumeReceivingFromPausedConsumersIfNeeded();
+                    result.complete(message);
+                } else {
+                    result.completeExceptionally(new IllegalStateException(
+                            "Received message is not a TopicMessageImpl: " + message.getClass().getName()));
+                }
             }
         });
         return result;
@@ -1173,7 +1177,10 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
 
     // un-subscribe a given topic
     public CompletableFuture<Void> unsubscribeAsync(String topicName) {
-        checkArgument(TopicName.isValid(topicName), "Invalid topic name:" + topicName);
+        if (!TopicName.isValid(topicName)) {
+            return FutureUtil.failedFuture(
+                new PulsarClientException.InvalidTopicNameException("Invalid topic name:" + topicName));
+        }
 
         if (getState() == State.Closing || getState() == State.Closed) {
             return FutureUtil.failedFuture(
@@ -1227,7 +1234,10 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
 
     // Remove a consumer for a topic
     public CompletableFuture<Void> removeConsumerAsync(String topicName) {
-        checkArgument(TopicName.isValid(topicName), "Invalid topic name:" + topicName);
+        if (!TopicName.isValid(topicName)) {
+            return FutureUtil.failedFuture(
+                    new PulsarClientException.InvalidTopicNameException("Invalid topic name:" + topicName));
+        }
 
         if (getState() == State.Closing || getState() == State.Closed) {
             return FutureUtil.failedFuture(

@@ -42,6 +42,7 @@ import org.apache.pulsar.common.policies.data.TransactionMetadata;
 import org.apache.pulsar.common.policies.data.TransactionPendingAckInternalStats;
 import org.apache.pulsar.common.policies.data.TransactionPendingAckStats;
 import org.apache.pulsar.common.stats.PositionInPendingAckStats;
+import org.apache.pulsar.common.util.FutureUtil;
 
 public class TransactionsImpl extends BaseResource implements Transactions {
     private final WebTarget adminV3Transactions;
@@ -254,7 +255,10 @@ public class TransactionsImpl extends BaseResource implements Transactions {
 
     @Override
     public CompletableFuture<Void> scaleTransactionCoordinatorsAsync(int replicas) {
-        checkArgument(replicas > 0, "Number of transaction coordinators must be more than 0");
+        if (replicas <= 0) {
+            return FutureUtil.failedFuture(
+                    new IllegalArgumentException("Number of transaction coordinators must be more than 0"));
+        }
         WebTarget path = adminV3Transactions.path("transactionCoordinator");
         path = path.path("replicas");
         return asyncPostRequest(path, Entity.entity(replicas, MediaType.APPLICATION_JSON));
