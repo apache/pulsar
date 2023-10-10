@@ -19,14 +19,20 @@
 package org.apache.pulsar.broker.authorization;
 
 import static org.mockito.Mockito.mock;
+import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.assertFalse;
+
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
+
+import java.util.HashSet;
 import java.util.Properties;
+import java.util.function.Function;
+import lombok.Cleanup;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.authentication.utils.AuthTokenUtils;
 import org.apache.pulsar.broker.resources.PulsarResources;
-import org.junit.Assert;
 import org.testng.annotations.Test;
 
 import javax.crypto.SecretKey;
@@ -60,18 +66,18 @@ public class MultiRolesTokenAuthorizationProviderTest {
             }
         };
 
-        Assert.assertTrue(provider.authorize(ads, role -> {
+        assertTrue(provider.authorize("test", ads, role -> {
             if (role.equals(userB)) {
                 return CompletableFuture.completedFuture(true); // only userB has permission
             }
             return CompletableFuture.completedFuture(false);
         }).get());
 
-        Assert.assertTrue(provider.authorize(ads, role -> {
+        assertTrue(provider.authorize("test", ads, role -> {
             return CompletableFuture.completedFuture(true); // all users has permission
         }).get());
 
-        Assert.assertFalse(provider.authorize(ads, role -> {
+        assertFalse(provider.authorize("test", ads, role -> {
             return CompletableFuture.completedFuture(false); // all users has no permission
         }).get());
     }
@@ -99,7 +105,7 @@ public class MultiRolesTokenAuthorizationProviderTest {
             }
         };
 
-        Assert.assertFalse(provider.authorize(ads, role -> CompletableFuture.completedFuture(false)).get());
+        assertFalse(provider.authorize("test", ads, role -> CompletableFuture.completedFuture(false)).get());
     }
 
     @Test
@@ -126,12 +132,27 @@ public class MultiRolesTokenAuthorizationProviderTest {
             }
         };
 
-        Assert.assertTrue(provider.authorize(ads, role -> {
+        assertTrue(provider.authorize("test", ads, role -> {
             if (role.equals(testRole)) {
                 return CompletableFuture.completedFuture(true);
             }
             return CompletableFuture.completedFuture(false);
         }).get());
+    }
+
+    @Test
+    public void testMultiRolesAuthzWithAnonymousUser() throws Exception {
+        @Cleanup
+        MultiRolesTokenAuthorizationProvider provider = new MultiRolesTokenAuthorizationProvider();
+
+        Function<String, CompletableFuture<Boolean>> authorizeFunc = (String role) -> {
+            if (role.equals("test-role")) {
+                return CompletableFuture.completedFuture(true);
+            }
+            return CompletableFuture.completedFuture(false);
+        };
+        assertTrue(provider.authorize("test-role", null, authorizeFunc).get());
+        assertFalse(provider.authorize("test-role-x", null, authorizeFunc).get());
     }
 
     @Test
@@ -156,7 +177,7 @@ public class MultiRolesTokenAuthorizationProviderTest {
             }
         };
 
-        Assert.assertFalse(provider.authorize(ads, role -> CompletableFuture.completedFuture(false)).get());
+        assertFalse(provider.authorize("test", ads, role -> CompletableFuture.completedFuture(false)).get());
     }
 
     @Test
@@ -190,8 +211,7 @@ public class MultiRolesTokenAuthorizationProviderTest {
                 }
             }
         };
-
-        Assert.assertTrue(provider.authorize(ads, role -> {
+        assertTrue(provider.authorize("test", ads, role -> {
             if (role.equals(testRole)) {
                 return CompletableFuture.completedFuture(true);
             }
@@ -206,7 +226,9 @@ public class MultiRolesTokenAuthorizationProviderTest {
         String token = Jwts.builder().claim("sub", testAdminRole).signWith(secretKey).compact();
 
         ServiceConfiguration conf = new ServiceConfiguration();
-        conf.setSuperUserRoles(Set.of(testAdminRole));
+        Set rols = new HashSet();
+        rols.add(testAdminRole);
+        conf.setSuperUserRoles(rols);
 
         MultiRolesTokenAuthorizationProvider provider = new MultiRolesTokenAuthorizationProvider();
         provider.initialize(conf, mock(PulsarResources.class));
