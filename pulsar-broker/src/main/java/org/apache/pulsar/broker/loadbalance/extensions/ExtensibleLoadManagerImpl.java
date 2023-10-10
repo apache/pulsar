@@ -44,6 +44,7 @@ import java.util.stream.Collectors;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.mutable.MutableObject;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -86,6 +87,7 @@ import org.apache.pulsar.broker.loadbalance.extensions.strategy.LeastResourceUsa
 import org.apache.pulsar.broker.loadbalance.impl.LoadManagerShared;
 import org.apache.pulsar.broker.loadbalance.impl.SimpleResourceAllocationPolicies;
 import org.apache.pulsar.broker.namespace.NamespaceEphemeralData;
+import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceBundleSplitAlgorithm;
@@ -95,7 +97,6 @@ import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.stats.Metrics;
 import org.apache.pulsar.common.util.FutureUtil;
-import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.metadata.api.coordination.LeaderElectionState;
 import org.slf4j.Logger;
 
@@ -152,6 +153,7 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
 
     @Getter
     private final List<BrokerFilter> brokerFilterPipeline;
+
     /**
      * The load data reporter.
      */
@@ -181,10 +183,8 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
     // record split metrics
     private final AtomicReference<List<Metrics>> splitMetrics = new AtomicReference<>();
 
-    private final ConcurrentOpenHashMap<String, CompletableFuture<Optional<BrokerLookupData>>>
-            lookupRequests = ConcurrentOpenHashMap.<String,
-                    CompletableFuture<Optional<BrokerLookupData>>>newBuilder()
-            .build();
+    private final ConcurrentHashMap<String, CompletableFuture<Optional<BrokerLookupData>>>
+            lookupRequests = new ConcurrentHashMap<>();
     private final CountDownLatch initWaiter = new CountDownLatch(1);
 
     /**
@@ -197,7 +197,7 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
         }
         Set<Map.Entry<String, ServiceUnitStateData>> entrySet = serviceUnitStateChannel.getOwnershipEntrySet();
         String brokerId = brokerRegistry.getBrokerId();
-        return entrySet.stream()
+        Set<NamespaceBundle> ownedServiceUnits = entrySet.stream()
                 .filter(entry -> {
                     var stateData = entry.getValue();
                     return stateData.state() == ServiceUnitState.Owned
@@ -207,6 +207,36 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
                     var bundle = entry.getKey();
                     return getNamespaceBundle(pulsar, bundle);
                 }).collect(Collectors.toSet());
+        // Add heartbeat and SLA monitor namespace bundle.
+        NamespaceName heartbeatNamespace = NamespaceService.getHeartbeatNamespace(brokerId, pulsar.getConfiguration());
+        try {
+            NamespaceBundle fullBundle = pulsar.getNamespaceService().getNamespaceBundleFactory()
+                    .getFullBundle(heartbeatNamespace);
+            ownedServiceUnits.add(fullBundle);
+        } catch (Exception e) {
+            log.warn("Failed to get heartbeat namespace bundle.", e);
+        }
+        NamespaceName heartbeatNamespaceV2 = NamespaceService
+                .getHeartbeatNamespaceV2(brokerId, pulsar.getConfiguration());
+        try {
+            NamespaceBundle fullBundle = pulsar.getNamespaceService().getNamespaceBundleFactory()
+                    .getFullBundle(heartbeatNamespaceV2);
+            ownedServiceUnits.add(fullBundle);
+        } catch (Exception e) {
+            log.warn("Failed to get heartbeat namespace V2 bundle.", e);
+        }
+
+        NamespaceName slaMonitorNamespace = NamespaceService
+                .getSLAMonitorNamespace(brokerId, pulsar.getConfiguration());
+        try {
+            NamespaceBundle fullBundle = pulsar.getNamespaceService().getNamespaceBundleFactory()
+                    .getFullBundle(slaMonitorNamespace);
+            ownedServiceUnits.add(fullBundle);
+        } catch (Exception e) {
+            log.warn("Failed to get SLA Monitor namespace bundle.", e);
+        }
+
+        return ownedServiceUnits;
     }
 
     public enum Role {
@@ -261,102 +291,108 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
         if (this.started) {
             return;
         }
-        this.brokerRegistry = new BrokerRegistryImpl(pulsar);
-        this.leaderElectionService = new LeaderElectionService(
-                pulsar.getCoordinationService(), pulsar.getSafeWebServiceAddress(), ELECTION_ROOT,
-                state -> {
-                    pulsar.getLoadManagerExecutor().execute(() -> {
-                        if (state == LeaderElectionState.Leading) {
-                            playLeader();
-                        } else {
-                            playFollower();
-                        }
-                    });
-                });
-        this.serviceUnitStateChannel = new ServiceUnitStateChannelImpl(pulsar);
-        this.brokerRegistry.start();
-        this.splitManager = new SplitManager(splitCounter);
-        this.unloadManager = new UnloadManager(unloadCounter);
-        this.serviceUnitStateChannel.listen(unloadManager);
-        this.serviceUnitStateChannel.listen(splitManager);
-        this.leaderElectionService.start();
-        this.serviceUnitStateChannel.start();
-        this.antiAffinityGroupPolicyHelper =
-                new AntiAffinityGroupPolicyHelper(pulsar, serviceUnitStateChannel);
-        antiAffinityGroupPolicyHelper.listenFailureDomainUpdate();
-        this.antiAffinityGroupPolicyFilter = new AntiAffinityGroupPolicyFilter(antiAffinityGroupPolicyHelper);
-        this.brokerFilterPipeline.add(antiAffinityGroupPolicyFilter);
-        SimpleResourceAllocationPolicies policies = new SimpleResourceAllocationPolicies(pulsar);
-        this.isolationPoliciesHelper = new IsolationPoliciesHelper(policies);
-        this.brokerFilterPipeline.add(new BrokerIsolationPoliciesFilter(isolationPoliciesHelper));
-
-        createSystemTopic(pulsar, BROKER_LOAD_DATA_STORE_TOPIC);
-        createSystemTopic(pulsar, TOP_BUNDLES_LOAD_DATA_STORE_TOPIC);
-
         try {
-            this.brokerLoadDataStore = LoadDataStoreFactory
-                    .create(pulsar.getClient(), BROKER_LOAD_DATA_STORE_TOPIC, BrokerLoadData.class);
-            this.brokerLoadDataStore.startTableView();
-            this.topBundlesLoadDataStore = LoadDataStoreFactory
-                    .create(pulsar.getClient(), TOP_BUNDLES_LOAD_DATA_STORE_TOPIC, TopBundlesLoadData.class);
-        } catch (LoadDataStoreException e) {
-            throw new PulsarServerException(e);
+            this.brokerRegistry = new BrokerRegistryImpl(pulsar);
+            this.leaderElectionService = new LeaderElectionService(
+                    pulsar.getCoordinationService(), pulsar.getSafeWebServiceAddress(), ELECTION_ROOT,
+                    state -> {
+                        pulsar.getLoadManagerExecutor().execute(() -> {
+                            if (state == LeaderElectionState.Leading) {
+                                playLeader();
+                            } else {
+                                playFollower();
+                            }
+                        });
+                    });
+            this.serviceUnitStateChannel = new ServiceUnitStateChannelImpl(pulsar);
+            this.brokerRegistry.start();
+            this.splitManager = new SplitManager(splitCounter);
+            this.unloadManager = new UnloadManager(unloadCounter);
+            this.serviceUnitStateChannel.listen(unloadManager);
+            this.serviceUnitStateChannel.listen(splitManager);
+            this.leaderElectionService.start();
+            this.serviceUnitStateChannel.start();
+            this.antiAffinityGroupPolicyHelper =
+                    new AntiAffinityGroupPolicyHelper(pulsar, serviceUnitStateChannel);
+            antiAffinityGroupPolicyHelper.listenFailureDomainUpdate();
+            this.antiAffinityGroupPolicyFilter = new AntiAffinityGroupPolicyFilter(antiAffinityGroupPolicyHelper);
+            this.brokerFilterPipeline.add(antiAffinityGroupPolicyFilter);
+            SimpleResourceAllocationPolicies policies = new SimpleResourceAllocationPolicies(pulsar);
+            this.isolationPoliciesHelper = new IsolationPoliciesHelper(policies);
+            this.brokerFilterPipeline.add(new BrokerIsolationPoliciesFilter(isolationPoliciesHelper));
+
+            createSystemTopic(pulsar, BROKER_LOAD_DATA_STORE_TOPIC);
+            createSystemTopic(pulsar, TOP_BUNDLES_LOAD_DATA_STORE_TOPIC);
+
+            try {
+                this.brokerLoadDataStore = LoadDataStoreFactory
+                        .create(pulsar.getClient(), BROKER_LOAD_DATA_STORE_TOPIC, BrokerLoadData.class);
+                this.brokerLoadDataStore.startTableView();
+                this.topBundlesLoadDataStore = LoadDataStoreFactory
+                        .create(pulsar.getClient(), TOP_BUNDLES_LOAD_DATA_STORE_TOPIC, TopBundlesLoadData.class);
+            } catch (LoadDataStoreException e) {
+                throw new PulsarServerException(e);
+            }
+
+            this.context = LoadManagerContextImpl.builder()
+                    .configuration(conf)
+                    .brokerRegistry(brokerRegistry)
+                    .brokerLoadDataStore(brokerLoadDataStore)
+                    .topBundleLoadDataStore(topBundlesLoadDataStore).build();
+
+            this.brokerLoadDataReporter =
+                    new BrokerLoadDataReporter(pulsar, brokerRegistry.getBrokerId(), brokerLoadDataStore);
+
+            this.topBundleLoadDataReporter =
+                    new TopBundleLoadDataReporter(pulsar, brokerRegistry.getBrokerId(), topBundlesLoadDataStore);
+            this.serviceUnitStateChannel.listen(brokerLoadDataReporter);
+            this.serviceUnitStateChannel.listen(topBundleLoadDataReporter);
+            var interval = conf.getLoadBalancerReportUpdateMinIntervalMillis();
+            this.brokerLoadDataReportTask = this.pulsar.getLoadManagerExecutor()
+                    .scheduleAtFixedRate(() -> {
+                                try {
+                                    brokerLoadDataReporter.reportAsync(false);
+                                    // TODO: update broker load metrics using getLocalData
+                                } catch (Throwable e) {
+                                    log.error("Failed to run the broker load manager executor job.", e);
+                                }
+                            },
+                            interval,
+                            interval, TimeUnit.MILLISECONDS);
+
+            this.topBundlesLoadDataReportTask = this.pulsar.getLoadManagerExecutor()
+                    .scheduleAtFixedRate(() -> {
+                                try {
+                                    // TODO: consider excluding the bundles that are in the process of split.
+                                    topBundleLoadDataReporter.reportAsync(false);
+                                } catch (Throwable e) {
+                                    log.error("Failed to run the top bundles load manager executor job.", e);
+                                }
+                            },
+                            interval,
+                            interval, TimeUnit.MILLISECONDS);
+
+            this.monitorTask = this.pulsar.getLoadManagerExecutor()
+                    .scheduleAtFixedRate(() -> {
+                                monitor();
+                            },
+                            MONITOR_INTERVAL_IN_MILLIS,
+                            MONITOR_INTERVAL_IN_MILLIS, TimeUnit.MILLISECONDS);
+
+            this.unloadScheduler = new UnloadScheduler(
+                    pulsar, pulsar.getLoadManagerExecutor(), unloadManager, context,
+                    serviceUnitStateChannel, unloadCounter, unloadMetrics);
+            this.unloadScheduler.start();
+            this.splitScheduler = new SplitScheduler(
+                    pulsar, serviceUnitStateChannel, splitManager, splitCounter, splitMetrics, context);
+            this.splitScheduler.start();
+            this.initWaiter.countDown();
+            this.started = true;
+        } catch (Exception ex) {
+            if (this.brokerRegistry != null) {
+                brokerRegistry.close();
+            }
         }
-
-        this.context = LoadManagerContextImpl.builder()
-                .configuration(conf)
-                .brokerRegistry(brokerRegistry)
-                .brokerLoadDataStore(brokerLoadDataStore)
-                .topBundleLoadDataStore(topBundlesLoadDataStore).build();
-
-        this.brokerLoadDataReporter =
-                new BrokerLoadDataReporter(pulsar, brokerRegistry.getBrokerId(), brokerLoadDataStore);
-
-        this.topBundleLoadDataReporter =
-                new TopBundleLoadDataReporter(pulsar, brokerRegistry.getBrokerId(), topBundlesLoadDataStore);
-        this.serviceUnitStateChannel.listen(brokerLoadDataReporter);
-        this.serviceUnitStateChannel.listen(topBundleLoadDataReporter);
-        var interval = conf.getLoadBalancerReportUpdateMinIntervalMillis();
-        this.brokerLoadDataReportTask = this.pulsar.getLoadManagerExecutor()
-                .scheduleAtFixedRate(() -> {
-                            try {
-                                brokerLoadDataReporter.reportAsync(false);
-                                // TODO: update broker load metrics using getLocalData
-                            } catch (Throwable e) {
-                                log.error("Failed to run the broker load manager executor job.", e);
-                            }
-                        },
-                        interval,
-                        interval, TimeUnit.MILLISECONDS);
-
-        this.topBundlesLoadDataReportTask = this.pulsar.getLoadManagerExecutor()
-                .scheduleAtFixedRate(() -> {
-                            try {
-                                // TODO: consider excluding the bundles that are in the process of split.
-                                topBundleLoadDataReporter.reportAsync(false);
-                            } catch (Throwable e) {
-                                log.error("Failed to run the top bundles load manager executor job.", e);
-                            }
-                        },
-                        interval,
-                        interval, TimeUnit.MILLISECONDS);
-
-        this.monitorTask = this.pulsar.getLoadManagerExecutor()
-                .scheduleAtFixedRate(() -> {
-                            monitor();
-                        },
-                        MONITOR_INTERVAL_IN_MILLIS,
-                        MONITOR_INTERVAL_IN_MILLIS, TimeUnit.MILLISECONDS);
-
-        this.unloadScheduler = new UnloadScheduler(
-                pulsar, pulsar.getLoadManagerExecutor(), unloadManager, context,
-                serviceUnitStateChannel, unloadCounter, unloadMetrics);
-        this.unloadScheduler.start();
-        this.splitScheduler = new SplitScheduler(
-                pulsar, serviceUnitStateChannel, splitManager, splitCounter, splitMetrics, context);
-        this.splitScheduler.start();
-        this.initWaiter.countDown();
-        this.started = true;
     }
 
     @Override
@@ -377,25 +413,38 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
             if (topic.isPresent() && isInternalTopic(topic.get().toString())) {
                 owner = serviceUnitStateChannel.getChannelOwnerAsync();
             } else {
-                owner = getOwnerAsync(serviceUnit, bundle, false).thenApply(Optional::ofNullable);
+                String candidateBrokerId = getHeartbeatOrSLAMonitorBrokerId(serviceUnit);
+                if (candidateBrokerId != null) {
+                    owner = CompletableFuture.completedFuture(Optional.of(candidateBrokerId));
+                } else {
+                    owner = getOrSelectOwnerAsync(serviceUnit, bundle).thenApply(Optional::ofNullable);
+                }
             }
             return getBrokerLookupData(owner, bundle);
         });
     }
 
-    private CompletableFuture<String> getOwnerAsync(
-            ServiceUnitId serviceUnit, String bundle, boolean ownByLocalBrokerIfAbsent) {
+    private String getHeartbeatOrSLAMonitorBrokerId(ServiceUnitId serviceUnit) {
+        // Check if this is Heartbeat or SLAMonitor namespace
+        String candidateBroker = NamespaceService.checkHeartbeatNamespace(serviceUnit);
+        if (candidateBroker == null) {
+            candidateBroker = NamespaceService.checkHeartbeatNamespaceV2(serviceUnit);
+        }
+        if (candidateBroker == null) {
+            candidateBroker = NamespaceService.getSLAMonitorBrokerName(serviceUnit);
+        }
+        if (candidateBroker != null) {
+            return candidateBroker.substring(candidateBroker.lastIndexOf('/') + 1);
+        }
+        return candidateBroker;
+    }
+
+    private CompletableFuture<String> getOrSelectOwnerAsync(ServiceUnitId serviceUnit,
+                                                            String bundle) {
         return serviceUnitStateChannel.getOwnerAsync(bundle).thenCompose(broker -> {
             // If the bundle not assign yet, select and publish assign event to channel.
             if (broker.isEmpty()) {
-                CompletableFuture<Optional<String>> selectedBroker;
-                if (ownByLocalBrokerIfAbsent) {
-                    String brokerId = this.brokerRegistry.getBrokerId();
-                    selectedBroker = CompletableFuture.completedFuture(Optional.of(brokerId));
-                } else {
-                    selectedBroker = this.selectAsync(serviceUnit);
-                }
-                return selectedBroker.thenCompose(brokerOpt -> {
+                return this.selectAsync(serviceUnit).thenCompose(brokerOpt -> {
                     if (brokerOpt.isPresent()) {
                         assignCounter.incrementSuccess();
                         log.info("Selected new owner broker: {} for bundle: {}.", brokerOpt.get(), bundle);
@@ -425,7 +474,8 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
         }).thenCompose(broker -> this.getBrokerRegistry().lookupAsync(broker).thenCompose(brokerLookupData -> {
             if (brokerLookupData.isEmpty()) {
                 String errorMsg = String.format(
-                        "Failed to look up a broker registry:%s for bundle:%s", broker, bundle);
+                        "Failed to lookup broker:%s for bundle:%s, the broker has not been registered.",
+                        broker, bundle);
                 log.error(errorMsg);
                 throw new IllegalStateException(errorMsg);
             }
@@ -443,30 +493,37 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
     public CompletableFuture<NamespaceEphemeralData> tryAcquiringOwnership(NamespaceBundle namespaceBundle) {
         log.info("Try acquiring ownership for bundle: {} - {}.", namespaceBundle, brokerRegistry.getBrokerId());
         final String bundle = namespaceBundle.toString();
-        return dedupeLookupRequest(bundle, k -> {
-            final CompletableFuture<String> owner =
-                    this.getOwnerAsync(namespaceBundle, bundle, true);
-            return getBrokerLookupData(owner.thenApply(Optional::ofNullable), bundle);
-        }).thenApply(brokerLookupData -> {
-            if (brokerLookupData.isEmpty()) {
-                throw new IllegalStateException(
-                        "Failed to get the broker lookup data for bundle: " + bundle);
-            }
-            return brokerLookupData.get().toNamespaceEphemeralData();
-        });
+        return assign(Optional.empty(), namespaceBundle)
+                .thenApply(brokerLookupData -> {
+                    if (brokerLookupData.isEmpty()) {
+                        String errorMsg = String.format(
+                                "Failed to get the broker lookup data for bundle:%s", bundle);
+                        log.error(errorMsg);
+                        throw new IllegalStateException(errorMsg);
+                    }
+                    return brokerLookupData.get().toNamespaceEphemeralData();
+                });
     }
 
     private CompletableFuture<Optional<BrokerLookupData>> dedupeLookupRequest(
             String key, Function<String, CompletableFuture<Optional<BrokerLookupData>>> provider) {
-        CompletableFuture<Optional<BrokerLookupData>> future = lookupRequests.computeIfAbsent(key, provider);
-        future.whenComplete((r, t) -> {
-                    if (t != null) {
+        final MutableObject<CompletableFuture<Optional<BrokerLookupData>>> newFutureCreated = new MutableObject<>();
+        try {
+            return lookupRequests.computeIfAbsent(key, k -> {
+                CompletableFuture<Optional<BrokerLookupData>> future = provider.apply(k);
+                newFutureCreated.setValue(future);
+                return future;
+            });
+        } finally {
+            if (newFutureCreated.getValue() != null) {
+                newFutureCreated.getValue().whenComplete((v, ex) -> {
+                    if (ex != null) {
                         assignCounter.incrementFailure();
                     }
-                    lookupRequests.remove(key);
-                }
-        );
-        return future;
+                    lookupRequests.remove(key, newFutureCreated.getValue());
+                });
+            }
+        }
     }
 
     public CompletableFuture<Optional<String>> selectAsync(ServiceUnitId bundle) {
@@ -521,15 +578,16 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
     }
 
     public CompletableFuture<Optional<String>> getOwnershipAsync(Optional<ServiceUnitId> topic,
-                                                                 ServiceUnitId bundleUnit) {
-        final String bundle = bundleUnit.toString();
-        CompletableFuture<Optional<String>> owner;
+                                                                 ServiceUnitId serviceUnit) {
+        final String bundle = serviceUnit.toString();
         if (topic.isPresent() && isInternalTopic(topic.get().toString())) {
-            owner = serviceUnitStateChannel.getChannelOwnerAsync();
-        } else {
-            owner = serviceUnitStateChannel.getOwnerAsync(bundle);
+            return serviceUnitStateChannel.getChannelOwnerAsync();
         }
-        return owner;
+        String candidateBroker = getHeartbeatOrSLAMonitorBrokerId(serviceUnit);
+        if (candidateBroker != null) {
+            return CompletableFuture.completedFuture(Optional.of(candidateBroker));
+        }
+        return serviceUnitStateChannel.getOwnerAsync(bundle);
     }
 
     public CompletableFuture<Optional<BrokerLookupData>> getOwnershipWithLookupDataAsync(ServiceUnitId bundleUnit) {
@@ -543,6 +601,10 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
 
     public CompletableFuture<Void> unloadNamespaceBundleAsync(ServiceUnitId bundle,
                                                               Optional<String> destinationBroker) {
+        if (NamespaceService.isSLAOrHeartbeatNamespace(bundle.getNamespaceObject().toString())) {
+            log.info("Skip unloading namespace bundle: {}.", bundle);
+            return CompletableFuture.completedFuture(null);
+        }
         return getOwnershipAsync(Optional.empty(), bundle)
                 .thenCompose(brokerOpt -> {
                     if (brokerOpt.isEmpty()) {
@@ -577,6 +639,10 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
     public CompletableFuture<Void> splitNamespaceBundleAsync(ServiceUnitId bundle,
                                                              NamespaceBundleSplitAlgorithm splitAlgorithm,
                                                              List<Long> boundaries) {
+        if (NamespaceService.isSLAOrHeartbeatNamespace(bundle.getNamespaceObject().toString())) {
+            log.info("Skip split namespace bundle: {}.", bundle);
+            return CompletableFuture.completedFuture(null);
+        }
         final String namespaceName = LoadManagerShared.getNamespaceNameFromBundleName(bundle.toString());
         final String bundleRange = LoadManagerShared.getBundleRangeFromBundleName(bundle.toString());
         NamespaceBundle namespaceBundle =

@@ -344,22 +344,22 @@ The Apache Software License, Version 2.0
     - commons-text-1.10.0.jar
     - commons-compress-1.21.jar
  * Netty
-    - netty-buffer-4.1.94.Final.jar
-    - netty-codec-4.1.94.Final.jar
-    - netty-codec-dns-4.1.94.Final.jar
-    - netty-codec-http-4.1.94.Final.jar
-    - netty-codec-socks-4.1.94.Final.jar
-    - netty-codec-haproxy-4.1.94.Final.jar
-    - netty-common-4.1.94.Final.jar
-    - netty-handler-4.1.94.Final.jar
-    - netty-handler-proxy-4.1.94.Final.jar
-    - netty-resolver-4.1.94.Final.jar
-    - netty-resolver-dns-4.1.94.Final.jar
-    - netty-transport-4.1.94.Final.jar
-    - netty-transport-classes-epoll-4.1.94.Final.jar
-    - netty-transport-native-epoll-4.1.94.Final-linux-x86_64.jar
-    - netty-transport-native-unix-common-4.1.94.Final.jar
-    - netty-transport-native-unix-common-4.1.94.Final-linux-x86_64.jar
+    - netty-buffer-4.1.99.Final.jar
+    - netty-codec-4.1.99.Final.jar
+    - netty-codec-dns-4.1.99.Final.jar
+    - netty-codec-http-4.1.99.Final.jar
+    - netty-codec-socks-4.1.99.Final.jar
+    - netty-codec-haproxy-4.1.99.Final.jar
+    - netty-common-4.1.99.Final.jar
+    - netty-handler-4.1.99.Final.jar
+    - netty-handler-proxy-4.1.99.Final.jar
+    - netty-resolver-4.1.99.Final.jar
+    - netty-resolver-dns-4.1.99.Final.jar
+    - netty-transport-4.1.99.Final.jar
+    - netty-transport-classes-epoll-4.1.99.Final.jar
+    - netty-transport-native-epoll-4.1.99.Final-linux-x86_64.jar
+    - netty-transport-native-unix-common-4.1.99.Final.jar
+    - netty-transport-native-unix-common-4.1.99.Final-linux-x86_64.jar
     - netty-tcnative-boringssl-static-2.0.61.Final.jar
     - netty-tcnative-boringssl-static-2.0.61.Final-linux-aarch_64.jar
     - netty-tcnative-boringssl-static-2.0.61.Final-linux-x86_64.jar
@@ -370,9 +370,9 @@ The Apache Software License, Version 2.0
     - netty-incubator-transport-classes-io_uring-0.0.21.Final.jar
     - netty-incubator-transport-native-io_uring-0.0.21.Final-linux-aarch_64.jar
     - netty-incubator-transport-native-io_uring-0.0.21.Final-linux-x86_64.jar
-    - netty-resolver-dns-classes-macos-4.1.94.Final.jar
-    - netty-resolver-dns-native-macos-4.1.94.Final-osx-aarch_64.jar
-    - netty-resolver-dns-native-macos-4.1.94.Final-osx-x86_64.jar
+    - netty-resolver-dns-classes-macos-4.1.99.Final.jar
+    - netty-resolver-dns-native-macos-4.1.99.Final-osx-aarch_64.jar
+    - netty-resolver-dns-native-macos-4.1.99.Final-osx-x86_64.jar
  * Prometheus client
     - simpleclient-0.16.0.jar
     - simpleclient_log4j2-0.16.0.jar
@@ -395,14 +395,14 @@ The Apache Software License, Version 2.0
     - async-http-client-2.12.1.jar
     - async-http-client-netty-utils-2.12.1.jar
  * Jetty
-    - jetty-client-9.4.51.v20230217.jar
-    - jetty-http-9.4.51.v20230217.jar
-    - jetty-io-9.4.51.v20230217.jar
-    - jetty-util-9.4.51.v20230217.jar
-    - javax-websocket-client-impl-9.4.51.v20230217.jar
-    - websocket-api-9.4.51.v20230217.jar
-    - websocket-client-9.4.51.v20230217.jar
-    - websocket-common-9.4.51.v20230217.jar
+    - jetty-client-9.4.52.v20230823.jar
+    - jetty-http-9.4.52.v20230823.jar
+    - jetty-io-9.4.52.v20230823.jar
+    - jetty-util-9.4.52.v20230823.jar
+    - javax-websocket-client-impl-9.4.52.v20230823.jar
+    - websocket-api-9.4.52.v20230823.jar
+    - websocket-client-9.4.52.v20230823.jar
+    - websocket-common-9.4.52.v20230823.jar
  * SnakeYaml -- snakeyaml-2.0.jar
  * Google Error Prone Annotations - error_prone_annotations-2.5.1.jar
  * Javassist -- javassist-3.25.0-GA.jar

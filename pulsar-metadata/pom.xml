@@ -57,7 +57,6 @@
       </exclusions>
     </dependency>
 
-    <!-- zookeeper server -->
     <dependency>
       <groupId>io.dropwizard.metrics</groupId>
       <artifactId>metrics-core</artifactId>
@@ -84,8 +83,12 @@
         </exclusion>
       </exclusions>
     </dependency>
-
-    <!-- zookeeper server -->
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>testmocks</artifactId>
+      <version>${project.version}</version>
+      <scope>test</scope>
+    </dependency>
     <dependency>
       <groupId>org.xerial.snappy</groupId>
       <artifactId>snappy-java</artifactId>
