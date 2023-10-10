@@ -2335,6 +2335,10 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     public CompletableFuture<Boolean> hasMessageAvailableAsync() {
         final CompletableFuture<Boolean> booleanFuture = new CompletableFuture<>();
 
+        if (incomingMessages != null && !incomingMessages.isEmpty()) {
+            return CompletableFuture.completedFuture(true);
+        }
+
         // we haven't read yet. use startMessageId for comparison
         if (lastDequeuedMessageId == MessageId.earliest) {
             // if we are starting from latest, we should seek to the actual last message first.

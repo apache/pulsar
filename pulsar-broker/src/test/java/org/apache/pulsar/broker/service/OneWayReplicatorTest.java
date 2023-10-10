@@ -26,7 +26,6 @@ import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.api.Consumer;
-import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.policies.data.TopicStats;
@@ -55,11 +54,6 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
         final String topicName = BrokerTestUtil.newUniqueName("persistent://" + defaultNamespace + "/tp_");
         final String subscribeName = "subscribe_1";
         final byte[] msgValue = "test".getBytes();
-
-        admin1.topics().createNonPartitionedTopic(topicName);
-        admin2.topics().createNonPartitionedTopic(topicName);
-        admin1.topics().createSubscription(topicName, subscribeName, MessageId.earliest);
-        admin2.topics().createSubscription(topicName, subscribeName, MessageId.earliest);
 
         // Verify replicator works.
         Producer<byte[]> producer1 = client1.newProducer().topic(topicName).create();

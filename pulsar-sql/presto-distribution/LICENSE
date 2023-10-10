@@ -231,21 +231,21 @@ The Apache Software License, Version 2.0
     - commons-compress-1.21.jar
     - commons-lang3-3.11.jar
  * Netty
-    - netty-buffer-4.1.94.Final.jar
-    - netty-codec-4.1.94.Final.jar
-    - netty-codec-dns-4.1.94.Final.jar
-    - netty-codec-http-4.1.94.Final.jar
-    - netty-codec-haproxy-4.1.94.Final.jar
-    - netty-codec-socks-4.1.94.Final.jar
-    - netty-handler-proxy-4.1.94.Final.jar
-    - netty-common-4.1.94.Final.jar
-    - netty-handler-4.1.94.Final.jar
+    - netty-buffer-4.1.99.Final.jar
+    - netty-codec-4.1.99.Final.jar
+    - netty-codec-dns-4.1.99.Final.jar
+    - netty-codec-http-4.1.99.Final.jar
+    - netty-codec-haproxy-4.1.99.Final.jar
+    - netty-codec-socks-4.1.99.Final.jar
+    - netty-handler-proxy-4.1.99.Final.jar
+    - netty-common-4.1.99.Final.jar
+    - netty-handler-4.1.99.Final.jar
     - netty-reactive-streams-2.0.6.jar
-    - netty-resolver-4.1.94.Final.jar
-    - netty-resolver-dns-4.1.94.Final.jar
-    - netty-resolver-dns-classes-macos-4.1.94.Final.jar
-    - netty-resolver-dns-native-macos-4.1.94.Final-osx-aarch_64.jar
-    - netty-resolver-dns-native-macos-4.1.94.Final-osx-x86_64.jar
+    - netty-resolver-4.1.99.Final.jar
+    - netty-resolver-dns-4.1.99.Final.jar
+    - netty-resolver-dns-classes-macos-4.1.99.Final.jar
+    - netty-resolver-dns-native-macos-4.1.99.Final-osx-aarch_64.jar
+    - netty-resolver-dns-native-macos-4.1.99.Final-osx-x86_64.jar
     - netty-tcnative-boringssl-static-2.0.61.Final.jar
     - netty-tcnative-boringssl-static-2.0.61.Final-linux-aarch_64.jar
     - netty-tcnative-boringssl-static-2.0.61.Final-linux-x86_64.jar
@@ -253,12 +253,12 @@ The Apache Software License, Version 2.0
     - netty-tcnative-boringssl-static-2.0.61.Final-osx-x86_64.jar
     - netty-tcnative-boringssl-static-2.0.61.Final-windows-x86_64.jar
     - netty-tcnative-classes-2.0.61.Final.jar
-    - netty-transport-4.1.94.Final.jar
-    - netty-transport-classes-epoll-4.1.94.Final.jar
-    - netty-transport-native-epoll-4.1.94.Final-linux-x86_64.jar
-    - netty-transport-native-unix-common-4.1.94.Final.jar
-    - netty-transport-native-unix-common-4.1.94.Final-linux-x86_64.jar
-    - netty-codec-http2-4.1.94.Final.jar
+    - netty-transport-4.1.99.Final.jar
+    - netty-transport-classes-epoll-4.1.99.Final.jar
+    - netty-transport-native-epoll-4.1.99.Final-linux-x86_64.jar
+    - netty-transport-native-unix-common-4.1.99.Final.jar
+    - netty-transport-native-unix-common-4.1.99.Final-linux-x86_64.jar
+    - netty-codec-http2-4.1.99.Final.jar
     - netty-incubator-transport-classes-io_uring-0.0.21.Final.jar
     - netty-incubator-transport-native-io_uring-0.0.21.Final-linux-x86_64.jar
     - netty-incubator-transport-native-io_uring-0.0.21.Final-linux-aarch_64.jar
@@ -283,22 +283,22 @@ The Apache Software License, Version 2.0
     - joda-time-2.10.10.jar
     - failsafe-2.4.4.jar
   * Jetty
-    - http2-client-9.4.51.v20230217.jar
-    - http2-common-9.4.51.v20230217.jar
-    - http2-hpack-9.4.51.v20230217.jar
-    - http2-http-client-transport-9.4.51.v20230217.jar
-    - jetty-alpn-client-9.4.51.v20230217.jar
-    - http2-server-9.4.51.v20230217.jar
-    - jetty-alpn-java-client-9.4.51.v20230217.jar
-    - jetty-client-9.4.51.v20230217.jar
-    - jetty-http-9.4.51.v20230217.jar
-    - jetty-io-9.4.51.v20230217.jar
-    - jetty-jmx-9.4.51.v20230217.jar
-    - jetty-security-9.4.51.v20230217.jar
-    - jetty-server-9.4.51.v20230217.jar
-    - jetty-servlet-9.4.51.v20230217.jar
-    - jetty-util-9.4.51.v20230217.jar
-    - jetty-util-ajax-9.4.51.v20230217.jar
+    - http2-client-9.4.52.v20230823.jar
+    - http2-common-9.4.52.v20230823.jar
+    - http2-hpack-9.4.52.v20230823.jar
+    - http2-http-client-transport-9.4.52.v20230823.jar
+    - jetty-alpn-client-9.4.52.v20230823.jar
+    - http2-server-9.4.52.v20230823.jar
+    - jetty-alpn-java-client-9.4.52.v20230823.jar
+    - jetty-client-9.4.52.v20230823.jar
+    - jetty-http-9.4.52.v20230823.jar
+    - jetty-io-9.4.52.v20230823.jar
+    - jetty-jmx-9.4.52.v20230823.jar
+    - jetty-security-9.4.52.v20230823.jar
+    - jetty-server-9.4.52.v20230823.jar
+    - jetty-servlet-9.4.52.v20230823.jar
+    - jetty-util-9.4.52.v20230823.jar
+    - jetty-util-ajax-9.4.52.v20230823.jar
   * Byte Buddy
     - byte-buddy-1.11.13.jar
   * Apache BVal
@@ -458,7 +458,7 @@ The Apache Software License, Version 2.0
   * JSON Simple
     - json-simple-1.1.1.jar
   * Snappy
-    - snappy-java-1.1.10.1.jar
+    - snappy-java-1.1.10.5.jar
   * Jackson
     - jackson-module-parameter-names-2.14.2.jar
   * Java Assist
