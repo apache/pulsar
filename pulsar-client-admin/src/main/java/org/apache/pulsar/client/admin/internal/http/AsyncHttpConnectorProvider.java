@@ -18,8 +18,10 @@
  */
 package org.apache.pulsar.client.admin.internal.http;
 
+import javax.annotation.Nullable;
 import javax.ws.rs.client.Client;
 import javax.ws.rs.core.Configuration;
+import org.apache.pulsar.client.admin.SharedExecutorContext;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.glassfish.jersey.client.spi.Connector;
 import org.glassfish.jersey.client.spi.ConnectorProvider;
@@ -33,15 +35,20 @@ public class AsyncHttpConnectorProvider implements ConnectorProvider {
     private Connector connector;
     private final int autoCertRefreshTimeSeconds;
 
-    public AsyncHttpConnectorProvider(ClientConfigurationData conf, int autoCertRefreshTimeSeconds) {
+    private final SharedExecutorContext sharedExecutorContext;
+
+    public AsyncHttpConnectorProvider(ClientConfigurationData conf,
+                                      @Nullable SharedExecutorContext sharedExecutorContext,
+                                      int autoCertRefreshTimeSeconds) {
         this.conf = conf;
         this.autoCertRefreshTimeSeconds = autoCertRefreshTimeSeconds;
+        this.sharedExecutorContext = sharedExecutorContext;
     }
 
     @Override
     public Connector getConnector(Client client, Configuration runtimeConfig) {
         if (connector == null) {
-            connector = new AsyncHttpConnector(client, conf, autoCertRefreshTimeSeconds);
+            connector = new AsyncHttpConnector(client, conf, autoCertRefreshTimeSeconds, sharedExecutorContext);
         }
         return connector;
     }
@@ -50,6 +57,6 @@ public class AsyncHttpConnectorProvider implements ConnectorProvider {
     public AsyncHttpConnector getConnector(int connectTimeoutMs, int readTimeoutMs, int requestTimeoutMs,
             int autoCertRefreshTimeSeconds) {
         return new AsyncHttpConnector(connectTimeoutMs, readTimeoutMs, requestTimeoutMs, autoCertRefreshTimeSeconds,
-                conf);
+                conf, sharedExecutorContext);
     }
 }

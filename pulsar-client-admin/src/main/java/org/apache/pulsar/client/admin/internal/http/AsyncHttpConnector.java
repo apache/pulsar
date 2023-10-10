@@ -37,6 +37,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Function;
 import java.util.function.Supplier;
+import javax.annotation.Nullable;
 import javax.net.ssl.SSLContext;
 import javax.ws.rs.client.Client;
 import javax.ws.rs.core.HttpHeaders;
@@ -46,6 +47,7 @@ import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.PulsarVersion;
+import org.apache.pulsar.client.admin.SharedExecutorContext;
 import org.apache.pulsar.client.admin.internal.PulsarAdminImpl;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
 import org.apache.pulsar.client.api.KeyStoreParams;
@@ -81,21 +83,27 @@ public class AsyncHttpConnector implements Connector {
     private final Duration readTimeout;
     private final int maxRetries;
     private final PulsarServiceNameResolver serviceNameResolver;
-    private final ScheduledExecutorService delayer = Executors.newScheduledThreadPool(1,
-            new DefaultThreadFactory("delayer"));
+    private ScheduledExecutorService delayer;
+    private boolean isDelayerOwner;
 
-    public AsyncHttpConnector(Client client, ClientConfigurationData conf, int autoCertRefreshTimeSeconds) {
+    public AsyncHttpConnector(Client client,
+                              ClientConfigurationData conf,
+                              int autoCertRefreshTimeSeconds,
+                              @Nullable SharedExecutorContext sharedExecutorContext) {
         this((int) client.getConfiguration().getProperty(ClientProperties.CONNECT_TIMEOUT),
                 (int) client.getConfiguration().getProperty(ClientProperties.READ_TIMEOUT),
                 PulsarAdminImpl.DEFAULT_REQUEST_TIMEOUT_SECONDS * 1000,
                 autoCertRefreshTimeSeconds,
-                conf);
+                conf, sharedExecutorContext);
     }
 
     @SneakyThrows
-    public AsyncHttpConnector(int connectTimeoutMs, int readTimeoutMs,
+    public AsyncHttpConnector(int connectTimeoutMs,
+                              int readTimeoutMs,
                               int requestTimeoutMs,
-                              int autoCertRefreshTimeSeconds, ClientConfigurationData conf) {
+                              int autoCertRefreshTimeSeconds,
+                              ClientConfigurationData conf,
+                              SharedExecutorContext sharedExecutorContext) {
         DefaultAsyncHttpClientConfig.Builder confBuilder = new DefaultAsyncHttpClientConfig.Builder();
         confBuilder.setUseProxyProperties(true);
         confBuilder.setFollowRedirect(true);
@@ -114,6 +122,29 @@ public class AsyncHttpConnector implements Connector {
                        && super.keepAlive(remoteAddress, ahcRequest, request, response);
             }
         });
+
+        if (sharedExecutorContext != null) {
+            // reuse eventLoopGroup if provided.
+            if (sharedExecutorContext.getEventLoopGroup() != null) {
+                confBuilder.setEventLoopGroup(sharedExecutorContext.getEventLoopGroup());
+            }
+
+            // reuse nettyTimer if provided.
+            if (sharedExecutorContext.getNettyTimer() != null) {
+                confBuilder.setNettyTimer(sharedExecutorContext.getNettyTimer());
+            }
+
+            // reuse delayer if provided.
+            if (sharedExecutorContext.getDelayer() != null) {
+                this.delayer = sharedExecutorContext.getDelayer();
+            }
+        }
+
+        if (this.delayer == null) {
+            this.delayer = Executors.newScheduledThreadPool(1,
+                    new DefaultThreadFactory("delayer"));
+            this.isDelayerOwner = true;
+        }
 
         serviceNameResolver = new PulsarServiceNameResolver();
         if (conf != null && StringUtils.isNotBlank(conf.getServiceUrl())) {
@@ -351,7 +382,9 @@ public class AsyncHttpConnector implements Connector {
     public void close() {
         try {
             httpClient.close();
-            delayer.shutdownNow();
+            if (isDelayerOwner) {
+                delayer.shutdownNow();
+            }
         } catch (IOException e) {
             log.warn("Failed to close http client", e);
         }

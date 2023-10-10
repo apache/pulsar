@@ -25,6 +25,7 @@ import lombok.Getter;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminBuilder;
+import org.apache.pulsar.client.admin.SharedExecutorContext;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationFactory;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -38,10 +39,12 @@ public class PulsarAdminBuilderImpl implements PulsarAdminBuilder {
     protected ClientConfigurationData conf;
 
     private ClassLoader clientBuilderClassLoader = null;
+    // used for broker side client resource reuse
+    private SharedExecutorContext sharedExecutorContext;
 
     @Override
     public PulsarAdmin build() throws PulsarClientException {
-        return new PulsarAdminImpl(conf.getServiceUrl(), conf, clientBuilderClassLoader);
+        return new PulsarAdminImpl(conf.getServiceUrl(), conf, sharedExecutorContext, clientBuilderClassLoader);
     }
 
     public PulsarAdminBuilderImpl() {
@@ -225,6 +228,11 @@ public class PulsarAdminBuilderImpl implements PulsarAdminBuilder {
     @Override
     public PulsarAdminBuilder setContextClassLoader(ClassLoader clientBuilderClassLoader) {
         this.clientBuilderClassLoader = clientBuilderClassLoader;
+        return this;
+    }
+
+    public PulsarAdminBuilder setSharedExecutorContext(SharedExecutorContext sharedExecutorContext) {
+        this.sharedExecutorContext = sharedExecutorContext;
         return this;
     }
 }
