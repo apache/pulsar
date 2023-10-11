@@ -937,25 +937,6 @@ public class Consumer {
         }
     }
 
-    private void removePendingAckOwnedConsumer(PositionImpl position, Consumer ackOwnedConsumer) {
-        if (!ackOwnedConsumer.getPendingAcks().remove(position.getLedgerId(), position.getEntryId())) {
-            // Message was already removed by the other consumer
-            return;
-        }
-        if (log.isDebugEnabled()) {
-            log.debug("[{}-{}] consumer {} received ack {}", topicName, subscription, consumerId, position);
-        }
-        // unblock consumer-throttling when limit check is disabled or receives half of maxUnackedMessages =>
-        // consumer can start again consuming messages
-        int unAckedMsgs = UNACKED_MESSAGES_UPDATER.get(ackOwnedConsumer);
-        if ((((unAckedMsgs <= getMaxUnackedMessages() / 2) && ackOwnedConsumer.blockedConsumerOnUnackedMsgs)
-                && ackOwnedConsumer.shouldBlockConsumerOnUnackMsgs())
-                || !shouldBlockConsumerOnUnackMsgs()) {
-            ackOwnedConsumer.blockedConsumerOnUnackedMsgs = false;
-            flowConsumerBlockedPermits(ackOwnedConsumer);
-        }
-    }
-
     record ConsumerAndLongPair(Consumer consumer, LongPair pendingAckLongPair) {
         public boolean hasResult() {
             return consumer != null && pendingAckLongPair != null;
@@ -994,6 +975,25 @@ public class Consumer {
             }
         }
         return ackOwnerConsumer;
+    }
+
+    private void removePendingAckOwnedConsumer(PositionImpl position, Consumer ackOwnedConsumer) {
+        if (!ackOwnedConsumer.getPendingAcks().remove(position.getLedgerId(), position.getEntryId())) {
+            // Message was already removed by the other consumer
+            return;
+        }
+        if (log.isDebugEnabled()) {
+            log.debug("[{}-{}] consumer {} received ack {}", topicName, subscription, consumerId, position);
+        }
+        // unblock consumer-throttling when limit check is disabled or receives half of maxUnackedMessages =>
+        // consumer can start again consuming messages
+        int unAckedMsgs = UNACKED_MESSAGES_UPDATER.get(ackOwnedConsumer);
+        if ((((unAckedMsgs <= getMaxUnackedMessages() / 2) && ackOwnedConsumer.blockedConsumerOnUnackedMsgs)
+                && ackOwnedConsumer.shouldBlockConsumerOnUnackMsgs())
+                || !shouldBlockConsumerOnUnackMsgs()) {
+            ackOwnedConsumer.blockedConsumerOnUnackedMsgs = false;
+            flowConsumerBlockedPermits(ackOwnedConsumer);
+        }
     }
 
     public ConcurrentLongLongPairHashMap getPendingAcks() {
