@@ -945,22 +945,24 @@ public class Consumer {
      */
     private void removePendingAcks(PositionImpl position) {
         Consumer ackOwnedConsumer = null;
-        if (pendingAcks.get(position.getLedgerId(), position.getEntryId()) == null) {
+        LongPair ackedPosition = null;
+
+        LongPair consumerAckPos = pendingAcks.get(position.getLedgerId(), position.getEntryId());
+        if (consumerAckPos == null) {
             for (Consumer consumer : subscription.getConsumers()) {
-                if (!consumer.equals(this) && consumer.getPendingAcks().containsKey(position.getLedgerId(),
-                        position.getEntryId())) {
+                LongPair pos = consumer.getPendingAcks().get(position.getLedgerId(), position.getEntryId());
+                if (!consumer.equals(this) && pos != null) {
                     ackOwnedConsumer = consumer;
+                    ackedPosition = pos;
                     break;
                 }
             }
         } else {
             ackOwnedConsumer = this;
+            ackedPosition = consumerAckPos;
         }
 
         // remove pending message from appropriate consumer and unblock unAckMsg-flow if requires
-        LongPair ackedPosition = ackOwnedConsumer != null
-                ? ackOwnedConsumer.getPendingAcks().get(position.getLedgerId(), position.getEntryId())
-                : null;
         if (ackedPosition != null) {
             if (!ackOwnedConsumer.getPendingAcks().remove(position.getLedgerId(), position.getEntryId())) {
                 // Message was already removed by the other consumer
