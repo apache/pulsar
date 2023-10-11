@@ -679,6 +679,17 @@ public class Consumer {
         }
     }
 
+    private Consumer getAckOwnerConsumer(long ledgerId, long entryId) {
+        Consumer ackOwnerConsumer = this;
+        if (Subscription.isIndividualAckMode(subType)) {
+            ConsumerAndLongPair ackOwnerConsumerAndLongPair = getAckOwnerConsumerAndLongPair(ledgerId, entryId);
+            if (ackOwnerConsumerAndLongPair.hasResult()) {
+                ackOwnerConsumer = ackOwnerConsumerAndLongPair.consumer;
+            }
+        }
+        return ackOwnerConsumer;
+    }
+
     private long[] getCursorAckSet(PositionImpl position) {
         if (!(subscription instanceof PersistentSubscription)) {
             return null;
@@ -963,18 +974,6 @@ public class Consumer {
         }
 
         return new ConsumerAndLongPair(ackOwnedConsumer, ackedPosition);
-    }
-
-
-    private Consumer getAckOwnerConsumer(long ledgerId, long entryId) {
-        Consumer ackOwnerConsumer = this;
-        if (Subscription.isIndividualAckMode(subType)) {
-            ConsumerAndLongPair ackOwnerConsumerAndLongPair = getAckOwnerConsumerAndLongPair(ledgerId, entryId);
-            if (ackOwnerConsumerAndLongPair.hasResult()) {
-                ackOwnerConsumer = ackOwnerConsumerAndLongPair.consumer;
-            }
-        }
-        return ackOwnerConsumer;
     }
 
     private void removePendingAckOwnedConsumer(PositionImpl position, Consumer ackOwnedConsumer) {
