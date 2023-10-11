@@ -919,6 +919,23 @@ public class Consumer {
         return consumerName.hashCode() + 31 * cnx.hashCode();
     }
 
+    /**
+     * first try to remove ack-position from the current_consumer's pendingAcks.
+     * if ack-message doesn't present into current_consumer's pendingAcks
+     *  a. try to remove from other connected subscribed consumers (It happens when client
+     * tries to acknowledge message through different consumer under the same subscription)
+     *
+     *
+     * @param position
+     */
+    private void removePendingAcks(PositionImpl position) {
+        ConsumerAndLongPair ackOwnerConsumerAndLongPair = getAckOwnerConsumerAndLongPair(position.getLedgerId(),
+                position.getEntryId());
+        // remove pending message from appropriate consumer and unblock unAckMsg-flow if requires
+        if (ackOwnerConsumerAndLongPair.pendingAckLongPair != null) {
+            removePendingAckOwnedConsumer(position, ackOwnerConsumerAndLongPair.consumer);
+        }
+    }
 
     private void removePendingAckOwnedConsumer(PositionImpl position, Consumer ackOwnedConsumer) {
         if (!ackOwnedConsumer.getPendingAcks().remove(position.getLedgerId(), position.getEntryId())) {
@@ -977,24 +994,6 @@ public class Consumer {
             }
         }
         return ackOwnerConsumer;
-    }
-
-    /**
-     * first try to remove ack-position from the current_consumer's pendingAcks.
-     * if ack-message doesn't present into current_consumer's pendingAcks
-     *  a. try to remove from other connected subscribed consumers (It happens when client
-     * tries to acknowledge message through different consumer under the same subscription)
-     *
-     *
-     * @param position
-     */
-    private void removePendingAcks(PositionImpl position) {
-        ConsumerAndLongPair ackOwnerConsumerAndLongPair = getAckOwnerConsumerAndLongPair(position.getLedgerId(),
-                position.getEntryId());
-        // remove pending message from appropriate consumer and unblock unAckMsg-flow if requires
-        if (ackOwnerConsumerAndLongPair.pendingAckLongPair != null) {
-            removePendingAckOwnedConsumer(position, ackOwnerConsumerAndLongPair.consumer);
-        }
     }
 
     public ConcurrentLongLongPairHashMap getPendingAcks() {
