@@ -415,11 +415,12 @@ public final class ClusterDataImpl implements  ClusterData, Cloneable {
          public void checkPropertiesIfPresent() throws IllegalArgumentException {
              if (StringUtils.isEmpty(getServiceUrl()) && StringUtils.isEmpty(getServiceUrlTls())) {
                  throw new IllegalArgumentException("At least one of ServiceUrl or ServiceUrlTls must be set.");
-             }  
-             if (StringUtils.isEmpty(getBrokerServiceUrl()) && StringUtils.isEmpty(getBrokerServiceUrlTls())) {
-                throw new IllegalArgumentException("At least one of BrokerServiceUrl or BrokerServiceUrlTls must be set.");
              }
-                 
+             if (StringUtils.isEmpty(getBrokerServiceUrl()) && StringUtils.isEmpty(getBrokerServiceUrlTls())) {
+                throw new IllegalArgumentException("At least one of BrokerServiceUrl or BrokerServiceUrlTls"
+                        + " must be set.");
+             }
+
              URIPreconditions.checkURIIfPresent(getServiceUrl(),
                     uri -> Objects.equals(uri.getScheme(), "http"),
                     "Illegal service url, example: http://pulsar.example.com:8080");
