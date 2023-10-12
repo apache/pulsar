@@ -19,7 +19,7 @@
 package org.apache.pulsar.broker.loadbalance.impl;
 
 import static java.lang.Thread.sleep;
-import static org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl.TIME_AVERAGE_BROKER_ZPATH;
+import static org.apache.pulsar.broker.resources.LoadBalanceResources.BROKER_TIME_AVERAGE_BASE_PATH;
 import static org.apache.pulsar.broker.resources.LoadBalanceResources.BUNDLE_DATA_BASE_PATH;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doAnswer;
@@ -778,7 +778,7 @@ public class ModularLoadManagerImplTest {
 
         List<String> data =  pulsar1.getLocalMetadataStore()
                 .getMetadataCache(TimeAverageBrokerData.class)
-                .getChildren(TIME_AVERAGE_BROKER_ZPATH)
+                .getChildren(BROKER_TIME_AVERAGE_BASE_PATH)
                 .join();
 
         Awaitility.await().untilAsserted(() -> assertTrue(pulsar1.getLeaderElectionService().isLeader()));
