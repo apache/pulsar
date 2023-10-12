@@ -220,6 +220,9 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
     @Override
     public TopicPolicies getTopicPolicies(TopicName topicName,
                                           boolean isGlobal) throws TopicPoliciesCacheNotInitException {
+        if (NamespaceService.isHeartbeatNamespace(topicName.getNamespaceObject())) {
+            return null;
+        }
         if (!policyCacheInitMap.containsKey(topicName.getNamespaceObject())) {
             NamespaceName namespace = topicName.getNamespaceObject();
             prepareInitPoliciesCacheAsync(namespace);

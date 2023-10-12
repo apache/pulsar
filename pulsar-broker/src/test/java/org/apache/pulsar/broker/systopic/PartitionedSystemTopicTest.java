@@ -190,6 +190,13 @@ public class PartitionedSystemTopicTest extends BrokerTestBase {
         Optional<Topic> optionalTopic = pulsar.getBrokerService()
                 .getTopic(topicName.getPartition(1).toString(), false).join();
         Assert.assertTrue(optionalTopic.isEmpty());
+
+        TopicName heartbeatTopicName = TopicName.get("persistent",
+                namespaceName, BrokersBase.HEALTH_CHECK_TOPIC_SUFFIX);
+        admin.topics().getRetention(heartbeatTopicName.toString());
+        optionalTopic = pulsar.getBrokerService()
+                .getTopic(topicName.getPartition(1).toString(), false).join();
+        Assert.assertTrue(optionalTopic.isEmpty());
     }
 
     @Test
