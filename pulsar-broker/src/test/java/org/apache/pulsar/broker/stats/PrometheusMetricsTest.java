@@ -1752,7 +1752,7 @@ public class PrometheusMetricsTest extends BrokerTestBase {
                 false, statsOut);
         String metricsStr = statsOut.toString();
         final List<String> subCountLines = metricsStr.lines()
-                .filter(line -> line.startsWith("pulsar_subscriptions_count"))
+                .filter(line -> line.startsWith("pulsar_subscriptions_count{cluster=\"test\",namespace=\"prop/ns-abc1\""))
                 .collect(Collectors.toList());
         System.out.println(subCountLines);
         assertEquals(subCountLines.size(), 1);
