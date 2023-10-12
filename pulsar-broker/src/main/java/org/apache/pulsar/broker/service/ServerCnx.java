@@ -46,7 +46,6 @@ import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
@@ -56,6 +55,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
@@ -186,7 +186,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     private final BrokerService service;
     private final SchemaRegistryService schemaService;
     private final String listenerName;
-    private final HashMap<Long, Long> recentlyClosedProducers;
+    private final Map<Long, Long> recentlyClosedProducers;
     private final ConcurrentLongHashMap<CompletableFuture<Producer>> producers;
     private final ConcurrentLongHashMap<CompletableFuture<Consumer>> consumers;
     private final boolean enableSubscriptionPatternEvaluation;
@@ -291,7 +291,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 .expectedItems(8)
                 .concurrencyLevel(1)
                 .build();
-        this.recentlyClosedProducers = new HashMap<>();
+        this.recentlyClosedProducers = new ConcurrentHashMap();
         this.replicatorPrefix = conf.getReplicatorPrefix();
         this.maxNonPersistentPendingMessages = conf.getMaxConcurrentNonPersistentMessagePerConnection();
         this.schemaValidationEnforced = conf.isSchemaValidationEnforced();
@@ -2984,18 +2984,23 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
     @Override
     public void closeProducer(Producer producer) {
-        assert ctx.executor().inEventLoop();
         // removes producer-connection from map and send close command to producer
         safelyRemoveProducer(producer);
+        // removes producer-connection from map and send close command to
+        // producer
+        safelyRemoveProducer(producer);
+        closeProducer(producer.getProducerId(), producer.getEpoch());
+
+    }
+
+    public void closeProducer(long producerId, long epoch) {
         if (getRemoteEndpointProtocolVersion() >= v5.getValue()) {
-            writeAndFlush(Commands.newCloseProducer(producer.getProducerId(), -1L));
+            writeAndFlush(Commands.newCloseProducer(producerId, -1L));
             // The client does not necessarily know that the producer is closed, but the connection is still
             // active, and there could be messages in flight already. We want to ignore these messages for a time
             // because they are expected. Once the interval has passed, the client should have received the
             // CloseProducer command and should not send any additional messages until it sends a create Producer
             // command.
-            final long epoch = producer.getEpoch();
-            final long producerId = producer.getProducerId();
             recentlyClosedProducers.put(producerId, epoch);
             ctx.executor().schedule(() -> {
                 recentlyClosedProducers.remove(producerId, epoch);

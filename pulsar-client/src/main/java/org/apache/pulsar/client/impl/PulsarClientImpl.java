@@ -965,7 +965,7 @@ public class PulsarClientImpl implements PulsarClient {
     public CompletableFuture<ClientCnx> getConnection(final String topic, final String url) {
         TopicName topicName = TopicName.get(topic);
         return getLookup(url).getBroker(topicName)
-                .thenCompose(pair -> getConnection(pair.getLeft(), pair.getRight()));
+                .thenCompose(pair -> getConnection(pair.getLeft(), pair.getRight(), cnxPool.genRandomKeyToSelectCon()));
     }
 
     public LookupService getLookup(String serviceUrl) {
