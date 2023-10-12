@@ -132,7 +132,6 @@ import org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.common.policies.data.EnsemblePlacementPolicyConfig;
 import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats;
 import org.apache.pulsar.common.policies.data.OffloadPolicies;
-import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
 import org.apache.pulsar.common.policies.data.OffloadedReadPriority;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.protocol.Commands;
@@ -233,7 +232,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
     private static final Random random = new Random(System.currentTimeMillis());
     private long maximumRolloverTimeMs;
-    protected final Supplier<Boolean> mlOwnershipChecker;
+    protected final Supplier<CompletableFuture<Boolean>> mlOwnershipChecker;
 
     volatile PositionImpl lastConfirmedEntry;
 
@@ -337,7 +336,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     }
     public ManagedLedgerImpl(ManagedLedgerFactoryImpl factory, BookKeeper bookKeeper, MetaStore store,
             ManagedLedgerConfig config, OrderedScheduler scheduledExecutor,
-            final String name, final Supplier<Boolean> mlOwnershipChecker) {
+            final String name, final Supplier<CompletableFuture<Boolean>> mlOwnershipChecker) {
         this.factory = factory;
         this.bookKeeper = bookKeeper;
         this.config = config;
@@ -2482,7 +2481,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             return;
         }
 
-        final OffloadPoliciesImpl policies = config.getLedgerOffloader().getOffloadPolicies();
+        final OffloadPolicies policies = config.getLedgerOffloader().getOffloadPolicies();
         final long offloadThresholdInBytes =
                 Optional.ofNullable(policies.getManagedLedgerOffloadThresholdInBytes()).orElse(-1L);
         final long offloadThresholdInSeconds =

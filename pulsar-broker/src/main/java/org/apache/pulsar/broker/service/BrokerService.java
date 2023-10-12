@@ -1748,7 +1748,7 @@ public class BrokerService implements Closeable {
                                 topicFuture.completeExceptionally(new PersistenceException(exception));
                             }
                         }
-                    }, () -> isTopicNsOwnedByBroker(topicName), null);
+                    }, () -> isTopicNsOwnedByBrokerAsync(topicName), null);
 
         }).exceptionally((exception) -> {
             log.warn("[{}] Failed to get topic configuration: {}", topic, exception.getMessage(), exception);
@@ -2136,13 +2136,16 @@ public class BrokerService implements Closeable {
         });
     }
 
-    public boolean isTopicNsOwnedByBroker(TopicName topicName) {
-        try {
-            return pulsar.getNamespaceService().isServiceUnitOwned(topicName);
-        } catch (Exception e) {
-            log.warn("Failed to check the ownership of the topic: {}, {}", topicName, e.getMessage());
-        }
-        return false;
+    public CompletableFuture<Boolean> isTopicNsOwnedByBrokerAsync(TopicName topicName) {
+        return pulsar.getNamespaceService().isServiceUnitOwnedAsync(topicName)
+                .handle((hasOwnership, t) -> {
+                    if (t == null) {
+                        return hasOwnership;
+                    } else {
+                        log.warn("Failed to check the ownership of the topic: {}, {}", topicName, t.getMessage());
+                        return false;
+                    }
+                });
     }
 
     public CompletableFuture<Void> checkTopicNsOwnership(final String topic) {
