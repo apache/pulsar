@@ -215,6 +215,22 @@ public class PartitionedSystemTopicTest extends BrokerTestBase {
     }
 
     @Test
+    public void testHeartbeatTopicBeDeleted() throws Exception {
+        admin.brokers().healthcheck(TopicVersion.V2);
+        NamespaceName namespaceName = NamespaceService.getHeartbeatNamespaceV2(pulsar.getLookupServiceAddress(),
+                pulsar.getConfig());
+        TopicName heartbeatTopicName = TopicName.get("persistent", namespaceName, BrokersBase.HEALTH_CHECK_TOPIC_SUFFIX);
+
+        List<String> topics = getPulsar().getNamespaceService().getListOfPersistentTopics(namespaceName).join();
+        Assert.assertEquals(topics.size(), 1);
+        Assert.assertEquals(topics.get(0), heartbeatTopicName.toString());
+
+        admin.topics().delete(heartbeatTopicName.toString(), true);
+        topics = getPulsar().getNamespaceService().getListOfPersistentTopics(namespaceName).join();
+        Assert.assertEquals(topics.size(), 0);
+    }
+
+    @Test
     public void testSetBacklogCausedCreatingProducerFailure() throws Exception {
         final String ns = "prop/ns-test";
         final String topic = ns + "/topic-1";
