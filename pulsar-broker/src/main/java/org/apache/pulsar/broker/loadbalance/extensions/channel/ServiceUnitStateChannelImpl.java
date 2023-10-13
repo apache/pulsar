@@ -200,7 +200,18 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         Unstable
     }
 
+    public static ServiceUnitStateChannelImpl newInstance(PulsarService pulsar) {
+        return new ServiceUnitStateChannelImpl(pulsar);
+    }
+
     public ServiceUnitStateChannelImpl(PulsarService pulsar) {
+        this(pulsar, MAX_IN_FLIGHT_STATE_WAITING_TIME_IN_MILLIS, OWNERSHIP_MONITOR_DELAY_TIME_IN_SECS);
+    }
+
+    @VisibleForTesting
+    public ServiceUnitStateChannelImpl(PulsarService pulsar,
+                                       long inFlightStateWaitingTimeInMillis,
+                                       long ownershipMonitorDelayTimeInSecs) {
         this.pulsar = pulsar;
         this.config = pulsar.getConfig();
         this.lookupServiceAddress = pulsar.getLookupServiceAddress();
@@ -210,8 +221,8 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         this.stateChangeListeners = new StateChangeListeners();
         this.semiTerminalStateWaitingTimeInMillis = config.getLoadBalancerServiceUnitStateTombstoneDelayTimeInSeconds()
                 * 1000;
-        this.inFlightStateWaitingTimeInMillis = MAX_IN_FLIGHT_STATE_WAITING_TIME_IN_MILLIS;
-        this.ownershipMonitorDelayTimeInSecs = OWNERSHIP_MONITOR_DELAY_TIME_IN_SECS;
+        this.inFlightStateWaitingTimeInMillis = inFlightStateWaitingTimeInMillis;
+        this.ownershipMonitorDelayTimeInSecs = ownershipMonitorDelayTimeInSecs;
         if (semiTerminalStateWaitingTimeInMillis < inFlightStateWaitingTimeInMillis) {
             throw new IllegalArgumentException(
                     "Invalid Config: loadBalancerServiceUnitStateCleanUpDelayTimeInSeconds < "
@@ -503,22 +514,13 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
             case Splitting -> {
                 return CompletableFuture.completedFuture(Optional.of(data.sourceBroker()));
             }
-            case Assigning -> {
+            case Assigning, Releasing -> {
                 return deferGetOwnerRequest(serviceUnit).whenComplete((__, e) -> {
                     if (e != null) {
                         ownerLookUpCounters.get(state).getFailure().incrementAndGet();
                     }
-                }).thenApply(broker -> broker == null ? Optional.empty() : Optional.of(broker));
-            }
-            case Releasing -> {
-                if (isTransferCommand(data)) {
-                    return deferGetOwnerRequest(serviceUnit).whenComplete((__, e) -> {
-                        if (e != null) {
-                            ownerLookUpCounters.get(state).getFailure().incrementAndGet();
-                        }
-                    }).thenApply(broker -> broker == null ? Optional.empty() : Optional.of(broker));
-                }
-                return CompletableFuture.completedFuture(Optional.empty());
+                }).thenApply(
+                        broker -> broker == null ? Optional.empty() : Optional.of(broker));
             }
             case Init, Free -> {
                 return CompletableFuture.completedFuture(Optional.empty());
