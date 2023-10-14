@@ -19,24 +19,36 @@
 package org.apache.bookkeeper.mledger.offload.jcloud.impl;
 
 import static org.mockito.AdditionalAnswers.delegatesTo;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 import java.io.IOException;
+import java.lang.reflect.Constructor;
 import java.util.HashMap;
 import java.util.LinkedList;
+import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.UUID;
+import java.util.concurrent.Executors;
 import org.apache.bookkeeper.client.api.LedgerEntries;
 import org.apache.bookkeeper.client.api.LedgerEntry;
+import org.apache.bookkeeper.client.api.LedgerMetadata;
 import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.LedgerOffloader;
 import org.apache.bookkeeper.mledger.LedgerOffloader.OffloadHandle;
 import org.apache.bookkeeper.mledger.LedgerOffloaderStats;
 import org.apache.bookkeeper.mledger.ManagedLedger;
+import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.impl.EntryImpl;
+import org.apache.bookkeeper.mledger.offload.jcloud.BackedInputStream;
+import org.apache.bookkeeper.mledger.offload.jcloud.OffloadIndexBlockV2;
 import org.apache.bookkeeper.mledger.offload.jcloud.provider.JCloudBlobStoreProvider;
 import org.apache.bookkeeper.mledger.offload.jcloud.provider.TieredStorageConfiguration;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats;
@@ -443,6 +455,31 @@ public class BlobStoreManagedLedgerOffloaderStreamingTest extends BlobStoreManag
             readHandle.read(0, 20);
             Assert.fail("Shouldn't be able to read anything");
         } catch (Exception e) {
+        }
+    }
+
+    @Test
+    public void testThrowNonRecoverableLedgerExceptionAvoidEOFAndNPE() throws Exception {
+        BackedInputStream mockInputStream =  spy(BackedInputStream.class);
+        OffloadIndexBlockV2 mockIndex = spy(OffloadIndexBlockV2.class);
+        LedgerMetadata mockMetadata = spy(LedgerMetadata.class);
+        when(mockMetadata.getLastEntryId()).thenReturn(100L);
+        when(mockIndex.getStartEntryId(anyLong())).thenReturn(0L);
+        when(mockIndex.getLedgerMetadata(anyLong())).thenReturn(mockMetadata);
+        Constructor<BlobStoreBackedReadHandleImplV2>[] constructors =
+                (Constructor<BlobStoreBackedReadHandleImplV2>[]) BlobStoreBackedReadHandleImplV2.class
+                        .getDeclaredConstructors();
+        Constructor<BlobStoreBackedReadHandleImplV2> constructor = constructors[0];
+        constructor.setAccessible(true);
+        BlobStoreBackedReadHandleImplV2 blobStoreBackedReadHandleImplV2 = constructor.newInstance(1,
+                List.of(mockIndex, mockIndex, mockIndex),
+                List.of(mockInputStream, mockInputStream, mockInputStream),
+                Executors.newSingleThreadExecutor());
+        try {
+            blobStoreBackedReadHandleImplV2.read(1, 3);
+            fail();
+        } catch (Exception e) {
+            assertTrue(e.getCause() instanceof ManagedLedgerException.NonRecoverableLedgerException);
         }
     }
 }
