@@ -876,7 +876,7 @@ jobs:
         uses: ./.github/actions/tune-runner-vm
 
       - name: Clean Disk when needed
-        if: ${{ matrix.clean_disk == 'true' }}
+        if: ${{ matrix.clean_disk }}
         uses: ./.github/actions/clean-disk
 
       - name: Setup ssh access to build runner VM
@@ -1089,7 +1089,7 @@ jobs:
         uses: ./.github/actions/tune-runner-vm
 
       - name: Clean Disk when needed
-        if: ${{ matrix.clean_disk == 'true' }}
+        if: ${{ matrix.clean_disk }}
         uses: ./.github/actions/clean-disk
 
       - name: Setup ssh access to build runner VM
