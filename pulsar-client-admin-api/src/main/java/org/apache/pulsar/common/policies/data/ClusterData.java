@@ -136,11 +136,14 @@ public interface ClusterData {
     @NoArgsConstructor
     @AllArgsConstructor
     class ClusterUrl {
+        String serviceUrl;
+        String serviceUrlTls;
         String brokerServiceUrl;
         String brokerServiceUrlTls;
 
         public boolean isEmpty() {
-            return brokerServiceUrl == null && brokerServiceUrlTls == null;
+            return serviceUrl != null && serviceUrlTls != null && brokerServiceUrl == null
+                    && brokerServiceUrlTls == null;
         }
     }
 }
