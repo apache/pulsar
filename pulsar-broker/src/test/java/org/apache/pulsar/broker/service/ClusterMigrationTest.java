@@ -28,15 +28,18 @@ import static org.testng.Assert.assertTrue;
 
 import java.lang.reflect.Method;
 import java.net.URL;
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
+import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
@@ -267,7 +270,8 @@ public class ClusterMigrationTest {
         AbstractTopic topic2 = (AbstractTopic) pulsar2.getBrokerService().getTopic(topicName, false).getNow(null).get();
         assertFalse(topic2.getProducers().isEmpty());
 
-        ClusterUrl migratedUrl = new ClusterUrl(pulsar2.getBrokerServiceUrl(), pulsar2.getBrokerServiceUrlTls());
+        ClusterUrl migratedUrl = new ClusterUrl(pulsar2.getWebServiceAddress(), pulsar2.getWebServiceAddressTls(),
+                pulsar2.getBrokerServiceUrl(), pulsar2.getBrokerServiceUrlTls());
         admin1.clusters().updateClusterMigration("r1", true, migratedUrl);
 
         retryStrategically((test) -> {
@@ -454,7 +458,8 @@ public class ClusterMigrationTest {
 
         retryStrategically((test) -> topic2.getReplicators().size() == 1, 10, 2000);
         log.info("replicators should be ready");
-        ClusterUrl migratedUrl = new ClusterUrl(pulsar2.getBrokerServiceUrl(), pulsar2.getBrokerServiceUrlTls());
+        ClusterUrl migratedUrl = new ClusterUrl(pulsar2.getWebServiceAddress(), pulsar2.getWebServiceAddressTls(),
+                pulsar2.getBrokerServiceUrl(), pulsar2.getBrokerServiceUrlTls());
         admin1.clusters().updateClusterMigration("r1", true, migratedUrl);
         log.info("update cluster migration called");
         retryStrategically((test) -> {
@@ -492,6 +497,85 @@ public class ClusterMigrationTest {
         producer1.send("test".getBytes());
         // verify that the producer1 is now connected to migrated cluster "r2" since backlog is cleared.
         assertEquals(topic2.getProducers().size(), 2);
+    }
+
+    /**
+     * This test validates that blue cluster first creates list of subscriptions into green cluster so, green cluster
+     * will not lose the data if producer migrates.
+     * 
+     * @throws Exception
+     */
+    @Test
+    public void testClusterMigrationWithResourceCreated() throws Exception {
+        log.info("--- Starting testClusterMigrationWithResourceCreated ---");
+
+        String tenant = "pulsar2";
+        String namespace = tenant + "/migration";
+        String greenClusterName = pulsar2.getConfig().getClusterName();
+        String blueClusterName = pulsar1.getConfig().getClusterName();
+        admin1.clusters().createCluster(greenClusterName,
+                ClusterData.builder().serviceUrl(url2.toString()).serviceUrlTls(urlTls2.toString())
+                        .brokerServiceUrl(pulsar2.getBrokerServiceUrl())
+                        .brokerServiceUrlTls(pulsar2.getBrokerServiceUrlTls()).build());
+        admin2.clusters().createCluster(blueClusterName,
+                ClusterData.builder().serviceUrl(url1.toString()).serviceUrlTls(urlTls1.toString())
+                        .brokerServiceUrl(pulsar1.getBrokerServiceUrl())
+                        .brokerServiceUrlTls(pulsar1.getBrokerServiceUrlTls()).build());
+
+        admin1.tenants().createTenant(tenant, new TenantInfoImpl(Sets.newHashSet("appid1", "appid2", "appid3"),
+                Sets.newHashSet("r1", greenClusterName)));
+        // broker should handle already tenant creation
+        admin2.tenants().createTenant(tenant, new TenantInfoImpl(Sets.newHashSet("appid1", "appid2", "appid3"),
+                Sets.newHashSet("r1", greenClusterName)));
+        admin1.namespaces().createNamespace(namespace, Sets.newHashSet("r1", greenClusterName));
+
+        final String topicName = BrokerTestUtil.newUniqueName("persistent://" + namespace + "/migrationTopic");
+
+        broker1.getPulsarService().getConfig().setClusterMigrationAutoResourceCreation(true);
+        @Cleanup
+        PulsarClient client1 = PulsarClient.builder().serviceUrl(url1.toString()).statsInterval(0, TimeUnit.SECONDS)
+                .build();
+        // cluster-1 producer/consumer
+        Producer<byte[]> producer1 = client1.newProducer().topic(topicName).enableBatching(false)
+                .producerName("cluster1-1").messageRoutingMode(MessageRoutingMode.SinglePartition).create();
+        // create subscriptions
+        admin1.topics().createSubscription(topicName, "s1", MessageId.earliest);
+        admin1.topics().createSubscription(topicName, "s2", MessageId.earliest);
+
+        ClusterUrl migratedUrl = new ClusterUrl(pulsar2.getWebServiceAddress(), pulsar2.getWebServiceAddressTls(),
+                pulsar2.getBrokerServiceUrl(), pulsar2.getBrokerServiceUrlTls());
+        admin1.clusters().updateClusterMigration("r1", true, migratedUrl);
+
+        PersistentTopic topic1 = (PersistentTopic) pulsar1.getBrokerService().getTopic(topicName, false).getNow(null)
+                .get();
+        retryStrategically((test) -> {
+            try {
+                topic1.checkClusterMigration().get();
+                return true;
+            } catch (Exception e) {
+                // ok
+            }
+            return false;
+        }, 10, 500);
+
+        assertNotNull(admin2.tenants().getTenantInfo(tenant));
+        assertNotNull(admin2.namespaces().getPolicies(namespace));
+        List<String> subLists = admin2.topics().getSubscriptions(topicName);
+        assertTrue(subLists.contains("s1"));
+        assertTrue(subLists.contains("s2"));
+
+        int n = 5;
+        for (int i = 0; i < n; i++) {
+            producer1.send("test1".getBytes());
+        }
+
+        Consumer<byte[]> consumer1 = client1.newConsumer().topic(topicName).subscriptionName("s1").subscribe();
+        for (int i = 0; i < n; i++) {
+            assertNotNull(consumer1.receive());
+        }
+
+        consumer1.close();
+        producer1.close();
     }
 
     static class TestBroker extends MockedPulsarServiceBaseTest {
