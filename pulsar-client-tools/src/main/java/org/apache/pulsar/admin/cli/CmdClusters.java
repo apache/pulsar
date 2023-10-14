@@ -162,17 +162,18 @@ public class CmdClusters extends CmdBase {
         @Parameter(names = "--migrated", description = "Is cluster migrated")
         private boolean migrated;
 
-        @Parameter(names = "--service-url", description = "New migrated cluster service url")
+        @Parameter(names = "--service-url", description = "New migrated cluster service url", required = false)
         private String serviceUrl;
 
         @Parameter(names = "--service-url-secure",
-                description = "New migrated cluster service url secure")
+                description = "New migrated cluster service url secure", required = false)
         private String serviceUrlTls;
 
         @Parameter(names = "--broker-url", description = "New migrated cluster broker service url")
         private String brokerServiceUrl;
 
-        @Parameter(names = "--broker-url-secure", description = "New migrated cluster broker service url secure")
+        @Parameter(names = "--broker-url-secure", description = "New migrated cluster broker service url secure",
+                required = false)
         private String brokerServiceUrlTls;
 
         void run() throws PulsarAdminException {
