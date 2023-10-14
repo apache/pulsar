@@ -590,6 +590,8 @@ jobs:
 
       - name: Clean Disk
         uses: ./.github/actions/clean-disk
+        with:
+          mode: full
 
       - name: Cache local Maven repository
         uses: actions/cache@v2
@@ -696,6 +698,7 @@ jobs:
 
           - name: Pulsar IO
             group: PULSAR_IO
+            clean_disk: true
 
           - name: Sql
             group: SQL
@@ -706,6 +709,10 @@ jobs:
 
       - name: Tune Runner VM
         uses: ./.github/actions/tune-runner-vm
+
+      - name: Clean Disk when needed
+        if: ${{ matrix.clean_disk }}
+        uses: ./.github/actions/clean-disk
 
       - name: Setup ssh access to build runner VM
         # ssh access is enabled for builds in own forks
@@ -806,6 +813,7 @@ jobs:
         include:
           - name: Pulsar IO - Oracle
             group: PULSAR_IO_ORA
+            clean_disk: true
 
 
     steps:
@@ -814,6 +822,10 @@ jobs:
 
       - name: Tune Runner VM
         uses: ./.github/actions/tune-runner-vm
+
+      - name: Clean Disk when needed
+        if: ${{ matrix.clean_disk }}
+        uses: ./.github/actions/clean-disk
 
       - name: Setup ssh access to build runner VM
         # ssh access is enabled for builds in own forks
