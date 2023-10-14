@@ -144,7 +144,7 @@ public class ProxyRolesEnforcementTest extends ProducerConsumerBase {
         conf.setAuthenticationEnabled(true);
         conf.setAuthorizationEnabled(true);
         conf.setBrokerClientAuthenticationPlugin(BasicAuthentication.class.getName());
-        conf.setBrokerClientAuthenticationParameters("authParam:broker");
+        conf.setBrokerClientAuthenticationParameters("authParam:admin");
 
         Set<String> superUserRoles = new HashSet<>();
         superUserRoles.add("admin");
