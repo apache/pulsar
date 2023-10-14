@@ -294,8 +294,9 @@ public class TopicStatsImpl implements TopicStats {
             topicMetricBean.value += v.value;
         });
 
-        for (int index = 0; index < stats.getPublishers().size(); index++) {
-           PublisherStats s = stats.getPublishers().get(index);
+        List<? extends PublisherStats> publisherStats = stats.getPublishers();
+        for (int index = 0; index < publisherStats.size(); index++) {
+           PublisherStats s = publisherStats.get(index);
            if (s.isSupportsPartialProducer() && s.getProducerName() != null) {
                this.publishersMap.computeIfAbsent(s.getProducerName(), key -> {
                    final PublisherStatsImpl newStats = new PublisherStatsImpl();
@@ -319,38 +320,22 @@ public class TopicStatsImpl implements TopicStats {
            }
         }
 
-        if (this.subscriptions.size() != stats.subscriptions.size()) {
-            for (String subscription : stats.subscriptions.keySet()) {
-                SubscriptionStatsImpl subscriptionStats = new SubscriptionStatsImpl();
-                this.subscriptions.put(subscription, subscriptionStats.add(stats.subscriptions.get(subscription)));
-            }
-        } else {
-            for (String subscription : stats.subscriptions.keySet()) {
-                if (this.subscriptions.get(subscription) != null) {
-                    this.subscriptions.get(subscription).add(stats.subscriptions.get(subscription));
-                } else {
-                    SubscriptionStatsImpl subscriptionStats = new SubscriptionStatsImpl();
-                    this.subscriptions.put(subscription, subscriptionStats.add(stats.subscriptions.get(subscription)));
-                }
-            }
+        for (Map.Entry<String, SubscriptionStatsImpl> entry : stats.subscriptions.entrySet()) {
+            SubscriptionStatsImpl subscriptionStats =
+                    this.subscriptions.computeIfAbsent(entry.getKey(), k -> new SubscriptionStatsImpl());
+            subscriptionStats.add(entry.getValue());
         }
-        if (this.replication.size() != stats.replication.size()) {
-            for (String repl : stats.replication.keySet()) {
-                ReplicatorStatsImpl replStats = new ReplicatorStatsImpl();
-                replStats.setConnected(true);
-                this.replication.put(repl, replStats.add(stats.replication.get(repl)));
-            }
-        } else {
-            for (String repl : stats.replication.keySet()) {
-                if (this.replication.get(repl) != null) {
-                    this.replication.get(repl).add(stats.replication.get(repl));
-                } else {
-                    ReplicatorStatsImpl replStats = new ReplicatorStatsImpl();
-                    replStats.setConnected(true);
-                    this.replication.put(repl, replStats.add(stats.replication.get(repl)));
-                }
-            }
+
+        for (Map.Entry<String, ReplicatorStatsImpl> entry : stats.replication.entrySet()) {
+            ReplicatorStatsImpl replStats =
+                    this.replication.computeIfAbsent(entry.getKey(), k -> {
+                        ReplicatorStatsImpl r = new ReplicatorStatsImpl();
+                        r.setConnected(true);
+                        return r;
+                    });
+            replStats.add(entry.getValue());
         }
+
         if (earliestMsgPublishTimeInBacklogs != 0 && ((TopicStatsImpl) ts).earliestMsgPublishTimeInBacklogs != 0) {
             earliestMsgPublishTimeInBacklogs = Math.min(
                     earliestMsgPublishTimeInBacklogs,
