@@ -33,6 +33,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -106,6 +107,7 @@ public class PulsarClientImpl implements PulsarClient {
 
     private final boolean createdScheduledProviders;
     private LookupService lookup;
+    private Map<String, LookupService> urlLookupMap = new ConcurrentHashMap<>();
     private final ConnectionPool cnxPool;
     @Getter
     private final Timer timer;
@@ -962,6 +964,23 @@ public class PulsarClientImpl implements PulsarClient {
                 .thenCompose(pair -> getConnection(pair.getLeft(), pair.getRight(), cnxPool.genRandomKeyToSelectCon()));
     }
 
+    public CompletableFuture<ClientCnx> getConnection(final String topic, final String url) {
+        TopicName topicName = TopicName.get(topic);
+        return getLookup(url).getBroker(topicName)
+                .thenCompose(pair -> getConnection(pair.getLeft(), pair.getRight(), cnxPool.genRandomKeyToSelectCon()));
+    }
+
+    public LookupService getLookup(String serviceUrl) {
+        return urlLookupMap.computeIfAbsent(serviceUrl, url -> {
+            try {
+                return createLookup(serviceUrl);
+            } catch (PulsarClientException e) {
+                log.warn("Failed to update url to lookup service {}, {}", url, e.getMessage());
+                throw new IllegalStateException("Failed to update url " + url);
+            }
+        });
+    }
+
     public CompletableFuture<ClientCnx> getConnectionToServiceUrl() {
         if (!(lookup instanceof BinaryProtoLookupService)) {
             return FutureUtil.failedFuture(new PulsarClientException.InvalidServiceURL(
@@ -1020,10 +1039,14 @@ public class PulsarClientImpl implements PulsarClient {
     }
 
     public void reloadLookUp() throws PulsarClientException {
-        if (conf.getServiceUrl().startsWith("http")) {
-            lookup = new HttpLookupService(conf, eventLoopGroup);
+        lookup = createLookup(conf.getServiceUrl());
+    }
+
+    public LookupService createLookup(String url) throws PulsarClientException {
+        if (url.startsWith("http")) {
+            return new HttpLookupService(conf, eventLoopGroup);
         } else {
-            lookup = new BinaryProtoLookupService(this, conf.getServiceUrl(), conf.getListenerName(), conf.isUseTls(),
+            return new BinaryProtoLookupService(this, url, conf.getListenerName(), conf.isUseTls(),
                     externalExecutorProvider.getExecutor());
         }
     }

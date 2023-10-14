@@ -96,9 +96,16 @@ public class ConnectionHandler {
         try {
             CompletableFuture<ClientCnx> cnxFuture;
             if (state.redirectedClusterURI != null) {
-                InetSocketAddress address = InetSocketAddress.createUnresolved(state.redirectedClusterURI.getHost(),
-                        state.redirectedClusterURI.getPort());
-                cnxFuture = state.client.getConnection(address, address, randomKeyForSelectConnection);
+                if (state.topic == null) {
+                    InetSocketAddress address = InetSocketAddress.createUnresolved(state.redirectedClusterURI.getHost(),
+                            state.redirectedClusterURI.getPort());
+                    cnxFuture = state.client.getConnection(address, address, randomKeyForSelectConnection);
+                } else {
+                    // once, client receives redirection url, client has to perform lookup on migrated
+                    // cluster to find the broker that owns the topic and then create connection.
+                    // below method, performs the lookup for a given topic and then creates connection
+                    cnxFuture = state.client.getConnection(state.topic, (state.redirectedClusterURI.toString()));
+                }
             } else if (state.topic == null) {
                 cnxFuture = state.client.getConnectionToServiceUrl();
             } else {
