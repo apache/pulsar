@@ -18,8 +18,6 @@
  */
 package org.apache.pulsar.admin.cli;
 
-import static org.apache.pulsar.admin.cli.utils.CmdUtils.maxValueCheck;
-import static org.apache.pulsar.admin.cli.utils.CmdUtils.positiveCheck;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParameterException;
 import com.beust.jcommander.Parameters;
@@ -38,6 +36,15 @@ import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.admin.cli.utils.IOUtils;
+import org.apache.pulsar.cli.converters.ByteUnitIntegerConverter;
+import org.apache.pulsar.cli.converters.ByteUnitToLongConverter;
+import org.apache.pulsar.cli.converters.TimeUnitToMillisConverter;
+import org.apache.pulsar.cli.converters.TimeUnitToSecondsConverter;
+import org.apache.pulsar.cli.validators.IntegerMaxValueLongValidator;
+import org.apache.pulsar.cli.validators.MinNegativeOneValidator;
+import org.apache.pulsar.cli.validators.NonNegativeValueValidator;
+import org.apache.pulsar.cli.validators.PositiveIntegerValueValidator;
+import org.apache.pulsar.cli.validators.PositiveLongValueValidator;
 import org.apache.pulsar.client.admin.ListNamespaceTopicsOptions;
 import org.apache.pulsar.client.admin.Mode;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -67,7 +74,6 @@ import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
 import org.apache.pulsar.common.policies.data.SubscriptionAuthMode;
 import org.apache.pulsar.common.policies.data.TopicType;
-import org.apache.pulsar.common.util.RelativeTimeUtil;
 
 @Parameters(commandDescription = "Operations about namespaces")
 public class CmdNamespaces extends CmdBase {
@@ -404,25 +410,15 @@ public class CmdNamespaces extends CmdBase {
 
         @Parameter(names = { "--messageTTL", "-ttl" },
                 description = "Message TTL in seconds (or minutes, hours, days, weeks eg: 100m, 3h, 2d, 5w). "
-                        + "When the value is set to `0`, TTL is disabled.", required = true)
-        private String messageTTLStr;
+                        + "When the value is set to `0`, TTL is disabled.", required = true,
+                        converter = TimeUnitToSecondsConverter.class,
+                        validateValueWith = {NonNegativeValueValidator.class})
+        private Long messageTTLInSecond;
 
         @Override
         void run() throws PulsarAdminException {
-            long messageTTLInSecond;
-            try {
-                messageTTLInSecond = RelativeTimeUtil.parseRelativeTimeInSeconds(messageTTLStr);
-            } catch (IllegalArgumentException e) {
-                throw new ParameterException(e.getMessage());
-            }
-
-            if (messageTTLInSecond < 0 || messageTTLInSecond > Integer.MAX_VALUE) {
-                throw new ParameterException(
-                        String.format("Message TTL cannot be negative or greater than %d seconds", Integer.MAX_VALUE));
-            }
-
             String namespace = validateNamespace(params);
-            getAdmin().namespaces().setNamespaceMessageTTL(namespace, (int) messageTTLInSecond);
+            getAdmin().namespaces().setNamespaceMessageTTL(namespace, messageTTLInSecond.intValue());
         }
     }
 
@@ -747,39 +743,27 @@ public class CmdNamespaces extends CmdBase {
                         + "For example, 100m, 3h, 2d, 5w. "
                         + "If the time unit is not specified, the default unit is seconds. For example, "
                         + "-t 120 sets retention to 2 minutes. "
-                        + "0 means no retention and -1 means infinite time retention.", required = true)
-        private String retentionTimeStr;
+                        + "0 means no retention and -1 means infinite time retention.", required = true,
+                        converter = TimeUnitToSecondsConverter.class,
+                        validateValueWith = MinNegativeOneValidator.class)
+        private Long retentionTimeInSec;
 
         @Parameter(names = { "--size", "-s" }, description = "Retention size limit with optional size unit suffix. "
                 + "For example, 4096, 10M, 16G, 3T.  The size unit suffix character can be k/K, m/M, g/G, or t/T.  "
                 + "If the size unit suffix is not specified, the default unit is bytes. "
-                + "0 or less than 1MB means no retention and -1 means infinite size retention", required = true)
-        private String limitStr;
+                + "0 or less than 1MB means no retention and -1 means infinite size retention", required = true,
+                converter = ByteUnitIntegerConverter.class)
+        private Integer sizeLimit;
 
         @Override
         void run() throws PulsarAdminException {
             String namespace = validateNamespace(params);
-            long sizeLimit = validateSizeString(limitStr);
-            long retentionTimeInSec;
-            try {
-                retentionTimeInSec = RelativeTimeUtil.parseRelativeTimeInSeconds(retentionTimeStr);
-            } catch (IllegalArgumentException exception) {
-                throw new ParameterException(exception.getMessage());
-            }
-
-            final int retentionTimeInMin;
-            if (retentionTimeInSec != -1) {
-                retentionTimeInMin = (int) TimeUnit.SECONDS.toMinutes(retentionTimeInSec);
-            } else {
-                retentionTimeInMin = -1;
-            }
-
-            final int retentionSizeInMB;
-            if (sizeLimit != -1) {
-                retentionSizeInMB = (int) (sizeLimit / (1024 * 1024));
-            } else {
-                retentionSizeInMB = -1;
-            }
+            final int retentionTimeInMin = retentionTimeInSec !=  -1
+                    ? (int) TimeUnit.SECONDS.toMinutes(retentionTimeInSec)
+                    : retentionTimeInSec.intValue();
+            final int retentionSizeInMB = sizeLimit != -1
+                    ? (int) (sizeLimit / (1024 * 1024))
+                    : sizeLimit;
             getAdmin().namespaces()
                     .setRetention(namespace, new RetentionPolicies(retentionTimeInMin, retentionSizeInMB));
         }
@@ -1267,13 +1251,15 @@ public class CmdNamespaces extends CmdBase {
         @Parameter(description = "tenant/namespace", required = true)
         private java.util.List<String> params;
 
-        @Parameter(names = { "-l", "--limit" }, description = "Size limit (eg: 10M, 16G)")
-        private String limitStr;
+        @Parameter(names = { "-l", "--limit" }, description = "Size limit (eg: 10M, 16G)",
+                converter = ByteUnitToLongConverter.class)
+        private Long limit = 0L;
 
         @Parameter(names = { "-lt", "--limitTime" },
                 description = "Time limit in second (or minutes, hours, days, weeks eg: 100m, 3h, 2d, 5w), "
-                        + "non-positive number for disabling time limit.")
-        private String limitTimeStr = null;
+                        + "non-positive number for disabling time limit.",
+                converter = TimeUnitToSecondsConverter.class)
+        private Long limitTimeInSec;
 
         @Parameter(names = { "-p", "--policy" }, description = "Retention policy to enforce when the limit is reached. "
                 + "Valid options are: [producer_request_hold, producer_exception, consumer_backlog_eviction]",
@@ -1311,23 +1297,16 @@ public class CmdNamespaces extends CmdBase {
             BacklogQuota.Builder builder = BacklogQuota.builder().retentionPolicy(policy);
             if (backlogQuotaType == BacklogQuota.BacklogQuotaType.destination_storage) {
                 // set quota by storage size
-                if (limitStr == null) {
+                if (limit == null) {
                     throw new ParameterException("Quota type of 'destination_storage' needs a size limit");
                 }
-                long limit = validateSizeString(limitStr);
                 builder.limitSize(limit);
             } else {
                 // set quota by time
-                if (limitTimeStr == null) {
+                if (limitTimeInSec == null) {
                     throw new ParameterException("Quota type of 'message_age' needs a time limit");
                 }
-                long limitTimeInSec;
-                try {
-                    limitTimeInSec = RelativeTimeUtil.parseRelativeTimeInSeconds(limitTimeStr);
-                } catch (IllegalArgumentException e) {
-                    throw new ParameterException(e.getMessage());
-                }
-                builder.limitTime((int) limitTimeInSec);
+                builder.limitTime(limitTimeInSec.intValue());
             }
             getAdmin().namespaces().setBacklogQuota(namespace, builder.build(), backlogQuotaType);
         }
@@ -1572,8 +1551,10 @@ public class CmdNamespaces extends CmdBase {
 
         @Parameter(names = {"--max-inactive-duration", "-t"}, description = "Max duration of topic inactivity in "
                 + "seconds, topics that are inactive for longer than this value will be deleted "
-                + "(eg: 1s, 10s, 1m, 5h, 3d)", required = true)
-        private String deleteInactiveTopicsMaxInactiveDuration;
+                + "(eg: 1s, 10s, 1m, 5h, 3d)", required = true,
+                converter = TimeUnitToSecondsConverter.class,
+                validateValueWith = IntegerMaxValueLongValidator.class)
+        private Long maxInactiveDurationInSeconds;
 
         @Parameter(names = { "--delete-mode", "-m" }, description = "Mode of delete inactive topic, Valid options are: "
                 + "[delete_when_no_subscriptions, delete_when_subscriptions_caught_up]", required = true)
@@ -1582,14 +1563,6 @@ public class CmdNamespaces extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             String namespace = validateNamespace(params);
-            long maxInactiveDurationInSeconds;
-            try {
-                maxInactiveDurationInSeconds = TimeUnit.SECONDS.toSeconds(
-                        RelativeTimeUtil.parseRelativeTimeInSeconds(deleteInactiveTopicsMaxInactiveDuration));
-            } catch (IllegalArgumentException exception) {
-                throw new ParameterException(exception.getMessage());
-            }
-
             if (enableDeleteWhileInactive == disableDeleteWhileInactive) {
                 throw new ParameterException("Need to specify either enable-delete-while-inactive or "
                         + "disable-delete-while-inactive");
@@ -1602,7 +1575,7 @@ public class CmdNamespaces extends CmdBase {
                         + "delete_when_subscriptions_caught_up");
             }
             getAdmin().namespaces().setInactiveTopicPolicies(namespace, new InactiveTopicPolicies(deleteMode,
-                    (int) maxInactiveDurationInSeconds, enableDeleteWhileInactive));
+                    maxInactiveDurationInSeconds.intValue(), enableDeleteWhileInactive));
         }
     }
 
@@ -1619,20 +1592,13 @@ public class CmdNamespaces extends CmdBase {
 
         @Parameter(names = { "--time", "-t" }, description = "The tick time for when retrying on "
                 + "delayed delivery messages, affecting the accuracy of the delivery time compared to "
-                + "the scheduled time. (eg: 1s, 10s, 1m, 5h, 3d)")
-        private String delayedDeliveryTimeStr = "1s";
+                + "the scheduled time. (eg: 1s, 10s, 1m, 5h, 3d)",
+                converter = TimeUnitToMillisConverter.class)
+        private Long delayedDeliveryTimeInMills = 1000L;
 
         @Override
         void run() throws PulsarAdminException {
             String namespace = validateNamespace(params);
-            long delayedDeliveryTimeInMills;
-            try {
-                delayedDeliveryTimeInMills = TimeUnit.SECONDS.toMillis(
-                        RelativeTimeUtil.parseRelativeTimeInSeconds(delayedDeliveryTimeStr));
-            } catch (IllegalArgumentException exception) {
-                throw new ParameterException(exception.getMessage());
-            }
-
             if (enable == disable) {
                 throw new ParameterException("Need to specify either --enable or --disable");
             }
@@ -1944,13 +1910,13 @@ public class CmdNamespaces extends CmdBase {
         @Parameter(names = { "--threshold", "-t" },
                    description = "Maximum number of bytes in a topic backlog before compaction is triggered "
                                  + "(eg: 10M, 16G, 3T). 0 disables automatic compaction",
-                   required = true)
-        private String thresholdStr = "0";
+                   required = true,
+                    converter = ByteUnitToLongConverter.class)
+        private Long threshold = 0L;
 
         @Override
         void run() throws PulsarAdminException {
             String namespace = validateNamespace(params);
-            long threshold = validateSizeString(thresholdStr);
             getAdmin().namespaces().setCompactionThreshold(namespace, threshold);
         }
     }
@@ -1978,13 +1944,13 @@ public class CmdNamespaces extends CmdBase {
                                  + " -1 falls back to the cluster's namespace default."
                                  + " Negative values disable automatic offload."
                                  + " 0 triggers offloading as soon as possible.",
-                   required = true)
-        private String thresholdStr = "-1";
+                   required = true,
+                    converter = ByteUnitToLongConverter.class)
+        private Long threshold = -1L;
 
         @Override
         void run() throws PulsarAdminException {
             String namespace = validateNamespace(params);
-            long threshold = validateSizeString(thresholdStr);
             getAdmin().namespaces().setOffloadThreshold(namespace, threshold);
         }
     }
@@ -2014,18 +1980,13 @@ public class CmdNamespaces extends CmdBase {
         @Parameter(names = { "--lag", "-l" },
                    description = "Duration to wait after offloading a ledger segment, before deleting the copy of that"
                                   + " segment from cluster local storage. (eg: 10m, 5h, 3d, 2w).",
-                   required = true)
-        private String lag = "-1";
+                   required = true,
+                    converter = TimeUnitToSecondsConverter.class)
+        private Long lagInSec = -1L;
 
         @Override
         void run() throws PulsarAdminException {
             String namespace = validateNamespace(params);
-            long lagInSec;
-            try {
-                lagInSec = RelativeTimeUtil.parseRelativeTimeInSeconds(lag);
-            } catch (IllegalArgumentException exception) {
-                throw new ParameterException(exception.getMessage());
-            }
             getAdmin().namespaces().setOffloadDeleteLag(namespace, lagInSec,
                     TimeUnit.SECONDS);
         }
@@ -2268,34 +2229,41 @@ public class CmdNamespaces extends CmdBase {
                 names = {"--maxBlockSize", "-mbs"},
                 description = "Max block size (eg: 32M, 64M), default is 64MB"
                   + "s3 and google-cloud-storage requires this parameter",
-                required = false)
-        private String maxBlockSizeStr;
+                required = false,
+                converter = ByteUnitIntegerConverter.class,
+                validateValueWith = {PositiveIntegerValueValidator.class})
+        private Integer maxBlockSizeInBytes = OffloadPoliciesImpl.DEFAULT_MAX_BLOCK_SIZE_IN_BYTES;
 
         @Parameter(
                 names = {"--readBufferSize", "-rbs"},
                 description = "Read buffer size (eg: 1M, 5M), default is 1MB",
-                required = false)
-        private String readBufferSizeStr;
+                required = false,
+                converter = ByteUnitIntegerConverter.class,
+                validateValueWith = {PositiveIntegerValueValidator.class})
+        private Integer readBufferSizeInBytes = OffloadPoliciesImpl.DEFAULT_READ_BUFFER_SIZE_IN_BYTES;
 
         @Parameter(
                 names = {"--offloadAfterElapsed", "-oae"},
                 description = "Delay time in Millis for deleting the bookkeeper ledger after offload "
                     + "(or seconds,minutes,hours,days,weeks eg: 10s, 100m, 3h, 2d, 5w).",
-                required = false)
-        private String offloadAfterElapsedStr;
+                required = false,
+                converter = TimeUnitToMillisConverter.class,
+                validateValueWith = PositiveLongValueValidator.class)
+        private Long offloadAfterElapsedInMillis = OffloadPoliciesImpl.DEFAULT_OFFLOAD_DELETION_LAG_IN_MILLIS;
 
         @Parameter(
                 names = {"--offloadAfterThreshold", "-oat"},
                 description = "Offload after threshold size (eg: 1M, 5M)",
-                required = false)
-        private String offloadAfterThresholdStr;
+                required = false,
+                converter = ByteUnitToLongConverter.class)
+        private Long offloadAfterThresholdInBytes = OffloadPoliciesImpl.DEFAULT_OFFLOAD_THRESHOLD_IN_BYTES;
 
         @Parameter(
                 names = {"--offloadAfterThresholdInSeconds", "-oats"},
                 description = "Offload after threshold seconds (or minutes,hours,days,weeks eg: 100m, 3h, 2d, 5w).",
-                required = false
-        )
-        private String offloadAfterThresholdInSecondsStr;
+                required = false,
+                converter = TimeUnitToSecondsConverter.class)
+        private Long offloadThresholdInSeconds = OffloadPoliciesImpl.DEFAULT_OFFLOAD_THRESHOLD_IN_SECONDS;
 
         @Parameter(
                 names = {"--offloadedReadPriority", "-orp"},
@@ -2336,71 +2304,15 @@ public class CmdNamespaces extends CmdBase {
                                 + " if s3 offload enabled");
             }
 
-            int maxBlockSizeInBytes = OffloadPoliciesImpl.DEFAULT_MAX_BLOCK_SIZE_IN_BYTES;
-            if (StringUtils.isNotEmpty(maxBlockSizeStr)) {
-                long maxBlockSize = validateSizeString(maxBlockSizeStr);
-                if (positiveCheck("MaxBlockSize", maxBlockSize)
-                        && maxValueCheck("MaxBlockSize", maxBlockSize, Integer.MAX_VALUE)) {
-                    maxBlockSizeInBytes = Long.valueOf(maxBlockSize).intValue();
-                }
-            }
-
-            int readBufferSizeInBytes = OffloadPoliciesImpl.DEFAULT_READ_BUFFER_SIZE_IN_BYTES;
-            if (StringUtils.isNotEmpty(readBufferSizeStr)) {
-                long readBufferSize = validateSizeString(readBufferSizeStr);
-                if (positiveCheck("ReadBufferSize", readBufferSize)
-                        && maxValueCheck("ReadBufferSize", readBufferSize, Integer.MAX_VALUE)) {
-                    readBufferSizeInBytes = Long.valueOf(readBufferSize).intValue();
-                }
-            }
-
-            Long offloadAfterElapsedInMillis = OffloadPoliciesImpl.DEFAULT_OFFLOAD_DELETION_LAG_IN_MILLIS;
-            if (StringUtils.isNotEmpty(offloadAfterElapsedStr)) {
-                Long offloadAfterElapsed;
-                try {
-                    offloadAfterElapsed = TimeUnit.SECONDS.toMillis(
-                            RelativeTimeUtil.parseRelativeTimeInSeconds(offloadAfterElapsedStr));
-                } catch (IllegalArgumentException exception) {
-                    throw new ParameterException(exception.getMessage());
-                }
-                if (positiveCheck("OffloadAfterElapsed", offloadAfterElapsed)
-                        && maxValueCheck("OffloadAfterElapsed", offloadAfterElapsed, Long.MAX_VALUE)) {
-                    offloadAfterElapsedInMillis = offloadAfterElapsed;
-                }
-            }
-
-            Long offloadAfterThresholdInBytes = OffloadPoliciesImpl.DEFAULT_OFFLOAD_THRESHOLD_IN_BYTES;
-            if (StringUtils.isNotEmpty(offloadAfterThresholdStr)) {
-                long offloadAfterThreshold = validateSizeString(offloadAfterThresholdStr);
-                if (maxValueCheck("OffloadAfterThreshold", offloadAfterThreshold, Long.MAX_VALUE)) {
-                    offloadAfterThresholdInBytes = offloadAfterThreshold;
-                }
-            }
-
-            Long offloadThresholdInSeconds = OffloadPoliciesImpl.DEFAULT_OFFLOAD_THRESHOLD_IN_SECONDS;
-            if (StringUtils.isNotEmpty(offloadAfterThresholdInSecondsStr)) {
-                Long offloadThresholdInSeconds0;
-                try {
-                    offloadThresholdInSeconds0 = TimeUnit.SECONDS.toSeconds(
-                      RelativeTimeUtil.parseRelativeTimeInSeconds(offloadAfterThresholdInSecondsStr.trim()));
-                } catch (IllegalArgumentException exception) {
-                    throw new ParameterException(exception.getMessage());
-                }
-                if (maxValueCheck("OffloadAfterThresholdInSeconds", offloadThresholdInSeconds0, Long.MAX_VALUE)) {
-                    offloadThresholdInSeconds = offloadThresholdInSeconds0;
-                }
-            }
-
             OffloadedReadPriority offloadedReadPriority = OffloadPoliciesImpl.DEFAULT_OFFLOADED_READ_PRIORITY;
-
             if (this.offloadReadPriorityStr != null) {
                 try {
                     offloadedReadPriority = OffloadedReadPriority.fromString(this.offloadReadPriorityStr);
                 } catch (Exception e) {
                     throw new ParameterException("--offloadedReadPriority parameter must be one of "
                             + Arrays.stream(OffloadedReadPriority.values())
-                                    .map(OffloadedReadPriority::toString)
-                                    .collect(Collectors.joining(","))
+                            .map(OffloadedReadPriority::toString)
+                            .collect(Collectors.joining(","))
                             + " but got: " + this.offloadReadPriorityStr, e);
                 }
             }

@@ -29,9 +29,10 @@ import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
+import org.apache.pulsar.cli.converters.TimeUnitToMillisConverter;
 import org.apache.pulsar.client.admin.LongRunningProcessStatus;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -541,8 +542,9 @@ public class CmdPersistentTopics extends CmdBase {
 
         @Parameter(names = { "--time",
                 "-t" }, description = "time in minutes to reset back to "
-                + "(or minutes, hours,days,weeks eg: 100m, 3h, 2d, 5w)", required = false)
-        private String resetTimeStr;
+                + "(or minutes, hours,days,weeks eg: 100m, 3h, 2d, 5w)", required = false,
+                converter = TimeUnitToMillisConverter.class)
+        private Long resetTimeInMillis = null;
 
         @Parameter(names = { "--messageId",
                 "-m" }, description = "messageId to reset back to (ledgerId:entryId)", required = false)
@@ -554,14 +556,7 @@ public class CmdPersistentTopics extends CmdBase {
             if (isNotBlank(resetMessageIdStr)) {
                 MessageId messageId = validateMessageIdString(resetMessageIdStr);
                 getPersistentTopics().resetCursor(persistentTopic, subName, messageId);
-            } else if (isNotBlank(resetTimeStr)) {
-                long resetTimeInMillis;
-                try {
-                    resetTimeInMillis = TimeUnit.SECONDS.toMillis(
-                            RelativeTimeUtil.parseRelativeTimeInSeconds(resetTimeStr));
-                } catch (IllegalArgumentException exception) {
-                    throw new ParameterException(exception.getMessage());
-                }
+            } else if (Objects.nonNull(resetTimeInMillis)) {
                 // now - go back time
                 long timestamp = System.currentTimeMillis() - resetTimeInMillis;
                 getPersistentTopics().resetCursor(persistentTopic, subName, timestamp);
