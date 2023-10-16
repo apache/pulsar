@@ -38,7 +38,7 @@ import static org.apache.pulsar.broker.loadbalance.extensions.models.UnloadDecis
 import static org.apache.pulsar.broker.namespace.NamespaceService.getHeartbeatNamespace;
 import static org.apache.pulsar.broker.namespace.NamespaceService.getHeartbeatNamespaceV2;
 import static org.apache.pulsar.broker.namespace.NamespaceService.getSLAMonitorNamespace;
-import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.isA;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
@@ -142,55 +142,55 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
 
     private final String defaultTestNamespace = "public/test";
 
-    private final MockedStatic<ServiceUnitStateChannelImpl> channelMockedStatic =
-            mockStatic(ServiceUnitStateChannelImpl.class);
-
     @BeforeClass
     @Override
     public void setup() throws Exception {
-        channelMockedStatic.when(() -> ServiceUnitStateChannelImpl.newInstance(any(PulsarService.class)))
-                .thenAnswer(invocation -> {
-                    PulsarService pulsarService = invocation.getArgument(0);
-                    // Set the inflight state waiting time and ownership monitor delay time to 5 seconds to avoid
-                    // stuck when doing unload.
-                    return new ServiceUnitStateChannelImpl(pulsarService, 5 * 1000, 5);
-                });
-        conf.setForceDeleteNamespaceAllowed(true);
-        conf.setAllowAutoTopicCreationType(TopicType.NON_PARTITIONED);
-        conf.setAllowAutoTopicCreation(true);
-        conf.setLoadManagerClassName(ExtensibleLoadManagerImpl.class.getName());
-        conf.setLoadBalancerLoadSheddingStrategy(TransferShedder.class.getName());
-        conf.setLoadBalancerSheddingEnabled(false);
-        conf.setLoadBalancerDebugModeEnabled(true);
-        conf.setTopicLevelPoliciesEnabled(true);
-        super.internalSetup(conf);
-        pulsar1 = pulsar;
-        ServiceConfiguration defaultConf = getDefaultConf();
-        defaultConf.setAllowAutoTopicCreation(true);
-        defaultConf.setForceDeleteNamespaceAllowed(true);
-        defaultConf.setLoadManagerClassName(ExtensibleLoadManagerImpl.class.getName());
-        defaultConf.setLoadBalancerLoadSheddingStrategy(TransferShedder.class.getName());
-        defaultConf.setLoadBalancerSheddingEnabled(false);
-        defaultConf.setTopicLevelPoliciesEnabled(true);
-        additionalPulsarTestContext = createAdditionalPulsarTestContext(defaultConf);
-        pulsar2 = additionalPulsarTestContext.getPulsarService();
+        try (MockedStatic<ServiceUnitStateChannelImpl> channelMockedStatic =
+                     mockStatic(ServiceUnitStateChannelImpl.class)) {
+            channelMockedStatic.when(() -> ServiceUnitStateChannelImpl.newInstance(isA(PulsarService.class)))
+                    .thenAnswer(invocation -> {
+                        PulsarService pulsarService = invocation.getArgument(0);
+                        // Set the inflight state waiting time and ownership monitor delay time to 5 seconds to avoid
+                        // stuck when doing unload.
+                        return new ServiceUnitStateChannelImpl(pulsarService, 5 * 1000, 5);
+                    });
+            conf.setForceDeleteNamespaceAllowed(true);
+            conf.setAllowAutoTopicCreationType(TopicType.NON_PARTITIONED);
+            conf.setAllowAutoTopicCreation(true);
+            conf.setLoadManagerClassName(ExtensibleLoadManagerImpl.class.getName());
+            conf.setLoadBalancerLoadSheddingStrategy(TransferShedder.class.getName());
+            conf.setLoadBalancerSheddingEnabled(false);
+            conf.setLoadBalancerDebugModeEnabled(true);
+            conf.setTopicLevelPoliciesEnabled(true);
+            super.internalSetup(conf);
+            pulsar1 = pulsar;
+            ServiceConfiguration defaultConf = getDefaultConf();
+            defaultConf.setAllowAutoTopicCreation(true);
+            defaultConf.setForceDeleteNamespaceAllowed(true);
+            defaultConf.setLoadManagerClassName(ExtensibleLoadManagerImpl.class.getName());
+            defaultConf.setLoadBalancerLoadSheddingStrategy(TransferShedder.class.getName());
+            defaultConf.setLoadBalancerSheddingEnabled(false);
+            defaultConf.setTopicLevelPoliciesEnabled(true);
+            additionalPulsarTestContext = createAdditionalPulsarTestContext(defaultConf);
+            pulsar2 = additionalPulsarTestContext.getPulsarService();
 
-        setPrimaryLoadManager();
+            setPrimaryLoadManager();
 
-        setSecondaryLoadManager();
+            setSecondaryLoadManager();
 
-        admin.clusters().createCluster(this.conf.getClusterName(),
-                ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
-        admin.tenants().createTenant("public",
-                new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"),
-                        Sets.newHashSet(this.conf.getClusterName())));
-        admin.namespaces().createNamespace("public/default");
-        admin.namespaces().setNamespaceReplicationClusters("public/default",
-                Sets.newHashSet(this.conf.getClusterName()));
+            admin.clusters().createCluster(this.conf.getClusterName(),
+                    ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
+            admin.tenants().createTenant("public",
+                    new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"),
+                            Sets.newHashSet(this.conf.getClusterName())));
+            admin.namespaces().createNamespace("public/default");
+            admin.namespaces().setNamespaceReplicationClusters("public/default",
+                    Sets.newHashSet(this.conf.getClusterName()));
 
-        admin.namespaces().createNamespace(defaultTestNamespace);
-        admin.namespaces().setNamespaceReplicationClusters(defaultTestNamespace,
-                Sets.newHashSet(this.conf.getClusterName()));
+            admin.namespaces().createNamespace(defaultTestNamespace);
+            admin.namespaces().setNamespaceReplicationClusters(defaultTestNamespace,
+                    Sets.newHashSet(this.conf.getClusterName()));
+        }
     }
 
     @Override
@@ -200,7 +200,6 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
         pulsar2.close();
         super.internalCleanup();
         this.additionalPulsarTestContext.close();
-        channelMockedStatic.close();
     }
 
     @BeforeMethod(alwaysRun = true)
