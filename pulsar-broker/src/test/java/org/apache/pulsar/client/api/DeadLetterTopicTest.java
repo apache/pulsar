@@ -234,10 +234,11 @@ public class DeadLetterTopicTest extends ProducerConsumerBase {
 
         final int maxRedeliveryCount = 1;
         final int sendMessages = 10;
+        final String subscriptionName = "my-subscription";
 
         Consumer<byte[]> consumer = pulsarClient.newConsumer(Schema.BYTES)
                 .topic(topic)
-                .subscriptionName("my-subscription")
+                .subscriptionName(subscriptionName)
                 .subscriptionType(SubscriptionType.Shared)
                 .ackTimeout(1, TimeUnit.SECONDS)
                 .deadLetterPolicy(DeadLetterPolicy.builder().maxRedeliverCount(maxRedeliveryCount).build())
@@ -273,6 +274,7 @@ public class DeadLetterTopicTest extends ProducerConsumerBase {
             Message<byte[]> message = deadLetterConsumer.receive();
             //Original info should exists
             assertEquals(message.getProperties().get(RetryMessageUtil.SYSTEM_PROPERTY_REAL_TOPIC), topic);
+            assertEquals(message.getProperties().get(RetryMessageUtil.SYSTEM_PROPERTY_REAL_SUBSCRIPTION), subscriptionName);
             assertTrue(messageIds.contains(message.getProperties().get(RetryMessageUtil.SYSTEM_PROPERTY_ORIGIN_MESSAGE_ID)));
             deadLetterConsumer.acknowledge(message);
             totalInDeadLetter++;
