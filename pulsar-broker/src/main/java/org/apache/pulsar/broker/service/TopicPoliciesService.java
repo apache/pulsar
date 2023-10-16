@@ -32,7 +32,6 @@ import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.TopicPolicies;
 import org.apache.pulsar.common.util.FutureUtil;
-import org.jetbrains.annotations.NotNull;
 
 /**
  * Topic policies service.
@@ -190,16 +189,16 @@ public interface TopicPoliciesService {
             return null;
         }
 
-        @NotNull
+        @Nonnull
         @Override
-        public CompletableFuture<Optional<TopicPolicies>> getTopicPoliciesAsync(@NotNull TopicName topicName,
+        public CompletableFuture<Optional<TopicPolicies>> getTopicPoliciesAsync(@Nonnull TopicName topicName,
                                                                                 boolean isGlobal) {
             return CompletableFuture.completedFuture(Optional.empty());
         }
 
-        @NotNull
+        @Nonnull
         @Override
-        public CompletableFuture<Optional<TopicPolicies>> getTopicPoliciesAsync(@NotNull TopicName topicName) {
+        public CompletableFuture<Optional<TopicPolicies>> getTopicPoliciesAsync(@Nonnull TopicName topicName) {
             return CompletableFuture.completedFuture(Optional.empty());
         }
 
