@@ -142,11 +142,12 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
 
     private final String defaultTestNamespace = "public/test";
 
+    private final MockedStatic<ServiceUnitStateChannelImpl> channelMockedStatic =
+            mockStatic(ServiceUnitStateChannelImpl.class);
+
     @BeforeClass
     @Override
     public void setup() throws Exception {
-        MockedStatic<ServiceUnitStateChannelImpl> channelMockedStatic =
-                mockStatic(ServiceUnitStateChannelImpl.class);
         channelMockedStatic.when(() -> ServiceUnitStateChannelImpl.newInstance(any(PulsarService.class)))
                 .thenAnswer(invocation -> {
                     PulsarService pulsarService = invocation.getArgument(0);
@@ -193,12 +194,13 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
     }
 
     @Override
-    @AfterClass
+    @AfterClass(alwaysRun = true)
     protected void cleanup() throws Exception {
         pulsar1 = null;
         pulsar2.close();
         super.internalCleanup();
         this.additionalPulsarTestContext.close();
+        channelMockedStatic.close();
     }
 
     @BeforeMethod(alwaysRun = true)
