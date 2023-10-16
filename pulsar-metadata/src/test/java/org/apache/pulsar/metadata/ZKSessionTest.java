@@ -40,7 +40,7 @@ import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 import org.awaitility.Awaitility;
 import org.testng.annotations.Test;
 
-@Test(groups = "quarantine")
+@Test
 public class ZKSessionTest extends BaseMetadataStoreTest {
 
     @Test

@@ -43,7 +43,6 @@ public class LocalBrokerDataTest {
     public void testMaxResourceUsage() {
         LocalBrokerData data = new LocalBrokerData();
         data.setCpu(new ResourceUsage(1.0, 100.0));
-        data.setMemory(new ResourceUsage(800.0, 200.0));
         data.setDirectMemory(new ResourceUsage(2.0, 100.0));
         data.setBandwidthIn(new ResourceUsage(3.0, 100.0));
         data.setBandwidthOut(new ResourceUsage(4.0, 100.0));
@@ -51,11 +50,10 @@ public class LocalBrokerDataTest {
         double epsilon = 0.00001;
         double weight = 0.5;
         // skips memory usage
-        assertEquals(data.getMaxResourceUsage(), 0.04, epsilon);
+        assertEquals(data.getMaxResourceUsage(), data.getBandwidthOut().percentUsage() / 100, epsilon);
 
-        assertEquals(
-                data.getMaxResourceUsageWithWeight(
-                        weight, weight, weight, weight, weight), 2.0, epsilon);
+        assertEquals(data.getMaxResourceUsageWithWeight(weight, weight, weight, weight),
+                data.getBandwidthOut().percentUsage() * weight / 100, epsilon);
     }
 
     /*

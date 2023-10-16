@@ -21,7 +21,6 @@ package org.apache.pulsar.client.impl;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
-
 import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
@@ -37,8 +36,9 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.api.TopicMessageId;
 import org.awaitility.Awaitility;
-import org.testcontainers.shaded.org.awaitility.reflect.WhiteboxImpl;
+import org.awaitility.reflect.WhiteboxImpl;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -145,6 +145,9 @@ public class NegativeAcksTest extends ProducerConsumerBase {
             Message<String> msg = consumer.receive();
             consumer.negativeAcknowledge(msg);
         }
+
+        assertTrue(consumer instanceof ConsumerBase<String>);
+        assertEquals(((ConsumerBase<String>) consumer).getUnAckedMessageTracker().size(), 0);
 
         Set<String> receivedMessages = new HashSet<>();
 
@@ -292,7 +295,7 @@ public class NegativeAcksTest extends ProducerConsumerBase {
                 .subscribe();
 
         MessageId messageId = new MessageIdImpl(3, 1, 0);
-        TopicMessageIdImpl topicMessageId = new TopicMessageIdImpl("topic-1", "topic-1", messageId);
+        TopicMessageId topicMessageId = TopicMessageId.create("topic-1", messageId);
         BatchMessageIdImpl batchMessageId = new BatchMessageIdImpl(3, 1, 0, 0);
         BatchMessageIdImpl batchMessageId2 = new BatchMessageIdImpl(3, 1, 0, 1);
         BatchMessageIdImpl batchMessageId3 = new BatchMessageIdImpl(3, 1, 0, 2);
@@ -318,7 +321,7 @@ public class NegativeAcksTest extends ProducerConsumerBase {
         negativeAcksTracker.close();
     }
 
-    @Test(timeOut = 10000)
+    @Test
     public void testNegativeAcksWithBatchAckEnabled() throws Exception {
         cleanup();
         conf.setAcknowledgmentAtBatchIndexLevelEnabled(true);

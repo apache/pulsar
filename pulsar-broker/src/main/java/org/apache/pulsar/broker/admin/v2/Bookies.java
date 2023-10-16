@@ -113,7 +113,7 @@ public class Bookies extends AdminResource {
                         asyncResponse.resume(bi.get());
                     } else {
                         asyncResponse.resume(new RestException(Status.NOT_FOUND,
-                                "Bookie address not found: " + bookieAddress));
+                                "Bookie rack placement configuration not found: " + bookieAddress));
                     }
                 }).exceptionally(ex -> {
             asyncResponse.resume(ex);
@@ -136,7 +136,7 @@ public class Bookies extends AdminResource {
 
                     if (!brc.removeBookie(bookieAddress)) {
                         asyncResponse.resume(new RestException(Status.NOT_FOUND,
-                                "Bookie address not found: " + bookieAddress));
+                                "Bookie rack placement configuration not found: " + bookieAddress));
                     }
 
                     return brc;

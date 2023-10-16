@@ -21,10 +21,14 @@ package org.apache.pulsar.common.policies.data;
 import io.swagger.annotations.ApiModel;
 import io.swagger.annotations.ApiModelProperty;
 import java.util.LinkedHashSet;
+import java.util.Objects;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.ProxyProtocol;
+import org.apache.pulsar.common.util.URIPreconditions;
 
 /**
  * The configuration data for a cluster.
@@ -36,6 +40,7 @@ import org.apache.pulsar.client.api.ProxyProtocol;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
+@Slf4j
 public final class ClusterDataImpl implements  ClusterData, Cloneable {
     @ApiModelProperty(
             name = "serviceUrl",
@@ -205,13 +210,15 @@ public final class ClusterDataImpl implements  ClusterData, Cloneable {
                 .brokerClientTlsTrustStoreType(brokerClientTlsTrustStoreType)
                 .brokerClientTlsTrustStore(brokerClientTlsTrustStore)
                 .brokerClientTlsTrustStorePassword(brokerClientTlsTrustStorePassword)
-                .brokerClientTlsKeyStoreType(brokerClientTlsTrustStoreType)
-                .brokerClientTlsKeyStore(brokerClientTlsTrustStore)
-                .brokerClientTlsKeyStorePassword(brokerClientTlsTrustStorePassword)
+                .brokerClientTlsKeyStoreType(brokerClientTlsKeyStoreType)
+                .brokerClientTlsKeyStore(brokerClientTlsKeyStore)
+                .brokerClientTlsKeyStorePassword(brokerClientTlsKeyStorePassword)
                 .brokerClientTrustCertsFilePath(brokerClientTrustCertsFilePath)
                 .brokerClientCertificateFilePath(brokerClientCertificateFilePath)
                 .brokerClientKeyFilePath(brokerClientKeyFilePath)
-                .listenerName(listenerName);
+                .listenerName(listenerName)
+                .migrated(migrated)
+                .migratedClusterUrl(migratedClusterUrl);
     }
 
     @Data
@@ -396,6 +403,47 @@ public final class ClusterDataImpl implements  ClusterData, Cloneable {
                     listenerName,
                     migrated,
                     migratedClusterUrl);
+        }
+    }
+
+    /**
+     * Check cluster data properties by rule, if some property is illegal, it will throw
+     * {@link IllegalArgumentException}.
+     *
+     * @throws IllegalArgumentException exist illegal property.
+     */
+    public void checkPropertiesIfPresent() throws IllegalArgumentException {
+        URIPreconditions.checkURIIfPresent(getServiceUrl(),
+                uri -> Objects.equals(uri.getScheme(), "http"),
+                "Illegal service url, example: http://pulsar.example.com:8080");
+        URIPreconditions.checkURIIfPresent(getServiceUrlTls(),
+                uri -> Objects.equals(uri.getScheme(), "https"),
+                "Illegal service tls url, example: https://pulsar.example.com:8443");
+        URIPreconditions.checkURIIfPresent(getBrokerServiceUrl(),
+                uri -> Objects.equals(uri.getScheme(), "pulsar"),
+                "Illegal broker service url, example: pulsar://pulsar.example.com:6650");
+        URIPreconditions.checkURIIfPresent(getBrokerServiceUrlTls(),
+                uri -> Objects.equals(uri.getScheme(), "pulsar+ssl"),
+                "Illegal broker service tls url, example: pulsar+ssl://pulsar.example.com:6651");
+        URIPreconditions.checkURIIfPresent(getProxyServiceUrl(),
+                uri -> Objects.equals(uri.getScheme(), "pulsar")
+                        || Objects.equals(uri.getScheme(), "pulsar+ssl"),
+                "Illegal proxy service url, example: pulsar+ssl://ats-proxy.example.com:4443 "
+                        + "or pulsar://ats-proxy.example.com:4080");
+
+        warnIfUrlIsNotPresent();
+    }
+
+    private void warnIfUrlIsNotPresent() {
+        if (StringUtils.isEmpty(getServiceUrl()) && StringUtils.isEmpty(getServiceUrlTls())) {
+            log.warn("Service url not found, "
+                    + "please provide either service url, example: http://pulsar.example.com:8080 "
+                    + "or service tls url, example: https://pulsar.example.com:8443");
+        }
+        if (StringUtils.isEmpty(getBrokerServiceUrl()) && StringUtils.isEmpty(getBrokerServiceUrlTls())) {
+            log.warn("Broker service url not found, "
+                    + "please provide either broker service url, example: pulsar://pulsar.example.com:6650 "
+                    + "or broker service tls url, example: pulsar+ssl://pulsar.example.com:6651.");
         }
     }
 }

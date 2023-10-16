@@ -41,8 +41,8 @@ import io.trino.spi.type.BigintType;
 import io.trino.spi.type.BooleanType;
 import io.trino.spi.type.DateType;
 import io.trino.spi.type.DecimalType;
-import io.trino.spi.type.Decimals;
 import io.trino.spi.type.DoubleType;
+import io.trino.spi.type.Int128;
 import io.trino.spi.type.IntegerType;
 import io.trino.spi.type.MapType;
 import io.trino.spi.type.RealType;
@@ -54,6 +54,7 @@ import io.trino.spi.type.TimestampType;
 import io.trino.spi.type.Timestamps;
 import io.trino.spi.type.TinyintType;
 import io.trino.spi.type.Type;
+import io.trino.spi.type.UuidType;
 import io.trino.spi.type.VarbinaryType;
 import io.trino.spi.type.VarcharType;
 import java.math.BigInteger;
@@ -61,16 +62,20 @@ import java.nio.ByteBuffer;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 import org.apache.avro.generic.GenericEnumSymbol;
 import org.apache.avro.generic.GenericFixed;
 import org.apache.avro.generic.GenericRecord;
 
 /**
- * Copy from {@link io.trino.decoder.avro.AvroColumnDecoder} (presto-record-decoder-345)
- * with A little bit pulsar's extensions.
- * 1) support {@link io.trino.spi.type.TimestampType},{@link io.trino.spi.type.DateType}DATE,
- *  * {@link io.trino.spi.type.TimeType}.
+ * Copy from {@link io.trino.decoder.avro.AvroColumnDecoder}
+ * with A little pulsar's extensions.
+ * 1) support date and time types.
+ *  {@link io.trino.spi.type.TimestampType}
+ *  {@link io.trino.spi.type.DateType}
+ *  {@link io.trino.spi.type.TimeType}
  * 2) support {@link io.trino.spi.type.RealType}.
+ * 3) support {@link io.trino.spi.type.DecimalType}.
  */
 public class PulsarAvroColumnDecoder {
     private static final Set<Type> SUPPORTED_PRIMITIVE_TYPES = ImmutableSet.of(
@@ -84,7 +89,8 @@ public class PulsarAvroColumnDecoder {
             TimestampType.TIMESTAMP_MILLIS,
             DateType.DATE,
             TimeType.TIME_MILLIS,
-            VarbinaryType.VARBINARY);
+            VarbinaryType.VARBINARY,
+            UuidType.UUID);
 
     private final Type columnType;
     private final String columnMapping;
@@ -252,11 +258,8 @@ public class PulsarAvroColumnDecoder {
             }
         }
 
-        // The returned Slice size must be equals to 18 Byte
-        if (type instanceof DecimalType) {
-            ByteBuffer buffer = (ByteBuffer) value;
-            BigInteger bigInteger = new BigInteger(buffer.array());
-            return Decimals.encodeUnscaledValue(bigInteger);
+        if (type instanceof UuidType) {
+            return UuidType.javaUuidToTrinoUuid(UUID.fromString(value.toString()));
         }
 
         throw new TrinoException(DECODER_CONVERSION_NOT_SUPPORTED,
@@ -273,6 +276,9 @@ public class PulsarAvroColumnDecoder {
         }
         if (type instanceof RowType) {
             return serializeRow(builder, value, type, columnName);
+        }
+        if (type instanceof DecimalType && !((DecimalType) type).isShort()) {
+            return serializeLongDecimal(builder, value, type, columnName);
         }
         serializePrimitive(builder, value, type, columnName);
         return null;
@@ -297,6 +303,22 @@ public class PulsarAvroColumnDecoder {
             return null;
         }
         return blockBuilder.build();
+    }
+
+    private static Block serializeLongDecimal(
+            BlockBuilder parentBlockBuilder, Object value, Type type, String columnName) {
+        final BlockBuilder blockBuilder;
+        if (parentBlockBuilder != null) {
+            blockBuilder = parentBlockBuilder;
+        } else {
+            blockBuilder = type.createBlockBuilder(null, 1);
+        }
+        final ByteBuffer buffer = (ByteBuffer) value;
+        type.writeObject(blockBuilder, Int128.fromBigEndian(buffer.array()));
+        if (parentBlockBuilder == null) {
+            return blockBuilder.getSingleValueBlock(0);
+        }
+        return null;
     }
 
     private static void serializePrimitive(BlockBuilder blockBuilder, Object value, Type type, String columnName) {

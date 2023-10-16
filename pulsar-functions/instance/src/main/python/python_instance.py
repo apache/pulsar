@@ -22,6 +22,7 @@
 """python_instance.py: Python Instance for running python functions
 """
 import base64
+import json
 import os
 import signal
 import time
@@ -32,6 +33,7 @@ except:
 import threading
 import sys
 import re
+import inspect
 import pulsar
 import contextimpl
 import Function_pb2
@@ -50,9 +52,10 @@ Log = log.Log
 # Equivalent of the InstanceConfig in Java
 InstanceConfig = namedtuple('InstanceConfig', 'instance_id function_id function_version function_details max_buffered_tuples')
 # This is the message that the consumers put on the queue for the function thread to process
-InternalMessage = namedtuple('InternalMessage', 'message topic serde consumer')
+InternalMessage = namedtuple('InternalMessage', 'message topic serde use_schema consumer')
 InternalQuitMessage = namedtuple('InternalQuitMessage', 'quit')
 DEFAULT_SERIALIZER = "serde.IdentitySerDe"
+DEFAULT_SCHEMA = pulsar.schema.BytesSchema()
 
 PY3 = sys.version_info[0] >= 3
 
@@ -80,7 +83,8 @@ class PythonInstance(object):
                pulsar_client,
                secrets_provider,
                cluster_name,
-               state_storage_serviceurl):
+               state_storage_serviceurl,
+               config_file):
     self.instance_config = InstanceConfig(instance_id, function_id, function_version, function_details, max_buffered_tuples)
     self.user_code = user_code
     # set queue size to one since consumers already have internal queues. Just use queue to communicate message from
@@ -92,14 +96,17 @@ class PythonInstance(object):
     self.pulsar_client = pulsar_client
     self.state_storage_serviceurl = state_storage_serviceurl
     self.input_serdes = {}
+    self.input_schema = {}
     self.consumers = {}
     self.output_serde = None
+    self.output_schema = DEFAULT_SCHEMA
     self.function_class = None
     self.function_purefunction = None
     self.producer = None
     self.execution_thread = None
     self.atmost_once = self.instance_config.function_details.processingGuarantees == Function_pb2.ProcessingGuarantees.Value('ATMOST_ONCE')
     self.atleast_once = self.instance_config.function_details.processingGuarantees == Function_pb2.ProcessingGuarantees.Value('ATLEAST_ONCE')
+    self.effectively_once = self.instance_config.function_details.processingGuarantees == Function_pb2.ProcessingGuarantees.Value('EFFECTIVELY_ONCE')
     self.manual = self.instance_config.function_details.processingGuarantees == Function_pb2.ProcessingGuarantees.Value('MANUAL')
     self.auto_ack = self.instance_config.function_details.autoAck
     self.contextimpl = None
@@ -114,6 +121,7 @@ class PythonInstance(object):
                            instance_id, cluster_name,
                            "%s/%s/%s" % (function_details.tenant, function_details.namespace, function_details.name)]
     self.stats = Stats(self.metrics_labels)
+    self.config_file = config_file
 
   def health_check(self):
     self.last_health_check_ts = time.time()
@@ -136,11 +144,17 @@ class PythonInstance(object):
     if self.instance_config.function_details.source.subscriptionType == Function_pb2.SubscriptionType.Value("FAILOVER"):
       mode = pulsar._pulsar.ConsumerType.Failover
 
+    if self.instance_config.function_details.retainOrdering or \
+      self.instance_config.function_details.processingGuarantees == Function_pb2.ProcessingGuarantees.Value("EFFECTIVELY_ONCE"):
+      mode = pulsar._pulsar.ConsumerType.Failover
+    elif self.instance_config.function_details.retainKeyOrdering:
+      mode = pulsar._pulsar.ConsumerType.KeyShared
+
     position = pulsar._pulsar.InitialPosition.Latest
     if self.instance_config.function_details.source.subscriptionPosition == Function_pb2.SubscriptionPosition.Value("EARLIEST"):
       position = pulsar._pulsar.InitialPosition.Earliest
 
-    subscription_name = self.instance_config.function_details.source.subscriptionName    
+    subscription_name = self.instance_config.function_details.source.subscriptionName
 
     if not (subscription_name and subscription_name.strip()):
       subscription_name = str(self.instance_config.function_details.tenant) + "/" + \
@@ -164,7 +178,7 @@ class PythonInstance(object):
       self.consumers[topic] = self.pulsar_client.subscribe(
         str(topic), subscription_name,
         consumer_type=mode,
-        message_listener=partial(self.message_listener, self.input_serdes[topic]),
+        message_listener=partial(self.message_listener, self.input_serdes[topic], DEFAULT_SCHEMA),
         unacked_messages_timeout_ms=int(self.timeout_ms) if self.timeout_ms else None,
         initial_position=position,
         properties=properties
@@ -176,14 +190,22 @@ class PythonInstance(object):
       else:
         serde_kclass = util.import_class(os.path.dirname(self.user_code), consumer_conf.serdeClassName)
       self.input_serdes[topic] = serde_kclass()
+
+      self.input_schema[topic] = self.get_schema(consumer_conf.schemaType,
+                                                 self.instance_config.function_details.source.typeClassName,
+                                                 consumer_conf.schemaProperties)
       Log.debug("Setting up consumer for topic %s with subname %s" % (topic, subscription_name))
+
+      crypto_key_reader = self.get_crypto_reader(consumer_conf.cryptoSpec)
 
       consumer_args = {
         "consumer_type": mode,
-        "message_listener": partial(self.message_listener, self.input_serdes[topic]),
+        "schema": self.input_schema[topic],
+        "message_listener": partial(self.message_listener, self.input_serdes[topic], self.input_schema[topic]),
         "unacked_messages_timeout_ms": int(self.timeout_ms) if self.timeout_ms else None,
         "initial_position": position,
-        "properties": properties
+        "properties": properties,
+        "crypto_key_reader": crypto_key_reader
       }
       if consumer_conf.HasField("receiverQueueSize"):
         consumer_args["receiver_queue_size"] = consumer_conf.receiverQueueSize.value
@@ -231,8 +253,10 @@ class PythonInstance(object):
         if isinstance(msg, InternalQuitMessage):
           break
         Log.debug("Got a message from topic %s" % msg.topic)
-        # deserialize message
-        input_object = msg.serde.deserialize(msg.message.data())
+        input_object = msg.message.value()
+        if not msg.use_schema:
+          # deserialize message
+          input_object = msg.serde.deserialize(msg.message.data())
         # set current message in context
         self.contextimpl.set_current_message_context(msg.message, msg.topic)
         output_object = None
@@ -276,7 +300,7 @@ class PythonInstance(object):
 
   def done_producing(self, consumer, orig_message, topic, result, sent_message):
     if result == pulsar.Result.Ok:
-      if self.auto_ack and self.atleast_once:
+      if self.auto_ack and self.atleast_once or self.effectively_once:
         consumer.acknowledge(orig_message)
     else:
       error_msg = "Failed to publish to topic [%s] with error [%s] with src message id [%s]" % (topic, result, orig_message.message_id())
@@ -285,23 +309,50 @@ class PythonInstance(object):
       # If producer fails send output then send neg ack for input message back to broker
       consumer.negative_acknowledge(orig_message)
 
-
   def process_result(self, output, msg):
-    if output is not None and self.instance_config.function_details.sink.topic != None and \
+    if output is not None and self.instance_config.function_details.sink.topic is not None and \
             len(self.instance_config.function_details.sink.topic) > 0:
       if self.output_serde is None:
         self.setup_output_serde()
+      if self.effectively_once:
+        if self.contextimpl.get_message_partition_index() is None or \
+                self.contextimpl.get_message_partition_index() >= 0:
+          Log.error("Partitioned topic is not available in effectively_once mode.")
+          raise Exception("Partitioned topic is not available in effectively_once mode.")
+
+        producer_id = self.instance_config.function_details.sink.topic
+        producer = self.contextimpl.publish_producers.get(producer_id)
+        if producer is None:
+          self.setup_producer(producer_name=producer_id)
+          self.contextimpl.publish_producers[producer_id] = self.producer
+          Log.info("Setup producer [%s] successfully in effectively_once mode." % self.producer.producer_name())
+
       if self.producer is None:
         self.setup_producer()
+        Log.info("Setup producer successfully.")
 
-      # serialize function output
-      output_bytes = self.output_serde.serialize(output)
+      # only serialize function output when output schema is not set
+      output_object = output
+      if self.output_schema == DEFAULT_SCHEMA:
+        output_object = self.output_serde.serialize(output)
 
-      if output_bytes is not None:
+      if output_object is not None:
         props = {"__pfn_input_topic__" : str(msg.topic), "__pfn_input_msg_id__" : base64ify(msg.message.message_id().serialize())}
-        self.producer.send_async(output_bytes, partial(self.done_producing, msg.consumer, msg.message, self.producer.topic()), properties=props)
+        if self.effectively_once:
+          self.producer.send_async(output_object,
+                                   partial(self.done_producing, msg.consumer, msg.message, self.producer.topic()),
+                                   properties=props,
+                                   sequence_id=self.contextimpl.get_message_sequence_id())
+          Log.debug("Send message with sequence ID [%s] using the producer [%s] in effectively_once mode." %
+                    (self.contextimpl.get_message_sequence_id(), self.producer.producer_name()))
+        else:
+          self.producer.send_async(output_object,
+                                   partial(self.done_producing, msg.consumer, msg.message, self.producer.topic()),
+                                   properties=props)
     elif self.auto_ack and self.atleast_once:
       msg.consumer.acknowledge(msg.message)
+    elif self.effectively_once:
+      msg.consumer.acknowledge_cumulative(msg.message)
 
   def setup_output_serde(self):
     if self.instance_config.function_details.sink.serDeClassName != None and \
@@ -313,7 +364,7 @@ class PythonInstance(object):
       serde_kclass = util.import_class(os.path.dirname(self.user_code), DEFAULT_SERIALIZER)
       self.output_serde = serde_kclass()
 
-  def setup_producer(self):
+  def setup_producer(self, producer_name=None):
     if self.instance_config.function_details.sink.topic != None and \
             len(self.instance_config.function_details.sink.topic) > 0:
       Log.debug("Setting up producer for topic %s" % self.instance_config.function_details.sink.topic)
@@ -325,16 +376,40 @@ class PythonInstance(object):
         if batch_builder == "KEY_BASED":
           batch_type = pulsar.BatchingType.KeyBased
 
+      self.output_schema = self.get_schema(self.instance_config.function_details.sink.schemaType,
+                                           self.instance_config.function_details.sink.typeClassName,
+                                           self.instance_config.function_details.sink.schemaProperties)
+      crypto_key_reader = self.get_crypto_reader(self.instance_config.function_details.sink.producerSpec.cryptoSpec)
+      encryption_key = None
+      if crypto_key_reader is not None:
+        encryption_key = self.instance_config.function_details.sink.producerSpec.cryptoSpec.producerEncryptionKeyName[0]
+
+      compression_type = pulsar.CompressionType.LZ4
+      if self.instance_config.function_details.sink.producerSpec.compressionType is not None:
+        if self.instance_config.function_details.sink.producerSpec.compressionType == Function_pb2.CompressionType.Value("NONE"):
+          compression_type = pulsar.CompressionType.NONE
+        elif self.instance_config.function_details.sink.producerSpec.compressionType == Function_pb2.CompressionType.Value("ZLIB"):
+          compression_type = pulsar.CompressionType.ZLib
+        elif self.instance_config.function_details.sink.producerSpec.compressionType == Function_pb2.CompressionType.Value("ZSTD"):
+          compression_type = pulsar.CompressionType.ZSTD
+        elif self.instance_config.function_details.sink.producerSpec.compressionType == Function_pb2.CompressionType.Value("SNAPPY"):
+          compression_type = pulsar.CompressionType.SNAPPY
+
       self.producer = self.pulsar_client.create_producer(
         str(self.instance_config.function_details.sink.topic),
+        schema=self.output_schema,
+        producer_name=producer_name,
         block_if_queue_full=True,
         batching_enabled=True,
         batching_type=batch_type,
         batching_max_publish_delay_ms=10,
-        compression_type=pulsar.CompressionType.LZ4,
+        compression_type=compression_type,
         # set send timeout to be infinity to prevent potential deadlock with consumer
         # that might happen when consumer is blocked due to unacked messages
         send_timeout_millis=0,
+        # python client only supports one key for encryption
+        encryption_key=encryption_key,
+        crypto_key_reader=crypto_key_reader,
         properties=util.get_properties(util.getFullyQualifiedFunctionName(
                         self.instance_config.function_details.tenant,
                         self.instance_config.function_details.namespace,
@@ -349,10 +424,13 @@ class PythonInstance(object):
     table_name = str(self.instance_config.function_details.name)
     return state_context.create_state_context(self.state_storage_serviceurl, table_ns, table_name)
 
-  def message_listener(self, serde, consumer, message):
+  def message_listener(self, serde, schema, consumer, message):
     # increment number of received records from source
     self.stats.incr_total_received()
-    item = InternalMessage(message, message.topic_name(), serde, consumer)
+    use_schema = False
+    if schema != DEFAULT_SCHEMA:
+      use_schema = True
+    item = InternalMessage(message, message.topic_name(), serde, use_schema, consumer)
     self.queue.put(item, True)
     if self.atmost_once and self.auto_ack:
       consumer.acknowledge(message)
@@ -460,3 +538,58 @@ class PythonInstance(object):
 
     if self.pulsar_client:
       self.pulsar_client.close()
+
+  # TODO: support other schemas: PROTOBUF, PROTOBUF_NATIVE, and KeyValue
+  def get_schema(self, schema_type, type_class_name, schema_properties):
+    schema = DEFAULT_SCHEMA
+    if schema_type == "" or schema_type is None:
+      schema = DEFAULT_SCHEMA
+    elif schema_type.lower() == "string":
+      schema = pulsar.schema.StringSchema()
+    elif schema_type.lower() == "json":
+      record_kclass = self.get_record_class(type_class_name)
+      schema = pulsar.schema.JsonSchema(record_kclass)
+    elif schema_type.lower() == "avro":
+      record_kclass = self.get_record_class(type_class_name)
+      schema = pulsar.schema.AvroSchema(record_kclass)
+    else:  # load custom schema
+      record_kclass = self.get_record_class(type_class_name)
+      schema_kclass = util.import_class(os.path.dirname(self.user_code), schema_type)
+      args_count = 0
+      try:
+        args_count = len(inspect.signature(schema_kclass.__init__).parameters)
+      except:  # for compatibility with python 2
+        args_count = len(inspect.getargspec(schema_kclass.__init__).args)
+      if args_count == 1:  # doesn't take any arguments
+        schema = schema_kclass()
+      elif args_count == 2:  # take one argument, it can be either schema properties or record class
+        try:
+          schema = schema_kclass(record_kclass)
+        except TypeError:
+          schema = schema_kclass(schema_properties)
+      elif args_count >= 3:  # take two or more arguments
+        schema = schema_kclass(record_kclass, schema_properties)
+      else:
+        raise Exception("Invalid schema class %s" % schema_type)
+    return schema
+
+  def get_record_class(self, class_name):
+      record_kclass = None
+      if class_name != None and len(class_name) > 0:
+        try:
+          record_kclass = util.import_class(os.path.dirname(self.user_code), class_name)
+        except:
+          pass
+      return record_kclass
+  def get_crypto_reader(self, crypto_spec):
+    crypto_key_reader = None
+    if crypto_spec is not None:
+      try:
+        crypto_config = json.loads(crypto_spec.cryptoKeyReaderConfig)
+        if crypto_spec.cryptoKeyReaderClassName == "" or crypto_spec.cryptoKeyReaderClassName is None:
+          crypto_key_reader = pulsar.CryptoKeyReader(**crypto_config)
+        else:
+          crypto_key_reader = util.import_class(os.path.dirname(self.user_code), crypto_spec.cryptoKeyReaderClassName)(**crypto_config)
+      except Exception as e:
+        Log.error("Failed to load the crypto key reader from spec: %s, error: %s" % (crypto_spec, e))
+    return crypto_key_reader

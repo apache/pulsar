@@ -25,7 +25,6 @@ import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerMBeanImpl;
 import org.apache.bookkeeper.mledger.util.StatsBuckets;
 import org.apache.pulsar.broker.PulsarService;
-import org.apache.pulsar.broker.PulsarServiceMockSupport;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.Consumer;
@@ -60,10 +59,8 @@ public class NamespaceStatsAggregatorTest {
         doReturn(multiLayerTopicsMap).when(broker).getMultiLayerTopicMap();
         Mockito.when(pulsar.getLocalMetadataStore()).thenReturn(Mockito.mock(ZKMetadataStore.class));
         ServiceConfiguration mockConfig = Mockito.mock(ServiceConfiguration.class);
-        PulsarServiceMockSupport.mockPulsarServiceProps(pulsar, () -> {
-            doReturn(mockConfig).when(pulsar).getConfiguration();
-            doReturn(broker).when(pulsar).getBrokerService();
-        });
+        doReturn(mockConfig).when(pulsar).getConfiguration();
+        doReturn(broker).when(pulsar).getBrokerService();
     }
 
     @Test

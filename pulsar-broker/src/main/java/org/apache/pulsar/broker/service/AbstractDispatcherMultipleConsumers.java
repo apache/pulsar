@@ -189,10 +189,14 @@ public abstract class AbstractDispatcherMultipleConsumers extends AbstractBaseDi
      * @return
      */
     private int getNextConsumerFromSameOrLowerLevel(int currentRoundRobinIndex) {
+        Consumer currentRRConsumer = consumerList.get(currentRoundRobinIndex);
+        if (isConsumerAvailable(currentRRConsumer)) {
+            return currentRoundRobinIndex;
+        }
 
-        int targetPriority = consumerList.get(currentRoundRobinIndex).getPriorityLevel();
-        // use to do round-robin if can't find consumer from currentRR to last-consumer in list
-        int scanIndex = currentRoundRobinIndex;
+        // scan the consumerList, if consumer in currentRoundRobinIndex is unavailable
+        int targetPriority = currentRRConsumer.getPriorityLevel();
+        int scanIndex = currentRoundRobinIndex + 1;
         int endPriorityLevelIndex = currentRoundRobinIndex;
         do {
             Consumer scanConsumer = scanIndex < consumerList.size() ? consumerList.get(scanIndex)

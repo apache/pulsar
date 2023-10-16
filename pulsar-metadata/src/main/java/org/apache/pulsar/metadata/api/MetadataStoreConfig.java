@@ -82,6 +82,12 @@ public class MetadataStoreConfig {
     private final String metadataStoreName = "";
 
     /**
+     * Whether we should enable fsync for local metadata store, It's supported by RocksdbMetadataStore for now.
+     */
+    @Builder.Default
+    private final boolean fsyncEnable = true;
+
+    /**
      * Pluggable MetadataEventSynchronizer to sync metadata events across the
      * separate clusters.
      */

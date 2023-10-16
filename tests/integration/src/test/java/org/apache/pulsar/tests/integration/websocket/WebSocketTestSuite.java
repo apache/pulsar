@@ -106,7 +106,7 @@ public abstract class WebSocketTestSuite extends PulsarTestSuite {
             if (response == null) {
                 Assert.fail("Did not get websocket response within timeout");
             }
-            return ObjectMapperFactory.getThreadLocal().readValue(response, new TypeReference<>() {});
+            return ObjectMapperFactory.getMapper().getObjectMapper().readValue(response, new TypeReference<>() {});
 
         }
 

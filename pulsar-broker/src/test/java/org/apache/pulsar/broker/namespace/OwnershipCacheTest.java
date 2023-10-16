@@ -82,7 +82,7 @@ public class OwnershipCacheTest {
         final int port = 8080;
         selfBrokerUrl = "tcp://localhost:" + port;
         pulsar = mock(PulsarService.class);
-        config = mock(ServiceConfiguration.class);
+        config = new ServiceConfiguration();
         executor = OrderedScheduler.newSchedulerBuilder().numThreads(1).name("test").build();
         zookeeperServer = new ZookeeperServerTest(0);
         zookeeperServer.start();
@@ -106,8 +106,8 @@ public class OwnershipCacheTest {
 
         doReturn(config).when(pulsar).getConfiguration();
         doReturn(nsService).when(pulsar).getNamespaceService();
-        doReturn(Optional.of(port)).when(config).getBrokerServicePort();
-        doReturn(Optional.empty()).when(config).getWebServicePort();
+        config.setBrokerServicePort(Optional.of(port));
+        config.setWebServicePort(Optional.empty());
         doReturn(brokerService).when(pulsar).getBrokerService();
         doReturn(selfBrokerUrl).when(pulsar).getBrokerServiceUrl();
     }
@@ -171,7 +171,7 @@ public class OwnershipCacheTest {
         MetadataStoreExtended otherStore = MetadataStoreExtended.create(zookeeperServer.getHostPort(),
                 MetadataStoreConfig.builder().sessionTimeoutMillis(5000).build());
         otherStore.put(ServiceUnitUtils.path(testFullBundle),
-                ObjectMapperFactory.getThreadLocal().writeValueAsBytes(
+                ObjectMapperFactory.getMapper().writer().writeValueAsBytes(
                         new NamespaceEphemeralData("pulsar://otherhost:8881",
                                 "pulsar://otherhost:8884",
                                 "http://localhost:8080",
@@ -206,7 +206,7 @@ public class OwnershipCacheTest {
         MetadataStoreExtended otherStore = MetadataStoreExtended.create(zookeeperServer.getHostPort(),
                 MetadataStoreConfig.builder().sessionTimeoutMillis(5000).build());
         otherStore.put(ServiceUnitUtils.path(testBundle),
-                ObjectMapperFactory.getThreadLocal().writeValueAsBytes(
+                ObjectMapperFactory.getMapper().writer().writeValueAsBytes(
                         new NamespaceEphemeralData("pulsar://otherhost:8881",
                                 "pulsar://otherhost:8884",
                                 "http://localhost:8080",
@@ -257,7 +257,7 @@ public class OwnershipCacheTest {
         }
         // case 2: someone else owns the namespace
         otherStore.put(ServiceUnitUtils.path(testBundle),
-                ObjectMapperFactory.getThreadLocal().writeValueAsBytes(
+                ObjectMapperFactory.getMapper().writer().writeValueAsBytes(
                         new NamespaceEphemeralData("pulsar://otherhost:8881",
                                 "pulsar://otherhost:8884",
                                 "http://localhost:8080",
@@ -313,7 +313,7 @@ public class OwnershipCacheTest {
 
         // case 2: someone else owns the namespace
         otherStore.put(ServiceUnitUtils.path(testBundle),
-                ObjectMapperFactory.getThreadLocal().writeValueAsBytes(
+                ObjectMapperFactory.getMapper().writer().writeValueAsBytes(
                         new NamespaceEphemeralData("pulsar://otherhost:8881",
                                 "pulsar://otherhost:8884",
                                 "http://otherhost:8080",

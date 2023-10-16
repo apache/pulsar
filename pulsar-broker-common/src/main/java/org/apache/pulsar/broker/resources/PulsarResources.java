@@ -48,6 +48,8 @@ public class PulsarResources {
     @Getter
     private final TopicResources topicResources;
     @Getter
+    private final LoadBalanceResources loadBalanceResources;
+    @Getter
     private final Optional<MetadataStore> localMetadataStore;
     @Getter
     private final Optional<MetadataStore> configurationMetadataStore;
@@ -75,29 +77,33 @@ public class PulsarResources {
             loadReportResources = new LoadManagerReportResources(localMetadataStore, operationTimeoutSec);
             bookieResources = new BookieResources(localMetadataStore, operationTimeoutSec);
             topicResources = new TopicResources(localMetadataStore);
+            loadBalanceResources = new LoadBalanceResources(localMetadataStore, operationTimeoutSec);
         } else {
             dynamicConfigResources = null;
             localPolicies = null;
             loadReportResources = null;
             bookieResources = null;
             topicResources = null;
+            loadBalanceResources = null;
         }
 
         this.localMetadataStore = Optional.ofNullable(localMetadataStore);
         this.configurationMetadataStore = Optional.ofNullable(configurationMetadataStore);
     }
 
-    public static MetadataStoreExtended createLocalMetadataStore(String serverUrls, int sessionTimeoutMs)
+    public static MetadataStoreExtended createLocalMetadataStore(String serverUrls, int sessionTimeoutMs,
+                                                                 boolean allowReadOnlyOperations)
             throws MetadataStoreException {
         return MetadataStoreExtended.create(serverUrls, MetadataStoreConfig.builder()
-                .sessionTimeoutMillis(sessionTimeoutMs).allowReadOnlyOperations(false)
+                .sessionTimeoutMillis(sessionTimeoutMs).allowReadOnlyOperations(allowReadOnlyOperations)
                 .metadataStoreName(MetadataStoreConfig.METADATA_STORE).build());
     }
 
-    public static MetadataStoreExtended createConfigMetadataStore(String serverUrls, int sessionTimeoutMs)
+    public static MetadataStoreExtended createConfigMetadataStore(String serverUrls, int sessionTimeoutMs,
+                                                                  boolean allowReadOnlyOperations)
             throws MetadataStoreException {
         return MetadataStoreExtended.create(serverUrls, MetadataStoreConfig.builder()
-                .sessionTimeoutMillis(sessionTimeoutMs).allowReadOnlyOperations(false)
+                .sessionTimeoutMillis(sessionTimeoutMs).allowReadOnlyOperations(allowReadOnlyOperations)
                 .metadataStoreName(MetadataStoreConfig.CONFIGURATION_METADATA_STORE).build());
     }
 }

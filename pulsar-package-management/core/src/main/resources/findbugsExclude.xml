@@ -19,4 +19,20 @@
 
 -->
 <FindBugsFilter>
+  <!-- Ignore violations that were present when the rule was enabled -->
+  <Match>
+    <Class name="org.apache.pulsar.packages.management.core.impl.DefaultPackagesStorageConfiguration"/>
+    <Method name="getProperties"/>
+    <Bug pattern="EI_EXPOSE_REP"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.packages.management.core.impl.DefaultPackagesStorageConfiguration"/>
+    <Method name="setProperty"/>
+    <Bug pattern="EI_EXPOSE_REP2"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.packages.management.core.impl.PackagesManagementImpl"/>
+    <Method name="initialize"/>
+    <Bug pattern="EI_EXPOSE_REP2"/>
+  </Match>
 </FindBugsFilter>

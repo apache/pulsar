@@ -45,6 +45,7 @@ import org.apache.bookkeeper.mledger.offload.jcloud.OffloadIndexBlock;
 import org.apache.bookkeeper.mledger.offload.jcloud.OffloadIndexBlockBuilder;
 import org.apache.bookkeeper.mledger.offload.jcloud.impl.DataBlockUtils.VersionCheck;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
+import org.apache.pulsar.common.naming.TopicName;
 import org.jclouds.blobstore.BlobStore;
 import org.jclouds.blobstore.domain.Blob;
 import org.slf4j.Logger;
@@ -261,6 +262,7 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle {
         int retryCount = 3;
         OffloadIndexBlock index = null;
         IOException lastException = null;
+        String topicName = TopicName.fromPersistenceNamingEncoding(managedLedgerName);
         // The following retry is used to avoid to some network issue cause read index file failure.
         // If it can not recovery in the retry, we will throw the exception and the dispatcher will schedule to
         // next read.
@@ -269,7 +271,7 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle {
         while (retryCount-- > 0) {
             long readIndexStartTime = System.nanoTime();
             Blob blob = blobStore.getBlob(bucket, indexKey);
-            offloaderStats.recordReadOffloadIndexLatency(managedLedgerName,
+            offloaderStats.recordReadOffloadIndexLatency(topicName,
                     System.nanoTime() - readIndexStartTime, TimeUnit.NANOSECONDS);
             versionCheck.check(indexKey, blob);
             OffloadIndexBlockBuilder indexBuilder = OffloadIndexBlockBuilder.create();

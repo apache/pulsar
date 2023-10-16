@@ -72,6 +72,7 @@ public class ServiceConfigurationTest {
         assertEquals(config.getMaxMessagePublishBufferSizeInMB(), -1);
         assertEquals(config.getManagedLedgerDataReadPriority(), "bookkeeper-first");
         assertEquals(config.getBacklogQuotaDefaultLimitGB(), 0.05);
+        assertEquals(config.getHttpMaxRequestHeaderSize(), 1234);
         OffloadPoliciesImpl offloadPolicies = OffloadPoliciesImpl.create(config.getProperties());
         assertEquals(offloadPolicies.getManagedLedgerOffloadedReadPriority().getValue(), "bookkeeper-first");
     }

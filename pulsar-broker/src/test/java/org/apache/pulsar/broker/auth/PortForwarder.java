@@ -67,6 +67,7 @@ public class PortForwarder implements AutoCloseable {
                     .handler(new LoggingHandler(PortForwarder.class, LogLevel.DEBUG))
                     .childHandler(new Initializer())
                     .childOption(ChannelOption.AUTO_READ, false)
+                    .option(ChannelOption.SO_REUSEADDR, true)
                     .bind(listenAddress).sync().channel();
 
             LOG.info("Started port forwarding service on {}, target: {}", listenAddress, targetAddress);

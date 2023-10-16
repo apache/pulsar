@@ -89,15 +89,18 @@ public class MultiRolesTokenAuthorizationProvider extends PulsarAuthorizationPro
     @Override
     public CompletableFuture<Boolean> isSuperUser(String role, AuthenticationDataSource authenticationData,
                                                   ServiceConfiguration serviceConfiguration) {
-        Set<String> roles = getRoles(authenticationData);
-        if (roles.isEmpty()) {
-            return CompletableFuture.completedFuture(false);
-        }
+        // if superUser role contains in config, return true.
         Set<String> superUserRoles = serviceConfiguration.getSuperUserRoles();
         if (superUserRoles.isEmpty()) {
             return CompletableFuture.completedFuture(false);
         }
-
+        if (role != null && superUserRoles.contains(role)) {
+            return CompletableFuture.completedFuture(true);
+        }
+        Set<String> roles = getRoles(role, authenticationData);
+        if (roles.isEmpty()) {
+            return CompletableFuture.completedFuture(false);
+        }
         return CompletableFuture.completedFuture(roles.stream().anyMatch(superUserRoles::contains));
     }
 
@@ -109,7 +112,7 @@ public class MultiRolesTokenAuthorizationProvider extends PulsarAuthorizationPro
                     if (isSuperUser) {
                         return CompletableFuture.completedFuture(true);
                     }
-                    Set<String> roles = getRoles(authData);
+                    Set<String> roles = getRoles(role, authData);
                     if (roles.isEmpty()) {
                         return CompletableFuture.completedFuture(false);
                     }
@@ -140,7 +143,11 @@ public class MultiRolesTokenAuthorizationProvider extends PulsarAuthorizationPro
                 });
     }
 
-    private Set<String> getRoles(AuthenticationDataSource authData) {
+    private Set<String> getRoles(String role, AuthenticationDataSource authData) {
+        if (authData == null) {
+            return Collections.singleton(role);
+        }
+
         String token = null;
 
         if (authData.hasDataFromCommand()) {
@@ -189,9 +196,9 @@ public class MultiRolesTokenAuthorizationProvider extends PulsarAuthorizationPro
         return Collections.emptySet();
     }
 
-    public CompletableFuture<Boolean> authorize(AuthenticationDataSource authenticationData, Function<String,
-            CompletableFuture<Boolean>> authorizeFunc) {
-        Set<String> roles = getRoles(authenticationData);
+    public CompletableFuture<Boolean> authorize(String role, AuthenticationDataSource authenticationData,
+                                                Function<String, CompletableFuture<Boolean>> authorizeFunc) {
+        Set<String> roles = getRoles(role, authenticationData);
         if (roles.isEmpty()) {
             return CompletableFuture.completedFuture(false);
         }
@@ -209,7 +216,7 @@ public class MultiRolesTokenAuthorizationProvider extends PulsarAuthorizationPro
     @Override
     public CompletableFuture<Boolean> canProduceAsync(TopicName topicName, String role,
                                                       AuthenticationDataSource authenticationData) {
-        return authorize(authenticationData, r -> super.canProduceAsync(topicName, r, authenticationData));
+        return authorize(role, authenticationData, r -> super.canProduceAsync(topicName, r, authenticationData));
     }
 
     /**
@@ -224,7 +231,7 @@ public class MultiRolesTokenAuthorizationProvider extends PulsarAuthorizationPro
     public CompletableFuture<Boolean> canConsumeAsync(TopicName topicName, String role,
                                                       AuthenticationDataSource authenticationData,
                                                       String subscription) {
-        return authorize(authenticationData, r -> super.canConsumeAsync(topicName, r, authenticationData,
+        return authorize(role, authenticationData, r -> super.canConsumeAsync(topicName, r, authenticationData,
                 subscription));
     }
 
@@ -241,25 +248,27 @@ public class MultiRolesTokenAuthorizationProvider extends PulsarAuthorizationPro
     @Override
     public CompletableFuture<Boolean> canLookupAsync(TopicName topicName, String role,
                                                      AuthenticationDataSource authenticationData) {
-        return authorize(authenticationData, r -> super.canLookupAsync(topicName, r, authenticationData));
+        return authorize(role, authenticationData, r -> super.canLookupAsync(topicName, r, authenticationData));
     }
 
     @Override
     public CompletableFuture<Boolean> allowFunctionOpsAsync(NamespaceName namespaceName, String role,
                                                             AuthenticationDataSource authenticationData) {
-        return authorize(authenticationData, r -> super.allowFunctionOpsAsync(namespaceName, r, authenticationData));
+        return authorize(role, authenticationData,
+                r -> super.allowFunctionOpsAsync(namespaceName, r, authenticationData));
     }
 
     @Override
     public CompletableFuture<Boolean> allowSourceOpsAsync(NamespaceName namespaceName, String role,
                                                           AuthenticationDataSource authenticationData) {
-        return authorize(authenticationData, r -> super.allowSourceOpsAsync(namespaceName, r, authenticationData));
+        return authorize(role, authenticationData,
+                r -> super.allowSourceOpsAsync(namespaceName, r, authenticationData));
     }
 
     @Override
     public CompletableFuture<Boolean> allowSinkOpsAsync(NamespaceName namespaceName, String role,
                                                         AuthenticationDataSource authenticationData) {
-        return authorize(authenticationData, r -> super.allowSinkOpsAsync(namespaceName, r, authenticationData));
+        return authorize(role, authenticationData, r -> super.allowSinkOpsAsync(namespaceName, r, authenticationData));
     }
 
     @Override
@@ -267,7 +276,7 @@ public class MultiRolesTokenAuthorizationProvider extends PulsarAuthorizationPro
                                                                 String role,
                                                                 TenantOperation operation,
                                                                 AuthenticationDataSource authData) {
-        return authorize(authData, r -> super.allowTenantOperationAsync(tenantName, r, operation, authData));
+        return authorize(role, authData, r -> super.allowTenantOperationAsync(tenantName, r, operation, authData));
     }
 
     @Override
@@ -275,7 +284,8 @@ public class MultiRolesTokenAuthorizationProvider extends PulsarAuthorizationPro
                                                                    String role,
                                                                    NamespaceOperation operation,
                                                                    AuthenticationDataSource authData) {
-        return authorize(authData, r -> super.allowNamespaceOperationAsync(namespaceName, r, operation, authData));
+        return authorize(role, authData,
+                r -> super.allowNamespaceOperationAsync(namespaceName, r, operation, authData));
     }
 
     @Override
@@ -284,8 +294,8 @@ public class MultiRolesTokenAuthorizationProvider extends PulsarAuthorizationPro
                                                                          PolicyOperation operation,
                                                                          String role,
                                                                          AuthenticationDataSource authData) {
-        return authorize(authData, r -> super.allowNamespacePolicyOperationAsync(namespaceName, policy, operation, r,
-                authData));
+        return authorize(role, authData,
+                r -> super.allowNamespacePolicyOperationAsync(namespaceName, policy, operation, r, authData));
     }
 
     @Override
@@ -293,7 +303,7 @@ public class MultiRolesTokenAuthorizationProvider extends PulsarAuthorizationPro
                                                                String role,
                                                                TopicOperation operation,
                                                                AuthenticationDataSource authData) {
-        return authorize(authData, r -> super.allowTopicOperationAsync(topicName, r, operation, authData));
+        return authorize(role, authData, r -> super.allowTopicOperationAsync(topicName, r, operation, authData));
     }
 
     @Override
@@ -302,7 +312,7 @@ public class MultiRolesTokenAuthorizationProvider extends PulsarAuthorizationPro
                                                                      PolicyName policyName,
                                                                      PolicyOperation policyOperation,
                                                                      AuthenticationDataSource authData) {
-        return authorize(authData, r -> super.allowTopicPolicyOperationAsync(topicName, r, policyName, policyOperation,
-                authData));
+        return authorize(role, authData,
+                r -> super.allowTopicPolicyOperationAsync(topicName, r, policyName, policyOperation, authData));
     }
 }

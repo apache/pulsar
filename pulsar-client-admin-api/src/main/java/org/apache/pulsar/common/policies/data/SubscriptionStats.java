@@ -134,4 +134,6 @@ public interface SubscriptionStats {
     long getFilterRejectedMsgCount();
 
     long getFilterRescheduledMsgCount();
+
+    long getDelayedMessageIndexSizeInBytes();
 }

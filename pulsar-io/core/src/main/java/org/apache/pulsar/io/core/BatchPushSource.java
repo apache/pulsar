@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.io.core;
 
-import java.util.concurrent.LinkedBlockingQueue;
 import org.apache.pulsar.common.classification.InterfaceAudience;
 import org.apache.pulsar.common.classification.InterfaceStability;
 import org.apache.pulsar.functions.api.Record;
@@ -31,82 +30,10 @@ import org.apache.pulsar.functions.api.Record;
  */
 @InterfaceAudience.Public
 @InterfaceStability.Evolving
-public abstract class BatchPushSource<T> implements BatchSource<T> {
-
-    private static class NullRecord implements Record {
-        @Override
-        public Object getValue() {
-            return null;
-        }
-    }
-
-    private static class ErrorNotifierRecord implements Record {
-        private Exception e;
-        public ErrorNotifierRecord(Exception e) {
-            this.e = e;
-        }
-        @Override
-        public Object getValue() {
-            return null;
-        }
-
-        public Exception getException() {
-            return e;
-        }
-    }
-
-    private LinkedBlockingQueue<Record<T>> queue;
-    private static final int DEFAULT_QUEUE_LENGTH = 1000;
-    private final NullRecord nullRecord = new NullRecord();
-
-    public BatchPushSource() {
-        this.queue = new LinkedBlockingQueue<>(this.getQueueLength());
-    }
+public abstract class BatchPushSource<T> extends AbstractPushSource<T> implements BatchSource<T> {
 
     @Override
     public Record<T> readNext() throws Exception {
-        Record<T> record = queue.take();
-        if (record instanceof ErrorNotifierRecord) {
-            throw ((ErrorNotifierRecord) record).getException();
-        }
-        if (record instanceof NullRecord) {
-            return null;
-        } else {
-            return record;
-        }
-    }
-
-    /**
-     * Send this message to be written to Pulsar.
-     * Pass null if you you are done with this task
-     * @param record next message from source which should be sent to a Pulsar topic
-     */
-    public void consume(Record<T> record) {
-        try {
-            if (record != null) {
-                queue.put(record);
-            } else {
-                queue.put(nullRecord);
-            }
-        } catch (InterruptedException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    /**
-     * Get length of the queue that records are push onto.
-     * Users can override this method to customize the queue length
-     * @return queue length
-     */
-    public int getQueueLength() {
-        return DEFAULT_QUEUE_LENGTH;
-    }
-
-    /**
-     * Allows the source to notify errors asynchronously.
-     * @param ex
-     */
-    public void notifyError(Exception ex) {
-        consume(new ErrorNotifierRecord(ex));
+        return super.readNext();
     }
 }

@@ -31,6 +31,7 @@ import org.testng.Assert;
 import org.testng.annotations.Test;
 
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 @Test(groups = "broker-impl")
 public class ControlledClusterFailoverTest {
@@ -88,6 +89,8 @@ public class ControlledClusterFailoverTest {
 
         ControlledClusterFailover controlledClusterFailover = Mockito.spy((ControlledClusterFailover) provider);
         PulsarClientImpl pulsarClient = mock(PulsarClientImpl.class);
+        ConnectionPool connectionPool = mock(ConnectionPool.class);
+        when(pulsarClient.getCnxPool()).thenReturn(connectionPool);
 
         controlledClusterFailover.initialize(pulsarClient);
 
@@ -121,6 +124,7 @@ public class ControlledClusterFailoverTest {
 
         Awaitility.await().untilAsserted(() ->
                 Assert.assertEquals(backupServiceUrlV1, controlledClusterFailover.getServiceUrl()));
+        Mockito.verify(pulsarClient, Mockito.atLeastOnce()).reloadLookUp();
         Mockito.verify(pulsarClient, Mockito.atLeastOnce()).updateServiceUrl(backupServiceUrlV1);
         Mockito.verify(pulsarClient, Mockito.atLeastOnce())
                 .updateTlsTrustCertsFilePath(tlsTrustCertsFilePathV1);

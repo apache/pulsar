@@ -85,6 +85,7 @@ jobs:
             txn
             ws
             zk
+            pip
           # The pull request's title should be fulfilled the following pattern:
           #
           #     [<type>][<optional scope>] <description>

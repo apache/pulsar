@@ -78,7 +78,6 @@ public class AdvertisedListenersTest extends MultiBrokerBaseTest {
                         ",public_https:https://localhost:" + httpsPort);
         conf.setBrokerServicePort(Optional.of(pulsarPort));
         conf.setWebServicePort(Optional.of(httpPort));
-        conf.setWebServicePortTls(Optional.of(httpsPort));
     }
 
     @Test
@@ -96,12 +95,11 @@ public class AdvertisedListenersTest extends MultiBrokerBaseTest {
         CloseableHttpResponse response = httpClient.execute(request);
 
         HttpEntity entity = response.getEntity();
-        LookupData ld = ObjectMapperFactory.getThreadLocal().readValue(EntityUtils.toString(entity), LookupData.class);
+        LookupData ld = ObjectMapperFactory.getMapper().reader().readValue(EntityUtils.toString(entity), LookupData.class);
         System.err.println("Lookup data: " + ld);
 
         assertEquals(new URI(ld.getBrokerUrl()).getHost(), "localhost");
         assertEquals(new URI(ld.getHttpUrl()).getHost(), "localhost");
-        assertEquals(new URI(ld.getHttpUrlTls()).getHost(), "localhost");
 
 
         // Produce data

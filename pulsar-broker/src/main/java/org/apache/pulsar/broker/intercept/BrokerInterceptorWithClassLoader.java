@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.intercept;
 
+import com.google.common.annotations.VisibleForTesting;
 import io.netty.buffer.ByteBuf;
 import java.io.IOException;
 import java.util.Map;
@@ -207,5 +208,10 @@ public class BrokerInterceptorWithClassLoader implements BrokerInterceptor {
         } catch (IOException e) {
             log.warn("Failed to close the broker interceptor class loader", e);
         }
+    }
+
+    @VisibleForTesting
+    public BrokerInterceptor getInterceptor() {
+        return interceptor;
     }
 }

@@ -61,7 +61,7 @@ public class OffloaderUtils {
                 .build();
         String configStr = ncl.getServiceDefinition(PULSAR_OFFLOADER_SERVICE_NAME);
 
-        OffloaderDefinition conf = ObjectMapperFactory.getThreadLocalYaml()
+        OffloaderDefinition conf = ObjectMapperFactory.getYamlMapper().getObjectMapper()
             .readValue(configStr, OffloaderDefinition.class);
         if (StringUtils.isEmpty(conf.getOffloaderFactoryClass())) {
             throw new IOException(
@@ -120,7 +120,7 @@ public class OffloaderUtils {
                 .build()) {
             String configStr = ncl.getServiceDefinition(PULSAR_OFFLOADER_SERVICE_NAME);
 
-            return ObjectMapperFactory.getThreadLocalYaml().readValue(configStr, OffloaderDefinition.class);
+            return ObjectMapperFactory.getYamlMapper().reader().readValue(configStr, OffloaderDefinition.class);
         }
     }
 

@@ -22,6 +22,7 @@ import static org.mockito.Mockito.spy;
 
 import com.google.common.collect.Sets;
 
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Optional;
@@ -77,6 +78,8 @@ public class ProxyWithAuthorizationNegTest extends ProducerConsumerBase {
     protected void setup() throws Exception {
 
         // enable tls and auth&auth at broker
+        conf.setTopicLevelPoliciesEnabled(false);
+
         conf.setAuthenticationEnabled(true);
         conf.setAuthorizationEnabled(true);
 
@@ -91,6 +94,7 @@ public class ProxyWithAuthorizationNegTest extends ProducerConsumerBase {
         Set<String> superUserRoles = new HashSet<>();
         superUserRoles.add("superUser");
         conf.setSuperUserRoles(superUserRoles);
+        conf.setProxyRoles(Collections.singleton("Proxy"));
 
         conf.setBrokerClientAuthenticationPlugin(AuthenticationTls.class.getName());
         conf.setBrokerClientAuthenticationParameters(

@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.loadbalance.extensions.data;
 import java.util.Map;
 import java.util.Optional;
 import org.apache.pulsar.broker.lookup.LookupResult;
+import org.apache.pulsar.broker.namespace.NamespaceEphemeralData;
 import org.apache.pulsar.policies.data.loadbalancer.AdvertisedListener;
 import org.apache.pulsar.policies.data.loadbalancer.ServiceLookupData;
 
@@ -35,6 +36,8 @@ public record BrokerLookupData (String webServiceUrl,
                                 Map<String, String> protocols,
                                 boolean persistentTopicsEnabled,
                                 boolean nonPersistentTopicsEnabled,
+                                String loadManagerClassName,
+                                long startTimestamp,
                                 String brokerVersion) implements ServiceLookupData {
     @Override
     public String getWebServiceUrl() {
@@ -66,8 +69,23 @@ public record BrokerLookupData (String webServiceUrl,
         return Optional.ofNullable(this.protocols().get(protocol));
     }
 
+    @Override
+    public String getLoadManagerClassName() {
+        return this.loadManagerClassName;
+    }
+
+    @Override
+    public long getStartTimestamp() {
+        return this.startTimestamp;
+    }
+
     public LookupResult toLookupResult() {
         return new LookupResult(webServiceUrl, webServiceUrlTls, pulsarServiceUrl, pulsarServiceUrlTls,
                 LookupResult.Type.BrokerUrl, false);
+    }
+
+    public NamespaceEphemeralData toNamespaceEphemeralData() {
+        return new NamespaceEphemeralData(pulsarServiceUrl, pulsarServiceUrlTls, webServiceUrl, webServiceUrlTls,
+                false, advertisedListeners);
     }
 }

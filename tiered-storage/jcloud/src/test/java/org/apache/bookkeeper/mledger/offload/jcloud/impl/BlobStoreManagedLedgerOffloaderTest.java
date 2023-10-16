@@ -49,6 +49,7 @@ import org.apache.bookkeeper.mledger.impl.LedgerOffloaderStatsImpl;
 import org.apache.bookkeeper.mledger.OffloadedLedgerMetadata;
 import org.apache.bookkeeper.mledger.offload.jcloud.provider.JCloudBlobStoreProvider;
 import org.apache.bookkeeper.mledger.offload.jcloud.provider.TieredStorageConfiguration;
+import org.apache.pulsar.common.naming.TopicName;
 import org.jclouds.blobstore.BlobStore;
 import org.jclouds.blobstore.options.CopyOptions;
 import org.mockito.Mockito;
@@ -172,10 +173,10 @@ public class BlobStoreManagedLedgerOffloaderTest extends BlobStoreManagedLedgerO
         LedgerOffloader offloader = getOffloader();
 
         UUID uuid = UUID.randomUUID();
-
-        String topic = "test";
+        String managedLegerName = "public/default/persistent/testOffload";
+        String topic = TopicName.fromPersistenceNamingEncoding(managedLegerName);
         Map<String, String> extraMap = new HashMap<>();
-        extraMap.put("ManagedLedgerName", topic);
+        extraMap.put("ManagedLedgerName", managedLegerName);
         offloader.offload(toWrite, uuid, extraMap).get();
 
         LedgerOffloaderStatsImpl offloaderStats = (LedgerOffloaderStatsImpl) this.offloaderStats;
@@ -187,7 +188,7 @@ public class BlobStoreManagedLedgerOffloaderTest extends BlobStoreManagedLedgerO
 
         Map<String, String> map = new HashMap<>();
         map.putAll(offloader.getOffloadDriverMetadata());
-        map.put("ManagedLedgerName", topic);
+        map.put("ManagedLedgerName", managedLegerName);
         ReadHandle toTest = offloader.readOffloaded(toWrite.getId(), uuid, map).get();
         LedgerEntries toTestEntries = toTest.read(0, toTest.getLastAddConfirmed());
         Iterator<LedgerEntry> toTestIter = toTestEntries.iterator();

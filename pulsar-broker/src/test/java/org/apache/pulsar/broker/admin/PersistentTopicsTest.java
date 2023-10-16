@@ -16,6 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+
 package org.apache.pulsar.broker.admin;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -30,6 +31,7 @@ import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.testng.Assert.assertTrue;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -52,6 +54,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.admin.v2.NonPersistentTopics;
 import org.apache.pulsar.broker.admin.v2.PersistentTopics;
+import org.apache.pulsar.broker.admin.v2.ExtPersistentTopics;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.authentication.AuthenticationDataHttps;
 import org.apache.pulsar.broker.namespace.NamespaceService;
@@ -104,6 +107,7 @@ import org.testng.annotations.Test;
 public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
 
     private PersistentTopics persistentTopics;
+    private ExtPersistentTopics extPersistentTopics;
     private final String testTenant = "my-tenant";
     private final String testLocalCluster = "use";
     private final String testNamespace = "my-namespace";
@@ -123,6 +127,7 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
     @Override
     @BeforeMethod
     protected void setup() throws Exception {
+        conf.setTopicLevelPoliciesEnabled(false);
         super.internalSetup();
         persistentTopics = spy(PersistentTopics.class);
         persistentTopics.setServletContext(new MockServletContext());
@@ -133,6 +138,16 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         doReturn(TopicDomain.persistent.value()).when(persistentTopics).domain();
         doNothing().when(persistentTopics).validateAdminAccessForTenant(this.testTenant);
         doReturn(mock(AuthenticationDataHttps.class)).when(persistentTopics).clientAuthData();
+
+        extPersistentTopics = spy(ExtPersistentTopics.class);
+        extPersistentTopics.setServletContext(new MockServletContext());
+        extPersistentTopics.setPulsar(pulsar);
+        doReturn(false).when(extPersistentTopics).isRequestHttps();
+        doReturn(null).when(extPersistentTopics).originalPrincipal();
+        doReturn("test").when(extPersistentTopics).clientAppId();
+        doReturn(TopicDomain.persistent.value()).when(extPersistentTopics).domain();
+        doNothing().when(extPersistentTopics).validateAdminAccessForTenant(this.testTenant);
+        doReturn(mock(AuthenticationDataHttps.class)).when(extPersistentTopics).clientAuthData();
 
         nonPersistentTopic = spy(NonPersistentTopics.class);
         nonPersistentTopic.setServletContext(new MockServletContext());
@@ -542,7 +557,7 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         Map<String, String> topicMetadata = new HashMap<>();
         topicMetadata.put("key1", "value1");
         PartitionedTopicMetadata metadata = new PartitionedTopicMetadata(2, topicMetadata);
-        persistentTopics.createPartitionedTopic(response2, testTenant, testNamespace, topicName2, metadata, true);
+        extPersistentTopics.createPartitionedTopic(response2, testTenant, testNamespace, topicName2, metadata, true);
         Awaitility.await().untilAsserted(() -> {
             persistentTopics.getPartitionedMetadata(response2,
                     testTenant, testNamespace, topicName2, true, false);
@@ -647,7 +662,7 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         ArgumentCaptor<PartitionedTopicMetadata> responseCaptor =
             ArgumentCaptor.forClass(PartitionedTopicMetadata.class);
         PartitionedTopicMetadata metadata = new PartitionedTopicMetadata(2, topicMetadata);
-        persistentTopics.createPartitionedTopic(response, tenant, namespace, topic, metadata, true);
+        extPersistentTopics.createPartitionedTopic(response, tenant, namespace, topic, metadata, true);
         Awaitility.await().untilAsserted(() -> {
             persistentTopics.getPartitionedMetadata(response,
                 tenant, namespace, topic, true, false);
@@ -719,6 +734,7 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         ArgumentCaptor<Response> responseCaptor = ArgumentCaptor.forClass(Response.class);
         verify(response, timeout(5000).times(1)).resume(responseCaptor.capture());
         Assert.assertEquals(responseCaptor.getValue().getStatus(), Response.Status.NO_CONTENT.getStatusCode());
+        response = mock(AsyncResponse.class);
         persistentTopics.unloadTopic(response, testTenant, testNamespace, topicName, true);
         responseCaptor = ArgumentCaptor.forClass(Response.class);
         verify(response, timeout(5000).times(1)).resume(responseCaptor.capture());
@@ -916,19 +932,6 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         verify(response, timeout(5000).times(1)).resume(responseCaptor.capture());
         Map<String, Set<AuthAction>> permissions = (Map<String, Set<AuthAction>>) responseCaptor.getValue();
         Assert.assertEquals(permissions.get(role), expectActions);
-        TopicName topicName = TopicName.get(TopicDomain.persistent.value(), testTenant, testNamespace,
-                partitionedTopicName);
-        for (int i = 0; i < numPartitions; i++) {
-            TopicName partition = topicName.getPartition(i);
-            response = mock(AsyncResponse.class);
-            responseCaptor = ArgumentCaptor.forClass(Response.class);
-            persistentTopics.getPermissionsOnTopic(response, testTenant, testNamespace,
-                    partition.getEncodedLocalName());
-            verify(response, timeout(5000).times(1)).resume(responseCaptor.capture());
-            Map<String, Set<AuthAction>> partitionPermissions =
-                    (Map<String, Set<AuthAction>>) responseCaptor.getValue();
-            Assert.assertEquals(partitionPermissions.get(role), expectActions);
-        }
     }
 
     @Test
@@ -1130,10 +1133,19 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         // Check examine message not allowed on partitioned topic.
         try {
             admin.topics().examineMessage(topicName, "earliest", 1);
+            Assert.fail("fail to check examine message not allowed on partitioned topic");
         } catch (PulsarAdminException e) {
             Assert.assertEquals(e.getMessage(),
                     "Examine messages on a partitioned topic is not allowed, please try examine message on specific "
                             + "topic partition");
+        }
+
+        try {
+            admin.topics().examineMessage(topicName + "-partition-0", "earliest", 1);
+            Assert.fail();
+        } catch (PulsarAdminException e) {
+            Assert.assertEquals(e.getMessage(),
+                    "Could not examine messages due to the total message is zero");
         }
 
         producer.send("message1");
@@ -1360,6 +1372,31 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
             Assert.fail();
         } catch (Exception e) {
             Assert.assertNull(message4);
+        }
+    }
+
+    @Test
+    public void testGetMessageById4SpecialPropsInMsg() throws Exception {
+        TenantInfoImpl tenantInfo = new TenantInfoImpl(Set.of("role1", "role2"), Set.of("test"));
+        admin.tenants().createTenant("tenant-xyz", tenantInfo);
+        admin.namespaces().createNamespace("tenant-xyz/ns-abc", Set.of("test"));
+        final String topicName1 = "persistent://tenant-xyz/ns-abc/testGetMessageById1";
+        admin.topics().createNonPartitionedTopic(topicName1);
+        Map<String, String> inSpecialProps = new HashMap<>();
+        inSpecialProps.put("city=shanghai", "tag");
+        inSpecialProps.put("city,beijing", "haidian");
+        @Cleanup
+        ProducerBase<byte[]> producer1 = (ProducerBase<byte[]>) pulsarClient.newProducer().topic(topicName1)
+                .enableBatching(false).create();
+        String data1 = "test1";
+        MessageIdImpl id1 = (MessageIdImpl) producer1.newMessage().value(data1.getBytes()).properties(inSpecialProps)
+                .send();
+
+        Message<byte[]> message1 = admin.topics().getMessageById(topicName1, id1.getLedgerId(), id1.getEntryId());
+        Assert.assertEquals(message1.getData(), data1.getBytes());
+        Map<String, String> outSpecialProps = message1.getProperties();
+        for (String k : inSpecialProps.keySet()) {
+            Assert.assertEquals(inSpecialProps.get(k), outSpecialProps.get(k));
         }
     }
 
@@ -1624,7 +1661,7 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
                 true, 3);
         verify(response, timeout(5000).times(1)).resume(throwableCaptor.capture());
         Assert.assertEquals(throwableCaptor.getValue().getMessage(),
-                "Number of new partitions must be greater than existing number of partitions");
+                "Expect partitions 3 can't less than current partitions 4.");
 
         response = mock(AsyncResponse.class);
         metaCaptor = ArgumentCaptor.forClass(PartitionedTopicMetadata.class);
@@ -1664,5 +1701,18 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
 
         // verify we only call getReplicatedSubscriptionStatusAsync once.
         verify(topics, times(1)).getReplicatedSubscriptionStatusAsync(any(), any());
+    }
+
+    @Test
+    public void testNamespaceResources() throws Exception {
+        String ns1V1 = "test/" + testNamespace + "v1";
+        String ns1V2 = testNamespace + "v2";
+        admin.namespaces().createNamespace(testTenant+"/"+ns1V1);
+        admin.namespaces().createNamespace(testTenant+"/"+ns1V2);
+
+        List<String> namespaces = pulsar.getPulsarResources().getNamespaceResources().listNamespacesAsync(testTenant)
+                .get();
+        assertTrue(namespaces.contains(ns1V2));
+        assertTrue(namespaces.contains(ns1V1));
     }
 }

@@ -510,7 +510,7 @@ public class SchemaCompatibilityCheckTest extends MockedPulsarServiceBaseTest {
             producer.close();
         }
         // The other ledgers are about 5.
-        Assert.assertTrue(mockBookKeeper.getLedgerMap().values().stream()
+        Assert.assertTrue(pulsarTestContext.getMockBookKeeper().getLedgerMap().values().stream()
                 .filter(ledger -> !ledger.isFenced())
                 .collect(Collectors.toList()).size() < 20);
         admin.topics().delete(topicName, true);

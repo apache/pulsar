@@ -22,6 +22,7 @@ import java.io.IOException;
 import java.net.SocketAddress;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import javax.naming.AuthenticationException;
 import javax.net.ssl.SSLSession;
 import javax.servlet.http.HttpServletRequest;
@@ -43,9 +44,15 @@ public class AuthenticationProviderList implements AuthenticationProvider {
 
     }
 
+    private enum ErrorCode {
+        UNKNOWN,
+        AUTH_REQUIRED,
+    }
+
     static <T, W> T applyAuthProcessor(List<W> processors, AuthProcessor<T, W> authFunc)
         throws AuthenticationException {
         AuthenticationException authenticationException = null;
+        String errorCode = ErrorCode.UNKNOWN.name();
         for (W ap : processors) {
             try {
                 return authFunc.apply(ap);
@@ -55,19 +62,19 @@ public class AuthenticationProviderList implements AuthenticationProvider {
                 }
                 // Store the exception so we can throw it later instead of a generic one
                 authenticationException = ae;
+                errorCode = ap.getClass().getSimpleName() + "-INVALID-AUTH";
             }
         }
 
         if (null == authenticationException) {
             AuthenticationMetrics.authenticateFailure(
                     AuthenticationProviderList.class.getSimpleName(),
-                    "authentication-provider-list", "Authentication required");
+                    "authentication-provider-list", ErrorCode.AUTH_REQUIRED);
             throw new AuthenticationException("Authentication required");
         } else {
-            AuthenticationMetrics.authenticateFailure(AuthenticationProviderList.class.getSimpleName(),
-                    "authentication-provider-list",
-                    authenticationException.getMessage() != null
-                            ? authenticationException.getMessage() : "Authentication required");
+            AuthenticationMetrics.authenticateFailure(
+                    AuthenticationProviderList.class.getSimpleName(),
+                    "authentication-provider-list", errorCode);
             throw authenticationException;
         }
 
@@ -76,9 +83,12 @@ public class AuthenticationProviderList implements AuthenticationProvider {
     private static class AuthenticationListState implements AuthenticationState {
 
         private final List<AuthenticationState> states;
-        private AuthenticationState authState;
+        private volatile AuthenticationState authState;
 
         AuthenticationListState(List<AuthenticationState> states) {
+            if (states == null || states.isEmpty()) {
+                throw new IllegalArgumentException("Authentication state requires at least one state");
+            }
             this.states = states;
             this.authState = states.get(0);
         }
@@ -94,6 +104,61 @@ public class AuthenticationProviderList implements AuthenticationProvider {
         @Override
         public String getAuthRole() throws AuthenticationException {
             return getAuthState().getAuthRole();
+        }
+
+        @Override
+        public CompletableFuture<AuthData> authenticateAsync(AuthData authData) {
+            // First, attempt to authenticate with the current auth state
+            CompletableFuture<AuthData> authChallengeFuture = new CompletableFuture<>();
+            authState
+                    .authenticateAsync(authData)
+                    .whenComplete((authChallenge, ex) -> {
+                        if (ex == null) {
+                            // Current authState is still correct. Just need to return the authChallenge.
+                            authChallengeFuture.complete(authChallenge);
+                        } else {
+                            if (log.isDebugEnabled()) {
+                                log.debug("Authentication failed for auth provider " + authState.getClass() + ": ", ex);
+                            }
+                            authenticateRemainingAuthStates(authChallengeFuture, authData, ex, states.size() - 1);
+                        }
+                    });
+            return authChallengeFuture;
+        }
+
+        private void authenticateRemainingAuthStates(CompletableFuture<AuthData> authChallengeFuture,
+                                                     AuthData clientAuthData,
+                                                     Throwable previousException,
+                                                     int index) {
+            if (index < 0) {
+                if (previousException == null) {
+                    previousException = new AuthenticationException("Authentication required");
+                }
+                AuthenticationMetrics.authenticateFailure(AuthenticationProviderList.class.getSimpleName(),
+                        "authentication-provider-list", ErrorCode.AUTH_REQUIRED);
+                authChallengeFuture.completeExceptionally(previousException);
+                return;
+            }
+            AuthenticationState state = states.get(index);
+            if (state == authState) {
+                // Skip the current auth state
+                authenticateRemainingAuthStates(authChallengeFuture, clientAuthData, null, index - 1);
+            } else {
+                state.authenticateAsync(clientAuthData)
+                        .whenComplete((authChallenge, ex) -> {
+                            if (ex == null) {
+                                // Found the correct auth state
+                                authState = state;
+                                authChallengeFuture.complete(authChallenge);
+                            } else {
+                                if (log.isDebugEnabled()) {
+                                    log.debug("Authentication failed for auth provider "
+                                            + authState.getClass() + ": ", ex);
+                                }
+                                authenticateRemainingAuthStates(authChallengeFuture, clientAuthData, ex, index - 1);
+                            }
+                        });
+            }
         }
 
         @Override
@@ -161,6 +226,40 @@ public class AuthenticationProviderList implements AuthenticationProvider {
     }
 
     @Override
+    public CompletableFuture<String> authenticateAsync(AuthenticationDataSource authData) {
+        CompletableFuture<String> roleFuture = new CompletableFuture<>();
+        authenticateRemainingAuthProviders(roleFuture, authData, null, providers.size() - 1);
+        return roleFuture;
+    }
+
+    private void authenticateRemainingAuthProviders(CompletableFuture<String> roleFuture,
+                                                    AuthenticationDataSource authData,
+                                                    Throwable previousException,
+                                                    int index) {
+        if (index < 0) {
+            if (previousException == null) {
+                previousException = new AuthenticationException("Authentication required");
+            }
+            AuthenticationMetrics.authenticateFailure(AuthenticationProviderList.class.getSimpleName(),
+                    "authentication-provider-list", ErrorCode.AUTH_REQUIRED);
+            roleFuture.completeExceptionally(previousException);
+            return;
+        }
+        AuthenticationProvider provider = providers.get(index);
+        provider.authenticateAsync(authData)
+                .whenComplete((role, ex) -> {
+                    if (ex == null) {
+                        roleFuture.complete(role);
+                    } else {
+                        if (log.isDebugEnabled()) {
+                            log.debug("Authentication failed for auth provider " + provider.getClass() + ": ", ex);
+                        }
+                        authenticateRemainingAuthProviders(roleFuture, authData, ex, index - 1);
+                    }
+                });
+        }
+
+    @Override
     public String authenticate(AuthenticationDataSource authData) throws AuthenticationException {
         return applyAuthProcessor(
             providers,
@@ -174,17 +273,17 @@ public class AuthenticationProviderList implements AuthenticationProvider {
         final List<AuthenticationState> states = new ArrayList<>(providers.size());
 
         AuthenticationException authenticationException = null;
-        try {
-            applyAuthProcessor(
-                providers,
-                provider -> {
-                    AuthenticationState state = provider.newAuthState(authData, remoteAddress, sslSession);
-                    states.add(state);
-                    return state;
+        for (AuthenticationProvider provider : providers) {
+            try {
+                AuthenticationState state = provider.newAuthState(authData, remoteAddress, sslSession);
+                states.add(state);
+            } catch (AuthenticationException ae) {
+                if (log.isDebugEnabled()) {
+                    log.debug("Authentication failed for auth provider " + provider.getClass() + ": ", ae);
                 }
-            );
-        } catch (AuthenticationException ae) {
-            authenticationException = ae;
+                // Store the exception so we can throw it later instead of a generic one
+                authenticationException = ae;
+            }
         }
         if (states.isEmpty()) {
             log.debug("Failed to initialize a new auth state from {}", remoteAddress, authenticationException);
@@ -203,17 +302,17 @@ public class AuthenticationProviderList implements AuthenticationProvider {
         final List<AuthenticationState> states = new ArrayList<>(providers.size());
 
         AuthenticationException authenticationException = null;
-        try {
-            applyAuthProcessor(
-                    providers,
-                    provider -> {
-                        AuthenticationState state = provider.newHttpAuthState(request);
-                        states.add(state);
-                        return state;
-                    }
-            );
-        } catch (AuthenticationException ae) {
-            authenticationException = ae;
+        for (AuthenticationProvider provider : providers) {
+            try {
+                AuthenticationState state = provider.newHttpAuthState(request);
+                states.add(state);
+            } catch (AuthenticationException ae) {
+                if (log.isDebugEnabled()) {
+                    log.debug("Authentication failed for auth provider " + provider.getClass() + ": ", ae);
+                }
+                // Store the exception so we can throw it later instead of a generic one
+                authenticationException = ae;
+            }
         }
         if (states.isEmpty()) {
             log.debug("Failed to initialize a new http auth state from {}",

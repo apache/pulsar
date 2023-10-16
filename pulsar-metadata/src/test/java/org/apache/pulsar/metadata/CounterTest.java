@@ -25,7 +25,6 @@ import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.fail;
-
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -45,7 +44,7 @@ public class CounterTest extends BaseMetadataStoreTest {
     public void basicTest(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
         MetadataStoreExtended store = MetadataStoreExtended.create(urlSupplier.get(),
-                MetadataStoreConfig.builder().build());
+                MetadataStoreConfig.builder().fsyncEnable(false).build());
 
         @Cleanup
         CoordinationService cs1 = new CoordinationServiceImpl(store);
@@ -88,6 +87,7 @@ public class CounterTest extends BaseMetadataStoreTest {
         // Delete all the empty container nodes
         zks.checkContainers();
 
+        @Cleanup
         MetadataStoreExtended store2 = MetadataStoreExtended.create(metadataUrl, MetadataStoreConfig.builder().build());
         @Cleanup
         CoordinationService cs2 = new CoordinationServiceImpl(store2);
@@ -102,7 +102,7 @@ public class CounterTest extends BaseMetadataStoreTest {
     public void testGetNextCounterRetry(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
         MetadataStoreExtended store = MetadataStoreExtended.create(urlSupplier.get(),
-                MetadataStoreConfig.builder().build());
+                MetadataStoreConfig.builder().fsyncEnable(false).build());
 
         MetadataStoreExtended spy = spy(store);
 

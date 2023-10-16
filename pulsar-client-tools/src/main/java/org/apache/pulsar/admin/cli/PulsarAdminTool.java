@@ -25,7 +25,6 @@ import com.beust.jcommander.Parameter;
 import com.google.common.annotations.VisibleForTesting;
 import java.io.FileInputStream;
 import java.lang.reflect.InvocationTargetException;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -45,16 +44,16 @@ import org.apache.pulsar.common.util.ShutdownUtil;
 
 public class PulsarAdminTool {
 
-    private static boolean allowSystemExit = true;
+    protected static boolean allowSystemExit = true;
 
     private static int lastExitCode = Integer.MIN_VALUE;
 
-    protected List<CustomCommandFactory> customCommandFactories = new ArrayList();
+    protected final List<CustomCommandFactory> customCommandFactories;
     protected Map<String, Class<?>> commandMap;
     protected JCommander jcommander;
     protected RootParams rootParams;
     private final Properties properties;
-    private PulsarAdminSupplier pulsarAdminSupplier;
+    protected PulsarAdminSupplier pulsarAdminSupplier;
 
     @Getter
     public static class RootParams {
@@ -73,7 +72,7 @@ public class PulsarAdminTool {
             names = { "--auth-params" },
                 description = "Authentication parameters, whose format is determined by the implementation "
                         + "of method `configure` in authentication plugin class, for example \"key1:val1,key2:val2\" "
-                        + "or \"{\"key1\":\"val1\",\"key2\":\"val2\"}.")
+                        + "or \"{\"key1\":\"val1\",\"key2\":\"val2\"}\".")
         String authParams = null;
 
         @Parameter(names = { "--tls-allow-insecure" }, description = "Allow TLS insecure connection")
@@ -101,6 +100,7 @@ public class PulsarAdminTool {
 
     public PulsarAdminTool(Properties properties) throws Exception {
         this.properties = properties;
+        customCommandFactories = CustomCommandFactoryProvider.createCustomCommandFactories(properties);
         rootParams = new RootParams();
         // fallback to previous-version serviceUrl property to maintain backward-compatibility
         initRootParamsFromProperties(properties);
@@ -169,7 +169,6 @@ public class PulsarAdminTool {
                     return properties;
                 }
             };
-            loadCustomCommandFactories();
 
             for (CustomCommandFactory factory : customCommandFactories) {
                 List<CustomCommandGroup> customCommandGroups = factory.commandGroups(context);
@@ -190,11 +189,6 @@ public class PulsarAdminTool {
             System.exit(1);
         }
     }
-
-    private void loadCustomCommandFactories() throws Exception {
-        customCommandFactories = CustomCommandFactoryProvider.createCustomCommandFactories(properties);
-    }
-
 
     private void addCommand(Map.Entry<String, Class<?>> c, Supplier<PulsarAdmin> admin) throws Exception {
         // To remain backwards compatibility for "source" and "sink" commands
@@ -277,11 +271,16 @@ public class PulsarAdminTool {
     }
 
     public static void main(String[] args) throws Exception {
+        execute(args);
+    }
+
+    @VisibleForTesting
+    public static PulsarAdminTool execute(String[] args) throws Exception {
         lastExitCode = 0;
         if (args.length == 0) {
             System.out.println("Usage: pulsar-admin CONF_FILE_PATH [options] [command] [command options]");
             exit(0);
-            return;
+            return null;
         }
         String configFile = args[0];
         Properties properties = new Properties();
@@ -299,6 +298,7 @@ public class PulsarAdminTool {
         } else {
             exit(1);
         }
+        return tool;
     }
 
     private static void exit(int code) {
@@ -306,7 +306,7 @@ public class PulsarAdminTool {
         if (allowSystemExit) {
             // we are using halt and not System.exit, we do not mind about shutdown hooks
             // they are only slowing down the tool
-            ShutdownUtil.triggerImmediateForcefulShutdown(code);
+            ShutdownUtil.triggerImmediateForcefulShutdown(code, false);
         } else {
             System.out.println("Exit code is " + code + " (System.exit not called, as we are in test mode)");
         }

@@ -76,6 +76,8 @@ public class ConsumerBuilderImplTest {
     @BeforeMethod(alwaysRun = true)
     public void setup() {
         PulsarClientImpl client = mock(PulsarClientImpl.class);
+        ConnectionPool connectionPool = mock(ConnectionPool.class);
+        when(client.getCnxPool()).thenReturn(connectionPool);
         ConsumerConfigurationData consumerConfigurationData = mock(ConsumerConfigurationData.class);
         when(consumerConfigurationData.getTopicsPattern()).thenReturn(Pattern.compile("\\w+"));
         when(consumerConfigurationData.getSubscriptionName()).thenReturn("testSubscriptionName");
@@ -104,6 +106,8 @@ public class ConsumerBuilderImplTest {
     @Test(expectedExceptions = IllegalArgumentException.class)
     public void testConsumerBuilderImplWhenSchemaIsNull() {
         PulsarClientImpl client = mock(PulsarClientImpl.class);
+        ConnectionPool connectionPool = mock(ConnectionPool.class);
+        when(client.getCnxPool()).thenReturn(connectionPool);
         ConsumerConfigurationData consumerConfigurationData = mock(ConsumerConfigurationData.class);
         new ConsumerBuilderImpl(client, consumerConfigurationData, null);
     }
@@ -537,7 +541,7 @@ public class ConsumerBuilderImplTest {
         assertEquals(configurationData.getNegativeAckRedeliveryDelayMicros(), TimeUnit.MINUTES.toMicros(1));
         assertEquals(configurationData.getMaxTotalReceiverQueueSizeAcrossPartitions(), 50000);
         assertEquals(configurationData.getConsumerName(), "consumer");
-        assertEquals(configurationData.getAckTimeoutMillis(), 30000);
+        assertEquals(configurationData.getAckTimeoutMillis(), 0);
         assertEquals(configurationData.getTickDurationMillis(), 1000);
         assertEquals(configurationData.getPriorityLevel(), 0);
         assertEquals(configurationData.getMaxPendingChunkedMessage(), 10);

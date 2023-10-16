@@ -20,3 +20,4 @@
 name: jdbc-clickhouse
 description: JDBC sink for ClickHouse
 sinkClass: org.apache.pulsar.io.jdbc.ClickHouseJdbcAutoSchemaSink
+sinkConfigClass: org.apache.pulsar.io.jdbc.JdbcSinkConfig

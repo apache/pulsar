@@ -68,7 +68,7 @@ public class RabbitMQSourceConfig extends RabbitMQAbstractConfig implements Seri
 
     public static RabbitMQSourceConfig load(Map<String, Object> map) throws IOException {
         ObjectMapper mapper = new ObjectMapper();
-        return mapper.readValue(new ObjectMapper().writeValueAsString(map), RabbitMQSourceConfig.class);
+        return mapper.readValue(mapper.writeValueAsString(map), RabbitMQSourceConfig.class);
     }
 
     @Override

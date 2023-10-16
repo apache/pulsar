@@ -240,9 +240,13 @@ Read https://pulsar.apache.org/contribute/setup-ide for setting up IntelliJ IDEA
 
 Pulsar slack channel at https://apache-pulsar.slack.com/
 
-You can self-register at https://apache-pulsar.herokuapp.com/
+You can self-register at https://communityinviter.com/apps/apache-pulsar/apache-pulsar
 
-##### Report a security vulnerability
+## Security Policy
+
+If you find a security issue with Pulsar then please [read the security policy](https://pulsar.apache.org/security/#security-policy). It is critical to avoid public disclosure.
+
+### Reporting a security vulnerability
 
 To report a vulnerability for Pulsar, contact the [Apache Security Team](https://www.apache.org/security/). When reporting a vulnerability to [security@apache.org](mailto:security@apache.org), you can copy your email to [private@pulsar.apache.org](mailto:private@pulsar.apache.org) to send your report to the Apache Pulsar Project Management Committee. This is a private mailing list.
 
@@ -254,7 +258,7 @@ Licensed under the Apache License, Version 2.0: http://www.apache.org/licenses/L
 
 ## Crypto Notice
 
-This distribution includes cryptographic software. The country in which you currently reside may have restrictions on the import, possession, use, and/or re-export to another country, of encryption software. BEFORE using any encryption software, please check your country's laws, regulations and policies concerning the import, possession, or use, and re-export of encryption software, to see if this is permitted. See <http://www.wassenaar.org/> for more information.
+This distribution includes cryptographic software. The country in which you currently reside may have restrictions on the import, possession, use, and/or re-export to another country, of encryption software. BEFORE using any encryption software, please check your country's laws, regulations and policies concerning the import, possession, or use, and re-export of encryption software, to see if this is permitted. See [The Wassenaar Arrangement](http://www.wassenaar.org/) for more information.
 
 The U.S. Government Department of Commerce, Bureau of Industry and Security (BIS), has classified this software as Export Commodity Control Number (ECCN) 5D002.C.1, which includes information security software using or performing cryptographic functions with asymmetric algorithms. The form and manner of this Apache Software Foundation distribution makes it eligible for export under the License Exception ENC Technology Software Unrestricted (TSU) exception (see the BIS Export Administration Regulations, Section 740.13) for both object code and source code.
 

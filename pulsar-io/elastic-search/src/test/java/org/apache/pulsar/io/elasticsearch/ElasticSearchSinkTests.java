@@ -19,8 +19,9 @@
 package org.apache.pulsar.io.elasticsearch;
 
 import co.elastic.clients.transport.ElasticsearchTransport;
+import com.fasterxml.jackson.core.JsonParseException;
+import java.util.concurrent.atomic.AtomicReference;
 import org.apache.pulsar.client.api.Message;
-import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.schema.GenericObject;
 import org.apache.pulsar.client.api.schema.GenericRecord;
@@ -32,6 +33,8 @@ import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.KeyValueEncodingType;
 import org.apache.pulsar.common.schema.SchemaType;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
@@ -72,6 +75,7 @@ import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 
+import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.fail;
 
@@ -88,6 +92,7 @@ public abstract class ElasticSearchSinkTests extends ElasticSearchTestBase {
 
     @Mock
     protected SinkContext mockSinkContext;
+    AtomicReference<Throwable> irrecoverableError = new AtomicReference<>();
     protected Map<String, Object> map;
     protected ElasticSearchSink sink;
 
@@ -134,6 +139,11 @@ public abstract class ElasticSearchSinkTests extends ElasticSearchTestBase {
 
         mockRecord = mock(Record.class);
         mockSinkContext = mock(SinkContext.class);
+        irrecoverableError.set(null);
+        doAnswer(invocation -> {
+            irrecoverableError.set(invocation.getArgument(0));
+            return null;
+        }).when(mockSinkContext).fatal(any(Throwable.class));
 
         when(mockRecord.getValue()).thenAnswer((Answer<GenericObject>) invocation -> new GenericObject() {
             @Override
@@ -219,7 +229,7 @@ public abstract class ElasticSearchSinkTests extends ElasticSearchTestBase {
 
         when(mockRecord.getKey()).thenAnswer(new Answer<Optional<String>>() {
             public Optional<String> answer(InvocationOnMock invocation) throws Throwable {
-                return null;
+                return Optional.empty();
             }
         });
 
@@ -241,6 +251,85 @@ public abstract class ElasticSearchSinkTests extends ElasticSearchTestBase {
         sink.open(map, mockSinkContext);
         sink.write(mockRecord);
         verify(mockRecord, times(1)).ack();
+    }
+
+    @Test
+    public final void sendJsonStringSchemaTest() throws Exception {
+
+        when(mockRecord.getMessage()).thenAnswer(new Answer<Optional<Message<String>>>() {
+            @Override
+            public Optional<Message<String>> answer(InvocationOnMock invocation) throws Throwable {
+                final MessageImpl mock = mock(MessageImpl.class);
+                when(mock.getData()).thenReturn("{\"a\":1}".getBytes(StandardCharsets.UTF_8));
+                return Optional.of(mock);
+            }
+        });
+
+        when(mockRecord.getKey()).thenAnswer(new Answer<Optional<String>>() {
+            public Optional<String> answer(InvocationOnMock invocation) throws Throwable {
+                return Optional.empty();
+            }
+        });
+
+        GenericRecord genericRecord = mock(GenericRecord.class);
+        when(genericRecord.getNativeObject()).thenReturn("{\"a\":1}");
+        when(genericRecord.getSchemaType()).thenReturn(SchemaType.JSON);
+        when(mockRecord.getValue()).thenAnswer(new Answer<GenericRecord>() {
+            public GenericRecord answer(InvocationOnMock invocation) throws Throwable {
+                return genericRecord;
+            }
+        });
+
+        when(mockRecord.getSchema()).thenAnswer(new Answer<Schema>() {
+            public Schema answer(InvocationOnMock invocation) throws Throwable {
+                return Schema.JSON(String.class);
+            }
+        });
+
+        map.put("indexName", "test-index");
+        map.put("schemaEnable", "true");
+        sink.open(map, mockSinkContext);
+        sink.write(mockRecord);
+        verify(mockRecord, times(1)).ack();
+    }
+
+    @Test(expectedExceptions = JsonParseException.class)
+    public final void sendJsonStringSchemaErrorTest() throws Exception {
+
+        when(mockRecord.getMessage()).thenAnswer(new Answer<Optional<Message<String>>>() {
+            @Override
+            public Optional<Message<String>> answer(InvocationOnMock invocation) throws Throwable {
+                final MessageImpl mock = mock(MessageImpl.class);
+                when(mock.getData()).thenReturn("no-json-format".getBytes(StandardCharsets.UTF_8));
+                return Optional.of(mock);
+            }
+        });
+
+        when(mockRecord.getKey()).thenAnswer(new Answer<Optional<String>>() {
+            public Optional<String> answer(InvocationOnMock invocation) throws Throwable {
+                return Optional.empty();
+            }
+        });
+
+        GenericRecord genericRecord = mock(GenericRecord.class);
+        when(genericRecord.getNativeObject()).thenReturn("no-json-format");
+        when(genericRecord.getSchemaType()).thenReturn(SchemaType.JSON);
+        when(mockRecord.getValue()).thenAnswer(new Answer<GenericRecord>() {
+            public GenericRecord answer(InvocationOnMock invocation) throws Throwable {
+                return genericRecord;
+            }
+        });
+
+        when(mockRecord.getSchema()).thenAnswer(new Answer<Schema>() {
+            public Schema answer(InvocationOnMock invocation) throws Throwable {
+                return Schema.JSON(String.class);
+            }
+        });
+
+        map.put("indexName", "test-index");
+        map.put("schemaEnable", "true");
+        sink.open(map, mockSinkContext);
+        sink.write(mockRecord);
     }
 
     @Test(enabled = true)
@@ -342,7 +431,7 @@ public abstract class ElasticSearchSinkTests extends ElasticSearchTestBase {
         assertEquals(json, "{\"name\":null,\"userName\":\"boby\",\"email\":null}");
     }
 
-    @Test(expectedExceptions = PulsarClientException.InvalidMessageException.class)
+    @Test
     public void testNullValueFailure() throws Exception {
         String index = "testnullvaluefail";
         map.put("indexName", index);
@@ -351,6 +440,7 @@ public abstract class ElasticSearchSinkTests extends ElasticSearchTestBase {
         sink.open(map, mockSinkContext);
         MockRecordNullValue mockRecordNullValue = new MockRecordNullValue();
         sink.write(mockRecordNullValue);
+        assertNotNull(irrecoverableError.get());
     }
 
     @Test
@@ -400,7 +490,7 @@ public abstract class ElasticSearchSinkTests extends ElasticSearchTestBase {
         assertEquals(sink.getElasticsearchClient().getRestClient().totalHits(index), 1L);
         sink.write(new MockRecordNullValue());
         assertEquals(sink.getElasticsearchClient().getRestClient().totalHits(index), action.equals(ElasticSearchConfig.NullValueAction.DELETE) ? 0L : 1L);
-        assertNull(sink.getElasticsearchClient().irrecoverableError.get());
+        assertNull(irrecoverableError.get());
     }
 
     @Test
@@ -437,7 +527,7 @@ public abstract class ElasticSearchSinkTests extends ElasticSearchTestBase {
 
                 sink.close();
                 verify(restHighLevelClient).close();
-                verify(internalBulkProcessor).awaitClose(Mockito.anyLong(), Mockito.any(TimeUnit.class));
+                verify(internalBulkProcessor).awaitClose(Mockito.anyLong(), any(TimeUnit.class));
                 verify(client).close();
                 verify(restClient).close();
             } else {

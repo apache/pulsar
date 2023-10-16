@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.broker.rest;
 
+import static java.util.concurrent.TimeUnit.SECONDS;
+import com.fasterxml.jackson.databind.ObjectReader;
 import io.netty.buffer.ByteBuf;
 import java.io.IOException;
 import java.net.URI;
@@ -37,6 +39,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.core.Response;
@@ -51,8 +54,10 @@ import org.apache.avro.io.Decoder;
 import org.apache.avro.io.DecoderFactory;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.admin.impl.PersistentTopicsBase;
+import org.apache.pulsar.broker.authentication.AuthenticationParameters;
 import org.apache.pulsar.broker.lookup.LookupResult;
 import org.apache.pulsar.broker.namespace.LookupOptions;
 import org.apache.pulsar.broker.service.BrokerServiceException;
@@ -80,6 +85,7 @@ import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.compression.CompressionCodecProvider;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
+import org.apache.pulsar.common.policies.data.TopicOperation;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.schema.SchemaData;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
@@ -428,7 +434,10 @@ public class TopicsBase extends PersistentTopicsBase {
             }
 
             LookupResult result = optionalResult.get();
-            if (result.getLookupData().getHttpUrl().equals(pulsar().getWebServiceAddress())) {
+            String httpUrl = result.getLookupData().getHttpUrl();
+            String httpUrlTls = result.getLookupData().getHttpUrlTls();
+            if ((StringUtils.isNotBlank(httpUrl) && httpUrl.equals(pulsar().getWebServiceAddress()))
+                    || (StringUtils.isNotBlank(httpUrlTls) && httpUrlTls.equals(pulsar().getWebServiceAddressTls()))) {
                 // Current broker owns the topic, add to owning topic.
                 if (log.isDebugEnabled()) {
                     log.debug("Complete topic look up for rest produce message request for topic {}, "
@@ -449,12 +458,10 @@ public class TopicsBase extends PersistentTopicsBase {
                 }
                 if (result.isRedirect()) {
                     // Redirect lookup.
-                    completeLookup(Pair.of(Arrays.asList(result.getLookupData().getHttpUrl(),
-                            result.getLookupData().getHttpUrlTls()), false), redirectAddresses, future);
+                    completeLookup(Pair.of(Arrays.asList(httpUrl, httpUrlTls), false), redirectAddresses, future);
                 } else {
                     // Found owner for topic.
-                    completeLookup(Pair.of(Arrays.asList(result.getLookupData().getHttpUrl(),
-                            result.getLookupData().getHttpUrlTls()), true), redirectAddresses, future);
+                    completeLookup(Pair.of(Arrays.asList(httpUrl, httpUrlTls), true), redirectAddresses, future);
                 }
             }
         }).exceptionally(exception -> {
@@ -546,13 +553,15 @@ public class TopicsBase extends PersistentTopicsBase {
         return result;
     }
 
+    private static final ObjectReader SCHEMA_INFO_READER =
+            ObjectMapperFactory.getMapper().reader().forType(SchemaInfoImpl.class);
+
     // Build schemaData from passed in schema string.
     private SchemaData getSchemaData(String keySchema, String valueSchema) {
         try {
             SchemaInfoImpl valueSchemaInfo = (valueSchema == null || valueSchema.isEmpty())
                     ? (SchemaInfoImpl) StringSchema.utf8().getSchemaInfo() :
-                    ObjectMapperFactory.getThreadLocal()
-                            .readValue(valueSchema, SchemaInfoImpl.class);
+                    SCHEMA_INFO_READER.readValue(valueSchema);
             if (null == valueSchemaInfo.getName()) {
                 valueSchemaInfo.setName(valueSchemaInfo.getType().toString());
             }
@@ -568,8 +577,7 @@ public class TopicsBase extends PersistentTopicsBase {
                         .build();
             } else {
                 // Key_Value schema
-                SchemaInfoImpl keySchemaInfo = ObjectMapperFactory.getThreadLocal()
-                        .readValue(keySchema, SchemaInfoImpl.class);
+                SchemaInfoImpl keySchemaInfo = SCHEMA_INFO_READER.readValue(keySchema);
                 if (null == keySchemaInfo.getName()) {
                     keySchemaInfo.setName(keySchemaInfo.getType().toString());
                 }
@@ -712,7 +720,7 @@ public class TopicsBase extends PersistentTopicsBase {
                 case JSON:
                     GenericJsonWriter jsonWriter = new GenericJsonWriter();
                     return jsonWriter.write(new GenericJsonRecord(null, null,
-                          ObjectMapperFactory.getThreadLocal().readTree(input), schema.getSchemaInfo()));
+                          ObjectMapperFactory.getMapper().reader().readTree(input), schema.getSchemaInfo()));
                 case AVRO:
                     AvroBaseStructSchema avroSchema = ((AvroBaseStructSchema) schema);
                     Decoder decoder = DecoderFactory.get().jsonDecoder(avroSchema.getAvroSchema(), input);
@@ -760,14 +768,24 @@ public class TopicsBase extends PersistentTopicsBase {
             if (!isClientAuthenticated(clientAppId())) {
                 throw new RestException(Status.UNAUTHORIZED, "Need to authenticate to perform the request");
             }
+            AuthenticationParameters authParams = authParams();
+            boolean isAuthorized;
+            try {
+                isAuthorized = pulsar().getBrokerService().getAuthorizationService()
+                        .allowTopicOperationAsync(topicName, TopicOperation.PRODUCE, authParams)
+                        .get(config().getMetadataStoreOperationTimeoutSeconds(), SECONDS);
+            } catch (TimeoutException e) {
+                log.warn("Time-out {} sec while checking authorization on {} ",
+                        config().getMetadataStoreOperationTimeoutSeconds(), topicName);
+                throw new RestException(Status.INTERNAL_SERVER_ERROR, "Time-out while checking authorization");
+            } catch (Exception e) {
+                log.warn("Producer-client  with Role - {} {} failed to get permissions for topic - {}. {}",
+                        authParams.getClientRole(), authParams.getOriginalPrincipal(), topicName, e.getMessage());
+                throw new RestException(Status.INTERNAL_SERVER_ERROR, "Failed to get permissions");
+            }
 
-            boolean isAuthorized = pulsar().getBrokerService().getAuthorizationService()
-                    .canProduce(topicName, originalPrincipal() == null ? clientAppId() : originalPrincipal(),
-                            clientAuthData());
             if (!isAuthorized) {
-                throw new RestException(Status.UNAUTHORIZED, String.format("Unauthorized to produce to topic %s"
-                                        + " with clientAppId [%s] and authdata %s", topicName.toString(),
-                        clientAppId(), clientAuthData()));
+                throw new RestException(Status.UNAUTHORIZED, "Unauthorized to produce to topic " + topicName);
             }
         }
     }

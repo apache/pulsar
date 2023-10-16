@@ -35,19 +35,23 @@ import java.net.MalformedURLException;
 import java.net.ServerSocket;
 import java.net.URISyntaxException;
 import java.net.URL;
+import java.net.URLConnection;
 import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
 import java.util.Collection;
+import java.util.Map;
 import java.util.UUID;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.jodah.typetools.TypeResolver;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.MessageIdAdv;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.impl.MessageIdImpl;
-import org.apache.pulsar.client.impl.TopicMessageIdImpl;
+import org.apache.pulsar.client.impl.auth.AuthenticationDataBasic;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.Utils;
 import org.apache.pulsar.common.nar.NarClassLoader;
@@ -245,8 +249,15 @@ public class FunctionCommon {
     }
 
     public static void downloadFromHttpUrl(String destPkgUrl, File targetFile) throws IOException {
-        URL website = new URL(destPkgUrl);
-        try (InputStream in = website.openStream()) {
+        final URL url = new URL(destPkgUrl);
+        final URLConnection connection = url.openConnection();
+        if (StringUtils.isNotEmpty(url.getUserInfo())) {
+            final AuthenticationDataBasic authBasic = new AuthenticationDataBasic(url.getUserInfo());
+            for (Map.Entry<String, String> header : authBasic.getHttpHeaders()) {
+                connection.setRequestProperty(header.getKey(), header.getValue());
+            }
+        }
+        try (InputStream in = connection.getInputStream()) {
             log.info("Downloading function package from {} to {} ...", destPkgUrl, targetFile.getAbsoluteFile());
             Files.copy(in, targetFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
         }
@@ -315,9 +326,7 @@ public class FunctionCommon {
     }
 
     public static final long getSequenceId(MessageId messageId) {
-        MessageIdImpl msgId = (MessageIdImpl) ((messageId instanceof TopicMessageIdImpl)
-                ? ((TopicMessageIdImpl) messageId).getInnerMessageId()
-                : messageId);
+        MessageIdAdv msgId = (MessageIdAdv) messageId;
         long ledgerId = msgId.getLedgerId();
         long entryId = msgId.getEntryId();
 
@@ -569,6 +578,44 @@ public class FunctionCommon {
             return SubscriptionInitialPosition.Earliest;
         } else {
             return SubscriptionInitialPosition.Latest;
+        }
+    }
+
+    public static CompressionType convertFromFunctionDetailsCompressionType(
+            org.apache.pulsar.functions.proto.Function.CompressionType compressionType) {
+        if (compressionType == null) {
+            return CompressionType.LZ4;
+        }
+        switch (compressionType) {
+            case NONE:
+                return CompressionType.NONE;
+            case ZLIB:
+                return CompressionType.ZLIB;
+            case ZSTD:
+                return CompressionType.ZSTD;
+            case SNAPPY:
+                return CompressionType.SNAPPY;
+            default:
+                return CompressionType.LZ4;
+        }
+    }
+
+    public static org.apache.pulsar.functions.proto.Function.CompressionType convertFromCompressionType(
+       CompressionType compressionType) {
+        if (compressionType == null) {
+            return org.apache.pulsar.functions.proto.Function.CompressionType.LZ4;
+        }
+        switch (compressionType) {
+            case NONE:
+                return org.apache.pulsar.functions.proto.Function.CompressionType.NONE;
+            case ZLIB:
+                return org.apache.pulsar.functions.proto.Function.CompressionType.ZLIB;
+            case ZSTD:
+                return org.apache.pulsar.functions.proto.Function.CompressionType.ZSTD;
+            case SNAPPY:
+                return org.apache.pulsar.functions.proto.Function.CompressionType.SNAPPY;
+            default:
+                return org.apache.pulsar.functions.proto.Function.CompressionType.LZ4;
         }
     }
 }

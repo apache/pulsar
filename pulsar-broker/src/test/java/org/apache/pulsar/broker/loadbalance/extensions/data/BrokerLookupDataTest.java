@@ -18,13 +18,15 @@
  */
 package org.apache.pulsar.broker.loadbalance.extensions.data;
 
-import org.apache.pulsar.broker.lookup.LookupResult;
-import org.apache.pulsar.policies.data.loadbalancer.AdvertisedListener;
-import org.junit.Assert;
-import org.testng.annotations.Test;
+import static org.testng.AssertJUnit.assertEquals;
+import static org.testng.AssertJUnit.assertTrue;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
+import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl;
+import org.apache.pulsar.broker.lookup.LookupResult;
+import org.apache.pulsar.policies.data.loadbalancer.AdvertisedListener;
+import org.testng.annotations.Test;
 
 @Test(groups = "broker")
 public class BrokerLookupDataTest {
@@ -41,22 +43,23 @@ public class BrokerLookupDataTest {
         }};
         BrokerLookupData lookupData = new BrokerLookupData(
                 webServiceUrl, webServiceUrlTls, pulsarServiceUrl,
-                pulsarServiceUrlTls, advertisedListeners, protocols, true, true, "3.0");
-        Assert.assertEquals(webServiceUrl, lookupData.webServiceUrl());
-        Assert.assertEquals(webServiceUrlTls, lookupData.webServiceUrlTls());
-        Assert.assertEquals(pulsarServiceUrl, lookupData.pulsarServiceUrl());
-        Assert.assertEquals(pulsarServiceUrlTls, lookupData.pulsarServiceUrlTls());
-        Assert.assertEquals(Optional.of("9092"), lookupData.getProtocol("kafka"));
-        Assert.assertEquals(Optional.empty(), lookupData.getProtocol("echo"));
-        Assert.assertTrue(lookupData.persistentTopicsEnabled());
-        Assert.assertTrue(lookupData.nonPersistentTopicsEnabled());
-        Assert.assertEquals("3.0", lookupData.brokerVersion());
+                pulsarServiceUrlTls, advertisedListeners, protocols, true, true,
+                ExtensibleLoadManagerImpl.class.getName(), System.currentTimeMillis(),"3.0");
+        assertEquals(webServiceUrl, lookupData.webServiceUrl());
+        assertEquals(webServiceUrlTls, lookupData.webServiceUrlTls());
+        assertEquals(pulsarServiceUrl, lookupData.pulsarServiceUrl());
+        assertEquals(pulsarServiceUrlTls, lookupData.pulsarServiceUrlTls());
+        assertEquals(Optional.of("9092"), lookupData.getProtocol("kafka"));
+        assertEquals(Optional.empty(), lookupData.getProtocol("echo"));
+        assertTrue(lookupData.persistentTopicsEnabled());
+        assertTrue(lookupData.nonPersistentTopicsEnabled());
+        assertEquals("3.0", lookupData.brokerVersion());
 
 
         LookupResult lookupResult = lookupData.toLookupResult();
-        Assert.assertEquals(webServiceUrl, lookupResult.getLookupData().getHttpUrl());
-        Assert.assertEquals(webServiceUrlTls, lookupResult.getLookupData().getHttpUrlTls());
-        Assert.assertEquals(pulsarServiceUrl, lookupResult.getLookupData().getBrokerUrl());
-        Assert.assertEquals(pulsarServiceUrlTls, lookupResult.getLookupData().getBrokerUrlTls());
+        assertEquals(webServiceUrl, lookupResult.getLookupData().getHttpUrl());
+        assertEquals(webServiceUrlTls, lookupResult.getLookupData().getHttpUrlTls());
+        assertEquals(pulsarServiceUrl, lookupResult.getLookupData().getBrokerUrl());
+        assertEquals(pulsarServiceUrlTls, lookupResult.getLookupData().getBrokerUrlTls());
     }
 }

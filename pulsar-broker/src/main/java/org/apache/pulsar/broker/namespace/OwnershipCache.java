@@ -158,8 +158,7 @@ public class OwnershipCache {
      * @param suName
      *            name of the <code>ServiceUnit</code>
      * @return The ephemeral node data showing the current ownership info in <code>ZooKeeper</code>
-     * @throws Exception
-     *             throws exception if no ownership info is found
+     * or empty if no ownership info is found
      */
     public CompletableFuture<Optional<NamespaceEphemeralData>> getOwnerAsync(NamespaceBundle suName) {
         CompletableFuture<OwnedBundle> ownedBundleFuture = ownedBundlesCache.getIfPresent(suName);
@@ -289,10 +288,10 @@ public class OwnershipCache {
 
     /**
      * Disable bundle in local cache and on zk.
-     *
-     * @param bundle
-     * @throws Exception
+     * @Deprecated This is a dangerous method  which is currently only used for test, it will occupy the ZK thread.
+     * Please switch to your own thread after calling this method.
      */
+    @Deprecated
     public CompletableFuture<Void> disableOwnership(NamespaceBundle bundle) {
         return updateBundleState(bundle, false)
                 .thenCompose(__ -> {

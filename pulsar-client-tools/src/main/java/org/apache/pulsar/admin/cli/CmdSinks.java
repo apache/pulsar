@@ -115,11 +115,9 @@ public class CmdSinks extends CmdBase {
             try {
                 processArguments();
             } catch (Exception e) {
-                System.err.println(e.getMessage());
-                System.err.println();
                 String chosenCommand = jcommander.getParsedCommand();
                 getUsageFormatter().usage(chosenCommand);
-                return;
+                throw e;
             }
             runCmd();
         }
@@ -290,6 +288,10 @@ public class CmdSinks extends CmdBase {
 
         @Parameter(names = { "-t", "--sink-type" }, description = "The sinks's connector provider")
         protected String sinkType;
+
+        @Parameter(names = "--cleanup-subscription", description = "Whether delete the subscription "
+                + "when sink is deleted")
+        protected Boolean cleanupSubscription;
 
         @Parameter(names = { "-i",
                 "--inputs" }, description = "The sink's input topic or topics "
@@ -469,6 +471,10 @@ public class CmdSinks extends CmdBase {
                 sinkConfig.setProcessingGuarantees(processingGuarantees);
             }
 
+            if (null != cleanupSubscription) {
+                sinkConfig.setCleanupSubscription(cleanupSubscription);
+            }
+
             if (retainOrdering != null) {
                 sinkConfig.setRetainOrdering(retainOrdering);
             }
@@ -518,7 +524,7 @@ public class CmdSinks extends CmdBase {
                 sinkConfig.setParallelism(parallelism);
             }
 
-            if (archive != null && sinkType != null) {
+            if (archive != null && (sinkType != null || sinkConfig.getSinkType() != null)) {
                 throw new ParameterException("Cannot specify both archive and sink-type");
             }
 
@@ -605,7 +611,7 @@ public class CmdSinks extends CmdBase {
         }
 
         protected Map<String, Object> parseConfigs(String str) throws JsonProcessingException {
-            ObjectMapper mapper = ObjectMapperFactory.getThreadLocal();
+            ObjectMapper mapper = ObjectMapperFactory.getMapper().getObjectMapper();
             TypeReference<HashMap<String, Object>> typeRef = new TypeReference<HashMap<String, Object>>() {};
 
             return mapper.readValue(str, typeRef);
