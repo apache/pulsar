@@ -2653,4 +2653,18 @@ public abstract class NamespacesBase extends AdminResource {
         }
         return policies;
     }
+
+    protected void internalEnableMigration(boolean migrated) {
+        validateSuperUserAccess();
+        try {
+            updatePolicies(namespaceName, policies -> {
+                policies.isMigrated = migrated;
+                return policies;
+            });
+            log.info("Successfully updated migration on namespace {}", namespaceName);
+        } catch (Exception e) {
+            log.error("Failed to update migration on namespace {}", namespaceName, e);
+            throw new RestException(e);
+        }
+    }
 }

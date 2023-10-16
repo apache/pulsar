@@ -2764,7 +2764,17 @@ public class Namespaces extends NamespacesBase {
                 });
     }
 
-
+    @POST
+    @Path("/{tenant}/{namespace}/migration")
+    @ApiOperation(hidden = true, value = "Update migration for all topics in a namespace")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Property or cluster or namespace doesn't exist") })
+    public void enableMigration(@PathParam("tenant") String tenant,
+                                @PathParam("namespace") String namespace,
+                                boolean migrated) {
+        validateNamespaceName(tenant, namespace);
+        internalEnableMigration(migrated);
+    }
 
     private static final Logger log = LoggerFactory.getLogger(Namespaces.class);
 }

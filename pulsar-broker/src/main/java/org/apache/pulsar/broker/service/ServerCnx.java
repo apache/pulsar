@@ -1644,7 +1644,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             producers.remove(producerId, producerFuture);
         }).exceptionallyAsync(ex -> {
             if (ex.getCause() instanceof BrokerServiceException.TopicMigratedException) {
-                Optional<ClusterUrl> clusterURL = getMigratedClusterUrl(service.getPulsar());
+                Optional<ClusterUrl> clusterURL = getMigratedClusterUrl(service.getPulsar(), topic.getName());
                 if (clusterURL.isPresent()) {
                     if (topic.isReplicationBacklogExist()) {
                         log.info("Topic {} is migrated but replication backlog exist: "
