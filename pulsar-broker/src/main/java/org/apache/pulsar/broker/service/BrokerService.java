@@ -1524,7 +1524,7 @@ public class BrokerService implements Closeable {
                             topicLoadSemaphore.release();
                             // do not recreate topic if topic is already migrated and deleted by broker
                             // so, avoid creating a new topic if migration is already started
-                            if (ex.getCause() instanceof TopicMigratedException) {
+                            if (ex != null && (ex.getCause() instanceof TopicMigratedException)) {
                                 topicFuture.completeExceptionally(ex.getCause());
                                 return null;
                             }
