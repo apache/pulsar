@@ -70,7 +70,8 @@ public interface TopicCompactionService extends AutoCloseable {
     CompletableFuture<Entry> findEntryByPublishTime(long publishTime);
 
     /**
-    * Find the first entry that greater or equal to target entryIndex.
+    * Find the first entry that greater or equal to target entryIndex,
+    * if an entry that broker entry metadata is missed, then it will be skipped and find the next match entry.
     *
     * @param entryIndex  the index of entry.
     * @return the first entry that greater or equal to target entryIndex, this entry can be null.
