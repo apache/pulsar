@@ -228,9 +228,13 @@ public class ClusterMigrationTest {
     protected void cleanup() throws Exception {
         log.info("--- Shutting down ---");
         broker1.cleanup();
+        admin1.close();
         broker2.cleanup();
+        admin2.close();
         broker3.cleanup();
+        admin3.close();
         broker4.cleanup();
+        admin4.close();
     }
 
     @BeforeMethod(alwaysRun = true)
