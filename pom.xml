@@ -32,7 +32,7 @@
   <groupId>org.apache.pulsar</groupId>
   <artifactId>pulsar</artifactId>
 
-  <version>3.1.0-SNAPSHOT</version>
+  <version>3.2.0-SNAPSHOT</version>
 
   <name>Pulsar</name>
   <description>Pulsar is a distributed pub-sub messaging platform with a very
@@ -92,7 +92,7 @@ flexible messaging model and an intuitive client API.</description>
 
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-    <project.build.outputTimestamp>2023-05-03T02:53:27Z</project.build.outputTimestamp>
+    <project.build.outputTimestamp>2023-09-08T03:29:19Z</project.build.outputTimestamp>
     <redirectTestOutputToFile>true</redirectTestOutputToFile>
 
     <!-- By default build for local Docker platform.
@@ -133,16 +133,16 @@ flexible messaging model and an intuitive client API.</description>
     <!-- apache commons -->
     <commons-compress.version>1.21</commons-compress.version>
 
-    <bookkeeper.version>4.16.2</bookkeeper.version>
+    <bookkeeper.version>4.16.3</bookkeeper.version>
     <zookeeper.version>3.8.1</zookeeper.version>
     <commons-cli.version>1.5.0</commons-cli.version>
     <commons-text.version>1.10.0</commons-text.version>
-    <snappy.version>1.1.10.1</snappy.version> <!-- ZooKeeper server -->
+    <snappy.version>1.1.10.5</snappy.version> <!-- ZooKeeper server -->
     <dropwizardmetrics.version>4.1.12.1</dropwizardmetrics.version> <!-- ZooKeeper server -->
     <curator.version>5.1.0</curator.version>
-    <netty.version>4.1.94.Final</netty.version>
+    <netty.version>4.1.99.Final</netty.version>
     <netty-iouring.version>0.0.21.Final</netty-iouring.version>
-    <jetty.version>9.4.51.v20230217</jetty.version>
+    <jetty.version>9.4.52.v20230823</jetty.version>
     <conscrypt.version>2.5.2</conscrypt.version>
     <jersey.version>2.34</jersey.version>
     <athenz.version>1.10.50</athenz.version>
@@ -202,7 +202,7 @@ flexible messaging model and an intuitive client API.</description>
     <hadoop2.version>2.10.2</hadoop2.version>
     <hadoop3.version>3.3.5</hadoop3.version>
     <hbase.version>2.4.16</hbase.version>
-    <guava.version>32.1.1-jre</guava.version>
+    <guava.version>32.1.2-jre</guava.version>
     <jcip.version>1.0</jcip.version>
     <prometheus-jmx.version>0.16.1</prometheus-jmx.version>
     <confluent.version>6.2.8</confluent.version>
@@ -223,7 +223,7 @@ flexible messaging model and an intuitive client API.</description>
     <hppc.version>0.9.1</hppc.version>
     <spark-streaming_2.10.version>2.1.0</spark-streaming_2.10.version>
     <assertj-core.version>3.24.2</assertj-core.version>
-    <lombok.version>1.18.28</lombok.version>
+    <lombok.version>1.18.30</lombok.version>
     <javax.annotation-api.version>1.3.2</javax.annotation-api.version>
     <jaxb-api>2.3.1</jaxb-api>
     <javax.activation.version>1.2.0</javax.activation.version>
@@ -1501,6 +1501,20 @@ flexible messaging model and an intuitive client API.</description>
         </exclusion>
       </exclusions>
     </dependency>
+    <dependency>
+      <!-- We use TestStatsProvider in many unit tests -->
+      <groupId>org.apache.bookkeeper</groupId>
+      <artifactId>bookkeeper-common</artifactId>
+      <version>${bookkeeper.version}</version>
+      <scope>test</scope>
+      <classifier>tests</classifier>
+      <exclusions>
+        <exclusion>
+          <groupId>com.fasterxml.jackson.core</groupId>
+          <artifactId>*</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
   </dependencies>
 
   <build>
@@ -2247,6 +2261,7 @@ flexible messaging model and an intuitive client API.</description>
         <module>pulsar-common</module>
         <module>pulsar-broker-common</module>
         <module>pulsar-broker</module>
+        <module>pulsar-cli-utils</module>
         <module>pulsar-client-api</module>
         <module>pulsar-client</module>
         <module>pulsar-client-admin-api</module>

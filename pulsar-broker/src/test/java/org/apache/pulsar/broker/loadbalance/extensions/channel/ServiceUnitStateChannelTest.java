@@ -60,6 +60,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -88,7 +89,6 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.TypedMessageBuilder;
 import org.apache.pulsar.client.impl.TableViewImpl;
 import org.apache.pulsar.common.policies.data.TopicType;
-import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.NotificationType;
 import org.apache.pulsar.metadata.api.coordination.LeaderElectionState;
@@ -636,7 +636,7 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         var leader = channel1.isChannelOwnerAsync().get() ? channel1 : channel2;
         validateMonitorCounters(leader,
                 0,
-                1,
+                3,
                 0,
                 0,
                 0,
@@ -747,11 +747,13 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         String broker = lookupServiceAddress1;
         channel1.publishAssignEventAsync(bundle1, broker);
         channel2.publishAssignEventAsync(bundle2, broker);
+
         waitUntilNewOwner(channel1, bundle1, broker);
         waitUntilNewOwner(channel2, bundle1, broker);
         waitUntilNewOwner(channel1, bundle2, broker);
         waitUntilNewOwner(channel2, bundle2, broker);
 
+        // Verify to transfer the ownership to the other broker.
         channel1.publishUnloadEventAsync(new Unload(broker, bundle1, Optional.of(lookupServiceAddress2)));
         waitUntilNewOwner(channel1, bundle1, lookupServiceAddress2);
         waitUntilNewOwner(channel2, bundle1, lookupServiceAddress2);
@@ -765,6 +767,8 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
                 System.currentTimeMillis() - (MAX_CLEAN_UP_DELAY_TIME_IN_SECS * 1000 + 1000), true);
         leaderChannel.handleBrokerRegistrationEvent(broker, NotificationType.Deleted);
         followerChannel.handleBrokerRegistrationEvent(broker, NotificationType.Deleted);
+        leaderChannel.handleBrokerRegistrationEvent(lookupServiceAddress2, NotificationType.Deleted);
+        followerChannel.handleBrokerRegistrationEvent(lookupServiceAddress2, NotificationType.Deleted);
 
         waitUntilNewOwner(channel1, bundle1, lookupServiceAddress2);
         waitUntilNewOwner(channel2, bundle1, lookupServiceAddress2);
@@ -780,11 +784,11 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         });
 
         validateMonitorCounters(leaderChannel,
-                1,
+                2,
                 0,
-                1,
+                3,
                 0,
-                1,
+                2,
                 0,
                 0);
 
@@ -811,11 +815,11 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         });
 
         validateMonitorCounters(leaderChannel,
-                1,
-                0,
-                1,
-                0,
                 2,
+                0,
+                3,
+                0,
+                3,
                 0,
                 0);
 
@@ -832,11 +836,11 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         });
 
         validateMonitorCounters(leaderChannel,
-                1,
-                0,
-                1,
-                0,
                 2,
+                0,
+                3,
+                0,
+                3,
                 0,
                 1);
 
@@ -854,11 +858,11 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         });
 
         validateMonitorCounters(leaderChannel,
-                1,
-                0,
-                1,
+                2,
                 0,
                 3,
+                0,
+                4,
                 0,
                 1);
 
@@ -876,11 +880,11 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         });
 
         validateMonitorCounters(leaderChannel,
-                2,
-                0,
                 3,
                 0,
-                3,
+                5,
+                0,
+                4,
                 0,
                 1);
 
@@ -905,11 +909,11 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         });
 
         validateMonitorCounters(leaderChannel,
-                2,
-                0,
                 3,
                 0,
-                3,
+                5,
+                0,
+                4,
                 1,
                 1);
 
@@ -1402,7 +1406,7 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
 
         validateMonitorCounters(leader,
                 0,
-                1,
+                3,
                 1,
                 0,
                 0,
@@ -1554,9 +1558,9 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
     }
 
 
-    private static ConcurrentOpenHashMap<String, CompletableFuture<Optional<String>>> getOwnerRequests(
+    private static ConcurrentHashMap<String, CompletableFuture<Optional<String>>> getOwnerRequests(
             ServiceUnitStateChannel channel) throws IllegalAccessException {
-        return (ConcurrentOpenHashMap<String, CompletableFuture<Optional<String>>>)
+        return (ConcurrentHashMap<String, CompletableFuture<Optional<String>>>)
                 FieldUtils.readDeclaredField(channel,
                         "getOwnerRequests", true);
     }
@@ -1573,9 +1577,9 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
                 FieldUtils.readField(channel, "lastMetadataSessionEventTimestamp", true);
     }
 
-    private static ConcurrentOpenHashMap<String, CompletableFuture<Void>> getCleanupJobs(
+    private static ConcurrentHashMap<String, CompletableFuture<Void>> getCleanupJobs(
             ServiceUnitStateChannel channel) throws IllegalAccessException {
-        return (ConcurrentOpenHashMap<String, CompletableFuture<Void>>)
+        return (ConcurrentHashMap<String, CompletableFuture<Void>>)
                 FieldUtils.readField(channel, "cleanupJobs", true);
     }
 

@@ -24,6 +24,7 @@ import com.beust.jcommander.Parameters;
 import com.google.common.collect.Sets;
 import java.util.Arrays;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 import lombok.Getter;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.admin.cli.utils.CmdUtils;
@@ -41,8 +42,18 @@ public class CmdClusters extends CmdBase {
 
     @Parameters(commandDescription = "List the existing clusters")
     private class List extends CliCommand {
+
+        @Parameter(names = { "-c", "--current" },
+                description = "Print the current cluster with (*)", required = false)
+        private boolean current = false;
+
         void run() throws PulsarAdminException {
-            print(getAdmin().clusters().getClusters());
+            java.util.List<String> clusters = getAdmin().clusters().getClusters();
+            String clusterName = getAdmin().brokers().getRuntimeConfigurations().get("clusterName");
+            final java.util.List<String> result = clusters.stream().map(c ->
+                    c.equals(clusterName) ? (current ? c + "(*)" : c) : c
+            ).collect(Collectors.toList());
+            print(result);
         }
     }
 
@@ -148,19 +159,25 @@ public class CmdClusters extends CmdBase {
         @Parameter(description = "cluster-name", required = true)
         private java.util.List<String> params;
 
-        @Parameter(names = "--migrated", description = "Is cluster migrated", required = true)
+        @Parameter(names = "--migrated", description = "Is cluster migrated")
         private boolean migrated;
 
-        @Parameter(names = "--broker-url", description = "New migrated cluster broker service url", required = false)
+        @Parameter(names = "--service-url", description = "New migrated cluster service url")
+        private String serviceUrl;
+
+        @Parameter(names = "--service-url-secure",
+                description = "New migrated cluster service url secure")
+        private String serviceUrlTls;
+
+        @Parameter(names = "--broker-url", description = "New migrated cluster broker service url")
         private String brokerServiceUrl;
 
-        @Parameter(names = "--broker-url-secure", description = "New migrated cluster broker service url secure",
-                required = false)
+        @Parameter(names = "--broker-url-secure", description = "New migrated cluster broker service url secure")
         private String brokerServiceUrlTls;
 
         void run() throws PulsarAdminException {
             String cluster = getOneArgument(params);
-            ClusterUrl clusterUrl = new ClusterUrl(brokerServiceUrl, brokerServiceUrlTls);
+            ClusterUrl clusterUrl = new ClusterUrl(serviceUrl, serviceUrlTls, brokerServiceUrl, brokerServiceUrlTls);
             getAdmin().clusters().updateClusterMigration(cluster, migrated, clusterUrl);
         }
     }

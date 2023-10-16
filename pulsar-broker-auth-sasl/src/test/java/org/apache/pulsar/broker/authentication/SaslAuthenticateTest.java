@@ -58,6 +58,7 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.impl.auth.AuthenticationSasl;
 import org.apache.pulsar.common.api.AuthData;
 import org.apache.pulsar.common.sasl.SaslConstants;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.AfterMethod;
@@ -186,7 +187,12 @@ public class SaslAuthenticateTest extends ProducerConsumerBase {
         conf.setAuthenticationProviders(providers);
         conf.setClusterName("test");
         conf.setSuperUserRoles(ImmutableSet.of("client" + "@" + kdc.getRealm()));
-
+        Map<String, String> clientSaslConfig = new HashMap<>();
+        clientSaslConfig.put("saslJaasClientSectionName", "PulsarClient");
+        clientSaslConfig.put("serverType", "broker");
+        conf.setBrokerClientAuthenticationPlugin(AuthenticationSasl.class.getName());
+        conf.setBrokerClientAuthenticationParameters(ObjectMapperFactory
+                .getMapper().getObjectMapper().writeValueAsString(clientSaslConfig));
         super.init();
 
         lookupUrl = new URI(pulsar.getWebServiceAddress());
@@ -197,9 +203,6 @@ public class SaslAuthenticateTest extends ProducerConsumerBase {
             .authentication(authSasl));
 
         // set admin auth, to verify admin web resources
-        Map<String, String> clientSaslConfig = new HashMap<>();
-        clientSaslConfig.put("saslJaasClientSectionName", "PulsarClient");
-        clientSaslConfig.put("serverType", "broker");
         log.info("set client jaas section name: PulsarClient");
         admin = PulsarAdmin.builder()
             .serviceHttpUrl(brokerUrl.toString())

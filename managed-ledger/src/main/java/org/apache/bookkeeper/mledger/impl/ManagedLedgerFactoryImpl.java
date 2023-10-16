@@ -330,7 +330,7 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
 
     @Override
     public void asyncOpen(final String name, final ManagedLedgerConfig config, final OpenLedgerCallback callback,
-            Supplier<Boolean> mlOwnershipChecker, final Object ctx) {
+            Supplier<CompletableFuture<Boolean>> mlOwnershipChecker, final Object ctx) {
         if (closed) {
             callback.openLedgerFailed(new ManagedLedgerException.ManagedLedgerFactoryClosedException(), ctx);
             return;

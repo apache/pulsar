@@ -93,6 +93,7 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
+import org.apache.pulsar.client.api.SubscriptionMode;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.ClientCnx;
 import org.apache.pulsar.client.impl.ConnectionPool;
@@ -1594,8 +1595,10 @@ public class BrokerServiceTest extends BrokerTestBase {
 
         assertTrue(brokerService.isSystemTopic(TRANSACTION_COORDINATOR_ASSIGN));
         assertTrue(brokerService.isSystemTopic(TRANSACTION_COORDINATOR_LOG));
-        NamespaceName heartbeatNamespaceV1 = NamespaceService.getHeartbeatNamespace(pulsar.getAdvertisedAddress(), pulsar.getConfig());
-        NamespaceName heartbeatNamespaceV2 = NamespaceService.getHeartbeatNamespaceV2(pulsar.getAdvertisedAddress(), pulsar.getConfig());
+        NamespaceName heartbeatNamespaceV1 = NamespaceService
+                .getHeartbeatNamespace(pulsar.getLookupServiceAddress(), pulsar.getConfig());
+        NamespaceName heartbeatNamespaceV2 = NamespaceService
+                .getHeartbeatNamespaceV2(pulsar.getLookupServiceAddress(), pulsar.getConfig());
         assertTrue(brokerService.isSystemTopic("persistent://" + heartbeatNamespaceV1.toString() + "/healthcheck"));
         assertTrue(brokerService.isSystemTopic(heartbeatNamespaceV2.toString() + "/healthcheck"));
     }
@@ -1757,5 +1760,39 @@ public class BrokerServiceTest extends BrokerTestBase {
         consumer1.acknowledge(message);
         assertEquals(admin.topics().getStats(topicName).getSubscriptions()
                 .get("sub-1").getUnackedMessages(), 0);
+    }
+
+    @Test
+    public void testUnsubscribeNonDurableSub() throws Exception {
+        final String ns = "prop/ns-test";
+        final String topic = ns + "/testUnsubscribeNonDurableSub";
+
+        admin.namespaces().createNamespace(ns, 2);
+        admin.topics().createPartitionedTopic(String.format("persistent://%s", topic), 1);
+
+        pulsarClient.newProducer(Schema.STRING).topic(topic).create().close();
+        @Cleanup
+        Consumer<String> consumer = pulsarClient
+                .newConsumer(Schema.STRING)
+                .topic(topic)
+                .subscriptionMode(SubscriptionMode.NonDurable)
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                .subscriptionName("sub1")
+                .subscriptionType(SubscriptionType.Shared)
+                .subscribe();
+        try {
+            consumer.unsubscribe();
+        } catch (Exception ex) {
+            fail("Unsubscribe failed");
+        }
+    }
+
+    @Test
+    public void testGetLookupServiceAddress() throws Exception {
+        cleanup();
+        setup();
+        conf.setWebServicePortTls(Optional.of(8081));
+        assertEquals(pulsar.getLookupServiceAddress(), "localhost:8081");
+        resetState();
     }
 }

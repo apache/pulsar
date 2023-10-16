@@ -62,6 +62,7 @@ import org.apache.pulsar.common.protocol.ByteBufPair;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.Commands.ChecksumType;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.awaitility.Awaitility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
@@ -319,15 +320,29 @@ public class MessageChunkingTest extends ProducerConsumerBase {
         msg.send();
     }
 
+    /**
+     * This test used to test the consumer configuration of maxPendingChunkedMessage.
+     * If we set maxPendingChunkedMessage is 1 that means only one incomplete chunk message can be store in this
+     * consumer.
+     * For example:
+     * ChunkMessage1 chunk-1: uuid = 0, chunkId = 0, totalChunk = 2;
+     * ChunkMessage2 chunk-1: uuid = 1, chunkId = 0, totalChunk = 2;
+     * ChunkMessage2 chunk-2: uuid = 1, chunkId = 1, totalChunk = 2;
+     * ChunkMessage1 chunk-2: uuid = 0, chunkId = 1, totalChunk = 2;
+     * The chunk-1 in the ChunkMessage1 and ChunkMessage2 all is incomplete.
+     * chunk-1 in the ChunkMessage1 will be discarded and acked when receive the chunk-1 in the ChunkMessage2.
+     * If ack ChunkMessage2 and redeliver unacknowledged messages, the consumer can not receive any message again.
+     * @throws Exception
+     */
     @Test
     public void testMaxPendingChunkMessages() throws Exception {
         log.info("-- Starting {} test --", methodName);
         final String topicName = "persistent://my-property/my-ns/maxPending";
-
+        final String subName = "my-subscriber-name";
         @Cleanup
         Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
                 .topic(topicName)
-                .subscriptionName("my-subscriber-name")
+                .subscriptionName(subName)
                 .maxPendingChunkedMessage(1)
                 .autoAckOldestChunkedMessageOnQueueFull(true)
                 .subscribe();
@@ -348,12 +363,46 @@ public class MessageChunkingTest extends ProducerConsumerBase {
         assertEquals(receivedMsg.getValue(), "chunk-1-0|chunk-1-1|");
 
         consumer.acknowledge(receivedMsg);
+        Awaitility.await().untilAsserted(() -> assertEquals(admin.topics().getStats(topicName)
+                .getSubscriptions().get(subName).getNonContiguousDeletedMessagesRanges(), 0));
         consumer.redeliverUnacknowledgedMessages();
 
         sendSingleChunk(producer, "0", 1, 2);
 
         // Ensure that the chunked message of uuid 0 is discarded.
         assertNull(consumer.receive(5, TimeUnit.SECONDS));
+    }
+
+    @Test
+    public void testResendChunkMessagesWithoutAckHole() throws Exception {
+        log.info("-- Starting {} test --", methodName);
+        final String topicName = "persistent://my-property/my-ns/testResendChunkMessagesWithoutAckHole";
+        final String subName = "my-subscriber-name";
+        @Cleanup
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topicName)
+                .subscriptionName(subName)
+                .maxPendingChunkedMessage(10)
+                .autoAckOldestChunkedMessageOnQueueFull(true)
+                .subscribe();
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topicName)
+                .chunkMaxMessageSize(100)
+                .enableChunking(true)
+                .enableBatching(false)
+                .create();
+
+        sendSingleChunk(producer, "0", 0, 2);
+
+        sendSingleChunk(producer, "0", 0, 2); // Resending the first chunk
+        sendSingleChunk(producer, "0", 1, 2);
+
+        Message<String> receivedMsg = consumer.receive(5, TimeUnit.SECONDS);
+        assertEquals(receivedMsg.getValue(), "chunk-0-0|chunk-0-1|");
+        consumer.acknowledge(receivedMsg);
+        assertEquals(admin.topics().getStats(topicName).getSubscriptions().get(subName)
+                .getNonContiguousDeletedMessagesRanges(), 0);
     }
 
     @Test
@@ -395,6 +444,7 @@ public class MessageChunkingTest extends ProducerConsumerBase {
         receivedMsg = consumer.receive(5, TimeUnit.SECONDS);
         assertEquals(receivedMsg.getValue(), "chunk-1-0|chunk-1-1|chunk-1-2|");
         consumer.acknowledge(receivedMsg);
+        Assert.assertEquals(((ConsumerImpl<String>) consumer).getAvailablePermits(), 8);
     }
 
     /**

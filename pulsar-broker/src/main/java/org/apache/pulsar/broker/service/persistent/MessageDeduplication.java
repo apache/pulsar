@@ -56,6 +56,8 @@ public class MessageDeduplication {
     private final ManagedLedger managedLedger;
     private ManagedCursor managedCursor;
 
+    private static final String IS_LAST_CHUNK = "isLastChunk";
+
     enum Status {
 
         // Deduplication is initialized
@@ -328,11 +330,12 @@ public class MessageDeduplication {
         String producerName = publishContext.getProducerName();
         long sequenceId = publishContext.getSequenceId();
         long highestSequenceId = Math.max(publishContext.getHighestSequenceId(), sequenceId);
+        MessageMetadata md = null;
         if (producerName.startsWith(replicatorPrefix)) {
             // Message is coming from replication, we need to use the original producer name and sequence id
             // for the purpose of deduplication and not rely on the "replicator" name.
             int readerIndex = headersAndPayload.readerIndex();
-            MessageMetadata md = Commands.parseMessageMetadata(headersAndPayload);
+            md = Commands.parseMessageMetadata(headersAndPayload);
             producerName = md.getProducerName();
             sequenceId = md.getSequenceId();
             highestSequenceId = Math.max(md.getHighestSequenceId(), sequenceId);
@@ -341,7 +344,23 @@ public class MessageDeduplication {
             publishContext.setOriginalHighestSequenceId(highestSequenceId);
             headersAndPayload.readerIndex(readerIndex);
         }
-
+        long chunkID = -1;
+        long totalChunk = -1;
+        if (publishContext.isChunked()) {
+            if (md == null) {
+                int readerIndex = headersAndPayload.readerIndex();
+                md = Commands.parseMessageMetadata(headersAndPayload);
+                headersAndPayload.readerIndex(readerIndex);
+            }
+            chunkID = md.getChunkId();
+            totalChunk = md.getNumChunksFromMsg();
+        }
+        // All chunks of a message use the same message metadata and sequence ID,
+        // so we only need to check the sequence ID for the last chunk in a chunk message.
+        if (chunkID != -1 && chunkID != totalChunk - 1) {
+            publishContext.setProperty(IS_LAST_CHUNK, Boolean.FALSE);
+            return MessageDupStatus.NotDup;
+        }
         // Synchronize the get() and subsequent put() on the map. This would only be relevant if the producer
         // disconnects and re-connects very quickly. At that point the call can be coming from a different thread
         synchronized (highestSequencedPushed) {
@@ -367,6 +386,11 @@ public class MessageDeduplication {
             }
             highestSequencedPushed.put(producerName, highestSequenceId);
         }
+        // Only put sequence ID into highestSequencedPushed and
+        // highestSequencedPersisted until receive and persistent the last chunk.
+        if (chunkID != -1 && chunkID == totalChunk - 1) {
+            publishContext.setProperty(IS_LAST_CHUNK, Boolean.TRUE);
+        }
         return MessageDupStatus.NotDup;
     }
 
@@ -387,8 +411,10 @@ public class MessageDeduplication {
             sequenceId = publishContext.getOriginalSequenceId();
             highestSequenceId = publishContext.getOriginalHighestSequenceId();
         }
-
-        highestSequencedPersisted.put(producerName, Math.max(highestSequenceId, sequenceId));
+        Boolean isLastChunk = (Boolean) publishContext.getProperty(IS_LAST_CHUNK);
+        if (isLastChunk == null || isLastChunk) {
+            highestSequencedPersisted.put(producerName, Math.max(highestSequenceId, sequenceId));
+        }
         if (++snapshotCounter >= snapshotInterval) {
             snapshotCounter = 0;
             takeSnapshot(position);
