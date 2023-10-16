@@ -79,16 +79,17 @@ public class LoadBalanceResources {
             super(store, TimeAverageBrokerData.class, operationTimeoutSec);
         }
 
-        public CompletableFuture<Void> updateTimeAverageBrokerData(String broker, TimeAverageBrokerData data) {
-            return setWithCreateAsync(getTimeAverageBrokerData(broker), __ -> data);
+        public CompletableFuture<Void> updateTimeAverageBrokerData(String brokerLookupAddress,
+                TimeAverageBrokerData data) {
+            return setWithCreateAsync(getTimeAverageBrokerDataPath(brokerLookupAddress), __ -> data);
         }
 
-        public CompletableFuture<Void> deleteTimeAverageBrokerData(String broker) {
-            return deleteAsync(getTimeAverageBrokerData(broker));
+        public CompletableFuture<Void> deleteTimeAverageBrokerData(String brokerLookupAddress) {
+            return deleteAsync(getTimeAverageBrokerDataPath(brokerLookupAddress));
         }
 
-        private String getTimeAverageBrokerData(final String broker) {
-            return BROKER_TIME_AVERAGE_BASE_PATH + "/" + broker;
+        private String getTimeAverageBrokerDataPath(final String brokerLookupAddress) {
+            return BROKER_TIME_AVERAGE_BASE_PATH + "/" + brokerLookupAddress;
         }
     }
 }
