@@ -25,13 +25,13 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
-
+import com.google.common.collect.Sets;
 import java.lang.reflect.Method;
 import java.net.URL;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
-
+import lombok.Cleanup;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
@@ -54,10 +54,6 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
-
-import com.google.common.collect.Sets;
-
-import lombok.Cleanup;
 
 @Test(groups = "broker")
 public class ClusterMigrationTest {
@@ -459,7 +455,7 @@ public class ClusterMigrationTest {
         assertEquals(topic1.getReplicators().size(), 1);
 
        // stop service in the replication cluster to build replication backlog
-        broker3.cleanup();
+        broker3.stop();
         retryStrategically((test) -> broker3.getPulsarService() == null, 10, 1000);
         assertNull(pulsar3.getBrokerService());
 
@@ -529,7 +525,7 @@ public class ClusterMigrationTest {
     /**
      * This test validates that blue cluster first creates list of subscriptions into green cluster so, green cluster
      * will not lose the data if producer migrates.
-     * 
+     *
      * @throws Exception
      */
     @Test
@@ -928,7 +924,7 @@ public class ClusterMigrationTest {
         assertEquals(blueTopicNs2.getReplicators().size(), 1);
 
         // stop service in the replication cluster to build replication backlog
-        broker3.cleanup();
+        broker3.stop();
         retryStrategically((test) -> broker3.getPulsarService() == null, 10, 1000);
         assertNull(pulsar3.getBrokerService());
 
@@ -1063,9 +1059,13 @@ public class ClusterMigrationTest {
             return configClusterName;
         }
 
+        public void stop() throws Exception {
+            stopBroker();
+        }
+
         @Override
         protected void cleanup() throws Exception {
-            stopBroker();
+            internalCleanup();
         }
 
         public void restart() throws Exception {
