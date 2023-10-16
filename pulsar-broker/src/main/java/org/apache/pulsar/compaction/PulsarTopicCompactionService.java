@@ -114,11 +114,7 @@ public class PulsarTopicCompactionService implements TopicCompactionService {
     @Override
     public CompletableFuture<Entry> findEntryByPublishTime(long publishTime) {
         final Predicate<Entry> predicate = entry -> {
-            try {
-                return Commands.parseMessageMetadata(entry.getDataBuffer()).getPublishTime() >= publishTime;
-            } finally {
-                entry.release();
-            }
+            return Commands.parseMessageMetadata(entry.getDataBuffer()).getPublishTime() >= publishTime;
         };
         return findFirstMatchEntry(predicate);
     }
@@ -126,16 +122,11 @@ public class PulsarTopicCompactionService implements TopicCompactionService {
     @Override
     public CompletableFuture<Entry> findEntryByEntryIndex(long entryIndex) {
         final Predicate<Entry> predicate = entry -> {
-            try {
-                BrokerEntryMetadata brokerEntryMetadata =
-                        Commands.parseBrokerEntryMetadataIfExist(entry.getDataBuffer());
-                if (brokerEntryMetadata == null || !brokerEntryMetadata.hasIndex()) {
-                    return false;
-                }
-                return brokerEntryMetadata.getIndex() >= entryIndex;
-            } finally {
-                entry.release();
+            BrokerEntryMetadata brokerEntryMetadata = Commands.parseBrokerEntryMetadataIfExist(entry.getDataBuffer());
+            if (brokerEntryMetadata == null || !brokerEntryMetadata.hasIndex()) {
+                return false;
             }
+            return brokerEntryMetadata.getIndex() >= entryIndex;
         };
         return findFirstMatchEntry(predicate);
     }
@@ -170,9 +161,16 @@ public class PulsarTopicCompactionService implements TopicCompactionService {
         }
 
         long mid = (start + end) / 2;
-        CompactedTopicImpl.readEntries(lh, mid, mid).thenAccept(entries -> {
+        readEntries(lh, mid, mid).thenAccept(entries -> {
             Entry entry = entries.get(0);
-            if (predicate.test(entry)) {
+            final boolean isMatch;
+            try {
+                isMatch = predicate.test(entry);
+            } finally {
+                entry.release();
+            }
+
+            if (isMatch) {
                 findFirstMatchIndexLoop(predicate, start, mid - 1, promise, mid, lh);
             } else {
                 findFirstMatchIndexLoop(predicate, mid + 1, end, promise, lastMatchIndex, lh);
