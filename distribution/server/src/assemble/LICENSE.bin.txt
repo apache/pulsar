@@ -491,8 +491,8 @@ The Apache Software License, Version 2.0
     - net.jodah-typetools-0.5.0.jar
     - net.jodah-failsafe-2.4.4.jar
   * Apache Avro
-    - org.apache.avro-avro-1.10.2.jar
-    - org.apache.avro-avro-protobuf-1.10.2.jar
+    - org.apache.avro-avro-1.11.3.jar
+    - org.apache.avro-avro-protobuf-1.11.3.jar
   * Apache Curator
     - org.apache.curator-curator-client-5.1.0.jar
     - org.apache.curator-curator-framework-5.1.0.jar
