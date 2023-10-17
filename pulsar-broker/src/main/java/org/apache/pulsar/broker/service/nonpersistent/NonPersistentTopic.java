@@ -236,6 +236,11 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
     }
 
     @Override
+    public boolean shouldProducerMigrate() {
+        return true;
+    }
+
+    @Override
     public boolean isReplicationBacklogExist() {
         return false;
     }

@@ -174,7 +174,6 @@ public class PulsarWorkerAssignmentTest {
         workerConfig.setTopicCompactionFrequencySec(1);
 
         PulsarWorkerService workerService = new PulsarWorkerService();
-        workerService.init(workerConfig, null, false);
         return workerService;
     }
 

@@ -25,13 +25,13 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
-
+import com.google.common.collect.Sets;
 import java.lang.reflect.Method;
 import java.net.URL;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
-
+import lombok.Cleanup;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
@@ -54,10 +54,6 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
-
-import com.google.common.collect.Sets;
-
-import lombok.Cleanup;
 
 @Test(groups = "broker")
 public class ClusterMigrationTest {
@@ -232,9 +228,13 @@ public class ClusterMigrationTest {
     protected void cleanup() throws Exception {
         log.info("--- Shutting down ---");
         broker1.cleanup();
+        admin1.close();
         broker2.cleanup();
+        admin2.close();
         broker3.cleanup();
+        admin3.close();
         broker4.cleanup();
+        admin4.close();
     }
 
     @BeforeMethod(alwaysRun = true)
@@ -309,7 +309,6 @@ public class ClusterMigrationTest {
             return false;
         }, 10, 500);
 
-
         topic1.checkClusterMigration().get();
 
         log.info("before sending message");
@@ -368,8 +367,8 @@ public class ClusterMigrationTest {
         String newTopicName = topicName + "-new";
         consumerM = client1.newConsumer().topic(newTopicName).subscriptionType(subType)
                 .subscriptionName("sM").subscribe();
-        retryStrategically((t) -> pulsar1.getBrokerService().getTopicReference(newTopicName).isPresent(), 5, 100);
-        pulsar1.getBrokerService().getTopicReference(newTopicName).get().checkClusterMigration().get();
+        retryStrategically((t) -> pulsar2.getBrokerService().getTopicReference(newTopicName).isPresent(), 5, 100);
+        pulsar2.getBrokerService().getTopicReference(newTopicName).get().checkClusterMigration().get();
         retryStrategically((t) ->
         pulsar2.getBrokerService().getTopicReference(newTopicName).isPresent() &&
         pulsar2.getBrokerService().getTopicReference(newTopicName).get().getSubscription("sM")
@@ -398,7 +397,7 @@ public class ClusterMigrationTest {
                 .subscriptionName("s1-d").subscribe();
         Producer<byte[]> producerDiff = client1.newProducer().topic(diffTopic).enableBatching(false)
                 .producerName("cluster1-d").messageRoutingMode(MessageRoutingMode.SinglePartition).create();
-        AbstractTopic topicDiff = (AbstractTopic) pulsar1.getBrokerService().getTopic(diffTopic, false).getNow(null).get();
+        AbstractTopic topicDiff = (AbstractTopic) pulsar2.getBrokerService().getTopic(diffTopic, false).getNow(null).get();
         assertNotNull(topicDiff);
         for (int i = 0; i < n; i++) {
             producerDiff.send("diff".getBytes());
@@ -459,7 +458,7 @@ public class ClusterMigrationTest {
         assertEquals(topic1.getReplicators().size(), 1);
 
        // stop service in the replication cluster to build replication backlog
-        broker3.cleanup();
+        broker3.stop();
         retryStrategically((test) -> broker3.getPulsarService() == null, 10, 1000);
         assertNull(pulsar3.getBrokerService());
 
@@ -521,15 +520,18 @@ public class ClusterMigrationTest {
         retryStrategically((test) -> !topic1.isReplicationBacklogExist(), 10, 1000);
         assertFalse(topic1.isReplicationBacklogExist());
 
-        producer1.send("test".getBytes());
         // verify that the producer1 is now connected to migrated cluster "r2" since backlog is cleared.
+        topic1.checkClusterMigration().get();
+
+        // verify that the producer1 is now is now connected to migrated cluster "r2" since backlog is cleared.
+        retryStrategically((test) -> topic2.getProducers().size()==2, 10, 500);
         assertEquals(topic2.getProducers().size(), 2);
     }
 
     /**
      * This test validates that blue cluster first creates list of subscriptions into green cluster so, green cluster
      * will not lose the data if producer migrates.
-     * 
+     *
      * @throws Exception
      */
     @Test
@@ -603,6 +605,39 @@ public class ClusterMigrationTest {
 
         consumer1.close();
         producer1.close();
+
+        // publish to new topic which should be redirected immediately
+        String newTopic = topicName+"-new";
+        producer1 = client1.newProducer().topic(newTopic).enableBatching(false)
+                .producerName("cluster1-1").messageRoutingMode(MessageRoutingMode.SinglePartition).create();
+        retryStrategically((test) -> {
+            try {
+                pulsar2.getBrokerService().getTopic(newTopic, false).getNow(null).get();
+                return true;
+            } catch (Exception e) {
+                // ok
+            }
+            return false;
+        }, 10, 500);
+        PersistentTopic pulsar2Topic = (PersistentTopic) pulsar2.getBrokerService().getTopic(newTopic, false).getNow(null)
+                .get();
+        retryStrategically((test) -> {
+            try {
+                return !pulsar2Topic.getProducers().isEmpty();
+            } catch (Exception e) {
+                return false;
+            }
+        }, 10, 500);
+        assertFalse(pulsar2Topic.getProducers().isEmpty());
+        consumer1 = client1.newConsumer().topic(newTopic).subscriptionName("s1").subscribe();
+        retryStrategically((test) -> {
+            try {
+                return !pulsar2Topic.getSubscription("s1").getConsumers().isEmpty();
+            } catch (Exception e) {
+                return false;
+            }
+        }, 10, 500);
+        assertFalse(pulsar2Topic.getSubscription("s1").getConsumers().isEmpty());
     }
 
     @Test(dataProvider = "NamespaceMigrationTopicSubscriptionTypes")
@@ -803,7 +838,7 @@ public class ClusterMigrationTest {
         consumerM = client1.newConsumer().topic(newTopicName).subscriptionType(subType)
                 .subscriptionName("sM").subscribe();
         retryStrategically((t) -> pulsar1.getBrokerService().getTopicReference(newTopicName).isPresent(), 5, 100);
-        pulsar1.getBrokerService().getTopicReference(newTopicName).get().checkClusterMigration().get();
+        pulsar2.getBrokerService().getTopicReference(newTopicName).get().checkClusterMigration().get();
         retryStrategically((t) ->
                 pulsar2.getBrokerService().getTopicReference(newTopicName).isPresent() &&
                         pulsar2.getBrokerService().getTopicReference(newTopicName).get().getSubscription("sM")
@@ -832,7 +867,7 @@ public class ClusterMigrationTest {
                 .subscriptionName("s1-d").subscribe();
         Producer<byte[]> producerDiff = client1.newProducer().topic(diffTopic).enableBatching(false)
                 .producerName("cluster1-d").messageRoutingMode(MessageRoutingMode.SinglePartition).create();
-        AbstractTopic topicDiff = (AbstractTopic) pulsar1.getBrokerService().getTopic(diffTopic, false).getNow(null).get();
+        AbstractTopic topicDiff = (AbstractTopic) pulsar2.getBrokerService().getTopic(diffTopic, false).getNow(null).get();
         assertNotNull(topicDiff);
         for (int i = 0; i < n; i++) {
             producerDiff.send("diff".getBytes());
@@ -928,7 +963,7 @@ public class ClusterMigrationTest {
         assertEquals(blueTopicNs2.getReplicators().size(), 1);
 
         // stop service in the replication cluster to build replication backlog
-        broker3.cleanup();
+        broker3.stop();
         retryStrategically((test) -> broker3.getPulsarService() == null, 10, 1000);
         assertNull(pulsar3.getBrokerService());
 
@@ -1013,6 +1048,9 @@ public class ClusterMigrationTest {
         retryStrategically((test) -> !blueTopicNs2.isReplicationBacklogExist(), 10, 1000);
         assertFalse(blueTopicNs2.isReplicationBacklogExist());
 
+        blueTopicNs1.checkClusterMigration().get();
+        blueTopicNs2.checkClusterMigration().get();
+
         // verify that the producer1 is now is now connected to migrated cluster green since backlog is cleared.
         retryStrategically((test) -> greenTopicNs1.getProducers().size()==2, 10, 500);
         assertEquals(greenTopicNs1.getProducers().size(), 2);
@@ -1063,9 +1101,13 @@ public class ClusterMigrationTest {
             return configClusterName;
         }
 
+        public void stop() throws Exception {
+            stopBroker();
+        }
+
         @Override
         protected void cleanup() throws Exception {
-            stopBroker();
+            internalCleanup();
         }
 
         public void restart() throws Exception {
