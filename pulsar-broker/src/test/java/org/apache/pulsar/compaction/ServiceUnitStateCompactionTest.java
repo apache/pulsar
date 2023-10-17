@@ -168,7 +168,7 @@ public class ServiceUnitStateCompactionTest extends MockedPulsarServiceBaseTest 
     @Override
     public void cleanup() throws Exception {
         super.internalCleanup();
-
+        bk.close();
         if (compactionScheduler != null) {
             compactionScheduler.shutdownNow();
         }
