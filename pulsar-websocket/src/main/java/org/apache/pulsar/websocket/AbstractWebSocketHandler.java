@@ -75,10 +75,6 @@ public abstract class AbstractWebSocketHandler extends WebSocketAdapter implemen
 
     private ScheduledFuture<?> pingFuture;
 
-    protected String topicsPattern;
-
-    protected String topics;
-
     public AbstractWebSocketHandler(WebSocketService service,
                                     HttpServletRequest request,
                                     ServletUpgradeResponse response) {
@@ -292,7 +288,6 @@ public abstract class AbstractWebSocketHandler extends WebSocketAdapter implemen
         final String name = Codec.decode(topicName.toString());
 
         topic = TopicName.get(domain, namespace, name);
-        topics = topic.toString();
     }
 
     @VisibleForTesting

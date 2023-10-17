@@ -320,8 +320,8 @@ public class ProxyServiceStarter {
             server.addServlet(WebSocketReaderServlet.SERVLET_PATH_V2,
                     new ServletHolder(readerWebSocketServlet));
 
-            final WebSocketMultiTopicConsumerServlet multiTopicConsumerWebSocketServlet
-                    = new WebSocketMultiTopicConsumerServlet(webSocketService);
+            final WebSocketMultiTopicConsumerServlet multiTopicConsumerWebSocketServlet =
+                    new WebSocketMultiTopicConsumerServlet(webSocketService);
             server.addServlet(WebSocketMultiTopicConsumerServlet.SERVLET_PATH,
                     new ServletHolder(multiTopicConsumerWebSocketServlet));
         }

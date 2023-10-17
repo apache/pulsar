@@ -85,6 +85,10 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
     private final LongAdder numBytesDelivered;
     private final LongAdder numMsgsAcked;
     private volatile long msgDeliveredCounter = 0;
+
+    protected String topicsPattern;
+
+    protected String topics;
     private static final AtomicLongFieldUpdater<ConsumerHandler> MSG_DELIVERED_COUNTER_UPDATER =
             AtomicLongFieldUpdater.newUpdater(ConsumerHandler.class, "msgDeliveredCounter");
 
@@ -122,9 +126,11 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
 
             if (topicsPattern != null) {
                 this.consumer = builder.topicsPattern(topicsPattern).subscriptionName(subscription).subscribe();
-            } else {
+            } else if (topics != null) {
                 this.consumer = builder.topics(Splitter.on(",").splitToList(topics))
                         .subscriptionName(subscription).subscribe();
+            } else {
+                this.consumer = builder.topic(topic.toString()).subscriptionName(subscription).subscribe();
             }
             if (!this.service.addConsumer(this)) {
                 log.warn("[{}:{}] Failed to add consumer handler for topic {}", request.getRemoteAddr(),

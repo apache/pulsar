@@ -27,15 +27,7 @@ import org.apache.pulsar.common.util.Codec;
 import org.eclipse.jetty.websocket.servlet.ServletUpgradeResponse;
 
 /**
- *
- * WebSocket end-point url handler to handle incoming receive and acknowledge requests.
- * <p>
- * <b>receive:</b> socket-proxy keeps pushing messages to client by writing into session. However, it dispatches N
- * messages at any point and after that on acknowledgement from client it dispatches further messages. <br/>
- * <b>acknowledge:</b> it accepts acknowledgement for a given message from client and send it to broker. and for next
- * action it notifies receive to dispatch further messages to client.
- * </P>
- *
+ * Subscribing for multi-topic.
  */
 public class MultiTopicConsumerHandler extends ConsumerHandler {
 
@@ -62,7 +54,7 @@ public class MultiTopicConsumerHandler extends ConsumerHandler {
         if (topicsPattern != null) {
             topic = TopicName.get(topicsPattern);
         } else {
-            //当有多个topics时，
+            // Multi topics only use the first topic name，
             topic = TopicName.get(Splitter.on(",").splitToList(topics).get(0));
         }
     }
