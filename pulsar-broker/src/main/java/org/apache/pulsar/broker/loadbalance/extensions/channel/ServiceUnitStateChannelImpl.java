@@ -848,7 +848,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         } finally {
             var future = requested.getValue();
             if (future != null) {
-                future.orTimeout(inFlightStateWaitingTimeInMillis * 2, TimeUnit.MILLISECONDS)
+                future.orTimeout(inFlightStateWaitingTimeInMillis + 5 * 1000, TimeUnit.MILLISECONDS)
                         .whenComplete((v, e) -> {
                                     if (e != null) {
                                         getOwnerRequests.remove(serviceUnit, future);
