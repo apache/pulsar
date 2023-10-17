@@ -1079,8 +1079,8 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             webService.addServlet(WebSocketReaderServlet.SERVLET_PATH_V2,
                     new ServletHolder(readerWebSocketServlet), true, attributeMap);
 
-            final WebSocketMultiTopicConsumerServlet multiTopicConsumerWebSocketServlet
-                    = new WebSocketMultiTopicConsumerServlet(webSocketService);
+            final WebSocketMultiTopicConsumerServlet multiTopicConsumerWebSocketServlet =
+                    new WebSocketMultiTopicConsumerServlet(webSocketService);
             webService.addServlet(WebSocketMultiTopicConsumerServlet.SERVLET_PATH,
                     new ServletHolder(multiTopicConsumerWebSocketServlet), true, attributeMap);
         }
