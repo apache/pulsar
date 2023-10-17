@@ -214,7 +214,7 @@ public class ElasticSearchSink implements Sink<GenericObject> {
 
             String id = null;
             if (!elasticSearchConfig.isKeyIgnore() && key != null) {
-                if (keySchema != null) {
+                if (keySchema != null){
                     id = stringifyKey(keySchema, key);
                 } else {
                     id = key.toString();
