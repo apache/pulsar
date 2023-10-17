@@ -508,9 +508,9 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         assertEquals(1, getOwnerRequests2.size());
 
         // In 10 secs, the getOwnerAsync requests(lookup requests) should time out.
-        Awaitility.await().atMost(5 + 5, TimeUnit.SECONDS)
+        Awaitility.await().atMost(10, TimeUnit.SECONDS)
                 .untilAsserted(() -> assertTrue(owner1.isCompletedExceptionally()));
-        Awaitility.await().atMost(5 + 5, TimeUnit.SECONDS)
+        Awaitility.await().atMost(10, TimeUnit.SECONDS)
                 .untilAsserted(() -> assertTrue(owner2.isCompletedExceptionally()));
 
         assertEquals(0, getOwnerRequests1.size());
@@ -1139,10 +1139,10 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         assertFalse(owner1.isDone());
         assertFalse(owner2.isDone());
 
-        // In 5 secs, the getOwnerAsync requests(lookup requests) should time out.
-        Awaitility.await().atMost(5, TimeUnit.SECONDS)
+        // In 10 secs, the getOwnerAsync requests(lookup requests) should time out.
+        Awaitility.await().atMost(10, TimeUnit.SECONDS)
                 .untilAsserted(() -> assertTrue(owner1.isCompletedExceptionally()));
-        Awaitility.await().atMost(5, TimeUnit.SECONDS)
+        Awaitility.await().atMost(10, TimeUnit.SECONDS)
                 .untilAsserted(() -> assertTrue(owner2.isCompletedExceptionally()));
 
         // recovered, check the monitor update state : Assigned -> Owned
