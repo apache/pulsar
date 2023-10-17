@@ -355,11 +355,11 @@ public class ElasticBulkProcessor implements BulkProcessor {
 
         private List<BulkOperationRequest> convertBulkRequest(BulkRequest bulkRequest) {
             return bulkRequest.operations().stream().map(op -> {
-                BulkOperationWithPulsarRecord opWithRecord = (BulkOperationWithPulsarRecord) op;
-                return BulkOperationRequest.builder()
-                        .pulsarRecord(opWithRecord.getPulsarRecord())
-                        .build();
-            }).collect(Collectors.toList());
+                        BulkOperationWithPulsarRecord opWithRecord = (BulkOperationWithPulsarRecord) op;
+                        return BulkOperationRequest.builder()
+                                .pulsarRecord(opWithRecord.getPulsarRecord())
+                                .build();
+                    }).collect(Collectors.toList());
         }
 
         private List<BulkOperationResult> convertBulkResponse(BulkResponse bulkResponse) {

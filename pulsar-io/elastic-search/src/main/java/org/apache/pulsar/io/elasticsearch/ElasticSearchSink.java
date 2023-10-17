@@ -277,7 +277,7 @@ public class ElasticSearchSink implements Sink<GenericObject> {
             }
             doc = sanitizeValue(doc);
             return Pair.of(id, doc);
-        } else {
+    } else {
             Message message = record.getMessage().orElse(null);
             final String rawData;
             if (message != null) {
@@ -286,7 +286,7 @@ public class ElasticSearchSink implements Sink<GenericObject> {
                 GenericObject recordObject = getGenericObjectFromRecord(record);
                 rawData = stringifyValue(record.getSchema(), recordObject);
             }
-            if (rawData == null || rawData.length() == 0) {
+            if (rawData == null || rawData.length() == 0){
                 throw new IllegalArgumentException("Record does not carry message information.");
             }
             String key = elasticSearchConfig.isKeyIgnore() ? null : record.getKey().map(Object::toString).orElse(null);
@@ -294,11 +294,11 @@ public class ElasticSearchSink implements Sink<GenericObject> {
         }
     }
 
-    private GenericObject getGenericObjectFromRecord(Record record) {
+    private GenericObject getGenericObjectFromRecord(Record record){
         if (record.getValue() == null) {
             return null;
         }
-        if (record.getValue() instanceof GenericObject) {
+        if (record.getValue() instanceof GenericObject){
             return (GenericObject) record.getValue();
         }
         return new GenericObject() {
