@@ -301,7 +301,6 @@ public abstract class AbstractPulsarE2ETest {
         workerConfig.setAuthorizationEnabled(true);
 
         PulsarWorkerService workerService = new PulsarWorkerService();
-        workerService.init(workerConfig, null, false);
         return workerService;
     }
 }
