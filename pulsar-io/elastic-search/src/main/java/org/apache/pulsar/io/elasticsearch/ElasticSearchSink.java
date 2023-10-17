@@ -126,25 +126,6 @@ public class ElasticSearchSink implements Sink<GenericObject> {
                             }
                         }
                         break;
-                        case IGNORE:
-                            break;
-                            elasticsearchClient.failed(
-                                    new PulsarClientException.InvalidMessageException("Unexpected null message value"));
-                            throw elasticsearchClient.irrecoverableError.get();
-                    }
-                } else {
-                    if (elasticSearchConfig.isBulkEnabled()) {
-                        switch (elasticSearchConfig.getIndexType()) {
-                            case INDEX -> elasticsearchClient.bulkIndex(record, idAndDoc);
-                            case DATA_STREAM -> elasticsearchClient.bulkCreate(record, idAndDoc);
-                        }
-                    } else {
-                        elasticsearchClient.indexDocument(record, idAndDoc);
-                    }
-                }
-            } catch (JsonProcessingException jsonProcessingException) {
-                switch (elasticSearchConfig.getMalformedDocAction()) {
-                        case FAIL:
                     case IGNORE:
                         break;
                     case FAIL:
