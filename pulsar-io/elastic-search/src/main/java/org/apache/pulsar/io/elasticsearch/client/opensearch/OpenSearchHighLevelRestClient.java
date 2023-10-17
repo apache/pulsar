@@ -295,7 +295,7 @@ public class OpenSearchHighLevelRestClient extends RestClient implements BulkPro
     }
 
     @Override
-    public void appendCreateRequest(BulkCreateRequest request) throws IOException {
+    public void appendCreateRequest(BulkProcessor.BulkCreateRequest request) throws IOException {
         IndexRequest indexRequest = new IndexRequestWithPulsarRecord(request.getIndex(), request.getRecord());
         if (!Strings.isNullOrEmpty(request.getDocumentId())) {
             indexRequest.id(request.getDocumentId());
