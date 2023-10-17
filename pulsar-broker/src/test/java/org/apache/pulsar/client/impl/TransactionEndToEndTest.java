@@ -19,8 +19,8 @@
 package org.apache.pulsar.client.impl;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.ArgumentMatchers.anyObject;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.testng.Assert.assertEquals;
@@ -1417,7 +1417,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
         CompletableFuture<ProducerResponse> completableFuture = new CompletableFuture<>();
         completableFuture.complete(new ProducerResponse("test", 1,
                 "1".getBytes(), Optional.of(30L)));
-        doReturn(completableFuture).when(cnx).sendRequestWithId(anyObject(), anyLong());
+        doReturn(completableFuture).when(cnx).sendRequestWithId(any(), anyLong());
         producer.getConnectionHandler().setClientCnx(cnx);
 
 
