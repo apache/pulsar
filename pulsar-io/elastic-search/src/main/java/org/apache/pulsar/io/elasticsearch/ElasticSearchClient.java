@@ -151,7 +151,7 @@ public class ElasticSearchClient implements AutoCloseable {
 
     public void bulkCreate(Record record, Pair <String, String> idAndDoc) throws Exception {
         try {
-            checkNotFailed();
+            checkState();
             checkIndexExists(record);
             final var indexName = indexName(record);
             final var documentId = idAndDoc.getLeft();
