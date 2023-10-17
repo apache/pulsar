@@ -116,6 +116,12 @@
       <groupId>io.confluent</groupId>
       <artifactId>kafka-connect-avro-converter</artifactId>
       <version>${confluent.version}</version>
+      <exclusions>
+        <exclusion>
+          <groupId>org.apache.avro</groupId>
+          <artifactId>avro</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
 
     <dependency>
