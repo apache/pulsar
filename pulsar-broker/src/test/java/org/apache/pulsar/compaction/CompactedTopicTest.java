@@ -161,6 +161,7 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testEntryLookup() throws Exception {
+        @Cleanup
         BookKeeper bk = pulsar.getBookKeeperClientFactory().create(
                 this.conf, null, null, Optional.empty(), null);
 
@@ -216,6 +217,7 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testCleanupOldCompactedTopicLedger() throws Exception {
+        @Cleanup
         BookKeeper bk = pulsar.getBookKeeperClientFactory().create(
                 this.conf, null, null, Optional.empty(), null);
 
@@ -845,6 +847,7 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testCompactWithConcurrentGetCompactionHorizonAndCompactedTopicContext() throws Exception {
+        @Cleanup
         BookKeeper bk0 = pulsar.getBookKeeperClientFactory().create(
                 this.conf, null, null, Optional.empty(), null);
 
