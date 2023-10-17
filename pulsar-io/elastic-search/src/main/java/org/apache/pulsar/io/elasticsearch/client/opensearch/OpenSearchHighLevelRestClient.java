@@ -50,6 +50,7 @@ import org.opensearch.client.RestHighLevelClient;
 import org.opensearch.client.indices.CreateIndexRequest;
 import org.opensearch.client.indices.CreateIndexResponse;
 import org.opensearch.client.indices.GetIndexRequest;
+import org.opensearch.common.Strings;
 import org.opensearch.common.settings.Settings;
 import org.opensearch.common.unit.ByteSizeUnit;
 import org.opensearch.common.unit.ByteSizeValue;
@@ -225,9 +226,10 @@ public class OpenSearchHighLevelRestClient extends RestClient implements BulkPro
     @Override
     public boolean indexDocument(String index, String documentId, String documentSource) throws IOException {
         IndexRequest indexRequest = Requests.indexRequest(index);
-        if (documentId != null && !documentId.isEmpty()) {
+        if (!Strings.isNullOrEmpty(documentId)) {
             indexRequest.id(documentId);
         }
+
         indexRequest.source(documentSource, XContentType.JSON);
 
         IndexResponse indexResponse = client.index(indexRequest, RequestOptions.DEFAULT);
@@ -295,9 +297,8 @@ public class OpenSearchHighLevelRestClient extends RestClient implements BulkPro
     @Override
     public void appendCreateRequest(BulkCreateRequest request) throws IOException {
         IndexRequest indexRequest = new IndexRequestWithPulsarRecord(request.getIndex(), request.getRecord());
-        var documentId = request.getDocumentId();
-        if (documentId != null && !documentId.isEmpty()) {
-            indexRequest.id(documentId);
+        if (!Strings.isNullOrEmpty(request.getDocumentId())) {
+            indexRequest.id(request.getDocumentId());
         }
         indexRequest.source(request.getDocumentSource(), XContentType.JSON);
         indexRequest = indexRequest.opType(DocWriteRequest.OpType.CREATE);
