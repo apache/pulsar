@@ -67,7 +67,7 @@ public abstract class AbstractWebSocketHandler extends WebSocketAdapter implemen
     protected final WebSocketService service;
     protected final HttpServletRequest request;
 
-    protected final TopicName topic;
+    protected TopicName topic;
     protected final Map<String, String> queryParams;
     private static final String PULSAR_AUTH_METHOD_NAME = "X-Pulsar-Auth-Method-Name";
     protected final ObjectReader consumerCommandReader =
@@ -75,17 +75,21 @@ public abstract class AbstractWebSocketHandler extends WebSocketAdapter implemen
 
     private ScheduledFuture<?> pingFuture;
 
+    protected String topicsPattern;
+
+    protected String topics;
+
     public AbstractWebSocketHandler(WebSocketService service,
                                     HttpServletRequest request,
                                     ServletUpgradeResponse response) {
         this.service = service;
         this.request = new WebSocketHttpServletRequestWrapper(request);
-        this.topic = extractTopicName(request);
 
         this.queryParams = new TreeMap<>();
         request.getParameterMap().forEach((key, values) -> {
             queryParams.put(key, values[0]);
         });
+        extractTopicName(request);
     }
 
     protected boolean checkAuth(ServletUpgradeResponse response) {
@@ -244,7 +248,7 @@ public abstract class AbstractWebSocketHandler extends WebSocketAdapter implemen
         return null;
     }
 
-    private TopicName extractTopicName(HttpServletRequest request) {
+    protected void extractTopicName(HttpServletRequest request) {
         String uri = request.getRequestURI();
         List<String> parts = Splitter.on("/").splitToList(uri);
 
@@ -287,7 +291,8 @@ public abstract class AbstractWebSocketHandler extends WebSocketAdapter implemen
         }
         final String name = Codec.decode(topicName.toString());
 
-        return TopicName.get(domain, namespace, name);
+        topic = TopicName.get(domain, namespace, name);
+        topics = topic.toString();
     }
 
     @VisibleForTesting

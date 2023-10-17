@@ -51,6 +51,7 @@ import org.apache.pulsar.common.util.ShutdownUtil;
 import org.apache.pulsar.docs.tools.CmdGenerateDocs;
 import org.apache.pulsar.proxy.stats.ProxyStats;
 import org.apache.pulsar.websocket.WebSocketConsumerServlet;
+import org.apache.pulsar.websocket.WebSocketMultiTopicConsumerServlet;
 import org.apache.pulsar.websocket.WebSocketProducerServlet;
 import org.apache.pulsar.websocket.WebSocketReaderServlet;
 import org.apache.pulsar.websocket.WebSocketService;
@@ -318,6 +319,11 @@ public class ProxyServiceStarter {
                     new ServletHolder(readerWebSocketServlet));
             server.addServlet(WebSocketReaderServlet.SERVLET_PATH_V2,
                     new ServletHolder(readerWebSocketServlet));
+
+            final WebSocketMultiTopicConsumerServlet multiTopicConsumerWebSocketServlet
+                    = new WebSocketMultiTopicConsumerServlet(webSocketService);
+            server.addServlet(WebSocketMultiTopicConsumerServlet.SERVLET_PATH,
+                    new ServletHolder(multiTopicConsumerWebSocketServlet));
         }
     }
 

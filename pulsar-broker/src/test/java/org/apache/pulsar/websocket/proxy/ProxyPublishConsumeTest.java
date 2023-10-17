@@ -1051,5 +1051,70 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
         log.info("proxy clients are stopped successfully");
     }
 
+    @Test
+    public void testMultiTopics() throws Exception {
+        final String subscription1 = "my-sub1";
+        final String subscription2 = "my-sub2";
+        final String topic1 = "my-property/my-ns/testMultiTopics" + UUID.randomUUID();
+        final String topic2 = "my-property/my-ns/testMultiTopics" + UUID.randomUUID();
+        final String consumerUri1 = "ws://localhost:" + proxyServer.getListenPortHTTP().get() +
+                "/ws/v3/consumer/" + subscription1 + "?topics=" + topic1 + "," + topic2;
+
+        final String consumerUri2 = "ws://localhost:" + proxyServer.getListenPortHTTP().get() +
+                "/ws/v3/consumer/" + subscription2 + "?topicsPattern=my-property/my-ns/testMultiTopics.*";
+
+        int messages = 10;
+        WebSocketClient consumerClient1 = new WebSocketClient();
+        WebSocketClient consumerClient2 = new WebSocketClient();
+        SimpleConsumerSocket consumeSocket1 = new SimpleConsumerSocket();
+        SimpleConsumerSocket consumeSocket2 = new SimpleConsumerSocket();
+        Producer<byte[]> producer1 = pulsarClient.newProducer()
+                .topic(topic1)
+                .batchingMaxMessages(1)
+                .create();
+        Producer<byte[]> producer2 = pulsarClient.newProducer()
+                .topic(topic2)
+                .batchingMaxMessages(1)
+                .create();
+
+        try {
+            consumerClient1.start();
+            consumerClient2.start();
+            ClientUpgradeRequest consumerRequest1 = new ClientUpgradeRequest();
+            ClientUpgradeRequest consumerRequest2 = new ClientUpgradeRequest();
+            Future<Session> consumerFuture1 = consumerClient1.connect(consumeSocket1, URI.create(consumerUri1), consumerRequest1);
+            Future<Session> consumerFuture2 = consumerClient2.connect(consumeSocket2, URI.create(consumerUri2), consumerRequest2);
+
+            assertTrue(consumerFuture1.get().isOpen());
+            assertTrue(consumerFuture2.get().isOpen());
+            assertEquals(consumeSocket1.getReceivedMessagesCount(), 0);
+            assertEquals(consumeSocket2.getReceivedMessagesCount(), 0);
+
+            for (int i = 1; i <= messages; i ++) {
+                producer1.sendAsync(String.valueOf(i).getBytes(StandardCharsets.UTF_8));
+                producer2.sendAsync(String.valueOf(i).getBytes(StandardCharsets.UTF_8));
+            }
+            producer1.flush();
+            producer2.flush();
+
+            consumeSocket1.sendPermits(2 * messages);
+            Awaitility.await().untilAsserted(() ->
+                    assertEquals(consumeSocket1.getReceivedMessagesCount(), 2 * messages));
+            Awaitility.await().untilAsserted(() ->
+                    assertEquals(admin.topics().getStats(topic1).getSubscriptions()
+                            .get(subscription1).getMsgBacklog(), 0));
+            Awaitility.await().untilAsserted(() ->
+                    assertEquals(admin.topics().getStats(topic2).getSubscriptions()
+                            .get(subscription1).getMsgBacklog(), 0));
+
+            consumeSocket2.sendPermits(2 * messages);
+            Awaitility.await().untilAsserted(() ->
+                    assertEquals(consumeSocket2.getReceivedMessagesCount(), 2 * messages));
+        } finally {
+            stopWebSocketClient(consumerClient1);
+            stopWebSocketClient(consumerClient2);
+        }
+    }
+
     private static final Logger log = LoggerFactory.getLogger(ProxyPublishConsumeTest.class);
 }
