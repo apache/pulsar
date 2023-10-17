@@ -300,7 +300,7 @@ The Apache Software License, Version 2.0
     - jetty-util-9.4.52.v20230823.jar
     - jetty-util-ajax-9.4.52.v20230823.jar
   * Byte Buddy
-    - byte-buddy-1.11.13.jar
+    - byte-buddy-1.14.8.jar
   * Apache BVal
     - bval-jsr-2.0.5.jar
   * Bytecode
