@@ -1681,7 +1681,7 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         admin.topics().createSubscription(topicName, subName, MessageId.latest);
 
         // partition-0 call from local and partition-1 call from admin.
-        NamespaceService namespaceService = spy(pulsar.getNamespaceService());
+        NamespaceService namespaceService = pulsar.getNamespaceService();
         doReturn(CompletableFuture.completedFuture(true))
                 .when(namespaceService).isServiceUnitOwnedAsync(topic.getPartition(0));
         doReturn(CompletableFuture.completedFuture(false))
