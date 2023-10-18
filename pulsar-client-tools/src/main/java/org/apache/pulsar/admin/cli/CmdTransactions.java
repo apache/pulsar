@@ -19,15 +19,14 @@
 package org.apache.pulsar.admin.cli;
 
 import com.beust.jcommander.Parameter;
-import com.beust.jcommander.ParameterException;
 import com.beust.jcommander.Parameters;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
+import org.apache.pulsar.cli.converters.TimeUnitToSecondsConverter;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.policies.data.TransactionCoordinatorInfo;
-import org.apache.pulsar.common.util.RelativeTimeUtil;
 
 @Parameters(commandDescription = "Operations on transactions")
 public class CmdTransactions extends CmdBase {
@@ -144,22 +143,17 @@ public class CmdTransactions extends CmdBase {
         private Integer coordinatorId;
 
         @Parameter(names = { "-t", "--time" }, description = "The transaction timeout time. "
-                + "(eg: 1s, 10s, 1m, 5h, 3d)", required = true)
-        private String timeoutStr = "1s";
+                + "(eg: 1s, 10s, 1m, 5h, 3d)", required = true,
+                converter = TimeUnitToSecondsConverter.class)
+        private Long timeoutInSeconds = 1L;
 
         @Override
         void run() throws Exception {
-            long timeout;
-            try {
-                timeout = TimeUnit.SECONDS.toMillis(RelativeTimeUtil.parseRelativeTimeInSeconds(timeoutStr));
-            } catch (IllegalArgumentException exception) {
-                throw new ParameterException(exception.getMessage());
-            }
             if (coordinatorId != null) {
                 print(getAdmin().transactions().getSlowTransactionsByCoordinatorId(coordinatorId,
-                        timeout, TimeUnit.MILLISECONDS));
+                        timeoutInSeconds, TimeUnit.MILLISECONDS));
             } else {
-                print(getAdmin().transactions().getSlowTransactions(timeout, TimeUnit.MILLISECONDS));
+                print(getAdmin().transactions().getSlowTransactions(timeoutInSeconds, TimeUnit.MILLISECONDS));
             }
         }
     }
