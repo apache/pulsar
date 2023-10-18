@@ -52,7 +52,7 @@ public class ConfigShellTest {
     @BeforeMethod(alwaysRun = true)
     public void before() throws Exception {
 
-        pulsarShell = spy(mock(PulsarShell.class));
+        pulsarShell = mock(PulsarShell.class);
         doNothing().when(pulsarShell).reload(any());
         final Path tempJson = Files.createTempFile("pulsar-shell", ".json");
 
