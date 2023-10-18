@@ -32,7 +32,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.BiConsumer;
 import javax.annotation.Nonnull;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.MutablePair;
@@ -58,6 +57,7 @@ import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.TopicPolicies;
+import org.apache.pulsar.common.util.BeanUtil;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
@@ -209,10 +209,10 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
         TopicName topicName = TopicName.get(event.getDomain(), event.getTenant(),
                 event.getNamespace(), event.getTopic());
         if (listeners.get(topicName) != null) {
-            TopicPolicies policies = event.getPolicies();
             for (TopicPolicyListener<TopicPolicies> listener : listeners.get(topicName)) {
                 try {
-                    listener.onUpdate(policies);
+                    listener.onUpdate(
+                            mergeTopicPolicies(getLocalTopicPolicies(topicName), getGlobalTopicPolicies(topicName)));
                 } catch (Throwable error) {
                     log.error("[{}] call listener error.", topicName, error);
                 }
@@ -282,12 +282,35 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
     }
 
     @Override
-    public TopicPolicies getLocalTopicPoliciesIfExists(TopicName topicName) {
+    public TopicPolicies getTopicPoliciesIfExists(TopicName topicName) {
+        return mergeTopicPolicies(getLocalTopicPolicies(topicName), getGlobalTopicPolicies(topicName));
+    }
+
+    private TopicPolicies mergeTopicPolicies(TopicPolicies localTopicPolicies, TopicPolicies globalTopicPolicies) {
+
+        if (localTopicPolicies == null && globalTopicPolicies == null) {
+            return null;
+        }
+
+        if (localTopicPolicies == null && globalTopicPolicies != null) {
+            return globalTopicPolicies;
+        }
+
+        if (globalTopicPolicies == null && localTopicPolicies != null) {
+            return localTopicPolicies;
+        }
+
+        TopicPolicies topicPolicies = new TopicPolicies();
+        BeanUtil.copyProperties(globalTopicPolicies, topicPolicies, true);
+        BeanUtil.copyProperties(localTopicPolicies, topicPolicies, true);
+        return topicPolicies;
+    }
+
+    private TopicPolicies getLocalTopicPolicies(TopicName topicName) {
         return policiesCache.get(TopicName.get(topicName.getPartitionedTopicName()));
     }
 
-    @Override
-    public TopicPolicies getGlobalTopicPoliciesIfExists(TopicName topicName) {
+    private TopicPolicies getGlobalTopicPolicies(TopicName topicName) {
         return globalPoliciesCache.get(TopicName.get(topicName.getPartitionedTopicName()));
     }
 
@@ -437,20 +460,18 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                 }
 
                 // replay policy message
-                BiConsumer<TopicName, TopicPolicies> notifyListener = (topicName, topicPolicies) -> {
+                Sets.union(policiesCache.keySet(), globalPoliciesCache.keySet()).forEach(topicName -> {
                     if (listeners.get(topicName) != null) {
                         for (TopicPolicyListener<TopicPolicies> listener : listeners.get(topicName)) {
                             try {
-                                listener.onUpdate(topicPolicies);
+                                listener.onUpdate(mergeTopicPolicies(getLocalTopicPolicies(topicName),
+                                        getGlobalTopicPolicies(topicName)));
                             } catch (Throwable error) {
                                 log.error("[{}] call listener error.", topicName, error);
                             }
                         }
                     }
-                };
-
-                policiesCache.forEach(notifyListener);
-                globalPoliciesCache.forEach(notifyListener);
+                });
 
                 future.complete(null);
             }

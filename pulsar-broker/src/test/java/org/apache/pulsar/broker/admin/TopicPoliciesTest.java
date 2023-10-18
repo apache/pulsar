@@ -2196,14 +2196,14 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
                 Awaitility.await().untilAsserted(() -> {
                     AbstractTopic partition =
                             (AbstractTopic) pulsar.getBrokerService().getTopicIfExists(partitionName).get().get();
-                    assertNull(partition.getHierarchyTopicPolicies().getTopicMaxMessageSize().getLocalTopicValue());
+                    assertNull(partition.getHierarchyTopicPolicies().getTopicMaxMessageSize().getTopicValue());
                 });
             }
         } else {
             Awaitility.await().untilAsserted(() -> {
                 AbstractTopic abstractTopic =
                         (AbstractTopic) pulsar.getBrokerService().getTopicIfExists(topic).get().get();
-                assertNull(abstractTopic.getHierarchyTopicPolicies().getTopicMaxMessageSize().getLocalTopicValue());
+                assertNull(abstractTopic.getHierarchyTopicPolicies().getTopicMaxMessageSize().getTopicValue());
             });
         }
 
@@ -2656,7 +2656,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         subscriptionTypeSet.add(SubscriptionType.Failover);
         admin.topicPolicies().setSubscriptionTypesEnabled(topic, subscriptionTypeSet);
         waitTopicPoliciesApplied(topic, 0, hierarchyTopicPolicies -> {
-            assertTrue(hierarchyTopicPolicies.getSubscriptionTypesEnabled().getLocalTopicValue()
+            assertTrue(hierarchyTopicPolicies.getSubscriptionTypesEnabled().getTopicValue()
                     .contains(CommandSubscribe.SubType.Failover));
         });
 
@@ -2671,7 +2671,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         //clear topic level setting, use ns setting only, which only contains shared.
         admin.topicPolicies().setSubscriptionTypesEnabled(topic, Collections.emptySet());
         waitTopicPoliciesApplied(topic, 0, hierarchyTopicPolicies -> {
-            assertNull(hierarchyTopicPolicies.getSubscriptionTypesEnabled().getLocalTopicValue());
+            assertNull(hierarchyTopicPolicies.getSubscriptionTypesEnabled().getTopicValue());
         });
         pulsarClient.newConsumer().topic(topic)
                 .subscriptionType(SubscriptionType.Shared).subscriptionName("test").subscribe().close();
@@ -3132,14 +3132,10 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
 
         assertEquals(topicPoliciesService.getTopicPolicies(topicName).getMaxConsumerPerTopic(), 10);
         assertEquals(topicPoliciesService.getTopicPolicies(topicName, true).getMaxConsumerPerTopic(), 20);
-        assertEquals(hierarchyTopicPolicies.getMaxConsumerPerTopic().getGlobalTopicValue(), 20);
-        assertEquals(hierarchyTopicPolicies.getMaxConsumerPerTopic().getLocalTopicValue(), 10);
         assertEquals(hierarchyTopicPolicies.getMaxConsumerPerTopic().get(), 10);
 
         assertEquals(topicPoliciesService.getTopicPolicies(topicName).getMaxProducerPerTopic(), null);
         assertEquals(topicPoliciesService.getTopicPolicies(topicName, true).getMaxProducerPerTopic(), 30);
-        assertEquals(hierarchyTopicPolicies.getMaxProducersPerTopic().getGlobalTopicValue(), 30);
-        assertEquals(hierarchyTopicPolicies.getMaxProducersPerTopic().getLocalTopicValue(), null);
         assertEquals(hierarchyTopicPolicies.getMaxProducersPerTopic().get(), 30);
     }
 
@@ -3195,14 +3191,10 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
                 pulsar.getBrokerService().getTopics().get(topic).get().get().getHierarchyTopicPolicies();
         assertEquals(topicPoliciesService.getTopicPolicies(topicName).getMaxConsumerPerTopic(), 10);
         assertEquals(topicPoliciesService.getTopicPolicies(topicName, true).getMaxConsumerPerTopic(), 20);
-        assertEquals(hierarchyTopicPolicies.getMaxConsumerPerTopic().getGlobalTopicValue(), 20);
-        assertEquals(hierarchyTopicPolicies.getMaxConsumerPerTopic().getLocalTopicValue(), 10);
         assertEquals(hierarchyTopicPolicies.getMaxConsumerPerTopic().get(), 10);
 
         assertEquals(topicPoliciesService.getTopicPolicies(topicName).getMaxProducerPerTopic(), null);
         assertEquals(topicPoliciesService.getTopicPolicies(topicName, true).getMaxProducerPerTopic(), 30);
-        assertEquals(hierarchyTopicPolicies.getMaxProducersPerTopic().getGlobalTopicValue(), 30);
-        assertEquals(hierarchyTopicPolicies.getMaxProducersPerTopic().getLocalTopicValue(), null);
         assertEquals(hierarchyTopicPolicies.getMaxProducersPerTopic().get(), 30);
         // check testTopic end
 
@@ -3212,14 +3204,10 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
                 pulsar.getBrokerService().getTopics().get(topicPolicyEventsTopic).get().get().getHierarchyTopicPolicies();
         assertEquals(topicPoliciesService.getTopicPolicies(eventsTopicName).getMaxConsumerPerTopic(), 40);
         assertEquals(topicPoliciesService.getTopicPolicies(eventsTopicName, true).getMaxConsumerPerTopic(), 50);
-        assertEquals(eventsHierarchyTopicPolicies.getMaxConsumerPerTopic().getGlobalTopicValue(), 50);
-        assertEquals(eventsHierarchyTopicPolicies.getMaxConsumerPerTopic().getLocalTopicValue(), 40);
         assertEquals(eventsHierarchyTopicPolicies.getMaxConsumerPerTopic().get(), 40);
 
         assertEquals(topicPoliciesService.getTopicPolicies(eventsTopicName).getMaxProducerPerTopic(), null);
         assertEquals(topicPoliciesService.getTopicPolicies(eventsTopicName, true).getMaxProducerPerTopic(), 60);
-        assertEquals(eventsHierarchyTopicPolicies.getMaxProducersPerTopic().getGlobalTopicValue(), 60);
-        assertEquals(eventsHierarchyTopicPolicies.getMaxProducersPerTopic().getLocalTopicValue(), null);
         assertEquals(eventsHierarchyTopicPolicies.getMaxProducersPerTopic().get(), 60);
         // check eventsTopic end
     }
@@ -3403,14 +3391,10 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
                 pulsar.getBrokerService().getTopics().get(topic).get().get().getHierarchyTopicPolicies();
         assertEquals(topicPoliciesService.getTopicPolicies(topicName).getMaxConsumerPerTopic(), 10);
         assertEquals(topicPoliciesService.getTopicPolicies(topicName, true).getMaxConsumerPerTopic(), 20);
-        assertEquals(hierarchyTopicPolicies.getMaxConsumerPerTopic().getGlobalTopicValue(), 20);
-        assertEquals(hierarchyTopicPolicies.getMaxConsumerPerTopic().getLocalTopicValue(), 10);
         assertEquals(hierarchyTopicPolicies.getMaxConsumerPerTopic().get(), 10);
 
         assertEquals(topicPoliciesService.getTopicPolicies(topicName).getMaxProducerPerTopic(), null);
         assertEquals(topicPoliciesService.getTopicPolicies(topicName, true).getMaxProducerPerTopic(), 30);
-        assertEquals(hierarchyTopicPolicies.getMaxProducersPerTopic().getGlobalTopicValue(), 30);
-        assertEquals(hierarchyTopicPolicies.getMaxProducersPerTopic().getLocalTopicValue(), null);
         assertEquals(hierarchyTopicPolicies.getMaxProducersPerTopic().get(), 30);
         // check testTopic end
 
@@ -3420,14 +3404,10 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
                 pulsar.getBrokerService().getTopics().get(topicPolicyEventsTopic).get().get().getHierarchyTopicPolicies();
         assertEquals(topicPoliciesService.getTopicPolicies(eventsTopicName).getMaxConsumerPerTopic(), 40);
         assertEquals(topicPoliciesService.getTopicPolicies(eventsTopicName, true).getMaxConsumerPerTopic(), 50);
-        assertEquals(eventsHierarchyTopicPolicies.getMaxConsumerPerTopic().getGlobalTopicValue(), 50);
-        assertEquals(eventsHierarchyTopicPolicies.getMaxConsumerPerTopic().getLocalTopicValue(), 40);
         assertEquals(eventsHierarchyTopicPolicies.getMaxConsumerPerTopic().get(), 40);
 
         assertEquals(topicPoliciesService.getTopicPolicies(eventsTopicName).getMaxProducerPerTopic(), null);
         assertEquals(topicPoliciesService.getTopicPolicies(eventsTopicName, true).getMaxProducerPerTopic(), 60);
-        assertEquals(eventsHierarchyTopicPolicies.getMaxProducersPerTopic().getGlobalTopicValue(), 60);
-        assertEquals(eventsHierarchyTopicPolicies.getMaxProducersPerTopic().getLocalTopicValue(), null);
         assertEquals(eventsHierarchyTopicPolicies.getMaxProducersPerTopic().get(), 60);
         // check eventsTopic end
     }

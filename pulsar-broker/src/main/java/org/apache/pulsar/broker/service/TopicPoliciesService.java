@@ -66,18 +66,11 @@ public interface TopicPoliciesService {
     TopicPolicies getTopicPolicies(TopicName topicName) throws TopicPoliciesCacheNotInitException;
 
     /**
-     * Get local policies from current cache.
+     * Get policies from current cache.
      * @param topicName topic name
      * @return the topic policies
      */
-    TopicPolicies getLocalTopicPoliciesIfExists(TopicName topicName);
-
-    /**
-     * Get global policies from current cache.
-     * @param topicName topic name
-     * @return the topic policies
-     */
-    TopicPolicies getGlobalTopicPoliciesIfExists(TopicName topicName);
+    TopicPolicies getTopicPoliciesIfExists(TopicName topicName);
 
     /**
      * Get global policies for a topic async.
@@ -95,7 +88,7 @@ public interface TopicPoliciesService {
      * @return CompletableFuture&lt;Optional&lt;TopicPolicies&gt;&gt;
      */
     default CompletableFuture<Optional<TopicPolicies>> getTopicPoliciesAsyncWithRetry(TopicName topicName,
-              final Backoff backoff, ScheduledExecutorService scheduledExecutorService, boolean isGlobal) {
+                                                                                      final Backoff backoff, ScheduledExecutorService scheduledExecutorService, boolean isGlobal) {
         CompletableFuture<Optional<TopicPolicies>> response = new CompletableFuture<>();
         Backoff usedBackoff = backoff == null ? new BackoffBuilder()
                 .setInitialTime(500, TimeUnit.MILLISECONDS)
@@ -211,12 +204,7 @@ public interface TopicPoliciesService {
         }
 
         @Override
-        public TopicPolicies getLocalTopicPoliciesIfExists(TopicName topicName) {
-            return null;
-        }
-
-        @Override
-        public TopicPolicies getGlobalTopicPoliciesIfExists(TopicName topicName) {
+        public TopicPolicies getTopicPoliciesIfExists(TopicName topicName) {
             return null;
         }
 

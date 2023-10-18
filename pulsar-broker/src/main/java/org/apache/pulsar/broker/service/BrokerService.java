@@ -3456,7 +3456,7 @@ public class BrokerService implements Closeable {
             return Optional.empty();
         }
         return Optional.ofNullable(pulsar.getTopicPoliciesService()
-                .getLocalTopicPoliciesIfExists(topicName));
+                .getTopicPoliciesIfExists(topicName));
     }
 
     public CompletableFuture<Void> deleteTopicPolicies(TopicName topicName) {

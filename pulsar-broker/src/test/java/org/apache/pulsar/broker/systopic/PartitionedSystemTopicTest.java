@@ -317,7 +317,7 @@ public class PartitionedSystemTopicTest extends BrokerTestBase {
         PersistentTopic persistentTopic = (PersistentTopic) topic.join().get();
         persistentTopic.close();
         admin.topics().delete(topicName);
-        TopicPolicies topicPolicies = pulsar.getTopicPoliciesService().getLocalTopicPoliciesIfExists(TopicName.get(topicName));
+        TopicPolicies topicPolicies = pulsar.getTopicPoliciesService().getTopicPoliciesIfExists(TopicName.get(topicName));
         assertNull(topicPolicies);
         String base = TopicName.get(topicName).getPartitionedTopicName();
         String id = TopicName.get(base).getSchemaName();
