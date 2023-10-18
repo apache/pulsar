@@ -19,12 +19,22 @@
 package org.apache.pulsar.websocket;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static java.util.concurrent.TimeUnit.SECONDS;
 import com.google.common.base.Splitter;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeoutException;
 import javax.servlet.http.HttpServletRequest;
+import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
+import org.apache.pulsar.broker.authentication.AuthenticationDataSubscription;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.TopicOperation;
 import org.apache.pulsar.common.util.Codec;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.eclipse.jetty.websocket.servlet.ServletUpgradeResponse;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Subscribing for multi-topic.
@@ -34,6 +44,38 @@ public class MultiTopicConsumerHandler extends ConsumerHandler {
     public MultiTopicConsumerHandler(WebSocketService service, HttpServletRequest request,
                                      ServletUpgradeResponse response) {
         super(service, request, response);
+    }
+
+    @Override
+    protected Boolean isAuthorized(String authRole, AuthenticationDataSource authenticationData) throws Exception {
+        try {
+            AuthenticationDataSubscription subscription = new AuthenticationDataSubscription(authenticationData,
+                    this.subscription);
+            if (topics != null) {
+                List<String> topicNames = Splitter.on(",").splitToList(topics);
+                List<CompletableFuture<Boolean>> futures = new ArrayList<>();
+                for (String topicName : topicNames) {
+                    futures.add(service.getAuthorizationService()
+                                .allowTopicOperationAsync(TopicName.get(topicName),
+                                        TopicOperation.CONSUME, authRole, subscription));
+                }
+                FutureUtil.waitForAll(futures)
+                        .get(service.getConfig().getMetadataStoreOperationTimeoutSeconds(), SECONDS);
+                return futures.stream().allMatch(f -> f.join());
+            } else {
+                return service.getAuthorizationService()
+                        .allowTopicOperationAsync(topic, TopicOperation.CONSUME, authRole, subscription)
+                        .get(service.getConfig().getMetadataStoreOperationTimeoutSeconds(), SECONDS);
+            }
+        } catch (TimeoutException e) {
+            log.warn("Time-out {} sec while checking authorization on {} ",
+                    service.getConfig().getMetadataStoreOperationTimeoutSeconds(), topic);
+            throw e;
+        } catch (Exception e) {
+            log.warn("Consumer-client  with Role - {} failed to get permissions for topic - {}. {}", authRole, topic,
+                    e.getMessage());
+            throw e;
+        }
     }
 
     @Override
@@ -72,4 +114,6 @@ public class MultiTopicConsumerHandler extends ConsumerHandler {
 
         return Codec.decode(parts.get(4));
     }
+
+    private static final Logger log = LoggerFactory.getLogger(MultiTopicConsumerHandler.class);
 }
