@@ -29,10 +29,10 @@ import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
+import com.google.api.client.util.Lists;
 import io.netty.channel.EventLoopGroup;
 import io.netty.util.Timer;
 import io.netty.util.concurrent.DefaultThreadFactory;
-import com.google.api.client.util.Lists;
 import java.lang.reflect.Field;
 import java.nio.ByteBuffer;
 import java.util.List;
@@ -40,6 +40,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ThreadFactory;
+import lombok.Cleanup;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageRouter;
 import org.apache.pulsar.client.api.MessageRoutingMode;
@@ -188,8 +189,10 @@ public class PartitionedProducerImplTest {
         conf.setStatsIntervalSeconds(100);
 
         ThreadFactory threadFactory = new DefaultThreadFactory("client-test-stats", Thread.currentThread().isDaemon());
+        @Cleanup("shutdownGracefully")
         EventLoopGroup eventLoopGroup = EventLoopUtil.newEventLoopGroup(conf.getNumIoThreads(), false, threadFactory);
 
+        @Cleanup
         PulsarClientImpl clientImpl = new PulsarClientImpl(conf, eventLoopGroup);
 
         ProducerConfigurationData producerConfData = new ProducerConfigurationData();
@@ -214,9 +217,11 @@ public class PartitionedProducerImplTest {
 
         ThreadFactory threadFactory =
                 new DefaultThreadFactory("client-test-stats", Thread.currentThread().isDaemon());
+        @Cleanup("shutdownGracefully")
         EventLoopGroup eventLoopGroup = EventLoopUtil
                 .newEventLoopGroup(conf.getNumIoThreads(), false, threadFactory);
 
+        @Cleanup
         PulsarClientImpl clientImpl = new PulsarClientImpl(conf, eventLoopGroup);
 
         ProducerConfigurationData producerConfData = new ProducerConfigurationData();
@@ -246,8 +251,10 @@ public class PartitionedProducerImplTest {
         conf.setStatsIntervalSeconds(100);
 
         ThreadFactory threadFactory = new DefaultThreadFactory("client-test-stats", Thread.currentThread().isDaemon());
+        @Cleanup("shutdownGracefully")
         EventLoopGroup eventLoopGroup = EventLoopUtil.newEventLoopGroup(conf.getNumIoThreads(), false, threadFactory);
 
+        @Cleanup
         PulsarClientImpl clientImpl = new PulsarClientImpl(conf, eventLoopGroup);
 
         ProducerConfigurationData producerConfData = new ProducerConfigurationData();
