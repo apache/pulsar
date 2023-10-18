@@ -224,6 +224,7 @@ public class ConcurrentLongHashMapTest {
                 .build();
         assertEquals(map.capacity(), 4);
 
+        @Cleanup("shutdownNow")
         ExecutorService executor = Executors.newCachedThreadPool();
         final int readThreads = 16;
         final int writeThreads = 1;
