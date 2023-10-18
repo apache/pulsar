@@ -19,7 +19,6 @@
 package org.apache.pulsar.metadata;
 
 import static org.testng.Assert.assertTrue;
-
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
@@ -28,10 +27,8 @@ import java.io.OutputStream;
 import java.lang.reflect.Field;
 import java.net.Socket;
 import java.util.Properties;
-
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
-
 import org.apache.commons.io.FileUtils;
 import org.apache.zookeeper.server.ContainerManager;
 import org.apache.zookeeper.server.ServerCnxnFactory;
