@@ -55,7 +55,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-@Test(groups = "broker")
+@Test(groups = "cluster-migration")
 public class ClusterMigrationTest {
 
     private static final Logger log = LoggerFactory.getLogger(ClusterMigrationTest.class);

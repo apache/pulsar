@@ -87,6 +87,10 @@ function test_group_broker_group_3() {
   mvn_test -pl pulsar-broker -Dgroups='broker-admin'
 }
 
+function test_group_broker_group_4() {
+  mvn_test -pl pulsar-broker -Dgroups='cluster-migration'
+}
+
 function test_group_broker_client_api() {
   mvn_test -pl pulsar-broker -Dgroups='broker-api'
 }
