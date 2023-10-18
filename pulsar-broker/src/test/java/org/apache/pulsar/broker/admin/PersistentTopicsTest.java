@@ -52,9 +52,9 @@ import javax.ws.rs.core.UriInfo;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.BrokerTestUtil;
+import org.apache.pulsar.broker.admin.v2.ExtPersistentTopics;
 import org.apache.pulsar.broker.admin.v2.NonPersistentTopics;
 import org.apache.pulsar.broker.admin.v2.PersistentTopics;
-import org.apache.pulsar.broker.admin.v2.ExtPersistentTopics;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.authentication.AuthenticationDataHttps;
 import org.apache.pulsar.broker.namespace.NamespaceService;
@@ -165,8 +165,8 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         doReturn(spy(new TopicResources(pulsar.getLocalMetadataStore()))).when(resources).getTopicResources();
         doReturn(resources).when(pulsar).getPulsarResources();
 
-        admin.clusters().createCluster("use", ClusterData.builder().serviceUrl("http://broker-use.com:8080").build());
-        admin.clusters().createCluster("test", ClusterData.builder().serviceUrl("http://broker-use.com:8080").build());
+        admin.clusters().createCluster("use", ClusterData.builder().serviceUrl("http://127.0.0.3:8082").build());
+        admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
         admin.tenants().createTenant(this.testTenant,
                 new TenantInfoImpl(Set.of("role1", "role2"), Set.of(testLocalCluster, "test")));
         admin.tenants().createTenant("pulsar",
@@ -893,16 +893,20 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
-    public void testCreateExistedPartition() {
-        final AsyncResponse response = mock(AsyncResponse.class);
-        final String topicName = "test-create-existed-partition";
+    public void testCreateExistedPartition() throws InterruptedException {
+        AsyncResponse response = mock(AsyncResponse.class);
+        ArgumentCaptor<Response> responseCaptor = ArgumentCaptor.forClass(Response.class);
+        final String topicName = "testcreateexisted";
         persistentTopics.createPartitionedTopic(response, testTenant, testNamespace, topicName, 3, true);
+        verify(response, timeout(5000).times(1)).resume(responseCaptor.capture());
+        Assert.assertEquals(responseCaptor.getValue().getStatus(), Response.Status.NO_CONTENT.getStatusCode());
 
         final String partitionName = TopicName.get(topicName).getPartition(0).getLocalName();
-        ArgumentCaptor<RestException> responseCaptor = ArgumentCaptor.forClass(RestException.class);
-        persistentTopics.createNonPartitionedTopic(response, testTenant, testNamespace, partitionName, false, null);
-        verify(response, timeout(5000).times(1)).resume(responseCaptor.capture());
-        Assert.assertEquals(responseCaptor.getValue().getResponse().getStatus(),
+        response = mock(AsyncResponse.class);
+        ArgumentCaptor<RestException> restExceptionCaptor = ArgumentCaptor.forClass(RestException.class);
+        persistentTopics.createNonPartitionedTopic(response, testTenant, testNamespace, partitionName, true, null);
+        verify(response, timeout(5000).times(1)).resume(restExceptionCaptor.capture());
+        Assert.assertEquals(restExceptionCaptor.getValue().getResponse().getStatus(),
                 Response.Status.CONFLICT.getStatusCode());
     }
 
