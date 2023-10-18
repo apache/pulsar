@@ -88,7 +88,7 @@ public interface TopicPoliciesService {
      * @return CompletableFuture&lt;Optional&lt;TopicPolicies&gt;&gt;
      */
     default CompletableFuture<Optional<TopicPolicies>> getTopicPoliciesAsyncWithRetry(TopicName topicName,
-                                                                                      final Backoff backoff, ScheduledExecutorService scheduledExecutorService, boolean isGlobal) {
+              final Backoff backoff, ScheduledExecutorService scheduledExecutorService, boolean isGlobal) {
         CompletableFuture<Optional<TopicPolicies>> response = new CompletableFuture<>();
         Backoff usedBackoff = backoff == null ? new BackoffBuilder()
                 .setInitialTime(500, TimeUnit.MILLISECONDS)
