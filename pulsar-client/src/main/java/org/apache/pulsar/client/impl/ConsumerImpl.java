@@ -719,6 +719,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         //Compatible with the old version, will be deleted in the future
         propertiesMap.putIfAbsent(RetryMessageUtil.SYSTEM_PROPERTY_ORIGIN_MESSAGE_ID, originMessageIdStr);
         propertiesMap.putIfAbsent(RetryMessageUtil.PROPERTY_ORIGIN_MESSAGE_ID, originMessageIdStr);
+        propertiesMap.putIfAbsent(RetryMessageUtil.SYSTEM_PROPERTY_REAL_SUBSCRIPTION, subscription);
         return propertiesMap;
     }
 
