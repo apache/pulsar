@@ -28,6 +28,7 @@ import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
+import com.fasterxml.jackson.annotation.JsonIgnoreType;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.ArrayList;
@@ -617,6 +618,7 @@ public class ConsumerBuilderImplTest {
         return new MyMessagePayloadProcessor();
     }
 
+    @JsonIgnoreType
     private static class MyMessagePayloadProcessor implements MessagePayloadProcessor {
         @Override
         public <T> void process(MessagePayload payload, MessagePayloadContext context, Schema<T> schema,
@@ -625,6 +627,7 @@ public class ConsumerBuilderImplTest {
         }
     }
 
+    @JsonIgnoreType
     private static class MyConsumerEventListener implements ConsumerEventListener {
         @Override
         public void becameActive(Consumer<?> consumer, int partitionId) {
