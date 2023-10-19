@@ -22,6 +22,7 @@
  */
 package org.apache.pulsar.common.nar;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileFilter;
@@ -39,7 +40,10 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 
@@ -126,6 +130,8 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class NarClassLoader extends URLClassLoader {
 
+    private static final Map<String, NarClassLoader> CACHED_CLASS_LOADER = new ConcurrentHashMap<>();
+
     private static final FileFilter JAR_FILTER = pathname -> {
         final String nameToTest = pathname.getName().toLowerCase();
         return nameToTest.endsWith(".jar") && pathname.isFile();
@@ -135,23 +141,40 @@ public class NarClassLoader extends URLClassLoader {
      * The NAR for which this <tt>ClassLoader</tt> is responsible.
      */
     private final File narWorkingDirectory;
+    private final String narPath;
+    private final ClassLoader parentClassLoader;
+    private final AtomicInteger refCnt = new AtomicInteger(0);
 
     private static final String TMP_DIR_PREFIX = "pulsar-nar";
 
     public static final String DEFAULT_NAR_EXTRACTION_DIR = System.getProperty("nar.extraction.tmpdir") != null
             ? System.getProperty("nar.extraction.tmpdir") : System.getProperty("java.io.tmpdir");
 
-    static NarClassLoader getFromArchive(File narPath, Set<String> additionalJars, ClassLoader parent,
-                                                String narExtractionDirectory)
-        throws IOException {
-        File unpacked = NarUnpacker.unpackNar(narPath, getNarExtractionDirectory(narExtractionDirectory));
-        return AccessController.doPrivileged(new PrivilegedAction<NarClassLoader>() {
-            @SneakyThrows
-            @Override
-            public NarClassLoader run() {
-                return new NarClassLoader(unpacked, additionalJars, parent);
+    static NarClassLoader getFromArchive(File narFile, Set<String> additionalJars, ClassLoader parent,
+                                         String narExtractionDirectory) {
+
+        final String cachedKey = classLoaderKey(narFile.getAbsolutePath(), parent);
+        return CACHED_CLASS_LOADER.compute(cachedKey, (key, narClassLoader) -> {
+            if (narClassLoader != null) {
+                return narClassLoader.retain();
+            }
+            try {
+                File unpacked = NarUnpacker.unpackNar(narFile, getNarExtractionDirectory(narExtractionDirectory));
+                return AccessController.doPrivileged(new PrivilegedAction<NarClassLoader>() {
+                    @SneakyThrows
+                    @Override
+                    public NarClassLoader run() {
+                        return new NarClassLoader(narFile.getAbsolutePath(), unpacked, additionalJars, parent).retain();
+                    }
+                });
+            } catch (IOException e) {
+                throw new RuntimeException(e);
             }
         });
+    }
+    private static String classLoaderKey(String narPath, ClassLoader parent) {
+        String parentClassLoader = parent == null ? null : parent.toString();
+        return narPath + "###" + parentClassLoader;
     }
 
     private static File getNarExtractionDirectory(String configuredDirectory) {
@@ -166,16 +189,15 @@ public class NarClassLoader extends URLClassLoader {
      * @param parent
      * @throws IllegalArgumentException
      *             if the NAR is missing the Java Services API file for <tt>FlowFileProcessor</tt> implementations.
-     * @throws ClassNotFoundException
-     *             if any of the <tt>FlowFileProcessor</tt> implementations defined by the Java Services API cannot be
-     *             loaded.
      * @throws IOException
      *             if an error occurs while loading the NAR.
      */
-    private NarClassLoader(final File narWorkingDirectory, Set<String> additionalJars, ClassLoader parent)
-            throws ClassNotFoundException, IOException {
+    private NarClassLoader(final String narPath, final File narWorkingDirectory, Set<String> additionalJars,
+                           ClassLoader parent) throws IOException {
         super(new URL[0], parent);
+        this.narPath = narPath;
         this.narWorkingDirectory = narWorkingDirectory;
+        this.parentClassLoader = parent;
 
         // process the classpath
         updateClasspath(narWorkingDirectory);
@@ -282,5 +304,31 @@ public class NarClassLoader extends URLClassLoader {
     @Override
     public String toString() {
         return NarClassLoader.class.getName() + "[" + narWorkingDirectory.getPath() + "]";
+    }
+
+    @Override
+    public void close() throws IOException {
+        if (this.release() == 0) {
+            CACHED_CLASS_LOADER.compute(classLoaderKey(this.narPath, this.parentClassLoader), (k, narClassLoader) -> {
+                try {
+                    checkArgument(narClassLoader == this);
+                    NarClassLoader.super.close();
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+                return null;
+            });
+        }
+    }
+
+    private NarClassLoader retain() {
+        refCnt.incrementAndGet();
+        return this;
+    }
+    private int release() {
+        return refCnt.decrementAndGet();
+    }
+    public int refCnt() {
+        return refCnt.get();
     }
 }
