@@ -295,7 +295,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         checkReplicatedSubscriptionControllerState();
         TopicName topicName = TopicName.get(topic);
         if (brokerService.getPulsar().getConfiguration().isTransactionCoordinatorEnabled()
-                && !isEventSystemTopic(topicName)) {
+                && !isEventSystemTopic(topicName)
+                && !NamespaceService.isHeartbeatNamespace(topicName.getNamespaceObject())) {
             this.transactionBuffer = brokerService.getPulsar()
                     .getTransactionBufferProvider().newTransactionBuffer(this);
         } else {

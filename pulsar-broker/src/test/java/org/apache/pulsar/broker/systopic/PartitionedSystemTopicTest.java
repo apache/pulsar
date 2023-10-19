@@ -76,6 +76,7 @@ public class PartitionedSystemTopicTest extends BrokerTestBase {
         conf.setDefaultNumPartitions(PARTITIONS);
         conf.setManagedLedgerMaxEntriesPerLedger(1);
         conf.setBrokerDeleteInactiveTopicsEnabled(false);
+        conf.setTransactionCoordinatorEnabled(true);
 
         super.baseSetup();
     }
@@ -200,6 +201,24 @@ public class PartitionedSystemTopicTest extends BrokerTestBase {
         Assert.assertThrows(PulsarAdminException.ConflictException.class, () -> {
             admin.topicPolicies().setMaxConsumers(topicName.toString(), 2);
         });
+    }
+
+    @Test
+    public void testHeartbeatNamespaceNotCreateTransactionInternalTopic() throws Exception {
+        admin.brokers().healthcheck(TopicVersion.V2);
+        NamespaceName namespaceName = NamespaceService.getHeartbeatNamespaceV2(pulsar.getLookupServiceAddress(),
+                pulsar.getConfig());
+        TopicName topicName = TopicName.get("persistent",
+                namespaceName, SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT);
+        Optional<Topic> optionalTopic = pulsar.getBrokerService()
+                .getTopic(topicName.getPartition(1).toString(), false).join();
+        Assert.assertTrue(optionalTopic.isEmpty());
+
+        List<String> topics = getPulsar().getNamespaceService().getListOfPersistentTopics(namespaceName).join();
+        Assert.assertEquals(topics.size(), 1);
+        TopicName heartbeatTopicName = TopicName.get("persistent",
+                namespaceName, BrokersBase.HEALTH_CHECK_TOPIC_SUFFIX);
+        Assert.assertEquals(topics.get(0), heartbeatTopicName.toString());
     }
 
     @Test
