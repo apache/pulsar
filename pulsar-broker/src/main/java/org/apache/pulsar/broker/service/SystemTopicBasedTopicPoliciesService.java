@@ -105,7 +105,7 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
     public CompletableFuture<Void> updateTopicPoliciesAsync(TopicName topicName, TopicPolicies policies) {
         if (NamespaceService.isHeartbeatNamespace(topicName.getNamespaceObject())) {
             return CompletableFuture.failedFuture(new BrokerServiceException.NotAllowedException(
-                    "Not allowed to send update event to health check topic"));
+                    "Not allowed to update topic policy for the heartbeat topic"));
         }
         return sendTopicPolicyEvent(topicName, ActionType.UPDATE, policies);
     }
