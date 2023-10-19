@@ -92,20 +92,23 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
 
     @Override
     public CompletableFuture<Void> deleteTopicPoliciesAsync(TopicName topicName) {
+        if (NamespaceService.isHeartbeatNamespace(topicName.getNamespaceObject())) {
+            return CompletableFuture.completedFuture(null);
+        }
         return sendTopicPolicyEvent(topicName, ActionType.DELETE, null);
     }
 
     @Override
     public CompletableFuture<Void> updateTopicPoliciesAsync(TopicName topicName, TopicPolicies policies) {
+        if (NamespaceService.isHeartbeatNamespace(topicName.getNamespaceObject())) {
+            return CompletableFuture.failedFuture(new BrokerServiceException.NotAllowedException(
+                    "Not allowed to update topic policy for the heartbeat topic"));
+        }
         return sendTopicPolicyEvent(topicName, ActionType.UPDATE, policies);
     }
 
     private CompletableFuture<Void> sendTopicPolicyEvent(TopicName topicName, ActionType actionType,
                                                          TopicPolicies policies) {
-        if (NamespaceService.isHeartbeatNamespace(topicName.getNamespaceObject())) {
-            return CompletableFuture.failedFuture(
-                    new BrokerServiceException.NotAllowedException("Not allowed to send event to health check topic"));
-        }
         return pulsarService.getPulsarResources().getNamespaceResources()
                 .getPoliciesAsync(topicName.getNamespaceObject())
                 .thenCompose(namespacePolicies -> {
@@ -217,6 +220,9 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
     @Override
     public TopicPolicies getTopicPolicies(TopicName topicName,
                                           boolean isGlobal) throws TopicPoliciesCacheNotInitException {
+        if (NamespaceService.isHeartbeatNamespace(topicName.getNamespaceObject())) {
+            return null;
+        }
         if (!policyCacheInitMap.containsKey(topicName.getNamespaceObject())) {
             NamespaceName namespace = topicName.getNamespaceObject();
             prepareInitPoliciesCache(namespace, new CompletableFuture<>());
