@@ -1709,5 +1709,18 @@ public class Namespaces extends NamespacesBase {
         internalSetSchemaAutoUpdateCompatibilityStrategy(strategy);
     }
 
+    @POST
+    @Path("/{property}/{cluster}/{namespace}/migration")
+    @ApiOperation(hidden = true, value = "Update migration for all topics in a namespace")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Property or cluster or namespace doesn't exist") })
+    public void enableMigration(@PathParam("property") String property,
+                                @PathParam("cluster") String cluster,
+                                @PathParam("namespace") String namespace,
+                                boolean migrated) {
+        validateNamespaceName(property, cluster, namespace);
+        internalEnableMigration(migrated);
+    }
+
     private static final Logger log = LoggerFactory.getLogger(Namespaces.class);
 }

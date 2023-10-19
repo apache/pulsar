@@ -2779,6 +2779,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private int clusterMigrationCheckDurationSeconds = 0;
 
     @FieldContext(
+        category = CATEGORY_SERVER,
+        doc = "Flag to start cluster migration for topic only after creating all topic's resources"
+                + " such as tenant, namespaces, subscriptions at new green cluster. (Default disabled)."
+    )
+    private boolean clusterMigrationAutoResourceCreation = false;
+
+    @FieldContext(
         category = CATEGORY_SCHEMA,
         doc = "Enforce schema validation on following cases:\n\n"
             + " - if a producer without a schema attempts to produce to a topic with schema, the producer will be\n"
