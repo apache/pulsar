@@ -81,6 +81,8 @@ import org.apache.pulsar.broker.authentication.AuthenticationProvider;
 import org.apache.pulsar.broker.authentication.AuthenticationState;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
 import org.apache.pulsar.broker.limiter.ConnectionController;
+import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl;
+import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLookupData;
 import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerBusyException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServerMetadataException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServiceUnitNotReadyException;
@@ -1598,7 +1600,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                     remoteAddress, producerId);
                         }
                         producers.remove(producerId, producerFuture);
-                        closeProducer(producerId, -1L);
+                        closeProducer(producerId, -1L, Optional.empty());
                         return null;
                     }
                 }
@@ -1758,6 +1760,20 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         Producer producer = producerFuture.getNow(null);
         if (log.isDebugEnabled()) {
             printSendCommandDebug(send, headersAndPayload);
+        }
+
+
+        ServiceConfiguration conf = getBrokerService().pulsar().getConfiguration();
+        if (producer.getTopic().isFenced()
+                && ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(conf)) {
+            long ignoredMsgCount = ExtensibleLoadManagerImpl.get(getBrokerService().pulsar())
+                    .getIgnoredSendMsgCounter().incrementAndGet();
+            if (log.isDebugEnabled()) {
+                log.debug("Ignored send msg from:{}:{} to fenced topic:{} during unloading."
+                                + " Ignored message count:{}.",
+                        remoteAddress, send.getProducerId(), producer.getTopic().getName(), ignoredMsgCount);
+            }
+            return;
         }
 
         if (producer.isNonPersistentTopic()) {
@@ -3020,13 +3036,26 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     public void closeProducer(Producer producer) {
         // removes producer-connection from map and send close command to producer
         safelyRemoveProducer(producer);
-        closeProducer(producer.getProducerId(), producer.getEpoch());
-
+        closeProducer(producer.getProducerId(), producer.getEpoch(), Optional.empty());
     }
 
-    public void closeProducer(long producerId, long epoch) {
+    @Override
+    public void closeProducer(Producer producer, Optional<BrokerLookupData> assignedBrokerLookupData) {
+        // removes producer-connection from map and send close command to producer
+        safelyRemoveProducer(producer);
+        closeProducer(producer.getProducerId(), producer.getEpoch(), assignedBrokerLookupData);
+    }
+
+    private void closeProducer(long producerId, long epoch, Optional<BrokerLookupData> assignedBrokerLookupData) {
         if (getRemoteEndpointProtocolVersion() >= v5.getValue()) {
-            writeAndFlush(Commands.newCloseProducer(producerId, -1L));
+            if (assignedBrokerLookupData.isPresent()) {
+                writeAndFlush(Commands.newCloseProducer(producerId, -1L,
+                        assignedBrokerLookupData.get().pulsarServiceUrl(),
+                        assignedBrokerLookupData.get().pulsarServiceUrlTls()));
+            } else {
+                writeAndFlush(Commands.newCloseProducer(producerId, -1L));
+            }
+
             // The client does not necessarily know that the producer is closed, but the connection is still
             // active, and there could be messages in flight already. We want to ignore these messages for a time
             // because they are expected. Once the interval has passed, the client should have received the
@@ -3049,7 +3078,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         closeConsumer(consumer.consumerId());
     }
 
-    public void closeConsumer(long consumerId) {
+    private void closeConsumer(long consumerId) {
         if (getRemoteEndpointProtocolVersion() >= v5.getValue()) {
             writeAndFlush(Commands.newCloseConsumer(consumerId, -1L));
         } else {

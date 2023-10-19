@@ -40,6 +40,7 @@ import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.pulsar.broker.PulsarServerException;
+import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.resources.NamespaceResources;
 import org.apache.pulsar.broker.service.AbstractReplicator;
@@ -484,14 +485,22 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
         return deleteFuture;
     }
 
+
+    @Override
+    public CompletableFuture<Void> close(boolean closeWithoutWaitingClientDisconnect) {
+        return close(false, closeWithoutWaitingClientDisconnect);
+    }
+
     /**
      * Close this topic - close all producers and subscriptions associated with this topic.
      *
+     * @param closeWithoutDisconnectingClients don't disconnect clients
      * @param closeWithoutWaitingClientDisconnect don't wait for client disconnect and forcefully close managed-ledger
      * @return Completable future indicating completion of close operation
      */
     @Override
-    public CompletableFuture<Void> close(boolean closeWithoutWaitingClientDisconnect) {
+    public CompletableFuture<Void> close(
+            boolean closeWithoutDisconnectingClients, boolean closeWithoutWaitingClientDisconnect) {
         CompletableFuture<Void> closeFuture = new CompletableFuture<>();
 
         lock.writeLock().lock();
@@ -510,7 +519,12 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
         List<CompletableFuture<Void>> futures = new ArrayList<>();
 
         replicators.forEach((cluster, replicator) -> futures.add(replicator.disconnect()));
-        producers.values().forEach(producer -> futures.add(producer.disconnect()));
+        if (!closeWithoutDisconnectingClients) {
+            futures.add(ExtensibleLoadManagerImpl.getAssignedBrokerLookupData(
+                    brokerService.getPulsar(), topic).thenAccept(lookupData ->
+                    producers.values().forEach(producer -> futures.add(producer.disconnect(lookupData)))
+            ));
+        }
         if (topicPublishRateLimiter != null) {
             topicPublishRateLimiter.close();
         }
@@ -538,9 +552,13 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
             // unload topic iterates over topics map and removing from the map with the same thread creates deadlock.
             // so, execute it in different thread
             brokerService.executor().execute(() -> {
-                brokerService.removeTopicFromCache(NonPersistentTopic.this);
-                unregisterTopicPolicyListener();
+
+                if (!closeWithoutDisconnectingClients) {
+                    brokerService.removeTopicFromCache(NonPersistentTopic.this);
+                    unregisterTopicPolicyListener();
+                }
                 closeFuture.complete(null);
+
             });
         }).exceptionally(exception -> {
             log.error("[{}] Error closing topic", topic, exception);
