@@ -147,6 +147,8 @@ public class AuthenticationTlsHostnameVerificationTest extends ProducerConsumerB
         clientTrustCertFilePath = TLS_MIM_TRUST_CERT_FILE_PATH;
         // setup broker cert which has CN = "pulsar" different than broker's hostname="localhost"
         conf.setBrokerServicePortTls(Optional.of(0));
+        // disable topic level policy
+        conf.setTopicLevelPoliciesEnabled(false);
         conf.setWebServicePortTls(Optional.of(0));
         conf.setAuthenticationProviders(Sets.newTreeSet(AuthenticationProviderTls.class.getName()));
         conf.setTlsTrustCertsFilePath(TLS_TRUST_CERT_FILE_PATH);
