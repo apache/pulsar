@@ -38,6 +38,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -178,6 +179,10 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
     private final UnloadCounter unloadCounter = new UnloadCounter();
     private final SplitCounter splitCounter = new SplitCounter();
 
+    // Record the ignored send msg count during unloading
+    @Getter
+    private final AtomicLong ignoredSendMsgCounter = new AtomicLong();
+
     // record unload metrics
     private final AtomicReference<List<Metrics>> unloadMetrics = new AtomicReference<>();
     // record split metrics
@@ -269,6 +274,15 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
         return loadManagerWrapper.get();
     }
 
+    /**
+     * A static util func to get the ExtensibleLoadManagerImpl instance.
+     * @param pulsar PulsarService
+     * @return the ExtensibleLoadManagerImpl instance
+     */
+    public static ExtensibleLoadManagerImpl get(PulsarService pulsar) {
+        return get(pulsar.getLoadManager().get());
+    }
+
     public static boolean debug(ServiceConfiguration config, Logger log) {
         return config.isLoadBalancerDebugModeEnabled() || log.isDebugEnabled();
     }
@@ -289,6 +303,36 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
     private static void createSystemTopics(PulsarService pulsar) throws PulsarServerException {
         createSystemTopic(pulsar, BROKER_LOAD_DATA_STORE_TOPIC);
         createSystemTopic(pulsar, TOP_BUNDLES_LOAD_DATA_STORE_TOPIC);
+    }
+    /**
+     * Gets the assigned broker for the given topic.
+     * @param pulsar PulsarService instance
+     * @param topic Topic Name
+     * @return the assigned broker's BrokerLookupData instance. Empty, if not assigned by Extensible LoadManager.
+     */
+    public static CompletableFuture<Optional<BrokerLookupData>> getAssignedBrokerLookupData(PulsarService pulsar,
+                                                                          String topic) {
+        if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(pulsar.getConfig())) {
+            var topicName = TopicName.get(topic);
+            try {
+                return pulsar.getNamespaceService().getBundleAsync(topicName)
+                        .thenCompose(bundle -> {
+                                    var loadManager = ExtensibleLoadManagerImpl.get(pulsar);
+                                    var assigned = loadManager.getServiceUnitStateChannel()
+                                            .getAssigned(bundle.toString());
+                                    if (assigned.isPresent()) {
+                                        return loadManager.getBrokerRegistry().lookupAsync(assigned.get());
+                                    } else {
+                                        return CompletableFuture.completedFuture(Optional.empty());
+                                    }
+                                }
+                        );
+            } catch (Throwable e) {
+                log.error("Failed to DestinationBrokerLookupData for topic:{}", topic, e);
+                return CompletableFuture.completedFuture(Optional.empty());
+            }
+        }
+        return CompletableFuture.completedFuture(Optional.empty());
     }
 
     @Override

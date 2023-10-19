@@ -33,6 +33,7 @@ import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
 import io.netty.util.concurrent.Promise;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
+import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.channels.ClosedChannelException;
 import java.util.Arrays;
@@ -800,11 +801,29 @@ public class ClientCnx extends PulsarHandler {
 
     @Override
     protected void handleCloseProducer(CommandCloseProducer closeProducer) {
-        log.info("[{}] Broker notification of Closed producer: {}", remoteAddress, closeProducer.getProducerId());
         final long producerId = closeProducer.getProducerId();
         ProducerImpl<?> producer = producers.remove(producerId);
         if (producer != null) {
-            producer.connectionClosed(this);
+            if (closeProducer.hasAssignedBrokerServiceUrl() || closeProducer.hasAssignedBrokerServiceUrlTls()) {
+                try {
+                    final URI uri = new URI(producer.client.conf.isUseTls()
+                            ? closeProducer.getAssignedBrokerServiceUrlTls()
+                            : closeProducer.getAssignedBrokerServiceUrl());
+                    log.info("[{}] Broker notification of Closed producer: {}. Redirecting to {}.",
+                            remoteAddress, closeProducer.getProducerId(), uri);
+                    producer.getConnectionHandler().connectionClosed(this, 0L, Optional.of(uri));
+                } catch (URISyntaxException e) {
+                    log.error("[{}] Invalid redirect url {}/{} for {}", remoteAddress,
+                            closeProducer.getAssignedBrokerServiceUrl(),
+                            closeProducer.getAssignedBrokerServiceUrlTls(),
+                            closeProducer.getRequestId());
+                    producer.connectionClosed(this);
+                }
+            } else {
+                log.info("[{}] Broker notification of Closed producer: {}.",
+                        remoteAddress, closeProducer.getProducerId());
+                producer.connectionClosed(this);
+            }
         } else {
             log.warn("Producer with id {} not found while closing producer ", producerId);
         }
