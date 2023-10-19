@@ -39,6 +39,7 @@ import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
+import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLookupData;
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicClosedException;
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicTerminatedException;
 import org.apache.pulsar.broker.service.Topic.PublishContext;
@@ -699,17 +700,21 @@ public class Producer {
         isDisconnecting.set(false);
     }
 
+    public CompletableFuture<Void> disconnect() {
+        return disconnect(Optional.empty());
+    }
+
     /**
      * It closes the producer from server-side and sends command to client to disconnect producer from existing
      * connection without closing that connection.
      *
      * @return Completable future indicating completion of producer close
      */
-    public CompletableFuture<Void> disconnect() {
+    public CompletableFuture<Void> disconnect(Optional<BrokerLookupData> assignedBrokerLookupData) {
         if (!closeFuture.isDone() && isDisconnecting.compareAndSet(false, true)) {
             log.info("Disconnecting producer: {}", this);
             cnx.execute(() -> {
-                cnx.closeProducer(this);
+                cnx.closeProducer(this, assignedBrokerLookupData);
                 closeNow(true);
             });
         }
