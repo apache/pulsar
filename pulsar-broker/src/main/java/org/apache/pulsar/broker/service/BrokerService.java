@@ -2197,8 +2197,10 @@ public class BrokerService implements Closeable {
     }
 
     public CompletableFuture<Integer> unloadServiceUnit(NamespaceBundle serviceUnit,
+            boolean disconnectClients,
             boolean closeWithoutWaitingClientDisconnect, long timeout, TimeUnit unit) {
-        CompletableFuture<Integer> future = unloadServiceUnit(serviceUnit, closeWithoutWaitingClientDisconnect);
+        CompletableFuture<Integer> future = unloadServiceUnit(
+                serviceUnit, disconnectClients, closeWithoutWaitingClientDisconnect);
         ScheduledFuture<?> taskTimeout = executor().schedule(() -> {
             if (!future.isDone()) {
                 log.warn("Unloading of {} has timed out", serviceUnit);
@@ -2215,11 +2217,13 @@ public class BrokerService implements Closeable {
      * Unload all the topic served by the broker service under the given service unit.
      *
      * @param serviceUnit
+     * @param disconnectClients disconnect clients
      * @param closeWithoutWaitingClientDisconnect don't wait for clients to disconnect
      *                                           and forcefully close managed-ledger
      * @return
      */
     private CompletableFuture<Integer> unloadServiceUnit(NamespaceBundle serviceUnit,
+                                                         boolean disconnectClients,
                                                          boolean closeWithoutWaitingClientDisconnect) {
         List<CompletableFuture<Void>> closeFutures = new ArrayList<>();
         topics.forEach((name, topicFuture) -> {
@@ -2243,7 +2247,8 @@ public class BrokerService implements Closeable {
                     }
                 }
                 closeFutures.add(topicFuture
-                        .thenCompose(t -> t.isPresent() ? t.get().close(closeWithoutWaitingClientDisconnect)
+                        .thenCompose(t -> t.isPresent() ? t.get().close(
+                                disconnectClients, closeWithoutWaitingClientDisconnect)
                                 : CompletableFuture.completedFuture(null)));
             }
         });
