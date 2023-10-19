@@ -30,8 +30,6 @@ import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUni
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannelImpl.EventType.Unload;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannelImpl.MAX_CLEAN_UP_DELAY_TIME_IN_SECS;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateData.state;
-import static org.apache.pulsar.broker.namespace.NamespaceService.HEARTBEAT_NAMESPACE_FMT;
-import static org.apache.pulsar.broker.namespace.NamespaceService.HEARTBEAT_NAMESPACE_FMT_V2;
 import static org.apache.pulsar.metadata.api.extended.SessionEvent.ConnectionLost;
 import static org.apache.pulsar.metadata.api.extended.SessionEvent.Reconnected;
 import static org.apache.pulsar.metadata.api.extended.SessionEvent.SessionLost;
@@ -89,7 +87,6 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.TypedMessageBuilder;
 import org.apache.pulsar.client.impl.TableViewImpl;
-import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.policies.data.TopicType;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
@@ -639,7 +636,7 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         var leader = channel1.isChannelOwnerAsync().get() ? channel1 : channel2;
         validateMonitorCounters(leader,
                 0,
-                1,
+                3,
                 0,
                 0,
                 0,
@@ -756,34 +753,6 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         waitUntilNewOwner(channel1, bundle2, broker);
         waitUntilNewOwner(channel2, bundle2, broker);
 
-        // Register the broker-1 heartbeat namespace bundle.
-        String heartbeatNamespaceBroker1V1 = NamespaceName
-                .get(String.format(HEARTBEAT_NAMESPACE_FMT, conf.getClusterName(), broker)).toString();
-        String heartbeatNamespaceBroker1V2 = NamespaceName
-                .get(String.format(HEARTBEAT_NAMESPACE_FMT_V2, broker)).toString();
-        String heartbeatNamespaceBroker1V1Bundle = heartbeatNamespaceBroker1V1 + "/0x00000000_0xfffffff0";
-        String heartbeatNamespaceBroker1V2Bundle = heartbeatNamespaceBroker1V2 + "/0x00000000_0xfffffff0";
-        channel1.publishAssignEventAsync(heartbeatNamespaceBroker1V1Bundle, broker);
-        channel1.publishAssignEventAsync(heartbeatNamespaceBroker1V2Bundle, broker);
-
-        // Register the broker-2 heartbeat namespace bundle.
-        String heartbeatNamespaceBroker2V1 = NamespaceName
-                .get(String.format(HEARTBEAT_NAMESPACE_FMT, conf.getClusterName(), lookupServiceAddress2)).toString();
-        String heartbeatNamespaceBroker2V2 = NamespaceName
-                .get(String.format(HEARTBEAT_NAMESPACE_FMT_V2, lookupServiceAddress2)).toString();
-        String heartbeatNamespaceBroker2V1Bundle = heartbeatNamespaceBroker2V1 + "/0x00000000_0xfffffff0";
-        String heartbeatNamespaceBroker2V2Bundle = heartbeatNamespaceBroker2V2 + "/0x00000000_0xfffffff0";
-        channel1.publishAssignEventAsync(heartbeatNamespaceBroker2V1Bundle, lookupServiceAddress2);
-        channel1.publishAssignEventAsync(heartbeatNamespaceBroker2V2Bundle, lookupServiceAddress2);
-        waitUntilNewOwner(channel1, heartbeatNamespaceBroker1V1Bundle, broker);
-        waitUntilNewOwner(channel1, heartbeatNamespaceBroker1V2Bundle, broker);
-        waitUntilNewOwner(channel2, heartbeatNamespaceBroker1V1Bundle, broker);
-        waitUntilNewOwner(channel2, heartbeatNamespaceBroker1V2Bundle, broker);
-        waitUntilNewOwner(channel1, heartbeatNamespaceBroker2V1Bundle, lookupServiceAddress2);
-        waitUntilNewOwner(channel1, heartbeatNamespaceBroker2V2Bundle, lookupServiceAddress2);
-        waitUntilNewOwner(channel2, heartbeatNamespaceBroker2V1Bundle, lookupServiceAddress2);
-        waitUntilNewOwner(channel2, heartbeatNamespaceBroker2V2Bundle, lookupServiceAddress2);
-
         // Verify to transfer the ownership to the other broker.
         channel1.publishUnloadEventAsync(new Unload(broker, bundle1, Optional.of(lookupServiceAddress2)));
         waitUntilNewOwner(channel1, bundle1, lookupServiceAddress2);
@@ -806,16 +775,6 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         waitUntilNewOwner(channel1, bundle2, lookupServiceAddress2);
         waitUntilNewOwner(channel2, bundle2, lookupServiceAddress2);
 
-        waitUntilNewOwner(channel1, heartbeatNamespaceBroker1V1Bundle, null);
-        waitUntilNewOwner(channel1, heartbeatNamespaceBroker1V2Bundle, null);
-        waitUntilNewOwner(channel2, heartbeatNamespaceBroker1V1Bundle, null);
-        waitUntilNewOwner(channel2, heartbeatNamespaceBroker1V2Bundle, null);
-
-        waitUntilNewOwner(channel1, heartbeatNamespaceBroker2V1Bundle, null);
-        waitUntilNewOwner(channel1, heartbeatNamespaceBroker2V2Bundle, null);
-        waitUntilNewOwner(channel2, heartbeatNamespaceBroker2V1Bundle, null);
-        waitUntilNewOwner(channel2, heartbeatNamespaceBroker2V2Bundle, null);
-
         verify(leaderCleanupJobs, times(1)).computeIfAbsent(eq(broker), any());
         verify(followerCleanupJobs, times(0)).computeIfAbsent(eq(broker), any());
 
@@ -827,7 +786,7 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         validateMonitorCounters(leaderChannel,
                 2,
                 0,
-                7,
+                3,
                 0,
                 2,
                 0,
@@ -858,7 +817,7 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         validateMonitorCounters(leaderChannel,
                 2,
                 0,
-                7,
+                3,
                 0,
                 3,
                 0,
@@ -879,7 +838,7 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         validateMonitorCounters(leaderChannel,
                 2,
                 0,
-                7,
+                3,
                 0,
                 3,
                 0,
@@ -901,7 +860,7 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         validateMonitorCounters(leaderChannel,
                 2,
                 0,
-                7,
+                3,
                 0,
                 4,
                 0,
@@ -923,7 +882,7 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         validateMonitorCounters(leaderChannel,
                 3,
                 0,
-                9,
+                5,
                 0,
                 4,
                 0,
@@ -952,7 +911,7 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         validateMonitorCounters(leaderChannel,
                 3,
                 0,
-                9,
+                5,
                 0,
                 4,
                 1,
@@ -1447,7 +1406,7 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
 
         validateMonitorCounters(leader,
                 0,
-                1,
+                3,
                 1,
                 0,
                 0,
