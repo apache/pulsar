@@ -283,22 +283,22 @@ The Apache Software License, Version 2.0
     - joda-time-2.10.10.jar
     - failsafe-2.4.4.jar
   * Jetty
-    - http2-client-9.4.51.v20230217.jar
-    - http2-common-9.4.51.v20230217.jar
-    - http2-hpack-9.4.51.v20230217.jar
-    - http2-http-client-transport-9.4.51.v20230217.jar
-    - jetty-alpn-client-9.4.51.v20230217.jar
-    - http2-server-9.4.51.v20230217.jar
-    - jetty-alpn-java-client-9.4.51.v20230217.jar
-    - jetty-client-9.4.51.v20230217.jar
-    - jetty-http-9.4.51.v20230217.jar
-    - jetty-io-9.4.51.v20230217.jar
-    - jetty-jmx-9.4.51.v20230217.jar
-    - jetty-security-9.4.51.v20230217.jar
-    - jetty-server-9.4.51.v20230217.jar
-    - jetty-servlet-9.4.51.v20230217.jar
-    - jetty-util-9.4.51.v20230217.jar
-    - jetty-util-ajax-9.4.51.v20230217.jar
+    - http2-client-9.4.53.v20231009.jar
+    - http2-common-9.4.53.v20231009.jar
+    - http2-hpack-9.4.53.v20231009.jar
+    - http2-http-client-transport-9.4.53.v20231009.jar
+    - jetty-alpn-client-9.4.53.v20231009.jar
+    - http2-server-9.4.53.v20231009.jar
+    - jetty-alpn-java-client-9.4.53.v20231009.jar
+    - jetty-client-9.4.53.v20231009.jar
+    - jetty-http-9.4.53.v20231009.jar
+    - jetty-io-9.4.53.v20231009.jar
+    - jetty-jmx-9.4.53.v20231009.jar
+    - jetty-security-9.4.53.v20231009.jar
+    - jetty-server-9.4.53.v20231009.jar
+    - jetty-servlet-9.4.53.v20231009.jar
+    - jetty-util-9.4.53.v20231009.jar
+    - jetty-util-ajax-9.4.53.v20231009.jar
   * Byte Buddy
     - byte-buddy-1.11.13.jar
   * Apache BVal
