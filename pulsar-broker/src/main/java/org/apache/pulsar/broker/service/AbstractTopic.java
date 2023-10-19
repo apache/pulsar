@@ -956,6 +956,11 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
         }
     }
 
+    @Override
+    public boolean isFenced() {
+        return isFenced;
+    }
+
     protected CompletableFuture<Void> internalAddProducer(Producer producer) {
         if (isProducersExceeded(producer)) {
             log.warn("[{}] Attempting to add producer to topic which reached max producers limit", topic);

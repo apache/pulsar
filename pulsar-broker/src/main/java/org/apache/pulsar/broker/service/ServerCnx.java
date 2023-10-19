@@ -81,6 +81,8 @@ import org.apache.pulsar.broker.authentication.AuthenticationProvider;
 import org.apache.pulsar.broker.authentication.AuthenticationState;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
 import org.apache.pulsar.broker.limiter.ConnectionController;
+import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl;
+import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLookupData;
 import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerBusyException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServerMetadataException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServiceUnitNotReadyException;
@@ -1717,6 +1719,20 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             printSendCommandDebug(send, headersAndPayload);
         }
 
+
+        ServiceConfiguration conf = getBrokerService().pulsar().getConfiguration();
+        if (producer.getTopic().isFenced()
+                && ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(conf)) {
+            long ignoredMsgCount = ExtensibleLoadManagerImpl.get(getBrokerService().pulsar())
+                    .getIgnoredSendMsgCounter().incrementAndGet();
+            if (log.isDebugEnabled()) {
+                log.debug("Ignored send msg from:{}:{} to fenced topic:{} during unloading."
+                                + " Ignored message count:{}.",
+                        remoteAddress, send.getProducerId(), producer.getTopic().getName(), ignoredMsgCount);
+            }
+            return;
+        }
+
         if (producer.isNonPersistentTopic()) {
             // avoid processing non-persist message if reached max concurrent-message limit
             if (nonPersistentPendingMessages > maxNonPersistentPendingMessages) {
@@ -2963,15 +2979,31 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         assert ctx.executor().inEventLoop();
         // removes producer-connection from map and send close command to producer
         safelyRemoveProducer(producer);
+        closeProducer(producer.getProducerId(), producer.getEpoch(), Optional.empty());
+    }
+
+    @Override
+    public void closeProducer(Producer producer, Optional<BrokerLookupData> assignedBrokerLookupData) {
+        // removes producer-connection from map and send close command to producer
+        safelyRemoveProducer(producer);
+        closeProducer(producer.getProducerId(), producer.getEpoch(), assignedBrokerLookupData);
+    }
+
+    private void closeProducer(long producerId, long epoch, Optional<BrokerLookupData> assignedBrokerLookupData) {
         if (getRemoteEndpointProtocolVersion() >= v5.getValue()) {
-            writeAndFlush(Commands.newCloseProducer(producer.getProducerId(), -1L));
+            if (assignedBrokerLookupData.isPresent()) {
+                writeAndFlush(Commands.newCloseProducer(producerId, -1L,
+                        assignedBrokerLookupData.get().pulsarServiceUrl(),
+                        assignedBrokerLookupData.get().pulsarServiceUrlTls()));
+            } else {
+                writeAndFlush(Commands.newCloseProducer(producerId, -1L));
+            }
+
             // The client does not necessarily know that the producer is closed, but the connection is still
             // active, and there could be messages in flight already. We want to ignore these messages for a time
             // because they are expected. Once the interval has passed, the client should have received the
             // CloseProducer command and should not send any additional messages until it sends a create Producer
             // command.
-            final long epoch = producer.getEpoch();
-            final long producerId = producer.getProducerId();
             recentlyClosedProducers.put(producerId, epoch);
             ctx.executor().schedule(() -> {
                 recentlyClosedProducers.remove(producerId, epoch);
@@ -2986,8 +3018,12 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     public void closeConsumer(Consumer consumer) {
         // removes consumer-connection from map and send close command to consumer
         safelyRemoveConsumer(consumer);
+        closeConsumer(consumer.consumerId());
+    }
+
+    private void closeConsumer(long consumerId) {
         if (getRemoteEndpointProtocolVersion() >= v5.getValue()) {
-            writeAndFlush(Commands.newCloseConsumer(consumer.consumerId(), -1L));
+            writeAndFlush(Commands.newCloseConsumer(consumerId, -1L));
         } else {
             close();
         }

@@ -538,6 +538,44 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         }
     }
 
+    @Override
+    public Optional<String> getAssigned(String serviceUnit) {
+        if (!validateChannelState(Started, true)) {
+            return Optional.empty();
+        }
+
+        ServiceUnitStateData data = tableview.get(serviceUnit);
+        if (data == null) {
+            return Optional.empty();
+        }
+        ServiceUnitState state = state(data);
+        switch (state) {
+            case Owned, Assigning -> {
+                return Optional.of(data.dstBroker());
+            }
+            case Releasing -> {
+                if (data.dstBroker() != null) {
+                    return Optional.of(data.dstBroker());
+                }
+                return Optional.empty();
+            }
+            case Splitting -> {
+                return Optional.of(data.sourceBroker());
+            }
+            case Init, Free -> {
+                return Optional.empty();
+            }
+            case Deleted -> {
+                log.warn("Trying to get the assigned broker from the deleted serviceUnit:{}", serviceUnit);
+                return Optional.empty();
+            }
+            default -> {
+                log.warn("Trying to get the assigned broker from unknown state:{} serviceUnit:{}", state, serviceUnit);
+                return Optional.empty();
+            }
+        }
+    }
+
     private long getNextVersionId(String serviceUnit) {
         var data = tableview.get(serviceUnit);
         return getNextVersionId(data);
@@ -732,15 +770,20 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         if (getOwnerRequest != null) {
             getOwnerRequest.complete(data.dstBroker());
         }
-        stateChangeListeners.notify(serviceUnit, data, null);
+        CompletableFuture<Integer> ownFuture = null;
         if (isTargetBroker(data.dstBroker())) {
-            log(null, serviceUnit, data, null);
             pulsar.getNamespaceService()
                     .onNamespaceBundleOwned(LoadManagerShared.getNamespaceBundle(pulsar, serviceUnit));
             lastOwnEventHandledAt = System.currentTimeMillis();
-        } else if (data.force() && isTargetBroker(data.sourceBroker())) {
-            closeServiceUnit(serviceUnit);
+            ownFuture = CompletableFuture.completedFuture(null);
+        } else if ((data.force() || isTransferCommand(data)) && isTargetBroker(data.sourceBroker())) {
+            ownFuture = closeServiceUnit(serviceUnit, false);
+        } else {
+            ownFuture = CompletableFuture.completedFuture(null);
         }
+
+        stateChangeListeners.notifyOnCompletion(ownFuture, serviceUnit, data)
+                .whenComplete((__, e) -> log(e, serviceUnit, data, null));
     }
 
     private void handleAssignEvent(String serviceUnit, ServiceUnitStateData data) {
@@ -755,15 +798,17 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
     private void handleReleaseEvent(String serviceUnit, ServiceUnitStateData data) {
         if (isTargetBroker(data.sourceBroker())) {
             ServiceUnitStateData next;
+            CompletableFuture<Integer> unloadFuture;
             if (isTransferCommand(data)) {
                 next = new ServiceUnitStateData(
                         Assigning, data.dstBroker(), data.sourceBroker(), getNextVersionId(data));
-                // TODO: when close, pass message to clients to connect to the new broker
+                unloadFuture = closeServiceUnit(serviceUnit, true);
             } else {
                 next = new ServiceUnitStateData(
                         Free, null, data.sourceBroker(), getNextVersionId(data));
+                unloadFuture = closeServiceUnit(serviceUnit, false);
             }
-            stateChangeListeners.notifyOnCompletion(closeServiceUnit(serviceUnit)
+            stateChangeListeners.notifyOnCompletion(unloadFuture
                             .thenCompose(__ -> pubAsync(serviceUnit, next)), serviceUnit, data)
                     .whenComplete((__, e) -> log(e, serviceUnit, data, next));
         }
@@ -861,12 +906,13 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         }
     }
 
-    private CompletableFuture<Integer> closeServiceUnit(String serviceUnit) {
+    private CompletableFuture<Integer> closeServiceUnit(String serviceUnit, boolean closeWithoutDisconnectingClients) {
         long startTime = System.nanoTime();
         MutableInt unloadedTopics = new MutableInt();
         NamespaceBundle bundle = LoadManagerShared.getNamespaceBundle(pulsar, serviceUnit);
         return pulsar.getBrokerService().unloadServiceUnit(
                         bundle,
+                        closeWithoutDisconnectingClients,
                         true,
                         pulsar.getConfig().getNamespaceBundleUnloadingTimeoutMs(),
                         TimeUnit.MILLISECONDS)
@@ -875,8 +921,10 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                     return numUnloadedTopics;
                 })
                 .whenComplete((__, ex) -> {
-                    // clean up topics that failed to unload from the broker ownership cache
-                    pulsar.getBrokerService().cleanUnloadedTopicFromCache(bundle);
+                    if (!closeWithoutDisconnectingClients) {
+                        // clean up topics that failed to unload from the broker ownership cache
+                        pulsar.getBrokerService().cleanUnloadedTopicFromCache(bundle);
+                    }
                     pulsar.getNamespaceService().onNamespaceBundleUnload(bundle);
                     double unloadBundleTime = TimeUnit.NANOSECONDS
                             .toMillis((System.nanoTime() - startTime));

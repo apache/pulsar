@@ -196,6 +196,9 @@ public interface Topic {
 
     CompletableFuture<Void> close(boolean closeWithoutWaitingClientDisconnect);
 
+    CompletableFuture<Void> close(
+            boolean closeWithoutDisconnectingClients, boolean closeWithoutWaitingClientDisconnect);
+
     void checkGC();
 
     CompletableFuture<Void> checkClusterMigration();
@@ -328,6 +331,8 @@ public interface Topic {
     }
 
     boolean isPersistent();
+
+    boolean isFenced();
 
     /* ------ Transaction related ------ */
 
