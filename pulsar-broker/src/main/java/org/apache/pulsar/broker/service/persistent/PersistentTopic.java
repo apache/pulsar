@@ -2614,7 +2614,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                     : CompletableFuture.completedFuture(null);
             return migrated.thenApply(__ -> {
                 subscriptions.forEach((name, sub) -> {
-                    if (sub.isSubsciptionMigrated()) {
+                    if (sub.isSubscriptionMigrated()) {
                         sub.getConsumers().forEach(Consumer::checkAndApplyTopicMigration);
                     }
                 });
