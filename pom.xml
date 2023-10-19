@@ -258,10 +258,10 @@ flexible messaging model and an intuitive client API.</description>
     <docker-java.version>3.3.0</docker-java.version>
     <kerby.version>1.1.1</kerby.version>
     <testng.version>7.7.1</testng.version>
-    <mockito.version>3.12.4</mockito.version>
+    <mockito.version>5.6.0</mockito.version>
     <javassist.version>3.25.0-GA</javassist.version>
     <skyscreamer.version>1.5.0</skyscreamer.version>
-    <objenesis.version>3.1</objenesis.version>
+    <objenesis.version>3.3</objenesis.version> <!-- should match mockito-core objenesis version -->
     <awaitility.version>4.2.0</awaitility.version>
     <jettison.version>1.5.4</jettison.version>
     <woodstox.version>5.4.0</woodstox.version>
@@ -359,12 +359,6 @@ flexible messaging model and an intuitive client API.</description>
       <dependency>
         <groupId>org.mockito</groupId>
         <artifactId>mockito-core</artifactId>
-        <version>${mockito.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>org.mockito</groupId>
-        <artifactId>mockito-inline</artifactId>
         <version>${mockito.version}</version>
       </dependency>
 
@@ -1438,12 +1432,6 @@ flexible messaging model and an intuitive client API.</description>
     <dependency>
       <groupId>org.mockito</groupId>
       <artifactId>mockito-core</artifactId>
-      <scope>test</scope>
-    </dependency>
-
-    <dependency>
-      <groupId>org.mockito</groupId>
-      <artifactId>mockito-inline</artifactId>
       <scope>test</scope>
     </dependency>
 

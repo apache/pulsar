@@ -848,10 +848,8 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
     @Test
     public void testCompactWithConcurrentGetCompactionHorizonAndCompactedTopicContext() throws Exception {
         @Cleanup
-        BookKeeper bk0 = pulsar.getBookKeeperClientFactory().create(
+        BookKeeper bk = pulsar.getBookKeeperClientFactory().create(
                 this.conf, null, null, Optional.empty(), null);
-
-        final BookKeeper bk = Mockito.spy(bk0);
 
         Mockito.doAnswer(invocation -> {
             Thread.sleep(1500);

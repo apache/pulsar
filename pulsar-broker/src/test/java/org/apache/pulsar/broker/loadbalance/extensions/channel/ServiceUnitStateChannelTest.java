@@ -567,7 +567,7 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         assertEquals(ownerAddr2, Optional.of(lookupServiceAddress1));
         assertTrue(ownerAddr1.isPresent());
 
-        NamespaceService namespaceService = spy(pulsar1.getNamespaceService());
+        NamespaceService namespaceService = pulsar1.getNamespaceService();
         CompletableFuture<Void> future = new CompletableFuture<>();
         int badVersionExceptionCount = 3;
         AtomicInteger count = new AtomicInteger(badVersionExceptionCount);
@@ -1331,7 +1331,7 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         assertEquals(ownerAddr2, Optional.of(lookupServiceAddress1));
         assertTrue(ownerAddr1.isPresent());
 
-        NamespaceService namespaceService = spy(pulsar1.getNamespaceService());
+        NamespaceService namespaceService = pulsar1.getNamespaceService();
         CompletableFuture<Void> future = new CompletableFuture<>();
         int badVersionExceptionCount = 10;
         AtomicInteger count = new AtomicInteger(badVersionExceptionCount);
