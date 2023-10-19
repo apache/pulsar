@@ -88,6 +88,13 @@ public class UnloadManager implements StateChangeListener {
 
     @Override
     public void handleEvent(String serviceUnit, ServiceUnitStateData data, Throwable t) {
+        if (t != null && inFlightUnloadRequest.containsKey(serviceUnit)) {
+            if (log.isDebugEnabled()) {
+                log.debug("Handling {} for service unit {} with exception.", data, serviceUnit, t);
+            }
+            this.complete(serviceUnit, t);
+            return;
+        }
         ServiceUnitState state = ServiceUnitStateData.state(data);
         switch (state) {
             case Free, Owned -> this.complete(serviceUnit, t);

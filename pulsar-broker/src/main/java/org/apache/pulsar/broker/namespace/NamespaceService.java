@@ -1544,10 +1544,6 @@ public class NamespaceService implements AutoCloseable {
 
     public CompletableFuture<Boolean> checkOwnershipPresentAsync(NamespaceBundle bundle) {
         if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(config)) {
-            if (bundle.getNamespaceObject().equals(SYSTEM_NAMESPACE)) {
-                return FutureUtil.failedFuture(new UnsupportedOperationException(
-                        "Ownership check for system namespace is not supported"));
-            }
             ExtensibleLoadManagerImpl extensibleLoadManager = ExtensibleLoadManagerImpl.get(loadManager.get());
             return extensibleLoadManager.getOwnershipAsync(Optional.empty(), bundle)
                     .thenApply(Optional::isPresent);
