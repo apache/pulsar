@@ -186,6 +186,13 @@ public class PartitionedSystemTopicTest extends BrokerTestBase {
         Optional<Topic> optionalTopic = pulsar.getBrokerService()
                 .getTopic(topicName.getPartition(1).toString(), false).join();
         Assert.assertTrue(optionalTopic.isEmpty());
+
+        TopicName heartbeatTopicName = TopicName.get("persistent",
+                namespaceName, BrokersBase.HEALTH_CHECK_TOPIC_SUFFIX);
+        admin.topics().getRetention(heartbeatTopicName.toString());
+        optionalTopic = pulsar.getBrokerService()
+                .getTopic(topicName.getPartition(1).toString(), false).join();
+        Assert.assertTrue(optionalTopic.isEmpty());
     }
 
     @Test
@@ -203,6 +210,22 @@ public class PartitionedSystemTopicTest extends BrokerTestBase {
         });
     }
 
+    @Test
+    public void testHeartbeatTopicBeDeleted() throws Exception {
+        admin.brokers().healthcheck(TopicVersion.V2);
+        NamespaceName namespaceName = NamespaceService.getHeartbeatNamespaceV2(pulsar.getLookupServiceAddress(),
+                pulsar.getConfig());
+        TopicName heartbeatTopicName = TopicName.get("persistent", namespaceName, BrokersBase.HEALTH_CHECK_TOPIC_SUFFIX);
+
+        List<String> topics = getPulsar().getNamespaceService().getListOfPersistentTopics(namespaceName).join();
+        Assert.assertEquals(topics.size(), 1);
+        Assert.assertEquals(topics.get(0), heartbeatTopicName.toString());
+
+        admin.topics().delete(heartbeatTopicName.toString(), true);
+        topics = getPulsar().getNamespaceService().getListOfPersistentTopics(namespaceName).join();
+        Assert.assertEquals(topics.size(), 0);
+    }
+  
     @Test
     public void testHeartbeatNamespaceNotCreateTransactionInternalTopic() throws Exception {
         admin.brokers().healthcheck(TopicVersion.V2);
