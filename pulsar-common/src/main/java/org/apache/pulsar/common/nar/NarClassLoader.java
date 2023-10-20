@@ -38,6 +38,7 @@ import java.security.AccessController;
 import java.security.PrivilegedAction;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Base64;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
@@ -46,6 +47,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.tuple.Pair;
 
 /**
  * <p>
@@ -130,7 +132,7 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class NarClassLoader extends URLClassLoader {
 
-    private static final Map<String, NarClassLoader> CACHED_CLASS_LOADER = new ConcurrentHashMap<>();
+    private static final Map<Pair<String, ClassLoader>, NarClassLoader> CACHED_CLASS_LOADER = new ConcurrentHashMap<>();
 
     private static final FileFilter JAR_FILTER = pathname -> {
         final String nameToTest = pathname.getName().toLowerCase();
@@ -141,9 +143,8 @@ public class NarClassLoader extends URLClassLoader {
      * The NAR for which this <tt>ClassLoader</tt> is responsible.
      */
     private final File narWorkingDirectory;
-    private final String narPath;
-    private final ClassLoader parentClassLoader;
-    private final AtomicInteger refCnt = new AtomicInteger(0);
+    private final Pair<String, ClassLoader> classLoaderCacheKey;
+    private final AtomicInteger refCnt = new AtomicInteger(1);
 
     private static final String TMP_DIR_PREFIX = "pulsar-nar";
 
@@ -151,9 +152,10 @@ public class NarClassLoader extends URLClassLoader {
             ? System.getProperty("nar.extraction.tmpdir") : System.getProperty("java.io.tmpdir");
 
     static NarClassLoader getFromArchive(File narFile, Set<String> additionalJars, ClassLoader parent,
-                                         String narExtractionDirectory) {
+                                         String narExtractionDirectory) throws IOException {
 
-        final String cachedKey = classLoaderKey(narFile.getAbsolutePath(), parent);
+        String md5Sum = Base64.getUrlEncoder().withoutPadding().encodeToString(NarUnpacker.calculateMd5sum(narFile));
+        Pair<String, ClassLoader> cachedKey = Pair.of(md5Sum, parent);
         return CACHED_CLASS_LOADER.compute(cachedKey, (key, narClassLoader) -> {
             if (narClassLoader != null) {
                 return narClassLoader.retain();
@@ -164,17 +166,13 @@ public class NarClassLoader extends URLClassLoader {
                     @SneakyThrows
                     @Override
                     public NarClassLoader run() {
-                        return new NarClassLoader(narFile.getAbsolutePath(), unpacked, additionalJars, parent).retain();
+                        return new NarClassLoader(cachedKey, unpacked, additionalJars, parent);
                     }
                 });
             } catch (IOException e) {
                 throw new RuntimeException(e);
             }
         });
-    }
-    private static String classLoaderKey(String narPath, ClassLoader parent) {
-        String parentClassLoader = parent == null ? null : parent.toString();
-        return narPath + "###" + parentClassLoader;
     }
 
     private static File getNarExtractionDirectory(String configuredDirectory) {
@@ -184,6 +182,8 @@ public class NarClassLoader extends URLClassLoader {
     /**
      * Construct a nar class loader.
      *
+     * @param cacheKey
+     *            the cache key for the class loader, Pair(nar file md5sum, parent classLoader)
      * @param narWorkingDirectory
      *            directory to explode nar contents to
      * @param parent
@@ -192,12 +192,11 @@ public class NarClassLoader extends URLClassLoader {
      * @throws IOException
      *             if an error occurs while loading the NAR.
      */
-    private NarClassLoader(final String narPath, final File narWorkingDirectory, Set<String> additionalJars,
-                           ClassLoader parent) throws IOException {
+    private NarClassLoader(final Pair<String, ClassLoader> cacheKey, final File narWorkingDirectory,
+                           Set<String> additionalJars, ClassLoader parent) throws IOException {
         super(new URL[0], parent);
-        this.narPath = narPath;
+        this.classLoaderCacheKey = cacheKey;
         this.narWorkingDirectory = narWorkingDirectory;
-        this.parentClassLoader = parent;
 
         // process the classpath
         updateClasspath(narWorkingDirectory);
@@ -309,10 +308,12 @@ public class NarClassLoader extends URLClassLoader {
     @Override
     public void close() throws IOException {
         if (this.release() == 0) {
-            CACHED_CLASS_LOADER.compute(classLoaderKey(this.narPath, this.parentClassLoader), (k, narClassLoader) -> {
+            CACHED_CLASS_LOADER.compute(classLoaderCacheKey, (k, narClassLoader) -> {
                 try {
                     checkArgument(narClassLoader == this);
-                    NarClassLoader.super.close();
+                    if (this.refCnt() == 0) {
+                        NarClassLoader.super.close();
+                    }
                 } catch (IOException e) {
                     throw new RuntimeException(e);
                 }
