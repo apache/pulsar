@@ -266,18 +266,20 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
 
             // We are not able to push all the messages with given key to its consumer,
             // so we discard for now and mark them for later redelivery
-            entriesWithSameKey.stream()
-                    .filter(entryWithTheSameKey -> !entriesForC.contains(entryWithTheSameKey))
-                    .forEach(entryToReplay -> {
-                        long stickyKeyHash = getStickyKeyHash(entryToReplay);
-                        addMessageToReplay(entryToReplay.getLedgerId(), entryToReplay.getEntryId(), stickyKeyHash);
-                        entryToReplay.release();
-                    });
+            for (Entry entryWithTheSameKey : entriesWithSameKey) {
+                if (!entriesForC.contains(entryWithTheSameKey)) {
+                    long stickyKeyHash = getStickyKeyHash(entryWithTheSameKey);
+                    addMessageToReplay(entryWithTheSameKey.getLedgerId(), entryWithTheSameKey.getEntryId(), stickyKeyHash);
+                    entryWithTheSameKey.release();
+                }
+            }
 
             if (!entriesForC.isEmpty()) {
                 // remove positions first from replay list first : sendMessages recycles entries
                 if (readType == ReadType.Replay) {
-                    entriesForC.forEach(entry -> redeliveryMessages.remove(entry.getLedgerId(), entry.getEntryId()));
+                    for (Entry entryToRemoveFromRedelivery : entriesForC) {
+                        redeliveryMessages.remove(entryToRemoveFromRedelivery.getLedgerId(), entryToRemoveFromRedelivery.getEntryId());
+                    }
                 }
 
                 SendMessageInfo sendMessageInfo = SendMessageInfo.getThreadLocal();
@@ -351,12 +353,14 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
             return entries;
         }
 
-        return entries.stream()
-                .filter(entry -> {
-                    int stickyHash = getStickyKeyHash(entry);
-                    return !redeliveryMessages.containsStickyKeyHashes(Collections.singleton(stickyHash));
-                })
-                .collect(Collectors.toList());
+        List<Entry> entriesWithoutMarkedForRedelivery = new ArrayList<>();
+        for (Entry entry : entries) {
+            int stickyHash = getStickyKeyHash(entry);
+            if (!redeliveryMessages.containsStickyKeyHashes(Collections.singleton(stickyHash))) {
+                entriesWithoutMarkedForRedelivery.add(entry);
+            }
+        }
+        return entriesWithoutMarkedForRedelivery;
     }
 
     @Override
