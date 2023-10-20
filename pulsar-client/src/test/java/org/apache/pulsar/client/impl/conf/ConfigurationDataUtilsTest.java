@@ -20,6 +20,7 @@ package org.apache.pulsar.client.impl.conf;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableSet;
+import lombok.Cleanup;
 import org.testng.Assert;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
@@ -148,6 +149,7 @@ public class ConfigurationDataUtilsTest {
         clientConfig.setServiceUrl("pulsar://unknown:6650");
         clientConfig.setStatsIntervalSeconds(80);
 
+        @Cleanup
         PulsarClientImpl pulsarClient = new PulsarClientImpl(clientConfig);
         assertNotNull(pulsarClient, "Pulsar client built using config should not be null");
 
@@ -213,6 +215,7 @@ public class ConfigurationDataUtilsTest {
         clientConfig.setSocks5ProxyUsername("test");
         clientConfig.setSocks5ProxyPassword("test123");
 
+        @Cleanup
         PulsarClientImpl pulsarClient = new PulsarClientImpl(clientConfig);
         assertEquals(pulsarClient.getConfiguration().getSocks5ProxyAddress(), new InetSocketAddress("localhost", 11080));
         assertEquals(pulsarClient.getConfiguration().getSocks5ProxyUsername(), "test");

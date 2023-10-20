@@ -468,7 +468,8 @@ public abstract class NamespacesBase extends AdminResource {
                 // clear z-node of local policies
                 .thenCompose(ignore -> getLocalPolicies().deleteLocalPoliciesAsync(namespaceName))
                 // clear /loadbalance/bundle-data
-                .thenCompose(ignore -> namespaceResources().deleteBundleDataAsync(namespaceName));
+                .thenCompose(ignore ->
+                        loadBalanceResources().getBundleDataResources().deleteBundleDataAsync(namespaceName));
 
     }
 
@@ -2640,5 +2641,19 @@ public abstract class NamespacesBase extends AdminResource {
                             clientAppId(), namespaceName, ex);
                     return null;
                 });
+    }
+
+    protected void internalEnableMigration(boolean migrated) {
+        validateSuperUserAccess();
+        try {
+            updatePolicies(namespaceName, policies -> {
+                policies.isMigrated = migrated;
+                return policies;
+            });
+            log.info("Successfully updated migration on namespace {}", namespaceName);
+        } catch (Exception e) {
+            log.error("Failed to update migration on namespace {}", namespaceName, e);
+            throw new RestException(e);
+        }
     }
 }

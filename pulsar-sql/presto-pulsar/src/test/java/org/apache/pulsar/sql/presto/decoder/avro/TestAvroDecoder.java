@@ -44,6 +44,7 @@ import io.trino.spi.type.StandardTypes;
 import io.trino.spi.type.Timestamps;
 import io.trino.spi.type.Type;
 import io.trino.spi.type.TypeSignatureParameter;
+import io.trino.spi.type.UuidType;
 import io.trino.spi.type.VarcharType;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -55,6 +56,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import org.apache.pulsar.client.impl.schema.AvroSchema;
 import org.apache.pulsar.client.impl.schema.generic.GenericAvroRecord;
 import org.apache.pulsar.client.impl.schema.generic.GenericAvroSchema;
@@ -90,6 +92,7 @@ public class TestAvroDecoder extends AbstractDecoderTester {
         message.longField = 222L;
         message.timestampField = System.currentTimeMillis();
         message.enumField = DecoderTestMessage.TestEnum.TEST_ENUM_1;
+        message.uuidField = UUID.randomUUID();
 
         LocalTime now = LocalTime.now(ZoneId.systemDefault());
         message.timeField = now.toSecondOfDay() * 1000;
@@ -137,6 +140,10 @@ public class TestAvroDecoder extends AbstractDecoderTester {
         PulsarColumnHandle timeFieldColumnHandle = new PulsarColumnHandle(getPulsarConnectorId().toString(),
                 "timeField", TIME_MILLIS, false, false, "timeField", null, null, PulsarColumnHandle.HandleKeyValueType.NONE);
         checkValue(decodedRow, timeFieldColumnHandle, (long) message.timeField * Timestamps.PICOSECONDS_PER_MILLISECOND);
+
+        PulsarColumnHandle uuidHandle = new PulsarColumnHandle(getPulsarConnectorId().toString(),
+                "uuidField", UuidType.UUID, false, false, "uuidField", null, null, PulsarColumnHandle.HandleKeyValueType.NONE);
+        checkValue(decodedRow, uuidHandle, UuidType.javaUuidToTrinoUuid(message.uuidField));
     }
 
     @Test

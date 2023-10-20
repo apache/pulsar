@@ -62,6 +62,7 @@ import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.resources.BookieResources;
 import org.apache.pulsar.broker.resources.ClusterResources;
 import org.apache.pulsar.broker.resources.DynamicConfigurationResources;
+import org.apache.pulsar.broker.resources.LoadBalanceResources;
 import org.apache.pulsar.broker.resources.LocalPoliciesResources;
 import org.apache.pulsar.broker.resources.NamespaceResources;
 import org.apache.pulsar.broker.resources.NamespaceResources.IsolationPolicyResources;
@@ -530,6 +531,7 @@ public abstract class PulsarWebResource {
         pulsar.getPulsarResources().getClusterResources().getClusterAsync(cluster)
                 .whenComplete((clusterDataResult, ex) -> {
                     if (ex != null) {
+                        log.warn("[{}] Load cluster data failed: requested={}", clientAppId, cluster);
                         clusterDataFuture.completeExceptionally(FutureUtil.unwrapCompletionException(ex));
                         return;
                     }
@@ -1109,6 +1111,10 @@ public abstract class PulsarWebResource {
 
     protected NamespaceResources namespaceResources() {
         return pulsar().getPulsarResources().getNamespaceResources();
+    }
+
+    protected LoadBalanceResources loadBalanceResources() {
+        return pulsar().getPulsarResources().getLoadBalanceResources();
     }
 
     protected ResourceGroupResources resourceGroupResources() {
