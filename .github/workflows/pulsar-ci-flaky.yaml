@@ -29,14 +29,24 @@ on:
       collect_coverage:
         description: 'Collect test coverage and upload to Codecov'
         required: true
-        default: 'true'
+        type: boolean
+        default: true
+      jdk_major_version:
+        description: 'JDK major version to use for the build'
+        required: true
+        type: choice
+        options:
+          - '17'
+          - '21'
+        default: '17'
+
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 env:
-  MAVEN_OPTS: -Xss1500k -Xmx1024m -Daether.connector.http.reuseConnections=false -Daether.connector.requestTimeout=60000 -Dhttp.keepAlive=false -Dmaven.wagon.http.pool=false -Dmaven.wagon.http.retryHandler.class=standard -Dmaven.wagon.http.retryHandler.count=3 -Dmaven.wagon.http.retryHandler.requestSentEnabled=true -Dmaven.wagon.http.serviceUnavailableRetryStrategy.class=standard -Dmaven.wagon.rto=60000
+  MAVEN_OPTS: -Xss1500k -Xmx1500m -Daether.connector.http.reuseConnections=false -Daether.connector.requestTimeout=60000 -Dhttp.keepAlive=false -Dmaven.wagon.http.pool=false -Dmaven.wagon.http.retryHandler.class=standard -Dmaven.wagon.http.retryHandler.count=3 -Dmaven.wagon.http.retryHandler.requestSentEnabled=true -Dmaven.wagon.http.serviceUnavailableRetryStrategy.class=standard -Dmaven.wagon.rto=60000
   # defines the retention period for the intermediate build artifacts needed for rerunning a failed build job
   # it's possible to rerun individual failed jobs when the build artifacts are available
   # if the artifacts have already been expired, the complete workflow can be rerun by closing and reopening the PR or by rebasing the PR
@@ -46,16 +56,25 @@ jobs:
   preconditions:
     name: Preconditions
     runs-on: ubuntu-22.04
-    if: (github.event_name != 'schedule') || (github.repository == 'apache/pulsar')
     outputs:
       docs_only: ${{ steps.check_changes.outputs.docs_only }}
       changed_tests: ${{ steps.changes.outputs.tests_files }}
+      need_owasp: ${{ steps.changes.outputs.need_owasp }}
       collect_coverage: ${{ steps.check_coverage.outputs.collect_coverage }}
+      jdk_major_version: ${{ steps.jdk_major_version.outputs.jdk_major_version }}
+
     steps:
+      - name: Select JDK major version
+        id: jdk_major_version
+        run: |
+          echo "jdk_major_version=${{ github.event_name == 'workflow_dispatch' && github.event.inputs.jdk_major_version || '17'}}" >> $GITHUB_OUTPUT
+
       - name: checkout
+        if: ${{ github.event_name == 'pull_request' }}
         uses: actions/checkout@v3
 
       - name: Detect changed files
+        if: ${{ github.event_name == 'pull_request' }}
         id:   changes
         uses: apache/pulsar-test-infra/paths-filter@master
         with:
@@ -63,6 +82,7 @@ jobs:
           list-files: csv
 
       - name: Check changed files
+        if: ${{ github.event_name == 'pull_request' }}
         id: check_changes
         run: |
           if [[ "${GITHUB_EVENT_NAME}" != "schedule" && "${GITHUB_EVENT_NAME}" != "workflow_dispatch" ]]; then
@@ -95,6 +115,7 @@ jobs:
       JOB_NAME: Flaky tests suite
       COLLECT_COVERAGE: "${{ needs.preconditions.outputs.collect_coverage }}"
       GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
+      CI_JDK_MAJOR_VERSION: ${{ needs.preconditions.outputs.jdk_major_version }}
     runs-on: ubuntu-22.04
     timeout-minutes: 100
     if: ${{ needs.preconditions.outputs.docs_only != 'true' }}
@@ -124,11 +145,11 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-m2-dependencies-core-modules-
 
-      - name: Set up JDK 17
+      - name: Set up JDK ${{ env.CI_JDK_MAJOR_VERSION }}
         uses: actions/setup-java@v3
         with:
           distribution: 'temurin'
-          java-version: 17
+          java-version: ${{ env.CI_JDK_MAJOR_VERSION }}
 
       - name: Build core-modules
         run: |
