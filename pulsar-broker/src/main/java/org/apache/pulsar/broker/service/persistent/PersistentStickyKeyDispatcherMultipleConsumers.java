@@ -32,7 +32,6 @@ import java.util.NavigableSet;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.stream.Collectors;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.Position;
@@ -269,7 +268,8 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
             for (Entry entryWithTheSameKey : entriesWithSameKey) {
                 if (!entriesForC.contains(entryWithTheSameKey)) {
                     long stickyKeyHash = getStickyKeyHash(entryWithTheSameKey);
-                    addMessageToReplay(entryWithTheSameKey.getLedgerId(), entryWithTheSameKey.getEntryId(), stickyKeyHash);
+                    addMessageToReplay(entryWithTheSameKey.getLedgerId(), entryWithTheSameKey.getEntryId(),
+                            stickyKeyHash);
                     entryWithTheSameKey.release();
                 }
             }
@@ -278,7 +278,8 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
                 // remove positions first from replay list first : sendMessages recycles entries
                 if (readType == ReadType.Replay) {
                     for (Entry entryToRemoveFromRedelivery : entriesForC) {
-                        redeliveryMessages.remove(entryToRemoveFromRedelivery.getLedgerId(), entryToRemoveFromRedelivery.getEntryId());
+                        redeliveryMessages.remove(
+                                entryToRemoveFromRedelivery.getLedgerId(), entryToRemoveFromRedelivery.getEntryId());
                     }
                 }
 
