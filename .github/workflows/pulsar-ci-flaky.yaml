@@ -23,7 +23,11 @@ on:
     branches:
       - master
   schedule:
+    # scheduled job with JDK 17
     - cron: '0 12 * * *'
+    # scheduled job with JDK 21
+    # if cron expression is changed, make sure to update the expression in jdk_major_version step in preconditions job
+    - cron: '0 6 * * *'
   workflow_dispatch:
     inputs:
       collect_coverage:
@@ -42,7 +46,7 @@ on:
 
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}${{ github.event_name == 'workflow_dispatch' && github.event.inputs.jdk_major_version || '' }}
   cancel-in-progress: true
 
 env:
@@ -64,9 +68,23 @@ jobs:
       jdk_major_version: ${{ steps.jdk_major_version.outputs.jdk_major_version }}
 
     steps:
+      - name: Cancel scheduled jobs in forks by default
+        if: ${{ github.repository != 'apache/pulsar' && github.event_name == 'schedule' }}
+        uses: actions/github-script@v6
+        with:
+          script: |
+            await github.rest.actions.cancelWorkflowRun({owner: context.repo.owner, repo: context.repo.repo, run_id: context.runId});
+            process.exit(1);
+
       - name: Select JDK major version
         id: jdk_major_version
         run: |
+          # use JDK 21 for the scheduled build with cron expression '0 6 * * *'
+          if [[ "${{ github.event_name == 'schedule' && github.event.schedule == '0 6 * * *' && 'true' || 'false' }}" == "true" ]]; then
+            echo "jdk_major_version=21" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          # use JDK 17 for build unless overridden with workflow_dispatch input
           echo "jdk_major_version=${{ github.event_name == 'workflow_dispatch' && github.event.inputs.jdk_major_version || '17'}}" >> $GITHUB_OUTPUT
 
       - name: checkout
