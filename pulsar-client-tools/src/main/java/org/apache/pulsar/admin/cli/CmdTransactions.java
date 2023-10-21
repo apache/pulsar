@@ -23,7 +23,7 @@ import com.beust.jcommander.Parameters;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
-import org.apache.pulsar.cli.converters.TimeUnitToSecondsConverter;
+import org.apache.pulsar.cli.converters.TimeUnitToMillisConverter;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.policies.data.TransactionCoordinatorInfo;
@@ -144,16 +144,16 @@ public class CmdTransactions extends CmdBase {
 
         @Parameter(names = { "-t", "--time" }, description = "The transaction timeout time. "
                 + "(eg: 1s, 10s, 1m, 5h, 3d)", required = true,
-                converter = TimeUnitToSecondsConverter.class)
-        private Long timeoutInSeconds = 1L;
+                converter = TimeUnitToMillisConverter.class)
+        private Long timeoutInMillis = 1L;
 
         @Override
         void run() throws Exception {
             if (coordinatorId != null) {
                 print(getAdmin().transactions().getSlowTransactionsByCoordinatorId(coordinatorId,
-                        timeoutInSeconds, TimeUnit.MILLISECONDS));
+                        timeoutInMillis, TimeUnit.MILLISECONDS));
             } else {
-                print(getAdmin().transactions().getSlowTransactions(timeoutInSeconds, TimeUnit.MILLISECONDS));
+                print(getAdmin().transactions().getSlowTransactions(timeoutInMillis, TimeUnit.MILLISECONDS));
             }
         }
     }
