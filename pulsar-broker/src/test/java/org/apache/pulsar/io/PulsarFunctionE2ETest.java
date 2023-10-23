@@ -736,6 +736,9 @@ public class PulsarFunctionE2ETest extends AbstractPulsarE2ETest {
         FunctionConfig functionConfig = createFunctionConfig(tenant, namespacePortion, functionName, false,
                 "my.*", sinkTopic, subscriptionName);
         if (!validRoleName) {
+            if (admin != null) {
+                admin.close();
+            }
             // create a non-superuser admin to test the api
             admin = spy(
                 PulsarAdmin.builder().serviceHttpUrl(pulsar.getWebServiceAddressTls())
