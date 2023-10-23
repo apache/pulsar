@@ -862,4 +862,8 @@ public interface ManagedCursor {
      * @return whether this cursor is closed.
      */
     boolean isClosed();
+
+    default boolean isMetadataTooLargeToPersist() {
+        return false;
+    }
 }

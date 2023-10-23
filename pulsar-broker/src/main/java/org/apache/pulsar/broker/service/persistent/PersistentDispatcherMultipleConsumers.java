@@ -271,9 +271,17 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         if (isSendInProgress()) {
             // we cannot read more entries while sending the previous batch
             // otherwise we could re-read the same entries and send duplicates
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] [{}] Skipping read for the topic, Due to sending in-progress.",
+                        topic.getName(), getSubscriptionName());
+            }
             return;
         }
         if (shouldPauseDeliveryForDelayTracker()) {
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] [{}] Skipping read for the topic, Due to pause delivery for delay tracker.",
+                        topic.getName(), getSubscriptionName());
+            }
             return;
         }
         if (topic.isTransferring()) {
@@ -322,6 +330,13 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                             totalUnackedMessages, topic.getMaxUnackedMessagesOnSubscription());
                 }
             } else if (!havePendingRead) {
+                if (shouldPauseOnAckStatePersist(ReadType.Normal)) {
+                    if (log.isDebugEnabled()) {
+                        log.debug("[{}] [{}] Skipping read for the topic, Due to blocked on ack state persistent.",
+                                topic.getName(), getSubscriptionName());
+                    }
+                    return;
+                }
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] Schedule read of {} messages for {} consumers", name, messagesToRead,
                             consumerList.size());
@@ -357,6 +372,19 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                 log.debug("[{}] Consumer buffer is full, pause reading", name);
             }
         }
+    }
+
+    private boolean shouldPauseOnAckStatePersist(ReadType readType) {
+        if (readType != ReadType.Normal) {
+            return false;
+        }
+        if (!((PersistentTopic) subscription.getTopic()).isDispatcherPauseOnAckStatePersistentEnabled()) {
+            return false;
+        }
+        if (cursor == null) {
+            return true;
+        }
+        return cursor.isMetadataTooLargeToPersist();
     }
 
     @Override
@@ -994,6 +1022,13 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         }
         // increment broker-level count
         topic.getBrokerService().addUnAckedMessages(this, numberOfMessages);
+    }
+
+    @Override
+    public void afterAckMessages(Object position, Throwable error, Object ctx) {
+        if (!cursor.isMetadataTooLargeToPersist()) {
+            readMoreEntriesAsync();
+        }
     }
 
     public boolean isBlockedDispatcherOnUnackedMsgs() {

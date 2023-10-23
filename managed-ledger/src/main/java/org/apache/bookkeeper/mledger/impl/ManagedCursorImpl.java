@@ -341,6 +341,11 @@ public class ManagedCursorImpl implements ManagedCursor {
     }
 
     @Override
+    public boolean isMetadataTooLargeToPersist() {
+        return individualDeletedMessages.size() > config.getMaxUnackedRangesToPersist();
+    }
+
+    @Override
     public Map<String, String> getCursorProperties() {
         return cursorProperties;
     }

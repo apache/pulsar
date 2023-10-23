@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.service.persistent;
 
 import static org.apache.pulsar.broker.service.persistent.PersistentTopic.MESSAGE_RATE_BACKOFF_MS;
 import static org.apache.pulsar.common.protocol.Commands.DEFAULT_CONSUMER_EPOCH;
+import com.google.common.collect.Range;
 import io.netty.util.Recycler;
 import java.util.Iterator;
 import java.util.List;
@@ -36,6 +37,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.ConcurrentWaitCallbackException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.NoMoreEntriesToReadException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.TooManyRequestsException;
+import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.service.AbstractDispatcherSingleActiveConsumer;
@@ -319,13 +321,22 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
         // so skip reading more entries if currently there is no active consumer.
         if (null == consumer) {
             if (log.isDebugEnabled()) {
-                log.debug("[{}] Skipping read for the topic, Due to the current consumer is null", topic.getName());
+                log.debug("[{}] [{}] Skipping read for the topic, Due to the current consumer is null", topic.getName(),
+                        getSubscriptionName());
             }
             return;
         }
         if (havePendingRead) {
             if (log.isDebugEnabled()) {
-                log.debug("[{}] Skipping read for the topic, Due to we have pending read.", topic.getName());
+                log.debug("[{}] [{}] Skipping read for the topic, Due to we have pending read.", topic.getName(),
+                        getSubscriptionName());
+            }
+            return;
+        }
+        if (shouldPauseOnAckStatePersist()) {
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] [{}] Skipping read for the topic, Due to blocked on ack state persistent.",
+                        topic.getName(), getSubscriptionName());
             }
             return;
         }
@@ -376,6 +387,30 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
                 log.debug("[{}-{}] Consumer buffer is full, pause reading", name, consumer);
             }
         }
+    }
+
+    private boolean shouldPauseOnAckStatePersist() {
+        if (!((PersistentTopic) subscription.getTopic()).isDispatcherPauseOnAckStatePersistentEnabled()) {
+            return false;
+        }
+        if (cursor == null) {
+            return true;
+        }
+        if (!cursor.isMetadataTooLargeToPersist()) {
+            return false;
+        }
+        // The cursor state is too large to persist, let us check whether the read is a replay read.
+        Range<PositionImpl> lastIndividualDeletedRange = cursor.getLastIndividualDeletedRange();
+        if (lastIndividualDeletedRange == null) {
+            // lastIndividualDeletedRange is null means the read is not replay read.
+            return true;
+        }
+        // If read position is less than the last acked position, it means the read is a replay read.
+        PositionImpl lastAckedPosition = lastIndividualDeletedRange.upperEndpoint();
+        Position readPosition = cursor.getReadPosition();
+        boolean readPositionIsSmall =
+                lastAckedPosition.compareTo(readPosition.getLedgerId(), readPosition.getEntryId()) > 0;
+        return !readPositionIsSmall;
     }
 
     @Override
@@ -547,6 +582,13 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
     @Override
     public void addUnAckedMessages(int unAckMessages) {
         // No-op
+    }
+
+    @Override
+    public void afterAckMessages(Object position, Throwable error, Object ctx) {
+        if (!shouldPauseOnAckStatePersist()) {
+            readMoreEntries(ACTIVE_CONSUMER_UPDATER.get(this));
+        }
     }
 
     @Override

@@ -3728,6 +3728,11 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         return topicPolicies.getMaxUnackedMessagesOnSubscription().get();
     }
 
+    public boolean isDispatcherPauseOnAckStatePersistentEnabled() {
+        Boolean b = topicPolicies.getDispatcherPauseOnAckStatePersistentEnabled().get();
+        return b == null ? false : b.booleanValue();
+    }
+
     @Override
     public void onUpdate(TopicPolicies policies) {
         if (log.isDebugEnabled()) {
