@@ -108,9 +108,6 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
     // Path to ZNode whose children contain ResourceQuota jsons.
     public static final String RESOURCE_QUOTA_ZPATH = "/loadbalance/resource-quota/namespace";
 
-    // Path to ZNode containing TimeAverageBrokerData jsons for each broker.
-    public static final String TIME_AVERAGE_BROKER_ZPATH = "/loadbalance/broker-time-average";
-
     // Set of broker candidates to reuse so that object creation is avoided.
     private final Set<String> brokerCandidateCache;
 
@@ -119,7 +116,6 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
     private ResourceLock<LocalBrokerData> brokerDataLock;
 
     private MetadataCache<ResourceQuota> resourceQuotaCache;
-    private MetadataCache<TimeAverageBrokerData> timeAverageBrokerDataCache;
 
     // Broker host usage object used to calculate system resource usage.
     private BrokerHostUsage brokerHostUsage;
@@ -245,7 +241,6 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
         this.pulsarResources = pulsar.getPulsarResources();
         brokersData = pulsar.getCoordinationService().getLockManager(LocalBrokerData.class);
         resourceQuotaCache = pulsar.getLocalMetadataStore().getMetadataCache(ResourceQuota.class);
-        timeAverageBrokerDataCache = pulsar.getLocalMetadataStore().getMetadataCache(TimeAverageBrokerData.class);
         pulsar.getLocalMetadataStore().registerListener(this::handleDataNotification);
         pulsar.getLocalMetadataStore().registerSessionListener(this::handleMetadataSessionEvent);
 
@@ -991,13 +986,13 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
 
             String lookupServiceAddress = pulsar.getLookupServiceAddress();
             brokerZnodePath = LoadManager.LOADBALANCE_BROKERS_ROOT + "/" + lookupServiceAddress;
-            final String timeAverageZPath = TIME_AVERAGE_BROKER_ZPATH + "/" + lookupServiceAddress;
             updateLocalBrokerData();
 
             brokerDataLock = brokersData.acquireLock(brokerZnodePath, localData).join();
-
-            timeAverageBrokerDataCache.readModifyUpdateOrCreate(timeAverageZPath,
-                    __ -> new TimeAverageBrokerData()).join();
+            pulsarResources.getLoadBalanceResources()
+                    .getBrokerTimeAverageDataResources()
+                    .updateTimeAverageBrokerData(lookupServiceAddress, new TimeAverageBrokerData())
+                    .join();
             updateAll();
         } catch (Exception e) {
             log.error("Unable to acquire lock for broker: [{}]", brokerZnodePath, e);
@@ -1154,9 +1149,8 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
         for (Map.Entry<String, BrokerData> entry : loadData.getBrokerData().entrySet()) {
             final String broker = entry.getKey();
             final TimeAverageBrokerData data = entry.getValue().getTimeAverageData();
-            futures.add(timeAverageBrokerDataCache.readModifyUpdateOrCreate(
-                    TIME_AVERAGE_BROKER_ZPATH + "/" + broker, __ -> data)
-                    .thenApply(__ -> null));
+            futures.add(pulsarResources.getLoadBalanceResources()
+                    .getBrokerTimeAverageDataResources().updateTimeAverageBrokerData(broker, data));
         }
 
         try {
@@ -1177,13 +1171,13 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
     }
 
     private void deleteTimeAverageDataFromMetadataStoreAsync(String broker) {
-        final String timeAverageZPath = TIME_AVERAGE_BROKER_ZPATH + "/" + broker;
-        timeAverageBrokerDataCache.delete(timeAverageZPath).whenComplete((__, ex) -> {
-            if (ex != null && !(ex.getCause() instanceof MetadataStoreException.NotFoundException)) {
-                log.warn("Failed to delete dead broker {} time "
-                        + "average data from metadata store", broker, ex);
-            }
-        });
+        pulsarResources.getLoadBalanceResources()
+                .getBrokerTimeAverageDataResources().deleteTimeAverageBrokerData(broker).whenComplete((__, ex) -> {
+                    if (ex != null && !(ex.getCause() instanceof MetadataStoreException.NotFoundException)) {
+                        log.warn("Failed to delete dead broker {} time "
+                                + "average data from metadata store", broker, ex);
+                    }
+                });
     }
 
     @Override
