@@ -849,6 +849,12 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
             public void readEntryComplete(Entry entry, Object ctx) {
                 future.complete(entry);
             }
+
+            @Override
+            public String toString() {
+                return String.format("Subscription [{}-{}] async replay entries", PersistentSubscription.this.topicName,
+                        PersistentSubscription.this.subName);
+            }
         }, null);
 
         return future;
@@ -1253,7 +1259,7 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
     }
 
     @Override
-    public boolean isSubsciptionMigrated() {
+    public boolean isSubscriptionMigrated() {
         log.info("backlog for {} - {}", topicName, cursor.getNumberOfEntriesInBacklog(true));
         return topic.isMigrated() && cursor.getNumberOfEntriesInBacklog(true) <= 0;
     }

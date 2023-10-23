@@ -54,6 +54,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledFuture;
@@ -67,6 +68,7 @@ import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.mutable.MutableInt;
+import org.apache.commons.lang3.mutable.MutableObject;
 import org.apache.pulsar.PulsarClusterMetadataSetup;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
@@ -97,7 +99,6 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.stats.Metrics;
 import org.apache.pulsar.common.topics.TopicCompactionStrategy;
 import org.apache.pulsar.common.util.FutureUtil;
-import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.NotificationType;
 import org.apache.pulsar.metadata.api.extended.SessionEvent;
@@ -125,9 +126,9 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
     private final PulsarService pulsar;
     private final ServiceConfiguration config;
     private final Schema<ServiceUnitStateData> schema;
-    private final ConcurrentOpenHashMap<String, CompletableFuture<String>> getOwnerRequests;
+    private final Map<String, CompletableFuture<String>> getOwnerRequests;
     private final String lookupServiceAddress;
-    private final ConcurrentOpenHashMap<String, CompletableFuture<Void>> cleanupJobs;
+    private final Map<String, CompletableFuture<Void>> cleanupJobs;
     private final StateChangeListeners stateChangeListeners;
     private ExtensibleLoadManagerImpl loadManager;
     private BrokerRegistry brokerRegistry;
@@ -199,19 +200,29 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         Unstable
     }
 
+    public static ServiceUnitStateChannelImpl newInstance(PulsarService pulsar) {
+        return new ServiceUnitStateChannelImpl(pulsar);
+    }
+
     public ServiceUnitStateChannelImpl(PulsarService pulsar) {
+        this(pulsar, MAX_IN_FLIGHT_STATE_WAITING_TIME_IN_MILLIS, OWNERSHIP_MONITOR_DELAY_TIME_IN_SECS);
+    }
+
+    @VisibleForTesting
+    public ServiceUnitStateChannelImpl(PulsarService pulsar,
+                                       long inFlightStateWaitingTimeInMillis,
+                                       long ownershipMonitorDelayTimeInSecs) {
         this.pulsar = pulsar;
         this.config = pulsar.getConfig();
         this.lookupServiceAddress = pulsar.getLookupServiceAddress();
         this.schema = Schema.JSON(ServiceUnitStateData.class);
-        this.getOwnerRequests = ConcurrentOpenHashMap.<String,
-                CompletableFuture<String>>newBuilder().build();
-        this.cleanupJobs = ConcurrentOpenHashMap.<String, CompletableFuture<Void>>newBuilder().build();
+        this.getOwnerRequests = new ConcurrentHashMap<>();
+        this.cleanupJobs = new ConcurrentHashMap<>();
         this.stateChangeListeners = new StateChangeListeners();
         this.semiTerminalStateWaitingTimeInMillis = config.getLoadBalancerServiceUnitStateTombstoneDelayTimeInSeconds()
                 * 1000;
-        this.inFlightStateWaitingTimeInMillis = MAX_IN_FLIGHT_STATE_WAITING_TIME_IN_MILLIS;
-        this.ownershipMonitorDelayTimeInSecs = OWNERSHIP_MONITOR_DELAY_TIME_IN_SECS;
+        this.inFlightStateWaitingTimeInMillis = inFlightStateWaitingTimeInMillis;
+        this.ownershipMonitorDelayTimeInSecs = ownershipMonitorDelayTimeInSecs;
         if (semiTerminalStateWaitingTimeInMillis < inFlightStateWaitingTimeInMillis) {
             throw new IllegalArgumentException(
                     "Invalid Config: loadBalancerServiceUnitStateCleanUpDelayTimeInSeconds < "
@@ -826,20 +837,28 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
     }
 
     private CompletableFuture<String> deferGetOwnerRequest(String serviceUnit) {
-        return getOwnerRequests
-                .computeIfAbsent(serviceUnit, k -> {
-                    CompletableFuture<String> future = new CompletableFuture<>();
-                    future.orTimeout(inFlightStateWaitingTimeInMillis, TimeUnit.MILLISECONDS)
-                            .whenComplete((v, e) -> {
-                                        if (e != null) {
-                                            getOwnerRequests.remove(serviceUnit, future);
-                                            log.warn("Failed to getOwner for serviceUnit:{}",
-                                                    serviceUnit, e);
-                                        }
+        var requested = new MutableObject<CompletableFuture<String>>();
+        try {
+            return getOwnerRequests
+                    .computeIfAbsent(serviceUnit, k -> {
+                        CompletableFuture<String> future = new CompletableFuture<>();
+                        requested.setValue(future);
+                        return future;
+                    });
+        } finally {
+            var future = requested.getValue();
+            if (future != null) {
+                future.orTimeout(inFlightStateWaitingTimeInMillis + 5 * 1000, TimeUnit.MILLISECONDS)
+                        .whenComplete((v, e) -> {
+                                    if (e != null) {
+                                        getOwnerRequests.remove(serviceUnit, future);
+                                        log.warn("Failed to getOwner for serviceUnit:{}",
+                                                serviceUnit, e);
                                     }
-                            );
-                    return future;
-                });
+                                }
+                        );
+            }
+        }
     }
 
     private CompletableFuture<Integer> closeServiceUnit(String serviceUnit) {
@@ -1114,24 +1133,34 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
     }
 
     private void scheduleCleanup(String broker, long delayInSecs) {
-        cleanupJobs.computeIfAbsent(broker, k -> {
-            Executor delayed = CompletableFuture
-                    .delayedExecutor(delayInSecs, TimeUnit.SECONDS, pulsar.getLoadManagerExecutor());
-            totalInactiveBrokerCleanupScheduledCnt++;
-            return CompletableFuture
-                    .runAsync(() -> {
-                                try {
-                                    doCleanup(broker);
-                                } catch (Throwable e) {
-                                    log.error("Failed to run the cleanup job for the broker {}, "
-                                                    + "totalCleanupErrorCnt:{}.",
-                                            broker, totalCleanupErrorCnt.incrementAndGet(), e);
-                                } finally {
-                                    cleanupJobs.remove(broker);
+        var scheduled = new MutableObject<CompletableFuture<Void>>();
+        try {
+            cleanupJobs.computeIfAbsent(broker, k -> {
+                Executor delayed = CompletableFuture
+                        .delayedExecutor(delayInSecs, TimeUnit.SECONDS, pulsar.getLoadManagerExecutor());
+                totalInactiveBrokerCleanupScheduledCnt++;
+                var future = CompletableFuture
+                        .runAsync(() -> {
+                                    try {
+                                        doCleanup(broker);
+                                    } catch (Throwable e) {
+                                        log.error("Failed to run the cleanup job for the broker {}, "
+                                                        + "totalCleanupErrorCnt:{}.",
+                                                broker, totalCleanupErrorCnt.incrementAndGet(), e);
+                                    }
                                 }
-                            }
-                            , delayed);
-        });
+                                , delayed);
+                scheduled.setValue(future);
+                return future;
+            });
+        } finally {
+            var future = scheduled.getValue();
+            if (future != null) {
+                future.whenComplete((v, ex) -> {
+                    cleanupJobs.remove(broker);
+                });
+            }
+        }
 
         log.info("Scheduled ownership cleanup for broker:{} with delay:{} secs. Pending clean jobs:{}.",
                 broker, delayInSecs, cleanupJobs.size());
@@ -1213,49 +1242,19 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         log.info("Started ownership cleanup for the inactive broker:{}", broker);
         int orphanServiceUnitCleanupCnt = 0;
         long totalCleanupErrorCntStart = totalCleanupErrorCnt.get();
-        String heartbeatNamespace =
-                NamespaceService.getHeartbeatNamespace(pulsar.getAdvertisedAddress(), pulsar.getConfiguration())
-                        .toString();
-        String heartbeatNamespaceV2 = NamespaceService.getHeartbeatNamespaceV2(pulsar.getAdvertisedAddress(),
-                pulsar.getConfiguration()).toString();
-
         Map<String, ServiceUnitStateData> orphanSystemServiceUnits = new HashMap<>();
         for (var etr : tableview.entrySet()) {
             var stateData = etr.getValue();
             var serviceUnit = etr.getKey();
             var state = state(stateData);
-            if (StringUtils.equals(broker, stateData.dstBroker())) {
-                if (isActiveState(state)) {
-                    if (serviceUnit.startsWith(SYSTEM_NAMESPACE.toString())) {
-                        orphanSystemServiceUnits.put(serviceUnit, stateData);
-                    } else if (serviceUnit.startsWith(heartbeatNamespace)
-                            || serviceUnit.startsWith(heartbeatNamespaceV2)) {
-                        // Skip the heartbeat namespace
-                        log.info("Skip override heartbeat namespace bundle"
-                                + " serviceUnit:{}, stateData:{}", serviceUnit, stateData);
-                        tombstoneAsync(serviceUnit).whenComplete((__, e) -> {
-                            if (e != null) {
-                                log.error("Failed cleaning the heartbeat namespace ownership serviceUnit:{}, "
-                                                + "stateData:{}, cleanupErrorCnt:{}.",
-                                        serviceUnit, stateData,
-                                        totalCleanupErrorCnt.incrementAndGet() - totalCleanupErrorCntStart, e);
-                            }
-                        });
-                    } else {
-                        overrideOwnership(serviceUnit, stateData, broker);
-                    }
-                    orphanServiceUnitCleanupCnt++;
+            if (StringUtils.equals(broker, stateData.dstBroker()) && isActiveState(state)
+                    || StringUtils.equals(broker, stateData.sourceBroker()) && isInFlightState(state)) {
+                if (serviceUnit.startsWith(SYSTEM_NAMESPACE.toString())) {
+                    orphanSystemServiceUnits.put(serviceUnit, stateData);
+                } else {
+                    overrideOwnership(serviceUnit, stateData, broker);
                 }
-
-            } else if (StringUtils.equals(broker, stateData.sourceBroker())) {
-                if (isInFlightState(state)) {
-                    if (serviceUnit.startsWith(SYSTEM_NAMESPACE.toString())) {
-                        orphanSystemServiceUnits.put(serviceUnit, stateData);
-                    } else {
-                        overrideOwnership(serviceUnit, stateData, broker);
-                    }
-                    orphanServiceUnitCleanupCnt++;
-                }
+                orphanServiceUnitCleanupCnt++;
             }
         }
 
@@ -1399,16 +1398,21 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
             String srcBroker = stateData.sourceBroker();
             var state = stateData.state();
 
-            if (isActiveState(state)) {
-                if (StringUtils.isNotBlank(srcBroker) && !activeBrokers.contains(srcBroker)) {
-                    inactiveBrokers.add(srcBroker);
-                } else if (StringUtils.isNotBlank(dstBroker) && !activeBrokers.contains(dstBroker)) {
-                    inactiveBrokers.add(dstBroker);
-                } else if (isInFlightState(state)
-                        && now - stateData.timestamp() > inFlightStateWaitingTimeInMillis) {
-                    orphanServiceUnits.put(serviceUnit, stateData);
-                }
-            } else if (now - stateData.timestamp() > semiTerminalStateWaitingTimeInMillis) {
+            if (isActiveState(state) && StringUtils.isNotBlank(srcBroker) && !activeBrokers.contains(srcBroker)) {
+                inactiveBrokers.add(srcBroker);
+                continue;
+            }
+            if (isActiveState(state) && StringUtils.isNotBlank(dstBroker) && !activeBrokers.contains(dstBroker)) {
+                inactiveBrokers.add(dstBroker);
+                continue;
+            }
+            if (isActiveState(state) && isInFlightState(state)
+                    && now - stateData.timestamp() > inFlightStateWaitingTimeInMillis) {
+                orphanServiceUnits.put(serviceUnit, stateData);
+                continue;
+            }
+
+            if (now - stateData.timestamp() > semiTerminalStateWaitingTimeInMillis) {
                 log.info("Found semi-terminal states to tombstone"
                         + " serviceUnit:{}, stateData:{}", serviceUnit, stateData);
                 tombstoneAsync(serviceUnit).whenComplete((__, e) -> {

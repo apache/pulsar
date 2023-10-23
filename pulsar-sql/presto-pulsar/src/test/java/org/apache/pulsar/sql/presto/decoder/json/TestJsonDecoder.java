@@ -44,6 +44,7 @@ import io.trino.spi.type.StandardTypes;
 import io.trino.spi.type.Timestamps;
 import io.trino.spi.type.Type;
 import io.trino.spi.type.TypeSignatureParameter;
+import io.trino.spi.type.UuidType;
 import io.trino.spi.type.VarcharType;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -55,6 +56,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import org.apache.pulsar.client.impl.schema.JSONSchema;
 import org.apache.pulsar.client.impl.schema.generic.GenericJsonRecord;
 import org.apache.pulsar.client.impl.schema.generic.GenericJsonSchema;
@@ -98,6 +100,8 @@ public class TestJsonDecoder extends AbstractDecoderTester {
         LocalDate epoch = LocalDate.ofEpochDay(0);
         message.dateField = Math.toIntExact(ChronoUnit.DAYS.between(epoch, localDate));
 
+        message.uuidField = UUID.randomUUID();
+
         ByteBuf payload = io.netty.buffer.Unpooled
                 .copiedBuffer(schema.encode(message));
         Map<DecoderColumnHandle, FieldValueProvider> decodedRow = pulsarRowDecoder.decodeRow(payload).get();
@@ -137,6 +141,10 @@ public class TestJsonDecoder extends AbstractDecoderTester {
         PulsarColumnHandle timeFieldColumnHandle = new PulsarColumnHandle(getPulsarConnectorId().toString(),
                 "timeField", TIME_MILLIS, false, false, "timeField", null, null, PulsarColumnHandle.HandleKeyValueType.NONE);
         checkValue(decodedRow, timeFieldColumnHandle, (long) message.timeField * Timestamps.PICOSECONDS_PER_MILLISECOND);
+
+        PulsarColumnHandle uuidHandle = new PulsarColumnHandle(getPulsarConnectorId().toString(),
+                "uuidField", UuidType.UUID, false, false, "uuidField", null, null, PulsarColumnHandle.HandleKeyValueType.NONE);
+        checkValue(decodedRow, uuidHandle, message.uuidField.toString());
     }
 
     @Test

@@ -19,11 +19,13 @@
 package org.apache.pulsar.client.impl;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
 import java.util.concurrent.CountDownLatch;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.service.ServerCnx;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.common.api.proto.CommandCloseProducer;
 import org.awaitility.Awaitility;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -47,6 +49,61 @@ public class ProducerConsumerInternalTest extends ProducerConsumerBase {
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
+    }
+
+    @Test
+    public void testSameProducerRegisterTwice() throws Exception {
+        final String topicName = BrokerTestUtil.newUniqueName("persistent://my-property/my-ns/tp_");
+        admin.topics().createNonPartitionedTopic(topicName);
+
+        // Create producer using default producerName.
+        ProducerImpl producer = (ProducerImpl) pulsarClient.newProducer().topic(topicName).create();
+        ServiceProducer serviceProducer = getServiceProducer(producer, topicName);
+
+        // Remove producer maintained by server cnx. To make it can register the second time.
+        removeServiceProducerMaintainedByServerCnx(serviceProducer);
+
+        // Trigger the client producer reconnect.
+        CommandCloseProducer commandCloseProducer = new CommandCloseProducer();
+        commandCloseProducer.setProducerId(producer.producerId);
+        producer.getClientCnx().handleCloseProducer(commandCloseProducer);
+
+        // Verify the reconnection will be success.
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(producer.getState().toString(), "Ready");
+        });
+    }
+
+    @Test
+    public void testSameProducerRegisterTwiceWithSpecifiedProducerName() throws Exception {
+        final String topicName = BrokerTestUtil.newUniqueName("persistent://my-property/my-ns/tp_");
+        final String pName = "p1";
+        admin.topics().createNonPartitionedTopic(topicName);
+
+        // Create producer using default producerName.
+        ProducerImpl producer = (ProducerImpl) pulsarClient.newProducer().producerName(pName).topic(topicName).create();
+        ServiceProducer serviceProducer = getServiceProducer(producer, topicName);
+
+        // Remove producer maintained by server cnx. To make it can register the second time.
+        removeServiceProducerMaintainedByServerCnx(serviceProducer);
+
+        // Trigger the client producer reconnect.
+        CommandCloseProducer commandCloseProducer = new CommandCloseProducer();
+        commandCloseProducer.setProducerId(producer.producerId);
+        producer.getClientCnx().handleCloseProducer(commandCloseProducer);
+
+        // Verify the reconnection will be success.
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(producer.getState().toString(), "Ready", "The producer registration failed");
+        });
+    }
+
+    private void removeServiceProducerMaintainedByServerCnx(ServiceProducer serviceProducer) {
+        ServerCnx serverCnx = (ServerCnx) serviceProducer.getServiceProducer().getCnx();
+        serverCnx.removedProducer(serviceProducer.getServiceProducer());
+        Awaitility.await().untilAsserted(() -> {
+            assertFalse(serverCnx.getProducers().containsKey(serviceProducer.getServiceProducer().getProducerId()));
+        });
     }
 
     @Test

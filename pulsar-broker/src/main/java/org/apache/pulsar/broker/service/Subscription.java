@@ -102,7 +102,7 @@ public interface Subscription extends MessageExpirer {
 
     CompletableFuture<Void> updateSubscriptionProperties(Map<String, String> subscriptionProperties);
 
-    boolean isSubsciptionMigrated();
+    boolean isSubscriptionMigrated();
 
     default void processReplicatedSubscriptionSnapshot(ReplicatedSubscriptionsSnapshot snapshot) {
         // Default is no-op
