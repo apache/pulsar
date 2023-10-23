@@ -18,9 +18,15 @@
  */
 package org.apache.pulsar.broker.service;
 
+import io.netty.util.HashedWheelTimer;
+import io.netty.util.Timeout;
+import io.netty.util.Timer;
+import io.netty.util.TimerTask;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.systopic.NamespaceEventsSystemTopicFactory;
@@ -28,19 +34,28 @@ import org.apache.pulsar.broker.systopic.SystemTopicClient;
 import org.apache.pulsar.broker.systopic.SystemTopicClientBase;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.TableView;
 import org.apache.pulsar.common.events.EventType;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 
 @Slf4j
-public class SystemTopicTxnBufferSnapshotService<T> {
+public class SystemTopicTxnBufferSnapshotService<T> implements TimerTask {
 
     protected final ConcurrentHashMap<NamespaceName, SystemTopicClient<T>> clients;
     protected final NamespaceEventsSystemTopicFactory namespaceEventsSystemTopicFactory;
 
     protected final Class<T> schemaType;
     protected final EventType systemTopicType;
-
+    protected final Map<NamespaceName, CompletableFuture<TableView<T>>> tableViewMap =
+            new ConcurrentHashMap<>();
+    // The duration for which a TableView will be maintained in memory, post-cessation of its utilization.
+    // The default setting denotes a length of one hour.
+    private final long tableViewRetentionPeriodInMilliseconds = 60 * 60 * 1000;
+    // The predefined interval intended for the execution of a TableView's cleanup process. The default configuration represents a span of ten minutes.
+    private final long tableViewCleanupInterval = 30 * 60 * 1000;
+    private final Map<NamespaceName, Long> tableViewLastUsedMap = new ConcurrentHashMap<>();
+    private final Timer timer;
     private final ConcurrentHashMap<NamespaceName, ReferenceCountedWriter<T>> refCountedWriterMap;
 
     // The class ReferenceCountedWriter will maintain the reference count,
@@ -96,16 +111,40 @@ public class SystemTopicTxnBufferSnapshotService<T> {
     }
 
     public SystemTopicTxnBufferSnapshotService(PulsarClient client, EventType systemTopicType,
-                                               Class<T> schemaType) {
+                                               Class<T> schemaType, Timer timer) {
         this.namespaceEventsSystemTopicFactory = new NamespaceEventsSystemTopicFactory(client);
         this.systemTopicType = systemTopicType;
         this.schemaType = schemaType;
         this.clients = new ConcurrentHashMap<>();
         this.refCountedWriterMap = new ConcurrentHashMap<>();
+        this.timer = Objects.requireNonNullElseGet(timer, HashedWheelTimer::new);
+        this.timer.newTimeout(this, tableViewCleanupInterval, TimeUnit.MILLISECONDS);
     }
 
     public CompletableFuture<SystemTopicClient.Reader<T>> createReader(TopicName topicName) {
         return getTransactionBufferSystemTopicClient(topicName.getNamespaceObject()).newReaderAsync();
+    }
+
+    @Override
+    public synchronized void run(Timeout timeout) {
+        long currentTime = System.currentTimeMillis();
+        tableViewMap.forEach((namespaceName, tableViewCompletableFuture) -> {
+            if (tableViewLastUsedMap.get(namespaceName) + tableViewRetentionPeriodInMilliseconds < currentTime) {
+                tableViewLastUsedMap.remove(namespaceName);
+                tableViewMap.remove(namespaceName);
+            }
+        });
+        timer.newTimeout(this, tableViewCleanupInterval, TimeUnit.MILLISECONDS);
+    }
+
+    public synchronized CompletableFuture<TableView<T>> getTableView(TopicName topicName) {
+        tableViewLastUsedMap.put(topicName.getNamespaceObject(), System.currentTimeMillis());
+        if (tableViewMap.containsKey(topicName.getNamespaceObject())) {
+            return tableViewMap.get(topicName.getNamespaceObject());
+        } else {
+            return tableViewMap.put(topicName.getNamespaceObject(),
+                    getTransactionBufferSystemTopicClient(topicName.getNamespaceObject()).getTableView());
+        }
     }
 
     public void removeClient(TopicName topicName, SystemTopicClientBase<T> transactionBufferSystemTopicClient) {

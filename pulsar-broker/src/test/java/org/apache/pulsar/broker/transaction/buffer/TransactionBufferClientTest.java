@@ -25,6 +25,7 @@ import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.util.HashedWheelTimer;
 import io.netty.util.concurrent.DefaultThreadFactory;
+import java.util.Collections;
 import lombok.Cleanup;
 import java.io.ByteArrayOutputStream;
 import java.util.ArrayList;
@@ -34,13 +35,23 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
+import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.stats.PrometheusMetricsTest;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsGenerator;
+import org.apache.pulsar.broker.systopic.SystemTopicClient;
 import org.apache.pulsar.broker.transaction.TransactionTestBase;
 import org.apache.pulsar.broker.transaction.buffer.impl.TransactionBufferClientImpl;
 import org.apache.pulsar.broker.transaction.buffer.impl.TransactionBufferHandlerImpl;
+import org.apache.pulsar.broker.transaction.buffer.metadata.AbortTxnMetadata;
+import org.apache.pulsar.broker.transaction.buffer.metadata.TransactionBufferSnapshot;
+import org.apache.pulsar.broker.transaction.buffer.metadata.v2.TransactionBufferSnapshotIndexes;
+import org.apache.pulsar.broker.transaction.buffer.metadata.v2.TransactionBufferSnapshotIndexesMetadata;
+import org.apache.pulsar.broker.transaction.buffer.metadata.v2.TransactionBufferSnapshotSegment;
+import org.apache.pulsar.broker.transaction.buffer.metadata.v2.TxnIDData;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
@@ -421,5 +432,100 @@ public class TransactionBufferClientTest extends TransactionTestBase {
 
         tbClient.abortTxnOnSubscription(topic + "_abort_topic", sub, 1L, 1L, -1L).get();
         tbClient.abortTxnOnSubscription(topic + "_commit_topic", sub, 1L, 1L, -1L).get();
+    }
+
+    /**
+     * Test transaction buffer can read the most up-to-date snapshot when the transaction buffer recover.
+     *     <p>
+     *         Write the first snapshot for topic 1.
+     *         Write 10 snapshot for the other topic under the same namespace.
+     *         Write the second snapshot for topic 1.
+     *         Check the aborted transaction ids stored in the second snapshot can be acquired.
+     *     </p>
+     * @throws Exception
+     */
+    @Test
+    public void testReadMostUpToDateSnapshotViaTableView() throws Exception {
+        for (int i = 1; i < getPulsarServiceList().size(); i++) {
+            getPulsarServiceList().get(i).close();
+        }
+        String singleSnapshotTopic = "persistent://" + namespace + "/testReadMostUpToDateSnapshotWithTableViewSingle";
+        String otherTopic = singleSnapshotTopic + "other";
+        getPulsarServiceList().get(0).getConfiguration().setTransactionBufferSegmentedSnapshotEnabled(false);
+        admin.topics().createNonPartitionedTopic(singleSnapshotTopic);
+        //Test Single Snapshot
+        SystemTopicClient.Writer<TransactionBufferSnapshot> snapshotWriter = getPulsarServiceList()
+                .get(0)
+                .getTransactionBufferSnapshotServiceFactory()
+                .getTxnBufferSnapshotService()
+                .getReferenceWriter(TopicName.get(singleSnapshotTopic).getNamespaceObject()).getFuture().get();
+        writeSingleSnapshot(snapshotWriter, new PositionImpl(1L, 1L),
+                new TxnID(1L, 1L), singleSnapshotTopic);
+        for (long i = 0; i < 10; i++) {
+            writeSingleSnapshot(snapshotWriter, new PositionImpl(2L, i),
+                    new TxnID(2L, i), otherTopic);
+        }
+        writeSingleSnapshot(snapshotWriter, new PositionImpl(3L, 1L),
+                new TxnID(3L, 1L), singleSnapshotTopic);
+        admin.topics().unload(singleSnapshotTopic);
+        PersistentTopic testSingleSnapshotPersistentTopic =
+                (PersistentTopic) getPulsarServiceList().get(0).getBrokerService()
+                        .getTopic(singleSnapshotTopic, false)
+                        .get()
+                        .get();
+        testSingleSnapshotPersistentTopic.checkIfTransactionBufferRecoverCompletely(true).get();
+        assertTrue(testSingleSnapshotPersistentTopic.isTxnAborted(new TxnID(3L, 1L),
+                new PositionImpl(3L, 1L)));
+
+        getPulsarServiceList().get(0).getConfiguration().setTransactionBufferSegmentedSnapshotEnabled(true);
+        //Test segment Snapshot
+        String segmentSnapshotTopic = "persistent://" + namespace + "/testReadMostUpToDateSnapshotWithTableViewSegment";
+        admin.topics().createNonPartitionedTopic(segmentSnapshotTopic);
+        SystemTopicClient.Writer<TransactionBufferSnapshotIndexes> indexesWriter = getPulsarServiceList()
+                .get(0)
+                .getTransactionBufferSnapshotServiceFactory()
+                .getTxnBufferSnapshotIndexService()
+                .getReferenceWriter(TopicName.get(segmentSnapshotTopic).getNamespaceObject()).getFuture().get();
+        writeSnapshotIndex(indexesWriter, new PositionImpl(1L, 1L),
+                new TxnID(1L, 1L), segmentSnapshotTopic);
+        for (long i = 0; i < 10; i++) {
+            writeSnapshotIndex(indexesWriter, new PositionImpl(2L, i),
+                    new TxnID(2L, i),  segmentSnapshotTopic);
+        }
+        writeSnapshotIndex(indexesWriter, new PositionImpl(3L, 1L),
+                new TxnID(3L, 1L), segmentSnapshotTopic);
+        admin.topics().unload(segmentSnapshotTopic);
+        PersistentTopic testSegmentSnapshotPersistentTopic =
+                (PersistentTopic) getPulsarServiceList().get(0).getBrokerService()
+                        .getTopic(segmentSnapshotTopic, false)
+                        .get()
+                        .get();
+        testSegmentSnapshotPersistentTopic.checkIfTransactionBufferRecoverCompletely(true).get();
+        assertTrue(testSegmentSnapshotPersistentTopic.isTxnAborted(new TxnID(3L, 1L),
+                new PositionImpl(3L, 1L)));
+    }
+
+    private void writeSingleSnapshot(SystemTopicClient.Writer writer, PositionImpl position, TxnID txnID,
+                                     String topic) throws Exception {
+        TransactionBufferSnapshot snapshot = new TransactionBufferSnapshot();
+        snapshot.setTopicName(topic);
+        snapshot.setMaxReadPositionLedgerId(1L);
+        snapshot.setMaxReadPositionEntryId(1L);
+        List<AbortTxnMetadata> list = new ArrayList<>();
+        list.add(new AbortTxnMetadata(txnID.getMostSigBits(), txnID.getLeastSigBits(),
+                position.getLedgerId(), position.getEntryId()));
+        snapshot.setAborts(list);
+        writer.write(topic, snapshot);
+    }
+
+    private void writeSnapshotIndex(SystemTopicClient.Writer writer, PositionImpl position, TxnID txnID,
+                                    String topic) throws Exception {
+        TransactionBufferSnapshotIndexes transactionBufferSnapshotIndexes = new TransactionBufferSnapshotIndexes();
+        transactionBufferSnapshotIndexes.setIndexList(new ArrayList<>());
+        transactionBufferSnapshotIndexes.setTopicName(topic);
+        transactionBufferSnapshotIndexes.setSnapshot(new TransactionBufferSnapshotIndexesMetadata(
+                position.getLedgerId(), position.getEntryId(), Collections.singletonList(
+                        new TxnIDData(txnID.getMostSigBits(), txnID.getLeastSigBits()))));
+        writer.write(topic, transactionBufferSnapshotIndexes);
     }
 }

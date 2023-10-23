@@ -27,7 +27,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
@@ -229,160 +228,151 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
     public CompletableFuture<PositionImpl> recoverFromSnapshot() {
         return topic.getBrokerService().getPulsar().getTransactionBufferSnapshotServiceFactory()
                 .getTxnBufferSnapshotIndexService()
-                .createReader(TopicName.get(topic.getName())).thenComposeAsync(reader -> {
-                    PositionImpl startReadCursorPosition = null;
-                    TransactionBufferSnapshotIndexes persistentSnapshotIndexes = null;
-                    try {
-                        /*
-                          Read the transaction snapshot segment index.
-                          <p>
-                              The processor can get the sequence ID, unsealed transaction IDs,
-                              segment index list and max read position in the snapshot segment index.
-                              Then we can traverse the index list to read all aborted transaction IDs
-                              in segments to aborts.
-                          </p>
-                         */
-                        while (reader.hasMoreEvents()) {
-                            Message<TransactionBufferSnapshotIndexes> message = reader.readNextAsync()
-                                    .get(getSystemClientOperationTimeoutMs(), TimeUnit.MILLISECONDS);
-                            if (topic.getName().equals(message.getKey())) {
-                                TransactionBufferSnapshotIndexes transactionBufferSnapshotIndexes = message.getValue();
-                                if (transactionBufferSnapshotIndexes != null) {
-                                    persistentSnapshotIndexes = transactionBufferSnapshotIndexes;
-                                    startReadCursorPosition = PositionImpl.get(
-                                            transactionBufferSnapshotIndexes.getSnapshot().getMaxReadPositionLedgerId(),
-                                            transactionBufferSnapshotIndexes.getSnapshot().getMaxReadPositionEntryId());
-                                }
-                            }
-                        }
-                    } catch (TimeoutException ex) {
-                        Throwable t = FutureUtil.unwrapCompletionException(ex);
-                        String errorMessage = String.format("[%s] Transaction buffer recover fail by read "
-                                + "transactionBufferSnapshot timeout!", topic.getName());
-                        log.error(errorMessage, t);
-                        return FutureUtil.failedFuture(
-                                new BrokerServiceException.ServiceUnitNotReadyException(errorMessage, t));
-                    } catch (Exception ex) {
-                        log.error("[{}] Transaction buffer recover fail when read "
-                                + "transactionBufferSnapshot!", topic.getName(), ex);
-                        return FutureUtil.failedFuture(ex);
-                    } finally {
-                        closeReader(reader);
-                    }
-                    PositionImpl finalStartReadCursorPosition = startReadCursorPosition;
-                    TransactionBufferSnapshotIndexes finalPersistentSnapshotIndexes = persistentSnapshotIndexes;
-                    if (persistentSnapshotIndexes == null) {
-                        return recoverOldSnapshot();
-                    } else {
-                        this.unsealedTxnIds = convertTypeToTxnID(persistentSnapshotIndexes
-                                .getSnapshot().getAborts());
-                    }
-                    //Read snapshot segment to recover aborts.
-                    ArrayList<CompletableFuture<Void>> completableFutures = new ArrayList<>();
-                    CompletableFuture<Void> openManagedLedgerAndHandleSegmentsFuture = new CompletableFuture<>();
-                    AtomicBoolean hasInvalidIndex = new AtomicBoolean(false);
-                    AsyncCallbacks.OpenReadOnlyManagedLedgerCallback callback = new AsyncCallbacks
-                            .OpenReadOnlyManagedLedgerCallback() {
-                        @Override
-                        public void openReadOnlyManagedLedgerComplete(ReadOnlyManagedLedgerImpl readOnlyManagedLedger,
-                                                                      Object ctx) {
-                            finalPersistentSnapshotIndexes.getIndexList().forEach(index -> {
-                                CompletableFuture<Void> handleSegmentFuture = new CompletableFuture<>();
-                                completableFutures.add(handleSegmentFuture);
-                                readOnlyManagedLedger.asyncReadEntry(
-                                        new PositionImpl(index.getSegmentLedgerID(),
-                                                index.getSegmentEntryID()),
-                                        new AsyncCallbacks.ReadEntryCallback() {
+                .getTableView(TopicName.get(topic.getName()))
+                .thenComposeAsync(transactionBufferSnapshotTableView -> {
+                            return transactionBufferSnapshotTableView.refreshAsync()
+                                    .thenCompose(__ -> {
+                                        /*
+                                          Read the transaction snapshot segment index.
+                                          <p>
+                                              The processor can get the sequence ID, unsealed transaction IDs,
+                                              segment index list and max read position in the snapshot segment index.
+                                              Then we can traverse the index list to read all aborted transaction IDs
+                                              in segments to aborts.
+                                          </p>
+                                         */
+                                        TransactionBufferSnapshotIndexes persistentSnapshotIndexes = null;
+                                        TransactionBufferSnapshotIndexes transactionBufferSnapshotIndexes =
+                                                transactionBufferSnapshotTableView.get(topic.getName());
+                                        PositionImpl startReadCursorPosition = null;
+                                        if (transactionBufferSnapshotIndexes != null) {
+                                            persistentSnapshotIndexes = transactionBufferSnapshotIndexes;
+                                            startReadCursorPosition = PositionImpl.get(
+                                                    transactionBufferSnapshotIndexes.getSnapshot()
+                                                            .getMaxReadPositionLedgerId(),
+                                                    transactionBufferSnapshotIndexes.getSnapshot()
+                                                            .getMaxReadPositionEntryId());
+                                        }
+                                        PositionImpl finalStartReadCursorPosition = startReadCursorPosition;
+                                        TransactionBufferSnapshotIndexes finalPersistentSnapshotIndexes =
+                                                persistentSnapshotIndexes;
+                                        if (persistentSnapshotIndexes == null) {
+                                            return recoverOldSnapshot();
+                                        } else {
+                                            this.unsealedTxnIds = convertTypeToTxnID(persistentSnapshotIndexes
+                                                    .getSnapshot().getAborts());
+                                        }
+                                        //Read snapshot segment to recover aborts.
+                                        ArrayList<CompletableFuture<Void>> completableFutures = new ArrayList<>();
+                                        CompletableFuture<Void> openManagedLedgerAndHandleSegmentsFuture =
+                                                new CompletableFuture<>();
+                                        AtomicBoolean hasInvalidIndex = new AtomicBoolean(false);
+                                        AsyncCallbacks.OpenReadOnlyManagedLedgerCallback callback = new AsyncCallbacks
+                                                .OpenReadOnlyManagedLedgerCallback() {
                                             @Override
-                                            public void readEntryComplete(Entry entry, Object ctx) {
-                                                handleSnapshotSegmentEntry(entry);
-                                                indexes.put(new PositionImpl(
-                                                                index.abortedMarkLedgerID,
-                                                                index.abortedMarkEntryID),
-                                                        index);
-                                                entry.release();
-                                                handleSegmentFuture.complete(null);
+                                            public void openReadOnlyManagedLedgerComplete(ReadOnlyManagedLedgerImpl readOnlyManagedLedger,
+                                                                                          Object ctx) {
+                                                finalPersistentSnapshotIndexes.getIndexList().forEach(index -> {
+                                                    CompletableFuture<Void> handleSegmentFuture = new CompletableFuture<>();
+                                                    completableFutures.add(handleSegmentFuture);
+                                                    readOnlyManagedLedger.asyncReadEntry(
+                                                            new PositionImpl(index.getSegmentLedgerID(),
+                                                                    index.getSegmentEntryID()),
+                                                            new AsyncCallbacks.ReadEntryCallback() {
+                                                                @Override
+                                                                public void readEntryComplete(Entry entry, Object ctx) {
+                                                                    handleSnapshotSegmentEntry(entry);
+                                                                    indexes.put(new PositionImpl(
+                                                                                    index.abortedMarkLedgerID,
+                                                                                    index.abortedMarkEntryID),
+                                                                            index);
+                                                                    entry.release();
+                                                                    handleSegmentFuture.complete(null);
+                                                                }
+
+                                                                @Override
+                                                                public void readEntryFailed(ManagedLedgerException exception, Object ctx) {
+                                                                /*
+                                                                  The logic flow of deleting expired segment is:
+                                                                  <p>
+                                                                      1. delete segment
+                                                                      2. update segment index
+                                                                  </p>
+                                                                  If the worker delete segment successfully
+                                                                  but failed to update segment index,
+                                                                  the segment can not be read according to the index.
+                                                                  We update index again if there are invalid indexes.
+                                                                 */
+                                                                    if (((ManagedLedgerImpl) topic.getManagedLedger())
+                                                                            .ledgerExists(index.getAbortedMarkLedgerID())) {
+                                                                        log.error("[{}] Failed to read snapshot segment [{}:{}]",
+                                                                                topic.getName(), index.segmentLedgerID,
+                                                                                index.segmentEntryID, exception);
+                                                                        handleSegmentFuture.completeExceptionally(exception);
+                                                                    } else {
+                                                                        hasInvalidIndex.set(true);
+                                                                    }
+                                                                }
+                                                            }, null);
+                                                });
+                                                openManagedLedgerAndHandleSegmentsFuture.complete(null);
                                             }
 
                                             @Override
-                                            public void readEntryFailed(ManagedLedgerException exception, Object ctx) {
-                                                /*
-                                                  The logic flow of deleting expired segment is:
-                                                  <p>
-                                                      1. delete segment
-                                                      2. update segment index
-                                                  </p>
-                                                  If the worker delete segment successfully
-                                                  but failed to update segment index,
-                                                  the segment can not be read according to the index.
-                                                  We update index again if there are invalid indexes.
-                                                 */
-                                                if (((ManagedLedgerImpl) topic.getManagedLedger())
-                                                        .ledgerExists(index.getAbortedMarkLedgerID())) {
-                                                    log.error("[{}] Failed to read snapshot segment [{}:{}]",
-                                                            topic.getName(), index.segmentLedgerID,
-                                                            index.segmentEntryID, exception);
-                                                    handleSegmentFuture.completeExceptionally(exception);
-                                                } else {
-                                                    hasInvalidIndex.set(true);
-                                                }
+                                            public void openReadOnlyManagedLedgerFailed(ManagedLedgerException exception, Object ctx) {
+                                                log.error("[{}] Failed to open readOnly managed ledger", topic, exception);
+                                                openManagedLedgerAndHandleSegmentsFuture.completeExceptionally(exception);
                                             }
-                                        }, null);
-                            });
-                            openManagedLedgerAndHandleSegmentsFuture.complete(null);
-                        }
+                                        };
 
-                        @Override
-                        public void openReadOnlyManagedLedgerFailed(ManagedLedgerException exception, Object ctx) {
-                            log.error("[{}] Failed to open readOnly managed ledger", topic, exception);
-                            openManagedLedgerAndHandleSegmentsFuture.completeExceptionally(exception);
-                        }
-                    };
+                                        TopicName snapshotSegmentTopicName = TopicName.get(
+                                                TopicDomain.persistent.toString(),
+                                                TopicName.get(topic.getName()).getNamespaceObject(),
+                                                SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT_SEGMENTS);
+                                        this.topic.getBrokerService().getPulsar().getManagedLedgerFactory()
+                                                .asyncOpenReadOnlyManagedLedger(snapshotSegmentTopicName
+                                                                .getPersistenceNamingEncoding(), callback,
+                                                        topic.getManagedLedger().getConfig(),
+                                                        null);
+                                        /*
+                                           Wait the processor recover completely and then allow TB
+                                           to recover the messages after the startReadCursorPosition.
+                                         */
+                                        return openManagedLedgerAndHandleSegmentsFuture
+                                                .thenCompose((ignore) -> FutureUtil.waitForAll(completableFutures))
+                                                .thenCompose((i) -> {
+                                        /*
+                                          Update the snapshot segment index if there exist invalid indexes.
+                                         */
+                                                    if (hasInvalidIndex.get()) {
+                                                        persistentWorker.appendTask(PersistentWorker.OperationType.UpdateIndex,
+                                                                () -> persistentWorker.updateSnapshotIndex(
+                                                                        finalPersistentSnapshotIndexes.getSnapshot()));
+                                                    }
+                                        /*
+                                           If there is no segment index, the persistent worker will write segment begin from 0.
+                                         */
+                                                    if (indexes.size() != 0) {
+                                                        persistentWorker.sequenceID.set(indexes.get(indexes.lastKey()).sequenceID + 1);
+                                                    }
+                                        /*
+                                          Append the aborted txn IDs in the index metadata
+                                          can keep the order of the aborted txn in the aborts.
+                                          So that we can trim the expired snapshot segment in aborts
+                                          according to the latest transaction IDs in the segmentIndex.
+                                         */
+                                                    unsealedTxnIds.forEach(txnID -> aborts.put(txnID, txnID));
+                                                    return CompletableFuture.completedFuture(finalStartReadCursorPosition);
+                                                }).exceptionally(ex -> {
+                                                    log.error("[{}] Failed to recover snapshot segment",
+                                                            this.topic.getName(), ex);
+                                                    return null;
+                                                });
 
-                    TopicName snapshotSegmentTopicName = TopicName.get(TopicDomain.persistent.toString(),
-                            TopicName.get(topic.getName()).getNamespaceObject(),
-                            SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT_SEGMENTS);
-                    this.topic.getBrokerService().getPulsar().getManagedLedgerFactory()
-                            .asyncOpenReadOnlyManagedLedger(snapshotSegmentTopicName
-                                            .getPersistenceNamingEncoding(), callback,
-                                    topic.getManagedLedger().getConfig(),
-                                    null);
-                    /*
-                       Wait the processor recover completely and then allow TB
-                       to recover the messages after the startReadCursorPosition.
-                     */
-                    return openManagedLedgerAndHandleSegmentsFuture
-                            .thenCompose((ignore) -> FutureUtil.waitForAll(completableFutures))
-                            .thenCompose((i) -> {
-                                /*
-                                  Update the snapshot segment index if there exist invalid indexes.
-                                 */
-                                if (hasInvalidIndex.get()) {
-                                    persistentWorker.appendTask(PersistentWorker.OperationType.UpdateIndex,
-                                            () -> persistentWorker.updateSnapshotIndex(
-                                                    finalPersistentSnapshotIndexes.getSnapshot()));
-                                }
-                                /*
-                                   If there is no segment index, the persistent worker will write segment begin from 0.
-                                 */
-                                if (indexes.size() != 0) {
-                                    persistentWorker.sequenceID.set(indexes.get(indexes.lastKey()).sequenceID + 1);
-                                }
-                                /*
-                                  Append the aborted txn IDs in the index metadata
-                                  can keep the order of the aborted txn in the aborts.
-                                  So that we can trim the expired snapshot segment in aborts
-                                  according to the latest transaction IDs in the segmentIndex.
-                                 */
-                                unsealedTxnIds.forEach(txnID -> aborts.put(txnID, txnID));
-                                return CompletableFuture.completedFuture(finalStartReadCursorPosition);
-                            }).exceptionally(ex -> {
-                                log.error("[{}] Failed to recover snapshot segment", this.topic.getName(), ex);
-                                return null;
-                            });
-
-                    },  topic.getBrokerService().getPulsar().getTransactionExecutorProvider()
-                        .getExecutor(this));
+                                    });
+                        },
+                        topic.getBrokerService().getPulsar().getTransactionExecutorProvider()
+                                .getExecutor(this));
     }
 
     // This method will be deprecated and removed in version 4.x.0
@@ -397,40 +387,22 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
                     } else {
                         return topic.getBrokerService().getPulsar().getTransactionBufferSnapshotServiceFactory()
                                 .getTxnBufferSnapshotService()
-                                .createReader(TopicName.get(topic.getName())).thenComposeAsync(snapshotReader -> {
-                                    PositionImpl startReadCursorPositionInOldSnapshot = null;
-                                    try {
-                                        while (snapshotReader.hasMoreEvents()) {
-                                            Message<TransactionBufferSnapshot> message = snapshotReader.readNextAsync()
-                                                    .get(getSystemClientOperationTimeoutMs(), TimeUnit.MILLISECONDS);
-                                            if (topic.getName().equals(message.getKey())) {
-                                                TransactionBufferSnapshot transactionBufferSnapshot =
-                                                        message.getValue();
-                                                if (transactionBufferSnapshot != null) {
-                                                    handleOldSnapshot(transactionBufferSnapshot);
-                                                    startReadCursorPositionInOldSnapshot = PositionImpl.get(
-                                                            transactionBufferSnapshot.getMaxReadPositionLedgerId(),
-                                                            transactionBufferSnapshot.getMaxReadPositionEntryId());
-                                                }
-                                            }
-                                        }
-                                    } catch (TimeoutException ex) {
-                                        Throwable t = FutureUtil.unwrapCompletionException(ex);
-                                        String errorMessage = String.format("[%s] Transaction buffer recover fail by "
-                                                + "read transactionBufferSnapshot timeout!", topic.getName());
-                                        log.error(errorMessage, t);
-                                        return FutureUtil.failedFuture(new BrokerServiceException
-                                                .ServiceUnitNotReadyException(errorMessage, t));
-                                    } catch (Exception ex) {
-                                        log.error("[{}] Transaction buffer recover fail when read "
-                                                + "transactionBufferSnapshot!", topic.getName(), ex);
-                                        return FutureUtil.failedFuture(ex);
-                                    } finally {
-                                        assert snapshotReader != null;
-                                        closeReader(snapshotReader);
-                                    }
-                                    return CompletableFuture.completedFuture(startReadCursorPositionInOldSnapshot);
-                                },
+                                .getTableView(TopicName.get(topic.getName()))
+                                .thenComposeAsync(transactionBufferSnapshotTableView -> {
+                                            return transactionBufferSnapshotTableView.refreshAsync()
+                                                    .thenApply(__ -> {
+                                                        TransactionBufferSnapshot snapshot =
+                                                                transactionBufferSnapshotTableView.get(topic.getName());
+                                                        PositionImpl startReadCursorPosition = null;
+                                                        if (snapshot != null) {
+                                                            handleOldSnapshot(snapshot);
+                                                            startReadCursorPosition = PositionImpl.get(
+                                                                    snapshot.getMaxReadPositionLedgerId(),
+                                                                    snapshot.getMaxReadPositionEntryId());
+                                                        }
+                                                        return startReadCursorPosition;
+                                                    });
+                                        },
                                         topic.getBrokerService().getPulsar().getTransactionExecutorProvider()
                                                 .getExecutor(this));
                     }
