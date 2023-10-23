@@ -39,6 +39,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
@@ -361,6 +362,7 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
         TopicPolicies initPolicy = TopicPolicies.builder()
                 .maxConsumerPerTopic(10)
                 .build();
+        @Cleanup("shutdownNow")
         ScheduledExecutorService executors = Executors.newScheduledThreadPool(1);
         executors.schedule(new Runnable() {
             @Override

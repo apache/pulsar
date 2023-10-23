@@ -70,6 +70,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicInteger;
+import lombok.Cleanup;
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.pulsar.broker.PulsarServerException;
@@ -234,6 +235,7 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         var channel = createChannel(pulsar);
         int errorCnt = validateChannelStart(channel);
         assertEquals(6, errorCnt);
+        @Cleanup("shutdownNow")
         ExecutorService executor = Executors.newSingleThreadExecutor();
         Future startFuture = executor.submit(() -> {
             try {
