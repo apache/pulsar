@@ -949,7 +949,7 @@ public class ClientCnx extends PulsarHandler {
         return ctx.channel();
     }
 
-    SocketAddress serverAddrees() {
+    SocketAddress serverAddress() {
         return remoteAddress;
     }
 
