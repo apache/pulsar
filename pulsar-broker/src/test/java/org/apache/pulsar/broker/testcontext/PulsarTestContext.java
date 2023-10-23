@@ -589,7 +589,8 @@ public class PulsarTestContext implements AutoCloseable {
                 } else {
                     try {
                         MetadataStoreExtended store = MetadataStoreFactoryImpl.createExtended("memory:local",
-                                MetadataStoreConfig.builder().build());
+                                MetadataStoreConfig.builder()
+                                        .metadataStoreName("metastore-" + getClass().getSimpleName()).build());
                         registerCloseable(() -> {
                             store.close();
                             resetSpyOrMock(store);
@@ -619,7 +620,8 @@ public class PulsarTestContext implements AutoCloseable {
                 resetSpyOrMock(mockZooKeeperSession);
             });
             ZKMetadataStore zkMetadataStore = new ZKMetadataStore(mockZooKeeperSession,
-                    MetadataStoreConfig.builder().metadataStoreName(metadataStoreName).build());
+                    MetadataStoreConfig.builder().metadataStoreName(metadataStoreName)
+                            .metadataStoreName("metastore-" + getClass().getSimpleName()).build());
             registerCloseable(() -> {
                 zkMetadataStore.close();
                 resetSpyOrMock(zkMetadataStore);
