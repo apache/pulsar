@@ -224,6 +224,14 @@ public class ExtensibleLoadManagerImplTest extends ExtensibleLoadManagerImplBase
         TopicName topicName = TopicName.get(defaultTestNamespace + "/test-check-ownership");
         NamespaceBundle bundle = getBundleAsync(pulsar1, topicName).get();
         // 1. The bundle is never assigned.
+        retryStrategically((test) -> {
+            try {
+                return !primaryLoadManager.checkOwnershipAsync(Optional.empty(), bundle).get()
+                        && !secondaryLoadManager.checkOwnershipAsync(Optional.empty(), bundle).get();
+            } catch (Exception e) {
+                return false;
+            }
+        }, 5, 200);
         assertFalse(primaryLoadManager.checkOwnershipAsync(Optional.empty(), bundle).get());
         assertFalse(secondaryLoadManager.checkOwnershipAsync(Optional.empty(), bundle).get());
 
