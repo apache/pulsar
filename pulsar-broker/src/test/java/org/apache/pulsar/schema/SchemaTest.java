@@ -1324,6 +1324,7 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
         admin.namespaces().createNamespace(ns, Sets.newHashSet(CLUSTER_NAME));
 
         final String topic = getTopicName(ns, "testCreateSchemaInParallel");
+        @Cleanup("shutdownNow")
         ExecutorService executor = Executors.newFixedThreadPool(16);
         List<CompletableFuture<Producer<Schemas.PersonOne>>> producers = new ArrayList<>(16);
         CountDownLatch latch = new CountDownLatch(16);
@@ -1365,7 +1366,6 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
         });
         producers.clear();
         producers2.clear();
-        executor.shutdownNow();
     }
 
     @EqualsAndHashCode
