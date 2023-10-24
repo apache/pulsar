@@ -36,6 +36,7 @@ import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
@@ -534,13 +535,12 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
         int numLedgers = ledgerNames.size();
         log.info("Closing {} ledgers", numLedgers);
         for (String ledgerName : ledgerNames) {
-            CompletableFuture<Void> future = new CompletableFuture<>();
-            futures.add(future);
             CompletableFuture<ManagedLedgerImpl> ledgerFuture = ledgers.remove(ledgerName);
             if (ledgerFuture == null) {
-                future.complete(null);
                 continue;
             }
+            CompletableFuture<Void> future = new CompletableFuture<>();
+            futures.add(future);
             ledgerFuture.whenCompleteAsync((managedLedger, throwable) -> {
                 if (throwable != null || managedLedger == null) {
                     future.complete(null);
@@ -605,68 +605,20 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                 }));
             }
         }));
-        entryCacheManager.clear();
-        return FutureUtil.waitForAll(futures).thenAccept(__ -> {
+        return FutureUtil.waitForAll(futures).thenAcceptAsync(__ -> {
             //wait for tasks in scheduledExecutor executed.
-            scheduledExecutor.shutdown();
+            scheduledExecutor.shutdownNow();
+            entryCacheManager.clear();
         });
     }
 
     @Override
     public void shutdown() throws InterruptedException, ManagedLedgerException {
-        if (closed) {
-            throw new ManagedLedgerException.ManagedLedgerFactoryClosedException();
+        try {
+            shutdownAsync().get();
+        } catch (ExecutionException e) {
+            throw getManagedLedgerException(e.getCause());
         }
-        closed = true;
-
-        statsTask.cancel(true);
-        flushCursorsTask.cancel(true);
-        cacheEvictionExecutor.shutdownNow();
-
-        // take a snapshot of ledgers currently in the map to prevent race conditions
-        List<CompletableFuture<ManagedLedgerImpl>> ledgers = new ArrayList<>(this.ledgers.values());
-        int numLedgers = ledgers.size();
-        final CountDownLatch latch = new CountDownLatch(numLedgers);
-        log.info("Closing {} ledgers", numLedgers);
-
-        for (CompletableFuture<ManagedLedgerImpl> ledgerFuture : ledgers) {
-            ManagedLedgerImpl ledger = ledgerFuture.getNow(null);
-            if (ledger == null) {
-                latch.countDown();
-                continue;
-            }
-
-            ledger.asyncClose(new AsyncCallbacks.CloseCallback() {
-                @Override
-                public void closeComplete(Object ctx) {
-                    latch.countDown();
-                }
-
-                @Override
-                public void closeFailed(ManagedLedgerException exception, Object ctx) {
-                    log.warn("[{}] Got exception when closing managed ledger: {}", ledger.getName(), exception);
-                    latch.countDown();
-                }
-            }, null);
-        }
-
-        latch.await();
-        log.info("{} ledgers closed", numLedgers);
-
-        if (isBookkeeperManaged) {
-            try {
-                BookKeeper bookkeeper = bookkeeperFactory.get();
-                if (bookkeeper != null) {
-                    bookkeeper.close();
-                }
-            } catch (BKException e) {
-                throw new ManagedLedgerException(e);
-            }
-        }
-
-        scheduledExecutor.shutdownNow();
-
-        entryCacheManager.clear();
     }
 
     @Override

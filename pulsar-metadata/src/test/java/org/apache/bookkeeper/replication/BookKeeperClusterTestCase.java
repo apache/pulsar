@@ -238,7 +238,7 @@ public abstract class BookKeeperClusterTestCase {
         zkc = zkUtil.getZooKeeperClient();
         metadataStore = new FaultInjectionMetadataStore(
                 MetadataStoreExtended.create(zkUtil.getZooKeeperConnectString(),
-                MetadataStoreConfig.builder().build()));
+                MetadataStoreConfig.builder().metadataStoreName("metastore-" + getClass().getSimpleName()).build()));
     }
 
     /**
