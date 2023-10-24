@@ -23,6 +23,15 @@ import static org.testng.Assert.assertTrue;
 import com.google.common.collect.Sets;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
+import java.time.Duration;
+import java.util.Base64;
+import java.util.Calendar;
+import java.util.Date;
+import java.util.HashSet;
+import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.TimeUnit;
+import javax.crypto.SecretKey;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.authentication.AuthenticationProviderToken;
@@ -35,20 +44,9 @@ import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.awaitility.Awaitility;
-import org.mockito.Mockito;
-import org.mockito.internal.util.MockUtil;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-import javax.crypto.SecretKey;
-import java.time.Duration;
-import java.util.Base64;
-import java.util.Calendar;
-import java.util.Date;
-import java.util.HashSet;
-import java.util.Optional;
-import java.util.Set;
-import java.util.concurrent.TimeUnit;
 
 @Test(groups = "broker-api")
 @Slf4j
@@ -65,12 +63,7 @@ public class TokenExpirationProduceConsumerTest extends TlsProducerConsumerBase 
         // Start Broker
         super.init();
 
-        if (admin != null) {
-            admin.close();
-            if (MockUtil.isMock(admin)) {
-                Mockito.reset(admin);
-            }
-        }
+        closeAdmin();
         admin = getAdmin(ADMIN_TOKEN);
         admin.clusters().createCluster(configClusterName,
                 ClusterData.builder()

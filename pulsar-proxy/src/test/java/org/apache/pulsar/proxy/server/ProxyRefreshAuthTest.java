@@ -94,7 +94,7 @@ public class ProxyRefreshAuthTest extends ProducerConsumerBase {
     @Override
     protected void setup() throws Exception {
         super.init();
-
+        closeAdmin();
         admin = PulsarAdmin.builder().serviceHttpUrl(pulsar.getWebServiceAddress())
                 .authentication(new AuthenticationToken(
                         () -> AuthTokenUtils.createToken(SECRET_KEY, "client", Optional.empty()))).build();

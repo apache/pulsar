@@ -89,7 +89,9 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
     protected abstract CompletableFuture<Boolean> existsFromStore(String path);
 
     protected AbstractMetadataStore(String metadataStoreName) {
-        this.executor = new ScheduledThreadPoolExecutor(1, new DefaultThreadFactory(metadataStoreName));
+        this.executor = new ScheduledThreadPoolExecutor(1,
+                new DefaultThreadFactory(
+                        StringUtils.isNotBlank(metadataStoreName) ? metadataStoreName : getClass().getSimpleName()));
         registerListener(this);
 
         this.childrenCache = Caffeine.newBuilder()

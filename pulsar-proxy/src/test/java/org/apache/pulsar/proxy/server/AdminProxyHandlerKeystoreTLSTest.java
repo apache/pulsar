@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.proxy.server;
 
+import lombok.Cleanup;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.authentication.AuthenticationProviderTls;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
@@ -136,7 +137,9 @@ public class AdminProxyHandlerKeystoreTLSTest extends MockedPulsarServiceBaseTes
 
     @Test
     public void testAdmin() throws Exception {
-        getAdminClient().clusters().createCluster(configClusterName, ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
+        @Cleanup
+        PulsarAdmin admin = getAdminClient();
+        admin.clusters().createCluster(configClusterName, ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
     }
 
 }

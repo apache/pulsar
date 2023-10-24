@@ -1900,6 +1900,17 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
         return asyncDeleteRequest(path);
     }
 
+    @Override
+    public void updateMigrationState(String namespace, boolean migrated) throws PulsarAdminException {
+        sync(() -> updateMigrationStateAsync(namespace, migrated));
+    }
+
+    public CompletableFuture<Void> updateMigrationStateAsync(String namespace, boolean migrated) {
+        NamespaceName ns = NamespaceName.get(namespace);
+        WebTarget path = namespacePath(ns, "migration");
+        return asyncPostRequest(path, Entity.entity(migrated, MediaType.APPLICATION_JSON));
+    }
+
     private WebTarget namespacePath(NamespaceName namespace, String... parts) {
         final WebTarget base = namespace.isV2() ? adminV2Namespaces : adminNamespaces;
         WebTarget namespacePath = base.path(namespace.toString());

@@ -156,11 +156,8 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
     }
 
     private CompletableFuture<Void> updateClusterMigrated() {
-        return getMigratedClusterUrlAsync(brokerService.getPulsar()).thenAccept(url -> migrated = url.isPresent());
-    }
-
-    private Optional<ClusterUrl> getClusterMigrationUrl() {
-        return getMigratedClusterUrl(brokerService.getPulsar());
+        return getMigratedClusterUrlAsync(brokerService.getPulsar(), topic)
+                .thenAccept(url -> migrated = url.isPresent());
     }
 
     public CompletableFuture<Void> initialize() {
@@ -236,6 +233,11 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
     @Override
     public void checkMessageDeduplicationInfo() {
         // No-op
+    }
+
+    @Override
+    public boolean shouldProducerMigrate() {
+        return true;
     }
 
     @Override
@@ -332,7 +334,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
                     false, cnx, cnx.getAuthRole(), metadata, readCompacted, keySharedMeta, MessageId.latest,
                     DEFAULT_CONSUMER_EPOCH, schemaType);
             if (isMigrated()) {
-                consumer.topicMigrated(getClusterMigrationUrl());
+                consumer.topicMigrated(getMigratedClusterUrl());
             }
 
             addConsumerToSubscription(subscription, consumer).thenRun(() -> {
@@ -949,7 +951,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
 
     @Override
     public CompletableFuture<Void> checkClusterMigration() {
-        Optional<ClusterUrl> url = getClusterMigrationUrl();
+        Optional<ClusterUrl> url = getMigratedClusterUrl();
         if (url.isPresent()) {
             this.migrated = true;
             producers.forEach((__, producer) -> {

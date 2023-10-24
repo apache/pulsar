@@ -251,6 +251,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
     @Override
     public void cleanup() throws Exception {
         adminTls.close();
+        otheradmin.close();
         super.internalCleanup();
         mockPulsarSetup.cleanup();
     }

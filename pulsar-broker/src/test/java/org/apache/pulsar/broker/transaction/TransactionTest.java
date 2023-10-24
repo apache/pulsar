@@ -358,6 +358,7 @@ public class TransactionTest extends TransactionTestBase {
         int threadSize = 30;
         String topicName = "subscription";
         getPulsarServiceList().get(0).getConfig().setBrokerDeduplicationEnabled(false);
+        @Cleanup("shutdownNow")
         ExecutorService executorService = Executors.newFixedThreadPool(threadSize);
 
         //build producer/consumer
@@ -1451,6 +1452,7 @@ public class TransactionTest extends TransactionTestBase {
     public void testPendingAckReplayChangeStateError() throws InterruptedException, TimeoutException {
         AtomicInteger atomicInteger = new AtomicInteger(1);
         // Create Executor
+        @Cleanup("shutdownNow")
         ScheduledExecutorService executorService = Executors.newSingleThreadScheduledExecutor();
         // Mock serviceConfiguration.
         ServiceConfiguration serviceConfiguration = mock(ServiceConfiguration.class);

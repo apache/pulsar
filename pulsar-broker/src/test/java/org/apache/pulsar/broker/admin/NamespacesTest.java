@@ -215,9 +215,9 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         doReturn(null).when(namespaces).clientAuthData();
         doReturn(Set.of("use", "usw", "usc", "global")).when(namespaces).clusters();
 
-        admin.clusters().createCluster("use", ClusterData.builder().serviceUrl("http://broker-use.com:8080").build());
-        admin.clusters().createCluster("usw", ClusterData.builder().serviceUrl("http://broker-usw.com:8080").build());
-        admin.clusters().createCluster("usc", ClusterData.builder().serviceUrl("http://broker-usc.com:8080").build());
+        admin.clusters().createCluster("use", ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
+        admin.clusters().createCluster("usw", ClusterData.builder().serviceUrl("http://127.0.0.2:8082").build());
+        admin.clusters().createCluster("usc", ClusterData.builder().serviceUrl("http://127.0.0.3:8083").build());
         admin.tenants().createTenant(this.testTenant,
                 new TenantInfoImpl(Set.of("role1", "role2"), Set.of("use", "usc", "usw")));
         admin.tenants().createTenant(this.testOtherTenant,
@@ -317,9 +317,9 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         expectedList.sort(null);
         AsyncResponse response = mock(AsyncResponse.class);
         namespaces.getTenantNamespaces(response, this.testTenant);
-        ArgumentCaptor<Response> captor = ArgumentCaptor.forClass(Response.class);
-        verify(response, timeout(5000).times(1)).resume(captor.capture());
-        List<String> namespacesList = (List<String>) captor.getValue();
+        ArgumentCaptor<List<String>> listOfStringsCaptor = ArgumentCaptor.forClass(List.class);
+        verify(response, timeout(5000).times(1)).resume(listOfStringsCaptor.capture());
+        List<String> namespacesList = listOfStringsCaptor.getValue();
         namespacesList.sort(null);
         assertEquals(namespacesList, expectedList);
 
@@ -713,7 +713,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         verify(response, timeout(5000).times(1)).resume(captor.capture());
         assertEquals(captor.getValue().getResponse().getStatus(), Status.TEMPORARY_REDIRECT.getStatusCode());
         assertEquals(captor.getValue().getResponse().getLocation().toString(),
-                UriBuilder.fromUri(uri).host("broker-usc.com").port(8080).toString());
+                UriBuilder.fromUri(uri).host("127.0.0.3").port(8083).toString());
 
         uri = URI.create(pulsar.getWebServiceAddress() + "/admin/namespace/"
                 + this.testLocalNamespaces.get(2).toString() + "/unload");
@@ -725,7 +725,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         verify(response, timeout(5000).atLeast(1)).resume(captor.capture());
         assertEquals(captor.getValue().getResponse().getStatus(), Status.TEMPORARY_REDIRECT.getStatusCode());
         assertEquals(captor.getValue().getResponse().getLocation().toString(),
-                UriBuilder.fromUri(uri).host("broker-usc.com").port(8080).toString());
+                UriBuilder.fromUri(uri).host("127.0.0.3").port(8083).toString());
 
         // check the bundle should not unload to an inactive destination broker
         namespaces.unloadNamespaceBundle(response, this.testTenant, this.testOtherCluster,
@@ -762,7 +762,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         verify(response, timeout(5000).times(1)).resume(captor.capture());
         assertEquals(captor.getValue().getResponse().getStatus(), Status.TEMPORARY_REDIRECT.getStatusCode());
         assertEquals(captor.getValue().getResponse().getLocation().toString(),
-                UriBuilder.fromUri(uri).host("broker-usc.com").port(8080).toString());
+                UriBuilder.fromUri(uri).host("127.0.0.3").port(8083).toString());
 
         // cleanup
         resetBroker();

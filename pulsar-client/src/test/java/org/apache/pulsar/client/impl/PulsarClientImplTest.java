@@ -179,6 +179,7 @@ public class PulsarClientImplTest {
     @Test
     public void testInitializeWithTimer() throws PulsarClientException {
         ClientConfigurationData conf = new ClientConfigurationData();
+        @Cleanup("shutdownGracefully")
         EventLoopGroup eventLoop = EventLoopUtil.newEventLoopGroup(1, false, new DefaultThreadFactory("test"));
         ConnectionPool pool = Mockito.spy(new ConnectionPool(conf, eventLoop));
         conf.setServiceUrl("pulsar://localhost:6650");

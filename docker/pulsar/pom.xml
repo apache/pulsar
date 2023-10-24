@@ -50,6 +50,7 @@
   <properties>
     <UBUNTU_MIRROR>mirror://mirrors.ubuntu.com/mirrors.txt</UBUNTU_MIRROR>
     <UBUNTU_SECURITY_MIRROR>http://security.ubuntu.com/ubuntu/</UBUNTU_SECURITY_MIRROR>
+    <IMAGE_JDK_MAJOR_VERSION>17</IMAGE_JDK_MAJOR_VERSION>
   </properties>
 
   <profiles>
@@ -89,6 +90,7 @@
                           <PULSAR_CLIENT_PYTHON_VERSION>${pulsar.client.python.version}</PULSAR_CLIENT_PYTHON_VERSION>
                           <UBUNTU_MIRROR>${UBUNTU_MIRROR}</UBUNTU_MIRROR>
                           <UBUNTU_SECURITY_MIRROR>${UBUNTU_SECURITY_MIRROR}</UBUNTU_SECURITY_MIRROR>
+                          <JDK_MAJOR_VERSION>${IMAGE_JDK_MAJOR_VERSION}</JDK_MAJOR_VERSION>
                         </args>
                         <contextDir>${project.basedir}</contextDir>
                         <tags>

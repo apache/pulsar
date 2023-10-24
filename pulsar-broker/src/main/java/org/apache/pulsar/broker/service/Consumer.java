@@ -820,8 +820,9 @@ public class Consumer {
     }
 
     public boolean checkAndApplyTopicMigration() {
-        if (subscription.isSubsciptionMigrated()) {
-            Optional<ClusterUrl> clusterUrl = AbstractTopic.getMigratedClusterUrl(cnx.getBrokerService().getPulsar());
+        if (subscription.isSubscriptionMigrated()) {
+            Optional<ClusterUrl> clusterUrl = AbstractTopic.getMigratedClusterUrl(cnx.getBrokerService().getPulsar(),
+                    topicName);
             if (clusterUrl.isPresent()) {
                 ClusterUrl url = clusterUrl.get();
                 cnx.getCommandSender().sendTopicMigrated(ResourceType.Consumer, consumerId, url.getBrokerServiceUrl(),

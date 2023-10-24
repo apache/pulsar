@@ -111,6 +111,7 @@ import org.apache.pulsar.broker.service.BrokerServiceException.NamingException;
 import org.apache.pulsar.broker.service.BrokerServiceException.NotAllowedException;
 import org.apache.pulsar.broker.service.BrokerServiceException.PersistenceException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServiceUnitNotReadyException;
+import org.apache.pulsar.broker.service.BrokerServiceException.TopicMigratedException;
 import org.apache.pulsar.broker.service.TopicEventsListener.EventStage;
 import org.apache.pulsar.broker.service.TopicEventsListener.TopicEvent;
 import org.apache.pulsar.broker.service.nonpersistent.NonPersistentTopic;
@@ -1521,6 +1522,12 @@ public class BrokerService implements Closeable {
                         topicFuture.handle((persistentTopic, ex) -> {
                             // release permit and process pending topic
                             topicLoadSemaphore.release();
+                            // do not recreate topic if topic is already migrated and deleted by broker
+                            // so, avoid creating a new topic if migration is already started
+                            if (ex != null && (ex.getCause() instanceof TopicMigratedException)) {
+                                topicFuture.completeExceptionally(ex.getCause());
+                                return null;
+                            }
                             createPendingLoadTopic();
                             return null;
                         });
@@ -1632,7 +1639,10 @@ public class BrokerService implements Closeable {
                 ? checkMaxTopicsPerNamespace(topicName, 1)
                 : CompletableFuture.completedFuture(null);
 
-        maxTopicsCheck.thenCompose(__ -> getManagedLedgerConfig(topicName)).thenAccept(managedLedgerConfig -> {
+        CompletableFuture<Void> isTopicAlreadyMigrated = checkTopicAlreadyMigrated(topicName);
+
+        maxTopicsCheck.thenCompose(__ -> isTopicAlreadyMigrated).thenCompose(__ -> getManagedLedgerConfig(topicName))
+        .thenAccept(managedLedgerConfig -> {
             if (isBrokerEntryMetadataEnabled() || isBrokerPayloadProcessorEnabled()) {
                 // init managedLedger interceptor
                 Set<BrokerEntryMetadataInterceptor> interceptors = new HashSet<>();
@@ -1758,6 +1768,20 @@ public class BrokerService implements Closeable {
             topicFuture.completeExceptionally(exception);
             return null;
         });
+    }
+
+    private CompletableFuture<Void> checkTopicAlreadyMigrated(TopicName topicName) {
+        CompletableFuture<Void> result = new CompletableFuture<>();
+        AbstractTopic.isClusterMigrationEnabled(pulsar, topicName.toString()).handle((isMigrated, ex) -> {
+            if (isMigrated) {
+                result.completeExceptionally(
+                        new BrokerServiceException.TopicMigratedException(topicName + " already migrated"));
+            } else {
+                result.complete(null);
+            }
+            return null;
+        });
+        return result;
     }
 
     public CompletableFuture<ManagedLedgerConfig> getManagedLedgerConfig(@Nonnull TopicName topicName) {
@@ -2196,6 +2220,21 @@ public class BrokerService implements Closeable {
             if (serviceUnit.includes(topicName)) {
                 // Topic needs to be unloaded
                 log.info("[{}] Unloading topic", topicName);
+                if (topicFuture.isCompletedExceptionally()) {
+                    try {
+                        topicFuture.get();
+                    } catch (InterruptedException | ExecutionException ex) {
+                        if (ex.getCause() instanceof ServiceUnitNotReadyException) {
+                            // Topic was already unloaded
+                            if (log.isDebugEnabled()) {
+                                log.debug("[{}] Topic was already unloaded", topicName);
+                            }
+                            return;
+                        } else {
+                            log.warn("[{}] Got exception when closing topic", topicName, ex);
+                        }
+                    }
+                }
                 closeFutures.add(topicFuture
                         .thenCompose(t -> t.isPresent() ? t.get().close(closeWithoutWaitingClientDisconnect)
                                 : CompletableFuture.completedFuture(null)));
