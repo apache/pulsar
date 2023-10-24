@@ -261,13 +261,7 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
         markCurrentSetupNumberCleaned();
         // if init fails, some of these could be null, and if so would throw
         // an NPE in shutdown, obscuring the real error
-        if (admin != null) {
-            admin.close();
-            if (MockUtil.isMock(admin)) {
-                Mockito.reset(admin);
-            }
-            admin = null;
-        }
+        closeAdmin();
         if (pulsarClient != null) {
             pulsarClient.shutdown();
             pulsarClient = null;
@@ -281,6 +275,16 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
         }
         resetConfig();
         onCleanup();
+    }
+
+    protected void closeAdmin() {
+        if (admin != null) {
+            admin.close();
+            if (MockUtil.isMock(admin)) {
+                Mockito.reset(admin);
+            }
+            admin = null;
+        }
     }
 
     protected void onCleanup() {

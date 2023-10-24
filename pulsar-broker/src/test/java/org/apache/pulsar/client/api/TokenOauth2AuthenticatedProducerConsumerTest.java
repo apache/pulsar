@@ -119,6 +119,7 @@ public class TokenOauth2AuthenticatedProducerConsumerTest extends ProducerConsum
                 audience
         );
 
+        closeAdmin();
         admin = spy(PulsarAdmin.builder().serviceHttpUrl(brokerUrl.toString())
                 .authentication(authentication)
                 .build());

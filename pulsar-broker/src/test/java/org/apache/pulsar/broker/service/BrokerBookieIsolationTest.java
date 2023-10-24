@@ -171,7 +171,7 @@ public class BrokerBookieIsolationTest {
         pulsarService = new PulsarService(config);
         pulsarService.start();
 
-
+        @Cleanup
         PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(pulsarService.getWebServiceAddress()).build();
 
         ClusterData clusterData = ClusterData.builder().serviceUrl(pulsarService.getWebServiceAddress()).build();
@@ -329,6 +329,7 @@ public class BrokerBookieIsolationTest {
         pulsarService = new PulsarService(config);
         pulsarService.start();
 
+        @Cleanup
         PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(pulsarService.getWebServiceAddress()).build();
 
         ClusterData clusterData = ClusterData.builder().serviceUrl(pulsarService.getWebServiceAddress()).build();
@@ -472,7 +473,7 @@ public class BrokerBookieIsolationTest {
         pulsarService = new PulsarService(config);
         pulsarService.start();
 
-
+        @Cleanup
         PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(pulsarService.getWebServiceAddress()).build();
 
         ClusterData clusterData = ClusterData.builder().serviceUrl(pulsarService.getWebServiceAddress()).build();
@@ -628,6 +629,7 @@ public class BrokerBookieIsolationTest {
         pulsarService = new PulsarService(config);
         pulsarService.start();
 
+        @Cleanup
         PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(pulsarService.getWebServiceAddress()).build();
 
         ClusterData clusterData = ClusterData.builder().serviceUrl(pulsarService.getWebServiceAddress()).build();
@@ -766,6 +768,7 @@ public class BrokerBookieIsolationTest {
         pulsarService = new PulsarService(config);
         pulsarService.start();
 
+        @Cleanup
         PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(pulsarService.getWebServiceAddress()).build();
 
         ClusterData clusterData = ClusterData.builder().serviceUrl(pulsarService.getWebServiceAddress()).build();

@@ -441,6 +441,7 @@ public class ProxyWithJwtAuthorizationTest extends ProducerConsumerBase {
     }
 
     private void createAdminClient() throws Exception {
+        closeAdmin();
         admin = spy(PulsarAdmin.builder().serviceHttpUrl(webServer.getServiceUri().toString())
                 .authentication(AuthenticationFactory.token(ADMIN_TOKEN)).build());
     }
