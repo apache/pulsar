@@ -25,7 +25,6 @@ import io.prometheus.client.Gauge;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.LongAdder;
 import lombok.extern.slf4j.Slf4j;
@@ -40,7 +39,6 @@ import org.apache.pulsar.broker.intercept.BrokerInterceptor;
 import org.apache.pulsar.broker.service.persistent.DispatchRateLimiter;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
-import org.apache.pulsar.broker.service.persistent.PulsarCompactorSubscription;
 import org.apache.pulsar.broker.service.plugin.EntryFilter;
 import org.apache.pulsar.broker.transaction.pendingack.impl.PendingAckHandleImpl;
 import org.apache.pulsar.client.api.transaction.TxnID;
@@ -176,14 +174,16 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
                 if (Markers.isTxnMarker(msgMetadata)) {
                     // because consumer can receive message is smaller than maxReadPosition,
                     // so this marker is useless for this subscription
-                    individualAcknowledgeMessageIfNeeded(entry.getPosition(), Collections.emptyMap());
+                    subscription.acknowledgeMessage(Collections.singletonList(entry.getPosition()), AckType.Individual,
+                            Collections.emptyMap());
                     entries.set(i, null);
                     entry.release();
                     continue;
                 } else if (((PersistentTopic) subscription.getTopic())
                         .isTxnAborted(new TxnID(msgMetadata.getTxnidMostBits(), msgMetadata.getTxnidLeastBits()),
                                 (PositionImpl) entry.getPosition())) {
-                    individualAcknowledgeMessageIfNeeded(entry.getPosition(), Collections.emptyMap());
+                    subscription.acknowledgeMessage(Collections.singletonList(entry.getPosition()), AckType.Individual,
+                            Collections.emptyMap());
                     entries.set(i, null);
                     entry.release();
                     continue;
@@ -200,7 +200,8 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
 
                 entries.set(i, null);
                 entry.release();
-                individualAcknowledgeMessageIfNeeded(pos, Collections.emptyMap());
+                subscription.acknowledgeMessage(Collections.singletonList(pos), AckType.Individual,
+                        Collections.emptyMap());
                 continue;
             } else if (trackDelayedDelivery(entry.getLedgerId(), entry.getEntryId(), msgMetadata)) {
                 // The message is marked for delayed delivery. Ignore for now.
@@ -299,12 +300,6 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
         sendMessageInfo.setTotalBytes(totalBytes);
         sendMessageInfo.setTotalChunkedMessages(totalChunkedMessages);
         return totalEntries;
-    }
-
-    private void individualAcknowledgeMessageIfNeeded(Position position, Map<String, Long> properties) {
-        if (!(subscription instanceof PulsarCompactorSubscription)) {
-            subscription.acknowledgeMessage(Collections.singletonList(position), AckType.Individual, properties);
-        }
     }
 
     protected void acquirePermitsForDeliveredMessages(Topic topic, ManagedCursor cursor, long totalEntries,
