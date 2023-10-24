@@ -159,7 +159,6 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
     }
 
     protected final void internalSetup() throws Exception {
-        incrementSetupNumber();
         init();
         lookupUrl = new URI(brokerUrl.toString());
         if (isTcpLookup) {
@@ -237,6 +236,7 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
     }
 
     protected final void init() throws Exception {
+        incrementSetupNumber();
         doInitConf();
         // trying to config the broker internal client
         if (conf.getWebServicePortTls().isPresent()
