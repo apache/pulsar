@@ -271,8 +271,10 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
             }
         }
         if (CollectionUtils.isNotEmpty(entriesToFiltered)) {
-            subscription.acknowledgeMessage(entriesToFiltered, AckType.Individual,
+            if (Subscription.isIndividualAckMode(subscription.getType())) {
+                subscription.acknowledgeMessage(entriesToFiltered, AckType.Individual,
                     Collections.emptyMap());
+            }
 
             int filtered = entriesToFiltered.size();
             Topic topic = subscription.getTopic();
