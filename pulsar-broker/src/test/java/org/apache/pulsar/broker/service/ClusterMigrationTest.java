@@ -502,7 +502,7 @@ public class ClusterMigrationTest {
         // verify that the producer1 is now is now connected to migrated cluster "r2" since backlog is cleared.
         retryStrategically((test) -> topic2.getProducers().size()==2, 10, 500);
         assertEquals(topic2.getProducers().size(), 2);
-        
+
         client1.close();
         client2.close();
         client3.close();
@@ -618,7 +618,7 @@ public class ClusterMigrationTest {
             }
         }, 10, 500);
         assertFalse(pulsar2Topic.getSubscription("s1").getConsumers().isEmpty());
-        
+
         client1.close();
     }
 
