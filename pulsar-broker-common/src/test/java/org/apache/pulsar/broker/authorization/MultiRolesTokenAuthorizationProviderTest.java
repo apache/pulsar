@@ -28,6 +28,7 @@ import java.util.function.Function;
 import lombok.Cleanup;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
+import org.apache.pulsar.broker.authentication.AuthenticationDataSubscription;
 import org.apache.pulsar.broker.authentication.utils.AuthTokenUtils;
 import org.apache.pulsar.broker.resources.PulsarResources;
 import org.testng.annotations.Test;
@@ -150,6 +151,7 @@ public class MultiRolesTokenAuthorizationProviderTest {
         };
         assertTrue(provider.authorize("test-role", null, authorizeFunc).get());
         assertFalse(provider.authorize("test-role-x", null, authorizeFunc).get());
+        assertTrue(provider.authorize("test-role", new AuthenticationDataSubscription(null, "test-sub"), authorizeFunc).get());
     }
 
     @Test

@@ -35,6 +35,7 @@ import javax.ws.rs.core.Response;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
+import org.apache.pulsar.broker.authentication.AuthenticationDataSubscription;
 import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
@@ -144,7 +145,8 @@ public class MultiRolesTokenAuthorizationProvider extends PulsarAuthorizationPro
     }
 
     private Set<String> getRoles(String role, AuthenticationDataSource authData) {
-        if (authData == null) {
+        if (authData == null || (authData instanceof AuthenticationDataSubscription
+                && ((AuthenticationDataSubscription) authData).getAuthData() == null)) {
             return Collections.singleton(role);
         }
 
