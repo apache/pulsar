@@ -200,10 +200,10 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
                 bkc.asyncDeleteLedger(ledgerId, originalCb, ctx);
             } else {
                 deleteLedgerInfo.hasCalled = true;
-                new Thread(() -> {
+                cachedExecutor.submit(() -> {
                     Awaitility.await().atMost(Duration.ofSeconds(60)).until(signal::get);
                     bkc.asyncDeleteLedger(ledgerId, cb, ctx);
-                }).start();
+                });
             }
             return null;
         }).when(spyBookKeeper).asyncDeleteLedger(any(long.class), any(AsyncCallback.DeleteCallback.class), any());
@@ -220,6 +220,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
     public void testLedgerInfoMetaCorrectIfAddEntryTimeOut() throws Exception {
         String mlName = "testLedgerInfoMetaCorrectIfAddEntryTimeOut";
         BookKeeper spyBookKeeper = spy(bkc);
+        @Cleanup("shutdown")
         ManagedLedgerFactoryImpl factory = new ManagedLedgerFactoryImpl(metadataStore, spyBookKeeper);
         ManagedLedgerImpl ml = (ManagedLedgerImpl) factory.open(mlName);
 
@@ -3938,6 +3939,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
     public void testInactiveLedgerRollOver() throws Exception {
         int inactiveLedgerRollOverTimeMs = 5;
         ManagedLedgerFactoryConfig factoryConf = new ManagedLedgerFactoryConfig();
+        @Cleanup("shutdown")
         ManagedLedgerFactory factory = new ManagedLedgerFactoryImpl(metadataStore, bkc);
         ManagedLedgerConfig config = new ManagedLedgerConfig();
         config.setInactiveLedgerRollOverTime(inactiveLedgerRollOverTimeMs, TimeUnit.MILLISECONDS);
@@ -3969,7 +3971,6 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         List<LedgerInfo> ledgers = ledger.getLedgersInfoAsList();
         assertEquals(ledgers.size(), totalAddEntries);
         ledger.close();
-        factory.shutdown();
     }
 
     @Test
@@ -4022,6 +4023,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
 
     @Test
     public void testOffloadTaskCancelled() throws Exception {
+        @Cleanup("shutdown")
         ManagedLedgerFactory factory = new ManagedLedgerFactoryImpl(metadataStore, bkc);
         ManagedLedgerConfig config = new ManagedLedgerConfig();
         config.setMaxEntriesPerLedger(2);

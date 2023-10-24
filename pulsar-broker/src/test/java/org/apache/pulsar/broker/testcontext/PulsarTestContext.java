@@ -635,7 +635,8 @@ public class PulsarTestContext implements AutoCloseable {
                 } else {
                     try {
                         MetadataStoreExtended store = MetadataStoreFactoryImpl.createExtended("memory:local",
-                                MetadataStoreConfig.builder().build());
+                                MetadataStoreConfig.builder()
+                                        .metadataStoreName(MetadataStoreConfig.METADATA_STORE).build());
                         registerCloseable(() -> {
                             store.close();
                             resetSpyOrMock(store);
