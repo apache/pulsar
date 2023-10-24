@@ -141,7 +141,7 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
         // Wait for all topic policies updated.
         Awaitility.await().untilAsserted(() ->
                 Assert.assertTrue(systemTopicBasedTopicPoliciesService
-                        .getPoliciesCacheInit(TOPIC1.getNamespaceObject())));
+                        .getPoliciesCacheInit(TOPIC1.getNamespaceObject()).isDone()));
 
         // Assert broker is cache all topic policies
         Awaitility.await().untilAsserted(() ->
@@ -304,8 +304,8 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
     @Test
     public void testGetPolicyTimeout() throws Exception {
         SystemTopicBasedTopicPoliciesService service = (SystemTopicBasedTopicPoliciesService) pulsar.getTopicPoliciesService();
-        Awaitility.await().untilAsserted(() -> assertTrue(service.policyCacheInitMap.get(TOPIC1.getNamespaceObject())));
-        service.policyCacheInitMap.put(TOPIC1.getNamespaceObject(), false);
+        Awaitility.await().untilAsserted(() -> assertTrue(service.policyCacheInitMap.get(TOPIC1.getNamespaceObject()).isDone()));
+        service.policyCacheInitMap.put(TOPIC1.getNamespaceObject(), new CompletableFuture<>());
         long start = System.currentTimeMillis();
         Backoff backoff = new BackoffBuilder()
                 .setInitialTime(500, TimeUnit.MILLISECONDS)
