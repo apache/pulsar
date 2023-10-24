@@ -69,6 +69,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.AddEntryCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.CloseCallback;
@@ -1075,13 +1076,13 @@ public class ServerCnxTest {
                 SubType.Exclusive, 0, cName1, 0);
         channel.writeInbound(cmdSubscribe1);
         assertTrue(getResponse() instanceof CommandSuccess);
-        PersistentTopic topicRef = (PersistentTopic) brokerService.getTopicReference(tName).get();
+        PersistentTopic topicRef = (PersistentTopic) brokerService.getTopicReference(tName).orElse(null);
         assertNotNull(topicRef);
         assertNotNull(topicRef.getSubscription(sName).getConsumers());
-        assertEquals(topicRef.getSubscription(sName).getConsumers().size(), 1);
-        assertEquals(topicRef.getSubscription(sName).getConsumers().iterator().next().consumerName(), cName1);
+        assertEquals(topicRef.getSubscription(sName).getConsumers().stream().map(Consumer::consumerName)
+                .collect(Collectors.toList()), Collections.singletonList(cName1));
 
-        // Verify the second producer using a new connection will override the consumer who using a stopped channel.
+        // Verify the consumer producer using a new connection will override the consumer who using a stopped channel.
         channelsStoppedAnswerHealthCheck.add(channel);
         ClientChannel channel2 = new ClientChannel();
         setChannelConnected(channel2.serverCnx);
@@ -1105,6 +1106,11 @@ public class ServerCnxTest {
         pulsar.getConfig().setConnectionLivenessCheckTimeoutMillis(5000);
     }
 
+    /**
+     * When a channel typed "EmbeddedChannel", once we call channel.execute(runnable), there is no background thread
+     * to run it.
+     * So starting a background thread to trigger the tasks in the queue.
+     */
     private AtomicBoolean startChannelMonitorToHandleUserTask() {
         AtomicBoolean channel1MonitorStopped = new AtomicBoolean(false);
         Thread channel1Monitor = new Thread(() -> {
