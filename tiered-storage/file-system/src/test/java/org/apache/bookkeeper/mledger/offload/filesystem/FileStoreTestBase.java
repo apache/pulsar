@@ -29,7 +29,9 @@ import org.apache.bookkeeper.mledger.offload.filesystem.impl.FileSystemManagedLe
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hdfs.MiniDFSCluster;
 import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
+import org.testng.annotations.AfterClass;
 import org.testng.annotations.AfterMethod;
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.BeforeMethod;
 
 public abstract class FileStoreTestBase {
@@ -41,10 +43,26 @@ public abstract class FileStoreTestBase {
     protected LedgerOffloaderStats offloaderStats;
     private ScheduledExecutorService scheduledExecutorService;
 
+    @BeforeClass(alwaysRun = true)
+    public final void beforeClass() throws Exception {
+        init();
+    }
+
+    public void init() throws Exception {
+        scheduler = OrderedScheduler.newSchedulerBuilder().numThreads(1).name("offloader").build();
+    }
+
+    @AfterClass(alwaysRun = true)
+    public final void afterClass() {
+        cleanup();
+    }
+
+    public void cleanup() {
+        scheduler.shutdownNow();
+    }
+
     @BeforeMethod(alwaysRun = true)
     public void start() throws Exception {
-        scheduler = OrderedScheduler.newSchedulerBuilder().numThreads(1).name("offloader").build();
-
         File baseDir = Files.createTempDirectory(basePath).toFile().getAbsoluteFile();
         Configuration conf = new Configuration();
         conf.set(MiniDFSCluster.HDFS_MINIDFS_BASEDIR, baseDir.getAbsolutePath());
@@ -64,7 +82,6 @@ public abstract class FileStoreTestBase {
     public void tearDown() {
         hdfsCluster.shutdown(true, true);
         hdfsCluster.close();
-        scheduler.shutdownNow();
         scheduledExecutorService.shutdownNow();
     }
 

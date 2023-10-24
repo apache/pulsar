@@ -19,6 +19,14 @@
 package org.apache.bookkeeper.mledger.offload.filesystem.impl;
 
 
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertTrue;
+import java.net.URI;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.Map;
+import java.util.UUID;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.LedgerHandle;
 import org.apache.bookkeeper.client.PulsarMockBookKeeper;
@@ -35,18 +43,9 @@ import org.apache.hadoop.fs.Path;
 import org.apache.pulsar.common.naming.TopicName;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-import java.net.URI;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.Map;
-import java.util.UUID;
-
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertFalse;
-import static org.testng.Assert.assertTrue;
 
 public class FileSystemManagedLedgerOffloaderTest extends FileStoreTestBase {
-    private final PulsarMockBookKeeper bk;
+    private PulsarMockBookKeeper bk;
     private String managedLedgerName = "public/default/persistent/testOffload";
     private String topicName = TopicName.fromPersistenceNamingEncoding(managedLedgerName);
     private String storagePath = createStoragePath(managedLedgerName);
@@ -55,7 +54,9 @@ public class FileSystemManagedLedgerOffloaderTest extends FileStoreTestBase {
     private final int numberOfEntries = 601;
     private  Map<String, String> map = new HashMap<>();
 
-    public FileSystemManagedLedgerOffloaderTest() throws Exception {
+    @Override
+    public void init() throws Exception {
+        super.init();
         this.bk = new PulsarMockBookKeeper(scheduler);
         this.toWrite = buildReadHandle();
         map.put("ManagedLedgerName", managedLedgerName);
