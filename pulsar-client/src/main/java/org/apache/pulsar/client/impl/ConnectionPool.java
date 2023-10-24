@@ -29,6 +29,7 @@ import io.netty.channel.EventLoopGroup;
 import io.netty.resolver.AddressResolver;
 import io.netty.resolver.dns.DnsAddressResolverGroup;
 import io.netty.resolver.dns.DnsNameResolverBuilder;
+import io.netty.resolver.dns.SequentialDnsServerAddressStreamProvider;
 import io.netty.util.concurrent.Future;
 import io.netty.util.concurrent.ScheduledFuture;
 import java.net.InetSocketAddress;
@@ -155,6 +156,10 @@ public class ConnectionPool implements AutoCloseable {
             InetSocketAddress addr = new InetSocketAddress(conf.getDnsLookupBindAddress(),
                     conf.getDnsLookupBindPort());
             dnsNameResolverBuilder.localAddress(addr);
+        }
+        List<InetSocketAddress> serverAddresses = conf.getDnsServerAddresses();
+        if (serverAddresses != null && !serverAddresses.isEmpty()) {
+            dnsNameResolverBuilder.nameServerProvider(new SequentialDnsServerAddressStreamProvider(serverAddresses));
         }
         DnsResolverUtil.applyJdkDnsCacheSettings(dnsNameResolverBuilder);
         // use DnsAddressResolverGroup to create the AddressResolver since it contains a solution
