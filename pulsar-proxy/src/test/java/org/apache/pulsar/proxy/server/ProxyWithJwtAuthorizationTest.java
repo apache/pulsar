@@ -409,7 +409,6 @@ public class ProxyWithJwtAuthorizationTest extends ProducerConsumerBase {
     @Test
     void testGetStatus() throws Exception {
         log.info("-- Starting {} test --", methodName);
-        startProxy();
         final PulsarResources resource = new PulsarResources(new ZKMetadataStore(mockZooKeeper),
                 new ZKMetadataStore(mockZooKeeperGlobal));
         final AuthenticationService authService = new AuthenticationService(
