@@ -358,7 +358,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
 
     private PositionImpl getMaxReadPosition() {
         return subscription.getIsolationLevel() == IsolationLevel.READ_COMMITTED ?
-                topic.getMaxReadPosition() : PositionImpl.LATEST;
+                topic.getMaxReadPosition() : (PositionImpl) topic.getManagedLedger().getLastConfirmedEntry();
     }
 
     @Override
