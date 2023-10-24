@@ -213,7 +213,7 @@ public class PartitionedSystemTopicTest extends BrokerTestBase {
     @Test
     public void testHeartbeatTopicBeDeleted() throws Exception {
         admin.brokers().healthcheck(TopicVersion.V2);
-        NamespaceName namespaceName = NamespaceService.getHeartbeatNamespaceV2(pulsar.getLookupServiceAddress(),
+        NamespaceName namespaceName = NamespaceService.getHeartbeatNamespaceV2(pulsar.getAdvertisedAddress(),
                 pulsar.getConfig());
         TopicName heartbeatTopicName = TopicName.get("persistent", namespaceName, BrokersBase.HEALTH_CHECK_TOPIC_SUFFIX);
 
@@ -229,7 +229,7 @@ public class PartitionedSystemTopicTest extends BrokerTestBase {
     @Test
     public void testHeartbeatNamespaceNotCreateTransactionInternalTopic() throws Exception {
         admin.brokers().healthcheck(TopicVersion.V2);
-        NamespaceName namespaceName = NamespaceService.getHeartbeatNamespaceV2(pulsar.getLookupServiceAddress(),
+        NamespaceName namespaceName = NamespaceService.getHeartbeatNamespaceV2(pulsar.getAdvertisedAddress(),
                 pulsar.getConfig());
         TopicName topicName = TopicName.get("persistent",
                 namespaceName, SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT);
