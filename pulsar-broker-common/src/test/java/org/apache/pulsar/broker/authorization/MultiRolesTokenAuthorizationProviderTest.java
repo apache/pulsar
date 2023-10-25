@@ -31,6 +31,7 @@ import java.util.function.Function;
 import lombok.Cleanup;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
+import org.apache.pulsar.broker.authentication.AuthenticationDataSubscription;
 import org.apache.pulsar.broker.authentication.utils.AuthTokenUtils;
 import org.apache.pulsar.broker.resources.PulsarResources;
 import org.testng.annotations.Test;
@@ -49,6 +50,8 @@ public class MultiRolesTokenAuthorizationProviderTest {
         String token = Jwts.builder().claim("sub", new String[]{userA, userB}).signWith(secretKey).compact();
 
         MultiRolesTokenAuthorizationProvider provider = new MultiRolesTokenAuthorizationProvider();
+        ServiceConfiguration conf = new ServiceConfiguration();
+        provider.initialize(conf, mock(PulsarResources.class));
 
         AuthenticationDataSource ads = new AuthenticationDataSource() {
             @Override
@@ -88,6 +91,8 @@ public class MultiRolesTokenAuthorizationProviderTest {
         String token = Jwts.builder().claim("sub", new String[]{}).signWith(secretKey).compact();
 
         MultiRolesTokenAuthorizationProvider provider = new MultiRolesTokenAuthorizationProvider();
+        ServiceConfiguration conf = new ServiceConfiguration();
+        provider.initialize(conf, mock(PulsarResources.class));
 
         AuthenticationDataSource ads = new AuthenticationDataSource() {
             @Override
@@ -115,6 +120,8 @@ public class MultiRolesTokenAuthorizationProviderTest {
         String token = Jwts.builder().claim("sub", testRole).signWith(secretKey).compact();
 
         MultiRolesTokenAuthorizationProvider provider = new MultiRolesTokenAuthorizationProvider();
+        ServiceConfiguration conf = new ServiceConfiguration();
+        provider.initialize(conf, mock(PulsarResources.class));
 
         AuthenticationDataSource ads = new AuthenticationDataSource() {
             @Override
@@ -144,6 +151,9 @@ public class MultiRolesTokenAuthorizationProviderTest {
     public void testMultiRolesAuthzWithAnonymousUser() throws Exception {
         @Cleanup
         MultiRolesTokenAuthorizationProvider provider = new MultiRolesTokenAuthorizationProvider();
+        ServiceConfiguration conf = new ServiceConfiguration();
+
+        provider.initialize(conf, mock(PulsarResources.class));
 
         Function<String, CompletableFuture<Boolean>> authorizeFunc = (String role) -> {
             if (role.equals("test-role")) {
@@ -153,6 +163,7 @@ public class MultiRolesTokenAuthorizationProviderTest {
         };
         assertTrue(provider.authorize("test-role", null, authorizeFunc).get());
         assertFalse(provider.authorize("test-role-x", null, authorizeFunc).get());
+        assertTrue(provider.authorize("test-role", new AuthenticationDataSubscription(null, "test-sub"), authorizeFunc).get());
     }
 
     @Test
@@ -160,6 +171,8 @@ public class MultiRolesTokenAuthorizationProviderTest {
         String token = "a-non-jwt-token";
 
         MultiRolesTokenAuthorizationProvider provider = new MultiRolesTokenAuthorizationProvider();
+        ServiceConfiguration conf = new ServiceConfiguration();
+        provider.initialize(conf, mock(PulsarResources.class));
 
         AuthenticationDataSource ads = new AuthenticationDataSource() {
             @Override
@@ -250,5 +263,14 @@ public class MultiRolesTokenAuthorizationProviderTest {
         };
 
         assertTrue(provider.isSuperUser(testAdminRole, ads, conf).get());
+        Function<String, CompletableFuture<Boolean>> authorizeFunc = (String role) -> {
+            if (role.equals("admin1")) {
+                return CompletableFuture.completedFuture(true);
+            }
+            return CompletableFuture.completedFuture(false);
+        };
+        assertTrue(provider.authorize(testAdminRole, ads, (String role) -> CompletableFuture.completedFuture(false)).get());
+        assertTrue(provider.authorize("admin1", null, authorizeFunc).get());
+        assertFalse(provider.authorize("admin2", null, authorizeFunc).get());
     }
 }
