@@ -1665,7 +1665,7 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
                 true, 3);
         verify(response, timeout(5000).times(1)).resume(throwableCaptor.capture());
         Assert.assertEquals(throwableCaptor.getValue().getMessage(),
-                "Expect partitions 3 can't less than current partitions 4.");
+                "Desired partitions 3 can't be less than the current partitions 4.");
 
         response = mock(AsyncResponse.class);
         metaCaptor = ArgumentCaptor.forClass(PartitionedTopicMetadata.class);
