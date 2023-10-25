@@ -197,7 +197,8 @@ public class IsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePlac
         try {
             if (bookieMappingCache != null) {
                 Optional<BookiesRackConfiguration> optional =
-                        bookieMappingCache.get(BookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH).get(30, TimeUnit.SECONDS);
+                        bookieMappingCache.get(BookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH)
+                                .get(30, TimeUnit.SECONDS);
                 if (!optional.isPresent()) {
                     throw new KeeperException.NoNodeException(ZkBookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH);
                 }
