@@ -46,7 +46,7 @@ public interface AutoClusterFailoverBuilder {
     AutoClusterFailoverBuilder primary(String primary);
 
     /**
-     * Set the primary service url.
+     * Set the primary service url with customer probes.
      *
      * @param primary
      * @return
@@ -61,7 +61,7 @@ public interface AutoClusterFailoverBuilder {
     AutoClusterFailoverBuilder secondary(List<String> secondary);
 
     /**
-     * Set the secondary service url.
+     * Set the secondary service url with customer probes.
      *
      * @param custom
      * @return

@@ -29,5 +29,11 @@ import org.apache.pulsar.common.classification.InterfaceStability;
 @InterfaceAudience.Public
 @InterfaceStability.Evolving
 public interface AutoClusterFailoverCustomProbe {
-   boolean execute();
+
+    /**
+     * Probe a cluster using custom logic and conditions.
+     *
+     * @return
+     */
+    boolean execute();
 }
