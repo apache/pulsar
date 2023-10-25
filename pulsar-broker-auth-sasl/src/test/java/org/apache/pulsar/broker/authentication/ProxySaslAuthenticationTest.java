@@ -200,7 +200,7 @@ public class ProxySaslAuthenticationTest extends ProducerConsumerBase {
 		clientSaslConfig.put("serverType", "broker");
 		conf.setBrokerClientAuthenticationPlugin(AuthenticationSasl.class.getName());
 		conf.setBrokerClientAuthenticationParameters(ObjectMapperFactory
-				.getMapper().getObjectMapper().writeValueAsString(clientSaslConfig));
+				.getThreadLocal().writeValueAsString(clientSaslConfig));
 
 		super.init();
 

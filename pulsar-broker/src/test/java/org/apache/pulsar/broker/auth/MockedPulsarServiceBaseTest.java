@@ -61,7 +61,6 @@ import lombok.Data;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationProviderTls;
-import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.intercept.CounterBrokerInterceptor;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.service.BrokerTestBase;
@@ -246,12 +245,13 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
             if (conf.getBrokerClientAuthenticationPlugin() == null
                 || conf.getBrokerClientAuthenticationPlugin().equals(AuthenticationDisabled.class.getName())) {
                 conf.setBrokerClientAuthenticationPlugin(AuthenticationTls.class.getName());
-                conf.setBrokerClientAuthenticationParameters("tlsCertFile:" + BROKER_CERT_FILE_PATH
-                                                             + ",tlsKeyFile:" + BROKER_KEY_FILE_PATH);
-                conf.setBrokerClientTlsEnabled(true);
-                conf.setBrokerClientTrustCertsFilePath(CA_CERT_FILE_PATH);
-                conf.setBrokerClientCertificateFilePath(BROKER_CERT_FILE_PATH);
-                conf.setBrokerClientKeyFilePath(BROKER_KEY_FILE_PATH);
+                conf.setBrokerClientTlsEnabledWithKeyStore(true);
+                conf.setBrokerClientTlsKeyStoreType(KEYSTORE_TYPE);
+                conf.setBrokerClientTlsKeyStore(BROKER_KEYSTORE_FILE_PATH);
+                conf.setBrokerClientTlsKeyStorePassword(BROKER_KEYSTORE_PW);
+                conf.setBrokerClientTlsTrustStoreType(KEYSTORE_TYPE);
+                conf.setBrokerClientTlsTrustStore(BROKER_TRUSTSTORE_FILE_PATH);
+                conf.setBrokerClientTlsTrustStorePassword(BROKER_TRUSTSTORE_PW);
             }
         }
         startBroker();

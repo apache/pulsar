@@ -23,20 +23,18 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
 import java.io.File;
 import java.io.FileWriter;
 import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
-
 import javax.security.auth.login.Configuration;
-
 import com.google.common.collect.ImmutableSet;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.FileUtils;
@@ -187,7 +185,7 @@ public class SaslAuthenticateTest extends ProducerConsumerBase {
         clientSaslConfig.put("serverType", "broker");
         conf.setBrokerClientAuthenticationPlugin(AuthenticationSasl.class.getName());
         conf.setBrokerClientAuthenticationParameters(ObjectMapperFactory
-                .getMapper().getObjectMapper().writeValueAsString(clientSaslConfig));
+                .getThreadLocal().writeValueAsString(clientSaslConfig));
         super.init();
 
         lookupUrl = new URI(pulsar.getWebServiceAddress());

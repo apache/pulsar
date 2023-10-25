@@ -125,8 +125,8 @@ public class KeyStoreTlsProducerConsumerTestWithAuthTest extends ProducerConsume
         authParams.put(AuthenticationKeyStoreTls.KEYSTORE_TYPE, KEYSTORE_TYPE);
         authParams.put(AuthenticationKeyStoreTls.KEYSTORE_PATH, CLIENT_KEYSTORE_FILE_PATH);
         authParams.put(AuthenticationKeyStoreTls.KEYSTORE_PW, CLIENT_KEYSTORE_PW);
-        conf.setBrokerClientAuthenticationParameters(ObjectMapperFactory.getMapper()
-                .getObjectMapper().writeValueAsString(authParams));
+        conf.setBrokerClientAuthenticationParameters(ObjectMapperFactory.getThreadLocal()
+                .writeValueAsString(authParams));
         conf.setBrokerClientTlsEnabled(true);
         conf.setBrokerClientTlsEnabledWithKeyStore(true);
         conf.setBrokerClientTlsTrustStore(BROKER_TRUSTSTORE_FILE_PATH);
