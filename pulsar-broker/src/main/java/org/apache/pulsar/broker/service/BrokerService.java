@@ -1662,14 +1662,14 @@ public class BrokerService implements Closeable {
                     managedLedgerConfig.setBookKeeperEnsemblePlacementPolicyClassName(
                             IsolatedBookieEnsemblePlacementPolicy.class);
                     if (localPolicies.isPresent() && localPolicies.get().bookieAffinityGroup != null) {
-                        Map<String, Object> properties = new HashMap<>();
+                        Map<String, Object> properties = Maps.newHashMap();
                         properties.put(IsolatedBookieEnsemblePlacementPolicy.ISOLATION_BOOKIE_GROUPS,
                                 localPolicies.get().bookieAffinityGroup.getBookkeeperAffinityGroupPrimary());
                         properties.put(IsolatedBookieEnsemblePlacementPolicy.SECONDARY_ISOLATION_BOOKIE_GROUPS,
                                 localPolicies.get().bookieAffinityGroup.getBookkeeperAffinityGroupSecondary());
                         managedLedgerConfig.setBookKeeperEnsemblePlacementPolicyProperties(properties);
                     } else if (isSystemTopic(topicName)) {
-                        Map<String, Object> properties = new HashMap<>();
+                        Map<String, Object> properties = Maps.newHashMap();
                         properties.put(IsolatedBookieEnsemblePlacementPolicy.ISOLATION_BOOKIE_GROUPS, "*");
                         properties.put(IsolatedBookieEnsemblePlacementPolicy
                                 .SECONDARY_ISOLATION_BOOKIE_GROUPS, "*");
@@ -1684,7 +1684,7 @@ public class BrokerService implements Closeable {
                     if (localPolicies.isPresent() && localPolicies.get().bookieAffinityGroup != null) {
                         managedLedgerConfig.setBookKeeperEnsemblePlacementPolicyClassName(
                                 IsolatedBookieEnsemblePlacementPolicy.class);
-                        Map<String, Object> properties = new HashMap<>();
+                        Map<String, Object> properties = Maps.newHashMap();
                         properties.put(IsolatedBookieEnsemblePlacementPolicy.ISOLATION_BOOKIE_GROUPS,
                                 localPolicies.get().bookieAffinityGroup.getBookkeeperAffinityGroupPrimary());
                         properties.put(IsolatedBookieEnsemblePlacementPolicy.SECONDARY_ISOLATION_BOOKIE_GROUPS,
@@ -1772,6 +1772,7 @@ public class BrokerService implements Closeable {
                         serviceConfig.isAcknowledgmentAtBatchIndexLevelEnabled());
                 managedLedgerConfig.setNewEntriesCheckDelayInMillis(
                         serviceConfig.getManagedLedgerNewEntriesCheckDelayInMillis());
+
                 return managedLedgerConfig;
             });
         });
