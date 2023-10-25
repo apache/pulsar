@@ -47,6 +47,8 @@ public class MultiRolesTokenAuthorizationProviderTest {
         String token = Jwts.builder().claim("sub", new String[]{userA, userB}).signWith(secretKey).compact();
 
         MultiRolesTokenAuthorizationProvider provider = new MultiRolesTokenAuthorizationProvider();
+        ServiceConfiguration conf = new ServiceConfiguration();
+        provider.initialize(conf, mock(PulsarResources.class));
 
         AuthenticationDataSource ads = new AuthenticationDataSource() {
             @Override
@@ -86,6 +88,8 @@ public class MultiRolesTokenAuthorizationProviderTest {
         String token = Jwts.builder().claim("sub", new String[]{}).signWith(secretKey).compact();
 
         MultiRolesTokenAuthorizationProvider provider = new MultiRolesTokenAuthorizationProvider();
+        ServiceConfiguration conf = new ServiceConfiguration();
+        provider.initialize(conf, mock(PulsarResources.class));
 
         AuthenticationDataSource ads = new AuthenticationDataSource() {
             @Override
@@ -113,6 +117,8 @@ public class MultiRolesTokenAuthorizationProviderTest {
         String token = Jwts.builder().claim("sub", testRole).signWith(secretKey).compact();
 
         MultiRolesTokenAuthorizationProvider provider = new MultiRolesTokenAuthorizationProvider();
+        ServiceConfiguration conf = new ServiceConfiguration();
+        provider.initialize(conf, mock(PulsarResources.class));
 
         AuthenticationDataSource ads = new AuthenticationDataSource() {
             @Override
@@ -142,6 +148,9 @@ public class MultiRolesTokenAuthorizationProviderTest {
     public void testMultiRolesAuthzWithAnonymousUser() throws Exception {
         @Cleanup
         MultiRolesTokenAuthorizationProvider provider = new MultiRolesTokenAuthorizationProvider();
+        ServiceConfiguration conf = new ServiceConfiguration();
+
+        provider.initialize(conf, mock(PulsarResources.class));
 
         Function<String, CompletableFuture<Boolean>> authorizeFunc = (String role) -> {
             if (role.equals("test-role")) {
@@ -159,6 +168,8 @@ public class MultiRolesTokenAuthorizationProviderTest {
         String token = "a-non-jwt-token";
 
         MultiRolesTokenAuthorizationProvider provider = new MultiRolesTokenAuthorizationProvider();
+        ServiceConfiguration conf = new ServiceConfiguration();
+        provider.initialize(conf, mock(PulsarResources.class));
 
         AuthenticationDataSource ads = new AuthenticationDataSource() {
             @Override
