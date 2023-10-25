@@ -46,12 +46,27 @@ public interface AutoClusterFailoverBuilder {
     AutoClusterFailoverBuilder primary(String primary);
 
     /**
+     * Set the primary service url.
+     *
+     * @param primary
+     * @return
+     */
+    AutoClusterFailoverBuilder primaryWithCustomProbe(String primary, AutoClusterFailoverCustomProbe probe);
+    /**
      * Set the secondary service url.
      *
      * @param secondary
      * @return
      */
     AutoClusterFailoverBuilder secondary(List<String> secondary);
+
+    /**
+     * Set the secondary service url.
+     *
+     * @param custom
+     * @return
+     */
+    AutoClusterFailoverBuilder secondaryWithCustomProbes(Map<String, AutoClusterFailoverCustomProbe> custom);
 
     /**
      * Set secondary choose policy. The default secondary choose policy is `ORDER`.
