@@ -145,6 +145,7 @@ public class AuthenticationTlsHostnameVerificationTest extends ProducerConsumerB
         this.hostnameVerificationEnabled = hostnameVerificationEnabled;
         clientTrustCertFilePath = TLS_MIM_TRUST_CERT_FILE_PATH;
         // setup broker cert which has CN = "pulsar" different than broker's hostname="localhost"
+        conf.setTopicLevelPoliciesEnabled(false);
         conf.setBrokerServicePortTls(Optional.of(0));
         conf.setWebServicePortTls(Optional.of(0));
         conf.setAuthenticationProviders(Sets.newHashSet(AuthenticationProviderTls.class.getName()));
@@ -186,6 +187,8 @@ public class AuthenticationTlsHostnameVerificationTest extends ProducerConsumerB
     public void testTlsSyncProducerAndConsumerCorrectBrokerHost() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
+        // disable topic level policy
+        conf.setTopicLevelPoliciesEnabled(false);
         // setup broker cert which has CN = "localhost"
         conf.setBrokerServicePortTls(Optional.of(0));
         conf.setWebServicePortTls(Optional.of(0));
