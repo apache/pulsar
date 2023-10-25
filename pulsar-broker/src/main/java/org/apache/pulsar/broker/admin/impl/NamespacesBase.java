@@ -2646,8 +2646,8 @@ public abstract class NamespacesBase extends AdminResource {
     protected void internalEnableMigration(boolean migrated) {
         validateSuperUserAccess();
         try {
-            updatePolicies(namespaceName, policies -> {
-                policies.isMigrated = migrated;
+            getLocalPolicies().setLocalPolicies(namespaceName, (policies) -> {
+                policies.migrated = migrated;
                 return policies;
             });
             log.info("Successfully updated migration on namespace {}", namespaceName);
