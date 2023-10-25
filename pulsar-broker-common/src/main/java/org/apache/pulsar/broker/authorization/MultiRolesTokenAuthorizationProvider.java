@@ -35,6 +35,7 @@ import javax.ws.rs.core.Response;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
+import org.apache.pulsar.broker.authentication.AuthenticationDataSubscription;
 import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
@@ -144,7 +145,8 @@ public class MultiRolesTokenAuthorizationProvider extends PulsarAuthorizationPro
     }
 
     private Set<String> getRoles(String role, AuthenticationDataSource authData) {
-        if (authData == null) {
+        if (authData == null || (authData instanceof AuthenticationDataSubscription
+                && ((AuthenticationDataSubscription) authData).getAuthData() == null)) {
             return Collections.singleton(role);
         }
 
@@ -198,13 +200,19 @@ public class MultiRolesTokenAuthorizationProvider extends PulsarAuthorizationPro
 
     public CompletableFuture<Boolean> authorize(String role, AuthenticationDataSource authenticationData,
                                                 Function<String, CompletableFuture<Boolean>> authorizeFunc) {
-        Set<String> roles = getRoles(role, authenticationData);
-        if (roles.isEmpty()) {
-            return CompletableFuture.completedFuture(false);
-        }
-        List<CompletableFuture<Boolean>> futures = new ArrayList<>(roles.size());
-        roles.forEach(r -> futures.add(authorizeFunc.apply(r)));
-        return FutureUtil.waitForAny(futures, ret -> (boolean) ret).thenApply(v -> v.isPresent());
+        return isSuperUser(role, authenticationData, conf)
+                .thenCompose(superUser -> {
+                    if (superUser) {
+                        return CompletableFuture.completedFuture(true);
+                    }
+                    Set<String> roles = getRoles(role, authenticationData);
+                    if (roles.isEmpty()) {
+                        return CompletableFuture.completedFuture(false);
+                    }
+                    List<CompletableFuture<Boolean>> futures = new ArrayList<>(roles.size());
+                    roles.forEach(r -> futures.add(authorizeFunc.apply(r)));
+                    return FutureUtil.waitForAny(futures, ret -> (boolean) ret).thenApply(v -> v.isPresent());
+                });
     }
 
     /**
