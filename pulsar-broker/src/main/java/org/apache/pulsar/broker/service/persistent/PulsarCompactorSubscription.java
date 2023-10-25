@@ -58,11 +58,7 @@ public class PulsarCompactorSubscription extends PersistentSubscription {
 
     @Override
     public void acknowledgeMessage(List<Position> positions, AckType ackType, Map<String, Long> properties) {
-        if (ackType == AckType.Individual) {
-            // Ignore individual ack
-            return;
-        }
-
+        checkArgument(ackType == AckType.Cumulative);
         checkArgument(positions.size() == 1);
         checkArgument(properties.containsKey(Compactor.COMPACTED_TOPIC_LEDGER_PROPERTY));
         long compactedLedgerId = properties.get(Compactor.COMPACTED_TOPIC_LEDGER_PROPERTY);
