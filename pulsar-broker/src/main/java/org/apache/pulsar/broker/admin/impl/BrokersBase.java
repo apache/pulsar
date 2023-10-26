@@ -396,9 +396,10 @@ public class BrokersBase extends AdminResource {
 
 
     private CompletableFuture<Void> internalRunHealthCheck(TopicVersion topicVersion) {
+        String lookupServiceAddress = pulsar().getLookupServiceAddress();
         NamespaceName namespaceName = (topicVersion == TopicVersion.V2)
-                ? NamespaceService.getHeartbeatNamespaceV2(pulsar().getAdvertisedAddress(), pulsar().getConfiguration())
-                : NamespaceService.getHeartbeatNamespace(pulsar().getAdvertisedAddress(), pulsar().getConfiguration());
+                ? NamespaceService.getHeartbeatNamespaceV2(lookupServiceAddress, pulsar().getConfiguration())
+                : NamespaceService.getHeartbeatNamespace(lookupServiceAddress, pulsar().getConfiguration());
         final String topicName = String.format("persistent://%s/%s", namespaceName, HEALTH_CHECK_TOPIC_SUFFIX);
         LOG.info("[{}] Running healthCheck with topic={}", clientAppId(), topicName);
         final String messageStr = UUID.randomUUID().toString();
@@ -545,17 +546,26 @@ public class BrokersBase extends AdminResource {
             @ApiParam(name = "maxConcurrentUnloadPerSec",
                     value = "if the value absent(value=0) means no concurrent limitation.")
             @QueryParam("maxConcurrentUnloadPerSec") int maxConcurrentUnloadPerSec,
-            @QueryParam("forcedTerminateTopic") @DefaultValue("true") boolean forcedTerminateTopic
+            @QueryParam("forcedTerminateTopic") @DefaultValue("true") boolean forcedTerminateTopic,
+            @Suspended final AsyncResponse asyncResponse
     ) {
         validateSuperUserAccess();
-        doShutDownBrokerGracefully(maxConcurrentUnloadPerSec, forcedTerminateTopic);
+        doShutDownBrokerGracefullyAsync(maxConcurrentUnloadPerSec, forcedTerminateTopic)
+                .thenAccept(__ -> {
+                    LOG.info("[{}] Successfully shutdown broker gracefully", clientAppId());
+                    asyncResponse.resume(Response.noContent().build());
+                })
+                .exceptionally(ex -> {
+            LOG.error("[{}] Failed to shutdown broker gracefully", clientAppId(), ex);
+            resumeAsyncResponseExceptionally(asyncResponse, ex);
+            return null;
+        });
     }
 
-    private void doShutDownBrokerGracefully(int maxConcurrentUnloadPerSec,
-                                            boolean forcedTerminateTopic) {
-        pulsar().getBrokerService().unloadNamespaceBundlesGracefully(
-                maxConcurrentUnloadPerSec * 60, forcedTerminateTopic);
-        pulsar().closeAsync();
+    private CompletableFuture<Void> doShutDownBrokerGracefullyAsync(int maxConcurrentUnloadPerSec,
+                                                                    boolean forcedTerminateTopic) {
+        pulsar().getBrokerService().unloadNamespaceBundlesGracefully(maxConcurrentUnloadPerSec, forcedTerminateTopic);
+        return pulsar().closeAsync();
     }
 }
 

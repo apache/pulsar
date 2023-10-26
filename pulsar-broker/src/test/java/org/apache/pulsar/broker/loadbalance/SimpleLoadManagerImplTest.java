@@ -113,7 +113,6 @@ public class SimpleLoadManagerImplTest {
         config1.setBrokerServicePort(Optional.of(0));
         config1.setLoadManagerClassName(SimpleLoadManagerImpl.class.getName());
         config1.setBrokerServicePortTls(Optional.of(0));
-        config1.setWebServicePortTls(Optional.of(0));
         config1.setAdvertisedAddress("localhost");
         pulsar1 = new PulsarService(config1);
         pulsar1.start();

@@ -67,7 +67,7 @@ public class PerfClientUtils {
             throws PulsarClientException.UnsupportedAuthenticationException {
 
         ClientBuilder clientBuilder = PulsarClient.builder()
-                .memoryLimit(0, SizeUnit.BYTES)
+                .memoryLimit(arguments.memoryLimit, SizeUnit.BYTES)
                 .serviceUrl(arguments.serviceURL)
                 .connectionsPerBroker(arguments.maxConnections)
                 .ioThreads(arguments.ioThreads)

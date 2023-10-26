@@ -104,6 +104,7 @@ public class UnauthedAdminProxyHandlerTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testUnauthenticatedProxy() throws Exception {
+        @Cleanup
         PulsarAdmin admin = PulsarAdmin.builder()
             .serviceHttpUrl("http://127.0.0.1:" + webServer.getListenPortHTTP().get())
             .build();

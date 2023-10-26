@@ -18,17 +18,17 @@
  */
 package org.apache.pulsar.compaction;
 
-import com.google.common.annotations.Beta;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import javax.annotation.Nonnull;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.pulsar.common.classification.InterfaceAudience;
+import org.apache.pulsar.common.classification.InterfaceStability;
 
-@Beta
 @InterfaceAudience.Public
-public interface TopicCompactionService {
+@InterfaceStability.Evolving
+public interface TopicCompactionService extends AutoCloseable {
     /**
      * Compact the topic.
      * Topic Compaction is a key-based retention mechanism. It keeps the most recent value for a given key and
@@ -60,4 +60,21 @@ public interface TopicCompactionService {
      * @return a future that will be completed with the last compacted position, this position can be null.
      */
     CompletableFuture<Position> getLastCompactedPosition();
+
+    /**
+    * Find the first entry that greater or equal to target publishTime.
+    *
+    * @param publishTime  the publish time of entry.
+    * @return the first entry metadata that greater or equal to target publishTime, this entry can be null.
+    */
+    CompletableFuture<Entry> findEntryByPublishTime(long publishTime);
+
+    /**
+    * Find the first entry that greater or equal to target entryIndex,
+    * if an entry that broker entry metadata is missed, then it will be skipped and find the next match entry.
+    *
+    * @param entryIndex  the index of entry.
+    * @return the first entry that greater or equal to target entryIndex, this entry can be null.
+    */
+    CompletableFuture<Entry> findEntryByEntryIndex(long entryIndex);
 }

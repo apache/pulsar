@@ -44,6 +44,7 @@ import io.trino.spi.type.Type;
 import io.trino.spi.type.TypeManager;
 import io.trino.spi.type.TypeSignature;
 import io.trino.spi.type.TypeSignatureParameter;
+import io.trino.spi.type.UuidType;
 import io.trino.spi.type.VarbinaryType;
 import io.trino.spi.type.VarcharType;
 import java.util.List;
@@ -121,6 +122,10 @@ public class PulsarJsonRowDecoderFactory implements PulsarRowDecoderFactory {
         LogicalType logicalType  = schema.getLogicalType();
         switch (type) {
             case STRING:
+                if (logicalType != null && logicalType.equals(LogicalTypes.uuid())) {
+                    return UuidType.UUID;
+                }
+                return createUnboundedVarcharType();
             case ENUM:
                 return createUnboundedVarcharType();
             case NULL:

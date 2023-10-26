@@ -176,11 +176,11 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
 
         //load the nameserver, but topic is not init.
         log.info("lookup:{}",admin.lookups().lookupTopic(topic));
-        assertTrue(pulsar.getBrokerService().isTopicNsOwnedByBroker(topicName));
+        assertTrue(pulsar.getBrokerService().isTopicNsOwnedByBrokerAsync(topicName).join());
         assertFalse(pulsar.getBrokerService().getTopics().containsKey(topic));
         //make sure namespace policy reader is fully started.
         Awaitility.await().untilAsserted(()-> {
-            assertTrue(policyService.getPoliciesCacheInit(topicName.getNamespaceObject()));
+            assertTrue(policyService.getPoliciesCacheInit(topicName.getNamespaceObject()).isDone());
         });
 
         //load the topic.
@@ -3015,6 +3015,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
             });
         }
     }
+
     @Test
     public void testGlobalTopicPolicies() throws Exception {
         final String topic = testTopic + UUID.randomUUID();

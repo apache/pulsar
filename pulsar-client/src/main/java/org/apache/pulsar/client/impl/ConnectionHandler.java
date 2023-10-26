@@ -43,6 +43,7 @@ public class ConnectionHandler {
     private volatile long epoch = -1L;
     protected volatile long lastConnectionClosedTimestamp = 0L;
     private final AtomicBoolean duringConnect = new AtomicBoolean(false);
+    protected final int randomKeyForSelectConnection;
 
     interface Connection {
 
@@ -58,6 +59,7 @@ public class ConnectionHandler {
 
     protected ConnectionHandler(HandlerState state, Backoff backoff, Connection connection) {
         this.state = state;
+        this.randomKeyForSelectConnection = state.client.getCnxPool().genRandomKeyToSelectCon();
         this.connection = connection;
         this.backoff = backoff;
         CLIENT_CNX_UPDATER.set(this, null);
@@ -86,13 +88,20 @@ public class ConnectionHandler {
         try {
             CompletableFuture<ClientCnx> cnxFuture;
             if (state.redirectedClusterURI != null) {
-                InetSocketAddress address = InetSocketAddress.createUnresolved(state.redirectedClusterURI.getHost(),
-                        state.redirectedClusterURI.getPort());
-                cnxFuture = state.client.getConnection(address, address);
+                if (state.topic == null) {
+                    InetSocketAddress address = InetSocketAddress.createUnresolved(state.redirectedClusterURI.getHost(),
+                            state.redirectedClusterURI.getPort());
+                    cnxFuture = state.client.getConnection(address, address, randomKeyForSelectConnection);
+                } else {
+                    // once, client receives redirection url, client has to perform lookup on migrated
+                    // cluster to find the broker that owns the topic and then create connection.
+                    // below method, performs the lookup for a given topic and then creates connection
+                    cnxFuture = state.client.getConnection(state.topic, (state.redirectedClusterURI.toString()));
+                }
             } else if (state.topic == null) {
                 cnxFuture = state.client.getConnectionToServiceUrl();
             } else {
-                cnxFuture = state.client.getConnection(state.topic); //
+                cnxFuture = state.client.getConnection(state.topic, randomKeyForSelectConnection);
             }
             cnxFuture.thenCompose(cnx -> connection.connectionOpened(cnx))
                     .thenAccept(__ -> duringConnect.set(false))

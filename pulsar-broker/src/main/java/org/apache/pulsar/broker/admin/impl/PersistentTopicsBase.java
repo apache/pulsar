@@ -80,6 +80,7 @@ import org.apache.pulsar.broker.service.AnalyzeBacklogResult;
 import org.apache.pulsar.broker.service.BrokerServiceException.AlreadyRunningException;
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionBusyException;
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionInvalidCursorPosition;
+import org.apache.pulsar.broker.service.MessageExpirer;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentReplicator;
@@ -113,7 +114,6 @@ import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.AuthAction;
-import org.apache.pulsar.common.policies.data.AuthPolicies;
 import org.apache.pulsar.common.policies.data.AutoSubscriptionCreationOverride;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
@@ -218,36 +218,7 @@ public class PersistentTopicsBase extends AdminResource {
     protected CompletableFuture<Map<String, Set<AuthAction>>> internalGetPermissionsOnTopic() {
         // This operation should be reading from zookeeper and it should be allowed without having admin privileges
         return validateAdminAccessForTenantAsync(namespaceName.getTenant())
-                .thenCompose(__ -> namespaceResources().getPoliciesAsync(namespaceName)
-            .thenApply(policies -> {
-                if (!policies.isPresent()) {
-                    throw new RestException(Status.NOT_FOUND, "Namespace does not exist");
-                }
-
-                Map<String, Set<AuthAction>> permissions = new HashMap<>();
-                String topicUri = topicName.toString();
-                AuthPolicies auth = policies.get().auth_policies;
-                // First add namespace level permissions
-                permissions.putAll(auth.getNamespaceAuthentication());
-
-                // Then add topic level permissions
-                if (auth.getTopicAuthentication().containsKey(topicUri)) {
-                    for (Map.Entry<String, Set<AuthAction>> entry :
-                            auth.getTopicAuthentication().get(topicUri).entrySet()) {
-                        String role = entry.getKey();
-                        Set<AuthAction> topicPermissions = entry.getValue();
-
-                        if (!permissions.containsKey(role)) {
-                            permissions.put(role, topicPermissions);
-                        } else {
-                            // Do the union between namespace and topic level
-                            Set<AuthAction> union = Sets.union(permissions.get(role), topicPermissions);
-                            permissions.put(role, union);
-                        }
-                    }
-                }
-                return permissions;
-            }));
+                .thenCompose(__ -> getAuthorizationService().getPermissionsAsync(topicName));
     }
 
     protected void validateCreateTopic(TopicName topicName) {
@@ -383,14 +354,15 @@ public class PersistentTopicsBase extends AdminResource {
                 }
                 if (expectPartitions < currentMetadataPartitions) {
                     throw new RestException(422 /* Unprocessable entity*/,
-                            String.format("Expect partitions %s can't less than current partitions %s.",
+                            String.format("Desired partitions %s can't be less than the current partitions %s.",
                                     expectPartitions, currentMetadataPartitions));
                 }
                 int brokerMaximumPartitionsPerTopic = pulsarService.getConfiguration()
                         .getMaxNumPartitionsPerPartitionedTopic();
                 if (brokerMaximumPartitionsPerTopic != 0 && expectPartitions > brokerMaximumPartitionsPerTopic) {
                     throw new RestException(422 /* Unprocessable entity*/,
-                            String.format("Expect partitions %s grater than maximum partitions per topic %s",
+                            String.format("Desired partitions %s can't be greater than the maximum partitions per"
+                                            + " topic %s.",
                                     expectPartitions, brokerMaximumPartitionsPerTopic));
                 }
                 final PulsarAdmin admin;
@@ -746,7 +718,7 @@ public class PersistentTopicsBase extends AdminResource {
                             if (numPartitions < 1) {
                                 return CompletableFuture.completedFuture(null);
                             }
-                            return internalRemovePartitionsAuthenticationPoliciesAsync(numPartitions)
+                            return internalRemovePartitionsAuthenticationPoliciesAsync()
                                     .thenCompose(unused -> internalRemovePartitionsTopicAsync(numPartitions, force));
                         })
                 // Only tries to delete the znode for partitioned topic when all its partitions are successfully deleted
@@ -788,10 +760,10 @@ public class PersistentTopicsBase extends AdminResource {
     private CompletableFuture<Void> internalRemovePartitionsTopicAsync(int numPartitions, boolean force) {
         return pulsar().getPulsarResources().getNamespaceResources().getPartitionedTopicResources()
                 .runWithMarkDeleteAsync(topicName,
-                    () -> internalRemovePartitionsTopicNoAutocreationDisableAsync(numPartitions, force));
+                    () -> internalRemovePartitionsTopicNoAutoCreationDisableAsync(numPartitions, force));
     }
 
-    private CompletableFuture<Void> internalRemovePartitionsTopicNoAutocreationDisableAsync(int numPartitions,
+    private CompletableFuture<Void> internalRemovePartitionsTopicNoAutoCreationDisableAsync(int numPartitions,
                                                                                             boolean force) {
         return FutureUtil.waitForAll(IntStream.range(0, numPartitions)
                 .mapToObj(i -> {
@@ -833,16 +805,9 @@ public class PersistentTopicsBase extends AdminResource {
                 }).collect(Collectors.toList()));
     }
 
-    private CompletableFuture<Void> internalRemovePartitionsAuthenticationPoliciesAsync(int numPartitions) {
+    private CompletableFuture<Void> internalRemovePartitionsAuthenticationPoliciesAsync() {
         CompletableFuture<Void> future = new CompletableFuture<>();
-        pulsar().getPulsarResources().getNamespaceResources()
-                .setPoliciesAsync(topicName.getNamespaceObject(), p -> {
-                    IntStream.range(0, numPartitions)
-                            .forEach(i -> p.auth_policies.getTopicAuthentication()
-                                    .remove(topicName.getPartition(i).toString()));
-                    p.auth_policies.getTopicAuthentication().remove(topicName.toString());
-                    return p;
-                })
+        getAuthorizationService().removePermissionsAsync(topicName)
                 .whenComplete((r, ex) -> {
                     if (ex != null){
                         Throwable realCause = FutureUtil.unwrapCompletionException(ex);
@@ -976,8 +941,8 @@ public class PersistentTopicsBase extends AdminResource {
             });
     }
 
-    protected CompletableFuture<Void> internalSetOffloadPolicies
-            (OffloadPoliciesImpl offloadPolicies, boolean isGlobal) {
+    protected CompletableFuture<Void> internalSetOffloadPolicies(OffloadPoliciesImpl offloadPolicies,
+                                                                 boolean isGlobal) {
         return getTopicPoliciesAsyncWithRetry(topicName, isGlobal)
             .thenCompose(op -> {
                 TopicPolicies topicPolicies = op.orElseGet(TopicPolicies::new);
@@ -2780,6 +2745,12 @@ public class PersistentTopicsBase extends AdminResource {
                             }
                         }
                     }
+
+                    @Override
+                    public String toString() {
+                        return String.format("Topic [{}] get entry batch size",
+                                PersistentTopicsBase.this.topicName);
+                    }
                 }, null);
             } catch (NullPointerException npe) {
                 batchSizeFuture.completeExceptionally(new RestException(Status.NOT_FOUND, "Message not found"));
@@ -2877,6 +2848,12 @@ public class PersistentTopicsBase extends AdminResource {
                                     entry.release();
                                 }
                             }
+                        }
+
+                        @Override
+                        public String toString() {
+                            return String.format("Topic [{}] internal get message by id",
+                                    PersistentTopicsBase.this.topicName);
                         }
                     }, null);
             return results;
@@ -3043,6 +3020,12 @@ public class PersistentTopicsBase extends AdminResource {
                             @Override
                             public void readEntryFailed(ManagedLedgerException exception, Object ctx) {
                                 future.completeExceptionally(exception);
+                            }
+
+                            @Override
+                            public String toString() {
+                                return String.format("Topic [{}] internal examine message async",
+                                        PersistentTopicsBase.this.topicName);
                             }
                         }, null);
                         return future;
@@ -3992,28 +3975,20 @@ public class PersistentTopicsBase extends AdminResource {
                 }
                 PersistentTopic topic = (PersistentTopic) t;
 
-                boolean issued;
+                final MessageExpirer messageExpirer;
                 if (subName.startsWith(topic.getReplicatorPrefix())) {
                     String remoteCluster = PersistentReplicator.getRemoteCluster(subName);
-                    PersistentReplicator repl = (PersistentReplicator) topic
-                            .getPersistentReplicator(remoteCluster);
-                    if (repl == null) {
-                        resultFuture.completeExceptionally(
-                                new RestException(Status.NOT_FOUND, "Replicator not found"));
-                        return;
-                    }
-                    issued = repl.expireMessages(expireTimeInSeconds);
+                    messageExpirer = (PersistentReplicator) topic.getPersistentReplicator(remoteCluster);
                 } else {
-                    PersistentSubscription sub = topic.getSubscription(subName);
-                    if (sub == null) {
-                        resultFuture.completeExceptionally(
-                                new RestException(Status.NOT_FOUND,
-                                        getSubNotFoundErrorMessage(topicName.toString(), subName)));
-                        return;
-                    }
-                    issued = sub.expireMessages(expireTimeInSeconds);
+                    messageExpirer = topic.getSubscription(subName);
                 }
-                if (issued) {
+                if (messageExpirer == null) {
+                    final String message = subName.startsWith(topic.getReplicatorPrefix())
+                            ? "Replicator not found" : getSubNotFoundErrorMessage(topicName.toString(), subName);
+                    resultFuture.completeExceptionally(new RestException(Status.NOT_FOUND, message));
+                    return;
+                }
+                if (messageExpirer.expireMessages(expireTimeInSeconds)) {
                     log.info("[{}] Message expire started up to {} on {} {}", clientAppId(),
                             expireTimeInSeconds, topicName, subName);
                     resultFuture.complete(null);
@@ -4103,44 +4078,27 @@ public class PersistentTopicsBase extends AdminResource {
                 return;
             }
             try {
-                PersistentSubscription sub = null;
-                PersistentReplicator repl = null;
-
+                final MessageExpirer messageExpirer;
                 if (subName.startsWith(topic.getReplicatorPrefix())) {
                     String remoteCluster = PersistentReplicator.getRemoteCluster(subName);
-                    repl = (PersistentReplicator)
-                            topic.getPersistentReplicator(remoteCluster);
-                    if (repl == null) {
-                        asyncResponse.resume(new RestException(Status.NOT_FOUND,
-                                "Replicator not found"));
-                        return;
-                    }
+                    messageExpirer = (PersistentReplicator) topic.getPersistentReplicator(remoteCluster);
                 } else {
-                    sub = topic.getSubscription(subName);
-                    if (sub == null) {
-                        asyncResponse.resume(new RestException(Status.NOT_FOUND,
-                                getSubNotFoundErrorMessage(topicName.toString(), subName)));
-                        return;
-                    }
+                    messageExpirer = topic.getSubscription(subName);
+                }
+                if (messageExpirer == null) {
+                    final String message = (subName.startsWith(topic.getReplicatorPrefix()))
+                            ? "Replicator not found" : getSubNotFoundErrorMessage(topicName.toString(), subName);
+                    asyncResponse.resume(new RestException(Status.NOT_FOUND, message));
+                    return;
                 }
 
                 CompletableFuture<Integer> batchSizeFuture = new CompletableFuture<>();
                 getEntryBatchSize(batchSizeFuture, topic, messageId, batchIndex);
 
-                PersistentReplicator finalRepl = repl;
-                PersistentSubscription finalSub = sub;
-
                 batchSizeFuture.thenAccept(bi -> {
                     PositionImpl position = calculatePositionAckSet(isExcluded, bi, batchIndex, messageId);
-                    boolean issued;
                     try {
-                        if (subName.startsWith(topic.getReplicatorPrefix())) {
-                            issued = finalRepl.expireMessages(position);
-                        } else {
-                            issued = finalSub.expireMessages(position);
-                        }
-
-                        if (issued) {
+                        if (messageExpirer.expireMessages(position)) {
                             log.info("[{}] Message expire started up to {} on {} {}", clientAppId(), position,
                                     topicName, subName);
                         } else {

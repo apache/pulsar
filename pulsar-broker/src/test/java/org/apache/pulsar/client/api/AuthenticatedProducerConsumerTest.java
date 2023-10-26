@@ -120,6 +120,7 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
     }
 
     protected final void internalSetup(Authentication auth) throws Exception {
+        closeAdmin();
         admin = spy(PulsarAdmin.builder().serviceHttpUrl(brokerUrlTls.toString())
                 .tlsTrustCertsFilePath(CA_CERT_FILE_PATH).authentication(auth)
                 .build());
@@ -258,7 +259,7 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
                 new TenantInfoImpl(Sets.newHashSet("anonymousUser"), Sets.newHashSet("test")));
 
         // make a PulsarAdmin instance as "anonymousUser" for http request
-        admin.close();
+        closeAdmin();
         admin = spy(PulsarAdmin.builder().serviceHttpUrl(brokerUrl.toString()).build());
         admin.namespaces().createNamespace("my-property/my-ns", Sets.newHashSet("test"));
         admin.topics().grantPermission("persistent://my-property/my-ns/my-topic", "anonymousUser",

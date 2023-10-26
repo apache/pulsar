@@ -280,6 +280,12 @@ public class FunctionConfigUtils {
             }
             sinkSpecBuilder.setProducerSpec(pbldr.build());
         }
+        if (functionConfig.getBatchBuilder() != null) {
+            Function.ProducerSpec.Builder builder = sinkSpecBuilder.getProducerSpec() != null
+                    ? sinkSpecBuilder.getProducerSpec().toBuilder()
+                    : Function.ProducerSpec.newBuilder();
+            sinkSpecBuilder.setProducerSpec(builder.setBatchBuilder(functionConfig.getBatchBuilder()).build());
+        }
         functionDetailsBuilder.setSink(sinkSpecBuilder);
 
         if (functionConfig.getTenant() != null) {
@@ -714,10 +720,6 @@ public class FunctionConfigUtils {
         if (functionConfig.getMaxMessageRetries() != null && functionConfig.getMaxMessageRetries() >= 0) {
             throw new IllegalArgumentException("Message retries not yet supported in python");
         }
-
-        if (functionConfig.getRetainKeyOrdering() != null && functionConfig.getRetainKeyOrdering()) {
-            throw new IllegalArgumentException("Retain Key Orderering not yet supported in python");
-        }
     }
 
     private static void doGolangChecks(FunctionConfig functionConfig) {
@@ -1091,6 +1093,9 @@ public class FunctionConfigUtils {
         }
         if (!StringUtils.isEmpty(newConfig.getCustomRuntimeOptions())) {
             mergedConfig.setCustomRuntimeOptions(newConfig.getCustomRuntimeOptions());
+        }
+        if (newConfig.getProducerConfig() != null) {
+            mergedConfig.setProducerConfig(newConfig.getProducerConfig());
         }
         return mergedConfig;
     }

@@ -83,7 +83,6 @@ import org.apache.pulsar.broker.intercept.BrokerInterceptor;
 import org.apache.pulsar.broker.intercept.BrokerInterceptors;
 import org.apache.pulsar.broker.loadbalance.LeaderBroker;
 import org.apache.pulsar.broker.loadbalance.LeaderElectionService;
-import org.apache.pulsar.broker.loadbalance.LinuxInfoUtils;
 import org.apache.pulsar.broker.loadbalance.LoadManager;
 import org.apache.pulsar.broker.loadbalance.LoadReportUpdaterTask;
 import org.apache.pulsar.broker.loadbalance.LoadResourceQuotaUpdaterTask;
@@ -147,9 +146,11 @@ import org.apache.pulsar.common.util.GracefulExecutorServicesShutdown;
 import org.apache.pulsar.common.util.Reflections;
 import org.apache.pulsar.common.util.ThreadDumpUtil;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
+import org.apache.pulsar.compaction.CompactionServiceFactory;
 import org.apache.pulsar.compaction.Compactor;
+import org.apache.pulsar.compaction.PulsarCompactionServiceFactory;
 import org.apache.pulsar.compaction.StrategicTwoPhaseCompactor;
-import org.apache.pulsar.compaction.TwoPhaseCompactor;
+import org.apache.pulsar.compaction.TopicCompactionService;
 import org.apache.pulsar.functions.worker.ErrorNotifier;
 import org.apache.pulsar.functions.worker.WorkerConfig;
 import org.apache.pulsar.functions.worker.WorkerService;
@@ -198,7 +199,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     private WebSocketService webSocketService = null;
     private TopicPoliciesService topicPoliciesService = TopicPoliciesService.DISABLED;
     private BookKeeperClientFactory bkClientFactory;
-    private Compactor compactor;
+    protected CompactionServiceFactory compactionServiceFactory;
     private StrategicTwoPhaseCompactor strategicCompactor;
     private ResourceUsageTransportManager resourceUsageTransportManager;
     private ResourceGroupService resourceGroupServiceManager;
@@ -451,6 +452,15 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             }
 
             resetMetricsServlet();
+
+            if (this.compactionServiceFactory != null) {
+                try {
+                    this.compactionServiceFactory.close();
+                } catch (Exception e) {
+                    LOG.warn("CompactionServiceFactory closing failed {}", e.getMessage());
+                }
+                this.compactionServiceFactory = null;
+            }
 
             if (this.webSocketService != null) {
                 this.webSocketService.close();
@@ -722,14 +732,6 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                         config.getDefaultRetentionTimeInMinutes() * 60));
             }
 
-            if (config.getLoadBalancerOverrideBrokerNicSpeedGbps().isEmpty()
-                    && config.isLoadBalancerEnabled()
-                    && LinuxInfoUtils.isLinux()
-                    && !LinuxInfoUtils.checkHasNicSpeeds()) {
-                throw new IllegalStateException("Unable to read VM NIC speed. You must set "
-                        + "[loadBalancerOverrideBrokerNicSpeedGbps] to override it when load balancer is enabled.");
-            }
-
             localMetadataSynchronizer = StringUtils.isNotBlank(config.getMetadataSyncEventTopic())
                     ? new PulsarMetadataEventSynchronizer(this, config.getMetadataSyncEventTopic())
                     : null;
@@ -784,7 +786,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                     exposeTopicMetrics, offloaderScheduler, interval);
             this.defaultOffloader = createManagedLedgerOffloader(defaultOffloadPolicies);
 
-            this.brokerInterceptor = BrokerInterceptors.load(config);
+            setBrokerInterceptor(newBrokerInterceptor());
             // use getter to support mocking getBrokerInterceptor method in tests
             BrokerInterceptor interceptor = getBrokerInterceptor();
             if (interceptor != null) {
@@ -813,6 +815,9 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             this.brokerServiceUrl = brokerUrl(config);
             this.brokerServiceUrlTls = brokerUrlTls(config);
 
+            if (this.compactionServiceFactory == null) {
+                this.compactionServiceFactory = loadCompactionServiceFactory();
+            }
 
             if (null != this.webSocketService) {
                 ClusterDataImpl clusterData = ClusterDataImpl.builder()
@@ -925,6 +930,10 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         } finally {
             mutex.unlock();
         }
+    }
+
+    protected BrokerInterceptor newBrokerInterceptor() throws IOException {
+        return BrokerInterceptors.load(config);
     }
 
     @VisibleForTesting
@@ -1158,7 +1167,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     protected void acquireSLANamespace() {
         try {
             // Namespace not created hence no need to unload it
-            NamespaceName nsName = NamespaceService.getSLAMonitorNamespace(getAdvertisedAddress(), config);
+            NamespaceName nsName = NamespaceService.getSLAMonitorNamespace(getLookupServiceAddress(), config);
             if (!this.pulsarResources.getNamespaceResources().namespaceExists(nsName)) {
                 LOG.info("SLA Namespace = {} doesn't exist.", nsName);
                 return;
@@ -1471,25 +1480,16 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         return this.compactorExecutor;
     }
 
-    // only public so mockito can mock it
-    public Compactor newCompactor() throws PulsarServerException {
-        return new TwoPhaseCompactor(this.getConfiguration(),
-                getClient(), getBookKeeperClient(),
-                getCompactorExecutor());
-    }
-
-    public synchronized Compactor getCompactor() throws PulsarServerException {
-        if (this.compactor == null) {
-            this.compactor = newCompactor();
-        }
-        return this.compactor;
-    }
-
     // This method is used for metrics, which is allowed to as null
     // Because it's no operation on the compactor, so let's remove the  synchronized on this method
     // to avoid unnecessary lock competition.
+    // Only the pulsar's compaction service provides the compaction stats. The compaction service plugin,
+    // it should be done by the plugin itself to expose the compaction metrics.
     public Compactor getNullableCompactor() {
-        return this.compactor;
+        if (this.compactionServiceFactory instanceof PulsarCompactionServiceFactory pulsarCompactedServiceFactory) {
+            return pulsarCompactedServiceFactory.getNullableCompactor();
+        }
+        return null;
     }
 
     public StrategicTwoPhaseCompactor newStrategicCompactor() throws PulsarServerException {
@@ -1720,18 +1720,18 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     }
 
     public String getSafeWebServiceAddress() {
-        return webServiceAddress != null ? webServiceAddress : webServiceAddressTls;
+        return webServiceAddressTls != null ? webServiceAddressTls : webServiceAddress;
     }
 
     @Deprecated
     public String getSafeBrokerServiceUrl() {
-        return brokerServiceUrl != null ? brokerServiceUrl : brokerServiceUrlTls;
+        return brokerServiceUrlTls != null ? brokerServiceUrlTls : brokerServiceUrl;
     }
 
     public String getLookupServiceAddress() {
-        return String.format("%s:%s", advertisedAddress, config.getWebServicePort().isPresent()
-                ? config.getWebServicePort().get()
-                : config.getWebServicePortTls().orElseThrow());
+        return String.format("%s:%s", advertisedAddress, config.getWebServicePortTls().isPresent()
+                ? config.getWebServicePortTls().get()
+                : config.getWebServicePort().orElseThrow());
     }
 
     public TopicPoliciesService getTopicPoliciesService() {
@@ -1906,5 +1906,23 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     @VisibleForTesting
     protected BrokerService newBrokerService(PulsarService pulsar) throws Exception {
         return new BrokerService(pulsar, ioEventLoopGroup);
+    }
+
+    private CompactionServiceFactory loadCompactionServiceFactory() {
+        String compactionServiceFactoryClassName = config.getCompactionServiceFactoryClassName();
+        var compactionServiceFactory =
+                Reflections.createInstance(compactionServiceFactoryClassName, CompactionServiceFactory.class,
+                        Thread.currentThread().getContextClassLoader());
+        compactionServiceFactory.initialize(this).join();
+        return compactionServiceFactory;
+    }
+
+    public CompletableFuture<TopicCompactionService> newTopicCompactionService(String topic) {
+        try {
+            CompactionServiceFactory compactionServiceFactory = this.getCompactionServiceFactory();
+            return compactionServiceFactory.newTopicCompactionService(topic);
+        } catch (Throwable e) {
+            return CompletableFuture.failedFuture(e);
+        }
     }
 }

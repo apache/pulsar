@@ -293,8 +293,8 @@ public class Namespaces extends NamespacesBase {
                                @PathParam("namespace") String namespace) {
         validateNamespaceName(property, cluster, namespace);
         validateNamespaceOperationAsync(NamespaceName.get(property, namespace), NamespaceOperation.GET_PERMISSION)
-                .thenCompose(__ -> getNamespacePoliciesAsync(namespaceName))
-                .thenAccept(policies -> response.resume(policies.auth_policies.getNamespaceAuthentication()))
+                .thenCompose(__ -> getAuthorizationService().getPermissionsAsync(namespaceName))
+                .thenAccept(permissions -> response.resume(permissions))
                 .exceptionally(ex -> {
                     log.error("Failed to get permissions for namespace {}", namespaceName, ex);
                     resumeAsyncResponseExceptionally(response, ex);
@@ -314,8 +314,8 @@ public class Namespaces extends NamespacesBase {
                                             @PathParam("namespace") String namespace) {
         validateNamespaceName(property, cluster, namespace);
         validateNamespaceOperationAsync(NamespaceName.get(property, namespace), NamespaceOperation.GET_PERMISSION)
-                .thenCompose(__ -> getNamespacePoliciesAsync(namespaceName))
-                .thenAccept(policies -> response.resume(policies.auth_policies.getSubscriptionAuthentication()))
+                .thenCompose(__ -> getAuthorizationService().getSubscriptionPermissionsAsync(namespaceName))
+                .thenAccept(permissions -> response.resume(permissions))
                 .exceptionally(ex -> {
                     log.error("[{}] Failed to get permissions on subscription for namespace {}: {} ",
                             clientAppId(), namespaceName,
@@ -1707,6 +1707,19 @@ public class Namespaces extends NamespacesBase {
                                                          SchemaAutoUpdateCompatibilityStrategy strategy) {
         validateNamespaceName(tenant, cluster, namespace);
         internalSetSchemaAutoUpdateCompatibilityStrategy(strategy);
+    }
+
+    @POST
+    @Path("/{property}/{cluster}/{namespace}/migration")
+    @ApiOperation(hidden = true, value = "Update migration for all topics in a namespace")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Property or cluster or namespace doesn't exist") })
+    public void enableMigration(@PathParam("property") String property,
+                                @PathParam("cluster") String cluster,
+                                @PathParam("namespace") String namespace,
+                                boolean migrated) {
+        validateNamespaceName(property, cluster, namespace);
+        internalEnableMigration(migrated);
     }
 
     private static final Logger log = LoggerFactory.getLogger(Namespaces.class);

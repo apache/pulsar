@@ -268,7 +268,6 @@ public class PulsarFunctionE2ESecurityTest {
         workerConfig.setAuthorizationProvider(config.getAuthorizationProvider());
 
         PulsarWorkerService workerService = new PulsarWorkerService();
-        workerService.init(workerConfig, null, false);
         return workerService;
     }
 

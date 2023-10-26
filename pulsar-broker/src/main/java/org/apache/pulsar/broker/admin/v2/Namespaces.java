@@ -240,8 +240,8 @@ public class Namespaces extends NamespacesBase {
                                                        @PathParam("namespace") String namespace) {
         validateNamespaceName(tenant, namespace);
         validateNamespaceOperationAsync(NamespaceName.get(tenant, namespace), NamespaceOperation.GET_PERMISSION)
-                .thenCompose(__ -> getNamespacePoliciesAsync(namespaceName))
-                .thenAccept(policies -> response.resume(policies.auth_policies.getNamespaceAuthentication()))
+                .thenCompose(__ -> getAuthorizationService().getPermissionsAsync(namespaceName))
+                .thenAccept(permissions -> response.resume(permissions))
                 .exceptionally(ex -> {
                     log.error("Failed to get permissions for namespace {}", namespaceName, ex);
                     resumeAsyncResponseExceptionally(response, ex);
@@ -260,8 +260,8 @@ public class Namespaces extends NamespacesBase {
                                             @PathParam("namespace") String namespace) {
         validateNamespaceName(tenant, namespace);
         validateNamespaceOperationAsync(NamespaceName.get(tenant, namespace), NamespaceOperation.GET_PERMISSION)
-                .thenCompose(__ -> getNamespacePoliciesAsync(namespaceName))
-                .thenAccept(policies -> response.resume(policies.auth_policies.getSubscriptionAuthentication()))
+                .thenCompose(__ -> getAuthorizationService().getSubscriptionPermissionsAsync(namespaceName))
+                .thenAccept(permissions -> response.resume(permissions))
                 .exceptionally(ex -> {
                     log.error("[{}] Failed to get permissions on subscription for namespace {}: {} ", clientAppId(),
                             namespaceName, ex.getCause().getMessage(), ex);
@@ -2779,7 +2779,17 @@ public class Namespaces extends NamespacesBase {
                 });
     }
 
-
+    @POST
+    @Path("/{tenant}/{namespace}/migration")
+    @ApiOperation(hidden = true, value = "Update migration for all topics in a namespace")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Property or cluster or namespace doesn't exist") })
+    public void enableMigration(@PathParam("tenant") String tenant,
+                                @PathParam("namespace") String namespace,
+                                boolean migrated) {
+        validateNamespaceName(tenant, namespace);
+        internalEnableMigration(migrated);
+    }
 
     private static final Logger log = LoggerFactory.getLogger(Namespaces.class);
 }

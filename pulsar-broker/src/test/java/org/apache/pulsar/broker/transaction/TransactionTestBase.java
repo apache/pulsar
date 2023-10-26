@@ -58,6 +58,7 @@ public abstract class TransactionTestBase extends TestRetrySupport {
     public static final String CLUSTER_NAME = "test";
 
     @Setter
+    @Getter
     private int brokerCount = 3;
     @Getter
     private final List<ServiceConfiguration> serviceConfigurationList = new ArrayList<>();
@@ -116,7 +117,7 @@ public abstract class TransactionTestBase extends TestRetrySupport {
         createTransactionCoordinatorAssign(numPartitionsOfTC);
         admin.tenants().createTenant(TENANT,
                 new TenantInfoImpl(Sets.newHashSet("appid1"), Sets.newHashSet(CLUSTER_NAME)));
-        admin.namespaces().createNamespace(NAMESPACE1);
+        admin.namespaces().createNamespace(NAMESPACE1, 4);
         if (topic != null) {
             if (numPartitions == 0) {
                 admin.topics().createNonPartitionedTopic(topic);
@@ -156,10 +157,8 @@ public abstract class TransactionTestBase extends TestRetrySupport {
             conf.setBrokerShutdownTimeoutMs(0L);
             conf.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
             conf.setBrokerServicePort(Optional.of(0));
-            conf.setBrokerServicePortTls(Optional.of(0));
             conf.setAdvertisedAddress("localhost");
             conf.setWebServicePort(Optional.of(0));
-            conf.setWebServicePortTls(Optional.of(0));
             conf.setTransactionCoordinatorEnabled(true);
             conf.setBrokerDeduplicationEnabled(true);
             conf.setTransactionBufferSnapshotMaxTransactionCount(2);

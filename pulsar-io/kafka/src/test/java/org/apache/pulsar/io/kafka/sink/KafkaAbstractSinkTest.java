@@ -47,7 +47,7 @@ public class KafkaAbstractSinkTest {
     private static class DummySink extends KafkaAbstractSink<String, byte[]> {
 
         @Override
-        public KeyValue extractKeyValue(Record record) {
+        public KeyValue<String, byte[]> extractKeyValue(Record<byte[]> record) {
             return new KeyValue<>(record.getKey().orElse(null), record.getValue());
         }
     }
@@ -74,7 +74,7 @@ public class KafkaAbstractSinkTest {
 
     @Test
     public void testInvalidConfigWillThrownException() throws Exception {
-        KafkaAbstractSink sink = new DummySink();
+        KafkaAbstractSink<String, byte[]> sink = new DummySink();
         Map<String, Object> config = new HashMap<>();
         SinkContext sc = new SinkContext() {
             @Override
@@ -164,12 +164,12 @@ public class KafkaAbstractSinkTest {
             public CompletableFuture<ByteBuffer> getStateAsync(String key) {
                 return null;
             }
-            
+
             @Override
             public void deleteState(String key) {
-            	
+
             }
-            
+
             @Override
             public CompletableFuture<Void> deleteStateAsync(String key) {
             	return null;
@@ -178,6 +178,11 @@ public class KafkaAbstractSinkTest {
             @Override
             public PulsarClient getPulsarClient() {
                 return null;
+            }
+
+            @Override
+            public void fatal(Throwable t) {
+
             }
         };
         ThrowingRunnable openAndClose = ()->{
