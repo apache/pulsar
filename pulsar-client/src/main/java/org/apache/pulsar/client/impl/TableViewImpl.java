@@ -238,11 +238,14 @@ public class TableViewImpl<T> implements TableView<T> {
 
         CompletableFuture<Reader<T>> future = new CompletableFuture<>();
         reader.getLastMessageIdsAsync().thenAccept(lastMessageIds -> {
-            Map<String, TopicMessageId> maxMessageIds = new HashMap<>();
+            Map<String, TopicMessageId> maxMessageIds = new ConcurrentHashMap<>();
             lastMessageIds.forEach(topicMessageId -> {
                 maxMessageIds.put(topicMessageId.getOwnerTopic(), topicMessageId);
             });
             readAllExistingMessages(reader, future, startTime, messagesRead, maxMessageIds);
+        }).exceptionally(ex -> {
+            future.completeExceptionally(ex);
+            return null;
         });
         return future;
     }
@@ -262,7 +265,7 @@ public class TableViewImpl<T> implements TableView<T> {
                                   if (maxMessageId != null && msg.getMessageId().compareTo(maxMessageId) >= 0) {
                                       maxMessageIds.remove(msg.getTopicName());
                                   }
-                                  if (maxMessageIds.size() == 0) {
+                                  if (maxMessageIds.isEmpty()) {
                                       future.complete(reader);
                                   } else {
                                       readAllExistingMessages(reader, future, startTime, messagesRead, maxMessageIds);
