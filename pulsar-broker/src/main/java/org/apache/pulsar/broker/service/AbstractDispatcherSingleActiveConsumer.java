@@ -178,7 +178,8 @@ public abstract class AbstractDispatcherSingleActiveConsumer extends AbstractBas
                 });
             } else {
                 // It should never happen.
-                return FutureUtil.failedFuture(new ConsumerBusyException("Active consumer is in a strange state."));
+                return FutureUtil.failedFuture(new ConsumerBusyException("Active consumer is in a strange state."
+                        + " Active consumer is null, but there are " + consumers.size() + " were registered."));
             }
         }
 
