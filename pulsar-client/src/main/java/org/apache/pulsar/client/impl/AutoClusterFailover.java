@@ -266,9 +266,9 @@ public class AutoClusterFailover implements ServiceUrlProvider {
         private long checkIntervalMs = 30_000;
         private Map<String, AutoClusterFailoverCustomProbe> probes =
                 new HashMap<String, AutoClusterFailoverCustomProbe>();
-        
+
         private boolean defaultProbe(String url) {
-        	try {
+            try {
                 final PulsarServiceNameResolver resolver = new PulsarServiceNameResolver();
                 resolver.updateServiceUrl(primary);
                 InetSocketAddress endpoint = resolver.resolveHost();
@@ -288,7 +288,7 @@ public class AutoClusterFailover implements ServiceUrlProvider {
             this.probes.put(primary, new AutoClusterFailoverCustomProbe() {
                 @Override
                 public boolean execute() {
-                	return defaultProbe(primary);
+                   return defaultProbe(primary);
                 };
             });
             return this;
@@ -309,7 +309,7 @@ public class AutoClusterFailover implements ServiceUrlProvider {
                 probes.put(url, new AutoClusterFailoverCustomProbe() {
                     @Override
                     public boolean execute() {
-                    	return defaultProbe(url);
+                        return defaultProbe(url);
                     };
                 });
             }
