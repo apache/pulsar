@@ -1675,7 +1675,7 @@ public class BrokerService implements Closeable {
                                 .SECONDARY_ISOLATION_BOOKIE_GROUPS, "*");
                         managedLedgerConfig.setBookKeeperEnsemblePlacementPolicyProperties(properties);
                     } else {
-                        Map<String, Object> properties = new HashMap<>();
+                        Map<String, Object> properties = Maps.newHashMap();
                         properties.put(IsolatedBookieEnsemblePlacementPolicy.ISOLATION_BOOKIE_GROUPS, "");
                         properties.put(IsolatedBookieEnsemblePlacementPolicy.SECONDARY_ISOLATION_BOOKIE_GROUPS, "");
                         managedLedgerConfig.setBookKeeperEnsemblePlacementPolicyProperties(properties);
