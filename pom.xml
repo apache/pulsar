@@ -1665,7 +1665,7 @@ flexible messaging model and an intuitive client API.</description>
                 <exclude>**/ByteBufCodedOutputStream.java</exclude>
                 <exclude>**/ahc.properties</exclude>
                 <exclude>bin/proto/*</exclude>
-                <exclude>conf/schema_example.conf</exclude>
+                <exclude>conf/schema_example.json</exclude>
                 <exclude>data/**</exclude>
                 <exclude>logs/**</exclude>
                 <exclude>**/circe/**</exclude>
@@ -1790,7 +1790,7 @@ flexible messaging model and an intuitive client API.</description>
             <exclude>**/requirements.txt</exclude>
 
             <!-- Configuration Templates -->
-            <exclude>conf/schema_example.conf</exclude>
+            <exclude>conf/schema_example.json</exclude>
             <exclude>**/templates/*.tpl</exclude>
 
             <!-- helm files -->
