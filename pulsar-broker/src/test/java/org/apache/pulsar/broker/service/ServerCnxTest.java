@@ -1082,7 +1082,7 @@ public class ServerCnxTest {
         assertEquals(topicRef.getSubscription(sName).getConsumers().stream().map(Consumer::consumerName)
                 .collect(Collectors.toList()), Collections.singletonList(cName1));
 
-        // Verify the consumer producer using a new connection will override the consumer who using a stopped channel.
+        // Verify the consumer using a new connection will override the consumer who using a stopped channel.
         channelsStoppedAnswerHealthCheck.add(channel);
         ClientChannel channel2 = new ClientChannel();
         setChannelConnected(channel2.serverCnx);
