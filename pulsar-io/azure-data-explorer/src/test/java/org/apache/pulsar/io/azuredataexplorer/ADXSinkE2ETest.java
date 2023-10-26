@@ -18,25 +18,65 @@
  */
 package org.apache.pulsar.io.azuredataexplorer;
 
+import com.microsoft.azure.kusto.data.Client;
+import com.microsoft.azure.kusto.data.ClientFactory;
+import com.microsoft.azure.kusto.data.KustoOperationResult;
+import com.microsoft.azure.kusto.data.KustoResultSetTable;
+import com.microsoft.azure.kusto.data.auth.ConnectionStringBuilder;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.functions.instance.SinkRecord;
+import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 import java.nio.charset.StandardCharsets;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
+import java.util.concurrent.ThreadLocalRandom;
 
 public class ADXSinkE2ETest {
 
+    private String table = "ADXPulsarTest_"+ ThreadLocalRandom.current().nextInt(0,100);
+
+    private Client kustoAdminClient= null;
+    String database;
+
     @BeforeMethod
     public void setUp() throws Exception {
+
+        Objects.requireNonNull(System.getenv("kustoDatabase"), "kustoDatabase not set.");
+        Objects.requireNonNull(System.getenv("kustoCluster"), "kustoCluster not set.");
+        Objects.requireNonNull(System.getenv("kustoAadAuthorityID"), "kustoAadAuthorityID not set.");
+        Objects.requireNonNull(System.getenv("kustoAadAppId"), "kustoAadAppId not set.");
+        Objects.requireNonNull(System.getenv("kustoAadAppSecret"), "kustoAadAppSecret not set.");
+
+        database = System.getenv("kustoDatabase");
+        String cluster = System.getenv("kustoCluster");
+        String authorityId  = System.getenv("kustoAadAuthorityID");
+        String appId  = System.getenv("kustoAadAppId");
+        String appkey = System.getenv("kustoAadAppSecret");
+
+        ConnectionStringBuilder engineKcsb = ConnectionStringBuilder.createWithAadApplicationCredentials(ADXSinkUtils.getQueryEndpoint(cluster), appId, appkey, authorityId);
+        kustoAdminClient = ClientFactory.createClient(engineKcsb);
+
+        kustoAdminClient.execute(database,generateAlterIngestionBatchingPolicyCommand(
+                database,
+                "{\"MaximumBatchingTimeSpan\":\"00:00:10\", \"MaximumNumberOfItems\": 500, \"MaximumRawDataSizeMB\": 1024}"));
+
+        String createTableCommand = ".create table "+table+" ( Key:string , Value:string, EventTime:datetime , ProducerName:string , SequenceId:long ,Properties:dynamic )";
+        kustoAdminClient.execute(database, createTableCommand);
+
+    }
+
+    private String generateAlterIngestionBatchingPolicyCommand( String entityName, String targetBatchingPolicy){
+        return  ".alter database "+entityName+" policy ingestionbatching ```"+targetBatchingPolicy +"```";
     }
 
     @AfterMethod(alwaysRun = true)
     public void tearDown() {
+        try {
+            kustoAdminClient.execute(".drop table " + table + " ifexists");
+        }catch (Exception ignore){}
     }
 
     @Test
@@ -46,7 +86,7 @@ public class ADXSinkE2ETest {
         Map<String, Object> configs = new HashMap<>();
         configs.put("clusterUrl", System.getenv("kustoCluster"));
         configs.put("database", System.getenv("kustoDatabase"));
-        configs.put("table", "ADXPulsarData");
+        configs.put("table", table);
         configs.put("batchTimeMs", 1000);
         configs.put("flushImmediately", true);
         configs.put("appId", System.getenv("kustoAadAppId"));
@@ -55,12 +95,19 @@ public class ADXSinkE2ETest {
 
         ADXSink sink = new ADXSink();
         sink.open(configs, null);
+        int writeCount = 50;
 
-        for (int i = 0; i < 50; i++) {
+        for (int i = 0; i < writeCount ; i++) {
             Record<byte[]> record = build("key_"+i, "test data from ADX Pulsar Sink_"+i);
             sink.write(record);
         }
         Thread.sleep(40000);
+        KustoOperationResult result =  kustoAdminClient.execute(database,table+ " | count");
+        KustoResultSetTable mainTableResult = result.getPrimaryResults();
+        mainTableResult.next();
+        int actualRowsCount = mainTableResult.getInt(0);
+        Assert.assertEquals(actualRowsCount,writeCount);
+
         sink.close();
     }
 

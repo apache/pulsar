@@ -57,7 +57,6 @@ public class ADXSink implements Sink<byte[]> {
 
     @Override
     public void open(Map<String, Object> config, SinkContext sinkContext) throws Exception {
-        System.out.println("Here are the configs: " + config);
 
         // Azure data explorer, initializations
         ADXSinkConfig adxconfig = ADXSinkConfig.load(config);
@@ -106,7 +105,6 @@ public class ADXSink implements Sink<byte[]> {
 
         for (Record<byte[]> record : recordsToSink) {
             try {
-                System.out.println("here we will be writing to ADX" + record.getKey() + Arrays.toString(record.getValue()) + " -----><><>  " + record.getMessage());
                 ADXPulsarEvent event = getADXPulsarEvent(record);
                 StreamSourceInfo streamSourceInfo = new StreamSourceInfo(new ByteArrayInputStream(mapper.writeValueAsString(event).getBytes()));
                 OperationStatus status = client.ingestFromStream(streamSourceInfo,
@@ -119,12 +117,6 @@ public class ADXSink implements Sink<byte[]> {
             }
         }
         recordsToSink.clear();
-        /* TEST CODE --------------- */
-       /* try {
-            Thread.sleep(15000);
-        } catch (Exception ignored) {
-        }*/
-        /*--------------------*/
     }
 
     private ADXPulsarEvent getADXPulsarEvent(Record<byte[]> record) throws Exception {
