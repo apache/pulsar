@@ -64,12 +64,15 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
+import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.AddEntryCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.CloseCallback;
@@ -1046,12 +1049,12 @@ public class ServerCnxTest {
         ByteBuf cmdSubscribe2 = Commands.newSubscribe(tName, sName, consumerId, requestId.incrementAndGet(),
                 CommandSubscribe.SubType.Exclusive, 0, cName2, 0);
         channel2.channel.writeInbound(cmdSubscribe2);
-        AtomicBoolean channel1MonitorStopped = startChannelMonitorToHandleUserTask();
+        BackGroundExecutor backGroundExecutor = startBackgroundExecutorForEmbeddedChannel(channel);
 
         assertTrue(getResponse(channel2.channel, channel2.clientChannelHelper) instanceof CommandSuccess);
         assertEquals(topicRef.getSubscription(sName).getConsumers().size(), 1);
         assertEquals(topicRef.getSubscription(sName).getConsumers().iterator().next().consumerName(), cName2);
-        channel1MonitorStopped.set(true);
+        backGroundExecutor.close();
 
         // cleanup.
         channel.finish();
@@ -1059,7 +1062,8 @@ public class ServerCnxTest {
     }
 
     @Test
-    public void testHandleConsumerAfterClientChannelInactiveWithDisabledConnectionCheck() throws Exception {
+    public void testHandleConsumerAfterClientChannelInactiveWhenDisabledFeatureConnectionLivenessCheckTimeoutMillis()
+            throws Exception {
         final String tName = successTopicName;
         final long consumerId = 1;
         final MutableInt requestId = new MutableInt(1);
@@ -1089,7 +1093,7 @@ public class ServerCnxTest {
         ByteBuf cmdSubscribe2 = Commands.newSubscribe(tName, sName, consumerId, requestId.incrementAndGet(),
                 CommandSubscribe.SubType.Exclusive, 0, cName2, 0);
         channel2.channel.writeInbound(cmdSubscribe2);
-        AtomicBoolean channel1MonitorStopped = startChannelMonitorToHandleUserTask();
+        BackGroundExecutor backGroundExecutor = startBackgroundExecutorForEmbeddedChannel(channel);
 
         // Since the feature "ConnectionLiveness" has been disabled, the fix
         // by https://github.com/apache/pulsar/pull/21183 will not be affected, so the client will still get an error.
@@ -1099,7 +1103,7 @@ public class ServerCnxTest {
                 .contains("Exclusive consumer is already connected"));
         assertEquals(topicRef.getSubscription(sName).getConsumers().size(), 1);
         assertEquals(topicRef.getSubscription(sName).getConsumers().iterator().next().consumerName(), cName1);
-        channel1MonitorStopped.set(true);
+        backGroundExecutor.close();
 
         // cleanup.
         channel.finish();
@@ -1113,18 +1117,28 @@ public class ServerCnxTest {
      * to run it.
      * So starting a background thread to trigger the tasks in the queue.
      */
-    private AtomicBoolean startChannelMonitorToHandleUserTask() {
-        AtomicBoolean channel1MonitorStopped = new AtomicBoolean(false);
-        Thread channel1Monitor = new Thread(() -> {
-            while (!channel1MonitorStopped.get()) {
-                channel.runPendingTasks();
-                try {
-                    Thread.sleep(100);
-                } catch (InterruptedException e) {}
+    private BackGroundExecutor startBackgroundExecutorForEmbeddedChannel(final EmbeddedChannel channel) {
+        ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
+        ScheduledFuture scheduledFuture = executor.scheduleWithFixedDelay(() -> {
+            channel.runPendingTasks();
+        }, 100, 100, TimeUnit.MILLISECONDS);
+        return new BackGroundExecutor(executor, scheduledFuture);
+    }
+
+    @AllArgsConstructor
+    private static class BackGroundExecutor implements Closeable {
+
+        private ScheduledExecutorService executor;
+
+        private ScheduledFuture scheduledFuture;
+
+        @Override
+        public void close() throws IOException {
+            if (scheduledFuture != null) {
+                scheduledFuture.cancel(true);
             }
-        });
-        channel1Monitor.start();
-        return channel1MonitorStopped;
+            executor.shutdown();
+        }
     }
 
     private class ClientChannel implements Closeable {
