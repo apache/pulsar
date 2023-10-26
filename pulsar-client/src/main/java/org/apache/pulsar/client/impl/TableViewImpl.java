@@ -258,13 +258,13 @@ public class TableViewImpl<T> implements TableView<T> {
                        reader.readNextAsync()
                                .thenAccept(msg -> {
                                   messagesRead.incrementAndGet();
-                                  handleMessage(msg);
-                                  // The message is read one by one in a single thread,
-                                  // so it's fine that uses a hashmap to store last message ID.
+                                  // We need remove the partition form the maxMessageIds map
+                                  // once the partition has been read completely.
                                   TopicMessageId maxMessageId = maxMessageIds.get(msg.getTopicName());
                                   if (maxMessageId != null && msg.getMessageId().compareTo(maxMessageId) >= 0) {
                                       maxMessageIds.remove(msg.getTopicName());
                                   }
+                                   handleMessage(msg);
                                   if (maxMessageIds.isEmpty()) {
                                       future.complete(reader);
                                   } else {
