@@ -20,11 +20,14 @@ package org.apache.pulsar.io.azuredataexplorer;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.experimental.Accessors;
 import org.apache.pulsar.io.core.annotations.FieldDoc;
 
+import java.io.File;
+import java.io.IOException;
 import java.io.Serializable;
 import java.util.Map;
 
@@ -111,6 +114,10 @@ public class ADXSinkConfig implements Serializable {
             help = "For batching, this defines the time to hold records before sink to adx")
     private long batchTimeMs=10000;
 
+    public static ADXSinkConfig load(String yamlFile) throws IOException {
+        ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
+        return mapper.readValue(new File(yamlFile), ADXSinkConfig.class);
+    }
     protected static ADXSinkConfig load(Map<String, Object> config) throws JsonProcessingException {
         ObjectMapper mapper = new ObjectMapper();
         return mapper.readValue(mapper.writeValueAsString(config), ADXSinkConfig.class);
