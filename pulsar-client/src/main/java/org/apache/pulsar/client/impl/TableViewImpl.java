@@ -258,13 +258,13 @@ public class TableViewImpl<T> implements TableView<T> {
                        reader.readNextAsync()
                                .thenAccept(msg -> {
                                   messagesRead.incrementAndGet();
-                                  // We need remove the partition form the maxMessageIds map
+                                  // We need remove the partition from the maxMessageIds map
                                   // once the partition has been read completely.
                                   TopicMessageId maxMessageId = maxMessageIds.get(msg.getTopicName());
                                   if (maxMessageId != null && msg.getMessageId().compareTo(maxMessageId) >= 0) {
                                       maxMessageIds.remove(msg.getTopicName());
                                   }
-                                   handleMessage(msg);
+                                  handleMessage(msg);
                                   if (maxMessageIds.isEmpty()) {
                                       future.complete(reader);
                                   } else {
