@@ -266,29 +266,31 @@ public class AutoClusterFailover implements ServiceUrlProvider {
         private long checkIntervalMs = 30_000;
         private Map<String, AutoClusterFailoverCustomProbe> probes =
                 new HashMap<String, AutoClusterFailoverCustomProbe>();
-
-        private AutoClusterFailoverCustomProbe defaultProbe = new AutoClusterFailoverCustomProbe() {
-            @Override
-            public boolean execute() {
-                try {
-                    final PulsarServiceNameResolver resolver = new PulsarServiceNameResolver();
-                    resolver.updateServiceUrl(primary);
-                    InetSocketAddress endpoint = resolver.resolveHost();
-                    Socket socket = new Socket();
-                    socket.connect(new InetSocketAddress(endpoint.getHostName(), endpoint.getPort()), TIMEOUT);
-                    socket.close();
-                    return true;
-                } catch (Exception e) {
-                    log.warn("Failed to probe available, url: {}", primary, e);
-                    throw new IllegalArgumentException("false: " + primary);
-                }
-            };
-        };
+        
+        private boolean defaultProbe(String url) {
+        	try {
+                final PulsarServiceNameResolver resolver = new PulsarServiceNameResolver();
+                resolver.updateServiceUrl(primary);
+                InetSocketAddress endpoint = resolver.resolveHost();
+                Socket socket = new Socket();
+                socket.connect(new InetSocketAddress(endpoint.getHostName(), endpoint.getPort()), TIMEOUT);
+                socket.close();
+                return true;
+            } catch (Exception e) {
+                log.warn("Failed to probe available, url: {}", primary, e);
+                return false;
+            }
+        }
 
         @Override
         public AutoClusterFailoverBuilder primary(@NonNull String primary) {
             this.primary = primary;
-            this.probes.put(primary, defaultProbe);
+            this.probes.put(primary, new AutoClusterFailoverCustomProbe() {
+                @Override
+                public boolean execute() {
+                	return defaultProbe(primary);
+                };
+            });
             return this;
         }
 
@@ -304,7 +306,12 @@ public class AutoClusterFailover implements ServiceUrlProvider {
         public AutoClusterFailoverBuilder secondary(@NonNull List<String> secondary) {
             this.secondary = secondary;
             for (String url : secondary) {
-                probes.put(url, defaultProbe);
+                probes.put(url, new AutoClusterFailoverCustomProbe() {
+                    @Override
+                    public boolean execute() {
+                    	return defaultProbe(url);
+                    };
+                });
             }
             return this;
         }
