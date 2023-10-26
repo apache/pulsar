@@ -132,10 +132,8 @@ public class TokenOauth2AuthenticatedProducerConsumerTest extends ProducerConsum
         conf.setBrokerClientAuthenticationParameters("{\n"
                 + "  \"privateKey\": \"" + CREDENTIALS_FILE + "\",\n"
                 + "  \"issuerUrl\": \"" + server.baseUrl() + "\",\n"
-                + "  \"audience\": \"" + AUDIENCE + "\",\n"
-                + "}\n");
-
-        conf.setClusterName("test");
+                + "  \"audience\": \"" + AUDIENCE + "\"\n"
+                + "}\n");        conf.setClusterName("test");
 
         // Set provider domain name
         Properties properties = new Properties();

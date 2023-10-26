@@ -85,6 +85,7 @@ public class PatternTopicsConsumerImplAuthTest extends ProducerConsumerBase {
         // set isTcpLookup = true, to use BinaryProtoLookupService to get topics for a pattern.
         isTcpLookup = true;
 
+        conf.setTopicLevelPoliciesEnabled(false);
         conf.setAuthenticationEnabled(true);
         conf.setAuthorizationEnabled(true);
 

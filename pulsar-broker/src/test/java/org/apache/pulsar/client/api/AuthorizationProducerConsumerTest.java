@@ -117,7 +117,7 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
     @Test
     public void testProducerAndConsumerAuthorization() throws Exception {
         log.info("-- Starting {} test --", methodName);
-
+        conf.setTopicLevelPoliciesEnabled(false);
         conf.setAuthorizationProvider(TestAuthorizationProvider.class.getName());
         setup();
 
@@ -177,7 +177,7 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
     @Test
     public void testSubscriberPermission() throws Exception {
         log.info("-- Starting {} test --", methodName);
-
+        conf.setTopicLevelPoliciesEnabled(false);
         conf.setEnablePackagesManagement(true);
         conf.setPackagesManagementStorageProvider(MockedPackagesStorageProvider.class.getName());
         conf.setAuthorizationProvider(PulsarAuthorizationProvider.class.getName());
@@ -367,7 +367,7 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
     @Test
     public void testClearBacklogPermission() throws Exception {
         log.info("-- Starting {} test --", methodName);
-
+        conf.setTopicLevelPoliciesEnabled(false);
         conf.setAuthorizationProvider(PulsarAuthorizationProvider.class.getName());
         setup();
 
@@ -551,7 +551,7 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
     @Test
     public void testSubscriptionPrefixAuthorization() throws Exception {
         log.info("-- Starting {} test --", methodName);
-
+        conf.setTopicLevelPoliciesEnabled(false);
         conf.setAuthorizationProvider(TestAuthorizationProviderWithSubscriptionPrefix.class.getName());
         setup();
 
@@ -635,7 +635,7 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
     @Test
     public void testPermissionForProducerCreateInitialSubscription() throws Exception {
         log.info("-- Starting {} test --", methodName);
-
+        conf.setTopicLevelPoliciesEnabled(false);
         conf.setAuthorizationProvider(PulsarAuthorizationProvider.class.getName());
         setup();
 

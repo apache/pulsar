@@ -60,6 +60,7 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.authentication.AuthenticationProviderTls;
 import org.apache.pulsar.broker.intercept.CounterBrokerInterceptor;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.service.BrokerTestBase;
@@ -71,6 +72,8 @@ import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.impl.auth.AuthenticationDisabled;
+import org.apache.pulsar.client.impl.auth.AuthenticationTls;
 import org.apache.pulsar.client.impl.ProducerImpl;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfo;
@@ -234,6 +237,23 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
         mockZooKeeperGlobal = createMockZooKeeperGlobal();
         mockBookKeeper = createMockBookKeeper(bkExecutor);
 
+        // trying to config the broker internal client
+        if (conf.getWebServicePortTls().isPresent()
+            && conf.getAuthenticationProviders().contains(AuthenticationProviderTls.class.getName())
+            && !conf.isTlsEnabledWithKeyStore()) {
+            // enabled TLS
+            if (conf.getBrokerClientAuthenticationPlugin() == null
+                || conf.getBrokerClientAuthenticationPlugin().equals(AuthenticationDisabled.class.getName())) {
+                conf.setBrokerClientAuthenticationPlugin(AuthenticationTls.class.getName());
+                conf.setBrokerClientTlsEnabledWithKeyStore(true);
+                conf.setBrokerClientTlsKeyStoreType(KEYSTORE_TYPE);
+                conf.setBrokerClientTlsKeyStore(BROKER_KEYSTORE_FILE_PATH);
+                conf.setBrokerClientTlsKeyStorePassword(BROKER_KEYSTORE_PW);
+                conf.setBrokerClientTlsTrustStoreType(KEYSTORE_TYPE);
+                conf.setBrokerClientTlsTrustStore(BROKER_TRUSTSTORE_FILE_PATH);
+                conf.setBrokerClientTlsTrustStorePassword(BROKER_TRUSTSTORE_PW);
+            }
+        }
         startBroker();
     }
 
@@ -365,7 +385,7 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
     protected void setupBrokerMocks(PulsarService pulsar) throws Exception {
         // Override default providers with mocked ones
         doReturn(mockBookKeeperClientFactory).when(pulsar).newBookKeeperClientFactory();
-        
+
         PulsarMetadataEventSynchronizer synchronizer = StringUtils
                 .isNotBlank(pulsar.getConfig().getMetadataSyncEventTopic())
                         ? new PulsarMetadataEventSynchronizer(pulsar, pulsar.getConfig().getMetadataSyncEventTopic())

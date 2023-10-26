@@ -38,6 +38,7 @@ import org.apache.pulsar.broker.authentication.utils.AuthTokenUtils;
 import org.apache.pulsar.client.admin.PulsarAdminBuilder;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.AuthenticationFactory;
+import org.apache.pulsar.client.impl.auth.AuthenticationToken;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
@@ -63,6 +64,9 @@ public class TestPulsarAuth extends MockedPulsarServiceBaseTest {
         conf.setProperties(properties);
         conf.setSuperUserRoles(Sets.newHashSet(SUPER_USER_ROLE));
         conf.setClusterName("c1");
+        conf.setBrokerClientAuthenticationPlugin(AuthenticationToken.class.getName());
+        conf.setBrokerClientAuthenticationParameters("token:" + AuthTokenUtils
+                .createToken(secretKey, SUPER_USER_ROLE, Optional.empty()));
         internalSetup();
 
         admin.clusters().createCluster("c1", ClusterData.builder().build());

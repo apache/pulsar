@@ -68,6 +68,8 @@ public class ProxyWithoutServiceDiscoveryTest extends ProducerConsumerBase {
     @Override
     protected void setup() throws Exception {
 
+        // Disable topic policy
+        conf.setTopicLevelPoliciesEnabled(false);
         // enable tls and auth&auth at broker
         conf.setAuthenticationEnabled(true);
         conf.setAuthorizationEnabled(false);

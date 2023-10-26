@@ -23,20 +23,18 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
 import java.io.File;
 import java.io.FileWriter;
 import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
-
 import javax.security.auth.login.Configuration;
-
 import com.google.common.collect.ImmutableSet;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.FileUtils;
@@ -54,6 +52,7 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.impl.auth.AuthenticationSasl;
 import org.apache.pulsar.common.api.AuthData;
 import org.apache.pulsar.common.sasl.SaslConstants;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.AfterMethod;
@@ -181,7 +180,12 @@ public class SaslAuthenticateTest extends ProducerConsumerBase {
         conf.setAuthenticationProviders(providers);
         conf.setClusterName("test");
         conf.setSuperUserRoles(ImmutableSet.of("client" + "@" + kdc.getRealm()));
-
+        Map<String, String> clientSaslConfig = new HashMap<>();
+        clientSaslConfig.put("saslJaasClientSectionName", "PulsarClient");
+        clientSaslConfig.put("serverType", "broker");
+        conf.setBrokerClientAuthenticationPlugin(AuthenticationSasl.class.getName());
+        conf.setBrokerClientAuthenticationParameters(ObjectMapperFactory
+                .getThreadLocal().writeValueAsString(clientSaslConfig));
         super.init();
 
         lookupUrl = new URI(pulsar.getWebServiceAddress());
@@ -192,9 +196,6 @@ public class SaslAuthenticateTest extends ProducerConsumerBase {
             .authentication(authSasl));
 
         // set admin auth, to verify admin web resources
-        Map<String, String> clientSaslConfig = Maps.newHashMap();
-        clientSaslConfig.put("saslJaasClientSectionName", "PulsarClient");
-        clientSaslConfig.put("serverType", "broker");
         log.info("set client jaas section name: PulsarClient");
         admin = PulsarAdmin.builder()
             .serviceHttpUrl(brokerUrl.toString())

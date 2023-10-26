@@ -117,7 +117,7 @@ public class AutoCloseUselessClientConSupports extends MultiBrokerBaseTest {
                 }
                 for (PulsarAdmin pulsarAdmin : super.getAllAdmins()) {
                     pulsarAdmin.namespaces().unloadNamespaceBundle("public/default", "0x00000000_0xffffffff");
-                    Thread.sleep(20);
+                    Thread.sleep(200);
                 }
                 return false;
             });
