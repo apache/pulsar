@@ -333,7 +333,6 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                     });
             initFuture.exceptionally(ex -> {
                 try {
-                    log.error("[{}] Failed to create reader on __change_events topic", namespace, ex);
                     cleanCacheAndCloseReader(namespace, false);
                 } catch (Throwable cleanupEx) {
                     // Adding this catch to avoid break callback chain
@@ -402,8 +401,6 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
     private void initPolicesCache(SystemTopicClient.Reader<PulsarEvent> reader, CompletableFuture<Void> future) {
         reader.hasMoreEventsAsync().whenComplete((hasMore, ex) -> {
             if (ex != null) {
-                log.error("[{}] Failed to check the move events for the system topic",
-                        reader.getSystemTopic().getTopicName(), ex);
                 future.completeExceptionally(ex);
                 cleanCacheAndCloseReader(reader.getSystemTopic().getTopicName().getNamespaceObject(), false);
                 return;
@@ -484,7 +481,6 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                     } else {
                         Throwable cause = FutureUtil.unwrapCompletionException(ex);
                         if (cause instanceof PulsarClientException.AlreadyClosedException) {
-                            log.warn("Read more topic policies exception, close the read now!", ex);
                             cleanCacheAndCloseReader(
                                     reader.getSystemTopic().getTopicName().getNamespaceObject(), false);
                         } else {
