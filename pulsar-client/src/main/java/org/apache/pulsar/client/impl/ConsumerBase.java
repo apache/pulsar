@@ -711,8 +711,13 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
 
     @Override
     public void unsubscribe() throws PulsarClientException {
+        unsubscribe(false);
+    }
+
+    @Override
+    public void unsubscribe(boolean force) throws PulsarClientException {
         try {
-            unsubscribeAsync().get();
+            unsubscribeAsync(force).get();
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw PulsarClientException.unwrap(e);
@@ -722,7 +727,12 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     }
 
     @Override
-    public abstract CompletableFuture<Void> unsubscribeAsync();
+    public CompletableFuture<Void> unsubscribeAsync() {
+        return unsubscribeAsync(false);
+    }
+
+    @Override
+    public abstract CompletableFuture<Void> unsubscribeAsync(boolean force);
 
     @Override
     public void close() throws PulsarClientException {

@@ -74,6 +74,8 @@ public interface Subscription extends MessageExpirer {
 
     CompletableFuture<Void> doUnsubscribe(Consumer consumer);
 
+    CompletableFuture<Void> doUnsubscribe(Consumer consumer, boolean forcefully);
+
     CompletableFuture<Void> clearBacklog();
 
     CompletableFuture<Void> skipMessages(int numMessagesToSkip);

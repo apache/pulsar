@@ -1908,7 +1908,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         CompletableFuture<Consumer> consumerFuture = consumers.get(unsubscribe.getConsumerId());
 
         if (consumerFuture != null && consumerFuture.isDone() && !consumerFuture.isCompletedExceptionally()) {
-            consumerFuture.getNow(null).doUnsubscribe(unsubscribe.getRequestId());
+            consumerFuture.getNow(null).doUnsubscribe(unsubscribe.getRequestId(), unsubscribe.isForce());
         } else {
             commandSender.sendErrorResponse(unsubscribe.getRequestId(), ServerError.MetadataError,
                     "Consumer not found");

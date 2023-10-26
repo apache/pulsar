@@ -1083,4 +1083,41 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
         });
     }
 
+    @Test
+    public void testSharedConsumerUnsubscribe() throws Exception {
+        String topic = "persistent://my-property/my-ns/sharedUnsubscribe";
+        String sub = "my-subscriber-name";
+        @Cleanup
+        Consumer<byte[]> consumer1 = pulsarClient.newConsumer().topic(topic).subscriptionType(SubscriptionType.Shared)
+                .subscriptionName(sub).subscribe();
+        @Cleanup
+        Consumer<byte[]> consumer2 = pulsarClient.newConsumer().topic(topic).subscriptionType(SubscriptionType.Shared)
+                .subscriptionName(sub).subscribe();
+        try {
+            consumer1.unsubscribe();
+            fail("should have failed as consumer-2 is already connected");
+        } catch (Exception e) {
+            // Ok
+        }
+
+        consumer1.unsubscribe(true);
+        try {
+            consumer2.unsubscribe(true);
+        } catch (PulsarClientException.NotConnectedException e) {
+            // Ok. consumer-2 is already disconnected with force unsubscription
+        }
+        assertFalse(consumer1.isConnected());
+        assertFalse(consumer2.isConnected());
+    }
+
+    @Test(dataProvider = "subType")
+    public void testUnsubscribeForce(SubscriptionType type) throws Exception {
+        String topic = "persistent://my-property/my-ns/sharedUnsubscribe";
+        String sub = "my-subscriber-name";
+        @Cleanup
+        Consumer<byte[]> consumer1 = pulsarClient.newConsumer().topic(topic).subscriptionType(type)
+                .subscriptionName(sub).subscribe();
+        consumer1.unsubscribe(true);
+        assertFalse(consumer1.isConnected());
+    }
 }

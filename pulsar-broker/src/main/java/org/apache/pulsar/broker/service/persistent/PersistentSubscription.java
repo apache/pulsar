@@ -1038,11 +1038,24 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
      */
     @Override
     public CompletableFuture<Void> doUnsubscribe(Consumer consumer) {
+        return doUnsubscribe(consumer, false);
+    }
+
+    /**
+     * Handle unsubscribe command from the client API Check with the dispatcher is this consumer can proceed with
+     * unsubscribe.
+     *
+     * @param consumer consumer object that is initiating the unsubscribe operation
+     * @param force unsubscribe forcefully by disconnecting consumers and closing subscription
+     * @return CompletableFuture indicating the completion of unsubscribe operation
+     */
+    @Override
+    public CompletableFuture<Void> doUnsubscribe(Consumer consumer, boolean force) {
         CompletableFuture<Void> future = new CompletableFuture<>();
         try {
-            if (dispatcher.canUnsubscribe(consumer)) {
+            if (force || dispatcher.canUnsubscribe(consumer)) {
                 consumer.close();
-                return delete();
+                return delete(force);
             }
             future.completeExceptionally(
                     new ServerMetadataException("Unconnected or shared consumer attempting to unsubscribe"));

@@ -397,7 +397,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     }
 
     @Override
-    public CompletableFuture<Void> unsubscribeAsync() {
+    public CompletableFuture<Void> unsubscribeAsync(boolean force) {
         if (getState() == State.Closing || getState() == State.Closed) {
             return FutureUtil
                     .failedFuture(new PulsarClientException.AlreadyClosedException("Consumer was already closed"));
@@ -406,7 +406,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         if (isConnected()) {
             setState(State.Closing);
             long requestId = client.newRequestId();
-            ByteBuf unsubscribe = Commands.newUnsubscribe(consumerId, requestId);
+            ByteBuf unsubscribe = Commands.newUnsubscribe(consumerId, requestId, force);
             ClientCnx cnx = cnx();
             cnx.sendRequestWithId(unsubscribe, requestId).thenRun(() -> {
                 closeConsumerTasks();
@@ -426,7 +426,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             });
         } else {
             unsubscribeFuture.completeExceptionally(
-                new PulsarClientException(
+                new PulsarClientException.NotConnectedException(
                     String.format("The client is not connected to the broker when unsubscribing the "
                             + "subscription %s of the topic %s", subscription, topicName.toString())));
         }
