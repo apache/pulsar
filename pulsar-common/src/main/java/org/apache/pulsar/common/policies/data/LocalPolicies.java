@@ -34,6 +34,7 @@ public class LocalPolicies {
     public final BookieAffinityGroupData bookieAffinityGroup;
     // namespace anti-affinity-group
     public final String namespaceAntiAffinityGroup;
+    public boolean migrated;
 
     public LocalPolicies() {
         bundles = defaultBundle();

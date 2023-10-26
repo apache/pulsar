@@ -68,6 +68,7 @@ public class TestPulsarSQLAuth extends TestPulsarSQLBase {
         envMap.put("tokenSecretKey", AuthTokenUtils.encodeKeyBase64(secretKey));
         envMap.put("superUserRoles", "admin");
         envMap.put("brokerDeleteInactiveTopicsEnabled", "false");
+        envMap.put("topicLevelPoliciesEnabled", "false");
 
         for (BrokerContainer brokerContainer : pulsarCluster.getBrokers()) {
             brokerContainer.withEnv(envMap);

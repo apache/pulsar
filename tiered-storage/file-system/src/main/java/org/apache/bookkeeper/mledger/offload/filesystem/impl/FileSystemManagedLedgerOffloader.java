@@ -46,6 +46,7 @@ import org.apache.hadoop.io.IOUtils;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.MapFile;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.OffloadPolicies;
 import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -64,7 +65,7 @@ public class FileSystemManagedLedgerOffloader implements LedgerOffloader {
     private OrderedScheduler scheduler;
     private static final long ENTRIES_PER_READ = 100;
     private OrderedScheduler assignmentScheduler;
-    private OffloadPoliciesImpl offloadPolicies;
+    private OffloadPolicies offloadPolicies;
     private final LedgerOffloaderStats offloaderStats;
 
     public static boolean driverSupported(String driver) {
@@ -388,7 +389,7 @@ public class FileSystemManagedLedgerOffloader implements LedgerOffloader {
     }
 
     @Override
-    public OffloadPoliciesImpl getOffloadPolicies() {
+    public OffloadPolicies getOffloadPolicies() {
         return offloadPolicies;
     }
 

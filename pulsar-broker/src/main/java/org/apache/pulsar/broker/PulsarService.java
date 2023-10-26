@@ -83,7 +83,6 @@ import org.apache.pulsar.broker.intercept.BrokerInterceptor;
 import org.apache.pulsar.broker.intercept.BrokerInterceptors;
 import org.apache.pulsar.broker.loadbalance.LeaderBroker;
 import org.apache.pulsar.broker.loadbalance.LeaderElectionService;
-import org.apache.pulsar.broker.loadbalance.LinuxInfoUtils;
 import org.apache.pulsar.broker.loadbalance.LoadManager;
 import org.apache.pulsar.broker.loadbalance.LoadReportUpdaterTask;
 import org.apache.pulsar.broker.loadbalance.LoadResourceQuotaUpdaterTask;
@@ -733,14 +732,6 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                         config.getDefaultRetentionTimeInMinutes() * 60));
             }
 
-            if (config.getLoadBalancerOverrideBrokerNicSpeedGbps().isEmpty()
-                    && config.isLoadBalancerEnabled()
-                    && LinuxInfoUtils.isLinux()
-                    && !LinuxInfoUtils.checkHasNicSpeeds()) {
-                throw new IllegalStateException("Unable to read VM NIC speed. You must set "
-                        + "[loadBalancerOverrideBrokerNicSpeedGbps] to override it when load balancer is enabled.");
-            }
-
             localMetadataSynchronizer = StringUtils.isNotBlank(config.getMetadataSyncEventTopic())
                     ? new PulsarMetadataEventSynchronizer(this, config.getMetadataSyncEventTopic())
                     : null;
@@ -1176,7 +1167,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     protected void acquireSLANamespace() {
         try {
             // Namespace not created hence no need to unload it
-            NamespaceName nsName = NamespaceService.getSLAMonitorNamespace(getAdvertisedAddress(), config);
+            NamespaceName nsName = NamespaceService.getSLAMonitorNamespace(getLookupServiceAddress(), config);
             if (!this.pulsarResources.getNamespaceResources().namespaceExists(nsName)) {
                 LOG.info("SLA Namespace = {} doesn't exist.", nsName);
                 return;
@@ -1729,18 +1720,18 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     }
 
     public String getSafeWebServiceAddress() {
-        return webServiceAddress != null ? webServiceAddress : webServiceAddressTls;
+        return webServiceAddressTls != null ? webServiceAddressTls : webServiceAddress;
     }
 
     @Deprecated
     public String getSafeBrokerServiceUrl() {
-        return brokerServiceUrl != null ? brokerServiceUrl : brokerServiceUrlTls;
+        return brokerServiceUrlTls != null ? brokerServiceUrlTls : brokerServiceUrl;
     }
 
     public String getLookupServiceAddress() {
-        return String.format("%s:%s", advertisedAddress, config.getWebServicePort().isPresent()
-                ? config.getWebServicePort().get()
-                : config.getWebServicePortTls().orElseThrow());
+        return String.format("%s:%s", advertisedAddress, config.getWebServicePortTls().isPresent()
+                ? config.getWebServicePortTls().get()
+                : config.getWebServicePort().orElseThrow());
     }
 
     public TopicPoliciesService getTopicPoliciesService() {

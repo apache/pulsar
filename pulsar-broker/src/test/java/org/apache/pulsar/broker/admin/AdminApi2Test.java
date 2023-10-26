@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.admin;
 import static java.util.concurrent.TimeUnit.MINUTES;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.pulsar.broker.BrokerTestUtil.newUniqueName;
+import static org.apache.pulsar.broker.resources.LoadBalanceResources.BUNDLE_DATA_BASE_PATH;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -61,11 +62,13 @@ import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.commons.lang3.reflect.FieldUtils;
+import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.admin.AdminApiTest.MockedPulsarService;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl;
+import org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerWrapper;
 import org.apache.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
@@ -437,19 +440,13 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         String tenantName = newUniqueName("prop-xyz2");
         admin.tenants().createTenant(tenantName, tenantInfo);
         admin.namespaces().createNamespace(tenantName + "/ns1", Set.of("test"));
-        conf.setBrokerServicePort(Optional.of(1024));
-        conf.setBrokerServicePortTls(Optional.of(1025));
-        conf.setWebServicePort(Optional.of(1026));
-        conf.setWebServicePortTls(Optional.of(1027));
+        ServiceConfiguration config2 = super.getDefaultConf();
         @Cleanup
-        PulsarTestContext pulsarTestContext2 = createAdditionalPulsarTestContext(conf);
+        PulsarTestContext pulsarTestContext2 = createAdditionalPulsarTestContext(config2);
         PulsarService pulsar2 = pulsarTestContext2.getPulsarService();
-        conf.setBrokerServicePort(Optional.of(2048));
-        conf.setBrokerServicePortTls(Optional.of(2049));
-        conf.setWebServicePort(Optional.of(2050));
-        conf.setWebServicePortTls(Optional.of(2051));
+        ServiceConfiguration config3 = super.getDefaultConf();
         @Cleanup
-        PulsarTestContext pulsarTestContext3 = createAdditionalPulsarTestContext(conf);
+        PulsarTestContext pulsarTestContext3 = createAdditionalPulsarTestContext(config3);
         PulsarService pulsar3 = pulsarTestContext.getPulsarService();
         @Cleanup
         PulsarAdmin admin2 = PulsarAdmin.builder().serviceHttpUrl(pulsar2.getWebServiceAddress()).build();
@@ -1675,7 +1672,7 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         final String managedLedgersPath = "/managed-ledgers/" + tenant;
         final String partitionedTopicPath = "/admin/partitioned-topics/" + tenant;
         final String localPoliciesPath = "/admin/local-policies/" + tenant;
-        final String bundleDataPath = "/loadbalance/bundle-data/" + tenant;
+        final String bundleDataPath = BUNDLE_DATA_BASE_PATH + "/" + tenant;
         assertFalse(pulsar.getLocalMetadataStore().exists(managedLedgersPath).join());
         assertFalse(pulsar.getLocalMetadataStore().exists(partitionedTopicPath).join());
         assertFalse(pulsar.getLocalMetadataStore().exists(localPoliciesPath).join());
@@ -1719,6 +1716,8 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         // Set conf.
         cleanup();
         setNamespaceAttr(namespaceAttr);
+        this.conf.setMetadataStoreUrl("127.0.0.1:2181");
+        this.conf.setConfigurationMetadataStoreUrl("127.0.0.1:2182");
         setup();
 
         String tenant = newUniqueName("test-tenant");
@@ -1739,6 +1738,28 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         admin.topics().createPartitionedTopic(topic, 10);
         assertFalse(admin.topics().getList(namespace).isEmpty());
 
+        final String managedLedgersPath = "/managed-ledgers/" + namespace;
+        final String bundleDataPath = BUNDLE_DATA_BASE_PATH + "/" + namespace;
+        // Trigger bundle owned by brokers.
+        pulsarClient.newProducer().topic(topic).create().close();
+        // Trigger bundle data write to ZK.
+        Awaitility.await().untilAsserted(() -> {
+            boolean bundleDataWereWriten = false;
+            for (PulsarService ps : new PulsarService[]{pulsar, mockPulsarSetup.getPulsar()}) {
+                ModularLoadManagerWrapper loadManager = (ModularLoadManagerWrapper) ps.getLoadManager().get();
+                ModularLoadManagerImpl loadManagerImpl = (ModularLoadManagerImpl) loadManager.getLoadManager();
+                ps.getBrokerService().updateRates();
+                loadManagerImpl.updateLocalBrokerData();
+                loadManagerImpl.writeBundleDataOnZooKeeper();
+                bundleDataWereWriten = bundleDataWereWriten || ps.getLocalMetadataStore().exists(bundleDataPath).join();
+            }
+            assertTrue(bundleDataWereWriten);
+        });
+
+        // assert znode exists in metadata store
+        assertTrue(pulsar.getLocalMetadataStore().exists(bundleDataPath).join());
+        assertTrue(pulsar.getLocalMetadataStore().exists(managedLedgersPath).join());
+
         try {
             admin.namespaces().deleteNamespace(namespace, false);
             fail("should have failed due to namespace not empty");
@@ -1755,12 +1776,8 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         assertFalse(admin.namespaces().getNamespaces(tenant).contains(namespace));
         assertTrue(admin.namespaces().getNamespaces(tenant).isEmpty());
 
-
-        final String managedLedgersPath = "/managed-ledgers/" + namespace;
+        // assert znode deleted in metadata store
         assertFalse(pulsar.getLocalMetadataStore().exists(managedLedgersPath).join());
-
-
-        final String bundleDataPath = "/loadbalance/bundle-data/" + namespace;
         assertFalse(pulsar.getLocalMetadataStore().exists(bundleDataPath).join());
     }
 
@@ -3189,6 +3206,32 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
 
         // validate update partition is success
         assertEquals(admin.topics().getPartitionedTopicMetadata(partitionedTopicName).partitions, newPartitions);
+    }
+
+    /**
+     * Validate retring failed partitioned topic should succeed.
+     * @throws Exception
+     */
+    @Test
+    public void testTopicStatsWithEarliestTimeInBacklogIfNoBacklog() throws Exception {
+        final String topicName = BrokerTestUtil.newUniqueName("persistent://" + defaultNamespace + "/tp_");
+        final String subscriptionName = "s1";
+        admin.topics().createNonPartitionedTopic(topicName);
+        admin.topics().createSubscription(topicName, subscriptionName, MessageId.earliest);
+
+        // Send one message.
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topicName).enableBatching(false)
+                .create();
+        MessageIdImpl messageId = (MessageIdImpl) producer.send("123");
+        // Catch up.
+        admin.topics().skipAllMessages(topicName, subscriptionName);
+        // Get topic stats with earliestTimeInBacklog
+        TopicStats topicStats = admin.topics().getStats(topicName, false, false, true);
+        assertEquals(topicStats.getSubscriptions().get(subscriptionName).getEarliestMsgPublishTimeInBacklog(), -1L);
+
+        // cleanup.
+        producer.close();
+        admin.topics().delete(topicName);
     }
 
     @Test(dataProvider = "topicType")

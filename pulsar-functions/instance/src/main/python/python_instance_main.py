@@ -207,6 +207,15 @@ def main():
     zpfile.extractall(os.path.dirname(str(args.py)))
     basename = os.path.basename(os.path.splitext(str(args.py))[0])
 
+    requirements_file = os.path.join(os.path.dirname(str(args.py)), basename, "requirements.txt")
+    if os.path.isfile(requirements_file):
+      cmd = "pip install -r %s" % requirements_file
+      Log.debug("Install python dependencies via cmd: %s" % cmd)
+      retval = os.system(cmd)
+      if retval != 0:
+        print("Could not install user depedencies specified by the requirements.txt file")
+        sys.exit(1)
+
     deps_dir = os.path.join(os.path.dirname(str(args.py)), basename, "deps")
 
     if os.path.isdir(deps_dir) and os.listdir(deps_dir):

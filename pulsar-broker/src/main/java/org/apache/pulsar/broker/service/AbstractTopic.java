@@ -58,7 +58,6 @@ import org.apache.pulsar.broker.service.BrokerServiceException.ProducerFencedExc
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicMigratedException;
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicTerminatedException;
 import org.apache.pulsar.broker.service.plugin.EntryFilter;
-import org.apache.pulsar.broker.service.schema.BookkeeperSchemaStorage;
 import org.apache.pulsar.broker.service.schema.SchemaRegistryService;
 import org.apache.pulsar.broker.service.schema.exceptions.IncompatibleSchemaException;
 import org.apache.pulsar.broker.stats.prometheus.metrics.Summary;
@@ -66,7 +65,7 @@ import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
-import org.apache.pulsar.common.policies.data.ClusterData.ClusterUrl;
+import org.apache.pulsar.common.policies.data.ClusterPolicies.ClusterUrl;
 import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
 import org.apache.pulsar.common.policies.data.EntryFilters;
 import org.apache.pulsar.common.policies.data.HierarchyTopicPolicies;
@@ -674,21 +673,7 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
 
     @Override
     public CompletableFuture<SchemaVersion> deleteSchema() {
-        String id = getSchemaId();
-        SchemaRegistryService schemaRegistryService = brokerService.pulsar().getSchemaRegistryService();
-        return BookkeeperSchemaStorage.ignoreUnrecoverableBKException(schemaRegistryService.getSchema(id))
-                .thenCompose(schema -> {
-                    if (schema != null) {
-                        // It's different from `SchemasResource.deleteSchema`
-                        // because when we delete a topic, the schema
-                        // history is meaningless. But when we delete a schema of a topic, a new schema could be
-                        // registered in the future.
-                        log.info("Delete schema storage of id: {}", id);
-                        return schemaRegistryService.deleteSchemaStorage(id);
-                    } else {
-                        return CompletableFuture.completedFuture(null);
-                    }
-                });
+        return brokerService.deleteSchema(TopicName.get(getName()));
     }
 
     @Override
@@ -997,8 +982,7 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
 
     private void tryOverwriteOldProducer(Producer oldProducer, Producer newProducer)
             throws BrokerServiceException {
-        if (newProducer.isSuccessorTo(oldProducer) && !isUserProvidedProducerName(oldProducer)
-                && !isUserProvidedProducerName(newProducer)) {
+        if (newProducer.isSuccessorTo(oldProducer)) {
             oldProducer.close(false);
             if (!producers.replace(newProducer.getProducerName(), oldProducer, newProducer)) {
                 // Met concurrent update, throw exception here so that client can try reconnect later.
@@ -1008,6 +992,11 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
                 handleProducerRemoved(oldProducer);
             }
         } else {
+            // If a producer with the same name tries to use a new connection, async check the old connection is
+            // available. The producers related the connection that not available are automatically cleaned up.
+            if (!Objects.equals(oldProducer.getCnx(), newProducer.getCnx())) {
+                oldProducer.getCnx().checkConnectionLiveness();
+            }
             throw new BrokerServiceException.NamingException(
                     "Producer with name '" + newProducer.getProducerName() + "' is already connected to topic");
         }
@@ -1360,19 +1349,49 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
     }
 
     public Optional<ClusterUrl> getMigratedClusterUrl() {
-        return getMigratedClusterUrl(brokerService.getPulsar());
+        return getMigratedClusterUrl(brokerService.getPulsar(), topic);
     }
 
-    public static CompletableFuture<Optional<ClusterUrl>> getMigratedClusterUrlAsync(PulsarService pulsar) {
-        return pulsar.getPulsarResources().getClusterResources().getClusterAsync(pulsar.getConfig().getClusterName())
-                .thenApply(clusterData -> (clusterData.isPresent() && clusterData.get().isMigrated())
-                        ? Optional.ofNullable(clusterData.get().getMigratedClusterUrl())
-                        : Optional.empty());
+    public static CompletableFuture<Boolean> isClusterMigrationEnabled(PulsarService pulsar,
+            String topic) {
+        return getMigratedClusterUrlAsync(pulsar, topic).thenApply(url -> url.isPresent());
     }
 
-    public static Optional<ClusterUrl> getMigratedClusterUrl(PulsarService pulsar) {
+    public static CompletableFuture<Optional<ClusterUrl>> getMigratedClusterUrlAsync(PulsarService pulsar,
+            String topic) {
+        CompletableFuture<Optional<ClusterUrl>> result = new CompletableFuture<>();
+        pulsar.getPulsarResources().getClusterResources().getClusterPoliciesResources()
+                .getClusterPoliciesAsync(pulsar.getConfig().getClusterName())
+                .thenCombine(isNamespaceMigrationEnabledAsync(pulsar, topic),
+                        ((clusterData, isNamespaceMigrationEnabled) -> {
+                            Optional<ClusterUrl> url = ((clusterData.isPresent() && clusterData.get().isMigrated())
+                                    || isNamespaceMigrationEnabled)
+                                            ? Optional.ofNullable(clusterData.get().getMigratedClusterUrl())
+                                            : Optional.empty();
+                            return url;
+                        }))
+                .thenAccept(res -> {
+                    // cluster policies future is completed by metadata-store thread and continuing further
+                    // processing in the same metadata store can cause deadlock while creating topic as
+                    // create topic path may have blocking call on metadata-store. so, complete future on a
+                    // separate thread to avoid deadlock.
+                    pulsar.getExecutor().execute(() -> result.complete(res));
+                }).exceptionally(ex -> {
+                    pulsar.getExecutor().execute(() -> result.completeExceptionally(ex.getCause()));
+                    return null;
+                });
+        return result;
+    }
+
+    private static CompletableFuture<Boolean> isNamespaceMigrationEnabledAsync(PulsarService pulsar, String topic) {
+        return pulsar.getPulsarResources().getLocalPolicies()
+                .getLocalPoliciesAsync(TopicName.get(topic).getNamespaceObject())
+                .thenApply(policies -> policies.isPresent() && policies.get().migrated);
+    }
+
+    public static Optional<ClusterUrl> getMigratedClusterUrl(PulsarService pulsar, String topic) {
         try {
-            return getMigratedClusterUrlAsync(pulsar)
+            return getMigratedClusterUrlAsync(pulsar, topic)
                     .get(pulsar.getPulsarResources().getClusterResources().getOperationTimeoutSec(), TimeUnit.SECONDS);
         } catch (Exception e) {
             log.warn("Failed to get migration cluster URL", e);

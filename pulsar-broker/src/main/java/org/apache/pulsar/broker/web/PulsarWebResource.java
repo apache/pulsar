@@ -62,6 +62,7 @@ import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.resources.BookieResources;
 import org.apache.pulsar.broker.resources.ClusterResources;
 import org.apache.pulsar.broker.resources.DynamicConfigurationResources;
+import org.apache.pulsar.broker.resources.LoadBalanceResources;
 import org.apache.pulsar.broker.resources.LocalPoliciesResources;
 import org.apache.pulsar.broker.resources.NamespaceResources;
 import org.apache.pulsar.broker.resources.NamespaceResources.IsolationPolicyResources;
@@ -530,6 +531,7 @@ public abstract class PulsarWebResource {
         pulsar.getPulsarResources().getClusterResources().getClusterAsync(cluster)
                 .whenComplete((clusterDataResult, ex) -> {
                     if (ex != null) {
+                        log.warn("[{}] Load cluster data failed: requested={}", clientAppId, cluster);
                         clusterDataFuture.completeExceptionally(FutureUtil.unwrapCompletionException(ex));
                         return;
                     }
@@ -759,15 +761,13 @@ public abstract class PulsarWebResource {
                 .build();
 
         return nsService.getWebServiceUrlAsync(topicName, options)
-                .thenApply(webUrl -> {
-                    // Ensure we get a url
-                    if (webUrl == null || !webUrl.isPresent()) {
-                        log.info("Unable to get web service url");
-                        throw new RestException(Status.PRECONDITION_FAILED,
-                                "Failed to find ownership for topic:" + topicName);
-                    }
-                    return webUrl.get();
-                }).thenCompose(webUrl -> nsService.isServiceUnitOwnedAsync(topicName)
+                .thenApply(webUrl ->
+                        webUrl.orElseThrow(() -> {
+                            log.info("Unable to get web service url");
+                            throw new RestException(Status.PRECONDITION_FAILED,
+                                    "Failed to find ownership for topic:" + topicName);
+                        })
+                ).thenCompose(webUrl -> nsService.isServiceUnitOwnedAsync(topicName)
                         .thenApply(isTopicOwned -> Pair.of(webUrl, isTopicOwned))
                 ).thenAccept(pair -> {
                     URL webUrl = pair.getLeft();
@@ -1111,6 +1111,10 @@ public abstract class PulsarWebResource {
 
     protected NamespaceResources namespaceResources() {
         return pulsar().getPulsarResources().getNamespaceResources();
+    }
+
+    protected LoadBalanceResources loadBalanceResources() {
+        return pulsar().getPulsarResources().getLoadBalanceResources();
     }
 
     protected ResourceGroupResources resourceGroupResources() {

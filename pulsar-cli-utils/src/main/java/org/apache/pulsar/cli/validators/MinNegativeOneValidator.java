@@ -16,16 +16,15 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.io.kinesis;
+package org.apache.pulsar.cli.validators;
 
-/**
- * This is a stub class for backwards compatibility.  In new code and configurations, please use the plugins
- * from org.apache.pulsar.io.aws
- *
- * @see org.apache.pulsar.io.aws.STSAssumeRoleProviderPlugin
- */
-@Deprecated
-public class STSAssumeRoleProviderPlugin extends org.apache.pulsar.io.aws.STSAssumeRoleProviderPlugin
-        implements AwsCredentialProviderPlugin {
+import com.beust.jcommander.IValueValidator;
+import com.beust.jcommander.ParameterException;
+import org.apache.pulsar.cli.ValueValidationUtil;
+
+public class MinNegativeOneValidator implements IValueValidator<Long> {
+    @Override
+    public void validate(String name, Long value) throws ParameterException {
+        ValueValidationUtil.minValueCheck(name, value, -1L);
+    }
 }
-

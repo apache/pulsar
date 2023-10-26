@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.testclient;
 
+import static org.apache.pulsar.broker.resources.LoadBalanceResources.BUNDLE_DATA_BASE_PATH;
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParameterException;
@@ -61,7 +62,6 @@ import org.slf4j.LoggerFactory;
 public class LoadSimulationController {
     private static final Logger log = LoggerFactory.getLogger(LoadSimulationController.class);
     private static final String QUOTA_ROOT = "/loadbalance/resource-quota/namespace";
-    private static final String BUNDLE_DATA_ROOT = "/loadbalance/bundle-data";
 
     // Input streams for each client to send commands through.
     private final DataInputStream[] inputStreams;
@@ -427,7 +427,7 @@ public class LoadSimulationController {
                                 "/loadbalance/resource-quota/namespace/%s/%s/%s/0x00000000_0xffffffff", tenantName,
                                 cluster, mangledNamespace);
                         final String newAPITargetPath = String.format(
-                                "/loadbalance/bundle-data/%s/%s/%s/0x00000000_0xffffffff", tenantName, cluster,
+                                "%s/%s/%s/%s/0x00000000_0xffffffff", BUNDLE_DATA_BASE_PATH, tenantName, cluster,
                                 mangledNamespace);
                         try {
                             ZkUtils.createFullPathOptimistic(targetZKClient, oldAPITargetPath,
@@ -484,7 +484,7 @@ public class LoadSimulationController {
             futures.add(threadPool.submit(() -> {
                 for (final Map.Entry<String, ResourceQuota> entry : bundleToQuota.entrySet()) {
                     final String bundle = entry.getKey();
-                    final String newAPIPath = bundle.replace(QUOTA_ROOT, BUNDLE_DATA_ROOT);
+                    final String newAPIPath = bundle.replace(QUOTA_ROOT, BUNDLE_DATA_BASE_PATH);
                     final ResourceQuota quota = entry.getValue();
                     final int tenantStart = QUOTA_ROOT.length() + 1;
                     final String topic = String.format("persistent://%s/t", bundle.substring(tenantStart));

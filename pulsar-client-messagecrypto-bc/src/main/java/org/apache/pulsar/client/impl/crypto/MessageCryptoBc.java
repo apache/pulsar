@@ -53,6 +53,7 @@ import javax.crypto.SecretKey;
 import javax.crypto.ShortBufferException;
 import javax.crypto.spec.GCMParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.CryptoKeyReader;
 import org.apache.pulsar.client.api.EncryptionKeyInfo;
@@ -83,14 +84,14 @@ import org.bouncycastle.openssl.jcajce.JcaPEMKeyConverter;
 @Slf4j
 public class MessageCryptoBc implements MessageCrypto<MessageMetadata, MessageMetadata> {
 
-    private static final String ECDSA = "ECDSA";
-    private static final String RSA = "RSA";
-    private static final String ECIES = "ECIES";
+    public static final String ECDSA = "ECDSA";
+    public static final String RSA = "RSA";
+    public static final String ECIES = "ECIES";
 
     // Ideally the transformation should also be part of the message property. This will prevent client
     // from assuming hardcoded value. However, it will increase the size of the message even further.
-    private static final String RSA_TRANS = "RSA/NONE/OAEPWithSHA1AndMGF1Padding";
-    private static final String AESGCM = "AES/GCM/NoPadding";
+    public static final String RSA_TRANS = "RSA/NONE/OAEPWithSHA1AndMGF1Padding";
+    public static final String AESGCM = "AES/GCM/NoPadding";
 
     private static KeyGenerator keyGenerator;
     private static final int tagLen = 16 * 8;
@@ -100,6 +101,7 @@ public class MessageCryptoBc implements MessageCrypto<MessageMetadata, MessageMe
     private String logCtx;
 
     // Data key which is used to encrypt message
+    @Getter
     private SecretKey dataKey;
     private LoadingCache<ByteBuffer, SecretKey> dataKeyCache;
 
@@ -177,7 +179,7 @@ public class MessageCryptoBc implements MessageCrypto<MessageMetadata, MessageMe
 
     }
 
-    private PublicKey loadPublicKey(byte[] keyBytes) throws Exception {
+    public static PublicKey loadPublicKey(byte[] keyBytes) throws Exception {
 
         Reader keyReader = new StringReader(new String(keyBytes));
         PublicKey publicKey = null;
@@ -354,7 +356,7 @@ public class MessageCryptoBc implements MessageCrypto<MessageMetadata, MessageMe
     }
 
     // required since Bouncycastle 1.72 when using ECIES, it is required to pass in an IESParameterSpec
-    private IESParameterSpec createIESParameterSpec() {
+    public static IESParameterSpec createIESParameterSpec() {
         // the IESParameterSpec to use was discovered by debugging BouncyCastle 1.69 and running the
         // test org.apache.pulsar.client.api.SimpleProducerConsumerTest#testCryptoWithChunking
         return new IESParameterSpec(null, null, 128);

@@ -111,6 +111,7 @@ import org.apache.pulsar.broker.service.BrokerServiceException.NamingException;
 import org.apache.pulsar.broker.service.BrokerServiceException.NotAllowedException;
 import org.apache.pulsar.broker.service.BrokerServiceException.PersistenceException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServiceUnitNotReadyException;
+import org.apache.pulsar.broker.service.BrokerServiceException.TopicMigratedException;
 import org.apache.pulsar.broker.service.TopicEventsListener.EventStage;
 import org.apache.pulsar.broker.service.TopicEventsListener.TopicEvent;
 import org.apache.pulsar.broker.service.nonpersistent.NonPersistentTopic;
@@ -119,6 +120,8 @@ import org.apache.pulsar.broker.service.persistent.PersistentDispatcherMultipleC
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.service.persistent.SystemTopic;
 import org.apache.pulsar.broker.service.plugin.EntryFilterProvider;
+import org.apache.pulsar.broker.service.schema.BookkeeperSchemaStorage;
+import org.apache.pulsar.broker.service.schema.SchemaRegistryService;
 import org.apache.pulsar.broker.stats.ClusterReplicationMetrics;
 import org.apache.pulsar.broker.stats.prometheus.metrics.ObserverGauge;
 import org.apache.pulsar.broker.stats.prometheus.metrics.Summary;
@@ -159,6 +162,7 @@ import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.TopicPolicies;
 import org.apache.pulsar.common.policies.data.TopicType;
 import org.apache.pulsar.common.policies.data.stats.TopicStatsImpl;
+import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.stats.Metrics;
 import org.apache.pulsar.common.util.FieldParser;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -1156,26 +1160,33 @@ public class BrokerService implements Closeable {
         CompletableFuture<Void> future = new CompletableFuture<>();
         CompletableFuture<Void> deleteTopicAuthenticationFuture = new CompletableFuture<>();
         deleteTopicAuthenticationWithRetry(topic, deleteTopicAuthenticationFuture, 5);
-
-        deleteTopicAuthenticationFuture.whenComplete((v, ex) -> {
+        deleteTopicAuthenticationFuture
+        .thenCompose(__ -> deleteSchema(tn))
+        .thenCompose(__ -> {
+            if (!SystemTopicNames.isTopicPoliciesSystemTopic(topic)
+                    && getPulsar().getConfiguration().isSystemTopicEnabled()) {
+                return deleteTopicPolicies(tn);
+            }
+            return CompletableFuture.completedFuture(null);
+        }).whenComplete((v, ex) -> {
             if (ex != null) {
                 future.completeExceptionally(ex);
                 return;
             }
             CompletableFuture<ManagedLedgerConfig> mlConfigFuture = getManagedLedgerConfig(topicName);
             managedLedgerFactory.asyncDelete(tn.getPersistenceNamingEncoding(),
-                    mlConfigFuture, new DeleteLedgerCallback() {
-                        @Override
-                        public void deleteLedgerComplete(Object ctx) {
-                            future.complete(null);
-                        }
+                mlConfigFuture, new DeleteLedgerCallback() {
+                    @Override
+                    public void deleteLedgerComplete(Object ctx) {
+                        future.complete(null);
+                    }
 
-                        @Override
-                        public void deleteLedgerFailed(ManagedLedgerException exception, Object ctx) {
-                            future.completeExceptionally(exception);
-                        }
-                    }, null);
-        });
+                    @Override
+                    public void deleteLedgerFailed(ManagedLedgerException exception, Object ctx) {
+                        future.completeExceptionally(exception);
+                    }
+                }, null);
+         });
 
         return future;
     }
@@ -1511,6 +1522,12 @@ public class BrokerService implements Closeable {
                         topicFuture.handle((persistentTopic, ex) -> {
                             // release permit and process pending topic
                             topicLoadSemaphore.release();
+                            // do not recreate topic if topic is already migrated and deleted by broker
+                            // so, avoid creating a new topic if migration is already started
+                            if (ex != null && (ex.getCause() instanceof TopicMigratedException)) {
+                                topicFuture.completeExceptionally(ex.getCause());
+                                return null;
+                            }
                             createPendingLoadTopic();
                             return null;
                         });
@@ -1622,7 +1639,10 @@ public class BrokerService implements Closeable {
                 ? checkMaxTopicsPerNamespace(topicName, 1)
                 : CompletableFuture.completedFuture(null);
 
-        maxTopicsCheck.thenCompose(__ -> getManagedLedgerConfig(topicName)).thenAccept(managedLedgerConfig -> {
+        CompletableFuture<Void> isTopicAlreadyMigrated = checkTopicAlreadyMigrated(topicName);
+
+        maxTopicsCheck.thenCompose(__ -> isTopicAlreadyMigrated).thenCompose(__ -> getManagedLedgerConfig(topicName))
+        .thenAccept(managedLedgerConfig -> {
             if (isBrokerEntryMetadataEnabled() || isBrokerPayloadProcessorEnabled()) {
                 // init managedLedger interceptor
                 Set<BrokerEntryMetadataInterceptor> interceptors = new HashSet<>();
@@ -1738,7 +1758,7 @@ public class BrokerService implements Closeable {
                                 topicFuture.completeExceptionally(new PersistenceException(exception));
                             }
                         }
-                    }, () -> isTopicNsOwnedByBroker(topicName), null);
+                    }, () -> isTopicNsOwnedByBrokerAsync(topicName), null);
 
         }).exceptionally((exception) -> {
             log.warn("[{}] Failed to get topic configuration: {}", topic, exception.getMessage(), exception);
@@ -1750,165 +1770,186 @@ public class BrokerService implements Closeable {
         });
     }
 
-    public CompletableFuture<ManagedLedgerConfig> getManagedLedgerConfig(TopicName topicName) {
+    private CompletableFuture<Void> checkTopicAlreadyMigrated(TopicName topicName) {
+        CompletableFuture<Void> result = new CompletableFuture<>();
+        AbstractTopic.isClusterMigrationEnabled(pulsar, topicName.toString()).handle((isMigrated, ex) -> {
+            if (isMigrated) {
+                result.completeExceptionally(
+                        new BrokerServiceException.TopicMigratedException(topicName + " already migrated"));
+            } else {
+                result.complete(null);
+            }
+            return null;
+        });
+        return result;
+    }
+
+    public CompletableFuture<ManagedLedgerConfig> getManagedLedgerConfig(@Nonnull TopicName topicName) {
+        requireNonNull(topicName);
         NamespaceName namespace = topicName.getNamespaceObject();
         ServiceConfiguration serviceConfig = pulsar.getConfiguration();
 
         NamespaceResources nsr = pulsar.getPulsarResources().getNamespaceResources();
         LocalPoliciesResources lpr = pulsar.getPulsarResources().getLocalPolicies();
-        return nsr.getPoliciesAsync(namespace)
-                .thenCombine(lpr.getLocalPoliciesAsync(namespace), (policies, localPolicies) -> {
-                    PersistencePolicies persistencePolicies = null;
-                    RetentionPolicies retentionPolicies = null;
-                    OffloadPoliciesImpl topicLevelOffloadPolicies = null;
+        final CompletableFuture<Optional<TopicPolicies>> topicPoliciesFuture;
+        if (pulsar.getConfig().isTopicLevelPoliciesEnabled()
+            && !NamespaceService.isSystemServiceNamespace(namespace.toString())
+            && !SystemTopicNames.isTopicPoliciesSystemTopic(topicName.toString())) {
+            topicPoliciesFuture = pulsar.getTopicPoliciesService().getTopicPoliciesAsync(topicName);
+        } else {
+            topicPoliciesFuture = CompletableFuture.completedFuture(Optional.empty());
+        }
+        return topicPoliciesFuture.thenCompose(topicPoliciesOptional -> {
+            final CompletableFuture<Optional<Policies>> nsPolicies = nsr.getPoliciesAsync(namespace);
+            final CompletableFuture<Optional<LocalPolicies>> lcPolicies = lpr.getLocalPoliciesAsync(namespace);
+            return nsPolicies.thenCombine(lcPolicies, (policies, localPolicies) -> {
+                PersistencePolicies persistencePolicies = null;
+                RetentionPolicies retentionPolicies = null;
+                OffloadPoliciesImpl topicLevelOffloadPolicies = null;
+                if (topicPoliciesOptional.isPresent()) {
+                    final TopicPolicies topicPolicies = topicPoliciesOptional.get();
+                    persistencePolicies = topicPolicies.getPersistence();
+                    retentionPolicies = topicPolicies.getRetentionPolicies();
+                    topicLevelOffloadPolicies = topicPolicies.getOffloadPolicies();
+                }
 
-                    if (pulsar.getConfig().isTopicLevelPoliciesEnabled()
-                            && !NamespaceService.isSystemServiceNamespace(namespace.toString())) {
-                        final TopicPolicies topicPolicies = pulsar.getTopicPoliciesService()
-                                .getTopicPoliciesIfExists(topicName);
-                        if (topicPolicies != null) {
-                            persistencePolicies = topicPolicies.getPersistence();
-                            retentionPolicies = topicPolicies.getRetentionPolicies();
-                            topicLevelOffloadPolicies = topicPolicies.getOffloadPolicies();
-                        }
+                if (persistencePolicies == null) {
+                    persistencePolicies = policies.map(p -> p.persistence).orElseGet(
+                            () -> new PersistencePolicies(serviceConfig.getManagedLedgerDefaultEnsembleSize(),
+                                    serviceConfig.getManagedLedgerDefaultWriteQuorum(),
+                                    serviceConfig.getManagedLedgerDefaultAckQuorum(),
+                                    serviceConfig.getManagedLedgerDefaultMarkDeleteRateLimit()));
+                }
+
+                if (retentionPolicies == null) {
+                    retentionPolicies = policies.map(p -> p.retention_policies).orElseGet(
+                            () -> new RetentionPolicies(serviceConfig.getDefaultRetentionTimeInMinutes(),
+                                    serviceConfig.getDefaultRetentionSizeInMB())
+                    );
+                }
+
+                ManagedLedgerConfig managedLedgerConfig = new ManagedLedgerConfig();
+                managedLedgerConfig.setEnsembleSize(persistencePolicies.getBookkeeperEnsemble());
+                managedLedgerConfig.setWriteQuorumSize(persistencePolicies.getBookkeeperWriteQuorum());
+                managedLedgerConfig.setAckQuorumSize(persistencePolicies.getBookkeeperAckQuorum());
+
+                if (serviceConfig.isStrictBookieAffinityEnabled()) {
+                    managedLedgerConfig.setBookKeeperEnsemblePlacementPolicyClassName(
+                            IsolatedBookieEnsemblePlacementPolicy.class);
+                    if (localPolicies.isPresent() && localPolicies.get().bookieAffinityGroup != null) {
+                        Map<String, Object> properties = new HashMap<>();
+                        properties.put(IsolatedBookieEnsemblePlacementPolicy.ISOLATION_BOOKIE_GROUPS,
+                                localPolicies.get().bookieAffinityGroup.getBookkeeperAffinityGroupPrimary());
+                        properties.put(IsolatedBookieEnsemblePlacementPolicy.SECONDARY_ISOLATION_BOOKIE_GROUPS,
+                                localPolicies.get().bookieAffinityGroup.getBookkeeperAffinityGroupSecondary());
+                        managedLedgerConfig.setBookKeeperEnsemblePlacementPolicyProperties(properties);
+                    } else if (isSystemTopic(topicName)) {
+                        Map<String, Object> properties = new HashMap<>();
+                        properties.put(IsolatedBookieEnsemblePlacementPolicy.ISOLATION_BOOKIE_GROUPS, "*");
+                        properties.put(IsolatedBookieEnsemblePlacementPolicy
+                                .SECONDARY_ISOLATION_BOOKIE_GROUPS, "*");
+                        managedLedgerConfig.setBookKeeperEnsemblePlacementPolicyProperties(properties);
+                    } else {
+                        Map<String, Object> properties = new HashMap<>();
+                        properties.put(IsolatedBookieEnsemblePlacementPolicy.ISOLATION_BOOKIE_GROUPS, "");
+                        properties.put(IsolatedBookieEnsemblePlacementPolicy.SECONDARY_ISOLATION_BOOKIE_GROUPS, "");
+                        managedLedgerConfig.setBookKeeperEnsemblePlacementPolicyProperties(properties);
                     }
-
-                    if (persistencePolicies == null) {
-                        persistencePolicies = policies.map(p -> p.persistence).orElseGet(
-                                () -> new PersistencePolicies(serviceConfig.getManagedLedgerDefaultEnsembleSize(),
-                                        serviceConfig.getManagedLedgerDefaultWriteQuorum(),
-                                        serviceConfig.getManagedLedgerDefaultAckQuorum(),
-                                        serviceConfig.getManagedLedgerDefaultMarkDeleteRateLimit()));
-                    }
-
-                    if (retentionPolicies == null) {
-                        retentionPolicies = policies.map(p -> p.retention_policies).orElseGet(
-                                () -> new RetentionPolicies(serviceConfig.getDefaultRetentionTimeInMinutes(),
-                                        serviceConfig.getDefaultRetentionSizeInMB())
-                        );
-                    }
-
-                    ManagedLedgerConfig managedLedgerConfig = new ManagedLedgerConfig();
-                    managedLedgerConfig.setEnsembleSize(persistencePolicies.getBookkeeperEnsemble());
-                    managedLedgerConfig.setWriteQuorumSize(persistencePolicies.getBookkeeperWriteQuorum());
-                    managedLedgerConfig.setAckQuorumSize(persistencePolicies.getBookkeeperAckQuorum());
-
-                    if (serviceConfig.isStrictBookieAffinityEnabled()) {
+                } else {
+                    if (localPolicies.isPresent() && localPolicies.get().bookieAffinityGroup != null) {
                         managedLedgerConfig.setBookKeeperEnsemblePlacementPolicyClassName(
                                 IsolatedBookieEnsemblePlacementPolicy.class);
-                        if (localPolicies.isPresent() && localPolicies.get().bookieAffinityGroup != null) {
-                            Map<String, Object> properties = new HashMap<>();
-                            properties.put(IsolatedBookieEnsemblePlacementPolicy.ISOLATION_BOOKIE_GROUPS,
-                                    localPolicies.get().bookieAffinityGroup.getBookkeeperAffinityGroupPrimary());
-                            properties.put(IsolatedBookieEnsemblePlacementPolicy.SECONDARY_ISOLATION_BOOKIE_GROUPS,
-                                    localPolicies.get().bookieAffinityGroup.getBookkeeperAffinityGroupSecondary());
-                            managedLedgerConfig.setBookKeeperEnsemblePlacementPolicyProperties(properties);
-                        } else if (isSystemTopic(topicName)) {
-                            Map<String, Object> properties = new HashMap<>();
-                            properties.put(IsolatedBookieEnsemblePlacementPolicy.ISOLATION_BOOKIE_GROUPS, "*");
-                            properties.put(IsolatedBookieEnsemblePlacementPolicy
-                                    .SECONDARY_ISOLATION_BOOKIE_GROUPS, "*");
-                            managedLedgerConfig.setBookKeeperEnsemblePlacementPolicyProperties(properties);
-                        } else {
-                            Map<String, Object> properties = new HashMap<>();
-                            properties.put(IsolatedBookieEnsemblePlacementPolicy.ISOLATION_BOOKIE_GROUPS, "");
-                            properties.put(IsolatedBookieEnsemblePlacementPolicy.SECONDARY_ISOLATION_BOOKIE_GROUPS, "");
-                            managedLedgerConfig.setBookKeeperEnsemblePlacementPolicyProperties(properties);
+                        Map<String, Object> properties = new HashMap<>();
+                        properties.put(IsolatedBookieEnsemblePlacementPolicy.ISOLATION_BOOKIE_GROUPS,
+                                localPolicies.get().bookieAffinityGroup.getBookkeeperAffinityGroupPrimary());
+                        properties.put(IsolatedBookieEnsemblePlacementPolicy.SECONDARY_ISOLATION_BOOKIE_GROUPS,
+                                localPolicies.get().bookieAffinityGroup.getBookkeeperAffinityGroupSecondary());
+                        managedLedgerConfig.setBookKeeperEnsemblePlacementPolicyProperties(properties);
+                    }
+                }
+
+                managedLedgerConfig.setThrottleMarkDelete(persistencePolicies.getManagedLedgerMaxMarkDeleteRate());
+                managedLedgerConfig.setDigestType(serviceConfig.getManagedLedgerDigestType());
+                managedLedgerConfig.setPassword(serviceConfig.getManagedLedgerPassword());
+
+                managedLedgerConfig
+                        .setMaxUnackedRangesToPersist(serviceConfig.getManagedLedgerMaxUnackedRangesToPersist());
+                managedLedgerConfig.setPersistentUnackedRangesWithMultipleEntriesEnabled(
+                        serviceConfig.isPersistentUnackedRangesWithMultipleEntriesEnabled());
+                managedLedgerConfig.setMaxUnackedRangesToPersistInMetadataStore(
+                        serviceConfig.getManagedLedgerMaxUnackedRangesToPersistInMetadataStore());
+                managedLedgerConfig.setMaxEntriesPerLedger(serviceConfig.getManagedLedgerMaxEntriesPerLedger());
+                managedLedgerConfig
+                        .setMinimumRolloverTime(serviceConfig.getManagedLedgerMinLedgerRolloverTimeMinutes(),
+                                TimeUnit.MINUTES);
+                managedLedgerConfig
+                        .setMaximumRolloverTime(serviceConfig.getManagedLedgerMaxLedgerRolloverTimeMinutes(),
+                                TimeUnit.MINUTES);
+                managedLedgerConfig.setMaxSizePerLedgerMb(serviceConfig.getManagedLedgerMaxSizePerLedgerMbytes());
+
+                managedLedgerConfig.setMetadataOperationsTimeoutSeconds(
+                        serviceConfig.getManagedLedgerMetadataOperationsTimeoutSeconds());
+                managedLedgerConfig
+                        .setReadEntryTimeoutSeconds(serviceConfig.getManagedLedgerReadEntryTimeoutSeconds());
+                managedLedgerConfig
+                        .setAddEntryTimeoutSeconds(serviceConfig.getManagedLedgerAddEntryTimeoutSeconds());
+                managedLedgerConfig.setMetadataEnsembleSize(serviceConfig.getManagedLedgerDefaultEnsembleSize());
+                managedLedgerConfig.setUnackedRangesOpenCacheSetEnabled(
+                        serviceConfig.isManagedLedgerUnackedRangesOpenCacheSetEnabled());
+                managedLedgerConfig.setMetadataWriteQuorumSize(serviceConfig.getManagedLedgerDefaultWriteQuorum());
+                managedLedgerConfig.setMetadataAckQuorumSize(serviceConfig.getManagedLedgerDefaultAckQuorum());
+                managedLedgerConfig
+                        .setMetadataMaxEntriesPerLedger(serviceConfig.getManagedLedgerCursorMaxEntriesPerLedger());
+
+                managedLedgerConfig
+                        .setLedgerRolloverTimeout(serviceConfig.getManagedLedgerCursorRolloverTimeInSeconds());
+                managedLedgerConfig
+                        .setRetentionTime(retentionPolicies.getRetentionTimeInMinutes(), TimeUnit.MINUTES);
+                managedLedgerConfig.setRetentionSizeInMB(retentionPolicies.getRetentionSizeInMB());
+                managedLedgerConfig.setAutoSkipNonRecoverableData(serviceConfig.isAutoSkipNonRecoverableData());
+                managedLedgerConfig.setLazyCursorRecovery(serviceConfig.isLazyCursorRecovery());
+                managedLedgerConfig.setInactiveLedgerRollOverTime(
+                        serviceConfig.getManagedLedgerInactiveLedgerRolloverTimeSeconds(), TimeUnit.SECONDS);
+                managedLedgerConfig.setCacheEvictionByMarkDeletedPosition(
+                        serviceConfig.isCacheEvictionByMarkDeletedPosition());
+                managedLedgerConfig.setMinimumBacklogCursorsForCaching(
+                        serviceConfig.getManagedLedgerMinimumBacklogCursorsForCaching());
+                managedLedgerConfig.setMinimumBacklogEntriesForCaching(
+                        serviceConfig.getManagedLedgerMinimumBacklogEntriesForCaching());
+                managedLedgerConfig.setMaxBacklogBetweenCursorsForCaching(
+                        serviceConfig.getManagedLedgerMaxBacklogBetweenCursorsForCaching());
+
+                OffloadPoliciesImpl nsLevelOffloadPolicies =
+                        (OffloadPoliciesImpl) policies.map(p -> p.offload_policies).orElse(null);
+                OffloadPoliciesImpl offloadPolicies = OffloadPoliciesImpl.mergeConfiguration(
+                        topicLevelOffloadPolicies,
+                        OffloadPoliciesImpl.oldPoliciesCompatible(nsLevelOffloadPolicies, policies.orElse(null)),
+                        getPulsar().getConfig().getProperties());
+                if (NamespaceService.isSystemServiceNamespace(namespace.toString())) {
+                    managedLedgerConfig.setLedgerOffloader(NullLedgerOffloader.INSTANCE);
+                } else  {
+                    if (topicLevelOffloadPolicies != null) {
+                        try {
+                            LedgerOffloader topicLevelLedgerOffLoader =
+                                    pulsar().createManagedLedgerOffloader(offloadPolicies);
+                            managedLedgerConfig.setLedgerOffloader(topicLevelLedgerOffLoader);
+                        } catch (PulsarServerException e) {
+                            throw new RuntimeException(e);
                         }
                     } else {
-                        if (localPolicies.isPresent() && localPolicies.get().bookieAffinityGroup != null) {
-                            managedLedgerConfig.setBookKeeperEnsemblePlacementPolicyClassName(
-                                            IsolatedBookieEnsemblePlacementPolicy.class);
-                            Map<String, Object> properties = new HashMap<>();
-                            properties.put(IsolatedBookieEnsemblePlacementPolicy.ISOLATION_BOOKIE_GROUPS,
-                                    localPolicies.get().bookieAffinityGroup.getBookkeeperAffinityGroupPrimary());
-                            properties.put(IsolatedBookieEnsemblePlacementPolicy.SECONDARY_ISOLATION_BOOKIE_GROUPS,
-                                    localPolicies.get().bookieAffinityGroup.getBookkeeperAffinityGroupSecondary());
-                            managedLedgerConfig.setBookKeeperEnsemblePlacementPolicyProperties(properties);
-                        }
+                        //If the topic level policy is null, use the namespace level
+                        managedLedgerConfig
+                                .setLedgerOffloader(pulsar.getManagedLedgerOffloader(namespace, offloadPolicies));
                     }
+                }
 
-                    managedLedgerConfig.setThrottleMarkDelete(persistencePolicies.getManagedLedgerMaxMarkDeleteRate());
-                    managedLedgerConfig.setDigestType(serviceConfig.getManagedLedgerDigestType());
-                    managedLedgerConfig.setPassword(serviceConfig.getManagedLedgerPassword());
-
-                    managedLedgerConfig
-                            .setMaxUnackedRangesToPersist(serviceConfig.getManagedLedgerMaxUnackedRangesToPersist());
-                    managedLedgerConfig.setPersistentUnackedRangesWithMultipleEntriesEnabled(
-                            serviceConfig.isPersistentUnackedRangesWithMultipleEntriesEnabled());
-                    managedLedgerConfig.setMaxUnackedRangesToPersistInMetadataStore(
-                            serviceConfig.getManagedLedgerMaxUnackedRangesToPersistInMetadataStore());
-                    managedLedgerConfig.setMaxEntriesPerLedger(serviceConfig.getManagedLedgerMaxEntriesPerLedger());
-                    managedLedgerConfig
-                            .setMinimumRolloverTime(serviceConfig.getManagedLedgerMinLedgerRolloverTimeMinutes(),
-                                    TimeUnit.MINUTES);
-                    managedLedgerConfig
-                            .setMaximumRolloverTime(serviceConfig.getManagedLedgerMaxLedgerRolloverTimeMinutes(),
-                                    TimeUnit.MINUTES);
-                    managedLedgerConfig.setMaxSizePerLedgerMb(serviceConfig.getManagedLedgerMaxSizePerLedgerMbytes());
-
-                    managedLedgerConfig.setMetadataOperationsTimeoutSeconds(
-                            serviceConfig.getManagedLedgerMetadataOperationsTimeoutSeconds());
-                    managedLedgerConfig
-                            .setReadEntryTimeoutSeconds(serviceConfig.getManagedLedgerReadEntryTimeoutSeconds());
-                    managedLedgerConfig
-                            .setAddEntryTimeoutSeconds(serviceConfig.getManagedLedgerAddEntryTimeoutSeconds());
-                    managedLedgerConfig.setMetadataEnsembleSize(serviceConfig.getManagedLedgerDefaultEnsembleSize());
-                    managedLedgerConfig.setUnackedRangesOpenCacheSetEnabled(
-                            serviceConfig.isManagedLedgerUnackedRangesOpenCacheSetEnabled());
-                    managedLedgerConfig.setMetadataWriteQuorumSize(serviceConfig.getManagedLedgerDefaultWriteQuorum());
-                    managedLedgerConfig.setMetadataAckQuorumSize(serviceConfig.getManagedLedgerDefaultAckQuorum());
-                    managedLedgerConfig
-                            .setMetadataMaxEntriesPerLedger(serviceConfig.getManagedLedgerCursorMaxEntriesPerLedger());
-
-                    managedLedgerConfig
-                            .setLedgerRolloverTimeout(serviceConfig.getManagedLedgerCursorRolloverTimeInSeconds());
-                    managedLedgerConfig
-                            .setRetentionTime(retentionPolicies.getRetentionTimeInMinutes(), TimeUnit.MINUTES);
-                    managedLedgerConfig.setRetentionSizeInMB(retentionPolicies.getRetentionSizeInMB());
-                    managedLedgerConfig.setAutoSkipNonRecoverableData(serviceConfig.isAutoSkipNonRecoverableData());
-                    managedLedgerConfig.setLazyCursorRecovery(serviceConfig.isLazyCursorRecovery());
-                    managedLedgerConfig.setInactiveLedgerRollOverTime(
-                            serviceConfig.getManagedLedgerInactiveLedgerRolloverTimeSeconds(), TimeUnit.SECONDS);
-                    managedLedgerConfig.setCacheEvictionByMarkDeletedPosition(
-                            serviceConfig.isCacheEvictionByMarkDeletedPosition());
-                    managedLedgerConfig.setMinimumBacklogCursorsForCaching(
-                            serviceConfig.getManagedLedgerMinimumBacklogCursorsForCaching());
-                    managedLedgerConfig.setMinimumBacklogEntriesForCaching(
-                            serviceConfig.getManagedLedgerMinimumBacklogEntriesForCaching());
-                    managedLedgerConfig.setMaxBacklogBetweenCursorsForCaching(
-                            serviceConfig.getManagedLedgerMaxBacklogBetweenCursorsForCaching());
-
-                    OffloadPoliciesImpl nsLevelOffloadPolicies =
-                            (OffloadPoliciesImpl) policies.map(p -> p.offload_policies).orElse(null);
-                    OffloadPoliciesImpl offloadPolicies = OffloadPoliciesImpl.mergeConfiguration(
-                            topicLevelOffloadPolicies,
-                            OffloadPoliciesImpl.oldPoliciesCompatible(nsLevelOffloadPolicies, policies.orElse(null)),
-                            getPulsar().getConfig().getProperties());
-                    if (NamespaceService.isSystemServiceNamespace(namespace.toString())) {
-                        managedLedgerConfig.setLedgerOffloader(NullLedgerOffloader.INSTANCE);
-                    } else  {
-                        if (topicLevelOffloadPolicies != null) {
-                            try {
-                                LedgerOffloader topicLevelLedgerOffLoader =
-                                        pulsar().createManagedLedgerOffloader(offloadPolicies);
-                                managedLedgerConfig.setLedgerOffloader(topicLevelLedgerOffLoader);
-                            } catch (PulsarServerException e) {
-                                throw new RuntimeException(e);
-                            }
-                        } else {
-                            //If the topic level policy is null, use the namespace level
-                            managedLedgerConfig
-                                    .setLedgerOffloader(pulsar.getManagedLedgerOffloader(namespace, offloadPolicies));
-                        }
-                    }
-
-                    managedLedgerConfig.setDeletionAtBatchIndexLevelEnabled(
-                            serviceConfig.isAcknowledgmentAtBatchIndexLevelEnabled());
-                    managedLedgerConfig.setNewEntriesCheckDelayInMillis(
-                            serviceConfig.getManagedLedgerNewEntriesCheckDelayInMillis());
-                    return managedLedgerConfig;
-                });
+                managedLedgerConfig.setDeletionAtBatchIndexLevelEnabled(
+                        serviceConfig.isAcknowledgmentAtBatchIndexLevelEnabled());
+                managedLedgerConfig.setNewEntriesCheckDelayInMillis(
+                        serviceConfig.getManagedLedgerNewEntriesCheckDelayInMillis());
+                return managedLedgerConfig;
+            });
+        });
     }
 
     private void addTopicToStatsMaps(TopicName topicName, Topic topic) {
@@ -2119,13 +2160,16 @@ public class BrokerService implements Closeable {
         });
     }
 
-    public boolean isTopicNsOwnedByBroker(TopicName topicName) {
-        try {
-            return pulsar.getNamespaceService().isServiceUnitOwned(topicName);
-        } catch (Exception e) {
-            log.warn("Failed to check the ownership of the topic: {}, {}", topicName, e.getMessage());
-        }
-        return false;
+    public CompletableFuture<Boolean> isTopicNsOwnedByBrokerAsync(TopicName topicName) {
+        return pulsar.getNamespaceService().isServiceUnitOwnedAsync(topicName)
+                .handle((hasOwnership, t) -> {
+                    if (t == null) {
+                        return hasOwnership;
+                    } else {
+                        log.warn("Failed to check the ownership of the topic: {}, {}", topicName, t.getMessage());
+                        return false;
+                    }
+                });
     }
 
     public CompletableFuture<Void> checkTopicNsOwnership(final String topic) {
@@ -2176,6 +2220,21 @@ public class BrokerService implements Closeable {
             if (serviceUnit.includes(topicName)) {
                 // Topic needs to be unloaded
                 log.info("[{}] Unloading topic", topicName);
+                if (topicFuture.isCompletedExceptionally()) {
+                    try {
+                        topicFuture.get();
+                    } catch (InterruptedException | ExecutionException ex) {
+                        if (ex.getCause() instanceof ServiceUnitNotReadyException) {
+                            // Topic was already unloaded
+                            if (log.isDebugEnabled()) {
+                                log.debug("[{}] Topic was already unloaded", topicName);
+                            }
+                            return;
+                        } else {
+                            log.warn("[{}] Got exception when closing topic", topicName, ex);
+                        }
+                    }
+                }
                 closeFutures.add(topicFuture
                         .thenCompose(t -> t.isPresent() ? t.get().close(closeWithoutWaitingClientDisconnect)
                                 : CompletableFuture.completedFuture(null)));
@@ -3050,8 +3109,11 @@ public class BrokerService implements Closeable {
                                                             if (ex.getCause()
                                                                     instanceof MetadataStoreException
                                                                     .AlreadyExistsException) {
+                                                                log.info("[{}] The partitioned topic is already"
+                                                                        + " created, try to refresh the cache and read"
+                                                                        + " again.", topicName);
                                                                 // The partitioned topic might be created concurrently
-                                                                fetchPartitionedTopicMetadataAsync(topicName)
+                                                                fetchPartitionedTopicMetadataAsync(topicName, true)
                                                                         .whenComplete((metadata2, ex2) -> {
                                                                             if (ex2 == null) {
                                                                                 future.complete(metadata2);
@@ -3060,6 +3122,9 @@ public class BrokerService implements Closeable {
                                                                             }
                                                                         });
                                                             } else {
+                                                                log.error("[{}] operation of creating partitioned"
+                                                                        + " topic metadata failed",
+                                                                        topicName, ex);
                                                                 future.completeExceptionally(ex);
                                                             }
                                                             return null;
@@ -3105,9 +3170,14 @@ public class BrokerService implements Closeable {
     }
 
     public CompletableFuture<PartitionedTopicMetadata> fetchPartitionedTopicMetadataAsync(TopicName topicName) {
+        return fetchPartitionedTopicMetadataAsync(topicName, false);
+    }
+
+    public CompletableFuture<PartitionedTopicMetadata> fetchPartitionedTopicMetadataAsync(TopicName topicName,
+                                                                                      boolean refreshCacheAndGet) {
         // gets the number of partitions from the configuration cache
         return pulsar.getPulsarResources().getNamespaceResources().getPartitionedTopicResources()
-                .getPartitionedTopicMetadataAsync(topicName).thenApply(metadata -> {
+                .getPartitionedTopicMetadataAsync(topicName, refreshCacheAndGet).thenApply(metadata -> {
                     // if the partitioned topic is not found in metadata, then the topic is not partitioned
                     return metadata.orElseGet(() -> new PartitionedTopicMetadata());
                 });
@@ -3438,6 +3508,25 @@ public class BrokerService implements Closeable {
         }
         return pulsar.getTopicPoliciesService()
                 .deleteTopicPoliciesAsync(TopicName.get(topicName.getPartitionedTopicName()));
+    }
+
+    CompletableFuture<SchemaVersion> deleteSchema(TopicName topicName) {
+        String base = topicName.getPartitionedTopicName();
+        String id = TopicName.get(base).getSchemaName();
+        SchemaRegistryService schemaRegistryService = getPulsar().getSchemaRegistryService();
+        return BookkeeperSchemaStorage.ignoreUnrecoverableBKException(schemaRegistryService.getSchema(id))
+                .thenCompose(schema -> {
+                    if (schema != null) {
+                        // It's different from `SchemasResource.deleteSchema`
+                        // because when we delete a topic, the schema
+                        // history is meaningless. But when we delete a schema of a topic, a new schema could be
+                        // registered in the future.
+                        log.info("Delete schema storage of id: {}", id);
+                        return getPulsar().getSchemaRegistryService().deleteSchemaStorage(id);
+                    } else {
+                        return CompletableFuture.completedFuture(null);
+                    }
+                });
     }
 
     private CompletableFuture<Void> checkMaxTopicsPerNamespace(TopicName topicName, int numPartitions) {

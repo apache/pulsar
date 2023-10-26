@@ -272,6 +272,11 @@ public class NonPersistentSubscription extends AbstractSubscription implements S
     }
 
     @Override
+    public boolean isSubscriptionMigrated() {
+        return topic.isMigrated();
+    }
+
+    @Override
     public CompletableFuture<Void> close() {
         IS_FENCED_UPDATER.set(this, TRUE);
         return CompletableFuture.completedFuture(null);

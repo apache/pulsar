@@ -358,15 +358,18 @@ public class TransactionTest extends TransactionTestBase {
         int threadSize = 30;
         String topicName = "subscription";
         getPulsarServiceList().get(0).getConfig().setBrokerDeduplicationEnabled(false);
+        @Cleanup("shutdownNow")
         ExecutorService executorService = Executors.newFixedThreadPool(threadSize);
 
         //build producer/consumer
+        @Cleanup
         Producer<byte[]> producer = pulsarClient.newProducer()
                 .topic(topic)
                 .producerName("producer")
                 .sendTimeout(0, TimeUnit.SECONDS)
                 .create();
 
+        @Cleanup
         Consumer<byte[]> consumer = pulsarClient.newConsumer()
                 .topic(topic)
                 .subscriptionType(SubscriptionType.Exclusive)
@@ -471,7 +474,8 @@ public class TransactionTest extends TransactionTestBase {
         }
         admin.topics().setRetention(topic,
                 new RetentionPolicies(retentionSizeInMinutesSetTopic, retentionSizeInMbSetTopic));
-        pulsarClient.newConsumer().topic(topic)
+        @Cleanup
+        final Consumer<byte[]> subscribe = pulsarClient.newConsumer().topic(topic)
                 .subscriptionName(subName)
                 .subscribe();
         pulsarService.getBrokerService().getTopicIfExists(topic).thenAccept(option -> {
@@ -533,6 +537,7 @@ public class TransactionTest extends TransactionTestBase {
                 .untilAsserted(() -> Assert.assertFalse(reader.hasMessageAvailable()));
 
         //test take snapshot by build producer by the transactionEnable client
+        @Cleanup
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
                 .producerName("testSnapshot").sendTimeout(0, TimeUnit.SECONDS)
                 .topic(topic).enableBatching(true)
@@ -652,6 +657,7 @@ public class TransactionTest extends TransactionTestBase {
         Assert.assertEquals(position.getEntryId(), messageId.getEntryId());
 
         //test the state of TransactionBuffer is Ready after build Producer by pulsarClient that enables transaction.
+        @Cleanup
         Producer<String> txnProducer = pulsarClient.newProducer(Schema.STRING)
                 .producerName("testTransactionPublish")
                 .topic(topic)
@@ -1446,6 +1452,7 @@ public class TransactionTest extends TransactionTestBase {
     public void testPendingAckReplayChangeStateError() throws InterruptedException, TimeoutException {
         AtomicInteger atomicInteger = new AtomicInteger(1);
         // Create Executor
+        @Cleanup("shutdownNow")
         ScheduledExecutorService executorService = Executors.newSingleThreadScheduledExecutor();
         // Mock serviceConfiguration.
         ServiceConfiguration serviceConfiguration = mock(ServiceConfiguration.class);

@@ -102,6 +102,8 @@ public interface Subscription extends MessageExpirer {
 
     CompletableFuture<Void> updateSubscriptionProperties(Map<String, String> subscriptionProperties);
 
+    boolean isSubscriptionMigrated();
+
     default void processReplicatedSubscriptionSnapshot(ReplicatedSubscriptionsSnapshot snapshot) {
         // Default is no-op
     }
@@ -130,4 +132,5 @@ public interface Subscription extends MessageExpirer {
     static boolean isIndividualAckMode(SubType subType) {
         return SubType.Shared.equals(subType) || SubType.Key_Shared.equals(subType);
     }
+
 }

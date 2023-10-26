@@ -528,9 +528,6 @@ public class PulsarTestContext implements AutoCloseable {
             if (configOverrideCustomizer != null) {
                 configOverrideCustomizer.accept(super.config);
             }
-            if (super.brokerInterceptor != null) {
-                super.config.setDisableBrokerInterceptors(false);
-            }
             initializeCommonPulsarServices(spyConfig);
             initializePulsarServices(spyConfig, this);
             if (pulsarServiceCustomizer != null) {
@@ -592,7 +589,8 @@ public class PulsarTestContext implements AutoCloseable {
                 } else {
                     try {
                         MetadataStoreExtended store = MetadataStoreFactoryImpl.createExtended("memory:local",
-                                MetadataStoreConfig.builder().build());
+                                MetadataStoreConfig.builder()
+                                        .metadataStoreName(MetadataStoreConfig.METADATA_STORE).build());
                         registerCloseable(() -> {
                             store.close();
                             resetSpyOrMock(store);
@@ -715,7 +713,7 @@ public class PulsarTestContext implements AutoCloseable {
                     if (metadataStore == null) {
                         metadataStore = builder.configurationMetadataStore;
                     }
-                    NamespaceResources nsr = spyConfigPulsarResources.spy(NamespaceResources.class, metadataStore, 30);
+                    NamespaceResources nsr = spyConfigPulsarResources.spy(NamespaceResources.class,metadataStore, 30);
                     TopicResources tsr = spyConfigPulsarResources.spy(TopicResources.class, metadataStore);
                     pulsarResources(
                             spyConfigPulsarResources.spy(

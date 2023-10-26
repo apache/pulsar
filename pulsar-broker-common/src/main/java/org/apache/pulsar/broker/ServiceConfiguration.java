@@ -1355,12 +1355,6 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private Set<String> brokerInterceptors = new TreeSet<>();
 
     @FieldContext(
-        category = CATEGORY_SERVER,
-        doc = "Enable or disable the broker interceptor, which is only used for testing for now"
-    )
-    private boolean disableBrokerInterceptors = true;
-
-    @FieldContext(
             category = CATEGORY_SERVER,
             doc = "List of interceptors for payload processing.")
     private Set<String> brokerEntryPayloadProcessors = new LinkedHashSet<>();
@@ -2425,9 +2419,10 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
             dynamic = true,
             category = CATEGORY_LOAD_BALANCER,
-            doc = "Direct Memory Resource Usage Weight"
+            doc = "Direct Memory Resource Usage Weight. Direct memory usage cannot accurately reflect the "
+                    + "machine's load, and it is not recommended to use it to score the machine's load."
     )
-    private double loadBalancerDirectMemoryResourceWeight = 1.0;
+    private double loadBalancerDirectMemoryResourceWeight = 0;
 
     @FieldContext(
             dynamic = true,
@@ -2782,6 +2777,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
                 + " if cluster is marked migrated. Disable with value 0. (Default disabled)."
     )
     private int clusterMigrationCheckDurationSeconds = 0;
+
+    @FieldContext(
+        category = CATEGORY_SERVER,
+        doc = "Flag to start cluster migration for topic only after creating all topic's resources"
+                + " such as tenant, namespaces, subscriptions at new green cluster. (Default disabled)."
+    )
+    private boolean clusterMigrationAutoResourceCreation = false;
 
     @FieldContext(
         category = CATEGORY_SCHEMA,

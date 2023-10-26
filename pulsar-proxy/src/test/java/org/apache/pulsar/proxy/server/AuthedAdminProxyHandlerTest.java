@@ -186,27 +186,28 @@ public class AuthedAdminProxyHandlerTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testAuthenticatedRequestWithLongUri() throws Exception {
-        PulsarAdmin user1Admin = getAdminClient("user1");
-        PulsarAdmin brokerAdmin = getDirectToBrokerAdminClient("admin");
-        StringBuilder longTenant = new StringBuilder("tenant");
-        for (int i = 10 * 1024; i > 0; i = i - 4){
-            longTenant.append("_abc");
-        }
-        try {
-            brokerAdmin.namespaces().getNamespaces(longTenant.toString());
-            Assert.fail("expect error: Tenant not found");
-        } catch (Exception ex){
-            Assert.assertTrue(ex instanceof PulsarAdminException);
-            PulsarAdminException pulsarAdminException = (PulsarAdminException) ex;
-            Assert.assertEquals(pulsarAdminException.getStatusCode(), 404);
-        }
-        try {
-            user1Admin.namespaces().getNamespaces(longTenant.toString());
-            Assert.fail("expect error: Tenant not found");
-        } catch (Exception ex){
-            Assert.assertTrue(ex instanceof PulsarAdminException);
-            PulsarAdminException pulsarAdminException = (PulsarAdminException) ex;
-            Assert.assertEquals(pulsarAdminException.getStatusCode(), 404);
+        try (PulsarAdmin user1Admin = getAdminClient("user1");
+             PulsarAdmin brokerAdmin = getDirectToBrokerAdminClient("admin")) {
+            StringBuilder longTenant = new StringBuilder("tenant");
+            for (int i = 10 * 1024; i > 0; i = i - 4) {
+                longTenant.append("_abc");
+            }
+            try {
+                brokerAdmin.namespaces().getNamespaces(longTenant.toString());
+                Assert.fail("expect error: Tenant not found");
+            } catch (Exception ex) {
+                Assert.assertTrue(ex instanceof PulsarAdminException);
+                PulsarAdminException pulsarAdminException = (PulsarAdminException) ex;
+                Assert.assertEquals(pulsarAdminException.getStatusCode(), 404);
+            }
+            try {
+                user1Admin.namespaces().getNamespaces(longTenant.toString());
+                Assert.fail("expect error: Tenant not found");
+            } catch (Exception ex) {
+                Assert.assertTrue(ex instanceof PulsarAdminException);
+                PulsarAdminException pulsarAdminException = (PulsarAdminException) ex;
+                Assert.assertEquals(pulsarAdminException.getStatusCode(), 404);
+            }
         }
     }
 }

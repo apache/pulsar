@@ -253,15 +253,21 @@ public class ProxyServiceStarter {
                                      ProxyConfiguration config,
                                      ProxyService service,
                                      BrokerDiscoveryProvider discoveryProvider) throws Exception {
-        if (service != null) {
-            PrometheusMetricsServlet metricsServlet = service.getMetricsServlet();
-            if (metricsServlet != null) {
-                server.addServlet("/metrics", new ServletHolder(metricsServlet),
-                        Collections.emptyList(), config.isAuthenticateMetricsEndpoint());
+        // We can make 'status.html' publicly accessible without authentication since
+        // it does not contain any sensitive data.
+        server.addRestResource("/", VipStatus.ATTRIBUTE_STATUS_FILE_PATH, config.getStatusFilePath(),
+                VipStatus.class, false);
+        if (config.isEnableProxyStatsEndpoints()) {
+            server.addRestResource("/proxy-stats", ProxyStats.ATTRIBUTE_PULSAR_PROXY_NAME, service,
+                    ProxyStats.class);
+            if (service != null) {
+                PrometheusMetricsServlet metricsServlet = service.getMetricsServlet();
+                if (metricsServlet != null) {
+                    server.addServlet("/metrics", new ServletHolder(metricsServlet),
+                            Collections.emptyList(), config.isAuthenticateMetricsEndpoint());
+                }
             }
         }
-        server.addRestResource("/", VipStatus.ATTRIBUTE_STATUS_FILE_PATH, config.getStatusFilePath(), VipStatus.class);
-        server.addRestResource("/proxy-stats", ProxyStats.ATTRIBUTE_PULSAR_PROXY_NAME, service, ProxyStats.class);
 
         AdminProxyHandler adminProxyHandler = new AdminProxyHandler(config, discoveryProvider);
         ServletHolder servletHolder = new ServletHolder(adminProxyHandler);
