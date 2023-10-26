@@ -1091,6 +1091,8 @@ public class ServerCnxTest {
         channel2.channel.writeInbound(cmdSubscribe2);
         AtomicBoolean channel1MonitorStopped = startChannelMonitorToHandleUserTask();
 
+        // Since the feature "ConnectionLiveness" has been disabled, the fix
+        // by https://github.com/apache/pulsar/pull/21183 will not be affected, so the client will still get an error.
         Object responseOfConnection2 = getResponse(channel2.channel, channel2.clientChannelHelper);
         assertTrue(responseOfConnection2 instanceof CommandError);
         assertTrue(((CommandError) responseOfConnection2).getMessage()
