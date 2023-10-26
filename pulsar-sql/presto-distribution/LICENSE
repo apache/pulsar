@@ -480,8 +480,6 @@ The Apache Software License, Version 2.0
     - swagger-annotations-1.6.10.jar
   * Perfmark
     - perfmark-api-0.26.0.jar
-  * Annotations
-    - auto-service-annotations-1.0.jar
   * RabbitMQ Java Client
     - amqp-client-5.5.3.jar
   * Stream Lib
@@ -524,9 +522,6 @@ MIT License
    - jcl-over-slf4j-1.7.32.jar
  * Checker Qual
    - checker-qual-3.33.0.jar
- * Annotations
-   - animal-sniffer-annotations-1.21.jar
-   - annotations-4.1.1.4.jar
  * ScribeJava
    - scribejava-apis-6.9.0.jar
    - scribejava-core-6.9.0.jar

@@ -435,7 +435,6 @@ The Apache Software License, Version 2.0
     - io.grpc-grpc-services-1.55.3.jar
     - io.grpc-grpc-xds-1.55.3.jar
     - io.grpc-grpc-rls-1.55.3.jar
-    - com.google.auto.service-auto-service-annotations-1.0.jar
     - io.grpc-grpc-servlet-1.55.3.jar
     - io.grpc-grpc-servlet-jakarta-1.55.3.jar
   * Perfmark
@@ -479,7 +478,7 @@ The Apache Software License, Version 2.0
     - io.vertx-vertx-core-4.3.8.jar
     - io.vertx-vertx-web-4.3.8.jar
     - io.vertx-vertx-web-common-4.3.8.jar
-    - io.vertx-vertx-grpc-4.3.8.jar
+    - io.vertx-vertx-grpc-4.3.5.jar
   * Apache ZooKeeper
     - org.apache.zookeeper-zookeeper-3.8.3.jar
     - org.apache.zookeeper-zookeeper-jute-3.8.3.jar
