@@ -170,7 +170,7 @@ public class ConnectionHandler {
         connectionClosed(cnx, null, Optional.empty());
     }
 
-    public void connectionClosed(ClientCnx cnx, Long initialConnectionDelayMs, Optional<URI> hostUrl) {
+    public void connectionClosed(ClientCnx cnx, Optional<Long> initialConnectionDelayMs, Optional<URI> hostUrl) {
         lastConnectionClosedTimestamp = System.currentTimeMillis();
         duringConnect.set(false);
         state.client.getCnxPool().releaseConnection(cnx);
@@ -180,7 +180,7 @@ public class ConnectionHandler {
                         state.topic, state.getHandlerName(), state.getState());
                 return;
             }
-            long delayMs = initialConnectionDelayMs != null ? initialConnectionDelayMs.longValue() : backoff.next();
+            long delayMs = initialConnectionDelayMs.orElse(backoff.next());
             state.setState(State.Connecting);
             log.info("[{}] [{}] Closed connection {} -- Will try again in {} s",
                     state.topic, state.getHandlerName(), cnx.channel(),
