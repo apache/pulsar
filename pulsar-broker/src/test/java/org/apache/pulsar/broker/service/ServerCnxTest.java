@@ -1062,7 +1062,7 @@ public class ServerCnxTest {
     }
 
     @Test
-    public void testHandleConsumerAfterClientChannelInactiveWhenDisabledFeatureConnectionLivenessCheckTimeoutMillis()
+    public void test2ndSubFailedIfDisabledConCheck()
             throws Exception {
         final String tName = successTopicName;
         final long consumerId = 1;
@@ -1075,7 +1075,7 @@ public class ServerCnxTest {
         resetChannel();
         setChannelConnected();
 
-        // The producer register using the first connection.
+        // The consumer register using the first connection.
         ByteBuf cmdSubscribe1 = Commands.newSubscribe(tName, sName, consumerId, requestId.incrementAndGet(),
                 SubType.Exclusive, 0, cName1, 0);
         channel.writeInbound(cmdSubscribe1);
