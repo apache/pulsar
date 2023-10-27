@@ -37,6 +37,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import lombok.Cleanup;
 import lombok.Getter;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.client.api.CompressionType;
@@ -388,10 +389,11 @@ public class AbstractWebSocketHandlerTest {
     }
 
     @Test
-    public void testPingFuture() {
+    public void testPingFuture() throws IOException {
         WebSocketProxyConfiguration webSocketProxyConfiguration = new WebSocketProxyConfiguration();
         webSocketProxyConfiguration.setWebSocketPingDurationSeconds(5);
 
+        @Cleanup
         WebSocketService webSocketService = new WebSocketService(webSocketProxyConfiguration);
 
         HttpServletRequest httpServletRequest = mock(HttpServletRequest.class);
