@@ -146,6 +146,8 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
 
     private final String defaultTestNamespace = "public/test";
 
+    private LookupService lookupService;
+
     @BeforeClass
     @Override
     public void setup() throws Exception {
@@ -194,6 +196,7 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
             admin.namespaces().createNamespace(defaultTestNamespace);
             admin.namespaces().setNamespaceReplicationClusters(defaultTestNamespace,
                     Sets.newHashSet(this.conf.getClusterName()));
+            lookupService = (LookupService) FieldUtils.readDeclaredField(pulsarClient, "lookup", true);
         }
     }
 
@@ -207,9 +210,10 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
     }
 
     @BeforeMethod(alwaysRun = true)
-    protected void initializeState() throws PulsarAdminException {
+    protected void initializeState() throws PulsarAdminException, IllegalAccessException {
         admin.namespaces().unload(defaultTestNamespace);
         reset(primaryLoadManager, secondaryLoadManager);
+        FieldUtils.writeDeclaredField(pulsarClient, "lookup", lookupService, true);
     }
 
     @Test
@@ -497,8 +501,7 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
 
     private LookupService spyLookupService(AtomicInteger lookupCount, TopicName topicName)
             throws IllegalAccessException {
-        var lookup = spy((LookupService)
-                FieldUtils.readDeclaredField(pulsarClient, "lookup", true));
+        var lookup = spy(lookupService);
         FieldUtils.writeDeclaredField(pulsarClient, "lookup", lookup, true);
         doAnswer(invocationOnMock -> {
             lookupCount.incrementAndGet();
