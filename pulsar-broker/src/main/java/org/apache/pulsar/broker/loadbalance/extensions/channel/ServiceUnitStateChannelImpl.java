@@ -554,10 +554,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                 return Optional.of(data.dstBroker());
             }
             case Releasing -> {
-                if (data.dstBroker() != null) {
-                    return Optional.of(data.dstBroker());
-                }
-                return Optional.empty();
+                return Optional.ofNullable(data.dstBroker());
             }
             case Splitting -> {
                 return Optional.of(data.sourceBroker());
@@ -770,20 +767,20 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         if (getOwnerRequest != null) {
             getOwnerRequest.complete(data.dstBroker());
         }
-        CompletableFuture<Integer> ownFuture = null;
+
         if (isTargetBroker(data.dstBroker())) {
             pulsar.getNamespaceService()
                     .onNamespaceBundleOwned(LoadManagerShared.getNamespaceBundle(pulsar, serviceUnit));
             lastOwnEventHandledAt = System.currentTimeMillis();
-            ownFuture = CompletableFuture.completedFuture(null);
+            stateChangeListeners.notify(serviceUnit, data, null);
+            log(null, serviceUnit, data, null);
         } else if ((data.force() || isTransferCommand(data)) && isTargetBroker(data.sourceBroker())) {
-            ownFuture = closeServiceUnit(serviceUnit, false);
+            stateChangeListeners.notifyOnCompletion(
+                            closeServiceUnit(serviceUnit, false), serviceUnit, data)
+                    .whenComplete((__, e) -> log(e, serviceUnit, data, null));
         } else {
-            ownFuture = CompletableFuture.completedFuture(null);
+            stateChangeListeners.notify(serviceUnit, data, null);
         }
-
-        stateChangeListeners.notifyOnCompletion(ownFuture, serviceUnit, data)
-                .whenComplete((__, e) -> log(e, serviceUnit, data, null));
     }
 
     private void handleAssignEvent(String serviceUnit, ServiceUnitStateData data) {

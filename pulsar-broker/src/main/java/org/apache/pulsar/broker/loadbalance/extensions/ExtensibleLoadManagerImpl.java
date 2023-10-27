@@ -328,7 +328,7 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
                                 }
                         );
             } catch (Throwable e) {
-                log.error("Failed to DestinationBrokerLookupData for topic:{}", topic, e);
+                log.error("Failed to lookup destination broker for topic:{}", topic, e);
                 return CompletableFuture.completedFuture(Optional.empty());
             }
         }
