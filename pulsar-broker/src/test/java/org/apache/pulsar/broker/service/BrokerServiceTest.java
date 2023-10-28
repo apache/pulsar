@@ -984,6 +984,7 @@ public class BrokerServiceTest extends BrokerTestBase {
         conf.setConcurrentLookupRequest(1);
         conf.setMaxLookupRequest(2);
 
+        @Cleanup("shutdownNow")
         EventLoopGroup eventLoop = EventLoopUtil.newEventLoopGroup(20, false,
                 new DefaultThreadFactory("test-pool", Thread.currentThread().isDaemon()));
         long reqId = 0xdeadbeef;
