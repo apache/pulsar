@@ -391,11 +391,16 @@ public class BrokerServiceTest extends BrokerTestBase {
     }
 
     private void createNewConnectionAndCheckFail(String topicName, ClientBuilder builder) throws Exception {
+        PulsarClient client = null;
         try {
-            createNewConnection(topicName, builder);
+            client = createNewConnection(topicName, builder);
             fail("should fail");
         } catch (Exception e) {
             assertTrue(e.getMessage().contains("Reached the maximum number of connections"));
+        } finally {
+            if (client != null) {
+                client.close();
+            }
         }
     }
 
