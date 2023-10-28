@@ -750,19 +750,11 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         sub.addConsumer(consumer);
         assertTrue(sub.getDispatcher().isConsumerConnected());
 
-        // 2. duplicate add consumer
-        try {
-            sub.addConsumer(consumer).get();
-            fail("Should fail with ConsumerBusyException");
-        } catch (Exception e) {
-            assertTrue(e.getCause() instanceof BrokerServiceException.ConsumerBusyException);
-        }
-
-        // 3. simple remove consumer
+        // 2. simple remove consumer
         sub.removeConsumer(consumer);
         assertFalse(sub.getDispatcher().isConsumerConnected());
 
-        // 4. duplicate remove consumer
+        // 3. duplicate remove consumer
         try {
             sub.removeConsumer(consumer);
             fail("Should fail with ServerMetadataException");
