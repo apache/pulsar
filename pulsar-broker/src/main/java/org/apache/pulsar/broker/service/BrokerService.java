@@ -62,7 +62,6 @@ import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.atomic.LongAdder;
 import java.util.concurrent.locks.ReadWriteLock;
@@ -2213,7 +2212,6 @@ public class BrokerService implements Closeable {
         requireNonNull(namespaceBundle);
         requireNonNull(unit);
         final List<CompletableFuture<Void>> closeFutures = new ArrayList<>();
-        final AtomicInteger unloadedCounter = new AtomicInteger();
         topics.forEach((name, topicFuture) -> {
             final TopicName topicName = TopicName.get(name);
             if (namespaceBundle.includes(topicName)) {
@@ -2226,7 +2224,6 @@ public class BrokerService implements Closeable {
                         // We are unable to close the topic due to a creation failure.
                         .exceptionally(ex -> Optional.empty())
                         .thenCompose(t -> t.isPresent() ? t.get().close(closeWithoutWaitingClientDisconnect)
-                                .thenAccept(__ -> unloadedCounter.incrementAndGet())
                                 : CompletableFuture.completedFuture(null)));
             }
         });
@@ -2243,7 +2240,7 @@ public class BrokerService implements Closeable {
         }
 
         return FutureUtil.waitForAll(closeFutures)
-                .thenApply(v -> unloadedCounter.get())
+                .thenApply(v -> closeFutures.size())
                 .orTimeout(timeout, unit);
     }
 
