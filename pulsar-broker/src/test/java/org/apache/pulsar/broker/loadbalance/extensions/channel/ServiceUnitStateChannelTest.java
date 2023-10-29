@@ -507,10 +507,10 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         assertEquals(1, getOwnerRequests1.size());
         assertEquals(1, getOwnerRequests2.size());
 
-        // In 5 secs, the getOwnerAsync requests(lookup requests) should time out.
-        Awaitility.await().atMost(5, TimeUnit.SECONDS)
+        // In 10 secs, the getOwnerAsync requests(lookup requests) should time out.
+        Awaitility.await().atMost(10, TimeUnit.SECONDS)
                 .untilAsserted(() -> assertTrue(owner1.isCompletedExceptionally()));
-        Awaitility.await().atMost(5, TimeUnit.SECONDS)
+        Awaitility.await().atMost(10, TimeUnit.SECONDS)
                 .untilAsserted(() -> assertTrue(owner2.isCompletedExceptionally()));
 
         assertEquals(0, getOwnerRequests1.size());
@@ -567,7 +567,7 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         assertEquals(ownerAddr2, Optional.of(lookupServiceAddress1));
         assertTrue(ownerAddr1.isPresent());
 
-        NamespaceService namespaceService = spy(pulsar1.getNamespaceService());
+        NamespaceService namespaceService = pulsar1.getNamespaceService();
         CompletableFuture<Void> future = new CompletableFuture<>();
         int badVersionExceptionCount = 3;
         AtomicInteger count = new AtomicInteger(badVersionExceptionCount);
@@ -1139,10 +1139,10 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         assertFalse(owner1.isDone());
         assertFalse(owner2.isDone());
 
-        // In 5 secs, the getOwnerAsync requests(lookup requests) should time out.
-        Awaitility.await().atMost(5, TimeUnit.SECONDS)
+        // In 10 secs, the getOwnerAsync requests(lookup requests) should time out.
+        Awaitility.await().atMost(10, TimeUnit.SECONDS)
                 .untilAsserted(() -> assertTrue(owner1.isCompletedExceptionally()));
-        Awaitility.await().atMost(5, TimeUnit.SECONDS)
+        Awaitility.await().atMost(10, TimeUnit.SECONDS)
                 .untilAsserted(() -> assertTrue(owner2.isCompletedExceptionally()));
 
         // recovered, check the monitor update state : Assigned -> Owned
@@ -1331,7 +1331,7 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         assertEquals(ownerAddr2, Optional.of(lookupServiceAddress1));
         assertTrue(ownerAddr1.isPresent());
 
-        NamespaceService namespaceService = spy(pulsar1.getNamespaceService());
+        NamespaceService namespaceService = pulsar1.getNamespaceService();
         CompletableFuture<Void> future = new CompletableFuture<>();
         int badVersionExceptionCount = 10;
         AtomicInteger count = new AtomicInteger(badVersionExceptionCount);

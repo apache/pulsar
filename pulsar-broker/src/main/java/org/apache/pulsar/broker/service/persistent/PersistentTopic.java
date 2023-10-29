@@ -319,7 +319,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
         TopicName topicName = TopicName.get(topic);
         if (brokerService.getPulsar().getConfiguration().isTransactionCoordinatorEnabled()
-                && !isEventSystemTopic(topicName)) {
+                && !isEventSystemTopic(topicName)
+                && !NamespaceService.isHeartbeatNamespace(topicName.getNamespaceObject())) {
             this.transactionBuffer = brokerService.getPulsar()
                     .getTransactionBufferProvider().newTransactionBuffer(this);
         } else {
@@ -2613,7 +2614,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                     : CompletableFuture.completedFuture(null);
             return migrated.thenApply(__ -> {
                 subscriptions.forEach((name, sub) -> {
-                    if (sub.isSubsciptionMigrated()) {
+                    if (sub.isSubscriptionMigrated()) {
                         sub.getConsumers().forEach(Consumer::checkAndApplyTopicMigration);
                     }
                 });

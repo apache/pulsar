@@ -54,6 +54,7 @@ FROM ubuntu:22.04
 ARG DEBIAN_FRONTEND=noninteractive
 ARG UBUNTU_MIRROR=mirror://mirrors.ubuntu.com/mirrors.txt
 ARG UBUNTU_SECURITY_MIRROR=http://security.ubuntu.com/ubuntu/
+ARG JDK_MAJOR_VERSION=17
 
 # Install some utilities
 RUN sed -i -e "s|http://archive\.ubuntu\.com/ubuntu/|${UBUNTU_MIRROR:-mirror://mirrors.ubuntu.com/mirrors.txt}|g" \
@@ -71,10 +72,10 @@ RUN mkdir -p /etc/apt/keyrings \
      && echo "deb [signed-by=/etc/apt/keyrings/adoptium.asc] https://packages.adoptium.net/artifactory/deb $(awk -F= '/^VERSION_CODENAME/{print$2}' /etc/os-release) main" | tee /etc/apt/sources.list.d/adoptium.list \
      && apt-get update \
      && apt-get -y dist-upgrade \
-     && apt-get -y install temurin-17-jdk \
+     && apt-get -y install temurin-${JDK_MAJOR_VERSION:-17}-jdk \
      && export ARCH=$(uname -m | sed -r 's/aarch64/arm64/g' |  awk '!/arm64/{$0="amd64"}1') \
-     && echo networkaddress.cache.ttl=1 >> /usr/lib/jvm/temurin-17-jdk-$ARCH/conf/security/java.security \
-     && echo networkaddress.cache.negative.ttl=1 >> /usr/lib/jvm/temurin-17-jdk-$ARCH/conf/security/java.security \
+     && echo networkaddress.cache.ttl=1 >> /usr/lib/jvm/temurin-${JDK_MAJOR_VERSION:-17}-jdk-$ARCH/conf/security/java.security \
+     && echo networkaddress.cache.negative.ttl=1 >> /usr/lib/jvm/temurin-${JDK_MAJOR_VERSION:-17}-jdk-$ARCH/conf/security/java.security \
 
 # Cleanup apt
 RUN apt-get -y --purge autoremove \
