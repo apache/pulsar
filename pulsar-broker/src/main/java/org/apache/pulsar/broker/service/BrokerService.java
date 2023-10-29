@@ -58,11 +58,11 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.atomic.LongAdder;
 import java.util.concurrent.locks.ReadWriteLock;
@@ -2196,75 +2196,55 @@ public class BrokerService implements Closeable {
                 });
     }
 
-    public CompletableFuture<Integer> unloadServiceUnit(NamespaceBundle serviceUnit,
-            boolean disconnectClients,
-            boolean closeWithoutWaitingClientDisconnect, long timeout, TimeUnit unit) {
-        CompletableFuture<Integer> future = unloadServiceUnit(
-                serviceUnit, disconnectClients, closeWithoutWaitingClientDisconnect);
-        ScheduledFuture<?> taskTimeout = executor().schedule(() -> {
-            if (!future.isDone()) {
-                log.warn("Unloading of {} has timed out", serviceUnit);
-                // Complete the future with no error
-                future.complete(0);
-            }
-        }, timeout, unit);
-
-        future.whenComplete((r, ex) -> taskTimeout.cancel(true));
-        return future;
-    }
-
     /**
-     * Unload all the topic served by the broker service under the given service unit.
+     * Unload and close topics by namespace-bundle. It will close all topics in the namespace bundle.
      *
-     * @param serviceUnit
-     * @param disconnectClients disconnect clients
-     * @param closeWithoutWaitingClientDisconnect don't wait for clients to disconnect
-     *                                           and forcefully close managed-ledger
-     * @return
+     * @param namespaceBundle                           Namespace bundle
+     * @param closeWithoutWaitingClientDisconnect       Whether wait client disconnection while closing topic
+     * @param timeout                                   Timeout time
+     * @param unit                                      Timeout time unit
+     * @return Return the future of namespace bundle unloading and how many topics has been unloaded.
+     * Note:
+     *      If
+     * @throws NullPointerException Throw NPE when namespace-bundle or time unit is null.
      */
-    private CompletableFuture<Integer> unloadServiceUnit(NamespaceBundle serviceUnit,
-                                                         boolean disconnectClients,
-                                                         boolean closeWithoutWaitingClientDisconnect) {
-        List<CompletableFuture<Void>> closeFutures = new ArrayList<>();
+    public CompletableFuture<Integer> unloadServiceUnit(NamespaceBundle namespaceBundle,
+            boolean closeWithoutWaitingClientDisconnect, long timeout, TimeUnit unit) {
+        requireNonNull(namespaceBundle);
+        requireNonNull(unit);
+        final List<CompletableFuture<Void>> closeFutures = new ArrayList<>();
+        final AtomicInteger unloadedCounter = new AtomicInteger();
         topics.forEach((name, topicFuture) -> {
-            TopicName topicName = TopicName.get(name);
-            if (serviceUnit.includes(topicName)) {
-                // Topic needs to be unloaded
-                log.info("[{}] Unloading topic", topicName);
+            final TopicName topicName = TopicName.get(name);
+            if (namespaceBundle.includes(topicName)) {
+                log.info("[{}][{}] Topic unloading is performed by the service unit.", namespaceBundle, topicName);
                 if (topicFuture.isCompletedExceptionally()) {
-                    try {
-                        topicFuture.get();
-                    } catch (InterruptedException | ExecutionException ex) {
-                        if (ex.getCause() instanceof ServiceUnitNotReadyException) {
-                            // Topic was already unloaded
-                            if (log.isDebugEnabled()) {
-                                log.debug("[{}] Topic was already unloaded", topicName);
-                            }
-                            return;
-                        } else {
-                            log.warn("[{}] Got exception when closing topic", topicName, ex);
-                        }
-                    }
+                    // We are unable to close the topic due to a creation failure.
+                    return;
                 }
                 closeFutures.add(topicFuture
-                        .thenCompose(t -> t.isPresent() ? t.get().close(
-                                disconnectClients, closeWithoutWaitingClientDisconnect)
+                        // We are unable to close the topic due to a creation failure.
+                        .exceptionally(ex -> Optional.empty())
+                        .thenCompose(t -> t.isPresent() ? t.get().close(closeWithoutWaitingClientDisconnect)
+                                .thenAccept(__ -> unloadedCounter.incrementAndGet())
                                 : CompletableFuture.completedFuture(null)));
             }
         });
-        if (getPulsar().getConfig().isTransactionCoordinatorEnabled()
-                && serviceUnit.getNamespaceObject().equals(NamespaceName.SYSTEM_NAMESPACE)) {
-            TransactionMetadataStoreService metadataStoreService =
-                    this.getPulsar().getTransactionMetadataStoreService();
-            // if the store belongs to this bundle, remove and close the store
-            this.getPulsar().getTransactionMetadataStoreService().getStores().values().stream().filter(store ->
-                    serviceUnit.includes(SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN
-                            .getPartition((int) (store.getTransactionCoordinatorID().getId()))))
-                    .map(TransactionMetadataStore::getTransactionCoordinatorID)
+        if (pulsar.getConfig().isTransactionCoordinatorEnabled()
+                && namespaceBundle.getNamespaceObject().equals(NamespaceName.SYSTEM_NAMESPACE)) {
+            final TransactionMetadataStoreService metadataStoreService = pulsar.getTransactionMetadataStoreService();
+            // If the store belongs to this bundle, remove and close the store
+            pulsar.getTransactionMetadataStoreService().getStores().values()
+                    .stream().map(TransactionMetadataStore::getTransactionCoordinatorID)
+                    .filter(transactionCoordinatorID ->
+                            namespaceBundle.includes(SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN
+                                    .getPartition((int) (transactionCoordinatorID.getId()))))
                     .forEach(tcId -> closeFutures.add(metadataStoreService.removeTransactionMetadataStore(tcId)));
         }
 
-        return FutureUtil.waitForAll(closeFutures).thenApply(v -> closeFutures.size());
+        return FutureUtil.waitForAll(closeFutures)
+                .thenApply(v -> unloadedCounter.get())
+                .orTimeout(timeout, unit);
     }
 
     public void cleanUnloadedTopicFromCache(NamespaceBundle serviceUnit) {
@@ -2277,9 +2257,6 @@ public class BrokerService implements Closeable {
         }
     }
 
-    public AuthorizationService getAuthorizationService() {
-        return authorizationService;
-    }
 
     public CompletableFuture<Void> removeTopicFromCache(Topic topic) {
         Optional<CompletableFuture<Optional<Topic>>> createTopicFuture = findTopicFutureInCache(topic);
@@ -2375,10 +2352,6 @@ public class BrokerService implements Closeable {
             this.numberOfNamespaceBundles += bundles.size();
         });
         return this.numberOfNamespaceBundles;
-    }
-
-    public ConcurrentOpenHashMap<String, CompletableFuture<Optional<Topic>>> getTopics() {
-        return topics;
     }
 
 
@@ -2541,20 +2514,12 @@ public class BrokerService implements Closeable {
         return workerGroup;
     }
 
-    public ConcurrentOpenHashMap<String, PulsarClient> getReplicationClients() {
-        return replicationClients;
-    }
-
     public boolean isAuthenticationEnabled() {
         return pulsar.getConfiguration().isAuthenticationEnabled();
     }
 
     public boolean isAuthorizationEnabled() {
         return pulsar.getConfiguration().isAuthorizationEnabled();
-    }
-
-    public int getKeepAliveIntervalSeconds() {
-        return keepAliveIntervalSeconds;
     }
 
     public String generateUniqueProducerName() {
@@ -2567,10 +2532,6 @@ public class BrokerService implements Closeable {
         forEachTopic(topic -> stats.put(topic.getName(), topic.getStats(false, false, false)));
 
         return stats;
-    }
-
-    public AuthenticationService getAuthenticationService() {
-        return authenticationService;
     }
 
     public List<Topic> getAllTopicsFromNamespaceBundle(String namespace, String bundle) {
