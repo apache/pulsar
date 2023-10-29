@@ -1310,12 +1310,6 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             this.getWorkerConfig().map(WorkerConfig::getStateStorageServiceUrl).orElse(null));
     }
 
-    /**
-     * Get the current pulsar state.
-     */
-    public State getState() {
-        return this.state;
-    }
 
     /**
      * check the current pulsar service is running, including Started and Init state.
@@ -1357,26 +1351,12 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                 + "is not enabled, probably functionsWorkerEnabled is set to false"));
     }
 
-    /**
-     * Get a reference of the current <code>BrokerService</code> instance associated with the current
-     * <code>PulsarService</code> instance.
-     *
-     * @return a reference of the current <code>BrokerService</code> instance.
-     */
-    public BrokerService getBrokerService() {
-        return this.brokerService;
-    }
-
     public BookKeeper getBookKeeperClient() {
         return getManagedLedgerClientFactory().getBookKeeperClient();
     }
 
     public ManagedLedgerFactory getManagedLedgerFactory() {
         return getManagedLedgerClientFactory().getManagedLedgerFactory();
-    }
-
-    public ManagedLedgerStorage getManagedLedgerClientFactory() {
-        return managedLedgerClientFactory;
     }
 
     /**
@@ -1455,22 +1435,6 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         SchemaStorage schemaStorage = factoryInstance.create(this);
         schemaStorage.start();
         return schemaStorage;
-    }
-
-    public ScheduledExecutorService getExecutor() {
-        return executor;
-    }
-
-    public ExecutorProvider getTransactionExecutorProvider() {
-        return transactionExecutorProvider;
-    }
-
-    public ScheduledExecutorService getLoadManagerExecutor() {
-        return loadManagerExecutor;
-    }
-
-    public OrderedExecutor getOrderedExecutor() {
-        return orderedExecutor;
     }
 
     public BookKeeperClientFactory newBookKeeperClientFactory() {
@@ -1654,22 +1618,6 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         return this.adminClient;
     }
 
-    public MetricsGenerator getMetricsGenerator() {
-        return metricsGenerator;
-    }
-
-    public TransactionMetadataStoreService getTransactionMetadataStoreService() {
-        return transactionMetadataStoreService;
-    }
-
-    public TransactionBufferProvider getTransactionBufferProvider() {
-        return transactionBufferProvider;
-    }
-
-    public TransactionBufferClient getTransactionBufferClient() {
-        return transactionBufferClient;
-    }
-
     /**
      * Gets the broker service URL (non-TLS) associated with the internal listener.
      */
@@ -1741,14 +1689,6 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         return String.format("%s:%s", advertisedAddress, config.getWebServicePortTls().isPresent()
                 ? config.getWebServicePortTls().get()
                 : config.getWebServicePort().orElseThrow());
-    }
-
-    public TopicPoliciesService getTopicPoliciesService() {
-        return topicPoliciesService;
-    }
-
-    public ResourceUsageTransportManager getResourceUsageTransportManager() {
-        return resourceUsageTransportManager;
     }
 
     public synchronized void addPrometheusRawMetricsProvider(PrometheusRawMetricsProvider metricsProvider) {
@@ -1834,14 +1774,6 @@ public class PulsarService implements AutoCloseable, ShutdownService {
 
     public Optional<Integer> getBrokerListenPortTls() {
         return brokerService.getListenPortTls();
-    }
-
-    public MetadataStoreExtended getLocalMetadataStore() {
-        return localMetadataStore;
-    }
-
-    public CoordinationService getCoordinationService() {
-        return coordinationService;
     }
 
     public static WorkerConfig initializeWorkerConfigFromBrokerConfig(ServiceConfiguration brokerConfig,
