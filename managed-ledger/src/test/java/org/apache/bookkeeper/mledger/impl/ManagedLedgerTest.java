@@ -88,6 +88,7 @@ import org.apache.bookkeeper.client.LedgerHandle;
 import org.apache.bookkeeper.client.PulsarMockBookKeeper;
 import org.apache.bookkeeper.client.PulsarMockLedgerHandle;
 import org.apache.bookkeeper.client.api.LedgerEntries;
+import org.apache.bookkeeper.client.api.LedgerMetadata;
 import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.conf.ClientConfiguration;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
@@ -187,10 +188,10 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
                 bkc.asyncDeleteLedger(ledgerId, originalCb, ctx);
             } else {
                 deleteLedgerInfo.hasCalled = true;
-                new Thread(() -> {
+                cachedExecutor.submit(() -> {
                     Awaitility.await().atMost(Duration.ofSeconds(60)).until(signal::get);
                     bkc.asyncDeleteLedger(ledgerId, cb, ctx);
-                }).start();
+                });
             }
             return null;
         }).when(spyBookKeeper).asyncDeleteLedger(any(long.class), any(AsyncCallback.DeleteCallback.class), any());
@@ -207,6 +208,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
     public void testLedgerInfoMetaCorrectIfAddEntryTimeOut() throws Exception {
         String mlName = "testLedgerInfoMetaCorrectIfAddEntryTimeOut";
         BookKeeper spyBookKeeper = spy(bkc);
+        @Cleanup("shutdown")
         ManagedLedgerFactoryImpl factory = new ManagedLedgerFactoryImpl(metadataStore, spyBookKeeper);
         ManagedLedgerImpl ml = (ManagedLedgerImpl) factory.open(mlName);
 
@@ -3388,7 +3390,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
             @Override
             public void openLedgerFailed(ManagedLedgerException exception, Object ctx) {
             }
-        }, checkOwnershipFlag ? () -> true : null, null);
+        }, checkOwnershipFlag ? () -> CompletableFuture.completedFuture(true) : null, null);
         latch.await();
     }
 
@@ -3853,11 +3855,14 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
     public void testInactiveLedgerRollOver() throws Exception {
         int inactiveLedgerRollOverTimeMs = 5;
         ManagedLedgerFactoryConfig factoryConf = new ManagedLedgerFactoryConfig();
+        @Cleanup("shutdown")
         ManagedLedgerFactory factory = new ManagedLedgerFactoryImpl(metadataStore, bkc);
         ManagedLedgerConfig config = new ManagedLedgerConfig();
         config.setInactiveLedgerRollOverTime(inactiveLedgerRollOverTimeMs, TimeUnit.MILLISECONDS);
         ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("rollover_inactive", config);
         ManagedCursor cursor = ledger.openCursor("c1");
+
+        List<Long> ledgerIds = new ArrayList<>();
 
         int totalAddEntries = 5;
         for (int i = 0; i < totalAddEntries; i++) {
@@ -3865,16 +3870,28 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
             ledger.checkInactiveLedgerAndRollOver();
             ledger.addEntry(content.getBytes());
             Thread.sleep(inactiveLedgerRollOverTimeMs * 5);
+
+            ledgerIds.add(ledger.currentLedger.getId());
+        }
+
+        Map<Long, PulsarMockLedgerHandle> ledgerMap = bkc.getLedgerMap();
+        // skip check last ledger, it should be open
+        for (int i = 0; i < ledgerIds.size() - 1; i++) {
+            long ledgerId = ledgerIds.get(i);
+            LedgerMetadata ledgerMetadata = ledgerMap.get(ledgerId).getLedgerMetadata();
+            if (ledgerMetadata != null) {
+                assertTrue(ledgerMetadata.isClosed());
+            }
         }
 
         List<LedgerInfo> ledgers = ledger.getLedgersInfoAsList();
         assertEquals(ledgers.size(), totalAddEntries);
         ledger.close();
-        factory.shutdown();
     }
 
     @Test
     public void testOffloadTaskCancelled() throws Exception {
+        @Cleanup("shutdown")
         ManagedLedgerFactory factory = new ManagedLedgerFactoryImpl(metadataStore, bkc);
         ManagedLedgerConfig config = new ManagedLedgerConfig();
         config.setMaxEntriesPerLedger(2);
@@ -3951,6 +3968,70 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         long lastLedger = managedLedger.ledgers.lastEntry().getKey();
         managedLedger.getEnsemblesAsync(lastLedger).join();
         Assert.assertFalse(managedLedger.ledgerCache.containsKey(lastLedger));
+    }
+
+    @Test
+    public void testIsNoMessagesAfterPos() throws Exception {
+        final byte[] data = new byte[]{1,2,3};
+        final String cursorName = "c1";
+        final String mlName = UUID.randomUUID().toString().replaceAll("-", "");
+        final ManagedLedgerImpl ml = (ManagedLedgerImpl) factory.open(mlName);
+        final ManagedCursor managedCursor = ml.openCursor(cursorName);
+
+        // One ledger.
+        PositionImpl p1 = (PositionImpl) ml.addEntry(data);
+        PositionImpl p2 = (PositionImpl) ml.addEntry(data);
+        PositionImpl p3 = (PositionImpl) ml.addEntry(data);
+        assertFalse(ml.isNoMessagesAfterPos(p1));
+        assertFalse(ml.isNoMessagesAfterPos(p2));
+        assertTrue(ml.isNoMessagesAfterPos(p3));
+        assertTrue(ml.isNoMessagesAfterPos(PositionImpl.get(p3.getLedgerId(), p3.getEntryId() + 1)));
+        assertTrue(ml.isNoMessagesAfterPos(PositionImpl.get(p3.getLedgerId() + 1, -1)));
+
+        // More than one ledger.
+        ml.ledgerClosed(ml.currentLedger);
+        PositionImpl p4 = (PositionImpl) ml.addEntry(data);
+        PositionImpl p5 = (PositionImpl) ml.addEntry(data);
+        PositionImpl p6 = (PositionImpl) ml.addEntry(data);
+        assertFalse(ml.isNoMessagesAfterPos(p1));
+        assertFalse(ml.isNoMessagesAfterPos(p2));
+        assertFalse(ml.isNoMessagesAfterPos(p3));
+        assertFalse(ml.isNoMessagesAfterPos(p4));
+        assertFalse(ml.isNoMessagesAfterPos(p5));
+        assertTrue(ml.isNoMessagesAfterPos(p6));
+        assertTrue(ml.isNoMessagesAfterPos(PositionImpl.get(p6.getLedgerId(), p6.getEntryId() + 1)));
+        assertTrue(ml.isNoMessagesAfterPos(PositionImpl.get(p6.getLedgerId() + 1, -1)));
+
+        // Switch ledger and make the entry id of Last confirmed entry is -1;
+        ml.ledgerClosed(ml.currentLedger);
+        ml.createLedgerAfterClosed();
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(ml.currentLedgerEntries, 0);
+        });
+        ml.lastConfirmedEntry = PositionImpl.get(ml.currentLedger.getId(), -1);
+        assertFalse(ml.isNoMessagesAfterPos(p5));
+        assertTrue(ml.isNoMessagesAfterPos(p6));
+        assertTrue(ml.isNoMessagesAfterPos(PositionImpl.get(p6.getLedgerId(), p6.getEntryId() + 1)));
+        assertTrue(ml.isNoMessagesAfterPos(PositionImpl.get(p6.getLedgerId() + 1, -1)));
+
+        // Trim ledgers to make there is no entries in ML.
+        ml.deleteCursor(cursorName);
+        CompletableFuture<Void> future = new CompletableFuture<>();
+        ml.trimConsumedLedgersInBackground(true, future);
+        future.get();
+        assertEquals(ml.ledgers.size(), 1);
+        assertEquals(ml.lastConfirmedEntry.getEntryId(), -1);
+        assertTrue(ml.isNoMessagesAfterPos(p1));
+        assertTrue(ml.isNoMessagesAfterPos(p2));
+        assertTrue(ml.isNoMessagesAfterPos(p3));
+        assertTrue(ml.isNoMessagesAfterPos(p4));
+        assertTrue(ml.isNoMessagesAfterPos(p5));
+        assertTrue(ml.isNoMessagesAfterPos(p6));
+        assertTrue(ml.isNoMessagesAfterPos(PositionImpl.get(p6.getLedgerId(), p6.getEntryId() + 1)));
+        assertTrue(ml.isNoMessagesAfterPos(PositionImpl.get(p6.getLedgerId() + 1, -1)));
+
+        // cleanup.
+        ml.close();
     }
 
     @Test

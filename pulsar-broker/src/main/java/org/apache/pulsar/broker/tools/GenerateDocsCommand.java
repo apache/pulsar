@@ -26,7 +26,7 @@ import org.apache.bookkeeper.tools.framework.Cli;
 import org.apache.bookkeeper.tools.framework.CliCommand;
 import org.apache.bookkeeper.tools.framework.CliFlags;
 import org.apache.bookkeeper.tools.framework.CliSpec;
-import org.apache.pulsar.common.util.CmdGenerateDocs;
+import org.apache.pulsar.docs.tools.CmdGenerateDocs;
 
 /**
  * The command to generate documents of broker-tool.

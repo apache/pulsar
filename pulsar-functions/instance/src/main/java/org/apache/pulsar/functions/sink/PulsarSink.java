@@ -349,7 +349,7 @@ public class PulsarSink<T> implements Sink<T> {
                       ComponentStatsManager stats, ClassLoader functionClassLoader) {
         this.client = client;
         this.pulsarSinkConfig = pulsarSinkConfig;
-        this.topicSchema = new TopicSchema(client);
+        this.topicSchema = new TopicSchema(client, functionClassLoader);
         this.properties = properties;
         this.stats = stats;
         this.functionClassLoader = functionClassLoader;

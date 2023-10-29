@@ -168,7 +168,7 @@ public class ProxyAuthenticationTest extends ProducerConsumerBase {
 		conf.setBrokerClientAuthenticationPlugin(BasicAuthentication.class.getName());
 		// Expires after an hour
 		conf.setBrokerClientAuthenticationParameters(
-				"entityType:broker,expiryTime:" + (System.currentTimeMillis() + 3600 * 1000));
+				"entityType:admin,expiryTime:" + (System.currentTimeMillis() + 3600 * 1000));
 
 		Set<String> superUserRoles = new HashSet<>();
 		superUserRoles.add("admin");
@@ -255,6 +255,7 @@ public class ProxyAuthenticationTest extends ProducerConsumerBase {
 	private void updateAdminClient() throws PulsarClientException {
 		// Expires after an hour
 		String adminAuthParams = "entityType:admin,expiryTime:" + (System.currentTimeMillis() + 3600 * 1000);
+		closeAdmin();
 		admin = spy(PulsarAdmin.builder().serviceHttpUrl(brokerUrl.toString())
 				.authentication(BasicAuthentication.class.getName(), adminAuthParams).build());
 	}

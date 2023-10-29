@@ -23,12 +23,14 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import com.google.protobuf.TextFormat;
+import java.lang.reflect.Field;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -38,6 +40,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 import lombok.Cleanup;
@@ -54,6 +57,7 @@ import org.apache.bookkeeper.replication.ReplicationException.UnavailableExcepti
 import org.apache.bookkeeper.util.BookKeeperConstants;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.metadata.BaseMetadataStoreTest;
+import org.apache.pulsar.metadata.api.GetResult;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.NotificationType;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
@@ -294,6 +298,69 @@ public class LedgerUnderreplicationManagerTest extends BaseMetadataStoreTest {
 
         Long l = f.get(5, TimeUnit.SECONDS);
         assertEquals(l, lB.get(), "Should be the ledger I marked");
+    }
+
+
+    @Test(timeOut = 10000)
+    public void testZkMetasStoreMarkReplicatedDeleteEmptyParentNodes() throws Exception {
+        methodSetup(stringSupplier(() -> zks.getConnectionString()));
+
+        String missingReplica = "localhost:3181";
+
+        @Cleanup
+        LedgerUnderreplicationManager m1 = lmf.newLedgerUnderreplicationManager();
+
+        Long ledgerA = 0xfeadeefdacL;
+        m1.markLedgerUnderreplicated(ledgerA, missingReplica);
+
+        Field storeField = m1.getClass().getDeclaredField("store");
+        storeField.setAccessible(true);
+        MetadataStoreExtended metadataStore = (MetadataStoreExtended) storeField.get(m1);
+
+        String fiveLevelPath = PulsarLedgerUnderreplicationManager.getUrLedgerPath(urLedgerPath, ledgerA);
+        Optional<GetResult> getResult = metadataStore.get(fiveLevelPath).get(1, TimeUnit.SECONDS);
+        assertTrue(getResult.isPresent());
+
+        String fourLevelPath = fiveLevelPath.substring(0, fiveLevelPath.lastIndexOf("/"));
+        getResult = metadataStore.get(fourLevelPath).get(1, TimeUnit.SECONDS);
+        assertTrue(getResult.isPresent());
+
+        String threeLevelPath = fourLevelPath.substring(0, fourLevelPath.lastIndexOf("/"));
+        getResult = metadataStore.get(threeLevelPath).get(1, TimeUnit.SECONDS);
+        assertTrue(getResult.isPresent());
+
+        String twoLevelPath = fourLevelPath.substring(0, threeLevelPath.lastIndexOf("/"));
+        getResult = metadataStore.get(twoLevelPath).get(1, TimeUnit.SECONDS);
+        assertTrue(getResult.isPresent());
+
+        String oneLevelPath = fourLevelPath.substring(0, twoLevelPath.lastIndexOf("/"));
+        getResult = metadataStore.get(oneLevelPath).get(1, TimeUnit.SECONDS);
+        assertTrue(getResult.isPresent());
+
+        getResult = metadataStore.get(urLedgerPath).get(1, TimeUnit.SECONDS);
+        assertTrue(getResult.isPresent());
+
+        long ledgerToRereplicate = m1.getLedgerToRereplicate();
+        assertEquals(ledgerToRereplicate, ledgerA);
+        m1.markLedgerReplicated(ledgerA);
+
+        getResult = metadataStore.get(fiveLevelPath).get(1, TimeUnit.SECONDS);
+        assertFalse(getResult.isPresent());
+
+        getResult = metadataStore.get(fourLevelPath).get(1, TimeUnit.SECONDS);
+        assertFalse(getResult.isPresent());
+
+        getResult = metadataStore.get(threeLevelPath).get(1, TimeUnit.SECONDS);
+        assertFalse(getResult.isPresent());
+
+        getResult = metadataStore.get(twoLevelPath).get(1, TimeUnit.SECONDS);
+        assertFalse(getResult.isPresent());
+
+        getResult = metadataStore.get(oneLevelPath).get(1, TimeUnit.SECONDS);
+        assertFalse(getResult.isPresent());
+
+        getResult = metadataStore.get(urLedgerPath).get(1, TimeUnit.SECONDS);
+        assertTrue(getResult.isPresent());
     }
 
     /**
@@ -548,6 +615,8 @@ public class LedgerUnderreplicationManagerTest extends BaseMetadataStoreTest {
         final String missingReplica = "localhost:3181";
 
         // disabling replication
+        AtomicInteger callbackCount = new AtomicInteger();
+        lum.notifyLedgerReplicationEnabled((rc, result) -> callbackCount.incrementAndGet());
         lum.disableLedgerReplication();
         log.info("Disabled Ledeger Replication");
 
@@ -565,6 +634,7 @@ public class LedgerUnderreplicationManagerTest extends BaseMetadataStoreTest {
         } catch (TimeoutException te) {
             // expected behaviour, as the replication is disabled
         }
+        assertEquals(callbackCount.get(), 1, "Notify callback times mismatch");
     }
 
     /**
@@ -585,7 +655,8 @@ public class LedgerUnderreplicationManagerTest extends BaseMetadataStoreTest {
             log.debug("Unexpected exception while marking urLedger", e);
             fail("Unexpected exception while marking urLedger" + e.getMessage());
         }
-
+        AtomicInteger callbackCount = new AtomicInteger();
+        lum.notifyLedgerReplicationEnabled((rc, result) -> callbackCount.incrementAndGet());
         // disabling replication
         lum.disableLedgerReplication();
         log.debug("Disabled Ledeger Replication");
@@ -622,6 +693,7 @@ public class LedgerUnderreplicationManagerTest extends BaseMetadataStoreTest {
             znodeLatch.await(5, TimeUnit.SECONDS);
             log.debug("Enabled Ledeger Replication");
             assertEquals(znodeLatch.getCount(), 0, "Failed to disable ledger replication!");
+            assertEquals(callbackCount.get(), 2, "Notify callback times mismatch");
         } finally {
             thread1.interrupt();
         }
@@ -681,6 +753,17 @@ public class LedgerUnderreplicationManagerTest extends BaseMetadataStoreTest {
         curTime = System.currentTimeMillis();
         underReplicaMgr2.setReplicasCheckCTime(curTime);
         assertEquals(underReplicaMgr1.getReplicasCheckCTime(), curTime);
+    }
+
+    @Test(timeOut = 60000, dataProvider = "impl")
+    public void testLostBookieRecoveryDelay(String provider, Supplier<String> urlSupplier) throws Exception {
+        methodSetup(urlSupplier);
+
+        AtomicInteger callbackCount = new AtomicInteger();
+        lum.notifyLostBookieRecoveryDelayChanged((rc, result) -> callbackCount.incrementAndGet());
+        // disabling replication
+        lum.setLostBookieRecoveryDelay(10);
+        Awaitility.await().until(() -> callbackCount.get() == 2);
     }
 
     private void verifyMarkLedgerUnderreplicated(Collection<String> missingReplica) throws Exception {

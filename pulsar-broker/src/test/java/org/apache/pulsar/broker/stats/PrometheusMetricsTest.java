@@ -81,6 +81,7 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.compaction.Compactor;
+import org.apache.pulsar.compaction.PulsarCompactionServiceFactory;
 import org.apache.zookeeper.CreateMode;
 import org.awaitility.Awaitility;
 import org.mockito.Mockito;
@@ -246,6 +247,14 @@ public class PrometheusMetricsTest extends BrokerTestBase {
                 assertEquals(item.value, 3.0);
             }
         });
+        Collection<Metric> pulsarTopicLoadTimesMetrics = metrics.get("pulsar_topic_load_times");
+        Collection<Metric> pulsarTopicLoadTimesCountMetrics = metrics.get("pulsar_topic_load_times_count");
+        assertEquals(pulsarTopicLoadTimesMetrics.size(), 6);
+        assertEquals(pulsarTopicLoadTimesCountMetrics.size(), 1);
+        Collection<Metric> topicLoadTimeP999Metrics = metrics.get("pulsar_topic_load_time_99_9_percentile_ms");
+        Collection<Metric> topicLoadTimeFailedCountMetrics = metrics.get("pulsar_topic_load_failed_count");
+        assertEquals(topicLoadTimeP999Metrics.size(), 1);
+        assertEquals(topicLoadTimeFailedCountMetrics.size(), 1);
     }
 
     @Test
@@ -329,7 +338,11 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         assertEquals(cm.get(1).tags.get("topic"), "persistent://my-property/use/my-ns/my-topic1");
         assertEquals(cm.get(1).tags.get("namespace"), "my-property/use/my-ns");
 
-        cm = (List<Metric>) metrics.get("topic_load_times_count");
+        cm = (List<Metric>) metrics.get("pulsar_topic_load_times_count");
+        assertEquals(cm.size(), 1);
+        assertEquals(cm.get(0).tags.get("cluster"), "test");
+
+        cm = (List<Metric>) metrics.get("topic_load_failed_total");
         assertEquals(cm.size(), 1);
         assertEquals(cm.get(0).tags.get("cluster"), "test");
 
@@ -1727,7 +1740,7 @@ public class PrometheusMetricsTest extends BrokerTestBase {
                     .value(data)
                     .send();
         }
-        Compactor compactor = pulsar.getCompactor();
+        Compactor compactor = ((PulsarCompactionServiceFactory)pulsar.getCompactionServiceFactory()).getCompactor();
         compactor.compact(topicName).get();
         statsOut = new ByteArrayOutputStream();
         PrometheusMetricsGenerator.generate(pulsar, true, false, false, statsOut);
@@ -1951,6 +1964,32 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         public String toString() {
             return MoreObjects.toStringHelper(this).add("tags", tags).add("value", value).toString();
         }
+    }
+
+    @Test
+    public void testEscapeLabelValue() throws Exception {
+        String ns1 = "prop/ns-abc1";
+        admin.namespaces().createNamespace(ns1);
+        String topic = "persistent://" + ns1 + "/\"mytopic";
+        admin.topics().createNonPartitionedTopic(topic);
+
+        @Cleanup
+        final Consumer<?> consumer = pulsarClient.newConsumer()
+                .subscriptionName("sub")
+                .topic(topic)
+                .subscribe();
+        @Cleanup
+        ByteArrayOutputStream statsOut = new ByteArrayOutputStream();
+        PrometheusMetricsGenerator.generate(pulsar, true, false,
+                false, statsOut);
+        String metricsStr = statsOut.toString();
+        final List<String> subCountLines = metricsStr.lines()
+                .filter(line -> line.startsWith("pulsar_subscriptions_count"))
+                .collect(Collectors.toList());
+        System.out.println(subCountLines);
+        assertEquals(subCountLines.size(), 1);
+        assertEquals(subCountLines.get(0),
+                "pulsar_subscriptions_count{cluster=\"test\",namespace=\"prop/ns-abc1\",topic=\"persistent://prop/ns-abc1/\\\"mytopic\"} 1");
     }
 
 }

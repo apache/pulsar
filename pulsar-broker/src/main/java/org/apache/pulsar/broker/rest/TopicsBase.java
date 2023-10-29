@@ -39,6 +39,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.core.Response;
@@ -53,6 +54,7 @@ import org.apache.avro.io.Decoder;
 import org.apache.avro.io.DecoderFactory;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.admin.impl.PersistentTopicsBase;
 import org.apache.pulsar.broker.authentication.AuthenticationParameters;
@@ -432,7 +434,10 @@ public class TopicsBase extends PersistentTopicsBase {
             }
 
             LookupResult result = optionalResult.get();
-            if (result.getLookupData().getHttpUrl().equals(pulsar().getWebServiceAddress())) {
+            String httpUrl = result.getLookupData().getHttpUrl();
+            String httpUrlTls = result.getLookupData().getHttpUrlTls();
+            if ((StringUtils.isNotBlank(httpUrl) && httpUrl.equals(pulsar().getWebServiceAddress()))
+                    || (StringUtils.isNotBlank(httpUrlTls) && httpUrlTls.equals(pulsar().getWebServiceAddressTls()))) {
                 // Current broker owns the topic, add to owning topic.
                 if (log.isDebugEnabled()) {
                     log.debug("Complete topic look up for rest produce message request for topic {}, "
@@ -453,12 +458,10 @@ public class TopicsBase extends PersistentTopicsBase {
                 }
                 if (result.isRedirect()) {
                     // Redirect lookup.
-                    completeLookup(Pair.of(Arrays.asList(result.getLookupData().getHttpUrl(),
-                            result.getLookupData().getHttpUrlTls()), false), redirectAddresses, future);
+                    completeLookup(Pair.of(Arrays.asList(httpUrl, httpUrlTls), false), redirectAddresses, future);
                 } else {
                     // Found owner for topic.
-                    completeLookup(Pair.of(Arrays.asList(result.getLookupData().getHttpUrl(),
-                            result.getLookupData().getHttpUrlTls()), true), redirectAddresses, future);
+                    completeLookup(Pair.of(Arrays.asList(httpUrl, httpUrlTls), true), redirectAddresses, future);
                 }
             }
         }).exceptionally(exception -> {
@@ -771,7 +774,7 @@ public class TopicsBase extends PersistentTopicsBase {
                 isAuthorized = pulsar().getBrokerService().getAuthorizationService()
                         .allowTopicOperationAsync(topicName, TopicOperation.PRODUCE, authParams)
                         .get(config().getMetadataStoreOperationTimeoutSeconds(), SECONDS);
-            } catch (InterruptedException e) {
+            } catch (TimeoutException e) {
                 log.warn("Time-out {} sec while checking authorization on {} ",
                         config().getMetadataStoreOperationTimeoutSeconds(), topicName);
                 throw new RestException(Status.INTERNAL_SERVER_ERROR, "Time-out while checking authorization");

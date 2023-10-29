@@ -73,7 +73,7 @@ import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.api.proto.KeySharedMeta;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
-import org.apache.pulsar.common.policies.data.ClusterData.ClusterUrl;
+import org.apache.pulsar.common.policies.data.ClusterPolicies.ClusterUrl;
 import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats.CursorStats;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.Policies;
@@ -90,7 +90,6 @@ import org.apache.pulsar.common.protocol.schema.SchemaData;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
-import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats;
 import org.apache.pulsar.utils.StatsOutputStream;
 import org.slf4j.Logger;
@@ -157,28 +156,27 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
     }
 
     private CompletableFuture<Void> updateClusterMigrated() {
-        return getMigratedClusterUrlAsync(brokerService.getPulsar()).thenAccept(url -> migrated = url.isPresent());
-    }
-
-    private Optional<ClusterUrl> getClusterMigrationUrl() {
-        return getMigratedClusterUrl(brokerService.getPulsar());
+        return getMigratedClusterUrlAsync(brokerService.getPulsar(), topic)
+                .thenAccept(url -> migrated = url.isPresent());
     }
 
     public CompletableFuture<Void> initialize() {
         return brokerService.pulsar().getPulsarResources().getNamespaceResources()
                 .getPoliciesAsync(TopicName.get(topic).getNamespaceObject())
                 .thenCompose(optPolicies -> {
+                    final Policies policies;
                     if (!optPolicies.isPresent()) {
                         log.warn("[{}] Policies not present and isEncryptionRequired will be set to false", topic);
                         isEncryptionRequired = false;
+                        policies = new Policies();
                     } else {
-                        Policies policies = optPolicies.get();
+                        policies = optPolicies.get();
                         updateTopicPolicyByNamespacePolicy(policies);
                         isEncryptionRequired = policies.encryption_required;
                         isAllowAutoUpdateSchema = policies.is_allow_auto_update_schema;
                     }
                     updatePublishDispatcher();
-                    updateResourceGroupLimiter(optPolicies);
+                    updateResourceGroupLimiter(policies);
                     return updateClusterMigrated();
                 });
     }
@@ -238,6 +236,11 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
     }
 
     @Override
+    public boolean shouldProducerMigrate() {
+        return true;
+    }
+
+    @Override
     public boolean isReplicationBacklogExist() {
         return false;
     }
@@ -259,8 +262,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
     public CompletableFuture<Consumer> subscribe(SubscriptionOption option) {
         return internalSubscribe(option.getCnx(), option.getSubscriptionName(), option.getConsumerId(),
                 option.getSubType(), option.getPriorityLevel(), option.getConsumerName(),
-                option.isDurable(), option.getStartMessageId(), option.getMetadata(),
-                option.isReadCompacted(),
+                option.getStartMessageId(), option.getMetadata(), option.isReadCompacted(),
                 option.getStartMessageRollbackDurationSec(), option.isReplicatedSubscriptionStateArg(),
                 option.getKeySharedMeta(), option.getSubscriptionProperties().orElse(null),
                 option.getSchemaType());
@@ -275,15 +277,14 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
                                                  long resetStartMessageBackInSec, boolean replicateSubscriptionState,
                                                  KeySharedMeta keySharedMeta) {
         return internalSubscribe(cnx, subscriptionName, consumerId, subType, priorityLevel, consumerName,
-                isDurable, startMessageId, metadata, readCompacted, resetStartMessageBackInSec,
+                startMessageId, metadata, readCompacted, resetStartMessageBackInSec,
                 replicateSubscriptionState, keySharedMeta, null, null);
     }
 
     private CompletableFuture<Consumer> internalSubscribe(final TransportCnx cnx, String subscriptionName,
                                                           long consumerId, SubType subType, int priorityLevel,
-                                                          String consumerName, boolean isDurable,
-                                                          MessageId startMessageId, Map<String, String> metadata,
-                                                          boolean readCompacted,
+                                                          String consumerName, MessageId startMessageId,
+                                                          Map<String, String> metadata, boolean readCompacted,
                                                           long resetStartMessageBackInSec,
                                                           boolean replicateSubscriptionState,
                                                           KeySharedMeta keySharedMeta,
@@ -327,13 +328,13 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
             }
 
             NonPersistentSubscription subscription = subscriptions.computeIfAbsent(subscriptionName,
-                    name -> new NonPersistentSubscription(this, subscriptionName, isDurable, subscriptionProperties));
+                    name -> new NonPersistentSubscription(this, subscriptionName, subscriptionProperties));
 
             Consumer consumer = new Consumer(subscription, subType, topic, consumerId, priorityLevel, consumerName,
                     false, cnx, cnx.getAuthRole(), metadata, readCompacted, keySharedMeta, MessageId.latest,
                     DEFAULT_CONSUMER_EPOCH, schemaType);
             if (isMigrated()) {
-                consumer.topicMigrated(getClusterMigrationUrl());
+                consumer.topicMigrated(getMigratedClusterUrl());
             }
 
             addConsumerToSubscription(subscription, consumer).thenRun(() -> {
@@ -383,7 +384,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
     @Override
     public CompletableFuture<Subscription> createSubscription(String subscriptionName, InitialPosition initialPosition,
             boolean replicateSubscriptionState, Map<String, String> properties) {
-        return CompletableFuture.completedFuture(new NonPersistentSubscription(this, subscriptionName, true,
+        return CompletableFuture.completedFuture(new NonPersistentSubscription(this, subscriptionName,
                 properties));
     }
 
@@ -635,6 +636,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
 
         replicators.get(remoteCluster).disconnect().thenRun(() -> {
             log.info("[{}] Successfully removed replicator {}", name, remoteCluster);
+            replicators.remove(remoteCluster);
 
         }).exceptionally(e -> {
             log.error("[{}] Failed to close replication producer {} {}", topic, name, e.getMessage(), e);
@@ -949,7 +951,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
 
     @Override
     public CompletableFuture<Void> checkClusterMigration() {
-        Optional<ClusterUrl> url = getClusterMigrationUrl();
+        Optional<ClusterUrl> url = getMigratedClusterUrl();
         if (url.isPresent()) {
             this.migrated = true;
             producers.forEach((__, producer) -> {
@@ -960,8 +962,29 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
                     consumer.topicMigrated(url);
                 });
             });
+            return disconnectReplicators().thenCompose(__ -> checkAndUnsubscribeSubscriptions());
         }
         return CompletableFuture.completedFuture(null);
+    }
+
+    private CompletableFuture<Void> checkAndUnsubscribeSubscriptions() {
+        List<CompletableFuture<Void>> futures = new ArrayList<>();
+        subscriptions.forEach((s, subscription) -> {
+            if (subscription.getConsumers().isEmpty()) {
+                futures.add(subscription.delete());
+            }
+        });
+
+        return FutureUtil.waitForAll(futures);
+    }
+
+    private CompletableFuture<Void> disconnectReplicators() {
+        List<CompletableFuture<Void>> futures = new ArrayList<>();
+        ConcurrentOpenHashMap<String, NonPersistentReplicator> replicators = getReplicators();
+        replicators.forEach((r, replicator) -> {
+            futures.add(replicator.disconnect());
+        });
+        return FutureUtil.waitForAll(futures);
     }
 
     @Override
@@ -1029,33 +1052,8 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
 
     @Override
     public void checkInactiveSubscriptions() {
-        TopicName name = TopicName.get(topic);
-        try {
-            Policies policies = brokerService.pulsar().getPulsarResources().getNamespaceResources()
-                    .getPolicies(name.getNamespaceObject())
-                    .orElseThrow(MetadataStoreException.NotFoundException::new);
-            final int defaultExpirationTime = brokerService.pulsar().getConfiguration()
-                    .getSubscriptionExpirationTimeMinutes();
-            final Integer nsExpirationTime = policies.subscription_expiration_time_minutes;
-            final long expirationTimeMillis = TimeUnit.MINUTES
-                    .toMillis(nsExpirationTime == null ? defaultExpirationTime : nsExpirationTime);
-            if (expirationTimeMillis > 0) {
-                subscriptions.forEach((subName, sub) -> {
-                    if (sub.getDispatcher() != null
-                            && sub.getDispatcher().isConsumerConnected() || sub.isReplicated()) {
-                        return;
-                    }
-                    if (System.currentTimeMillis() - sub.getLastActive() > expirationTimeMillis) {
-                        sub.delete().thenAccept(v -> log.info("[{}][{}] The subscription was deleted due to expiration "
-                                + "with last active [{}]", topic, subName, sub.getLastActive()));
-                    }
-                });
-            }
-        } catch (Exception e) {
-            if (log.isDebugEnabled()) {
-                log.debug("[{}] Error getting policies", topic);
-            }
-        }
+        // no-op
+        // subscriptions will be removed after all the consumers disconnected.
     }
 
     @Override

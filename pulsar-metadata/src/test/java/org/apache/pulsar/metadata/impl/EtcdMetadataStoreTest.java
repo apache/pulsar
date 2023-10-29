@@ -23,8 +23,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.google.common.io.Resources;
 import io.etcd.jetcd.launcher.EtcdCluster;
-import io.etcd.jetcd.launcher.EtcdClusterFactory;
 
+import io.etcd.jetcd.test.EtcdClusterExtension;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -44,7 +44,8 @@ public class EtcdMetadataStoreTest {
     @Test
     public void testCluster() throws Exception {
         @Cleanup
-        EtcdCluster etcdCluster = EtcdClusterFactory.buildCluster("test-cluster", 3, false);
+        EtcdCluster etcdCluster = EtcdClusterExtension.builder().withClusterName("test-cluster").withNodes(3)
+                .withSsl(false).build().cluster();
         etcdCluster.start();
 
         EtcdConfig etcdConfig = EtcdConfig.builder().useTls(false)
@@ -56,7 +57,7 @@ public class EtcdMetadataStoreTest {
         new ObjectMapper(new YAMLFactory()).writeValue(etcdConfigPath.toFile(), etcdConfig);
 
         String metadataURL =
-                "etcd:" + etcdCluster.getClientEndpoints().stream().map(URI::toString).collect(Collectors.joining(","));
+                "etcd:" + etcdCluster.clientEndpoints().stream().map(URI::toString).collect(Collectors.joining(","));
 
         @Cleanup
         MetadataStore store = MetadataStoreFactory.create(metadataURL,
@@ -71,7 +72,8 @@ public class EtcdMetadataStoreTest {
     @Test
     public void testClusterWithTls() throws Exception {
         @Cleanup
-        EtcdCluster etcdCluster = EtcdClusterFactory.buildCluster("test-cluster", 3, true);
+        EtcdCluster etcdCluster = EtcdClusterExtension.builder().withClusterName("test-cluster").withNodes(3)
+                .withSsl(true).build().cluster();
         etcdCluster.start();
 
         EtcdConfig etcdConfig = EtcdConfig.builder().useTls(true)
@@ -86,7 +88,7 @@ public class EtcdMetadataStoreTest {
         new ObjectMapper(new YAMLFactory()).writeValue(etcdConfigPath.toFile(), etcdConfig);
 
         String metadataURL =
-                "etcd:" + etcdCluster.getClientEndpoints().stream().map(URI::toString).collect(Collectors.joining(","));
+                "etcd:" + etcdCluster.clientEndpoints().stream().map(URI::toString).collect(Collectors.joining(","));
 
         @Cleanup
         MetadataStore store = MetadataStoreFactory.create(metadataURL,
@@ -101,7 +103,8 @@ public class EtcdMetadataStoreTest {
     @Test
     public void testTlsInstance() throws Exception {
         @Cleanup
-        EtcdCluster etcdCluster = EtcdClusterFactory.buildCluster("test-tls", 1, true);
+        EtcdCluster etcdCluster = EtcdClusterExtension.builder().withClusterName("test-tls").withNodes(1)
+                .withSsl(true).build().cluster();
         etcdCluster.start();
 
         EtcdConfig etcdConfig = EtcdConfig.builder().useTls(true)
@@ -115,7 +118,7 @@ public class EtcdMetadataStoreTest {
         new ObjectMapper(new YAMLFactory()).writeValue(etcdConfigPath.toFile(), etcdConfig);
 
         String metadataURL =
-                "etcd:" + etcdCluster.getClientEndpoints().stream().map(URI::toString).collect(Collectors.joining(","));
+                "etcd:" + etcdCluster.clientEndpoints().stream().map(URI::toString).collect(Collectors.joining(","));
 
         @Cleanup
         MetadataStore store = MetadataStoreFactory.create(metadataURL,

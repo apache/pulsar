@@ -100,8 +100,8 @@ public class ManagedLedgerMBeanImpl implements ManagedLedgerMXBean {
         readEntriesOpsFailed.recordEvent();
     }
 
-    public void recordReadEntriesOpsCacheMisses() {
-        readEntriesOpsCacheMisses.recordEvent();
+    public void recordReadEntriesOpsCacheMisses(int count, long totalSize) {
+        readEntriesOpsCacheMisses.recordMultipleEvents(count, totalSize);
     }
 
     public void addAddEntryLatencySample(long latency, TimeUnit unit) {

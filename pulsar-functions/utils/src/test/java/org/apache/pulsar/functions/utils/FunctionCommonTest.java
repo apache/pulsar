@@ -18,12 +18,19 @@
  */
 package org.apache.pulsar.functions.utils;
 
+import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
+import static com.github.tomakehurst.wiremock.client.WireMock.configureFor;
+import static com.github.tomakehurst.wiremock.client.WireMock.get;
+import static com.github.tomakehurst.wiremock.client.WireMock.stubFor;
+import static com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
+import com.github.tomakehurst.wiremock.WireMockServer;
 import java.io.File;
 import java.util.Collection;
+import lombok.Cleanup;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.functions.api.Context;
@@ -87,7 +94,14 @@ public class FunctionCommonTest {
 
     @Test
     public void testDownloadFileWithBasicAuth() throws Exception {
-        final String jarHttpUrl = "https://foo:bar@httpbin.org/basic-auth/foo/bar";
+        @Cleanup("stop")
+        WireMockServer server = new WireMockServer(0);
+        server.start();
+        configureFor(server.port());
+        stubFor(get(urlPathEqualTo("/"))
+                .withBasicAuth("foo", "bar")
+                .willReturn(aResponse().withBody("Hello world!").withStatus(200)));
+        final String jarHttpUrl = "http://foo:bar@localhost:" + server.port() + "/";
         final File file = Files.newTemporaryFile();
         file.deleteOnExit();
         assertThat(file.length()).isZero();

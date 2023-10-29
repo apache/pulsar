@@ -18,13 +18,13 @@ Fixes #xyz
 
 <!-- or this PR is one task of an issue -->
 
-Master Issue: #xyz
+Main Issue: #xyz
 
 <!-- If the PR belongs to a PIP, please add the PIP link here -->
 
 PIP: #xyz 
 
-<!-- Details of when a PIP is required and how the PIP process work, please see: https://github.com/apache/pulsar/blob/master/wiki/proposals/PIP.md -->
+<!-- Details of when a PIP is required and how the PIP process work, please see: https://github.com/apache/pulsar/blob/master/pip/README.md -->
 
 ### Motivation
 

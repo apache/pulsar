@@ -57,7 +57,7 @@ public class TransactionBuilderImpl implements TransactionBuilder {
                     new PulsarClientException.InvalidConfigurationException("Transactions are not enabled"));
         }
         // talk to TC to begin a transaction
-        //       the builder is responsible for locating the transaction coorindator (TC)
+        //       the builder is responsible for locating the transaction coordinator (TC)
         //       and start the transaction to get the transaction id.
         //       After getting the transaction id, all the operations are handled by the
         //       `TransactionImpl`

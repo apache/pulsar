@@ -28,6 +28,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.broker.service.BrokerService;
+import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
 import org.apache.pulsar.common.util.RateLimiter;
@@ -159,14 +160,21 @@ public class SubscribeRateLimiter {
     }
 
     /**
-     * Gets configured subscribe-rate from namespace policies. Returns null if subscribe-rate is not configured
-     *
-     * @return
+     * @deprecated Avoid using the deprecated method
+     * #{@link org.apache.pulsar.broker.resources.NamespaceResources#getPoliciesIfCached(NamespaceName)} and blocking
+     * call.
      */
+    @Deprecated
     public SubscribeRate getPoliciesSubscribeRate() {
         return getPoliciesSubscribeRate(brokerService, topicName);
     }
 
+    /**
+     * @deprecated Avoid using the deprecated method
+     * #{@link org.apache.pulsar.broker.resources.NamespaceResources#getPoliciesIfCached(NamespaceName)} and blocking
+     * call.
+     */
+    @Deprecated
     public static SubscribeRate getPoliciesSubscribeRate(BrokerService brokerService, final String topicName) {
         final String cluster = brokerService.pulsar().getConfiguration().getClusterName();
         final Optional<Policies> policies = DispatchRateLimiter.getPolicies(brokerService, topicName);

@@ -69,6 +69,7 @@ public class ProxyRefreshAuthTest extends ProducerConsumerBase {
         conf.setAdvertisedAddress(null);
         conf.setAuthenticateOriginalAuthData(true);
         conf.setBrokerServicePort(Optional.of(0));
+        conf.setWebServicePortTls(Optional.of(0));
         conf.setWebServicePort(Optional.of(0));
 
         Set<String> superUserRoles = new HashSet<>();
@@ -93,7 +94,7 @@ public class ProxyRefreshAuthTest extends ProducerConsumerBase {
     @Override
     protected void setup() throws Exception {
         super.init();
-
+        closeAdmin();
         admin = PulsarAdmin.builder().serviceHttpUrl(pulsar.getWebServiceAddress())
                 .authentication(new AuthenticationToken(
                         () -> AuthTokenUtils.createToken(SECRET_KEY, "client", Optional.empty()))).build();

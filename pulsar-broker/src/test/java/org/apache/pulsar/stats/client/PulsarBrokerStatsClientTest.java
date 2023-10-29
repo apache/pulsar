@@ -28,6 +28,7 @@ import java.util.concurrent.TimeUnit;
 import javax.ws.rs.ClientErrorException;
 import javax.ws.rs.ServerErrorException;
 
+import lombok.Cleanup;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -68,6 +69,7 @@ public class PulsarBrokerStatsClientTest extends ProducerConsumerBase {
     @Test
     public void testServiceException() throws Exception {
         URL url = new URL("http://localhost:15000");
+        @Cleanup
         PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(url.toString()).build();
         BrokerStatsImpl client = (BrokerStatsImpl) spy(admin.brokerStats());
         try {
@@ -94,8 +96,6 @@ public class PulsarBrokerStatsClientTest extends ProducerConsumerBase {
         assertTrue(client.getApiException(new ServerErrorException(503)) instanceof PulsarAdminException);
 
         log.info("Client: -- {}", client);
-
-        admin.close();
     }
 
     @Test
@@ -126,7 +126,7 @@ public class PulsarBrokerStatsClientTest extends ProducerConsumerBase {
         PersistentTopicInternalStats internalStats = topic.getInternalStats(true).get();
         assertNotNull(internalStats.ledgers.get(0).metadata);
         // For the mock test, the default ensembles is ["192.0.2.1:1234","192.0.2.2:1234","192.0.2.3:1234"]
-        // The registed bookie ID is 192.168.1.1:5000
+        // The registered bookie ID is 192.168.1.1:5000
         assertTrue(internalStats.ledgers.get(0).underReplicated);
 
         CursorStats cursor = internalStats.cursors.get(subscriptionName);

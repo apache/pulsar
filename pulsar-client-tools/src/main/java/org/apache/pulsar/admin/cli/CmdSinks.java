@@ -115,11 +115,9 @@ public class CmdSinks extends CmdBase {
             try {
                 processArguments();
             } catch (Exception e) {
-                System.err.println(e.getMessage());
-                System.err.println();
                 String chosenCommand = jcommander.getParsedCommand();
                 getUsageFormatter().usage(chosenCommand);
-                return;
+                throw e;
             }
             runCmd();
         }
@@ -526,7 +524,7 @@ public class CmdSinks extends CmdBase {
                 sinkConfig.setParallelism(parallelism);
             }
 
-            if (archive != null && sinkType != null) {
+            if (archive != null && (sinkType != null || sinkConfig.getSinkType() != null)) {
                 throw new ParameterException("Cannot specify both archive and sink-type");
             }
 

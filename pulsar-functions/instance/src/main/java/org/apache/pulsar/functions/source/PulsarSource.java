@@ -53,7 +53,7 @@ public abstract class PulsarSource<T> implements Source<T> {
                            ClassLoader functionClassLoader) {
         this.pulsarClient = pulsarClient;
         this.pulsarSourceConfig = pulsarSourceConfig;
-        this.topicSchema = new TopicSchema(pulsarClient);
+        this.topicSchema = new TopicSchema(pulsarClient, functionClassLoader);
         this.properties = properties;
         this.functionClassLoader = functionClassLoader;
     }
@@ -168,8 +168,8 @@ public abstract class PulsarSource<T> implements Source<T> {
                                                                             Class<?> typeArg) {
         PulsarSourceConsumerConfig.PulsarSourceConsumerConfigBuilder<T> consumerConfBuilder =
                 PulsarSourceConsumerConfig.<T>builder().isRegexPattern(conf.isRegexPattern())
-                .receiverQueueSize(conf.getReceiverQueueSize())
-                .consumerProperties(conf.getConsumerProperties());
+                        .receiverQueueSize(conf.getReceiverQueueSize())
+                        .consumerProperties(conf.getConsumerProperties());
 
         Schema<T> schema;
         if (conf.getSerdeClassName() != null && !conf.getSerdeClassName().isEmpty()) {

@@ -52,6 +52,7 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import javax.naming.AuthenticationException;
 import javax.net.ssl.SSLSession;
+import org.apache.commons.lang.StringUtils;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.authentication.AuthenticationProvider;
@@ -133,6 +134,8 @@ public class AuthenticationProviderOpenID implements AuthenticationProvider {
     static final int CACHE_REFRESH_AFTER_WRITE_SECONDS_DEFAULT = 18 * 60 * 60;
     static final String CACHE_EXPIRATION_SECONDS = "openIDCacheExpirationSeconds";
     static final int CACHE_EXPIRATION_SECONDS_DEFAULT = 24 * 60 * 60;
+    static final String KEY_ID_CACHE_MISS_REFRESH_SECONDS = "openIDKeyIdCacheMissRefreshSeconds";
+    static final int KEY_ID_CACHE_MISS_REFRESH_SECONDS_DEFAULT = 5 * 60;
     static final String HTTP_CONNECTION_TIMEOUT_MILLIS = "openIDHttpConnectionTimeoutMillis";
     static final int HTTP_CONNECTION_TIMEOUT_MILLIS_DEFAULT = 10_000;
     static final String HTTP_READ_TIMEOUT_MILLIS = "openIDHttpReadTimeoutMillis";
@@ -161,7 +164,9 @@ public class AuthenticationProviderOpenID implements AuthenticationProvider {
         int readTimeout = getConfigValueAsInt(config, HTTP_READ_TIMEOUT_MILLIS, HTTP_READ_TIMEOUT_MILLIS_DEFAULT);
         String trustCertsFilePath = getConfigValueAsString(config, ISSUER_TRUST_CERTS_FILE_PATH, null);
         SslContext sslContext = null;
-        if (trustCertsFilePath != null) {
+        // When config is in the conf file but is empty, it defaults to the empty string, which is not meaningful and
+        // should be ignored.
+        if (StringUtils.isNotBlank(trustCertsFilePath)) {
             // Use default settings for everything but the trust store.
             sslContext = SslContextBuilder.forClient()
                     .trustManager(new File(trustCertsFilePath))

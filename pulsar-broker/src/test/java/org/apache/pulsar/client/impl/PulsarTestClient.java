@@ -122,12 +122,12 @@ public class PulsarTestClient extends PulsarClientImpl {
             result.completeExceptionally(new IOException("New connections are rejected."));
             return result;
         } else {
-            return super.getConnection(topic);
+            return super.getConnection(topic, getCnxPool().genRandomKeyToSelectCon());
         }
     }
 
     /**
-     * Overrides the producer instance with an anonynomous subclass that adds hooks for observing new
+     * Overrides the producer instance with an anonymous subclass that adds hooks for observing new
      * OpSendMsg instances being added to pending messages in the client.
      * It also configures the hook to drop OpSend messages when dropping is enabled.
      */

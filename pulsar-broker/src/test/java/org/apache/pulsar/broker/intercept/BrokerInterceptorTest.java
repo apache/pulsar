@@ -30,6 +30,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import okhttp3.Call;
 import okhttp3.Callback;
@@ -69,7 +70,6 @@ public class BrokerInterceptorTest extends ProducerConsumerBase {
     public void setup() throws Exception {
         conf.setSystemTopicEnabled(false);
         conf.setTopicLevelPoliciesEnabled(false);
-        this.conf.setDisableBrokerInterceptors(false);
 
         this.listener1 = mock(BrokerInterceptor.class);
         this.ncl1 = mock(NarClassLoader.class);
@@ -307,4 +307,22 @@ public class BrokerInterceptorTest extends ProducerConsumerBase {
         }
     }
 
+    @Test
+    public void testInterceptNack() throws Exception {
+        BrokerInterceptor interceptor = pulsar.getBrokerInterceptor();
+        Assert.assertTrue(interceptor instanceof CounterBrokerInterceptor);
+
+        final String topic = "test-intercept-nack" + UUID.randomUUID();
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topic).create();
+        @Cleanup
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .negativeAckRedeliveryDelay(1, TimeUnit.SECONDS)
+                .topic(topic)
+                .subscriptionName("test-sub").subscribe();
+        producer.send("test intercept nack message");
+        Message<String> message = consumer.receive();
+        consumer.negativeAcknowledge(message);
+        Awaitility.await().until(() -> ((CounterBrokerInterceptor) interceptor).getHandleNackCount().get() == 1);
+    }
 }

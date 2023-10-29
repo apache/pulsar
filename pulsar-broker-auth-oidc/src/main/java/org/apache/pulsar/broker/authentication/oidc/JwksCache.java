@@ -24,6 +24,8 @@ import static org.apache.pulsar.broker.authentication.oidc.AuthenticationProvide
 import static org.apache.pulsar.broker.authentication.oidc.AuthenticationProviderOpenID.CACHE_REFRESH_AFTER_WRITE_SECONDS_DEFAULT;
 import static org.apache.pulsar.broker.authentication.oidc.AuthenticationProviderOpenID.CACHE_SIZE;
 import static org.apache.pulsar.broker.authentication.oidc.AuthenticationProviderOpenID.CACHE_SIZE_DEFAULT;
+import static org.apache.pulsar.broker.authentication.oidc.AuthenticationProviderOpenID.KEY_ID_CACHE_MISS_REFRESH_SECONDS;
+import static org.apache.pulsar.broker.authentication.oidc.AuthenticationProviderOpenID.KEY_ID_CACHE_MISS_REFRESH_SECONDS_DEFAULT;
 import static org.apache.pulsar.broker.authentication.oidc.AuthenticationProviderOpenID.incrementFailureMetric;
 import static org.apache.pulsar.broker.authentication.oidc.ConfigUtils.getConfigValueAsInt;
 import com.auth0.jwk.Jwk;
@@ -43,6 +45,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import javax.naming.AuthenticationException;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -52,7 +55,8 @@ public class JwksCache {
 
     // Map from an issuer's JWKS URI to its JWKS. When the Issuer is not empty, use the fallback client.
     private final AsyncLoadingCache<Optional<String>, List<Jwk>> cache;
-
+    private final ConcurrentHashMap<Optional<String>, Long> jwksLastRefreshTime = new ConcurrentHashMap<>();
+    private final long keyIdCacheMissRefreshNanos;
     private final ObjectReader reader = new ObjectMapper().readerFor(HashMap.class);
     private final AsyncHttpClient httpClient;
     private final OpenidApi openidApi;
@@ -61,7 +65,8 @@ public class JwksCache {
         // Store the clients
         this.httpClient = httpClient;
         this.openidApi = apiClient != null ? new OpenidApi(apiClient) : null;
-
+        keyIdCacheMissRefreshNanos = TimeUnit.SECONDS.toNanos(getConfigValueAsInt(config,
+                KEY_ID_CACHE_MISS_REFRESH_SECONDS, KEY_ID_CACHE_MISS_REFRESH_SECONDS_DEFAULT));
         // Configure the cache
         int maxSize = getConfigValueAsInt(config, CACHE_SIZE, CACHE_SIZE_DEFAULT);
         int refreshAfterWriteSeconds = getConfigValueAsInt(config, CACHE_REFRESH_AFTER_WRITE_SECONDS,
@@ -69,6 +74,8 @@ public class JwksCache {
         int expireAfterSeconds = getConfigValueAsInt(config, CACHE_EXPIRATION_SECONDS,
                 CACHE_EXPIRATION_SECONDS_DEFAULT);
         AsyncCacheLoader<Optional<String>, List<Jwk>> loader = (jwksUri, executor) -> {
+            // Store the time of the retrieval, even though it might be a little early or the call might fail.
+            jwksLastRefreshTime.put(jwksUri, System.nanoTime());
             if (jwksUri.isPresent()) {
                 return getJwksFromJwksUri(jwksUri.get());
             } else {
@@ -87,7 +94,37 @@ public class JwksCache {
             incrementFailureMetric(AuthenticationExceptionCode.ERROR_RETRIEVING_PUBLIC_KEY);
             return CompletableFuture.failedFuture(new IllegalArgumentException("jwksUri must not be null."));
         }
-        return cache.get(Optional.of(jwksUri)).thenApply(jwks -> getJwkForKID(jwks, keyId));
+        return getJwkAndMaybeReload(Optional.of(jwksUri), keyId, false);
+    }
+
+    /**
+     * Retrieve the JWK for the given key ID from the given JWKS URI. If the key ID is not found, and failOnMissingKeyId
+     * is false, then the JWK will be reloaded from the JWKS URI and the key ID will be searched for again.
+     */
+    private CompletableFuture<Jwk> getJwkAndMaybeReload(Optional<String> maybeJwksUri,
+                                                        String keyId,
+                                                        boolean failOnMissingKeyId) {
+        return cache
+                .get(maybeJwksUri)
+                .thenCompose(jwks -> {
+                    try {
+                        return CompletableFuture.completedFuture(getJwkForKID(maybeJwksUri, jwks, keyId));
+                    } catch (IllegalArgumentException e) {
+                        if (failOnMissingKeyId) {
+                            throw e;
+                        } else {
+                            Long lastRefresh = jwksLastRefreshTime.get(maybeJwksUri);
+                            if (lastRefresh == null || System.nanoTime() - lastRefresh > keyIdCacheMissRefreshNanos) {
+                                // In this case, the key ID was not found, but we haven't refreshed the JWKS in a while,
+                                // so it is possible the key ID was added. Refresh the JWKS and try again.
+                                cache.synchronous().invalidate(maybeJwksUri);
+                            }
+                            // There is a small race condition where the JWKS could be refreshed by another thread,
+                            // so we retry getting the JWK, even though we might not have invalidated the cache.
+                            return getJwkAndMaybeReload(maybeJwksUri, keyId, true);
+                        }
+                    }
+                });
     }
 
     private CompletableFuture<List<Jwk>> getJwksFromJwksUri(String jwksUri) {
@@ -119,8 +156,7 @@ public class JwksCache {
             return CompletableFuture.failedFuture(new AuthenticationException(
                     "Failed to retrieve public key from Kubernetes API server: Kubernetes fallback is not enabled."));
         }
-        return cache.get(Optional.empty(), (__, executor) -> getJwksFromKubernetesApiServer())
-                .thenApply(jwks -> getJwkForKID(jwks, keyId));
+        return getJwkAndMaybeReload(Optional.empty(), keyId, false);
     }
 
     private CompletableFuture<List<Jwk>> getJwksFromKubernetesApiServer() {
@@ -170,7 +206,7 @@ public class JwksCache {
         return future;
     }
 
-    private Jwk getJwkForKID(List<Jwk> jwks, String keyId) {
+    private Jwk getJwkForKID(Optional<String> maybeJwksUri, List<Jwk> jwks, String keyId) {
         for (Jwk jwk : jwks) {
             if (jwk.getId().equals(keyId)) {
                 return jwk;

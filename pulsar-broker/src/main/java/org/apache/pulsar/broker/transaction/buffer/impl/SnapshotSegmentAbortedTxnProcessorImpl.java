@@ -47,6 +47,7 @@ import org.apache.pulsar.broker.service.SystemTopicTxnBufferSnapshotService.Refe
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.systopic.SystemTopicClient;
 import org.apache.pulsar.broker.transaction.buffer.AbortedTxnProcessor;
+import org.apache.pulsar.broker.transaction.buffer.metadata.TransactionBufferSnapshot;
 import org.apache.pulsar.broker.transaction.buffer.metadata.v2.TransactionBufferSnapshotIndex;
 import org.apache.pulsar.broker.transaction.buffer.metadata.v2.TransactionBufferSnapshotIndexes;
 import org.apache.pulsar.broker.transaction.buffer.metadata.v2.TransactionBufferSnapshotIndexesMetadata;
@@ -57,9 +58,13 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
+import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.SegmentStats;
+import org.apache.pulsar.common.policies.data.SegmentsStats;
+import org.apache.pulsar.common.policies.data.TransactionBufferStats;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.FutureUtil;
 
@@ -113,6 +118,8 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
     private final PersistentTopic topic;
 
     private volatile long lastSnapshotTimestamps;
+
+    private volatile long lastTakedSnapshotSegmentTimestamp;
 
     /**
      * The number of the aborted transaction IDs in a segment.
@@ -173,7 +180,7 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
     }
 
     /**
-     * Check werther the position in segmentIndex {@link SnapshotSegmentAbortedTxnProcessorImpl#segmentIndex}
+     * Check whether the position in segmentIndex {@link SnapshotSegmentAbortedTxnProcessorImpl#segmentIndex}
      * is expired. If the position is not exist in the original topic, the according transaction is an invalid
      * transaction. And the according segment is invalid, too. The transaction IDs before the transaction ID
      * in the aborts are invalid, too.
@@ -265,7 +272,7 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
                     PositionImpl finalStartReadCursorPosition = startReadCursorPosition;
                     TransactionBufferSnapshotIndexes finalPersistentSnapshotIndexes = persistentSnapshotIndexes;
                     if (persistentSnapshotIndexes == null) {
-                        return CompletableFuture.completedFuture(null);
+                        return recoverOldSnapshot();
                     } else {
                         this.unsealedTxnIds = convertTypeToTxnID(persistentSnapshotIndexes
                                 .getSnapshot().getAborts());
@@ -319,6 +326,12 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
                                                 } else {
                                                     hasInvalidIndex.set(true);
                                                 }
+                                            }
+
+                                            @Override
+                                            public String toString() {
+                                                return String.format("Transaction buffer [{}] recover from snapshot",
+                                                        SnapshotSegmentAbortedTxnProcessorImpl.this.topic.getName());
                                             }
                                         }, null);
                             });
@@ -378,15 +391,96 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
                         .getExecutor(this));
     }
 
+    // This method will be deprecated and removed in version 4.x.0
+    private CompletableFuture<PositionImpl> recoverOldSnapshot() {
+        return topic.getBrokerService().getPulsar().getPulsarResources().getTopicResources()
+                .listPersistentTopicsAsync(NamespaceName.get(TopicName.get(topic.getName()).getNamespace()))
+                .thenCompose(topics -> {
+                    if (!topics.contains(TopicDomain.persistent + "://"
+                            + TopicName.get(topic.getName()).getNamespace() + "/"
+                            + SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT)) {
+                        return CompletableFuture.completedFuture(null);
+                    } else {
+                        return topic.getBrokerService().getPulsar().getTransactionBufferSnapshotServiceFactory()
+                                .getTxnBufferSnapshotService()
+                                .createReader(TopicName.get(topic.getName())).thenComposeAsync(snapshotReader -> {
+                                    PositionImpl startReadCursorPositionInOldSnapshot = null;
+                                    try {
+                                        while (snapshotReader.hasMoreEvents()) {
+                                            Message<TransactionBufferSnapshot> message = snapshotReader.readNextAsync()
+                                                    .get(getSystemClientOperationTimeoutMs(), TimeUnit.MILLISECONDS);
+                                            if (topic.getName().equals(message.getKey())) {
+                                                TransactionBufferSnapshot transactionBufferSnapshot =
+                                                        message.getValue();
+                                                if (transactionBufferSnapshot != null) {
+                                                    handleOldSnapshot(transactionBufferSnapshot);
+                                                    startReadCursorPositionInOldSnapshot = PositionImpl.get(
+                                                            transactionBufferSnapshot.getMaxReadPositionLedgerId(),
+                                                            transactionBufferSnapshot.getMaxReadPositionEntryId());
+                                                }
+                                            }
+                                        }
+                                    } catch (TimeoutException ex) {
+                                        Throwable t = FutureUtil.unwrapCompletionException(ex);
+                                        String errorMessage = String.format("[%s] Transaction buffer recover fail by "
+                                                + "read transactionBufferSnapshot timeout!", topic.getName());
+                                        log.error(errorMessage, t);
+                                        return FutureUtil.failedFuture(new BrokerServiceException
+                                                .ServiceUnitNotReadyException(errorMessage, t));
+                                    } catch (Exception ex) {
+                                        log.error("[{}] Transaction buffer recover fail when read "
+                                                + "transactionBufferSnapshot!", topic.getName(), ex);
+                                        return FutureUtil.failedFuture(ex);
+                                    } finally {
+                                        assert snapshotReader != null;
+                                        closeReader(snapshotReader);
+                                    }
+                                    return CompletableFuture.completedFuture(startReadCursorPositionInOldSnapshot);
+                                },
+                                        topic.getBrokerService().getPulsar().getTransactionExecutorProvider()
+                                                .getExecutor(this));
+                    }
+                });
+    }
+
+    // This method will be deprecated and removed in version 4.x.0
+    private void handleOldSnapshot(TransactionBufferSnapshot snapshot) {
+        if (snapshot.getAborts() != null) {
+            snapshot.getAborts().forEach(abortTxnMetadata -> {
+                TxnID txnID = new TxnID(abortTxnMetadata.getTxnIdMostBits(),
+                        abortTxnMetadata.getTxnIdLeastBits());
+                aborts.put(txnID, txnID);
+                //The old data will be written into the first segment.
+                unsealedTxnIds.add(txnID);
+            });
+        }
+    }
+
     @Override
     public CompletableFuture<Void> clearAbortedTxnSnapshot() {
         return persistentWorker.appendTask(PersistentWorker.OperationType.Clear,
                 persistentWorker::clearSnapshotSegmentAndIndexes);
     }
 
-    @Override
-    public long getLastSnapshotTimestamps() {
-        return this.lastSnapshotTimestamps;
+    public TransactionBufferStats generateSnapshotStats(boolean segmentStats) {
+        TransactionBufferStats transactionBufferStats = new TransactionBufferStats();
+        transactionBufferStats.totalAbortedTransactions = this.aborts.size();
+        transactionBufferStats.lastSnapshotTimestamps = this.lastSnapshotTimestamps;
+        SegmentsStats segmentsStats = new SegmentsStats();
+        segmentsStats.currentSegmentCapacity = this.snapshotSegmentCapacity;
+        segmentsStats.lastTookSnapshotSegmentTimestamp = this.lastTakedSnapshotSegmentTimestamp;
+        segmentsStats.unsealedAbortTxnIDSize = this.unsealedTxnIds.size();
+        segmentsStats.segmentsSize = indexes.size();
+        if (segmentStats) {
+            List<SegmentStats> statsList = new ArrayList<>();
+            segmentIndex.forEach((position, txnID) -> {
+                SegmentStats stats = new SegmentStats(txnID.toString(), position.toString());
+                statsList.add(stats);
+            });
+            segmentsStats.segmentStats = statsList;
+        }
+        transactionBufferStats.segmentsStats = segmentsStats;
+        return transactionBufferStats;
     }
 
     @Override
@@ -638,6 +732,7 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
                 transactionBufferSnapshotSegment.setSequenceId(this.sequenceID.get());
                 return segmentWriter.writeAsync(buildKey(this.sequenceID.get()), transactionBufferSnapshotSegment);
             }).thenCompose((messageId) -> {
+                lastTakedSnapshotSegmentTimestamp = System.currentTimeMillis();
                 //Build index for this segment
                 TransactionBufferSnapshotIndex index = new TransactionBufferSnapshotIndex();
                 index.setSequenceID(transactionBufferSnapshotSegment.getSequenceId());

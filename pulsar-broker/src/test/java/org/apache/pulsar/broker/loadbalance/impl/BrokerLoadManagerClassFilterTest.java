@@ -46,8 +46,12 @@ public class BrokerLoadManagerClassFilterTest {
 
         LocalBrokerData localBrokerData1 = new LocalBrokerData();
         localBrokerData1.setLoadManagerClassName(ExtensibleLoadManagerImpl.class.getName());
+
+        LocalBrokerData localBrokerData2 = new LocalBrokerData();
+        localBrokerData2.setLoadManagerClassName(null);
         loadData.getBrokerData().put("broker1", new BrokerData(localBrokerData));
         loadData.getBrokerData().put("broker2", new BrokerData(localBrokerData1));
+        loadData.getBrokerData().put("broker3", new BrokerData(localBrokerData2));
 
         ServiceConfiguration conf = new ServiceConfiguration();
         conf.setLoadManagerClassName(ModularLoadManagerImpl.class.getName());
@@ -55,6 +59,7 @@ public class BrokerLoadManagerClassFilterTest {
         Set<String> brokers = new HashSet<>(){{
             add("broker1");
             add("broker2");
+            add("broker3");
         }};
         filter.filter(brokers, null, loadData, conf);
 
@@ -64,6 +69,7 @@ public class BrokerLoadManagerClassFilterTest {
         brokers = new HashSet<>(){{
             add("broker1");
             add("broker2");
+            add("broker3");
         }};
         conf.setLoadManagerClassName(ExtensibleLoadManagerImpl.class.getName());
         filter.filter(brokers, null, loadData, conf);

@@ -64,12 +64,13 @@ public class ProxyPublishConsumeTlsTest extends TlsProducerConsumerBase {
         config.setWebServicePort(Optional.of(0));
         config.setWebServicePortTls(Optional.of(0));
         config.setBrokerClientTlsEnabled(true);
-        config.setTlsKeyFilePath(TLS_SERVER_KEY_FILE_PATH);
-        config.setTlsCertificateFilePath(TLS_SERVER_CERT_FILE_PATH);
-        config.setTlsTrustCertsFilePath(TLS_TRUST_CERT_FILE_PATH);
-        config.setBrokerClientTrustCertsFilePath(TLS_TRUST_CERT_FILE_PATH);
+        config.setTlsKeyFilePath(BROKER_KEY_FILE_PATH);
+        config.setTlsCertificateFilePath(BROKER_CERT_FILE_PATH);
+        config.setTlsTrustCertsFilePath(CA_CERT_FILE_PATH);
+        config.setBrokerClientTrustCertsFilePath(CA_CERT_FILE_PATH);
         config.setClusterName("use");
-        config.setBrokerClientAuthenticationParameters("tlsCertFile:" + TLS_CLIENT_CERT_FILE_PATH + ",tlsKeyFile:" + TLS_CLIENT_KEY_FILE_PATH);
+        config.setBrokerClientAuthenticationParameters("tlsCertFile:" + getTlsFileForClient("admin.cert") +
+                ",tlsKeyFile:" + getTlsFileForClient("admin.key-pk8"));
         config.setBrokerClientAuthenticationPlugin(AuthenticationTls.class.getName());
         config.setConfigurationMetadataStoreUrl(GLOBAL_DUMMY_VALUE);
         service = spyWithClassAndConstructorArgs(WebSocketService.class, config);
@@ -103,7 +104,7 @@ public class ProxyPublishConsumeTlsTest extends TlsProducerConsumerBase {
 
         SslContextFactory sslContextFactory = new SslContextFactory();
         sslContextFactory.setSslContext(SecurityUtility
-                .createSslContext(false, SecurityUtility.loadCertificatesFromPemFile(TLS_TRUST_CERT_FILE_PATH), null));
+                .createSslContext(false, SecurityUtility.loadCertificatesFromPemFile(CA_CERT_FILE_PATH), null));
 
         WebSocketClient consumeClient = new WebSocketClient(sslContextFactory);
         SimpleConsumerSocket consumeSocket = new SimpleConsumerSocket();

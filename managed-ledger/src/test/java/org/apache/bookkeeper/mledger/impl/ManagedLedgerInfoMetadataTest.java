@@ -26,6 +26,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.bookkeeper.mledger.MetadataCompressionConfig;
 import org.apache.bookkeeper.mledger.offload.OffloadUtils;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats;
 import org.apache.commons.lang3.RandomUtils;
@@ -33,6 +34,8 @@ import org.apache.pulsar.common.api.proto.CompressionType;
 import org.testng.Assert;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
 
 /**
  * ManagedLedgerInfo metadata test.
@@ -53,11 +56,9 @@ public class ManagedLedgerInfoMetadataTest {
         };
     }
 
-    @Test(dataProvider = "compressionTypeProvider")
-    public void testEncodeAndDecode(String compressionType) throws IOException {
-        long ledgerId = 10000;
+    private MLDataFormats.ManagedLedgerInfo.Builder generateManagedLedgerInfo(long ledgerId, int ledgerInfoNumber) {
         List<MLDataFormats.ManagedLedgerInfo.LedgerInfo> ledgerInfoList = new ArrayList<>();
-        for (int i = 0; i < 100; i++) {
+        for (int i = 0; i < ledgerInfoNumber; i++) {
             MLDataFormats.ManagedLedgerInfo.LedgerInfo.Builder builder = MLDataFormats.ManagedLedgerInfo.LedgerInfo.newBuilder();
             builder.setLedgerId(ledgerId);
             builder.setEntries(RandomUtils.nextInt());
@@ -84,13 +85,18 @@ public class ManagedLedgerInfoMetadataTest {
             ledgerId ++;
         }
 
-        MLDataFormats.ManagedLedgerInfo managedLedgerInfo = MLDataFormats.ManagedLedgerInfo.newBuilder()
-                .addAllLedgerInfo(ledgerInfoList)
-                .build();
+        return MLDataFormats.ManagedLedgerInfo.newBuilder()
+                .addAllLedgerInfo(ledgerInfoList);
+    }
+
+    @Test(dataProvider = "compressionTypeProvider")
+    public void testEncodeAndDecode(String compressionType) throws IOException {
+        long ledgerId = 10000;
+        MLDataFormats.ManagedLedgerInfo managedLedgerInfo = generateManagedLedgerInfo(ledgerId,100).build();
 
         MetaStoreImpl metaStore;
         try {
-            metaStore = new MetaStoreImpl(null, null, compressionType, null);
+            metaStore = new MetaStoreImpl(null, null, new MetadataCompressionConfig(compressionType), null);
             if ("INVALID_TYPE".equals(compressionType)) {
                 Assert.fail("The managedLedgerInfo compression type is invalid, should fail.");
             }
@@ -126,4 +132,45 @@ public class ManagedLedgerInfoMetadataTest {
         Assert.assertEquals(managedLedgerInfo.toString(), "");
     }
 
+    @Test(dataProvider = "compressionTypeProvider")
+    public void testCompressionThreshold(String compressionType) {
+        long ledgerId = 10000;
+        int compressThreshold = 512;
+
+        // should not compress
+        MLDataFormats.ManagedLedgerInfo smallInfo = generateManagedLedgerInfo(ledgerId, 0).build();
+        assertTrue(smallInfo.getSerializedSize() < compressThreshold);
+
+        // should compress
+        MLDataFormats.ManagedLedgerInfo bigInfo = generateManagedLedgerInfo(ledgerId, 1000).build();
+        assertTrue(bigInfo.getSerializedSize() > compressThreshold);
+
+        MLDataFormats.ManagedLedgerInfo managedLedgerInfo = generateManagedLedgerInfo(ledgerId,100).build();
+
+        MetaStoreImpl metaStore;
+        try {
+            MetadataCompressionConfig metadataCompressionConfig =
+                    new MetadataCompressionConfig(compressionType, compressThreshold);
+            metaStore = new MetaStoreImpl(null, null, metadataCompressionConfig, null);
+            if ("INVALID_TYPE".equals(compressionType)) {
+                Assert.fail("The managedLedgerInfo compression type is invalid, should fail.");
+            }
+        } catch (Exception e) {
+            if ("INVALID_TYPE".equals(compressionType)) {
+                Assert.assertEquals(e.getClass(), IllegalArgumentException.class);
+                Assert.assertEquals(
+                        "No enum constant org.apache.bookkeeper.mledger.proto.MLDataFormats.CompressionType."
+                                + compressionType, e.getMessage());
+                return;
+            } else {
+                throw e;
+            }
+        }
+
+        byte[] compressionBytes = metaStore.compressLedgerInfo(smallInfo);
+        assertEquals(compressionBytes.length, smallInfo.getSerializedSize());
+
+        byte[] compressionBytesBig = metaStore.compressLedgerInfo(bigInfo);
+        assertTrue(compressionBytesBig.length !=smallInfo.getSerializedSize());
+    }
 }

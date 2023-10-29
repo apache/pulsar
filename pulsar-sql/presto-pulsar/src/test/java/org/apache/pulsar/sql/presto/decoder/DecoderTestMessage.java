@@ -19,6 +19,7 @@
 package org.apache.pulsar.sql.presto.decoder;
 
 import java.math.BigDecimal;
+import java.util.UUID;
 import lombok.Data;
 
 import java.util.List;
@@ -54,6 +55,9 @@ public class DecoderTestMessage {
     public List<String> arrayField;
     public Map<String, Long> mapField;
     public CompositeRow compositeRow;
+
+    @org.apache.avro.reflect.AvroSchema("{\"type\":\"string\",\"logicalType\":\"uuid\"}")
+    public UUID uuidField;
 
     public static class TestRow {
         public String stringField;

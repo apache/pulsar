@@ -340,6 +340,42 @@ public class TopicName implements ServiceUnitId {
     }
 
     /**
+     * get topic full name from managedLedgerName.
+     *
+     * @return the topic full name, format -> domain://tenant/namespace/topic
+     */
+    public static String fromPersistenceNamingEncoding(String mlName) {
+        // The managedLedgerName convention is: tenant/namespace/domain/topic
+        // We want to transform to topic full name in the order: domain://tenant/namespace/topic
+        if (mlName == null || mlName.length() == 0) {
+            return mlName;
+        }
+        List<String> parts = Splitter.on("/").splitToList(mlName);
+        String tenant;
+        String cluster;
+        String namespacePortion;
+        String domain;
+        String localName;
+        if (parts.size() == 4) {
+            tenant = parts.get(0);
+            cluster = null;
+            namespacePortion = parts.get(1);
+            domain = parts.get(2);
+            localName = parts.get(3);
+            return String.format("%s://%s/%s/%s", domain, tenant, namespacePortion, localName);
+        } else if (parts.size() == 5) {
+            tenant = parts.get(0);
+            cluster = parts.get(1);
+            namespacePortion = parts.get(2);
+            domain = parts.get(3);
+            localName = parts.get(4);
+            return String.format("%s://%s/%s/%s/%s", domain, tenant, cluster, namespacePortion, localName);
+        } else {
+            throw new IllegalArgumentException("Invalid managedLedger name: " + mlName);
+        }
+    }
+
+    /**
      * Get a string suitable for completeTopicName lookup.
      *
      * <p>Example:

@@ -19,9 +19,11 @@
 package org.apache.pulsar.broker.loadbalance.extensions.manager;
 
 import static org.apache.pulsar.broker.loadbalance.LoadManager.LOADBALANCE_BROKERS_ROOT;
+import com.google.common.annotations.VisibleForTesting;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
@@ -48,6 +50,12 @@ public class RedirectManager {
         this.brokerLookupDataLockManager = pulsar.getCoordinationService().getLockManager(BrokerLookupData.class);
     }
 
+    @VisibleForTesting
+    public RedirectManager(PulsarService pulsar, LockManager<BrokerLookupData> brokerLookupDataLockManager) {
+        this.pulsar = pulsar;
+        this.brokerLookupDataLockManager = brokerLookupDataLockManager;
+    }
+
     public CompletableFuture<Map<String, BrokerLookupData>> getAvailableBrokerLookupDataAsync() {
         return brokerLookupDataLockManager.listLocks(LOADBALANCE_BROKERS_ROOT).thenCompose(availableBrokers -> {
             Map<String, BrokerLookupData> map = new ConcurrentHashMap<>();
@@ -69,7 +77,7 @@ public class RedirectManager {
 
     public CompletableFuture<Optional<LookupResult>> findRedirectLookupResultAsync() {
         String currentLMClassName = pulsar.getConfiguration().getLoadManagerClassName();
-        boolean debug = ExtensibleLoadManagerImpl.debug(pulsar.getConfig(), log);
+        boolean debug = ExtensibleLoadManagerImpl.debug(pulsar.getConfiguration(), log);
         return getAvailableBrokerLookupDataAsync().thenApply(lookupDataMap -> {
             if (lookupDataMap.isEmpty()) {
                 String errorMsg = "No available broker found.";
@@ -89,9 +97,10 @@ public class RedirectManager {
                 log.warn(errorMsg);
                 throw new IllegalStateException(errorMsg);
             }
-            if (latestServiceLookupData.get().getLoadManagerClassName().equals(currentLMClassName)) {
+
+            if (Objects.equals(latestServiceLookupData.get().getLoadManagerClassName(), currentLMClassName)) {
                 if (debug) {
-                    log.info("We don't need to redirect, current load manager class name: {}",
+                    log.info("No need to redirect, current load manager class name: {}",
                             currentLMClassName);
                 }
                 return Optional.empty();
@@ -99,7 +108,7 @@ public class RedirectManager {
             var serviceLookupDataObj = latestServiceLookupData.get();
             var candidateBrokers = new ArrayList<ServiceLookupData>();
             lookupDataMap.forEach((key, value) -> {
-                if (value.getLoadManagerClassName().equals(serviceLookupDataObj.getLoadManagerClassName())) {
+                if (Objects.equals(value.getLoadManagerClassName(), serviceLookupDataObj.getLoadManagerClassName())) {
                     candidateBrokers.add(value);
                 }
             });

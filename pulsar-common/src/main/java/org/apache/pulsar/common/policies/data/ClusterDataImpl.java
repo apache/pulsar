@@ -25,6 +25,8 @@ import java.util.Objects;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.ProxyProtocol;
 import org.apache.pulsar.common.util.URIPreconditions;
 
@@ -38,6 +40,7 @@ import org.apache.pulsar.common.util.URIPreconditions;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
+@Slf4j
 public final class ClusterDataImpl implements  ClusterData, Cloneable {
     @ApiModelProperty(
             name = "serviceUrl",
@@ -173,17 +176,6 @@ public final class ClusterDataImpl implements  ClusterData, Cloneable {
             example = ""
     )
     private String listenerName;
-    @ApiModelProperty(
-            name = "migrated",
-            value = "flag to check if cluster is migrated to different cluster",
-            example = "true/false"
-    )
-    private boolean migrated;
-    @ApiModelProperty(
-            name = "migratedClusterUrl",
-            value = "url of cluster where current cluster is migrated"
-    )
-    private ClusterUrl migratedClusterUrl;
 
     public static ClusterDataImplBuilder builder() {
         return new ClusterDataImplBuilder();
@@ -213,9 +205,7 @@ public final class ClusterDataImpl implements  ClusterData, Cloneable {
                 .brokerClientTrustCertsFilePath(brokerClientTrustCertsFilePath)
                 .brokerClientCertificateFilePath(brokerClientCertificateFilePath)
                 .brokerClientKeyFilePath(brokerClientKeyFilePath)
-                .listenerName(listenerName)
-                .migrated(migrated)
-                .migratedClusterUrl(migratedClusterUrl);
+                .listenerName(listenerName);
     }
 
     @Data
@@ -242,8 +232,6 @@ public final class ClusterDataImpl implements  ClusterData, Cloneable {
         private String brokerClientKeyFilePath;
         private String brokerClientTrustCertsFilePath;
         private String listenerName;
-        private boolean migrated;
-        private ClusterUrl migratedClusterUrl;
 
         ClusterDataImplBuilder() {
         }
@@ -364,16 +352,6 @@ public final class ClusterDataImpl implements  ClusterData, Cloneable {
             return this;
         }
 
-        public ClusterDataImplBuilder migrated(boolean migrated) {
-            this.migrated = migrated;
-            return this;
-        }
-
-        public ClusterDataImplBuilder migratedClusterUrl(ClusterUrl migratedClusterUrl) {
-            this.migratedClusterUrl = migratedClusterUrl;
-            return this;
-        }
-
         public ClusterDataImpl build() {
             return new ClusterDataImpl(
                     serviceUrl,
@@ -397,9 +375,7 @@ public final class ClusterDataImpl implements  ClusterData, Cloneable {
                     brokerClientTrustCertsFilePath,
                     brokerClientKeyFilePath,
                     brokerClientCertificateFilePath,
-                    listenerName,
-                    migrated,
-                    migratedClusterUrl);
+                    listenerName);
         }
     }
 
@@ -427,5 +403,20 @@ public final class ClusterDataImpl implements  ClusterData, Cloneable {
                         || Objects.equals(uri.getScheme(), "pulsar+ssl"),
                 "Illegal proxy service url, example: pulsar+ssl://ats-proxy.example.com:4443 "
                         + "or pulsar://ats-proxy.example.com:4080");
+
+        warnIfUrlIsNotPresent();
+    }
+
+    private void warnIfUrlIsNotPresent() {
+        if (StringUtils.isEmpty(getServiceUrl()) && StringUtils.isEmpty(getServiceUrlTls())) {
+            log.warn("Service url not found, "
+                    + "please provide either service url, example: http://pulsar.example.com:8080 "
+                    + "or service tls url, example: https://pulsar.example.com:8443");
+        }
+        if (StringUtils.isEmpty(getBrokerServiceUrl()) && StringUtils.isEmpty(getBrokerServiceUrlTls())) {
+            log.warn("Broker service url not found, "
+                    + "please provide either broker service url, example: pulsar://pulsar.example.com:6650 "
+                    + "or broker service tls url, example: pulsar+ssl://pulsar.example.com:6651.");
+        }
     }
 }

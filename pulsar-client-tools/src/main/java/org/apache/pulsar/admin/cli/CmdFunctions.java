@@ -91,11 +91,9 @@ public class CmdFunctions extends CmdBase {
             try {
                 processArguments();
             } catch (Exception e) {
-                System.err.println(e.getMessage());
-                System.err.println();
                 String chosenCommand = jcommander.getParsedCommand();
                 getUsageFormatter().usage(chosenCommand);
-                return;
+                throw e;
             }
             runCmd();
         }
@@ -1037,6 +1035,10 @@ public class CmdFunctions extends CmdBase {
             updateOptions.setUpdateAuthData(updateAuthData);
             if (Utils.isFunctionPackageUrlSupported(functionConfig.getJar())) {
                 getAdmin().functions().updateFunctionWithUrl(functionConfig, functionConfig.getJar(), updateOptions);
+            } else if (Utils.isFunctionPackageUrlSupported(functionConfig.getPy())) {
+                getAdmin().functions().updateFunctionWithUrl(functionConfig, functionConfig.getPy(), updateOptions);
+            } else if (Utils.isFunctionPackageUrlSupported(functionConfig.getGo())) {
+                getAdmin().functions().updateFunctionWithUrl(functionConfig, functionConfig.getGo(), updateOptions);
             } else {
                 getAdmin().functions().updateFunction(functionConfig, userCodeFile, updateOptions);
             }

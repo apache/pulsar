@@ -233,7 +233,7 @@ public class DelayedDeliveryTest extends ProducerConsumerBase {
                 .topic(topic)
                 .subscriptionName("shared-sub")
                 .subscriptionType(SubscriptionType.Shared)
-                .receiverQueueSize(1) // Use small prefecthing to simulate the multiple read batches
+                .receiverQueueSize(1) // Use small prefetching to simulate the multiple read batches
                 .subscribe();
 
         // Simulate race condition with high frequency of calls to dispatcher.readMoreEntries()

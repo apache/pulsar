@@ -146,9 +146,9 @@ public class TlsProducerConsumerTest extends TlsProducerConsumerBase {
                 .operationTimeout(1000, TimeUnit.MILLISECONDS);
         AtomicInteger index = new AtomicInteger(0);
 
-        ByteArrayInputStream certStream = createByteInputStream(TLS_CLIENT_CERT_FILE_PATH);
-        ByteArrayInputStream keyStream = createByteInputStream(TLS_CLIENT_KEY_FILE_PATH);
-        ByteArrayInputStream trustStoreStream = createByteInputStream(TLS_TRUST_CERT_FILE_PATH);
+        ByteArrayInputStream certStream = createByteInputStream(getTlsFileForClient("admin.cert"));
+        ByteArrayInputStream keyStream = createByteInputStream(getTlsFileForClient("admin.key-pk8"));
+        ByteArrayInputStream trustStoreStream = createByteInputStream(CA_CERT_FILE_PATH);
 
         Supplier<ByteArrayInputStream> certProvider = () -> getStream(index, certStream);
         Supplier<ByteArrayInputStream> keyProvider = () -> getStream(index, keyStream);
@@ -203,9 +203,9 @@ public class TlsProducerConsumerTest extends TlsProducerConsumerBase {
         AtomicInteger certIndex = new AtomicInteger(1);
         AtomicInteger keyIndex = new AtomicInteger(0);
         AtomicInteger trustStoreIndex = new AtomicInteger(1);
-        ByteArrayInputStream certStream = createByteInputStream(TLS_CLIENT_CERT_FILE_PATH);
-        ByteArrayInputStream keyStream = createByteInputStream(TLS_CLIENT_KEY_FILE_PATH);
-        ByteArrayInputStream trustStoreStream = createByteInputStream(TLS_TRUST_CERT_FILE_PATH);
+        ByteArrayInputStream certStream = createByteInputStream(getTlsFileForClient("admin.cert"));
+        ByteArrayInputStream keyStream = createByteInputStream(getTlsFileForClient("admin.key-pk8"));
+        ByteArrayInputStream trustStoreStream = createByteInputStream(CA_CERT_FILE_PATH);
         Supplier<ByteArrayInputStream> certProvider = () -> getStream(certIndex, certStream,
                 keyStream/* invalid cert file */);
         Supplier<ByteArrayInputStream> keyProvider = () -> getStream(keyIndex, keyStream);
@@ -252,7 +252,8 @@ public class TlsProducerConsumerTest extends TlsProducerConsumerBase {
         return streams[index.intValue()];
     }
 
-    private final Authentication tlsAuth = new AuthenticationTls(TLS_CLIENT_CERT_FILE_PATH, TLS_CLIENT_KEY_FILE_PATH);
+    private final Authentication tlsAuth =
+        new AuthenticationTls(getTlsFileForClient("admin.cert"), getTlsFileForClient("admin.key-pk8"));
 
     @DataProvider
     public Object[] tlsTransport() {
@@ -276,13 +277,14 @@ public class TlsProducerConsumerTest extends TlsProducerConsumerBase {
         internalSetUpForNamespace();
 
         ClientBuilder clientBuilder = PulsarClient.builder().serviceUrl(url.get())
-                .tlsTrustCertsFilePath(TLS_TRUST_CERT_FILE_PATH)
+                .tlsTrustCertsFilePath(CA_CERT_FILE_PATH)
                 .allowTlsInsecureConnection(false)
                 .enableTlsHostnameVerification(false)
                 .authentication(auth);
 
         if (auth == null) {
-            clientBuilder.tlsKeyFilePath(TLS_CLIENT_KEY_FILE_PATH).tlsCertificateFilePath(TLS_CLIENT_CERT_FILE_PATH);
+            clientBuilder.tlsKeyFilePath(getTlsFileForClient("admin.key-pk8"))
+                    .tlsCertificateFilePath(getTlsFileForClient("admin.cert"));
         }
 
         @Cleanup

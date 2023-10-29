@@ -215,9 +215,9 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         doReturn(null).when(namespaces).clientAuthData();
         doReturn(Set.of("use", "usw", "usc", "global")).when(namespaces).clusters();
 
-        admin.clusters().createCluster("use", ClusterData.builder().serviceUrl("http://broker-use.com:8080").build());
-        admin.clusters().createCluster("usw", ClusterData.builder().serviceUrl("http://broker-usw.com:8080").build());
-        admin.clusters().createCluster("usc", ClusterData.builder().serviceUrl("http://broker-usc.com:8080").build());
+        admin.clusters().createCluster("use", ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
+        admin.clusters().createCluster("usw", ClusterData.builder().serviceUrl("http://127.0.0.2:8082").build());
+        admin.clusters().createCluster("usc", ClusterData.builder().serviceUrl("http://127.0.0.3:8083").build());
         admin.tenants().createTenant(this.testTenant,
                 new TenantInfoImpl(Set.of("role1", "role2"), Set.of("use", "usc", "usw")));
         admin.tenants().createTenant(this.testOtherTenant,
@@ -317,9 +317,9 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         expectedList.sort(null);
         AsyncResponse response = mock(AsyncResponse.class);
         namespaces.getTenantNamespaces(response, this.testTenant);
-        ArgumentCaptor<Response> captor = ArgumentCaptor.forClass(Response.class);
-        verify(response, timeout(5000).times(1)).resume(captor.capture());
-        List<String> namespacesList = (List<String>) captor.getValue();
+        ArgumentCaptor<List<String>> listOfStringsCaptor = ArgumentCaptor.forClass(List.class);
+        verify(response, timeout(5000).times(1)).resume(listOfStringsCaptor.capture());
+        List<String> namespacesList = listOfStringsCaptor.getValue();
         namespacesList.sort(null);
         assertEquals(namespacesList, expectedList);
 
@@ -713,7 +713,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         verify(response, timeout(5000).times(1)).resume(captor.capture());
         assertEquals(captor.getValue().getResponse().getStatus(), Status.TEMPORARY_REDIRECT.getStatusCode());
         assertEquals(captor.getValue().getResponse().getLocation().toString(),
-                UriBuilder.fromUri(uri).host("broker-usc.com").port(8080).toString());
+                UriBuilder.fromUri(uri).host("127.0.0.3").port(8083).toString());
 
         uri = URI.create(pulsar.getWebServiceAddress() + "/admin/namespace/"
                 + this.testLocalNamespaces.get(2).toString() + "/unload");
@@ -725,7 +725,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         verify(response, timeout(5000).atLeast(1)).resume(captor.capture());
         assertEquals(captor.getValue().getResponse().getStatus(), Status.TEMPORARY_REDIRECT.getStatusCode());
         assertEquals(captor.getValue().getResponse().getLocation().toString(),
-                UriBuilder.fromUri(uri).host("broker-usc.com").port(8080).toString());
+                UriBuilder.fromUri(uri).host("127.0.0.3").port(8083).toString());
 
         // check the bundle should not unload to an inactive destination broker
         namespaces.unloadNamespaceBundle(response, this.testTenant, this.testOtherCluster,
@@ -762,7 +762,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         verify(response, timeout(5000).times(1)).resume(captor.capture());
         assertEquals(captor.getValue().getResponse().getStatus(), Status.TEMPORARY_REDIRECT.getStatusCode());
         assertEquals(captor.getValue().getResponse().getLocation().toString(),
-                UriBuilder.fromUri(uri).host("broker-usc.com").port(8080).toString());
+                UriBuilder.fromUri(uri).host("127.0.0.3").port(8083).toString());
 
         // cleanup
         resetBroker();
@@ -2105,5 +2105,69 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         TopicPolicies topicPolicies = pulsar.getTopicPoliciesService()
                 .getTopicPoliciesBypassCacheAsync(TopicName.get(systemTopic)).get(5, TimeUnit.SECONDS);
         assertNull(topicPolicies);
+    }
+
+    @Test
+    public void testCreateNamespacesWithPolicy() throws Exception {
+        try {
+            asyncRequests(response -> namespaces.createNamespace(response, this.testTenant, "other-colo", "my-namespace",
+                    new Policies()));
+            fail("should have failed");
+        } catch (RestException e) {
+            // Ok, cluster doesn't exist
+            assertEquals(e.getResponse().getStatus(), Status.FORBIDDEN.getStatusCode());
+        }
+
+        List<NamespaceName> nsnames = new ArrayList<>();
+        nsnames.add(NamespaceName.get(this.testTenant, "use", "create-namespace-1"));
+        nsnames.add(NamespaceName.get(this.testTenant, "use", "create-namespace-2"));
+        nsnames.add(NamespaceName.get(this.testTenant, "usc", "create-other-namespace-1"));
+        createTestNamespaces(nsnames, BundlesData.builder().build());
+
+        try {
+            asyncRequests(response -> namespaces.createNamespace(response, this.testTenant, "use", "create-namespace-1",
+                    new Policies()));
+            fail("should have failed");
+        } catch (RestException e) {
+            // Ok, namespace already exists
+            assertEquals(e.getResponse().getStatus(), Status.CONFLICT.getStatusCode());
+
+        }
+
+        try {
+            asyncRequests(response -> namespaces.createNamespace(response,"non-existing-tenant", "use", "create-namespace-1",
+                    new Policies()));
+            fail("should have failed");
+        } catch (RestException e) {
+            // Ok, tenant doesn't exist
+            assertEquals(e.getResponse().getStatus(), Status.NOT_FOUND.getStatusCode());
+        }
+
+        try {
+            asyncRequests(response -> namespaces.createNamespace(response, this.testTenant, "use", "create-namespace-#",
+                    new Policies()));
+            fail("should have failed");
+        } catch (RestException e) {
+            // Ok, invalid namespace name
+            assertEquals(e.getResponse().getStatus(), Status.PRECONDITION_FAILED.getStatusCode());
+        }
+
+        mockZooKeeperGlobal.failConditional(Code.SESSIONEXPIRED, (op, path) -> {
+            return op == MockZooKeeper.Op.CREATE
+                    && path.equals("/admin/policies/my-tenant/use/my-namespace-3");
+        });
+        try {
+            asyncRequests(response -> namespaces.createNamespace(response, this.testTenant, "use", "my-namespace-3", new Policies()));
+            fail("should have failed");
+        } catch (RestException e) {
+            // Ok
+            assertEquals(e.getResponse().getStatus(), Status.INTERNAL_SERVER_ERROR.getStatusCode());
+        }
+    }
+
+    private void createTestNamespaces(List<NamespaceName> nsnames, Policies policies) throws Exception {
+        for (NamespaceName nsName : nsnames) {
+            asyncRequests(ctx -> namespaces.createNamespace(ctx, nsName.getTenant(), nsName.getCluster(), nsName.getLocalName(), policies));
+        }
     }
 }

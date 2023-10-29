@@ -242,7 +242,6 @@ public enum SchemaType {
             default:
                 return false;
         }
-
     }
 
     public static boolean isStructType(SchemaType type) {

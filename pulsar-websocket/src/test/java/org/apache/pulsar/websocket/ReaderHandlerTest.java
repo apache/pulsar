@@ -18,12 +18,14 @@
  */
 package org.apache.pulsar.websocket;
 
+import java.util.List;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.ReaderBuilder;
+import org.apache.pulsar.client.api.TopicMessageId;
 import org.apache.pulsar.client.impl.ConsumerImpl;
 import org.apache.pulsar.client.impl.MultiTopicsConsumerImpl;
 import org.apache.pulsar.client.impl.MultiTopicsReaderImpl;
@@ -213,6 +215,16 @@ public class ReaderHandlerTest {
         @Override
         public void close() throws IOException {
 
+        }
+
+        @Override
+        public List<TopicMessageId> getLastMessageIds() throws PulsarClientException {
+            return null;
+        }
+
+        @Override
+        public CompletableFuture<List<TopicMessageId>> getLastMessageIdsAsync() {
+            return null;
         }
     }
 }
