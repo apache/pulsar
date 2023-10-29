@@ -61,7 +61,7 @@ import org.slf4j.LoggerFactory;
  */
 public class LoadSimulationController {
     private static final Logger log = LoggerFactory.getLogger(LoadSimulationController.class);
-    private static final String QUOTA_ROOT = "/loadbalance/resource-quota/namespace";
+    private static final String QUOTA_ROOT = "/loadbalance/resource-quota";
 
     // Input streams for each client to send commands through.
     private final DataInputStream[] inputStreams;
