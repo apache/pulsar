@@ -1941,9 +1941,11 @@ public class ServerCnxTest {
                 "test" /* consumer name */, 0 /* avoid reseting cursor */);
         channel.writeInbound(clientCommand);
 
+        BackGroundExecutor backGroundExecutor = startBackgroundExecutorForEmbeddedChannel(channel);
+
         // Create producer second time
         clientCommand = Commands.newSubscribe(successTopicName, //
-                successSubName, 2 /* consumer id */, 1 /* request id */, SubType.Exclusive, 0,
+                successSubName, 2 /* consumer id */, 2 /* request id */, SubType.Exclusive, 0,
                 "test" /* consumer name */, 0 /* avoid reseting cursor */);
         channel.writeInbound(clientCommand);
 
@@ -1953,6 +1955,9 @@ public class ServerCnxTest {
             CommandError error = (CommandError) response;
             assertEquals(error.getError(), ServerError.ConsumerBusy);
         });
+
+        // cleanup.
+        backGroundExecutor.close();
         channel.finish();
     }
 
@@ -2807,13 +2812,7 @@ public class ServerCnxTest {
                     if (channelsStoppedAnswerHealthCheck.contains(channel)) {
                         continue;
                     }
-                    channel.writeAndFlush(Commands.newPong()).addListener(future -> {
-                        if (!future.isSuccess()) {
-                            log.warn("[{}] Forcing connection to close since cannot send a pong message.",
-                                    channel, future.cause());
-                            channel.close();
-                        }
-                    });
+                    channel.writeInbound(Commands.newPong());
                     continue;
                 }
                 return cmd;
