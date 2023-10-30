@@ -197,6 +197,10 @@ public class ThreadLeakDetectorListener extends BetweenTestClassesListenerAdapte
             if (threadName.equals("JNA Cleaner")) {
                 return true;
             }
+            // skip org.glassfish.grizzly.http.server.DefaultSessionManager thread pool
+            if (threadName.equals("Grizzly-HttpSession-Expirer")) {
+                return true;
+            }
         }
         return false;
     }
