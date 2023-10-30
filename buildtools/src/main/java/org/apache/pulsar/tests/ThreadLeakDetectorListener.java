@@ -163,6 +163,10 @@ public class ThreadLeakDetectorListener extends BetweenTestClassesListenerAdapte
         if (thread instanceof ForkJoinWorkerThread) {
             return true;
         }
+        // skip Testcontainers threads
+        if (thread.getThreadGroup().getName().equals("testcontainers")) {
+            return true;
+        }
         String threadName = thread.getName();
         if (threadName != null) {
             // skip ClientTestFixtures.SCHEDULER threads
@@ -187,6 +191,10 @@ public class ThreadLeakDetectorListener extends BetweenTestClassesListenerAdapte
             }
             // skip OkHttp TaskRunner thread
             if (threadName.equals("OkHttp TaskRunner")) {
+                return true;
+            }
+            // skip JNA background thread
+            if (threadName.equals("JNA Cleaner")) {
                 return true;
             }
         }
