@@ -485,6 +485,7 @@ public class CmdClusters extends CmdBase {
         jcommander.addCommand("delete", new Delete());
         jcommander.addCommand("list", new List());
         jcommander.addCommand("update-peer-clusters", new UpdatePeerClusters());
+        jcommander.addCommand("get-cluster-migration", new GetClusterMigration());
         jcommander.addCommand("update-cluster-migration", new UpdateClusterMigration());
         jcommander.addCommand("get-peer-clusters", new GetPeerClusters());
         jcommander.addCommand("get-failure-domain", new GetFailureDomain());
