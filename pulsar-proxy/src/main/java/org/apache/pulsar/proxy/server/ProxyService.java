@@ -388,7 +388,7 @@ public class ProxyService implements Closeable {
         }
 
         if (statsExecutor != null) {
-            statsExecutor.shutdown();
+            statsExecutor.shutdownNow();
         }
 
         if (proxyAdditionalServlets != null) {
