@@ -240,6 +240,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         doReturn(spy(DefaultEventLoop.class)).when(channel).eventLoop();
         doReturn(channel).when(ctx).channel();
         doReturn(ctx).when(serverCnx).ctx();
+        doReturn(CompletableFuture.completedFuture(true)).when(serverCnx).checkConnectionLiveness();
 
         NamespaceService nsSvc = mock(NamespaceService.class);
         NamespaceBundle bundle = mock(NamespaceBundle.class);
@@ -747,7 +748,15 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         f1.get();
 
         // 2. duplicate subscribe
-        Future<Consumer> f2 = topic.subscribe(getSubscriptionOption(cmd));
+        CommandSubscribe cmd2 = new CommandSubscribe()
+                .setConsumerId(2)
+                .setTopic(successTopicName)
+                .setSubscription(successSubName)
+                .setConsumerName("consumer-name")
+                .setReadCompacted(false)
+                .setRequestId(2)
+                .setSubType(SubType.Exclusive);
+        Future<Consumer> f2 = topic.subscribe(getSubscriptionOption(cmd2));
         try {
             f2.get();
             fail("should fail with exception");

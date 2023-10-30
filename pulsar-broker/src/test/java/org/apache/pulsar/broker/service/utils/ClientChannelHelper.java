@@ -27,6 +27,8 @@ import org.apache.pulsar.common.api.proto.CommandEndTxnOnSubscriptionResponse;
 import org.apache.pulsar.common.api.proto.CommandEndTxnResponse;
 import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespaceResponse;
 import org.apache.pulsar.common.api.proto.CommandPartitionedTopicMetadataResponse;
+import org.apache.pulsar.common.api.proto.CommandPing;
+import org.apache.pulsar.common.api.proto.CommandPong;
 import org.apache.pulsar.common.api.proto.CommandWatchTopicListSuccess;
 import org.apache.pulsar.common.protocol.PulsarDecoder;
 import org.apache.pulsar.common.api.proto.CommandAck;
@@ -206,6 +208,16 @@ public class ClientChannelHelper {
         protected void handleEndTxnOnSubscriptionResponse(
                 CommandEndTxnOnSubscriptionResponse commandEndTxnOnSubscriptionResponse) {
             queue.offer(new CommandEndTxnOnSubscriptionResponse().copyFrom(commandEndTxnOnSubscriptionResponse));
+        }
+
+        @Override
+        protected void handlePing(CommandPing ping) {
+            queue.offer(new CommandPing().copyFrom(ping));
+        }
+
+        @Override
+        protected void handlePong(CommandPong pong) {
+            return;
         }
     };
 

@@ -144,6 +144,10 @@ public abstract class AbstractDispatcherSingleActiveConsumer extends AbstractBas
         }
 
         if (subscriptionType == SubType.Exclusive && !consumers.isEmpty()) {
+            Consumer actConsumer = ACTIVE_CONSUMER_UPDATER.get(this);
+            if (actConsumer != null) {
+                actConsumer.cnx().checkConnectionLiveness();
+            }
             throw new ConsumerBusyException("Exclusive consumer is already connected");
         }
 
