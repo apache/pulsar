@@ -163,6 +163,10 @@ public class ThreadLeakDetectorListener extends BetweenTestClassesListenerAdapte
         if (thread instanceof ForkJoinWorkerThread) {
             return true;
         }
+        // skip Testcontainers threads
+        if (thread.getThreadGroup() != null && "testcontainers".equals(thread.getThreadGroup().getName())) {
+            return true;
+        }
         String threadName = thread.getName();
         if (threadName != null) {
             // skip ClientTestFixtures.SCHEDULER threads
@@ -187,6 +191,14 @@ public class ThreadLeakDetectorListener extends BetweenTestClassesListenerAdapte
             }
             // skip OkHttp TaskRunner thread
             if (threadName.equals("OkHttp TaskRunner")) {
+                return true;
+            }
+            // skip JNA background thread
+            if (threadName.equals("JNA Cleaner")) {
+                return true;
+            }
+            // skip org.glassfish.grizzly.http.server.DefaultSessionManager thread pool
+            if (threadName.equals("Grizzly-HttpSession-Expirer")) {
                 return true;
             }
         }
