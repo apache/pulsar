@@ -2603,14 +2603,25 @@ public class BrokerService implements Closeable {
                         new Semaphore((int) maxConcurrentTopicLoadRequest, false)));
         registerConfigurationListener("loadManagerClassName", className -> {
             pulsar.getExecutor().execute(() -> {
+                LoadManager newLoadManager = null;
                 try {
-                    final LoadManager newLoadManager = LoadManager.create(pulsar);
+                    newLoadManager = LoadManager.create(pulsar);
                     log.info("Created load manager: {}", className);
                     pulsar.getLoadManager().get().stop();
                     newLoadManager.start();
-                    pulsar.getLoadManager().set(newLoadManager);
                 } catch (Exception ex) {
                     log.warn("Failed to change load manager", ex);
+                    try {
+                        if (newLoadManager != null) {
+                            newLoadManager.stop();
+                            newLoadManager = null;
+                        }
+                    } catch (PulsarServerException e) {
+                        log.warn("Failed to close created load manager", e);
+                    }
+                }
+                if (newLoadManager != null) {
+                    pulsar.getLoadManager().set(newLoadManager);
                 }
             });
         });

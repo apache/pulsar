@@ -46,7 +46,8 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
-import io.netty.channel.DefaultEventLoop;
+import io.netty.channel.DefaultEventLoopGroup;
+import io.netty.channel.EventLoopGroup;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.net.InetAddress;
@@ -164,6 +165,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
 
     private BrokerService brokerService;
 
+    private EventLoopGroup eventLoopGroup;
 
     @BeforeMethod(alwaysRun = true)
     public void setup() throws Exception {
@@ -202,7 +204,9 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
                 .when(serverCnx).getCommandSender();
         ChannelHandlerContext ctx = mock(ChannelHandlerContext.class);
         Channel channel = mock(Channel.class);
-        doReturn(spy(DefaultEventLoop.class)).when(channel).eventLoop();
+
+        eventLoopGroup = new DefaultEventLoopGroup();
+        doReturn(eventLoopGroup.next()).when(channel).eventLoop();
         doReturn(channel).when(ctx).channel();
         doReturn(ctx).when(serverCnx).ctx();
 
@@ -223,6 +227,10 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         if (pulsarTestContext != null) {
             pulsarTestContext.close();
             pulsarTestContext = null;
+        }
+        if (eventLoopGroup != null) {
+            eventLoopGroup.shutdownNow();
+            eventLoopGroup = null;
         }
     }
 
