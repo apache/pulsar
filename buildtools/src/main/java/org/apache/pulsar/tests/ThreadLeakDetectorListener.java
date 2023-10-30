@@ -164,7 +164,7 @@ public class ThreadLeakDetectorListener extends BetweenTestClassesListenerAdapte
             return true;
         }
         // skip Testcontainers threads
-        if (thread.getThreadGroup().getName().equals("testcontainers")) {
+        if (thread.getThreadGroup() != null && "testcontainers".equals(thread.getThreadGroup().getName())) {
             return true;
         }
         String threadName = thread.getName();
