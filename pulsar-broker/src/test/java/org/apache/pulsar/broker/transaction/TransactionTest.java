@@ -874,9 +874,10 @@ public class TransactionTest extends TransactionTestBase {
         MLTransactionSequenceIdGenerator mlTransactionSequenceIdGenerator = new MLTransactionSequenceIdGenerator();
         persistentTopic.getManagedLedger().getConfig().setManagedLedgerInterceptor(mlTransactionSequenceIdGenerator);
         MLTransactionLogImpl mlTransactionLog =
-                new MLTransactionLogImpl(new TransactionCoordinatorID(1), null,
+                spy(new MLTransactionLogImpl(new TransactionCoordinatorID(1), null,
                         persistentTopic.getManagedLedger().getConfig(), new TxnLogBufferedWriterConfig(),
-                        transactionTimer, DISABLED_BUFFERED_WRITER_METRICS);
+                        transactionTimer, DISABLED_BUFFERED_WRITER_METRICS));
+        doAnswer(__ -> CompletableFuture.completedFuture(null)).when(mlTransactionLog).closeAsync();
         Class<MLTransactionLogImpl> mlTransactionLogClass = MLTransactionLogImpl.class;
         Field field = mlTransactionLogClass.getDeclaredField("cursor");
         field.setAccessible(true);
