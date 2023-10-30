@@ -874,9 +874,10 @@ public class TransactionTest extends TransactionTestBase {
         MLTransactionSequenceIdGenerator mlTransactionSequenceIdGenerator = new MLTransactionSequenceIdGenerator();
         persistentTopic.getManagedLedger().getConfig().setManagedLedgerInterceptor(mlTransactionSequenceIdGenerator);
         MLTransactionLogImpl mlTransactionLog =
-                new MLTransactionLogImpl(new TransactionCoordinatorID(1), null,
+                spy(new MLTransactionLogImpl(new TransactionCoordinatorID(1), null,
                         persistentTopic.getManagedLedger().getConfig(), new TxnLogBufferedWriterConfig(),
-                        transactionTimer, DISABLED_BUFFERED_WRITER_METRICS);
+                        transactionTimer, DISABLED_BUFFERED_WRITER_METRICS));
+        doAnswer(__ -> CompletableFuture.completedFuture(null)).when(mlTransactionLog).closeAsync();
         Class<MLTransactionLogImpl> mlTransactionLogClass = MLTransactionLogImpl.class;
         Field field = mlTransactionLogClass.getDeclaredField("cursor");
         field.setAccessible(true);
@@ -890,6 +891,7 @@ public class TransactionTest extends TransactionTestBase {
         doNothing().when(transactionRecoverTracker).handleCommittingAndAbortingTransaction();
         TransactionTimeoutTracker timeoutTracker = mock(TransactionTimeoutTracker.class);
         doNothing().when(timeoutTracker).start();
+        @Cleanup("closeAsync")
         MLTransactionMetadataStore metadataStore1 =
                 new MLTransactionMetadataStore(new TransactionCoordinatorID(1),
                         mlTransactionLog, timeoutTracker, mlTransactionSequenceIdGenerator, 0L);
@@ -903,6 +905,7 @@ public class TransactionTest extends TransactionTestBase {
             return null;
         }).when(managedCursor).asyncReadEntries(anyInt(), any(), any(), any());
 
+        @Cleanup("closeAsync")
         MLTransactionMetadataStore metadataStore2 =
                 new MLTransactionMetadataStore(new TransactionCoordinatorID(1),
 
@@ -917,6 +920,7 @@ public class TransactionTest extends TransactionTestBase {
             return null;
         }).when(managedCursor).asyncReadEntries(anyInt(), any(), any(), any());
 
+        @Cleanup("closeAsync")
         MLTransactionMetadataStore metadataStore3 =
                 new MLTransactionMetadataStore(new TransactionCoordinatorID(1),
                         mlTransactionLog, timeoutTracker, mlTransactionSequenceIdGenerator, 0L);

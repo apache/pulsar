@@ -26,6 +26,7 @@ import com.google.common.collect.Sets;
 import java.net.SocketAddress;
 import java.util.Collections;
 import java.util.EnumSet;
+import lombok.Cleanup;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
@@ -283,6 +284,7 @@ public class AuthorizationTest extends MockedPulsarServiceBaseTest {
         admin.namespaces().grantPermissionOnNamespace(namespaceV1, "pass.pass2", EnumSet.of(AuthAction.produce));
         admin.namespaces().createNamespace(namespaceV2, Sets.newHashSet("c1"));
         admin.namespaces().grantPermissionOnNamespace(namespaceV2, "pass.pass2", EnumSet.of(AuthAction.produce));
+        @Cleanup
         PulsarAdmin admin2 = PulsarAdmin.builder().serviceHttpUrl(brokerUrl != null
                         ? brokerUrl.toString()
                         : brokerUrlTls.toString())
