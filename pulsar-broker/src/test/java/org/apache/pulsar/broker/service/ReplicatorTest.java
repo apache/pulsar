@@ -666,8 +666,8 @@ public class ReplicatorTest extends ReplicatorTestBase {
                     .get(BrokerTestUtil.newUniqueName("persistent://pulsar/ns/res-cons-id-"));
 
             // Create another consumer using replication prefix as sub id
+            @Cleanup
             MessageConsumer consumer = new MessageConsumer(url2, dest, "pulsar.repl.");
-            consumer.close();
 
         } catch (Exception e) {
             // SUCCESS
@@ -1718,6 +1718,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
         PersistentReplicator replicator = (PersistentReplicator) replicators.get("r2");
 
         Awaitility.await().pollInterval(1, TimeUnit.SECONDS).timeout(30, TimeUnit.SECONDS)
+                .ignoreExceptions()
                 .untilAsserted(() -> assertEquals(org.apache.pulsar.broker.service.AbstractReplicator.State.Started,
                         replicator.getState()));
         assertEquals(replicator.getState(), org.apache.pulsar.broker.service.AbstractReplicator.State.Started);
