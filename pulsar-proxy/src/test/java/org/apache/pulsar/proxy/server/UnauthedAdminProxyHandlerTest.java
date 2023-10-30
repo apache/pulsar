@@ -79,8 +79,8 @@ public class UnauthedAdminProxyHandlerTest extends MockedPulsarServiceBaseTest {
         webServer = new WebServer(proxyConfig, new AuthenticationService(
                                           PulsarConfigurationLoader.convertFrom(proxyConfig)));
 
-        resource = new PulsarResources(new ZKMetadataStore(mockZooKeeper),
-                new ZKMetadataStore(mockZooKeeperGlobal));
+        resource = new PulsarResources(registerCloseable(new ZKMetadataStore(mockZooKeeper)),
+                registerCloseable(new ZKMetadataStore(mockZooKeeperGlobal)));
         discoveryProvider = spy(new BrokerDiscoveryProvider(proxyConfig, resource));
         adminProxyHandler = new AdminProxyWrapper(proxyConfig, discoveryProvider);
         ServletHolder servletHolder = new ServletHolder(adminProxyHandler);

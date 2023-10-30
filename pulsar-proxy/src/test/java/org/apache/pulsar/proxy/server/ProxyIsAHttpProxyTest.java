@@ -81,8 +81,8 @@ public class ProxyIsAHttpProxyTest extends MockedPulsarServiceBaseTest {
         // Set number of CPU's to two for unit tests for running in resource constrained env.
         ProcessorUtils.setAvailableProcessors(2);
 
-        resource = new PulsarResources(new ZKMetadataStore(mockZooKeeper),
-                new ZKMetadataStore(mockZooKeeperGlobal));
+        resource = new PulsarResources(registerCloseable(new ZKMetadataStore(mockZooKeeper)),
+                registerCloseable(new ZKMetadataStore(mockZooKeeperGlobal)));
         backingServer1 = new Server(0);
         backingServer1.setHandler(newHandler("server1"));
         backingServer1.start();
