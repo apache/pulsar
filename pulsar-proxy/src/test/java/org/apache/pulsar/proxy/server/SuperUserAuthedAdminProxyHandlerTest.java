@@ -97,7 +97,7 @@ public class SuperUserAuthedAdminProxyHandlerTest extends MockedPulsarServiceBas
                 registerCloseable(new ZKMetadataStore(mockZooKeeperGlobal)));
         webServer = new WebServer(proxyConfig, new AuthenticationService(
                                           PulsarConfigurationLoader.convertFrom(proxyConfig)));
-        discoveryProvider = spy(new BrokerDiscoveryProvider(proxyConfig, resource));
+        discoveryProvider = spy(registerCloseable(new BrokerDiscoveryProvider(proxyConfig, resource)));
         LoadManagerReport report = new LoadReport(brokerUrl.toString(), brokerUrlTls.toString(), null, null);
         doReturn(report).when(discoveryProvider).nextBroker();
 
