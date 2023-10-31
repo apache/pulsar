@@ -297,7 +297,7 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
 
     }
 
-    public <T extends AutoCloseable> T registerCloseable(T closeable) {
+    protected <T extends AutoCloseable> T registerCloseable(T closeable) {
         closeables.add(closeable);
         return closeable;
     }
