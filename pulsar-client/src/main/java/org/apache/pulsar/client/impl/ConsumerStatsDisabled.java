@@ -100,7 +100,7 @@ public class ConsumerStatsDisabled implements ConsumerStatsRecorder {
     }
 
     @Override
-    public long getTotalBatchReceivedFailed() {
+    public long getTotaBatchReceivedFailed() {
         return 0;
     }
 

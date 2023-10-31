@@ -92,7 +92,7 @@ public interface ConsumerStats extends Serializable {
     /**
      * @return Total number of messages batch receive failures
      */
-    long getTotalBatchReceivedFailed();
+    long getTotaBatchReceivedFailed();
 
     /**
      * @return Total number of message acknowledgments sent by this consumer

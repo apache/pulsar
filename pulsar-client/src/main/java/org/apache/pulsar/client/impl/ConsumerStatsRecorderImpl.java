@@ -230,7 +230,7 @@ public class ConsumerStatsRecorderImpl implements ConsumerStatsRecorder {
         totalMsgsReceived.add(stats.getTotalMsgsReceived());
         totalBytesReceived.add(stats.getTotalBytesReceived());
         totalReceiveFailed.add(stats.getTotalReceivedFailed());
-        totalBatchReceiveFailed.add(stats.getTotalBatchReceivedFailed());
+        totalBatchReceiveFailed.add(stats.getTotaBatchReceivedFailed());
         totalAcksSent.add(stats.getTotalAcksSent());
         totalAcksFailed.add(stats.getTotalAcksFailed());
     }
@@ -305,7 +305,7 @@ public class ConsumerStatsRecorderImpl implements ConsumerStatsRecorder {
     }
 
     @Override
-    public long getTotalBatchReceivedFailed() {
+    public long getTotaBatchReceivedFailed() {
         return totalBatchReceiveFailed.longValue();
     }
 
