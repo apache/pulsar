@@ -2166,7 +2166,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             createProducerLock.writeLock().lock();
             try {
                 if (deadLetterProducer == null) {
-                    ProducerBuilder<byte[]> producerBuilder = ((ProducerBuilderImpl<byte[]>) client.newProducer(Schema.AUTO_PRODUCE_BYTES(schema)))
+                    ProducerBuilder<byte[]> producerBuilder = ((ProducerBuilderImpl<byte[]>)
+                            client.newProducer(Schema.AUTO_PRODUCE_BYTES(schema)))
                             .initialSubscriptionName(this.deadLetterPolicy.getInitialSubscriptionName())
                             .topic(this.deadLetterPolicy.getDeadLetterTopic())
                             .blockIfQueueFull(false)
