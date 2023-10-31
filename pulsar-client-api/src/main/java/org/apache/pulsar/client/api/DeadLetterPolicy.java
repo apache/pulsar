@@ -60,4 +60,9 @@ public class DeadLetterPolicy {
      * to be created.
      */
     private String initialSubscriptionName;
+
+    /**
+     * Name of the dead letter producer name.
+     */
+    private String producerName;
 }

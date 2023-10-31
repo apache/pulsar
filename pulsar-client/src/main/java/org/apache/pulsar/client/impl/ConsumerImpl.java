@@ -76,6 +76,7 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.MessageIdAdv;
 import org.apache.pulsar.client.api.Messages;
 import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.PulsarClientException.TopicDoesNotExistException;
 import org.apache.pulsar.client.api.Schema;
@@ -370,6 +371,10 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             if (StringUtils.isNotBlank(conf.getDeadLetterPolicy().getInitialSubscriptionName())) {
                 this.deadLetterPolicy.setInitialSubscriptionName(
                         conf.getDeadLetterPolicy().getInitialSubscriptionName());
+            }
+            if (StringUtils.isNotBlank(conf.getDeadLetterPolicy().getProducerName())) {
+                this.deadLetterPolicy.setProducerName(
+                        conf.getDeadLetterPolicy().getProducerName());
             }
 
         } else {
@@ -2159,14 +2164,16 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             createProducerLock.writeLock().lock();
             try {
                 if (deadLetterProducer == null) {
-                    deadLetterProducer =
-                            ((ProducerBuilderImpl<byte[]>) client.newProducer(Schema.AUTO_PRODUCE_BYTES(schema)))
-                                    .initialSubscriptionName(this.deadLetterPolicy.getInitialSubscriptionName())
-                                    .topic(this.deadLetterPolicy.getDeadLetterTopic())
-                                    .blockIfQueueFull(false)
-                                    .enableBatching(false)
-                                    .enableChunking(true)
-                                    .createAsync();
+                    ProducerBuilder<byte[]> producerBuilder = ((ProducerBuilderImpl<byte[]>) client.newProducer(Schema.AUTO_PRODUCE_BYTES(schema)))
+                            .initialSubscriptionName(this.deadLetterPolicy.getInitialSubscriptionName())
+                            .topic(this.deadLetterPolicy.getDeadLetterTopic())
+                            .blockIfQueueFull(false)
+                            .enableBatching(false)
+                            .enableChunking(true);
+                    if (StringUtils.isNotBlank(conf.getDeadLetterPolicy().getProducerName())) {
+                        producerBuilder.producerName(conf.getDeadLetterPolicy().getProducerName());
+                    }
+                    deadLetterProducer = producerBuilder.createAsync();
                 }
             } finally {
                 createProducerLock.writeLock().unlock();
