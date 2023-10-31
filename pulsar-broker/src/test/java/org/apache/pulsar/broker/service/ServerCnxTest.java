@@ -2866,15 +2866,6 @@ public class ServerCnxTest {
         return getResponse(channel, clientChannelHelper);
     }
 
-//    protected void triggerReceivePingOnce(EmbeddedChannel channel, ClientChannelHelper clientChannelHelper)
-//            throws Exception {
-//        getResponse(channel, clientChannelHelper, true);
-//    }
-
-//    protected Object getResponse(EmbeddedChannel channel, ClientChannelHelper clientChannelHelper) throws Exception {
-//        return getResponse(channel, clientChannelHelper);
-//    }
-
     protected Object getResponse(EmbeddedChannel channel, ClientChannelHelper clientChannelHelper) throws Exception {
         // Wait at most for 10s to get a response
         final long sleepTimeMs = 10;
