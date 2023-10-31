@@ -61,9 +61,9 @@ RUN sed -i -e "s|http://archive\.ubuntu\.com/ubuntu/|${UBUNTU_MIRROR:-mirror://m
      && echo 'Acquire::http::Timeout "30";\nAcquire::ftp::Timeout "30";\nAcquire::Retries "3";' > /etc/apt/apt.conf.d/99timeout_and_retries \
      && apt-get update \
      && apt-get -y dist-upgrade \
-     && apt-get -y install --no-install-recommends netcat dnsutils less procps iputils-ping \
-                 python3 python3-kazoo python3-pip \
-                 curl ca-certificates wget apt-transport-https
+     && apt-get -y install netcat dnsutils less procps iputils-ping \
+                 curl ca-certificates wget apt-transport-https \
+     && apt-get -y install --no-install-recommends python3 python3-kazoo python3-pip
 
 # Install Eclipse Temurin Package
 RUN mkdir -p /etc/apt/keyrings \
