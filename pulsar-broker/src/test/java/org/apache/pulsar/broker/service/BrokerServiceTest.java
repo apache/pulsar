@@ -71,8 +71,8 @@ import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.http.HttpResponse;
-import org.apache.http.client.HttpClient;
 import org.apache.http.client.methods.HttpGet;
+import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannelImpl;
@@ -391,11 +391,16 @@ public class BrokerServiceTest extends BrokerTestBase {
     }
 
     private void createNewConnectionAndCheckFail(String topicName, ClientBuilder builder) throws Exception {
+        PulsarClient client = null;
         try {
-            createNewConnection(topicName, builder);
+            client = createNewConnection(topicName, builder);
             fail("should fail");
         } catch (Exception e) {
             assertTrue(e.getMessage().contains("Reached the maximum number of connections"));
+        } finally {
+            if (client != null) {
+                client.close();
+            }
         }
     }
 
@@ -979,6 +984,7 @@ public class BrokerServiceTest extends BrokerTestBase {
         conf.setConcurrentLookupRequest(1);
         conf.setMaxLookupRequest(2);
 
+        @Cleanup("shutdownNow")
         EventLoopGroup eventLoop = EventLoopUtil.newEventLoopGroup(20, false,
                 new DefaultThreadFactory("test-pool", Thread.currentThread().isDaemon()));
         long reqId = 0xdeadbeef;
@@ -1454,7 +1460,8 @@ public class BrokerServiceTest extends BrokerTestBase {
     public void testMetricsProvider() throws IOException {
         PrometheusRawMetricsProvider rawMetricsProvider = stream -> stream.write("test_metrics{label1=\"xyz\"} 10 \n");
         getPulsar().addPrometheusRawMetricsProvider(rawMetricsProvider);
-        HttpClient httpClient = HttpClientBuilder.create().build();
+        @Cleanup
+        CloseableHttpClient httpClient = HttpClientBuilder.create().build();
         final String metricsEndPoint = getPulsar().getWebServiceAddress() + "/metrics";
         HttpResponse response = httpClient.execute(new HttpGet(metricsEndPoint));
         InputStream inputStream = response.getEntity().getContent();
@@ -1785,5 +1792,14 @@ public class BrokerServiceTest extends BrokerTestBase {
         } catch (Exception ex) {
             fail("Unsubscribe failed");
         }
+    }
+
+    @Test
+    public void testGetLookupServiceAddress() throws Exception {
+        cleanup();
+        setup();
+        conf.setWebServicePortTls(Optional.of(8081));
+        assertEquals(pulsar.getLookupServiceAddress(), "localhost:8081");
+        resetState();
     }
 }

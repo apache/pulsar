@@ -1709,5 +1709,54 @@ public class Namespaces extends NamespacesBase {
         internalSetSchemaAutoUpdateCompatibilityStrategy(strategy);
     }
 
+    @POST
+    @Path("/{property}/{cluster}/{namespace}/migration")
+    @ApiOperation(hidden = true, value = "Update migration for all topics in a namespace")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Property or cluster or namespace doesn't exist") })
+    public void enableMigration(@PathParam("property") String property,
+                                @PathParam("cluster") String cluster,
+                                @PathParam("namespace") String namespace,
+                                boolean migrated) {
+        validateNamespaceName(property, cluster, namespace);
+        internalEnableMigration(migrated);
+    }
+
+    @PUT
+    @Path("/{property}/{cluster}/{namespace}/policy")
+    @ApiOperation(value = "Creates a new namespace with the specified policies")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Property or cluster or namespace doesn't exist"),
+            @ApiResponse(code = 409, message = "Namespace already exists"),
+            @ApiResponse(code = 412, message = "Namespace name is not valid") })
+    public void createNamespace(@Suspended AsyncResponse response,
+                                @PathParam("property") String property,
+                                @PathParam("cluster") String cluster,
+                                @PathParam("namespace") String namespace,
+                                @ApiParam(value = "Policies for the namespace") Policies policies) {
+        validateNamespaceName(property, cluster, namespace);
+        CompletableFuture<Void> ret;
+        if (!namespaceName.isGlobal()) {
+            // If the namespace is non global, make sure property has the access on the cluster. For global namespace,
+            // same check is made at the time of setting replication.
+            ret = validateClusterForTenantAsync(namespaceName.getTenant(), namespaceName.getCluster());
+        } else {
+            ret = CompletableFuture.completedFuture(null);
+        }
+
+        ret.thenApply(__ -> getDefaultPolicesIfNull(policies)).thenCompose(this::internalCreateNamespace)
+                .thenAccept(__ -> response.resume(Response.noContent().build()))
+                .exceptionally(ex -> {
+                    Throwable root = FutureUtil.unwrapCompletionException(ex);
+                    if (root instanceof MetadataStoreException.AlreadyExistsException) {
+                        response.resume(new RestException(Status.CONFLICT, "Namespace already exists"));
+                    } else {
+                        log.error("[{}] Failed to create namespace {}", clientAppId(), namespaceName, ex);
+                        resumeAsyncResponseExceptionally(response, ex);
+                    }
+                    return null;
+                });
+    }
+
     private static final Logger log = LoggerFactory.getLogger(Namespaces.class);
 }

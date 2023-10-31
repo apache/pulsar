@@ -42,6 +42,7 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.authentication.AuthenticationProviderTls;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
@@ -53,6 +54,8 @@ import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.ProducerImpl;
+import org.apache.pulsar.client.impl.auth.AuthenticationDisabled;
+import org.apache.pulsar.client.impl.auth.AuthenticationTls;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
@@ -156,7 +159,6 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
     }
 
     protected final void internalSetup() throws Exception {
-        incrementSetupNumber();
         init();
         lookupUrl = new URI(brokerUrl.toString());
         if (isTcpLookup) {
@@ -227,16 +229,31 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
         this.conf.setBrokerShutdownTimeoutMs(0L);
         this.conf.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
         this.conf.setBrokerServicePort(Optional.of(0));
-        this.conf.setBrokerServicePortTls(Optional.of(0));
         this.conf.setAdvertisedAddress("localhost");
         this.conf.setWebServicePort(Optional.of(0));
-        this.conf.setWebServicePortTls(Optional.of(0));
         this.conf.setNumExecutorThreadPoolSize(5);
         this.conf.setExposeBundlesMetricsInPrometheus(true);
     }
 
     protected final void init() throws Exception {
+        incrementSetupNumber();
         doInitConf();
+        // trying to config the broker internal client
+        if (conf.getWebServicePortTls().isPresent()
+            && conf.getAuthenticationProviders().contains(AuthenticationProviderTls.class.getName())
+            && !conf.isTlsEnabledWithKeyStore()) {
+            // enabled TLS
+            if (conf.getBrokerClientAuthenticationPlugin() == null
+                || conf.getBrokerClientAuthenticationPlugin().equals(AuthenticationDisabled.class.getName())) {
+                conf.setBrokerClientAuthenticationPlugin(AuthenticationTls.class.getName());
+                conf.setBrokerClientAuthenticationParameters("tlsCertFile:" + BROKER_CERT_FILE_PATH
+                                                             + ",tlsKeyFile:" + BROKER_KEY_FILE_PATH);
+                conf.setBrokerClientTlsEnabled(true);
+                conf.setBrokerClientTrustCertsFilePath(CA_CERT_FILE_PATH);
+                conf.setBrokerClientCertificateFilePath(BROKER_CERT_FILE_PATH);
+                conf.setBrokerClientKeyFilePath(BROKER_KEY_FILE_PATH);
+            }
+        }
         startBroker();
     }
 
@@ -244,13 +261,7 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
         markCurrentSetupNumberCleaned();
         // if init fails, some of these could be null, and if so would throw
         // an NPE in shutdown, obscuring the real error
-        if (admin != null) {
-            admin.close();
-            if (MockUtil.isMock(admin)) {
-                Mockito.reset(admin);
-            }
-            admin = null;
-        }
+        closeAdmin();
         if (pulsarClient != null) {
             pulsarClient.shutdown();
             pulsarClient = null;
@@ -264,6 +275,16 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
         }
         resetConfig();
         onCleanup();
+    }
+
+    protected void closeAdmin() {
+        if (admin != null) {
+            admin.close();
+            if (MockUtil.isMock(admin)) {
+                Mockito.reset(admin);
+            }
+            admin = null;
+        }
     }
 
     protected void onCleanup() {
@@ -470,9 +491,7 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
         configuration.setBrokerShutdownTimeoutMs(0L);
         configuration.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
         configuration.setBrokerServicePort(Optional.of(0));
-        configuration.setBrokerServicePortTls(Optional.of(0));
         configuration.setWebServicePort(Optional.of(0));
-        configuration.setWebServicePortTls(Optional.of(0));
         configuration.setBookkeeperClientExposeStatsToPrometheus(true);
         configuration.setNumExecutorThreadPoolSize(5);
         configuration.setBrokerMaxConnections(0);

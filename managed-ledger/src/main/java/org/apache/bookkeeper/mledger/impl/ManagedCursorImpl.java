@@ -1107,6 +1107,9 @@ public class ManagedCursorImpl implements ManagedCursor {
                     messagesConsumedCounter, markDeletePosition, readPosition);
         }
         if (isPrecise) {
+            if (markDeletePosition.compareTo(ledger.getLastPosition()) >= 0) {
+                return 0;
+            }
             return getNumberOfEntries(Range.openClosed(markDeletePosition, ledger.getLastPosition()));
         }
 
@@ -1266,7 +1269,8 @@ public class ManagedCursorImpl implements ManagedCursor {
             newReadPosition = proposedReadPosition;
         }
 
-        log.info("[{}] Initiate reset readPosition to {} on cursor {}", ledger.getName(), newReadPosition, name);
+        log.info("[{}] Initiate reset readPosition from {} to {} on cursor {}", ledger.getName(), readPosition,
+                newReadPosition, name);
 
         synchronized (pendingMarkDeleteOps) {
             if (!RESET_CURSOR_IN_PROGRESS_UPDATER.compareAndSet(this, FALSE, TRUE)) {
@@ -2681,32 +2685,47 @@ public class ManagedCursorImpl implements ManagedCursor {
                     }
 
                     @Override
-                    public void operationFailed(MetaStoreException e) {
-                        if (e instanceof MetaStoreException.BadVersionException) {
+                    public void operationFailed(MetaStoreException topLevelException) {
+                        if (topLevelException instanceof MetaStoreException.BadVersionException) {
                             log.warn("[{}] Failed to update cursor metadata for {} due to version conflict {}",
-                                    ledger.name, name, e.getMessage());
+                                    ledger.name, name, topLevelException.getMessage());
                             // it means previous owner of the ml might have updated the version incorrectly. So, check
                             // the ownership and refresh the version again.
-                            if (ledger.mlOwnershipChecker != null && ledger.mlOwnershipChecker.get()) {
-                                ledger.getStore().asyncGetCursorInfo(ledger.getName(), name,
-                                        new MetaStoreCallback<ManagedCursorInfo>() {
-                                            @Override
-                                            public void operationComplete(ManagedCursorInfo info, Stat stat) {
-                                                updateCursorLedgerStat(info, stat);
-                                            }
+                            if (ledger.mlOwnershipChecker != null) {
+                                ledger.mlOwnershipChecker.get().whenComplete((hasOwnership, t) -> {
+                                    if (t == null && hasOwnership) {
+                                        ledger.getStore().asyncGetCursorInfo(ledger.getName(), name,
+                                                new MetaStoreCallback<>() {
+                                                    @Override
+                                                    public void operationComplete(ManagedCursorInfo info, Stat stat) {
+                                                        updateCursorLedgerStat(info, stat);
+                                                        // fail the top level call so that the caller can retry
+                                                        callback.operationFailed(topLevelException);
+                                                    }
 
-                                            @Override
-                                            public void operationFailed(MetaStoreException e) {
-                                                if (log.isDebugEnabled()) {
-                                                    log.debug(
-                                                            "[{}] Failed to refresh cursor metadata-version for {} due "
-                                                            + "to {}", ledger.name, name, e.getMessage());
-                                                }
-                                            }
-                                        });
+                                                    @Override
+                                                    public void operationFailed(MetaStoreException e) {
+                                                        if (log.isDebugEnabled()) {
+                                                            log.debug(
+                                                                    "[{}] Failed to refresh cursor metadata-version "
+                                                                            + "for {} due to {}", ledger.name, name,
+                                                                    e.getMessage());
+                                                        }
+                                                        // fail the top level call so that the caller can retry
+                                                        callback.operationFailed(topLevelException);
+                                                    }
+                                                });
+                                    } else {
+                                        // fail the top level call so that the caller can retry
+                                        callback.operationFailed(topLevelException);
+                                    }
+                                });
+                            } else {
+                                callback.operationFailed(topLevelException);
                             }
+                        } else {
+                            callback.operationFailed(topLevelException);
                         }
-                        callback.operationFailed(e);
                     }
                 });
     }

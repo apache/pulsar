@@ -19,6 +19,7 @@
 package org.apache.pulsar.tests.integration.loadbalance;
 
 import static org.apache.pulsar.tests.integration.containers.PulsarContainer.BROKER_HTTP_PORT;
+import static org.apache.pulsar.tests.integration.suites.PulsarTestSuite.retryStrategically;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
@@ -91,6 +92,7 @@ public class ExtensibleLoadManagerTest extends TestRetrySupport {
                 "org.apache.pulsar.broker.loadbalance.extensions.scheduler.TransferShedder");
         brokerEnvs.put("forceDeleteNamespaceAllowed", "true");
         brokerEnvs.put("loadBalancerDebugModeEnabled", "true");
+        brokerEnvs.put("topicLevelPoliciesEnabled", "false");
         brokerEnvs.put("PULSAR_MEM", "-Xmx512M");
         spec.brokerEnvs(brokerEnvs);
         pulsarCluster = PulsarCluster.forSpec(spec);
@@ -307,7 +309,7 @@ public class ExtensibleLoadManagerTest extends TestRetrySupport {
     }
 
     @Test(timeOut = 40 * 1000)
-    public void testIsolationPolicy() throws PulsarAdminException {
+    public void testIsolationPolicy() throws Exception {
         final String namespaceIsolationPolicyName = "my-isolation-policy";
         final String isolationEnabledNameSpace = DEFAULT_TENANT + "/my-isolation-policy" + nsSuffix;
         Map<String, String> parameters1 = new HashMap<>();
@@ -345,6 +347,8 @@ public class ExtensibleLoadManagerTest extends TestRetrySupport {
 
         broker = admin.lookups().lookupTopic(topic);
 
+        final String brokerName = broker;
+        retryStrategically((test) -> extractBrokerIndex(brokerName) == 1, 100, 200);
         assertEquals(extractBrokerIndex(broker), 1);
 
         for (BrokerContainer container : pulsarCluster.getBrokers()) {

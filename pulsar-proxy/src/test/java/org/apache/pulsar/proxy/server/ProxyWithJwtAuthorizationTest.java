@@ -116,6 +116,7 @@ public class ProxyWithJwtAuthorizationTest extends ProducerConsumerBase {
         proxyConfig.setBrokerClientAuthenticationPlugin(AuthenticationToken.class.getName());
         proxyConfig.setBrokerClientAuthenticationParameters(PROXY_TOKEN);
         proxyConfig.setAuthenticationProviders(providers);
+        proxyConfig.setStatusFilePath("./src/test/resources/vip_status.html");
 
         AuthenticationService authService =
                 new AuthenticationService(PulsarConfigurationLoader.convertFrom(proxyConfig));
@@ -406,6 +407,29 @@ public class ProxyWithJwtAuthorizationTest extends ProducerConsumerBase {
     }
 
     @Test
+    void testGetStatus() throws Exception {
+        log.info("-- Starting {} test --", methodName);
+        final PulsarResources resource = new PulsarResources(new ZKMetadataStore(mockZooKeeper),
+                new ZKMetadataStore(mockZooKeeperGlobal));
+        final AuthenticationService authService = new AuthenticationService(
+                PulsarConfigurationLoader.convertFrom(proxyConfig));
+        final WebServer webServer = new WebServer(proxyConfig, authService);
+        ProxyServiceStarter.addWebServerHandlers(webServer, proxyConfig, proxyService,
+                new BrokerDiscoveryProvider(proxyConfig, resource));
+        webServer.start();
+        @Cleanup
+        final Client client = javax.ws.rs.client.ClientBuilder
+                .newClient(new ClientConfig().register(LoggingFeature.class));
+        try {
+            final Response r = client.target(webServer.getServiceUri()).path("/status.html").request().get();
+            Assert.assertEquals(r.getStatus(), Response.Status.OK.getStatusCode());
+        } finally {
+            webServer.stop();
+        }
+        log.info("-- Exiting {} test --", methodName);
+    }
+
+    @Test
     void testGetMetrics() throws Exception {
         log.info("-- Starting {} test --", methodName);
         startProxy();
@@ -441,6 +465,7 @@ public class ProxyWithJwtAuthorizationTest extends ProducerConsumerBase {
     }
 
     private void createAdminClient() throws Exception {
+        closeAdmin();
         admin = spy(PulsarAdmin.builder().serviceHttpUrl(webServer.getServiceUri().toString())
                 .authentication(AuthenticationFactory.token(ADMIN_TOKEN)).build());
     }

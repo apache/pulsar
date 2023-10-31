@@ -622,6 +622,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                             .enableChunking(true)
                             .blockIfQueueFull(false)
                             .create();
+                    stats.setRetryLetterProducerStats(retryLetterProducer.getStats());
                 }
             } catch (Exception e) {
                 log.error("Create retry letter producer exception with topic: {}",
@@ -724,6 +725,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         //Compatible with the old version, will be deleted in the future
         propertiesMap.putIfAbsent(RetryMessageUtil.SYSTEM_PROPERTY_ORIGIN_MESSAGE_ID, originMessageIdStr);
         propertiesMap.putIfAbsent(RetryMessageUtil.PROPERTY_ORIGIN_MESSAGE_ID, originMessageIdStr);
+        propertiesMap.putIfAbsent(RetryMessageUtil.SYSTEM_PROPERTY_REAL_SUBSCRIPTION, subscription);
         return propertiesMap;
     }
 
@@ -2164,16 +2166,17 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             createProducerLock.writeLock().lock();
             try {
                 if (deadLetterProducer == null) {
-                    ProducerBuilder<byte[]> producerBuilder = ((ProducerBuilderImpl<byte[]>) client.newProducer(Schema.AUTO_PRODUCE_BYTES(schema)))
-                            .initialSubscriptionName(this.deadLetterPolicy.getInitialSubscriptionName())
-                            .topic(this.deadLetterPolicy.getDeadLetterTopic())
-                            .blockIfQueueFull(false)
-                            .enableBatching(false)
-                            .enableChunking(true);
-                    if (StringUtils.isNotBlank(conf.getDeadLetterPolicy().getProducerName())) {
-                        producerBuilder.producerName(conf.getDeadLetterPolicy().getProducerName());
-                    }
-                    deadLetterProducer = producerBuilder.createAsync();
+                    deadLetterProducer =
+                            ((ProducerBuilderImpl<byte[]>) client.newProducer(Schema.AUTO_PRODUCE_BYTES(schema)))
+                                    .initialSubscriptionName(this.deadLetterPolicy.getInitialSubscriptionName())
+                                    .topic(this.deadLetterPolicy.getDeadLetterTopic())
+                                    .blockIfQueueFull(false)
+                                    .enableBatching(false)
+                                    .enableChunking(true)
+                                    .createAsync();
+                    deadLetterProducer.thenAccept(dlqProducer -> {
+                        stats.setDeadLetterProducerStats(dlqProducer.getStats());
+                    });
                 }
             } finally {
                 createProducerLock.writeLock().unlock();
@@ -2341,6 +2344,10 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
     public CompletableFuture<Boolean> hasMessageAvailableAsync() {
         final CompletableFuture<Boolean> booleanFuture = new CompletableFuture<>();
+
+        if (incomingMessages != null && !incomingMessages.isEmpty()) {
+            return CompletableFuture.completedFuture(true);
+        }
 
         // we haven't read yet. use startMessageId for comparison
         if (lastDequeuedMessageId == MessageId.earliest) {

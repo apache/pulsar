@@ -47,7 +47,7 @@ public class PulsarStandaloneStarter extends PulsarStandalone {
             jcommander.parse(args);
             if (this.isHelp()) {
                 jcommander.usage();
-                System.exit(0);
+                exit(0);
             }
             if (Strings.isNullOrEmpty(this.getConfigFile())) {
                 String configFile = System.getProperty(PULSAR_CONFIG_FILE);
@@ -62,7 +62,7 @@ public class PulsarStandaloneStarter extends PulsarStandalone {
                 CmdGenerateDocs cmd = new CmdGenerateDocs("pulsar");
                 cmd.addCommand("standalone", this);
                 cmd.run(null);
-                System.exit(0);
+                exit(0);
             }
 
             if (this.isNoBroker() && this.isOnlyBroker()) {
@@ -73,7 +73,7 @@ public class PulsarStandaloneStarter extends PulsarStandalone {
         } catch (Exception e) {
             jcommander.usage();
             log.error(e.getMessage());
-            System.exit(1);
+            exit(1);
         }
 
         try (FileInputStream inputStream = new FileInputStream(this.getConfigFile())) {
@@ -109,6 +109,10 @@ public class PulsarStandaloneStarter extends PulsarStandalone {
             }
         }
 
+        registerShutdownHook();
+    }
+
+    protected void registerShutdownHook() {
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             try {
                 if (fnWorkerService != null) {
@@ -128,6 +132,10 @@ public class PulsarStandaloneStarter extends PulsarStandalone {
                 LogManager.shutdown();
             }
         }));
+    }
+
+    protected void exit(int status) {
+        System.exit(status);
     }
 
     private static boolean argsContains(String[] args, String arg) {

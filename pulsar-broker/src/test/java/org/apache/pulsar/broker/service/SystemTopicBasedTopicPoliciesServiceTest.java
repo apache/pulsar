@@ -39,6 +39,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
@@ -141,7 +142,7 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
         // Wait for all topic policies updated.
         Awaitility.await().untilAsserted(() ->
                 Assert.assertTrue(systemTopicBasedTopicPoliciesService
-                        .getPoliciesCacheInit(TOPIC1.getNamespaceObject())));
+                        .getPoliciesCacheInit(TOPIC1.getNamespaceObject()).isDone()));
 
         // Assert broker is cache all topic policies
         Awaitility.await().untilAsserted(() ->
@@ -304,8 +305,8 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
     @Test
     public void testGetPolicyTimeout() throws Exception {
         SystemTopicBasedTopicPoliciesService service = (SystemTopicBasedTopicPoliciesService) pulsar.getTopicPoliciesService();
-        Awaitility.await().untilAsserted(() -> assertTrue(service.policyCacheInitMap.get(TOPIC1.getNamespaceObject())));
-        service.policyCacheInitMap.put(TOPIC1.getNamespaceObject(), false);
+        Awaitility.await().untilAsserted(() -> assertTrue(service.policyCacheInitMap.get(TOPIC1.getNamespaceObject()).isDone()));
+        service.policyCacheInitMap.put(TOPIC1.getNamespaceObject(), new CompletableFuture<>());
         long start = System.currentTimeMillis();
         Backoff backoff = new BackoffBuilder()
                 .setInitialTime(500, TimeUnit.MILLISECONDS)
@@ -361,6 +362,7 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
         TopicPolicies initPolicy = TopicPolicies.builder()
                 .maxConsumerPerTopic(10)
                 .build();
+        @Cleanup("shutdownNow")
         ScheduledExecutorService executors = Executors.newScheduledThreadPool(1);
         executors.schedule(new Runnable() {
             @Override
