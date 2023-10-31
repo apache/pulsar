@@ -2166,14 +2166,16 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             createProducerLock.writeLock().lock();
             try {
                 if (deadLetterProducer == null) {
-                    deadLetterProducer =
-                            ((ProducerBuilderImpl<byte[]>) client.newProducer(Schema.AUTO_PRODUCE_BYTES(schema)))
-                                    .initialSubscriptionName(this.deadLetterPolicy.getInitialSubscriptionName())
-                                    .topic(this.deadLetterPolicy.getDeadLetterTopic())
-                                    .blockIfQueueFull(false)
-                                    .enableBatching(false)
-                                    .enableChunking(true)
-                                    .createAsync();
+                    ProducerBuilder<byte[]> producerBuilder = ((ProducerBuilderImpl<byte[]>) client.newProducer(Schema.AUTO_PRODUCE_BYTES(schema)))
+                            .initialSubscriptionName(this.deadLetterPolicy.getInitialSubscriptionName())
+                            .topic(this.deadLetterPolicy.getDeadLetterTopic())
+                            .blockIfQueueFull(false)
+                            .enableBatching(false)
+                            .enableChunking(true);
+                    if (StringUtils.isNotBlank(conf.getDeadLetterPolicy().getProducerName())) {
+                        producerBuilder.producerName(conf.getDeadLetterPolicy().getProducerName());
+                    }
+                    deadLetterProducer = producerBuilder.createAsync();
                     deadLetterProducer.thenAccept(dlqProducer -> {
                         stats.setDeadLetterProducerStats(dlqProducer.getStats());
                     });
