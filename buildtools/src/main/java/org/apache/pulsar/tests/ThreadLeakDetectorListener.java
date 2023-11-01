@@ -230,6 +230,8 @@ public class ThreadLeakDetectorListener extends BetweenTestClassesListenerAdapte
         return false;
     }
 
+    // use reflection to extract the Runnable target from a thread so that we can detect threads created by
+    // Testcontainers based on the Runnable's class name.
     private static Runnable extractRunnableTarget(Thread thread) {
         if (THREAD_TARGET_FIELD == null) {
             return null;
