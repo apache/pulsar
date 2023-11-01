@@ -53,7 +53,6 @@ public class MultiRolesTokenAuthorizationProviderTest extends MockedPulsarServic
     private final String superUserToken;
     private final String normalUserToken;
 
-
     public MultiRolesTokenAuthorizationProviderTest() {
         Map<String, Object> claims = new HashMap<>();
         Set<String> roles = new HashSet<>();
