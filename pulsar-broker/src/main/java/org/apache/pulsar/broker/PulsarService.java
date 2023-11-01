@@ -639,20 +639,23 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     }
 
     private CompletableFuture<Void> addTimeoutHandling(CompletableFuture<Void> future) {
-        ScheduledExecutorService shutdownExecutor = Executors.newSingleThreadScheduledExecutor(
-                new ExecutorProvider.ExtendedThreadFactory(getClass().getSimpleName() + "-shutdown"));
-        FutureUtil.addTimeoutHandling(future,
-                Duration.ofMillis(Math.max(1L, getConfiguration().getBrokerShutdownTimeoutMs())),
-                shutdownExecutor, () -> FutureUtil.createTimeoutException("Timeout in close", getClass(), "close"));
-        future.handle((v, t) -> {
-            if (t != null && getConfiguration().getBrokerShutdownTimeoutMs() > 0) {
-                LOG.info("Shutdown timed out after {} ms", getConfiguration().getBrokerShutdownTimeoutMs());
-                LOG.info(ThreadDumpUtil.buildThreadDiagnosticString());
-            }
-            // shutdown the shutdown executor
-            shutdownExecutor.shutdownNow();
-            return null;
-        });
+        long brokerShutdownTimeoutMs = getConfiguration().getBrokerShutdownTimeoutMs();
+        if (brokerShutdownTimeoutMs > 0) {
+            ScheduledExecutorService shutdownExecutor = Executors.newSingleThreadScheduledExecutor(
+                    new ExecutorProvider.ExtendedThreadFactory(getClass().getSimpleName() + "-shutdown"));
+            FutureUtil.addTimeoutHandling(future,
+                    Duration.ofMillis(brokerShutdownTimeoutMs),
+                    shutdownExecutor, () -> FutureUtil.createTimeoutException("Timeout in close", getClass(), "close"));
+            future.handle((v, t) -> {
+                if (t instanceof TimeoutException) {
+                    LOG.info("Shutdown timed out after {} ms", brokerShutdownTimeoutMs);
+                    LOG.info(ThreadDumpUtil.buildThreadDiagnosticString());
+                }
+                // shutdown the shutdown executor
+                shutdownExecutor.shutdownNow();
+                return null;
+            });
+        }
         return future;
     }
 
