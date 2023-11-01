@@ -206,6 +206,12 @@ public class ReplicatedSubscriptionsController implements AutoCloseable, Topic.P
     private void startNewSnapshot() {
         cleanupTimedOutSnapshots();
 
+        if (topic.getReplicators().isEmpty()) {
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] There is no new replicators for the topic. Skipping snapshot creation.", topic.getName());
+            }
+            return;
+        }
         if (topic.getLastDataMessagePublishedTimestamp() < lastCompletedSnapshotStartTime
                 || topic.getLastDataMessagePublishedTimestamp() == 0) {
             // There was no message written since the last snapshot, we can skip creating a new snapshot

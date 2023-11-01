@@ -49,6 +49,7 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.policies.data.PartitionedTopicStats;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
@@ -702,6 +703,53 @@ public class ReplicatorSubscriptionTest extends ReplicatorTestBase {
         // wait for subscription to be replicated
         Awaitility.await().untilAsserted(() -> assertTrue(topic2.getReplicators().get("r1").isConnected()));
         Awaitility.await().untilAsserted(() -> assertNotNull(topic2.getSubscription(subscriptionName)));
+    }
+
+    @Test
+    public void testReplicateSubBackLog() throws Exception {
+        String namespace = BrokerTestUtil.newUniqueName("pulsar/testReplicateSubBackLog");
+        String topic = "persistent://" + namespace + "/when-replicator-producer-is-closed";
+        String subName = "sub";
+
+        admin1.namespaces().createNamespace(namespace);
+        pulsar1.getConfiguration().setReplicatedSubscriptionsSnapshotFrequencyMillis(100);
+        @Cleanup
+        PulsarClient client1 = PulsarClient.builder().serviceUrl(url1.toString())
+                .statsInterval(0, TimeUnit.SECONDS)
+                .build();
+        @Cleanup
+        Consumer<byte[]> consumer = client1.newConsumer()
+                .topic(topic)
+                .subscriptionName(subName)
+                .ackTimeout(5, TimeUnit.SECONDS)
+                .subscriptionType(SubscriptionType.Shared)
+                .replicateSubscriptionState(true)
+                .subscribe();
+        @Cleanup
+        Producer<byte[]> producer = client1.newProducer()
+                .topic(topic)
+                .create();
+        for (int i = 0; i < 10; i++) {
+            producer.newMessage().send();
+        }
+        TopicStats topicStats = admin1.topics().getStats(topic, false, true);
+        long backlogSize = topicStats.getBacklogSize();
+        //There should no replicator snapshot marker write into the topic, so the backlog would not change.
+        try {
+            Awaitility.await().untilAsserted(() -> {
+                TopicStats stats = admin1.topics().getStats(topic, false, true);
+                assertNotEquals(stats.getBacklogSize(), backlogSize);
+            });
+            fail();
+        } catch (org.awaitility.core.ConditionTimeoutException ex) {
+        }
+        // Start writing snapshot marker after having remote replicate clusters,
+        // so the backlog would continue to increase.
+        admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r1", "r2"));
+        Awaitility.await().untilAsserted(() -> {
+            TopicStats stats = admin1.topics().getStats(topic, false, true);
+            assertNotEquals(stats.getBacklogSize(), backlogSize);
+        });
     }
 
     void publishMessages(Producer<byte[]> producer, int startIndex, int numMessages, Set<String> sentMessages)
