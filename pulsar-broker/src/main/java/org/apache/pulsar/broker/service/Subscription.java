@@ -104,6 +104,26 @@ public interface Subscription extends MessageExpirer {
 
     boolean isSubscriptionMigrated();
 
+    default boolean isPendingAckMessageKeysRemembered() {
+        return false;
+    }
+
+    default void addPendingMessageKey(Entry pendingEntry, String subscription, long consumerId) {
+        //Default is no op
+    }
+
+    default void removePendingMessageKey(long pendingEntryId) {
+        //Default is no op
+    }
+
+    default void cleanPendingMessageKeys() {
+        //Default is no op
+    }
+
+    default boolean couldSendToConsumer(String messageKey, long consumerId) {
+        return true;
+    }
+
     default void processReplicatedSubscriptionSnapshot(ReplicatedSubscriptionsSnapshot snapshot) {
         // Default is no-op
     }

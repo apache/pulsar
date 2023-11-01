@@ -30,6 +30,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.AtomicLong;
@@ -55,6 +56,7 @@ import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.collections4.MapUtils;
 import org.apache.commons.lang3.tuple.MutablePair;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
 import org.apache.pulsar.broker.service.AbstractSubscription;
@@ -124,8 +126,11 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
             Map.of(REPLICATED_SUBSCRIPTION_PROPERTY, 1L);
     private static final Map<String, Long> NON_REPLICATED_SUBSCRIPTION_CURSOR_PROPERTIES = Map.of();
 
+    private final Map<Long, Pair<Long, String>> pendingMessages = new ConcurrentHashMap<>();
+
     private volatile ReplicatedSubscriptionSnapshotCache replicatedSubscriptionSnapshotCache;
     private final PendingAckHandle pendingAckHandle;
+    private final boolean shouldRememberUnackedMessageKey;
     private volatile Map<String, String> subscriptionProperties;
     private volatile CompletableFuture<Void> fenceFuture;
 
@@ -159,6 +164,11 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
         } else {
             this.pendingAckHandle = new PendingAckHandleDisabled();
         }
+        shouldRememberUnackedMessageKey = topic
+                .getBrokerService()
+                .getPulsar()
+                .getConfig()
+                .isRememberNotAckedMessagesKey();
         IS_FENCED_UPDATER.set(this, FALSE);
     }
 
@@ -1267,6 +1277,52 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
     public boolean isSubscriptionMigrated() {
         log.info("backlog for {} - {}", topicName, cursor.getNumberOfEntriesInBacklog(true));
         return topic.isMigrated() && cursor.getNumberOfEntriesInBacklog(true) <= 0;
+    }
+
+    @Override
+    public boolean isPendingAckMessageKeysRemembered() {
+        return shouldRememberUnackedMessageKey;
+    }
+
+    @Override
+    public void addPendingMessageKey(Entry pendingMessage, String subscription, long consumerId) {
+        if (shouldRememberUnackedMessageKey && pendingMessage != null) {
+            MessageMetadata metadata = Commands.peekAndCopyMessageMetadata(
+                    pendingMessage.getDataBuffer(),
+                    subscription,
+                    consumerId
+            );
+            if (metadata != null && metadata.hasPartitionKey()) {
+                pendingMessages.put(pendingMessage.getEntryId(), Pair.of(consumerId, metadata.getPartitionKey()));
+            }
+        }
+    }
+
+    @Override
+    public void removePendingMessageKey(long pendingEntryId) {
+        if (shouldRememberUnackedMessageKey) {
+            pendingMessages.remove(pendingEntryId);
+        }
+    }
+
+    @Override
+    public void cleanPendingMessageKeys() {
+        if (shouldRememberUnackedMessageKey) {
+            pendingMessages.clear();
+        }
+    }
+
+    @Override
+    public boolean couldSendToConsumer(String messageKey, long consumerId) {
+        if (!shouldRememberUnackedMessageKey) {
+            return true;
+        }
+        for (Pair<Long, String> pendingMessageKey: pendingMessages.values()) {
+            if (messageKey.equals(pendingMessageKey.getValue()) && !pendingMessageKey.getKey().equals(consumerId)) {
+                return false;
+            }
+        }
+        return true;
     }
 
     @Override

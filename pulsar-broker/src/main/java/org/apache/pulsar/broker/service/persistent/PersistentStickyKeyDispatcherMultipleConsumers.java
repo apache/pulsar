@@ -37,6 +37,7 @@ import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.ConsistentHashingStickyKeyConsumerSelector;
@@ -52,6 +53,8 @@ import org.apache.pulsar.client.api.Range;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.api.proto.KeySharedMeta;
 import org.apache.pulsar.common.api.proto.KeySharedMode;
+import org.apache.pulsar.common.api.proto.MessageMetadata;
+import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -256,22 +259,28 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
                 availablePermits = Math.min(availablePermits, remainUnAckedMessages);
             }
             int maxMessagesForC = Math.min(entriesWithSameKeyCount, availablePermits);
-            int messagesForC = getRestrictedMaxEntriesForConsumer(consumer, entriesWithSameKey, maxMessagesForC,
-                    readType, consumerStickyKeyHashesMap.get(consumer));
+            Pair<Integer, List<Entry>> messagesWithEntries = getRestrictedMaxEntriesForConsumer(
+                    consumer,
+                    entriesWithSameKey,
+                    maxMessagesForC,
+                    readType, consumerStickyKeyHashesMap.get(consumer)
+            );
+            int messagesForC = messagesWithEntries.getKey();
+            List<Entry> toDispatch = messagesWithEntries.getValue();
             if (log.isDebugEnabled()) {
                 log.debug("[{}] select consumer {} with messages num {}, read type is {}",
                         name, consumer.consumerName(), messagesForC, readType);
             }
 
-            if (messagesForC < entriesWithSameKeyCount) {
+            if (messagesForC < toDispatch.size()) {
                 // We are not able to push all the messages with given key to its consumer,
                 // so we discard for now and mark them for later redelivery
-                for (int i = messagesForC; i < entriesWithSameKeyCount; i++) {
-                    Entry entry = entriesWithSameKey.get(i);
+                for (int i = messagesForC; i < toDispatch.size(); i++) {
+                    Entry entry = toDispatch.get(i);
                     long stickyKeyHash = getStickyKeyHash(entry);
                     addMessageToReplay(entry.getLedgerId(), entry.getEntryId(), stickyKeyHash);
                     entry.release();
-                    entriesWithSameKey.set(i, null);
+                    toDispatch.set(i, null);
                 }
             }
 
@@ -279,7 +288,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
                 // remove positions first from replay list first : sendMessages recycles entries
                 if (readType == ReadType.Replay) {
                     for (int i = 0; i < messagesForC; i++) {
-                        Entry entry = entriesWithSameKey.get(i);
+                        Entry entry = toDispatch.get(i);
                         redeliveryMessages.remove(entry.getLedgerId(), entry.getEntryId());
                     }
                 }
@@ -287,10 +296,10 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
                 SendMessageInfo sendMessageInfo = SendMessageInfo.getThreadLocal();
                 EntryBatchSizes batchSizes = EntryBatchSizes.get(messagesForC);
                 EntryBatchIndexesAcks batchIndexesAcks = EntryBatchIndexesAcks.get(messagesForC);
-                totalEntries += filterEntriesForConsumer(entriesWithSameKey, batchSizes, sendMessageInfo,
+                totalEntries += filterEntriesForConsumer(toDispatch, batchSizes, sendMessageInfo,
                         batchIndexesAcks, cursor, readType == ReadType.Replay, consumer);
 
-                consumer.sendMessages(entriesWithSameKey, batchSizes, batchIndexesAcks,
+                consumer.sendMessages(toDispatch, batchSizes, batchIndexesAcks,
                         sendMessageInfo.getTotalMessages(),
                         sendMessageInfo.getTotalBytes(), sendMessageInfo.getTotalChunkedMessages(),
                         getRedeliveryTracker()).addListener(future -> {
@@ -332,19 +341,24 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
         return false;
     }
 
-    private int getRestrictedMaxEntriesForConsumer(Consumer consumer, List<Entry> entries, int maxMessages,
-            ReadType readType, Set<Integer> stickyKeyHashes) {
+    private Pair<Integer, List<Entry>> getRestrictedMaxEntriesForConsumer(
+            Consumer consumer,
+            List<Entry> entries,
+            int maxMessages,
+            ReadType readType,
+            Set<Integer> stickyKeyHashes
+    ) {
         if (maxMessages == 0) {
-            return 0;
+            return Pair.of(0, entries);
         }
         if (readType == ReadType.Normal && stickyKeyHashes != null
                 && redeliveryMessages.containsStickyKeyHashes(stickyKeyHashes)) {
             // If redeliveryMessages contains messages that correspond to the same hash as the messages
             // that the dispatcher is trying to send, do not send those messages for order guarantee
-            return 0;
+            return Pair.of(0, entries);
         }
         if (recentlyJoinedConsumers == null) {
-            return maxMessages;
+            return Pair.of(maxMessages, entries);
         }
         removeConsumersFromRecentJoinedConsumers();
         PositionImpl maxReadPosition = recentlyJoinedConsumers.get(consumer);
@@ -352,7 +366,12 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
         // is now ready to receive any message
         if (maxReadPosition == null) {
             // The consumer has not recently joined, so we can send all messages
-            return maxMessages;
+            return Pair.of(maxMessages, entries);
+        }
+
+        if (subscription.isPendingAckMessageKeysRemembered()) {
+            //if pending ack messages tracked we do not need to block recently joined consumers by position
+            return getRestrictedEntriesForConsumerPendingAck(entries, consumer);
         }
 
         // If the read type is Replay, we should avoid send messages that hold by other consumer to the new consumers,
@@ -381,11 +400,38 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
             if (((PositionImpl) entries.get(i).getPosition()).compareTo(maxReadPosition) >= 0) {
                 // We have already crossed the divider line. All messages in the list are now
                 // newer than what we can currently dispatch to this consumer
-                return i;
+                return Pair.of(i, entries);
             }
         }
 
-        return maxMessages;
+        return Pair.of(maxMessages, entries);
+    }
+
+    private Pair<Integer, List<Entry>> getRestrictedEntriesForConsumerPendingAck(
+            List<Entry> entries,
+            Consumer consumer
+    ) {
+        List<Entry> filtered = new ArrayList<>(entries.size());
+        //if we have recently joined consumers we should skip sending messages with not acked keys
+        for (Entry entry : entries) {
+            MessageMetadata metadata = Commands.peekAndCopyMessageMetadata(
+                    entry.getDataBuffer(),
+                    subscription.getName(),
+                    consumer.consumerId()
+            );
+
+
+            if (metadata == null || !metadata.hasPartitionKey()
+                    || subscription.couldSendToConsumer(metadata.getPartitionKey(), consumer.consumerId())) {
+                filtered.add(entry);
+            } else {
+                long stickyKeyHash = getStickyKeyHash(entry);
+                addMessageToReplay(entry.getLedgerId(), entry.getEntryId(), stickyKeyHash);
+                entry.release();
+            }
+        }
+
+        return Pair.of(filtered.size(), filtered);
     }
 
     @Override
