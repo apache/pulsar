@@ -1719,18 +1719,19 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         this.conf.setRememberNotAckedMessagesKey(true);
 
         String topic = "testConsumerIsNotBlockedForNewKeys-" + UUID.randomUUID();
+        //consumer name should correspond to messages key to distribute
+        String firstConsumerKey = "1";
+        String secondConsumerKey = "2";
 
         @Cleanup
         Producer<Integer> producer = createProducer(topic, false);
 
         @Cleanup
-        Consumer<Integer> c1 = createConsumer(topic, null, "1");
-
-        String oldMessagesKey = "1";
+        Consumer<Integer> c1 = createConsumer(topic, null, firstConsumerKey);
 
         for (int i = 0; i < 10; i++) {
             producer.newMessage()
-                    .key(oldMessagesKey)
+                    .key(firstConsumerKey)
                     .value(i)
                     .send();
         }
@@ -1739,14 +1740,12 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
 
         // Adding a new consumer. It will become recently joined one
         @Cleanup
-        Consumer<Integer> c2 = createConsumer(topic, null, "2");
+        Consumer<Integer> c2 = createConsumer(topic, null, secondConsumerKey);
 
         //Produce messages with the key which was not pre-fetched by C1
-        String newMessagesKey = "2";
-
         for (int i = 10; i < 20; i++) {
             producer.newMessage()
-                    .key(newMessagesKey)
+                    .key(secondConsumerKey)
                     .value(i)
                     .send();
         }
