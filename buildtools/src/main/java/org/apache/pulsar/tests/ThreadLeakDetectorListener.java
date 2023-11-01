@@ -201,6 +201,10 @@ public class ThreadLeakDetectorListener extends BetweenTestClassesListenerAdapte
             if (threadName.equals("Grizzly-HttpSession-Expirer")) {
                 return true;
             }
+            // Testcontainers AbstractWaitStrategy.EXECUTOR
+            if (threadName.startsWith("testcontainers-wait-")) {
+                return true;
+            }
         }
         return false;
     }
