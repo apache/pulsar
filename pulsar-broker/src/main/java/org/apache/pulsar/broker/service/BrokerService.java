@@ -1550,14 +1550,7 @@ public class BrokerService implements Closeable {
                     return null;
                 });
 
-        return topicFuture.exceptionally(ex -> {
-            final Throwable rc = FutureUtil.unwrapCompletionException(ex);
-            if (rc instanceof CancellationException) {
-                throw FutureUtil.wrapToCompletionException(
-                        new ServiceUnitNotReadyException("Topic creation has been canceled by not ready."));
-            }
-            throw FutureUtil.wrapToCompletionException(rc);
-        });
+        return topicFuture;
     }
 
     @VisibleForTesting
@@ -2238,15 +2231,20 @@ public class BrokerService implements Closeable {
             if (serviceUnit.includes(topicName)) {
                 // Topic needs to be unloaded
                 log.info("[{}] Unloading topic", topicName);
-                if (!topicFuture.isDone()) {
-                    if(topicFuture.cancel(true) && log.isDebugEnabled()) {
-                        log.debug("[{}][{}] Cancel the topic creation when unloading the service unit.",
-                                serviceUnit, name);
-                    }
-                    return;
-                }
                 if (topicFuture.isCompletedExceptionally()) {
-                    return;
+                    try {
+                        topicFuture.get();
+                    } catch (InterruptedException | ExecutionException ex) {
+                        if (ex.getCause() instanceof ServiceUnitNotReadyException) {
+                            // Topic was already unloaded
+                            if (log.isDebugEnabled()) {
+                                log.debug("[{}] Topic was already unloaded", topicName);
+                            }
+                            return;
+                        } else {
+                            log.warn("[{}] Got exception when closing topic", topicName, ex);
+                        }
+                    }
                 }
                 closeFutures.add(topicFuture
                         .thenCompose(t -> t.isPresent() ? t.get().close(
