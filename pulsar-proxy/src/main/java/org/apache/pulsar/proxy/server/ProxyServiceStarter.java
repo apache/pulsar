@@ -241,11 +241,13 @@ public class ProxyServiceStarter {
                                      ProxyConfiguration config,
                                      ProxyService service,
                                      BrokerDiscoveryProvider discoveryProvider) throws Exception {
+        // We can make 'status.html' publicly accessible without authentication since
+        // it does not contain any sensitive data.
+        server.addRestResource("/", VipStatus.ATTRIBUTE_STATUS_FILE_PATH, config.getStatusFilePath(),
+                VipStatus.class, false);
         if (config.isEnableProxyStatsEndpoints()) {
-            server.addRestResources("/", VipStatus.class.getPackage().getName(),
-                    VipStatus.ATTRIBUTE_STATUS_FILE_PATH, config.getStatusFilePath());
-            server.addRestResources("/proxy-stats", ProxyStats.class.getPackage().getName(),
-                    ProxyStats.ATTRIBUTE_PULSAR_PROXY_NAME, service);
+            server.addRestResource("/proxy-stats", ProxyStats.ATTRIBUTE_PULSAR_PROXY_NAME, service,
+                    ProxyStats.class);
             if (service != null) {
                 PrometheusMetricsServlet metricsServlet = service.getMetricsServlet();
                 if (metricsServlet != null) {
