@@ -90,10 +90,7 @@ public class ProxyTest extends MockedPulsarServiceBaseTest {
     protected void setup() throws Exception {
         internalSetup();
 
-        proxyConfig.setServicePort(Optional.ofNullable(0));
-        proxyConfig.setBrokerProxyAllowedTargetPorts("*");
-        proxyConfig.setMetadataStoreUrl(DUMMY_VALUE);
-        proxyConfig.setConfigurationMetadataStoreUrl(GLOBAL_DUMMY_VALUE);
+        initializeProxyConfig();
 
         proxyService = Mockito.spy(new ProxyService(proxyConfig, new AuthenticationService(
                                                             PulsarConfigurationLoader.convertFrom(proxyConfig))));
@@ -102,6 +99,13 @@ public class ProxyTest extends MockedPulsarServiceBaseTest {
                 .createConfigurationMetadataStore();
 
         proxyService.start();
+    }
+
+    protected void initializeProxyConfig() {
+        proxyConfig.setServicePort(Optional.ofNullable(0));
+        proxyConfig.setBrokerProxyAllowedTargetPorts("*");
+        proxyConfig.setMetadataStoreUrl(DUMMY_VALUE);
+        proxyConfig.setConfigurationMetadataStoreUrl(GLOBAL_DUMMY_VALUE);
     }
 
     @Override
