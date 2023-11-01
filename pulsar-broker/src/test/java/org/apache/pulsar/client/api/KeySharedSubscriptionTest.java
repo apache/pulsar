@@ -95,11 +95,15 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
     @DataProvider(name = "data")
     public Object[][] dataProvider() {
         return new Object[][] {
-                // Topic-Type and "Batching"
-                { "persistent", false  },
-                { "persistent", true  },
-                { "non-persistent", false },
-                { "non-persistent", true },
+                // Topic-Type, "Batching", "rememberUnackedMessages"
+                { "persistent", false, false  },
+                { "persistent", true, false  },
+                { "non-persistent", false, false },
+                { "non-persistent", true, false },
+                { "persistent", false, true  },
+                { "persistent", true, true  },
+                { "non-persistent", false, true },
+                { "non-persistent", true, true },
         };
     }
 
@@ -128,6 +132,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
 
     @AfterMethod(alwaysRun = true)
     public void resetDefaultNamespace() throws Exception {
+        this.conf.setRememberNotAckedMessagesKey(false); //reset to default
         List<String> list = admin.namespaces().getTopics("public/default");
         for (String topicName : list){
             if (!pulsar.getBrokerService().isSystemTopic(topicName)) {
@@ -140,8 +145,16 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
     private static final int NUMBER_OF_KEYS = 300;
 
     @Test(dataProvider = "data")
-    public void testSendAndReceiveWithHashRangeAutoSplitStickyKeyConsumerSelector(String topicType, boolean enableBatch)
+    public void testSendAndReceiveWithHashRangeAutoSplitStickyKeyConsumerSelector(
+            String topicType,
+            boolean enableBatch,
+            boolean rememberUnackedKeys
+    )
             throws PulsarClientException {
+        if (rememberUnackedKeys) {
+            this.conf.setRememberNotAckedMessagesKey(true);
+        }
+
         String topic = topicType + "://public/default/key_shared-" + UUID.randomUUID();
 
         @Cleanup
@@ -167,7 +180,15 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
     }
 
     @Test(dataProvider = "data")
-    public void testSendAndReceiveWithBatching(String topicType, boolean enableBatch) throws Exception {
+    public void testSendAndReceiveWithBatching(
+            String topicType,
+            boolean enableBatch,
+            boolean rememberUnackedKeys
+    ) throws Exception {
+        if (rememberUnackedKeys) {
+            this.conf.setRememberNotAckedMessagesKey(true);
+        }
+
         String topic = topicType + "://public/default/key_shared-" + UUID.randomUUID();
 
         @Cleanup
@@ -264,8 +285,13 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
     @Test(dataProvider = "data")
     public void testConsumerCrashSendAndReceiveWithHashRangeAutoSplitStickyKeyConsumerSelector(
         String topicType,
-        boolean enableBatch
+        boolean enableBatch,
+        boolean rememberUnackedKeys
     ) throws PulsarClientException, InterruptedException {
+        if (rememberUnackedKeys) {
+            this.conf.setRememberNotAckedMessagesKey(true);
+        }
+
         String topic = topicType + "://public/default/key_shared_consumer_crash-" + UUID.randomUUID();
 
         @Cleanup
@@ -308,8 +334,13 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
     @Test(dataProvider = "data")
     public void testNonKeySendAndReceiveWithHashRangeAutoSplitStickyKeyConsumerSelector(
         String topicType,
-        boolean enableBatch
+        boolean enableBatch,
+        boolean rememberUnackedKeys
     ) throws PulsarClientException {
+        if (rememberUnackedKeys) {
+            this.conf.setRememberNotAckedMessagesKey(true);
+        }
+
         String topic = topicType + "://public/default/key_shared_none_key-" + UUID.randomUUID();
 
         @Cleanup
@@ -1237,11 +1268,19 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
 
     private Consumer<Integer> createConsumer(String topic, KeySharedPolicy keySharedPolicy)
             throws PulsarClientException {
+        return createConsumer(topic, keySharedPolicy, null);
+    }
+
+    private Consumer<Integer> createConsumer(String topic, KeySharedPolicy keySharedPolicy, String consumerName)
+            throws PulsarClientException {
         ConsumerBuilder<Integer> builder = pulsarClient.newConsumer(Schema.INT32);
         builder.topic(topic)
                 .subscriptionName("key_shared")
                 .subscriptionType(SubscriptionType.Key_Shared)
                 .ackTimeout(3, TimeUnit.SECONDS);
+        if (consumerName != null) {
+            builder.consumerName(consumerName);
+        }
         if (keySharedPolicy != null) {
             builder.keySharedPolicy(keySharedPolicy);
         }
@@ -1629,5 +1668,106 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
 
         log.info("Got {} other messages...", sum);
         Assert.assertEquals(sum, delayedMessages + messages);
+    }
+
+    @Test
+    public void testSharedKeysOrderingWhenAddingConsumers() throws Exception {
+        this.conf.setRememberNotAckedMessagesKey(true);
+
+        String topic = "testSharedKeysOrderingWhenAddingConsumers-" + UUID.randomUUID();
+
+        @Cleanup
+        Producer<Integer> producer = createProducer(topic, false);
+
+        @Cleanup
+        Consumer<Integer> c1 = createConsumer(topic);
+
+        for (int i = 0; i < 10; i++) {
+            producer.newMessage()
+                    .key(String.valueOf(i))
+                    .value(i)
+                    .send();
+        }
+
+        // All the already published messages will be pre-fetched by C1.
+
+        // Adding a new consumer.
+        @Cleanup
+        Consumer<Integer> c2 = createConsumer(topic);
+
+        // Produce messages with the same keys as was pre-fetched by C1
+        for (int i = 10; i < 20; i++) {
+            producer.newMessage()
+                    .key(String.valueOf(i - 10))
+                    .value(i)
+                    .send();
+        }
+
+        // Closing c1, would trigger all messages to go to c2
+        c1.close();
+
+        for (int i = 0; i < 20; i++) {
+            Message<Integer> msg = c2.receive();
+            assertEquals(msg.getValue().intValue(), i);
+
+            c2.acknowledge(msg);
+        }
+    }
+
+    @Test
+    public void testConsumerIsNotBlockedForNewKeys() throws Exception {
+        this.conf.setRememberNotAckedMessagesKey(true);
+
+        String topic = "testConsumerIsNotBlockedForNewKeys-" + UUID.randomUUID();
+
+        @Cleanup
+        Producer<Integer> producer = createProducer(topic, false);
+
+        @Cleanup
+        Consumer<Integer> c1 = createConsumer(topic, null, "1");
+
+        String oldMessagesKey = "1";
+
+        for (int i = 0; i < 10; i++) {
+            producer.newMessage()
+                    .key(oldMessagesKey)
+                    .value(i)
+                    .send();
+        }
+
+        // All the already published messages will be pre-fetched by C1.
+
+        // Adding a new consumer. It will become recently joined one
+        @Cleanup
+        Consumer<Integer> c2 = createConsumer(topic, null, "2");
+
+        //Produce messages with the key which was not pre-fetched by C1
+        String newMessagesKey = "2";
+
+        for (int i = 10; i < 20; i++) {
+            producer.newMessage()
+                    .key(newMessagesKey)
+                    .value(i)
+                    .send();
+        }
+
+        //C2 is not blocked as the key "newMessagesKey" was not pre-fetched by C1,
+        //and we are safe here not to break the key ordering
+        for (int i = 10; i < 20; i++) {
+            Message<Integer> msg = c2.receive();
+            assertEquals(msg.getValue().intValue(), i);
+
+            c2.acknowledge(msg);
+        }
+
+        assertNull(c2.receive(1, TimeUnit.SECONDS));
+
+        //verify the C1 could successfully consume pre-fetched messages
+        for (int i = 0; i < 10; i++) {
+            Message<Integer> msg = c1.receive();
+            assertEquals(msg.getValue().intValue(), i);
+
+            c1.acknowledge(msg);
+        }
     }
 }

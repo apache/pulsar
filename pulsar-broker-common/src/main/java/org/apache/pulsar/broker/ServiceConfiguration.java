@@ -891,6 +891,16 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private double maxUnackedMessagesPerSubscriptionOnBrokerBlocked = 0.16;
     @FieldContext(
             category = CATEGORY_POLICIES,
+            doc = "If enabled subscriptions stores keys of messages which allows consumer not "
+                    + "to stuck in case it goes to recently assigned. The setting allows to overcome "
+                    + "situation when new KeyShared consumers will not get any messages until a consumer "
+                    + "that did get messages disconnects or acks/nacks some messages "
+                    + "The trade of is the need to track all the not acked messages in subscription"
+                    + "which could potentially lead to performance degradation and higher memory consumption"
+    )
+    private boolean rememberNotAckedMessagesKey = false;
+    @FieldContext(
+            category = CATEGORY_POLICIES,
             doc = "Maximum size of Consumer metadata")
     private int maxConsumerMetadataSize = 1024;
     @FieldContext(
