@@ -1003,6 +1003,12 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
                                 "Producer with name '" + newProducer.getProducerName()
                                         + "' is already connected to topic"));
                     } else {
+                        // If the connection of the previous producer is not active, the method
+                        // "cnx().checkConnectionLiveness()" will trigger the close for it and kick off the previous
+                        // producer. So try to add current producer again.
+                        // The recursive call will be stopped by these two case(This prevents infinite call):
+                        //   1. add current producer success.
+                        //   2. once another same name producer registered.
                         return internalAddProducer(newProducer);
                     }
                 });
