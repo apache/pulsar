@@ -31,7 +31,6 @@ import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.authentication.utils.AuthTokenUtils;
 import org.apache.pulsar.broker.resources.PulsarResources;
 import org.testng.annotations.Test;
-
 import javax.crypto.SecretKey;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -130,6 +129,41 @@ public class MultiRolesTokenAuthorizationProviderTest {
         };
 
         assertTrue(provider.authorize("test", ads, role -> {
+            if (role.equals(testRole)) {
+                return CompletableFuture.completedFuture(true);
+            }
+            return CompletableFuture.completedFuture(false);
+        }).get());
+    }
+
+    @Test
+    public void testMultiRolesAuthzWithoutClaim() throws Exception {
+        final SecretKey secretKey = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
+        final String testRole = "test-role";
+        // broker will use "sub" as the claim by default.
+        final String token = Jwts.builder()
+                .claim("whatever", testRole).signWith(secretKey).compact();
+        final MultiRolesTokenAuthorizationProvider provider = new MultiRolesTokenAuthorizationProvider();
+        final AuthenticationDataSource ads = new AuthenticationDataSource() {
+            @Override
+            public boolean hasDataFromHttp() {
+                return true;
+            }
+
+            @Override
+            public String getHttpHeader(String name) {
+                if (name.equals("Authorization")) {
+                    return "Bearer " + token;
+                } else {
+                    throw new IllegalArgumentException("Wrong HTTP header");
+                }
+            }
+        };
+
+        assertFalse(provider.authorize("test", ads, role -> {
+            if (role == null) {
+                throw new IllegalStateException("We should avoid pass null to sub providers");
+            }
             if (role.equals(testRole)) {
                 return CompletableFuture.completedFuture(true);
             }
