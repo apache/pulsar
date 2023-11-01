@@ -269,7 +269,7 @@ public class ProxyTest extends MockedPulsarServiceBaseTest {
         @Cleanup
         PulsarClient client = PulsarClient.builder().serviceUrl(proxyService.getServiceUrl()).build();
         String subName = "regex-proxy-test-" + System.currentTimeMillis();
-        String regexSubscriptionPattern = "persistent://sample/test/local/.*";
+        String regexSubscriptionPattern = "persistent://sample/test/local/regex-topic-.*";
         try (Consumer<byte[]> consumer = client.newConsumer()
                 .topicsPattern(regexSubscriptionPattern)
                 .subscriptionName(subName)
