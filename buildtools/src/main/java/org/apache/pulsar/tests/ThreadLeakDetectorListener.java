@@ -64,7 +64,8 @@ public class ThreadLeakDetectorListener extends BetweenTestClassesListenerAdapte
             targetField = Thread.class.getDeclaredField("target");
             targetField.setAccessible(true);
         } catch (NoSuchFieldException e) {
-            LOG.warn("Cannot find target field in Thread.class", e);
+            // ignore this error. on Java 21, the field is not present
+            // TODO: add support for extracting the Runnable target on Java 21
         }
         THREAD_TARGET_FIELD = targetField;
     }
@@ -230,6 +231,9 @@ public class ThreadLeakDetectorListener extends BetweenTestClassesListenerAdapte
     }
 
     private static Runnable extractRunnableTarget(Thread thread) {
+        if (THREAD_TARGET_FIELD == null) {
+            return null;
+        }
         Runnable target = null;
         try {
             target = (Runnable) THREAD_TARGET_FIELD.get(thread);
