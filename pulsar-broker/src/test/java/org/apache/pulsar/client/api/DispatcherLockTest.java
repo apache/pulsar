@@ -38,7 +38,7 @@ import org.testng.annotations.Test;
 
 @Slf4j
 @Test(groups = "broker-api")
-public class IssueReproduceTest extends ProducerConsumerBase {
+public class DispatcherLockTest extends ProducerConsumerBase {
 
     @BeforeMethod
     @Override
@@ -79,7 +79,7 @@ public class IssueReproduceTest extends ProducerConsumerBase {
      *      consumer under the Dispatcher.
      */
     @Test
-    public void testCreateInitialSubscriptionOnPartitionedTopic() throws Exception {
+    public void testNoOrphanConsumerIfLostDispatcherLock() throws Exception {
         final String tpName = BrokerTestUtil.newUniqueName("persistent://public/default/tp");
         final String subscription = "s1";
         admin.topics().createNonPartitionedTopic(tpName);
