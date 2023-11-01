@@ -178,6 +178,7 @@ public class ProxyAdditionalServletTest extends MockedPulsarServiceBaseTest {
         internalCleanup();
 
         proxyService.close();
+        proxyWebServer.stop();
     }
 
     @Test
