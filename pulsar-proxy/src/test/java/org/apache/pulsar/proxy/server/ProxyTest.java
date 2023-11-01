@@ -363,10 +363,11 @@ public class ProxyTest extends MockedPulsarServiceBaseTest {
                 .get(0).getClientVersion(), String.format("Pulsar-Java-v%s", PulsarVersion.getVersion()));
     }
 
-    private static PulsarClient getClientActiveConsumerChangeNotSupported(ClientConfigurationData conf)
+    private PulsarClient getClientActiveConsumerChangeNotSupported(ClientConfigurationData conf)
             throws Exception {
         ThreadFactory threadFactory = new DefaultThreadFactory("pulsar-client-io", Thread.currentThread().isDaemon());
         EventLoopGroup eventLoopGroup = EventLoopUtil.newEventLoopGroup(conf.getNumIoThreads(), false, threadFactory);
+        registerCloseable(() -> eventLoopGroup.shutdownNow());
 
         ConnectionPool cnxPool = new ConnectionPool(conf, eventLoopGroup, () -> {
             return new ClientCnx(conf, eventLoopGroup, ProtocolVersion.v11_VALUE) {
@@ -376,6 +377,7 @@ public class ProxyTest extends MockedPulsarServiceBaseTest {
                 }
             };
         });
+        registerCloseable(cnxPool);
 
         return new PulsarClientImpl(conf, eventLoopGroup, cnxPool);
     }
