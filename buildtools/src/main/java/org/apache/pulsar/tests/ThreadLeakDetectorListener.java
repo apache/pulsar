@@ -24,6 +24,7 @@ import com.google.common.io.Files;
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.lang.reflect.Field;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Collections;
@@ -56,6 +57,17 @@ public class ThreadLeakDetectorListener extends BetweenTestClassesListenerAdapte
 
     private Set<ThreadKey> capturedThreadKeys;
 
+    private static final Field THREAD_TARGET_FIELD;
+    static {
+        Field targetField = null;
+        try {
+            targetField = Thread.class.getDeclaredField("target");
+            targetField.setAccessible(true);
+        } catch (NoSuchFieldException e) {
+            LOG.warn("Cannot find target field in Thread.class", e);
+        }
+        THREAD_TARGET_FIELD = targetField;
+    }
 
     @Override
     protected void onBetweenTestClasses(Class<?> endedTestClass, Class<?> startedTestClass) {
@@ -206,7 +218,25 @@ public class ThreadLeakDetectorListener extends BetweenTestClassesListenerAdapte
                 return true;
             }
         }
+        Runnable target = extractRunnableTarget(thread);
+        if (target != null) {
+            String targetClassName = target.getClass().getName();
+            // ignore threads that contain a Runnable class under org.testcontainers package
+            if (targetClassName.startsWith("org.testcontainers.")) {
+                return true;
+            }
+        }
         return false;
+    }
+
+    private static Runnable extractRunnableTarget(Thread thread) {
+        Runnable target = null;
+        try {
+            target = (Runnable) THREAD_TARGET_FIELD.get(thread);
+        } catch (IllegalAccessException e) {
+            LOG.warn("Cannot access target field in Thread.class", e);
+        }
+        return target;
     }
 
     /**
