@@ -185,7 +185,44 @@ public class WebServer {
         handlers.add(context);
     }
 
-    public void addRestResources(String basePath, String javaPackages, String attribute, Object attributeValue) {
+    private static void popularServletParams(ServletHolder servletHolder, ProxyConfiguration config) {
+        int requestBufferSize = -1;
+        try {
+            requestBufferSize = Integer.parseInt(servletHolder.getInitParameter(INIT_PARAM_REQUEST_BUFFER_SIZE));
+        } catch (NumberFormatException nfe){
+            log.warn("The init-param {} is invalidated, because it is not a number", INIT_PARAM_REQUEST_BUFFER_SIZE);
+        }
+        if (requestBufferSize > 0 || config.getHttpMaxRequestHeaderSize() > 0) {
+            int v = Math.max(requestBufferSize, config.getHttpMaxRequestHeaderSize());
+            servletHolder.setInitParameter(INIT_PARAM_REQUEST_BUFFER_SIZE, String.valueOf(v));
+        }
+    }
+
+    /**
+     * Add a REST resource to the servlet context with authentication coverage.
+     *
+     * @see WebServer#addRestResource(String, String, Object, Class, boolean)
+     *
+     * @param basePath             The base path for the resource.
+     * @param attribute            An attribute associated with the resource.
+     * @param attributeValue       The value of the attribute.
+     * @param resourceClass        The class representing the resource.
+     */
+    public void addRestResource(String basePath, String attribute, Object attributeValue, Class<?> resourceClass) {
+        addRestResource(basePath, attribute, attributeValue, resourceClass, true);
+    }
+
+    /**
+     * Add a REST resource to the servlet context.
+     *
+     * @param basePath             The base path for the resource.
+     * @param attribute            An attribute associated with the resource.
+     * @param attributeValue       The value of the attribute.
+     * @param resourceClass        The class representing the resource.
+     * @param requireAuthentication A boolean indicating whether authentication is required for this resource.
+     */
+    public void addRestResource(String basePath, String attribute, Object attributeValue,
+                                Class<?> resourceClass, boolean requireAuthentication) {
         ResourceConfig config = new ResourceConfig();
         config.packages("jersey.config.server.provider.packages", javaPackages);
         config.register(JsonMapperProvider.class);
@@ -193,7 +230,8 @@ public class WebServer {
         servletHolder.setAsyncSupported(true);
         // This method has not historically checked for existing paths, so we don't check here either. The
         // method call is added to reduce code duplication.
-        addServlet(basePath, servletHolder, Collections.singletonList(Pair.of(attribute, attributeValue)), true, false);
+        addServlet(basePath, servletHolder, Collections.singletonList(Pair.of(attribute, attributeValue)),
+                requireAuthentication, false);
     }
 
     public int getExternalServicePort() {
