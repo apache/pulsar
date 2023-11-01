@@ -185,19 +185,6 @@ public class WebServer {
         handlers.add(context);
     }
 
-    private static void popularServletParams(ServletHolder servletHolder, ProxyConfiguration config) {
-        int requestBufferSize = -1;
-        try {
-            requestBufferSize = Integer.parseInt(servletHolder.getInitParameter(INIT_PARAM_REQUEST_BUFFER_SIZE));
-        } catch (NumberFormatException nfe){
-            log.warn("The init-param {} is invalidated, because it is not a number", INIT_PARAM_REQUEST_BUFFER_SIZE);
-        }
-        if (requestBufferSize > 0 || config.getHttpMaxRequestHeaderSize() > 0) {
-            int v = Math.max(requestBufferSize, config.getHttpMaxRequestHeaderSize());
-            servletHolder.setInitParameter(INIT_PARAM_REQUEST_BUFFER_SIZE, String.valueOf(v));
-        }
-    }
-
     /**
      * Add a REST resource to the servlet context with authentication coverage.
      *
@@ -224,7 +211,7 @@ public class WebServer {
     public void addRestResource(String basePath, String attribute, Object attributeValue,
                                 Class<?> resourceClass, boolean requireAuthentication) {
         ResourceConfig config = new ResourceConfig();
-        config.packages("jersey.config.server.provider.packages", javaPackages);
+        config.register(resourceClass);
         config.register(JsonMapperProvider.class);
         ServletHolder servletHolder = new ServletHolder(new ServletContainer(config));
         servletHolder.setAsyncSupported(true);
