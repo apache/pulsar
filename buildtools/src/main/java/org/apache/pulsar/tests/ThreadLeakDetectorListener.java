@@ -24,6 +24,7 @@ import com.google.common.io.Files;
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.lang.reflect.Field;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Collections;
@@ -56,6 +57,18 @@ public class ThreadLeakDetectorListener extends BetweenTestClassesListenerAdapte
 
     private Set<ThreadKey> capturedThreadKeys;
 
+    private static final Field THREAD_TARGET_FIELD;
+    static {
+        Field targetField = null;
+        try {
+            targetField = Thread.class.getDeclaredField("target");
+            targetField.setAccessible(true);
+        } catch (NoSuchFieldException e) {
+            // ignore this error. on Java 21, the field is not present
+            // TODO: add support for extracting the Runnable target on Java 21
+        }
+        THREAD_TARGET_FIELD = targetField;
+    }
 
     @Override
     protected void onBetweenTestClasses(Class<?> endedTestClass, Class<?> startedTestClass) {
@@ -201,8 +214,35 @@ public class ThreadLeakDetectorListener extends BetweenTestClassesListenerAdapte
             if (threadName.equals("Grizzly-HttpSession-Expirer")) {
                 return true;
             }
+            // Testcontainers AbstractWaitStrategy.EXECUTOR
+            if (threadName.startsWith("testcontainers-wait-")) {
+                return true;
+            }
+        }
+        Runnable target = extractRunnableTarget(thread);
+        if (target != null) {
+            String targetClassName = target.getClass().getName();
+            // ignore threads that contain a Runnable class under org.testcontainers package
+            if (targetClassName.startsWith("org.testcontainers.")) {
+                return true;
+            }
         }
         return false;
+    }
+
+    // use reflection to extract the Runnable target from a thread so that we can detect threads created by
+    // Testcontainers based on the Runnable's class name.
+    private static Runnable extractRunnableTarget(Thread thread) {
+        if (THREAD_TARGET_FIELD == null) {
+            return null;
+        }
+        Runnable target = null;
+        try {
+            target = (Runnable) THREAD_TARGET_FIELD.get(thread);
+        } catch (IllegalAccessException e) {
+            LOG.warn("Cannot access target field in Thread.class", e);
+        }
+        return target;
     }
 
     /**
