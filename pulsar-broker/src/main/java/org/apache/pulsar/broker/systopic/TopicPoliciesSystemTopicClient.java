@@ -29,6 +29,7 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.TableView;
 import org.apache.pulsar.client.api.TypedMessageBuilder;
 import org.apache.pulsar.common.events.ActionType;
 import org.apache.pulsar.common.events.PulsarEvent;
@@ -72,6 +73,11 @@ public class TopicPoliciesSystemTopicClient extends SystemTopicClientBase<Pulsar
                     }
                     return new TopicPolicyReader(reader, TopicPoliciesSystemTopicClient.this);
                 });
+    }
+
+    @Override
+    public CompletableFuture<TableView<PulsarEvent>> getTableView() {
+        return client.newTableView(Schema.AVRO(PulsarEvent.class)).topic(topicName.toString()).createAsync();
     }
 
     private static class TopicPolicyWriter implements Writer<PulsarEvent> {

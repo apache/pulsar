@@ -24,6 +24,7 @@ import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.TableView;
 import org.apache.pulsar.common.naming.TopicName;
 
 /**
@@ -82,6 +83,8 @@ public interface SystemTopicClient<T> {
      * @return {@link java.util.Set} the set of readers
      */
     List<Reader<T>> getReaders();
+
+    CompletableFuture<TableView<T>> getTableView();
 
     /**
      * Writer for system topic.
