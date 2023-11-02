@@ -143,7 +143,9 @@ public class MultiRolesTokenAuthorizationProviderTest {
         // broker will use "sub" as the claim by default.
         final String token = Jwts.builder()
                 .claim("whatever", testRole).signWith(secretKey).compact();
+        ServiceConfiguration conf = new ServiceConfiguration();
         final MultiRolesTokenAuthorizationProvider provider = new MultiRolesTokenAuthorizationProvider();
+        provider.initialize(conf, mock(PulsarResources.class));
         final AuthenticationDataSource ads = new AuthenticationDataSource() {
             @Override
             public boolean hasDataFromHttp() {
