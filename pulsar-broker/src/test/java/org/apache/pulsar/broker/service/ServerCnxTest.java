@@ -864,7 +864,7 @@ public class ServerCnxTest {
         // consumer
         String subscriptionName = "test-subscribe";
         ByteBuf subscribe = Commands.newSubscribe(topicName.toString(), subscriptionName, 1, 3,
-                CommandSubscribe.SubType.Shared, 0, "consumer", 0);
+                SubType.Shared, 0, "consumer", 0);
         channel.writeInbound(subscribe);
         Object subscribeResponse = getResponse();
         assertTrue(subscribeResponse instanceof CommandError);
@@ -889,7 +889,56 @@ public class ServerCnxTest {
     }
 
     @Test
-    public void testHandleProducerAfterClientChannelInactive() throws Exception {
+    public void testDuplicateProducer() throws Exception {
+        final String tName = successTopicName;
+        final long producerId = 1;
+        final MutableInt requestId = new MutableInt(1);
+        final MutableInt epoch = new MutableInt(1);
+        final Map<String, String> metadata = Collections.emptyMap();
+        final String pName = "p1";
+        resetChannel();
+        setChannelConnected();
+
+        // The producer register using the first connection.
+        ByteBuf cmdProducer1 = Commands.newProducer(tName, producerId, requestId.incrementAndGet(),
+                pName, false, metadata, null, epoch.incrementAndGet(), false,
+                ProducerAccessMode.Shared, Optional.empty(), false);
+        channel.writeInbound(cmdProducer1);
+        assertTrue(getResponse() instanceof CommandProducerSuccess);
+        PersistentTopic topicRef = (PersistentTopic) brokerService.getTopicReference(tName).get();
+        assertNotNull(topicRef);
+        assertEquals(topicRef.getProducers().size(), 1);
+
+        // Verify the second producer will be reject due to the previous one still is active.
+        // Every second try once, total 10 times, all requests should fail.
+        ClientChannel channel2 = new ClientChannel();
+        BackGroundExecutor backGroundExecutor1 = startBackgroundExecutorForEmbeddedChannel(channel);
+        BackGroundExecutor autoResponseForHeartBeat = autoResponseForHeartBeat(channel, clientChannelHelper);
+        BackGroundExecutor backGroundExecutor2 = startBackgroundExecutorForEmbeddedChannel(channel2.channel);
+        setChannelConnected(channel2.serverCnx);
+
+        for (int i = 0; i < 10; i++) {
+            ByteBuf cmdProducer2 = Commands.newProducer(tName, producerId, requestId.incrementAndGet(),
+                    pName, false, metadata, null, epoch.incrementAndGet(), false,
+                    ProducerAccessMode.Shared, Optional.empty(), false);
+            channel2.channel.writeInbound(cmdProducer2);
+            Object response2 = getResponse(channel2.channel, channel2.clientChannelHelper);
+            assertTrue(response2 instanceof CommandError);
+            assertEquals(topicRef.getProducers().size(), 1);
+            assertTrue(channel.isActive());
+            Thread.sleep(500);
+        }
+
+        // cleanup.
+        autoResponseForHeartBeat.close();
+        backGroundExecutor1.close();
+        backGroundExecutor2.close();
+        channel.finish();
+        channel2.close();
+    }
+
+    @Test
+    public void testProducerChangeSocket() throws Exception {
         final String tName = successTopicName;
         final long producerId = 1;
         final MutableInt requestId = new MutableInt(1);
@@ -912,18 +961,22 @@ public class ServerCnxTest {
         // Verify the second producer using a new connection will override the producer who using a stopped channel.
         channelsStoppedAnswerHealthCheck.add(channel);
         ClientChannel channel2 = new ClientChannel();
+        BackGroundExecutor backGroundExecutor1 = startBackgroundExecutorForEmbeddedChannel(channel);
+        BackGroundExecutor backGroundExecutor2 = startBackgroundExecutorForEmbeddedChannel(channel2.channel);
         setChannelConnected(channel2.serverCnx);
-        Awaitility.await().untilAsserted(() -> {
-            channel.runPendingTasks();
-            ByteBuf cmdProducer2 = Commands.newProducer(tName, producerId, requestId.incrementAndGet(),
-                    pName, false, metadata, null, epoch.incrementAndGet(), false,
-                    ProducerAccessMode.Shared, Optional.empty(), false);
-            channel2.channel.writeInbound(cmdProducer2);
-            assertTrue(getResponse(channel2.channel, channel2.clientChannelHelper) instanceof CommandProducerSuccess);
-            assertEquals(topicRef.getProducers().size(), 1);
-        });
+
+        ByteBuf cmdProducer2 = Commands.newProducer(tName, producerId, requestId.incrementAndGet(),
+                pName, false, metadata, null, epoch.incrementAndGet(), false,
+                ProducerAccessMode.Shared, Optional.empty(), false);
+        channel2.channel.writeInbound(cmdProducer2);
+        Object response2 = getResponse(channel2.channel, channel2.clientChannelHelper);
+        assertTrue(response2 instanceof CommandProducerSuccess);
+        assertEquals(topicRef.getProducers().size(), 1);
 
         // cleanup.
+        channelsStoppedAnswerHealthCheck.clear();
+        backGroundExecutor1.close();
+        backGroundExecutor2.close();
         channel.finish();
         channel2.close();
     }
@@ -957,7 +1010,7 @@ public class ServerCnxTest {
         Awaitility.await().atMost(30, TimeUnit.SECONDS).untilAsserted(() -> {
             channel.runPendingTasks();
             ByteBuf cmdSubscribe2 = Commands.newSubscribe(tName, sName, consumerId, requestId.incrementAndGet(),
-                    CommandSubscribe.SubType.Exclusive, 0, cName2, 0);
+                    SubType.Exclusive, 0, cName2, 0);
             channel2.channel.writeInbound(cmdSubscribe2);
             assertTrue(getResponse(channel2.channel, channel2.clientChannelHelper) instanceof CommandSuccess);
             assertEquals(topicRef.getSubscription(sName).getConsumers().size(), 1);
@@ -978,6 +1031,20 @@ public class ServerCnxTest {
         ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
         ScheduledFuture scheduledFuture = executor.scheduleWithFixedDelay(() -> {
             channel.runPendingTasks();
+        }, 100, 100, TimeUnit.MILLISECONDS);
+        return new BackGroundExecutor(executor, scheduledFuture);
+    }
+
+    /**
+     * Auto answer `Pong` for the `Cmd-Ping`.
+     * Node: This will result in additional threads pop Command from the Command queue, so do not call this
+     * method if the channel needs to accept other Command.
+     */
+    private BackGroundExecutor autoResponseForHeartBeat(EmbeddedChannel channel,
+                                                        ClientChannelHelper clientChannelHelper) {
+        ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
+        ScheduledFuture scheduledFuture = executor.scheduleWithFixedDelay(() -> {
+            tryPeekResponse(channel, clientChannelHelper);
         }, 100, 100, TimeUnit.MILLISECONDS);
         return new BackGroundExecutor(executor, scheduledFuture);
     }
@@ -1071,8 +1138,8 @@ public class ServerCnxTest {
                 pName, false, metadata, null, epoch.incrementAndGet(), false,
                 ProducerAccessMode.Shared, Optional.empty(), false);
         CompletableFuture existingFuture3 = new CompletableFuture();
-        org.apache.pulsar.broker.service.Producer serviceProducer =
-                mock(org.apache.pulsar.broker.service.Producer.class);
+        Producer serviceProducer =
+                mock(Producer.class);
         when(serviceProducer.getProducerName()).thenReturn(pName);
         when(serviceProducer.getSchemaVersion()).thenReturn(new EmptyVersion());
         existingFuture3.complete(serviceProducer);
@@ -1161,7 +1228,7 @@ public class ServerCnxTest {
         // consumer
         String subscriptionName = "test-subscribe";
         ByteBuf subscribe = Commands.newSubscribe(topicName.toString(), subscriptionName, 1, 3,
-                CommandSubscribe.SubType.Shared, 0, "consumer", 0);
+                SubType.Shared, 0, "consumer", 0);
         channel.writeInbound(subscribe);
         Object subscribeResponse = getResponse();
         assertTrue(subscribeResponse instanceof CommandError);
@@ -1251,7 +1318,7 @@ public class ServerCnxTest {
         // consumer
         String subscriptionName = "test-subscribe";
         ByteBuf subscribe = Commands.newSubscribe(topicName.toString(), subscriptionName, 1, 3,
-                CommandSubscribe.SubType.Shared, 0, "consumer", 0);
+                SubType.Shared, 0, "consumer", 0);
         channel.writeInbound(subscribe);
         Object subscribeResponse = getResponse();
         assertTrue(subscribeResponse instanceof CommandError);
@@ -2600,6 +2667,26 @@ public class ServerCnxTest {
         }
 
         throw new IOException("Failed to get response from socket within 10s");
+    }
+
+    protected Object tryPeekResponse(EmbeddedChannel channel, ClientChannelHelper clientChannelHelper) {
+        while (true) {
+            if (channel.outboundMessages().isEmpty()) {
+                return null;
+            } else {
+                Object outObject = channel.outboundMessages().peek();
+                Object cmd = clientChannelHelper.getCommand(outObject);
+                if (cmd instanceof CommandPing) {
+                    if (channelsStoppedAnswerHealthCheck.contains(channel)) {
+                        continue;
+                    }
+                    channel.writeInbound(Commands.newPong());
+                    channel.outboundMessages().remove();
+                    continue;
+                }
+                return cmd;
+            }
+        }
     }
 
     private void setupMLAsyncCallbackMocks() {
