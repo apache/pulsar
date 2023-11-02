@@ -406,8 +406,13 @@ public class BrokerServiceTest extends BrokerTestBase {
 
     private PulsarClient createNewConnection(String topicName, ClientBuilder clientBuilder) throws PulsarClientException {
         PulsarClient client1 = clientBuilder.build();
-        client1.newProducer().topic(topicName).create().close();
-        return client1;
+        try {
+            client1.newProducer().topic(topicName).create().close();
+            return client1;
+        } catch (PulsarClientException e) {
+            client1.close();
+            throw e;
+        }
     }
 
     private void cleanClient(List<PulsarClient> clients) throws Exception {
@@ -764,6 +769,8 @@ public class BrokerServiceTest extends BrokerTestBase {
         conf.setTlsKeyFilePath(BROKER_KEY_FILE_PATH);
         conf.setNumExecutorThreadPoolSize(5);
         restartBroker();
+
+        PulsarClient pulsarClient = null;
 
         // Access with TLS (Allow insecure TLS connection)
         try {

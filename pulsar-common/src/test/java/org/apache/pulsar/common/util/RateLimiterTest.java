@@ -26,6 +26,7 @@ import static org.testng.Assert.fail;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
+import lombok.Cleanup;
 import org.testng.annotations.Test;
 
 public class RateLimiterTest {
@@ -218,6 +219,7 @@ public class RateLimiterTest {
         long rateTime = 1;
         long newUpdatedRateLimit = 100L;
         Supplier<Long> permitUpdater = () -> newUpdatedRateLimit;
+        @Cleanup
         RateLimiter limiter = RateLimiter.builder().permits(permits).rateTime(1).timeUnit(TimeUnit.SECONDS)
                 .permitUpdater(permitUpdater)
                 .build();
@@ -233,6 +235,7 @@ public class RateLimiterTest {
         long rateTime = 1;
         int reNewTime = 3;
         RateLimitFunction rateLimitFunction = atomicInteger::incrementAndGet;
+        @Cleanup
         RateLimiter rateLimiter = RateLimiter.builder().permits(permits).rateTime(rateTime).timeUnit(TimeUnit.SECONDS)
                 .rateLimitFunction(rateLimitFunction)
                 .build();

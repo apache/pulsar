@@ -107,6 +107,7 @@ public class ProxyStatsTest extends MockedPulsarServiceBaseTest {
     protected void cleanup() throws Exception {
         internalCleanup();
         proxyService.close();
+        proxyWebServer.stop();
     }
 
     /**
