@@ -2989,7 +2989,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         }
 
         updateTopicPolicyByNamespacePolicy(data);
-
+        checkReplicatedSubscriptionControllerState();
         isEncryptionRequired = data.encryption_required;
 
         isAllowAutoUpdateSchema = data.is_allow_auto_update_schema;
@@ -3476,12 +3476,14 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         boolean isCurrentlyEnabled = replicatedSubscriptionsController.isPresent();
         boolean isEnableReplicatedSubscriptions =
                 brokerService.pulsar().getConfiguration().isEnableReplicatedSubscriptions();
+        boolean isReplicationDisEnable = this.topicPolicies.getReplicationClusters().get().size() == 1;
 
-        if (shouldBeEnabled && !isCurrentlyEnabled && isEnableReplicatedSubscriptions) {
+        if (shouldBeEnabled && !isCurrentlyEnabled && isEnableReplicatedSubscriptions && !isReplicationDisEnable) {
             log.info("[{}] Enabling replicated subscriptions controller", topic);
             replicatedSubscriptionsController = Optional.of(new ReplicatedSubscriptionsController(this,
                     brokerService.pulsar().getConfiguration().getClusterName()));
-        } else if (isCurrentlyEnabled && !shouldBeEnabled || !isEnableReplicatedSubscriptions) {
+        } else if (isCurrentlyEnabled && !shouldBeEnabled || !isEnableReplicatedSubscriptions
+                || isReplicationDisEnable) {
             log.info("[{}] Disabled replicated subscriptions controller", topic);
             replicatedSubscriptionsController.ifPresent(ReplicatedSubscriptionsController::close);
             replicatedSubscriptionsController = Optional.empty();
@@ -3664,6 +3666,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         updateTopicPolicy(policies);
         shadowTopics = policies.getShadowTopics();
         updateDispatchRateLimiter();
+        checkReplicatedSubscriptionControllerState();
         updateSubscriptionsDispatcherRateLimiter().thenRun(() -> {
             updatePublishDispatcher();
             updateSubscribeRateLimiter();
