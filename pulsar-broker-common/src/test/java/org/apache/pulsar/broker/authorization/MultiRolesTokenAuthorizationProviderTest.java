@@ -164,10 +164,7 @@ public class MultiRolesTokenAuthorizationProviderTest {
             if (role == null) {
                 throw new IllegalStateException("We should avoid pass null to sub providers");
             }
-            if (role.equals(testRole)) {
-                return CompletableFuture.completedFuture(true);
-            }
-            return CompletableFuture.completedFuture(false);
+            return CompletableFuture.completedFuture(role.equals(testRole));
         }).get());
     }
 
