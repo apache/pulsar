@@ -267,6 +267,10 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
         return ExtensibleLoadManagerImpl.class.getName().equals(conf.getLoadManagerClassName());
     }
 
+    public static boolean isLoadManagerExtensionEnabled(PulsarService pulsar) {
+        return pulsar.getLoadManager().get() instanceof ExtensibleLoadManagerImpl;
+    }
+
     public static ExtensibleLoadManagerImpl get(LoadManager loadManager) {
         if (!(loadManager instanceof ExtensibleLoadManagerWrapper loadManagerWrapper)) {
             throw new IllegalArgumentException("The load manager should be 'ExtensibleLoadManagerWrapper'.");
