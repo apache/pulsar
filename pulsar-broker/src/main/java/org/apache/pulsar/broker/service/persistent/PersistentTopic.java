@@ -1449,24 +1449,24 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     }
 
     public CompletableFuture<Void> close() {
-        return close(false, false);
+        return close(true, false);
     }
 
     @Override
     public CompletableFuture<Void> close(boolean closeWithoutWaitingClientDisconnect) {
-        return close(false, closeWithoutWaitingClientDisconnect);
+        return close(true, closeWithoutWaitingClientDisconnect);
     }
 
     /**
      * Close this topic - close all producers and subscriptions associated with this topic.
      *
-     * @param closeWithoutDisconnectingClients don't disconnect clients
+     * @param disconnectClients disconnect clients
      * @param closeWithoutWaitingClientDisconnect don't wait for client disconnect and forcefully close managed-ledger
      * @return Completable future indicating completion of close operation
      */
     @Override
     public CompletableFuture<Void> close(
-            boolean closeWithoutDisconnectingClients, boolean closeWithoutWaitingClientDisconnect) {
+            boolean disconnectClients, boolean closeWithoutWaitingClientDisconnect) {
         CompletableFuture<Void> closeFuture = new CompletableFuture<>();
 
         lock.writeLock().lock();
@@ -1489,7 +1489,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         futures.add(transactionBuffer.closeAsync());
         replicators.forEach((cluster, replicator) -> futures.add(replicator.disconnect()));
         shadowReplicators.forEach((__, replicator) -> futures.add(replicator.disconnect()));
-        if (!closeWithoutDisconnectingClients) {
+        if (disconnectClients) {
             futures.add(ExtensibleLoadManagerImpl.getAssignedBrokerLookupData(
                     brokerService.getPulsar(), topic).thenAccept(lookupData ->
                     producers.values().forEach(producer -> futures.add(producer.disconnect(lookupData)))
@@ -1531,21 +1531,21 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             ledger.asyncClose(new CloseCallback() {
                 @Override
                 public void closeComplete(Object ctx) {
-                    if (closeWithoutDisconnectingClients) {
-                        closeFuture.complete(null);
-                    } else {
+                    if (disconnectClients) {
                         // Everything is now closed, remove the topic from map
                         disposeTopic(closeFuture);
+                    } else {
+                        closeFuture.complete(null);
                     }
                 }
 
                 @Override
                 public void closeFailed(ManagedLedgerException exception, Object ctx) {
                     log.error("[{}] Failed to close managed ledger, proceeding anyway.", topic, exception);
-                    if (closeWithoutDisconnectingClients) {
-                        closeFuture.complete(null);
-                    } else {
+                    if (disconnectClients) {
                         disposeTopic(closeFuture);
+                    } else {
+                        closeFuture.complete(null);
                     }
                 }
             }, null);
