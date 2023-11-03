@@ -750,6 +750,19 @@ public class ReplicatorSubscriptionTest extends ReplicatorTestBase {
             TopicStats stats = admin1.topics().getStats(topic, false, true);
             assertNotEquals(stats.getBacklogSize(), backlogSize);
         });
+
+        admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r1"));
+        topicStats = admin1.topics().getStats(topic, false, true);
+        long size = topicStats.getBacklogSize();
+        //There should no replicator snapshot marker write into the topic, so the backlog would not change.
+        try {
+            Awaitility.await().untilAsserted(() -> {
+                TopicStats stats = admin1.topics().getStats(topic, false, true);
+                assertNotEquals(stats.getBacklogSize(), size);
+            });
+            fail();
+        } catch (org.awaitility.core.ConditionTimeoutException ex) {
+        }
     }
 
     void publishMessages(Producer<byte[]> producer, int startIndex, int numMessages, Set<String> sentMessages)
