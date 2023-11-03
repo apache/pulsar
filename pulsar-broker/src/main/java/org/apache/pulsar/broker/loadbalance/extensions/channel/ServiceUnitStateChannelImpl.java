@@ -776,7 +776,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
             log(null, serviceUnit, data, null);
         } else if ((data.force() || isTransferCommand(data)) && isTargetBroker(data.sourceBroker())) {
             stateChangeListeners.notifyOnCompletion(
-                            closeServiceUnit(serviceUnit, false), serviceUnit, data)
+                            closeServiceUnit(serviceUnit, true), serviceUnit, data)
                     .whenComplete((__, e) -> log(e, serviceUnit, data, null));
         } else {
             stateChangeListeners.notify(serviceUnit, data, null);
@@ -799,11 +799,11 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
             if (isTransferCommand(data)) {
                 next = new ServiceUnitStateData(
                         Assigning, data.dstBroker(), data.sourceBroker(), getNextVersionId(data));
-                unloadFuture = closeServiceUnit(serviceUnit, true);
+                unloadFuture = closeServiceUnit(serviceUnit, false);
             } else {
                 next = new ServiceUnitStateData(
                         Free, null, data.sourceBroker(), getNextVersionId(data));
-                unloadFuture = closeServiceUnit(serviceUnit, false);
+                unloadFuture = closeServiceUnit(serviceUnit, true);
             }
             stateChangeListeners.notifyOnCompletion(unloadFuture
                             .thenCompose(__ -> pubAsync(serviceUnit, next)), serviceUnit, data)
@@ -903,13 +903,13 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         }
     }
 
-    private CompletableFuture<Integer> closeServiceUnit(String serviceUnit, boolean closeWithoutDisconnectingClients) {
+    private CompletableFuture<Integer> closeServiceUnit(String serviceUnit, boolean disconnectClients) {
         long startTime = System.nanoTime();
         MutableInt unloadedTopics = new MutableInt();
         NamespaceBundle bundle = LoadManagerShared.getNamespaceBundle(pulsar, serviceUnit);
         return pulsar.getBrokerService().unloadServiceUnit(
                         bundle,
-                        closeWithoutDisconnectingClients,
+                        disconnectClients,
                         true,
                         pulsar.getConfig().getNamespaceBundleUnloadingTimeoutMs(),
                         TimeUnit.MILLISECONDS)
@@ -918,7 +918,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                     return numUnloadedTopics;
                 })
                 .whenComplete((__, ex) -> {
-                    if (!closeWithoutDisconnectingClients) {
+                    if (disconnectClients) {
                         // clean up topics that failed to unload from the broker ownership cache
                         pulsar.getBrokerService().cleanUnloadedTopicFromCache(bundle);
                     }

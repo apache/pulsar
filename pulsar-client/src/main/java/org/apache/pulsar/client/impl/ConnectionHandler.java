@@ -160,7 +160,7 @@ public class ConnectionHandler {
     }
 
     public void connectionClosed(ClientCnx cnx) {
-        connectionClosed(cnx, null, Optional.empty());
+        connectionClosed(cnx, Optional.empty(), Optional.empty());
     }
 
     public void connectionClosed(ClientCnx cnx, Optional<Long> initialConnectionDelayMs, Optional<URI> hostUrl) {
