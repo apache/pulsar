@@ -1462,7 +1462,9 @@ public class SimpleLoadManagerImpl implements LoadManager, Consumer<Notification
     @Override
     public void stop() throws PulsarServerException {
         try {
-            loadReports.close();
+            if (loadReports != null) {
+                loadReports.close();
+            }
             scheduler.shutdownNow();
             scheduler.awaitTermination(5, TimeUnit.SECONDS);
         } catch (Exception e) {

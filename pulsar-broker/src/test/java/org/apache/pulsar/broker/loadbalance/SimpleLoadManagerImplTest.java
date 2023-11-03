@@ -41,6 +41,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
+import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.SystemUtils;
 import org.apache.pulsar.broker.PulsarService;
@@ -113,7 +114,6 @@ public class SimpleLoadManagerImplTest {
         config1.setBrokerServicePort(Optional.of(0));
         config1.setLoadManagerClassName(SimpleLoadManagerImpl.class.getName());
         config1.setBrokerServicePortTls(Optional.of(0));
-        config1.setWebServicePortTls(Optional.of(0));
         config1.setAdvertisedAddress("localhost");
         pulsar1 = new PulsarService(config1);
         pulsar1.start();
@@ -189,6 +189,7 @@ public class SimpleLoadManagerImplTest {
 
     @Test
     public void testBasicBrokerSelection() throws Exception {
+        @Cleanup("stop")
         SimpleLoadManagerImpl loadManager = new SimpleLoadManagerImpl(pulsar1);
         PulsarResourceDescription rd = new PulsarResourceDescription();
         rd.put("memory", new ResourceUsage(1024, 4096));
@@ -224,6 +225,7 @@ public class SimpleLoadManagerImplTest {
     @Test
     public void testPrimary() throws Exception {
         createNamespacePolicies(pulsar1);
+        @Cleanup("stop")
         SimpleLoadManagerImpl loadManager = new SimpleLoadManagerImpl(pulsar1);
         PulsarResourceDescription rd = new PulsarResourceDescription();
         rd.put("memory", new ResourceUsage(1024, 4096));
@@ -264,6 +266,7 @@ public class SimpleLoadManagerImplTest {
     @Test(enabled = false)
     public void testPrimarySecondary() throws Exception {
         createNamespacePolicies(pulsar1);
+        @Cleanup("stop")
         SimpleLoadManagerImpl loadManager = new SimpleLoadManagerImpl(pulsar1);
 
         PulsarResourceDescription rd = new PulsarResourceDescription();
@@ -334,6 +337,7 @@ public class SimpleLoadManagerImplTest {
 
     @Test(enabled = true)
     public void testDoLoadShedding() throws Exception {
+        @Cleanup("stop")
         SimpleLoadManagerImpl loadManager = spyWithClassAndConstructorArgsRecordingInvocations(SimpleLoadManagerImpl.class, pulsar1);
         PulsarResourceDescription rd = new PulsarResourceDescription();
         rd.put("memory", new ResourceUsage(1024, 4096));

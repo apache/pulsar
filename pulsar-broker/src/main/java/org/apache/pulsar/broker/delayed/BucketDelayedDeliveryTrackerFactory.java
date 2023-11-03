@@ -105,5 +105,8 @@ public class BucketDelayedDeliveryTrackerFactory implements DelayedDeliveryTrack
         if (bucketSnapshotStorage != null) {
             bucketSnapshotStorage.close();
         }
+        if (timer != null) {
+            timer.stop();
+        }
     }
 }

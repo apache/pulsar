@@ -24,6 +24,7 @@ import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.EventLoop;
 import io.netty.util.Timer;
@@ -38,7 +39,12 @@ import org.apache.pulsar.client.util.ExecutorProvider;
 import org.mockito.Mockito;
 
 class ClientTestFixtures {
-    public static ScheduledExecutorService SCHEDULER = Executors.newSingleThreadScheduledExecutor();
+    public static ScheduledExecutorService SCHEDULER =
+            Executors.newSingleThreadScheduledExecutor(
+                    new ThreadFactoryBuilder()
+                            .setNameFormat("ClientTestFixtures-SCHEDULER-%d")
+                            .setDaemon(true)
+                            .build());
 
 //    static <T> PulsarClientImpl createPulsarClientMock() {
 //        return createPulsarClientMock(mock(ExecutorService.class));

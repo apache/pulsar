@@ -53,8 +53,6 @@ public class ClusterDataImplTest {
                 .brokerClientKeyFilePath("/my/key/file")
                 .brokerClientCertificateFilePath("/my/cert/file")
                 .listenerName("a-listener")
-                .migrated(true)
-                .migratedClusterUrl(new ClusterData.ClusterUrl("pulsar://remote", "pulsar+ssl://remote"))
                 .build();
 
         ClusterDataImpl clone = originalData.clone().build();

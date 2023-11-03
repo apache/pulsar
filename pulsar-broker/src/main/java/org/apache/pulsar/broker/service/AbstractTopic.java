@@ -65,7 +65,7 @@ import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
-import org.apache.pulsar.common.policies.data.ClusterData.ClusterUrl;
+import org.apache.pulsar.common.policies.data.ClusterPolicies.ClusterUrl;
 import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
 import org.apache.pulsar.common.policies.data.EntryFilters;
 import org.apache.pulsar.common.policies.data.HierarchyTopicPolicies;
@@ -703,15 +703,14 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
                             log.warn("[{}] Attempting to add producer to a terminated topic", topic);
                             throw new TopicTerminatedException("Topic was already terminated");
                         }
-                        internalAddProducer(producer);
-
-                        USAGE_COUNT_UPDATER.incrementAndGet(this);
-                        if (log.isDebugEnabled()) {
-                            log.debug("[{}] [{}] Added producer -- count: {}", topic, producer.getProducerName(),
-                                    USAGE_COUNT_UPDATER.get(this));
-                        }
-
-                        return CompletableFuture.completedFuture(producerEpoch);
+                        return internalAddProducer(producer).thenApply(ignore -> {
+                            USAGE_COUNT_UPDATER.incrementAndGet(this);
+                            if (log.isDebugEnabled()) {
+                                log.debug("[{}] [{}] Added producer -- count: {}", topic, producer.getProducerName(),
+                                        USAGE_COUNT_UPDATER.get(this));
+                            }
+                            return producerEpoch;
+                        });
                     } catch (BrokerServiceException e) {
                         return FutureUtil.failedFuture(e);
                     } finally {
@@ -957,15 +956,17 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
         }
     }
 
-    protected void internalAddProducer(Producer producer) throws BrokerServiceException {
+    protected CompletableFuture<Void> internalAddProducer(Producer producer) {
         if (isProducersExceeded(producer)) {
             log.warn("[{}] Attempting to add producer to topic which reached max producers limit", topic);
-            throw new BrokerServiceException.ProducerBusyException("Topic reached max producers limit");
+            return CompletableFuture.failedFuture(
+                    new BrokerServiceException.ProducerBusyException("Topic reached max producers limit"));
         }
 
         if (isSameAddressProducersExceeded(producer)) {
             log.warn("[{}] Attempting to add producer to topic which reached max same address producers limit", topic);
-            throw new BrokerServiceException.ProducerBusyException("Topic reached max same address producers limit");
+            return CompletableFuture.failedFuture(
+                    new BrokerServiceException.ProducerBusyException("Topic reached max same address producers limit"));
         }
 
         if (log.isDebugEnabled()) {
@@ -974,31 +975,46 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
 
         Producer existProducer = producers.putIfAbsent(producer.getProducerName(), producer);
         if (existProducer != null) {
-            tryOverwriteOldProducer(existProducer, producer);
+            return tryOverwriteOldProducer(existProducer, producer);
         } else if (!producer.isRemote()) {
             USER_CREATED_PRODUCER_COUNTER_UPDATER.incrementAndGet(this);
         }
+        return CompletableFuture.completedFuture(null);
     }
 
-    private void tryOverwriteOldProducer(Producer oldProducer, Producer newProducer)
-            throws BrokerServiceException {
+    private CompletableFuture<Void> tryOverwriteOldProducer(Producer oldProducer, Producer newProducer) {
         if (newProducer.isSuccessorTo(oldProducer)) {
             oldProducer.close(false);
             if (!producers.replace(newProducer.getProducerName(), oldProducer, newProducer)) {
                 // Met concurrent update, throw exception here so that client can try reconnect later.
-                throw new BrokerServiceException.NamingException("Producer with name '" + newProducer.getProducerName()
-                        + "' replace concurrency error");
+                return CompletableFuture.failedFuture(new BrokerServiceException.NamingException("Producer with name '"
+                        + newProducer.getProducerName() + "' replace concurrency error"));
             } else {
                 handleProducerRemoved(oldProducer);
+                return CompletableFuture.completedFuture(null);
             }
         } else {
             // If a producer with the same name tries to use a new connection, async check the old connection is
             // available. The producers related the connection that not available are automatically cleaned up.
             if (!Objects.equals(oldProducer.getCnx(), newProducer.getCnx())) {
-                oldProducer.getCnx().checkConnectionLiveness();
+                return oldProducer.getCnx().checkConnectionLiveness().thenCompose(previousIsActive -> {
+                    if (previousIsActive) {
+                        return CompletableFuture.failedFuture(new BrokerServiceException.NamingException(
+                                "Producer with name '" + newProducer.getProducerName()
+                                        + "' is already connected to topic"));
+                    } else {
+                        // If the connection of the previous producer is not active, the method
+                        // "cnx().checkConnectionLiveness()" will trigger the close for it and kick off the previous
+                        // producer. So try to add current producer again.
+                        // The recursive call will be stopped by these two case(This prevents infinite call):
+                        //   1. add current producer success.
+                        //   2. once another same name producer registered.
+                        return internalAddProducer(newProducer);
+                    }
+                });
             }
-            throw new BrokerServiceException.NamingException(
-                    "Producer with name '" + newProducer.getProducerName() + "' is already connected to topic");
+            return CompletableFuture.failedFuture(new BrokerServiceException.NamingException(
+                    "Producer with name '" + newProducer.getProducerName() + "' is already connected to topic"));
         }
     }
 
@@ -1349,19 +1365,49 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
     }
 
     public Optional<ClusterUrl> getMigratedClusterUrl() {
-        return getMigratedClusterUrl(brokerService.getPulsar());
+        return getMigratedClusterUrl(brokerService.getPulsar(), topic);
     }
 
-    public static CompletableFuture<Optional<ClusterUrl>> getMigratedClusterUrlAsync(PulsarService pulsar) {
-        return pulsar.getPulsarResources().getClusterResources().getClusterAsync(pulsar.getConfig().getClusterName())
-                .thenApply(clusterData -> (clusterData.isPresent() && clusterData.get().isMigrated())
-                        ? Optional.ofNullable(clusterData.get().getMigratedClusterUrl())
-                        : Optional.empty());
+    public static CompletableFuture<Boolean> isClusterMigrationEnabled(PulsarService pulsar,
+            String topic) {
+        return getMigratedClusterUrlAsync(pulsar, topic).thenApply(url -> url.isPresent());
     }
 
-    public static Optional<ClusterUrl> getMigratedClusterUrl(PulsarService pulsar) {
+    public static CompletableFuture<Optional<ClusterUrl>> getMigratedClusterUrlAsync(PulsarService pulsar,
+            String topic) {
+        CompletableFuture<Optional<ClusterUrl>> result = new CompletableFuture<>();
+        pulsar.getPulsarResources().getClusterResources().getClusterPoliciesResources()
+                .getClusterPoliciesAsync(pulsar.getConfig().getClusterName())
+                .thenCombine(isNamespaceMigrationEnabledAsync(pulsar, topic),
+                        ((clusterData, isNamespaceMigrationEnabled) -> {
+                            Optional<ClusterUrl> url = ((clusterData.isPresent() && clusterData.get().isMigrated())
+                                    || isNamespaceMigrationEnabled)
+                                            ? Optional.ofNullable(clusterData.get().getMigratedClusterUrl())
+                                            : Optional.empty();
+                            return url;
+                        }))
+                .thenAccept(res -> {
+                    // cluster policies future is completed by metadata-store thread and continuing further
+                    // processing in the same metadata store can cause deadlock while creating topic as
+                    // create topic path may have blocking call on metadata-store. so, complete future on a
+                    // separate thread to avoid deadlock.
+                    pulsar.getExecutor().execute(() -> result.complete(res));
+                }).exceptionally(ex -> {
+                    pulsar.getExecutor().execute(() -> result.completeExceptionally(ex.getCause()));
+                    return null;
+                });
+        return result;
+    }
+
+    private static CompletableFuture<Boolean> isNamespaceMigrationEnabledAsync(PulsarService pulsar, String topic) {
+        return pulsar.getPulsarResources().getLocalPolicies()
+                .getLocalPoliciesAsync(TopicName.get(topic).getNamespaceObject())
+                .thenApply(policies -> policies.isPresent() && policies.get().migrated);
+    }
+
+    public static Optional<ClusterUrl> getMigratedClusterUrl(PulsarService pulsar, String topic) {
         try {
-            return getMigratedClusterUrlAsync(pulsar)
+            return getMigratedClusterUrlAsync(pulsar, topic)
                     .get(pulsar.getPulsarResources().getClusterResources().getOperationTimeoutSec(), TimeUnit.SECONDS);
         } catch (Exception e) {
             log.warn("Failed to get migration cluster URL", e);

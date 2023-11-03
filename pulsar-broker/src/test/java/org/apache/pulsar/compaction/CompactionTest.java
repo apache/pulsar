@@ -1898,21 +1898,20 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
 
         admin.topics().unload(topicName);
 
+
+        PersistentTopic topic =
+                (PersistentTopic) pulsar.getBrokerService().getTopic(topicName, true, Map.of()).get().get();
+        TopicCompactionService topicCompactionService = Mockito.spy(topic.getTopicCompactionService());
+        FieldUtils.writeDeclaredField(topic, "topicCompactionService", topicCompactionService, true);
+
         ConsumerImpl<byte[]> consumer = (ConsumerImpl<byte[]>) client.newConsumer(Schema.BYTES)
                 .topic(topicName).readCompacted(true).receiverQueueSize(receiveQueueSize).subscriptionName(subName)
                 .subscribe();
-
-
-        PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName).get();
-        TopicCompactionService topicCompactionService = Mockito.spy(topic.getTopicCompactionService());
-        FieldUtils.writeDeclaredField(topic, "topicCompactionService", topicCompactionService, true);
 
         Awaitility.await().untilAsserted(() -> {
             assertEquals(consumer.getStats().getMsgNumInReceiverQueue(),
                     1);
         });
-
-        consumer.increaseAvailablePermits(2);
 
         Mockito.verify(topicCompactionService, Mockito.times(1)).readCompactedEntries(Mockito.any(), Mockito.same(1));
 

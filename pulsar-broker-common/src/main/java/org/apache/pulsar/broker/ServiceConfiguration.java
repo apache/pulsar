@@ -2243,7 +2243,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
             category = CATEGORY_LOAD_BALANCER,
             dynamic = true,
-            doc = "Min delay of load report to collect, in milli-seconds"
+            doc = "Min delay of load report to collect, in minutes"
     )
     private int loadBalancerReportUpdateMaxIntervalMinutes = 15;
     @FieldContext(
@@ -2594,7 +2594,8 @@ public class ServiceConfiguration implements PulsarConfiguration {
                     + "The logic tries to avoid (possibly unavailable) brokers with out-dated load data, "
                     + "and those brokers will be ignored in the load computation. "
                     + "When tuning this value, please consider loadBalancerReportUpdateMaxIntervalMinutes. "
-                    + "The current default is loadBalancerReportUpdateMaxIntervalMinutes * 2. "
+                    + "The current default value is loadBalancerReportUpdateMaxIntervalMinutes * 120, reflecting "
+                    + "twice the duration in seconds. "
                     + "(only used in load balancer extension TransferSheddeer)"
     )
     private long loadBalancerBrokerLoadDataTTLInSeconds = 1800;
@@ -2777,6 +2778,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
                 + " if cluster is marked migrated. Disable with value 0. (Default disabled)."
     )
     private int clusterMigrationCheckDurationSeconds = 0;
+
+    @FieldContext(
+        category = CATEGORY_SERVER,
+        doc = "Flag to start cluster migration for topic only after creating all topic's resources"
+                + " such as tenant, namespaces, subscriptions at new green cluster. (Default disabled)."
+    )
+    private boolean clusterMigrationAutoResourceCreation = false;
 
     @FieldContext(
         category = CATEGORY_SCHEMA,

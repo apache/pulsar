@@ -23,20 +23,47 @@ on:
     branches:
       - master
   schedule:
+    # scheduled job with JDK 17
     - cron: '0 12 * * *'
+    # scheduled job with JDK 21
+    # if cron expression is changed, make sure to update the expression in jdk_major_version step in preconditions job
+    - cron: '0 6 * * *'
   workflow_dispatch:
     inputs:
       collect_coverage:
         description: 'Collect test coverage and upload to Codecov'
         required: true
-        default: 'true'
+        type: boolean
+        default: true
+      jdk_major_version:
+        description: 'JDK major version to use for the build'
+        required: true
+        type: choice
+        options:
+          - '17'
+          - '21'
+        default: '17'
+      trace_test_resource_cleanup:
+        description: 'Collect thread & heap information before exiting a test JVM. When set to "on", thread dump and heap histogram will be collected. When set to "full", a heap dump will also be collected.'
+        required: true
+        type: choice
+        options:
+          - 'off'
+          - 'on'
+          - 'full'
+        default: 'off'
+      thread_leak_detector_wait_millis:
+        description: 'Duration in ms to wait for threads to exit in thread leak detection between test classes. It is necessary to wait for threads to complete before they are determined to be leaked threads.'
+        required: true
+        type: number
+        default: 10000
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}${{ github.event_name == 'workflow_dispatch' && github.event.inputs.jdk_major_version || '' }}
   cancel-in-progress: true
 
 env:
-  MAVEN_OPTS: -Xss1500k -Xmx1024m -Daether.connector.http.reuseConnections=false -Daether.connector.requestTimeout=60000 -Dhttp.keepAlive=false -Dmaven.wagon.http.pool=false -Dmaven.wagon.http.retryHandler.class=standard -Dmaven.wagon.http.retryHandler.count=3 -Dmaven.wagon.http.retryHandler.requestSentEnabled=true -Dmaven.wagon.http.serviceUnavailableRetryStrategy.class=standard -Dmaven.wagon.rto=60000
+  MAVEN_OPTS: -Xss1500k -Xmx1500m -Daether.connector.http.reuseConnections=false -Daether.connector.requestTimeout=60000 -Dhttp.keepAlive=false -Dmaven.wagon.http.pool=false -Dmaven.wagon.http.retryHandler.class=standard -Dmaven.wagon.http.retryHandler.count=3 -Dmaven.wagon.http.retryHandler.requestSentEnabled=true -Dmaven.wagon.http.serviceUnavailableRetryStrategy.class=standard -Dmaven.wagon.rto=60000
   # defines the retention period for the intermediate build artifacts needed for rerunning a failed build job
   # it's possible to rerun individual failed jobs when the build artifacts are available
   # if the artifacts have already been expired, the complete workflow can be rerun by closing and reopening the PR or by rebasing the PR
@@ -46,18 +73,39 @@ jobs:
   preconditions:
     name: Preconditions
     runs-on: ubuntu-22.04
-    if: (github.event_name != 'schedule') || (github.repository == 'apache/pulsar')
     outputs:
       docs_only: ${{ steps.check_changes.outputs.docs_only }}
       changed_tests: ${{ steps.changes.outputs.tests_files }}
       need_owasp: ${{ steps.changes.outputs.need_owasp }}
       collect_coverage: ${{ steps.check_coverage.outputs.collect_coverage }}
+      jdk_major_version: ${{ steps.jdk_major_version.outputs.jdk_major_version }}
 
     steps:
+      - name: Cancel scheduled jobs in forks by default
+        if: ${{ github.repository != 'apache/pulsar' && github.event_name == 'schedule' }}
+        uses: actions/github-script@v6
+        with:
+          script: |
+            await github.rest.actions.cancelWorkflowRun({owner: context.repo.owner, repo: context.repo.repo, run_id: context.runId});
+            process.exit(1);
+
+      - name: Select JDK major version
+        id: jdk_major_version
+        run: |
+          # use JDK 21 for the scheduled build with cron expression '0 6 * * *'
+          if [[ "${{ github.event_name == 'schedule' && github.event.schedule == '0 6 * * *' && 'true' || 'false' }}" == "true" ]]; then
+            echo "jdk_major_version=21" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          # use JDK 17 for build unless overridden with workflow_dispatch input
+          echo "jdk_major_version=${{ github.event_name == 'workflow_dispatch' && github.event.inputs.jdk_major_version || '17'}}" >> $GITHUB_OUTPUT
+
       - name: checkout
+        if: ${{ github.event_name == 'pull_request' }}
         uses: actions/checkout@v3
 
       - name: Detect changed files
+        if: ${{ github.event_name == 'pull_request' }}
         id:   changes
         uses: apache/pulsar-test-infra/paths-filter@master
         with:
@@ -65,6 +113,7 @@ jobs:
           list-files: csv
 
       - name: Check changed files
+        if: ${{ github.event_name == 'pull_request' }}
         id: check_changes
         run: |
           if [[ "${GITHUB_EVENT_NAME}" != "schedule" && "${GITHUB_EVENT_NAME}" != "workflow_dispatch" ]]; then
@@ -96,6 +145,7 @@ jobs:
     env:
       JOB_NAME: Build and License check
       GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
+      CI_JDK_MAJOR_VERSION: ${{ needs.preconditions.outputs.jdk_major_version }}
     runs-on: ubuntu-22.04
     timeout-minutes: 60
     if: ${{ needs.preconditions.outputs.docs_only != 'true' }}
@@ -125,11 +175,11 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-m2-dependencies-core-modules-
 
-      - name: Set up JDK 17
+      - name: Set up JDK ${{ env.CI_JDK_MAJOR_VERSION }}
         uses: actions/setup-java@v3
         with:
           distribution: 'temurin'
-          java-version: 17
+          java-version: ${{ env.CI_JDK_MAJOR_VERSION }}
 
       - name: Check source code license headers
         run: mvn -B -T 8 -ntp initialize apache-rat:check license:check
@@ -172,6 +222,11 @@ jobs:
       JOB_NAME: CI - Unit - ${{ matrix.name }}
       COLLECT_COVERAGE: "${{ needs.preconditions.outputs.collect_coverage }}"
       GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
+      CI_JDK_MAJOR_VERSION: ${{ needs.preconditions.outputs.jdk_major_version }}
+      TRACE_TEST_RESOURCE_CLEANUP: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.trace_test_resource_cleanup || 'off' }}
+      TRACE_TEST_RESOURCE_CLEANUP_DIR: ${{ github.workspace }}/target/trace-test-resource-cleanup
+      THREAD_LEAK_DETECTOR_WAIT_MILLIS: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.thread_leak_detector_wait_millis || 10000 }}
+      THREAD_LEAK_DETECTOR_DIR: ${{ github.workspace }}/target/thread-leak-dumps
     runs-on: ubuntu-22.04
     timeout-minutes: ${{ matrix.timeout || 60 }}
     needs: ['preconditions', 'build-and-license-check']
@@ -189,6 +244,8 @@ jobs:
             group: BROKER_GROUP_2
           - name: Brokers - Broker Group 3
             group: BROKER_GROUP_3
+          - name: Brokers - Broker Group 4
+            group: BROKER_GROUP_4
           - name: Brokers - Client Api
             group: BROKER_CLIENT_API
           - name: Brokers - Client Impl
@@ -212,6 +269,10 @@ jobs:
       - name: Tune Runner VM
         uses: ./.github/actions/tune-runner-vm
 
+      - name: Clean Disk when tracing test resource cleanup
+        if: ${{ env.TRACE_TEST_RESOURCE_CLEANUP != 'off' }}
+        uses: ./.github/actions/clean-disk
+
       - name: Setup ssh access to build runner VM
         # ssh access is enabled for builds in own forks
         if: ${{ github.repository != 'apache/pulsar' && github.event_name == 'pull_request' }}
@@ -231,11 +292,11 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-m2-dependencies-core-modules-
 
-      - name: Set up JDK ${{ matrix.jdk || '17' }}
+      - name: Set up JDK ${{ matrix.jdk || env.CI_JDK_MAJOR_VERSION }}
         uses: actions/setup-java@v3
         with:
           distribution: 'temurin'
-          java-version: ${{ matrix.jdk || '17' }}
+          java-version: ${{ matrix.jdk || env.CI_JDK_MAJOR_VERSION }}
 
       - name: Install gh-actions-artifact-client.js
         uses: apache/pulsar-test-infra/gh-actions-artifact-client/dist@master
@@ -273,9 +334,17 @@ jobs:
           report_paths: 'test-reports/TEST-*.xml'
           annotate_only: 'true'
 
+      - name: Report detected thread leaks
+        if: ${{ always() }}
+        run: |
+          if [ -d "$THREAD_LEAK_DETECTOR_DIR" ]; then
+            cd "$THREAD_LEAK_DETECTOR_DIR"
+            cat threadleak*.txt | awk '/^Summary:/ {print "::warning::" $0 "\n"; next} {print}'
+          fi
+
       - name: Upload Surefire reports
         uses: actions/upload-artifact@v3
-        if: ${{ !success() }}
+        if: ${{ !success() || env.TRACE_TEST_RESOURCE_CLEANUP != 'off' }}
         with:
           name: Unit-${{ matrix.group }}-surefire-reports
           path: surefire-reports
@@ -290,6 +359,8 @@ jobs:
             /tmp/*.hprof
             **/hs_err_*.log
             **/core.*
+            ${{ env.TRACE_TEST_RESOURCE_CLEANUP_DIR }}/*
+            ${{ env.THREAD_LEAK_DETECTOR_DIR }}/*
           retention-days: 7
           if-no-files-found: ignore
 
@@ -307,6 +378,8 @@ jobs:
     runs-on: ubuntu-22.04
     timeout-minutes: 30
     needs: ['preconditions', 'unit-tests']
+    env:
+      CI_JDK_MAJOR_VERSION: ${{ needs.preconditions.outputs.jdk_major_version }}
     if: ${{ needs.preconditions.outputs.collect_coverage == 'true' }}
 
     steps:
@@ -335,11 +408,11 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-m2-dependencies-core-modules-
 
-      - name: Set up JDK ${{ matrix.jdk || '17' }}
+      - name: Set up JDK ${{ matrix.jdk || env.CI_JDK_MAJOR_VERSION }}
         uses: actions/setup-java@v3
         with:
           distribution: 'temurin'
-          java-version: ${{ matrix.jdk || '17' }}
+          java-version: ${{ matrix.jdk || env.CI_JDK_MAJOR_VERSION }}
 
       - name: Install gh-actions-artifact-client.js
         uses: apache/pulsar-test-infra/gh-actions-artifact-client/dist@master
@@ -389,6 +462,8 @@ jobs:
     if: ${{ needs.preconditions.outputs.docs_only != 'true'}}
     env:
       GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
+      CI_JDK_MAJOR_VERSION: ${{ needs.preconditions.outputs.jdk_major_version }}
+      IMAGE_JDK_MAJOR_VERSION: ${{ needs.preconditions.outputs.jdk_major_version }}
     steps:
       - name: checkout
         uses: actions/checkout@v3
@@ -415,11 +490,11 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-m2-dependencies-core-modules-
 
-      - name: Set up JDK 17
+      - name: Set up JDK ${{ env.CI_JDK_MAJOR_VERSION }}
         uses: actions/setup-java@v3
         with:
           distribution: 'temurin'
-          java-version: 17
+          java-version: ${{ env.CI_JDK_MAJOR_VERSION }}
 
       - name: Install gh-actions-artifact-client.js
         uses: apache/pulsar-test-infra/gh-actions-artifact-client/dist@master
@@ -463,6 +538,7 @@ jobs:
       JOB_NAME: CI - Integration - ${{ matrix.name }}
       PULSAR_TEST_IMAGE_NAME: apachepulsar/java-test-image:latest
       GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
+      CI_JDK_MAJOR_VERSION: ${{ needs.preconditions.outputs.jdk_major_version }}
     strategy:
       fail-fast: false
       matrix:
@@ -495,6 +571,13 @@ jobs:
 
           - name: Shade on Java 17
             group: SHADE_RUN
+            runtime_jdk: 17
+            setup: ./build/run_integration_group.sh SHADE_BUILD
+            no_coverage: true
+
+          - name: Shade on Java 21
+            group: SHADE_RUN
+            runtime_jdk: 21
             setup: ./build/run_integration_group.sh SHADE_BUILD
             no_coverage: true
 
@@ -530,11 +613,11 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-m2-dependencies-core-modules-
 
-      - name: Set up JDK 17
+      - name: Set up JDK ${{ env.CI_JDK_MAJOR_VERSION }}
         uses: actions/setup-java@v3
         with:
           distribution: 'temurin'
-          java-version: 17
+          java-version: ${{ env.CI_JDK_MAJOR_VERSION }}
 
       - name: Install gh-actions-artifact-client.js
         uses: apache/pulsar-test-infra/gh-actions-artifact-client/dist@master
@@ -620,6 +703,7 @@ jobs:
     if: ${{ needs.preconditions.outputs.collect_coverage == 'true' }}
     env:
       PULSAR_TEST_IMAGE_NAME: apachepulsar/java-test-image:latest
+      CI_JDK_MAJOR_VERSION: ${{ needs.preconditions.outputs.jdk_major_version }}
     steps:
       - name: checkout
         uses: actions/checkout@v3
@@ -646,11 +730,11 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-m2-dependencies-core-modules-
 
-      - name: Set up JDK 17
+      - name: Set up JDK ${{ env.CI_JDK_MAJOR_VERSION }}
         uses: actions/setup-java@v3
         with:
           distribution: 'temurin'
-          java-version: 17
+          java-version: ${{ env.CI_JDK_MAJOR_VERSION }}
 
       - name: Install gh-actions-artifact-client.js
         uses: apache/pulsar-test-infra/gh-actions-artifact-client/dist@master
@@ -729,6 +813,8 @@ jobs:
     if: ${{ needs.preconditions.outputs.docs_only != 'true' }}
     env:
       GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
+      CI_JDK_MAJOR_VERSION: ${{ needs.preconditions.outputs.jdk_major_version }}
+      IMAGE_JDK_MAJOR_VERSION: ${{ needs.preconditions.outputs.jdk_major_version }}
     steps:
       - name: checkout
         uses: actions/checkout@v3
@@ -746,6 +832,8 @@ jobs:
 
       - name: Clean Disk
         uses: ./.github/actions/clean-disk
+        with:
+          mode: full
 
       - name: Cache local Maven repository
         uses: actions/cache@v3
@@ -759,11 +847,11 @@ jobs:
             ${{ runner.os }}-m2-dependencies-core-modules-${{ hashFiles('**/pom.xml') }}
             ${{ runner.os }}-m2-dependencies-core-modules-
 
-      - name: Set up JDK 17
+      - name: Set up JDK ${{ env.CI_JDK_MAJOR_VERSION }}
         uses: actions/setup-java@v3
         with:
           distribution: 'temurin'
-          java-version: 17
+          java-version: ${{ env.CI_JDK_MAJOR_VERSION }}
 
       - name: Install gh-actions-artifact-client.js
         uses: apache/pulsar-test-infra/gh-actions-artifact-client/dist@master
@@ -783,7 +871,7 @@ jobs:
           # build docker image
           # include building of Pulsar SQL, Connectors, Offloaders and server distros
           mvn -B -am -pl pulsar-sql/presto-distribution,distribution/io,distribution/offloaders,distribution/server,distribution/shell,tests/docker-images/latest-version-image install \
-          -DUBUNTU_MIRROR="${UBUNTU_MIRROR}" -DUBUNTU_SECURITY_MIRROR="${UBUNTU_SECURITY_MIRROR}" \
+          -DUBUNTU_MIRROR="${UBUNTU_MIRROR}" -DUBUNTU_SECURITY_MIRROR="${UBUNTU_SECURITY_MIRROR}" -DIMAGE_JDK_MAJOR_VERSION="${IMAGE_JDK_MAJOR_VERSION}" \
           -Pmain,docker -Dmaven.test.skip=true -Ddocker.squash=true \
           -Dspotbugs.skip=true -Dlicense.skip=true -Dcheckstyle.skip=true -Drat.skip=true
 
@@ -837,6 +925,7 @@ jobs:
       JOB_NAME: CI - System - ${{ matrix.name }}
       PULSAR_TEST_IMAGE_NAME: apachepulsar/pulsar-test-latest-version:latest
       GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
+      CI_JDK_MAJOR_VERSION: ${{ needs.preconditions.outputs.jdk_major_version }}
     strategy:
       fail-fast: false
       matrix:
@@ -861,6 +950,7 @@ jobs:
 
           - name: Pulsar IO
             group: PULSAR_IO
+            clean_disk: true
 
           - name: Sql
             group: SQL
@@ -871,6 +961,10 @@ jobs:
 
       - name: Tune Runner VM
         uses: ./.github/actions/tune-runner-vm
+
+      - name: Clean Disk when needed
+        if: ${{ matrix.clean_disk }}
+        uses: ./.github/actions/clean-disk
 
       - name: Setup ssh access to build runner VM
         # ssh access is enabled for builds in own forks
@@ -892,11 +986,11 @@ jobs:
             ${{ runner.os }}-m2-dependencies-core-modules-${{ hashFiles('**/pom.xml') }}
             ${{ runner.os }}-m2-dependencies-core-modules-
 
-      - name: Set up JDK 17
+      - name: Set up JDK ${{ env.CI_JDK_MAJOR_VERSION }}
         uses: actions/setup-java@v3
         with:
           distribution: 'temurin'
-          java-version: 17
+          java-version: ${{ env.CI_JDK_MAJOR_VERSION }}
 
       - name: Install gh-actions-artifact-client.js
         uses: apache/pulsar-test-infra/gh-actions-artifact-client/dist@master
@@ -975,6 +1069,7 @@ jobs:
     if: ${{ needs.preconditions.outputs.collect_coverage == 'true' }}
     env:
       PULSAR_TEST_IMAGE_NAME: apachepulsar/pulsar-test-latest-version:latest
+      CI_JDK_MAJOR_VERSION: ${{ needs.preconditions.outputs.jdk_major_version }}
 
     steps:
       - name: checkout
@@ -1003,11 +1098,11 @@ jobs:
             ${{ runner.os }}-m2-dependencies-core-modules-${{ hashFiles('**/pom.xml') }}
             ${{ runner.os }}-m2-dependencies-core-modules-
 
-      - name: Set up JDK 17
+      - name: Set up JDK ${{ env.CI_JDK_MAJOR_VERSION }}
         uses: actions/setup-java@v3
         with:
           distribution: 'temurin'
-          java-version: 17
+          java-version: ${{ env.CI_JDK_MAJOR_VERSION }}
 
       - name: Install gh-actions-artifact-client.js
         uses: apache/pulsar-test-infra/gh-actions-artifact-client/dist@master
@@ -1063,6 +1158,7 @@ jobs:
       JOB_NAME: CI Flaky - System - ${{ matrix.name }}
       PULSAR_TEST_IMAGE_NAME: apachepulsar/pulsar-test-latest-version:latest
       GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
+      CI_JDK_MAJOR_VERSION: ${{ needs.preconditions.outputs.jdk_major_version }}
     strategy:
       fail-fast: false
       matrix:
@@ -1072,6 +1168,7 @@ jobs:
 
           - name: Pulsar IO - Oracle
             group: PULSAR_IO_ORA
+            clean_disk: true
 
     steps:
       - name: checkout
@@ -1079,6 +1176,10 @@ jobs:
 
       - name: Tune Runner VM
         uses: ./.github/actions/tune-runner-vm
+
+      - name: Clean Disk when needed
+        if: ${{ matrix.clean_disk }}
+        uses: ./.github/actions/clean-disk
 
       - name: Setup ssh access to build runner VM
         # ssh access is enabled for builds in own forks
@@ -1100,11 +1201,11 @@ jobs:
             ${{ runner.os }}-m2-dependencies-core-modules-${{ hashFiles('**/pom.xml') }}
             ${{ runner.os }}-m2-dependencies-core-modules-
 
-      - name: Set up JDK 17
+      - name: Set up JDK ${{ env.CI_JDK_MAJOR_VERSION }}
         uses: actions/setup-java@v3
         with:
           distribution: 'temurin'
-          java-version: 17
+          java-version: ${{ env.CI_JDK_MAJOR_VERSION }}
 
       - name: Install gh-actions-artifact-client.js
         uses: apache/pulsar-test-infra/gh-actions-artifact-client/dist@master
@@ -1200,6 +1301,7 @@ jobs:
     if: ${{ needs.preconditions.outputs.docs_only != 'true' }}
     env:
       GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
+      CI_JDK_MAJOR_VERSION: ${{ needs.preconditions.outputs.jdk_major_version }}
     steps:
       - name: checkout
         uses: actions/checkout@v3
@@ -1218,11 +1320,11 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-m2-dependencies-all-
 
-      - name: Set up JDK 17
+      - name: Set up JDK ${{ env.CI_JDK_MAJOR_VERSION }}
         uses: actions/setup-java@v3
         with:
           distribution: 'temurin'
-          java-version: 17
+          java-version: ${{ env.CI_JDK_MAJOR_VERSION }}
 
       - name: build package
         run: mvn -B clean package -DskipTests -T 1C -ntp
@@ -1235,6 +1337,7 @@ jobs:
     if: ${{ needs.preconditions.outputs.need_owasp == 'true' }}
     env:
       GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
+      CI_JDK_MAJOR_VERSION: ${{ needs.preconditions.outputs.jdk_major_version }}
     steps:
       - name: checkout
         uses: actions/checkout@v3
@@ -1260,11 +1363,11 @@ jobs:
           key: ${{ runner.os }}-m2-dependencies-core-modules-${{ hashFiles('**/pom.xml') }}
           restore-keys: |
             ${{ runner.os }}-m2-dependencies-core-modules-
-      - name: Set up JDK ${{ matrix.jdk || '17' }}
+      - name: Set up JDK ${{ matrix.jdk || env.CI_JDK_MAJOR_VERSION }}
         uses: actions/setup-java@v3
         with:
           distribution: 'temurin'
-          java-version: ${{ matrix.jdk || '17' }}
+          java-version: ${{ matrix.jdk || env.CI_JDK_MAJOR_VERSION }}
 
       - name: Clean Disk
         uses: ./.github/actions/clean-disk

@@ -272,7 +272,7 @@ public class NonPersistentSubscription extends AbstractSubscription implements S
     }
 
     @Override
-    public boolean isSubsciptionMigrated() {
+    public boolean isSubscriptionMigrated() {
         return topic.isMigrated();
     }
 

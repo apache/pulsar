@@ -176,14 +176,16 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
                 if (Markers.isTxnMarker(msgMetadata)) {
                     // because consumer can receive message is smaller than maxReadPosition,
                     // so this marker is useless for this subscription
-                    individualAcknowledgeMessageIfNeeded(entry.getPosition(), Collections.emptyMap());
+                    individualAcknowledgeMessageIfNeeded(Collections.singletonList(entry.getPosition()),
+                            Collections.emptyMap());
                     entries.set(i, null);
                     entry.release();
                     continue;
                 } else if (((PersistentTopic) subscription.getTopic())
                         .isTxnAborted(new TxnID(msgMetadata.getTxnidMostBits(), msgMetadata.getTxnidLeastBits()),
                                 (PositionImpl) entry.getPosition())) {
-                    individualAcknowledgeMessageIfNeeded(entry.getPosition(), Collections.emptyMap());
+                    individualAcknowledgeMessageIfNeeded(Collections.singletonList(entry.getPosition()),
+                            Collections.emptyMap());
                     entries.set(i, null);
                     entry.release();
                     continue;
@@ -200,7 +202,8 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
 
                 entries.set(i, null);
                 entry.release();
-                individualAcknowledgeMessageIfNeeded(pos, Collections.emptyMap());
+                individualAcknowledgeMessageIfNeeded(Collections.singletonList(pos),
+                        Collections.emptyMap());
                 continue;
             } else if (trackDelayedDelivery(entry.getLedgerId(), entry.getEntryId(), msgMetadata)) {
                 // The message is marked for delayed delivery. Ignore for now.
@@ -213,12 +216,7 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
                 this.filterAcceptedMsgs.add(entryMsgCnt);
             }
 
-            totalEntries++;
             int batchSize = msgMetadata.getNumMessagesInBatch();
-            totalMessages += batchSize;
-            totalBytes += metadataAndPayload.readableBytes();
-            totalChunkedMessages += msgMetadata.hasChunkId() ? 1 : 0;
-            batchSizes.setBatchSize(i, batchSize);
             long[] ackSet = null;
             if (indexesAcks != null && cursor != null) {
                 PositionImpl position = PositionImpl.get(entry.getLedgerId(), entry.getEntryId());
@@ -262,6 +260,12 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
                 }
             }
 
+            totalEntries++;
+            totalMessages += batchSize;
+            totalBytes += metadataAndPayload.readableBytes();
+            totalChunkedMessages += msgMetadata.hasChunkId() ? 1 : 0;
+            batchSizes.setBatchSize(i, batchSize);
+
             BrokerInterceptor interceptor = subscription.interceptor();
             if (null != interceptor) {
                 // keep for compatibility if users has implemented the old interface
@@ -270,8 +274,7 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
             }
         }
         if (CollectionUtils.isNotEmpty(entriesToFiltered)) {
-            subscription.acknowledgeMessage(entriesToFiltered, AckType.Individual,
-                    Collections.emptyMap());
+            individualAcknowledgeMessageIfNeeded(entriesToFiltered, Collections.emptyMap());
 
             int filtered = entriesToFiltered.size();
             Topic topic = subscription.getTopic();
@@ -300,9 +303,9 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
         return totalEntries;
     }
 
-    private void individualAcknowledgeMessageIfNeeded(Position position, Map<String, Long> properties) {
+    private void individualAcknowledgeMessageIfNeeded(List<Position> positions, Map<String, Long> properties) {
         if (!(subscription instanceof PulsarCompactorSubscription)) {
-            subscription.acknowledgeMessage(Collections.singletonList(position), AckType.Individual, properties);
+            subscription.acknowledgeMessage(positions, AckType.Individual, properties);
         }
     }
 
