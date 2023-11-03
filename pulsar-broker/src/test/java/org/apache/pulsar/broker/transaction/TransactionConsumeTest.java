@@ -390,6 +390,7 @@ public class TransactionConsumeTest extends TransactionTestBase {
                 .create();
         Consumer<String> consumer = pulsarClient1
                 .newConsumer(Schema.STRING)
+                .subscriptionType(SubscriptionType.Shared)
                 .topic(CONSUME_TOPIC)
                 .subscriptionName(subName)
                 .subscribe();
