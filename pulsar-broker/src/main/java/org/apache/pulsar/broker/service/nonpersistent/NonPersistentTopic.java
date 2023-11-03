@@ -486,19 +486,19 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
 
     @Override
     public CompletableFuture<Void> close(boolean closeWithoutWaitingClientDisconnect) {
-        return close(false, closeWithoutWaitingClientDisconnect);
+        return close(true, closeWithoutWaitingClientDisconnect);
     }
 
     /**
      * Close this topic - close all producers and subscriptions associated with this topic.
      *
-     * @param closeWithoutDisconnectingClients don't disconnect clients
+     * @param disconnectClients disconnect clients
      * @param closeWithoutWaitingClientDisconnect don't wait for client disconnect and forcefully close managed-ledger
      * @return Completable future indicating completion of close operation
      */
     @Override
     public CompletableFuture<Void> close(
-            boolean closeWithoutDisconnectingClients, boolean closeWithoutWaitingClientDisconnect) {
+            boolean disconnectClients, boolean closeWithoutWaitingClientDisconnect) {
         CompletableFuture<Void> closeFuture = new CompletableFuture<>();
 
         lock.writeLock().lock();
@@ -517,7 +517,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
         List<CompletableFuture<Void>> futures = new ArrayList<>();
 
         replicators.forEach((cluster, replicator) -> futures.add(replicator.disconnect()));
-        if (!closeWithoutDisconnectingClients) {
+        if (disconnectClients) {
             futures.add(ExtensibleLoadManagerImpl.getAssignedBrokerLookupData(
                     brokerService.getPulsar(), topic).thenAccept(lookupData ->
                     producers.values().forEach(producer -> futures.add(producer.disconnect(lookupData)))
@@ -551,7 +551,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
             // so, execute it in different thread
             brokerService.executor().execute(() -> {
 
-                if (!closeWithoutDisconnectingClients) {
+                if (disconnectClients) {
                     brokerService.removeTopicFromCache(NonPersistentTopic.this);
                     unregisterTopicPolicyListener();
                 }

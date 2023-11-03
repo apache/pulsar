@@ -654,9 +654,11 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testMoreThenOneFilter() throws Exception {
-        TopicName topicName = TopicName.get(defaultTestNamespace + "/test-filter-has-exception");
+        // Use a different namespace to avoid flaky test failures
+        // from unloading the default namespace and the following topic policy lookups at the init state step
+        String namespace = "public/my-namespace";
+        TopicName topicName = TopicName.get(namespace + "/test-filter-has-exception");
         NamespaceBundle bundle = getBundleAsync(pulsar1, topicName).get();
-
         String lookupServiceAddress1 = pulsar1.getLookupServiceAddress();
         doReturn(List.of(new MockBrokerFilter() {
             @Override
@@ -674,10 +676,18 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
                 return FutureUtil.failedFuture(new BrokerFilterException("Test"));
             }
         })).when(primaryLoadManager).getBrokerFilterPipeline();
-
+        admin.namespaces().createNamespace(namespace);
         Optional<BrokerLookupData> brokerLookupData = primaryLoadManager.assign(Optional.empty(), bundle).get();
-        assertTrue(brokerLookupData.isPresent());
-        assertEquals(brokerLookupData.get().getWebServiceUrl(), pulsar2.getWebServiceAddress());
+        Awaitility.waitAtMost(5, TimeUnit.SECONDS).untilAsserted(() -> {
+            assertTrue(brokerLookupData.isPresent());
+            assertEquals(brokerLookupData.get().getWebServiceUrl(), pulsar2.getWebServiceAddress());
+            assertEquals(brokerLookupData.get().getPulsarServiceUrl(),
+                    pulsar1.getAdminClient().lookups().lookupTopic(topicName.toString()));
+            assertEquals(brokerLookupData.get().getPulsarServiceUrl(),
+                    pulsar2.getAdminClient().lookups().lookupTopic(topicName.toString()));
+        });
+
+        admin.namespaces().deleteNamespace(namespace, true);
     }
 
     @Test
