@@ -137,8 +137,9 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler {
                 if (clientCnx.ctx().channel().isActive()) {
                     clientCnx.registerTransactionBufferHandler(TransactionBufferHandlerImpl.this);
                     outstandingRequests.put(op.requestId, op);
+                    final long requestId = op.requestId;
                     timer.newTimeout(timeout -> {
-                        OpRequestSend peek = outstandingRequests.remove(op.requestId);
+                        OpRequestSend peek = outstandingRequests.remove(requestId);
                         if (peek != null && !peek.cb.isDone() && !peek.cb.isCompletedExceptionally()) {
                             peek.cb.completeExceptionally(new TransactionBufferClientException
                                     .RequestTimeoutException());
