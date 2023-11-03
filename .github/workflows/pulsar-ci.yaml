@@ -261,6 +261,8 @@ jobs:
             group: PULSAR_IO_KAFKA_CONNECT
           - name: Pulsar Client
             group: CLIENT
+          - name: Pulsar Metadata
+            group: METADATA
 
     steps:
       - name: checkout

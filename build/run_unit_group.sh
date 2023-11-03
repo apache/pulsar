@@ -103,6 +103,10 @@ function test_group_client() {
   mvn_test -pl pulsar-client
 }
 
+function test_group_metadata() {
+  mvn_test -pl pulsar-metadata
+}
+
 # prints summaries of failed tests to console
 # by using the targer/surefire-reports files
 # works only when testForkCount > 1 since that is when surefire will create reports for individual test classes
