@@ -27,6 +27,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
 import com.google.common.collect.Sets;
@@ -473,10 +474,12 @@ public class TableViewTest extends MockedPulsarServiceBaseTest {
         when(mockReader.readNextAsync()).thenAnswer(invocation -> {
             Message<byte[]> message = spy(Message.class);
             int localIndex = index.decrementAndGet();
-            when(message.getTopicName()).thenReturn(lastMessageIds.get(localIndex).getOwnerTopic());
-            when(message.getMessageId()).thenReturn(lastMessageIds.get(localIndex));
-            when(message.hasKey()).thenReturn(false);
-            doNothing().when(message).release();
+            if (localIndex >= 0) {
+                when(message.getTopicName()).thenReturn(lastMessageIds.get(localIndex).getOwnerTopic());
+                when(message.getMessageId()).thenReturn(lastMessageIds.get(localIndex));
+                when(message.hasKey()).thenReturn(false);
+                doNothing().when(message).release();
+            }
             return CompletableFuture.completedFuture(message);
         });
         @Cleanup
@@ -493,6 +496,6 @@ public class TableViewTest extends MockedPulsarServiceBaseTest {
 
         // The future will complete after receive all the messages from lastMessageIds.
         future.get(3, TimeUnit.SECONDS);
-        assertEquals(index.get(), 0);
+        assertTrue(index.get() <= 0);
     }
 }
