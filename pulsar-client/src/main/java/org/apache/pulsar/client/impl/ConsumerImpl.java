@@ -21,6 +21,7 @@ package org.apache.pulsar.client.impl;
 import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.pulsar.common.protocol.Commands.DEFAULT_CONSUMER_EPOCH;
 import static org.apache.pulsar.common.protocol.Commands.hasChecksum;
+import static org.apache.pulsar.common.protocol.Commands.serializeWithSize;
 import static org.apache.pulsar.common.util.Runnables.catchingAndLoggingThrowables;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ComparisonChain;
@@ -32,6 +33,7 @@ import io.netty.util.Recycler;
 import io.netty.util.Recycler.Handle;
 import io.netty.util.ReferenceCountUtil;
 import io.netty.util.Timeout;
+import io.netty.util.concurrent.FastThreadLocal;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
@@ -95,7 +97,9 @@ import org.apache.pulsar.client.util.RetryMessageUtil;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.api.EncryptionContext;
 import org.apache.pulsar.common.api.EncryptionContext.EncryptionKey;
+import org.apache.pulsar.common.api.proto.BaseCommand;
 import org.apache.pulsar.common.api.proto.BrokerEntryMetadata;
+import org.apache.pulsar.common.api.proto.CommandAck;
 import org.apache.pulsar.common.api.proto.CommandAck.AckType;
 import org.apache.pulsar.common.api.proto.CommandAck.ValidationError;
 import org.apache.pulsar.common.api.proto.CommandMessage;
@@ -2821,7 +2825,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                             entriesToAck.add(Triple.of(cMsgId.getLedgerId(), cMsgId.getEntryId(), null));
                         }
                     }
-                    cmdList.add(Commands.newMultiTransactionMessageAck(consumerId, txnID, entriesToAck, requestId));
+                    cmdList.add(newMultiTransactionMessageAck(consumerId, txnID, entriesToAck, requestId));
                 } else {
                     for (MessageIdImpl cMsgId : chunkMsgIds) {
                         cmdList.add(Commands.newAck(consumerId, cMsgId.ledgerId, cMsgId.entryId, null, ackType,
@@ -2847,6 +2851,50 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             cmdList.forEach(cmd -> completableFutures.add(cnx.newAckForReceipt(cmd, requestId)));
             return FutureUtil.waitForAll(completableFutures);
         }
+    }
+
+    private ByteBuf newMultiTransactionMessageAck(long consumerId, TxnID txnID,
+                                                  List<Triple<Long, Long, ConcurrentBitSetRecyclable>> entries, long requestID) {
+        BaseCommand cmd = newMultiMessageAckCommon(entries);
+        cmd.getAck()
+                .setConsumerId(consumerId)
+                .setAckType(AckType.Individual)
+                .setTxnidLeastBits(txnID.getLeastSigBits())
+                .setTxnidMostBits(txnID.getMostSigBits())
+                .setRequestId(requestID);
+        return serializeWithSize(cmd);
+    }
+
+    private static final FastThreadLocal<BaseCommand> LOCAL_BASE_COMMAND = new FastThreadLocal<BaseCommand>() {
+        @Override
+        protected BaseCommand initialValue() throws Exception {
+            return new BaseCommand();
+        }
+    };
+
+    private static BaseCommand newMultiMessageAckCommon(List<Triple<Long, Long, ConcurrentBitSetRecyclable>> entries) {
+        BaseCommand cmd = LOCAL_BASE_COMMAND.get()
+                .clear()
+                .setType(BaseCommand.Type.ACK);
+        CommandAck ack = cmd.setAck();
+        int entriesCount = entries.size();
+        for (int i = 0; i < entriesCount; i++) {
+            long ledgerId = entries.get(i).getLeft();
+            long entryId = entries.get(i).getMiddle();
+            ConcurrentBitSetRecyclable bitSet = entries.get(i).getRight();
+            MessageIdData msgId = ack.addMessageId()
+                    .setLedgerId(ledgerId)
+                    .setEntryId(entryId);
+            if (bitSet != null) {
+                long[] ackSet = bitSet.toLongArray();
+                for (int j = 0; j < ackSet.length; j++) {
+                    msgId.addAckSet(ackSet[j]);
+                }
+                bitSet.recycle();
+            }
+        }
+
+        return cmd;
     }
 
     private CompletableFuture<Void> doTransactionAcknowledgeForResponse(List<MessageId> messageIds, AckType ackType,
