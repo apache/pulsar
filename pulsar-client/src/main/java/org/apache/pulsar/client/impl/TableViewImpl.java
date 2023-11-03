@@ -266,6 +266,7 @@ public class TableViewImpl<T> implements TableView<T> {
                                   handleMessage(msg);
                                   if (maxMessageIds.isEmpty()) {
                                       future.complete(reader);
+                                      readTailMessages(reader);
                                   } else {
                                       readAllExistingMessages(reader, future, startTime, messagesRead, maxMessageIds);
                                   }
