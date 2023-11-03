@@ -959,14 +959,13 @@ public class Commands {
     }
 
     public static ByteBuf newMultiTransactionMessageAck(long consumerId, TxnID txnID,
-            List<Triple<Long, Long, ConcurrentBitSetRecyclable>> entries, long requestID) {
+            List<Triple<Long, Long, ConcurrentBitSetRecyclable>> entries) {
         BaseCommand cmd = newMultiMessageAckCommon(entries);
         cmd.getAck()
                 .setConsumerId(consumerId)
                 .setAckType(AckType.Individual)
                 .setTxnidLeastBits(txnID.getLeastSigBits())
-                .setTxnidMostBits(txnID.getMostSigBits())
-                .setRequestId(requestID);
+                .setTxnidMostBits(txnID.getMostSigBits());
         return serializeWithSize(cmd);
     }
 
