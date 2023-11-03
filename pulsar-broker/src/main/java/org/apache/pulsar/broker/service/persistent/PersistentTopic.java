@@ -3476,14 +3476,14 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         boolean isCurrentlyEnabled = replicatedSubscriptionsController.isPresent();
         boolean isEnableReplicatedSubscriptions =
                 brokerService.pulsar().getConfiguration().isEnableReplicatedSubscriptions();
-        boolean isReplicationDisEnable = this.topicPolicies.getReplicationClusters().get().size() == 1;
+        boolean replicationEnabled = this.topicPolicies.getReplicationClusters().get().size() > 1;
 
-        if (shouldBeEnabled && !isCurrentlyEnabled && isEnableReplicatedSubscriptions && !isReplicationDisEnable) {
+        if (shouldBeEnabled && !isCurrentlyEnabled && isEnableReplicatedSubscriptions && replicationEnabled) {
             log.info("[{}] Enabling replicated subscriptions controller", topic);
             replicatedSubscriptionsController = Optional.of(new ReplicatedSubscriptionsController(this,
                     brokerService.pulsar().getConfiguration().getClusterName()));
         } else if (isCurrentlyEnabled && !shouldBeEnabled || !isEnableReplicatedSubscriptions
-                || isReplicationDisEnable) {
+                || !replicationEnabled) {
             log.info("[{}] Disabled replicated subscriptions controller", topic);
             replicatedSubscriptionsController.ifPresent(ReplicatedSubscriptionsController::close);
             replicatedSubscriptionsController = Optional.empty();
