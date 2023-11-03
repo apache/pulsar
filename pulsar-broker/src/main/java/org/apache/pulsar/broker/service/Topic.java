@@ -197,7 +197,7 @@ public interface Topic {
     CompletableFuture<Void> close(boolean closeWithoutWaitingClientDisconnect);
 
     CompletableFuture<Void> close(
-            boolean closeWithoutDisconnectingClients, boolean closeWithoutWaitingClientDisconnect);
+            boolean disconnectClients, boolean closeWithoutWaitingClientDisconnect);
 
     void checkGC();
 
