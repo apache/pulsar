@@ -246,6 +246,7 @@ public class TableViewImpl<T> implements TableView<T> {
             future.completeExceptionally(ex);
             return null;
         });
+        future.thenAccept(__ -> readTailMessages(reader));
         return future;
     }
 
@@ -266,7 +267,6 @@ public class TableViewImpl<T> implements TableView<T> {
                                   handleMessage(msg);
                                   if (maxMessageIds.isEmpty()) {
                                       future.complete(reader);
-                                      readTailMessages(reader);
                                   } else {
                                       readAllExistingMessages(reader, future, startTime, messagesRead, maxMessageIds);
                                   }
@@ -290,7 +290,6 @@ public class TableViewImpl<T> implements TableView<T> {
                                messagesRead,
                                durationMillis / 1000.0);
                        future.complete(reader);
-                       readTailMessages(reader);
                    }
                 });
     }
