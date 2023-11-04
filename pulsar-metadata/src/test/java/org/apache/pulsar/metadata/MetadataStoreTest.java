@@ -515,6 +515,7 @@ public class MetadataStoreTest extends BaseMetadataStoreTest {
 
     @Test(dataProvider = "impl")
     public void testConcurrentPutGetOneKey(String provider, Supplier<String> urlSupplier) throws Exception {
+        @Cleanup
         MetadataStore store = MetadataStoreFactory.create(urlSupplier.get(),
                 MetadataStoreConfig.builder().fsyncEnable(false).build());
         byte[] data = new byte[]{0};

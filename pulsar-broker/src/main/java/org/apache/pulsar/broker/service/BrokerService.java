@@ -826,6 +826,7 @@ public class BrokerService implements Closeable {
             for (EventLoopGroup group : protocolHandlersWorkerGroups) {
                 shutdownEventLoops.add(shutdownEventLoopGracefully(group));
             }
+
             CompletableFuture<Void> shutdownFuture =
                     CompletableFuture.allOf(shutdownEventLoops.toArray(new CompletableFuture[0]))
                             .handle((v, t) -> {
@@ -836,7 +837,7 @@ public class BrokerService implements Closeable {
                                 }
                                 return null;
                             })
-                            .thenCompose(__ -> {
+                            .thenComposeAsync(__ -> {
                                 log.info("Continuing to second phase in shutdown.");
 
                                 List<CompletableFuture<Void>> asyncCloseFutures = new ArrayList<>();
@@ -900,6 +901,12 @@ public class BrokerService implements Closeable {
                                     return null;
                                 });
                                 return combined;
+                            }, runnable -> {
+                                // run the 2nd phase of the shutdown in a separate thread
+                                Thread thread = new Thread(runnable);
+                                thread.setName("BrokerService-shutdown-phase2");
+                                thread.setDaemon(false);
+                                thread.start();
                             });
             FutureUtil.whenCancelledOrTimedOut(shutdownFuture, () -> cancellableDownstreamFutureReference
                     .thenAccept(future -> future.cancel(false)));
@@ -2603,14 +2610,25 @@ public class BrokerService implements Closeable {
                         new Semaphore((int) maxConcurrentTopicLoadRequest, false)));
         registerConfigurationListener("loadManagerClassName", className -> {
             pulsar.getExecutor().execute(() -> {
+                LoadManager newLoadManager = null;
                 try {
-                    final LoadManager newLoadManager = LoadManager.create(pulsar);
+                    newLoadManager = LoadManager.create(pulsar);
                     log.info("Created load manager: {}", className);
                     pulsar.getLoadManager().get().stop();
                     newLoadManager.start();
-                    pulsar.getLoadManager().set(newLoadManager);
                 } catch (Exception ex) {
                     log.warn("Failed to change load manager", ex);
+                    try {
+                        if (newLoadManager != null) {
+                            newLoadManager.stop();
+                            newLoadManager = null;
+                        }
+                    } catch (PulsarServerException e) {
+                        log.warn("Failed to close created load manager", e);
+                    }
+                }
+                if (newLoadManager != null) {
+                    pulsar.getLoadManager().set(newLoadManager);
                 }
             });
         });

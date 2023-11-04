@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.service;
 
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
+import lombok.Cleanup;
 import org.apache.pulsar.common.policies.data.PublishRate;
 import org.testng.annotations.Test;
 
@@ -27,6 +28,7 @@ public class PrecisePublishLimiterTest {
 
     @Test
     void shouldResetMsgLimitAfterUpdate() {
+        @Cleanup
         PrecisePublishLimiter precisePublishLimiter = new PrecisePublishLimiter(new PublishRate(), () -> {
         });
         precisePublishLimiter.update(new PublishRate(1, 1));
@@ -37,6 +39,7 @@ public class PrecisePublishLimiterTest {
 
     @Test
     void shouldResetBytesLimitAfterUpdate() {
+        @Cleanup
         PrecisePublishLimiter precisePublishLimiter = new PrecisePublishLimiter(new PublishRate(), () -> {
         });
         precisePublishLimiter.update(new PublishRate(1, 1));

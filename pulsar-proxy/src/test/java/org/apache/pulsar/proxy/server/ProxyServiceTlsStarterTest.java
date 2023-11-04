@@ -106,7 +106,9 @@ public class ProxyServiceTlsStarterTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testProduceAndConsumeMessageWithWebsocket() throws Exception {
+        @Cleanup("stop")
         HttpClient producerClient = new HttpClient();
+        @Cleanup("stop")
         WebSocketClient producerWebSocketClient = new WebSocketClient(producerClient);
         producerWebSocketClient.start();
         MyWebSocket producerSocket = new MyWebSocket();
@@ -117,7 +119,9 @@ public class ProxyServiceTlsStarterTest extends MockedPulsarServiceBaseTest {
         produceRequest.setContext("context");
         produceRequest.setPayload(Base64.getEncoder().encodeToString("my payload".getBytes()));
 
+        @Cleanup("stop")
         HttpClient consumerClient = new HttpClient();
+        @Cleanup("stop")
         WebSocketClient consumerWebSocketClient = new WebSocketClient(consumerClient);
         consumerWebSocketClient.start();
         MyWebSocket consumerSocket = new MyWebSocket();

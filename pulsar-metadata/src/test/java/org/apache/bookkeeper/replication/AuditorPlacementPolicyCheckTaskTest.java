@@ -63,16 +63,19 @@ public class AuditorPlacementPolicyCheckTaskTest extends BookKeeperClusterTestCa
         super.setUp();
         baseClientConf.setMetadataServiceUri(
                 metadataServiceUri.replaceAll("zk://", "metadata-store:").replaceAll("/ledgers", ""));
-        final BookKeeper bookKeeper = new BookKeeper(baseClientConf);
+        final BookKeeper bookKeeper = registerCloseable(new BookKeeper(baseClientConf));
         admin = new BookKeeperAdmin(bookKeeper, NullStatsLogger.INSTANCE, new ClientConfiguration(baseClientConf));
-        LedgerManagerFactory ledgerManagerFactory = bookKeeper.getLedgerManagerFactory();
+        LedgerManagerFactory ledgerManagerFactory = registerCloseable(bookKeeper.getLedgerManagerFactory());
         ledgerManager = ledgerManagerFactory.newLedgerManager();
         ledgerUnderreplicationManager = ledgerManagerFactory.newLedgerUnderreplicationManager();
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     @Override
     public void tearDown() throws Exception {
+        if (admin != null) {
+            admin.close();
+        }
         if (ledgerManager != null) {
             ledgerManager.close();
         }
