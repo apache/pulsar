@@ -124,6 +124,7 @@ import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.Ledge
 import org.apache.bookkeeper.mledger.util.Futures;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
 import org.apache.commons.lang3.exception.ExceptionUtils;
+import org.apache.commons.lang3.mutable.MutableBoolean;
 import org.apache.commons.lang3.mutable.MutableObject;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition;
@@ -4073,5 +4074,28 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
             }
         });
         future.join();
+    }
+
+    @Test
+    public void testNonDurableCursorCreateForInactiveLedger() throws Exception {
+        String mlName = "testLedgerInfoMetaCorrectIfAddEntryTimeOut";
+        BookKeeper spyBookKeeper = spy(bkc);
+        ManagedLedgerFactoryImpl factory = new ManagedLedgerFactoryImpl(metadataStore, spyBookKeeper);
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setInactiveLedgerRollOverTime(10, TimeUnit.MILLISECONDS);
+        ManagedLedgerImpl ml = (ManagedLedgerImpl) factory.open(mlName, config);
+
+        MutableBoolean isRolledOver = new MutableBoolean(false);
+        retryStrategically((test) -> {
+            if (isRolledOver.booleanValue()) {
+                return true;
+            }
+            isRolledOver.setValue(ml.checkInactiveLedgerAndRollOver());
+            return isRolledOver.booleanValue();
+        }, 5, 1000);
+        assertTrue(isRolledOver.booleanValue());
+
+        Position Position = new PositionImpl(-1L, -1L);
+        assertNotNull(ml.newNonDurableCursor(Position));
     }
 }
