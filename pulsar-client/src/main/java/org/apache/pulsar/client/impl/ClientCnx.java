@@ -813,13 +813,13 @@ public class ClientCnx extends PulsarHandler {
                             remoteAddress, closeProducer.getProducerId(), uri);
                     producer.getConnectionHandler().connectionClosed(
                             this, Optional.of(0L), Optional.of(uri));
-                } catch (URISyntaxException e) {
+                } catch (Throwable e) {
                     log.error("[{}] Invalid redirect url {}/{} for {}", remoteAddress,
                             closeProducer.hasAssignedBrokerServiceUrl()
                                     ? closeProducer.getAssignedBrokerServiceUrl() : "",
                             closeProducer.hasAssignedBrokerServiceUrlTls()
                                     ? closeProducer.getAssignedBrokerServiceUrlTls() : "",
-                            closeProducer.getRequestId());
+                            closeProducer.getRequestId(), e);
                     producer.connectionClosed(this);
                 }
             } else {

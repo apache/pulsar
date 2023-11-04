@@ -2988,7 +2988,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     public void closeProducer(Producer producer) {
         assert ctx.executor().inEventLoop();
         // removes producer-connection from map and send close command to producer
-        safelyRemoveProducer(producer);=
+        safelyRemoveProducer(producer);
         closeProducer(producer.getProducerId(), producer.getEpoch(), Optional.empty());
     }
 
