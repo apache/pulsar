@@ -4401,7 +4401,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     }
 
     @Override
-    public void checkInactiveLedgerAndRollOver() {
+    public boolean checkInactiveLedgerAndRollOver() {
         long currentTimeMs = System.currentTimeMillis();
         if (inactiveLedgerRollOverTimeMs > 0 && currentTimeMs > (lastAddEntryTimeMs + inactiveLedgerRollOverTimeMs)) {
             log.info("[{}] Closing inactive ledger, last-add entry {}", name, lastAddEntryTimeMs);
@@ -4422,10 +4422,13 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     }
 
                     ledgerClosed(lh);
+                    createLedgerAfterClosed();
                     // we do not create ledger here, since topic is inactive for a long time.
                 }, null);
+                return true;
             }
         }
+        return false;
     }
 
 
