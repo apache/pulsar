@@ -218,6 +218,10 @@ public class ThreadLeakDetectorListener extends BetweenTestClassesListenerAdapte
             if (threadName.startsWith("testcontainers-wait-")) {
                 return true;
             }
+            // org.rnorth.ducttape.timeouts.Timeouts.EXECUTOR_SERVICE thread pool, used by Testcontainers
+            if (threadName.startsWith("ducttape-")) {
+                return true;
+            }
         }
         Runnable target = extractRunnableTarget(thread);
         if (target != null) {
