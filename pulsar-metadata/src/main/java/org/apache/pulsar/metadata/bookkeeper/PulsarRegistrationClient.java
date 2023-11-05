@@ -37,12 +37,15 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+import java.util.function.BiConsumer;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.common.concurrent.FutureUtils;
 import org.apache.bookkeeper.discover.BookieServiceInfo;
 import org.apache.bookkeeper.discover.RegistrationClient;
 import org.apache.bookkeeper.net.BookieId;
+import org.apache.bookkeeper.net.NetworkTopologyImpl;
 import org.apache.bookkeeper.versioning.LongVersion;
 import org.apache.bookkeeper.versioning.Version;
 import org.apache.bookkeeper.versioning.Versioned;
@@ -107,7 +110,13 @@ public class PulsarRegistrationClient implements RegistrationClient {
         // Clean caches.
         store.invalidateCaches(bookieRegistrationPath, bookieAllRegistrationPath, bookieReadonlyRegistrationPath);
         bookieServiceInfoMetadataCache.invalidateAll();
-        // Refresh caches of the listeners.
+
+        refreshCachesOfListeners();
+    }
+
+    // Refresh caches of the listeners.
+
+    private void refreshCachesOfListeners() {
         getReadOnlyBookies().thenAccept(bookies ->
                 readOnlyBookiesWatchers.forEach(w -> executor.execute(() -> w.onBookiesChanged(bookies))));
         getWritableBookies().thenAccept(bookies ->
@@ -222,14 +231,23 @@ public class PulsarRegistrationClient implements RegistrationClient {
             switch (n.getType()) {
                 case Created:
                     log.info("Bookie {} created. path: {}", bookieId, n.getPath());
+                    BiConsumer<Void, ? super Throwable> postProgress = (ignore, ex) -> {
+                        if (ex != null && ex instanceof NetworkTopologyImpl.InvalidTopologyException) {
+                            executor.schedule(() -> refreshCachesOfListeners(), 3, TimeUnit.MINUTES);
+                        }
+                    };
+                    CompletableFuture<Void> res = null;
                     if (path.startsWith(bookieReadonlyRegistrationPath)) {
-                        return getReadOnlyBookies().thenAccept(bookies ->
+                        res = getReadOnlyBookies().thenAccept(bookies ->
                                 readOnlyBookiesWatchers.forEach(w ->
                                         executor.execute(() -> w.onBookiesChanged(bookies))));
                     }
-                    return getWritableBookies().thenAccept(bookies ->
+                    res = getWritableBookies().thenAccept(bookies ->
                             writableBookiesWatchers.forEach(w ->
-                                    executor.execute(() -> w.onBookiesChanged(bookies))));
+                                executor.execute(() -> w.onBookiesChanged(bookies)))).whenComplete((v, ex) -> {
+                    });
+                    res.whenComplete(postProgress);
+                    return res;
                 case Modified:
                     if (bookieId == null) {
                         return completedFuture(null);
