@@ -26,8 +26,12 @@ import io.netty.channel.EventLoopGroup;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentSkipListSet;
 import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.TimeUnit;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.util.ExecutorProvider;
 import org.apache.pulsar.common.api.proto.BaseCommand;
@@ -63,6 +67,7 @@ import org.apache.pulsar.common.api.proto.CommandWatchTopicListSuccess;
 import org.apache.pulsar.common.api.proto.CommandWatchTopicUpdate;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
 
+@Slf4j
 public class InjectedClientCnxClientBuilder {
 
     public static PulsarClientImpl create(final ClientBuilderImpl clientBuilder, final ClientCnxCustomizer customizer)
@@ -77,7 +82,35 @@ public class InjectedClientCnxClientBuilder {
         ConnectionPool pool = new ConnectionPool(conf, eventLoopGroup,
                 () -> new InjectedClientCnx(conf, eventLoopGroup, customizer));
 
-        return new PulsarClientImpl(conf, eventLoopGroup, pool);
+        return new PulsarClientImpl(conf, eventLoopGroup, pool) {
+
+            @Override
+            public CompletableFuture<Void> closeAsync() {
+                return super.closeAsync().handle((__, t) -> {
+                    shutdownCnxPoolAndEventLoopGroup();
+                    return null;
+                });
+            }
+
+            @Override
+            public void shutdown() throws PulsarClientException {
+                super.shutdown();
+                shutdownCnxPoolAndEventLoopGroup();
+            }
+
+            private void shutdownCnxPoolAndEventLoopGroup() {
+                try {
+                    getCnxPool().close();
+                } catch (Exception e) {
+                    log.warn("Error closing connection pool", e);
+                }
+                try {
+                    eventLoopGroup.shutdownGracefully().get(5, TimeUnit.SECONDS);
+                } catch (Exception e) {
+                    log.warn("Error closing event loop group", e);
+                }
+            }
+        };
     }
 
     public static abstract class ClientCnxCustomizer {

@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.client.util;
 
+import org.apache.pulsar.common.naming.TopicName;
+
 public class RetryMessageUtil {
 
     public static final String SYSTEM_PROPERTY_RECONSUMETIMES = "RECONSUMETIMES";
@@ -31,4 +33,20 @@ public class RetryMessageUtil {
     public static final int MAX_RECONSUMETIMES = 16;
     public static final String RETRY_GROUP_TOPIC_SUFFIX = "-RETRY";
     public static final String DLQ_GROUP_TOPIC_SUFFIX = "-DLQ";
+
+    public static boolean isDefaultRetryTopic(String topicName) {
+        return isDefaultRetryTopic(TopicName.get(topicName));
+    }
+
+    public static boolean isDefaultRetryTopic(TopicName topicName) {
+        return topicName.getLocalName().endsWith(RETRY_GROUP_TOPIC_SUFFIX);
+    }
+
+    public static boolean isDefaultDLQ(String topicName) {
+        return isDefaultDLQ(TopicName.get(topicName));
+    }
+
+    public static boolean isDefaultDLQ(TopicName topicName) {
+        return topicName.getLocalName().endsWith(DLQ_GROUP_TOPIC_SUFFIX);
+    }
 }
