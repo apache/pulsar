@@ -2646,8 +2646,8 @@ public abstract class NamespacesBase extends AdminResource {
     protected void internalEnableMigration(boolean migrated) {
         validateSuperUserAccess();
         try {
-            updatePolicies(namespaceName, policies -> {
-                policies.isMigrated = migrated;
+            getLocalPolicies().setLocalPolicies(namespaceName, (policies) -> {
+                policies.migrated = migrated;
                 return policies;
             });
             log.info("Successfully updated migration on namespace {}", namespaceName);
@@ -2655,5 +2655,16 @@ public abstract class NamespacesBase extends AdminResource {
             log.error("Failed to update migration on namespace {}", namespaceName, e);
             throw new RestException(e);
         }
+    }
+
+    protected Policies getDefaultPolicesIfNull(Policies policies) {
+        if (policies == null) {
+            policies = new Policies();
+        }
+        int defaultNumberOfBundles = config().getDefaultNumberOfNamespaceBundles();
+        if (policies.bundles == null) {
+            policies.bundles = getBundles(defaultNumberOfBundles);
+        }
+        return policies;
     }
 }

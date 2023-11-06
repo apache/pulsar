@@ -204,6 +204,7 @@ public class SaslAuthenticateTest extends ProducerConsumerBase {
 
         // set admin auth, to verify admin web resources
         log.info("set client jaas section name: PulsarClient");
+        closeAdmin();
         admin = PulsarAdmin.builder()
             .serviceHttpUrl(brokerUrl.toString())
             .authentication(AuthenticationFactory.create(AuthenticationSasl.class.getName(), clientSaslConfig))

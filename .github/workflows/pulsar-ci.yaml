@@ -43,6 +43,20 @@ on:
           - '17'
           - '21'
         default: '17'
+      trace_test_resource_cleanup:
+        description: 'Collect thread & heap information before exiting a test JVM. When set to "on", thread dump and heap histogram will be collected. When set to "full", a heap dump will also be collected.'
+        required: true
+        type: choice
+        options:
+          - 'off'
+          - 'on'
+          - 'full'
+        default: 'off'
+      thread_leak_detector_wait_millis:
+        description: 'Duration in ms to wait for threads to exit in thread leak detection between test classes. It is necessary to wait for threads to complete before they are determined to be leaked threads.'
+        required: true
+        type: number
+        default: 10000
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}${{ github.event_name == 'workflow_dispatch' && github.event.inputs.jdk_major_version || '' }}
@@ -209,6 +223,10 @@ jobs:
       COLLECT_COVERAGE: "${{ needs.preconditions.outputs.collect_coverage }}"
       GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
       CI_JDK_MAJOR_VERSION: ${{ needs.preconditions.outputs.jdk_major_version }}
+      TRACE_TEST_RESOURCE_CLEANUP: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.trace_test_resource_cleanup || 'off' }}
+      TRACE_TEST_RESOURCE_CLEANUP_DIR: ${{ github.workspace }}/target/trace-test-resource-cleanup
+      THREAD_LEAK_DETECTOR_WAIT_MILLIS: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.thread_leak_detector_wait_millis || 10000 }}
+      THREAD_LEAK_DETECTOR_DIR: ${{ github.workspace }}/target/thread-leak-dumps
     runs-on: ubuntu-22.04
     timeout-minutes: ${{ matrix.timeout || 60 }}
     needs: ['preconditions', 'build-and-license-check']
@@ -243,6 +261,8 @@ jobs:
             group: PULSAR_IO_KAFKA_CONNECT
           - name: Pulsar Client
             group: CLIENT
+          - name: Pulsar Metadata
+            group: METADATA
 
     steps:
       - name: checkout
@@ -250,6 +270,10 @@ jobs:
 
       - name: Tune Runner VM
         uses: ./.github/actions/tune-runner-vm
+
+      - name: Clean Disk when tracing test resource cleanup
+        if: ${{ env.TRACE_TEST_RESOURCE_CLEANUP != 'off' }}
+        uses: ./.github/actions/clean-disk
 
       - name: Setup ssh access to build runner VM
         # ssh access is enabled for builds in own forks
@@ -312,9 +336,17 @@ jobs:
           report_paths: 'test-reports/TEST-*.xml'
           annotate_only: 'true'
 
+      - name: Report detected thread leaks
+        if: ${{ always() }}
+        run: |
+          if [ -d "$THREAD_LEAK_DETECTOR_DIR" ]; then
+            cd "$THREAD_LEAK_DETECTOR_DIR"
+            cat threadleak*.txt | awk '/^Summary:/ {print "::warning::" $0 "\n"; next} {print}'
+          fi
+
       - name: Upload Surefire reports
         uses: actions/upload-artifact@v3
-        if: ${{ !success() }}
+        if: ${{ !success() || env.TRACE_TEST_RESOURCE_CLEANUP != 'off' }}
         with:
           name: Unit-${{ matrix.group }}-surefire-reports
           path: surefire-reports
@@ -329,6 +361,8 @@ jobs:
             /tmp/*.hprof
             **/hs_err_*.log
             **/core.*
+            ${{ env.TRACE_TEST_RESOURCE_CLEANUP_DIR }}/*
+            ${{ env.THREAD_LEAK_DETECTOR_DIR }}/*
           retention-days: 7
           if-no-files-found: ignore
 

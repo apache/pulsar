@@ -58,7 +58,7 @@ import org.testng.annotations.Test;
 @Test(groups = "websocket")
 public class ProxyPublishConsumeClientSideEncryptionTest extends ProducerConsumerBase {
     private static final int TIME_TO_CHECK_BACKLOG_QUOTA = 5;
-    private static final ScheduledExecutorService executor = Executors.newScheduledThreadPool(1);
+    private ScheduledExecutorService executor;
     private static final Charset charset = Charset.defaultCharset();
 
     private ProxyServer proxyServer;
@@ -66,6 +66,8 @@ public class ProxyPublishConsumeClientSideEncryptionTest extends ProducerConsume
 
     @BeforeClass
     public void setup() throws Exception {
+        executor = Executors.newScheduledThreadPool(1);
+
         conf.setBacklogQuotaCheckIntervalInSeconds(TIME_TO_CHECK_BACKLOG_QUOTA);
 
         super.internalSetup();
@@ -75,8 +77,8 @@ public class ProxyPublishConsumeClientSideEncryptionTest extends ProducerConsume
         config.setWebServicePort(Optional.of(0));
         config.setClusterName("test");
         config.setConfigurationMetadataStoreUrl(GLOBAL_DUMMY_VALUE);
-        WebSocketService service = spy(new WebSocketService(config));
-        doReturn(new ZKMetadataStore(mockZooKeeperGlobal)).when(service)
+        service = spy(new WebSocketService(config));
+        doReturn(registerCloseable(new ZKMetadataStore(mockZooKeeperGlobal))).when(service)
                 .createConfigMetadataStore(anyString(), anyInt(), anyBoolean());
         proxyServer = new ProxyServer(config);
         WebSocketServiceStarter.start(proxyServer, service);
@@ -92,6 +94,7 @@ public class ProxyPublishConsumeClientSideEncryptionTest extends ProducerConsume
         if (proxyServer != null) {
             proxyServer.stop();
         }
+        executor.shutdownNow();
         log.info("Finished Cleaning Up Test setup");
     }
 

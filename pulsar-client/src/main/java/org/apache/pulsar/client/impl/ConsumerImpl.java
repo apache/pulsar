@@ -617,6 +617,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                             .enableChunking(true)
                             .blockIfQueueFull(false)
                             .create();
+                    stats.setRetryLetterProducerStats(retryLetterProducer.getStats());
                 }
             } catch (Exception e) {
                 log.error("Create retry letter producer exception with topic: {}",
@@ -2168,6 +2169,9 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                                     .enableBatching(false)
                                     .enableChunking(true)
                                     .createAsync();
+                    deadLetterProducer.thenAccept(dlqProducer -> {
+                        stats.setDeadLetterProducerStats(dlqProducer.getStats());
+                    });
                 }
             } finally {
                 createProducerLock.writeLock().unlock();

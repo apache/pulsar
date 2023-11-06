@@ -60,8 +60,10 @@ import org.apache.pulsar.common.naming.NamedEntity;
 import org.apache.pulsar.common.policies.data.BrokerNamespaceIsolationData;
 import org.apache.pulsar.common.policies.data.BrokerNamespaceIsolationDataImpl;
 import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.ClusterData.ClusterUrl;
 import org.apache.pulsar.common.policies.data.ClusterDataImpl;
+import org.apache.pulsar.common.policies.data.ClusterPolicies;
+import org.apache.pulsar.common.policies.data.ClusterPolicies.ClusterUrl;
+import org.apache.pulsar.common.policies.data.ClusterPoliciesImpl;
 import org.apache.pulsar.common.policies.data.FailureDomainImpl;
 import org.apache.pulsar.common.policies.data.NamespaceIsolationDataImpl;
 import org.apache.pulsar.common.policies.impl.NamespaceIsolationPolicies;
@@ -247,6 +249,41 @@ public class ClustersBase extends AdminResource {
                 });
     }
 
+    @GET
+    @Path("/{cluster}/migrate")
+    @ApiOperation(
+        value = "Get the cluster migration configuration for the specified cluster.",
+        response = ClusterDataImpl.class,
+        notes = "This operation requires Pulsar superuser privileges."
+    )
+    @ApiResponses(value = {
+            @ApiResponse(code = 200, message = "Return the cluster data.", response = ClusterDataImpl.class),
+            @ApiResponse(code = 403, message = "Don't have admin permission."),
+            @ApiResponse(code = 404, message = "Cluster doesn't exist."),
+            @ApiResponse(code = 500, message = "Internal server error.")
+    })
+    public ClusterPolicies getClusterMigration(
+        @ApiParam(
+            value = "The cluster name",
+            required = true
+        )
+        @PathParam("cluster") String cluster
+    ) {
+        validateSuperUserAccess();
+
+        try {
+            return clusterResources().getClusterPoliciesResources().getClusterPolicies(cluster)
+                    .orElseThrow(() -> new RestException(Status.NOT_FOUND, "Cluster does not exist"));
+        } catch (Exception e) {
+            log.error("[{}] Failed to get cluster {}", clientAppId(), cluster, e);
+            if (e instanceof RestException) {
+                throw (RestException) e;
+            } else {
+                throw new RestException(e);
+            }
+        }
+    }
+
     @POST
     @Path("/{cluster}/migrate")
     @ApiOperation(
@@ -286,8 +323,9 @@ public class ClustersBase extends AdminResource {
         }
         validateSuperUserAccessAsync()
                 .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
-                .thenCompose(__ -> clusterResources().updateClusterAsync(cluster, old -> {
-                    ClusterDataImpl data = (ClusterDataImpl) old;
+                .thenCompose(__ -> clusterResources().getClusterPoliciesResources().setPoliciesWithCreateAsync(cluster,
+                        old -> {
+                    ClusterPoliciesImpl data = old.orElse(new ClusterPoliciesImpl());
                     data.setMigrated(isMigrated);
                     data.setMigratedClusterUrl(clusterUrl);
                     return data;

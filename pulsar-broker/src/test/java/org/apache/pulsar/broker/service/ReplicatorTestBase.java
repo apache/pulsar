@@ -365,12 +365,16 @@ public abstract class ReplicatorTestBase extends TestRetrySupport {
             this.namespace = dest.getNamespace();
             this.topicName = dest.toString();
             client = PulsarClient.builder().serviceUrl(url.toString()).statsInterval(0, TimeUnit.SECONDS).build();
-            producer = client.newProducer()
-                .topic(topicName)
-                .enableBatching(false)
-                .messageRoutingMode(MessageRoutingMode.SinglePartition)
-                .create();
-
+            try {
+                producer = client.newProducer()
+                        .topic(topicName)
+                        .enableBatching(false)
+                        .messageRoutingMode(MessageRoutingMode.SinglePartition)
+                        .create();
+            } catch (Exception e) {
+                client.close();
+                throw e;
+            }
         }
 
         MessageProducer(URL url, final TopicName dest, boolean batch) throws Exception {
@@ -383,8 +387,12 @@ public abstract class ReplicatorTestBase extends TestRetrySupport {
                 .enableBatching(batch)
                 .batchingMaxPublishDelay(1, TimeUnit.SECONDS)
                 .batchingMaxMessages(5);
-            producer = producerBuilder.create();
-
+            try {
+                producer = producerBuilder.create();
+            } catch (Exception e) {
+                client.close();
+                throw e;
+            }
         }
 
         void produceBatch(int messages) throws Exception {

@@ -74,6 +74,7 @@ import org.apache.pulsar.common.protocol.Markers;
 import org.awaitility.Awaitility;
 import org.mockito.ArgumentCaptor;
 import org.testng.Assert;
+import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
@@ -153,9 +154,13 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
                 new KeySharedMeta().setKeySharedMode(KeySharedMode.AUTO_SPLIT));
     }
 
+    @AfterMethod(alwaysRun = true)
     public void cleanup() {
+        if (persistentDispatcher != null && !persistentDispatcher.isClosed()) {
+            persistentDispatcher.close();
+        }
         if (orderedExecutor != null) {
-            orderedExecutor.shutdown();
+            orderedExecutor.shutdownNow();
             orderedExecutor = null;
         }
     }

@@ -826,6 +826,7 @@ public class BrokerService implements Closeable {
             for (EventLoopGroup group : protocolHandlersWorkerGroups) {
                 shutdownEventLoops.add(shutdownEventLoopGracefully(group));
             }
+
             CompletableFuture<Void> shutdownFuture =
                     CompletableFuture.allOf(shutdownEventLoops.toArray(new CompletableFuture[0]))
                             .handle((v, t) -> {
@@ -836,7 +837,7 @@ public class BrokerService implements Closeable {
                                 }
                                 return null;
                             })
-                            .thenCompose(__ -> {
+                            .thenComposeAsync(__ -> {
                                 log.info("Continuing to second phase in shutdown.");
 
                                 List<CompletableFuture<Void>> asyncCloseFutures = new ArrayList<>();
@@ -900,6 +901,12 @@ public class BrokerService implements Closeable {
                                     return null;
                                 });
                                 return combined;
+                            }, runnable -> {
+                                // run the 2nd phase of the shutdown in a separate thread
+                                Thread thread = new Thread(runnable);
+                                thread.setName("BrokerService-shutdown-phase2");
+                                thread.setDaemon(false);
+                                thread.start();
                             });
             FutureUtil.whenCancelledOrTimedOut(shutdownFuture, () -> cancellableDownstreamFutureReference
                     .thenAccept(future -> future.cancel(false)));
@@ -2190,8 +2197,10 @@ public class BrokerService implements Closeable {
     }
 
     public CompletableFuture<Integer> unloadServiceUnit(NamespaceBundle serviceUnit,
+            boolean disconnectClients,
             boolean closeWithoutWaitingClientDisconnect, long timeout, TimeUnit unit) {
-        CompletableFuture<Integer> future = unloadServiceUnit(serviceUnit, closeWithoutWaitingClientDisconnect);
+        CompletableFuture<Integer> future = unloadServiceUnit(
+                serviceUnit, disconnectClients, closeWithoutWaitingClientDisconnect);
         ScheduledFuture<?> taskTimeout = executor().schedule(() -> {
             if (!future.isDone()) {
                 log.warn("Unloading of {} has timed out", serviceUnit);
@@ -2208,11 +2217,13 @@ public class BrokerService implements Closeable {
      * Unload all the topic served by the broker service under the given service unit.
      *
      * @param serviceUnit
+     * @param disconnectClients disconnect clients
      * @param closeWithoutWaitingClientDisconnect don't wait for clients to disconnect
      *                                           and forcefully close managed-ledger
      * @return
      */
     private CompletableFuture<Integer> unloadServiceUnit(NamespaceBundle serviceUnit,
+                                                         boolean disconnectClients,
                                                          boolean closeWithoutWaitingClientDisconnect) {
         List<CompletableFuture<Void>> closeFutures = new ArrayList<>();
         topics.forEach((name, topicFuture) -> {
@@ -2236,7 +2247,8 @@ public class BrokerService implements Closeable {
                     }
                 }
                 closeFutures.add(topicFuture
-                        .thenCompose(t -> t.isPresent() ? t.get().close(closeWithoutWaitingClientDisconnect)
+                        .thenCompose(t -> t.isPresent() ? t.get().close(
+                                disconnectClients, closeWithoutWaitingClientDisconnect)
                                 : CompletableFuture.completedFuture(null)));
             }
         });
@@ -2603,14 +2615,25 @@ public class BrokerService implements Closeable {
                         new Semaphore((int) maxConcurrentTopicLoadRequest, false)));
         registerConfigurationListener("loadManagerClassName", className -> {
             pulsar.getExecutor().execute(() -> {
+                LoadManager newLoadManager = null;
                 try {
-                    final LoadManager newLoadManager = LoadManager.create(pulsar);
+                    newLoadManager = LoadManager.create(pulsar);
                     log.info("Created load manager: {}", className);
                     pulsar.getLoadManager().get().stop();
                     newLoadManager.start();
-                    pulsar.getLoadManager().set(newLoadManager);
                 } catch (Exception ex) {
                     log.warn("Failed to change load manager", ex);
+                    try {
+                        if (newLoadManager != null) {
+                            newLoadManager.stop();
+                            newLoadManager = null;
+                        }
+                    } catch (PulsarServerException e) {
+                        log.warn("Failed to close created load manager", e);
+                    }
+                }
+                if (newLoadManager != null) {
+                    pulsar.getLoadManager().set(newLoadManager);
                 }
             });
         });

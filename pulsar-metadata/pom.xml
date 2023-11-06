@@ -29,6 +29,11 @@
     <relativePath>..</relativePath>
   </parent>
 
+  <properties>
+    <!-- workaround for OOM error 134 in CI -->
+    <testForkCount>2</testForkCount>
+  </properties>
+
   <artifactId>pulsar-metadata</artifactId>
   <name>Pulsar Metadata</name>
   <dependencies>
@@ -149,7 +154,7 @@
           </execution>
         </executions>
       </plugin>
-      
+
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-jar-plugin</artifactId>
@@ -194,4 +199,20 @@
       </plugin>
     </plugins>
   </build>
+  <profiles>
+    <profile>
+      <id>skipTestsForUnitGroupOther</id>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-surefire-plugin</artifactId>
+            <configuration>
+              <skipTests>true</skipTests>
+            </configuration>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+  </profiles>
 </project>

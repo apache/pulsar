@@ -29,6 +29,7 @@ import org.apache.pulsar.common.configuration.VipStatus;
 import org.apache.pulsar.common.util.ShutdownUtil;
 import org.apache.pulsar.docs.tools.CmdGenerateDocs;
 import org.apache.pulsar.websocket.WebSocketConsumerServlet;
+import org.apache.pulsar.websocket.WebSocketMultiTopicConsumerServlet;
 import org.apache.pulsar.websocket.WebSocketProducerServlet;
 import org.apache.pulsar.websocket.WebSocketReaderServlet;
 import org.apache.pulsar.websocket.WebSocketService;
@@ -95,6 +96,8 @@ public class WebSocketServiceStarter {
                 new WebSocketProducerServlet(service));
         proxyServer.addWebSocketServlet(WebSocketConsumerServlet.SERVLET_PATH_V2,
                 new WebSocketConsumerServlet(service));
+        proxyServer.addWebSocketServlet(WebSocketMultiTopicConsumerServlet.SERVLET_PATH,
+                new WebSocketMultiTopicConsumerServlet(service));
         proxyServer.addWebSocketServlet(WebSocketReaderServlet.SERVLET_PATH_V2,
                 new WebSocketReaderServlet(service));
 
