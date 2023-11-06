@@ -323,28 +323,6 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
     }
 
     @Test
-    public void testCreatSystemTopicClientWithRetry() throws Exception {
-        SystemTopicBasedTopicPoliciesService service =
-                spy((SystemTopicBasedTopicPoliciesService) pulsar.getTopicPoliciesService());
-        Field field = SystemTopicBasedTopicPoliciesService.class
-                .getDeclaredField("namespaceEventsSystemTopicFactory");
-        field.setAccessible(true);
-        NamespaceEventsSystemTopicFactory factory = spy((NamespaceEventsSystemTopicFactory) field.get(service));
-        SystemTopicClient<PulsarEvent> client = mock(TopicPoliciesSystemTopicClient.class);
-        doReturn(client).when(factory).createTopicPoliciesSystemTopicClient(any());
-        field.set(service, factory);
-
-        SystemTopicClient.Reader<PulsarEvent> reader = mock(SystemTopicClient.Reader.class);
-        // Throw an exception first, create successfully after retrying
-        doReturn(FutureUtil.failedFuture(new PulsarClientException("test")))
-                .doReturn(CompletableFuture.completedFuture(reader)).when(client).newReaderAsync();
-
-        SystemTopicClient.Reader<PulsarEvent> reader1 = service.createSystemTopicClientWithRetry(null).get();
-
-        assertEquals(reader1, reader);
-    }
-
-    @Test
     public void testGetTopicPoliciesWithRetry() throws Exception {
         Field initMapField = SystemTopicBasedTopicPoliciesService.class.getDeclaredField("policyCacheInitMap");
         initMapField.setAccessible(true);

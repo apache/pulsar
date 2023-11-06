@@ -1056,7 +1056,13 @@ public class BrokerService implements Closeable {
             if (isPersistentTopic) {
                 final CompletableFuture<Optional<TopicPolicies>> topicPoliciesFuture =
                         getTopicPoliciesBypassSystemTopic(topicName);
-                return topicPoliciesFuture.thenCompose(optionalTopicPolicies -> {
+                return topicPoliciesFuture.exceptionally(ex -> {
+                    final Throwable rc = FutureUtil.unwrapCompletionException(ex);
+                    final String errorInfo = String.format("Topic creation encountered an exception by initialize"
+                            + " topic policies service. topic_name=%s error_message=%s", topicName, rc.getMessage());
+                    log.error(errorInfo, rc);
+                    throw FutureUtil.wrapToCompletionException(new ServiceUnitNotReadyException(errorInfo));
+                }).thenCompose(optionalTopicPolicies -> {
                     final TopicPolicies topicPolicies = optionalTopicPolicies.orElse(null);
                     return topics.computeIfAbsent(topicName.toString(), (tpName) -> {
                         if (topicName.isPartitioned()) {
