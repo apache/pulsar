@@ -36,6 +36,7 @@ import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.EnsemblePlacementPolicy;
 import org.apache.bookkeeper.client.RackawareEnsemblePlacementPolicy;
 import org.apache.bookkeeper.client.RegionAwareEnsemblePlacementPolicy;
+import org.apache.bookkeeper.client.ZoneawareEnsemblePlacementPolicy;
 import org.apache.bookkeeper.conf.ClientConfiguration;
 import org.apache.bookkeeper.stats.NullStatsLogger;
 import org.apache.bookkeeper.stats.StatsLogger;
@@ -172,7 +173,8 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
     ) {
         bkConf.setProperty(BookieRackAffinityMapping.METADATA_STORE_INSTANCE, store);
 
-        if (conf.isBookkeeperClientRackawarePolicyEnabled() || conf.isBookkeeperClientRegionawarePolicyEnabled()) {
+        if (conf.isBookkeeperClientRackawarePolicyEnabled() || conf.isBookkeeperClientRegionawarePolicyEnabled()
+                || conf.isBookkeeperClientZoneawarePolicyEnabled()) {
             if (conf.isBookkeeperClientRegionawarePolicyEnabled()) {
                 bkConf.setEnsemblePlacementPolicy(RegionAwareEnsemblePlacementPolicy.class);
 
@@ -192,6 +194,12 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
                         REPP_ENABLE_DURABILITY_ENFORCEMENT_IN_REPLACE,
                         conf.getProperties().getProperty(REPP_ENABLE_DURABILITY_ENFORCEMENT_IN_REPLACE, "true")
                 );
+            } else if (conf.isBookkeeperClientZoneawarePolicyEnabled()) {
+                log.info("ZoneAware policy enabled on the broker");
+                bkConf.setEnsemblePlacementPolicy(ZoneawareEnsemblePlacementPolicy.class);
+                bkConf.setDesiredNumZonesPerWriteQuorum(conf.getBookkeeperClientDesiredNumZonesPerWriteQuorum());
+                bkConf.setMinNumZonesPerWriteQuorum(conf.getBookkeeperClientMinNumZonesPerWriteQuorum());
+                bkConf.setEnforceStrictZoneawarePlacement(conf.isBookkeeperClientEnforceStrictZoneawarePlacement());
             } else {
                 bkConf.setEnsemblePlacementPolicy(RackawareEnsemblePlacementPolicy.class);
             }
@@ -205,9 +213,9 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
                             BookieRackAffinityMapping.class.getName()));
 
             bkConf.setProperty(NET_TOPOLOGY_SCRIPT_FILE_NAME_KEY,
-                conf.getProperties().getProperty(
-                    NET_TOPOLOGY_SCRIPT_FILE_NAME_KEY,
-                    ""));
+                    conf.getProperties().getProperty(
+                            NET_TOPOLOGY_SCRIPT_FILE_NAME_KEY,
+                            ""));
         }
 
         if (conf.getBookkeeperClientIsolationGroups() != null && !conf.getBookkeeperClientIsolationGroups().isEmpty()) {
@@ -220,7 +228,7 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
     }
 
     static void setEnsemblePlacementPolicy(ClientConfiguration bkConf, ServiceConfiguration conf, MetadataStore store,
-                                            Class<? extends EnsemblePlacementPolicy> policyClass) {
+                                           Class<? extends EnsemblePlacementPolicy> policyClass) {
         bkConf.setEnsemblePlacementPolicy(policyClass);
         bkConf.setProperty(BookieRackAffinityMapping.METADATA_STORE_INSTANCE, store);
         if (conf.isBookkeeperClientRackawarePolicyEnabled() || conf.isBookkeeperClientRegionawarePolicyEnabled()) {
@@ -231,9 +239,9 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
             bkConf.setEnforceMinNumRacksPerWriteQuorum(conf.isBookkeeperClientEnforceMinNumRacksPerWriteQuorum());
 
             bkConf.setProperty(NET_TOPOLOGY_SCRIPT_FILE_NAME_KEY,
-                conf.getProperties().getProperty(
-                    NET_TOPOLOGY_SCRIPT_FILE_NAME_KEY,
-                    ""));
+                    conf.getProperties().getProperty(
+                            NET_TOPOLOGY_SCRIPT_FILE_NAME_KEY,
+                            ""));
         }
     }
 
