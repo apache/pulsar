@@ -55,6 +55,7 @@ public class TopicAutoCreationTest extends ProducerConsumerBase {
         conf.setAllowAutoTopicCreationType(TopicType.PARTITIONED);
         conf.setAllowAutoTopicCreation(true);
         conf.setDefaultNumPartitions(3);
+        conf.setSystemTopicEnabled(false);
         super.internalSetup();
         super.producerBaseSetup();
     }
