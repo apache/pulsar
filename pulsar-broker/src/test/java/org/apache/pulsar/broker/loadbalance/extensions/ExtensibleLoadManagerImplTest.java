@@ -670,9 +670,9 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
         // Use a different namespace to avoid flaky test failures
         // from unloading the default namespace and the following topic policy lookups at the init state step
         String namespace = "public/my-namespace";
-        TopicName topicName = TopicName.get(namespace + "/test-filter-has-exception");
-        NamespaceBundle bundle = getBundleAsync(pulsar1, topicName).get();
-        Pair<TopicName, NamespaceBundle> topicAndBundle = getBundleIsNotOwnByChangeEventTopic("test-filter-has-exception");
+        Pair<TopicName, NamespaceBundle> topicAndBundle =
+                getBundleIsNotOwnByChangeEventTopic(namespace, "test-filter-has-exception");
+        TopicName topicName = topicAndBundle.getLeft();
         NamespaceBundle bundle = topicAndBundle.getRight();
 
         String lookupServiceAddress1 = pulsar1.getLookupServiceAddress();
@@ -1414,12 +1414,18 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
 
     private Pair<TopicName, NamespaceBundle> getBundleIsNotOwnByChangeEventTopic(String topicNamePrefix)
             throws Exception {
+        return getBundleIsNotOwnByChangeEventTopic(defaultTestNamespace, topicNamePrefix);
+    }
+
+    private Pair<TopicName, NamespaceBundle> getBundleIsNotOwnByChangeEventTopic(String namespace,
+                                                                                 String topicNamePrefix)
+            throws Exception {
         TopicName changeEventsTopicName =
-                TopicName.get(defaultTestNamespace + "/" + SystemTopicNames.NAMESPACE_EVENTS_LOCAL_NAME);
+                TopicName.get(namespace + "/" + SystemTopicNames.NAMESPACE_EVENTS_LOCAL_NAME);
         NamespaceBundle changeEventsBundle = getBundleAsync(pulsar1, changeEventsTopicName).get();
         int i = 0;
         while(true) {
-            TopicName topicName = TopicName.get(defaultTestNamespace + "/" + topicNamePrefix + "-" + i);
+            TopicName topicName = TopicName.get(namespace + "/" + topicNamePrefix + "-" + i);
             NamespaceBundle bundle = getBundleAsync(pulsar1, topicName).get();
             if (!bundle.equals(changeEventsBundle)) {
                 return Pair.of(topicName, bundle);
