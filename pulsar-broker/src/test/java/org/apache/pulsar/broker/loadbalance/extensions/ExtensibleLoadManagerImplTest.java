@@ -669,9 +669,8 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
     public void testMoreThenOneFilter() throws Exception {
         // Use a different namespace to avoid flaky test failures
         // from unloading the default namespace and the following topic policy lookups at the init state step
-        String namespace = "public/my-namespace";
         Pair<TopicName, NamespaceBundle> topicAndBundle =
-                getBundleIsNotOwnByChangeEventTopic(namespace, "test-filter-has-exception");
+                getBundleIsNotOwnByChangeEventTopic("test-filter-has-exception");
         TopicName topicName = topicAndBundle.getLeft();
         NamespaceBundle bundle = topicAndBundle.getRight();
 
@@ -692,7 +691,6 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
                 return FutureUtil.failedFuture(new BrokerFilterException("Test"));
             }
         })).when(primaryLoadManager).getBrokerFilterPipeline();
-        admin.namespaces().createNamespace(namespace);
         Optional<BrokerLookupData> brokerLookupData = primaryLoadManager.assign(Optional.empty(), bundle).get();
         Awaitility.waitAtMost(5, TimeUnit.SECONDS).untilAsserted(() -> {
             assertTrue(brokerLookupData.isPresent());
@@ -702,8 +700,6 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
             assertEquals(brokerLookupData.get().getPulsarServiceUrl(),
                     pulsar2.getAdminClient().lookups().lookupTopic(topicName.toString()));
         });
-
-        admin.namespaces().deleteNamespace(namespace, true);
     }
 
     @Test
@@ -1414,18 +1410,12 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
 
     private Pair<TopicName, NamespaceBundle> getBundleIsNotOwnByChangeEventTopic(String topicNamePrefix)
             throws Exception {
-        return getBundleIsNotOwnByChangeEventTopic(defaultTestNamespace, topicNamePrefix);
-    }
-
-    private Pair<TopicName, NamespaceBundle> getBundleIsNotOwnByChangeEventTopic(String namespace,
-                                                                                 String topicNamePrefix)
-            throws Exception {
         TopicName changeEventsTopicName =
-                TopicName.get(namespace + "/" + SystemTopicNames.NAMESPACE_EVENTS_LOCAL_NAME);
+                TopicName.get(defaultTestNamespace + "/" + SystemTopicNames.NAMESPACE_EVENTS_LOCAL_NAME);
         NamespaceBundle changeEventsBundle = getBundleAsync(pulsar1, changeEventsTopicName).get();
         int i = 0;
         while(true) {
-            TopicName topicName = TopicName.get(namespace + "/" + topicNamePrefix + "-" + i);
+            TopicName topicName = TopicName.get(defaultTestNamespace + "/" + topicNamePrefix + "-" + i);
             NamespaceBundle bundle = getBundleAsync(pulsar1, topicName).get();
             if (!bundle.equals(changeEventsBundle)) {
                 return Pair.of(topicName, bundle);
