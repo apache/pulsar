@@ -2796,7 +2796,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         final MessageIdAdv messageIdAdv = (MessageIdAdv) messageId;
         final long ledgerId = messageIdAdv.getLedgerId();
         final long entryId = messageIdAdv.getEntryId();
-        final List<ByteBuf> cmdList = new LinkedList<>();
+        final List<ByteBuf> cmdList;
         if (MessageIdAdvUtils.isBatch(messageIdAdv)) {
             BitSetRecyclable bitSetRecyclable = BitSetRecyclable.create();
             bitSetRecyclable.set(0, messageIdAdv.getBatchSize());
@@ -2806,15 +2806,16 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             } else {
                 bitSetRecyclable.clear(messageIdAdv.getBatchIndex());
             }
-            cmdList.add(Commands.newAck(consumerId, ledgerId, entryId, bitSetRecyclable, ackType, validationError, properties,
-                    txnID.getLeastSigBits(), txnID.getMostSigBits(), requestId, messageIdAdv.getBatchSize()));
+            cmdList = Collections.singletonList(Commands.newAck(consumerId, ledgerId, entryId, bitSetRecyclable,
+                    ackType, validationError, properties, txnID.getLeastSigBits(), txnID.getMostSigBits(), requestId,
+                    messageIdAdv.getBatchSize()));
             bitSetRecyclable.recycle();
         } else {
             MessageIdImpl[] chunkMsgIds = this.unAckedChunkedMessageIdSequenceMap.remove(messageIdAdv);
             // cumulative ack chunk by the last messageId
             if (chunkMsgIds == null || ackType == AckType.Cumulative) {
-                cmdList.add(Commands.newAck(consumerId, ledgerId, entryId, null, ackType, validationError,
-                        properties, txnID.getLeastSigBits(), txnID.getMostSigBits(), requestId));
+                cmdList = Collections.singletonList(Commands.newAck(consumerId, ledgerId, entryId, null, ackType,
+                        validationError, properties, txnID.getLeastSigBits(), txnID.getMostSigBits(), requestId));
             } else {
                 if (Commands.peerSupportsMultiMessageAcknowledgment(
                         getClientCnx().getRemoteEndpointProtocolVersion())) {
@@ -2825,8 +2826,10 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                             entriesToAck.add(Triple.of(cMsgId.getLedgerId(), cMsgId.getEntryId(), null));
                         }
                     }
-                    cmdList.add(newMultiTransactionMessageAck(consumerId, txnID, entriesToAck, requestId));
+                    cmdList = Collections.singletonList(
+                            newMultiTransactionMessageAck(consumerId, txnID, entriesToAck, requestId));
                 } else {
+                    cmdList = new ArrayList<>();
                     for (MessageIdImpl cMsgId : chunkMsgIds) {
                         cmdList.add(Commands.newAck(consumerId, cMsgId.ledgerId, cMsgId.entryId, null, ackType,
                                 validationError, properties,
