@@ -77,8 +77,10 @@ import org.apache.pulsar.common.naming.NamespaceBundles;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.ServiceUnitId;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.NamespaceIsolationDataImpl;
+import org.apache.pulsar.common.policies.data.ResourceQuota;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.metadata.api.MetadataCache;
@@ -783,6 +785,49 @@ public class ModularLoadManagerImplTest {
 
         Awaitility.await().untilAsserted(() -> assertTrue(pulsar1.getLeaderElectionService().isLeader()));
         assertEquals(data.size(), 1);
+    }
+
+    @Test
+    public void testBundleDataDefaultValue() throws Exception {
+        final String tenant = "test";
+        final String cluster = "test";
+        String namespace = tenant + "/" + cluster + "/" + "test";
+        admin1.clusters().createCluster(cluster, ClusterData.builder().serviceUrl("http://" + pulsar1.getAdvertisedAddress()).build());
+        admin1.tenants().createTenant(tenant,
+                new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet(cluster)));
+        admin1.namespaces().createNamespace(namespace, 16);
+
+        // set resourceQuota to the first bundle range.
+        BundlesData bundlesData = admin1.namespaces().getBundles(namespace);
+        NamespaceBundle namespaceBundle = nsFactory.getBundle(NamespaceName.get(tenant, cluster, "test"),
+                Range.range(Long.decode(bundlesData.getBoundaries().get(0)), BoundType.CLOSED, Long.decode(bundlesData.getBoundaries().get(1)),
+                        BoundType.OPEN));
+        ResourceQuota quota = new ResourceQuota();
+        quota.setMsgRateIn(1024.1);
+        quota.setMsgRateOut(1024.2);
+        quota.setBandwidthIn(1024.3);
+        quota.setBandwidthOut(1024.4);
+        quota.setMemory(1024.0);
+        admin1.resourceQuotas().setNamespaceBundleResourceQuota(namespace, namespaceBundle.getBundleRange(), quota);
+
+        ModularLoadManagerWrapper loadManagerWrapper = (ModularLoadManagerWrapper) pulsar1.getLoadManager().get();
+        ModularLoadManagerImpl lm = (ModularLoadManagerImpl) loadManagerWrapper.getLoadManager();
+
+        // get the bundleData of the first bundle range.
+        // The default value of the bundleData be the same as resourceQuota because the resourceQuota is present.
+        BundleData defaultBundleData = lm.getBundleDataOrDefault(namespaceBundle.toString());
+
+        TimeAverageMessageData shortTermData = defaultBundleData.getShortTermData();
+        TimeAverageMessageData longTermData = defaultBundleData.getLongTermData();
+        assertEquals(shortTermData.getMsgRateIn(), 1024.1);
+        assertEquals(shortTermData.getMsgRateOut(), 1024.2);
+        assertEquals(shortTermData.getMsgThroughputIn(), 1024.3);
+        assertEquals(shortTermData.getMsgThroughputOut(), 1024.4);
+
+        assertEquals(longTermData.getMsgRateIn(), 1024.1);
+        assertEquals(longTermData.getMsgRateOut(), 1024.2);
+        assertEquals(longTermData.getMsgThroughputIn(), 1024.3);
+        assertEquals(longTermData.getMsgThroughputOut(), 1024.4);
     }
 
 
