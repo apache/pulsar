@@ -1276,14 +1276,13 @@ public class BrokerService implements Closeable {
                         addTopicToStatsMaps(TopicName.get(topic), nonPersistentTopic);
                         topicFuture.complete(Optional.of(nonPersistentTopic));
                     }).exceptionally(ex -> {
-                        log.warn("Replication check failed. Removing topic from topics list {}, {}",
-                                topic, ex.getCause());
-                        nonPersistentTopic.stopReplProducers().whenComplete((v, exception) -> {
-                            pulsar.getExecutor().execute(() -> topics.remove(topic, topicFuture));
-                            topicFuture.completeExceptionally(ex);
-                        });
-                        return null;
-                    });
+                log.warn("Replication check failed. Removing topic from topics list {}, {}", topic, ex.getCause());
+                nonPersistentTopic.stopReplProducers().whenComplete((v, exception) -> {
+                    pulsar.getExecutor().execute(() -> topics.remove(topic, topicFuture));
+                    topicFuture.completeExceptionally(ex);
+                });
+                return null;
+            });
         }).exceptionally(e -> {
             log.warn("CheckTopicNsOwnership fail when createNonPersistentTopic! {}", topic, e.getCause());
             // CheckTopicNsOwnership fail dont create nonPersistentTopic, when topic do lookup will find the correct
@@ -1519,6 +1518,14 @@ public class BrokerService implements Closeable {
         });
     }
 
+    /**
+     * It creates a topic async and returns CompletableFuture. It also throttles down configured max-concurrent topic
+     * loading and puts them into queue once in-process topics are created.
+     *
+     * @param topic persistent-topic name
+     * @return CompletableFuture<Topic>
+     * @throws RuntimeException
+     */
     protected CompletableFuture<Optional<Topic>> loadOrCreatePersistentTopic(final String topic,
             boolean createIfMissing, Map<String, String> properties, @Nullable TopicPolicies topicPolicies) {
         final CompletableFuture<Optional<Topic>> topicFuture = FutureUtil.createFutureWithTimeout(
