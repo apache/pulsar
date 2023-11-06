@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker.service.persistent;
 
-import static org.apache.bookkeeper.mledger.util.SafeRun.safeRun;
 import static org.apache.pulsar.broker.service.persistent.PersistentTopic.MESSAGE_RATE_BACKOFF_MS;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Range;
@@ -47,7 +46,9 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException.TooManyRequestsExcep
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.pulsar.broker.delayed.BucketDelayedDeliveryTrackerFactory;
 import org.apache.pulsar.broker.delayed.DelayedDeliveryTracker;
+import org.apache.pulsar.broker.delayed.DelayedDeliveryTrackerFactory;
 import org.apache.pulsar.broker.delayed.InMemoryDelayedDeliveryTracker;
 import org.apache.pulsar.broker.delayed.bucket.BucketDelayedDeliveryTracker;
 import org.apache.pulsar.broker.service.AbstractDispatcherMultipleConsumers;
@@ -70,8 +71,10 @@ import org.apache.pulsar.broker.transaction.exception.buffer.TransactionBufferEx
 import org.apache.pulsar.client.impl.Backoff;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
+import org.apache.pulsar.common.policies.data.stats.TopicMetricBean;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.Codec;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -150,11 +153,11 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
     }
 
     @Override
-    public synchronized void addConsumer(Consumer consumer) throws BrokerServiceException {
+    public synchronized CompletableFuture<Void> addConsumer(Consumer consumer) {
         if (IS_CLOSED_UPDATER.get(this) == TRUE) {
             log.warn("[{}] Dispatcher is already closed. Closing consumer {}", name, consumer);
             consumer.disconnect();
-            return;
+            return CompletableFuture.completedFuture(null);
         }
         if (consumerList.isEmpty()) {
             if (havePendingRead || havePendingReplayRead) {
@@ -165,12 +168,17 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                 shouldRewindBeforeReadingOrReplaying = false;
             }
             redeliveryMessages.clear();
-            delayedDeliveryTracker.ifPresent(DelayedDeliveryTracker::clear);
+            delayedDeliveryTracker.ifPresent(tracker -> {
+                // Don't clean up BucketDelayedDeliveryTracker, otherwise we will lose the bucket snapshot
+                if (tracker instanceof InMemoryDelayedDeliveryTracker) {
+                    tracker.clear();
+                }
+            });
         }
 
         if (isConsumersExceededOnSubscription()) {
             log.warn("[{}] Attempting to add consumer to subscription which reached max consumers limit", name);
-            throw new ConsumerBusyException("Subscription reached max consumers limit");
+            return FutureUtil.failedFuture(new ConsumerBusyException("Subscription reached max consumers limit"));
         }
 
         consumerList.add(consumer);
@@ -179,6 +187,8 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
             consumerList.sort(Comparator.comparingInt(Consumer::getPriorityLevel));
         }
         consumerSet.add(consumer);
+
+        return CompletableFuture.completedFuture(null);
     }
 
     @Override
@@ -225,9 +235,9 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
 
     @Override
     public void consumerFlow(Consumer consumer, int additionalNumberOfMessages) {
-        topic.getBrokerService().executor().execute(safeRun(() -> {
+        topic.getBrokerService().executor().execute(() -> {
             internalConsumerFlow(consumer, additionalNumberOfMessages);
-        }));
+        });
     }
 
     private synchronized void internalConsumerFlow(Consumer consumer, int additionalNumberOfMessages) {
@@ -253,7 +263,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
      *
      */
     public void readMoreEntriesAsync() {
-        topic.getBrokerService().executor().execute(safeRun(this::readMoreEntries));
+        topic.getBrokerService().executor().execute(this::readMoreEntries);
     }
 
     public synchronized void readMoreEntries() {
@@ -325,7 +335,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                     Predicate<PositionImpl> skipCondition = null;
                     final DelayedDeliveryTracker deliveryTracker = delayedDeliveryTracker.get();
                     if (deliveryTracker instanceof BucketDelayedDeliveryTracker) {
-                        skipCondition = position -> deliveryTracker
+                        skipCondition = position -> ((BucketDelayedDeliveryTracker) deliveryTracker)
                                 .containsMessage(position.getLedgerId(), position.getEntryId());
                     }
                     cursor.asyncReadEntriesWithSkipOrWait(messagesToRead, bytesToRead, this, ReadType.Normal,
@@ -573,14 +583,14 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
             // setting sendInProgress here, because sendMessagesToConsumers will be executed
             // in a separate thread, and we want to prevent more reads
             acquireSendInProgress();
-            dispatchMessagesThread.execute(safeRun(() -> {
+            dispatchMessagesThread.execute(() -> {
                 if (sendMessagesToConsumers(readType, entries, false)) {
                     updatePendingBytesToDispatch(-size);
                     readMoreEntries();
                 } else {
                     updatePendingBytesToDispatch(-size);
                 }
-            }));
+            });
         } else {
             if (sendMessagesToConsumers(readType, entries, true)) {
                 updatePendingBytesToDispatch(-size);
@@ -1060,14 +1070,15 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
     }
 
     protected synchronized NavigableSet<PositionImpl> getMessagesToReplayNow(int maxMessagesToRead) {
-        if (!redeliveryMessages.isEmpty()) {
-            return redeliveryMessages.getMessagesToReplayNow(maxMessagesToRead);
-        } else if (delayedDeliveryTracker.isPresent() && delayedDeliveryTracker.get().hasMessageAvailable()) {
+        if (delayedDeliveryTracker.isPresent() && delayedDeliveryTracker.get().hasMessageAvailable()) {
             delayedDeliveryTracker.get().resetTickTime(topic.getDelayedDeliveryTickTimeMillis());
             NavigableSet<PositionImpl> messagesAvailableNow =
                     delayedDeliveryTracker.get().getScheduledMessages(maxMessagesToRead);
             messagesAvailableNow.forEach(p -> redeliveryMessages.add(p.getLedgerId(), p.getEntryId()));
-            return messagesAvailableNow;
+        }
+
+        if (!redeliveryMessages.isEmpty()) {
+            return redeliveryMessages.getMessagesToReplayNow(maxMessagesToRead);
         } else {
             return Collections.emptyNavigableSet();
         }
@@ -1078,13 +1089,27 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
     }
 
     @Override
-    public synchronized long getNumberOfDelayedMessages() {
+    public long getNumberOfDelayedMessages() {
         return delayedDeliveryTracker.map(DelayedDeliveryTracker::getNumberOfDelayedMessages).orElse(0L);
     }
 
     @Override
-    public void clearDelayedMessages() {
-        this.delayedDeliveryTracker.ifPresent(DelayedDeliveryTracker::clear);
+    public CompletableFuture<Void> clearDelayedMessages() {
+        if (!topic.isDelayedDeliveryEnabled()) {
+            return CompletableFuture.completedFuture(null);
+        }
+
+        if (delayedDeliveryTracker.isPresent()) {
+            return this.delayedDeliveryTracker.get().clear();
+        } else {
+            DelayedDeliveryTrackerFactory delayedDeliveryTrackerFactory =
+                    topic.getBrokerService().getDelayedDeliveryTrackerFactory();
+            if (delayedDeliveryTrackerFactory instanceof BucketDelayedDeliveryTrackerFactory
+                    bucketDelayedDeliveryTrackerFactory) {
+                return bucketDelayedDeliveryTrackerFactory.cleanResidualSnapshots(cursor);
+            }
+            return CompletableFuture.completedFuture(null);
+        }
     }
 
     @Override
@@ -1144,15 +1169,19 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
 
 
     public long getDelayedTrackerMemoryUsage() {
+        return delayedDeliveryTracker.map(DelayedDeliveryTracker::getBufferMemoryUsage).orElse(0L);
+    }
+
+    public Map<String, TopicMetricBean> getBucketDelayedIndexStats() {
         if (delayedDeliveryTracker.isEmpty()) {
-            return 0;
+            return Collections.emptyMap();
         }
 
-        if (delayedDeliveryTracker.get() instanceof InMemoryDelayedDeliveryTracker) {
-            return ((InMemoryDelayedDeliveryTracker) delayedDeliveryTracker.get()).getBufferMemoryUsage();
+        if (delayedDeliveryTracker.get() instanceof BucketDelayedDeliveryTracker) {
+            return ((BucketDelayedDeliveryTracker) delayedDeliveryTracker.get()).genTopicMetricMap();
         }
 
-        return 0;
+        return Collections.emptyMap();
     }
 
     public ManagedCursor getCursor() {

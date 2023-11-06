@@ -160,6 +160,11 @@
     <Bug pattern="EI_EXPOSE_REP2"/>
   </Match>
   <Match>
+    <Class name="org.apache.pulsar.websocket.WebSocketMultiTopicConsumerServlet"/>
+    <Method name="&lt;init&gt;"/>
+    <Bug pattern="EI_EXPOSE_REP2"/>
+  </Match>
+  <Match>
     <Class name="org.apache.pulsar.websocket.WebSocketPingPongServlet"/>
     <Method name="&lt;init&gt;"/>
     <Bug pattern="EI_EXPOSE_REP2"/>
@@ -198,5 +203,10 @@
     <Class name="org.apache.pulsar.websocket.WebSocketService"/>
     <Method name="&lt;init&gt;"/>
     <Bug pattern="EI_EXPOSE_REP2"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.websocket.WebSocketService"/>
+    <Method name="getAuthorizationService"/>
+    <Bug pattern="EI_EXPOSE_REP"/>
   </Match>
 </FindBugsFilter>

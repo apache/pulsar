@@ -21,6 +21,7 @@ package org.apache.pulsar.client.api;
 import java.io.Serializable;
 import java.net.InetSocketAddress;
 import java.time.Clock;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
@@ -227,23 +228,25 @@ public interface ClientBuilder extends Serializable, Cloneable {
     /**
      * Set lookup timeout <i>(default: matches operation timeout)</i>
      *
-     * Lookup operations have a different load pattern to other operations. They can be handled by any broker, are not
-     * proportional to throughput, and are harmless to retry. Given this, it makes sense to allow them to retry longer
-     * than normal operation, especially if they experience a timeout.
+     * <p>
+     * Lookup operations have a different load pattern to other operations.
+     * They can be handled by any broker, are not proportional to throughput,
+     * and are harmless to retry. Given this, it makes sense to allow them to
+     * retry longer than normal operation, especially if they experience a timeout.
      *
-     * By default this is set to match operation timeout. This is to maintain legacy behaviour. However, in practice
-     * it should be set to 5-10x the operation timeout.
+     * <p>
+     * By default, this is set to match operation timeout. This is to maintain legacy behaviour.
+     * However, in practice it should be set to 5-10x the operation timeout.
      *
-     * @param lookupTimeout
-     *            lookup timeout
-     * @param unit
-     *            time unit for {@code lookupTimeout}
+     * @param lookupTimeout lookup timeout
+     * @param unit time unit for {@code lookupTimeout}
      * @return the client builder instance
      */
     ClientBuilder lookupTimeout(int lookupTimeout, TimeUnit unit);
 
     /**
-     * Set the number of threads to be used for handling connections to brokers <i>(default: 1 thread)</i>.
+     * Set the number of threads to be used for handling connections to brokers
+     * <i>(default: Runtime.getRuntime().availableProcessors())</i>.
      *
      * @param numIoThreads the number of IO threads
      * @return the client builder instance
@@ -251,11 +254,12 @@ public interface ClientBuilder extends Serializable, Cloneable {
     ClientBuilder ioThreads(int numIoThreads);
 
     /**
-     * Set the number of threads to be used for message listeners <i>(default: 1 thread)</i>.
+     * Set the number of threads to be used for message listeners
+     * <i>(default: Runtime.getRuntime().availableProcessors())</i>.
      *
      * <p>The listener thread pool is shared across all the consumers and readers that are
-     * using a "listener" model to get messages. For a given consumer, the listener will be
-     * always invoked from the same thread, to ensure ordering.
+     * using a "listener" model to get messages. For a given consumer, the listener will
+     * always be invoked from the same thread, to ensure ordering.
      *
      * @param numListenerThreads the number of listener threads
      * @return the client builder instance
@@ -591,6 +595,13 @@ public interface ClientBuilder extends Serializable, Cloneable {
      * @return
      */
     ClientBuilder dnsLookupBind(String address, int port);
+
+    /**
+     * Set dns lookup server addresses.
+     * @param addresses dnsServerAddresses
+     * @return
+     */
+    ClientBuilder dnsServerAddresses(List<InetSocketAddress> addresses);
 
     /**
      *  Set socks5 proxy address.

@@ -18,7 +18,6 @@
  */
 package org.apache.bookkeeper.mledger.impl;
 
-import static org.apache.bookkeeper.mledger.util.SafeRun.safeRun;
 import io.netty.util.Recycler;
 import io.netty.util.Recycler.Handle;
 import java.util.ArrayList;
@@ -108,18 +107,20 @@ class OpReadEntry implements ReadEntriesCallback {
 
         if (!entries.isEmpty()) {
             // There were already some entries that were read before, we can return them
-            cursor.ledger.getExecutor().execute(safeRun(() -> {
+            cursor.ledger.getExecutor().execute(() -> {
                 callback.readEntriesComplete(entries, ctx);
                 recycle();
-            }));
+            });
         } else if (cursor.config.isAutoSkipNonRecoverableData() && exception instanceof NonRecoverableLedgerException) {
             log.warn("[{}][{}] read failed from ledger at position:{} : {}", cursor.ledger.getName(), cursor.getName(),
                     readPosition, exception.getMessage());
             final ManagedLedgerImpl ledger = (ManagedLedgerImpl) cursor.getManagedLedger();
             Position nexReadPosition;
+            Long lostLedger = null;
             if (exception instanceof ManagedLedgerException.LedgerNotExistException) {
                 // try to find and move to next valid ledger
                 nexReadPosition = cursor.getNextLedgerPosition(readPosition.getLedgerId());
+                lostLedger = readPosition.ledgerId;
             } else {
                 // Skip this read operation
                 nexReadPosition = ledger.getValidPositionAfterSkippedEntries(readPosition, count);
@@ -132,6 +133,9 @@ class OpReadEntry implements ReadEntriesCallback {
                 return;
             }
             updateReadPosition(nexReadPosition);
+            if (lostLedger != null) {
+                cursor.getManagedLedger().skipNonRecoverableLedger(lostLedger);
+            }
             checkReadCompletion();
         } else {
             if (!(exception instanceof TooManyRequestsException)) {
@@ -161,20 +165,20 @@ class OpReadEntry implements ReadEntriesCallback {
                 && maxPosition.compareTo(readPosition) > 0) {
 
             // We still have more entries to read from the next ledger, schedule a new async operation
-            cursor.ledger.getExecutor().execute(safeRun(() -> {
+            cursor.ledger.getExecutor().execute(() -> {
                 readPosition = cursor.ledger.startReadOperationOnLedger(nextReadPosition);
                 cursor.ledger.asyncReadEntries(OpReadEntry.this);
-            }));
+            });
         } else {
             // The reading was already completed, release resources and trigger callback
             try {
                 cursor.readOperationCompleted();
 
             } finally {
-                cursor.ledger.getExecutor().execute(safeRun(() -> {
+                cursor.ledger.getExecutor().execute(() -> {
                     callback.readEntriesComplete(entries, ctx);
                     recycle();
-                }));
+                });
             }
         }
     }

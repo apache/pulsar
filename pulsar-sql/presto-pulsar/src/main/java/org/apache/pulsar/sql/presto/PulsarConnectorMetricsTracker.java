@@ -185,7 +185,7 @@ public class PulsarConnectorMetricsTracker implements AutoCloseable{
     public void register_BYTES_READ(long bytes) {
         if (statsLogger != null) {
             bytesReadSum += bytes;
-            statsLoggerBytesRead.add(bytes);
+            statsLoggerBytesRead.addCount(bytes);
         }
     }
 
@@ -220,7 +220,7 @@ public class PulsarConnectorMetricsTracker implements AutoCloseable{
     public void incr_NUM_MESSAGES_DESERIALIZED_PER_ENTRY() {
         if (statsLogger != null) {
             numMessagedDerserializedPerBatch++;
-            statsLoggerNumMessagesDeserialized.add(1);
+            statsLoggerNumMessagesDeserialized.addCount(1);
         }
     }
 
@@ -295,7 +295,7 @@ public class PulsarConnectorMetricsTracker implements AutoCloseable{
 
     public void incr_NUM_RECORD_DESERIALIZED() {
         if (statsLogger != null) {
-            statsLoggerNumRecordDeserialized.add(1);
+            statsLoggerNumRecordDeserialized.addCount(1);
         }
     }
 

@@ -161,6 +161,30 @@ public class AuthenticationProviderListTest {
         testAuthenticate(tokenBB, SUBJECT_B);
     }
 
+    private void testAuthenticateAsync(String token, String expectedSubject) throws Exception {
+        String actualSubject = authProvider.authenticateAsync(new AuthenticationDataSource() {
+            @Override
+            public boolean hasDataFromCommand() {
+                return true;
+            }
+
+            @Override
+            public String getCommandData() {
+                return token;
+            }
+        }).get();
+        assertEquals(actualSubject, expectedSubject);
+    }
+
+    @Test
+    public void testAuthenticateAsync() throws Exception {
+        testAuthenticateAsync(tokenAA, SUBJECT_A);
+        testAuthenticateAsync(tokenAB, SUBJECT_B);
+        testAuthenticateAsync(tokenBA, SUBJECT_A);
+        testAuthenticateAsync(tokenBB, SUBJECT_B);
+    }
+
+
     private AuthenticationState newAuthState(String token, String expectedSubject) throws Exception {
         // Must pass the token to the newAuthState for legacy reasons.
         AuthenticationState authState = authProvider.newAuthState(

@@ -33,6 +33,7 @@ import java.util.stream.Collectors;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerStats;
 import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.ProducerStats;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.slf4j.Logger;
@@ -62,6 +63,10 @@ public class ConsumerStatsRecorderImpl implements ConsumerStatsRecorder {
 
     private volatile double receivedMsgsRate;
     private volatile double receivedBytesRate;
+
+    volatile ProducerStats deadLetterProducerStats;
+
+    volatile ProducerStats retryLetterProducerStats;
 
     private static final DecimalFormat THROUGHPUT_FORMAT = new DecimalFormat("0.00");
 
@@ -238,7 +243,11 @@ public class ConsumerStatsRecorderImpl implements ConsumerStatsRecorder {
     @Override
     public Integer getMsgNumInReceiverQueue() {
         if (consumer instanceof ConsumerBase) {
-            return ((ConsumerBase<?>) consumer).incomingMessages.size();
+            ConsumerBase<?> consumerBase = (ConsumerBase<?>) consumer;
+            if (consumerBase.listener != null){
+                return ConsumerBase.MESSAGE_LISTENER_QUEUE_SIZE_UPDATER.get(consumerBase);
+            }
+            return consumerBase.incomingMessages.size();
         }
         return null;
     }
@@ -253,6 +262,26 @@ public class ConsumerStatsRecorderImpl implements ConsumerStatsRecorder {
             );
         }
         return null;
+    }
+
+    @Override
+    public ProducerStats getDeadLetterProducerStats() {
+        return deadLetterProducerStats;
+    }
+
+    @Override
+    public ProducerStats getRetryLetterProducerStats() {
+        return retryLetterProducerStats;
+    }
+
+    @Override
+    public void setDeadLetterProducerStats(ProducerStats producerStats) {
+        this.deadLetterProducerStats = producerStats;
+    }
+
+    @Override
+    public void setRetryLetterProducerStats(ProducerStats producerStats) {
+        this.retryLetterProducerStats = producerStats;
     }
 
     @Override

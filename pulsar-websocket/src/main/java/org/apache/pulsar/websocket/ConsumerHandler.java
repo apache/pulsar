@@ -19,6 +19,7 @@
 package org.apache.pulsar.websocket;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static java.util.concurrent.TimeUnit.SECONDS;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.base.Enums;
 import com.google.common.base.Splitter;
@@ -28,11 +29,13 @@ import java.io.IOException;
 import java.util.Base64;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.LongAdder;
 import javax.servlet.http.HttpServletRequest;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
+import org.apache.pulsar.broker.authentication.AuthenticationDataSubscription;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerBuilder;
 import org.apache.pulsar.client.api.ConsumerCryptoFailureAction;
@@ -43,8 +46,8 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.PulsarClientException.AlreadyClosedException;
 import org.apache.pulsar.client.api.SubscriptionMode;
 import org.apache.pulsar.client.api.SubscriptionType;
-import org.apache.pulsar.client.api.TopicMessageId;
 import org.apache.pulsar.client.impl.ConsumerBuilderImpl;
+import org.apache.pulsar.common.policies.data.TopicOperation;
 import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.DateFormatter;
 import org.apache.pulsar.websocket.data.ConsumerCommand;
@@ -69,7 +72,7 @@ import org.slf4j.LoggerFactory;
  */
 public class ConsumerHandler extends AbstractWebSocketHandler {
 
-    private String subscription = null;
+    protected String subscription = null;
     private SubscriptionType subscriptionType;
     private SubscriptionMode subscriptionMode;
     private Consumer<byte[]> consumer;
@@ -82,6 +85,10 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
     private final LongAdder numBytesDelivered;
     private final LongAdder numMsgsAcked;
     private volatile long msgDeliveredCounter = 0;
+
+    protected String topicsPattern;
+
+    protected String topics;
     private static final AtomicLongFieldUpdater<ConsumerHandler> MSG_DELIVERED_COUNTER_UPDATER =
             AtomicLongFieldUpdater.newUpdater(ConsumerHandler.class, "msgDeliveredCounter");
 
@@ -117,7 +124,14 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
                 return;
             }
 
-            this.consumer = builder.topic(topic.toString()).subscriptionName(subscription).subscribe();
+            if (topicsPattern != null) {
+                this.consumer = builder.topicsPattern(topicsPattern).subscriptionName(subscription).subscribe();
+            } else if (topics != null) {
+                this.consumer = builder.topics(Splitter.on(",").splitToList(topics))
+                        .subscriptionName(subscription).subscribe();
+            } else {
+                this.consumer = builder.topic(topic.toString()).subscriptionName(subscription).subscribe();
+            }
             if (!this.service.addConsumer(this)) {
                 log.warn("[{}:{}] Failed to add consumer handler for topic {}", request.getRemoteAddr(),
                         request.getRemotePort(), topic);
@@ -293,8 +307,7 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
 
     private void handleAck(ConsumerCommand command) throws IOException {
         // We should have received an ack
-        TopicMessageId msgId = TopicMessageId.create(topic.toString(),
-                MessageId.fromByteArray(Base64.getDecoder().decode(command.messageId)));
+        MessageId msgId = MessageId.fromByteArray(Base64.getDecoder().decode(command.messageId));
         if (log.isDebugEnabled()) {
             log.debug("[{}/{}] Received ack request of message {} from {} ", consumer.getTopic(),
                     subscription, msgId, getRemote().getInetSocketAddress().toString());
@@ -459,17 +472,32 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
 
         if (service.getCryptoKeyReader().isPresent()) {
             builder.cryptoKeyReader(service.getCryptoKeyReader().get());
+        } else {
+            // If users want to decrypt messages themselves, they should set "cryptoFailureAction" to "CONSUME".
         }
         return builder;
     }
 
     @Override
     protected Boolean isAuthorized(String authRole, AuthenticationDataSource authenticationData) throws Exception {
-        return service.getAuthorizationService().canConsume(topic, authRole, authenticationData,
-                this.subscription);
+        try {
+            AuthenticationDataSubscription subscription = new AuthenticationDataSubscription(authenticationData,
+                    this.subscription);
+            return service.getAuthorizationService()
+                    .allowTopicOperationAsync(topic, TopicOperation.CONSUME, authRole, subscription)
+                    .get(service.getConfig().getMetadataStoreOperationTimeoutSeconds(), SECONDS);
+        } catch (TimeoutException e) {
+            log.warn("Time-out {} sec while checking authorization on {} ",
+                    service.getConfig().getMetadataStoreOperationTimeoutSeconds(), topic);
+            throw e;
+        } catch (Exception e) {
+            log.warn("Consumer-client  with Role - {} failed to get permissions for topic - {}. {}", authRole, topic,
+                    e.getMessage());
+            throw e;
+        }
     }
 
-    public static String extractSubscription(HttpServletRequest request) {
+    public String extractSubscription(HttpServletRequest request) {
         String uri = request.getRequestURI();
         List<String> parts = Splitter.on("/").splitToList(uri);
 

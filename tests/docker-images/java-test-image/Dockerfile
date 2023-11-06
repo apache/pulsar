@@ -17,7 +17,7 @@
 # under the License.
 #
 
-FROM ubuntu:20.04
+FROM ubuntu:22.04
 
 RUN groupadd -g 10001 pulsar
 RUN adduser -u 10000 --gid 10001 --disabled-login --disabled-password --gecos '' pulsar
@@ -35,6 +35,7 @@ WORKDIR /pulsar
 ARG DEBIAN_FRONTEND=noninteractive
 ARG UBUNTU_MIRROR=mirror://mirrors.ubuntu.com/mirrors.txt
 ARG UBUNTU_SECURITY_MIRROR=http://security.ubuntu.com/ubuntu/
+ARG JDK_MAJOR_VERSION=17
 
 RUN sed -i -e "s|http://archive\.ubuntu\.com/ubuntu/|${UBUNTU_MIRROR:-mirror://mirrors.ubuntu.com/mirrors.txt}|g" \
      -e "s|http://security\.ubuntu\.com/ubuntu/|${UBUNTU_SECURITY_MIRROR:-http://security.ubuntu.com/ubuntu/}|g" /etc/apt/sources.list \
@@ -48,9 +49,9 @@ RUN mkdir -p /etc/apt/keyrings \
      && echo "deb [signed-by=/etc/apt/keyrings/adoptium.asc] https://packages.adoptium.net/artifactory/deb $(awk -F= '/^VERSION_CODENAME/{print$2}' /etc/os-release) main" | tee /etc/apt/sources.list.d/adoptium.list \
      && apt-get update \
      && apt-get -y dist-upgrade \
-     && apt-get -y install temurin-17-jdk \
+     && apt-get -y install temurin-${JDK_MAJOR_VERSION:-17}-jdk \
      && export ARCH=$(uname -m | sed -r 's/aarch64/arm64/g' |  awk '!/arm64/{$0="amd64"}1') \
-     && echo networkaddress.cache.ttl=1 >> /usr/lib/jvm/temurin-17-jdk-$ARCH/conf/security/java.security
+     && echo networkaddress.cache.ttl=1 >> /usr/lib/jvm/temurin-${JDK_MAJOR_VERSION:-17}-jdk-$ARCH/conf/security/java.security
 
 # /pulsar/bin/watch-znode.py requires python3-kazoo
 # /pulsar/bin/pulsar-managed-ledger-admin requires python3-protobuf

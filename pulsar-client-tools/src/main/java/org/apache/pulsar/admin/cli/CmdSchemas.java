@@ -23,8 +23,10 @@ import com.beust.jcommander.ParameterException;
 import com.beust.jcommander.Parameters;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.net.URL;
 import java.net.URLClassLoader;
+import java.nio.file.Path;
 import java.util.function.Supplier;
 import org.apache.pulsar.admin.cli.utils.SchemaExtractor;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -42,6 +44,7 @@ public class CmdSchemas extends CmdBase {
         jcommander.addCommand("delete", new DeleteSchema());
         jcommander.addCommand("upload", new UploadSchema());
         jcommander.addCommand("extract", new ExtractSchema());
+        jcommander.addCommand("compatibility", new TestCompatibility());
     }
 
     @Parameters(commandDescription = "Get the schema for a topic")
@@ -103,7 +106,19 @@ public class CmdSchemas extends CmdBase {
         @Override
         void run() throws Exception {
             String topic = validateTopicName(params);
-            PostSchemaPayload input = MAPPER.readValue(new File(schemaFileName), PostSchemaPayload.class);
+            Path schemaPath = Path.of(schemaFileName);
+            File schemaFile = schemaPath.toFile();
+            if (!schemaFile.exists()) {
+                final StringBuilder sb = new StringBuilder();
+                sb.append("Schema file ").append(schemaPath).append(" is not found.");
+                if (!schemaPath.isAbsolute()) {
+                    sb.append(" Relative path ").append(schemaPath)
+                            .append(" is resolved to ").append(schemaPath.toAbsolutePath())
+                            .append(". Try to use absolute path if the relative one resolved wrongly.");
+                }
+                throw new FileNotFoundException(sb.toString());
+            }
+            PostSchemaPayload input = MAPPER.readValue(schemaFile, PostSchemaPayload.class);
             getAdmin().schemas().createSchema(topic, input);
         }
     }
@@ -161,6 +176,22 @@ public class CmdSchemas extends CmdBase {
             } else {
                 getAdmin().schemas().createSchema(topic, input);
             }
+        }
+    }
+
+    @Parameters(commandDescription = "Test schema compatibility")
+    private class TestCompatibility extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = { "-f", "--filename" }, description = "filename", required = true)
+        private String schemaFileName;
+
+        @Override
+        void run() throws Exception {
+            String topic = validateTopicName(params);
+            PostSchemaPayload input = MAPPER.readValue(new File(schemaFileName), PostSchemaPayload.class);
+            getAdmin().schemas().testCompatibility(topic, input);
         }
     }
 

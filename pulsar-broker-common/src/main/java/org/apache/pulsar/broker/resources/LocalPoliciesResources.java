@@ -85,7 +85,7 @@ public class LocalPoliciesResources extends BaseResources<LocalPolicies> {
     public CompletableFuture<Void> deleteLocalPoliciesTenantAsync(String tenant) {
         final String localPoliciesPath = joinPath(LOCAL_POLICIES_ROOT, tenant);
         CompletableFuture<Void> future = new CompletableFuture<Void>();
-        deleteAsync(localPoliciesPath).whenComplete((ignore, ex) -> {
+        deleteIfExistsAsync(localPoliciesPath).whenComplete((ignore, ex) -> {
             if (ex != null && ex.getCause().getCause() instanceof KeeperException) {
                 future.complete(null);
             } else if (ex != null) {

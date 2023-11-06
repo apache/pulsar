@@ -70,8 +70,12 @@ public class ManagedLedgerClientFactory implements ManagedLedgerStorage {
         managedLedgerFactoryConfig.setTraceTaskExecution(conf.isManagedLedgerTraceTaskExecution());
         managedLedgerFactoryConfig.setCursorPositionFlushSeconds(conf.getManagedLedgerCursorPositionFlushSeconds());
         managedLedgerFactoryConfig.setManagedLedgerInfoCompressionType(conf.getManagedLedgerInfoCompressionType());
+        managedLedgerFactoryConfig.setManagedLedgerInfoCompressionThresholdInBytes(
+                conf.getManagedLedgerInfoCompressionThresholdInBytes());
         managedLedgerFactoryConfig.setStatsPeriodSeconds(conf.getManagedLedgerStatsPeriodSeconds());
         managedLedgerFactoryConfig.setManagedCursorInfoCompressionType(conf.getManagedCursorInfoCompressionType());
+        managedLedgerFactoryConfig.setManagedCursorInfoCompressionThresholdInBytes(
+                conf.getManagedCursorInfoCompressionThresholdInBytes());
 
         Configuration configuration = new ClientConfiguration();
         if (conf.isBookkeeperClientExposeStatsToPrometheus()) {
@@ -108,8 +112,14 @@ public class ManagedLedgerClientFactory implements ManagedLedgerStorage {
             return bkClient != null ? bkClient : defaultBkClient;
         };
 
-        this.managedLedgerFactory =
-                new ManagedLedgerFactoryImpl(metadataStore, bkFactory, managedLedgerFactoryConfig, statsLogger);
+        try {
+            this.managedLedgerFactory =
+                    new ManagedLedgerFactoryImpl(metadataStore, bkFactory, managedLedgerFactoryConfig, statsLogger);
+        } catch (Exception e) {
+            statsProvider.stop();
+            defaultBkClient.close();
+            throw e;
+        }
     }
 
     public ManagedLedgerFactory getManagedLedgerFactory() {
@@ -154,17 +164,15 @@ public class ManagedLedgerClientFactory implements ManagedLedgerStorage {
                 // factory, however that might be introducing more unknowns.
                 log.warn("Encountered exceptions on closing bookkeeper client", ree);
             }
-            if (bkEnsemblePolicyToBkClientMap != null) {
-                bkEnsemblePolicyToBkClientMap.forEach((policy, bk) -> {
-                    try {
-                        if (bk != null) {
-                            bk.close();
-                        }
-                    } catch (Exception e) {
-                        log.warn("Failed to close bookkeeper-client for policy {}", policy, e);
+            bkEnsemblePolicyToBkClientMap.forEach((policy, bk) -> {
+                try {
+                    if (bk != null) {
+                        bk.close();
                     }
-                });
-            }
+                } catch (Exception e) {
+                    log.warn("Failed to close bookkeeper-client for policy {}", policy, e);
+                }
+            });
             log.info("Closed BookKeeper client");
         } catch (Exception e) {
             log.warn(e.getMessage(), e);

@@ -18,13 +18,13 @@
  */
 package org.apache.pulsar.broker.loadbalance.extensions;
 
+import static org.apache.pulsar.broker.loadbalance.LoadManager.LOADBALANCE_BROKERS_ROOT;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
 import java.time.Duration;
 import java.util.HashSet;
 import java.util.List;
@@ -53,7 +53,7 @@ import org.apache.pulsar.metadata.api.NotificationType;
 import org.apache.pulsar.policies.data.loadbalancer.LoadManagerReport;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.awaitility.Awaitility;
-import org.testcontainers.shaded.org.awaitility.reflect.WhiteboxImpl;
+import org.awaitility.reflect.WhiteboxImpl;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeClass;
@@ -379,19 +379,19 @@ public class BrokerRegistryTest {
     public void testIsVerifiedNotification() {
         assertFalse(BrokerRegistryImpl.isVerifiedNotification(new Notification(NotificationType.Created, "/")));
         assertFalse(BrokerRegistryImpl.isVerifiedNotification(new Notification(NotificationType.Created,
-                BrokerRegistryImpl.LOOKUP_DATA_PATH + "xyz")));
+                LOADBALANCE_BROKERS_ROOT + "xyz")));
         assertFalse(BrokerRegistryImpl.isVerifiedNotification(new Notification(NotificationType.Created,
-                BrokerRegistryImpl.LOOKUP_DATA_PATH)));
+                LOADBALANCE_BROKERS_ROOT)));
         assertTrue(BrokerRegistryImpl.isVerifiedNotification(
-                new Notification(NotificationType.Created, BrokerRegistryImpl.LOOKUP_DATA_PATH + "/brokerId")));
+                new Notification(NotificationType.Created, LOADBALANCE_BROKERS_ROOT + "/brokerId")));
         assertTrue(BrokerRegistryImpl.isVerifiedNotification(
-                new Notification(NotificationType.Created, BrokerRegistryImpl.LOOKUP_DATA_PATH + "/brokerId/xyz")));
+                new Notification(NotificationType.Created, LOADBALANCE_BROKERS_ROOT + "/brokerId/xyz")));
     }
 
     @Test
     public void testKeyPath() {
         String keyPath = BrokerRegistryImpl.keyPath("brokerId");
-        assertEquals(keyPath, BrokerRegistryImpl.LOOKUP_DATA_PATH + "/brokerId");
+        assertEquals(keyPath, LOADBALANCE_BROKERS_ROOT + "/brokerId");
     }
 
     public BrokerRegistryImpl.State getState(BrokerRegistryImpl brokerRegistry) {

@@ -57,9 +57,9 @@ public class TopicList {
                 .collect(Collectors.toList());
     }
 
-    public static List<String> filterTransactionInternalName(List<String> original) {
+    public static List<String> filterSystemTopic(List<String> original) {
         return original.stream()
-                .filter(topic -> !SystemTopicNames.isTransactionInternalName(TopicName.get(topic)))
+                .filter(topic -> !SystemTopicNames.isSystemTopic(TopicName.get(topic)))
                 .collect(Collectors.toList());
     }
 

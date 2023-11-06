@@ -46,22 +46,44 @@ public abstract class PulsarFunctionsPythonTest extends PulsarFunctionsTest {
 
     @Test(groups = {"python_function", "function"})
     public void testPythonExclamationFunction() throws Exception {
-        testExclamationFunction(Runtime.PYTHON, false, false, false);
+        testExclamationFunction(Runtime.PYTHON, false, false, false, false);
     }
 
     @Test(groups = {"python_function", "function"})
     public void testPythonExclamationFunctionWithExtraDeps() throws Exception {
-        testExclamationFunction(Runtime.PYTHON, false, false, true);
+        testExclamationFunction(Runtime.PYTHON, false, false, false, true);
     }
 
     @Test(groups = {"python_function", "function"})
     public void testPythonExclamationZipFunction() throws Exception {
-        testExclamationFunction(Runtime.PYTHON, false, true, false);
+        testExclamationFunction(Runtime.PYTHON, false, true, false, false);
     }
 
     @Test(groups = {"python_function", "function"})
     public void testPythonExclamationTopicPatternFunction() throws Exception {
-        testExclamationFunction(Runtime.PYTHON, true, false, false);
+        testExclamationFunction(Runtime.PYTHON, true, false, false, false);
+    }
+
+    @Test(groups = {"python_function", "function"})
+    public void testAvroSchemaFunctionTest() throws Exception {
+        testAvroSchemaFunction(Runtime.PYTHON);
+    }
+
+    @Test(groups = {"python_function", "function"})
+    public void testRetainOrderingTest() throws Exception {
+        testExclamationFunction(Runtime.PYTHON, false, false, false,
+                false, generator -> {
+                    generator.setRetainOrdering(true);
+                });
+    }
+
+    @Test(groups = {"python_function", "function"})
+    public void testRetainKeyOrderingTest() throws Exception {
+        testExclamationFunction(Runtime.PYTHON, false, false, false,
+                false, generator -> {
+                    System.out.println("calling generator.setRetainKeyOrdering(true);");
+                    generator.setRetainKeyOrdering(true);
+                });
     }
 
 }

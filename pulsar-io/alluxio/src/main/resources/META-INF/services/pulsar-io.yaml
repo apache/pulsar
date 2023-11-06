@@ -19,3 +19,4 @@
 name: alluxio
 description: Writes data into Alluxio
 sinkClass: org.apache.pulsar.io.alluxio.sink.AlluxioSink
+sinkConfigClass: org.apache.pulsar.io.alluxio.sink.AlluxioSinkConfig

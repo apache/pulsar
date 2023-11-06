@@ -184,8 +184,6 @@ public interface ConsumerBuilder<T> extends Cloneable {
      * <p>By default, the acknowledgment timeout is disabled (set to `0`, which means infinite).
      * When a consumer with an infinite acknowledgment timeout terminates, any unacknowledged
      * messages that it receives are re-delivered to another consumer.
-     * <p>Since 2.3.0, when a dead letter policy is specified and no ackTimeoutMillis is specified,
-     * the acknowledgment timeout is set to 30 seconds.
      *
      * <p>When enabling acknowledgment timeout, if a message is not acknowledged within the specified timeout,
      * it is re-delivered to the consumer (possibly to a different consumer, in the case of
@@ -249,6 +247,7 @@ public interface ConsumerBuilder<T> extends Cloneable {
      *  <li>{@link SubscriptionType#Exclusive} (Default)</li>
      *  <li>{@link SubscriptionType#Failover}</li>
      *  <li>{@link SubscriptionType#Shared}</li>
+     *  <li>{@link SubscriptionType#Key_Shared}</li>
      * </ul>
      *
      * @param subscriptionType
@@ -602,8 +601,6 @@ public interface ConsumerBuilder<T> extends Cloneable {
      *              .build())
      *          .subscribe();
      * </pre>
-     * When a dead letter policy is specified, and no ackTimeoutMillis is specified,
-     * then the acknowledgment timeout is set to 30000 milliseconds.
      */
     ConsumerBuilder<T> deadLetterPolicy(DeadLetterPolicy deadLetterPolicy);
 

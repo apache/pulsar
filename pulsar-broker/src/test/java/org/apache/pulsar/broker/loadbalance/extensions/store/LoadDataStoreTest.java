@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.loadbalance.extensions.store;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNotNull;
 import static org.testng.AssertJUnit.assertTrue;
 
 import com.google.common.collect.Sets;
@@ -74,6 +75,7 @@ public class LoadDataStoreTest extends MockedPulsarServiceBaseTest {
         @Cleanup
         LoadDataStore<MyClass> loadDataStore =
                 LoadDataStoreFactory.create(pulsar.getClient(), topic, MyClass.class);
+        loadDataStore.startTableView();
         MyClass myClass1 = new MyClass("1", 1);
         loadDataStore.pushAsync("key1", myClass1).get();
 
@@ -106,6 +108,7 @@ public class LoadDataStoreTest extends MockedPulsarServiceBaseTest {
         @Cleanup
         LoadDataStore<Integer> loadDataStore =
                 LoadDataStoreFactory.create(pulsar.getClient(), topic, Integer.class);
+        loadDataStore.startTableView();
 
         Map<String, Integer> map = new HashMap<>();
         for (int i = 0; i < 10; i++) {
@@ -122,6 +125,30 @@ public class LoadDataStoreTest extends MockedPulsarServiceBaseTest {
         });
 
         assertEquals(loadDataStore.entrySet(), map.entrySet());
+    }
+
+    @Test
+    public void testTableViewRestart() throws Exception {
+        String topic = TopicDomain.persistent + "://" + NamespaceName.SYSTEM_NAMESPACE + "/" + UUID.randomUUID();
+        LoadDataStore<Integer> loadDataStore =
+                LoadDataStoreFactory.create(pulsar.getClient(), topic, Integer.class);
+
+        loadDataStore.startTableView();
+        loadDataStore.pushAsync("1", 1).get();
+        Awaitility.await().untilAsserted(() -> assertEquals(loadDataStore.size(), 1));
+        assertEquals(loadDataStore.get("1").get(), 1);
+        loadDataStore.closeTableView();
+
+        loadDataStore.pushAsync("1", 2).get();
+        Exception ex = null;
+        try {
+            loadDataStore.get("1");
+        } catch (IllegalStateException e) {
+            ex = e;
+        }
+        assertNotNull(ex);
+        loadDataStore.startTableView();
+        Awaitility.await().untilAsserted(() -> assertEquals(loadDataStore.get("1").get(), 2));
     }
 
 }

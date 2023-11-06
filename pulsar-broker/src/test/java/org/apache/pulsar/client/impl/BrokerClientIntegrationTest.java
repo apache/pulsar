@@ -591,7 +591,7 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
     }
 
     /**
-     * It verifies that client closes the connection on internalSerevrError which is "ServiceNotReady" from Broker-side
+     * It verifies that client closes the connection on internalServerError which is "ServiceNotReady" from Broker-side
      *
      * @throws Exception
      */
@@ -947,9 +947,14 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
         ByteBuf payload = ((MessageImpl) msg).getPayload();
         assertNotEquals(payload.refCnt(), 0);
         consumer.redeliverUnacknowledgedMessages();
-        assertEquals(payload.refCnt(), 0);
+        Awaitility.await().untilAsserted(() -> {
+            assertTrue(consumer.incomingMessages.size() >= 100);
+        });
         consumer.close();
         producer.close();
+        admin.topics().delete(topic, false);
+        assertEquals(consumer.incomingMessages.size(), 0);
+        assertEquals(payload.refCnt(), 0);
     }
 
     /**
@@ -1015,7 +1020,7 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
         final CountDownLatch latch = new CountDownLatch(numMessages);
         String topic = "persistent://my-property/my-ns/closed-cnx-topic";
         String sub = "my-subscriber-name";
-
+        @Cleanup
         PulsarClient pulsarClient = newPulsarClient(lookupUrl.toString(), 0);
         pulsarClient.newConsumer().topic(topic).subscriptionName(sub).messageListener((c1, msg) -> {
             Assert.assertNotNull(msg, "Message cannot be null");
@@ -1035,12 +1040,12 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
         field.set(cnx, false);
 
         assertNotNull(dispatcher.getActiveConsumer());
-
-        pulsarClient = newPulsarClient(lookupUrl.toString(), 0);
+        @Cleanup
+        PulsarClient pulsarClient2 = newPulsarClient(lookupUrl.toString(), 0);
         Consumer<byte[]> consumer = null;
         for (int i = 0; i < 2; i++) {
             try {
-                consumer = pulsarClient.newConsumer().topic(topic).subscriptionName(sub).messageListener((c1, msg) -> {
+                consumer = pulsarClient2.newConsumer().topic(topic).subscriptionName(sub).messageListener((c1, msg) -> {
                     Assert.assertNotNull(msg, "Message cannot be null");
                     String receivedMessage = new String(msg.getData());
                     log.debug("Received message [{}] in the listener", receivedMessage);

@@ -22,11 +22,13 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
@@ -35,6 +37,8 @@ import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import javax.annotation.Nonnull;
+import javax.annotation.concurrent.ThreadSafe;
 
 /**
  * This class is aimed at simplifying work with {@code CompletableFuture}.
@@ -166,6 +170,39 @@ public class FutureUtil {
         }
     }
 
+    @ThreadSafe
+    public static class Sequencer<T> {
+        private CompletableFuture<T> sequencerFuture = CompletableFuture.completedFuture(null);
+        private final boolean allowExceptionBreakChain;
+
+        public Sequencer(boolean allowExceptionBreakChain) {
+            this.allowExceptionBreakChain = allowExceptionBreakChain;
+        }
+
+        public static <T> Sequencer<T> create(boolean allowExceptionBreakChain) {
+            return new Sequencer<>(allowExceptionBreakChain);
+        }
+        public static <T> Sequencer<T> create() {
+            return new Sequencer<>(false);
+        }
+
+        /**
+         * @throws NullPointerException NPE when param is null
+         */
+        public synchronized CompletableFuture<T> sequential(Supplier<CompletableFuture<T>> newTask) {
+            Objects.requireNonNull(newTask);
+            if (sequencerFuture.isDone()) {
+                if (sequencerFuture.isCompletedExceptionally() && allowExceptionBreakChain) {
+                    return sequencerFuture;
+                }
+                return sequencerFuture = newTask.get();
+            }
+            return sequencerFuture = allowExceptionBreakChain
+                    ? sequencerFuture.thenCompose(__ -> newTask.get())
+                    : sequencerFuture.exceptionally(ex -> null).thenCompose(__ -> newTask.get());
+        }
+    }
+
     /**
      * Creates a new {@link CompletableFuture} instance with timeout handling.
      *
@@ -202,6 +239,30 @@ public class FutureUtil {
         future.whenComplete((res, exception) -> scheduledFuture.cancel(false));
         return future;
     }
+
+    /**
+     * @throws RejectedExecutionException if this task cannot be accepted for execution
+     * @throws NullPointerException if one of params is null
+     */
+    public static <T> @Nonnull CompletableFuture<T> composeAsync(Supplier<CompletableFuture<T>> futureSupplier,
+                                                                 Executor executor) {
+        Objects.requireNonNull(futureSupplier);
+        Objects.requireNonNull(executor);
+        final CompletableFuture<T> future = new CompletableFuture<>();
+        try {
+            executor.execute(() -> futureSupplier.get().whenComplete((result, error) -> {
+                if (error != null) {
+                    future.completeExceptionally(error);
+                    return;
+                }
+                future.complete(result);
+            }));
+        } catch (RejectedExecutionException ex) {
+            future.completeExceptionally(ex);
+        }
+        return future;
+    }
+
 
     /**
      * Creates a low-overhead timeout exception which is performance optimized to minimize allocations

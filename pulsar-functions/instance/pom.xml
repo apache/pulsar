@@ -25,7 +25,7 @@
   <parent>
     <groupId>org.apache.pulsar</groupId>
     <artifactId>pulsar-functions</artifactId>
-    <version>2.12.0-SNAPSHOT</version>
+    <version>3.2.0-SNAPSHOT</version>
   </parent>
 
   <artifactId>pulsar-functions-instance</artifactId>
@@ -268,6 +268,15 @@
             </goals>
           </execution>
         </executions>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <configuration>
+          <environmentVariables>
+            <TEST_JAVA_INSTANCE_PARSE_ENV_VAR>some-configuration</TEST_JAVA_INSTANCE_PARSE_ENV_VAR>
+          </environmentVariables>
+        </configuration>
       </plugin>
     </plugins>
   </build>

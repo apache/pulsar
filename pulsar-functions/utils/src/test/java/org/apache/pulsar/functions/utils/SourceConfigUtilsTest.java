@@ -22,6 +22,7 @@ import com.google.gson.Gson;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.experimental.Accessors;
+import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.ProducerConfig;
 import org.apache.pulsar.common.functions.Resources;
@@ -285,6 +286,30 @@ public class SourceConfigUtilsTest {
     }
 
     @Test
+    public void testMergeDifferentProducerConfig() {
+        SourceConfig sourceConfig = createSourceConfig();
+
+        ProducerConfig producerConfig = new ProducerConfig();
+        producerConfig.setMaxPendingMessages(100);
+        producerConfig.setMaxPendingMessagesAcrossPartitions(1000);
+        producerConfig.setUseThreadLocalProducers(true);
+        producerConfig.setBatchBuilder("DEFAULT");
+        producerConfig.setCompressionType(CompressionType.ZLIB);
+        SourceConfig newSourceConfig = createUpdatedSourceConfig("producerConfig", producerConfig);
+
+        SourceConfig mergedConfig = SourceConfigUtils.validateUpdate(sourceConfig, newSourceConfig);
+        assertEquals(
+                mergedConfig.getProducerConfig(),
+                producerConfig
+        );
+        mergedConfig.setProducerConfig(sourceConfig.getProducerConfig());
+        assertEquals(
+                new Gson().toJson(sourceConfig),
+                new Gson().toJson(mergedConfig)
+        );
+    }
+
+    @Test
     public void testValidateConfig() {
         SourceConfig sourceConfig = createSourceConfig();
 
@@ -370,6 +395,7 @@ public class SourceConfigUtilsTest {
         producerConfig.setMaxPendingMessagesAcrossPartitions(1000);
         producerConfig.setUseThreadLocalProducers(true);
         producerConfig.setBatchBuilder("DEFAULT");
+        producerConfig.setCompressionType(CompressionType.ZSTD);
         sourceConfig.setProducerConfig(producerConfig);
 
         sourceConfig.setConfigs(configs);

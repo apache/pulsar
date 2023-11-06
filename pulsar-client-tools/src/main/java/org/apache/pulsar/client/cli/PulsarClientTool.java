@@ -32,6 +32,7 @@ import java.util.Properties;
 import lombok.Getter;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.PulsarVersion;
+import org.apache.pulsar.cli.converters.ByteUnitToLongConverter;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationFactory;
 import org.apache.pulsar.client.api.ClientBuilder;
@@ -39,7 +40,6 @@ import org.apache.pulsar.client.api.ProxyProtocol;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException.UnsupportedAuthenticationException;
 import org.apache.pulsar.client.api.SizeUnit;
-
 
 public class PulsarClientTool {
 
@@ -76,6 +76,10 @@ public class PulsarClientTool {
 
         @Parameter(names = { "--tlsTrustCertsFilePath" }, description = "File path to client trust certificates")
         String tlsTrustCertsFilePath;
+
+        @Parameter(names = { "-ml", "--memory-limit", }, description = "Configure the Pulsar client memory limit "
+            + "(eg: 32M, 64M)", converter = ByteUnitToLongConverter.class)
+        long memoryLimit = 0L;
     }
 
     protected RootParams rootParams;
@@ -99,6 +103,7 @@ public class PulsarClientTool {
     IUsageFormatter usageFormatter;
     protected CmdProduce produceCommand;
     protected CmdConsume consumeCommand;
+    protected CmdRead readCommand;
     CmdGenerateDocumentation generateDocumentation;
 
     public PulsarClientTool(Properties properties) {
@@ -126,6 +131,7 @@ public class PulsarClientTool {
     protected void initJCommander() {
         produceCommand = new CmdProduce();
         consumeCommand = new CmdConsume();
+        readCommand = new CmdRead();
         generateDocumentation = new CmdGenerateDocumentation();
 
         this.jcommander = new JCommander();
@@ -134,6 +140,7 @@ public class PulsarClientTool {
         jcommander.addObject(rootParams);
         jcommander.addCommand("produce", produceCommand);
         jcommander.addCommand("consume", consumeCommand);
+        jcommander.addCommand("read", readCommand);
         jcommander.addCommand("generate_documentation", generateDocumentation);
     }
 
@@ -148,6 +155,11 @@ public class PulsarClientTool {
         this.rootParams.authParams = properties.getProperty("authParams");
         this.rootParams.tlsTrustCertsFilePath = properties.getProperty("tlsTrustCertsFilePath");
         this.rootParams.proxyServiceURL = StringUtils.trimToNull(properties.getProperty("proxyServiceUrl"));
+        // setting memory limit
+        this.rootParams.memoryLimit = StringUtils.isNotEmpty(properties.getProperty("memoryLimit"))
+                ? new ByteUnitToLongConverter("memoryLimit").convert(properties.getProperty("memoryLimit"))
+                : this.rootParams.memoryLimit;
+
         String proxyProtocolString = StringUtils.trimToNull(properties.getProperty("proxyProtocol"));
         if (proxyProtocolString != null) {
             try {
@@ -162,7 +174,7 @@ public class PulsarClientTool {
 
     private void updateConfig() throws UnsupportedAuthenticationException {
         ClientBuilder clientBuilder = PulsarClient.builder()
-                .memoryLimit(0, SizeUnit.BYTES);
+                .memoryLimit(rootParams.memoryLimit, SizeUnit.BYTES);
         Authentication authentication = null;
         if (isNotBlank(this.rootParams.authPluginClassName)) {
             authentication = AuthenticationFactory.create(rootParams.authPluginClassName, rootParams.authParams);
@@ -196,6 +208,7 @@ public class PulsarClientTool {
         }
         this.produceCommand.updateConfig(clientBuilder, authentication, this.rootParams.serviceURL);
         this.consumeCommand.updateConfig(clientBuilder, authentication, this.rootParams.serviceURL);
+        this.readCommand.updateConfig(clientBuilder, authentication, this.rootParams.serviceURL);
     }
 
     public int run(String[] args) {
@@ -231,6 +244,8 @@ public class PulsarClientTool {
                 return produceCommand.run();
             } else if ("consume".equals(chosenCommand)) {
                 return consumeCommand.run();
+            } else if ("read".equals(chosenCommand)) {
+                return readCommand.run();
             } else if ("generate_documentation".equals(chosenCommand)) {
                 return generateDocumentation.run();
             } else {

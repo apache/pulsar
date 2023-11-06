@@ -164,11 +164,7 @@ def main():
     args.function_details = args.function_details[:-1]
   json_format.Parse(args.function_details, function_details)
 
-  if function_details.processingGuarantees == "EFFECTIVELY_ONCE":
-    print("Python instance current not support EFFECTIVELY_ONCE processing guarantees.")
-    sys.exit(1)
-
-  if function_details.autoAck == False and function_details.processingGuarantees == "ATMOST_ONCE" \
+  if function_details.autoAck is False and function_details.processingGuarantees == "ATMOST_ONCE" \
           or function_details.processingGuarantees == "ATLEAST_ONCE":
     print("When Guarantees == " + function_details.processingGuarantees + ", autoAck must be equal to true, "
           "This is a contradictory configuration, autoAck will be removed later,"
@@ -176,6 +172,13 @@ def main():
           "This is a contradictory configuration, autoAck will be removed later," 
           "Please refer to PIP: https://github.com/apache/pulsar/issues/15560")
     sys.exit(1)
+  if function_details.processingGuarantees == Function_pb2.ProcessingGuarantees.Value('EFFECTIVELY_ONCE'):
+    if len(function_details.source.inputSpecs.keys()) != 1 or function_details.sink.topic == "":
+      print("When Guarantees == EFFECTIVELY_ONCE you need to ensure that the following pre-requisites have been met:"
+            "1. deduplication is enabled"
+            "2. set ProcessingGuarantees to EFFECTIVELY_ONCE"
+            "3. the function has only one source topic and one sink topic (both are non-partitioned)")
+      sys.exit(1)
   if os.path.splitext(str(args.py))[1] == '.whl':
     if args.install_usercode_dependencies:
       cmd = "pip install -t %s" % os.path.dirname(os.path.abspath(str(args.py)))
@@ -203,6 +206,15 @@ def main():
     zpfile = zipfile.ZipFile(str(args.py), 'r')
     zpfile.extractall(os.path.dirname(str(args.py)))
     basename = os.path.basename(os.path.splitext(str(args.py))[0])
+
+    requirements_file = os.path.join(os.path.dirname(str(args.py)), basename, "requirements.txt")
+    if os.path.isfile(requirements_file):
+      cmd = "pip install -r %s" % requirements_file
+      Log.debug("Install python dependencies via cmd: %s" % cmd)
+      retval = os.system(cmd)
+      if retval != 0:
+        print("Could not install user depedencies specified by the requirements.txt file")
+        sys.exit(1)
 
     deps_dir = os.path.join(os.path.dirname(str(args.py)), basename, "deps")
 

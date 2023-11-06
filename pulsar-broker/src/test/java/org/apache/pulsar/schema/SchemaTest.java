@@ -70,6 +70,7 @@ import org.apache.pulsar.client.api.TypedMessageBuilder;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.client.impl.schema.KeyValueSchemaImpl;
+import org.apache.pulsar.client.impl.schema.ProtobufSchema;
 import org.apache.pulsar.client.impl.schema.SchemaInfoImpl;
 import org.apache.pulsar.client.impl.schema.generic.GenericJsonRecord;
 import org.apache.pulsar.client.impl.schema.writer.AvroWriter;
@@ -111,6 +112,22 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
     @Override
     public void cleanup() throws Exception {
         super.internalCleanup();
+    }
+
+    @Test
+    public void testGetSchemaWhenCreateAutoProduceBytesProducer() throws Exception{
+        final String tenant = PUBLIC_TENANT;
+        final String namespace = "test-namespace-" + randomName(16);
+        final String topic = tenant + "/" + namespace + "/test-getSchema";
+        admin.namespaces().createNamespace(
+                tenant + "/" + namespace,
+                Sets.newHashSet(CLUSTER_NAME)
+        );
+
+        ProtobufSchema<org.apache.pulsar.client.api.schema.proto.Test.TestMessage> protobufSchema =
+                ProtobufSchema.of(org.apache.pulsar.client.api.schema.proto.Test.TestMessage.class);
+        pulsarClient.newProducer(protobufSchema).topic(topic).create();
+        pulsarClient.newProducer(org.apache.pulsar.client.api.Schema.AUTO_PRODUCE_BYTES()).topic(topic).create();
     }
 
     @Test
@@ -496,17 +513,13 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
         admin.topics().createPartitionedTopic(topic, 2);
 
         // set schema
-        if (!schema.equals(SchemaType.BYTES)) {
-            // don't upload bytes schema with admin API
-            // because null schema means the BYTES schema
-            SchemaInfo schemaInfo = SchemaInfoImpl
-                    .builder()
-                    .schema(new byte[0])
-                    .name("dummySchema")
-                    .type(schema)
-                    .build();
-            admin.schemas().createSchema(topic, schemaInfo);
-        }
+        SchemaInfo schemaInfo = SchemaInfoImpl
+                .builder()
+                .schema(new byte[0])
+                .name("dummySchema")
+                .type(schema)
+                .build();
+        admin.schemas().createSchema(topic, schemaInfo);
 
         Producer<byte[]> producer = pulsarClient
                 .newProducer()
@@ -531,8 +544,7 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
         Message<GenericRecord> message2 = consumer2.receive();
         if (schema == SchemaType.BYTES) {
             assertEquals(schema, message.getReaderSchema().get().getSchemaInfo().getType());
-            // default schema of AUTO_CONSUME is BYTES
-            assertTrue(message2.getReaderSchema().get().toString().contains("BYTES"));
+            assertEquals(schema, message2.getReaderSchema().get().getSchemaInfo().getType());
         } else if (schema == SchemaType.NONE) {
             // schema NONE is always reported as BYTES
             assertEquals(SchemaType.BYTES, message.getReaderSchema().get().getSchemaInfo().getType());
@@ -1278,6 +1290,33 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
         assertThrows(SchemaSerializationException.class, message2::getValue);
     }
 
+    /**
+     * This test just ensure that schema check still keeps the original logic: if there has any producer, but no schema
+     * was registered, the new consumer could not register new schema.
+     * TODO: I think this design should be improved: if a producer used "AUTO_PRODUCE_BYTES" schema, we should allow
+     *       the new consumer to register new schema. But before we can solve this problem, we need to modify
+     *       "CmdProducer" to let the Broker know that the Producer uses a schema of type "AUTO_PRODUCE_BYTES".
+     */
+    @Test
+    public void testAutoProduceAndSpecifiedConsumer() throws Exception {
+        final String namespace = PUBLIC_TENANT + "/ns_" + randomName(16);
+        admin.namespaces().createNamespace(namespace, Sets.newHashSet(CLUSTER_NAME));
+        final String topicName = "persistent://" + namespace + "/tp_" + randomName(16);
+        admin.topics().createNonPartitionedTopic(topicName);
+
+        Producer producer = pulsarClient.newProducer(Schema.AUTO_PRODUCE_BYTES()).topic(topicName).create();
+        try {
+            pulsarClient.newConsumer(Schema.STRING).topic(topicName).subscriptionName("sub1").subscribe();
+            fail("Should throw ex: Topic does not have schema to check");
+        } catch (Exception ex){
+            assertTrue(ex.getMessage().contains("Topic does not have schema to check"));
+        }
+
+        // Cleanup.
+        producer.close();
+        admin.topics().delete(topicName);
+    }
+
     @Test
     public void testCreateSchemaInParallel() throws Exception {
         final String namespace = "test-namespace-" + randomName(16);
@@ -1285,6 +1324,7 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
         admin.namespaces().createNamespace(ns, Sets.newHashSet(CLUSTER_NAME));
 
         final String topic = getTopicName(ns, "testCreateSchemaInParallel");
+        @Cleanup("shutdownNow")
         ExecutorService executor = Executors.newFixedThreadPool(16);
         List<CompletableFuture<Producer<Schemas.PersonOne>>> producers = new ArrayList<>(16);
         CountDownLatch latch = new CountDownLatch(16);
@@ -1326,7 +1366,6 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
         });
         producers.clear();
         producers2.clear();
-        executor.shutdownNow();
     }
 
     @EqualsAndHashCode

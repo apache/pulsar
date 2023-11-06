@@ -49,6 +49,8 @@ import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.SchemaAutoUpdateCompatibilityStrategy;
 import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
+import org.apache.pulsar.common.protocol.schema.IsCompatibilityResponse;
+import org.apache.pulsar.common.protocol.schema.PostSchemaPayload;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaInfoWithVersion;
 import org.apache.pulsar.common.schema.SchemaType;
@@ -183,17 +185,6 @@ public class AdminApiSchemaTest extends MockedPulsarServiceBaseTest {
         ((SchemaInfoImpl)readSi).setTimestamp(0);
         assertEquals(readSi, si);
 
-    }
-
-    @Test
-    public void testCreateBytesSchema() {
-        // forbid admin api creating BYTES schema to be consistent with client side
-        try {
-            testSchemaInfoApi(Schema.BYTES, "schematest/test/test-BYTES");
-            fail("should fail");
-        } catch (Exception e) {
-            assertTrue(e.getMessage().contains("Do not upload a BYTES schema"));
-        }
     }
 
     @Test(dataProvider = "version")
@@ -448,5 +439,32 @@ public class AdminApiSchemaTest extends MockedPulsarServiceBaseTest {
         Awaitility.await().untilAsserted(() -> assertEquals(
                 admin.namespaces().getSchemaCompatibilityStrategy(schemaCompatibilityNamespace),
                 SchemaCompatibilityStrategy.UNDEFINED));
+    }
+
+    @Test
+    public void testCompatibility() throws Exception {
+        String topicName = schemaCompatibilityNamespace + "/testCompatibility";
+        try {
+            admin.schemas().getSchemaInfo(topicName);
+            fail();
+        } catch (PulsarAdminException.NotFoundException e) {
+            assertEquals(e.getMessage(), "Schema not found");
+        }
+        Map<String, String> properties = new HashMap<>();
+        PostSchemaPayload postSchemaPayload = new PostSchemaPayload("STRING", "", properties);
+        admin.schemas().createSchema(topicName, postSchemaPayload);
+        IsCompatibilityResponse isCompatibilityResponse =
+                admin.schemas().testCompatibility(topicName, postSchemaPayload);
+
+        assertTrue(isCompatibilityResponse.isCompatibility());
+        assertEquals(isCompatibilityResponse.getSchemaCompatibilityStrategy(), SchemaCompatibilityStrategy.FULL.name());
+        postSchemaPayload = new PostSchemaPayload("INT8", "", properties);
+        try {
+            admin.schemas().testCompatibility(topicName, postSchemaPayload);
+            fail();
+        } catch (Exception e) {
+            assertTrue(e instanceof PulsarAdminException.ServerSideErrorException);
+            assertTrue(e.getMessage().contains("Incompatible schema: exists schema type STRING, new schema type INT8"));
+        }
     }
 }

@@ -64,12 +64,6 @@ import org.testng.annotations.Test;
 public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
     private static final Logger log = LoggerFactory.getLogger(AuthenticatedProducerConsumerTest.class);
 
-    private final String TLS_TRUST_CERT_FILE_PATH = "./src/test/resources/authentication/tls/cacert.pem";
-    private final String TLS_SERVER_CERT_FILE_PATH = "./src/test/resources/authentication/tls/broker-cert.pem";
-    private final String TLS_SERVER_KEY_FILE_PATH = "./src/test/resources/authentication/tls/broker-key.pem";
-    private final String TLS_CLIENT_CERT_FILE_PATH = "./src/test/resources/authentication/tls/client-cert.pem";
-    private final String TLS_CLIENT_KEY_FILE_PATH = "./src/test/resources/authentication/tls/client-key.pem";
-
     private final String BASIC_CONF_FILE_PATH = "./src/test/resources/authentication/basic/.htpasswd";
 
     private final SecretKey SECRET_KEY = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
@@ -88,9 +82,9 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
 
         conf.setBrokerServicePortTls(Optional.of(0));
         conf.setWebServicePortTls(Optional.of(0));
-        conf.setTlsTrustCertsFilePath(TLS_TRUST_CERT_FILE_PATH);
-        conf.setTlsCertificateFilePath(TLS_SERVER_CERT_FILE_PATH);
-        conf.setTlsKeyFilePath(TLS_SERVER_KEY_FILE_PATH);
+        conf.setTlsTrustCertsFilePath(CA_CERT_FILE_PATH);
+        conf.setTlsCertificateFilePath(BROKER_CERT_FILE_PATH);
+        conf.setTlsKeyFilePath(BROKER_KEY_FILE_PATH);
         conf.setTlsAllowInsecureConnection(true);
         conf.setTopicLevelPoliciesEnabled(false);
 
@@ -104,7 +98,8 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
         conf.setBrokerClientTlsEnabled(true);
         conf.setBrokerClientAuthenticationPlugin(AuthenticationTls.class.getName());
         conf.setBrokerClientAuthenticationParameters(
-                "tlsCertFile:" + TLS_CLIENT_CERT_FILE_PATH + "," + "tlsKeyFile:" + TLS_CLIENT_KEY_FILE_PATH);
+                "tlsCertFile:" + getTlsFileForClient("admin.cert")
+                        + ",tlsKeyFile:" + getTlsFileForClient("admin.key-pk8"));
 
         Set<String> providers = new HashSet<>();
         providers.add(AuthenticationProviderTls.class.getName());
@@ -125,8 +120,9 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
     }
 
     protected final void internalSetup(Authentication auth) throws Exception {
+        closeAdmin();
         admin = spy(PulsarAdmin.builder().serviceHttpUrl(brokerUrlTls.toString())
-                .tlsTrustCertsFilePath(TLS_TRUST_CERT_FILE_PATH).allowTlsInsecureConnection(true).authentication(auth)
+                .tlsTrustCertsFilePath(CA_CERT_FILE_PATH).authentication(auth)
                 .build());
         String lookupUrl;
         // For http basic authentication test
@@ -136,7 +132,7 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
             lookupUrl = pulsar.getBrokerServiceUrlTls();
         }
         replacePulsarClient(PulsarClient.builder().serviceUrl(lookupUrl).statsInterval(0, TimeUnit.SECONDS)
-                .tlsTrustCertsFilePath(TLS_TRUST_CERT_FILE_PATH).allowTlsInsecureConnection(true).authentication(auth)
+                .tlsTrustCertsFilePath(CA_CERT_FILE_PATH).authentication(auth)
                 .enableTls(true));
     }
 
@@ -188,8 +184,8 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
         log.info("-- Starting {} test --", methodName);
 
         Map<String, String> authParams = new HashMap<>();
-        authParams.put("tlsCertFile", TLS_CLIENT_CERT_FILE_PATH);
-        authParams.put("tlsKeyFile", TLS_CLIENT_KEY_FILE_PATH);
+        authParams.put("tlsCertFile", getTlsFileForClient("admin.cert"));
+        authParams.put("tlsKeyFile", getTlsFileForClient("admin.key-pk8"));
         Authentication authTls = new AuthenticationTls();
         authTls.configure(authParams);
         internalSetup(authTls);
@@ -246,8 +242,8 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
         log.info("-- Starting {} test --", methodName);
 
         Map<String, String> authParams = new HashMap<>();
-        authParams.put("tlsCertFile", TLS_CLIENT_CERT_FILE_PATH);
-        authParams.put("tlsKeyFile", TLS_CLIENT_KEY_FILE_PATH);
+        authParams.put("tlsCertFile", getTlsFileForClient("admin.cert"));
+        authParams.put("tlsKeyFile", getTlsFileForClient("admin.key-pk8"));
         Authentication authTls = new AuthenticationTls();
         authTls.configure(authParams);
         internalSetup(authTls);
@@ -263,7 +259,7 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
                 new TenantInfoImpl(Sets.newHashSet("anonymousUser"), Sets.newHashSet("test")));
 
         // make a PulsarAdmin instance as "anonymousUser" for http request
-        admin.close();
+        closeAdmin();
         admin = spy(PulsarAdmin.builder().serviceHttpUrl(brokerUrl.toString()).build());
         admin.namespaces().createNamespace("my-property/my-ns", Sets.newHashSet("test"));
         admin.topics().grantPermission("persistent://my-property/my-ns/my-topic", "anonymousUser",
@@ -291,8 +287,8 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
         log.info("-- Starting {} test --", methodName);
 
         Map<String, String> authParams = new HashMap<>();
-        authParams.put("tlsCertFile", TLS_CLIENT_CERT_FILE_PATH);
-        authParams.put("tlsKeyFile", TLS_CLIENT_KEY_FILE_PATH);
+        authParams.put("tlsCertFile", getTlsFileForClient("admin.cert"));
+        authParams.put("tlsKeyFile", getTlsFileForClient("admin.key-pk8"));
         Authentication authTls = new AuthenticationTls();
         authTls.configure(authParams);
         internalSetup(authTls);
@@ -324,8 +320,8 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
         log.info("-- Starting {} test --", methodName);
 
         Map<String, String> authParams = new HashMap<>();
-        authParams.put("tlsCertFile", TLS_CLIENT_CERT_FILE_PATH);
-        authParams.put("tlsKeyFile", TLS_CLIENT_KEY_FILE_PATH);
+        authParams.put("tlsCertFile", getTlsFileForClient("admin.cert"));
+        authParams.put("tlsKeyFile", getTlsFileForClient("admin.key-pk8"));
         Authentication authTls = new AuthenticationTls();
         authTls.configure(authParams);
         internalSetup(authTls);
@@ -362,8 +358,8 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
     @Test
     public void testDeleteAuthenticationPoliciesOfTopic() throws Exception {
         Map<String, String> authParams = new HashMap<>();
-        authParams.put("tlsCertFile", TLS_CLIENT_CERT_FILE_PATH);
-        authParams.put("tlsKeyFile", TLS_CLIENT_KEY_FILE_PATH);
+        authParams.put("tlsCertFile", getTlsFileForClient("admin.cert"));
+        authParams.put("tlsKeyFile", getTlsFileForClient("admin.key-pk8"));
         Authentication authTls = new AuthenticationTls();
         authTls.configure(authParams);
         internalSetup(authTls);
@@ -401,11 +397,6 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
         Awaitility.await().untilAsserted(() -> {
             assertTrue(pulsar.getPulsarResources().getNamespaceResources().getPolicies(NamespaceName.get("p1/ns1"))
                     .get().auth_policies.getTopicAuthentication().containsKey(partitionedTopic));
-            for (int i = 0; i < numPartitions; i++) {
-                assertTrue(pulsar.getPulsarResources().getNamespaceResources().getPolicies(NamespaceName.get("p1/ns1"))
-                        .get().auth_policies.getTopicAuthentication()
-                        .containsKey(TopicName.get(partitionedTopic).getPartition(i).toString()));
-            }
         });
 
         admin.topics().deletePartitionedTopic("persistent://p1/ns1/partitioned-topic");
@@ -424,7 +415,8 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
         admin.clusters().deleteCluster("test");
     }
 
-    private final Authentication tlsAuth = new AuthenticationTls(TLS_CLIENT_CERT_FILE_PATH, TLS_CLIENT_KEY_FILE_PATH);
+    private final Authentication tlsAuth =
+            new AuthenticationTls(getTlsFileForClient("admin.cert"), getTlsFileForClient("admin.key-pk8"));
     private final Authentication tokenAuth = new AuthenticationToken(ADMIN_TOKEN);
 
     @DataProvider
@@ -454,10 +446,9 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
 
         @Cleanup
         PulsarClient client = PulsarClient.builder().serviceUrl(url.get())
-                .tlsTrustCertsFilePath(TLS_TRUST_CERT_FILE_PATH)
-                .tlsTrustCertsFilePath(TLS_TRUST_CERT_FILE_PATH)
-                .tlsKeyFilePath(TLS_CLIENT_KEY_FILE_PATH)
-                .tlsCertificateFilePath(TLS_CLIENT_CERT_FILE_PATH)
+                .tlsTrustCertsFilePath(CA_CERT_FILE_PATH)
+                .tlsKeyFilePath(getTlsFileForClient("admin.key-pk8"))
+                .tlsCertificateFilePath(getTlsFileForClient("admin.cert"))
                 .authentication(auth)
                 .allowTlsInsecureConnection(false)
                 .enableTlsHostnameVerification(false)
@@ -470,8 +461,8 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
     @Test
     public void testCleanupEmptyTopicAuthenticationMap() throws Exception {
         Map<String, String> authParams = new HashMap<>();
-        authParams.put("tlsCertFile", TLS_CLIENT_CERT_FILE_PATH);
-        authParams.put("tlsKeyFile", TLS_CLIENT_KEY_FILE_PATH);
+        authParams.put("tlsCertFile", getTlsFileForClient("admin.cert"));
+        authParams.put("tlsKeyFile", getTlsFileForClient("admin.key-pk8"));
         Authentication authTls = new AuthenticationTls();
         authTls.configure(authParams);
         internalSetup(authTls);

@@ -18,65 +18,15 @@
  */
 package org.apache.pulsar.broker.auth;
 
-import org.apache.pulsar.broker.authentication.AuthenticationDataCommand;
-import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
-import org.apache.pulsar.broker.authentication.AuthenticationState;
-import org.apache.pulsar.common.api.AuthData;
-
-import javax.naming.AuthenticationException;
-import java.util.concurrent.CompletableFuture;
-
-import static java.nio.charset.StandardCharsets.UTF_8;
+import org.apache.pulsar.broker.authentication.AuthenticationProvider;
 
 /**
  * Class to use when verifying the behavior around expired authentication data because it will always return
  * true when isExpired is called.
  */
-public class MockAlwaysExpiredAuthenticationState implements AuthenticationState {
-    final MockAlwaysExpiredAuthenticationProvider provider;
-    AuthenticationDataSource authenticationDataSource;
-    volatile String authRole;
-
-    MockAlwaysExpiredAuthenticationState(MockAlwaysExpiredAuthenticationProvider provider) {
-        this.provider = provider;
-    }
-
-
-    @Override
-    public String getAuthRole() throws AuthenticationException {
-        if (authRole == null) {
-            throw new AuthenticationException("Must authenticate first.");
-        }
-        return authRole;
-    }
-
-    @Override
-    public AuthData authenticate(AuthData authData) throws AuthenticationException {
-        return null;
-    }
-
-    /**
-     * This authentication is always single stage, so it returns immediately
-     */
-    @Override
-    public CompletableFuture<AuthData> authenticateAsync(AuthData authData) {
-        authenticationDataSource = new AuthenticationDataCommand(new String(authData.getBytes(), UTF_8));
-        return provider
-                .authenticateAsync(authenticationDataSource)
-                .thenApply(role -> {
-                    authRole = role;
-                    return null;
-                });
-    }
-
-    @Override
-    public AuthenticationDataSource getAuthDataSource() {
-        return authenticationDataSource;
-    }
-
-    @Override
-    public boolean isComplete() {
-        return true;
+public class MockAlwaysExpiredAuthenticationState extends MockMutableAuthenticationState {
+    MockAlwaysExpiredAuthenticationState(AuthenticationProvider provider) {
+        super(provider);
     }
 
     @Override

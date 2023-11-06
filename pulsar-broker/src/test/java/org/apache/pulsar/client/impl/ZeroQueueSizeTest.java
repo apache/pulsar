@@ -240,9 +240,7 @@ public class ZeroQueueSizeTest extends BrokerTestBase {
         ConsumerImpl<byte[]> consumer1 = (ConsumerImpl<byte[]>) pulsarClient.newConsumer().topic(topicName)
                 .subscriptionName(subscriptionName).receiverQueueSize(0).subscriptionType(SubscriptionType.Failover)
                 .consumerName("consumer-1").subscribe();
-        ConsumerImpl<byte[]> consumer2 = (ConsumerImpl<byte[]>) pulsarClient.newConsumer().topic(topicName)
-                .subscriptionName(subscriptionName).receiverQueueSize(0).subscriptionType(SubscriptionType.Failover)
-                .consumerName("consumer-2").subscribe();
+
 
         // 4. Produce Messages
         for (int i = 0; i < totalMessages; i++) {
@@ -259,6 +257,10 @@ public class ZeroQueueSizeTest extends BrokerTestBase {
             assertEquals(consumer1.numMessagesInQueue(), 0);
             log.info("Consumer received : " + new String(message.getData()));
         }
+
+        ConsumerImpl<byte[]> consumer2 = (ConsumerImpl<byte[]>) pulsarClient.newConsumer().topic(topicName)
+                .subscriptionName(subscriptionName).receiverQueueSize(0).subscriptionType(SubscriptionType.Failover)
+                .consumerName("consumer-2").subscribe();
 
         // 6. Trigger redelivery
         consumer1.redeliverUnacknowledgedMessages();

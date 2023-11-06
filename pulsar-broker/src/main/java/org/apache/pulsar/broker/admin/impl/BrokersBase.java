@@ -53,7 +53,6 @@ import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.loadbalance.LeaderBroker;
 import org.apache.pulsar.broker.namespace.NamespaceService;
-import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.web.RestException;
@@ -254,7 +253,7 @@ public class BrokersBase extends AdminResource {
             @ApiResponse(code = 403, message = "You don't have admin permission to get configuration")})
     public void getDynamicConfigurationName(@Suspended AsyncResponse asyncResponse) {
         validateSuperUserAccessAsync()
-                .thenAccept(__ -> asyncResponse.resume(BrokerService.getDynamicConfiguration()))
+                .thenAccept(__ -> asyncResponse.resume(pulsar().getBrokerService().getDynamicConfiguration()))
                 .exceptionally(ex -> {
                     LOG.error("[{}] Failed to get all dynamic configuration names.", clientAppId(), ex);
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
@@ -287,11 +286,11 @@ public class BrokersBase extends AdminResource {
      */
     private synchronized CompletableFuture<Void> persistDynamicConfigurationAsync(
             String configName, String configValue) {
-        if (!BrokerService.validateDynamicConfiguration(configName, configValue)) {
+        if (!pulsar().getBrokerService().validateDynamicConfiguration(configName, configValue)) {
             return FutureUtil
                     .failedFuture(new RestException(Status.PRECONDITION_FAILED, " Invalid dynamic-config value"));
         }
-        if (BrokerService.isDynamicConfiguration(configName)) {
+        if (pulsar().getBrokerService().isDynamicConfiguration(configName)) {
             return dynamicConfigurationResources().setDynamicConfigurationWithCreateAsync(old -> {
                 Map<String, String> configurationMap = old.orElseGet(Maps::newHashMap);
                 configurationMap.put(configName, configValue);
@@ -397,9 +396,10 @@ public class BrokersBase extends AdminResource {
 
 
     private CompletableFuture<Void> internalRunHealthCheck(TopicVersion topicVersion) {
+        String lookupServiceAddress = pulsar().getLookupServiceAddress();
         NamespaceName namespaceName = (topicVersion == TopicVersion.V2)
-                ? NamespaceService.getHeartbeatNamespaceV2(pulsar().getAdvertisedAddress(), pulsar().getConfiguration())
-                : NamespaceService.getHeartbeatNamespace(pulsar().getAdvertisedAddress(), pulsar().getConfiguration());
+                ? NamespaceService.getHeartbeatNamespaceV2(lookupServiceAddress, pulsar().getConfiguration())
+                : NamespaceService.getHeartbeatNamespace(lookupServiceAddress, pulsar().getConfiguration());
         final String topicName = String.format("persistent://%s/%s", namespaceName, HEALTH_CHECK_TOPIC_SUFFIX);
         LOG.info("[{}] Running healthCheck with topic={}", clientAppId(), topicName);
         final String messageStr = UUID.randomUUID().toString();
@@ -512,7 +512,7 @@ public class BrokersBase extends AdminResource {
     }
 
     private CompletableFuture<Void> internalDeleteDynamicConfigurationOnMetadataAsync(String configName) {
-        if (!BrokerService.isDynamicConfiguration(configName)) {
+        if (!pulsar().getBrokerService().isDynamicConfiguration(configName)) {
             throw new RestException(Status.PRECONDITION_FAILED, " Can't update non-dynamic configuration");
         } else {
             return dynamicConfigurationResources().setDynamicConfigurationAsync(old -> {
@@ -546,16 +546,26 @@ public class BrokersBase extends AdminResource {
             @ApiParam(name = "maxConcurrentUnloadPerSec",
                     value = "if the value absent(value=0) means no concurrent limitation.")
             @QueryParam("maxConcurrentUnloadPerSec") int maxConcurrentUnloadPerSec,
-            @QueryParam("forcedTerminateTopic") @DefaultValue("true") boolean forcedTerminateTopic
+            @QueryParam("forcedTerminateTopic") @DefaultValue("true") boolean forcedTerminateTopic,
+            @Suspended final AsyncResponse asyncResponse
     ) {
         validateSuperUserAccess();
-        doShutDownBrokerGracefully(maxConcurrentUnloadPerSec, forcedTerminateTopic);
+        doShutDownBrokerGracefullyAsync(maxConcurrentUnloadPerSec, forcedTerminateTopic)
+                .thenAccept(__ -> {
+                    LOG.info("[{}] Successfully shutdown broker gracefully", clientAppId());
+                    asyncResponse.resume(Response.noContent().build());
+                })
+                .exceptionally(ex -> {
+            LOG.error("[{}] Failed to shutdown broker gracefully", clientAppId(), ex);
+            resumeAsyncResponseExceptionally(asyncResponse, ex);
+            return null;
+        });
     }
 
-    private void doShutDownBrokerGracefully(int maxConcurrentUnloadPerSec,
-                                            boolean forcedTerminateTopic) {
+    private CompletableFuture<Void> doShutDownBrokerGracefullyAsync(int maxConcurrentUnloadPerSec,
+                                                                    boolean forcedTerminateTopic) {
         pulsar().getBrokerService().unloadNamespaceBundlesGracefully(maxConcurrentUnloadPerSec, forcedTerminateTopic);
-        pulsar().closeAsync();
+        return pulsar().closeAsync();
     }
 }
 

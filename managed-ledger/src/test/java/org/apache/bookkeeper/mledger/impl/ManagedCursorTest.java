@@ -48,6 +48,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
@@ -95,6 +96,7 @@ import org.apache.bookkeeper.mledger.proto.MLDataFormats.PositionInfo;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
 import org.apache.pulsar.common.api.proto.CommandSubscribe;
 import org.apache.pulsar.common.api.proto.IntRange;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.BitSetRecyclable;
 import org.apache.pulsar.common.util.collections.LongPairRangeSet;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
@@ -225,6 +227,97 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         entries = c2.readEntries(2);
         assertEquals(entries.size(), 0);
         entries.forEach(Entry::release);
+    }
+
+    @Test
+    void testPersistentMarkDeleteIfCreateCursorLedgerFailed() throws Exception {
+        final int entryCount = 10;
+        final String cursorName = "c1";
+        final String mlName = "ml_test";
+        final ManagedLedgerConfig mlConfig = new ManagedLedgerConfig().setMaxEntriesPerLedger(1);
+        ManagedLedgerImpl ml = (ManagedLedgerImpl) factory.open(mlName, mlConfig);
+
+        ManagedCursor cursor = ml.openCursor("c1");
+        Position lastEntry = null;
+        for (int i = 0; i < 10; i++) {
+            lastEntry = ml.addEntry(("entry-" + i).getBytes(Encoding));
+        }
+
+        // Mock cursor ledger create failed.
+        bkc.failNow(BKException.Code.NoBookieAvailableException);
+
+        cursor.markDelete(lastEntry);
+
+        // Assert persist mark deleted position to ZK was successful.
+        PositionImpl slowestReadPosition = ml.getCursors().getSlowestReaderPosition();
+        assertTrue(slowestReadPosition.getLedgerId() >= lastEntry.getLedgerId());
+        assertTrue(slowestReadPosition.getEntryId() >= lastEntry.getEntryId());
+        assertEquals(cursor.getStats().getPersistLedgerSucceed(), 0);
+        assertTrue(cursor.getStats().getPersistZookeeperSucceed() > 0);
+        assertEquals(cursor.getPersistentMarkDeletedPosition(), lastEntry);
+
+        // Verify the mark delete position can be recovered properly.
+        ml.close();
+        ml = (ManagedLedgerImpl) factory.open(mlName, mlConfig);
+        ManagedCursorImpl cursorRecovered = (ManagedCursorImpl) ml.openCursor(cursorName);
+        assertEquals(cursorRecovered.getPersistentMarkDeletedPosition(), lastEntry);
+
+        // cleanup.
+        ml.delete();
+    }
+
+    @Test
+    void testPersistentMarkDeleteIfSwitchCursorLedgerFailed() throws Exception {
+        final int entryCount = 10;
+        final String cursorName = "c1";
+        final String mlName = "ml_test";
+        final ManagedLedgerConfig mlConfig = new ManagedLedgerConfig().setMaxEntriesPerLedger(1);
+        ManagedLedgerImpl ml = (ManagedLedgerImpl) factory.open(mlName, mlConfig);
+
+        final ManagedCursorImpl cursor = (ManagedCursorImpl) ml.openCursor(cursorName);
+        ArrayList<Position> positions = new ArrayList<>();
+        for (int i = 0; i < entryCount; i++) {
+            positions.add(ml.addEntry(("entry-" + i).getBytes(Encoding)));
+        }
+        // Trigger the cursor ledger creating.
+        cursor.markDelete(positions.get(0));
+        assertTrue(cursor.getStats().getPersistLedgerSucceed() > 0);
+
+        // Mock cursor ledger write failed.
+        bkc.addEntryFailAfter(0, BKException.Code.NoBookieAvailableException);
+        // Trigger a failed writing of the cursor ledger, then wait the stat of cursor to be "NoLedger".
+        // This time ZK will be written due to a failure to write BK.
+        cursor.markDelete(positions.get(1));
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(cursor.getState(), "NoLedger");
+        });
+        assertTrue(cursor.getStats().getPersistLedgerErrors() > 0);
+        long persistZookeeperSucceed1 = cursor.getStats().getPersistZookeeperSucceed();
+        assertTrue(persistZookeeperSucceed1 > 0);
+
+        // Mock cursor ledger create failed.
+        bkc.failNow(BKException.Code.NoBookieAvailableException);
+        // Verify the cursor status will be persistent to ZK even if the cursor ledger creation always fails.
+        // This time ZK will be written due to catch up.
+        Position lastEntry = positions.get(entryCount -1);
+        cursor.markDelete(lastEntry);
+        long persistZookeeperSucceed2 = cursor.getStats().getPersistZookeeperSucceed();
+        assertTrue(persistZookeeperSucceed2 > persistZookeeperSucceed1);
+
+        // Assert persist mark deleted position to ZK was successful.
+        PositionImpl slowestReadPosition = ml.getCursors().getSlowestReaderPosition();
+        assertTrue(slowestReadPosition.getLedgerId() >= lastEntry.getLedgerId());
+        assertTrue(slowestReadPosition.getEntryId() >= lastEntry.getEntryId());
+        assertEquals(cursor.getPersistentMarkDeletedPosition(), lastEntry);
+
+        // Verify the mark delete position can be recovered properly.
+        ml.close();
+        ml = (ManagedLedgerImpl) factory.open(mlName, mlConfig);
+        ManagedCursorImpl cursorRecovered = (ManagedCursorImpl) ml.openCursor(cursorName);
+        assertEquals(cursorRecovered.getPersistentMarkDeletedPosition(), lastEntry);
+
+        // cleanup.
+        ml.delete();
     }
 
     @Test(timeOut = 20000)
@@ -1060,6 +1153,21 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         Awaitility.await().until(() -> ledger.getNumberOfEntries() <= 2);
     }
 
+    @Test(timeOut = 10000)
+    void testRemoveCursorFail() throws Exception {
+        String mlName = UUID.randomUUID().toString().replaceAll("-", "");
+        String cursorName = "c1";
+        ManagedLedger ledger = factory.open(mlName);
+        ledger.openCursor(cursorName);
+        metadataStore.setAlwaysFail(new MetadataStoreException("123"));
+        try {
+            ledger.deleteCursor(cursorName);
+            fail("expected delete cursor failure.");
+        } catch (Exception ex) {
+            assertTrue(FutureUtil.unwrapCompletionException(ex).getMessage().contains("123"));
+        }
+    }
+
     @Test(timeOut = 20000)
     void cursorPersistence() throws Exception {
         ManagedLedger ledger = factory.open("my_test_ledger");
@@ -1404,6 +1512,17 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         ledger = factory2.open("my_test_ledger");
         ManagedCursor cursor = ledger.openCursor("c1");
         Position position = ledger.addEntry("test".getBytes());
+        // Make persist zk fail once.
+        AtomicInteger persistZKTimes = new AtomicInteger();
+        metadataStore.failConditional(new MetadataStoreException.BadVersionException("mock ex"), (type, path) -> {
+            if (FaultInjectionMetadataStore.OperationType.PUT.equals(type)
+                    && path.equals("/managed-ledgers/my_test_ledger/c1")) {
+                if (persistZKTimes.incrementAndGet() == 1) {
+                    return true;
+                }
+            }
+            return false;
+        });
         try {
             cursor.markDelete(position);
             fail("should have failed");

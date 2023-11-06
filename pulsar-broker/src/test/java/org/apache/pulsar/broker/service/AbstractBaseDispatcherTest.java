@@ -249,8 +249,8 @@ public class AbstractBaseDispatcherTest {
         }
 
         @Override
-        public void addConsumer(Consumer consumer) throws BrokerServiceException {
-
+        public CompletableFuture<Void> addConsumer(Consumer consumer) {
+            return CompletableFuture.completedFuture(null);
         }
 
         @Override

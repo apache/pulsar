@@ -24,12 +24,14 @@ import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.UriInfo;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
+import org.apache.pulsar.broker.authentication.AuthenticationParameters;
 import org.apache.pulsar.broker.web.AuthenticationFilter;
 import org.apache.pulsar.functions.worker.WorkerService;
 
 public class FunctionApiResource implements Supplier<WorkerService> {
 
     public static final String ATTRIBUTE_FUNCTION_WORKER = "function-worker";
+    public static final String ORIGINAL_PRINCIPAL_HEADER = "X-Original-Principal";
 
     private WorkerService workerService;
     @Context
@@ -47,12 +49,28 @@ public class FunctionApiResource implements Supplier<WorkerService> {
         return this.workerService;
     }
 
+    public AuthenticationParameters authParams() {
+        return AuthenticationParameters.builder()
+                .originalPrincipal(httpRequest.getHeader(ORIGINAL_PRINCIPAL_HEADER))
+                .clientRole(clientAppId())
+                .clientAuthenticationDataSource(clientAuthData())
+                .build();
+    }
+
+    /**
+     * @deprecated use {@link #authParams()} instead.
+     */
+    @Deprecated
     public String clientAppId() {
         return httpRequest != null
                 ? (String) httpRequest.getAttribute(AuthenticationFilter.AuthenticatedRoleAttributeName)
                 : null;
     }
 
+    /**
+     * @deprecated use {@link #authParams()} instead.
+     */
+    @Deprecated
     public AuthenticationDataSource clientAuthData() {
         return (AuthenticationDataSource) httpRequest.getAttribute(AuthenticationFilter.AuthenticatedDataAttributeName);
     }

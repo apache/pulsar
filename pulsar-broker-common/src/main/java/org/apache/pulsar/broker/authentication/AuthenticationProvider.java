@@ -30,6 +30,7 @@ import javax.net.ssl.SSLSession;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.authentication.metrics.AuthenticationMetrics;
 import org.apache.pulsar.common.api.AuthData;
 import org.apache.pulsar.common.util.FutureUtil;
 
@@ -114,7 +115,7 @@ public interface AuthenticationProvider extends Closeable {
      * an {@link AuthenticationDataSource} that was added as the {@link AuthenticatedDataAttributeName} attribute to
      * the http request. Removing this method removes an unnecessary step in the authentication flow.</p>
      */
-    @Deprecated(since = "2.12.0")
+    @Deprecated(since = "3.0.0")
     default AuthenticationState newHttpAuthState(HttpServletRequest request)
             throws AuthenticationException {
         return new OneStageAuthenticationState(request, this);
@@ -141,6 +142,10 @@ public interface AuthenticationProvider extends Closeable {
         } catch (Exception e) {
             return FutureUtil.failedFuture(e);
         }
+    }
+
+    default void incrementFailureMetric(Enum<?> errorCode) {
+        AuthenticationMetrics.authenticateFailure(getClass().getSimpleName(), getAuthMethodName(), errorCode);
     }
 
     /**

@@ -91,11 +91,9 @@ public class CmdFunctions extends CmdBase {
             try {
                 processArguments();
             } catch (Exception e) {
-                System.err.println(e.getMessage());
-                System.err.println();
                 String chosenCommand = jcommander.getParsedCommand();
                 getUsageFormatter().usage(chosenCommand);
-                return;
+                throw e;
             }
             runCmd();
         }
@@ -201,6 +199,9 @@ public class CmdFunctions extends CmdBase {
         protected String className;
         @Parameter(names = { "-t", "--function-type" }, description = "The built-in Pulsar Function type")
         protected String functionType;
+        @Parameter(names = "--cleanup-subscription", description = "Whether delete the subscription "
+                + "when function is deleted")
+        protected Boolean cleanupSubscription;
         @Parameter(names = "--jar", description = "Path to the JAR file for the function "
                 + "(if the function is written in Java). It also supports URL path [http/https/file "
                 + "(file protocol assumes that file already exists on worker host)/function "
@@ -269,6 +270,9 @@ public class CmdFunctions extends CmdBase {
         @Parameter(names = "--input-specs",
                 description = "The map of inputs to custom configuration (as a JSON string) #Java, Python, Go")
         protected String inputSpecs;
+        @Parameter(names = "--input-type-class-name",
+                description = "The class name of input type class #Java, Python, Go")
+        protected String inputTypeClassName;
         // for backwards compatibility purposes
         @Parameter(names = "--outputSerdeClassName",
                 description = "The SerDe class to be used for messages output by the function", hidden = true)
@@ -276,6 +280,9 @@ public class CmdFunctions extends CmdBase {
         @Parameter(names = "--output-serde-classname",
                 description = "The SerDe class to be used for messages output by the function #Java, Python")
         protected String outputSerdeClassName;
+        @Parameter(names = "--output-type-class-name",
+                description = "The class name of output type class #Java, Python, Go")
+        protected String outputTypeClassName;
         // for backwards compatibility purposes
         @Parameter(names = "--functionConfigFile", description = "The path to a YAML config file that specifies "
                 + "the configuration of a Pulsar Function", hidden = true)
@@ -319,6 +326,9 @@ public class CmdFunctions extends CmdBase {
         @Parameter(names = "--subs-position", description = "Pulsar source subscription position if user wants to "
                 + "consume messages from the specified location #Java")
         protected SubscriptionInitialPosition subsPosition;
+        @Parameter(names = "--skip-to-latest", description = "Whether or not the consumer skip to latest message "
+            + "upon function instance restart", arity = 1)
+        protected Boolean skipToLatest;
         @Parameter(names = "--parallelism", description = "The parallelism factor of a Pulsar Function "
                 + "(i.e. the number of function instances to run) #Java")
         protected Integer parallelism;
@@ -462,6 +472,10 @@ public class CmdFunctions extends CmdBase {
                 }
             }
 
+            if (null != cleanupSubscription) {
+                functionConfig.setCleanupSubscription(cleanupSubscription);
+            }
+
             if (null != inputs) {
                 List<String> inputTopics = Arrays.asList(inputs.split(","));
                 functionConfig.setInputs(inputTopics);
@@ -485,11 +499,17 @@ public class CmdFunctions extends CmdBase {
                 Type type = new TypeToken<Map<String, ConsumerConfig>>() {}.getType();
                 functionConfig.setInputSpecs(new Gson().fromJson(inputSpecs, type));
             }
+            if (null != inputTypeClassName) {
+                functionConfig.setInputTypeClassName(inputTypeClassName);
+            }
             if (null != topicsPattern) {
                 functionConfig.setTopicsPattern(topicsPattern);
             }
             if (null != output) {
                 functionConfig.setOutput(output);
+            }
+            if (null != outputTypeClassName) {
+                functionConfig.setOutputTypeClassName(outputTypeClassName);
             }
             if (null != producerConfig) {
                 Type type = new TypeToken<ProducerConfig>() {}.getType();
@@ -534,6 +554,10 @@ public class CmdFunctions extends CmdBase {
 
             if (null != subsPosition) {
                 functionConfig.setSubscriptionPosition(subsPosition);
+            }
+
+            if (null != skipToLatest) {
+                functionConfig.setSkipToLatest(skipToLatest);
             }
 
             if (null != userConfigString) {
@@ -1011,6 +1035,10 @@ public class CmdFunctions extends CmdBase {
             updateOptions.setUpdateAuthData(updateAuthData);
             if (Utils.isFunctionPackageUrlSupported(functionConfig.getJar())) {
                 getAdmin().functions().updateFunctionWithUrl(functionConfig, functionConfig.getJar(), updateOptions);
+            } else if (Utils.isFunctionPackageUrlSupported(functionConfig.getPy())) {
+                getAdmin().functions().updateFunctionWithUrl(functionConfig, functionConfig.getPy(), updateOptions);
+            } else if (Utils.isFunctionPackageUrlSupported(functionConfig.getGo())) {
+                getAdmin().functions().updateFunctionWithUrl(functionConfig, functionConfig.getGo(), updateOptions);
             } else {
                 getAdmin().functions().updateFunction(functionConfig, userCodeFile, updateOptions);
             }

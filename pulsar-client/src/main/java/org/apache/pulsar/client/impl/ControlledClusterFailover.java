@@ -138,6 +138,7 @@ public class ControlledClusterFailover implements ServiceUrlProvider {
                     }
 
                     pulsarClient.updateServiceUrl(serviceUrl);
+                    pulsarClient.reloadLookUp();
                     currentPulsarServiceUrl = serviceUrl;
                     currentControlledConfiguration = controlledConfiguration;
                 }

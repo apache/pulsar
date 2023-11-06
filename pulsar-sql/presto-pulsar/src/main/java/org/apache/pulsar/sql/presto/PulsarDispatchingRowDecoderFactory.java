@@ -20,12 +20,13 @@ package org.apache.pulsar.sql.presto;
 
 import static java.lang.String.format;
 import com.google.inject.Inject;
-import io.airlift.log.Logger;
 import io.trino.decoder.DecoderColumnHandle;
 import io.trino.spi.connector.ColumnMetadata;
 import io.trino.spi.type.TypeManager;
 import java.util.List;
 import java.util.Set;
+import java.util.function.Function;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
@@ -37,15 +38,32 @@ import org.apache.pulsar.sql.presto.decoder.protobufnative.PulsarProtobufNativeR
 /**
  * dispatcher RowDecoderFactory for {@link org.apache.pulsar.common.schema.SchemaType}.
  */
+@Slf4j
 public class PulsarDispatchingRowDecoderFactory {
-
-    private static final Logger log = Logger.get(PulsarDispatchingRowDecoderFactory.class);
-
-    private TypeManager typeManager;
+    private final Function<SchemaType, PulsarRowDecoderFactory> decoderFactories;
+    private final TypeManager typeManager;
 
     @Inject
     public PulsarDispatchingRowDecoderFactory(TypeManager typeManager) {
         this.typeManager = typeManager;
+
+        final PulsarRowDecoderFactory avro = new PulsarAvroRowDecoderFactory(typeManager);
+        final PulsarRowDecoderFactory json = new PulsarJsonRowDecoderFactory(typeManager);
+        final PulsarRowDecoderFactory protobufNative = new PulsarProtobufNativeRowDecoderFactory(typeManager);
+        final PulsarRowDecoderFactory primitive = new PulsarPrimitiveRowDecoderFactory();
+        this.decoderFactories = (schema) -> {
+            if (SchemaType.AVRO.equals(schema)) {
+                return avro;
+            } else if (SchemaType.JSON.equals(schema)) {
+                return json;
+            } else if (SchemaType.PROTOBUF_NATIVE.equals(schema)) {
+                return protobufNative;
+            } else if (schema.isPrimitive()) {
+                return primitive;
+            } else {
+                return null;
+            }
+        };
     }
 
     public PulsarRowDecoder createRowDecoder(TopicName topicName, SchemaInfo schemaInfo,
@@ -61,22 +79,15 @@ public class PulsarDispatchingRowDecoderFactory {
     }
 
     private PulsarRowDecoderFactory createDecoderFactory(SchemaInfo schemaInfo) {
-        if (SchemaType.AVRO.equals(schemaInfo.getType())) {
-            return new PulsarAvroRowDecoderFactory(typeManager);
-        } else if (SchemaType.JSON.equals(schemaInfo.getType())) {
-            return new PulsarJsonRowDecoderFactory(typeManager);
-        } else if (SchemaType.PROTOBUF_NATIVE.equals(schemaInfo.getType())) {
-            return new PulsarProtobufNativeRowDecoderFactory(typeManager);
-        } else if (schemaInfo.getType().isPrimitive()) {
-            return new PulsarPrimitiveRowDecoderFactory();
-        } else {
-            throw new RuntimeException(format("'%s' is unsupported type '%s'", schemaInfo.getName(),
-                    schemaInfo.getType()));
+        PulsarRowDecoderFactory decoderFactory = decoderFactories.apply(schemaInfo.getType());
+        if (decoderFactory == null) {
+            throw new RuntimeException(format("'%s' is unsupported type '%s'",
+                    schemaInfo.getName(), schemaInfo.getType()));
         }
+        return decoderFactory;
     }
 
     public TypeManager getTypeManager() {
         return typeManager;
     }
-
 }

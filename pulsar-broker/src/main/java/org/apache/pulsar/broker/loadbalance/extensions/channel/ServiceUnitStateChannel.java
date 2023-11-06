@@ -19,11 +19,16 @@
 package org.apache.pulsar.broker.loadbalance.extensions.channel;
 
 import java.io.Closeable;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.broker.PulsarServerException;
+import org.apache.pulsar.broker.loadbalance.extensions.manager.StateChangeListener;
 import org.apache.pulsar.broker.loadbalance.extensions.models.Split;
 import org.apache.pulsar.broker.loadbalance.extensions.models.Unload;
+import org.apache.pulsar.common.stats.Metrics;
 import org.apache.pulsar.metadata.api.NotificationType;
 import org.apache.pulsar.metadata.api.extended.SessionEvent;
 
@@ -58,6 +63,12 @@ public interface ServiceUnitStateChannel extends Closeable {
      * @return True if the current broker is the owner. Otherwise, false.
      */
     CompletableFuture<Boolean> isChannelOwnerAsync();
+
+    /**
+     * Checks if the current broker is the owner broker of the system topic in this channel.
+     * @return True if the current broker is the owner. Otherwise, false.
+     */
+    boolean isChannelOwner();
 
     /**
      * Handles the metadata session events to track
@@ -121,6 +132,35 @@ public interface ServiceUnitStateChannel extends Closeable {
     CompletableFuture<Optional<String>> getOwnerAsync(String serviceUnit);
 
     /**
+     *  Gets the assigned broker of the service unit.
+     *
+     *
+     * @param serviceUnit (e.g. bundle))
+     * @return the future object of the assigned broker
+     */
+    Optional<String> getAssigned(String serviceUnit);
+
+
+    /**
+     * Checks if the target broker is the owner of the service unit.
+     *
+     *
+     * @param serviceUnit (e.g. bundle)
+     * @param targetBroker
+     * @return true if the target broker is the owner. false if unknown.
+     */
+    boolean isOwner(String serviceUnit, String targetBroker);
+
+    /**
+     * Checks if the current broker is the owner of the service unit.
+     *
+     *
+     * @param serviceUnit (e.g. bundle))
+     * @return true if the current broker is the owner. false if unknown.
+     */
+    boolean isOwner(String serviceUnit);
+
+    /**
      * Asynchronously publishes the service unit assignment event to the system topic in this channel.
      * It de-duplicates assignment events if there is any ongoing assignment event for the same service unit.
      * @param serviceUnit (e.g bundle)
@@ -148,4 +188,37 @@ public interface ServiceUnitStateChannel extends Closeable {
      */
     CompletableFuture<Void> publishSplitEventAsync(Split split);
 
+    /**
+     * Generates the metrics to monitor.
+     * @return a list of the metrics
+     */
+    List<Metrics> getMetrics();
+
+    /**
+     * Add a state change listener.
+     *
+     * @param listener State change listener.
+     */
+    void listen(StateChangeListener listener);
+
+    /**
+     * Returns service unit ownership entry set.
+     * @return a set of service unit ownership entries
+     */
+    Set<Map.Entry<String, ServiceUnitStateData>> getOwnershipEntrySet();
+
+    /**
+     * Schedules ownership monitor to periodically check and correct invalid ownership states.
+     */
+    void scheduleOwnershipMonitor();
+
+    /**
+     * Cancels the ownership monitor.
+     */
+    void cancelOwnershipMonitor();
+
+    /**
+     * Cleans the service unit ownerships from the current broker's channel.
+     */
+    void cleanOwnerships();
 }

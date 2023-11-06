@@ -18,14 +18,6 @@
  */
 package org.apache.pulsar.admin.cli;
 
-import static org.apache.pulsar.common.naming.TopicName.DEFAULT_NAMESPACE;
-import static org.apache.pulsar.common.naming.TopicName.PUBLIC_TENANT;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
-
 import com.beust.jcommander.ParameterException;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.dataformat.yaml.YAMLMapper;
@@ -34,7 +26,7 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.util.Map;
-
+import java.util.UUID;
 import org.apache.pulsar.admin.cli.utils.CmdUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.Sources;
@@ -49,10 +41,18 @@ import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
+import static org.apache.pulsar.common.naming.TopicName.DEFAULT_NAMESPACE;
+import static org.apache.pulsar.common.naming.TopicName.PUBLIC_TENANT;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+import static org.testng.Assert.assertTrue;
 
 public class TestCmdSources {
-
-            private static final String TENANT = "test-tenant";
+    private static final String TENANT = "test-tenant";
     private static final String NAMESPACE = "test-namespace";
     private static final String NAME = "test";
     private static final String TOPIC_NAME = "src_topic_1";
@@ -82,7 +82,6 @@ public class TestCmdSources {
 
     @BeforeMethod
     public void setup() throws Exception {
-
         pulsarAdmin = mock(PulsarAdmin.class);
         source = mock(Sources.class);
         when(pulsarAdmin.sources()).thenReturn(source);
@@ -412,7 +411,15 @@ public class TestCmdSources {
         expectedSourceConfig.setBatchSourceConfig(batchSourceConfig);
         testCmdSourceConfigFile(testSourceConfig, expectedSourceConfig);
     }
-    
+
+    @Test
+    public void testCmdSourceConfigFileInvalidSourceType() throws Exception {
+        SourceConfig sourceConfig = getSourceConfig();
+        sourceConfig.setSourceType("foo");
+        assertThatThrownBy(() -> testCmdSourceConfigFile(sourceConfig, null))
+                .hasMessageContaining("Invalid source type 'foo'");
+    }
+
     public void testCmdSourceConfigFile(SourceConfig testSourceConfig, SourceConfig expectedSourceConfig) throws Exception {
 
         File file = Files.createTempFile("", "").toFile();
@@ -444,6 +451,19 @@ public class TestCmdSources {
         verify(localSourceRunner).validateSourceConfigs(eq(expectedSourceConfig));
     }
 
+    @Test
+    public void testCmdSourcesThrowingExceptionOnFailure() throws Exception {
+        verifyNoSuchFileParameterException(createSource);
+        verifyNoSuchFileParameterException(updateSource);
+        verifyNoSuchFileParameterException(localSourceRunner);
+    }
+    
+    private void verifyNoSuchFileParameterException(org.apache.pulsar.admin.cli.CmdSources.SourceDetailsCommand command) {
+        command.sourceConfigFile = UUID.randomUUID().toString();
+        ParameterException e = Assert.expectThrows(ParameterException.class, command::processArguments);
+        assertTrue(e.getMessage().endsWith("(No such file or directory)"));
+    }
+    
 
     @Test
     public void testCliOverwriteConfigFile() throws Exception {

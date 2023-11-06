@@ -26,6 +26,6 @@ import lombok.Value;
  */
 @Value
 public class BytesWithKafkaSchema {
-    private final ByteBuffer value;
-    private final int schemaId;
+    ByteBuffer value;
+    int schemaId;
 }

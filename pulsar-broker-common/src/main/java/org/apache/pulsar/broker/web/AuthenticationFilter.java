@@ -50,22 +50,27 @@ public class AuthenticationFilter implements Filter {
     }
 
     @Override
-    public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain)
-            throws IOException, ServletException {
+    public void doFilter(
+            ServletRequest request, ServletResponse response, FilterChain chain
+    ) throws IOException, ServletException {
+        final HttpServletRequest httpRequest = (HttpServletRequest) request;
+        final HttpServletResponse httpResponse = (HttpServletResponse) response;
+
+        final boolean doFilter;
         try {
-            boolean doFilter = authenticationService
-                    .authenticateHttpRequest((HttpServletRequest) request, (HttpServletResponse) response);
-            if (doFilter) {
-                chain.doFilter(request, response);
-            }
+            doFilter = authenticationService.authenticateHttpRequest(httpRequest, httpResponse);
         } catch (Exception e) {
-            HttpServletResponse httpResponse = (HttpServletResponse) response;
             httpResponse.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Authentication required");
             if (e instanceof AuthenticationException) {
                 LOG.warn("[{}] Failed to authenticate HTTP request: {}", request.getRemoteAddr(), e.getMessage());
             } else {
                 LOG.error("[{}] Error performing authentication for HTTP", request.getRemoteAddr(), e);
             }
+            return;
+        }
+
+        if (doFilter) {
+            chain.doFilter(request, response);
         }
     }
 

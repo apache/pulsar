@@ -183,6 +183,16 @@
   </suppress>
 
   <suppress>
+    <notes>It treat pulsar-io-kafka-connect-adaptor as a lib of Kafka, CVE-2021-25194 is a false positive.</notes>
+    <cve>CVE-2023-25194</cve>
+  </suppress>
+
+  <suppress>
+    <notes>It treat pulsar-io-kafka-connect-adaptor as a lib of Kafka, CVE-2021-34917 is a false positive.</notes>
+    <cve>CVE-2022-34917</cve>
+  </suppress>
+
+  <suppress>
     <notes>yaml_project is not used at all. Any CVEs reported for yaml_project are false positives.</notes>
     <cpe>cpe:/a:yaml_project:yaml</cpe>
   </suppress>

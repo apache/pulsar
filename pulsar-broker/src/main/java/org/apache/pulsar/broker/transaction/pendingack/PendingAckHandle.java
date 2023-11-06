@@ -160,6 +160,17 @@ public interface PendingAckHandle {
     boolean checkIfPendingAckStoreInit();
 
     /**
+     * If it returns null, it means this Position is not in pendingAck.
+     * <p>
+     * If it does not return null, it means this Position is in pendingAck and if it is batch Position,
+     * it will return the corresponding ackSet in pendingAck
+     *
+     * @param position {@link Position} witch need to get in pendingAck
+     * @return {@link Position} return the position in pendingAck
+     */
+    PositionImpl getPositionInPendingAck(PositionImpl position);
+
+    /**
      * Get the stats of this message position is in pending ack.
      * @param position message position.
      * @param batchIndex the batch index of ths position.

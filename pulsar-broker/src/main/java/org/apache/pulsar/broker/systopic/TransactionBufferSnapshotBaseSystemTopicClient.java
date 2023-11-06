@@ -188,6 +188,7 @@ public class  TransactionBufferSnapshotBaseSystemTopicClient<T> extends SystemTo
     protected CompletableFuture<Writer<T>> newWriterAsyncInternal() {
         return client.newProducer(Schema.AVRO(schemaType))
                 .topic(topicName.toString())
+                .enableBatching(false)
                 .createAsync().thenApply(producer -> {
                     if (log.isDebugEnabled()) {
                         log.debug("[{}] A new {} writer is created", topicName, schemaType.getName());

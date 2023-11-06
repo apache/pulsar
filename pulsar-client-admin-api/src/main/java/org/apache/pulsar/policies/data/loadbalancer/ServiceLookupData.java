@@ -48,4 +48,8 @@ public interface ServiceLookupData {
      */
     Optional<String> getProtocol(String protocol);
 
+    String getLoadManagerClassName();
+
+    long getStartTimestamp();
+
 }

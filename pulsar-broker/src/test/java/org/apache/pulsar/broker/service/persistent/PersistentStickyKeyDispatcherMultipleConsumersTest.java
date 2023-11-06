@@ -35,6 +35,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
@@ -73,6 +74,7 @@ import org.apache.pulsar.common.protocol.Markers;
 import org.awaitility.Awaitility;
 import org.mockito.ArgumentCaptor;
 import org.testng.Assert;
+import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
@@ -152,11 +154,25 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
                 new KeySharedMeta().setKeySharedMode(KeySharedMode.AUTO_SPLIT));
     }
 
+    @AfterMethod(alwaysRun = true)
     public void cleanup() {
+        if (persistentDispatcher != null && !persistentDispatcher.isClosed()) {
+            persistentDispatcher.close();
+        }
         if (orderedExecutor != null) {
-            orderedExecutor.shutdown();
+            orderedExecutor.shutdownNow();
             orderedExecutor = null;
         }
+    }
+
+    @Test(timeOut = 10000)
+    public void testAddConsumerWhenClosed() throws Exception {
+        persistentDispatcher.close().get();
+        Consumer consumer = mock(Consumer.class);
+        persistentDispatcher.addConsumer(consumer);
+        verify(consumer, times(1)).disconnect();
+        assertEquals(0, persistentDispatcher.getConsumers().size());
+        assertTrue(persistentDispatcher.getSelector().getConsumerKeyHashRanges().isEmpty());
     }
 
     @Test

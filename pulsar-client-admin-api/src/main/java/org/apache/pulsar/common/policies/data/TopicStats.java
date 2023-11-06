@@ -94,4 +94,6 @@ public interface TopicStats {
 
     /** The broker that owns this topic. **/
     String getOwnerBroker();
+
+    long getDelayedMessageIndexSizeInBytes();
 }

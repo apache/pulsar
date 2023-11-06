@@ -202,12 +202,6 @@ public class SinkConfigUtils {
             sourceSpecBuilder.setNegativeAckRedeliveryDelayMs(sinkConfig.getNegativeAckRedeliveryDelayMs());
         }
 
-        if (sinkConfig.getCleanupSubscription() != null) {
-            sourceSpecBuilder.setCleanupSubscription(sinkConfig.getCleanupSubscription());
-        } else {
-            sourceSpecBuilder.setCleanupSubscription(true);
-        }
-
         if (sinkConfig.getSourceSubscriptionPosition() == SubscriptionInitialPosition.Earliest) {
             sourceSpecBuilder.setSubscriptionPosition(Function.SubscriptionPosition.EARLIEST);
         } else {
@@ -215,6 +209,13 @@ public class SinkConfigUtils {
         }
 
         functionDetailsBuilder.setSource(sourceSpecBuilder);
+
+        if (sinkConfig.getRetainKeyOrdering() != null) {
+            functionDetailsBuilder.setRetainKeyOrdering(sinkConfig.getRetainKeyOrdering());
+        }
+        if (sinkConfig.getRetainOrdering() != null) {
+            functionDetailsBuilder.setRetainOrdering(sinkConfig.getRetainOrdering());
+        }
 
         if (sinkConfig.getMaxMessageRetries() != null && sinkConfig.getMaxMessageRetries() > 0) {
             Function.RetryDetails.Builder retryDetails = Function.RetryDetails.newBuilder();
@@ -329,7 +330,6 @@ public class SinkConfigUtils {
         // Set subscription position
         sinkConfig.setSourceSubscriptionPosition(
                 convertFromFunctionDetailsSubscriptionPosition(functionDetails.getSource().getSubscriptionPosition()));
-        sinkConfig.setCleanupSubscription(functionDetails.getSource().getCleanupSubscription());
 
         if (functionDetails.getSource().getTimeoutMs() != 0) {
             sinkConfig.setTimeoutMs(functionDetails.getSource().getTimeoutMs());
@@ -531,7 +531,7 @@ public class SinkConfigUtils {
         return new ExtractedSinkDetails(sinkClassName, typeArg.getName(), functionClassName);
     }
 
-    private static Collection<String> collectAllInputTopics(SinkConfig sinkConfig) {
+    public static Collection<String> collectAllInputTopics(SinkConfig sinkConfig) {
         List<String> retval = new LinkedList<>();
         if (sinkConfig.getInputs() != null) {
             retval.addAll(sinkConfig.getInputs());
@@ -670,9 +670,6 @@ public class SinkConfigUtils {
         }
         if (!StringUtils.isEmpty(newConfig.getCustomRuntimeOptions())) {
             mergedConfig.setCustomRuntimeOptions(newConfig.getCustomRuntimeOptions());
-        }
-        if (newConfig.getCleanupSubscription() != null) {
-            mergedConfig.setCleanupSubscription(newConfig.getCleanupSubscription());
         }
         if (newConfig.getTransformFunction() != null) {
             mergedConfig.setTransformFunction(newConfig.getTransformFunction());

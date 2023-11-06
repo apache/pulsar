@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.client.api;
 
+import org.apache.pulsar.client.internal.DefaultImplementation;
+
 /**
  * The MessageId used for a consumer that subscribes multiple topics or partitioned topics.
  *
@@ -43,49 +45,6 @@ public interface TopicMessageId extends MessageId {
         if (messageId instanceof TopicMessageId) {
             return (TopicMessageId) messageId;
         }
-        return new Impl(topic, messageId);
-    }
-
-    /**
-     * The simplest implementation of a TopicMessageId interface.
-     */
-    class Impl implements TopicMessageId {
-        private final String topic;
-        private final MessageId messageId;
-
-        public Impl(String topic, MessageId messageId) {
-            this.topic = topic;
-            this.messageId = messageId;
-        }
-
-        @Override
-        public byte[] toByteArray() {
-            return messageId.toByteArray();
-        }
-
-        @Override
-        public String getOwnerTopic() {
-            return topic;
-        }
-
-        @Override
-        public int compareTo(MessageId o) {
-            return messageId.compareTo(o);
-        }
-
-        @Override
-        public boolean equals(Object obj) {
-            return messageId.equals(obj);
-        }
-
-        @Override
-        public int hashCode() {
-            return messageId.hashCode();
-        }
-
-        @Override
-        public String toString() {
-            return messageId.toString();
-        }
+        return DefaultImplementation.getDefaultImplementation().newTopicMessageId(topic, messageId);
     }
 }

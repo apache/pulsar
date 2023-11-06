@@ -290,7 +290,9 @@ public class MetadataCacheTest extends BaseMetadataStoreTest {
         assertEquals(objCache.get(key1).join(), Optional.empty());
 
         MyClass value1 = new MyClass("a", 1);
-        store.put(key1, ObjectMapperFactory.getMapper().writer().writeValueAsBytes(value1), Optional.of(-1L)).join();
+        Stat putResult = store.put(key1, ObjectMapperFactory.getMapper().writer().writeValueAsBytes(value1),
+                Optional.of(-1L)).join();
+        assertTrue(putResult.isFirstVersion());
 
         Awaitility.await().untilAsserted(() -> {
             assertEquals(objCache.getIfCached(key1), Optional.of(value1));
@@ -298,7 +300,8 @@ public class MetadataCacheTest extends BaseMetadataStoreTest {
         });
 
         MyClass value2 = new MyClass("a", 2);
-        store.put(key1, ObjectMapperFactory.getMapper().writer().writeValueAsBytes(value2), Optional.of(0L)).join();
+        store.put(key1, ObjectMapperFactory.getMapper().writer().writeValueAsBytes(value2),
+                Optional.of(putResult.getVersion())).join();
 
         Awaitility.await().untilAsserted(() -> {
             assertEquals(objCache.getIfCached(key1), Optional.of(value2));
@@ -483,6 +486,7 @@ public class MetadataCacheTest extends BaseMetadataStoreTest {
         String url = zks.getConnectionString();
         @Cleanup
         MetadataStore sourceStore1 = MetadataStoreFactory.create(url, MetadataStoreConfig.builder().build());
+        @Cleanup
         MetadataStore sourceStore2 = MetadataStoreFactory.create(url, MetadataStoreConfig.builder().build());
 
         MetadataCache<MyClass> objCache1 = sourceStore1.getMetadataCache(MyClass.class);

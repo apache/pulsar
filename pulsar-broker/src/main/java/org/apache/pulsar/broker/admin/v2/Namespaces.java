@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker.admin.v2;
 
-import static org.apache.pulsar.common.policies.data.PoliciesUtil.getBundles;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiParam;
@@ -46,12 +45,9 @@ import javax.ws.rs.container.Suspended;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.StreamingOutput;
-import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.admin.impl.NamespacesBase;
 import org.apache.pulsar.broker.admin.impl.OffloaderObjectsScannerUtils;
-import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.web.RestException;
-import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespace.Mode;
 import org.apache.pulsar.common.naming.NamespaceName;
@@ -199,12 +195,6 @@ public class Namespaces extends NamespacesBase {
                     asyncResponse.resume(Response.noContent().build());
                 })
                 .exceptionally(ex -> {
-                    Throwable cause = FutureUtil.unwrapCompletionException(ex);
-                    if (cause instanceof PulsarAdminException.ConflictException) {
-                        log.info("[{}] There are new topics created during the namespace deletion, "
-                                + "retry to delete the namespace again.", namespaceName);
-                        pulsar().getExecutor().execute(() -> internalDeleteNamespaceAsync(force));
-                    }
                     if (!isRedirectException(ex)) {
                         log.error("[{}] Failed to delete namespace {}", clientAppId(), namespaceName, ex);
                     }
@@ -249,8 +239,8 @@ public class Namespaces extends NamespacesBase {
                                                        @PathParam("namespace") String namespace) {
         validateNamespaceName(tenant, namespace);
         validateNamespaceOperationAsync(NamespaceName.get(tenant, namespace), NamespaceOperation.GET_PERMISSION)
-                .thenCompose(__ -> getNamespacePoliciesAsync(namespaceName))
-                .thenAccept(policies -> response.resume(policies.auth_policies.getNamespaceAuthentication()))
+                .thenCompose(__ -> getAuthorizationService().getPermissionsAsync(namespaceName))
+                .thenAccept(permissions -> response.resume(permissions))
                 .exceptionally(ex -> {
                     log.error("Failed to get permissions for namespace {}", namespaceName, ex);
                     resumeAsyncResponseExceptionally(response, ex);
@@ -269,8 +259,8 @@ public class Namespaces extends NamespacesBase {
                                             @PathParam("namespace") String namespace) {
         validateNamespaceName(tenant, namespace);
         validateNamespaceOperationAsync(NamespaceName.get(tenant, namespace), NamespaceOperation.GET_PERMISSION)
-                .thenCompose(__ -> getNamespacePoliciesAsync(namespaceName))
-                .thenAccept(policies -> response.resume(policies.auth_policies.getSubscriptionAuthentication()))
+                .thenCompose(__ -> getAuthorizationService().getSubscriptionPermissionsAsync(namespaceName))
+                .thenAccept(permissions -> response.resume(permissions))
                 .exceptionally(ex -> {
                     log.error("[{}] Failed to get permissions on subscription for namespace {}: {} ", clientAppId(),
                             namespaceName, ex.getCause().getMessage(), ex);
@@ -817,34 +807,13 @@ public class Namespaces extends NamespacesBase {
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
                                       @QueryParam("destinationBroker") String destinationBroker) {
         validateNamespaceName(tenant, namespace);
-        pulsar().getLoadManager().get().getAvailableBrokersAsync()
-                .thenApply(brokers ->
-                        StringUtils.isNotBlank(destinationBroker) ? brokers.contains(destinationBroker) : true)
-                .thenAccept(isActiveDestination -> {
-                    if (isActiveDestination) {
-                        setNamespaceBundleAffinity(bundleRange, destinationBroker);
-                        internalUnloadNamespaceBundleAsync(bundleRange, authoritative)
-                                .thenAccept(__ -> {
-                                    log.info("[{}] Successfully unloaded namespace bundle {}",
-                                            clientAppId(), bundleRange);
-                                    asyncResponse.resume(Response.noContent().build());
-                                })
-                                .exceptionally(ex -> {
-                                    if (!isRedirectException(ex)) {
-                                        log.error("[{}] Failed to unload namespace bundle {}/{}",
-                                                clientAppId(), namespaceName, bundleRange, ex);
-                                    }
-                                    resumeAsyncResponseExceptionally(asyncResponse, ex);
-                                    return null;
-                                });
-                    } else {
-                        log.warn("[{}] Failed to unload namespace bundle {}/{} to inactive broker {}.",
-                                clientAppId(), namespaceName, bundleRange, destinationBroker);
-                        resumeAsyncResponseExceptionally(asyncResponse,
-                                new BrokerServiceException.NotAllowedException(
-                                        "Not allowed unload namespace bundle to inactive destination broker"));
-                    }
-                }).exceptionally(ex -> {
+        internalUnloadNamespaceBundleAsync(bundleRange, destinationBroker, authoritative)
+                .thenAccept(__ -> {
+                    log.info("[{}] Successfully unloaded namespace bundle {}",
+                            clientAppId(), bundleRange);
+                    asyncResponse.resume(Response.noContent().build());
+                })
+                .exceptionally(ex -> {
                     if (!isRedirectException(ex)) {
                         log.error("[{}] Failed to unload namespace bundle {}/{}",
                                 clientAppId(), namespaceName, bundleRange, ex);
@@ -1996,20 +1965,6 @@ public class Namespaces extends NamespacesBase {
         return internalGetAntiAffinityNamespaces(cluster, antiAffinityGroup, tenant);
     }
 
-    private Policies getDefaultPolicesIfNull(Policies policies) {
-        if (policies == null) {
-            policies = new Policies();
-        }
-
-        int defaultNumberOfBundles = config().getDefaultNumberOfNamespaceBundles();
-
-        if (policies.bundles == null) {
-            policies.bundles = getBundles(defaultNumberOfBundles);
-        }
-
-        return policies;
-    }
-
     @GET
     @Path("/{tenant}/{namespace}/compactionThreshold")
     @ApiOperation(value = "Maximum number of uncompacted bytes in topics before compaction is triggered.",
@@ -2549,7 +2504,7 @@ public class Namespaces extends NamespacesBase {
     @ApiOperation(value = "Set maxTopicsPerNamespace config on a namespace.")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Tenant or namespace doesn't exist"), })
-    public void setInactiveTopicPolicies(@PathParam("tenant") String tenant,
+    public void setMaxTopicsPerNamespace(@PathParam("tenant") String tenant,
                                          @PathParam("namespace") String namespace,
                                          @ApiParam(value = "Number of maximum topics for specific namespace",
                                                  required = true) int maxTopicsPerNamespace) {
@@ -2559,10 +2514,10 @@ public class Namespaces extends NamespacesBase {
 
     @DELETE
     @Path("/{tenant}/{namespace}/maxTopicsPerNamespace")
-    @ApiOperation(value = "Set maxTopicsPerNamespace config on a namespace.")
+    @ApiOperation(value = "Remove maxTopicsPerNamespace config on a namespace.")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Tenant or namespace doesn't exist"), })
-    public void setInactiveTopicPolicies(@PathParam("tenant") String tenant,
+    public void removeMaxTopicsPerNamespace(@PathParam("tenant") String tenant,
                                          @PathParam("namespace") String namespace) {
         validateNamespaceName(tenant, namespace);
         internalRemoveMaxTopicsPerNamespace();
@@ -2599,7 +2554,7 @@ public class Namespaces extends NamespacesBase {
 
     @DELETE
     @Path("/{tenant}/{namespace}/property/{key}")
-    @ApiOperation(value = "Get property value for a given key on a namespace.")
+    @ApiOperation(value = "Remove property value for a given key on a namespace.")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Tenant or namespace doesn't exist"), })
     public void removeProperty(
@@ -2809,7 +2764,17 @@ public class Namespaces extends NamespacesBase {
                 });
     }
 
-
+    @POST
+    @Path("/{tenant}/{namespace}/migration")
+    @ApiOperation(hidden = true, value = "Update migration for all topics in a namespace")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Property or cluster or namespace doesn't exist") })
+    public void enableMigration(@PathParam("tenant") String tenant,
+                                @PathParam("namespace") String namespace,
+                                boolean migrated) {
+        validateNamespaceName(tenant, namespace);
+        internalEnableMigration(migrated);
+    }
 
     private static final Logger log = LoggerFactory.getLogger(Namespaces.class);
 }

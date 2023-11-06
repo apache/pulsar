@@ -767,7 +767,7 @@ public class PartitionedProducerConsumerTest extends ProducerConsumerBase {
 
             for (int i = 0; i < totalMessages; i ++) {
                 msg = consumer1.receive(5, TimeUnit.SECONDS);
-                Assert.assertEquals(MessageIdImpl.convertToMessageIdImpl(msg.getMessageId()).getPartitionIndex(), 2);
+                Assert.assertEquals(((MessageIdAdv) msg.getMessageId()).getPartitionIndex(), 2);
                 consumer1.acknowledge(msg);
             }
 

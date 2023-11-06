@@ -242,6 +242,11 @@ public class ElasticSearchConfig implements Serializable {
     )
     private String primaryFields = "";
 
+    @FieldDoc(
+            required = false,
+            defaultValue = "",
+            help = "The SSL config for elastic search."
+    )
     private ElasticSearchSslConfig ssl = new ElasticSearchSslConfig();
 
     @FieldDoc(
