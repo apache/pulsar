@@ -1055,7 +1055,7 @@ public class BrokerService implements Closeable {
             final boolean isPersistentTopic = topicName.getDomain().equals(TopicDomain.persistent);
             if (isPersistentTopic) {
                 final CompletableFuture<Optional<TopicPolicies>> topicPoliciesFuture =
-                        getTopicPoliciesByPassSystemTopic(topicName);
+                        getTopicPoliciesBypassSystemTopic(topicName);
                 return topicPoliciesFuture.thenCompose(optionalTopicPolicies -> {
                     final TopicPolicies topicPolicies = optionalTopicPolicies.orElse(null);
                     return topics.computeIfAbsent(topicName.toString(), (tpName) -> {
@@ -1127,14 +1127,8 @@ public class BrokerService implements Closeable {
         }
     }
 
-    /**
-     *  todo...
-     * @param topicName
-     * @return
-     */
-    private CompletableFuture<Optional<TopicPolicies>> getTopicPoliciesByPassSystemTopic(@Nonnull TopicName topicName) {
+    private CompletableFuture<Optional<TopicPolicies>> getTopicPoliciesBypassSystemTopic(@Nonnull TopicName topicName) {
         Objects.requireNonNull(topicName);
-        final CompletableFuture<Optional<TopicPolicies>> topicPoliciesFuture;
         if (pulsar.getConfig().isTopicLevelPoliciesEnabled()
                 && !NamespaceService.isSystemServiceNamespace(topicName.getNamespace())
                 && !SystemTopicNames.isTopicPoliciesSystemTopic(topicName.toString())) {
@@ -1813,12 +1807,9 @@ public class BrokerService implements Closeable {
         return result;
     }
 
-    /**
-     *  todo... comment
-     */
     public CompletableFuture<ManagedLedgerConfig> getManagedLedgerConfig(@Nonnull TopicName topicName) {
         final CompletableFuture<Optional<TopicPolicies>> topicPoliciesFuture =
-                getTopicPoliciesByPassSystemTopic(topicName);
+                getTopicPoliciesBypassSystemTopic(topicName);
         return topicPoliciesFuture.thenCompose(optionalTopicPolicies ->
                 getManagedLedgerConfig(topicName, optionalTopicPolicies.orElse(null)));
     }
