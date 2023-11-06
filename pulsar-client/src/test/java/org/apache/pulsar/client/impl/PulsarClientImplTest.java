@@ -19,6 +19,7 @@
 package org.apache.pulsar.client.impl;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.mock;
@@ -36,6 +37,7 @@ import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPromise;
 import io.netty.channel.EventLoopGroup;
+import io.netty.resolver.dns.DefaultDnsServerAddressStreamProvider;
 import io.netty.util.HashedWheelTimer;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import java.lang.reflect.Field;
@@ -122,7 +124,7 @@ public class PulsarClientImplTest {
         when(cnx.ctx()).thenReturn(ctx);
         when(cnx.sendRequestWithId(any(ByteBuf.class), anyLong()))
                 .thenReturn(CompletableFuture.completedFuture(mock(ProducerResponse.class)));
-        when(pool.getConnection(any(InetSocketAddress.class), any(InetSocketAddress.class)))
+        when(pool.getConnection(any(InetSocketAddress.class), any(InetSocketAddress.class), anyInt()))
                 .thenReturn(CompletableFuture.completedFuture(cnx));
 
         ClientConfigurationData conf = new ClientConfigurationData();
@@ -177,6 +179,7 @@ public class PulsarClientImplTest {
     @Test
     public void testInitializeWithTimer() throws PulsarClientException {
         ClientConfigurationData conf = new ClientConfigurationData();
+        @Cleanup("shutdownGracefully")
         EventLoopGroup eventLoop = EventLoopUtil.newEventLoopGroup(1, false, new DefaultThreadFactory("test"));
         ConnectionPool pool = Mockito.spy(new ConnectionPool(conf, eventLoop));
         conf.setServiceUrl("pulsar://localhost:6650");
@@ -186,6 +189,16 @@ public class PulsarClientImplTest {
 
         client.shutdown();
         client.timer().stop();
+    }
+
+    @Test
+    public void testInitializeWithDNSServerAddresses() throws Exception {
+        ClientConfigurationData conf = new ClientConfigurationData();
+        conf.setDnsServerAddresses(DefaultDnsServerAddressStreamProvider.defaultAddressList());
+        conf.setServiceUrl("pulsar://localhost:6650");
+        initializeEventLoopGroup(conf);
+        PulsarClientImpl client = new PulsarClientImpl(conf, eventLoopGroup);
+        client.shutdown();
     }
 
     @Test

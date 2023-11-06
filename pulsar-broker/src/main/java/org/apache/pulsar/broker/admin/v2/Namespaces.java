@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker.admin.v2;
 
-import static org.apache.pulsar.common.policies.data.PoliciesUtil.getBundles;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiParam;
@@ -1966,20 +1965,6 @@ public class Namespaces extends NamespacesBase {
         return internalGetAntiAffinityNamespaces(cluster, antiAffinityGroup, tenant);
     }
 
-    private Policies getDefaultPolicesIfNull(Policies policies) {
-        if (policies == null) {
-            policies = new Policies();
-        }
-
-        int defaultNumberOfBundles = config().getDefaultNumberOfNamespaceBundles();
-
-        if (policies.bundles == null) {
-            policies.bundles = getBundles(defaultNumberOfBundles);
-        }
-
-        return policies;
-    }
-
     @GET
     @Path("/{tenant}/{namespace}/compactionThreshold")
     @ApiOperation(value = "Maximum number of uncompacted bytes in topics before compaction is triggered.",
@@ -2779,7 +2764,17 @@ public class Namespaces extends NamespacesBase {
                 });
     }
 
-
+    @POST
+    @Path("/{tenant}/{namespace}/migration")
+    @ApiOperation(hidden = true, value = "Update migration for all topics in a namespace")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Property or cluster or namespace doesn't exist") })
+    public void enableMigration(@PathParam("tenant") String tenant,
+                                @PathParam("namespace") String namespace,
+                                boolean migrated) {
+        validateNamespaceName(tenant, namespace);
+        internalEnableMigration(migrated);
+    }
 
     private static final Logger log = LoggerFactory.getLogger(Namespaces.class);
 }

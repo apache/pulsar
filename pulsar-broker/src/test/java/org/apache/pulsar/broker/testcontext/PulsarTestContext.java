@@ -193,6 +193,10 @@ public class PulsarTestContext implements AutoCloseable {
      * @throws Exception if there is an error closing the resources
      */
     public void close() throws Exception {
+        callCloseables(closeables);
+    }
+
+    private static void callCloseables(List<AutoCloseable> closeables) {
         for (int i = closeables.size() - 1; i >= 0; i--) {
             try {
                 closeables.get(i).close();
@@ -226,6 +230,7 @@ public class PulsarTestContext implements AutoCloseable {
         protected ServiceConfiguration svcConfig = initializeConfig();
         protected Consumer<ServiceConfiguration> configOverrideCustomizer = this::defaultOverrideServiceConfiguration;
         protected Function<BrokerService, BrokerService> brokerServiceCustomizer = Function.identity();
+        protected PulsarTestContext otherContextToClose;
 
         /**
          * Initialize the ServiceConfiguration with default values.
@@ -401,7 +406,15 @@ public class PulsarTestContext implements AutoCloseable {
          * The other PulsarTestContext will be closed when this one is closed.
          */
         public Builder chainClosing(PulsarTestContext otherContext) {
-            registerCloseable(otherContext);
+            otherContextToClose = otherContext;
+            return this;
+        }
+
+        /**
+         * Registers a closeable to close as the last one by prepending it to the closeables list.
+         */
+        public Builder prependCloseable(AutoCloseable closeable) {
+            closeables.add(0, closeable);
             return this;
         }
 
@@ -528,9 +541,6 @@ public class PulsarTestContext implements AutoCloseable {
             if (configOverrideCustomizer != null) {
                 configOverrideCustomizer.accept(super.config);
             }
-            if (super.brokerInterceptor != null) {
-                super.config.setDisableBrokerInterceptors(false);
-            }
             initializeCommonPulsarServices(spyConfig);
             initializePulsarServices(spyConfig, this);
             if (pulsarServiceCustomizer != null) {
@@ -540,8 +550,13 @@ public class PulsarTestContext implements AutoCloseable {
                 try {
                     super.pulsarService.start();
                 } catch (Exception e) {
+                    callCloseables(super.closeables);
+                    super.closeables.clear();
                     throw new RuntimeException(e);
                 }
+            }
+            if (otherContextToClose != null) {
+                prependCloseable(otherContextToClose);
             }
             brokerService(super.pulsarService.getBrokerService());
             return super.build();
@@ -592,7 +607,8 @@ public class PulsarTestContext implements AutoCloseable {
                 } else {
                     try {
                         MetadataStoreExtended store = MetadataStoreFactoryImpl.createExtended("memory:local",
-                                MetadataStoreConfig.builder().build());
+                                MetadataStoreConfig.builder()
+                                        .metadataStoreName(MetadataStoreConfig.METADATA_STORE).build());
                         registerCloseable(() -> {
                             store.close();
                             resetSpyOrMock(store);
@@ -715,7 +731,7 @@ public class PulsarTestContext implements AutoCloseable {
                     if (metadataStore == null) {
                         metadataStore = builder.configurationMetadataStore;
                     }
-                    NamespaceResources nsr = spyConfigPulsarResources.spy(NamespaceResources.class, metadataStore, 30);
+                    NamespaceResources nsr = spyConfigPulsarResources.spy(NamespaceResources.class,metadataStore, 30);
                     TopicResources tsr = spyConfigPulsarResources.spy(TopicResources.class, metadataStore);
                     pulsarResources(
                             spyConfigPulsarResources.spy(

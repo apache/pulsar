@@ -32,16 +32,16 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException.NonRecoverableLedger
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.pulsar.broker.service.MessageExpirer;
 import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.stats.Rate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 /**
  */
-public class PersistentMessageExpiryMonitor implements FindEntryCallback {
+public class PersistentMessageExpiryMonitor implements FindEntryCallback, MessageExpirer {
     private final ManagedCursor cursor;
     private final String subName;
     private final PersistentTopic topic;
@@ -73,6 +73,7 @@ public class PersistentMessageExpiryMonitor implements FindEntryCallback {
                 && this.cursor.getManagedLedger().getConfig().isAutoSkipNonRecoverableData();
     }
 
+    @Override
     public boolean expireMessages(int messageTTLInSeconds) {
         if (expirationCheckInProgressUpdater.compareAndSet(this, FALSE, TRUE)) {
             log.info("[{}][{}] Starting message expiry check, ttl= {} seconds", topicName, subName,
@@ -99,6 +100,7 @@ public class PersistentMessageExpiryMonitor implements FindEntryCallback {
         }
     }
 
+    @Override
     public boolean expireMessages(Position messagePosition) {
         // If it's beyond last position of this topic, do nothing.
         PositionImpl topicLastPosition = (PositionImpl) this.topic.getLastPosition();

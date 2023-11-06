@@ -402,7 +402,7 @@ public class CLITest extends PulsarTestSuite {
             "upload",
             topicName,
             "-f",
-            "/pulsar/conf/schema_example.conf"
+            "/pulsar/conf/schema_example.json"
         );
         result.assertNoOutput();
 

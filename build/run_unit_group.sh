@@ -87,6 +87,10 @@ function test_group_broker_group_3() {
   mvn_test -pl pulsar-broker -Dgroups='broker-admin'
 }
 
+function test_group_broker_group_4() {
+  mvn_test -pl pulsar-broker -Dgroups='cluster-migration'
+}
+
 function test_group_broker_client_api() {
   mvn_test -pl pulsar-broker -Dgroups='broker-api'
 }
@@ -97,6 +101,10 @@ function test_group_broker_client_impl() {
 
 function test_group_client() {
   mvn_test -pl pulsar-client
+}
+
+function test_group_metadata() {
+  mvn_test -pl pulsar-metadata
 }
 
 # prints summaries of failed tests to console

@@ -31,7 +31,7 @@ runs:
           directories=(/usr/local/lib/android /opt/ghc)
           if [[ "${{ inputs.mode }}" == "full" ]]; then
             # remove these directories only when mode is 'full'
-            directories+=(/usr/share/dotnet)
+            directories+=(/usr/share/dotnet /opt/hostedtoolcache/CodeQL)
           fi
           emptydir=/tmp/empty$$/
           mkdir $emptydir

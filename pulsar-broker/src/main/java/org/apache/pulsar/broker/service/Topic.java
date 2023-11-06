@@ -196,6 +196,9 @@ public interface Topic {
 
     CompletableFuture<Void> close(boolean closeWithoutWaitingClientDisconnect);
 
+    CompletableFuture<Void> close(
+            boolean disconnectClients, boolean closeWithoutWaitingClientDisconnect);
+
     void checkGC();
 
     CompletableFuture<Void> checkClusterMigration();
@@ -233,6 +236,8 @@ public interface Topic {
     boolean isResourceGroupPublishRateExceeded(int msgSize, int numMessages);
 
     boolean isBrokerPublishRateExceeded();
+
+    boolean shouldProducerMigrate();
 
     boolean isReplicationBacklogExist();
 
@@ -328,6 +333,8 @@ public interface Topic {
     }
 
     boolean isPersistent();
+
+    boolean isFenced();
 
     /* ------ Transaction related ------ */
 

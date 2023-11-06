@@ -18,26 +18,31 @@
  */
 package org.apache.pulsar.broker.authentication;
 
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.mock;
+import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
+import com.github.benmanes.caffeine.cache.Cache;
+import com.google.common.collect.ImmutableSet;
 import java.io.File;
 import java.io.FileWriter;
+import java.lang.reflect.Field;
 import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.Base64;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
-
 import javax.security.auth.login.Configuration;
-
-import com.google.common.collect.ImmutableSet;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.FileUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -53,12 +58,14 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.impl.auth.AuthenticationSasl;
 import org.apache.pulsar.common.api.AuthData;
 import org.apache.pulsar.common.sasl.SaslConstants;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
+import org.testng.collections.CollectionUtils;
 
 @Slf4j
 public class SaslAuthenticateTest extends ProducerConsumerBase {
@@ -180,7 +187,12 @@ public class SaslAuthenticateTest extends ProducerConsumerBase {
         conf.setAuthenticationProviders(providers);
         conf.setClusterName("test");
         conf.setSuperUserRoles(ImmutableSet.of("client" + "@" + kdc.getRealm()));
-
+        Map<String, String> clientSaslConfig = new HashMap<>();
+        clientSaslConfig.put("saslJaasClientSectionName", "PulsarClient");
+        clientSaslConfig.put("serverType", "broker");
+        conf.setBrokerClientAuthenticationPlugin(AuthenticationSasl.class.getName());
+        conf.setBrokerClientAuthenticationParameters(ObjectMapperFactory
+                .getMapper().getObjectMapper().writeValueAsString(clientSaslConfig));
         super.init();
 
         lookupUrl = new URI(pulsar.getWebServiceAddress());
@@ -191,10 +203,8 @@ public class SaslAuthenticateTest extends ProducerConsumerBase {
             .authentication(authSasl));
 
         // set admin auth, to verify admin web resources
-        Map<String, String> clientSaslConfig = new HashMap<>();
-        clientSaslConfig.put("saslJaasClientSectionName", "PulsarClient");
-        clientSaslConfig.put("serverType", "broker");
         log.info("set client jaas section name: PulsarClient");
+        closeAdmin();
         admin = PulsarAdmin.builder()
             .serviceHttpUrl(brokerUrl.toString())
             .authentication(AuthenticationFactory.create(AuthenticationSasl.class.getName(), clientSaslConfig))
@@ -293,6 +303,77 @@ public class SaslAuthenticateTest extends ProducerConsumerBase {
         }
 
         log.info("-- {} -- end", methodName);
+    }
+
+    @Test
+    public void testSaslOnlyAuthFirstStage() throws Exception {
+        AuthenticationProviderSasl saslServer = (AuthenticationProviderSasl) pulsar.getBrokerService()
+                .getAuthenticationService().getAuthenticationProvider(SaslConstants.AUTH_METHOD_NAME);
+
+        HttpServletRequest servletRequest = mock(HttpServletRequest.class);
+        doReturn("Init").when(servletRequest).getHeader("State");
+        // 10 clients only do one-stage verification, resulting in 10 auth info remaining in memory
+        for (int i = 0; i < 10; i++) {
+            AuthenticationDataProvider dataProvider =  authSasl.getAuthData("localhost");
+            AuthData initData1 = dataProvider.authenticate(AuthData.INIT_AUTH_DATA);
+            doReturn(Base64.getEncoder().encodeToString(initData1.getBytes())).when(
+                    servletRequest).getHeader("SASL-Token");
+            doReturn(String.valueOf(i)).when(servletRequest).getHeader("SASL-Server-ID");
+            saslServer.authenticateHttpRequest(servletRequest, mock(HttpServletResponse.class));
+        }
+        Field field = AuthenticationProviderSasl.class.getDeclaredField("authStates");
+        field.setAccessible(true);
+        Cache<Long, AuthenticationState> cache = (Cache<Long, AuthenticationState>) field.get(saslServer);
+        assertEquals(cache.asMap().size(), 10);
+        // The cache expiration time is set to 1ms. Residual auth info should be cleaned up
+        conf.setInflightSaslContextExpiryMs(1);
+        saslServer.initialize(conf);
+        // Add more auth info into memory
+        for (int i = 0; i < 10; i++) {
+            AuthenticationDataProvider dataProvider =  authSasl.getAuthData("localhost");
+            AuthData initData1 = dataProvider.authenticate(AuthData.INIT_AUTH_DATA);
+            doReturn(Base64.getEncoder().encodeToString(initData1.getBytes())).when(
+                    servletRequest).getHeader("SASL-Token");
+            doReturn(String.valueOf(10 + i)).when(servletRequest).getHeader("SASL-Server-ID");
+            saslServer.authenticateHttpRequest(servletRequest, mock(HttpServletResponse.class));
+        }
+        long start = System.currentTimeMillis();
+        while (true) {
+            if (System.currentTimeMillis() - start > 10_00) {
+                fail();
+            }
+            cache = (Cache<Long, AuthenticationState>) field.get(saslServer);
+            // Residual auth info should be cleaned up
+            if (CollectionUtils.hasElements(cache.asMap())) {
+                break;
+            }
+            Thread.yield();
+        }
+    }
+
+    @Test
+    public void testMaxInflightContext() throws Exception {
+        AuthenticationProviderSasl saslServer = (AuthenticationProviderSasl) pulsar.getBrokerService()
+                .getAuthenticationService().getAuthenticationProvider(SaslConstants.AUTH_METHOD_NAME);
+        HttpServletRequest servletRequest = mock(HttpServletRequest.class);
+        doReturn("Init").when(servletRequest).getHeader("State");
+        conf.setInflightSaslContextExpiryMs(Integer.MAX_VALUE);
+        conf.setMaxInflightSaslContext(1);
+        saslServer.initialize(conf);
+        // add 10 inflight sasl context
+        for (int i = 0; i < 10; i++) {
+            AuthenticationDataProvider dataProvider =  authSasl.getAuthData("localhost");
+            AuthData initData1 = dataProvider.authenticate(AuthData.INIT_AUTH_DATA);
+            doReturn(Base64.getEncoder().encodeToString(initData1.getBytes())).when(
+                    servletRequest).getHeader("SASL-Token");
+            doReturn(String.valueOf(i)).when(servletRequest).getHeader("SASL-Server-ID");
+            saslServer.authenticateHttpRequest(servletRequest, mock(HttpServletResponse.class));
+        }
+        Field field = AuthenticationProviderSasl.class.getDeclaredField("authStates");
+        field.setAccessible(true);
+        Cache<Long, AuthenticationState> cache = (Cache<Long, AuthenticationState>) field.get(saslServer);
+        //only 1 context was left in the memory
+        assertEquals(cache.asMap().size(), 1);
     }
 
 }

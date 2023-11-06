@@ -358,15 +358,18 @@ public class TransactionTest extends TransactionTestBase {
         int threadSize = 30;
         String topicName = "subscription";
         getPulsarServiceList().get(0).getConfig().setBrokerDeduplicationEnabled(false);
+        @Cleanup("shutdownNow")
         ExecutorService executorService = Executors.newFixedThreadPool(threadSize);
 
         //build producer/consumer
+        @Cleanup
         Producer<byte[]> producer = pulsarClient.newProducer()
                 .topic(topic)
                 .producerName("producer")
                 .sendTimeout(0, TimeUnit.SECONDS)
                 .create();
 
+        @Cleanup
         Consumer<byte[]> consumer = pulsarClient.newConsumer()
                 .topic(topic)
                 .subscriptionType(SubscriptionType.Exclusive)
@@ -471,7 +474,8 @@ public class TransactionTest extends TransactionTestBase {
         }
         admin.topics().setRetention(topic,
                 new RetentionPolicies(retentionSizeInMinutesSetTopic, retentionSizeInMbSetTopic));
-        pulsarClient.newConsumer().topic(topic)
+        @Cleanup
+        final Consumer<byte[]> subscribe = pulsarClient.newConsumer().topic(topic)
                 .subscriptionName(subName)
                 .subscribe();
         pulsarService.getBrokerService().getTopicIfExists(topic).thenAccept(option -> {
@@ -533,6 +537,7 @@ public class TransactionTest extends TransactionTestBase {
                 .untilAsserted(() -> Assert.assertFalse(reader.hasMessageAvailable()));
 
         //test take snapshot by build producer by the transactionEnable client
+        @Cleanup
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
                 .producerName("testSnapshot").sendTimeout(0, TimeUnit.SECONDS)
                 .topic(topic).enableBatching(true)
@@ -652,6 +657,7 @@ public class TransactionTest extends TransactionTestBase {
         Assert.assertEquals(position.getEntryId(), messageId.getEntryId());
 
         //test the state of TransactionBuffer is Ready after build Producer by pulsarClient that enables transaction.
+        @Cleanup
         Producer<String> txnProducer = pulsarClient.newProducer(Schema.STRING)
                 .producerName("testTransactionPublish")
                 .topic(topic)
@@ -743,7 +749,7 @@ public class TransactionTest extends TransactionTestBase {
 
         TransactionBuffer buffer2 = new TopicTransactionBuffer(persistentTopic);
         Awaitility.await().atMost(30, TimeUnit.SECONDS).untilAsserted(() ->
-                assertEquals(buffer2.getStats(false).state, "Ready"));
+                assertEquals(buffer2.getStats(false, false).state, "Ready"));
         managedCursors.removeCursor("transaction-buffer-sub");
 
         doAnswer(invocation -> {
@@ -755,7 +761,7 @@ public class TransactionTest extends TransactionTestBase {
         managedCursors.add(managedCursor, managedCursor.getMarkDeletedPosition());
         TransactionBuffer buffer3 = new TopicTransactionBuffer(persistentTopic);
         Awaitility.await().atMost(30, TimeUnit.SECONDS).untilAsserted(() ->
-                assertEquals(buffer3.getStats(false).state, "Ready"));
+                assertEquals(buffer3.getStats(false, false).state, "Ready"));
         persistentTopic.getInternalStats(false).thenAccept(internalStats -> {
             assertTrue(internalStats.cursors.isEmpty());
         });
@@ -868,9 +874,10 @@ public class TransactionTest extends TransactionTestBase {
         MLTransactionSequenceIdGenerator mlTransactionSequenceIdGenerator = new MLTransactionSequenceIdGenerator();
         persistentTopic.getManagedLedger().getConfig().setManagedLedgerInterceptor(mlTransactionSequenceIdGenerator);
         MLTransactionLogImpl mlTransactionLog =
-                new MLTransactionLogImpl(new TransactionCoordinatorID(1), null,
+                spy(new MLTransactionLogImpl(new TransactionCoordinatorID(1), null,
                         persistentTopic.getManagedLedger().getConfig(), new TxnLogBufferedWriterConfig(),
-                        transactionTimer, DISABLED_BUFFERED_WRITER_METRICS);
+                        transactionTimer, DISABLED_BUFFERED_WRITER_METRICS));
+        doAnswer(__ -> CompletableFuture.completedFuture(null)).when(mlTransactionLog).closeAsync();
         Class<MLTransactionLogImpl> mlTransactionLogClass = MLTransactionLogImpl.class;
         Field field = mlTransactionLogClass.getDeclaredField("cursor");
         field.setAccessible(true);
@@ -884,6 +891,7 @@ public class TransactionTest extends TransactionTestBase {
         doNothing().when(transactionRecoverTracker).handleCommittingAndAbortingTransaction();
         TransactionTimeoutTracker timeoutTracker = mock(TransactionTimeoutTracker.class);
         doNothing().when(timeoutTracker).start();
+        @Cleanup("closeAsync")
         MLTransactionMetadataStore metadataStore1 =
                 new MLTransactionMetadataStore(new TransactionCoordinatorID(1),
                         mlTransactionLog, timeoutTracker, mlTransactionSequenceIdGenerator, 0L);
@@ -897,6 +905,7 @@ public class TransactionTest extends TransactionTestBase {
             return null;
         }).when(managedCursor).asyncReadEntries(anyInt(), any(), any(), any());
 
+        @Cleanup("closeAsync")
         MLTransactionMetadataStore metadataStore2 =
                 new MLTransactionMetadataStore(new TransactionCoordinatorID(1),
 
@@ -911,6 +920,7 @@ public class TransactionTest extends TransactionTestBase {
             return null;
         }).when(managedCursor).asyncReadEntries(anyInt(), any(), any(), any());
 
+        @Cleanup("closeAsync")
         MLTransactionMetadataStore metadataStore3 =
                 new MLTransactionMetadataStore(new TransactionCoordinatorID(1),
                         mlTransactionLog, timeoutTracker, mlTransactionSequenceIdGenerator, 0L);
@@ -1446,6 +1456,7 @@ public class TransactionTest extends TransactionTestBase {
     public void testPendingAckReplayChangeStateError() throws InterruptedException, TimeoutException {
         AtomicInteger atomicInteger = new AtomicInteger(1);
         // Create Executor
+        @Cleanup("shutdownNow")
         ScheduledExecutorService executorService = Executors.newSingleThreadScheduledExecutor();
         // Mock serviceConfiguration.
         ServiceConfiguration serviceConfiguration = mock(ServiceConfiguration.class);
@@ -1781,6 +1792,61 @@ public class TransactionTest extends TransactionTestBase {
                     }
                     return false;
                 });
+    }
+
+    @Test
+    public void testReadCommittedWithReadCompacted() throws Exception{
+        final String namespace = "tnx/ns-prechecks";
+        final String topic = "persistent://" + namespace + "/test_transaction_topic";
+        admin.namespaces().createNamespace(namespace);
+        admin.topics().createNonPartitionedTopic(topic);
+
+        admin.topicPolicies().setCompactionThreshold(topic, 100 * 1024 * 1024);
+
+        @Cleanup
+        Consumer<String> consumer = this.pulsarClient.newConsumer(Schema.STRING)
+                .topic(topic)
+                .subscriptionName("sub")
+                .subscriptionType(SubscriptionType.Exclusive)
+                .readCompacted(true)
+                .subscribe();
+
+        @Cleanup
+        Producer<String> producer = this.pulsarClient.newProducer(Schema.STRING)
+                .topic(topic)
+                .create();
+
+        producer.newMessage().key("K1").value("V1").send();
+
+        Transaction txn = pulsarClient.newTransaction()
+                .withTransactionTimeout(1, TimeUnit.MINUTES).build().get();
+        producer.newMessage(txn).key("K2").value("V2").send();
+        producer.newMessage(txn).key("K3").value("V3").send();
+
+        List<String> messages = new ArrayList<>();
+        while (true) {
+            Message<String> message = consumer.receive(5, TimeUnit.SECONDS);
+            if (message == null) {
+                break;
+            }
+            messages.add(message.getValue());
+        }
+
+        Assert.assertEquals(messages, List.of("V1"));
+
+        txn.commit();
+
+        messages.clear();
+
+        while (true) {
+            Message<String> message = consumer.receive(5, TimeUnit.SECONDS);
+            if (message == null) {
+                break;
+            }
+            messages.add(message.getValue());
+        }
+
+        Assert.assertEquals(messages, List.of("V2", "V3"));
     }
 
 }

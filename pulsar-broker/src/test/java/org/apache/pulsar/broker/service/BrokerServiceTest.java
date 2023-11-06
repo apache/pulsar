@@ -67,16 +67,18 @@ import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
+import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.http.HttpResponse;
-import org.apache.http.client.HttpClient;
 import org.apache.http.client.methods.HttpGet;
+import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannelImpl;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.service.BrokerServiceException.PersistenceException;
+import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusRawMetricsProvider;
 import org.apache.pulsar.client.admin.BrokerStats;
@@ -91,6 +93,7 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
+import org.apache.pulsar.client.api.SubscriptionMode;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.ClientCnx;
 import org.apache.pulsar.client.impl.ConnectionPool;
@@ -109,6 +112,7 @@ import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
+import org.apache.pulsar.compaction.Compactor;
 import org.awaitility.Awaitility;
 import org.mockito.Mockito;
 import org.testng.Assert;
@@ -387,18 +391,28 @@ public class BrokerServiceTest extends BrokerTestBase {
     }
 
     private void createNewConnectionAndCheckFail(String topicName, ClientBuilder builder) throws Exception {
+        PulsarClient client = null;
         try {
-            createNewConnection(topicName, builder);
+            client = createNewConnection(topicName, builder);
             fail("should fail");
         } catch (Exception e) {
             assertTrue(e.getMessage().contains("Reached the maximum number of connections"));
+        } finally {
+            if (client != null) {
+                client.close();
+            }
         }
     }
 
     private PulsarClient createNewConnection(String topicName, ClientBuilder clientBuilder) throws PulsarClientException {
         PulsarClient client1 = clientBuilder.build();
-        client1.newProducer().topic(topicName).create().close();
-        return client1;
+        try {
+            client1.newProducer().topic(topicName).create().close();
+            return client1;
+        } catch (PulsarClientException e) {
+            client1.close();
+            throw e;
+        }
     }
 
     private void cleanClient(List<PulsarClient> clients) throws Exception {
@@ -756,6 +770,8 @@ public class BrokerServiceTest extends BrokerTestBase {
         conf.setNumExecutorThreadPoolSize(5);
         restartBroker();
 
+        PulsarClient pulsarClient = null;
+
         // Access with TLS (Allow insecure TLS connection)
         try {
             pulsarClient = PulsarClient.builder().serviceUrl(brokerUrlTls.toString()).enableTls(true)
@@ -975,6 +991,7 @@ public class BrokerServiceTest extends BrokerTestBase {
         conf.setConcurrentLookupRequest(1);
         conf.setMaxLookupRequest(2);
 
+        @Cleanup("shutdownNow")
         EventLoopGroup eventLoop = EventLoopUtil.newEventLoopGroup(20, false,
                 new DefaultThreadFactory("test-pool", Thread.currentThread().isDaemon()));
         long reqId = 0xdeadbeef;
@@ -1218,6 +1235,69 @@ public class BrokerServiceTest extends BrokerTestBase {
         }
     }
 
+    @Test
+    public void testCheckInactiveSubscriptionsShouldNotDeleteCompactionCursor() throws Exception {
+        String namespace = "prop/test";
+
+        // set up broker set compaction threshold.
+        cleanup();
+        conf.setBrokerServiceCompactionThresholdInBytes(8);
+        setup();
+
+        try {
+            admin.namespaces().createNamespace(namespace);
+        } catch (PulsarAdminException.ConflictException e) {
+            // Ok.. (if test fails intermittently and namespace is already created)
+        }
+
+        // set enable subscription expiration.
+        admin.namespaces().setSubscriptionExpirationTime(namespace, 1);
+
+        String compactionInactiveTestTopic = "persistent://prop/test/testCompactionCursorShouldNotDelete";
+
+        admin.topics().createNonPartitionedTopic(compactionInactiveTestTopic);
+
+        CompletableFuture<Optional<Topic>> topicCf =
+                pulsar.getBrokerService().getTopic(compactionInactiveTestTopic, true);
+
+        Optional<Topic> topicOptional = topicCf.get();
+        assertTrue(topicOptional.isPresent());
+
+        PersistentTopic topic = (PersistentTopic) topicOptional.get();
+
+        PersistentSubscription sub = (PersistentSubscription) topic.getSubscription(Compactor.COMPACTION_SUBSCRIPTION);
+        assertNotNull(sub);
+
+        topic.checkCompaction();
+
+        Field currentCompaction = PersistentTopic.class.getDeclaredField("currentCompaction");
+        currentCompaction.setAccessible(true);
+        CompletableFuture<Long> compactionFuture = (CompletableFuture<Long>)currentCompaction.get(topic);
+
+        compactionFuture.get();
+
+        ManagedCursorImpl cursor = (ManagedCursorImpl) sub.getCursor();
+
+        // make cursor last active time to very small to check if it will be deleted
+        Field cursorLastActiveField = ManagedCursorImpl.class.getDeclaredField("lastActive");
+        cursorLastActiveField.setAccessible(true);
+        cursorLastActiveField.set(cursor, 0);
+
+        // replace origin object. so we can check if subscription is deleted.
+        PersistentSubscription spySubscription = Mockito.spy(sub);
+        topic.getSubscriptions().put(Compactor.COMPACTION_SUBSCRIPTION, spySubscription);
+
+        // trigger inactive check.
+        topic.checkInactiveSubscriptions();
+
+        // Compaction subscription should not call delete method.
+        Mockito.verify(spySubscription, Mockito.never()).delete();
+
+        // check if the subscription exist.
+        assertNotNull(topic.getSubscription(Compactor.COMPACTION_SUBSCRIPTION));
+
+    }
+
     /**
      * Verifies brokerService should not have deadlock and successfully remove topic from topicMap on topic-failure and
      * it should not introduce deadlock while performing it.
@@ -1387,7 +1467,8 @@ public class BrokerServiceTest extends BrokerTestBase {
     public void testMetricsProvider() throws IOException {
         PrometheusRawMetricsProvider rawMetricsProvider = stream -> stream.write("test_metrics{label1=\"xyz\"} 10 \n");
         getPulsar().addPrometheusRawMetricsProvider(rawMetricsProvider);
-        HttpClient httpClient = HttpClientBuilder.create().build();
+        @Cleanup
+        CloseableHttpClient httpClient = HttpClientBuilder.create().build();
         final String metricsEndPoint = getPulsar().getWebServiceAddress() + "/metrics";
         HttpResponse response = httpClient.execute(new HttpGet(metricsEndPoint));
         InputStream inputStream = response.getEntity().getContent();
@@ -1528,8 +1609,10 @@ public class BrokerServiceTest extends BrokerTestBase {
 
         assertTrue(brokerService.isSystemTopic(TRANSACTION_COORDINATOR_ASSIGN));
         assertTrue(brokerService.isSystemTopic(TRANSACTION_COORDINATOR_LOG));
-        NamespaceName heartbeatNamespaceV1 = NamespaceService.getHeartbeatNamespace(pulsar.getAdvertisedAddress(), pulsar.getConfig());
-        NamespaceName heartbeatNamespaceV2 = NamespaceService.getHeartbeatNamespaceV2(pulsar.getAdvertisedAddress(), pulsar.getConfig());
+        NamespaceName heartbeatNamespaceV1 = NamespaceService
+                .getHeartbeatNamespace(pulsar.getLookupServiceAddress(), pulsar.getConfig());
+        NamespaceName heartbeatNamespaceV2 = NamespaceService
+                .getHeartbeatNamespaceV2(pulsar.getLookupServiceAddress(), pulsar.getConfig());
         assertTrue(brokerService.isSystemTopic("persistent://" + heartbeatNamespaceV1.toString() + "/healthcheck"));
         assertTrue(brokerService.isSystemTopic(heartbeatNamespaceV2.toString() + "/healthcheck"));
     }
@@ -1665,5 +1748,65 @@ public class BrokerServiceTest extends BrokerTestBase {
                 ServiceUnitStateChannelImpl.TOPIC).get());
         assertTrue(brokerService.isAllowAutoTopicCreationAsync(
                 "persistent://pulsar/system/my-system-topic").get());
+    }
+
+    @Test
+    public void testDuplicateAcknowledgement() throws Exception {
+        final String ns = "prop/ns-test";
+
+        admin.namespaces().createNamespace(ns, 2);
+        final String topicName = "persistent://prop/ns-test/duplicated-acknowledgement-test";
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(topicName)
+                .create();
+        @Cleanup
+        Consumer<byte[]> consumer1 = pulsarClient.newConsumer()
+                .topic(topicName)
+                .subscriptionName("sub-1")
+                .acknowledgmentGroupTime(0, TimeUnit.SECONDS)
+                .subscriptionType(SubscriptionType.Shared)
+                .isAckReceiptEnabled(true)
+                .subscribe();
+        producer.send("1".getBytes(StandardCharsets.UTF_8));
+        Message<byte[]> message = consumer1.receive();
+        consumer1.acknowledge(message);
+        consumer1.acknowledge(message);
+        assertEquals(admin.topics().getStats(topicName).getSubscriptions()
+                .get("sub-1").getUnackedMessages(), 0);
+    }
+
+    @Test
+    public void testUnsubscribeNonDurableSub() throws Exception {
+        final String ns = "prop/ns-test";
+        final String topic = ns + "/testUnsubscribeNonDurableSub";
+
+        admin.namespaces().createNamespace(ns, 2);
+        admin.topics().createPartitionedTopic(String.format("persistent://%s", topic), 1);
+
+        pulsarClient.newProducer(Schema.STRING).topic(topic).create().close();
+        @Cleanup
+        Consumer<String> consumer = pulsarClient
+                .newConsumer(Schema.STRING)
+                .topic(topic)
+                .subscriptionMode(SubscriptionMode.NonDurable)
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                .subscriptionName("sub1")
+                .subscriptionType(SubscriptionType.Shared)
+                .subscribe();
+        try {
+            consumer.unsubscribe();
+        } catch (Exception ex) {
+            fail("Unsubscribe failed");
+        }
+    }
+
+    @Test
+    public void testGetLookupServiceAddress() throws Exception {
+        cleanup();
+        setup();
+        conf.setWebServicePortTls(Optional.of(8081));
+        assertEquals(pulsar.getLookupServiceAddress(), "localhost:8081");
+        resetState();
     }
 }

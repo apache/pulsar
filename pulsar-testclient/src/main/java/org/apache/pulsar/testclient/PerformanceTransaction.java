@@ -58,6 +58,7 @@ import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.SizeUnit;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.transaction.Transaction;
@@ -223,6 +224,7 @@ public class PerformanceTransaction {
         }
 
         ClientBuilder clientBuilder = PerfClientUtils.createClientBuilderFromArguments(arguments)
+                .memoryLimit(arguments.memoryLimit, SizeUnit.BYTES)
                         .enableTransaction(!arguments.isDisableTransaction);
 
         PulsarClient client = clientBuilder.build();
