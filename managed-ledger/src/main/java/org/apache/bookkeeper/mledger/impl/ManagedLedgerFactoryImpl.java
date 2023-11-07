@@ -839,7 +839,8 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
             }).exceptionally(ex -> {
                 // If it fails to get open, it will be cleaned by managed ledger opening error handling.
                 // then retry will go to `future=null` branch.
-                callback.deleteLedgerFailed(getManagedLedgerException(ex), ctx);
+                final Throwable rc = FutureUtil.unwrapCompletionException(ex);
+                callback.deleteLedgerFailed(getManagedLedgerException(rc), ctx);
                 return null;
             });
         }
