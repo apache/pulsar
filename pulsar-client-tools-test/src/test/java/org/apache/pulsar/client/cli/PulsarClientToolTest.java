@@ -123,6 +123,7 @@ public class PulsarClientToolTest extends BrokerTestBase {
         properties.setProperty("useTls", "false");
 
         final String topicName = getTopicWithRandomSuffix("non-durable");
+        admin.topics().createNonPartitionedTopic(topicName);
 
         int numberOfMessages = 10;
         @Cleanup("shutdownNow")
