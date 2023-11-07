@@ -1724,7 +1724,7 @@ public class BrokerService implements Closeable {
                                                         });
                                                 persistentTopic.stopReplProducers()
                                                         .whenCompleteAsync((v, exception) -> {
-                                                            topics.remove(topic, topicFuture);
+                                                            persistentTopic.close();
                                                         }, executor());
                                             } else {
                                                 addTopicToStatsMaps(topicName, persistentTopic);
@@ -1742,7 +1742,7 @@ public class BrokerService implements Closeable {
                                                     });
                                             persistentTopic.stopReplProducers().whenCompleteAsync((v, exception) -> {
                                                 topics.remove(topic, topicFuture);
-                                                topicFuture.completeExceptionally(ex);
+                                                persistentTopic.close();
                                             }, executor());
                                             return null;
                                         });
