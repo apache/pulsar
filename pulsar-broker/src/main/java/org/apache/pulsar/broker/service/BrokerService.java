@@ -1164,38 +1164,38 @@ public class BrokerService implements Closeable {
             return CompletableFuture.completedFuture(null);
         }
 
-        CompletableFuture<Void> future = new CompletableFuture<>();
-        CompletableFuture<Void> deleteTopicAuthenticationFuture = new CompletableFuture<>();
+        final CompletableFuture<Void> deleteTopicAuthenticationFuture = new CompletableFuture<>();
         deleteTopicAuthenticationWithRetry(topic, deleteTopicAuthenticationFuture, 5);
-        deleteTopicAuthenticationFuture
-        .thenCompose(__ -> deleteSchema(tn))
-        .thenCompose(__ -> {
-            if (!SystemTopicNames.isTopicPoliciesSystemTopic(topic)
-                    && getPulsar().getConfiguration().isSystemTopicEnabled()) {
-                return deleteTopicPolicies(tn);
-            }
-            return CompletableFuture.completedFuture(null);
-        }).whenComplete((v, ex) -> {
-            if (ex != null) {
-                future.completeExceptionally(ex);
-                return;
-            }
-            CompletableFuture<ManagedLedgerConfig> mlConfigFuture = getManagedLedgerConfig(topicName);
-            managedLedgerFactory.asyncDelete(tn.getPersistenceNamingEncoding(),
-                mlConfigFuture, new DeleteLedgerCallback() {
-                    @Override
-                    public void deleteLedgerComplete(Object ctx) {
-                        future.complete(null);
-                    }
+        return deleteTopicAuthenticationFuture
+            .thenCompose(__ -> deleteSchema(tn))
+            .thenCompose(__ -> getManagedLedgerConfig(topicName))
+            .thenCompose(managedLedgerConfig -> {
+                final ServiceConfiguration configuration = pulsar.getConfiguration();
+                final CompletableFuture<Void> topicPolicyCleanupStageFuture;
+                if (configuration.isSystemTopicEnabled() && configuration.isTopicLevelPoliciesEnabled()
+                        && !NamespaceService.isSystemServiceNamespace(topicName.getNamespace())
+                        && !SystemTopicNames.isTopicPoliciesSystemTopic(topic)) {
+                    topicPolicyCleanupStageFuture = deleteTopicPolicies(tn);
+                }  else {
+                    topicPolicyCleanupStageFuture = CompletableFuture.completedFuture(null);
+                }
+                return topicPolicyCleanupStageFuture.thenCompose(__ -> {
+                    final CompletableFuture<Void> stageFuture = new CompletableFuture<>();
+                    managedLedgerFactory.asyncDelete(tn.getPersistenceNamingEncoding(),
+                            CompletableFuture.completedFuture(managedLedgerConfig), new DeleteLedgerCallback() {
+                                @Override
+                                public void deleteLedgerComplete(Object ctx) {
+                                    stageFuture.complete(null);
+                                }
 
-                    @Override
-                    public void deleteLedgerFailed(ManagedLedgerException exception, Object ctx) {
-                        future.completeExceptionally(exception);
-                    }
-                }, null);
-         });
-
-        return future;
+                                @Override
+                                public void deleteLedgerFailed(ManagedLedgerException exception, Object ctx) {
+                                    stageFuture.completeExceptionally(exception);
+                                }
+                            }, null);
+                    return stageFuture;
+                });
+            });
     }
 
     public void deleteTopicAuthenticationWithRetry(String topic, CompletableFuture<Void> future, int count) {
