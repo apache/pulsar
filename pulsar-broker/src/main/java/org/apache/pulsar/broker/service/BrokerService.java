@@ -1741,7 +1741,7 @@ public class BrokerService implements Closeable {
                                                         return null;
                                                     });
                                             persistentTopic.stopReplProducers().whenCompleteAsync((v, exception) -> {
-                                                topics.remove(topic, topicFuture);
+                                                topicFuture.completeExceptionally(ex);
                                                 persistentTopic.close();
                                             }, executor());
                                             return null;
