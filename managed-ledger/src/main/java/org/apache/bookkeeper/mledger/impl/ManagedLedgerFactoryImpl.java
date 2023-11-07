@@ -94,6 +94,9 @@ import org.apache.pulsar.metadata.api.extended.SessionEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+
 public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
     private final MetaStore store;
     private final BookkeeperFactoryForCustomEnsemblePlacementPolicy bookkeeperFactory;
@@ -828,10 +831,32 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
     @Override
     public void asyncDelete(String name, CompletableFuture<ManagedLedgerConfig> mlConfigFuture,
                             DeleteLedgerCallback callback, Object ctx) {
-        CompletableFuture<ManagedLedgerImpl> future = ledgers.get(name);
+        mlConfigFuture.thenAccept(managedLedgerConfig -> {
+            asyncDelete(name, managedLedgerConfig, new DeleteLedgerCallback() {
+                @Override
+                public void deleteLedgerComplete(Object ctx) {
+                    callback.deleteLedgerComplete(ctx);
+                }
+
+                @Override
+                public void deleteLedgerFailed(ManagedLedgerException exception, Object ctx) {
+                    callback.deleteLedgerFailed(exception, ctx);
+                }
+            }, ctx);
+        }).exceptionally(ex -> {
+            final Throwable rc = FutureUtil.unwrapCompletionException(ex);
+            callback.deleteLedgerFailed(getManagedLedgerException(rc), ctx);
+            return null;
+        });
+    }
+
+    @Override
+    public void asyncDelete(@Nonnull String name, @Nonnull ManagedLedgerConfig managedLedgerConfig,
+                            @Nonnull DeleteLedgerCallback callback, @Nullable Object ctx) {
+        final CompletableFuture<ManagedLedgerImpl> future = ledgers.get(name);
         if (future == null) {
             // Managed ledger does not exist and we're not currently trying to open it
-            deleteManagedLedger(name, mlConfigFuture, callback, ctx);
+            deleteManagedLedger(name, managedLedgerConfig, callback, ctx);
         } else {
             future.thenAccept(ml -> {
                 // If it's open, delete in the normal way
@@ -846,7 +871,7 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
     /**
      * Delete all managed ledger resources and metadata.
      */
-    void deleteManagedLedger(String managedLedgerName, CompletableFuture<ManagedLedgerConfig> mlConfigFuture,
+    void deleteManagedLedger(String managedLedgerName, ManagedLedgerConfig managedLedgerConfig,
                              DeleteLedgerCallback callback, Object ctx) {
         // Read the managed ledger metadata from store
         asyncGetManagedLedgerInfo(managedLedgerName, new ManagedLedgerInfoCallback() {
@@ -859,7 +884,7 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                         .map(e -> deleteCursor(bkc, managedLedgerName, e.getKey(), e.getValue()))
                         .collect(Collectors.toList());
                 Futures.waitForAll(futures).thenRun(() -> {
-                    deleteManagedLedgerData(bkc, managedLedgerName, info, mlConfigFuture, callback, ctx);
+                    deleteManagedLedgerData(bkc, managedLedgerName, info, managedLedgerConfig, callback, ctx);
                 }).exceptionally(ex -> {
                     callback.deleteLedgerFailed(new ManagedLedgerException(ex), ctx);
                     return null;
@@ -874,7 +899,7 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
     }
 
     private void deleteManagedLedgerData(BookKeeper bkc, String managedLedgerName, ManagedLedgerInfo info,
-                                         CompletableFuture<ManagedLedgerConfig> mlConfigFuture,
+                                         ManagedLedgerConfig managedLedgerConfig,
                                          DeleteLedgerCallback callback, Object ctx) {
         final CompletableFuture<Map<Long, MLDataFormats.ManagedLedgerInfo.LedgerInfo>>
                 ledgerInfosFuture = new CompletableFuture<>();
@@ -900,13 +925,10 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                 .map(li -> {
                     final CompletableFuture<Void> res;
                     if (li.isOffloaded) {
-                        res = mlConfigFuture
-                                .thenCombine(ledgerInfosFuture, Pair::of)
-                                .thenCompose(pair -> {
-                            ManagedLedgerConfig mlConfig =  pair.getLeft();
-                            Map<Long, MLDataFormats.ManagedLedgerInfo.LedgerInfo> ledgerInfos = pair.getRight();
+                        res = ledgerInfosFuture
+                                .thenCompose(ledgerInfos -> {
 
-                            if (mlConfig == null || ledgerInfos == null) {
+                            if (managedLedgerConfig == null || ledgerInfos == null) {
                                 return CompletableFuture.completedFuture(null);
                             }
 
@@ -916,16 +938,16 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                                 MLDataFormats.ManagedLedgerInfo.LedgerInfo.Builder newInfoBuilder = ls.toBuilder();
                                 newInfoBuilder.getOffloadContextBuilder().setBookkeeperDeleted(true);
                                 String driverName = OffloadUtils.getOffloadDriverName(ls,
-                                        mlConfig.getLedgerOffloader().getOffloadDriverName());
+                                        managedLedgerConfig.getLedgerOffloader().getOffloadDriverName());
                                 Map<String, String> driverMetadata = OffloadUtils.getOffloadDriverMetadata(ls,
-                                        mlConfig.getLedgerOffloader().getOffloadDriverMetadata());
+                                        managedLedgerConfig.getLedgerOffloader().getOffloadDriverMetadata());
                                 OffloadUtils.setOffloadDriverMetadata(newInfoBuilder, driverName, driverMetadata);
 
                                 UUID uuid = new UUID(ls.getOffloadContext().getUidMsb(),
                                         ls.getOffloadContext().getUidLsb());
-                                return OffloadUtils.cleanupOffloaded(li.ledgerId, uuid, mlConfig,
+                                return OffloadUtils.cleanupOffloaded(li.ledgerId, uuid, managedLedgerConfig,
                                         OffloadUtils.getOffloadDriverMetadata(ls,
-                                                mlConfig.getLedgerOffloader().getOffloadDriverMetadata()),
+                                                managedLedgerConfig.getLedgerOffloader().getOffloadDriverMetadata()),
                                         "Deletion", managedLedgerName, scheduledExecutor);
                             }
 

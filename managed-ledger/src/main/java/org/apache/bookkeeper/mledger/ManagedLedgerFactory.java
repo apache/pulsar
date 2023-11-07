@@ -29,6 +29,9 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks.OpenLedgerCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.OpenReadOnlyCursorCallback;
 import org.apache.bookkeeper.mledger.impl.cache.EntryCacheManager;
 
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+
 /**
  * A factory to open/create managed ledgers and delete them.
  *
@@ -183,8 +186,13 @@ public interface ManagedLedgerFactory {
      * @throws InterruptedException
      * @throws ManagedLedgerException
      */
+    @Deprecated
     void asyncDelete(String name, CompletableFuture<ManagedLedgerConfig> mlConfigFuture,
                              DeleteLedgerCallback callback, Object ctx);
+
+
+    void asyncDelete(@Nonnull String name, @Nonnull ManagedLedgerConfig managedLedgerConfig,
+                     @Nonnull DeleteLedgerCallback callback, @Nullable Object ctx);
 
     /**
      * Releases all the resources maintained by the ManagedLedgerFactory.
