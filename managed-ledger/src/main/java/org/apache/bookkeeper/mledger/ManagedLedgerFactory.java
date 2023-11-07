@@ -191,6 +191,16 @@ public interface ManagedLedgerFactory {
                              DeleteLedgerCallback callback, Object ctx);
 
 
+    /**
+     * Delete a managed ledger asynchronous. If it's not open, it's metadata will get regardless deleted.
+     *
+     * @param name                      Managed ledger name
+     * @param managedLedgerConfig       Managed ledger configuration
+     * @param callback                  Async Callback
+     * @param ctx                       Async Context
+     * @throws NullPointerException   When pass Null value to nonnull parameter
+     * @throws ManagedLedgerException Refer to get more information. #{@link ManagedLedgerException}
+     */
     void asyncDelete(@Nonnull String name, @Nonnull ManagedLedgerConfig managedLedgerConfig,
                      @Nonnull DeleteLedgerCallback callback, @Nullable Object ctx);
 
