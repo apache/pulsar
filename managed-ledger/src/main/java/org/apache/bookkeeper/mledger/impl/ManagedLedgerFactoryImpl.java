@@ -25,12 +25,7 @@ import com.google.common.base.Predicates;
 import com.google.common.collect.Maps;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.TreeMap;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
@@ -829,6 +824,7 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
     }
 
     @Override
+    @Deprecated
     public void asyncDelete(String name, CompletableFuture<ManagedLedgerConfig> mlConfigFuture,
                             DeleteLedgerCallback callback, Object ctx) {
         mlConfigFuture.thenAccept(managedLedgerConfig -> {
@@ -853,6 +849,10 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
     @Override
     public void asyncDelete(@Nonnull String name, @Nonnull ManagedLedgerConfig managedLedgerConfig,
                             @Nonnull DeleteLedgerCallback callback, @Nullable Object ctx) {
+        Objects.requireNonNull(name);
+        Objects.requireNonNull(managedLedgerConfig);
+        Objects.requireNonNull(callback);
+
         final CompletableFuture<ManagedLedgerImpl> future = ledgers.get(name);
         if (future == null) {
             // Managed ledger does not exist and we're not currently trying to open it
