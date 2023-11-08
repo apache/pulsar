@@ -90,6 +90,7 @@ import org.apache.bookkeeper.client.PulsarMockLedgerHandle;
 import org.apache.bookkeeper.client.api.LedgerEntries;
 import org.apache.bookkeeper.client.api.LedgerMetadata;
 import org.apache.bookkeeper.client.api.ReadHandle;
+import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.bookkeeper.conf.ClientConfiguration;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.AddEntryCallback;
@@ -3087,9 +3088,9 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
 
         latch.await(config.getMetadataOperationsTimeoutSeconds() + 2, TimeUnit.SECONDS);
         assertEquals(response.get(), BKException.Code.TimeoutException);
-        assertTrue(ctxHolder.get() instanceof AtomicBoolean);
-        AtomicBoolean ledgerCreated = (AtomicBoolean) ctxHolder.get();
-        assertFalse(ledgerCreated.get());
+        assertTrue(ctxHolder.get() instanceof CompletableFuture);
+        CompletableFuture ledgerCreateHook = (CompletableFuture) ctxHolder.get();
+        assertTrue(ledgerCreateHook.isCompletedExceptionally());
 
         ledger.close();
     }
@@ -4099,5 +4100,21 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
 
         Position Position = new PositionImpl(-1L, -1L);
         assertNotNull(ml.newNonDurableCursor(Position));
+    }
+
+    @Test
+    public void test1() throws Exception {
+        String mlName = UUID.randomUUID().toString();
+        ManagedLedgerFactoryImpl factory = new ManagedLedgerFactoryImpl(metadataStore, bkc);
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setMetadataOperationsTimeoutSeconds(3600);
+
+        for (int i = 0; i < 10; i++) {
+            ManagedLedger ml = factory.open(mlName, config);
+            ml.close();
+        }
+
+        OrderedScheduler orderedScheduler = factory.getScheduledExecutor();
+        System.out.println(orderedScheduler);
     }
 }
