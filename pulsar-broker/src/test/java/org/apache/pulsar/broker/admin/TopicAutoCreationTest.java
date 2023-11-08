@@ -193,7 +193,7 @@ public class TopicAutoCreationTest extends ProducerConsumerBase {
     }
 
     @Test
-    public void testAutoCreationGotNotFoundException() throws PulsarAdminException, PulsarClientException {
+    public void testClientWithAutoCreationGotNotFoundException() throws PulsarAdminException, PulsarClientException {
         final String namespace = "public/test_1";
         final String topicName = "persistent://public/test_1/test_auto_creation_got_not_found"
                 + System.currentTimeMillis();
