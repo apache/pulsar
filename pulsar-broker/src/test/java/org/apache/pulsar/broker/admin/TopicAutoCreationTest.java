@@ -233,7 +233,7 @@ public class TopicAutoCreationTest extends ProducerConsumerBase {
             try {
                 adminListSub.join();
             } catch (Throwable ex) {
-                System.out.println(ex);
+                // we don't care the exception.
             }
 
             consumerSub.join().close();
