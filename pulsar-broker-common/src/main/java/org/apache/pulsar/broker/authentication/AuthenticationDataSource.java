@@ -153,4 +153,18 @@ public interface AuthenticationDataSource {
      * Subscription name can be necessary for consumption.
      */
     default void setSubscription(String subscription) { };
+
+    /**
+     * Set a property.
+     * This property can be used post-authn or post-authz.
+     */
+    default void setProperty(String key, Object value) { };
+
+    /**
+     * Get a property.
+     * @return the match property by the key.
+     */
+    default Object getProperty(String key) {
+        return null;
+    }
 }

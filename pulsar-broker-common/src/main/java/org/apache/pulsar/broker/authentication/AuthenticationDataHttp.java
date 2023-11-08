@@ -20,14 +20,16 @@ package org.apache.pulsar.broker.authentication;
 
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
+import java.util.HashMap;
+import java.util.Map;
 import javax.servlet.http.HttpServletRequest;
 
 public class AuthenticationDataHttp implements AuthenticationDataSource {
 
     protected final HttpServletRequest request;
     protected final SocketAddress remoteAddress;
-
     protected String subscription;
+    protected Map<String, Object> properties;
 
     public AuthenticationDataHttp(HttpServletRequest request) {
         if (request == null) {
@@ -86,6 +88,22 @@ public class AuthenticationDataHttp implements AuthenticationDataSource {
     @Override
     public String getSubscription() {
         return subscription;
+    }
+
+    @Override
+    public void setProperty(String key, Object value) {
+        if (properties == null) {
+            properties = new HashMap<>(4);
+        }
+        properties.put(key, value);
+    }
+
+    @Override
+    public Object getProperty(String key) {
+        if (properties == null) {
+            return null;
+        }
+        return properties.get(key);
     }
 
 }
