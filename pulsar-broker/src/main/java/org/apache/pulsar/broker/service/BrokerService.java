@@ -1719,7 +1719,7 @@ public class BrokerService implements Closeable {
                                                 executor().submit(() -> {
                                                     persistentTopic.close().whenComplete((ignore, ex) -> {
                                                         if (ex != null) {
-                                                            log.warn("{} Get an error when closing topic.", ex);
+                                                            log.warn("{} Get an error when closing topic.", topic, ex);
                                                         }
                                                     });
                                                 });
@@ -1732,9 +1732,9 @@ public class BrokerService implements Closeable {
                                             log.warn("Replication or dedup check failed."
                                                     + " Removing topic from topics list {}, {}", topic, ex);
                                             executor().submit(() -> {
-                                                persistentTopic.close().whenComplete((ignore, ex) -> {
-                                                    if (ex != null) {
-                                                        log.warn("{} Get an error when closing topic.", ex);
+                                                persistentTopic.close().whenComplete((ignore, closeEx) -> {
+                                                    if (closeEx != null) {
+                                                        log.warn("{} Get an error when closing topic.", topic, closeEx);
                                                     }
                                                 });
                                             });
