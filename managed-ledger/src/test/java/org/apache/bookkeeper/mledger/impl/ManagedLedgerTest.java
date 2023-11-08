@@ -4106,6 +4106,10 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         assertNotNull(ml.newNonDurableCursor(Position));
     }
 
+    /***
+     * When a ML tries to create a ledger, it will create a delay task to check if the ledger create request is timeout.
+     * But we should guarantee that the delay task should be canceled after the ledger create request responded.
+     */
     @Test
     public void testNoOrphanScheduledTasksAfterCloseML() throws Exception {
         String mlName = UUID.randomUUID().toString();
