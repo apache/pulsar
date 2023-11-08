@@ -1076,8 +1076,8 @@ public class BrokerService implements Closeable {
                                                     properties, topicPolicies);
                                         }
                                         final String errorMsg =
-                                                String.format("Illegal topic partition name %s with max allowed %d partitions",
-                                                        topicName, metadata.partitions);
+                                                String.format("Illegal topic partition name %s with max allowed "
+                                                        + "%d partitions", topicName, metadata.partitions);
                                         log.warn(errorMsg);
                                         return FutureUtil
                                                 .failedFuture(new BrokerServiceException.NotAllowedException(errorMsg));
@@ -1086,7 +1086,8 @@ public class BrokerService implements Closeable {
                         return loadOrCreatePersistentTopic(tpName, createIfMissing, properties, topicPolicies);
                     }).thenCompose(optionalTopic -> {
                         if (!optionalTopic.isPresent() && createIfMissing) {
-                            log.warn("[{}] Try to recreate the topic with createIfMissing=true but the returned topic is empty", topicName);
+                            log.warn("[{}] Try to recreate the topic with createIfMissing=true "
+                                    + "but the returned topic is empty", topicName);
                             return getTopic(topicName, createIfMissing, properties);
                         }
                         return CompletableFuture.completedFuture(optionalTopic);
