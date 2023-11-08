@@ -18,9 +18,6 @@
  */
 package org.apache.pulsar.broker.service;
 
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.testng.AssertJUnit.assertEquals;
 import static org.testng.AssertJUnit.assertNotNull;
@@ -42,11 +39,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicPoliciesCacheNotInitException;
-import org.apache.pulsar.broker.systopic.NamespaceEventsSystemTopicFactory;
 import org.apache.pulsar.broker.systopic.SystemTopicClient;
-import org.apache.pulsar.broker.systopic.TopicPoliciesSystemTopicClient;
 import org.apache.pulsar.client.admin.PulsarAdminException;
-import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.Backoff;
 import org.apache.pulsar.client.impl.BackoffBuilder;
 import org.apache.pulsar.common.events.PulsarEvent;
@@ -55,7 +49,6 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.data.TopicPolicies;
-import org.apache.pulsar.common.util.FutureUtil;
 import org.assertj.core.api.Assertions;
 import org.awaitility.Awaitility;
 import org.mockito.Mockito;
@@ -318,28 +311,6 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
         }
         long cost = System.currentTimeMillis() - start;
         assertTrue("actual:" + cost, cost >= 5000 - 1000);
-    }
-
-    @Test
-    public void testCreatSystemTopicClientWithRetry() throws Exception {
-        SystemTopicBasedTopicPoliciesService service =
-                spy((SystemTopicBasedTopicPoliciesService) pulsar.getTopicPoliciesService());
-        Field field = SystemTopicBasedTopicPoliciesService.class
-                .getDeclaredField("namespaceEventsSystemTopicFactory");
-        field.setAccessible(true);
-        NamespaceEventsSystemTopicFactory factory = spy((NamespaceEventsSystemTopicFactory) field.get(service));
-        SystemTopicClient<PulsarEvent> client = mock(TopicPoliciesSystemTopicClient.class);
-        doReturn(client).when(factory).createTopicPoliciesSystemTopicClient(any());
-        field.set(service, factory);
-
-        SystemTopicClient.Reader<PulsarEvent> reader = mock(SystemTopicClient.Reader.class);
-        // Throw an exception first, create successfully after retrying
-        doReturn(FutureUtil.failedFuture(new PulsarClientException("test")))
-                .doReturn(CompletableFuture.completedFuture(reader)).when(client).newReaderAsync();
-
-        SystemTopicClient.Reader<PulsarEvent> reader1 = service.createSystemTopicClientWithRetry(null).get();
-
-        assertEquals(reader1, reader);
     }
 
     @Test

@@ -110,6 +110,7 @@ public class PulsarClientToolTest extends BrokerTestBase {
         properties.setProperty("useTls", "false");
 
         final String topicName = getTopicWithRandomSuffix("non-durable");
+        admin.topics().createNonPartitionedTopic(topicName);
 
         int numberOfMessages = 10;
         @Cleanup("shutdownNow")
@@ -201,6 +202,7 @@ public class PulsarClientToolTest extends BrokerTestBase {
         properties.setProperty("useTls", "false");
 
         final String topicName = getTopicWithRandomSuffix("encryption");
+        admin.topics().createNonPartitionedTopic(topicName);
         final String keyUriBase = "file:../pulsar-broker/src/test/resources/certificate/";
         final int numberOfMessages = 10;
 
@@ -284,8 +286,8 @@ public class PulsarClientToolTest extends BrokerTestBase {
         final String message = "test msg";
         final int numberOfMessages = 1;
         final String topicName = getTopicWithRandomSuffix("test-topic");
-        
-        String[] args = {"--url", url, 
+
+        String[] args = {"--url", url,
                 "--auth-plugin", authPlugin,
                 "--auth-params", authParams,
                 "--tlsTrustCertsFilePath", tlsTrustCertsFilePath,
@@ -319,7 +321,7 @@ public class PulsarClientToolTest extends BrokerTestBase {
             Assert.assertEquals(new String(msg.getData()), "msg" + i);
         }
     }
-    
+
     private static String getTopicWithRandomSuffix(String localNameBase) {
         return String.format("persistent://prop/ns-abc/test/%s-%s", localNameBase, UUID.randomUUID().toString());
     }
