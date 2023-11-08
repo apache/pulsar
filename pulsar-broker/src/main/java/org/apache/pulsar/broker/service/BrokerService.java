@@ -1080,7 +1080,7 @@ public class BrokerService implements Closeable {
                                                                 + " topic_name=%s metadata_partition_number=%s",
                                                         topicName, metadata.partitions);
                                         log.warn(info);
-                                        return CompletableFuture
+                                        return FutureUtil
                                                 .failedFuture(new BrokerServiceException.NotAllowedException(info));
                                     });
                         }
