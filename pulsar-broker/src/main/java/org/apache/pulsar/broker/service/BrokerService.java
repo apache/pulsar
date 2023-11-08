@@ -1076,8 +1076,7 @@ public class BrokerService implements Closeable {
                                                     properties, topicPolicies);
                                         }
                                         final String errorMsg =
-                                                String.format("Creating a topic encountered an illegal partition name."
-                                                                + " topic_name=%s metadata_partition_number=%s",
+                                                String.format("Illegal topic partition name %s with max allowed %d partitions",
                                                         topicName, metadata.partitions);
                                         log.warn(errorMsg);
                                         return FutureUtil
