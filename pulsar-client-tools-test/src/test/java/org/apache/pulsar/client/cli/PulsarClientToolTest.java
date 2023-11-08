@@ -258,7 +258,7 @@ public class PulsarClientToolTest extends BrokerTestBase {
                 .until(()->admin.topics().getSubscriptions(topicName).size() == 0);
     }
 
-    @Test(timeOut = 50000)
+    @Test(timeOut = 20000)
     public void testEncryption() throws Exception {
         Properties properties = new Properties();
         properties.setProperty("serviceUrl", brokerUrl.toString());
@@ -286,7 +286,7 @@ public class PulsarClientToolTest extends BrokerTestBase {
 
         // Make sure subscription has been created
         Awaitility.await()
-                .atMost(Duration.ofMillis(50000))
+                .atMost(Duration.ofMillis(20000))
                 .ignoreExceptions()
                 .until(() -> admin.topics().getSubscriptions(topicName).size() == 1);
 
