@@ -27,7 +27,10 @@ import java.net.InetSocketAddress;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -40,6 +43,7 @@ import org.apache.pulsar.client.impl.LookupService;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
+import org.apache.pulsar.common.policies.data.AutoTopicCreationOverride;
 import org.apache.pulsar.common.policies.data.TopicType;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -55,6 +59,7 @@ public class TopicAutoCreationTest extends ProducerConsumerBase {
         conf.setAllowAutoTopicCreationType(TopicType.PARTITIONED);
         conf.setAllowAutoTopicCreation(true);
         conf.setDefaultNumPartitions(3);
+        conf.setForceDeleteNamespaceAllowed(true);
         super.internalSetup();
         super.producerBaseSetup();
     }
@@ -186,4 +191,56 @@ public class TopicAutoCreationTest extends ProducerConsumerBase {
         }
 
     }
+
+    @Test
+    public void testAutoCreationGotNotFoundException() throws PulsarAdminException, PulsarClientException {
+        final String namespace = "public/test_1";
+        final String topicName = "persistent://public/test_1/test_auto_creation_got_not_found"
+                + System.currentTimeMillis();
+        final int retryTimes = 30;
+        admin.namespaces().createNamespace(namespace);
+        admin.namespaces().setAutoTopicCreation(namespace, AutoTopicCreationOverride.builder()
+                .allowAutoTopicCreation(true)
+                .topicType("non-partitioned")
+                .build());
+
+        @Cleanup("shutdown")
+        final ExecutorService executor1 = Executors.newSingleThreadExecutor();
+
+        @Cleanup("shutdown")
+        final ExecutorService executor2 = Executors.newSingleThreadExecutor();
+
+        for (int i = 0; i < retryTimes; i++) {
+            final CompletableFuture<Void> adminListSub = CompletableFuture.runAsync(() -> {
+                try {
+                    admin.topics().getSubscriptions(topicName);
+                } catch (PulsarAdminException e) {
+                    throw new RuntimeException(e);
+                }
+            }, executor1);
+
+            final CompletableFuture<Consumer<byte[]>> consumerSub = CompletableFuture.supplyAsync(() -> {
+                try {
+                    return pulsarClient.newConsumer()
+                            .topic(topicName)
+                            .subscriptionName("sub-1")
+                            .subscribe();
+                } catch (PulsarClientException e) {
+                    throw new RuntimeException(e);
+                }
+            }, executor2);
+
+            try {
+                adminListSub.join();
+            } catch (Throwable ex) {
+                System.out.println(ex);
+            }
+
+            consumerSub.join().close();
+            admin.topics().delete(topicName, true);
+        }
+
+        admin.namespaces().deleteNamespace(namespace, true);
+    }
+
 }

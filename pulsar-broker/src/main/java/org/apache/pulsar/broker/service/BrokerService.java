@@ -1075,10 +1075,23 @@ public class BrokerService implements Closeable {
                                             return loadOrCreatePersistentTopic(tpName, createIfMissing,
                                                     properties, topicPolicies);
                                         }
-                                        return CompletableFuture.completedFuture(Optional.empty());
+                                        final String info =
+                                                String.format("Creating a topic encountered an illegal partition name."
+                                                                + " topic_name=%s metadata_partition_number=%s",
+                                                        topicName, metadata.partitions);
+                                        log.warn(info);
+                                        return CompletableFuture
+                                                .failedFuture(new BrokerServiceException.NamingException(info));
                                     });
                         }
                         return loadOrCreatePersistentTopic(tpName, createIfMissing, properties, topicPolicies);
+                    }).thenCompose(optionalTopic -> {
+                        if (!optionalTopic.isPresent() && createIfMissing) {
+                            log.warn("Different topic automatic creation strategies lead to race conditions. "
+                                    + "Try again to try to recover. topic_name={}", topicName);
+                            return getTopic(topicName, true, properties);
+                        }
+                        return CompletableFuture.completedFuture(optionalTopic);
                     });
                 });
             } else {
