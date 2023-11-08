@@ -1716,16 +1716,13 @@ public class BrokerService implements Closeable {
                                                 // Check create persistent topic timeout.
                                                 log.warn("{} future is already completed with failure {}, closing the"
                                                         + " topic", topic, FutureUtil.getException(topicFuture));
-                                                persistentTopic.getTransactionBuffer()
-                                                        .closeAsync()
-                                                        .exceptionally(t -> {
-                                                            log.error("[{}] Close transactionBuffer failed", topic, t);
-                                                            return null;
-                                                        });
-                                                persistentTopic.stopReplProducers()
-                                                        .whenCompleteAsync((v, exception) -> {
-                                                            persistentTopic.close();
-                                                        }, executor());
+                                                executor().submit(() -> {
+                                                    persistentTopic.close().whenComplete((ignore, ex) -> {
+                                                        if (ex != null) {
+                                                            log.warn("{} Get an error when closing topic.", ex);
+                                                        }
+                                                    });
+                                                });
                                             } else {
                                                 addTopicToStatsMaps(topicName, persistentTopic);
                                                 topicFuture.complete(Optional.of(persistentTopic));
@@ -1734,16 +1731,13 @@ public class BrokerService implements Closeable {
                                         .exceptionally((ex) -> {
                                             log.warn("Replication or dedup check failed."
                                                     + " Removing topic from topics list {}, {}", topic, ex);
-                                            persistentTopic.getTransactionBuffer()
-                                                    .closeAsync()
-                                                    .exceptionally(t -> {
-                                                        log.error("[{}] Close transactionBuffer failed", topic, t);
-                                                        return null;
-                                                    });
-                                            persistentTopic.stopReplProducers().whenCompleteAsync((v, exception) -> {
-                                                topicFuture.completeExceptionally(ex);
-                                                persistentTopic.close();
-                                            }, executor());
+                                            executor().submit(() -> {
+                                                persistentTopic.close().whenComplete((ignore, ex) -> {
+                                                    if (ex != null) {
+                                                        log.warn("{} Get an error when closing topic.", ex);
+                                                    }
+                                                });
+                                            });
                                             return null;
                                         });
                             } catch (PulsarServerException e) {
