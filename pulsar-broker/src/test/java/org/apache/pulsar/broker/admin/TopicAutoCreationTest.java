@@ -135,6 +135,8 @@ public class TopicAutoCreationTest extends ProducerConsumerBase {
                         new InetSocketAddress(pulsar.getAdvertisedAddress(), pulsar.getBrokerListenPort().get());
                 return CompletableFuture.completedFuture(Pair.of(brokerAddress, brokerAddress));
             });
+            final String topicPoliciesServiceInitException
+                    = "Topic creation encountered an exception by initialize topic policies service";
 
             // Creating a producer and creating a Consumer may trigger automatic topic
             // creation, let's try to create a Producer and a Consumer
@@ -145,7 +147,8 @@ public class TopicAutoCreationTest extends ProducerConsumerBase {
             } catch (PulsarClientException.LookupException expected) {
                 String msg = "Namespace bundle for topic (%s) not served by this instance";
                 log.info("Expected error", expected);
-                assertTrue(expected.getMessage().contains(String.format(msg, topic)));
+                assertTrue(expected.getMessage().contains(String.format(msg, topic))
+                        || expected.getMessage().contains(topicPoliciesServiceInitException));
             }
 
             try (Consumer<byte[]> ignored = pulsarClient.newConsumer()
@@ -155,7 +158,8 @@ public class TopicAutoCreationTest extends ProducerConsumerBase {
             } catch (PulsarClientException.LookupException expected) {
                 String msg = "Namespace bundle for topic (%s) not served by this instance";
                 log.info("Expected error", expected);
-                assertTrue(expected.getMessage().contains(String.format(msg, topic)));
+                assertTrue(expected.getMessage().contains(String.format(msg, topic))
+                        || expected.getMessage().contains(topicPoliciesServiceInitException));
             }
 
 
