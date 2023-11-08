@@ -1736,6 +1736,7 @@ public class BrokerService implements Closeable {
                                                     if (closeEx != null) {
                                                         log.warn("{} Get an error when closing topic.", topic, closeEx);
                                                     }
+                                                    topicFuture.completeExceptionally(ex);
                                                 });
                                             });
                                             return null;
