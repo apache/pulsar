@@ -56,6 +56,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Supplier;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
+import net.bytebuddy.implementation.bytecode.Throw;
 import org.apache.bookkeeper.client.LedgerHandle;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedger;
@@ -457,8 +458,7 @@ public class PersistentTopicTest extends BrokerTestBase {
                     .topic(partition.toString())
                     .create();
             fail("unexpected behaviour");
-        } catch (PulsarClientException.TopicDoesNotExistException ignored) {
-
+        } catch (PulsarClientException.NotAllowedException ex) {
         }
         Assert.assertEquals(admin.topics().getPartitionedTopicMetadata(topicName).partitions, 4);
     }

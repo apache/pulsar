@@ -1081,7 +1081,7 @@ public class BrokerService implements Closeable {
                                                         topicName, metadata.partitions);
                                         log.warn(info);
                                         return CompletableFuture
-                                                .failedFuture(new BrokerServiceException.TopicNotFoundException(info));
+                                                .failedFuture(new BrokerServiceException.NotAllowedException(info));
                                     });
                         }
                         return loadOrCreatePersistentTopic(tpName, createIfMissing, properties, topicPolicies);
@@ -1089,7 +1089,7 @@ public class BrokerService implements Closeable {
                         if (!optionalTopic.isPresent() && createIfMissing) {
                             log.warn("Different topic automatic creation strategies lead to race conditions. "
                                     + "Try again to try to recover. topic_name={}", topicName);
-                            return getTopic(topicName, true, properties);
+                            return getTopic(topicName, createIfMissing, properties);
                         }
                         return CompletableFuture.completedFuture(optionalTopic);
                     });
