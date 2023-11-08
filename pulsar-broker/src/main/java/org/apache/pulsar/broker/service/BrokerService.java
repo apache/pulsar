@@ -1075,13 +1075,13 @@ public class BrokerService implements Closeable {
                                             return loadOrCreatePersistentTopic(tpName, createIfMissing,
                                                     properties, topicPolicies);
                                         }
-                                        final String info =
+                                        final String errorMsg =
                                                 String.format("Creating a topic encountered an illegal partition name."
                                                                 + " topic_name=%s metadata_partition_number=%s",
                                                         topicName, metadata.partitions);
-                                        log.warn(info);
+                                        log.warn(errorMsg);
                                         return FutureUtil
-                                                .failedFuture(new BrokerServiceException.NotAllowedException(info));
+                                                .failedFuture(new BrokerServiceException.NotAllowedException(errorMsg));
                                     });
                         }
                         return loadOrCreatePersistentTopic(tpName, createIfMissing, properties, topicPolicies);
