@@ -1081,7 +1081,7 @@ public class BrokerService implements Closeable {
                                                         topicName, metadata.partitions);
                                         log.warn(info);
                                         return CompletableFuture
-                                                .failedFuture(new BrokerServiceException.NamingException(info));
+                                                .failedFuture(new BrokerServiceException.TopicNotFoundException(info));
                                     });
                         }
                         return loadOrCreatePersistentTopic(tpName, createIfMissing, properties, topicPolicies);
