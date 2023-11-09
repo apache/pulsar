@@ -1,7 +1,9 @@
 name: 'Stale issues and PRs'
-on:
-  schedule:
-    - cron: '30 1 * * *'
+
+# Disabled since we have discovered stale bot normally generate more noise than good
+# on:
+#  schedule:
+#    - cron: '30 1 * * *'
 
 jobs:
   stale:
