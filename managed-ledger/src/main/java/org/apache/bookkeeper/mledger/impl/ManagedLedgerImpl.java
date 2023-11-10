@@ -4068,7 +4068,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
 
         ScheduledFuture timeoutChecker = scheduledExecutor.schedule(() -> {
-            if (ledgerFutureHook.completeExceptionally(new TimeoutException(name + " Create ledger timeout"))) {
+            if (!ledgerFutureHook.isDone()
+                    && ledgerFutureHook.completeExceptionally(new TimeoutException(name + " Create ledger timeout"))) {
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] Timeout creating ledger", name);
                 }
