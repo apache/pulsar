@@ -34,7 +34,7 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-public class ProxyTlsTestWithAuth extends MockedPulsarServiceBaseTest {
+public class ProxyTlsWithAuthTest extends MockedPulsarServiceBaseTest {
 
     private ProxyService proxyService;
     private ProxyConfiguration proxyConfig = new ProxyConfiguration();
