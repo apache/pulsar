@@ -1719,7 +1719,8 @@ public class BrokerService implements Closeable {
                                                 executor().submit(() -> {
                                                     persistentTopic.close().whenComplete((ignore, ex) -> {
                                                         if (ex != null) {
-                                                            log.warn("[{}] Get an error when closing topic.", topic, ex);
+                                                            log.warn("[{}] Get an error when closing topic.",
+                                                                    topic, ex);
                                                         }
                                                     });
                                                 });
@@ -1734,7 +1735,8 @@ public class BrokerService implements Closeable {
                                             executor().submit(() -> {
                                                 persistentTopic.close().whenComplete((ignore, closeEx) -> {
                                                     if (closeEx != null) {
-                                                        log.warn("[{}] Get an error when closing topic.", topic, closeEx);
+                                                        log.warn("[{}] Get an error when closing topic.",
+                                                                topic, closeEx);
                                                     }
                                                     topicFuture.completeExceptionally(ex);
                                                 });
