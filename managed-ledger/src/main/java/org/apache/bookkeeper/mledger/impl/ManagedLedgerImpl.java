@@ -4081,9 +4081,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }, config.getMetadataOperationsTimeoutSeconds(), TimeUnit.SECONDS);
 
         ledgerFutureHook.whenComplete((ignore, ex) -> {
-            if (!timeoutChecker.isDone()) {
-                timeoutChecker.cancel(false);
-            }
+            timeoutChecker.cancel(false);
         });
     }
 
