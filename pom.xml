@@ -300,6 +300,7 @@ flexible messaging model and an intuitive client API.</description>
     <roaringbitmap.version>0.9.44</roaringbitmap.version>
     <extra-enforcer-rules.version>1.6.1</extra-enforcer-rules.version>
     <oshi.version>6.4.0</oshi.version>
+    <checkerframework.version>3.33.0</checkerframework.version>
 
     <!-- Used to configure rename.netty.native. Libs -->
     <rename.netty.native.libs>rename-netty-native-libs.sh</rename.netty.native.libs>
@@ -1411,6 +1412,11 @@ flexible messaging model and an intuitive client API.</description>
         <artifactId>oshi-core-java11</artifactId>
         <version>${oshi.version}</version>
       </dependency>
+      <dependency>
+        <groupId>org.checkerframework</groupId>
+        <artifactId>checker-qual</artifactId>
+        <version>${checkerframework.version}</version>
+      </dependency>
     </dependencies>
   </dependencyManagement>
 
@@ -1567,7 +1573,7 @@ flexible messaging model and an intuitive client API.</description>
           <properties>
             <property>
               <name>listener</name>
-              <value>org.apache.pulsar.tests.PulsarTestListener,org.apache.pulsar.tests.JacocoDumpListener,org.apache.pulsar.tests.AnnotationListener,org.apache.pulsar.tests.FailFastNotifier,org.apache.pulsar.tests.MockitoCleanupListener,org.apache.pulsar.tests.FastThreadLocalCleanupListener,org.apache.pulsar.tests.ThreadLeakDetectorListener,org.apache.pulsar.tests.SingletonCleanerListener</value>
+              <value>org.apache.pulsar.tests.PulsarTestListener,org.apache.pulsar.tests.JacocoDumpListener,org.apache.pulsar.tests.TraceTestResourceCleanupListener,org.apache.pulsar.tests.AnnotationListener,org.apache.pulsar.tests.FailFastNotifier,org.apache.pulsar.tests.MockitoCleanupListener,org.apache.pulsar.tests.FastThreadLocalCleanupListener,org.apache.pulsar.tests.ThreadLeakDetectorListener,org.apache.pulsar.tests.SingletonCleanerListener</value>
             </property>
           </properties>
         </configuration>
@@ -1665,7 +1671,7 @@ flexible messaging model and an intuitive client API.</description>
                 <exclude>**/ByteBufCodedOutputStream.java</exclude>
                 <exclude>**/ahc.properties</exclude>
                 <exclude>bin/proto/*</exclude>
-                <exclude>conf/schema_example.conf</exclude>
+                <exclude>conf/schema_example.json</exclude>
                 <exclude>data/**</exclude>
                 <exclude>logs/**</exclude>
                 <exclude>**/circe/**</exclude>
@@ -1790,7 +1796,7 @@ flexible messaging model and an intuitive client API.</description>
             <exclude>**/requirements.txt</exclude>
 
             <!-- Configuration Templates -->
-            <exclude>conf/schema_example.conf</exclude>
+            <exclude>conf/schema_example.json</exclude>
             <exclude>**/templates/*.tpl</exclude>
 
             <!-- helm files -->

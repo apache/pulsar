@@ -136,14 +136,14 @@ public class AuditorLedgerCheckerTest extends BookKeeperClusterTestCase {
 
         String ledgersRoot = "/ledgers";
         String storeUri = metadataServiceUri.replaceAll("zk://", "").replaceAll("/ledgers", "");
-        MetadataStoreExtended store = MetadataStoreExtended.create(storeUri,
-                MetadataStoreConfig.builder().fsyncEnable(false).build());
+        MetadataStoreExtended store = registerCloseable(MetadataStoreExtended.create(storeUri,
+                MetadataStoreConfig.builder().fsyncEnable(false).build()));
         LayoutManager layoutManager = new PulsarLayoutManager(store, ledgersRoot);
-        PulsarLedgerManagerFactory ledgerManagerFactory = new PulsarLedgerManagerFactory();
+        PulsarLedgerManagerFactory ledgerManagerFactory = registerCloseable(new PulsarLedgerManagerFactory());
         ClientConfiguration conf = new ClientConfiguration();
         conf.setZkLedgersRootPath(ledgersRoot);
         ledgerManagerFactory.initialize(conf, layoutManager, 1);
-        urLedgerMgr = ledgerManagerFactory.newLedgerUnderreplicationManager();
+        urLedgerMgr = registerCloseable(ledgerManagerFactory.newLedgerUnderreplicationManager());
         urLedgerMgr.setCheckAllLedgersCTime(System.currentTimeMillis());
 
         baseClientConf.setMetadataServiceUri(

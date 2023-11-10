@@ -29,10 +29,6 @@
   <name>Pulsar IO :: ElasticSearch</name>
 
   <properties>
-    <!--
-     Work-around for "Container exited with code 137" (OOM)
-    -->
-    <testReuseFork>false</testReuseFork>
     <testForkCount>1</testForkCount>
   </properties>
 

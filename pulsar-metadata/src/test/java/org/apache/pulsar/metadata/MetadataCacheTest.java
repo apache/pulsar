@@ -486,6 +486,7 @@ public class MetadataCacheTest extends BaseMetadataStoreTest {
         String url = zks.getConnectionString();
         @Cleanup
         MetadataStore sourceStore1 = MetadataStoreFactory.create(url, MetadataStoreConfig.builder().build());
+        @Cleanup
         MetadataStore sourceStore2 = MetadataStoreFactory.create(url, MetadataStoreConfig.builder().build());
 
         MetadataCache<MyClass> objCache1 = sourceStore1.getMetadataCache(MyClass.class);
