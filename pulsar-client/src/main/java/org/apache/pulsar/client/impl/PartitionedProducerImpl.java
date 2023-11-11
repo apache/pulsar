@@ -436,7 +436,7 @@ public class PartitionedProducerImpl<T> extends ProducerBase<T> {
                                 });
                         // call interceptor with the metadata change
                         onPartitionsChange(topic, currentPartitionNumber);
-                        return null;
+                        return future;
                     }
                 } else {
                     log.error("[{}] not support shrink topic partitions. old: {}, new: {}",
