@@ -22,5 +22,5 @@
 This directory contains the Kubernetes services definitions for all
 the components required to do a complete Pulsar deployment.
 
-Refer to [Kubernetes.md](https://pulsar.apache.org/docs/3.1.x/deploy-kubernetes/) document for instructions on
+Refer to [Kubernetes.md](https://pulsar.apache.org/docs/next/deploy-kubernetes/) document for instructions on
 how to deploy Pulsar on a Kubernetes cluster.
