@@ -43,6 +43,7 @@ import org.apache.bookkeeper.mledger.Position;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.service.persistent.ReplicatedSubscriptionsController;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
@@ -54,11 +55,13 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.policies.data.PartitionedTopicStats;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.awaitility.Awaitility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
@@ -624,6 +627,27 @@ public class ReplicatorSubscriptionTest extends ReplicatorTestBase {
                 String.format("numReceivedMessages1 (%d) should be less than %d", numReceivedMessages1, numMessages));
         assertTrue(numReceivedMessages2 < numMessages,
                 String.format("numReceivedMessages2 (%d) should be less than %d", numReceivedMessages2, numMessages));
+    }
+
+    @Test(timeOut = 30000)
+    public void testReplicatedSubscriptionRestApi3() throws Exception {
+        final String namespace = BrokerTestUtil.newUniqueName("geo/replicatedsubscription");
+        final String topicName = "persistent://" + namespace + "/topic-rest-api3";
+        final String subName = "sub";
+        admin4.tenants().createTenant("geo",
+                new TenantInfoImpl(Sets.newHashSet("appid1", "appid4"), Sets.newHashSet(cluster1, cluster4)));
+        admin4.namespaces().createNamespace(namespace);
+        admin4.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet(cluster1, cluster4));
+        admin4.topics().createPartitionedTopic(topicName, 2);
+
+        @Cleanup
+        final PulsarClient client4 = PulsarClient.builder().serviceUrl(url4.toString())
+                .statsInterval(0, TimeUnit.SECONDS).build();
+
+        Consumer<byte[]> consumer4 = client4.newConsumer().topic(topicName).subscriptionName(subName).subscribe();
+        Assert.expectThrows(PulsarAdminException.class, () ->
+                admin4.topics().setReplicatedSubscriptionStatus(topicName, subName, true));
+        consumer4.close();
     }
 
     /**
