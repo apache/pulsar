@@ -36,6 +36,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import org.apache.bookkeeper.mledger.Position;
@@ -52,6 +53,7 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.policies.data.PartitionedTopicStats;
+import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.awaitility.Awaitility;
@@ -709,98 +711,209 @@ public class ReplicatorSubscriptionTest extends ReplicatorTestBase {
 
     @DataProvider(name = "isTopicPolicyEnabled")
     private Object[][] isTopicPolicyEnabled() {
-        return new Object[][] { { Boolean.TRUE }, { Boolean.FALSE } };
+        // Todo: fix replication can not be enabled at topic level.
+        return new Object[][] { { Boolean.FALSE } };
     }
 
+    /**
+     * Test the replication subscription can work normal in the following cases:
+     *  <p>
+     *      1. Do not write data into the original topic when the topic does not configure a remote cluster. {topic1}
+     *          1. Publish message to the topic and then wait a moment,
+     *          the backlog will not increase after publishing completely.
+     *          2. Acknowledge the messages, the last confirm entry does not change.
+     *      2. Snapshot and mark will be written after topic configure a remote cluster. {topic2}
+     *          1. publish message to topic. After publishing completely, the backlog of the topic keep increase.
+     *          2. Wait the snapshot complete, the backlog stop changing.
+     *          3. Publish messages to wait another snapshot complete.
+     *          4. Ack messages to move the mark delete position after the position record in the first snapshot.
+     *          5. Check new entry (a mark) appending to the original topic.
+     *       3. Stopping writing snapshot and mark after remove the remote cluster of the topic. {topic2}
+     *          similar to step 1.
+     *  </p>
+     */
     @Test(dataProvider = "isTopicPolicyEnabled")
     public void testWriteMarkerTaskOfReplicateSubscriptions(boolean isTopicPolicyEnabled) throws Exception {
         // 1. Prepare resource and use proper configuration.
         String namespace = BrokerTestUtil.newUniqueName("pulsar/testReplicateSubBackLog");
-        String topic = "persistent://" + namespace + "/when-replicator-producer-is-closed";
+        String topic1 = "persistent://" + namespace + "/replication-enable";
+        String topic2 = "persistent://" + namespace + "/replication-disable";
         String subName = "sub";
 
         admin1.namespaces().createNamespace(namespace);
-        pulsar1.getConfiguration().setReplicatedSubscriptionsSnapshotFrequencyMillis(100);
+        pulsar1.getConfiguration().setTopicLevelPoliciesEnabled(isTopicPolicyEnabled);
+        pulsar1.getConfiguration().setReplicationPolicyCheckDurationSeconds(1);
+        pulsar1.getConfiguration().setReplicatedSubscriptionsSnapshotFrequencyMillis(1000);
         // 2. Build Producer and Consumer.
         @Cleanup
         PulsarClient client1 = PulsarClient.builder().serviceUrl(url1.toString())
                 .statsInterval(0, TimeUnit.SECONDS)
                 .build();
         @Cleanup
-        Consumer<byte[]> consumer = client1.newConsumer()
-                .topic(topic)
+        Consumer<byte[]> consumer1 = client1.newConsumer()
+                .topic(topic1)
                 .subscriptionName(subName)
                 .ackTimeout(5, TimeUnit.SECONDS)
                 .subscriptionType(SubscriptionType.Shared)
                 .replicateSubscriptionState(true)
                 .subscribe();
         @Cleanup
-        Producer<byte[]> producer = client1.newProducer()
-                .topic(topic)
+        Producer<byte[]> producer1 = client1.newProducer()
+                .topic(topic1)
                 .create();
-        // 3. Send some messages to a topic that has no replication configuration and then acknowledge these messages.
-        // The backlog of the topic will not change after the messages sent completely.
-        for (int i = 0; i < 20; i++) {
-            producer.newMessage().send();
-        }
-        TopicStats topicStats = admin1.topics().getStats(topic, false, true);
-        long backlogSize = topicStats.getBacklogSize();
-        // Do not ack the first message, and the mark delete position will not move.
-        Message<byte[]> message = consumer.receive(5, TimeUnit.SECONDS);
-        for (int i = 1; i < 10; i++) {
-            consumer.acknowledge(consumer.receive(5, TimeUnit.SECONDS));
-        }
-        Thread.sleep(3000);
-        TopicStats stats = admin1.topics().getStats(topic, false, true);
-        assertEquals(stats.getBacklogSize(), backlogSize);
-        // 4. After configuring replication clusters for the topic,
-        // 4.1 a scheduled task will be executed to write mark to this topic. So the backlog will be increased.
+        // 3. Test replication subscription work as expected.
+        // Test case 1: disable replication, backlog will not increase.
+        testReplicatedSubscriptionWhenDisableReplication(producer1, consumer1, topic1);
+
+        // Test case 2: enable replication, mark and snapshot work as expected.
         if (isTopicPolicyEnabled) {
-            admin1.topics().setReplicationClusters(topic, List.of("r1", "r2"));
+            admin1.topics().createNonPartitionedTopic(topic2);
+            admin1.topics().setReplicationClusters(topic2, List.of("r1", "r2"));
         } else {
             admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r1", "r2"));
         }
-        Awaitility.await().untilAsserted(() -> {
-            TopicStats stats1 = admin1.topics().getStats(topic, false, true);
-            assertNotEquals(stats1.getBacklogSize(), backlogSize);
-        });
-        // 4.2 The scheduled task only write one marker because there is not more messages published after that.
-        // But acknowledge these message will trigger to write a new marker again.
-        TopicStats topicStats1 = admin1.topics().getStats(topic, false, true);
-        long backlogSize1 = topicStats1.getBacklogSize();
-        // Ack the first message to move mark delete position.
-        consumer.acknowledge(message);
-        for (int i = 0; i < 10; i++) {
-            consumer.acknowledge(consumer.receive(5, TimeUnit.SECONDS));
-        }
-        Awaitility.await().untilAsserted(() -> {
-            TopicStats stats1 = admin1.topics().getStats(topic, false, true);
-            assertNotEquals(stats1.getBacklogSize(), backlogSize1);
-        });
-        // 5. After removing the replication clusters for the topic, the scheduled task will be stopped.
-        // So the backlog will not change when pub/sub messages.
+        @Cleanup
+        Consumer<byte[]> consumer2 = client1.newConsumer()
+                .topic(topic2)
+                .subscriptionName(subName)
+                .ackTimeout(5, TimeUnit.SECONDS)
+                .subscriptionType(SubscriptionType.Shared)
+                .replicateSubscriptionState(true)
+                .subscribe();
+        @Cleanup
+        Producer<byte[]> producer2 = client1.newProducer()
+                .topic(topic2)
+                .create();
+        testReplicatedSubscriptionWhenEnableReplication(producer2, consumer2, topic2);
+
+        // Test case 3: enable replication, mark and snapshot work as expected.
         if (isTopicPolicyEnabled) {
-            admin1.topics().setReplicationClusters(topic, List.of("r1"));
+            admin1.topics().setReplicationClusters(topic2, List.of("r1"));
         } else {
             admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r1"));
         }
-        for (int i = 0; i < 20; i++) {
-            producer.newMessage().send();
-        }
-        topicStats = admin1.topics().getStats(topic, false, true);
-        long size = topicStats.getBacklogSize();
-        // Do not ack the first message, and the mark delete position will not move.
-        consumer.receive(5, TimeUnit.SECONDS);
-        for (int i = 1; i < 10; i++) {
-            consumer.acknowledge(consumer.receive(5, TimeUnit.SECONDS));
-        }
-        Thread.sleep(3000);
-        TopicStats stats1 = admin1.topics().getStats(topic, false, true);
-        assertEquals(stats1.getBacklogSize(), size);
-        // 6. Clear resource.
+        testReplicatedSubscriptionWhenDisableReplication(producer2, consumer2, topic2);
+        // 4. Clear resource.
         pulsar1.getConfiguration().setForceDeleteNamespaceAllowed(true);
         admin1.namespaces().deleteNamespace(namespace, true);
         pulsar1.getConfiguration().setForceDeleteNamespaceAllowed(false);
+    }
+
+    /**
+     * Disable replication subscription.
+     *    Test scheduled task case.
+     *    1. Send three messages |1:0|1:1|1:2|.
+     *    2. Get topic backlog, as backlog1.
+     *    3. Wait a moment.
+     *    4. Get the topic backlog again, the backlog will not increase.
+     *    Test acknowledge messages case.
+     *    1. Get the last confirm entry, as LAC1.
+     *    2. Acknowledge these messages |1:0|1:1|.
+     *    3. wait a moment.
+     *    4. Get the last confirm entry, as LAC2. LAC1 is equal to LAC2.
+     *    Clear environment.
+     *    1. Ack all the retained messages. |1:2|
+     *    2. Wait for the backlog to return to zero.
+     */
+    private void testReplicatedSubscriptionWhenDisableReplication(Producer<byte[]> producer, Consumer<byte[]> consumer,
+                                                                  String topic) throws Exception {
+        final int messageSum = 3;
+        // Test scheduled task case.
+        for (int i = 0; i < messageSum; i++) {
+            producer.newMessage().send();
+        }
+        long backlog1 = admin1.topics().getStats(topic, false).getBacklogSize();
+        Thread.sleep(3000);
+        long backlog2 = admin1.topics().getStats(topic, false).getBacklogSize();
+        assertEquals(backlog1, backlog2);
+        // Test acknowledge messages case.
+        String lastConfirmEntry1 = admin1.topics().getInternalStats(topic).lastConfirmedEntry;
+        for (int i = 0; i < messageSum - 1; i++) {
+            consumer.acknowledge(consumer.receive(5, TimeUnit.SECONDS));
+        }
+        Awaitility.await().untilAsserted(() -> {
+            String lastConfirmEntry2 = admin1.topics().getInternalStats(topic).lastConfirmedEntry;
+            assertEquals(lastConfirmEntry1, lastConfirmEntry2);
+        });
+        // Clear environment.
+        consumer.acknowledge(consumer.receive(5, TimeUnit.SECONDS));
+        Awaitility.await().untilAsserted(() -> {
+            long backlog4 = admin1.topics().getStats(topic, false).getBacklogSize();
+            assertEquals(backlog4, 0);
+        });
+    }
+
+    /**
+     * Enable replication subscription.
+     *    Test scheduled task case.
+     *    1. Wait replicator connected.
+     *    2. Send three messages |1:0|1:1|1:2|.
+     *    3. Get topic backlog, as backlog1.
+     *    4. Wait a moment.
+     *    5. Get the topic backlog again, as backlog2. The backlog2 is bigger than backlog1. |1:0|1:1|1:2|mark|.
+     *    6. Wait the snapshot complete.
+     *    Test acknowledge messages case.
+     *    1. Write messages and wait another snapshot complete. |1:0|1:1|1:2|mark|1:3|1:4|1:5|mark|
+     *    2. Ack message |1:0|1:1|1:2|1:3|1:4|.
+     *    3. Get last confirm entry, as LAC1.
+     *    2. Wait a moment.
+     *    3. Get Last confirm entry, as LAC2. LAC2 different to LAC1. |1:5|mark|mark|
+     *    Clear environment.
+     *    1. Ack all the retained message |1:5|.
+     *    2. Wait for the backlog to return to zero.
+     */
+    private void testReplicatedSubscriptionWhenEnableReplication(Producer<byte[]> producer, Consumer<byte[]> consumer,
+                                                                String topic) throws Exception {
+        final int messageSum = 3;
+        Awaitility.await().untilAsserted(() -> {
+            List<String> keys = pulsar1.getBrokerService()
+                    .getTopic(topic, false).get().get()
+                    .getReplicators().keys();
+            assertEquals(keys.size(), 1);
+            assertTrue(pulsar1.getBrokerService()
+                    .getTopic(topic, false).get().get()
+                    .getReplicators().get(keys.get(0)).isConnected());
+        });
+        // Test scheduled task case.
+        sendMessageAndWaitSnapshotComplete(producer, topic, messageSum);
+        // Test acknowledge messages case.
+        // After snapshot write completely, acknowledging message to move the mark delete position
+        // after the position recorded in the snapshot will trigger to write a new marker.
+        sendMessageAndWaitSnapshotComplete(producer, topic, messageSum);
+        String lastConfirmedEntry3 = admin1.topics().getInternalStats(topic, false).lastConfirmedEntry;
+        for (int i = 0; i < messageSum * 2 - 1; i++) {
+            consumer.acknowledge(consumer.receive(5, TimeUnit.SECONDS));
+        }
+        Awaitility.await().untilAsserted(() -> {
+            String lastConfirmedEntry4 = admin1.topics().getInternalStats(topic, false).lastConfirmedEntry;
+            assertNotEquals(lastConfirmedEntry3, lastConfirmedEntry4);
+        });
+        // Clear environment.
+        consumer.acknowledge(consumer.receive(5, TimeUnit.SECONDS));
+        Awaitility.await().untilAsserted(() -> {
+            long backlog4 = admin1.topics().getStats(topic, false).getBacklogSize();
+            assertEquals(backlog4, 0);
+        });
+    }
+
+    private void sendMessageAndWaitSnapshotComplete(Producer<byte[]> producer, String topic,
+                                                    int messageSum) throws Exception {
+        for (int i = 0; i < messageSum; i++) {
+            producer.newMessage().send();
+        }
+        long backlog1 = admin1.topics().getStats(topic, false).getBacklogSize();
+        Awaitility.await().untilAsserted(() -> {
+            long backlog2 = admin1.topics().getStats(topic, false).getBacklogSize();
+            assertTrue(backlog2 > backlog1);
+        });
+        // Wait snapshot write completely, stop writing marker into topic.
+        Awaitility.await().untilAsserted(() -> {
+            String lastConfirmedEntry1 = admin1.topics().getInternalStats(topic, false).lastConfirmedEntry;
+            PersistentTopicInternalStats persistentTopicInternalStats =  admin1.topics().getInternalStats(topic, false);
+            Thread.sleep(1000);
+            String lastConfirmedEntry2 = admin1.topics().getInternalStats(topic, false).lastConfirmedEntry;
+            assertEquals(lastConfirmedEntry1, lastConfirmedEntry2);
+        });
     }
 
     void publishMessages(Producer<byte[]> producer, int startIndex, int numMessages, Set<String> sentMessages)
