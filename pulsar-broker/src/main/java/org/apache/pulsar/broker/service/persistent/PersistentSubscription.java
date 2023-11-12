@@ -209,7 +209,12 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
 
         if (this.cursor != null) {
             if (replicated) {
-                return this.cursor.putProperty(REPLICATED_SUBSCRIPTION_PROPERTY, 1L);
+                if (!config.isEnableReplicatedSubscriptions()) {
+                    log.warn("[{}][{}] Failed set replicated subscription status to {}, please enable the "
+                            + "configuration enableReplicatedSubscriptions", topicName, subName, replicated);
+                } else {
+                    return this.cursor.putProperty(REPLICATED_SUBSCRIPTION_PROPERTY, 1L);
+                }
             } else {
                 return this.cursor.removeProperty(REPLICATED_SUBSCRIPTION_PROPERTY);
             }
