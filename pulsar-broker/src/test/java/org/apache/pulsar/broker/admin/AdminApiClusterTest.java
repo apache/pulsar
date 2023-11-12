@@ -31,6 +31,7 @@ import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.FailureDomain;
+import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.awaitility.Awaitility;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -83,6 +84,19 @@ public class AdminApiClusterTest extends MockedPulsarServiceBaseTest {
         Awaitility.await().untilAsserted(() -> assertNotNull(admin.clusters().getCluster(cluster)));
 
         admin.clusters().deleteCluster(cluster);
+
+        String tenant = "default";
+        admin.tenants().createTenant(tenant, TenantInfo.builder()
+                .adminRoles(Set.of("admin"))
+                .allowedClusters(Set.of(pulsar.getConfig().getClusterName()))
+                .build());
+
+        admin.namespaces().createNamespace("default/ns");
+        String topic = "persistent://default/ns" + "/test1";
+        admin.topics().createPartitionedTopic(topic, 2);
+        assertThrows(PulsarAdminException.PreconditionFailedException.class, () ->
+                admin.clusters().deleteCluster(pulsar.getConfig().getClusterName()));
+
     }
 
     @Test

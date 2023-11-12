@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.resources;
 
+import com.google.common.collect.Lists;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
@@ -105,7 +106,14 @@ public class ClusterResources extends BaseResources<ClusterData> {
         return getCache().getChildren(BASE_POLICIES_PATH)
                 .thenCompose(tenants -> {
                     List<CompletableFuture<List<String>>> futures = tenants.stream()
-                            .map(tenant -> getCache().getChildren(joinPath(BASE_POLICIES_PATH, tenant, clusterName)))
+                            .map(tenant -> getCache().getChildren(joinPath(BASE_POLICIES_PATH, tenant, clusterName))
+                                .thenCombineAsync(getCache().getChildren(joinPath(BASE_POLICIES_PATH, tenant)),
+                                    (v1, v2) -> {
+                                        List<String> ret = Lists.newArrayList(v1);
+                                        ret.addAll(v2);
+                                        return ret;
+                                    })
+                            )
                             .collect(Collectors.toList());
                     return FutureUtil.waitForAll(futures)
                             .thenApply(__ -> {
