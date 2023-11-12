@@ -52,19 +52,19 @@ RUN chmod g+w /pulsar/trino
 FROM ubuntu:22.04
 
 ARG DEBIAN_FRONTEND=noninteractive
-ARG UBUNTU_MIRROR=mirror://mirrors.ubuntu.com/mirrors.txt
+ARG UBUNTU_MIRROR=http://archive.ubuntu.com/ubuntu/
 ARG UBUNTU_SECURITY_MIRROR=http://security.ubuntu.com/ubuntu/
 ARG JDK_MAJOR_VERSION=17
 
 # Install some utilities
-RUN sed -i -e "s|http://archive\.ubuntu\.com/ubuntu/|${UBUNTU_MIRROR:-mirror://mirrors.ubuntu.com/mirrors.txt}|g" \
+RUN sed -i -e "s|http://archive\.ubuntu\.com/ubuntu/|${UBUNTU_MIRROR:-http://archive.ubuntu.com/ubuntu/}|g" \
      -e "s|http://security\.ubuntu\.com/ubuntu/|${UBUNTU_SECURITY_MIRROR:-http://security.ubuntu.com/ubuntu/}|g" /etc/apt/sources.list \
      && echo 'Acquire::http::Timeout "30";\nAcquire::ftp::Timeout "30";\nAcquire::Retries "3";' > /etc/apt/apt.conf.d/99timeout_and_retries \
      && apt-get update \
      && apt-get -y dist-upgrade \
-     && apt-get -y install --no-install-recommends netcat dnsutils less procps iputils-ping \
-                 python3 python3-kazoo python3-pip \
-                 curl ca-certificates wget apt-transport-https
+     && apt-get -y install netcat dnsutils less procps iputils-ping \
+                 curl ca-certificates wget apt-transport-https \
+     && apt-get -y install --no-install-recommends python3 python3-kazoo python3-pip
 
 # Install Eclipse Temurin Package
 RUN mkdir -p /etc/apt/keyrings \

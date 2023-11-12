@@ -51,6 +51,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
+import lombok.Cleanup;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.AddEntryCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteCursorCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteLedgerCallback;
@@ -462,6 +463,7 @@ public class PersistentDispatcherFailoverConsumerTest {
         log.info("--- Starting PersistentDispatcherFailoverConsumerTest::testAddRemoveConsumerNonPartitionedTopic ---");
         String[] sortedConsumerNameByHashSelector = sortConsumerNameByHashSelector("Cons1", "Cons2");
         BrokerService spyBrokerService = pulsarTestContext.getBrokerService();
+        @Cleanup("shutdownNow")
         final EventLoopGroup singleEventLoopGroup = EventLoopUtil.newEventLoopGroup(1,
                 pulsarTestContext.getBrokerService().getPulsar().getConfig().isEnableBusyWait(),
                 new DefaultThreadFactory("pulsar-io"));

@@ -69,7 +69,9 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.mutable.MutableInt;
 import org.apache.commons.lang3.reflect.FieldUtils;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
@@ -98,10 +100,13 @@ import org.apache.pulsar.broker.namespace.NamespaceEphemeralData;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.testcontext.PulsarTestContext;
 import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.impl.LookupService;
 import org.apache.pulsar.client.impl.TableViewImpl;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.ServiceUnitId;
+import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.naming.TopicVersion;
 import org.apache.pulsar.common.policies.data.BrokerAssignment;
@@ -119,6 +124,7 @@ import org.mockito.MockedStatic;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 /**
@@ -126,6 +132,7 @@ import org.testng.annotations.Test;
  */
 @Slf4j
 @Test(groups = "broker")
+@SuppressWarnings("unchecked")
 public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
 
     private PulsarService pulsar1;
@@ -141,6 +148,8 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
     private ServiceUnitStateChannelImpl channel2;
 
     private final String defaultTestNamespace = "public/test";
+
+    private LookupService lookupService;
 
     @BeforeClass
     @Override
@@ -187,9 +196,10 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
             admin.namespaces().setNamespaceReplicationClusters("public/default",
                     Sets.newHashSet(this.conf.getClusterName()));
 
-            admin.namespaces().createNamespace(defaultTestNamespace);
+            admin.namespaces().createNamespace(defaultTestNamespace, 128);
             admin.namespaces().setNamespaceReplicationClusters(defaultTestNamespace,
                     Sets.newHashSet(this.conf.getClusterName()));
+            lookupService = (LookupService) FieldUtils.readDeclaredField(pulsarClient, "lookup", true);
         }
     }
 
@@ -203,9 +213,10 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
     }
 
     @BeforeMethod(alwaysRun = true)
-    protected void initializeState() throws PulsarAdminException {
+    protected void initializeState() throws PulsarAdminException, IllegalAccessException {
         admin.namespaces().unload(defaultTestNamespace);
         reset(primaryLoadManager, secondaryLoadManager);
+        FieldUtils.writeDeclaredField(pulsarClient, "lookup", lookupService, true);
     }
 
     @Test
@@ -228,8 +239,9 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testAssign() throws Exception {
-        TopicName topicName = TopicName.get(defaultTestNamespace + "/test-assign");
-        NamespaceBundle bundle = getBundleAsync(pulsar1, topicName).get();
+        Pair<TopicName, NamespaceBundle> topicAndBundle = getBundleIsNotOwnByChangeEventTopic("test-assign");
+        TopicName topicName = topicAndBundle.getLeft();
+        NamespaceBundle bundle = topicAndBundle.getRight();
         Optional<BrokerLookupData> brokerLookupData = primaryLoadManager.assign(Optional.empty(), bundle).get();
         assertTrue(brokerLookupData.isPresent());
         log.info("Assign the bundle {} to {}", bundle, brokerLookupData);
@@ -253,8 +265,8 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testCheckOwnershipAsync() throws Exception {
-        TopicName topicName = TopicName.get(defaultTestNamespace + "/test-check-ownership");
-        NamespaceBundle bundle = getBundleAsync(pulsar1, topicName).get();
+        Pair<TopicName, NamespaceBundle> topicAndBundle = getBundleIsNotOwnByChangeEventTopic("test-check-ownership");
+        NamespaceBundle bundle = topicAndBundle.getRight();
         // 1. The bundle is never assigned.
         retryStrategically((test) -> {
             try {
@@ -282,8 +294,8 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testFilter() throws Exception {
-        TopicName topicName = TopicName.get(defaultTestNamespace + "/test-filter");
-        NamespaceBundle bundle = getBundleAsync(pulsar1, topicName).get();
+        Pair<TopicName, NamespaceBundle> topicAndBundle = getBundleIsNotOwnByChangeEventTopic("test-filter");
+        NamespaceBundle bundle = topicAndBundle.getRight();
 
         doReturn(List.of(new BrokerFilter() {
             @Override
@@ -308,8 +320,8 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testFilterHasException() throws Exception {
-        TopicName topicName = TopicName.get(defaultTestNamespace + "/test-filter-has-exception");
-        NamespaceBundle bundle = getBundleAsync(pulsar1, topicName).get();
+        Pair<TopicName, NamespaceBundle> topicAndBundle = getBundleIsNotOwnByChangeEventTopic("test-filter-has-exception");
+        NamespaceBundle bundle = topicAndBundle.getRight();
 
         doReturn(List.of(new MockBrokerFilter() {
             @Override
@@ -327,8 +339,9 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
 
     @Test(timeOut = 30 * 1000)
     public void testUnloadAdminAPI() throws Exception {
-        TopicName topicName = TopicName.get(defaultTestNamespace + "/test-unload");
-        NamespaceBundle bundle = getBundleAsync(pulsar1, topicName).get();
+        Pair<TopicName, NamespaceBundle> topicAndBundle = getBundleIsNotOwnByChangeEventTopic("test-unload");
+        TopicName topicName = topicAndBundle.getLeft();
+        NamespaceBundle bundle = topicAndBundle.getRight();
 
         AtomicInteger onloadCount = new AtomicInteger(0);
         AtomicInteger unloadCount = new AtomicInteger(0);
@@ -392,7 +405,7 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
         admin.namespaces().unloadNamespaceBundle(topicName.getNamespace(), bundle.getBundleRange(), dstBrokerUrl);
         Awaitility.await().untilAsserted(() -> {
             assertEquals(onloadCount.get(), 3);
-            assertEquals(unloadCount.get(), 2);
+            assertEquals(unloadCount.get(), 3); //one from releasing and one from owned
         });
 
         assertEquals(admin.lookups().lookupTopic(topicName.toString()), dstBrokerServiceUrl);
@@ -405,6 +418,109 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
         } catch (PulsarAdminException ex) {
             assertTrue(ex.getMessage().contains("cannot be transfer to same broker"));
         }
+    }
+    @DataProvider(name = "isPersistentTopicTest")
+    public Object[][] isPersistentTopicTest() {
+        return new Object[][] { { true }, { false }};
+    }
+    @Test(timeOut = 30 * 1000, dataProvider = "isPersistentTopicTest")
+    public void testTransferClientReconnectionWithoutLookup(boolean isPersistentTopicTest) throws Exception {
+        String topicType = isPersistentTopicTest? "persistent" : "non-persistent";
+        String topic = topicType + "://" + defaultTestNamespace + "/test-transfer-client-reconnect";
+        TopicName topicName = TopicName.get(topic);
+
+        AtomicInteger lookupCount = new AtomicInteger();
+        var lookup = spyLookupService(lookupCount, topicName);
+        var producer = pulsarClient.newProducer().topic(topic).create();
+        int lookupCountBeforeUnload = lookupCount.get();
+
+        NamespaceBundle bundle = getBundleAsync(pulsar1, TopicName.get(topic)).get();
+        String broker = admin.lookups().lookupTopic(topic);
+        String dstBrokerUrl = pulsar1.getLookupServiceAddress();
+        String dstBrokerServiceUrl;
+        if (broker.equals(pulsar1.getBrokerServiceUrl())) {
+            dstBrokerUrl = pulsar2.getLookupServiceAddress();
+            dstBrokerServiceUrl = pulsar2.getBrokerServiceUrl();
+        } else {
+            dstBrokerServiceUrl = pulsar1.getBrokerServiceUrl();
+        }
+        checkOwnershipState(broker, bundle);
+
+        final String finalDstBrokerUrl = dstBrokerUrl;
+        CompletableFuture.runAsync(() -> {
+                try {
+                    admin.namespaces().unloadNamespaceBundle(
+                            defaultTestNamespace, bundle.getBundleRange(), finalDstBrokerUrl);
+                } catch (PulsarAdminException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+        );
+
+        Awaitility.await().atMost(5, TimeUnit.SECONDS).untilAsserted(() -> {
+            try {
+                producer.send("hi".getBytes());
+                String newOwner = admin.lookups().lookupTopic(topic);
+                assertEquals(dstBrokerServiceUrl, newOwner);
+            } catch (PulsarClientException e) {
+                throw new RuntimeException(e);
+            } catch (PulsarAdminException e) {
+                throw new RuntimeException(e);
+            }
+        });
+        assertTrue(producer.isConnected());
+        verify(lookup, times(lookupCountBeforeUnload)).getBroker(topicName);
+        producer.close();
+    }
+
+
+
+    @Test(timeOut = 30 * 1000, dataProvider = "isPersistentTopicTest")
+    public void testUnloadClientReconnectionWithLookup(boolean isPersistentTopicTest) throws Exception {
+        String topicType = isPersistentTopicTest? "persistent" : "non-persistent";
+        String topic = topicType + "://" + defaultTestNamespace + "/test-unload-client-reconnect-"
+                + isPersistentTopicTest;
+        TopicName topicName = TopicName.get(topic);
+
+        AtomicInteger lookupCount = new AtomicInteger();
+        var lookup = spyLookupService(lookupCount, topicName);
+
+        var producer = pulsarClient.newProducer().topic(topic).create();
+        int lookupCountBeforeUnload = lookupCount.get();
+
+        NamespaceBundle bundle = getBundleAsync(pulsar1, TopicName.get(topic)).get();
+        CompletableFuture.runAsync(() -> {
+                    try {
+                        admin.namespaces().unloadNamespaceBundle(
+                                defaultTestNamespace, bundle.getBundleRange());
+                    } catch (PulsarAdminException e) {
+                        throw new RuntimeException(e);
+                    }
+                }
+        );
+        MutableInt sendCount = new MutableInt();
+        Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() -> {
+            try {
+                producer.send("hi".getBytes());
+                assertEquals(sendCount.incrementAndGet(), 10);
+            } catch (PulsarClientException e) {
+                throw new RuntimeException(e);
+            }
+        });
+        assertTrue(producer.isConnected());
+        verify(lookup, times(lookupCountBeforeUnload + 1)).getBroker(topicName);
+        producer.close();
+    }
+
+    private LookupService spyLookupService(AtomicInteger lookupCount, TopicName topicName)
+            throws IllegalAccessException {
+        var lookup = spy(lookupService);
+        FieldUtils.writeDeclaredField(pulsarClient, "lookup", lookup, true);
+        doAnswer(invocationOnMock -> {
+            lookupCount.incrementAndGet();
+            return invocationOnMock.callRealMethod();
+        }).when(lookup).getBroker(topicName);
+        return lookup;
     }
 
     private void checkOwnershipState(String broker, NamespaceBundle bundle)
@@ -422,8 +538,9 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
     @Test(timeOut = 30 * 1000)
     public void testSplitBundleAdminAPI() throws Exception {
         String namespace = defaultTestNamespace;
-        String topic = "persistent://" + namespace + "/test-split";
-        admin.topics().createPartitionedTopic(topic, 10);
+        Pair<TopicName, NamespaceBundle> topicAndBundle = getBundleIsNotOwnByChangeEventTopic("test-split");
+        TopicName topicName = topicAndBundle.getLeft();
+        admin.topics().createPartitionedTopic(topicName.toString(), 10);
         BundlesData bundles = admin.namespaces().getBundles(namespace);
         int numBundles = bundles.getNumBundles();
         var bundleRanges = bundles.getBoundaries().stream().map(Long::decode).sorted().toList();
@@ -474,7 +591,7 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
     public void testSplitBundleWithSpecificPositionAdminAPI() throws Exception {
         String namespace = defaultTestNamespace;
         String topic = "persistent://" + namespace + "/test-split-with-specific-position";
-        admin.topics().createPartitionedTopic(topic, 10);
+        admin.topics().createPartitionedTopic(topic, 1024);
         BundlesData bundles = admin.namespaces().getBundles(namespace);
         int numBundles = bundles.getNumBundles();
 
@@ -550,8 +667,12 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testMoreThenOneFilter() throws Exception {
-        TopicName topicName = TopicName.get(defaultTestNamespace + "/test-filter-has-exception");
-        NamespaceBundle bundle = getBundleAsync(pulsar1, topicName).get();
+        // Use a different namespace to avoid flaky test failures
+        // from unloading the default namespace and the following topic policy lookups at the init state step
+        Pair<TopicName, NamespaceBundle> topicAndBundle =
+                getBundleIsNotOwnByChangeEventTopic("test-filter-has-exception");
+        TopicName topicName = topicAndBundle.getLeft();
+        NamespaceBundle bundle = topicAndBundle.getRight();
 
         String lookupServiceAddress1 = pulsar1.getLookupServiceAddress();
         doReturn(List.of(new MockBrokerFilter() {
@@ -570,10 +691,15 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
                 return FutureUtil.failedFuture(new BrokerFilterException("Test"));
             }
         })).when(primaryLoadManager).getBrokerFilterPipeline();
-
         Optional<BrokerLookupData> brokerLookupData = primaryLoadManager.assign(Optional.empty(), bundle).get();
-        assertTrue(brokerLookupData.isPresent());
-        assertEquals(brokerLookupData.get().getWebServiceUrl(), pulsar2.getWebServiceAddress());
+        Awaitility.waitAtMost(5, TimeUnit.SECONDS).untilAsserted(() -> {
+            assertTrue(brokerLookupData.isPresent());
+            assertEquals(brokerLookupData.get().getWebServiceUrl(), pulsar2.getWebServiceAddress());
+            assertEquals(brokerLookupData.get().getPulsarServiceUrl(),
+                    pulsar1.getAdminClient().lookups().lookupTopic(topicName.toString()));
+            assertEquals(brokerLookupData.get().getPulsarServiceUrl(),
+                    pulsar2.getAdminClient().lookups().lookupTopic(topicName.toString()));
+        });
     }
 
     @Test
@@ -596,7 +722,11 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
             try (var additionalPulsarTestContext = createAdditionalPulsarTestContext(defaultConf)) {
                 // start pulsar3 with old load manager
                 var pulsar3 = additionalPulsarTestContext.getPulsarService();
-                String topic = "persistent://" + defaultTestNamespace + "/test";
+                Pair<TopicName, NamespaceBundle> topicAndBundle =
+                        getBundleIsNotOwnByChangeEventTopic("testDeployAndRollbackLoadManager");
+                TopicName topicName = topicAndBundle.getLeft();
+                NamespaceBundle bundle = topicAndBundle.getRight();
+                String topic = topicName.toString();
 
                 String lookupResult1 = pulsar3.getAdminClient().lookups().lookupTopic(topic);
                 assertEquals(lookupResult1, pulsar3.getBrokerServiceUrl());
@@ -606,7 +736,6 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
                 assertEquals(lookupResult1, lookupResult2);
                 assertEquals(lookupResult1, lookupResult3);
 
-                NamespaceBundle bundle = getBundleAsync(pulsar1, TopicName.get(topic)).get();
                 LookupOptions options = LookupOptions.builder()
                         .authoritative(false)
                         .requestHttps(false)
@@ -1277,5 +1406,21 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
 
     private CompletableFuture<NamespaceBundle> getBundleAsync(PulsarService pulsar, TopicName topic) {
         return pulsar.getNamespaceService().getBundleAsync(topic);
+    }
+
+    private Pair<TopicName, NamespaceBundle> getBundleIsNotOwnByChangeEventTopic(String topicNamePrefix)
+            throws Exception {
+        TopicName changeEventsTopicName =
+                TopicName.get(defaultTestNamespace + "/" + SystemTopicNames.NAMESPACE_EVENTS_LOCAL_NAME);
+        NamespaceBundle changeEventsBundle = getBundleAsync(pulsar1, changeEventsTopicName).get();
+        int i = 0;
+        while(true) {
+            TopicName topicName = TopicName.get(defaultTestNamespace + "/" + topicNamePrefix + "-" + i);
+            NamespaceBundle bundle = getBundleAsync(pulsar1, topicName).get();
+            if (!bundle.equals(changeEventsBundle)) {
+                return Pair.of(topicName, bundle);
+            }
+            i++;
+        }
     }
 }

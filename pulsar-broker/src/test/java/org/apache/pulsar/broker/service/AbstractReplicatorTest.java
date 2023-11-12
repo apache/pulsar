@@ -32,6 +32,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import lombok.Cleanup;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.PulsarServerException;
@@ -57,6 +58,7 @@ public class AbstractReplicatorTest {
         final String remoteCluster = "remoteCluster";
         final String topicName = "remoteTopicName";
         final String replicatorPrefix = "pulsar.repl";
+        @Cleanup("shutdownNow")
         final DefaultEventLoop eventLoopGroup = new DefaultEventLoop();
         // Mock services.
         final ServiceConfiguration pulsarConfig = mock(ServiceConfiguration.class);

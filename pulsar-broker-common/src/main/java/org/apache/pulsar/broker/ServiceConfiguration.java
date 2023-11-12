@@ -2243,7 +2243,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
             category = CATEGORY_LOAD_BALANCER,
             dynamic = true,
-            doc = "Min delay of load report to collect, in milli-seconds"
+            doc = "Min delay of load report to collect, in minutes"
     )
     private int loadBalancerReportUpdateMaxIntervalMinutes = 15;
     @FieldContext(
@@ -2594,7 +2594,8 @@ public class ServiceConfiguration implements PulsarConfiguration {
                     + "The logic tries to avoid (possibly unavailable) brokers with out-dated load data, "
                     + "and those brokers will be ignored in the load computation. "
                     + "When tuning this value, please consider loadBalancerReportUpdateMaxIntervalMinutes. "
-                    + "The current default is loadBalancerReportUpdateMaxIntervalMinutes * 2. "
+                    + "The current default value is loadBalancerReportUpdateMaxIntervalMinutes * 120, reflecting "
+                    + "twice the duration in seconds. "
                     + "(only used in load balancer extension TransferSheddeer)"
     )
     private long loadBalancerBrokerLoadDataTTLInSeconds = 1800;

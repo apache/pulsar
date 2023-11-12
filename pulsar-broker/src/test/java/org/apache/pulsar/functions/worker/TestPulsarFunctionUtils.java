@@ -39,7 +39,8 @@ import org.testng.annotations.Test;
 import static com.google.common.base.Preconditions.checkArgument;
 
 @Slf4j
-public class PulsarFunctionTestUtils {
+@Test(groups = "functions-worker")
+public class TestPulsarFunctionUtils {
     public static String getPrometheusMetrics(int metricsPort) throws IOException {
         StringBuilder result = new StringBuilder();
         URL url = new URL(String.format("http://%s:%s/metrics", "localhost", metricsPort));
