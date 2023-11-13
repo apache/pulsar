@@ -55,7 +55,6 @@ import org.apache.pulsar.client.impl.Backoff;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.compaction.CompactedTopicUtils;
-import org.apache.pulsar.compaction.TopicCompactionService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -351,9 +350,8 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
                 havePendingRead = true;
                 if (consumer.readCompacted()) {
                     boolean readFromEarliest = isFirstRead && MessageId.earliest.equals(consumer.getStartMessageId());
-                    TopicCompactionService topicCompactionService = topic.getTopicCompactionService();
-                    CompactedTopicUtils.asyncReadCompactedEntries(topicCompactionService, cursor, messagesToRead,
-                            bytesToRead, topic.getMaxReadPosition(), readFromEarliest, this, true, consumer);
+                    CompactedTopicUtils.asyncReadCompactedEntries(topic.getTopicCompactionService(), cursor,
+                            messagesToRead, bytesToRead, readFromEarliest, this, true, consumer);
                 } else {
                     ReadEntriesCtx readEntriesCtx =
                             ReadEntriesCtx.create(consumer, consumer.getConsumerEpoch());

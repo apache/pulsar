@@ -96,7 +96,6 @@ public class CompactedTopicImpl implements CompactedTopic {
     public void asyncReadEntriesOrWait(ManagedCursor cursor,
                                        int maxEntries,
                                        long bytesToRead,
-                                       PositionImpl maxReadPosition,
                                        boolean isFirstRead,
                                        ReadEntriesCallback callback, Consumer consumer) {
             PositionImpl cursorPosition;
@@ -113,7 +112,7 @@ public class CompactedTopicImpl implements CompactedTopic {
 
             if (currentCompactionHorizon == null
                 || currentCompactionHorizon.compareTo(cursorPosition) < 0) {
-                cursor.asyncReadEntriesOrWait(maxEntries, bytesToRead, callback, readEntriesCtx, maxReadPosition);
+                cursor.asyncReadEntriesOrWait(maxEntries, bytesToRead, callback, readEntriesCtx, PositionImpl.LATEST);
             } else {
                 ManagedCursorImpl managedCursor = (ManagedCursorImpl) cursor;
                 int numberOfEntriesToRead = managedCursor.applyMaxSizeCap(maxEntries, bytesToRead);
