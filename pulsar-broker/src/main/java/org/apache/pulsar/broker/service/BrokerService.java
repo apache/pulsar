@@ -1460,23 +1460,7 @@ public class BrokerService implements Closeable {
         pulsar.getNamespaceService().isServiceUnitActiveAsync(topicName)
                 .thenAccept(isActive -> {
                     if (isActive) {
-                        CompletableFuture<Map<String, String>> propertiesFuture;
-                        if (properties == null) {
-                            //Read properties from storage when loading topic.
-                            propertiesFuture = fetchTopicPropertiesAsync(topicName);
-                        } else {
-                            propertiesFuture = CompletableFuture.completedFuture(properties);
-                        }
-                        propertiesFuture.thenAccept(finalProperties ->
-                                //TODO add topicName in properties?
-                                createPersistentTopic(topic, createIfMissing, topicFuture,
-                                        finalProperties, topicPolicies)
-                        ).exceptionally(throwable -> {
-                            log.warn("[{}] Read topic property failed", topic, throwable);
-                            pulsar.getExecutor().execute(() -> topics.remove(topic, topicFuture));
-                            topicFuture.completeExceptionally(throwable);
-                            return null;
-                        });
+                        createPersistentTopic(topic, createIfMissing, topicFuture, properties, topicPolicies);
                     } else {
                         // namespace is being unloaded
                         String msg = String.format("Namespace is being unloaded, cannot add topic %s", topic);
