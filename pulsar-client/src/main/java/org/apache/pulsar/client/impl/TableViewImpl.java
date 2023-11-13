@@ -41,7 +41,6 @@ import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.ReaderBuilder;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.TableView;
-import org.apache.pulsar.client.api.TopicMessageId;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.topics.TopicCompactionStrategy;
 
@@ -236,40 +235,20 @@ public class TableViewImpl<T> implements TableView<T> {
         AtomicLong messagesRead = new AtomicLong();
 
         CompletableFuture<Reader<T>> future = new CompletableFuture<>();
-        reader.getLastMessageIdsAsync().thenAccept(lastMessageIds -> {
-            Map<String, TopicMessageId> maxMessageIds = new ConcurrentHashMap<>();
-            lastMessageIds.forEach(topicMessageId -> {
-                maxMessageIds.put(topicMessageId.getOwnerTopic(), topicMessageId);
-            });
-            readAllExistingMessages(reader, future, startTime, messagesRead, maxMessageIds);
-        }).exceptionally(ex -> {
-            future.completeExceptionally(ex);
-            return null;
-        });
-        future.thenAccept(__ -> readTailMessages(reader));
+        readAllExistingMessages(reader, future, startTime, messagesRead);
         return future;
     }
 
     private void readAllExistingMessages(Reader<T> reader, CompletableFuture<Reader<T>> future, long startTime,
-                                         AtomicLong messagesRead, Map<String, TopicMessageId> maxMessageIds) {
+                                         AtomicLong messagesRead) {
         reader.hasMessageAvailableAsync()
                 .thenAccept(hasMessage -> {
                    if (hasMessage) {
                        reader.readNextAsync()
                                .thenAccept(msg -> {
                                   messagesRead.incrementAndGet();
-                                  // We need remove the partition from the maxMessageIds map
-                                  // once the partition has been read completely.
-                                  TopicMessageId maxMessageId = maxMessageIds.get(msg.getTopicName());
-                                  if (maxMessageId != null && msg.getMessageId().compareTo(maxMessageId) >= 0) {
-                                      maxMessageIds.remove(msg.getTopicName());
-                                  }
                                   handleMessage(msg);
-                                  if (maxMessageIds.isEmpty()) {
-                                      future.complete(reader);
-                                  } else {
-                                      readAllExistingMessages(reader, future, startTime, messagesRead, maxMessageIds);
-                                  }
+                                  readAllExistingMessages(reader, future, startTime, messagesRead);
                                }).exceptionally(ex -> {
                                    if (ex.getCause() instanceof PulsarClientException.AlreadyClosedException) {
                                        log.error("Reader {} was closed while reading existing messages.",
@@ -290,6 +269,7 @@ public class TableViewImpl<T> implements TableView<T> {
                                messagesRead,
                                durationMillis / 1000.0);
                        future.complete(reader);
+                       readTailMessages(reader);
                    }
                 });
     }
