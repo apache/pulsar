@@ -303,6 +303,11 @@ public interface Topic {
     CompletableFuture<SchemaVersion> deleteSchema();
 
     /**
+     * Delete the schema if this topic has a schema defined for it.
+     */
+    CompletableFuture<SchemaVersion> deleteSchemaIfNonPartitioned();
+
+    /**
      * Check if schema is compatible with current topic schema.
      */
     CompletableFuture<Void> checkSchemaCompatibleForConsumer(SchemaData schema);

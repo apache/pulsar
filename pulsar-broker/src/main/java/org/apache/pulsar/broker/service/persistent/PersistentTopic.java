@@ -1365,7 +1365,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                     CompletableFuture<Void> deleteTopicAuthenticationFuture = new CompletableFuture<>();
                     brokerService.deleteTopicAuthenticationWithRetry(topic, deleteTopicAuthenticationFuture, 5);
 
-                        deleteTopicAuthenticationFuture.thenCompose(ignore -> deleteSchema())
+                        deleteTopicAuthenticationFuture.thenCompose(ignore -> deleteSchemaIfNonPartitioned())
                                 .thenCompose(ignore -> {
                                     if (!SystemTopicNames.isTopicPoliciesSystemTopic(topic)
                                             && brokerService.getPulsar().getConfiguration().isSystemTopicEnabled()) {

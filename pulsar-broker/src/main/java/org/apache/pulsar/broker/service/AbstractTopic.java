@@ -677,6 +677,15 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
     }
 
     @Override
+    public CompletableFuture<SchemaVersion> deleteSchemaIfNonPartitioned() {
+        if (TopicName.get(getName()).isPartitioned()) {
+            // Only delete schema when partitioned metadata is deleting.
+            return CompletableFuture.completedFuture(null);
+        }
+        return brokerService.deleteSchema(TopicName.get(getName()));
+    }
+
+    @Override
     public CompletableFuture<Void> checkSchemaCompatibleForConsumer(SchemaData schema) {
         String id = getSchemaId();
         return brokerService.pulsar()
