@@ -1195,7 +1195,7 @@ public class BrokerServiceTest extends BrokerTestBase {
             for (int i = 0; i < 10; i++) {
                 // try to create topic which should fail as bundle is disable
                 CompletableFuture<Optional<Topic>> futureResult = pulsar.getBrokerService()
-                        .loadOrCreatePersistentTopic(topicName + "_" + i, false, null);
+                        .loadOrCreatePersistentTopic(topicName + "_" + i, false, null, null);
                 loadFutures.add(futureResult);
             }
 
