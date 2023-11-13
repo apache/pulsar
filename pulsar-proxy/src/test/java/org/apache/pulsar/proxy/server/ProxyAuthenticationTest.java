@@ -255,6 +255,7 @@ public class ProxyAuthenticationTest extends ProducerConsumerBase {
 	private void updateAdminClient() throws PulsarClientException {
 		// Expires after an hour
 		String adminAuthParams = "entityType:admin,expiryTime:" + (System.currentTimeMillis() + 3600 * 1000);
+		closeAdmin();
 		admin = spy(PulsarAdmin.builder().serviceHttpUrl(brokerUrl.toString())
 				.authentication(BasicAuthentication.class.getName(), adminAuthParams).build());
 	}

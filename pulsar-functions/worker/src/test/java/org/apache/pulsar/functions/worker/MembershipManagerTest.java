@@ -32,6 +32,7 @@ import static org.testng.Assert.assertNotNull;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import lombok.Cleanup;
 import org.apache.distributedlog.api.namespace.Namespace;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.ConsumerBuilder;
@@ -106,6 +107,7 @@ public class MembershipManagerTest {
         doReturn(pulsarAdmin).when(workerService).getFunctionAdmin();
 
         FunctionMetaDataManager functionMetaDataManager = mock(FunctionMetaDataManager.class);
+        @Cleanup
         FunctionRuntimeManager functionRuntimeManager = spy(new FunctionRuntimeManager(
                 workerConfig,
                 workerService,
@@ -181,6 +183,7 @@ public class MembershipManagerTest {
         doReturn(pulsarAdmin).when(workerService).getFunctionAdmin();
 
         FunctionMetaDataManager functionMetaDataManager = mock(FunctionMetaDataManager.class);
+        @Cleanup
         FunctionRuntimeManager functionRuntimeManager = spy(new FunctionRuntimeManager(
                 workerConfig,
                 workerService,
@@ -273,6 +276,7 @@ public class MembershipManagerTest {
         doReturn(pulsarAdmin).when(workerService).getFunctionAdmin();
 
         FunctionMetaDataManager functionMetaDataManager = mock(FunctionMetaDataManager.class);
+        @Cleanup
         FunctionRuntimeManager functionRuntimeManager = spy(new FunctionRuntimeManager(
                 workerConfig,
                 workerService,
@@ -357,6 +361,7 @@ public class MembershipManagerTest {
         doReturn(mock(PulsarAdmin.class)).when(workerService).getFunctionAdmin();
 
         FunctionMetaDataManager functionMetaDataManager = mock(FunctionMetaDataManager.class);
+        @Cleanup
         FunctionRuntimeManager functionRuntimeManager = spy(new FunctionRuntimeManager(
                 workerConfig,
                 workerService,

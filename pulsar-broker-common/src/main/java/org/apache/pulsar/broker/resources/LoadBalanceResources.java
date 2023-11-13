@@ -24,15 +24,19 @@ import lombok.Getter;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.policies.data.loadbalancer.BundleData;
+import org.apache.pulsar.policies.data.loadbalancer.TimeAverageBrokerData;
 
 @Getter
 public class LoadBalanceResources {
     public static final String BUNDLE_DATA_BASE_PATH = "/loadbalance/bundle-data";
+    public static final String BROKER_TIME_AVERAGE_BASE_PATH = "/loadbalance/broker-time-average";
 
     private final BundleDataResources bundleDataResources;
+    private final BrokerTimeAverageDataResources brokerTimeAverageDataResources;
 
     public LoadBalanceResources(MetadataStore store, int operationTimeoutSec) {
         bundleDataResources = new BundleDataResources(store, operationTimeoutSec);
+        brokerTimeAverageDataResources = new BrokerTimeAverageDataResources(store, operationTimeoutSec);
     }
 
     public static class BundleDataResources extends BaseResources<BundleData> {
@@ -67,6 +71,25 @@ public class LoadBalanceResources {
         // Get the metadata store path for the given bundle full name.
         private String getBundleDataPath(final String bundle) {
             return BUNDLE_DATA_BASE_PATH + "/" + bundle;
+        }
+    }
+
+    public static class BrokerTimeAverageDataResources extends BaseResources<TimeAverageBrokerData> {
+        public BrokerTimeAverageDataResources(MetadataStore store, int operationTimeoutSec) {
+            super(store, TimeAverageBrokerData.class, operationTimeoutSec);
+        }
+
+        public CompletableFuture<Void> updateTimeAverageBrokerData(String brokerLookupAddress,
+                TimeAverageBrokerData data) {
+            return setWithCreateAsync(getTimeAverageBrokerDataPath(brokerLookupAddress), __ -> data);
+        }
+
+        public CompletableFuture<Void> deleteTimeAverageBrokerData(String brokerLookupAddress) {
+            return deleteAsync(getTimeAverageBrokerDataPath(brokerLookupAddress));
+        }
+
+        private String getTimeAverageBrokerDataPath(final String brokerLookupAddress) {
+            return BROKER_TIME_AVERAGE_BASE_PATH + "/" + brokerLookupAddress;
         }
     }
 }

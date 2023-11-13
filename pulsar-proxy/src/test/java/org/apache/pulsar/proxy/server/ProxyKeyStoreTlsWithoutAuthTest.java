@@ -21,17 +21,13 @@ package org.apache.pulsar.proxy.server;
 import static java.util.Objects.requireNonNull;
 import static org.mockito.Mockito.doReturn;
 
-import com.google.common.collect.Sets;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
-import org.apache.pulsar.broker.authentication.AuthenticationProviderTls;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.Consumer;
@@ -51,7 +47,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 @Slf4j
-public class ProxyKeyStoreTlsTestWithAuth extends MockedPulsarServiceBaseTest {
+public class ProxyKeyStoreTlsWithoutAuthTest extends MockedPulsarServiceBaseTest {
     private ProxyService proxyService;
     private ProxyConfiguration proxyConfig = new ProxyConfiguration();
 
@@ -74,34 +70,18 @@ public class ProxyKeyStoreTlsTestWithAuth extends MockedPulsarServiceBaseTest {
         proxyConfig.setTlsTrustStoreType(KEYSTORE_TYPE);
         proxyConfig.setTlsTrustStore(CLIENT_TRUSTSTORE_FILE_PATH);
         proxyConfig.setTlsTrustStorePassword(CLIENT_TRUSTSTORE_PW);
+        proxyConfig.setTlsRequireTrustedClientCertOnConnect(true);
 
         proxyConfig.setMetadataStoreUrl(DUMMY_VALUE);
         proxyConfig.setConfigurationMetadataStoreUrl(GLOBAL_DUMMY_VALUE);
 
-        // config for authentication and authorization.
-        proxyConfig.setTlsRequireTrustedClientCertOnConnect(true);
-        proxyConfig.setSuperUserRoles(Sets.newHashSet(CLIENT_KEYSTORE_CN));
-        proxyConfig.setAuthenticationEnabled(true);
-        proxyConfig.setAuthorizationEnabled(true);
-        Set<String> providers = new HashSet<>();
-        providers.add(AuthenticationProviderTls.class.getName());
-        proxyConfig.setAuthenticationProviders(providers);
-
-        proxyService = Mockito.spy(new ProxyService(proxyConfig,
-                                                    new AuthenticationService(
+        proxyService = Mockito.spy(new ProxyService(proxyConfig, new AuthenticationService(
                                                             PulsarConfigurationLoader.convertFrom(proxyConfig))));
-        doReturn(new ZKMetadataStore(mockZooKeeper)).when(proxyService).createLocalMetadataStore();
-        doReturn(new ZKMetadataStore(mockZooKeeperGlobal)).when(proxyService).createConfigurationMetadataStore();
+        doReturn(registerCloseable(new ZKMetadataStore(mockZooKeeper))).when(proxyService).createLocalMetadataStore();
+        doReturn(registerCloseable(new ZKMetadataStore(mockZooKeeperGlobal))).when(proxyService)
+                .createConfigurationMetadataStore();
 
         proxyService.start();
-    }
-
-    @Override
-    @AfterMethod(alwaysRun = true)
-    protected void cleanup() throws Exception {
-        internalCleanup();
-
-        proxyService.close();
     }
 
     protected PulsarClient internalSetUpForClient(boolean addCertificates, String lookupUrl) throws Exception {
@@ -121,6 +101,13 @@ public class ProxyKeyStoreTlsTestWithAuth extends MockedPulsarServiceBaseTest {
             clientBuilder.authentication(AuthenticationKeyStoreTls.class.getName(), authParams);
         }
         return clientBuilder.build();
+    }
+
+    @Override
+    @AfterMethod(alwaysRun = true)
+    protected void cleanup() throws Exception {
+        internalCleanup();
+        proxyService.close();
     }
 
     @Test
@@ -182,6 +169,5 @@ public class ProxyKeyStoreTlsTestWithAuth extends MockedPulsarServiceBaseTest {
             requireNonNull(msg);
         }
     }
-
 
 }

@@ -21,8 +21,10 @@ package org.apache.pulsar.broker.service;
 import io.netty.handler.codec.haproxy.HAProxyMessage;
 import io.netty.util.concurrent.Promise;
 import java.net.SocketAddress;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
+import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLookupData;
 
 public interface TransportCnx {
 
@@ -57,6 +59,7 @@ public interface TransportCnx {
     void removedProducer(Producer producer);
 
     void closeProducer(Producer producer);
+    void closeProducer(Producer producer, Optional<BrokerLookupData> assignedBrokerLookupData);
 
     void cancelPublishRateLimiting();
 

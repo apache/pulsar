@@ -243,6 +243,7 @@ public class ProxyRolesEnforcementTest extends ProducerConsumerBase {
 
     private void createAdminClient() throws PulsarClientException {
         String adminAuthParams = "authParam:admin";
+        closeAdmin();
         admin = spy(PulsarAdmin.builder().serviceHttpUrl(brokerUrl.toString())
                 .authentication(BasicAuthentication.class.getName(), adminAuthParams).build());
     }

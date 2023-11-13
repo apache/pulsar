@@ -70,6 +70,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicInteger;
+import lombok.Cleanup;
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.pulsar.broker.PulsarServerException;
@@ -100,6 +101,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker")
+@SuppressWarnings("unchecked")
 public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
 
     private PulsarService pulsar1;
@@ -234,6 +236,7 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         var channel = createChannel(pulsar);
         int errorCnt = validateChannelStart(channel);
         assertEquals(6, errorCnt);
+        @Cleanup("shutdownNow")
         ExecutorService executor = Executors.newSingleThreadExecutor();
         Future startFuture = executor.submit(() -> {
             try {

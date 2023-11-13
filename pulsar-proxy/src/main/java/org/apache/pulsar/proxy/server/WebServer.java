@@ -239,7 +239,31 @@ public class WebServer {
         }
     }
 
+    /**
+     * Add a REST resource to the servlet context with authentication coverage.
+     *
+     * @see WebServer#addRestResource(String, String, Object, Class, boolean)
+     *
+     * @param basePath             The base path for the resource.
+     * @param attribute            An attribute associated with the resource.
+     * @param attributeValue       The value of the attribute.
+     * @param resourceClass        The class representing the resource.
+     */
     public void addRestResource(String basePath, String attribute, Object attributeValue, Class<?> resourceClass) {
+        addRestResource(basePath, attribute, attributeValue, resourceClass, true);
+    }
+
+    /**
+     * Add a REST resource to the servlet context.
+     *
+     * @param basePath             The base path for the resource.
+     * @param attribute            An attribute associated with the resource.
+     * @param attributeValue       The value of the attribute.
+     * @param resourceClass        The class representing the resource.
+     * @param requireAuthentication A boolean indicating whether authentication is required for this resource.
+     */
+    public void addRestResource(String basePath, String attribute, Object attributeValue,
+                                Class<?> resourceClass, boolean requireAuthentication) {
         ResourceConfig config = new ResourceConfig();
         config.register(resourceClass);
         config.register(JsonMapperProvider.class);
@@ -247,7 +271,8 @@ public class WebServer {
         servletHolder.setAsyncSupported(true);
         // This method has not historically checked for existing paths, so we don't check here either. The
         // method call is added to reduce code duplication.
-        addServlet(basePath, servletHolder, Collections.singletonList(Pair.of(attribute, attributeValue)), true, false);
+        addServlet(basePath, servletHolder, Collections.singletonList(Pair.of(attribute, attributeValue)),
+                requireAuthentication, false);
     }
 
     public int getExternalServicePort() {

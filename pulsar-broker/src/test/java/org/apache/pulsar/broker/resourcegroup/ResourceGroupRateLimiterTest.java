@@ -76,7 +76,7 @@ public class ResourceGroupRateLimiterTest extends BrokerTestBase {
 
     public void deleteResourceGroup(String rgName) throws PulsarAdminException {
         admin.resourcegroups().deleteResourceGroup(rgName);
-        Awaitility.await().atMost(1, TimeUnit.SECONDS)
+        Awaitility.await().atMost(10, TimeUnit.SECONDS)
             .untilAsserted(() -> assertNull(pulsar.getResourceGroupServiceManager().resourceGroupGet(rgName)));
     }
 
