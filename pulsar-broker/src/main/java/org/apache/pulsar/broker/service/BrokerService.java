@@ -1012,21 +1012,8 @@ public class BrokerService implements Closeable {
                     throw FutureUtil.wrapToCompletionException(new ServiceUnitNotReadyException(errorInfo));
                 }).thenCompose(optionalTopicPolicies -> {
                     final TopicPolicies topicPolicies = optionalTopicPolicies.orElse(null);
-                    return topics.computeIfAbsent(topicName.toString(), (tpName) -> {
-                        if (topicName.isPartitioned()) {
-                            final TopicName topicNameEntity = TopicName.get(topicName.getPartitionedTopicName());
-                            return fetchPartitionedTopicMetadataAsync(topicNameEntity)
-                                    .thenCompose((metadata) -> {
-                                        // Allow crate non-partitioned persistent topic that name includes `partition`
-                                        if (metadata.partitions == 0
-                                                || topicName.getPartitionIndex() < metadata.partitions) {
-                                            return loadOrCreatePersistentTopic(tpName, createIfMissing,
-                                                    properties, topicPolicies);
-                                        }
-                                        return CompletableFuture.completedFuture(Optional.empty());
-                                    });
-                        }
-                        return loadOrCreatePersistentTopic(tpName, createIfMissing, properties, topicPolicies);
+                    return topics.computeIfAbsent(topicName.toString(), (k) -> {
+                        return loadOrCreatePersistentTopic(k, createIfMissing, properties, topicPolicies);
                     });
                 });
             } else {
@@ -1482,7 +1469,7 @@ public class BrokerService implements Closeable {
                             return null;
                         });
                     } else {
-                        pendingTopicLoadingQueue.add(new TopicLoadingContext(topic,
+                        pendingTopicLoadingQueue.add(new TopicLoadingContext(topic, createIfMissing,
                                 topicFuture, properties, topicPolicies));
                         if (log.isDebugEnabled()) {
                             log.debug("topic-loading for {} added into pending queue", topic);
@@ -1503,23 +1490,7 @@ public class BrokerService implements Closeable {
         pulsar.getNamespaceService().isServiceUnitActiveAsync(topicName)
                 .thenAccept(isActive -> {
                     if (isActive) {
-                        CompletableFuture<Map<String, String>> propertiesFuture;
-                        if (properties == null) {
-                            //Read properties from storage when loading topic.
-                            propertiesFuture = fetchTopicPropertiesAsync(topicName);
-                        } else {
-                            propertiesFuture = CompletableFuture.completedFuture(properties);
-                        }
-                        propertiesFuture.thenAccept(finalProperties ->
-                                //TODO add topicName in properties?
-                                createPersistentTopic(topic, createIfMissing, topicFuture,
-                                        finalProperties, topicPolicies)
-                        ).exceptionally(throwable -> {
-                            log.warn("[{}] Read topic property failed", topic, throwable);
-                            pulsar.getExecutor().execute(() -> topics.remove(topic, topicFuture));
-                            topicFuture.completeExceptionally(throwable);
-                            return null;
-                        });
+                        createPersistentTopic(topic, createIfMissing, topicFuture, properties, topicPolicies);
                     } else {
                         // namespace is being unloaded
                         String msg = String.format("Namespace is being unloaded, cannot add topic %s", topic);
@@ -2913,7 +2884,7 @@ public class BrokerService implements Closeable {
             final Semaphore topicLoadSemaphore = topicLoadRequestSemaphore.get();
             final boolean acquiredPermit = topicLoadSemaphore.tryAcquire();
             checkOwnershipAndCreatePersistentTopic(topic,
-                    true,
+                    pendingTopic.isCreateIfMissing(),
                     pendingFuture,
                     pendingTopic.getProperties(), pendingTopic.getTopicPolicies());
             pendingFuture.handle((persistentTopic, ex) -> {

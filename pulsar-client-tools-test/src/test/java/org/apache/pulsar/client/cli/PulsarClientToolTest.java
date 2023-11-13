@@ -286,7 +286,6 @@ public class PulsarClientToolTest extends BrokerTestBase {
         final String message = "test msg";
         final int numberOfMessages = 1;
         final String topicName = getTopicWithRandomSuffix("test-topic");
-
         String[] args = {"--url", url,
                 "--auth-plugin", authPlugin,
                 "--auth-params", authParams,
@@ -321,7 +320,6 @@ public class PulsarClientToolTest extends BrokerTestBase {
             Assert.assertEquals(new String(msg.getData()), "msg" + i);
         }
     }
-
     private static String getTopicWithRandomSuffix(String localNameBase) {
         return String.format("persistent://prop/ns-abc/test/%s-%s", localNameBase, UUID.randomUUID().toString());
     }
