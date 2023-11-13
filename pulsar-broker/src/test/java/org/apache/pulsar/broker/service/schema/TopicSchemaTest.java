@@ -27,9 +27,11 @@ import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker")
@@ -48,9 +50,17 @@ public class TopicSchemaTest extends ProducerConsumerBase {
         super.internalCleanup();
     }
 
-    @Test
-    public void testDeleteNonPartitionedTopicWithSchema() throws Exception {
-        final String topic = BrokerTestUtil.newUniqueName("persistent://public/default/tp");
+    @DataProvider(name = "topicDomains")
+    public Object[][] topicDomains() {
+        return new Object[][]{
+                {TopicDomain.non_persistent},
+                {TopicDomain.persistent}
+        };
+    }
+
+    @Test(dataProvider = "topicDomains")
+    public void testDeleteNonPartitionedTopicWithSchema(TopicDomain topicDomain) throws Exception {
+        final String topic = BrokerTestUtil.newUniqueName(topicDomain.value() + "://public/default/tp");
         final String schemaId = TopicName.get(TopicName.get(topic).getPartitionedTopicName()).getSchemaName();
         admin.topics().createNonPartitionedTopic(topic);
 
@@ -69,9 +79,9 @@ public class TopicSchemaTest extends ProducerConsumerBase {
         assertTrue(schemaList2 == null || schemaList2.isEmpty());
     }
 
-    @Test
-    public void testDeletePartitionedTopicWithoutSchema() throws Exception {
-        final String topic = BrokerTestUtil.newUniqueName("persistent://public/default/tp");
+    @Test(dataProvider = "topicDomains")
+    public void testDeletePartitionedTopicWithoutSchema(TopicDomain topicDomain) throws Exception {
+        final String topic = BrokerTestUtil.newUniqueName(topicDomain.value() + "://public/default/tp");
         final String partition0 = topic + "-partition-0";
         final String partition1 = topic + "-partition-1";
         final String schemaId = TopicName.get(TopicName.get(topic).getPartitionedTopicName()).getSchemaName();

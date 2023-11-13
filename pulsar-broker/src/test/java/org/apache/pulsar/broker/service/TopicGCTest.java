@@ -107,5 +107,6 @@ public class TopicGCTest extends ProducerConsumerBase {
         consumerAllPartition.close();
         producer0.close();
         producer1.close();
+        admin.topics().deletePartitionedTopic(topic);
     }
 }
