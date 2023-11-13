@@ -102,14 +102,17 @@ public class ClusterResources extends BaseResources<ClusterData> {
         return deleteAsync(joinPath(BASE_CLUSTERS_PATH, clusterName));
     }
 
-    public CompletableFuture<Boolean> isClusterUsedAsync(String clusterName) {
+    public CompletableFuture<Boolean> isClusterUsedAsync(String currentClusterName, String clusterName) {
         return getCache().getChildren(BASE_POLICIES_PATH)
                 .thenCompose(tenants -> {
-                    List<CompletableFuture<List<String>>> futures = tenants.stream()
+                    List<CompletableFuture<List<Object>>> futures = tenants.stream()
                             .map(tenant -> getCache().getChildren(joinPath(BASE_POLICIES_PATH, tenant, clusterName))
-                                .thenCombineAsync(getCache().getChildren(joinPath(BASE_POLICIES_PATH, tenant)),
+                                .thenCombineAsync(
+                                        currentClusterName.equalsIgnoreCase(clusterName)
+                                                ? getCache().getChildren(joinPath(BASE_POLICIES_PATH, tenant)) :
+                                        CompletableFuture.completedFuture(Lists.newArrayList()),
                                     (v1, v2) -> {
-                                        List<String> ret = Lists.newArrayList(v1);
+                                        List<Object> ret = Lists.newArrayList(v1);
                                         ret.addAll(v2);
                                         return ret;
                                     })

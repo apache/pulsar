@@ -482,7 +482,8 @@ public class ClustersBase extends AdminResource {
 
     private CompletableFuture<Void> internalDeleteClusterAsync(String cluster) {
         // Check that the cluster is not used by any tenant (eg: no namespaces provisioned there)
-        return pulsar().getPulsarResources().getClusterResources().isClusterUsedAsync(cluster)
+        return pulsar().getPulsarResources().getClusterResources().isClusterUsedAsync(
+                    pulsar().getConfig().getClusterName(), cluster)
                 .thenCompose(isClusterUsed -> {
                     if (isClusterUsed) {
                         throw new RestException(PRECONDITION_FAILED, "Cluster not empty");

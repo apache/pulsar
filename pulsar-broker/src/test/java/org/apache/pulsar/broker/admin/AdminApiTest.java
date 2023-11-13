@@ -290,6 +290,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void clusters() throws Exception {
+        admin.namespaces().deleteNamespace("prop-xyz/ns1");
         admin.clusters().createCluster("usw",
                 ClusterData.builder().serviceUrl("http://broker.messaging.use.example.com:8080").build());
         // "test" cluster is part of config-default cluster and it's znode gets created when PulsarService creates
