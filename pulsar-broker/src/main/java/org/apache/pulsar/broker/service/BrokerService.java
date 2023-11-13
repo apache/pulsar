@@ -982,7 +982,8 @@ public class BrokerService implements Closeable {
                     }
                 }
             }
-            final boolean isPersistentTopic = TopicName.get(topic).getDomain().equals(TopicDomain.persistent);
+            final TopicName topicName = TopicName.get(topic);
+            final boolean isPersistentTopic = topicName.getDomain().equals(TopicDomain.persistent);
             if (isPersistentTopic) {
                 final CompletableFuture<Optional<TopicPolicies>> topicPoliciesFuture =
                         getTopicPoliciesBypassSystemTopic(topicName);
@@ -1000,7 +1001,6 @@ public class BrokerService implements Closeable {
                 });
             } else {
                 return topics.computeIfAbsent(topic, (name) -> {
-                    final TopicName topicName = TopicName.get(name);
                     if (topicName.isPartitioned()) {
                         final TopicName partitionedTopicName = TopicName.get(topicName.getPartitionedTopicName());
                         return this.fetchPartitionedTopicMetadataAsync(partitionedTopicName).thenCompose((metadata) -> {
