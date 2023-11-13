@@ -109,6 +109,7 @@ public class PulsarClientToolTest extends BrokerTestBase {
         properties.setProperty("useTls", "false");
 
         final String topicName = getTopicWithRandomSuffix("non-durable");
+        admin.topics().createNonPartitionedTopic(topicName);
 
         int numberOfMessages = 10;
         @Cleanup("shutdownNow")
@@ -194,12 +195,63 @@ public class PulsarClientToolTest extends BrokerTestBase {
     }
 
     @Test(timeOut = 20000)
+    public void testRead() throws Exception {
+        Properties properties = new Properties();
+        properties.setProperty("serviceUrl", brokerUrl.toString());
+        properties.setProperty("useTls", "false");
+
+        final String topicName = getTopicWithRandomSuffix("reader");
+        admin.topics().createNonPartitionedTopic(topicName);
+
+        int numberOfMessages = 10;
+        @Cleanup("shutdownNow")
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        CompletableFuture<Void> future = new CompletableFuture<>();
+        executor.execute(() -> {
+            try {
+                PulsarClientTool pulsarClientToolReader = new PulsarClientTool(properties);
+                String[] args = {"read", "-m", "latest", "-n", Integer.toString(numberOfMessages), "--hex", "-r", "30",
+                        topicName};
+                assertEquals(pulsarClientToolReader.run(args), 0);
+                future.complete(null);
+            } catch (Throwable t) {
+                future.completeExceptionally(t);
+            }
+        });
+
+        // Make sure subscription has been created
+        retryStrategically((test) -> {
+            try {
+                return admin.topics().getSubscriptions(topicName).size() == 1;
+            } catch (Exception e) {
+                return false;
+            }
+        }, 10, 500);
+
+        assertEquals(admin.topics().getSubscriptions(topicName).size(), 1);
+        assertTrue(admin.topics().getSubscriptions(topicName).get(0).startsWith("reader-"));
+        PulsarClientTool pulsarClientToolProducer = new PulsarClientTool(properties);
+
+        String[] args = {"produce", "--messages", "Have a nice day", "-n", Integer.toString(numberOfMessages), "-r",
+                "20", "-p", "key1=value1", "-p", "key2=value2", "-k", "partition_key", topicName};
+        assertEquals(pulsarClientToolProducer.run(args), 0);
+        assertFalse(future.isCompletedExceptionally());
+        future.get();
+
+        Awaitility.await()
+                .ignoreExceptions()
+                .atMost(Duration.ofMillis(20000))
+                .until(()->admin.topics().getSubscriptions(topicName).size() == 0);
+    }
+
+    @Test(timeOut = 20000)
     public void testEncryption() throws Exception {
         Properties properties = new Properties();
         properties.setProperty("serviceUrl", brokerUrl.toString());
         properties.setProperty("useTls", "false");
 
         final String topicName = getTopicWithRandomSuffix("encryption");
+        admin.topics().createNonPartitionedTopic(topicName);
         final String keyUriBase = "file:../pulsar-broker/src/test/resources/certificate/";
         final int numberOfMessages = 10;
 
