@@ -94,7 +94,10 @@ flexible messaging model and an intuitive client API.</description>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
     <project.build.outputTimestamp>2023-09-08T03:29:19Z</project.build.outputTimestamp>
     <redirectTestOutputToFile>true</redirectTestOutputToFile>
-
+<properties>
+  <sonar.organization>lorenzozerosonar.organization>
+  <sonar.host.url>https://sonarcloud.iosonar.host.url>
+properties>
     <!-- By default build for local Docker platform.
          To create multi-arch image, pass -Ddocker.platforms=linux/arm64,linux/amd64
     -->
