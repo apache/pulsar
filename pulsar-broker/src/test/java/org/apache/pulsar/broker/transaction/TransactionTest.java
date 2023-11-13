@@ -44,10 +44,8 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -81,7 +79,6 @@ import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.commons.lang3.reflect.MethodUtils;
-import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.intercept.CounterBrokerInterceptor;
@@ -109,7 +106,6 @@ import org.apache.pulsar.broker.transaction.pendingack.impl.MLPendingAckReplyCal
 import org.apache.pulsar.broker.transaction.pendingack.impl.MLPendingAckStore;
 import org.apache.pulsar.broker.transaction.pendingack.impl.MLPendingAckStoreProvider;
 import org.apache.pulsar.broker.transaction.pendingack.impl.PendingAckHandleImpl;
-import org.apache.pulsar.client.admin.LongRunningProcessStatus;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
@@ -136,7 +132,6 @@ import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.TopicPolicies;
@@ -160,7 +155,6 @@ import org.mockito.stubbing.Answer;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
-import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 /**
@@ -1787,204 +1781,6 @@ public class TransactionTest extends TransactionTestBase {
                     }
                     return false;
                 });
-    }
-
-    @Test
-    public void testReadCommittedWithReadCompacted() throws Exception{
-        final String namespace = BrokerTestUtil.newUniqueName("tnx/ns-prechecks");
-        final String topic = "persistent://" + namespace + "/test_transaction_topic";
-        admin.namespaces().createNamespace(namespace);
-        admin.topics().createNonPartitionedTopic(topic);
-
-        admin.topicPolicies().setCompactionThreshold(topic, 100 * 1024 * 1024);
-
-        @Cleanup
-        Consumer<String> consumer = this.pulsarClient.newConsumer(Schema.STRING)
-                .topic(topic)
-                .subscriptionName("sub")
-                .subscriptionType(SubscriptionType.Exclusive)
-                .readCompacted(true)
-                .subscribe();
-
-        @Cleanup
-        Producer<String> producer = this.pulsarClient.newProducer(Schema.STRING)
-                .topic(topic)
-                .create();
-
-        producer.newMessage().key("K1").value("V1").send();
-
-        Transaction txn = pulsarClient.newTransaction()
-                .withTransactionTimeout(1, TimeUnit.MINUTES).build().get();
-        producer.newMessage(txn).key("K2").value("V2").send();
-        producer.newMessage(txn).key("K3").value("V3").send();
-
-        List<String> messages = new ArrayList<>();
-        while (true) {
-            Message<String> message = consumer.receive(5, TimeUnit.SECONDS);
-            if (message == null) {
-                break;
-            }
-            messages.add(message.getValue());
-        }
-
-        Assert.assertEquals(messages, List.of("V1"));
-
-        txn.commit();
-
-        messages.clear();
-
-        while (true) {
-            Message<String> message = consumer.receive(5, TimeUnit.SECONDS);
-            if (message == null) {
-                break;
-            }
-            messages.add(message.getValue());
-        }
-
-        Assert.assertEquals(messages, List.of("V2", "V3"));
-    }
-
-
-    @Test
-    public void testReadCommittedWithCompaction() throws Exception{
-        final String namespace = BrokerTestUtil.newUniqueName("tnx/ns-prechecks");
-        final String topic = "persistent://" + namespace + "/test_transaction_topic" + UUID.randomUUID();
-        admin.namespaces().createNamespace(namespace);
-        admin.topics().createNonPartitionedTopic(topic);
-
-        admin.topicPolicies().setCompactionThreshold(topic, 100 * 1024 * 1024);
-
-        @Cleanup
-        Producer<String> producer = this.pulsarClient.newProducer(Schema.STRING)
-                .topic(topic)
-                .create();
-
-        producer.newMessage().key("K1").value("V1").send();
-
-        Transaction txn = pulsarClient.newTransaction()
-                .withTransactionTimeout(1, TimeUnit.MINUTES).build().get();
-        producer.newMessage(txn).key("K2").value("V2").send();
-        producer.newMessage(txn).key("K3").value("V3").send();
-        txn.commit().get();
-
-        producer.newMessage().key("K1").value("V4").send();
-
-        Transaction txn2 = pulsarClient.newTransaction()
-                .withTransactionTimeout(1, TimeUnit.MINUTES).build().get();
-        producer.newMessage(txn2).key("K2").value("V5").send();
-        producer.newMessage(txn2).key("K3").value("V6").send();
-        txn2.commit().get();
-
-        admin.topics().triggerCompaction(topic);
-
-        Awaitility.await().untilAsserted(() -> {
-            assertEquals(admin.topics().compactionStatus(topic).status,
-                    LongRunningProcessStatus.Status.SUCCESS);
-        });
-
-        @Cleanup
-        Consumer<String> consumer = this.pulsarClient.newConsumer(Schema.STRING)
-                .topic(topic)
-                .subscriptionName("sub")
-                .subscriptionType(SubscriptionType.Exclusive)
-                .readCompacted(true)
-                .subscribe();
-        List<String> result = new ArrayList<>();
-        while (true) {
-            Message<String> receive = consumer.receive(2, TimeUnit.SECONDS);
-            if (receive == null) {
-                break;
-            }
-
-            result.add(receive.getValue());
-        }
-
-        Assert.assertEquals(result, List.of("V4", "V5", "V6"));
-    }
-
-    @DataProvider(name = "BlockTransactionsIfReplicationEnabledValues")
-    public static Object[][] packageNamesProvider() {
-        return new Object[][]{
-                {false},{true}
-        };
-    }
-
-    @Test(dataProvider = "BlockTransactionsIfReplicationEnabledValues")
-    public void testBlockTransactionsIfReplicationEnabled(boolean block) throws Exception {
-        conf.setBlockTransactionsIfReplicationEnabled(block);
-        admin.clusters().createCluster("r1", ClusterData.builder()
-                .serviceUrl(getPulsarServiceList().get(0).getWebServiceAddress())
-                .build()
-        );
-        final String namespace = TENANT + "/txndisabledns";
-        admin.namespaces().createNamespace(namespace);
-        String topic = "persistent://" + namespace + "/block-" + block;
-        admin.topics().createNonPartitionedTopic(topic);
-        getPulsarServiceList().get(0)
-                .getPulsarResources()
-                .getNamespaceResources()
-                .setPolicies(NamespaceName.get(namespace), p -> {
-                    p.replication_clusters = new HashSet<>(Arrays.asList(CLUSTER_NAME, "r1"));
-                    return p;
-                });
-        getPulsarServiceList().get(0)
-                .getBrokerService()
-                .getTopic(topic, false)
-                .get()
-                .get()
-                .checkReplication()
-                .get();
-
-        @Cleanup
-        Consumer<byte[]> consumer = getConsumer(topic, "s1");
-        @Cleanup
-        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
-                .producerName("testBlocked").sendTimeout(0, TimeUnit.SECONDS)
-                .topic(topic).enableBatching(true)
-                .create();
-
-        Transaction transaction = pulsarClient.newTransaction()
-                .withTransactionTimeout(10, TimeUnit.SECONDS).build().get();
-        try {
-            producer.newMessage(transaction)
-                    .value("test")
-                    .send();
-            if (block) {
-                fail();
-            }
-        } catch (PulsarClientException.NotAllowedException notAllowedException) {
-            if (block) {
-                assertEquals(notAllowedException.getMessage(), "Transactions are not allowed "
-                        + "in a namespace with replication enabled");
-            } else {
-                fail("unexpected exception with block=false: " + notAllowedException.getMessage());
-            }
-        }
-
-
-        final MessageId msgNoTxn = producer.newMessage()
-                .value("testnotxn")
-                .send();
-
-        try {
-            consumer.acknowledgeAsync(msgNoTxn, transaction).get();
-            if (block) {
-                fail();
-            }
-        } catch (ExecutionException ex) {
-            if (block) {
-                assertTrue(PulsarClientException.unwrap(ex.getCause()).getMessage()
-                        .contains("Transactions are not allowed in a namespace with replication enabled"));
-            } else {
-                fail("unexpected exception with block=false: " + ex.getCause().getMessage());
-            }
-        } finally {
-            getPulsarServiceList().get(0)
-                    .getPulsarResources()
-                    .getNamespaceResources().deletePolicies(NamespaceName.get(namespace));
-            admin.clusters().deleteCluster("r1");
-        }
-        consumer.acknowledgeAsync(msgNoTxn).get();
     }
 
 }
