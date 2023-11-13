@@ -1559,8 +1559,8 @@ public class BrokerService implements Closeable {
                 ? checkMaxTopicsPerNamespace(topicName, 1)
                 : CompletableFuture.completedFuture(null);
 
-        maxTopicsCheck.thenCompose(__ -> getManagedLedgerConfig(topicName, topicPolicies))
-            .thenAccept(managedLedgerConfig -> {
+        maxTopicsCheck.thenCompose(__ ->
+                        getManagedLedgerConfig(topicName, topicPolicies)).thenAccept(managedLedgerConfig -> {
             if (isBrokerEntryMetadataEnabled() || isBrokerPayloadProcessorEnabled()) {
                 // init managedLedger interceptor
                 Set<BrokerEntryMetadataInterceptor> interceptors = new HashSet<>();
