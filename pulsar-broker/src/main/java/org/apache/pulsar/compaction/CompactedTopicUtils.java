@@ -39,6 +39,15 @@ import org.apache.pulsar.common.util.FutureUtil;
 
 public class CompactedTopicUtils {
 
+    public static void asyncReadCompactedEntries(TopicCompactionService topicCompactionService,
+                                                 ManagedCursor cursor, int maxEntries,
+                                                 long bytesToRead, boolean readFromEarliest,
+                                                 AsyncCallbacks.ReadEntriesCallback callback,
+                                                 boolean wait, @Nullable Consumer consumer) {
+        asyncReadCompactedEntries(topicCompactionService, cursor, maxEntries, bytesToRead, PositionImpl.LATEST,
+                readFromEarliest, callback, wait, consumer);
+    }
+
     @Beta
     public static void asyncReadCompactedEntries(TopicCompactionService topicCompactionService,
                                                  ManagedCursor cursor, int maxEntries,
