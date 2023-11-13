@@ -316,7 +316,7 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
         requireNonNull(namespace);
         return policyCacheInitMap.computeIfAbsent(namespace, (k) -> {
             final CompletableFuture<SystemTopicClient.Reader<PulsarEvent>> readerCompletableFuture =
-                    createSystemTopicClientWithRetry(namespace);
+                    createSystemTopicClient(namespace);
             readerCaches.put(namespace, readerCompletableFuture);
             ownedBundlesCountPerNamespace.putIfAbsent(namespace, new AtomicInteger(1));
             final CompletableFuture<Void> initFuture = readerCompletableFuture
