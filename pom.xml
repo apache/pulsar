@@ -75,10 +75,6 @@ flexible messaging model and an intuitive client API.</description>
     <system>Github</system>
     <url>https://github.com/apache/pulsar/issues</url>
   </issueManagement>
-<properties>
-  <sonar.organization>lorenzozero</sonar.organization>
-  <sonar.host.url>https://sonarcloud.io</sonar.host.url>
-</properties>
   <properties>
     <maven.compiler.source>17</maven.compiler.source>
     <maven.compiler.target>17</maven.compiler.target>
@@ -98,8 +94,8 @@ flexible messaging model and an intuitive client API.</description>
     <project.build.outputTimestamp>2023-09-08T03:29:19Z</project.build.outputTimestamp>
     <redirectTestOutputToFile>true</redirectTestOutputToFile>
 <properties>
-  <sonar.organization>lorenzozerosonar.organization>
-  <sonar.host.url>https://sonarcloud.iosonar.host.url>
+  <sonar.organization>lorenzozero</sonar.organization>
+  <sonar.host.url>https://sonarcloud.io</sonar.host.url>
 properties>
     <!-- By default build for local Docker platform.
          To create multi-arch image, pass -Ddocker.platforms=linux/arm64,linux/amd64
