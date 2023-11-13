@@ -1483,7 +1483,7 @@ public class BrokerService implements Closeable {
                         });
                     } else {
                         pendingTopicLoadingQueue.add(new TopicLoadingContext(topic,
-                                createIfMissing, topicFuture, properties, topicPolicies));
+                                topicFuture, properties, topicPolicies));
                         if (log.isDebugEnabled()) {
                             log.debug("topic-loading for {} added into pending queue", topic);
                         }
@@ -1559,11 +1559,8 @@ public class BrokerService implements Closeable {
                 ? checkMaxTopicsPerNamespace(topicName, 1)
                 : CompletableFuture.completedFuture(null);
 
-        CompletableFuture<Void> isTopicAlreadyMigrated = checkTopicAlreadyMigrated(topicName);
-
-        maxTopicsCheck.thenCompose(__ -> isTopicAlreadyMigrated)
-                .thenCompose(__ -> getManagedLedgerConfig(topicName, topicPolicies))
-        .thenAccept(managedLedgerConfig -> {
+        maxTopicsCheck.thenCompose(__ -> getManagedLedgerConfig(topicName, topicPolicies))
+            .thenAccept(managedLedgerConfig -> {
             if (isBrokerEntryMetadataEnabled() || isBrokerPayloadProcessorEnabled()) {
                 // init managedLedger interceptor
                 Set<BrokerEntryMetadataInterceptor> interceptors = new HashSet<>();
@@ -2916,7 +2913,7 @@ public class BrokerService implements Closeable {
             final Semaphore topicLoadSemaphore = topicLoadRequestSemaphore.get();
             final boolean acquiredPermit = topicLoadSemaphore.tryAcquire();
             checkOwnershipAndCreatePersistentTopic(topic,
-                    pendingTopic.isCreateIfMissing(),
+                    true,
                     pendingFuture,
                     pendingTopic.getProperties(), pendingTopic.getTopicPolicies());
             pendingFuture.handle((persistentTopic, ex) -> {
