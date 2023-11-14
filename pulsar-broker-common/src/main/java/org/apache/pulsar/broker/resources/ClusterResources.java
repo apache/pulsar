@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.broker.resources;
 
-import com.google.common.collect.Lists;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
@@ -110,9 +110,9 @@ public class ClusterResources extends BaseResources<ClusterData> {
                                 .thenCombineAsync(
                                         currentClusterName.equalsIgnoreCase(clusterName)
                                                 ? getCache().getChildren(joinPath(BASE_POLICIES_PATH, tenant)) :
-                                        CompletableFuture.completedFuture(Lists.newArrayList()),
+                                        CompletableFuture.completedFuture(new ArrayList()),
                                     (v1, v2) -> {
-                                        List<Object> ret = Lists.newArrayList(v1);
+                                        List<Object> ret = new ArrayList<>(v1);
                                         ret.addAll(v2);
                                         return ret;
                                     })
