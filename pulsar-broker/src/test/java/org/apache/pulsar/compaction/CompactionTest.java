@@ -1885,7 +1885,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
                 .topic(topicName).create();
 
         for (int i = 0; i < 10; i+=2) {
-            producer.newMessage().key(null).value(new byte[4*1024*1024]).send();
+            producer.newMessage().key(UUID.randomUUID().toString()).value(new byte[4*1024*1024]).send();
         }
         producer.flush();
 
@@ -1983,5 +1983,61 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
                 }
             }
         }
+    }
+
+    @DataProvider(name = "retainNullKey")
+    public static Object[][] retainNullKey() {
+        return new Object[][] {{true}, {false}};
+    }
+
+    @Test(dataProvider = "retainNullKey")
+    public void testCompactionNullKeyRetain(boolean retainNullKey) throws Exception {
+        conf.setTopicCompactionRemainNullKey(retainNullKey);
+        restartBroker();
+
+        final String topicName = "persistent://my-property/use/my-ns/testCompactionNullKeyRetain" + UUID.randomUUID();
+        final String subName = "my-sub";
+        @Cleanup
+        PulsarClient client = newPulsarClient(lookupUrl.toString(), 100);
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topicName).create();
+
+        producer.newMessage().key(null).value("V1").send();
+        producer.newMessage().key("K1").value("V2").send();
+        producer.newMessage().key("K2").value("V3").send();
+        producer.newMessage().key(null).value("V4").send();
+        producer.newMessage().key("K1").value("V5").send();
+        producer.newMessage().key("K2").value("V6").send();
+        producer.newMessage().key(null).value("V7").send();
+        producer.flush();
+
+        admin.topics().triggerCompaction(topicName);
+
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(admin.topics().compactionStatus(topicName).status,
+                    LongRunningProcessStatus.Status.SUCCESS);
+        });
+
+        ConsumerImpl<String> consumer = (ConsumerImpl<String>) client.newConsumer(Schema.STRING)
+                .topic(topicName).readCompacted(true).subscriptionName(subName)
+                .subscribe();
+
+        List<String> result = new ArrayList<>();
+        while (true) {
+            Message<String> message = consumer.receive(10, TimeUnit.SECONDS);
+            if (message == null) {
+                break;
+            }
+            result.add(message.getValue());
+        }
+
+        if (!retainNullKey) {
+            Assert.assertEquals(result, List.of("V5", "V6"));
+        } else {
+            Assert.assertEquals(result, List.of("V1", "V4", "V5", "V6", "V7"));
+        }
+
+        consumer.close();
+        producer.close();
     }
 }
