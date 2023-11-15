@@ -101,6 +101,7 @@ import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Slf4j
@@ -787,19 +788,25 @@ public class ModularLoadManagerImplTest {
         assertEquals(data.size(), 1);
     }
 
-    @Test
-    public void testBundleDataDefaultValue() throws Exception {
-        final String tenant = "test";
-        final String cluster = "test";
-        String namespace = tenant + "/" + cluster + "/" + "test";
+    @DataProvider(name = "isV1")
+    public Object[][] isV1() {
+        return new Object[][] {{true}, {false}};
+    }
+
+    @Test(dataProvider = "isV1")
+    public void testBundleDataDefaultValue(boolean isV1) throws Exception {
+        final String cluster = "use";
+        final String tenant = "my-tenant";
+        final String namespace = "my-ns";
+        NamespaceName ns = isV1 ? NamespaceName.get(tenant, cluster, namespace) : NamespaceName.get(tenant, namespace);
         admin1.clusters().createCluster(cluster, ClusterData.builder().serviceUrl("http://" + pulsar1.getAdvertisedAddress()).build());
         admin1.tenants().createTenant(tenant,
                 new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet(cluster)));
-        admin1.namespaces().createNamespace(namespace, 16);
+        admin1.namespaces().createNamespace(ns.toString(), 16);
 
         // set resourceQuota to the first bundle range.
-        BundlesData bundlesData = admin1.namespaces().getBundles(namespace);
-        NamespaceBundle namespaceBundle = nsFactory.getBundle(NamespaceName.get(tenant, cluster, "test"),
+        BundlesData bundlesData = admin1.namespaces().getBundles(ns.toString());
+        NamespaceBundle namespaceBundle = nsFactory.getBundle(ns,
                 Range.range(Long.decode(bundlesData.getBoundaries().get(0)), BoundType.CLOSED, Long.decode(bundlesData.getBoundaries().get(1)),
                         BoundType.OPEN));
         ResourceQuota quota = new ResourceQuota();
@@ -808,7 +815,7 @@ public class ModularLoadManagerImplTest {
         quota.setBandwidthIn(1024.3);
         quota.setBandwidthOut(1024.4);
         quota.setMemory(1024.0);
-        admin1.resourceQuotas().setNamespaceBundleResourceQuota(namespace, namespaceBundle.getBundleRange(), quota);
+        admin1.resourceQuotas().setNamespaceBundleResourceQuota(ns.toString(), namespaceBundle.getBundleRange(), quota);
 
         ModularLoadManagerWrapper loadManagerWrapper = (ModularLoadManagerWrapper) pulsar1.getLoadManager().get();
         ModularLoadManagerImpl lm = (ModularLoadManagerImpl) loadManagerWrapper.getLoadManager();
