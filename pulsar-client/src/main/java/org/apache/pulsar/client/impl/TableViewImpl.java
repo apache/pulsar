@@ -22,6 +22,7 @@ import static org.apache.pulsar.common.topics.TopicCompactionStrategy.TABLE_VIEW
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -60,6 +61,26 @@ public class TableViewImpl<T> implements TableView<T> {
     private final boolean isPersistentTopic;
     private TopicCompactionStrategy<T> compactionStrategy;
 
+    /**
+     * Store the refresh tasks. When read to the position recording in the right map,
+     * then remove the position in the right map. If the right map is empty, complete the future in the left.
+     * There should be no timeout exception here, because the caller can only retry for TimeoutException.
+     * It will only be completed exceptionally when no more messages can be read.
+     */
+    private final LinkedHashMap<CompletableFuture<Void>, Map<String, TopicMessageId>> refreshRequests;
+
+    /**
+     * This map stored the read position of each partition. It is used for the following case:
+     * <p>
+     *      1. Get last message ID.
+     *      2. Receive message p1-1:1, p2-1:1, p2-1:2, p3-1:1
+     *      3. Receive response of step1 {|p1-1:1|p2-2:2|p3-3:6|}
+     *      4. No more messages are written to this topic.
+     *      As a result, the refresh operation will never be completed.
+     * </p>
+     */
+    private final ConcurrentHashMap<String, MessageId> readPositions;
+
     TableViewImpl(PulsarClientImpl client, Schema<T> schema, TableViewConfigurationData conf) {
         this.conf = conf;
         this.isPersistentTopic = conf.getTopicName().startsWith(TopicDomain.persistent.toString());
@@ -69,6 +90,8 @@ public class TableViewImpl<T> implements TableView<T> {
         this.listenersMutex = new ReentrantLock();
         this.compactionStrategy =
                 TopicCompactionStrategy.load(TABLE_VIEW_TAG, conf.getTopicCompactionStrategyClassName());
+        this.refreshRequests = new LinkedHashMap<>();
+        this.readPositions = new ConcurrentHashMap<>();
         ReaderBuilder<T> readerBuilder = client.newReader(schema)
                 .topic(conf.getTopicName())
                 .startMessageId(MessageId.earliest)
@@ -94,9 +117,10 @@ public class TableViewImpl<T> implements TableView<T> {
         return reader.thenCompose((reader) -> {
             if (!isPersistentTopic) {
                 readTailMessages(reader);
-                return CompletableFuture.completedFuture(reader);
+                return CompletableFuture.completedFuture(null);
             }
-            return this.readAllExistingMessages(reader);
+            return this.readAllExistingMessages(reader)
+                    .thenRun(() -> readTailMessages(reader));
         }).thenApply(__ -> this);
     }
 
@@ -180,77 +204,141 @@ public class TableViewImpl<T> implements TableView<T> {
     }
 
     private void handleMessage(Message<T> msg) {
-        try {
-            if (msg.hasKey()) {
-                String key = msg.getKey();
-                T cur = msg.size() > 0 ? msg.getValue() : null;
-                if (log.isDebugEnabled()) {
-                    log.debug("Applying message from topic {}. key={} value={}",
+        readPositions.put(msg.getTopicName(), msg.getMessageId());
+        if (msg.hasKey()) {
+            String key = msg.getKey();
+            T cur = msg.size() > 0 ? msg.getValue() : null;
+            if (log.isDebugEnabled()) {
+                log.debug("Applying message from topic {}. key={} value={}",
+                        conf.getTopicName(),
+                        key,
+                        cur);
+            }
+
+            boolean update = true;
+            if (compactionStrategy != null) {
+                T prev = data.get(key);
+                update = !compactionStrategy.shouldKeepLeft(prev, cur);
+                if (!update) {
+                    log.info("Skipped the message from topic {}. key={} value={} prev={}",
                             conf.getTopicName(),
                             key,
-                            cur);
-                }
-
-                boolean update = true;
-                if (compactionStrategy != null) {
-                    T prev = data.get(key);
-                    update = !compactionStrategy.shouldKeepLeft(prev, cur);
-                    if (!update) {
-                        log.info("Skipped the message from topic {}. key={} value={} prev={}",
-                                conf.getTopicName(),
-                                key,
-                                cur,
-                                prev);
-                        compactionStrategy.handleSkippedMessage(key, cur);
-                    }
-                }
-
-                if (update) {
-                    try {
-                        listenersMutex.lock();
-                        if (null == cur) {
-                            data.remove(key);
-                        } else {
-                            data.put(key, cur);
-                        }
-
-                        for (BiConsumer<String, T> listener : listeners) {
-                            try {
-                                listener.accept(key, cur);
-                            } catch (Throwable t) {
-                                log.error("Table view listener raised an exception", t);
-                            }
-                        }
-                    } finally {
-                        listenersMutex.unlock();
-                    }
+                            cur,
+                            prev);
+                    compactionStrategy.handleSkippedMessage(key, cur);
                 }
             }
-        } finally {
-            msg.release();
+
+            if (update) {
+                try {
+                    listenersMutex.lock();
+                    if (null == cur) {
+                        data.remove(key);
+                    } else {
+                        data.put(key, cur);
+                    }
+
+                    for (BiConsumer<String, T> listener : listeners) {
+                        try {
+                            listener.accept(key, cur);
+                        } catch (Throwable t) {
+                            log.error("Table view listener raised an exception", t);
+                        }
+                    }
+                } finally {
+                    listenersMutex.unlock();
+                }
+            }
         }
     }
 
-    private CompletableFuture<Reader<T>> readAllExistingMessages(Reader<T> reader) {
+    @Override
+    public CompletableFuture<Void> refreshAsync() {
+        CompletableFuture<Void> completableFuture = new CompletableFuture<>();
+        reader.thenCompose(reader -> buildFreshTask(reader, completableFuture).thenAccept(lastMessageIds -> {
+            // After get the response of lastMessageIds, put the future and result into `refreshMap`
+            // and then filter out partitions that has been read to the lastMessageID.
+            synchronized (this) {
+                refreshRequests.put(completableFuture, lastMessageIds);
+                filterReceivedMessages(lastMessageIds);
+                // If there is no new messages, the refresh operation could be completed right now.
+                if (lastMessageIds.isEmpty()) {
+                    refreshRequests.remove(completableFuture);
+                    completableFuture.complete(null);
+                }
+            }
+        }));
+        return completableFuture;
+    }
+
+    @Override
+    public void refresh() throws PulsarClientException {
+        refreshAsync().join();
+    }
+
+    private CompletableFuture<Void> readAllExistingMessages(Reader<T> reader) {
         long startTime = System.nanoTime();
         AtomicLong messagesRead = new AtomicLong();
 
-        CompletableFuture<Reader<T>> future = new CompletableFuture<>();
-        reader.getLastMessageIdsAsync().thenAccept(lastMessageIds -> {
+        CompletableFuture<Void> future = new CompletableFuture<>();
+        buildFreshTask(reader, future).thenAccept(maxMessageIds -> {
+            readAllExistingMessages(reader, future, startTime, messagesRead, maxMessageIds);
+        });
+        return future;
+    }
+
+    private CompletableFuture<Map<String, TopicMessageId>> buildFreshTask(Reader<T> reader,
+                                                                            CompletableFuture<Void> future) {
+        return reader.getLastMessageIdsAsync().thenApply(lastMessageIds -> {
             Map<String, TopicMessageId> maxMessageIds = new ConcurrentHashMap<>();
             lastMessageIds.forEach(topicMessageId -> {
                 maxMessageIds.put(topicMessageId.getOwnerTopic(), topicMessageId);
             });
-            readAllExistingMessages(reader, future, startTime, messagesRead, maxMessageIds);
+            return maxMessageIds;
         }).exceptionally(ex -> {
             future.completeExceptionally(ex);
             return null;
         });
-        future.thenAccept(__ -> readTailMessages(reader));
-        return future;
     }
 
-    private void readAllExistingMessages(Reader<T> reader, CompletableFuture<Reader<T>> future, long startTime,
+    private void filterReceivedMessages(Map<String, TopicMessageId> lastMessageIds) {
+        // The `lastMessageIds` and `readPositions` is concurrency-safe data types.
+        lastMessageIds.forEach((partition, lastMessageId) -> {
+            if (readPositions.containsKey(partition) && lastMessageId.compareTo(readPositions.get(partition)) <= 0) {
+                lastMessageIds.remove(partition);
+            }
+        });
+    }
+
+    private boolean checkFreshTask(Map<String, TopicMessageId> maxMessageIds, CompletableFuture<Void> future,
+                                   Message<T> msg) {
+        // The message received from multi-consumer/multi-reader is processed to TopicMessageImpl.
+        String topicName = msg.getTopicName();
+        TopicMessageId maxMessageId = maxMessageIds.get(topicName);
+        // We need remove the partition from the maxMessageIds map
+        // once the partition has been read completely.
+        if (maxMessageId != null && msg.getMessageId().compareTo(maxMessageId) >= 0) {
+            maxMessageIds.remove(topicName);
+        }
+        if (maxMessageIds.isEmpty()) {
+            future.complete(null);
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+    private void checkAllFreshTask(Message<T> msg) {
+        synchronized (this) {
+            refreshRequests.forEach((future, maxMessageIds) -> {
+                if (checkFreshTask(maxMessageIds, future, msg)) {
+                   refreshRequests.remove(future);
+                }
+            });
+        }
+    }
+
+    private void readAllExistingMessages(Reader<T> reader, CompletableFuture<Void> future, long startTime,
                                          AtomicLong messagesRead, Map<String, TopicMessageId> maxMessageIds) {
         reader.hasMessageAvailableAsync()
                 .thenAccept(hasMessage -> {
@@ -258,18 +346,15 @@ public class TableViewImpl<T> implements TableView<T> {
                        reader.readNextAsync()
                                .thenAccept(msg -> {
                                   messagesRead.incrementAndGet();
-                                  // We need remove the partition from the maxMessageIds map
-                                  // once the partition has been read completely.
-                                  TopicMessageId maxMessageId = maxMessageIds.get(msg.getTopicName());
-                                  if (maxMessageId != null && msg.getMessageId().compareTo(maxMessageId) >= 0) {
-                                      maxMessageIds.remove(msg.getTopicName());
-                                  }
-                                  handleMessage(msg);
-                                  if (maxMessageIds.isEmpty()) {
-                                      future.complete(reader);
-                                  } else {
-                                      readAllExistingMessages(reader, future, startTime, messagesRead, maxMessageIds);
-                                  }
+                                   try {
+                                       handleMessage(msg);
+                                       if (!checkFreshTask(maxMessageIds, future, msg)) {
+                                           readAllExistingMessages(reader, future, startTime,
+                                                   messagesRead, maxMessageIds);
+                                       }
+                                   } finally {
+                                       msg.release();
+                                   }
                                }).exceptionally(ex -> {
                                    if (ex.getCause() instanceof PulsarClientException.AlreadyClosedException) {
                                        log.error("Reader {} was closed while reading existing messages.",
@@ -289,7 +374,7 @@ public class TableViewImpl<T> implements TableView<T> {
                                reader.getTopic(),
                                messagesRead,
                                durationMillis / 1000.0);
-                       future.complete(reader);
+                       future.complete(null);
                    }
                 });
     }
@@ -297,12 +382,19 @@ public class TableViewImpl<T> implements TableView<T> {
     private void readTailMessages(Reader<T> reader) {
         reader.readNextAsync()
                 .thenAccept(msg -> {
-                    handleMessage(msg);
-                    readTailMessages(reader);
+                    try {
+                        handleMessage(msg);
+                        checkAllFreshTask(msg);
+                        readTailMessages(reader);
+                    } finally {
+                        msg.release();
+                    }
                 }).exceptionally(ex -> {
                     if (ex.getCause() instanceof PulsarClientException.AlreadyClosedException) {
                         log.error("Reader {} was closed while reading tail messages.",
                                 reader.getTopic(), ex);
+                        // Fail all refresh request when no more messages can be read.
+                        refreshRequests.keySet().forEach(future -> future.completeExceptionally(ex));
                     } else {
                         log.warn("Reader {} was interrupted while reading tail messages. "
                                         + "Retrying..", reader.getTopic(), ex);
