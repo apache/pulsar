@@ -1598,7 +1598,7 @@ public class TransactionTest extends TransactionTestBase {
         persistentTopic.set(new PersistentTopic("topic-a", managedLedger, brokerService));
         try {
             // Do check.
-            persistentTopic.get().checkIfTransactionBufferRecoverCompletely(true).get(5, TimeUnit.SECONDS);
+            persistentTopic.get().checkIfTransactionBufferRecoverCompletely().get(5, TimeUnit.SECONDS);
             fail("Expect failure by TB closed, but it is finished.");
         } catch (ExecutionException executionException){
             Throwable t = executionException.getCause();
