@@ -32,7 +32,7 @@ flexible messaging model and an intuitive client API.
 
 Learn more about Pulsar at https://pulsar.apache.org
 
-## Main features
+## Main features 
 
 - Horizontally scalable (Millions of independent topics and millions
   of messages published per second)
