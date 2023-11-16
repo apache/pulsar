@@ -237,9 +237,7 @@ public class TopicTransactionBufferTest extends TransactionTestBase {
         try {
             consumer.getLastMessageIds();
             fail();
-            // Todo: add a new PulsarClient Exception.
-        } catch (PulsarClientException.LookupException exception) {
-            assertTrue(exception.getMessage().contains("Transaction Buffer is not ready."));
+        } catch (PulsarClientException.TransactionComponentLoadFailedException ignore) {
         }
         List<TopicMessageId> messageIdList = consumer.getLastMessageIds();
         assertEquals(messageIdList.size(), 1);
