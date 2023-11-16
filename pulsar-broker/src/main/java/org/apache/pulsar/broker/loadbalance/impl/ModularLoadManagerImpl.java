@@ -112,7 +112,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
     public static final int NUM_SHORT_SAMPLES = 10;
 
     // Path to ZNode whose children contain ResourceQuota jsons.
-    public static final String RESOURCE_QUOTA_ZPATH = "/loadbalance/resource-quota/namespace";
+    public static final String RESOURCE_QUOTA_ZPATH = "/loadbalance/resource-quota";
 
     // Path to ZNode containing TimeAverageBrokerData jsons for each broker.
     public static final String TIME_AVERAGE_BROKER_ZPATH = "/loadbalance/broker-time-average";
