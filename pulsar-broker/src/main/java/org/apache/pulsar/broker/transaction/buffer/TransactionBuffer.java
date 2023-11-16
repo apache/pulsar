@@ -188,14 +188,13 @@ public interface TransactionBuffer {
     TransactionBufferStats getStats(boolean lowWaterMarks);
 
     /**
-     * Wait TransactionBuffer Recovers completely.
-     * Take snapshot after TB Recovers completely.
-     * @param isTxn
-     * @return a future which has completely if isTxn = false. Or a future return by takeSnapshot.
+     * Wait TransactionBuffer recovers completely.
+     *
+     * @return a future that will be completed after the transaction buffer recover completely.
      */
-    CompletableFuture<Void> checkIfTBRecoverCompletely(boolean isTxn);
-
-
+    default CompletableFuture<Void> checkIfTBRecoverCompletely() {
+        return CompletableFuture.completedFuture(null);
+    }
 
     long getOngoingTxnCount();
 
