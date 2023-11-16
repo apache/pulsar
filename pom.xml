@@ -234,7 +234,7 @@ flexible messaging model and an intuitive client API.</description>
     <kubernetesclient.version>18.0.0</kubernetesclient.version>
     <okhttp3.version>4.9.3</okhttp3.version>
     <!-- use okio version that matches the okhttp3 version -->
-    <okio.version>3.4.0</okio.version>
+    <okio.version>1.17.6</okio.version>
     <!-- override kotlin-stdlib used by okio in order to address CVE-2020-29582 -->
     <kotlin-stdlib.version>1.8.20</kotlin-stdlib.version>
     <nsq-client.version>1.0</nsq-client.version>
