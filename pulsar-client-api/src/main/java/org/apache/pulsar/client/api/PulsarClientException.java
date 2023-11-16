@@ -1202,7 +1202,8 @@ public class PulsarClientException extends IOException {
                 || t instanceof TransactionConflictException
                 || t instanceof ProducerBusyException
                 || t instanceof ConsumerBusyException
-                || t instanceof TransactionHasOperationFailedException) {
+                || t instanceof TransactionHasOperationFailedException
+                || t instanceof TransactionComponentLoadFailedException) {
             return false;
         }
         return true;
