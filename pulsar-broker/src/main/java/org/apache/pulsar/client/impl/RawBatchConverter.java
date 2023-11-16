@@ -76,13 +76,9 @@ public class RawBatchConverter {
                                                   msg.getMessageIdData().getPartition(),
                                                   i);
             if (!smm.isCompactedOut()) {
-                if (smm.hasPartitionKey()) {
-                    idsAndKeysAndSize.add(ImmutableTriple.of(id,
-                            smm.getPartitionKey(),
+                idsAndKeysAndSize.add(ImmutableTriple.of(id,
+                            smm.hasPartitionKey() ? smm.getPartitionKey() : null,
                             smm.hasPayloadSize() ? smm.getPayloadSize() : 0));
-                } else {
-                    idsAndKeysAndSize.add(null);
-                }
             }
             singleMessagePayload.release();
         }

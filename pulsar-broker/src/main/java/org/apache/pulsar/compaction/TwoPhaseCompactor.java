@@ -136,6 +136,14 @@ public class TwoPhaseCompactor extends Compactor {
                         int deleteCnt = 0;
                         for (ImmutableTriple<MessageId, String, Integer> e : extractIdsAndKeysAndSizeFromBatch(m)) {
                             if (e != null) {
+                                if (e.getMiddle() == null) {
+                                    if (!topicCompactionRemainNullKey) {
+                                        // record delete null-key message event
+                                        deleteCnt++;
+                                        mxBean.addCompactionRemovedEvent(reader.getTopic());
+                                    }
+                                    continue;
+                                }
                                 if (e.getRight() > 0) {
                                     MessageId old = latestForKey.put(e.getMiddle(), e.getLeft());
                                     if (old != null) {
@@ -143,12 +151,6 @@ public class TwoPhaseCompactor extends Compactor {
                                     }
                                 } else {
                                     latestForKey.remove(e.getMiddle());
-                                    deleteCnt++;
-                                    mxBean.addCompactionRemovedEvent(reader.getTopic());
-                                }
-                            } else {
-                                if (!topicCompactionRemainNullKey) {
-                                    // record delete null-key message event
                                     deleteCnt++;
                                     mxBean.addCompactionRemovedEvent(reader.getTopic());
                                 }
@@ -435,7 +437,7 @@ public class TwoPhaseCompactor extends Compactor {
                                                   boolean retainNullKey)
             throws IOException {
         if (log.isDebugEnabled()) {
-            log.info("Rebatching message {} for topic {}", msg.getMessageId(), topic);
+            log.debug("Rebatching message {} for topic {}", msg.getMessageId(), topic);
         }
         return RawBatchConverter.rebatchMessage(msg, filter, retainNullKey);
     }
