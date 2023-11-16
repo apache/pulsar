@@ -1362,6 +1362,8 @@ public class ClientCnx extends PulsarHandler {
             return new PulsarClientException.TransactionConflictException(errorMsg);
         case ProducerFenced:
             return new PulsarClientException.ProducerFencedException(errorMsg);
+        case TransactionComponentLoadFailed:
+            return new PulsarClientException.TransactionComponentLoadFailedException(errorMsg);
         case UnknownError:
         default:
             return new PulsarClientException(errorMsg);
