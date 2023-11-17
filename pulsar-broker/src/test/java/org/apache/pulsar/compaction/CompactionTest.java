@@ -26,6 +26,7 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
+
 import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import io.netty.buffer.ByteBuf;
@@ -640,8 +641,17 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
         }
     }
 
-    @Test
-    public void testKeyLessMessagesPassThrough() throws Exception {
+    @DataProvider(name = "retainNullKey")
+    public static Object[][] retainNullKey() {
+        return new Object[][] {{true}, {false}};
+    }
+
+    @Test(dataProvider = "retainNullKey")
+    public void testKeyLessMessagesPassThrough(boolean retainNullKey) throws Exception {
+        conf.setTopicCompactionRemainNullKey(retainNullKey);
+        restartBroker();
+        FieldUtils.writeDeclaredField(compactor, "topicCompactionRemainNullKey", retainNullKey, true);
+
         String topic = "persistent://my-property/use/my-ns/my-topic1";
 
         // subscribe before sending anything, so that we get all messages
@@ -682,29 +692,25 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
                 Message<byte[]> m = consumer.receive(2, TimeUnit.SECONDS);
                 assertNull(m);
             } else {
-                Message<byte[]> message1 = consumer.receive();
-                Assert.assertFalse(message1.hasKey());
-                Assert.assertEquals(new String(message1.getData()), "my-message-1");
+                List<Pair<String, String>> result = new ArrayList<>();
+                while (true) {
+                    Message<byte[]> message = consumer.receive(10, TimeUnit.SECONDS);
+                    if (message == null) {
+                        break;
+                    }
+                    result.add(Pair.of(message.getKey(), message.getData() == null ? null : new String(message.getData())));
+                }
 
-                Message<byte[]> message2 = consumer.receive();
-                Assert.assertFalse(message2.hasKey());
-                Assert.assertEquals(new String(message2.getData()), "my-message-2");
-
-                Message<byte[]> message3 = consumer.receive();
-                Assert.assertEquals(message3.getKey(), "key1");
-                Assert.assertEquals(new String(message3.getData()), "my-message-4");
-
-                Message<byte[]> message4 = consumer.receive();
-                Assert.assertEquals(message4.getKey(), "key2");
-                Assert.assertEquals(new String(message4.getData()), "my-message-6");
-
-                Message<byte[]> message5 = consumer.receive();
-                Assert.assertFalse(message5.hasKey());
-                Assert.assertEquals(new String(message5.getData()), "my-message-7");
-
-                Message<byte[]> message6 = consumer.receive();
-                Assert.assertFalse(message6.hasKey());
-                Assert.assertEquals(new String(message6.getData()), "my-message-8");
+                List<Pair<String, String>> expectList;
+                if (retainNullKey) {
+                    expectList = List.of(
+                        Pair.of(null, "my-message-1"), Pair.of(null, "my-message-2"),
+                        Pair.of("key1", "my-message-4"), Pair.of("key2", "my-message-6"),
+                        Pair.of(null, "my-message-7"), Pair.of(null, "my-message-8"));
+                } else {
+                    expectList = List.of(Pair.of("key1", "my-message-4"), Pair.of("key2", "my-message-6"));
+                }
+                Assert.assertEquals(result, expectList);
             }
         }
     }
@@ -1983,61 +1989,5 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
                 }
             }
         }
-    }
-
-    @DataProvider(name = "retainNullKey")
-    public static Object[][] retainNullKey() {
-        return new Object[][] {{true}, {false}};
-    }
-
-    @Test(dataProvider = "retainNullKey")
-    public void testCompactionNullKeyRetain(boolean retainNullKey) throws Exception {
-        conf.setTopicCompactionRemainNullKey(retainNullKey);
-        restartBroker();
-
-        final String topicName = "persistent://my-property/use/my-ns/testCompactionNullKeyRetain" + UUID.randomUUID();
-        final String subName = "my-sub";
-        @Cleanup
-        PulsarClient client = newPulsarClient(lookupUrl.toString(), 100);
-        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
-                .topic(topicName).create();
-
-        producer.newMessage().key(null).value("V1").send();
-        producer.newMessage().key("K1").value("V2").send();
-        producer.newMessage().key("K2").value("V3").send();
-        producer.newMessage().key(null).value("V4").send();
-        producer.newMessage().key("K1").value("V5").send();
-        producer.newMessage().key("K2").value("V6").send();
-        producer.newMessage().key(null).value("V7").send();
-        producer.flush();
-
-        admin.topics().triggerCompaction(topicName);
-
-        Awaitility.await().untilAsserted(() -> {
-            assertEquals(admin.topics().compactionStatus(topicName).status,
-                    LongRunningProcessStatus.Status.SUCCESS);
-        });
-
-        ConsumerImpl<String> consumer = (ConsumerImpl<String>) client.newConsumer(Schema.STRING)
-                .topic(topicName).readCompacted(true).subscriptionName(subName)
-                .subscribe();
-
-        List<String> result = new ArrayList<>();
-        while (true) {
-            Message<String> message = consumer.receive(10, TimeUnit.SECONDS);
-            if (message == null) {
-                break;
-            }
-            result.add(message.getValue());
-        }
-
-        if (!retainNullKey) {
-            Assert.assertEquals(result, List.of("V5", "V6"));
-        } else {
-            Assert.assertEquals(result, List.of("V1", "V4", "V5", "V6", "V7"));
-        }
-
-        consumer.close();
-        producer.close();
     }
 }
