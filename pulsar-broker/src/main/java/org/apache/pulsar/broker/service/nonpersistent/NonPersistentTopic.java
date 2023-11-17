@@ -451,7 +451,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
                         subscriptions.forEach((s, sub) -> futures.add(sub.delete()));
                     }
 
-                    futures.add(deleteSchemaIfNonPartitioned().thenApply(schemaVersion -> null));
+                    futures.add(deleteSchema().thenApply(schemaVersion -> null));
                     futures.add(deleteTopicPolicies());
                     FutureUtil.waitForAll(futures).whenComplete((v, ex) -> {
                         if (ex != null) {
