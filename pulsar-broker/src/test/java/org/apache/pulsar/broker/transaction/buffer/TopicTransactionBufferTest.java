@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.broker.transaction.buffer;
 
+import static org.testng.AssertJUnit.assertEquals;
+import static org.testng.AssertJUnit.fail;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import java.lang.reflect.Field;
@@ -43,6 +45,7 @@ import org.apache.pulsar.client.api.transaction.Transaction;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.client.impl.transaction.TransactionImpl;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
 import org.apache.pulsar.transaction.coordinator.TransactionMetadataStore;
 import org.apache.pulsar.transaction.coordinator.TransactionMetadataStoreState;
@@ -326,11 +329,32 @@ public class TopicTransactionBufferTest extends TransactionTestBase {
                 .get();
         TopicTransactionBuffer topicTransactionBuffer = (TopicTransactionBuffer) persistentTopic.getTransactionBuffer();
         // 2. Test reference count does not change in the method `appendBufferToTxn`.
-        ByteBuf byteBuf = Unpooled.buffer();
-        topicTransactionBuffer.appendBufferToTxn(new TxnID(1, 1), 1L, byteBuf)
+        // 2.1 Test sending first transaction message, this will take a snapshot.
+        ByteBuf byteBuf1 = Unpooled.buffer();
+        topicTransactionBuffer.appendBufferToTxn(new TxnID(1, 1), 1L, byteBuf1)
                 .get(5, TimeUnit.SECONDS);
-        Awaitility.await().untilAsserted(() -> Assert.assertEquals(byteBuf.refCnt(), 1));
+        Awaitility.await().untilAsserted(() -> Assert.assertEquals(byteBuf1.refCnt(), 1));
+        // 2.2 Test send the second transaction message, this will not take snapshots.
+        ByteBuf byteBuf2 = Unpooled.buffer();
+        topicTransactionBuffer.appendBufferToTxn(new TxnID(1, 1), 1L, byteBuf1)
+                .get(5, TimeUnit.SECONDS);
+        Awaitility.await().untilAsserted(() -> Assert.assertEquals(byteBuf2.refCnt(), 1));
+        // 2.3 Test sending message failed.
+        Field publishFutureField = TopicTransactionBuffer.class.getDeclaredField("publishFuture");
+        publishFutureField.setAccessible(true);
+        publishFutureField.set(topicTransactionBuffer, FutureUtil.failedFuture(new Exception("fail")));
+        ByteBuf byteBuf3 = Unpooled.buffer();
+        try {
+            topicTransactionBuffer.appendBufferToTxn(new TxnID(1, 1), 1L, byteBuf1)
+                    .get(5, TimeUnit.SECONDS);
+            fail();
+        } catch (Exception e) {
+            assertEquals(e.getCause().getMessage(), "fail");
+        }
+        Awaitility.await().untilAsserted(() -> Assert.assertEquals(byteBuf3.refCnt(), 1));
         // 3. release resource
-        byteBuf.release();
+        byteBuf1.release();
+        byteBuf2.release();
+        byteBuf3.release();
     }
 }
