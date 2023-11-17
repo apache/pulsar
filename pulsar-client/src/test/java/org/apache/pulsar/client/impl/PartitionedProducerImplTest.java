@@ -30,20 +30,17 @@ import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import com.google.api.client.util.Lists;
-import com.google.common.collect.ImmutableList;
 import io.netty.channel.EventLoopGroup;
 import io.netty.util.Timer;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import java.lang.reflect.Field;
 import java.nio.ByteBuffer;
-import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ThreadFactory;
-import java.util.stream.Collectors;
-import java.util.stream.IntStream;
+import java.util.concurrent.TimeUnit;
 
 import lombok.Cleanup;
 import org.apache.pulsar.client.api.*;
@@ -51,8 +48,6 @@ import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
 import org.apache.pulsar.client.impl.customroute.PartialRoundRobinMessageRouterImpl;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
-import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
 import org.assertj.core.util.Sets;
 import org.testng.annotations.BeforeMethod;
@@ -292,12 +287,15 @@ public class PartitionedProducerImplTest {
         ProducerConfigurationData producerConfData = new ProducerConfigurationData();
         producerConfData.setMessageRoutingMode(MessageRoutingMode.CustomPartition);
         producerConfData.setCustomMessageRouter(new CustomMessageRouter());
+        producerConfData.setAutoUpdatePartitionsIntervalSeconds(1, TimeUnit.MILLISECONDS);
 
         PartitionedProducerImpl impl = new PartitionedProducerImpl(
                 clientImpl, topicName, producerConfData, 1, null, null, null);
-        // TopicsPartitionChangedListener
-        PartitionedProducerImpl.TopicsPartitionChangedListener listener = impl.new TopicsPartitionChangedListener();
-        CompletableFuture future = listener.onTopicsExtended(ImmutableList.of("topic"));
+
+        impl.setState(HandlerState.State.Ready);
+        Thread.sleep(1000);
+        CompletableFuture future = impl.getPartitionsAutoUpdateFuture();
+
         // When null is returned in method thenCompose we will encounter an NPE exception.
         // Because the returned value will be applied to the next stage.
         // We use future instead of null as the return value.

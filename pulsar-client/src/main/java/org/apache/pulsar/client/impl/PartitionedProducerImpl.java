@@ -372,7 +372,7 @@ public class PartitionedProducerImpl<T> extends ProducerBase<T> {
     }
 
     // This listener is triggered when topics partitions are updated.
-    public class TopicsPartitionChangedListener implements PartitionsChangedListener {
+    private class TopicsPartitionChangedListener implements PartitionsChangedListener {
         // Check partitions changes of passed in topics, and add new topic partitions.
         @Override
         public CompletableFuture<Void> onTopicsExtended(Collection<String> topicsExtended) {
