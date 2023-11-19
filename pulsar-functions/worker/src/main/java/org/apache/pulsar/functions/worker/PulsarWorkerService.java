@@ -35,7 +35,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.clients.StorageClientBuilder;
 import org.apache.bookkeeper.clients.admin.StorageAdminClient;
 import org.apache.bookkeeper.clients.config.StorageClientSettings;
-import org.apache.commons.lang3.StringUtils;
 import org.apache.distributedlog.DistributedLogConfiguration;
 import org.apache.distributedlog.api.namespace.Namespace;
 import org.apache.distributedlog.api.namespace.NamespaceBuilder;
@@ -141,6 +140,8 @@ public class PulsarWorkerService implements WorkerService {
                         brokerClientAuthenticationPlugin,
                         brokerClientAuthenticationParameters,
                         workerConfig.getBrokerClientTrustCertsFilePath(),
+                        workerConfig.getTlsKeyFilePath(),
+                        workerConfig.getTlsCertificateFilePath(),
                         workerConfig.isTlsAllowInsecureConnection(),
                         workerConfig.isTlsEnableHostnameVerification(),
                         workerConfig);
@@ -164,6 +165,8 @@ public class PulsarWorkerService implements WorkerService {
                         brokerClientAuthenticationParameters,
                         workerConfig.isUseTls(),
                         workerConfig.getBrokerClientTrustCertsFilePath(),
+                        workerConfig.getTlsKeyFilePath(),
+                        workerConfig.getTlsCertificateFilePath(),
                         workerConfig.isTlsAllowInsecureConnection(),
                         workerConfig.isTlsEnableHostnameVerification(),
                         workerConfig);
@@ -428,10 +431,8 @@ public class PulsarWorkerService implements WorkerService {
                         .buildAdmin();
             }
 
-            final String functionWebServiceUrl = StringUtils.isNotBlank(workerConfig.getFunctionWebServiceUrl())
-                    ? workerConfig.getFunctionWebServiceUrl()
-                    : (workerConfig.getTlsEnabled()
-                        ? workerConfig.getWorkerWebAddressTls() : workerConfig.getWorkerWebAddress());
+            final String functionWebServiceUrl = workerConfig.getTlsEnabled()
+                        ? workerConfig.getWorkerWebAddressTls() : workerConfig.getWorkerWebAddress();
 
             this.brokerAdmin = clientCreator.newPulsarAdmin(workerConfig.getPulsarWebServiceUrl(), workerConfig);
             this.functionAdmin = clientCreator.newPulsarAdmin(functionWebServiceUrl, workerConfig);

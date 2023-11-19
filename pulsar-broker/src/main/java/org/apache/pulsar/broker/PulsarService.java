@@ -1707,18 +1707,32 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                                     AuthorizationService authorizationService)
             throws Exception {
         if (functionWorkerService.isPresent()) {
-            if (workerConfig.isUseTls() || brokerServiceUrl == null) {
+            if (isNotBlank(brokerServiceUrlTls)) {
                 workerConfig.setPulsarServiceUrl(brokerServiceUrlTls);
             } else {
                 workerConfig.setPulsarServiceUrl(brokerServiceUrl);
             }
-            if (workerConfig.isUseTls() || webServiceAddress == null) {
+            if (isNotBlank(webServiceAddressTls)) {
                 workerConfig.setPulsarWebServiceUrl(webServiceAddressTls);
                 workerConfig.setFunctionWebServiceUrl(webServiceAddressTls);
             } else {
                 workerConfig.setPulsarWebServiceUrl(webServiceAddress);
                 workerConfig.setFunctionWebServiceUrl(webServiceAddress);
             }
+            workerConfig.setTlsEnabled(config.isTlsEnabled());
+            workerConfig.setTlsAllowInsecureConnection(config.isTlsAllowInsecureConnection());
+            workerConfig.setTlsEnableHostnameVerification(config.isTlsHostnameVerificationEnabled());
+            workerConfig.setTlsTrustCertsFilePath(config.getTlsTrustCertsFilePath());
+            workerConfig.setTlsKeyFilePath(config.getTlsKeyFilePath());
+            workerConfig.setTlsCertificateFilePath(config.getTlsCertificateFilePath());
+            workerConfig.setBrokerClientTrustCertsFilePath(config.getBrokerClientTrustCertsFilePath());
+            if (isNotBlank(config.getBrokerClientAuthenticationPlugin())
+                    && isNotBlank(config.getBrokerClientAuthenticationParameters())) {
+                workerConfig.setBrokerClientAuthenticationEnabled(true);
+            }
+            // client in worker will use this config to authenticate with broker
+            workerConfig.setBrokerClientAuthenticationPlugin(config.getBrokerClientAuthenticationPlugin());
+            workerConfig.setBrokerClientAuthenticationParameters(config.getBrokerClientAuthenticationParameters());
 
             LOG.info("Starting function worker service: serviceUrl = {},"
                 + " webServiceUrl = {}, functionWebServiceUrl = {}",
@@ -1803,8 +1817,14 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         workerConfig.setTlsEnableHostnameVerification(brokerConfig.isTlsHostnameVerificationEnabled());
         workerConfig.setBrokerClientTrustCertsFilePath(brokerConfig.getBrokerClientTrustCertsFilePath());
         workerConfig.setTlsTrustCertsFilePath(brokerConfig.getTlsTrustCertsFilePath());
+        workerConfig.setTlsKeyFilePath(brokerConfig.getTlsKeyFilePath());
+        workerConfig.setTlsCertificateFilePath(brokerConfig.getTlsCertificateFilePath());
 
         // client in worker will use this config to authenticate with broker
+        if (isNotBlank(brokerConfig.getBrokerClientAuthenticationPlugin())
+                && isNotBlank(brokerConfig.getBrokerClientAuthenticationParameters())) {
+            workerConfig.setBrokerClientAuthenticationEnabled(true);
+        }
         workerConfig.setBrokerClientAuthenticationPlugin(brokerConfig.getBrokerClientAuthenticationPlugin());
         workerConfig.setBrokerClientAuthenticationParameters(brokerConfig.getBrokerClientAuthenticationParameters());
 
