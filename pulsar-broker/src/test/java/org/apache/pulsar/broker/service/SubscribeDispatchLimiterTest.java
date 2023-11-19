@@ -66,7 +66,7 @@ public class SubscribeDispatchLimiterTest extends BrokerTestBase {
         assertNotNull(subscription);
         assertFalse(subscription.getDispatcher().getRateLimiter().isPresent());
 
-        admin.brokers().updateDynamicConfiguration("dispatchThrottlingRatePerSubscriptionInMsg", "100");
+        admin.brokers().updateDynamicConfiguration("dispatchThrottlingRatePerSubscriptionInMsg", "100", "cluster");
         Awaitility.await().untilAsserted(() ->
             assertEquals(pulsar.getConfig().getDispatchThrottlingRatePerSubscriptionInMsg(), 100)
         );
@@ -95,7 +95,7 @@ public class SubscribeDispatchLimiterTest extends BrokerTestBase {
         assertNotNull(subscription);
         assertFalse(subscription.getDispatcher().getRateLimiter().isPresent());
 
-        admin.brokers().updateDynamicConfiguration("dispatchThrottlingRatePerSubscriptionInByte", "1000");
+        admin.brokers().updateDynamicConfiguration("dispatchThrottlingRatePerSubscriptionInByte", "1000", "cluster");
         Awaitility.await().untilAsserted(() ->
             assertEquals(pulsar.getConfig().getDispatchThrottlingRatePerSubscriptionInByte(), 1000)
         );

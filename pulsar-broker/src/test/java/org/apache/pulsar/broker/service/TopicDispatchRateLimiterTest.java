@@ -56,7 +56,7 @@ public class TopicDispatchRateLimiterTest extends BrokerTestBase {
         assertNotNull(topic);
         assertTrue(topic.getDispatchRateLimiter().isEmpty());
 
-        admin.brokers().updateDynamicConfiguration("dispatchThrottlingRatePerTopicInMsg", "100");
+        admin.brokers().updateDynamicConfiguration("dispatchThrottlingRatePerTopicInMsg", "100", "cluster");
         Awaitility.await().untilAsserted(() ->
             assertEquals(pulsar.getConfig().getDispatchThrottlingRatePerTopicInMsg(), 100));
 
@@ -75,7 +75,7 @@ public class TopicDispatchRateLimiterTest extends BrokerTestBase {
         assertNotNull(topic);
         assertTrue(topic.getDispatchRateLimiter().isEmpty());
 
-        admin.brokers().updateDynamicConfiguration("dispatchThrottlingRatePerTopicInByte", "1000");
+        admin.brokers().updateDynamicConfiguration("dispatchThrottlingRatePerTopicInByte", "1000", "cluster");
         Awaitility.await().untilAsserted(() ->
             assertEquals(pulsar.getConfig().getDispatchThrottlingRatePerTopicInByte(), 1000L));
 

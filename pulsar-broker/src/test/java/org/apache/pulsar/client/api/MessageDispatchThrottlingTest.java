@@ -307,8 +307,8 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
         long initBytes = pulsar.getConfiguration().getDispatchThrottlingRatePerTopicInByte();
         // (1) Update message-dispatch-rate limit
         admin.brokers().updateDynamicConfiguration("dispatchThrottlingRatePerTopicInMsg",
-                Integer.toString(messageRate));
-        admin.brokers().updateDynamicConfiguration("dispatchThrottlingRatePerTopicInByte", Long.toString(byteRate));
+                Integer.toString(messageRate), "cluster");
+        admin.brokers().updateDynamicConfiguration("dispatchThrottlingRatePerTopicInByte", Long.toString(byteRate), "cluster");
         // sleep incrementally as zk-watch notification is async and may take some time
         for (int i = 0; i < 5; i++) {
             if (pulsar.getConfiguration().getDispatchThrottlingRatePerTopicInMsg() == initValue) {
@@ -351,8 +351,8 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
         consumer.close();
         producer.close();
         admin.brokers().updateDynamicConfiguration("dispatchThrottlingRatePerTopicInMsg",
-                Integer.toString(initValue));
-        admin.brokers().updateDynamicConfiguration("dispatchThrottlingRatePerTopicInByte", Long.toString(initBytes));
+                Integer.toString(initValue), "cluster");
+        admin.brokers().updateDynamicConfiguration("dispatchThrottlingRatePerTopicInByte", Long.toString(initBytes), "cluster");
         log.info("-- Exiting {} test --", methodName);
     }
 
@@ -661,7 +661,7 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
         int initValue = pulsar.getConfiguration().getDispatchThrottlingRatePerTopicInMsg();
         // (1) Update message-dispatch-rate limit
         admin.brokers().updateDynamicConfiguration("dispatchThrottlingRatePerTopicInMsg",
-                Integer.toString(messageRate));
+                Integer.toString(messageRate), "cluster");
         // sleep incrementally as zk-watch notification is async and may take some time
         for (int i = 0; i < 5; i++) {
             if (pulsar.getConfiguration().getDispatchThrottlingRatePerTopicInMsg() == initValue) {
@@ -703,7 +703,7 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
         consumer.close();
         producer.close();
         admin.brokers().updateDynamicConfiguration("dispatchThrottlingRatePerTopicInMsg",
-                Integer.toString(initValue));
+                Integer.toString(initValue), "cluster");
         log.info("-- Exiting {} test --", methodName);
     }
 
@@ -882,7 +882,7 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
         admin.namespaces().createNamespace(namespace, Sets.newHashSet("test"));
         admin.namespaces().setDispatchRate(namespace, dispatchRate);
         admin.brokers().updateDynamicConfiguration("dispatchThrottlingOnNonBacklogConsumerEnabled",
-                Boolean.TRUE.toString());
+                Boolean.TRUE.toString(), "cluster");
         // create producer and topic
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
         PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getOrCreateTopic(topicName).get();
@@ -956,7 +956,7 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
         int initValue = pulsar.getConfiguration().getDispatchThrottlingRatePerTopicInMsg();
         // (1) Update message-dispatch-rate limit
         admin.brokers().updateDynamicConfiguration("dispatchThrottlingRatePerTopicInMsg",
-                Integer.toString(clusterMessageRate));
+                Integer.toString(clusterMessageRate), "cluster");
         // sleep incrementally as zk-watch notification is async and may take some time
         for (int i = 0; i < 5; i++) {
             if (pulsar.getConfiguration().getDispatchThrottlingRatePerTopicInMsg() == initValue) {
@@ -1010,7 +1010,7 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
         producer.close();
         producer2.close();
         admin.brokers().updateDynamicConfiguration("dispatchThrottlingRatePerTopicInMsg",
-                Integer.toString(initValue));
+                Integer.toString(initValue), "cluster");
         log.info("-- Exiting {} test --", methodName);
     }
 

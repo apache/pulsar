@@ -45,12 +45,12 @@ public class BrokerDispatchRateLimiterTest extends BrokerTestBase {
         assertEquals(service.getBrokerDispatchRateLimiter().getAvailableDispatchRateLimitOnByte(), -1L);
         assertEquals(service.getBrokerDispatchRateLimiter().getAvailableDispatchRateLimitOnMsg(), -1L);
 
-        admin.brokers().updateDynamicConfiguration("dispatchThrottlingRateInByte", "100");
+        admin.brokers().updateDynamicConfiguration("dispatchThrottlingRateInByte", "100", "cluster");
         Awaitility.await().untilAsserted(() ->
             assertEquals(service.getBrokerDispatchRateLimiter().getAvailableDispatchRateLimitOnByte(), 100L));
         assertEquals(service.getBrokerDispatchRateLimiter().getAvailableDispatchRateLimitOnMsg(), -1L);
 
-        admin.brokers().updateDynamicConfiguration("dispatchThrottlingRateInMsg", "100");
+        admin.brokers().updateDynamicConfiguration("dispatchThrottlingRateInMsg", "100", "cluster");
         Awaitility.await().untilAsserted(() ->
             assertEquals(service.getBrokerDispatchRateLimiter().getAvailableDispatchRateLimitOnMsg(), 100L));
         assertEquals(service.getBrokerDispatchRateLimiter().getAvailableDispatchRateLimitOnMsg(), 100L);

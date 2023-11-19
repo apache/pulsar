@@ -99,7 +99,7 @@ public class TopicPublishThrottlingInitTest extends ProducerConsumerBase {
 
         // disable throttling
         admin.brokers()
-            .updateDynamicConfiguration("brokerPublisherThrottlingMaxMessageRate", Integer.toString(0));
+            .updateDynamicConfiguration("brokerPublisherThrottlingMaxMessageRate", Integer.toString(0), "cluster");
         Awaitility.await().untilAsserted(() ->
                 Assert.assertEquals(topic.getBrokerPublishRateLimiter(), PublishRateLimiter.DISABLED_RATE_LIMITER));
 

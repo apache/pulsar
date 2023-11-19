@@ -490,7 +490,7 @@ public class V1_AdminApiTest extends MockedPulsarServiceBaseTest {
         // (1) try to update dynamic field
         final long shutdownTime = 10;
         // update configuration
-        admin.brokers().updateDynamicConfiguration("brokerShutdownTimeoutMs", Long.toString(shutdownTime));
+        admin.brokers().updateDynamicConfiguration("brokerShutdownTimeoutMs", Long.toString(shutdownTime), "cluster");
         // sleep incrementally as zk-watch notification is async and may take some time
         for (int i = 0; i < 5; i++) {
             if (pulsar.getConfiguration().getBrokerShutdownTimeoutMs() != initValue) {
@@ -510,14 +510,14 @@ public class V1_AdminApiTest extends MockedPulsarServiceBaseTest {
 
         // (2) try to update non-dynamic field
         try {
-            admin.brokers().updateDynamicConfiguration("metadataStoreUrl", "zk:test-zk:1234");
+            admin.brokers().updateDynamicConfiguration("metadataStoreUrl", "zk:test-zk:1234", "cluster");
         } catch (Exception e) {
             assertTrue(e instanceof PreconditionFailedException);
         }
 
         // (3) try to update non-existent field
         try {
-            admin.brokers().updateDynamicConfiguration("test", Long.toString(shutdownTime));
+            admin.brokers().updateDynamicConfiguration("test", Long.toString(shutdownTime), "cluster");
         } catch (Exception e) {
             assertTrue(e instanceof PreconditionFailedException);
         }
@@ -588,7 +588,7 @@ public class V1_AdminApiTest extends MockedPulsarServiceBaseTest {
         long defaultValue = pulsar.getConfiguration().getBrokerShutdownTimeoutMs();
         pulsar.getConfiguration().setBrokerShutdownTimeoutMs(initValue);
         // update configuration
-        admin.brokers().updateDynamicConfiguration("brokerShutdownTimeoutMs", Long.toString(shutdownTime));
+        admin.brokers().updateDynamicConfiguration("brokerShutdownTimeoutMs", Long.toString(shutdownTime), "cluster");
         // sleep incrementally as zk-watch notification is async and may take some time
         for (int i = 0; i < 5; i++) {
             if (pulsar.getConfiguration().getBrokerShutdownTimeoutMs() == initValue) {
@@ -616,13 +616,13 @@ public class V1_AdminApiTest extends MockedPulsarServiceBaseTest {
         final long shutdownTime = 10;
         long defaultValue = pulsar.getConfiguration().getBrokerShutdownTimeoutMs();
         pulsar.getConfiguration().setBrokerShutdownTimeoutMs(30000);
-        Map<String, String> configs = admin.brokers().getAllDynamicConfigurations();
+        Map<String, String> configs = admin.brokers().getAllDynamicConfigurations("cluster");
         assertTrue(configs.isEmpty());
         assertNotEquals(pulsar.getConfiguration().getBrokerShutdownTimeoutMs(), shutdownTime);
         // update configuration
-        admin.brokers().updateDynamicConfiguration(configName, Long.toString(shutdownTime));
+        admin.brokers().updateDynamicConfiguration(configName, Long.toString(shutdownTime), "cluster");
         // Now, znode is created: updateConfigurationAndregisterListeners and check if configuration updated
-        assertEquals(Long.parseLong(admin.brokers().getAllDynamicConfigurations().get(configName)), shutdownTime);
+        assertEquals(Long.parseLong(admin.brokers().getAllDynamicConfigurations("cluster").get(configName)), shutdownTime);
 
         pulsar.getConfiguration().setBrokerShutdownTimeoutMs(defaultValue);
     }

@@ -23,6 +23,7 @@ import static java.util.Objects.requireNonNull;
 import static org.apache.bookkeeper.mledger.ManagedLedgerConfig.PROPERTY_SOURCE_TOPIC_KEY;
 import static org.apache.commons.collections4.CollectionUtils.isEmpty;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
+import static org.apache.pulsar.broker.resources.DynamicConfigurationResources.BROKER_SERVICE_CONFIGURATION_PATH;
 import static org.apache.pulsar.common.naming.SystemTopicNames.isTransactionInternalName;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Queues;
@@ -2427,7 +2428,10 @@ public class BrokerService implements Closeable {
             NamespaceName ns = NamespaceResources.namespaceFromLocalPoliciesPath(n.getPath());
             handleLocalPoliciesUpdates(ns);
         } else if (pulsar().getPulsarResources().getDynamicConfigResources().isDynamicConfigurationPath(n.getPath())) {
-            handleDynamicConfigurationUpdates();
+            handleDynamicConfigurationUpdates(n.getPath());
+        } else if (pulsar().getPulsarResources().getDynamicConfigResources()
+                .isDynamicConfigurationPath(pulsar.getLookupServiceAddress(), n.getPath())) {
+            handleDynamicConfigurationUpdates(n.getPath());
         }
         // Ignore unrelated notifications
     }
@@ -2490,7 +2494,7 @@ public class BrokerService implements Closeable {
                 }, pulsar.getExecutor());
     }
 
-    private void handleDynamicConfigurationUpdates() {
+    private void handleDynamicConfigurationUpdates(String path) {
         DynamicConfigurationResources dynamicConfigResources = null;
         try {
             dynamicConfigResources = pulsar()
@@ -2501,7 +2505,7 @@ public class BrokerService implements Closeable {
         }
 
         if (dynamicConfigResources != null) {
-            dynamicConfigResources.getDynamicConfigurationAsync()
+            dynamicConfigResources.getDynamicConfigurationAsync(path)
                     .thenAccept(optMap -> {
                         if (!optMap.isPresent()) {
                             return;
@@ -2793,7 +2797,10 @@ public class BrokerService implements Closeable {
         createDynamicConfigPathIfNotExist();
 
         // (4) update ServiceConfiguration value by reading zk-configuration-map and trigger corresponding listeners.
-        handleDynamicConfigurationUpdates();
+        handleDynamicConfigurationUpdates(BROKER_SERVICE_CONFIGURATION_PATH);
+        String brokerLevelDynamicConfigsPath = BROKER_SERVICE_CONFIGURATION_PATH
+                + "/" + pulsar.getLookupServiceAddress();
+        handleDynamicConfigurationUpdates(brokerLevelDynamicConfigsPath);
     }
 
     private void updateDefaultNumPartitions(int numPartitions) {

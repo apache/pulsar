@@ -19,25 +19,41 @@
 package org.apache.pulsar.broker.resources;
 
 import com.fasterxml.jackson.core.type.TypeReference;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 
 public class DynamicConfigurationResources extends BaseResources<Map<String, String>> {
 
-    private static final String BROKER_SERVICE_CONFIGURATION_PATH = "/admin/configuration";
+    public static final String BROKER_SERVICE_CONFIGURATION_PATH = "/admin/configuration";
 
     public DynamicConfigurationResources(MetadataStore store, int operationTimeoutSec) {
         super(store, new TypeReference<Map<String, String>>() {
         }, operationTimeoutSec);
     }
 
-    public CompletableFuture<Optional<Map<String, String>>> getDynamicConfigurationAsync() {
-        return getAsync(BROKER_SERVICE_CONFIGURATION_PATH);
+    public CompletableFuture<Optional<Map<String, String>>> getDynamicConfigurationAsync(String path) {
+        return getAsync(path);
     }
+
+    public CompletableFuture<Optional<Map<String, String>>> getBrokerDynamicConfigurationAsync(String broker) {
+        return getAsync(BROKER_SERVICE_CONFIGURATION_PATH + "/" + broker)
+                .thenCombine(getAsync(BROKER_SERVICE_CONFIGURATION_PATH), (brokerData, globalData) -> {
+                    Map<String, String> results = new HashMap<>(globalData.orElseGet(HashMap::new));
+                    brokerData.ifPresent(results::putAll);
+                    return Optional.of(results);
+                });
+
+    }
+
 
     public Optional<Map<String, String>> getDynamicConfiguration() throws MetadataStoreException {
         return get(BROKER_SERVICE_CONFIGURATION_PATH);
@@ -54,9 +70,30 @@ public class DynamicConfigurationResources extends BaseResources<Map<String, Str
         return super.setWithCreateAsync(BROKER_SERVICE_CONFIGURATION_PATH, createFunction);
     }
 
+    public CompletableFuture<Void> setDynamicConfigurationWithCreateAsync(Set<String> brokers,
+                                         Function<Optional<Map<String, String>>, Map<String, String>> createFunction) {
+
+        List<CompletableFuture<Void>> futureList = new ArrayList<>();
+        for (String broker: brokers) {
+            String path = BROKER_SERVICE_CONFIGURATION_PATH + "/" + broker;
+            futureList.add(super.setWithCreateAsync(path, createFunction));
+        }
+        return FutureUtil.waitForAll(futureList);
+    }
+
     public CompletableFuture<Void> setDynamicConfigurationAsync(
             Function<Map<String, String>, Map<String, String>> updateFunction){
         return super.setAsync(BROKER_SERVICE_CONFIGURATION_PATH, updateFunction);
+    }
+
+    public CompletableFuture<Void> setDynamicConfigurationAsync(Set<String> brokers,
+            Function<Map<String, String>, Map<String, String>> updateFunction){
+        List<CompletableFuture<Void>> futureList = new ArrayList<>();
+        for (String broker: brokers) {
+            String path = BROKER_SERVICE_CONFIGURATION_PATH + "/" + broker;
+            futureList.add(super.setAsync(path, updateFunction));
+        }
+        return FutureUtil.waitForAll(futureList);
     }
 
     public void setDynamicConfiguration(
@@ -67,5 +104,10 @@ public class DynamicConfigurationResources extends BaseResources<Map<String, Str
 
     public boolean isDynamicConfigurationPath(String path) {
         return BROKER_SERVICE_CONFIGURATION_PATH.equals(path);
+    }
+
+    public boolean isDynamicConfigurationPath(String broker, String path) {
+        String localBrokerConfigPath = BROKER_SERVICE_CONFIGURATION_PATH + "/" + broker;
+        return localBrokerConfigPath.equals(path);
     }
 }

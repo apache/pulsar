@@ -1888,7 +1888,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         admin.namespaces().removeSubscriptionTypesEnabled(namespace);
         assertEquals(admin.namespaces().getSubscriptionTypesEnabled(namespace), new HashSet<>());
         consumerBuilder.subscriptionType(SubscriptionType.Shared);
-        admin.brokers().updateDynamicConfiguration("subscriptionTypesEnabled", "Failover");
+        admin.brokers().updateDynamicConfiguration("subscriptionTypesEnabled", "Failover", "cluster");
         Awaitility.await().untilAsserted(()->{
             Topic t = pulsar.getBrokerService().getTopicIfExists(topic).get().get();
             assertTrue(((AbstractTopic) t).getHierarchyTopicPolicies().getSubscriptionTypesEnabled().getBrokerValue()
@@ -1902,7 +1902,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         }
 
         // add shared to broker.conf and sub with shared will success
-        admin.brokers().updateDynamicConfiguration("subscriptionTypesEnabled", "Failover,Shared");
+        admin.brokers().updateDynamicConfiguration("subscriptionTypesEnabled", "Failover,Shared", "cluster");
         Awaitility.await().untilAsserted(()->{
             Topic t = pulsar.getBrokerService().getTopicIfExists(topic).get().get();
             assertTrue(((AbstractTopic) t).getHierarchyTopicPolicies().getSubscriptionTypesEnabled().getBrokerValue()

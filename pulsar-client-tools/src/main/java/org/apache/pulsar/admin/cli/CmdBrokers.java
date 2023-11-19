@@ -69,9 +69,13 @@ public class CmdBrokers extends CmdBase {
         @Parameter(names = {"-v", "--value"}, description = "service-configuration value", required = true)
         private String configValue;
 
+        @Parameter(names = {"-s", "--scope"}, description = "cluster or broker address, default is cluster",
+                required = true)
+        private String scope;
+
         @Override
         void run() throws Exception {
-            getAdmin().brokers().updateDynamicConfiguration(configName, configValue);
+            getAdmin().brokers().updateDynamicConfiguration(configName, configValue, scope);
         }
     }
 
@@ -79,19 +83,24 @@ public class CmdBrokers extends CmdBase {
     private class DeleteConfigurationCmd extends CliCommand {
         @Parameter(names = {"-c", "--config"}, description = "service-configuration name", required = true)
         private String configName;
+        @Parameter(names = {"-s", "--scope"}, description = "cluster or broker address,"
+                + "default is cluster", required = true)
+        private String scope;
 
         @Override
         void run() throws Exception {
-            getAdmin().brokers().deleteDynamicConfiguration(configName);
+            getAdmin().brokers().deleteDynamicConfiguration(configName, scope);
         }
     }
 
     @Parameters(commandDescription = "Get all overridden dynamic-configuration values")
     private class GetAllConfigurationsCmd extends CliCommand {
-
+        @Parameter(names = {"-s", "--scope"}, description = "cluster or broker address,"
+                + "default is cluster", required = false)
+        private String scope = "cluster";
         @Override
         void run() throws Exception {
-            print(getAdmin().brokers().getAllDynamicConfigurations());
+            print(getAdmin().brokers().getAllDynamicConfigurations(scope));
         }
     }
 
