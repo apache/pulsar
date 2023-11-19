@@ -18,7 +18,11 @@
  */
 package org.apache.pulsar.client.impl.schema;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.testng.Assert.assertEquals;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
 import java.util.HashMap;
 import java.util.Map;
 import org.apache.pulsar.client.api.Schema;
@@ -286,7 +290,18 @@ public class SchemaInfoTest {
 
     @Test(dataProvider = "schemas")
     public void testSchemaInfoToString(SchemaInfo si, String jsonifiedStr) {
-        assertEquals(si.toString(), jsonifiedStr);
+        String schemaInfoString = si.toString();
+        assertEquals(schemaInfoString, jsonifiedStr);
+        assertThat(schemaInfoString).doesNotContain("schemaHash");
+    }
+
+    @Test(dataProvider = "schemas")
+    public void testSerializedSchemaInfoDoesntContainIgnoredTransientFields(SchemaInfo si, String jsonifiedStr) throws
+            JsonProcessingException {
+        ObjectMapper objectMapper = new ObjectMapper();
+        objectMapper.configure(SerializationFeature.FAIL_ON_EMPTY_BEANS, false);
+        String schemaInfoString = objectMapper.writeValueAsString(si);
+        assertThat(schemaInfoString).doesNotContain("schemaHash");
     }
 
     public static class SchemaInfoBuilderTest {
