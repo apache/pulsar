@@ -33,8 +33,12 @@ import com.fasterxml.jackson.databind.ObjectWriter;
 import com.google.common.collect.Range;
 import com.google.common.util.concurrent.RateLimiter;
 import io.netty.util.concurrent.DefaultThreadFactory;
+import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
+import java.io.IOException;
 import java.io.PrintStream;
+import java.io.PrintWriter;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -45,6 +49,10 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Properties;
 import java.util.Random;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -58,6 +66,7 @@ import java.util.concurrent.atomic.LongAdder;
 import org.HdrHistogram.Histogram;
 import org.HdrHistogram.HistogramLogWriter;
 import org.HdrHistogram.Recorder;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminBuilder;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -84,6 +93,19 @@ public class PerformanceProducer {
 
     private static final ExecutorService executor = Executors
             .newCachedThreadPool(new DefaultThreadFactory("pulsar-perf-producer-exec"));
+    /**
+     * used for concurrency control to tmp files. when a txn is created, a tmp file will
+     * be dequeued for messages persistence. when a txn is committed successfully, the
+     * corresponding file will be enqueued to tmpFiles. when a txn is aborted or timeout,
+     * the corresponding file not only will be put back into tmpFiles, but also put into
+     * MessageFormatter to record that this file have something need to be resent to broker
+     * in a new txn.
+     */
+    private static BlockingQueue<File> tmpFiles = null;
+
+    // record which tmp file specific txn use. when specific txn is aborted, the corresponding file will be put into
+    private static ConcurrentMap<Transaction, Pair<File, FileOutputStream>> txnTmpFileMap = null;
+
 
     private static final LongAdder messagesSent = new LongAdder();
     private static final LongAdder messagesFailed = new LongAdder();
@@ -103,6 +125,9 @@ public class PerformanceProducer {
     private static final LongAdder numTxnOpSuccess = new LongAdder();
 
     private static IMessageFormatter messageFormatter = null;
+
+    // set true on exit, to avoid new transaction creation.
+    private static volatile boolean onExit = false;
 
     @Parameters(commandDescription = "Test pulsar producer performance.")
     static class Arguments extends PerformanceTopicListArguments {
@@ -248,6 +273,25 @@ public class PerformanceProducer {
                 + "setting to true, -abort takes effect)")
         public boolean isAbortTransaction = false;
 
+        @Parameter(names = {"--txn-test-enabled"}, description = "Enable or disable the transaction consistency test")
+        public boolean isEnableTxnTest = false;
+
+        @Parameter(names = {"--resend-on-failure"}, description = "resend message on failure in non-txn test")
+        public boolean resendOnFailure = false;
+
+        @Parameter(names = "--retry-times", description = "the retry times when commit operation receive "
+                + "PulsarClientException$TimeoutException")
+        public int retryTimes = 3;
+
+        @Parameter(names = "--base-dir-save-resend", description = "save the data resend in transaction, empty string"
+                + "to indicate that do not save resend data")
+        public String baseDirToSaveResendTxnData = "";
+
+        @Parameter(names = {"--max-txn"}, description = "max transactions per second, "
+                + "determining the number of tmp files")
+        public int maxTransactionsPerSecond = 20;
+
+
         @Parameter(names = { "--histogram-file" }, description = "HdrHistogram output file")
         public String histogramFile = null;
 
@@ -305,12 +349,32 @@ public class PerformanceProducer {
             }
         }
 
+        if (arguments.formatterClass.equals
+                ("org.apache.pulsar.testclient.IncrementedNumberMessageFormatter")) {
+            messageFormatter = getMessageFormatter(arguments.formatterClass);
+            if (arguments.isEnableTxnTest) {
+                IncrementedNumberMessageFormatter incrementedNumberMessageFormatter =
+                        (IncrementedNumberMessageFormatter) messageFormatter;
+                incrementedNumberMessageFormatter.recoverFromSnapshot();
+                if (arguments.numMessages > 0) {
+                    arguments.numMessages -= incrementedNumberMessageFormatter.getMessageCount();
+                }
+            }
+        }
+
+        initializeTmpFiles(arguments);
+
         long start = System.nanoTime();
 
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             executorShutdownNow();
             printAggregatedThroughput(start, arguments);
             printAggregatedStats();
+            handleTxnOnExit(arguments);
+            if (messageFormatter instanceof IncrementedNumberMessageFormatter
+                    && arguments.isEnableTxnTest) {
+                ((IncrementedNumberMessageFormatter) messageFormatter).takeSnapshot();
+            }
         }));
 
         if (arguments.partitions  != null) {
@@ -447,6 +511,195 @@ public class PerformanceProducer {
         }
     }
 
+    static void initializeTmpFiles(Arguments arguments) throws InterruptedException, IOException {
+        if (arguments.isEnableTxnTest && arguments.isEnableTransaction
+                && arguments.maxTransactionsPerSecond > 0) {
+            // initialize tmpFiles
+            File tmpDataDir = new File("tmpData");
+            if (!tmpDataDir.exists()) {
+                tmpDataDir.mkdir();
+            }
+            tmpFiles = new ArrayBlockingQueue<File>(arguments.maxTransactionsPerSecond);
+            for (int i = 0; i < arguments.maxTransactionsPerSecond; i++) {
+                File file = new File(tmpDataDir + "/tmp" + i + ".data");
+                if (!file.exists()) {
+                    try {
+                        file.createNewFile();
+                    } catch (IOException e) {
+                        System.out.println("can not create tmp files!");
+                        throw new RuntimeException(e);
+                    }
+                }
+                tmpFiles.put(file);
+                // if there are any content in tmpFile, we need to register it into MessageFormatter
+                if (messageFormatter instanceof IncrementedNumberMessageFormatter) {
+                    try {
+                        int messagesCount = ((IncrementedNumberMessageFormatter) messageFormatter).
+                                registerTmpFileWithAbortedTxn(file);
+                        arguments.numMessages += messagesCount;
+                    } catch (IOException e) {
+                        throw new RuntimeException(e);
+                    }
+                }
+            }
+            txnTmpFileMap = new ConcurrentHashMap<>();
+
+            // create dir for saving txn data, and clean up old data.
+            if (!arguments.baseDirToSaveResendTxnData.isEmpty()) {
+                File baseDir = new File(arguments.baseDirToSaveResendTxnData);
+                if (!baseDir.exists()) {
+                    baseDir.mkdir();
+                }
+                File[] files = baseDir.listFiles();
+                if (files == null) {
+                    throw new IOException("can not create baseDirToSaveResendTxnData");
+                } else if (files.length != 0) {
+                    for (File file : files) {
+                        file.delete();
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * handle those transactions that are committed or aborted but corresponding tmp file
+     * do not clean up due to process shutdown. executed in hook thread.
+     * @param arguments
+     */
+    static void handleTxnOnExit(Arguments arguments) {
+        if (arguments.isEnableTxnTest) {
+            // clean up tmpFiles to avoid new transaction be created. but ongoing
+            // txn may put tmp file back into tmpFiles. So we use onExit to determine
+            // whether put tmp file back into tmpFiles.
+            onExit = true;
+            tmpFiles.clear();
+
+            boolean needToWaitSomeTime = false;
+            long start = System.currentTimeMillis();
+            for (Transaction txn : txnTmpFileMap.keySet()) {
+                Transaction.State state = txn.getState();
+                if (state.equals(Transaction.State.COMMITTED)
+                        || state.equals(Transaction.State.ABORTED)
+                        || state.equals(Transaction.State.ERROR)
+                        || state.equals(Transaction.State.TIME_OUT)) {
+                    File tmpFile = txnTmpFileMap.get(txn).getLeft();
+                    if (tmpFile.exists()) {
+                        // txn has been terminated, but the corresponding
+                        // tmp file do not clean up.
+                        tmpFile.delete();
+                    }
+                } else if (state.equals(Transaction.State.COMMITTING)
+                        || state.equals(Transaction.State.ABORTING)) {
+                    needToWaitSomeTime = true;
+                }
+            }
+            if (needToWaitSomeTime) {
+                while (!txnTmpFileMap.isEmpty()) {
+                    // sleep for some time for executing asynchronous tasks completed.
+                    try {
+                        log.info("txnTmpFileMap size:{}", txnTmpFileMap.size());
+                        Thread.sleep(1000);
+                    } catch (InterruptedException e) {
+                        log.error("sleep failed! inconsistent situation occurs!");
+                        throw new RuntimeException(e);
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * handle committed txn. close the corresponding tmp file, and clear
+     * out of the content of tmp file.
+     * @param txn
+     */
+    static void handleTxnOnCommitted(Transaction txn) {
+        Pair<File, FileOutputStream> pair = txnTmpFileMap.remove(txn);
+        try {
+            pair.getRight().close();
+            clearContentsOfFile(pair.getLeft());
+            if (!onExit) {
+                tmpFiles.put(pair.getLeft());
+            }
+        } catch (IOException | InterruptedException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    /**
+     * handle aborted txn. close the corresponding tmp file, and register the content
+     * ot tmp file into IMessageFormatter
+     *
+     * @param txn
+     * @param messageFormatter
+     * @return the number of messages in aborted txn.
+     */
+    static int handleTxnOnAborted(Transaction txn, IMessageFormatter messageFormatter, String baseDirToSaveResendData) {
+        Pair<File, FileOutputStream> pair = txnTmpFileMap.remove(txn);
+        int messageCount = 0;
+        try {
+            pair.getRight().close();
+            if (!baseDirToSaveResendData.isEmpty()) {
+                Files.copy(pair.getLeft().toPath(), new File(baseDirToSaveResendData + "/"
+                        + txn.getTxnID().getMostSigBits() + ":" + txn.getTxnID().getLeastSigBits()).toPath());
+            }
+            if (messageFormatter instanceof IncrementedNumberMessageFormatter) {
+                messageCount = ((IncrementedNumberMessageFormatter) messageFormatter).
+                        registerTmpFileWithAbortedTxn(pair.getLeft());
+            }
+            if (!onExit) {
+                tmpFiles.put(pair.getLeft());
+            }
+        } catch (IOException | InterruptedException e) {
+            throw new RuntimeException(e);
+        }
+        return messageCount;
+    }
+
+    /**
+     * clear out the content of file without deleting file.
+     * @param file
+     * @throws FileNotFoundException
+     */
+    static void clearContentsOfFile(File file) throws FileNotFoundException {
+        PrintWriter writer = new PrintWriter(file);
+        writer.print("");
+        writer.close();
+    }
+
+    /**
+     * check if file is empty, that is whether file.length()==0.
+     * @param file
+     * @return
+     */
+    static boolean isEmpty(File file) {
+        if (file.exists()) {
+            return file.length() == 0;
+        } else {
+            try {
+                file.createNewFile();
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+            return true;
+        }
+    }
+
+    static void openTmpFileStreamForNewTxn(File tmpFile, Transaction transaction) throws FileNotFoundException {
+        if (isEmpty(tmpFile)) {
+            txnTmpFileMap.put(transaction, Pair.of(tmpFile, new FileOutputStream(tmpFile, false)));
+        } else {
+            // there are content in tmpFile written by another txn, we can't overwrite it.
+            txnTmpFileMap.put(transaction, Pair.of(tmpFile, new FileOutputStream(tmpFile, true)));
+        }
+    }
+
+    static boolean isTimeOutException(Throwable throwable) {
+        return throwable.getMessage().contains("Could not get"
+                + " response from transaction meta store within given timeout.");
+    }
+
     static IMessageFormatter getMessageFormatter(String formatterClass) {
         try {
             ClassLoader classLoader = PerformanceProducer.class.getClassLoader();
@@ -527,6 +780,10 @@ public class PerformanceProducer {
                         .withTransactionTimeout(arguments.transactionTimeout, TimeUnit.SECONDS)
                         .build()
                         .get());
+                if (arguments.isEnableTxnTest) {
+                    File tmpFile = tmpFiles.take();
+                    openTmpFileStreamForNewTxn(tmpFile, transactionAtomicReference.get());
+                }
             } else {
                 transactionAtomicReference = new AtomicReference<>(null);
             }
@@ -568,7 +825,7 @@ public class PerformanceProducer {
                 }
             }
             // Send messages on all topics/producers
-            long totalSent = 0;
+            final LongAdder totalSent = new LongAdder();
             AtomicLong numMessageSend = new AtomicLong(0);
             Semaphore numMsgPerTxnLimit = new Semaphore(arguments.numMessagesPerTransaction);
             while (true) {
@@ -588,7 +845,7 @@ public class PerformanceProducer {
                     }
 
                     if (numMessages > 0) {
-                        if (totalSent++ >= numMessages) {
+                        if (totalSent.longValue() >= numMessages) {
                             log.info("------------- DONE (reached the maximum number: {} of production) --------------"
                                     , numMessages);
                             doneLatch.countDown();
@@ -596,6 +853,7 @@ public class PerformanceProducer {
                             produceEnough = true;
                             break;
                         }
+                        totalSent.increment();
                     }
                     rateLimiter.acquire();
                     //if transaction is disable, transaction will be null.
@@ -606,15 +864,34 @@ public class PerformanceProducer {
 
                     if (arguments.payloadFilename != null) {
                         if (messageFormatter != null) {
-                            payloadData = messageFormatter.formatMessage(arguments.producerName, totalSent,
+                            payloadData = messageFormatter.formatMessage(arguments.producerName, totalSent.longValue(),
                                     payloadByteList.get(ThreadLocalRandom.current().nextInt(payloadByteList.size())));
                         } else {
                             payloadData = payloadByteList.get(
                                     ThreadLocalRandom.current().nextInt(payloadByteList.size()));
                         }
+                    } else if (messageFormatter instanceof IncrementedNumberMessageFormatter) {
+                        IncrementedNumberMessageFormatter incrementedNumberMessageFormatter =
+                                (IncrementedNumberMessageFormatter) messageFormatter;
+                        if (arguments.isEnableTxnTest) {
+                            // txn test
+                            Pair<File, FileOutputStream> pair = txnTmpFileMap.get(transaction);
+                            if (incrementedNumberMessageFormatter.tmpFilesWithAbortedTxn.containsKey(pair.getLeft())) {
+                                // some messages in aborted txn are persisted in this file, we need to resend them.
+                                payloadData = incrementedNumberMessageFormatter.formatMessage(pair.getLeft());
+                            } else {
+                                payloadData = messageFormatter.formatMessage(null, 0L, null);
+                                // persist msg to local tmp file.
+                                pair.getRight().write(payloadData);
+                            }
+                        } else {
+                            // non-txn test
+                            payloadData = incrementedNumberMessageFormatter.formatMessage();
+                        }
                     } else {
                         payloadData = payloadBytes;
                     }
+
                     TypedMessageBuilder<byte[]> messageBuilder;
                     if (arguments.isEnableTransaction) {
                         if (arguments.numMessagesPerTransaction > 0) {
@@ -671,6 +948,15 @@ public class PerformanceProducer {
                         if (arguments.exitOnFailure) {
                             PerfClientUtils.exit(1);
                         }
+                        if (arguments.resendOnFailure && !arguments.isEnableTxnTest
+                                && (messageFormatter instanceof IncrementedNumberMessageFormatter)) {
+                            try {
+                                ((IncrementedNumberMessageFormatter) messageFormatter).msgToResend.put(payloadData);
+                                totalSent.decrement();
+                            } catch (InterruptedException e) {
+                                throw new RuntimeException(e);
+                            }
+                        }
                         return null;
                     });
                     if (arguments.isEnableTransaction
@@ -684,11 +970,35 @@ public class PerformanceProducer {
                                         }
                                         totalEndTxnOpSuccessNum.increment();
                                         numTxnOpSuccess.increment();
+                                        if (arguments.isEnableTxnTest) {
+                                            handleTxnOnCommitted(transaction);
+                                        }
                                     })
                                     .exceptionally(exception -> {
-                                        log.error("Commit transaction failed with exception : ",
-                                                exception);
+                                        log.error("Commit transaction:{} failed with exception : ",
+                                                transaction.getTxnID(), exception);
                                         totalEndTxnOpFailNum.increment();
+
+                                        if (arguments.isEnableTxnTest) {
+                                            int retryTimes = arguments.retryTimes;
+                                            if (isTimeOutException(exception)) {
+                                                for (int i = 0; i < retryTimes; i++) {
+                                                    try {
+                                                        transaction.commit().get();
+                                                        handleTxnOnCommitted(transaction);
+                                                        break;
+                                                    } catch (Exception e) {
+                                                        if (!isTimeOutException(e)) {
+                                                            break;
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                            if (transaction.getState() != Transaction.State.COMMITTED) {
+                                                totalSent.add(-handleTxnOnAborted(transaction, messageFormatter,
+                                                        arguments.baseDirToSaveResendTxnData));
+                                            }
+                                        }
                                         return null;
                                     });
                         } else {
@@ -712,6 +1022,12 @@ public class PerformanceProducer {
                                         .withTransactionTimeout(arguments.transactionTimeout,
                                                 TimeUnit.SECONDS).build().get();
                                 transactionAtomicReference.compareAndSet(transaction, newTransaction);
+
+                                if (arguments.isEnableTxnTest) {
+                                    File tmpFile = tmpFiles.take();
+                                    openTmpFileStreamForNewTxn(tmpFile, newTransaction);
+                                }
+
                                 numMessageSend.set(0);
                                 numMsgPerTxnLimit.release(arguments.numMessagesPerTransaction);
                                 totalNumTxnOpenTxnSuccess.increment();
