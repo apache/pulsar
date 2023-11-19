@@ -80,6 +80,7 @@ public class OffloadPoliciesImpl implements Serializable, OffloadPolicies {
 
     public static final int DEFAULT_MAX_BLOCK_SIZE_IN_BYTES = 64 * 1024 * 1024;   // 64MB
     public static final int DEFAULT_READ_BUFFER_SIZE_IN_BYTES = 1024 * 1024;      // 1MB
+    public static final int DEFAULT_ASSIGNMENT_OFFLOAD_THREADS = 2;
     public static final int DEFAULT_OFFLOAD_MAX_THREADS = 2;
     public static final int DEFAULT_OFFLOAD_MAX_PREFETCH_ROUNDS = 1;
     public static final String DEFAULT_OFFLOADER_DIRECTORY = "./offloaders";
@@ -104,6 +105,9 @@ public class OffloadPoliciesImpl implements Serializable, OffloadPolicies {
     @Configuration
     @JsonProperty(access = JsonProperty.Access.READ_WRITE)
     private Integer managedLedgerOffloadMaxThreads = DEFAULT_OFFLOAD_MAX_THREADS;
+    @Configuration
+    @JsonProperty(access = JsonProperty.Access.READ_WRITE)
+    private Integer managedLedgerAssignmentOffloadThreads = DEFAULT_ASSIGNMENT_OFFLOAD_THREADS;
     @Configuration
     @JsonProperty(access = JsonProperty.Access.READ_WRITE)
     private Integer managedLedgerOffloadPrefetchRounds = DEFAULT_OFFLOAD_MAX_PREFETCH_ROUNDS;
@@ -204,7 +208,39 @@ public class OffloadPoliciesImpl implements Serializable, OffloadPolicies {
                                              Long offloadThresholdInBytes,
                                              Long offloadThresholdInSeconds,
                                              Long offloadDeletionLagInMillis,
+                                             OffloadedReadPriority readPriority,
+                                             Integer assignmentOffloadThreads,
+                                             Integer offloadPrefetchRounds) {
+        OffloadPoliciesImplBuilder builder = createBuilder(driver, region, bucket, endpoint, role, roleSessionName,
+                credentialId, credentialSecret, maxBlockSizeInBytes, readBufferSizeInBytes, offloadThresholdInBytes,
+                offloadThresholdInSeconds, offloadDeletionLagInMillis, readPriority);
+
+        builder.managedLedgerAssignmentOffloadThreads(assignmentOffloadThreads)
+                .managedLedgerOffloadPrefetchRounds(offloadPrefetchRounds);
+        return builder.build();
+    }
+
+    public static OffloadPoliciesImpl create(String driver, String region, String bucket, String endpoint,
+                                             String role, String roleSessionName,
+                                             String credentialId, String credentialSecret,
+                                             Integer maxBlockSizeInBytes, Integer readBufferSizeInBytes,
+                                             Long offloadThresholdInBytes,
+                                             Long offloadThresholdInSeconds,
+                                             Long offloadDeletionLagInMillis,
                                              OffloadedReadPriority readPriority) {
+        return createBuilder(driver, region, bucket, endpoint, role, roleSessionName, credentialId, credentialSecret,
+                maxBlockSizeInBytes, readBufferSizeInBytes, offloadThresholdInBytes, offloadThresholdInSeconds,
+                offloadDeletionLagInMillis, readPriority).build();
+    }
+
+    public static OffloadPoliciesImplBuilder createBuilder(String driver, String region, String bucket, String endpoint,
+                                                           String role, String roleSessionName,
+                                                           String credentialId, String credentialSecret,
+                                                           Integer maxBlockSizeInBytes, Integer readBufferSizeInBytes,
+                                                           Long offloadThresholdInBytes,
+                                                           Long offloadThresholdInSeconds,
+                                                           Long offloadDeletionLagInMillis,
+                                                           OffloadedReadPriority readPriority) {
         OffloadPoliciesImplBuilder builder = builder()
                 .managedLedgerOffloadDriver(driver)
                 .managedLedgerOffloadThresholdInBytes(offloadThresholdInBytes)
@@ -243,7 +279,7 @@ public class OffloadPoliciesImpl implements Serializable, OffloadPolicies {
                 .gcsManagedLedgerOffloadReadBufferSizeInBytes(readBufferSizeInBytes);
         }
 
-        return builder.build();
+        return builder;
     }
 
     public static OffloadPoliciesImpl create(Properties properties) {
@@ -351,6 +387,8 @@ public class OffloadPoliciesImpl implements Serializable, OffloadPolicies {
         setProperty(properties, "managedLedgerOffloadDriver", this.getManagedLedgerOffloadDriver());
         setProperty(properties, "managedLedgerOffloadMaxThreads",
                 this.getManagedLedgerOffloadMaxThreads());
+        setProperty(properties, "managedLedgerAssignmentOffloadThreads",
+                this.getManagedLedgerAssignmentOffloadThreads());
         setProperty(properties, "managedLedgerOffloadPrefetchRounds",
                 this.getManagedLedgerOffloadPrefetchRounds());
         setProperty(properties, "managedLedgerOffloadThresholdInBytes",
@@ -540,6 +578,12 @@ public class OffloadPoliciesImpl implements Serializable, OffloadPolicies {
 
         public OffloadPoliciesImplBuilder managedLedgerOffloadMaxThreads(Integer managedLedgerOffloadMaxThreads) {
             impl.managedLedgerOffloadMaxThreads = managedLedgerOffloadMaxThreads;
+            return this;
+        }
+
+        public OffloadPoliciesImplBuilder managedLedgerAssignmentOffloadThreads(
+                Integer managedLedgerAssignmentOffloadThreads) {
+            impl.managedLedgerAssignmentOffloadThreads = managedLedgerAssignmentOffloadThreads;
             return this;
         }
 
