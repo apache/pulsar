@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.io.redis.sink;
 
+import org.apache.pulsar.io.core.SinkContext;
 import org.apache.pulsar.io.redis.RedisAbstractConfig;
 import org.testng.annotations.Test;
 
@@ -26,6 +27,8 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 
@@ -51,6 +54,24 @@ public class RedisSinkConfigTest {
     }
 
     @Test
+    public final void loadFromYamlFileAndContextTest() throws IOException {
+        File yamlFile = getFile("sinkConfig.yaml");
+        String path = yamlFile.getAbsolutePath();
+        SinkContext context = mock(SinkContext.class);
+        when(context.getSecret("redisPassword")).thenReturn("my-secret-pass");
+        RedisSinkConfig config = RedisSinkConfig.load(path, context);
+        assertNotNull(config);
+        assertEquals(config.getRedisHosts(), "localhost:6379");
+        assertEquals(config.getRedisPassword(), "my-secret-pass");
+        assertEquals(config.getRedisDatabase(), Integer.parseInt("1"));
+        assertEquals(config.getClientMode(), "Standalone");
+        assertEquals(config.getOperationTimeout(), Long.parseLong("2000"));
+        assertEquals(config.getBatchSize(), Integer.parseInt("100"));
+        assertEquals(config.getBatchTimeMs(), Long.parseLong("1000"));
+        assertEquals(config.getConnectTimeout(), Long.parseLong("3000"));
+    }
+
+    @Test
     public final void loadFromMapTest() throws IOException {
         Map<String, Object> map = new HashMap<String, Object>();
         map.put("redisHosts", "localhost:6379");
@@ -66,6 +87,30 @@ public class RedisSinkConfigTest {
         assertNotNull(config);
         assertEquals(config.getRedisHosts(), "localhost:6379");
         assertEquals(config.getRedisPassword(), "fake@123");
+        assertEquals(config.getRedisDatabase(), Integer.parseInt("1"));
+        assertEquals(config.getClientMode(), "Standalone");
+        assertEquals(config.getOperationTimeout(), Long.parseLong("2000"));
+        assertEquals(config.getBatchSize(), Integer.parseInt("100"));
+        assertEquals(config.getBatchTimeMs(), Long.parseLong("1000"));
+        assertEquals(config.getConnectTimeout(), Long.parseLong("3000"));
+    }
+
+    @Test
+    public final void loadFromMapAndContextTest() throws IOException {
+        Map<String, Object> map = new HashMap<String, Object>();
+        map.put("redisHosts", "localhost:6379");
+        map.put("redisDatabase", "1");
+        map.put("clientMode", "Standalone");
+        map.put("operationTimeout", "2000");
+        map.put("batchSize", "100");
+        map.put("batchTimeMs", "1000");
+        map.put("connectTimeout", "3000");
+        SinkContext context = mock(SinkContext.class);
+        when(context.getSecret("redisPassword")).thenReturn("my-secret-pass");
+        RedisSinkConfig config = RedisSinkConfig.load(map, context);
+        assertNotNull(config);
+        assertEquals(config.getRedisHosts(), "localhost:6379");
+        assertEquals(config.getRedisPassword(), "my-secret-pass");
         assertEquals(config.getRedisDatabase(), Integer.parseInt("1"));
         assertEquals(config.getClientMode(), "Standalone");
         assertEquals(config.getOperationTimeout(), Long.parseLong("2000"));

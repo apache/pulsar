@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.io.rabbitmq;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.google.common.base.Preconditions;
@@ -28,6 +29,8 @@ import java.util.Map;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.experimental.Accessors;
+import org.apache.pulsar.io.common.IOConfigUtils;
+import org.apache.pulsar.io.core.SinkContext;
 import org.apache.pulsar.io.core.annotations.FieldDoc;
 
 @Data
@@ -55,14 +58,31 @@ public class RabbitMQSinkConfig extends RabbitMQAbstractConfig implements Serial
         help = "The exchange type to publish the messages on")
     private String exchangeType = "topic";
 
+    /**
+     * @deprecated Use {@link #load(String, SinkContext)} instead.
+     */
+    @Deprecated
     public static RabbitMQSinkConfig load(String yamlFile) throws IOException {
         ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
         return mapper.readValue(new File(yamlFile), RabbitMQSinkConfig.class);
     }
 
+    public static RabbitMQSinkConfig load(String yamlFile, SinkContext context) throws IOException {
+        ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
+        return load(mapper.readValue(new File(yamlFile), new TypeReference<Map<String, Object>>() {}), context);
+    }
+
+    /**
+     * @deprecated Use {@link #load(Map, SinkContext)} instead.
+     */
+    @Deprecated
     public static RabbitMQSinkConfig load(Map<String, Object> map) throws IOException {
         ObjectMapper mapper = new ObjectMapper();
         return mapper.readValue(mapper.writeValueAsString(map), RabbitMQSinkConfig.class);
+    }
+
+    public static RabbitMQSinkConfig load(Map<String, Object> map, SinkContext context) {
+        return IOConfigUtils.loadWithSecrets(map, RabbitMQSinkConfig.class, context);
     }
 
     @Override

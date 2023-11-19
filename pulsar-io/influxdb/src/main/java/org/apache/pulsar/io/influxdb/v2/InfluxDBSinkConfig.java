@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.io.influxdb.v2;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.google.common.base.Preconditions;
@@ -27,6 +28,8 @@ import java.io.Serializable;
 import java.util.Map;
 import lombok.Data;
 import lombok.experimental.Accessors;
+import org.apache.pulsar.io.common.IOConfigUtils;
+import org.apache.pulsar.io.core.SinkContext;
 import org.apache.pulsar.io.core.annotations.FieldDoc;
 
 /**
@@ -87,7 +90,7 @@ public class InfluxDBSinkConfig implements Serializable {
 
     @FieldDoc(
             required = false,
-            defaultValue = "1000L",
+            defaultValue = "1000",
             help = "The InfluxDB operation time in milliseconds")
     private long batchTimeMs = 1000;
 
@@ -98,14 +101,31 @@ public class InfluxDBSinkConfig implements Serializable {
     )
     private int batchSize = 200;
 
+    /**
+     * @deprecated Use {@link #load(String, SinkContext)} instead.
+     */
+    @Deprecated
     public static InfluxDBSinkConfig load(String yamlFile) throws IOException {
         ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
         return mapper.readValue(new File(yamlFile), InfluxDBSinkConfig.class);
     }
 
+    public static InfluxDBSinkConfig load(String yamlFile, SinkContext context) throws IOException {
+        ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
+        return load(mapper.readValue(new File(yamlFile), new TypeReference<Map<String, Object>>() {}), context);
+    }
+
+    /**
+     * @deprecated Use {@link #load(Map, SinkContext)} instead.
+     */
+    @Deprecated
     public static InfluxDBSinkConfig load(Map<String, Object> map) throws IOException {
         ObjectMapper mapper = new ObjectMapper();
         return mapper.readValue(mapper.writeValueAsString(map), InfluxDBSinkConfig.class);
+    }
+
+    public static InfluxDBSinkConfig load(Map<String, Object> map, SinkContext context) {
+        return IOConfigUtils.loadWithSecrets(map, InfluxDBSinkConfig.class, context);
     }
 
     public void validate() {

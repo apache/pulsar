@@ -18,9 +18,12 @@
  */
 package org.apache.pulsar.io.redis.sink;
 
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.functions.instance.SinkRecord;
+import org.apache.pulsar.io.core.SinkContext;
 import org.apache.pulsar.io.redis.EmbeddedRedisUtils;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -65,8 +68,11 @@ public class RedisSinkTest {
         // prepare a foo Record
         Record<byte[]> record = build("fakeTopic", "fakeKey", "fakeValue");
 
+        SinkContext context = mock(SinkContext.class);
+        when(context.getSecret("redisPassword")).thenReturn("");
+
         // open should success
-        sink.open(configs, null);
+        sink.open(configs, context);
 
         // write should success.
         sink.write(record);

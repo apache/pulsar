@@ -88,7 +88,7 @@ public class RedisAbstractConfig implements Serializable {
 
     @FieldDoc(
         required = false,
-        defaultValue = "10000L",
+        defaultValue = "10000",
         help = "The amount of time in milliseconds to wait before timing out when connecting")
     private long connectTimeout = 10000L;
 

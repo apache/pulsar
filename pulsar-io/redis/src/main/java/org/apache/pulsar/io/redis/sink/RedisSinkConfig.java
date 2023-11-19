@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.io.redis.sink;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.google.common.base.Preconditions;
@@ -28,6 +29,8 @@ import java.util.Map;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.experimental.Accessors;
+import org.apache.pulsar.io.common.IOConfigUtils;
+import org.apache.pulsar.io.core.SinkContext;
 import org.apache.pulsar.io.core.annotations.FieldDoc;
 import org.apache.pulsar.io.redis.RedisAbstractConfig;
 
@@ -40,13 +43,13 @@ public class RedisSinkConfig extends RedisAbstractConfig implements Serializable
 
     @FieldDoc(
         required = false,
-        defaultValue = "10000L",
+        defaultValue = "10000",
         help = "The amount of time in milliseconds before an operation is marked as timed out")
     private long operationTimeout = 10000L;
 
     @FieldDoc(
         required = false,
-        defaultValue = "1000L",
+        defaultValue = "1000",
         help = "The Redis operation time in milliseconds")
     private long batchTimeMs = 1000L;
 
@@ -57,14 +60,31 @@ public class RedisSinkConfig extends RedisAbstractConfig implements Serializable
     )
     private int batchSize = 200;
 
+    /**
+     * @deprecated Use {@link #load(String, SinkContext)} instead.
+     */
+    @Deprecated
     public static RedisSinkConfig load(String yamlFile) throws IOException {
         ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
         return mapper.readValue(new File(yamlFile), RedisSinkConfig.class);
     }
 
+    public static RedisSinkConfig load(String yamlFile, SinkContext context) throws IOException {
+        ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
+        return load(mapper.readValue(new File(yamlFile), new TypeReference<Map<String, Object>>() {}), context);
+    }
+
+    /**
+     * @deprecated Use {@link #load(Map, SinkContext)} instead.
+     */
+    @Deprecated
     public static RedisSinkConfig load(Map<String, Object> map) throws IOException {
         ObjectMapper mapper = new ObjectMapper();
         return mapper.readValue(mapper.writeValueAsString(map), RedisSinkConfig.class);
+    }
+
+    public static RedisSinkConfig load(Map<String, Object> map, SinkContext context) {
+        return IOConfigUtils.loadWithSecrets(map, RedisSinkConfig.class, context);
     }
 
     @Override

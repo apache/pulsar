@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.io.jdbc;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import java.io.File;
@@ -26,6 +27,8 @@ import java.io.Serializable;
 import java.util.Map;
 import lombok.Data;
 import lombok.experimental.Accessors;
+import org.apache.pulsar.io.common.IOConfigUtils;
+import org.apache.pulsar.io.core.SinkContext;
 import org.apache.pulsar.io.core.annotations.FieldDoc;
 
 @Data
@@ -140,14 +143,31 @@ public class JdbcSinkConfig implements Serializable {
     }
 
 
+    /**
+     * @deprecated Use {@link #load(String, SinkContext)} instead.
+     */
+    @Deprecated
     public static JdbcSinkConfig load(String yamlFile) throws IOException {
         ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
         return mapper.readValue(new File(yamlFile), JdbcSinkConfig.class);
     }
 
+    public static JdbcSinkConfig load(String yamlFile, SinkContext context) throws IOException {
+        ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
+        return load(mapper.readValue(new File(yamlFile), new TypeReference<Map<String, Object>>() {}), context);
+    }
+
+    /**
+     * @deprecated Use {@link #load(Map, SinkContext)} instead.
+     */
+    @Deprecated
     public static JdbcSinkConfig load(Map<String, Object> map) throws IOException {
         ObjectMapper mapper = new ObjectMapper();
         return mapper.readValue(mapper.writeValueAsString(map), JdbcSinkConfig.class);
+    }
+
+    public static JdbcSinkConfig load(Map<String, Object> map, SinkContext context) {
+        return IOConfigUtils.loadWithSecrets(map, JdbcSinkConfig.class, context);
     }
 
     public void validate() {
