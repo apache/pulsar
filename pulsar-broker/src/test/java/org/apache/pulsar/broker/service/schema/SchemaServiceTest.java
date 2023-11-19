@@ -92,7 +92,7 @@ public class SchemaServiceTest extends MockedPulsarServiceBaseTest {
         storage.start();
         Map<SchemaType, SchemaCompatibilityCheck> checkMap = new HashMap<>();
         checkMap.put(SchemaType.AVRO, new AvroSchemaCompatibilityCheck());
-        schemaRegistryService = new SchemaRegistryServiceImpl(storage, checkMap, MockClock, null);
+        schemaRegistryService = new SchemaRegistryServiceImpl(storage, checkMap, MockClock, null, false);
     }
 
     @AfterMethod(alwaysRun = true)

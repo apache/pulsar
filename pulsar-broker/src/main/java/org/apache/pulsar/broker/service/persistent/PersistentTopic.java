@@ -3458,7 +3458,17 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
     @Override
     public CompletableFuture<Void> addSchemaIfIdleOrCheckCompatible(SchemaData schema) {
-        return hasSchema().thenCompose((hasSchema) -> {
+        return shouldAddNewSchema().thenCompose(shouldAddNewSchema -> {
+            if (shouldAddNewSchema) {
+                return addSchema(schema).thenCompose(schemaVersion ->
+                        CompletableFuture.completedFuture(null));
+            }
+            return checkSchemaCompatibleForConsumer(schema);
+        });
+    }
+
+    private CompletableFuture<Boolean> shouldAddNewSchema() {
+        return hasSchema().thenApply(hasSchema -> {
             int numActiveConsumersWithoutAutoSchema = subscriptions.values().stream()
                     .mapToInt(subscription -> subscription.getConsumers().stream()
                             .filter(consumer -> consumer.getSchemaType() != SchemaType.AUTO_CONSUME)
@@ -3467,12 +3477,10 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             if (hasSchema
                     || (userCreatedProducerCount > 0)
                     || (numActiveConsumersWithoutAutoSchema != 0)
-                    || (ledger.getTotalSize() != 0)) {
-                return checkSchemaCompatibleForConsumer(schema);
-            } else {
-                return addSchema(schema).thenCompose(schemaVersion ->
-                        CompletableFuture.completedFuture(null));
+                    || (!ledger.getConfig().isAutoSkipNonRecoverableData() && ledger.getTotalSize() != 0)) {
+                return false;
             }
+            return true;
         });
     }
 
