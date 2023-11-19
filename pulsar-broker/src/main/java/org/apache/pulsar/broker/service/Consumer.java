@@ -351,6 +351,7 @@ public class Consumer {
                    topicName, subscription, ackedCount, totalMessages, consumerId, avgMessagesPerEntry.get());
         }
         incrementUnackedMessages(unackedMessages);
+        final int finalUnackedMessages = unackedMessages;
         Future<Void> writeAndFlushPromise =
                 cnx.getCommandSender().sendMessagesToConsumer(consumerId, topicName, subscription, partitionIdx,
                         entries, batchSizes, batchIndexesAcks, redeliveryTracker, epoch);
@@ -361,6 +362,9 @@ public class Consumer {
                 msgOutCounter.add(totalMessages);
                 bytesOutCounter.add(totalBytes);
                 chunkedMessageRate.recordMultipleEvents(totalChunkedMessages, 0);
+                if (!(subscription instanceof PersistentSubscription)) {
+                    addAndGetUnAckedMsgs(this, -finalUnackedMessages);
+                }
             } else {
                 if (log.isDebugEnabled()) {
                     log.debug("[{}-{}] Sent messages to client fail by IO exception[{}], close the connection"

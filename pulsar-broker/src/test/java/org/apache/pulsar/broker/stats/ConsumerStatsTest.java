@@ -446,4 +446,34 @@ public class ConsumerStatsTest extends ProducerConsumerBase {
         int avgMessagesPerEntry = consumerStats.getAvgMessagesPerEntry();
         assertEquals(3, avgMessagesPerEntry);
     }
+
+    @Test()
+    public void testNonPersistentTopicSharedSubscriptionUnackedMessages() throws Exception {
+        final String topicName = "non-persistent://my-property/my-ns/my-topic" + UUID.randomUUID();
+        final String subName = "my-sub";
+
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(topicName)
+                .create();
+        @Cleanup
+        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+                .topic(topicName)
+                .subscriptionName(subName)
+                .subscriptionType(SubscriptionType.Shared)
+                .subscribe();
+
+        for (int i = 0; i < 5; i++) {
+            producer.send(("message-" + i).getBytes());
+        }
+        for (int i = 0; i < 5; i++) {
+            Message<byte[]> msg = consumer.receive(5, TimeUnit.SECONDS);
+            consumer.acknowledge(msg);
+        }
+        TopicStats topicStats = admin.topics().getStats(topicName);
+        assertEquals(topicStats.getSubscriptions().size(), 1);
+        List<? extends ConsumerStats> consumers = topicStats.getSubscriptions().get(subName).getConsumers();
+        assertEquals(consumers.size(), 1);
+        assertEquals(consumers.get(0).getUnackedMessages(), 0);
+    }
 }
