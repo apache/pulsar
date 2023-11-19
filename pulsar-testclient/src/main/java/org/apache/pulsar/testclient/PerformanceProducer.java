@@ -33,6 +33,9 @@ import com.fasterxml.jackson.databind.ObjectWriter;
 import com.google.common.collect.Range;
 import com.google.common.util.concurrent.RateLimiter;
 import io.netty.util.concurrent.DefaultThreadFactory;
+import io.prometheus.client.Gauge;
+import io.prometheus.client.Summary;
+import io.prometheus.client.exporter.MetricsServlet;
 import java.io.FileOutputStream;
 import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
@@ -74,6 +77,9 @@ import org.apache.pulsar.client.api.TypedMessageBuilder;
 import org.apache.pulsar.client.api.transaction.Transaction;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.testclient.utils.PaddingDecimalFormat;
+import org.eclipse.jetty.server.Server;
+import org.eclipse.jetty.servlet.ServletContextHandler;
+import org.eclipse.jetty.servlet.ServletHolder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -85,24 +91,161 @@ public class PerformanceProducer {
     private static final ExecutorService executor = Executors
             .newCachedThreadPool(new DefaultThreadFactory("pulsar-perf-producer-exec"));
 
+    private static final Gauge messageSentGauge = Gauge.build()
+            .namespace("pulsar")
+            .subsystem("perf_producer")
+            .name("messages_send")
+            .labelNames("producer", "topic")
+            .help("-")
+            .register();
     private static final LongAdder messagesSent = new LongAdder();
+    private static final Gauge messagesFailedGauge = Gauge.build()
+            .namespace("pulsar")
+            .subsystem("perf_producer")
+            .name("messages_failed")
+            .labelNames("producer", "topic")
+            .help("-")
+            .register();
     private static final LongAdder messagesFailed = new LongAdder();
+    private static final Gauge bytesSentGauge = Gauge.build()
+            .namespace("pulsar")
+            .subsystem("perf_producer")
+            .name("bytes_send")
+            .labelNames("producer", "topic")
+            .help("-")
+            .register();
     private static final LongAdder bytesSent = new LongAdder();
 
+    private static final Gauge totalNumTxnOpenTxnFailGauge = Gauge.build()
+            .namespace("pulsar")
+            .subsystem("perf_producer")
+            .name("total_txn_open_fail")
+            .help("-")
+            .register();
     private static final LongAdder totalNumTxnOpenTxnFail = new LongAdder();
+    private static final Gauge totalNumTxnOpenTxnSuccessGauge = Gauge.build()
+            .namespace("pulsar")
+            .subsystem("perf_producer")
+            .name("total_txn_open_success")
+            .help("-")
+            .register();
     private static final LongAdder totalNumTxnOpenTxnSuccess = new LongAdder();
 
+    private static final Gauge totalMessagesSentGauge = Gauge.build()
+            .namespace("pulsar")
+            .subsystem("perf_producer")
+            .name("total_message_send")
+            .help("-")
+            .register();
     private static final LongAdder totalMessagesSent = new LongAdder();
+
+    private static final Gauge totalBytesSentGauge = Gauge.build()
+            .namespace("pulsar")
+            .subsystem("perf_producer")
+            .name("total_bytes_send")
+            .help("-")
+            .register();
     private static final LongAdder totalBytesSent = new LongAdder();
 
+    private static final Summary sendLatency = Summary.build()
+            .namespace("pulsar")
+            .subsystem("perf_producer")
+            .name("send_latency")
+            .labelNames("producer", "topic")
+            .quantile(0.75, 0.01D)
+            .quantile(0.95, 0.01D)
+            .quantile(0.99, 0.01D)
+            .unit("ms")
+            .help("-")
+            .register();
     private static final Recorder recorder = new Recorder(TimeUnit.SECONDS.toMicros(120000), 5);
+
+    private static final Summary cumulativeSendLatency = Summary.build()
+            .namespace("pulsar")
+            .subsystem("perf_producer")
+            .name("cumulative_send_latency")
+            .quantile(0.75, 0.01D)
+            .quantile(0.95, 0.01D)
+            .quantile(0.99, 0.01D)
+            .unit("ms")
+            .help("-")
+            .register();
     private static final Recorder cumulativeRecorder = new Recorder(TimeUnit.SECONDS.toMicros(120000), 5);
 
+    private static final Gauge totalEndTxnOpSuccessNumGauge = Gauge.build()
+            .namespace("pulsar")
+            .subsystem("perf_producer")
+            .name("total_end_txn_success")
+            .help("-")
+            .register();
     private static final LongAdder totalEndTxnOpSuccessNum = new LongAdder();
+
+    private static final Gauge totalEndTxnOpFailNumGauge = Gauge.build()
+            .namespace("pulsar")
+            .subsystem("perf_producer")
+            .name("total_end_txn_failed")
+            .help("-")
+            .register();
     private static final LongAdder totalEndTxnOpFailNum = new LongAdder();
+    private static final Gauge numTxnOpSuccessGauge = Gauge.build()
+            .namespace("pulsar")
+            .subsystem("perf_producer")
+            .name("total_txn_op_success")
+            .help("-")
+            .register();
     private static final LongAdder numTxnOpSuccess = new LongAdder();
 
     private static IMessageFormatter messageFormatter = null;
+
+    private static void recordMessageSent(String producerName, String topic, long size) {
+        bytesSentGauge.labels(producerName, topic).inc(size);
+        bytesSent.add(size);
+
+        messageSentGauge.labels(producerName, topic).inc();
+        messagesSent.increment();
+
+        totalMessagesSentGauge.inc();
+        totalMessagesSent.increment();
+
+        totalBytesSentGauge.inc(size);
+        totalBytesSent.add(size);
+    }
+
+    private static void recordSendLatency(String producerName, String topic, long latencyMicros) {
+        sendLatency.labels(producerName, topic).observe(latencyMicros);
+        recorder.recordValue(latencyMicros);
+
+        cumulativeSendLatency.observe(latencyMicros);
+        cumulativeRecorder.recordValue(latencyMicros);
+    }
+
+    private static void recordMessageFailed(String producerName, String topic) {
+        messagesFailedGauge.labels(producerName, topic).inc();
+        messagesFailed.increment();
+    }
+
+    private static void recordEndTxnSuccess() {
+        totalEndTxnOpSuccessNumGauge.inc();
+        totalEndTxnOpSuccessNum.increment();
+
+        numTxnOpSuccessGauge.inc();
+        numTxnOpSuccess.increment();
+    }
+
+    private static void recordTxnOpFail() {
+        totalEndTxnOpFailNumGauge.inc();
+        totalEndTxnOpFailNum.increment();
+    }
+
+    private static void recordTxnOpenSuccess() {
+        totalNumTxnOpenTxnSuccessGauge.inc();
+        totalNumTxnOpenTxnSuccess.increment();
+    }
+
+    private static void recordTxnOpenFail() {
+        totalNumTxnOpenTxnFailGauge.inc();
+        totalNumTxnOpenTxnFail.increment();
+    }
 
     @Parameters(commandDescription = "Test pulsar producer performance.")
     static class Arguments extends PerformanceTopicListArguments {
@@ -251,6 +394,12 @@ public class PerformanceProducer {
         @Parameter(names = { "--histogram-file" }, description = "HdrHistogram output file")
         public String histogramFile = null;
 
+        @Parameter(names = { "--prometheus-metric-expose-port" },
+                description = "The http server port for expose performance consumer prometheus metrics."
+                        + "default not enabled. if config is enabled the metric can be "
+                        + "get via http://0.0.0.0:${port}/metrics")
+        public int prometheusMetricExposePort = -1;
+
         @Override
         public void fillArgumentsFromProperties(Properties prop) {
             if (adminURL == null) {
@@ -276,6 +425,22 @@ public class PerformanceProducer {
         ObjectMapper m = new ObjectMapper();
         ObjectWriter w = m.writerWithDefaultPrettyPrinter();
         log.info("Starting Pulsar perf producer with config: {}", w.writeValueAsString(arguments));
+
+        Server server = null;
+
+        int serverPort = arguments.prometheusMetricExposePort;
+        if (serverPort != -1) {
+            server = new Server(serverPort);
+            ServletContextHandler context = new ServletContextHandler();
+            context.setContextPath("/");
+            server.setHandler(context);
+
+            context.addServlet(new ServletHolder(new MetricsServlet()), "/metrics");
+            log.info("Pulsar performance producer metrics is expose at "
+                    + "http://0.0.0.0:{}/metrics", serverPort);
+
+            server.start();
+        }
 
         // Read payload data from file if needed
         final byte[] payloadBytes = new byte[arguments.msgSize];
@@ -307,7 +472,15 @@ public class PerformanceProducer {
 
         long start = System.nanoTime();
 
+        Server finalServer = server;
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            if (finalServer != null) {
+                try {
+                    finalServer.stop();
+                } catch (Exception e) {
+                    log.error("error when stop prometheus metric server.", e);
+                }
+            }
             executorShutdownNow();
             printAggregatedThroughput(start, arguments);
             printAggregatedStats();
@@ -647,18 +820,15 @@ public class PerformanceProducer {
                         messageBuilder.key(String.valueOf(totalSent));
                     }
                     PulsarClient pulsarClient = client;
-                    messageBuilder.sendAsync().thenRun(() -> {
-                        bytesSent.add(payloadData.length);
-                        messagesSent.increment();
 
-                        totalMessagesSent.increment();
-                        totalBytesSent.add(payloadData.length);
+                    String producerName = producer.getProducerName();
+                    String topic = producer.getTopic();
+                    messageBuilder.sendAsync().thenRun(() -> {
+                        recordMessageSent(producerName, topic, payloadData.length);
 
                         long now = System.nanoTime();
                         if (now > warmupEndTime) {
-                            long latencyMicros = NANOSECONDS.toMicros(now - sendTime);
-                            recorder.recordValue(latencyMicros);
-                            cumulativeRecorder.recordValue(latencyMicros);
+                            recordSendLatency(producerName, topic, NANOSECONDS.toMillis(now - sendTime));
                         }
                     }).exceptionally(ex -> {
                         // Ignore the exception of recorder since a very large latencyMicros will lead
@@ -667,7 +837,7 @@ public class PerformanceProducer {
                             return null;
                         }
                         log.warn("Write message error with exception", ex);
-                        messagesFailed.increment();
+                        recordMessageFailed(producerName, topic);
                         if (arguments.exitOnFailure) {
                             PerfClientUtils.exit(1);
                         }
@@ -682,13 +852,12 @@ public class PerformanceProducer {
                                             log.debug("Committed transaction {}",
                                                     transaction.getTxnID().toString());
                                         }
-                                        totalEndTxnOpSuccessNum.increment();
-                                        numTxnOpSuccess.increment();
+                                        recordEndTxnSuccess();
                                     })
                                     .exceptionally(exception -> {
                                         log.error("Commit transaction failed with exception : ",
                                                 exception);
-                                        totalEndTxnOpFailNum.increment();
+                                        recordTxnOpFail();
                                         return null;
                                     });
                         } else {
@@ -696,13 +865,12 @@ public class PerformanceProducer {
                                 if (log.isDebugEnabled()) {
                                     log.debug("Abort transaction {}", transaction.getTxnID().toString());
                                 }
-                                totalEndTxnOpSuccessNum.increment();
-                                numTxnOpSuccess.increment();
+                                recordEndTxnSuccess();
                             }).exceptionally(exception -> {
                                 log.error("Abort transaction {} failed with exception",
                                         transaction.getTxnID().toString(),
                                         exception);
-                                totalEndTxnOpFailNum.increment();
+                                recordTxnOpFail();
                                 return null;
                             });
                         }
@@ -714,10 +882,10 @@ public class PerformanceProducer {
                                 transactionAtomicReference.compareAndSet(transaction, newTransaction);
                                 numMessageSend.set(0);
                                 numMsgPerTxnLimit.release(arguments.numMessagesPerTransaction);
-                                totalNumTxnOpenTxnSuccess.increment();
+                                recordTxnOpenSuccess();
                                 break;
                             } catch (Exception e){
-                                totalNumTxnOpenTxnFail.increment();
+                                recordTxnOpenFail();
                                 log.error("Failed to new transaction with exception: ", e);
                             }
                         }

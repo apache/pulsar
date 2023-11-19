@@ -24,6 +24,9 @@ import com.beust.jcommander.Parameters;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.google.common.util.concurrent.RateLimiter;
+import io.prometheus.client.Gauge;
+import io.prometheus.client.Summary;
+import io.prometheus.client.exporter.MetricsServlet;
 import java.io.FileOutputStream;
 import java.io.PrintStream;
 import java.nio.ByteBuffer;
@@ -56,32 +59,155 @@ import org.apache.pulsar.client.impl.ConsumerImpl;
 import org.apache.pulsar.client.impl.MultiTopicsConsumerImpl;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.testclient.utils.PaddingDecimalFormat;
+import org.eclipse.jetty.server.Server;
+import org.eclipse.jetty.servlet.ServletContextHandler;
+import org.eclipse.jetty.servlet.ServletHolder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class PerformanceConsumer {
+    private static final Gauge messagesReceivedGauge = Gauge.build()
+            .namespace("pulsar")
+            .subsystem("perf_consumer")
+            .name("messages_received")
+            .labelNames("consumer", "subscription", "topic")
+            .help("-")
+            .register();
     private static final LongAdder messagesReceived = new LongAdder();
+
+    private static final Gauge bytesReceivedGauge = Gauge.build()
+            .namespace("pulsar")
+            .subsystem("perf_consumer")
+            .name("bytes_received")
+            .labelNames("consumer", "subscription", "topic")
+            .help("-")
+            .register();
     private static final LongAdder bytesReceived = new LongAdder();
     private static final DecimalFormat intFormat = new PaddingDecimalFormat("0", 7);
     private static final DecimalFormat dec = new DecimalFormat("0.000");
 
+    private static final Gauge totalMessagesReceivedGauge = Gauge.build()
+            .namespace("pulsar")
+            .subsystem("perf_consumer")
+            .name("total_messages_received")
+            .help("-")
+            .register();
     private static final LongAdder totalMessagesReceived = new LongAdder();
+
+    private static final Gauge totalBytesReceivedGauge = Gauge.build()
+            .namespace("pulsar")
+            .subsystem("perf_consumer")
+            .name("total_bytes_received")
+            .help("-")
+            .register();
     private static final LongAdder totalBytesReceived = new LongAdder();
 
+    private static final Gauge totalNumTxnOpenFailGauge = Gauge.build()
+            .namespace("pulsar")
+            .subsystem("perf_consumer")
+            .name("total_txn_open_fail")
+            .help("-")
+            .register();
     private static final LongAdder totalNumTxnOpenFail = new LongAdder();
+
+    private static final Gauge totalNumTxnOpenSuccessGauge = Gauge.build()
+            .namespace("pulsar")
+            .subsystem("perf_consumer")
+            .name("total_txn_open_success")
+            .help("-")
+            .register();
     private static final LongAdder totalNumTxnOpenSuccess = new LongAdder();
 
+
+    private static final Gauge totalMessageAckGauge = Gauge.build()
+            .namespace("pulsar")
+            .subsystem("perf_consumer")
+            .name("total_message_ack")
+            .help("-")
+            .register();
     private static final LongAdder totalMessageAck = new LongAdder();
+
+    private static final Gauge totalMessageAckFailedGauge = Gauge.build()
+            .namespace("pulsar")
+            .subsystem("perf_consumer")
+            .name("total_message_ack_failed")
+            .help("-")
+            .register();
     private static final LongAdder totalMessageAckFailed = new LongAdder();
+
+    private static final Gauge messageAckGauge = Gauge.build()
+            .namespace("pulsar")
+            .subsystem("perf_consumer")
+            .name("message_ack")
+            .labelNames("consumer", "subscription", "topic")
+            .help("-")
+            .register();
     private static final LongAdder messageAck = new LongAdder();
 
+    private static final Gauge totalEndTxnOpFailNumGauge = Gauge.build()
+            .namespace("pulsar")
+            .subsystem("perf_consumer")
+            .name("total_end_txn_failed")
+            .help("-")
+            .register();
+
     private static final LongAdder totalEndTxnOpFailNum = new LongAdder();
+    private static final Gauge totalEndTxnOpSuccessNumGauge = Gauge.build()
+            .namespace("pulsar")
+            .subsystem("perf_consumer")
+            .name("total_end_txn_success")
+            .help("-")
+            .register();
     private static final LongAdder totalEndTxnOpSuccessNum = new LongAdder();
+    private static final Gauge numTxnOpSuccessGauge = Gauge.build()
+            .namespace("pulsar")
+            .subsystem("perf_consumer")
+            .name("total_txn_op_success")
+            .help("-")
+            .register();
     private static final LongAdder numTxnOpSuccess = new LongAdder();
 
     private static final long MAX_LATENCY = TimeUnit.DAYS.toMillis(10);
+
+    private static final double[] QUANTILES = {0.50, 0.75, 0.95, 0.99, 0.999, 1};
+
+    private static final Summary consumerE2ELatency = Summary.build()
+            .namespace("pulsar")
+            .subsystem("perf_consumer")
+            .name("consumer_e2e_latency")
+            .labelNames("consumer", "subscription", "topic")
+            .quantile(0.75, 0.01D)
+            .quantile(0.95, 0.01D)
+            .quantile(0.99, 0.01D)
+            .unit("ms")
+            .help("-")
+            .register();
+
     private static final Recorder recorder = new Recorder(MAX_LATENCY, 5);
+
+    private static final Summary cumulativeE2ELatency = Summary.build()
+            .namespace("pulsar")
+            .subsystem("perf_consumer")
+            .name("total_consumer_e2e_latency")
+            .quantile(0.75, 0.01D)
+            .quantile(0.95, 0.01D)
+            .quantile(0.99, 0.01D)
+            .unit("ms")
+            .help("-")
+            .register();
     private static final Recorder cumulativeRecorder = new Recorder(MAX_LATENCY, 5);
+
+    private static final Summary consumerQueueLength = Summary.build()
+            .namespace("pulsar")
+            .subsystem("perf_consumer")
+            .name("consumer_queue_length")
+            .labelNames("consumer", "subscription", "topic")
+            .quantile(0.75, 0.01D)
+            .quantile(0.95, 0.01D)
+            .quantile(0.99, 0.01D)
+            .help("-")
+            .register();
+    private static Recorder qRecorder;
 
     @Parameters(commandDescription = "Test pulsar consumer performance.")
     static class Arguments extends PerformanceTopicListArguments {
@@ -184,6 +310,12 @@ public class PerformanceConsumer {
         @Parameter(names = { "--histogram-file" }, description = "HdrHistogram output file")
         public String histogramFile = null;
 
+        @Parameter(names = { "--prometheus-metric-expose-port" },
+                description = "The http server port for expose performance consumer prometheus metrics."
+                        + "default not enabled. if config is enabled the metric can be "
+                        + "get via http://0.0.0.0:${port}/metrics")
+        public int prometheusMetricExposePort = -1;
+
         @Override
         public void fillArgumentsFromProperties(Properties prop) {
         }
@@ -213,6 +345,83 @@ public class PerformanceConsumer {
         }
     }
 
+    private static void recordReceiveMessages(Consumer<ByteBuffer> consumer, long size) {
+        String topic = consumer.getTopic();
+        String subscription = consumer.getSubscription();
+        String consumerName = consumer.getConsumerName();
+
+        messagesReceivedGauge.labels(consumerName, subscription, topic).inc();
+        messagesReceived.increment();
+
+        bytesReceivedGauge.labels(consumerName, subscription, topic).inc();
+        bytesReceived.add(size);
+
+        totalMessagesReceivedGauge.inc();
+        totalMessagesReceived.increment();
+
+        totalBytesReceivedGauge.inc(size);
+        totalBytesReceived.add(size);
+    }
+
+    private static void recordAckedMessage(Consumer<ByteBuffer> consumer) {
+        String topic = consumer.getTopic();
+        String subscription = consumer.getSubscription();
+        String consumerName = consumer.getConsumerName();
+
+        totalMessagesReceivedGauge.inc();
+        totalMessageAck.increment();
+
+        messageAckGauge.labels(consumerName, subscription, topic).inc();
+        messageAck.increment();
+    }
+
+    private static void recordAckedFailed() {
+        totalMessageAckFailedGauge.inc();
+        totalMessageAckFailed.increment();
+    }
+
+    private static void recordTxnOpenSuccess() {
+        totalNumTxnOpenSuccessGauge.inc();
+        totalNumTxnOpenSuccess.increment();
+    }
+
+    private static void recordTxnOpenFailed() {
+        totalNumTxnOpenFailGauge.inc();
+        totalNumTxnOpenFail.increment();
+    }
+
+    private static void recordTxnOpSuccess(Consumer<ByteBuffer> consumer) {
+        totalEndTxnOpSuccessNumGauge.inc();
+        totalEndTxnOpSuccessNum.increment();
+
+        numTxnOpSuccessGauge.inc();
+        numTxnOpSuccess.increment();
+    }
+
+    private static void recordTxnOpFailed(Consumer<ByteBuffer> consumer) {
+        totalEndTxnOpFailNumGauge.inc();
+        totalEndTxnOpFailNum.increment();
+    }
+
+    private static void recordLatency(Consumer<ByteBuffer> consumer, long latency) {
+        consumerE2ELatency
+                .labels(consumer.getConsumerName(), consumer.getSubscription(), consumer.getTopic())
+                .observe(latency);
+        recorder.recordValue(latency);
+
+        cumulativeE2ELatency.observe(latency);
+        cumulativeRecorder.recordValue(latency);
+    }
+
+    private static void recordQueueSize(Consumer<ByteBuffer> consumer, long size) {
+        if (qRecorder != null) {
+            consumerQueueLength
+                    .labels(consumer.getConsumerName(), consumer.getSubscription(), consumer.getTopic())
+                    .observe(size);
+            qRecorder.recordValue(size);
+        }
+    }
+
     public static void main(String[] args) throws Exception {
         final Arguments arguments = new Arguments();
         arguments.parseCLI("pulsar-perf consume", args);
@@ -223,7 +432,24 @@ public class PerformanceConsumer {
         ObjectWriter w = m.writerWithDefaultPrettyPrinter();
         log.info("Starting Pulsar performance consumer with config: {}", w.writeValueAsString(arguments));
 
-        final Recorder qRecorder = arguments.autoScaledReceiverQueueSize
+
+        Server server = null;
+
+        int serverPort = arguments.prometheusMetricExposePort;
+        if (serverPort != -1) {
+            server = new Server(serverPort);
+            ServletContextHandler context = new ServletContextHandler();
+            context.setContextPath("/");
+            server.setHandler(context);
+
+            context.addServlet(new ServletHolder(new MetricsServlet()), "/metrics");
+            log.info("Pulsar performance consumer metrics is expose at "
+                    + "http://0.0.0.0:{}/metrics", serverPort);
+
+            server.start();
+        }
+
+        qRecorder = arguments.autoScaledReceiverQueueSize
                 ? new Recorder(arguments.receiverQueueSize, 5) : null;
         final RateLimiter limiter = arguments.rate > 0 ? RateLimiter.create(arguments.rate) : null;
         long startTime = System.nanoTime();
@@ -261,14 +487,9 @@ public class PerformanceConsumer {
                         thread.interrupt();
                     }
                 }
-                if (qRecorder != null) {
-                    qRecorder.recordValue(((ConsumerBase<?>) consumer).getTotalIncomingMessages());
-                }
-                messagesReceived.increment();
-                bytesReceived.add(msg.size());
 
-                totalMessagesReceived.increment();
-                totalBytesReceived.add(msg.size());
+                recordQueueSize(consumer, ((ConsumerBase<?>) consumer).getTotalIncomingMessages());
+                recordReceiveMessages(consumer, msg.size());
 
                 if (arguments.numMessages > 0 && totalMessagesReceived.sum() >= arguments.numMessages) {
                     log.info("------------------- DONE -----------------------");
@@ -285,8 +506,7 @@ public class PerformanceConsumer {
                     if (latencyMillis >= MAX_LATENCY) {
                         latencyMillis = MAX_LATENCY;
                     }
-                    recorder.recordValue(latencyMillis);
-                    cumulativeRecorder.recordValue(latencyMillis);
+                    recordLatency(consumer, latencyMillis);
                 }
                 if (arguments.isEnableTransaction) {
                     try {
@@ -295,21 +515,19 @@ public class PerformanceConsumer {
                         log.error("Got error: ", e);
                     }
                     consumer.acknowledgeAsync(msg.getMessageId(), atomicReference.get()).thenRun(() -> {
-                        totalMessageAck.increment();
-                        messageAck.increment();
+                        recordAckedMessage(consumer);
                     }).exceptionally(throwable ->{
                         log.error("Ack message {} failed with exception", msg, throwable);
-                        totalMessageAckFailed.increment();
+                        recordAckedFailed();
                         return null;
                     });
                 } else {
                     consumer.acknowledgeAsync(msg).thenRun(()->{
-                        totalMessageAck.increment();
-                        messageAck.increment();
+                        recordAckedMessage(consumer);
                     }
                     ).exceptionally(throwable ->{
                                 log.error("Ack message {} failed with exception", msg, throwable);
-                                totalMessageAckFailed.increment();
+                                recordAckedFailed();
                                 return null;
                             }
                     );
@@ -326,12 +544,11 @@ public class PerformanceConsumer {
                                     if (log.isDebugEnabled()) {
                                         log.debug("Commit transaction {}", transaction.getTxnID());
                                     }
-                                    totalEndTxnOpSuccessNum.increment();
-                                    numTxnOpSuccess.increment();
+                                    recordTxnOpSuccess(consumer);
                                 })
                                 .exceptionally(exception -> {
                                     log.error("Commit transaction failed with exception : ", exception);
-                                    totalEndTxnOpFailNum.increment();
+                                    recordTxnOpFailed(consumer);
                                     return null;
                                 });
                     } else {
@@ -339,13 +556,12 @@ public class PerformanceConsumer {
                             if (log.isDebugEnabled()) {
                                 log.debug("Abort transaction {}", transaction.getTxnID());
                             }
-                            totalEndTxnOpSuccessNum.increment();
-                            numTxnOpSuccess.increment();
+                            recordTxnOpSuccess(consumer);
                         }).exceptionally(exception -> {
                             log.error("Abort transaction {} failed with exception",
                                     transaction.getTxnID().toString(),
                                     exception);
-                            totalEndTxnOpFailNum.increment();
+                            recordTxnOpFailed(consumer);
                             return null;
                         });
                     }
@@ -355,13 +571,13 @@ public class PerformanceConsumer {
                                     .withTransactionTimeout(arguments.transactionTimeout, TimeUnit.SECONDS)
                                     .build().get();
                             atomicReference.compareAndSet(transaction, newTransaction);
-                            totalNumTxnOpenSuccess.increment();
+                            recordTxnOpenSuccess();
                             messageAckedCount.set(0);
                             messageReceiveLimiter.release(arguments.numMessagesPerTransaction);
                             break;
                         } catch (Exception e) {
                             log.error("Failed to new transaction with exception:", e);
-                            totalNumTxnOpenFail.increment();
+                            recordTxnOpenFailed();
                         }
                     }
                 }
@@ -505,6 +721,10 @@ public class PerformanceConsumer {
 
             reportHistogram.reset();
             oldTime = now;
+        }
+
+        if (server != null) {
+            server.stop();
         }
 
         pulsarClient.close();
