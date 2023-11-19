@@ -611,26 +611,19 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
      */
     @Test
     public void testUpdateDynamicConfigurationWithZkWatch() throws Exception {
-        final int initValue = 30000;
-        pulsar.getConfiguration().setBrokerShutdownTimeoutMs(initValue);
+        pulsar.getConfiguration().setBrokerShutdownTimeoutMs(30000);
+        pulsar.getConfiguration().setBrokerShutdownMaxBundleUnloadPerMinute(0);
         // (1) try to update dynamic field
         final long shutdownTime = 10;
+        final int unloadPerMinute = 60;
         // update configuration
         admin.brokers().updateDynamicConfiguration("brokerShutdownTimeoutMs", Long.toString(shutdownTime));
-        // sleep incrementally as zk-watch notification is async and may take some time
-        for (int i = 0; i < 5; i++) {
-            if (pulsar.getConfiguration().getBrokerShutdownTimeoutMs() != initValue) {
-                Thread.sleep(50 + (i * 10));
-            }
-        }
-        // wait config to be updated
-        for (int i = 0; i < 5; i++) {
-            if (pulsar.getConfiguration().getBrokerShutdownTimeoutMs() != shutdownTime) {
-                Thread.sleep(100 + (i * 10));
-            } else {
-                break;
-            }
-        }
+        admin.brokers().updateDynamicConfiguration("brokerShutdownMaxBundleUnloadPerMinute", Integer.toString(unloadPerMinute));
+
+        Awaitility.await().atMost(3, TimeUnit.SECONDS).until(() -> {
+            return pulsar.getConfiguration().getBrokerShutdownTimeoutMs() == shutdownTime
+                    && pulsar.getConfiguration().getBrokerShutdownMaxBundleUnloadPerMinute() == unloadPerMinute;
+        });
         // verify value is updated
         assertEquals(pulsar.getConfiguration().getBrokerShutdownTimeoutMs(), shutdownTime);
 

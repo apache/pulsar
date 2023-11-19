@@ -795,7 +795,8 @@ public class BrokerService implements Closeable {
             log.info("Shutting down Pulsar Broker service");
 
             // unloads all namespaces gracefully without disrupting mutually
-            unloadNamespaceBundlesGracefully();
+            unloadNamespaceBundlesGracefully(
+                    pulsar.getConfiguration().getBrokerShutdownMaxBundleUnloadPerMinute(), true);
 
             // close replication clients
             replicationClients.forEach((cluster, client) -> {
@@ -954,9 +955,11 @@ public class BrokerService implements Closeable {
         unloadNamespaceBundlesGracefully(0, true);
     }
 
-    public void unloadNamespaceBundlesGracefully(int maxConcurrentUnload, boolean closeWithoutWaitingClientDisconnect) {
+    public void unloadNamespaceBundlesGracefully(
+            int maxConcurrentUnloadPreMinute, boolean closeWithoutWaitingClientDisconnect) {
         try {
-            log.info("Unloading namespace-bundles...");
+            log.info(String.format(
+                    "Unloading namespace-bundles, maxConcurrentUnloadPreMinute: %d", maxConcurrentUnloadPreMinute));
             // make broker-node unavailable from the cluster
             if (pulsar.getLoadManager() != null && pulsar.getLoadManager().get() != null) {
                 try {
@@ -972,10 +975,10 @@ public class BrokerService implements Closeable {
             Set<NamespaceBundle> serviceUnits =
                     pulsar.getNamespaceService() != null ? pulsar.getNamespaceService().getOwnedServiceUnits() : null;
             if (serviceUnits != null) {
-                try (RateLimiter rateLimiter = maxConcurrentUnload > 0 ? RateLimiter.builder()
+                try (RateLimiter rateLimiter = maxConcurrentUnloadPreMinute > 0 ? RateLimiter.builder()
                         .scheduledExecutorService(pulsar.getExecutor())
-                        .rateTime(1).timeUnit(TimeUnit.SECONDS)
-                        .permits(maxConcurrentUnload).build() : null) {
+                        .rateTime(1).timeUnit(TimeUnit.MINUTES)
+                        .permits(maxConcurrentUnloadPreMinute).build() : null) {
                     serviceUnits.forEach(su -> {
                         if (su != null) {
                             try {
