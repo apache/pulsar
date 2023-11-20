@@ -68,15 +68,22 @@ public class PulsarStateTest extends PulsarStandaloneTestSuite {
 
     @Test(groups = {"python_state", "state", "function", "python_function"})
     public void testPythonWordCountFunction() throws Exception {
+        String functionName = "test-wordcount-py-fn-" + randomName(8);
+        doTestPythonWordCountFunction(functionName);
+
+        // after a function is deleted, its state should be clean
+        // we just recreate and test the word count function again, and it should have same result
+        doTestPythonWordCountFunction(functionName);
+    }
+
+    private void doTestPythonWordCountFunction(String functionName) throws Exception {
         String inputTopicName = "test-wordcount-py-input-" + randomName(8);
         String outputTopicName = "test-wordcount-py-output-" + randomName(8);
-        String functionName = "test-wordcount-py-fn-" + randomName(8);
 
         final int numMessages = 10;
-
         // submit the exclamation function
         submitExclamationFunction(
-            Runtime.PYTHON, inputTopicName, outputTopicName, functionName);
+                Runtime.PYTHON, inputTopicName, outputTopicName, functionName);
 
         // get function info
         getFunctionInfoSuccess(functionName);
@@ -93,6 +100,9 @@ public class PulsarStateTest extends PulsarStandaloneTestSuite {
         for (int i = 0; i < numMessages; i++) {
             queryState(functionName, "message-" + i, 1);
         }
+
+        // test put state
+        putAndQueryState(functionName);
 
         // delete function
         deleteFunction(functionName);
@@ -446,6 +456,31 @@ public class PulsarStateTest extends PulsarStandaloneTestSuite {
             "--key", key
         );
         assertTrue(result.getStdout().contains("\"numberValue\": " + amount));
+    }
+
+    private void putAndQueryState(String functionName)
+            throws Exception {
+        String state = "{\"key\":\"test\",\"stringValue\":\"test value\"}";
+        container.execCmd(
+                PulsarCluster.ADMIN_SCRIPT,
+                "functions",
+                "putstate",
+                "--tenant", "public",
+                "--namespace", "default",
+                "--name", functionName,
+                "--state", state
+        );
+
+        ContainerExecResult result = container.execCmd(
+                PulsarCluster.ADMIN_SCRIPT,
+                "functions",
+                "querystate",
+                "--tenant", "public",
+                "--namespace", "default",
+                "--name", functionName,
+                "--key", "test"
+        );
+        assertTrue(result.getStdout().contains("\"stringValue\": \"test value\""));
     }
 
     private void publishAndConsumeMessages(String inputTopic,
