@@ -28,6 +28,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.ManagedCursor;
+import org.apache.commons.collections4.MapUtils;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.delayed.bucket.BookkeeperBucketSnapshotStorage;
@@ -87,7 +88,7 @@ public class BucketDelayedDeliveryTrackerFactory implements DelayedDeliveryTrack
      */
     public CompletableFuture<Void> cleanResidualSnapshots(ManagedCursor cursor) {
         Map<String, String> cursorProperties = cursor.getCursorProperties();
-        if (cursorProperties == null) {
+        if (MapUtils.isEmpty(cursorProperties)) {
             return CompletableFuture.completedFuture(null);
         }
         List<CompletableFuture<Void>> futures = new ArrayList<>();
