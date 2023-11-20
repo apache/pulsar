@@ -419,7 +419,7 @@ public class BrokerService implements Closeable {
         this.brokerEntryPayloadProcessors = BrokerEntryMetadataUtils.loadInterceptors(pulsar.getConfiguration()
                         .getBrokerEntryPayloadProcessors(), BrokerService.class.getClassLoader());
 
-        this.bundlesQuotas = new BundlesQuotas(pulsar.getLocalMetadataStore());
+        this.bundlesQuotas = new BundlesQuotas(pulsar);
     }
 
     public void addTopicEventListener(TopicEventsListener... listeners) {

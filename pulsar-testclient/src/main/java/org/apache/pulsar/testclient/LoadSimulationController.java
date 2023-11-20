@@ -19,6 +19,7 @@
 package org.apache.pulsar.testclient;
 
 import static org.apache.pulsar.broker.resources.LoadBalanceResources.BUNDLE_DATA_BASE_PATH;
+import static org.apache.pulsar.broker.resources.LoadBalanceResources.RESOURCE_QUOTA_BASE_PATH;
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParameterException;
@@ -61,7 +62,6 @@ import org.slf4j.LoggerFactory;
  */
 public class LoadSimulationController {
     private static final Logger log = LoggerFactory.getLogger(LoadSimulationController.class);
-    private static final String QUOTA_ROOT = "/loadbalance/resource-quota";
 
     // Input streams for each client to send commands through.
     private final DataInputStream[] inputStreams;
@@ -398,7 +398,7 @@ public class LoadSimulationController {
             for (int i = 0; i < clients.length; ++i) {
                 threadLocalMaps[i] = new HashMap<>();
             }
-            getResourceQuotas(QUOTA_ROOT, sourceZKClient, threadLocalMaps);
+            getResourceQuotas(RESOURCE_QUOTA_BASE_PATH, sourceZKClient, threadLocalMaps);
             final List<Future> futures = new ArrayList<>(clients.length);
             int i = 0;
             log.info("Copying...");
@@ -411,7 +411,7 @@ public class LoadSimulationController {
                         // Simulation will send messages in and out at about the same rate, so just make the rate the
                         // average of in and out.
 
-                        final int tenantStart = QUOTA_ROOT.length() + 1;
+                        final int tenantStart = RESOURCE_QUOTA_BASE_PATH.length() + 1;
                         final int clusterStart = bundle.indexOf('/', tenantStart) + 1;
                         final String sourceTenant = bundle.substring(tenantStart, clusterStart - 1);
                         final int namespaceStart = bundle.indexOf('/', clusterStart) + 1;
@@ -424,7 +424,7 @@ public class LoadSimulationController {
                         final String mangledNamespace = String.format("%s-%s", manglePrefix, namespace);
                         final BundleData bundleData = initializeBundleData(quota, arguments);
                         final String oldAPITargetPath = String.format(
-                                "/loadbalance/resource-quota/namespace/%s/%s/%s/0x00000000_0xffffffff", tenantName,
+                                "%s/namespace/%s/%s/%s/0x00000000_0xffffffff", BUNDLE_DATA_BASE_PATH, tenantName,
                                 cluster, mangledNamespace);
                         final String newAPITargetPath = String.format(
                                 "%s/%s/%s/%s/0x00000000_0xffffffff", BUNDLE_DATA_BASE_PATH, tenantName, cluster,
@@ -475,7 +475,7 @@ public class LoadSimulationController {
         for (int i = 0; i < clients.length; ++i) {
             threadLocalMaps[i] = new HashMap<>();
         }
-        getResourceQuotas(QUOTA_ROOT, zkClient, threadLocalMaps);
+        getResourceQuotas(RESOURCE_QUOTA_BASE_PATH, zkClient, threadLocalMaps);
         final List<Future> futures = new ArrayList<>(clients.length);
         int i = 0;
         log.info("Simulating...");
@@ -484,9 +484,9 @@ public class LoadSimulationController {
             futures.add(threadPool.submit(() -> {
                 for (final Map.Entry<String, ResourceQuota> entry : bundleToQuota.entrySet()) {
                     final String bundle = entry.getKey();
-                    final String newAPIPath = bundle.replace(QUOTA_ROOT, BUNDLE_DATA_BASE_PATH);
+                    final String newAPIPath = bundle.replace(RESOURCE_QUOTA_BASE_PATH, BUNDLE_DATA_BASE_PATH);
                     final ResourceQuota quota = entry.getValue();
-                    final int tenantStart = QUOTA_ROOT.length() + 1;
+                    final int tenantStart = RESOURCE_QUOTA_BASE_PATH.length() + 1;
                     final String topic = String.format("persistent://%s/t", bundle.substring(tenantStart));
                     final BundleData bundleData = initializeBundleData(quota, arguments);
                     // Put the bundle data in the new ZooKeeper.
