@@ -351,7 +351,6 @@ public class Consumer {
                    topicName, subscription, ackedCount, totalMessages, consumerId, avgMessagesPerEntry.get());
         }
         incrementUnackedMessages(unackedMessages);
-        final int finalUnackedMessages = unackedMessages;
         Future<Void> writeAndFlushPromise =
                 cnx.getCommandSender().sendMessagesToConsumer(consumerId, topicName, subscription, partitionIdx,
                         entries, batchSizes, batchIndexesAcks, redeliveryTracker, epoch);
@@ -362,9 +361,6 @@ public class Consumer {
                 msgOutCounter.add(totalMessages);
                 bytesOutCounter.add(totalBytes);
                 chunkedMessageRate.recordMultipleEvents(totalChunkedMessages, 0);
-                if (!(subscription instanceof PersistentSubscription)) {
-                    addAndGetUnAckedMsgs(this, -finalUnackedMessages);
-                }
             } else {
                 if (log.isDebugEnabled()) {
                     log.debug("[{}-{}] Sent messages to client fail by IO exception[{}], close the connection"
@@ -1092,7 +1088,7 @@ public class Consumer {
 
     private int addAndGetUnAckedMsgs(Consumer consumer, int ackedMessages) {
         int unackedMsgs = 0;
-        if (Subscription.isIndividualAckMode(subType)) {
+        if (Subscription.isIndividualAckMode(subType) && subscription instanceof PersistentSubscription) {
             subscription.addUnAckedMessages(ackedMessages);
             unackedMsgs = UNACKED_MESSAGES_UPDATER.addAndGet(consumer, ackedMessages);
         }
