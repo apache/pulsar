@@ -1014,6 +1014,13 @@ public class BrokerService implements Closeable {
                     final TopicPolicies topicPolicies = optionalTopicPolicies.orElse(null);
                     return topics.computeIfAbsent(topicName.toString(), (k) -> {
                         return loadOrCreatePersistentTopic(k, createIfMissing, properties, topicPolicies);
+                    }).thenCompose(optionalTopic -> {
+                        if (!optionalTopic.isPresent() && createIfMissing) {
+                            log.warn("[{}] Try to recreate the topic with createIfMissing=true "
+                                    + "but the returned topic is empty", topicName);
+                            return getTopic(topicName, createIfMissing, properties);
+                        }
+                        return CompletableFuture.completedFuture(optionalTopic);
                     });
                 });
             } else {
