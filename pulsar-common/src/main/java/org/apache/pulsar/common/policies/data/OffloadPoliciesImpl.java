@@ -350,7 +350,7 @@ public class OffloadPoliciesImpl implements Serializable, OffloadPolicies {
         for (Field f : CONFIGURATION_FIELDS) {
             try {
                 f.setAccessible(true);
-                if (f.getName() == "managedLedgerExtraConfigurations") {
+                if ("managedLedgerExtraConfigurations".equals(f.getName())) {
                     Map<String, String> extraConfig = (Map<String, String>) f.get(this);
                     extraConfig.forEach((key, value) -> {
                         setProperty(properties, EXTRA_CONFIG_PREFIX + key, value);
