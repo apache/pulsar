@@ -26,6 +26,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -35,6 +36,7 @@ import org.apache.pulsar.broker.delayed.bucket.BucketSnapshotStorage;
 import org.apache.pulsar.broker.service.persistent.PersistentDispatcherMultipleConsumers;
 import org.apache.pulsar.common.util.FutureUtil;
 
+@Slf4j
 public class BucketDelayedDeliveryTrackerFactory implements DelayedDeliveryTrackerFactory {
 
     BucketSnapshotStorage bucketSnapshotStorage;
@@ -85,6 +87,9 @@ public class BucketDelayedDeliveryTrackerFactory implements DelayedDeliveryTrack
      */
     public CompletableFuture<Void> cleanResidualSnapshots(ManagedCursor cursor) {
         Map<String, String> cursorProperties = cursor.getCursorProperties();
+        if (cursorProperties == null) {
+            return CompletableFuture.completedFuture(null);
+        }
         List<CompletableFuture<Void>> futures = new ArrayList<>();
         FutureUtil.Sequencer<Void> sequencer = FutureUtil.Sequencer.create();
         cursorProperties.forEach((k, v) -> {

@@ -20,10 +20,12 @@ package org.apache.pulsar.broker.service.persistent;
 
 import static org.apache.bookkeeper.mledger.impl.ManagedCursorImpl.CURSOR_INTERNAL_PROPERTY_PREFIX;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import com.google.common.collect.Multimap;
 import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -32,6 +34,7 @@ import lombok.Cleanup;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.LedgerHandle;
+import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.commons.lang3.mutable.MutableInt;
 import org.apache.pulsar.broker.BrokerTestUtil;
@@ -40,6 +43,7 @@ import org.apache.pulsar.broker.service.Dispatcher;
 import org.apache.pulsar.broker.stats.PrometheusMetricsTest;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsGenerator;
 import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
@@ -352,5 +356,35 @@ public class BucketDelayedDeliveryTest extends DelayedDeliveryTest {
                 // ignore it
             }
         }
+    }
+
+    @Test
+    public void testDeleteTopicIfCursorPropsEmpty() throws Exception {
+        final String topic = BrokerTestUtil.newUniqueName("persistent://my-property/my-ns/tp_");
+        final String subscriptionName = "s1";
+        // create a topic.
+        admin.topics().createNonPartitionedTopic(topic);
+        // create a subscription without props.
+        admin.topics().createSubscription(topic, subscriptionName, MessageId.earliest);
+        ManagedCursorImpl cursor = findCursor(topic, subscriptionName);
+        assertNotNull(cursor);
+        assertTrue(cursor.getProperties() == null || cursor.getProperties().isEmpty());
+        // Test topic deletion is successful.
+        admin.topics().delete(topic);
+    }
+
+
+    private ManagedCursorImpl findCursor(String topic, String subscriptionName) {
+        PersistentTopic persistentTopic =
+                (PersistentTopic) pulsar.getBrokerService().getTopic(topic, false).join().get();
+        Iterator<ManagedCursor> cursorIterator = persistentTopic.getManagedLedger().getCursors().iterator();
+        while (cursorIterator.hasNext()) {
+            ManagedCursor managedCursor = cursorIterator.next();
+            if (managedCursor == null || !managedCursor.getName().equals(subscriptionName)) {
+                continue;
+            }
+            return (ManagedCursorImpl) managedCursor;
+        }
+        return null;
     }
 }
