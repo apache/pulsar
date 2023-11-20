@@ -60,10 +60,7 @@ public interface StateStoreProvider extends AutoCloseable {
      * @param config the config to init the state store provider.
      * @throws Exception when failed to init the state store provider.
      */
-    default void init(Map<String, Object> config) throws Exception {
-        // for backwards compatibility
-        init(config, null);
-    }
+    default void init(Map<String, Object> config) throws Exception {}
 
     /**
      * Get the state store with the provided store name.
@@ -87,7 +84,7 @@ public interface StateStoreProvider extends AutoCloseable {
      * @param name the state store name
      * @throws Exception when failed to clean up the state store provider.
      */
-    default void cleanUp(String tenant, String namespace, String name) throws Exception{};
+    default void cleanUp(String tenant, String namespace, String name) throws Exception {}
 
     @Override
     void close();

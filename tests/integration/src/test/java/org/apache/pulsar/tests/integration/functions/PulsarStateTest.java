@@ -102,7 +102,13 @@ public class PulsarStateTest extends PulsarStandaloneTestSuite {
         }
 
         // test put state
-        putAndQueryState(functionName);
+        String state = "{\"key\":\"test-string\",\"stringValue\":\"test value\"}";
+        String expect = "\"stringValue\": \"test value\"";
+        putAndQueryState(functionName, "test-string", state, expect);
+
+        String numberState = "{\"key\":\"test-number\",\"numberValue\":20}";
+        String expectNumber = "\"numberValue\": 20";
+        putAndQueryState(functionName, "test-number", numberState, expectNumber);
 
         // delete function
         deleteFunction(functionName);
@@ -458,9 +464,8 @@ public class PulsarStateTest extends PulsarStandaloneTestSuite {
         assertTrue(result.getStdout().contains("\"numberValue\": " + amount));
     }
 
-    private void putAndQueryState(String functionName)
+    private void putAndQueryState(String functionName, String key, String state, String expect)
             throws Exception {
-        String state = "{\"key\":\"test\",\"stringValue\":\"test value\"}";
         container.execCmd(
                 PulsarCluster.ADMIN_SCRIPT,
                 "functions",
@@ -478,9 +483,9 @@ public class PulsarStateTest extends PulsarStandaloneTestSuite {
                 "--tenant", "public",
                 "--namespace", "default",
                 "--name", functionName,
-                "--key", "test"
+                "--key", key
         );
-        assertTrue(result.getStdout().contains("\"stringValue\": \"test value\""));
+        assertTrue(result.getStdout().contains(expect));
     }
 
     private void publishAndConsumeMessages(String inputTopic,

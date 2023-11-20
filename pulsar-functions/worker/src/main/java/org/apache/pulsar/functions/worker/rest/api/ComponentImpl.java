@@ -1200,9 +1200,6 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
                     functionName);
             throw new RestException(Status.BAD_REQUEST, "Path key doesn't match key in json");
         }
-        if (state.getStringValue() == null && state.getByteValue() == null) {
-            throw new RestException(Status.BAD_REQUEST, "Setting Counter values not supported in put state");
-        }
 
         // validate parameters
         try {
