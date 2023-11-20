@@ -25,6 +25,7 @@ import static org.testng.Assert.assertTrue;
 import com.google.common.collect.Multimap;
 import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -358,6 +359,9 @@ public class BucketDelayedDeliveryTest extends DelayedDeliveryTest {
         }
     }
 
+    /**
+     * see: https://github.com/apache/pulsar/pull/21595.
+     */
     @Test
     public void testDeleteTopicIfCursorPropsEmpty() throws Exception {
         final String topic = BrokerTestUtil.newUniqueName("persistent://my-property/my-ns/tp_");
@@ -366,11 +370,79 @@ public class BucketDelayedDeliveryTest extends DelayedDeliveryTest {
         admin.topics().createNonPartitionedTopic(topic);
         // create a subscription without props.
         admin.topics().createSubscription(topic, subscriptionName, MessageId.earliest);
+        pulsarClient.newConsumer().topic(topic).subscriptionName(subscriptionName).subscribe().close();
         ManagedCursorImpl cursor = findCursor(topic, subscriptionName);
         assertNotNull(cursor);
-        assertTrue(cursor.getProperties() == null || cursor.getProperties().isEmpty());
+        assertTrue(cursor.getCursorProperties() == null || cursor.getCursorProperties().isEmpty());
         // Test topic deletion is successful.
         admin.topics().delete(topic);
+    }
+
+    /**
+     * see: https://github.com/apache/pulsar/pull/21595.
+     */
+    @Test
+    public void testDeletePartitionedTopicIfCursorPropsEmpty() throws Exception {
+        final String topic = BrokerTestUtil.newUniqueName("persistent://my-property/my-ns/tp_");
+        final String subscriptionName = "s1";
+        // create a topic.
+        admin.topics().createPartitionedTopic(topic, 2);
+        // create a subscription without props.
+        admin.topics().createSubscription(topic, subscriptionName, MessageId.earliest);
+        ManagedCursorImpl cursor = findCursor(topic + "-partition-0", subscriptionName);
+        assertNotNull(cursor);
+        assertTrue(cursor.getCursorProperties() == null || cursor.getCursorProperties().isEmpty());
+        // Test topic deletion is successful.
+        admin.topics().deletePartitionedTopic(topic);
+    }
+
+    /**
+     * see: https://github.com/apache/pulsar/pull/21595.
+     */
+    @Test
+    public void testDeleteTopicIfCursorPropsNotEmpty() throws Exception {
+        final String topic = BrokerTestUtil.newUniqueName("persistent://my-property/my-ns/tp_");
+        final String subscriptionName = "s1";
+        // create a topic.
+        admin.topics().createNonPartitionedTopic(topic);
+        // create a subscription without props.
+        admin.topics().createSubscription(topic, subscriptionName, MessageId.earliest);
+        ManagedCursorImpl cursor = findCursor(topic, subscriptionName);
+        assertNotNull(cursor);
+        assertTrue(cursor.getCursorProperties() == null || cursor.getCursorProperties().isEmpty());
+        // Put a subscription prop.
+        Map<String,String> properties = new HashMap<>();
+        properties.put("ignore", "ignore");
+        admin.topics().updateSubscriptionProperties(topic, subscriptionName, properties);
+        assertTrue(cursor.getCursorProperties() != null && !cursor.getCursorProperties().isEmpty());
+        // Test topic deletion is successful.
+        admin.topics().delete(topic);
+    }
+
+    /**
+     * see: https://github.com/apache/pulsar/pull/21595.
+     */
+    @Test
+    public void testDeletePartitionedTopicIfCursorPropsNotEmpty() throws Exception {
+        final String topic = BrokerTestUtil.newUniqueName("persistent://my-property/my-ns/tp_");
+        final String subscriptionName = "s1";
+        // create a topic.
+        admin.topics().createPartitionedTopic(topic, 2);
+        pulsarClient.newProducer().topic(topic).create().close();
+        // create a subscription without props.
+        admin.topics().createSubscription(topic, subscriptionName, MessageId.earliest);
+        pulsarClient.newConsumer().topic(topic).subscriptionName(subscriptionName).subscribe().close();
+
+        ManagedCursorImpl cursor = findCursor(topic + "-partition-0", subscriptionName);
+        assertNotNull(cursor);
+        assertTrue(cursor.getCursorProperties() == null || cursor.getCursorProperties().isEmpty());
+        // Put a subscription prop.
+        Map<String,String> properties = new HashMap<>();
+        properties.put("ignore", "ignore");
+        admin.topics().updateSubscriptionProperties(topic, subscriptionName, properties);
+        assertTrue(cursor.getCursorProperties() != null && !cursor.getCursorProperties().isEmpty());
+        // Test topic deletion is successful.
+        admin.topics().deletePartitionedTopic(topic);
     }
 
 
