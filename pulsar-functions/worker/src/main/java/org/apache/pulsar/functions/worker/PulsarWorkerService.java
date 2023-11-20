@@ -420,12 +420,13 @@ public class PulsarWorkerService implements WorkerService {
 
             // create the state storage provider for accessing function state
             if (workerConfig.getStateStorageServiceUrl() != null) {
-                this.stateStoreProvider = (StateStoreProvider) Class.forName(workerConfig.getStateStorageProviderImplementation())
-                        .getConstructor().newInstance();
+                this.stateStoreProvider =
+                        (StateStoreProvider) Class.forName(workerConfig.getStateStorageProviderImplementation())
+                                .getConstructor().newInstance();
                 Map<String, Object> stateStoreProviderConfig = new HashMap<>();
                 stateStoreProviderConfig.put(StateStoreProvider.STATE_STORAGE_SERVICE_URL,
                         workerConfig.getStateStorageServiceUrl());
-                this.stateStoreProvider.init(stateStoreProviderConfig );
+                this.stateStoreProvider.init(stateStoreProviderConfig);
             }
 
             final String functionWebServiceUrl = StringUtils.isNotBlank(workerConfig.getFunctionWebServiceUrl())
