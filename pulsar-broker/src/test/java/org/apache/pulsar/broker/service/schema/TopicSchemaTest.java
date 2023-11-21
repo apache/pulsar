@@ -79,8 +79,10 @@ public class TopicSchemaTest extends ProducerConsumerBase {
         assertTrue(schemaList2 == null || schemaList2.isEmpty());
     }
 
-    @Test(dataProvider = "topicDomains")
-    public void testDeletePartitionedTopicWithoutSchema(TopicDomain topicDomain) throws Exception {
+    @Test
+    public void testDeletePartitionedTopicWithoutSchema() throws Exception {
+        // Non-persistent topic does not support partitioned topic now, so only write a test case for persistent topic.
+        TopicDomain topicDomain = TopicDomain.persistent;
         final String topic = BrokerTestUtil.newUniqueName(topicDomain.value() + "://public/default/tp");
         final String partition0 = topic + "-partition-0";
         final String partition1 = topic + "-partition-1";
