@@ -668,7 +668,7 @@ public class PersistentTopicsBase extends AdminResource {
                             }
                             if (deleteSchema) {
                                 return pulsar().getBrokerService()
-                                        .deleteSchemaStorage(topicName.getPartition(0).toString())
+                                        .deleteSchema(topicName).exceptionally(ex -> null)
                                         .thenCompose(unused ->
                                                 internalRemovePartitionsAuthenticationPoliciesAsync(numPartitions))
                                         .thenCompose(unused2 ->
