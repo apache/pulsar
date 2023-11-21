@@ -22,6 +22,7 @@ import static org.apache.pulsar.common.naming.SystemTopicNames.isSystemTopic;
 import static org.apache.pulsar.common.naming.SystemTopicNames.isTransactionCoordinatorAssign;
 import static org.apache.pulsar.common.naming.SystemTopicNames.isTransactionInternalName;
 import static org.apache.pulsar.common.naming.TopicName.PARTITIONED_TOPIC_SUFFIX;
+
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectReader;
 import com.github.zafarkhaja.semver.Version;
@@ -2882,26 +2883,45 @@ public class PersistentTopicsBase extends AdminResource {
                     throw new RestException(Status.METHOD_NOT_ALLOWED,
                         "Get message ID by timestamp on a non-persistent topic is not allowed");
                 }
-                ManagedLedger ledger = ((PersistentTopic) topic).getManagedLedger();
-                return ledger.asyncFindPosition(entry -> {
-                    try {
-                        long entryTimestamp = Commands.getEntryTimestamp(entry.getDataBuffer());
-                        return MessageImpl.isEntryPublishedEarlierThan(entryTimestamp, timestamp);
-                    } catch (Exception e) {
-                        log.error("[{}] Error deserializing message for message position find", topicName, e);
-                    } finally {
-                        entry.release();
-                    }
-                    return false;
-                }).thenApply(position -> {
-                    if (position == null) {
-                        return null;
-                    } else {
-                        return new MessageIdImpl(position.getLedgerId(), position.getEntryId(),
-                            topicName.getPartitionIndex());
-                    }
-                });
+                return ((PersistentTopic) topic).getTopicCompactionService().findEntryByPublishTime(timestamp)
+                    .thenCompose(compactedEntry -> {
+                            if (compactedEntry == null) {
+                                return findMessageIdByPublishTime(timestamp,
+                                    ((PersistentTopic) topic).getManagedLedger());
+                            } else {
+                                try {
+                                    return CompletableFuture.completedFuture(
+                                        new MessageIdImpl(compactedEntry.getLedgerId(),
+                                            compactedEntry.getEntryId(), topicName.getPartitionIndex()));
+                                } finally {
+                                    compactedEntry.release();
+                                }
+                            }
+                        });
             });
+    }
+
+    private CompletableFuture<MessageId> findMessageIdByPublishTime(long timestamp, ManagedLedger managedLedger) {
+        return managedLedger.asyncFindPosition(entry -> {
+            try {
+                long entryTimestamp = Commands.getEntryTimestamp(entry.getDataBuffer());
+                return MessageImpl.isEntryPublishedEarlierThan(entryTimestamp, timestamp);
+            } catch (Exception e) {
+                log.error("[{}] Error deserializing message for message position find",
+                    topicName,
+                    e);
+            } finally {
+                entry.release();
+            }
+            return false;
+        }).thenApply(position -> {
+            if (position == null) {
+                return null;
+            } else {
+                return new MessageIdImpl(position.getLedgerId(), position.getEntryId(),
+                    topicName.getPartitionIndex());
+            }
+        });
     }
 
     protected CompletableFuture<Response> internalPeekNthMessageAsync(String subName, int messagePosition,
