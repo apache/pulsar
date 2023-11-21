@@ -267,6 +267,45 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         Start, Connected, Failed, Connecting
     }
 
+    final class ServerCnxThrottleTracker extends ThrottleTracker {
+        private static final int PUBLISH_BUFFER_LIMITING_INDEX = 0;
+        private static final int PENDING_SEND_REQUESTS_EXCEEDED = 1;
+        private static final int BROKER_PUBLISH_RATE_EXCEEDED = 2;
+        private static final int RESOURCE_GROUP_RATE_EXCEEDED = 3;
+        public ServerCnxThrottleTracker() {
+            super(ServerCnx.this::ctx);
+        }
+
+        public void setPublishBufferLimiting(boolean enabled) {
+            changeFlag(PUBLISH_BUFFER_LIMITING_INDEX, enabled);
+        }
+
+        public boolean isPublishBufferLimiting() {
+            return getFlag(PUBLISH_BUFFER_LIMITING_INDEX);
+        }
+
+        public void setPendingSendRequestsExceeded(boolean enabled) {
+            changeFlag(PENDING_SEND_REQUESTS_EXCEEDED, enabled);
+        }
+
+        public boolean isPendingSendRequestsExceeded() {
+            return getFlag(PENDING_SEND_REQUESTS_EXCEEDED);
+        }
+
+        @Override
+        protected void changeAutoRead(boolean autoRead) {
+            super.changeAutoRead(autoRead);
+            if (autoRead) {
+                getBrokerService().resumedConnections(1);
+            } else {
+                getBrokerService().pausedConnections(1);
+            }
+        }
+    }
+
+    private final ServerCnxThrottleTracker throttleTracker = new ServerCnxThrottleTracker();
+
+
     public ServerCnx(PulsarService pulsar) {
         this(pulsar, null);
     }

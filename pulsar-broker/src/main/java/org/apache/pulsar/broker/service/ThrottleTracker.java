@@ -17,14 +17,21 @@ public class ThrottleTracker {
         this.ctxSupplier = ctxSupplier;
     }
 
-    public void setFlag(int index, boolean enabled) {
+    public boolean changeFlag(int index, boolean enabled) {
         if (flags.changeFlag(index, enabled)) {
             if (enabled) {
                 incrementThrottleCount();
             } else {
                 decrementThrottleCount();
             }
+            return true;
+        } else {
+            return false;
         }
+    }
+
+    public boolean getFlag(int index) {
+        return flags.getFlag(index);
     }
 
     public void throttleForNanos(long nanos) {
@@ -49,7 +56,7 @@ public class ThrottleTracker {
         }
     }
 
-    private void changeAutoRead(boolean autoRead) {
+    protected void changeAutoRead(boolean autoRead) {
         ChannelHandlerContext ctx = ctxSupplier.get();
         if (ctx != null) {
             ctx.channel().config().setAutoRead(autoRead);
