@@ -26,7 +26,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.commons.collections4.MapUtils;
 import org.apache.pulsar.broker.PulsarService;
@@ -37,7 +36,6 @@ import org.apache.pulsar.broker.delayed.bucket.BucketSnapshotStorage;
 import org.apache.pulsar.broker.service.persistent.PersistentDispatcherMultipleConsumers;
 import org.apache.pulsar.common.util.FutureUtil;
 
-@Slf4j
 public class BucketDelayedDeliveryTrackerFactory implements DelayedDeliveryTrackerFactory {
 
     BucketSnapshotStorage bucketSnapshotStorage;

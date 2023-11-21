@@ -52,6 +52,7 @@ import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker")
@@ -359,18 +360,29 @@ public class BucketDelayedDeliveryTest extends DelayedDeliveryTest {
         }
     }
 
+    @DataProvider(name = "subscriptionTypes")
+    public Object[][] subscriptionTypes() {
+        return new Object[][]{
+                {SubscriptionType.Shared},
+                {SubscriptionType.Key_Shared},
+                {SubscriptionType.Failover},
+                {SubscriptionType.Exclusive},
+        };
+    }
+
     /**
      * see: https://github.com/apache/pulsar/pull/21595.
      */
-    @Test
-    public void testDeleteTopicIfCursorPropsEmpty() throws Exception {
+    @Test(dataProvider = "subscriptionTypes")
+    public void testDeleteTopicIfCursorPropsEmpty(SubscriptionType subscriptionType) throws Exception {
         final String topic = BrokerTestUtil.newUniqueName("persistent://my-property/my-ns/tp_");
         final String subscriptionName = "s1";
         // create a topic.
         admin.topics().createNonPartitionedTopic(topic);
         // create a subscription without props.
         admin.topics().createSubscription(topic, subscriptionName, MessageId.earliest);
-        pulsarClient.newConsumer().topic(topic).subscriptionName(subscriptionName).subscribe().close();
+        pulsarClient.newConsumer().topic(topic).subscriptionName(subscriptionName)
+                .subscriptionType(subscriptionType).subscribe().close();
         ManagedCursorImpl cursor = findCursor(topic, subscriptionName);
         assertNotNull(cursor);
         assertTrue(cursor.getCursorProperties() == null || cursor.getCursorProperties().isEmpty());
@@ -381,14 +393,16 @@ public class BucketDelayedDeliveryTest extends DelayedDeliveryTest {
     /**
      * see: https://github.com/apache/pulsar/pull/21595.
      */
-    @Test
-    public void testDeletePartitionedTopicIfCursorPropsEmpty() throws Exception {
+    @Test(dataProvider = "subscriptionTypes")
+    public void testDeletePartitionedTopicIfCursorPropsEmpty(SubscriptionType subscriptionType) throws Exception {
         final String topic = BrokerTestUtil.newUniqueName("persistent://my-property/my-ns/tp_");
         final String subscriptionName = "s1";
         // create a topic.
         admin.topics().createPartitionedTopic(topic, 2);
         // create a subscription without props.
         admin.topics().createSubscription(topic, subscriptionName, MessageId.earliest);
+        pulsarClient.newConsumer().topic(topic).subscriptionName(subscriptionName)
+                .subscriptionType(subscriptionType).subscribe().close();
         ManagedCursorImpl cursor = findCursor(topic + "-partition-0", subscriptionName);
         assertNotNull(cursor);
         assertTrue(cursor.getCursorProperties() == null || cursor.getCursorProperties().isEmpty());
@@ -399,14 +413,16 @@ public class BucketDelayedDeliveryTest extends DelayedDeliveryTest {
     /**
      * see: https://github.com/apache/pulsar/pull/21595.
      */
-    @Test
-    public void testDeleteTopicIfCursorPropsNotEmpty() throws Exception {
+    @Test(dataProvider = "subscriptionTypes")
+    public void testDeleteTopicIfCursorPropsNotEmpty(SubscriptionType subscriptionType) throws Exception {
         final String topic = BrokerTestUtil.newUniqueName("persistent://my-property/my-ns/tp_");
         final String subscriptionName = "s1";
         // create a topic.
         admin.topics().createNonPartitionedTopic(topic);
         // create a subscription without props.
         admin.topics().createSubscription(topic, subscriptionName, MessageId.earliest);
+        pulsarClient.newConsumer().topic(topic).subscriptionName(subscriptionName)
+                .subscriptionType(subscriptionType).subscribe().close();
         ManagedCursorImpl cursor = findCursor(topic, subscriptionName);
         assertNotNull(cursor);
         assertTrue(cursor.getCursorProperties() == null || cursor.getCursorProperties().isEmpty());
@@ -422,8 +438,8 @@ public class BucketDelayedDeliveryTest extends DelayedDeliveryTest {
     /**
      * see: https://github.com/apache/pulsar/pull/21595.
      */
-    @Test
-    public void testDeletePartitionedTopicIfCursorPropsNotEmpty() throws Exception {
+    @Test(dataProvider = "subscriptionTypes")
+    public void testDeletePartitionedTopicIfCursorPropsNotEmpty(SubscriptionType subscriptionType) throws Exception {
         final String topic = BrokerTestUtil.newUniqueName("persistent://my-property/my-ns/tp_");
         final String subscriptionName = "s1";
         // create a topic.
@@ -431,7 +447,8 @@ public class BucketDelayedDeliveryTest extends DelayedDeliveryTest {
         pulsarClient.newProducer().topic(topic).create().close();
         // create a subscription without props.
         admin.topics().createSubscription(topic, subscriptionName, MessageId.earliest);
-        pulsarClient.newConsumer().topic(topic).subscriptionName(subscriptionName).subscribe().close();
+        pulsarClient.newConsumer().topic(topic).subscriptionName(subscriptionName)
+                .subscriptionType(subscriptionType).subscribe().close();
 
         ManagedCursorImpl cursor = findCursor(topic + "-partition-0", subscriptionName);
         assertNotNull(cursor);
