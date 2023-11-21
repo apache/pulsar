@@ -3514,7 +3514,7 @@ public class BrokerService implements Closeable {
                 .deleteTopicPoliciesAsync(TopicName.get(topicName.getPartitionedTopicName()));
     }
 
-    CompletableFuture<SchemaVersion> deleteSchema(TopicName topicName) {
+    public CompletableFuture<SchemaVersion> deleteSchema(TopicName topicName) {
         String base = topicName.getPartitionedTopicName();
         String id = TopicName.get(base).getSchemaName();
         SchemaRegistryService schemaRegistryService = getPulsar().getSchemaRegistryService();
