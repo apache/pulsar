@@ -28,7 +28,6 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Properties;
@@ -222,8 +221,7 @@ public class OffloadPoliciesImpl implements Serializable, OffloadPolicies {
 
     public static OffloadPoliciesImpl create(Properties properties) {
         OffloadPoliciesImpl data = new OffloadPoliciesImpl();
-        Field[] fields = OffloadPoliciesImpl.class.getDeclaredFields();
-        Arrays.stream(fields).forEach(f -> {
+        for (Field f : CONFIGURATION_FIELDS) {
             if (properties.containsKey(f.getName())) {
                 try {
                     f.setAccessible(true);
@@ -234,7 +232,7 @@ public class OffloadPoliciesImpl implements Serializable, OffloadPolicies {
                                     f.getName(), properties.get(f.getName())), e);
                 }
             }
-        });
+        }
         data.compatibleWithBrokerConfigFile(properties);
         return data;
     }
@@ -311,62 +309,14 @@ public class OffloadPoliciesImpl implements Serializable, OffloadPolicies {
 
     public Properties toProperties() {
         Properties properties = new Properties();
-        setProperty(properties, "managedLedgerOffloadedReadPriority", this.getManagedLedgerOffloadedReadPriority());
-        setProperty(properties, "offloadersDirectory", this.getOffloadersDirectory());
-        setProperty(properties, "managedLedgerOffloadDriver", this.getManagedLedgerOffloadDriver());
-        setProperty(properties, "managedLedgerOffloadMaxThreads",
-                this.getManagedLedgerOffloadMaxThreads());
-        setProperty(properties, "managedLedgerOffloadPrefetchRounds",
-                this.getManagedLedgerOffloadPrefetchRounds());
-        setProperty(properties, "managedLedgerOffloadThresholdInBytes",
-                this.getManagedLedgerOffloadThresholdInBytes());
-        setProperty(properties, "managedLedgerOffloadDeletionLagInMillis",
-                this.getManagedLedgerOffloadDeletionLagInMillis());
-
-        if (this.isS3Driver()) {
-            setProperty(properties, "s3ManagedLedgerOffloadRegion",
-                    this.getS3ManagedLedgerOffloadRegion());
-            setProperty(properties, "s3ManagedLedgerOffloadBucket",
-                    this.getS3ManagedLedgerOffloadBucket());
-            setProperty(properties, "s3ManagedLedgerOffloadServiceEndpoint",
-                    this.getS3ManagedLedgerOffloadServiceEndpoint());
-            setProperty(properties, "s3ManagedLedgerOffloadMaxBlockSizeInBytes",
-                    this.getS3ManagedLedgerOffloadMaxBlockSizeInBytes());
-            setProperty(properties, "s3ManagedLedgerOffloadCredentialId",
-                    this.getS3ManagedLedgerOffloadCredentialId());
-            setProperty(properties, "s3ManagedLedgerOffloadCredentialSecret",
-                    this.getS3ManagedLedgerOffloadCredentialSecret());
-            setProperty(properties, "s3ManagedLedgerOffloadRole",
-                    this.getS3ManagedLedgerOffloadRole());
-            setProperty(properties, "s3ManagedLedgerOffloadRoleSessionName",
-                    this.getS3ManagedLedgerOffloadRoleSessionName());
-            setProperty(properties, "s3ManagedLedgerOffloadReadBufferSizeInBytes",
-                    this.getS3ManagedLedgerOffloadReadBufferSizeInBytes());
-        } else if (this.isGcsDriver()) {
-            setProperty(properties, "gcsManagedLedgerOffloadRegion",
-                    this.getGcsManagedLedgerOffloadRegion());
-            setProperty(properties, "gcsManagedLedgerOffloadBucket",
-                    this.getGcsManagedLedgerOffloadBucket());
-            setProperty(properties, "gcsManagedLedgerOffloadMaxBlockSizeInBytes",
-                    this.getGcsManagedLedgerOffloadMaxBlockSizeInBytes());
-            setProperty(properties, "gcsManagedLedgerOffloadReadBufferSizeInBytes",
-                    this.getGcsManagedLedgerOffloadReadBufferSizeInBytes());
-            setProperty(properties, "gcsManagedLedgerOffloadServiceAccountKeyFile",
-                    this.getGcsManagedLedgerOffloadServiceAccountKeyFile());
-        } else if (this.isFileSystemDriver()) {
-            setProperty(properties, "fileSystemProfilePath", this.getFileSystemProfilePath());
-            setProperty(properties, "fileSystemURI", this.getFileSystemURI());
+        for (Field f : CONFIGURATION_FIELDS) {
+            try {
+                f.setAccessible(true);
+                setProperty(properties, f.getName(), f.get(this));
+            } catch (Exception e) {
+                throw new IllegalArgumentException("An error occurred while processing the field: " + f.getName(), e);
+            }
         }
-
-        setProperty(properties, "managedLedgerOffloadBucket", this.getManagedLedgerOffloadBucket());
-        setProperty(properties, "managedLedgerOffloadRegion", this.getManagedLedgerOffloadRegion());
-        setProperty(properties, "managedLedgerOffloadServiceEndpoint",
-                this.getManagedLedgerOffloadServiceEndpoint());
-        setProperty(properties, "managedLedgerOffloadMaxBlockSizeInBytes",
-                this.getManagedLedgerOffloadMaxBlockSizeInBytes());
-        setProperty(properties, "managedLedgerOffloadReadBufferSizeInBytes",
-                this.getManagedLedgerOffloadReadBufferSizeInBytes());
-
         return properties;
     }
 
