@@ -217,8 +217,8 @@ public class PersistentStreamingDispatcherSingleActiveConsumer extends Persisten
                 havePendingRead = true;
 
                 if (consumer.readCompacted()) {
-                    topic.getCompactedTopic().asyncReadEntriesOrWait(cursor, messagesToRead, bytesToRead, isFirstRead,
-                            this, consumer);
+                    topic.getCompactedTopic().asyncReadEntriesOrWait(cursor, messagesToRead, bytesToRead,
+                        PositionImpl.LATEST, isFirstRead, this, consumer);
                 } else {
                     streamingEntryReader.asyncReadEntries(messagesToRead, bytesToRead, consumer);
                 }
