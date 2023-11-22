@@ -60,8 +60,6 @@ public class TopicAutoCreationTest extends ProducerConsumerBase {
         conf.setAllowAutoTopicCreation(true);
         conf.setDefaultNumPartitions(3);
         conf.setForceDeleteNamespaceAllowed(true);
-        conf.setSystemTopicEnabled(true);
-        conf.setTopicLevelPoliciesEnabled(true);
         super.internalSetup();
         super.producerBaseSetup();
     }
