@@ -56,6 +56,7 @@ import org.apache.pulsar.broker.service.BrokerServiceException.TopicFencedExcept
 import org.apache.pulsar.broker.service.BrokerServiceException.UnsupportedVersionException;
 import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.Dispatcher;
+import org.apache.pulsar.broker.service.GetStatsOptions;
 import org.apache.pulsar.broker.service.Producer;
 import org.apache.pulsar.broker.service.Replicator;
 import org.apache.pulsar.broker.service.StreamingStats;
@@ -87,6 +88,7 @@ import org.apache.pulsar.common.policies.data.stats.NonPersistentSubscriptionSta
 import org.apache.pulsar.common.policies.data.stats.NonPersistentTopicStatsImpl;
 import org.apache.pulsar.common.policies.data.stats.PublisherStatsImpl;
 import org.apache.pulsar.common.policies.data.stats.SubscriptionStatsImpl;
+import org.apache.pulsar.common.policies.data.stats.TopicStatsImpl;
 import org.apache.pulsar.common.protocol.schema.SchemaData;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -885,9 +887,26 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
     }
 
     @Override
+    public TopicStatsImpl getStats(GetStatsOptions getStatsOptions) {
+        try {
+            return asyncGetStats(getStatsOptions).get();
+        } catch (InterruptedException | ExecutionException e) {
+            log.error("[{}] Fail to get stats", topic, e);
+            return null;
+        }
+    }
+
+    @Override
     public CompletableFuture<NonPersistentTopicStatsImpl> asyncGetStats(boolean getPreciseBacklog,
                                                                         boolean subscriptionBacklogSize,
                                                                         boolean getEarliestTimeInBacklog) {
+        GetStatsOptions getStatsOptions = new GetStatsOptions(getPreciseBacklog, subscriptionBacklogSize,
+                getEarliestTimeInBacklog, false, false);
+        return (CompletableFuture<NonPersistentTopicStatsImpl>) asyncGetStats(getStatsOptions);
+    }
+
+    @Override
+    public CompletableFuture<? extends TopicStatsImpl> asyncGetStats(GetStatsOptions getStatsOptions) {
         CompletableFuture<NonPersistentTopicStatsImpl> future = new CompletableFuture<>();
         NonPersistentTopicStatsImpl stats = new NonPersistentTopicStatsImpl();
 
@@ -900,7 +919,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
 
             if (producer.isRemote()) {
                 remotePublishersStats.put(producer.getRemoteCluster(), publisherStats);
-            } else {
+            } else if (!getStatsOptions.isExcludePublishers()) {
                 stats.addPublisher(publisherStats);
             }
         });
@@ -913,7 +932,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
         stats.msgOutCounter = msgOutFromRemovedSubscriptions.longValue();
 
         subscriptions.forEach((name, subscription) -> {
-            NonPersistentSubscriptionStatsImpl subStats = subscription.getStats();
+            NonPersistentSubscriptionStatsImpl subStats = subscription.getStats(getStatsOptions);
 
             stats.msgRateOut += subStats.msgRateOut;
             stats.msgThroughputOut += subStats.msgThroughputOut;
@@ -1165,7 +1184,8 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
             NonPersistentSubscription sub = subscriptions.remove(subscriptionName);
             if (sub != null) {
                 // preserve accumulative stats form removed subscription
-                SubscriptionStatsImpl stats = sub.getStats();
+                GetStatsOptions getStatsOptions = new GetStatsOptions(false, false, false, false, false);
+                SubscriptionStatsImpl stats = sub.getStats(getStatsOptions);
                 bytesOutFromRemovedSubscriptions.add(stats.bytesOutCounter);
                 msgOutFromRemovedSubscriptions.add(stats.msgOutCounter);
             }
