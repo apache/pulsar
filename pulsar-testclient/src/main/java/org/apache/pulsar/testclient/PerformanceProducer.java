@@ -581,7 +581,11 @@ public class PerformanceProducer {
                             log.info("------------- DONE (reached the maximum duration: [{} seconds] of production) "
                                     + "--------------", arguments.testTime);
                             doneLatch.countDown();
-                            Thread.sleep(5000);
+                            try {
+                                Thread.sleep(5000);
+                            } catch (InterruptedException e) {
+                                // ignore this
+                            }
                             produceEnough = true;
                             break;
                         }
@@ -592,7 +596,11 @@ public class PerformanceProducer {
                             log.info("------------- DONE (reached the maximum number: {} of production) --------------"
                                     , numMessages);
                             doneLatch.countDown();
-                            Thread.sleep(5000);
+                            try {
+                                Thread.sleep(5000);
+                            } catch (InterruptedException e) {
+                                // ignore this
+                            }
                             produceEnough = true;
                             break;
                         }
