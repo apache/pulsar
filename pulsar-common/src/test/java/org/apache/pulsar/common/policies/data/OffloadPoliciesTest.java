@@ -305,4 +305,20 @@ public class OffloadPoliciesTest {
         Assert.assertNull(offloadPolicies.getS3ManagedLedgerOffloadRegion());
     }
 
+    /**
+     * Test toProperties as well as create from properties.
+     * @throws Exception
+     */
+    @Test
+    public void testToProperties() throws Exception {
+        // Base information convert.
+        OffloadPoliciesImpl offloadPolicies = OffloadPoliciesImpl.create("aws-s3", "test-region", "test-bucket",
+                "http://test.endpoint",null, null, null, null, 32 * 1024 * 1024, 5 * 1024 * 1024,
+                10 * 1024 * 1024L, 10000L, OffloadedReadPriority.TIERED_STORAGE_FIRST);
+        Assert.assertEquals(offloadPolicies, OffloadPoliciesImpl.create(offloadPolicies.toProperties()));
+
+        // Set useless config to offload policies. Make sure convert conversion result is the same.
+        offloadPolicies.setFileSystemProfilePath("/test/file");
+        Assert.assertEquals(offloadPolicies, OffloadPoliciesImpl.create(offloadPolicies.toProperties()));
+    }
 }
