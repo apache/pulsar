@@ -397,7 +397,7 @@ class InMemTransactionBuffer implements TransactionBuffer {
 
 
     @Override
-    public CompletableFuture<Void> checkIfTBRecoverCompletely(boolean isTxn) {
+    public CompletableFuture<Void> checkIfTBRecoverCompletely() {
         return CompletableFuture.completedFuture(null);
     }
 
