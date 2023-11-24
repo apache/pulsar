@@ -326,6 +326,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             if (autoRead) {
                 getBrokerService().resumedConnections(1);
             } else {
+                increasePublishLimitedTimesForTopics();
                 getBrokerService().pausedConnections(1);
             }
         }
@@ -3257,7 +3258,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         pendingBytesPerThread.get().incrementPublishBytes(msgSize, maxPendingBytesPerThread);
     }
 
-    private void recordRateLimitMetrics(ConcurrentLongHashMap<CompletableFuture<Producer>> producers) {
+    private void increasePublishLimitedTimesForTopics() {
         producers.forEach((key, producerFuture) -> {
             if (producerFuture != null && producerFuture.isDone()) {
                 Producer p = producerFuture.getNow(null);
