@@ -219,11 +219,7 @@ public interface Topic {
 
     void checkMessageDeduplicationInfo();
 
-    void checkTopicPublishThrottlingRate();
-
     void incrementPublishCount(int numOfMessages, long msgSizeInBytes);
-
-    boolean isResourceGroupRateLimitingEnabled();
 
     boolean shouldProducerMigrate();
 

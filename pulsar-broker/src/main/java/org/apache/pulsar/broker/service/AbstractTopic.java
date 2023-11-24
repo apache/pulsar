@@ -888,11 +888,6 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
             .register();
 
     @Override
-    public void checkTopicPublishThrottlingRate() {
-        this.topicPublishRateLimiter.calculateThrottlingPauseNanos();
-    }
-
-    @Override
     public void incrementPublishCount(int numOfMessages, long msgSizeInBytes) {
         // increase topic publish rate limiter
         this.topicPublishRateLimiter.incrementPublishCountAndThrottleWhenNeeded(numOfMessages, msgSizeInBytes, null);
@@ -1057,11 +1052,6 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
     }
 
 
-    @Override
-    public boolean isResourceGroupRateLimitingEnabled() {
-        return this.resourceGroupRateLimitingEnabled;
-    }
-
     public PublishRateLimiter getTopicPublishRateLimiter() {
         return topicPublishRateLimiter;
     }
@@ -1102,13 +1092,11 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
             if (resourceGroup != null) {
                 this.resourceGroupRateLimitingEnabled = true;
                 this.resourceGroupPublishLimiter = resourceGroup.getResourceGroupPublishLimiter();
-                this.resourceGroupPublishLimiter.registerRateLimitFunction(this.getName(), this::enableCnxAutoRead);
                 log.info("Using resource group {} rate limiter for topic {}", rgName, topic);
                 return;
             }
         } else {
             if (this.resourceGroupRateLimitingEnabled) {
-                this.resourceGroupPublishLimiter.unregisterRateLimitFunction(this.getName());
                 this.resourceGroupPublishLimiter = null;
                 this.resourceGroupRateLimitingEnabled = false;
             }

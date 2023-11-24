@@ -29,15 +29,13 @@ import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.PublishRate;
 import org.apache.pulsar.common.policies.data.ResourceGroup;
 
-public class ResourceGroupPublishLimiter implements PublishRateLimiter, RateLimitFunction, AutoCloseable  {
+public class ResourceGroupPublishLimiter implements PublishRateLimiter, AutoCloseable  {
     protected volatile long publishMaxMessageRate = 0;
     protected volatile long publishMaxByteRate = 0;
     protected volatile boolean publishThrottlingEnabled = false;
     private volatile RateLimiter publishRateLimiterOnMessage;
     private volatile RateLimiter publishRateLimiterOnByte;
     private final ScheduledExecutorService scheduledExecutorService;
-
-    ConcurrentHashMap<String, RateLimitFunction> rateLimitFunctionMap = new ConcurrentHashMap<>();
 
     public ResourceGroupPublishLimiter(ResourceGroup resourceGroup, ScheduledExecutorService scheduledExecutorService) {
         this.scheduledExecutorService = scheduledExecutorService;
@@ -123,14 +121,6 @@ public class ResourceGroupPublishLimiter implements PublishRateLimiter, RateLimi
         }
     }
 
-    public void registerRateLimitFunction(String name, RateLimitFunction func) {
-        rateLimitFunctionMap.put(name, func);
-    }
-
-    public void unregisterRateLimitFunction(String name) {
-        rateLimitFunctionMap.remove(name);
-    }
-
     private void replaceLimiters(Runnable updater) {
         RateLimiter previousPublishRateLimiterOnMessage = publishRateLimiterOnMessage;
         publishRateLimiterOnMessage = null;
@@ -171,10 +161,6 @@ public class ResourceGroupPublishLimiter implements PublishRateLimiter, RateLimi
             || (currentTopicPublishRateLimiterOnByte != null
                 && currentTopicPublishRateLimiterOnByte.getAvailablePermits() <= 0)) {
             return;
-        }
-
-        for (Map.Entry<String, RateLimitFunction> entry: rateLimitFunctionMap.entrySet()) {
-            entry.getValue().apply();
         }
     }
 }
