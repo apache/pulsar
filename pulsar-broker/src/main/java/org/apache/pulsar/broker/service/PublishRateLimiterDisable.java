@@ -25,11 +25,6 @@ import org.apache.pulsar.common.policies.data.PublishRate;
 public class PublishRateLimiterDisable implements PublishRateLimiter {
     public static final PublishRateLimiterDisable DISABLED_RATE_LIMITER = new PublishRateLimiterDisable();
 
-    @Override
-    public long calculateThrottlingPauseNanos() {
-        // No-op
-        return 0;
-    }
 
     @Override
     public void incrementPublishCountAndThrottleWhenNeeded(int numOfMessages, long msgSizeInBytes, LongConsumer throttlingPauseHandler) {
@@ -43,11 +38,6 @@ public class PublishRateLimiterDisable implements PublishRateLimiter {
 
     @Override
     public void update(PublishRate maxPublishRate) {
-        // No-op
-    }
-
-    @Override
-    public void close() {
         // No-op
     }
 }
