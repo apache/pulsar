@@ -61,7 +61,7 @@ public class PublishRateLimiterImpl implements PublishRateLimiter {
     }
 
     @Override
-    public void incrementPublishCount(int numOfMessages, long msgSizeInBytes, LongConsumer throttlingPauseHandler) {
+    public void incrementPublishCountAndThrottleWhenNeeded(int numOfMessages, long msgSizeInBytes, LongConsumer throttlingPauseHandler) {
         if (this.publishThrottlingEnabled) {
             this.currentPublishMsgCount.add(numOfMessages);
             this.currentPublishByteCount.add(msgSizeInBytes);

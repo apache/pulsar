@@ -109,7 +109,7 @@ public class PrecisePublishLimiter implements PublishRateLimiter {
     }
 
     @Override
-    public void incrementPublishCount(int numOfMessages, long msgSizeInBytes, LongConsumer throttlingPauseHandler) {
+    public void incrementPublishCountAndThrottleWhenNeeded(int numOfMessages, long msgSizeInBytes, LongConsumer throttlingPauseHandler) {
         RateLimiter currentTopicPublishRateLimiterOnMessage = topicPublishRateLimiterOnMessage;
         RateLimiter currentTopicPublishRateLimiterOnByte = topicPublishRateLimiterOnByte;
         if (currentTopicPublishRateLimiterOnMessage != null) {

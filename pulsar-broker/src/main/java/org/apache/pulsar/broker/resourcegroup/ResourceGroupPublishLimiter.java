@@ -121,7 +121,7 @@ public class ResourceGroupPublishLimiter implements PublishRateLimiter, RateLimi
     }
 
     @Override
-    public void incrementPublishCount(int numOfMessages, long msgSizeInBytes, LongConsumer throttlingPauseHandler) {
+    public void incrementPublishCountAndThrottleWhenNeeded(int numOfMessages, long msgSizeInBytes, LongConsumer throttlingPauseHandler) {
         if (publishRateLimiterOnMessage != null) {
             publishRateLimiterOnMessage.tryAcquire(numOfMessages);
         }

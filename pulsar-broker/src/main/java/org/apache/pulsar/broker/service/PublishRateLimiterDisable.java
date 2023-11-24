@@ -32,7 +32,7 @@ public class PublishRateLimiterDisable implements PublishRateLimiter {
     }
 
     @Override
-    public void incrementPublishCount(int numOfMessages, long msgSizeInBytes, LongConsumer throttlingPauseHandler) {
+    public void incrementPublishCountAndThrottleWhenNeeded(int numOfMessages, long msgSizeInBytes, LongConsumer throttlingPauseHandler) {
         // No-op
     }
 

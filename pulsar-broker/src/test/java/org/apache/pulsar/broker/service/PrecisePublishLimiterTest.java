@@ -32,9 +32,9 @@ public class PrecisePublishLimiterTest {
         PrecisePublishLimiter precisePublishLimiter = new PrecisePublishLimiter(new PublishRate(), () -> {
         });
         precisePublishLimiter.update(new PublishRate(1, 1));
-        assertFalse(precisePublishLimiter.incrementPublishCount(99, 99, null));
+        assertFalse(precisePublishLimiter.incrementPublishCountAndThrottleWhenNeeded(99, 99, null));
         precisePublishLimiter.update(new PublishRate(-1, 100));
-        assertTrue(precisePublishLimiter.incrementPublishCount(99, 99, null));
+        assertTrue(precisePublishLimiter.incrementPublishCountAndThrottleWhenNeeded(99, 99, null));
     }
 
     @Test
@@ -43,9 +43,9 @@ public class PrecisePublishLimiterTest {
         PrecisePublishLimiter precisePublishLimiter = new PrecisePublishLimiter(new PublishRate(), () -> {
         });
         precisePublishLimiter.update(new PublishRate(1, 1));
-        assertFalse(precisePublishLimiter.incrementPublishCount(99, 99, null));
+        assertFalse(precisePublishLimiter.incrementPublishCountAndThrottleWhenNeeded(99, 99, null));
         precisePublishLimiter.update(new PublishRate(100, -1));
-        assertTrue(precisePublishLimiter.incrementPublishCount(99, 99, null));
+        assertTrue(precisePublishLimiter.incrementPublishCountAndThrottleWhenNeeded(99, 99, null));
     }
 
     @Test
@@ -53,7 +53,7 @@ public class PrecisePublishLimiterTest {
         for (int i = 0; i < 20000; i++) {
             PrecisePublishLimiter precisePublishLimiter = new PrecisePublishLimiter(new PublishRate(100, 100), () -> {
             });
-            precisePublishLimiter.incrementPublishCount(99, 99, null);
+            precisePublishLimiter.incrementPublishCountAndThrottleWhenNeeded(99, 99, null);
             precisePublishLimiter.close();
         }
     }

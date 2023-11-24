@@ -32,7 +32,7 @@ public interface PublishRateLimiter {
      * @param msgSizeInBytes size of messages in bytes to publish
      * @param throttlingPauseHandler handler to call when throttling is needed for a duration of nanoseconds
      */
-    void incrementPublishCount(int numOfMessages, long msgSizeInBytes, LongConsumer throttlingPauseHandler);
+    void incrementPublishCountAndThrottleWhenNeeded(int numOfMessages, long msgSizeInBytes, LongConsumer throttlingPauseHandler);
 
     /**
      * updates rate-limiting threshold based on policies.
