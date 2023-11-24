@@ -3223,11 +3223,6 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             .help("Counter of connections throttled because of per-connection limit")
             .register();
 
-    private static final Gauge throttledConnectionsGlobal = Gauge.build()
-            .name("pulsar_broker_throttled_connections_global_limit")
-            .help("Counter of connections throttled because of per-connection limit")
-            .register();
-
     public void startSendOperation(Producer producer, int msgSize, int numMessages) {
         // TODO: this must be handled in the incrementPublishCount method
 //        boolean isPublishRateExceeded = false;
