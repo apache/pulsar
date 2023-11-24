@@ -45,7 +45,7 @@ public interface ConsumerStats extends Serializable {
     long getNumBytesReceived();
 
     /**
-     * @return Rate of bytes per second received in the last interval
+     * @return Rate of messages per second received in the last interval
      */
     double getRateMsgsReceived();
 
