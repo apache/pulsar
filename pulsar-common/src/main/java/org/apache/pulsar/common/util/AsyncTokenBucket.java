@@ -9,46 +9,43 @@ import java.util.function.LongSupplier;
  * An asynchronous token bucket algorithm implementation that is optimized for performance with highly concurrent
  * use. CAS (compare-and-swap) operations are used and multiple levels of CAS fields are used to minimize contention
  * when using CAS fields. The {@link LongAdder} class is used in the hot path to hold the sum of consumed tokens.
- *
- * Main usage flow:
+ * <p>Main usage flow:
  * 1. tokens are consumed by calling the "consumeTokens" method.
  * 2. the "calculatePauseNanos" method is called to calculate the duration of a possible needed pause when
  * the tokens are fully consumed.
- *
- * This class doesn't have side effects, it's like a stateful function, just like a counter function is a stateful
+ * <p>This class doesn't have side effects, it's like a stateful function, just like a counter function is a stateful
  * function. Indeed, it is just a sophisticated counter. It can be used as a building block for implementing higher
  * level asynchronous rate limiter implementations which do need side effects.
  */
 public class AsyncTokenBucket {
+
     private static final long ONE_SECOND_NANOS = TimeUnit.SECONDS.toNanos(1);
     private static final long DEFAULT_MINIMUM_INCREMENT_NANOS = TimeUnit.MILLISECONDS.toNanos(10);
-    private final long capacity;
-    private final long rate;
 
-    private final long ratePeriodNanos;
-    private final LongSupplier clockSource;
+    private static final AtomicLongFieldUpdater<AsyncTokenBucket> LAST_NANOS_UPDATER =
+            AtomicLongFieldUpdater.newUpdater(AsyncTokenBucket.class, "lastNanos");
 
-    private final long minIncrementNanos;
+    private static final AtomicLongFieldUpdater<AsyncTokenBucket> LAST_INCREMENT_UPDATER =
+            AtomicLongFieldUpdater.newUpdater(AsyncTokenBucket.class, "lastIncrement");
+
+    private static final AtomicLongFieldUpdater<AsyncTokenBucket> TOKENS_UPDATER =
+            AtomicLongFieldUpdater.newUpdater(AsyncTokenBucket.class, "tokens");
+
+    private static final AtomicLongFieldUpdater<AsyncTokenBucket> REMAINDER_NANOS_UPDATER =
+            AtomicLongFieldUpdater.newUpdater(AsyncTokenBucket.class, "remainderNanos");
+
+    // Atomically updated via updaters above
     private volatile long tokens;
     private volatile long lastNanos;
-
     private volatile long lastIncrement;
     private volatile long remainderNanos;
 
+    private final long capacity;
+    private final long rate;
+    private final long ratePeriodNanos;
+    private final long minIncrementNanos;
+    private final LongSupplier clockSource;
     private final LongAdder pendingConsumedTokens = new LongAdder();
-
-    private static final AtomicLongFieldUpdater<AsyncTokenBucket> LAST_NANOS_UPDATER = AtomicLongFieldUpdater.newUpdater(
-            AsyncTokenBucket.class, "lastNanos");
-
-    private static final AtomicLongFieldUpdater<AsyncTokenBucket> LAST_INCREMENT_UPDATER = AtomicLongFieldUpdater.newUpdater(
-            AsyncTokenBucket.class, "lastIncrement");
-    private static final AtomicLongFieldUpdater<AsyncTokenBucket> TOKENS_UPDATER = AtomicLongFieldUpdater.newUpdater(
-            AsyncTokenBucket.class, "tokens");
-
-    private static final AtomicLongFieldUpdater<AsyncTokenBucket> REMAINDER_NANOS_UPDATER =
-            AtomicLongFieldUpdater.newUpdater(
-                    AsyncTokenBucket.class, "remainderNanos");
-
 
     public AsyncTokenBucket(long capacity, long rate, LongSupplier clockSource) {
         this(capacity, rate, clockSource, ONE_SECOND_NANOS, DEFAULT_MINIMUM_INCREMENT_NANOS);

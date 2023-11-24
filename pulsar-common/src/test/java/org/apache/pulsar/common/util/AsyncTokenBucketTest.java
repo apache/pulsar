@@ -37,8 +37,18 @@ public class AsyncTokenBucketTest {
         assertEquals(50, asyncTokenBucket.tokens(true));
         incrementSeconds(1);
         assertEquals(60, asyncTokenBucket.tokens(true));
-        incrementSeconds(10);
+        incrementSeconds(4);
         assertEquals(100, asyncTokenBucket.tokens(true));
+
+        // No matter how long the period is, tokens do not go above capacity
+        incrementSeconds(5);
+        assertEquals(100, asyncTokenBucket.tokens(true));
+
+        // Consume all and verify none available and then wait 1 period and check replenished
+        asyncTokenBucket.consumeTokens(100);
+        assertEquals(0, asyncTokenBucket.tokens(true));
+        incrementSeconds(1);
+        assertEquals(10, asyncTokenBucket.tokens(true));
     }
 
     @Test
