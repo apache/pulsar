@@ -18,8 +18,9 @@
  */
 package org.apache.pulsar.security.tls.ec;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
+
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotNull;
 import java.nio.charset.StandardCharsets;
 import java.util.UUID;
 import lombok.Cleanup;
@@ -36,6 +37,7 @@ import org.apache.pulsar.client.impl.auth.AuthenticationTls;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
+
 
 @Test
 public class TlsWithECCertificateTest extends MockedPulsarStandalone {
