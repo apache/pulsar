@@ -183,6 +183,10 @@ import org.slf4j.LoggerFactory;
  * parameter instance lifecycle.
  */
 public class ServerCnx extends PulsarHandler implements TransportCnx {
+    private static final Gauge throttledConnections = Gauge.build()
+            .name("pulsar_broker_throttled_connections")
+            .help("Counter of connections throttled because of per-connection limit")
+            .register();
     private final BrokerService service;
     private final SchemaRegistryService schemaService;
     private final String listenerName;
@@ -225,11 +229,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     private final int maxMessageSize;
     private boolean preciseDispatcherFlowControl;
 
-    private boolean preciseTopicPublishRateLimitingEnable;
     private boolean encryptionRequireOnProducer;
 
-    // Flag to manage throttling-rate by atomically enable/disable read-channel.
-    private volatile boolean autoReadDisabledRateLimiting = false;
     private FeatureFlags features;
 
     private PulsarCommandSender commandSender;
@@ -238,24 +239,26 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     private static final KeySharedMeta emptyKeySharedMeta = new KeySharedMeta()
             .setKeySharedMode(KeySharedMode.AUTO_SPLIT);
 
-    // Flag to manage throttling-publish-buffer by atomically enable/disable read-channel.
-    private boolean autoReadDisabledPublishBufferLimiting = false;
     private final long maxPendingBytesPerThread;
     private final long resumeThresholdPendingBytesPerThread;
 
     private final long connectionLivenessCheckTimeoutMillis;
 
-    // Number of bytes pending to be published from a single specific IO thread.
-    private static final FastThreadLocal<PendingBytesPerThreadTracker> pendingBytesPerThread = new FastThreadLocal<>() {
-        @Override
-        protected PendingBytesPerThreadTracker initialValue() throws Exception {
-            return new PendingBytesPerThreadTracker();
-        }
-    };
-
+    // Tracks and limits number of bytes pending to be published from a single specific IO thread.
     final static class PendingBytesPerThreadTracker {
+        private static final FastThreadLocal<PendingBytesPerThreadTracker> pendingBytesPerThread = new FastThreadLocal<>() {
+            @Override
+            protected PendingBytesPerThreadTracker initialValue() throws Exception {
+                return new PendingBytesPerThreadTracker();
+            }
+        };
+
         private long pendingBytes;
         private boolean limitExceeded;
+
+        public static PendingBytesPerThreadTracker getInstance() {
+            return pendingBytesPerThread.get();
+        }
 
         public void incrementPublishBytes(long bytes, long maxPendingBytesPerThread) {
             pendingBytes += bytes;
@@ -277,7 +280,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
 
     // A set of connections tied to the current thread
-    private static final FastThreadLocal<Set<ServerCnx>> cnxsPerThread = new FastThreadLocal<Set<ServerCnx>>() {
+    private static final FastThreadLocal<Set<ServerCnx>> cnxsPerThread = new FastThreadLocal<>() {
         @Override
         protected Set<ServerCnx> initialValue() throws Exception {
             return Collections.newSetFromMap(new IdentityHashMap<>());
@@ -369,7 +372,6 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         this.maxPendingSendRequests = conf.getMaxPendingPublishRequestsPerConnection();
         this.resumeReadsThreshold = maxPendingSendRequests / 2;
         this.preciseDispatcherFlowControl = conf.isPreciseDispatcherFlowControl();
-        this.preciseTopicPublishRateLimitingEnable = conf.isPreciseTopicPublishRateLimiterEnable();
         this.encryptionRequireOnProducer = conf.isEncryptionRequireOnProducer();
         // Assign a portion of max-pending bytes to each IO thread
         this.maxPendingBytesPerThread = conf.getMaxMessagePublishBufferSizeInMB() * 1024L * 1024L
@@ -3218,16 +3220,11 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         return ctx.channel().isWritable();
     }
 
-    private static final Gauge throttledConnections = Gauge.build()
-            .name("pulsar_broker_throttled_connections")
-            .help("Counter of connections throttled because of per-connection limit")
-            .register();
-
     private void increasePendingSendRequestsAndPublishBytes(int msgSize) {
         if (++pendingSendRequest >= maxPendingSendRequests) {
             throttleTracker.setPendingSendRequestsExceeded(true);
         }
-        pendingBytesPerThread.get().incrementPublishBytes(msgSize, maxPendingBytesPerThread);
+        PendingBytesPerThreadTracker.getInstance().incrementPublishBytes(msgSize, maxPendingBytesPerThread);
     }
 
     private void increasePublishLimitedTimesForTopics() {
@@ -3243,7 +3240,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
     @Override
     public void completedSendOperation(boolean isNonPersistentTopic, int msgSize) {
-        pendingBytesPerThread.get().decrementPublishBytes(msgSize, resumeThresholdPendingBytesPerThread);
+        PendingBytesPerThreadTracker.getInstance().decrementPublishBytes(msgSize, resumeThresholdPendingBytesPerThread);
 
         if (--pendingSendRequest <= resumeReadsThreshold) {
             throttleTracker.setPendingSendRequestsExceeded(false);
@@ -3251,21 +3248,6 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
         if (isNonPersistentTopic) {
             nonPersistentPendingMessages--;
-        }
-    }
-
-    @Override
-    public void cancelPublishRateLimiting() {
-        if (autoReadDisabledRateLimiting) {
-            autoReadDisabledRateLimiting = false;
-        }
-    }
-
-    @Override
-    public void cancelPublishBufferLimiting() {
-        if (autoReadDisabledPublishBufferLimiting) {
-            autoReadDisabledPublishBufferLimiting = false;
-            throttledConnectionsGlobal.dec();
         }
     }
 
@@ -3417,11 +3399,6 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     @Override
     public String getProxyVersion() {
         return proxyVersion;
-    }
-
-    @VisibleForTesting
-    void setAutoReadDisabledRateLimiting(boolean isLimiting) {
-        this.autoReadDisabledRateLimiting = isLimiting;
     }
 
     @Override

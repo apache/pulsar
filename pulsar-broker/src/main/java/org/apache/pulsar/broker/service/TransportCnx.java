@@ -61,10 +61,6 @@ public interface TransportCnx {
     void closeProducer(Producer producer);
     void closeProducer(Producer producer, Optional<BrokerLookupData> assignedBrokerLookupData);
 
-    void cancelPublishRateLimiting();
-
-    void cancelPublishBufferLimiting();
-
     void execute(Runnable runnable);
 
     void removedConsumer(Consumer consumer);
