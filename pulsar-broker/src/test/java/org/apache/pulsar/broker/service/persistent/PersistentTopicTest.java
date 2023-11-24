@@ -631,7 +631,7 @@ public class PersistentTopicTest extends BrokerTestBase {
         doReturn(CompletableFuture.failedFuture(new RuntimeException())).when(persistentTopic).checkPersistencePolicies();
         policies.setRetentionPolicies(new RetentionPolicies(2, 2));
         persistentTopic.onUpdate(policies);
-        assertEquals(persistentTopic.getManagedLedger().getConfig().getRetentionSizeInMB(), 1L);
-        assertEquals(persistentTopic.getManagedLedger().getConfig().getRetentionTimeMillis(), TimeUnit.MINUTES.toMillis(1));
+        assertEquals(persistentTopic.getManagedLedger().getConfig().getRetentionSizeInMB(), 2L);
+        assertEquals(persistentTopic.getManagedLedger().getConfig().getRetentionTimeMillis(), TimeUnit.MINUTES.toMillis(2));
     }
 }
