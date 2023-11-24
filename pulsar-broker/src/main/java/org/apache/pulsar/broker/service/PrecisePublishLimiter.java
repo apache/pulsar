@@ -51,10 +51,6 @@ public class PrecisePublishLimiter implements PublishRateLimiter {
         this.scheduledExecutorService = scheduledExecutorService;
     }
 
-    @Override
-    public long calculateThrottlingPauseNanos() {
-        return 0;
-    }
 
     // If all rate limiters are not exceeded, re-enable auto read from socket.
     private void tryReleaseConnectionThrottle() {

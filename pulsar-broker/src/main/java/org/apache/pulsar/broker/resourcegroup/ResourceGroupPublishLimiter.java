@@ -46,11 +46,6 @@ public class ResourceGroupPublishLimiter implements PublishRateLimiter, RateLimi
         update(resourceGroup);
     }
 
-    @Override
-    public long calculateThrottlingPauseNanos() {
-        return 0;
-    }
-
 
     @Override
     public void update(Policies policies, String clusterName) {
