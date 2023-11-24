@@ -1859,7 +1859,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             }
         }
 
-        startSendOperation(producer, headersAndPayload.readableBytes(), send.getNumMessages());
+        increasePendingSendRequestsAndPublishBytes(headersAndPayload.readableBytes());
 
         if (send.hasTxnidMostBits() && send.hasTxnidLeastBits()) {
             TxnID txnID = new TxnID(send.getTxnidMostBits(), send.getTxnidLeastBits());
@@ -3223,33 +3223,10 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             .help("Counter of connections throttled because of per-connection limit")
             .register();
 
-    public void startSendOperation(Producer producer, int msgSize, int numMessages) {
-        // TODO: this must be handled in the incrementPublishCount method
-//        boolean isPublishRateExceeded = false;
-//        if (preciseTopicPublishRateLimitingEnable) {
-//            boolean isPreciseTopicPublishRateExceeded =
-//                    producer.getTopic().isTopicPublishRateExceeded(numMessages, msgSize);
-//            if (isPreciseTopicPublishRateExceeded) {
-//                producer.getTopic().disableCnxAutoRead();
-//                return;
-//            }
-//            isPublishRateExceeded = producer.getTopic().isBrokerPublishRateExceeded();
-//        } else {
-//            if (producer.getTopic().isResourceGroupRateLimitingEnabled()) {
-//                final boolean resourceGroupPublishRateExceeded =
-//                  producer.getTopic().isResourceGroupPublishRateExceeded(numMessages, msgSize);
-//                if (resourceGroupPublishRateExceeded) {
-//                    producer.getTopic().disableCnxAutoRead();
-//                    return;
-//                }
-//            }
-//            isPublishRateExceeded = producer.getTopic().isPublishRateExceeded();
-//        }
-
+    private void increasePendingSendRequestsAndPublishBytes(int msgSize) {
         if (++pendingSendRequest >= maxPendingSendRequests) {
             throttleTracker.setPendingSendRequestsExceeded(true);
         }
-
         pendingBytesPerThread.get().incrementPublishBytes(msgSize, maxPendingBytesPerThread);
     }
 
