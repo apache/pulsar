@@ -565,16 +565,6 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
         return null;
     }
 
-    @Override
-    public void disableCnxAutoRead() {
-        producers.values().forEach(producer -> producer.getCnx().disableCnxAutoRead());
-    }
-
-    @Override
-    public void enableCnxAutoRead() {
-        producers.values().forEach(producer -> producer.getCnx().enableCnxAutoRead());
-    }
-
     protected boolean hasLocalProducers() {
         if (producers.isEmpty()) {
             return false;
@@ -916,23 +906,6 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
     public void updateDispatchRateLimiter() {
     }
 
-    /**
-     * it sets cnx auto-readable if producer's cnx is disabled due to publish-throttling.
-     */
-    protected void enableProducerReadForPublishRateLimiting() {
-        if (producers != null) {
-            producers.values().forEach(producer -> {
-                producer.getCnx().cancelPublishRateLimiting();
-                producer.getCnx().enableCnxAutoRead();
-            });
-        }
-    }
-
-    protected void disableProducerRead() {
-        if (producers != null) {
-            producers.values().forEach(producer -> producer.getCnx().disableCnxAutoRead());
-        }
-    }
 
     protected void checkTopicFenced() throws BrokerServiceException {
         if (isFenced) {
@@ -1139,8 +1112,6 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
                 this.resourceGroupPublishLimiter = null;
                 this.resourceGroupRateLimitingEnabled = false;
             }
-            /* Namespace detached from resource group. Enable the producer read */
-            enableProducerReadForPublishRateLimiting();
         }
     }
 
@@ -1256,16 +1227,10 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
             PublishRate publishRate = topicPolicies.getPublishRate().get();
             if (publishRate.publishThrottlingRateInByte > 0 || publishRate.publishThrottlingRateInMsg > 0) {
                 log.info("Enabling publish rate limiting {} on topic {}", publishRate, getName());
-
                 if (this.topicPublishRateLimiter == null
                     || this.topicPublishRateLimiter == PublishRateLimiter.DISABLED_RATE_LIMITER) {
                     // create new rateLimiter if rate-limiter is disabled
-                    if (preciseTopicPublishRateLimitingEnable) {
-                        this.topicPublishRateLimiter = new PrecisePublishLimiter(publishRate,
-                            () -> this.enableCnxAutoRead(), brokerService.pulsar().getExecutor());
-                    } else {
-                        this.topicPublishRateLimiter = new PublishRateLimiterImpl(publishRate);
-                    }
+                    this.topicPublishRateLimiter = new PublishRateLimiterImpl(publishRate);
                 } else {
                     this.topicPublishRateLimiter.update(publishRate);
                 }
@@ -1273,11 +1238,7 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
                 if (log.isDebugEnabled()) {
                     log.debug("Disabling publish throttling for {}", this.topic);
                 }
-                if (topicPublishRateLimiter != null) {
-                    topicPublishRateLimiter.close();
-                }
                 this.topicPublishRateLimiter = PublishRateLimiter.DISABLED_RATE_LIMITER;
-                enableProducerReadForPublishRateLimiting();
             }
         }
     }

@@ -229,10 +229,6 @@ public interface Topic {
 
     boolean isReplicationBacklogExist();
 
-    void disableCnxAutoRead();
-
-    void enableCnxAutoRead();
-
     CompletableFuture<Void> onPoliciesUpdate(Policies data);
 
     CompletableFuture<Void> checkBacklogQuotaExceeded(String producerName, BacklogQuotaType backlogQuotaType);

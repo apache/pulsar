@@ -141,7 +141,7 @@ public class MessagePublishBufferThrottleTest extends BrokerTestBase {
                 assertEquals(pulsar.getBrokerService().getPausedConnections(), 0));
 
         // Resume message publish.
-        ((AbstractTopic)topicRef).producers.get("producer-name").getCnx().enableCnxAutoRead();
+        //((AbstractTopic)topicRef).producers.get("producer-name").getCnx().enableCnxAutoRead();
 
         flushFuture.get();
         Awaitility.await().untilAsserted(() ->

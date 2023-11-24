@@ -2730,7 +2730,6 @@ public class BrokerService implements Closeable {
         // not enable
         if (brokerTickMs <= 0 || (currentMaxByteRate <= 0 && currentMaxMessageRate <= 0)) {
             if (brokerPublishRateLimiter != PublishRateLimiter.DISABLED_RATE_LIMITER) {
-                refreshBrokerPublishRate();
                 brokerPublishRateLimiter = PublishRateLimiter.DISABLED_RATE_LIMITER;
             }
             return;

@@ -40,27 +40,6 @@ public class PublishRateLimiterImpl implements PublishRateLimiter {
     }
 
     @Override
-    public long calculateThrottlingPauseNanos() {
-//        if (this.publishThrottlingEnabled && !publishRateExceeded) {
-//            if (this.publishMaxByteRate > 0) {
-//                long currentPublishByteRate = this.currentPublishByteCount.sum();
-//                if (currentPublishByteRate > this.publishMaxByteRate) {
-//                    publishRateExceeded = true;
-//                    return;
-//                }
-//            }
-//
-//            if (this.publishMaxMessageRate > 0) {
-//                long currentPublishMsgRate = this.currentPublishMsgCount.sum();
-//                if (currentPublishMsgRate > this.publishMaxMessageRate) {
-//                    publishRateExceeded = true;
-//                }
-//            }
-//        }
-        return 0;
-    }
-
-    @Override
     public void incrementPublishCountAndThrottleWhenNeeded(int numOfMessages, long msgSizeInBytes, LongConsumer throttlingPauseHandler) {
         if (this.publishThrottlingEnabled) {
             this.currentPublishMsgCount.add(numOfMessages);
@@ -102,10 +81,5 @@ public class PublishRateLimiterImpl implements PublishRateLimiter {
             this.publishThrottlingEnabled = false;
         }
         resetPublishCount();
-    }
-
-    @Override
-    public void close() {
-        // no-op
     }
 }
