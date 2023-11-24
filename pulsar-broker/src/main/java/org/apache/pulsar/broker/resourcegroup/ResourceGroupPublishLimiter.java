@@ -28,8 +28,6 @@ import org.apache.pulsar.broker.service.PublishRateLimiter;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.PublishRate;
 import org.apache.pulsar.common.policies.data.ResourceGroup;
-import org.apache.pulsar.common.util.RateLimitFunction;
-import org.apache.pulsar.common.util.RateLimiter;
 
 public class ResourceGroupPublishLimiter implements PublishRateLimiter, RateLimitFunction, AutoCloseable  {
     protected volatile long publishMaxMessageRate = 0;

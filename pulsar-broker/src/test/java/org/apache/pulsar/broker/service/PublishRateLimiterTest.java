@@ -20,7 +20,6 @@ package org.apache.pulsar.broker.service;
 
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.PublishRate;
-import org.apache.pulsar.common.util.RateLimiter;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;

@@ -22,8 +22,6 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.LongConsumer;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.PublishRate;
-import org.apache.pulsar.common.util.RateLimitFunction;
-import org.apache.pulsar.common.util.RateLimiter;
 
 public class PrecisePublishLimiter implements PublishRateLimiter {
     protected volatile int publishMaxMessageRate = 0;
