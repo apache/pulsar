@@ -913,23 +913,7 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
         msgInCounter.add(numOfMessages);
     }
 
-    @Override
-    public void resetTopicPublishCountAndEnableReadIfRequired() {
-        // broker rate not exceeded. and completed topic limiter reset.
-        if (!getBrokerPublishRateLimiter().isPublishRateExceeded() && topicPublishRateLimiter.resetPublishCount()) {
-            enableProducerReadForPublishRateLimiting();
-        }
-    }
-
     public void updateDispatchRateLimiter() {
-    }
-
-    @Override
-    public void resetBrokerPublishCountAndEnableReadIfRequired(boolean doneBrokerReset) {
-        // topic rate not exceeded, and completed broker limiter reset.
-        if (!topicPublishRateLimiter.isPublishRateExceeded() && doneBrokerReset) {
-            enableProducerReadForPublishRateLimiting();
-        }
     }
 
     /**
@@ -1099,35 +1083,10 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
         return usageCount;
     }
 
-    @Override
-    public boolean isPublishRateExceeded() {
-        // either topic or broker publish rate exceeded.
-        return this.topicPublishRateLimiter.isPublishRateExceeded()
-                || getBrokerPublishRateLimiter().isPublishRateExceeded();
-    }
-
-    @Override
-    public boolean isResourceGroupPublishRateExceeded(int numMessages, int bytes) {
-        return this.resourceGroupRateLimitingEnabled
-            && !this.resourceGroupPublishLimiter.incrementPublishCountAndThrottleWhenNeeded(numMessages, bytes, null);
-    }
 
     @Override
     public boolean isResourceGroupRateLimitingEnabled() {
         return this.resourceGroupRateLimitingEnabled;
-    }
-
-    @Override
-    public boolean isTopicPublishRateExceeded(int numberMessages, int bytes) {
-        // whether topic publish rate exceed if precise rate limit is enable
-        return preciseTopicPublishRateLimitingEnable && !this.topicPublishRateLimiter.incrementPublishCountAndThrottleWhenNeeded(numberMessages, bytes,
-                null);
-    }
-
-    @Override
-    public boolean isBrokerPublishRateExceeded() {
-        // whether broker publish rate exceed
-        return  getBrokerPublishRateLimiter().isPublishRateExceeded();
     }
 
     public PublishRateLimiter getTopicPublishRateLimiter() {

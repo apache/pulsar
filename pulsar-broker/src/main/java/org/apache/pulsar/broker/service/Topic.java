@@ -223,19 +223,7 @@ public interface Topic {
 
     void incrementPublishCount(int numOfMessages, long msgSizeInBytes);
 
-    void resetTopicPublishCountAndEnableReadIfRequired();
-
-    void resetBrokerPublishCountAndEnableReadIfRequired(boolean doneReset);
-
-    boolean isPublishRateExceeded();
-
-    boolean isTopicPublishRateExceeded(int msgSize, int numMessages);
-
     boolean isResourceGroupRateLimitingEnabled();
-
-    boolean isResourceGroupPublishRateExceeded(int msgSize, int numMessages);
-
-    boolean isBrokerPublishRateExceeded();
 
     boolean shouldProducerMigrate();
 

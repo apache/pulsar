@@ -2048,21 +2048,6 @@ public class BrokerService implements Closeable {
         forEachTopic(Topic::checkTopicPublishThrottlingRate);
     }
 
-    private void refreshTopicPublishRate() {
-        forEachTopic(Topic::resetTopicPublishCountAndEnableReadIfRequired);
-    }
-
-    public void checkBrokerPublishThrottlingRate() {
-        brokerPublishRateLimiter.calculateThrottlingPauseNanos();
-        if (brokerPublishRateLimiter.isPublishRateExceeded()) {
-            forEachTopic(topic -> ((AbstractTopic) topic).disableProducerRead());
-        }
-    }
-
-    private void refreshBrokerPublishRate() {
-        boolean doneReset = brokerPublishRateLimiter.resetPublishCount();
-        forEachTopic(topic -> topic.resetBrokerPublishCountAndEnableReadIfRequired(doneReset));
-    }
 
     /**
      * Iterates over all loaded topics in the broker.
