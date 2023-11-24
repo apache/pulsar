@@ -18,32 +18,22 @@
  */
 package org.apache.pulsar.broker.service;
 
+import java.util.function.LongConsumer;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.PublishRate;
 
 public class PublishRateLimiterDisable implements PublishRateLimiter {
-
     public static final PublishRateLimiterDisable DISABLED_RATE_LIMITER = new PublishRateLimiterDisable();
 
     @Override
-    public void checkPublishRate() {
+    public long calculateThrottlingPauseNanos() {
         // No-op
+        return 0;
     }
 
     @Override
-    public void incrementPublishCount(int numOfMessages, long msgSizeInBytes) {
+    public void incrementPublishCount(int numOfMessages, long msgSizeInBytes, LongConsumer throttlingPauseHandler) {
         // No-op
-    }
-
-    @Override
-    public boolean resetPublishCount() {
-        // No-op
-        return false;
-    }
-
-    @Override
-    public boolean isPublishRateExceeded() {
-        return false;
     }
 
     @Override
@@ -54,12 +44,6 @@ public class PublishRateLimiterDisable implements PublishRateLimiter {
     @Override
     public void update(PublishRate maxPublishRate) {
         // No-op
-    }
-
-    @Override
-    public boolean incrementPublishCount(int numbers, long bytes) {
-        // Always allow
-        return true;
     }
 
     @Override

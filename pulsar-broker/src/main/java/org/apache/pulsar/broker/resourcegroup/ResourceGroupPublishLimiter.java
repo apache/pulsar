@@ -22,6 +22,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.function.LongConsumer;
 import org.apache.pulsar.broker.resourcegroup.ResourceGroup.BytesAndMessagesCount;
 import org.apache.pulsar.broker.service.PublishRateLimiter;
 import org.apache.pulsar.common.policies.data.Policies;
@@ -46,19 +47,10 @@ public class ResourceGroupPublishLimiter implements PublishRateLimiter, RateLimi
     }
 
     @Override
-    public void checkPublishRate() {
-        // No-op
+    public long calculateThrottlingPauseNanos() {
+        return 0;
     }
 
-    @Override
-    public boolean resetPublishCount() {
-        return true;
-    }
-
-    @Override
-    public boolean isPublishRateExceeded() {
-        return false;
-    }
 
     @Override
     public void update(Policies policies, String clusterName) {
@@ -129,7 +121,7 @@ public class ResourceGroupPublishLimiter implements PublishRateLimiter, RateLimi
     }
 
     @Override
-    public void incrementPublishCount(int numOfMessages, long msgSizeInBytes) {
+    public void incrementPublishCount(int numOfMessages, long msgSizeInBytes, LongConsumer throttlingPauseHandler) {
         if (publishRateLimiterOnMessage != null) {
             publishRateLimiterOnMessage.tryAcquire(numOfMessages);
         }

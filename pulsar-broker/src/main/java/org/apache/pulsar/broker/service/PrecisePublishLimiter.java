@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.service;
 
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.function.LongConsumer;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.PublishRate;
 import org.apache.pulsar.common.util.RateLimitFunction;
@@ -51,18 +52,8 @@ public class PrecisePublishLimiter implements PublishRateLimiter {
     }
 
     @Override
-    public void checkPublishRate() {
-        // No-op
-    }
-
-    @Override
-    public boolean resetPublishCount() {
-        return true;
-    }
-
-    @Override
-    public boolean isPublishRateExceeded() {
-        return false;
+    public long calculateThrottlingPauseNanos() {
+        return 0;
     }
 
     // If all rate limiters are not exceeded, re-enable auto read from socket.
@@ -118,7 +109,7 @@ public class PrecisePublishLimiter implements PublishRateLimiter {
     }
 
     @Override
-    public void incrementPublishCount(int numOfMessages, long msgSizeInBytes) {
+    public void incrementPublishCount(int numOfMessages, long msgSizeInBytes, LongConsumer throttlingPauseHandler) {
         RateLimiter currentTopicPublishRateLimiterOnMessage = topicPublishRateLimiterOnMessage;
         RateLimiter currentTopicPublishRateLimiterOnByte = topicPublishRateLimiterOnByte;
         if (currentTopicPublishRateLimiterOnMessage != null) {

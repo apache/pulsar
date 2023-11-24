@@ -899,15 +899,15 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
 
     @Override
     public void checkTopicPublishThrottlingRate() {
-        this.topicPublishRateLimiter.checkPublishRate();
+        this.topicPublishRateLimiter.calculateThrottlingPauseNanos();
     }
 
     @Override
     public void incrementPublishCount(int numOfMessages, long msgSizeInBytes) {
         // increase topic publish rate limiter
-        this.topicPublishRateLimiter.incrementPublishCount(numOfMessages, msgSizeInBytes);
+        this.topicPublishRateLimiter.incrementPublishCount(numOfMessages, msgSizeInBytes, null);
         // increase broker publish rate limiter
-        getBrokerPublishRateLimiter().incrementPublishCount(numOfMessages, msgSizeInBytes);
+        getBrokerPublishRateLimiter().incrementPublishCount(numOfMessages, msgSizeInBytes, null);
         // increase counters
         bytesInCounter.add(msgSizeInBytes);
         msgInCounter.add(numOfMessages);
@@ -1109,7 +1109,7 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
     @Override
     public boolean isResourceGroupPublishRateExceeded(int numMessages, int bytes) {
         return this.resourceGroupRateLimitingEnabled
-            && !this.resourceGroupPublishLimiter.incrementPublishCount(numMessages, bytes);
+            && !this.resourceGroupPublishLimiter.incrementPublishCount(numMessages, bytes, null);
     }
 
     @Override
@@ -1120,7 +1120,8 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
     @Override
     public boolean isTopicPublishRateExceeded(int numberMessages, int bytes) {
         // whether topic publish rate exceed if precise rate limit is enable
-        return preciseTopicPublishRateLimitingEnable && !this.topicPublishRateLimiter.incrementPublishCount(numberMessages, bytes);
+        return preciseTopicPublishRateLimitingEnable && !this.topicPublishRateLimiter.incrementPublishCount(numberMessages, bytes,
+                null);
     }
 
     @Override

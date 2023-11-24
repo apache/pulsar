@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.service;
 
 import java.util.concurrent.atomic.LongAdder;
+import java.util.function.LongConsumer;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.PublishRate;
 
@@ -39,34 +40,34 @@ public class PublishRateLimiterImpl implements PublishRateLimiter {
     }
 
     @Override
-    public void checkPublishRate() {
-        if (this.publishThrottlingEnabled && !publishRateExceeded) {
-            if (this.publishMaxByteRate > 0) {
-                long currentPublishByteRate = this.currentPublishByteCount.sum();
-                if (currentPublishByteRate > this.publishMaxByteRate) {
-                    publishRateExceeded = true;
-                    return;
-                }
-            }
-
-            if (this.publishMaxMessageRate > 0) {
-                long currentPublishMsgRate = this.currentPublishMsgCount.sum();
-                if (currentPublishMsgRate > this.publishMaxMessageRate) {
-                    publishRateExceeded = true;
-                }
-            }
-        }
+    public long calculateThrottlingPauseNanos() {
+//        if (this.publishThrottlingEnabled && !publishRateExceeded) {
+//            if (this.publishMaxByteRate > 0) {
+//                long currentPublishByteRate = this.currentPublishByteCount.sum();
+//                if (currentPublishByteRate > this.publishMaxByteRate) {
+//                    publishRateExceeded = true;
+//                    return;
+//                }
+//            }
+//
+//            if (this.publishMaxMessageRate > 0) {
+//                long currentPublishMsgRate = this.currentPublishMsgCount.sum();
+//                if (currentPublishMsgRate > this.publishMaxMessageRate) {
+//                    publishRateExceeded = true;
+//                }
+//            }
+//        }
+        return 0;
     }
 
     @Override
-    public void incrementPublishCount(int numOfMessages, long msgSizeInBytes) {
+    public void incrementPublishCount(int numOfMessages, long msgSizeInBytes, LongConsumer throttlingPauseHandler) {
         if (this.publishThrottlingEnabled) {
             this.currentPublishMsgCount.add(numOfMessages);
             this.currentPublishByteCount.add(msgSizeInBytes);
         }
     }
 
-    @Override
     public boolean resetPublishCount() {
         if (this.publishThrottlingEnabled) {
             this.currentPublishMsgCount.reset();
@@ -77,7 +78,6 @@ public class PublishRateLimiterImpl implements PublishRateLimiter {
         return false;
     }
 
-    @Override
     public boolean isPublishRateExceeded() {
         return publishRateExceeded;
     }

@@ -63,45 +63,45 @@ public class PublishRateLimiterTest {
     @Test
     public void testPublishRateLimiterImplExceed() throws Exception {
         // increment not exceed
-        publishRateLimiter.incrementPublishCount(5, 50);
-        publishRateLimiter.checkPublishRate();
+        publishRateLimiter.incrementPublishCount(5, 50, null);
+        publishRateLimiter.calculateThrottlingPauseNanos();
         assertFalse(publishRateLimiter.isPublishRateExceeded());
         publishRateLimiter.resetPublishCount();
 
         // numOfMessages increment exceeded
-        publishRateLimiter.incrementPublishCount(11, 100);
-        publishRateLimiter.checkPublishRate();
+        publishRateLimiter.incrementPublishCount(11, 100, null);
+        publishRateLimiter.calculateThrottlingPauseNanos();
         assertTrue(publishRateLimiter.isPublishRateExceeded());
         publishRateLimiter.resetPublishCount();
 
         // msgSizeInBytes increment exceeded
-        publishRateLimiter.incrementPublishCount(9, 110);
-        publishRateLimiter.checkPublishRate();
+        publishRateLimiter.incrementPublishCount(9, 110, null);
+        publishRateLimiter.calculateThrottlingPauseNanos();
         assertTrue(publishRateLimiter.isPublishRateExceeded());
 
     }
 
     @Test
     public void testPublishRateLimiterImplUpdate() {
-        publishRateLimiter.incrementPublishCount(11, 110);
-        publishRateLimiter.checkPublishRate();
+        publishRateLimiter.incrementPublishCount(11, 110, null);
+        publishRateLimiter.calculateThrottlingPauseNanos();
         assertTrue(publishRateLimiter.isPublishRateExceeded());
 
         // update
         publishRateLimiter.update(newPublishRate);
-        publishRateLimiter.incrementPublishCount(11, 110);
-        publishRateLimiter.checkPublishRate();
+        publishRateLimiter.incrementPublishCount(11, 110, null);
+        publishRateLimiter.calculateThrottlingPauseNanos();
         assertFalse(publishRateLimiter.isPublishRateExceeded());
 
     }
 
     @Test
     public void testPrecisePublishRateLimiterUpdate() {
-        assertFalse(precisePublishLimiter.incrementPublishCount(15, 150));
+        assertFalse(precisePublishLimiter.incrementPublishCount(15, 150, null));
 
         //update
         precisePublishLimiter.update(newPublishRate);
-        assertTrue(precisePublishLimiter.incrementPublishCount(15, 150));
+        assertTrue(precisePublishLimiter.incrementPublishCount(15, 150, null));
     }
 
     @Test
@@ -123,7 +123,7 @@ public class PublishRateLimiterTest {
         renewTopicPublishRateLimiterOnByteMethod.setAccessible(true);
 
         // running tryAcquire in order to lazyInit the renewTask
-        precisePublishLimiter.incrementPublishCount(1, 10);
+        precisePublishLimiter.incrementPublishCount(1, 10, null);
 
         Field onMessageRenewTaskField = topicPublishRateLimiterOnMessage.getClass().getDeclaredField("renewTask");
         Field onByteRenewTaskField = topicPublishRateLimiterOnByte.getClass().getDeclaredField("renewTask");
@@ -140,30 +140,30 @@ public class PublishRateLimiterTest {
         renewTopicPublishRateLimiterOnByteMethod.invoke(topicPublishRateLimiterOnByte);
 
         // tryAcquire not exceeded
-        assertTrue(precisePublishLimiter.incrementPublishCount(1, 10));
+        assertTrue(precisePublishLimiter.incrementPublishCount(1, 10, null));
         renewTopicPublishRateLimiterOnMessageMethod.invoke(topicPublishRateLimiterOnMessage);
         renewTopicPublishRateLimiterOnByteMethod.invoke(topicPublishRateLimiterOnByte);
 
         // tryAcquire numOfMessages exceeded
-        assertFalse(precisePublishLimiter.incrementPublishCount(11, 100));
+        assertFalse(precisePublishLimiter.incrementPublishCount(11, 100, null));
         renewTopicPublishRateLimiterOnMessageMethod.invoke(topicPublishRateLimiterOnMessage);
         renewTopicPublishRateLimiterOnByteMethod.invoke(topicPublishRateLimiterOnByte);
 
         // tryAcquire msgSizeInBytes exceeded
-        assertFalse(precisePublishLimiter.incrementPublishCount(10, 101));
+        assertFalse(precisePublishLimiter.incrementPublishCount(10, 101, null));
         renewTopicPublishRateLimiterOnMessageMethod.invoke(topicPublishRateLimiterOnMessage);
         renewTopicPublishRateLimiterOnByteMethod.invoke(topicPublishRateLimiterOnByte);
         renewTopicPublishRateLimiterOnMessageMethod.invoke(topicPublishRateLimiterOnMessage);
         renewTopicPublishRateLimiterOnByteMethod.invoke(topicPublishRateLimiterOnByte);
 
         // tryAcquire exceeded exactly
-        assertFalse(precisePublishLimiter.incrementPublishCount(10, 100));
+        assertFalse(precisePublishLimiter.incrementPublishCount(10, 100, null));
         renewTopicPublishRateLimiterOnMessageMethod.invoke(topicPublishRateLimiterOnMessage);
         renewTopicPublishRateLimiterOnByteMethod.invoke(topicPublishRateLimiterOnByte);
         renewTopicPublishRateLimiterOnMessageMethod.invoke(topicPublishRateLimiterOnMessage);
         renewTopicPublishRateLimiterOnByteMethod.invoke(topicPublishRateLimiterOnByte);
 
         // tryAcquire not exceeded
-        assertTrue(precisePublishLimiter.incrementPublishCount(9, 99));
+        assertTrue(precisePublishLimiter.incrementPublishCount(9, 99, null));
     }
 }
