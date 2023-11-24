@@ -56,11 +56,6 @@ public class PrecisePublishLimiter implements PublishRateLimiter {
     }
 
     @Override
-    public void incrementPublishCount(int numOfMessages, long msgSizeInBytes) {
-        // No-op
-    }
-
-    @Override
     public boolean resetPublishCount() {
         return true;
     }
@@ -123,13 +118,15 @@ public class PrecisePublishLimiter implements PublishRateLimiter {
     }
 
     @Override
-    public boolean tryAcquire(int numbers, long bytes) {
+    public void incrementPublishCount(int numOfMessages, long msgSizeInBytes) {
         RateLimiter currentTopicPublishRateLimiterOnMessage = topicPublishRateLimiterOnMessage;
         RateLimiter currentTopicPublishRateLimiterOnByte = topicPublishRateLimiterOnByte;
-        return (currentTopicPublishRateLimiterOnMessage == null
-                || currentTopicPublishRateLimiterOnMessage.tryAcquire(numbers))
-                && (currentTopicPublishRateLimiterOnByte == null
-                || currentTopicPublishRateLimiterOnByte.tryAcquire(bytes));
+        if (currentTopicPublishRateLimiterOnMessage != null) {
+            currentTopicPublishRateLimiterOnMessage.tryAcquire(numOfMessages);
+        }
+        if (currentTopicPublishRateLimiterOnByte != null) {
+            currentTopicPublishRateLimiterOnByte.tryAcquire(msgSizeInBytes);
+        }
     }
 
     @Override

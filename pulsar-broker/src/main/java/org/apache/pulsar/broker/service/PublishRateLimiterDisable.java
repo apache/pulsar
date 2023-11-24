@@ -57,7 +57,7 @@ public class PublishRateLimiterDisable implements PublishRateLimiter {
     }
 
     @Override
-    public boolean tryAcquire(int numbers, long bytes) {
+    public boolean incrementPublishCount(int numbers, long bytes) {
         // Always allow
         return true;
     }

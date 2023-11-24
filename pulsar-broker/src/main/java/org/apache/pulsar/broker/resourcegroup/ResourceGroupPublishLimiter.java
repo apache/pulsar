@@ -51,11 +51,6 @@ public class ResourceGroupPublishLimiter implements PublishRateLimiter, RateLimi
     }
 
     @Override
-    public void incrementPublishCount(int numOfMessages, long msgSizeInBytes) {
-        // No-op
-    }
-
-    @Override
     public boolean resetPublishCount() {
         return true;
     }
@@ -133,9 +128,14 @@ public class ResourceGroupPublishLimiter implements PublishRateLimiter, RateLimi
         });
     }
 
-    public boolean tryAcquire(int numbers, long bytes) {
-        return (publishRateLimiterOnMessage == null || publishRateLimiterOnMessage.tryAcquire(numbers))
-            && (publishRateLimiterOnByte == null || publishRateLimiterOnByte.tryAcquire(bytes));
+    @Override
+    public void incrementPublishCount(int numOfMessages, long msgSizeInBytes) {
+        if (publishRateLimiterOnMessage != null) {
+            publishRateLimiterOnMessage.tryAcquire(numOfMessages);
+        }
+        if (publishRateLimiterOnByte != null) {
+            publishRateLimiterOnByte.tryAcquire(msgSizeInBytes);
+        }
     }
 
     public void registerRateLimitFunction(String name, RateLimitFunction func) {

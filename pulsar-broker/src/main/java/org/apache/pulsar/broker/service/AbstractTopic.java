@@ -1109,7 +1109,7 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
     @Override
     public boolean isResourceGroupPublishRateExceeded(int numMessages, int bytes) {
         return this.resourceGroupRateLimitingEnabled
-            && !this.resourceGroupPublishLimiter.tryAcquire(numMessages, bytes);
+            && !this.resourceGroupPublishLimiter.incrementPublishCount(numMessages, bytes);
     }
 
     @Override
@@ -1120,7 +1120,7 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
     @Override
     public boolean isTopicPublishRateExceeded(int numberMessages, int bytes) {
         // whether topic publish rate exceed if precise rate limit is enable
-        return preciseTopicPublishRateLimitingEnable && !this.topicPublishRateLimiter.tryAcquire(numberMessages, bytes);
+        return preciseTopicPublishRateLimitingEnable && !this.topicPublishRateLimiter.incrementPublishCount(numberMessages, bytes);
     }
 
     @Override

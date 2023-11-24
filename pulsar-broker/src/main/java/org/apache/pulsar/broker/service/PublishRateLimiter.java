@@ -65,14 +65,6 @@ public interface PublishRateLimiter extends AutoCloseable {
     void update(PublishRate maxPublishRate);
 
     /**
-     * try to acquire permit.
-     *
-     * @param numbers
-     * @param bytes
-     */
-    boolean tryAcquire(int numbers, long bytes);
-
-    /**
      * Close the limiter.
      */
     void close();
