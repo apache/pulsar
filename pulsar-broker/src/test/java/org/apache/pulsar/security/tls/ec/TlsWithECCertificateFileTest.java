@@ -44,7 +44,7 @@ public class TlsWithECCertificateTest extends MockedPulsarStandalone {
 
     @BeforeClass(alwaysRun = true)
     public void suitSetup() {
-        loadECTlsCertificate();
+        loadECTlsCertificateWithFile();
         enableTlsAuthentication();
         super.start(); // start standalone service
     }
