@@ -70,8 +70,6 @@ import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.exception.ExceptionUtils;
-import org.apache.commons.lang3.mutable.MutableInt;
-import org.apache.commons.lang3.mutable.MutableLong;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.TransactionMetadataStoreService;
@@ -248,12 +246,35 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     private final long connectionLivenessCheckTimeoutMillis;
 
     // Number of bytes pending to be published from a single specific IO thread.
-    private static final FastThreadLocal<MutableLong> pendingBytesPerThread = new FastThreadLocal<MutableLong>() {
+    private static final FastThreadLocal<PendingBytesPerThreadTracker> pendingBytesPerThread = new FastThreadLocal<>() {
         @Override
-        protected MutableLong initialValue() throws Exception {
-            return new MutableLong();
+        protected PendingBytesPerThreadTracker initialValue() throws Exception {
+            return new PendingBytesPerThreadTracker();
         }
     };
+
+    final static class PendingBytesPerThreadTracker {
+        private long pendingBytes;
+        private boolean limitExceeded;
+
+        public void incrementPublishBytes(long bytes, long maxPendingBytesPerThread) {
+            pendingBytes += bytes;
+            if (maxPendingBytesPerThread > 0 && pendingBytes > maxPendingBytesPerThread
+                    && !limitExceeded) {
+                limitExceeded = true;
+                cnxsPerThread.get().forEach(cnx -> cnx.throttleTracker.setPublishBufferLimiting(true));
+            }
+        }
+
+        public void decrementPublishBytes(long bytes, long resumeThresholdPendingBytesPerThread) {
+            pendingBytes -= bytes;
+            if (limitExceeded && pendingBytes <= resumeThresholdPendingBytesPerThread) {
+                limitExceeded = false;
+                cnxsPerThread.get().forEach(cnx -> cnx.throttleTracker.setPublishBufferLimiting(false));
+            }
+        }
+    }
+
 
     // A set of connections tied to the current thread
     private static final FastThreadLocal<Set<ServerCnx>> cnxsPerThread = new FastThreadLocal<Set<ServerCnx>>() {
@@ -276,20 +297,27 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             super(ServerCnx.this::ctx);
         }
 
-        public void setPublishBufferLimiting(boolean enabled) {
-            changeFlag(PUBLISH_BUFFER_LIMITING_INDEX, enabled);
+        public void setPublishBufferLimiting(boolean throttlingEnabled) {
+            changeThrottlingFlag(PUBLISH_BUFFER_LIMITING_INDEX, throttlingEnabled);
         }
 
         public boolean isPublishBufferLimiting() {
-            return getFlag(PUBLISH_BUFFER_LIMITING_INDEX);
+            return getThrottlingFlag(PUBLISH_BUFFER_LIMITING_INDEX);
         }
 
-        public void setPendingSendRequestsExceeded(boolean enabled) {
-            changeFlag(PENDING_SEND_REQUESTS_EXCEEDED, enabled);
+        public void setPendingSendRequestsExceeded(boolean throttlingEnabled) {
+            boolean changed = changeThrottlingFlag(PENDING_SEND_REQUESTS_EXCEEDED, throttlingEnabled);
+            if (changed) {
+                if (throttlingEnabled) {
+                    throttledConnections.inc();
+                } else {
+                    throttledConnections.dec();
+                }
+            }
         }
 
         public boolean isPendingSendRequestsExceeded() {
-            return getFlag(PENDING_SEND_REQUESTS_EXCEEDED);
+            return getThrottlingFlag(PENDING_SEND_REQUESTS_EXCEEDED);
         }
 
         @Override
@@ -3200,50 +3228,33 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             .register();
 
     public void startSendOperation(Producer producer, int msgSize, int numMessages) {
-        boolean isPublishRateExceeded = false;
-        if (preciseTopicPublishRateLimitingEnable) {
-            boolean isPreciseTopicPublishRateExceeded =
-                    producer.getTopic().isTopicPublishRateExceeded(numMessages, msgSize);
-            if (isPreciseTopicPublishRateExceeded) {
-                producer.getTopic().disableCnxAutoRead();
-                return;
-            }
-            isPublishRateExceeded = producer.getTopic().isBrokerPublishRateExceeded();
-        } else {
-            if (producer.getTopic().isResourceGroupRateLimitingEnabled()) {
-                final boolean resourceGroupPublishRateExceeded =
-                  producer.getTopic().isResourceGroupPublishRateExceeded(numMessages, msgSize);
-                if (resourceGroupPublishRateExceeded) {
-                    producer.getTopic().disableCnxAutoRead();
-                    return;
-                }
-            }
-            isPublishRateExceeded = producer.getTopic().isPublishRateExceeded();
+        // TODO: this must be handled in the incrementPublishCount method
+//        boolean isPublishRateExceeded = false;
+//        if (preciseTopicPublishRateLimitingEnable) {
+//            boolean isPreciseTopicPublishRateExceeded =
+//                    producer.getTopic().isTopicPublishRateExceeded(numMessages, msgSize);
+//            if (isPreciseTopicPublishRateExceeded) {
+//                producer.getTopic().disableCnxAutoRead();
+//                return;
+//            }
+//            isPublishRateExceeded = producer.getTopic().isBrokerPublishRateExceeded();
+//        } else {
+//            if (producer.getTopic().isResourceGroupRateLimitingEnabled()) {
+//                final boolean resourceGroupPublishRateExceeded =
+//                  producer.getTopic().isResourceGroupPublishRateExceeded(numMessages, msgSize);
+//                if (resourceGroupPublishRateExceeded) {
+//                    producer.getTopic().disableCnxAutoRead();
+//                    return;
+//                }
+//            }
+//            isPublishRateExceeded = producer.getTopic().isPublishRateExceeded();
+//        }
+
+        if (++pendingSendRequest >= maxPendingSendRequests) {
+            throttleTracker.setPendingSendRequestsExceeded(true);
         }
 
-        if (++pendingSendRequest == maxPendingSendRequests || isPublishRateExceeded) {
-            // When the quota of pending send requests is reached, stop reading from socket to cause backpressure on
-            // client connection, possibly shared between multiple producers
-            disableCnxAutoRead();
-            autoReadDisabledRateLimiting = isPublishRateExceeded;
-            throttledConnections.inc();
-        }
-
-        if (pendingBytesPerThread.get().addAndGet(msgSize) >= maxPendingBytesPerThread
-                && !autoReadDisabledPublishBufferLimiting
-                && maxPendingBytesPerThread > 0) {
-            // Disable reading from all the connections associated with this thread
-            MutableInt pausedConnections = new MutableInt();
-            cnxsPerThread.get().forEach(cnx -> {
-                if (cnx.hasProducers() && !cnx.autoReadDisabledPublishBufferLimiting) {
-                    cnx.disableCnxAutoRead();
-                    cnx.autoReadDisabledPublishBufferLimiting = true;
-                    pausedConnections.increment();
-                }
-            });
-
-            getBrokerService().pausedConnections(pausedConnections.intValue());
-        }
+        pendingBytesPerThread.get().incrementPublishBytes(msgSize, maxPendingBytesPerThread);
     }
 
     private void recordRateLimitMetrics(ConcurrentLongHashMap<CompletableFuture<Producer>> producers) {
@@ -3259,24 +3270,12 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
     @Override
     public void completedSendOperation(boolean isNonPersistentTopic, int msgSize) {
-        if (pendingBytesPerThread.get().addAndGet(-msgSize) < resumeThresholdPendingBytesPerThread
-                && autoReadDisabledPublishBufferLimiting) {
-            // Re-enable reading on all the blocked connections
-            MutableInt resumedConnections = new MutableInt();
-            cnxsPerThread.get().forEach(cnx -> {
-                if (cnx.autoReadDisabledPublishBufferLimiting) {
-                    cnx.autoReadDisabledPublishBufferLimiting = false;
-                    cnx.enableCnxAutoRead();
-                    resumedConnections.increment();
-                }
-            });
+        pendingBytesPerThread.get().decrementPublishBytes(msgSize, resumeThresholdPendingBytesPerThread);
 
-            getBrokerService().resumedConnections(resumedConnections.intValue());
+        if (--pendingSendRequest <= resumeReadsThreshold) {
+            throttleTracker.setPendingSendRequestsExceeded(false);
         }
 
-        if (--pendingSendRequest == resumeReadsThreshold) {
-            enableCnxAutoRead();
-        }
         if (isNonPersistentTopic) {
             nonPersistentPendingMessages--;
         }

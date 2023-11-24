@@ -7,19 +7,19 @@ import java.util.function.Supplier;
 
 public class ThrottleTracker {
     private final Supplier<ChannelHandlerContext> ctxSupplier;
-    private final AtomicIntegerFlags flags = new AtomicIntegerFlags();
     private static final AtomicIntegerFieldUpdater<ThrottleTracker> THROTTLE_COUNT_UPDATER =
             AtomicIntegerFieldUpdater.newUpdater(
                     ThrottleTracker.class, "throttleCount");
     private volatile int throttleCount;
+    private final AtomicIntegerFlags throttlingFlags = new AtomicIntegerFlags();
 
     public ThrottleTracker(Supplier<ChannelHandlerContext> ctxSupplier) {
         this.ctxSupplier = ctxSupplier;
     }
 
-    public boolean changeFlag(int index, boolean enabled) {
-        if (flags.changeFlag(index, enabled)) {
-            if (enabled) {
+    public boolean changeThrottlingFlag(int index, boolean throttlingEnabled) {
+        if (throttlingFlags.changeFlag(index, throttlingEnabled)) {
+            if (throttlingEnabled) {
                 incrementThrottleCount();
             } else {
                 decrementThrottleCount();
@@ -30,8 +30,8 @@ public class ThrottleTracker {
         }
     }
 
-    public boolean getFlag(int index) {
-        return flags.getFlag(index);
+    public boolean getThrottlingFlag(int index) {
+        return throttlingFlags.getFlag(index);
     }
 
     public void throttleForNanos(long nanos) {
