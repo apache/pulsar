@@ -65,10 +65,6 @@ public interface TransportCnx {
 
     void cancelPublishBufferLimiting();
 
-    void disableCnxAutoRead();
-
-    void enableCnxAutoRead();
-
     void execute(Runnable runnable);
 
     void removedConsumer(Consumer consumer);
