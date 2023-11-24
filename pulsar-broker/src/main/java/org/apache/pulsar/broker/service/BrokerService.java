@@ -242,8 +242,6 @@ public class BrokerService implements Closeable {
     private final ScheduledExecutorService messageExpiryMonitor;
     private final ScheduledExecutorService compactionMonitor;
     private final ScheduledExecutorService consumedLedgersMonitor;
-    protected final PublishRateLimiterMonitor topicPublishRateLimiterMonitor;
-    protected final PublishRateLimiterMonitor brokerPublishRateLimiterMonitor;
     private ScheduledExecutorService deduplicationSnapshotMonitor;
     protected volatile PublishRateLimiter brokerPublishRateLimiter = PublishRateLimiter.DISABLED_RATE_LIMITER;
     protected volatile DispatchRateLimiter brokerDispatchRateLimiter = null;
@@ -358,10 +356,6 @@ public class BrokerService implements Closeable {
                 .name("pulsar-consumed-ledgers-monitor")
                 .numThreads(1)
                 .build();
-        this.topicPublishRateLimiterMonitor =
-                new PublishRateLimiterMonitor("pulsar-topic-publish-rate-limiter-monitor");
-        this.brokerPublishRateLimiterMonitor =
-                new PublishRateLimiterMonitor("pulsar-broker-publish-rate-limiter-monitor");
         this.backlogQuotaManager = new BacklogQuotaManager(pulsar);
         this.backlogQuotaChecker = OrderedScheduler.newSchedulerBuilder()
                 .name("pulsar-backlog-quota-checker")
@@ -669,87 +663,6 @@ public class BrokerService implements Closeable {
 
     }
 
-    /**
-     * Schedules and monitors publish-throttling for all owned topics that has publish-throttling configured. It also
-     * disables and shutdowns publish-rate-limiter monitor task if broker disables it.
-     */
-    public void setupTopicPublishRateLimiterMonitor() {
-        // set topic PublishRateLimiterMonitor
-        long topicTickTimeMs = pulsar().getConfiguration().getTopicPublisherThrottlingTickTimeMillis();
-        if (topicTickTimeMs > 0) {
-            topicPublishRateLimiterMonitor.startOrUpdate(topicTickTimeMs,
-                    this::checkTopicPublishThrottlingRate, this::refreshTopicPublishRate);
-        } else {
-            // disable publish-throttling for all topics
-            topicPublishRateLimiterMonitor.stop();
-        }
-    }
-
-    /**
-     * Schedules and monitors publish-throttling for broker that has publish-throttling configured. It also
-     * disables and shutdowns publish-rate-limiter monitor for broker task if broker disables it.
-     */
-    public void setupBrokerPublishRateLimiterMonitor() {
-        // set broker PublishRateLimiterMonitor
-        long brokerTickTimeMs = pulsar().getConfiguration().getBrokerPublisherThrottlingTickTimeMillis();
-        if (brokerTickTimeMs > 0) {
-            brokerPublishRateLimiterMonitor.startOrUpdate(brokerTickTimeMs,
-                    this::checkBrokerPublishThrottlingRate, this::refreshBrokerPublishRate);
-        } else {
-            // disable publish-throttling for broker.
-            brokerPublishRateLimiterMonitor.stop();
-        }
-    }
-
-    protected static class PublishRateLimiterMonitor {
-        private final String name;
-        private ScheduledExecutorService scheduler = null;
-        private long tickTimeMs = 0;
-        private Runnable refreshTask;
-
-        public PublishRateLimiterMonitor(String name) {
-            this.name = name;
-        }
-
-        synchronized void startOrUpdate(long tickTimeMs, Runnable checkTask, Runnable refreshTask) {
-            if (this.scheduler != null) {
-                // we have old task running.
-                if (this.tickTimeMs == tickTimeMs) {
-                    // tick time not changed.
-                    return;
-                }
-                stop();
-            }
-            //start monitor.
-            scheduler = OrderedScheduler.newSchedulerBuilder()
-                    .name(name)
-                    .numThreads(1)
-                    .build();
-            // schedule task that sums up publish-rate across all cnx on a topic ,
-            // and check the rate limit exceeded or not.
-            scheduler.scheduleAtFixedRate(checkTask, tickTimeMs, tickTimeMs, TimeUnit.MILLISECONDS);
-            // schedule task that refreshes rate-limiting bucket
-            scheduler.scheduleAtFixedRate(refreshTask, 1, 1, TimeUnit.SECONDS);
-            this.tickTimeMs = tickTimeMs;
-            this.refreshTask = refreshTask;
-        }
-
-        synchronized void stop() {
-            if (this.scheduler != null) {
-                this.scheduler.shutdownNow();
-                // make sure topics are not being throttled
-                refreshTask.run();
-                this.scheduler = null;
-                this.tickTimeMs = 0;
-            }
-        }
-
-        @VisibleForTesting
-        protected synchronized long getTickTimeMs() {
-            return tickTimeMs;
-        }
-    }
-
     public void close() throws IOException {
         try {
             closeAsync().get();
@@ -881,8 +794,6 @@ public class BrokerService implements Closeable {
                                                 consumedLedgersMonitor,
                                                 backlogQuotaChecker,
                                                 topicOrderedExecutor,
-                                                topicPublishRateLimiterMonitor.scheduler,
-                                                brokerPublishRateLimiterMonitor.scheduler,
                                                 deduplicationSnapshotMonitor)
                                         .handle());
 
@@ -2722,12 +2633,6 @@ public class BrokerService implements Closeable {
                     updateReplicatorMessageDispatchRate();
                 });
 
-        // add listener to notify broker publish-rate monitoring
-        registerConfigurationListener("brokerPublisherThrottlingTickTimeMillis",
-                (publisherThrottlingTickTimeMillis) -> {
-                    setupBrokerPublishRateLimiterMonitor();
-                });
-
         // add listener to update topic publish-rate dynamic config
         registerConfigurationListener("maxPublishRatePerTopicInMessages",
             maxPublishRatePerTopicInMessages -> updateMaxPublishRatePerTopicInMessages()
@@ -2756,13 +2661,6 @@ public class BrokerService implements Closeable {
         registerConfigurationListener("dispatchThrottlingRateInByte",
                 (dispatchThrottlingRateInByte) ->
                         updateBrokerDispatchThrottlingMaxRate());
-        // add listener to notify topic publish-rate monitoring
-        if (!preciseTopicPublishRateLimitingEnable) {
-            registerConfigurationListener("topicPublisherThrottlingTickTimeMillis",
-                    (publisherThrottlingTickTimeMillis) -> {
-                        setupTopicPublishRateLimiterMonitor();
-                    });
-        }
 
         // add listener to notify topic subscriptionTypesEnabled changed.
         registerConfigurationListener("subscriptionTypesEnabled", this::updateBrokerSubscriptionTypesEnabled);
@@ -2856,8 +2754,6 @@ public class BrokerService implements Closeable {
         final PublishRate publishRate = new PublishRate(currentMaxMessageRate, currentMaxByteRate);
 
         log.info("Update broker publish rate limiting {}", publishRate);
-        // lazy init broker Publish-rateLimiting monitoring if not initialized yet
-        this.setupBrokerPublishRateLimiterMonitor();
         if (brokerPublishRateLimiter == null
             || brokerPublishRateLimiter == PublishRateLimiter.DISABLED_RATE_LIMITER) {
             // create new rateLimiter if rate-limiter is disabled
