@@ -26,6 +26,7 @@ import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.pulsar.common.naming.SystemTopicNames.isTransactionInternalName;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Queues;
+import com.google.common.util.concurrent.RateLimiter;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.AdaptiveRecvByteBufAllocator;
@@ -169,7 +170,6 @@ import org.apache.pulsar.common.stats.Metrics;
 import org.apache.pulsar.common.util.FieldParser;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.GracefulExecutorServicesShutdown;
-import org.apache.pulsar.common.util.RateLimiter;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashSet;
 import org.apache.pulsar.common.util.netty.ChannelFutures;
@@ -972,26 +972,21 @@ public class BrokerService implements Closeable {
             Set<NamespaceBundle> serviceUnits =
                     pulsar.getNamespaceService() != null ? pulsar.getNamespaceService().getOwnedServiceUnits() : null;
             if (serviceUnits != null) {
-                try (RateLimiter rateLimiter = maxConcurrentUnload > 0 ? RateLimiter.builder()
-                        .scheduledExecutorService(pulsar.getExecutor())
-                        .rateTime(1).timeUnit(TimeUnit.SECONDS)
-                        .permits(maxConcurrentUnload).build() : null) {
-                    serviceUnits.forEach(su -> {
-                        if (su != null) {
-                            try {
-                                if (rateLimiter != null) {
-                                    rateLimiter.acquire(1);
-                                }
-                                long timeout = pulsar.getConfiguration().getNamespaceBundleUnloadingTimeoutMs();
-                                pulsar.getNamespaceService().unloadNamespaceBundle(su, timeout, TimeUnit.MILLISECONDS,
-                                        closeWithoutWaitingClientDisconnect).get(timeout, TimeUnit.MILLISECONDS);
-                            } catch (Exception e) {
-                                log.warn("Failed to unload namespace bundle {}", su, e);
+                RateLimiter rateLimiter = maxConcurrentUnload > 0 ? RateLimiter.create(maxConcurrentUnload) : null;
+                serviceUnits.forEach(su -> {
+                    if (su != null) {
+                        try {
+                            if (rateLimiter != null) {
+                                rateLimiter.acquire(1);
                             }
+                            long timeout = pulsar.getConfiguration().getNamespaceBundleUnloadingTimeoutMs();
+                            pulsar.getNamespaceService().unloadNamespaceBundle(su, timeout, TimeUnit.MILLISECONDS,
+                                    closeWithoutWaitingClientDisconnect).get(timeout, TimeUnit.MILLISECONDS);
+                        } catch (Exception e) {
+                            log.warn("Failed to unload namespace bundle {}", su, e);
                         }
-                    });
-                }
-
+                    }
+                });
                 double closeTopicsTimeSeconds =
                         TimeUnit.NANOSECONDS.toMillis((System.nanoTime() - closeTopicsStartTime))
                                 / 1000.0;
