@@ -479,7 +479,7 @@ The Apache Software License, Version 2.0
   * Perfmark
     - perfmark-api-0.26.0.jar
   * RabbitMQ Java Client
-    - amqp-client-5.5.3.jar
+    - amqp-client-5.18.0.jar
   * Stream Lib
     - stream-2.9.5.jar
   * High Performance Primitive Collections for Java
