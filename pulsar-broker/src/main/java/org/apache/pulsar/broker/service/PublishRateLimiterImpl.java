@@ -16,20 +16,20 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+
 package org.apache.pulsar.broker.service;
 
-import java.util.concurrent.atomic.LongAdder;
 import java.util.function.LongConsumer;
+import java.util.function.LongSupplier;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.PublishRate;
+import org.apache.pulsar.common.util.AsyncTokenBucket;
 
 public class PublishRateLimiterImpl implements PublishRateLimiter {
-    protected volatile int publishMaxMessageRate = 0;
-    protected volatile long publishMaxByteRate = 0;
-    protected volatile boolean publishThrottlingEnabled = false;
-    protected volatile boolean publishRateExceeded = false;
-    protected volatile LongAdder currentPublishMsgCount = new LongAdder();
-    protected volatile LongAdder currentPublishByteCount = new LongAdder();
+    public static final int BURST_FACTOR = 2;
+    public static final LongSupplier DEFAULT_CLOCK_SOURCE = System::nanoTime;
+    private volatile AsyncTokenBucket tokenBucketOnMessage;
+    private volatile AsyncTokenBucket tokenBucketOnByte;
 
     public PublishRateLimiterImpl(Policies policies, String clusterName) {
         update(policies, clusterName);
@@ -40,25 +40,21 @@ public class PublishRateLimiterImpl implements PublishRateLimiter {
     }
 
     @Override
-    public void incrementPublishCountAndThrottleWhenNeeded(int numOfMessages, long msgSizeInBytes, LongConsumer throttlingPauseHandler) {
-        if (this.publishThrottlingEnabled) {
-            this.currentPublishMsgCount.add(numOfMessages);
-            this.currentPublishByteCount.add(msgSizeInBytes);
+    public void incrementPublishCountAndThrottleWhenNeeded(int numOfMessages, long msgSizeInBytes,
+                                                           LongConsumer throttlingPauseHandler) {
+        AsyncTokenBucket currentTokenBucketOnMessage = tokenBucketOnMessage;
+        long pauseNanos = 0L;
+        if (currentTokenBucketOnMessage != null) {
+            pauseNanos = currentTokenBucketOnMessage.updateAndConsumeTokensAndCalculatePause(numOfMessages);
         }
-    }
-
-    public boolean resetPublishCount() {
-        if (this.publishThrottlingEnabled) {
-            this.currentPublishMsgCount.reset();
-            this.currentPublishByteCount.reset();
-            this.publishRateExceeded = false;
-            return true;
+        AsyncTokenBucket currentTokenBucketOnByte = tokenBucketOnByte;
+        if (currentTokenBucketOnByte != null) {
+            pauseNanos = Math.max(pauseNanos,
+                    currentTokenBucketOnByte.updateAndConsumeTokensAndCalculatePause(msgSizeInBytes));
         }
-        return false;
-    }
-
-    public boolean isPublishRateExceeded() {
-        return publishRateExceeded;
+        if (pauseNanos > 0) {
+            throttlingPauseHandler.accept(pauseNanos);
+        }
     }
 
     @Override
@@ -70,16 +66,22 @@ public class PublishRateLimiterImpl implements PublishRateLimiter {
     }
 
     public void update(PublishRate maxPublishRate) {
-        if (maxPublishRate != null
-            && (maxPublishRate.publishThrottlingRateInMsg > 0 || maxPublishRate.publishThrottlingRateInByte > 0)) {
-            this.publishThrottlingEnabled = true;
-            this.publishMaxMessageRate = Math.max(maxPublishRate.publishThrottlingRateInMsg, 0);
-            this.publishMaxByteRate = Math.max(maxPublishRate.publishThrottlingRateInByte, 0);
+        if (maxPublishRate != null) {
+            if (maxPublishRate.publishThrottlingRateInMsg > 0) {
+                tokenBucketOnMessage = new AsyncTokenBucket(BURST_FACTOR * maxPublishRate.publishThrottlingRateInMsg,
+                        maxPublishRate.publishThrottlingRateInMsg, DEFAULT_CLOCK_SOURCE);
+            } else {
+                tokenBucketOnMessage = null;
+            }
+            if (maxPublishRate.publishThrottlingRateInByte > 0) {
+                tokenBucketOnByte = new AsyncTokenBucket(BURST_FACTOR * maxPublishRate.publishThrottlingRateInByte,
+                        maxPublishRate.publishThrottlingRateInByte, DEFAULT_CLOCK_SOURCE);
+            } else {
+                tokenBucketOnByte = null;
+            }
         } else {
-            this.publishMaxMessageRate = 0;
-            this.publishMaxByteRate = 0;
-            this.publishThrottlingEnabled = false;
+            tokenBucketOnMessage = null;
+            tokenBucketOnByte = null;
         }
-        resetPublishCount();
     }
 }

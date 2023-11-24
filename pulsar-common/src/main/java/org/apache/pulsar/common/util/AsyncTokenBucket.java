@@ -47,6 +47,8 @@ public class AsyncTokenBucket {
     private final LongSupplier clockSource;
     private final LongAdder pendingConsumedTokens = new LongAdder();
 
+    private final long defaultMinTokensForPause;
+
     public AsyncTokenBucket(long capacity, long rate, LongSupplier clockSource) {
         this(capacity, rate, clockSource, ONE_SECOND_NANOS, DEFAULT_MINIMUM_INCREMENT_NANOS);
     }
@@ -59,6 +61,8 @@ public class AsyncTokenBucket {
         this.clockSource = clockSource;
         this.minIncrementNanos =
                 Math.max(ratePeriodNanos / rate + 1, minimumIncrementNanos);
+        // The default minimum tokens is the amount of tokens made available in the minimum increment duration
+        this.defaultMinTokensForPause = this.minIncrementNanos * rate / ratePeriodNanos;
         updateTokens();
     }
 
@@ -105,16 +109,17 @@ public class AsyncTokenBucket {
         return tokens;
     }
 
-    public long calculatePauseNanos(long minTokens, boolean forceUpdateTokens) {
-        if (tokens >= minTokens) {
-            return 0;
-        }
-        updateAndConsumeTokens(0, forceUpdateTokens);
+    private long updateAndConsumeTokensAndCalculatePause(long consumeTokens, long minTokens, boolean forceUpdateTokens) {
+        updateAndConsumeTokens(consumeTokens, forceUpdateTokens);
         long needTokens = minTokens - tokens;
         if (needTokens <= 0) {
             return 0;
         }
         return (needTokens * ratePeriodNanos) / rate;
+    }
+
+    public long updateAndConsumeTokensAndCalculatePause(long consumeTokens) {
+        return updateAndConsumeTokensAndCalculatePause(consumeTokens, defaultMinTokensForPause, false);
     }
 
     public long getCapacity() {
