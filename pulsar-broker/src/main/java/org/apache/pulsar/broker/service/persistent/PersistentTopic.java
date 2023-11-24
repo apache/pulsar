@@ -3025,6 +3025,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
         isAllowAutoUpdateSchema = data.is_allow_auto_update_schema;
 
+        updateRetention();
+
         updateDispatchRateLimiter();
 
         updateSubscribeRateLimiter();
@@ -3052,6 +3054,19 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             log.error("[{}] update namespace polices : {} error", this.getName(), data, ex);
             throw FutureUtil.wrapToCompletionException(ex);
         });
+    }
+
+    public void updateRetention() {
+        RetentionPolicies retentionPolicies = topicPolicies.getRetentionPolicies().get();
+        if (retentionPolicies == null) {
+            return;
+        }
+        if (retentionPolicies.getRetentionSizeInMB() > 0) {
+            ledger.getConfig().setRetentionSizeInMB(retentionPolicies.getRetentionSizeInMB());
+        }
+        if (retentionPolicies.getRetentionTimeInMinutes() > 0) {
+            ledger.getConfig().setRetentionTime(retentionPolicies.getRetentionTimeInMinutes(), TimeUnit.MINUTES);
+        }
     }
 
     /**
@@ -3696,6 +3711,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         }
         updateTopicPolicy(policies);
         shadowTopics = policies.getShadowTopics();
+        updateRetention();
         updateDispatchRateLimiter();
         checkReplicatedSubscriptionControllerState();
         updateSubscriptionsDispatcherRateLimiter().thenRun(() -> {
