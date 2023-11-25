@@ -1513,13 +1513,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                     producers.values().forEach(producer -> futures.add(producer.disconnect(lookupData)))
             ));
         }
-        if (topicPublishRateLimiter != null) {
-            topicPublishRateLimiter.close();
-        }
         subscriptions.forEach((s, sub) -> futures.add(sub.disconnect()));
-        if (this.resourceGroupPublishLimiter != null) {
-            this.resourceGroupPublishLimiter.unregisterRateLimitFunction(this.getName());
-        }
 
         //close entry filters
         if (entryFilters != null) {
