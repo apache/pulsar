@@ -118,9 +118,7 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
 
     protected volatile Boolean isAllowAutoUpdateSchema;
 
-    protected volatile PublishRateLimiter topicPublishRateLimiter = new PublishRateLimiterImpl(null);
-    private final Object topicPublishRateLimiterLock = new Object();
-
+    protected volatile PublishRateLimiter topicPublishRateLimiter = new PublishRateLimiterImpl();
     protected volatile ResourceGroupPublishLimiter resourceGroupPublishLimiter;
 
     protected boolean preciseTopicPublishRateLimitingEnable;
@@ -888,11 +886,12 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
             .register();
 
     @Override
-    public void incrementPublishCount(int numOfMessages, long msgSizeInBytes) {
-        // increase topic publish rate limiter
-        this.topicPublishRateLimiter.incrementPublishCountAndMaybeThrottle(numOfMessages, msgSizeInBytes, null);
-        // increase broker publish rate limiter
-        getBrokerPublishRateLimiter().incrementPublishCountAndMaybeThrottle(numOfMessages, msgSizeInBytes, null);
+    public void incrementPublishCount(TransportCnx sourceCnx, int numOfMessages, long msgSizeInBytes) {
+        // consume tokens from rate limiters and possibly throttle the connection that published the message
+        // if it's publishing too fast. Each connection will be throttled lazily when they publish messages.
+        sourceCnx.updatePublishRateLimitersAndMaybeThrottle(
+                List.of(this.topicPublishRateLimiter, getBrokerPublishRateLimiter()), numOfMessages, msgSizeInBytes);
+
         // increase counters
         bytesInCounter.add(msgSizeInBytes);
         msgInCounter.add(numOfMessages);
@@ -1093,7 +1092,6 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
                 this.resourceGroupRateLimitingEnabled = true;
                 this.resourceGroupPublishLimiter = resourceGroup.getResourceGroupPublishLimiter();
                 log.info("Using resource group {} rate limiter for topic {}", rgName, topic);
-                return;
             }
         } else {
             if (this.resourceGroupRateLimitingEnabled) {
@@ -1211,22 +1209,15 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
      * update topic publish dispatcher for this topic.
      */
     public void updatePublishDispatcher() {
-        synchronized (topicPublishRateLimiterLock) {
-            PublishRate publishRate = topicPolicies.getPublishRate().get();
-            if (publishRate.publishThrottlingRateInByte > 0 || publishRate.publishThrottlingRateInMsg > 0) {
-                log.info("Enabling publish rate limiting {} on topic {}", publishRate, getName());
-            } else {
-                if (log.isDebugEnabled()) {
-                    log.debug("Disabling publish throttling for {}", this.topic);
-                }
-            }
-            if (this.topicPublishRateLimiter == null) {
-                // create new rateLimiter if rate-limiter is disabled
-                this.topicPublishRateLimiter = new PublishRateLimiterImpl(publishRate);
-            } else {
-                this.topicPublishRateLimiter.update(publishRate);
+        PublishRate publishRate = topicPolicies.getPublishRate().get();
+        if (publishRate.publishThrottlingRateInByte > 0 || publishRate.publishThrottlingRateInMsg > 0) {
+            log.info("Enabling publish rate limiting {} on topic {}", publishRate, getName());
+        } else {
+            if (log.isDebugEnabled()) {
+                log.debug("Disabling publish throttling for {}", this.topic);
             }
         }
+        this.topicPublishRateLimiter.update(publishRate);
     }
 
     // subscriptionTypesEnabled is dynamic and can be updated online.

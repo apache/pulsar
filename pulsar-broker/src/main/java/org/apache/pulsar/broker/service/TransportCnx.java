@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.service;
 import io.netty.handler.codec.haproxy.HAProxyMessage;
 import io.netty.util.concurrent.Promise;
 import java.net.SocketAddress;
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
@@ -85,4 +86,14 @@ public interface TransportCnx {
      * is null if the connection liveness check is disabled.
      */
     CompletableFuture<Boolean> checkConnectionLiveness();
+
+    /**
+     * Updates
+     *
+     * @param rateLimiters list of rate limiters to update
+     * @param numOfMessages number of messages to publish
+     * @param msgSizeInBytes size of messages to publish
+     */
+    void updatePublishRateLimitersAndMaybeThrottle(List<PublishRateLimiter> rateLimiters, int numOfMessages,
+                                                   long msgSizeInBytes);
 }

@@ -243,7 +243,7 @@ public class BrokerService implements Closeable {
     private final ScheduledExecutorService compactionMonitor;
     private final ScheduledExecutorService consumedLedgersMonitor;
     private ScheduledExecutorService deduplicationSnapshotMonitor;
-    protected volatile PublishRateLimiter brokerPublishRateLimiter = new PublishRateLimiterImpl(null);
+    protected volatile PublishRateLimiter brokerPublishRateLimiter = new PublishRateLimiterImpl();
     protected volatile DispatchRateLimiter brokerDispatchRateLimiter = null;
 
     private DistributedIdGenerator producerNameGenerator;
@@ -2043,11 +2043,6 @@ public class BrokerService implements Closeable {
     public void checkInactiveSubscriptions() {
         forEachTopic(Topic::checkInactiveSubscriptions);
     }
-
-    public void checkTopicPublishThrottlingRate() {
-        forEachTopic(Topic::checkTopicPublishThrottlingRate);
-    }
-
 
     /**
      * Iterates over all loaded topics in the broker.

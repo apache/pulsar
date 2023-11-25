@@ -18,28 +18,19 @@
  */
 package org.apache.pulsar.broker.resourcegroup;
 
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.broker.resourcegroup.ResourceGroup.BytesAndMessagesCount;
-import org.apache.pulsar.broker.service.PublishRateLimiter;
-import org.apache.pulsar.broker.service.ThrottleHandler;
+import org.apache.pulsar.broker.service.PublishRateLimiterImpl;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.PublishRate;
 import org.apache.pulsar.common.policies.data.ResourceGroup;
 
-public class ResourceGroupPublishLimiter implements PublishRateLimiter, AutoCloseable  {
-    protected volatile long publishMaxMessageRate = 0;
-    protected volatile long publishMaxByteRate = 0;
-    protected volatile boolean publishThrottlingEnabled = false;
-    private volatile RateLimiter publishRateLimiterOnMessage;
-    private volatile RateLimiter publishRateLimiterOnByte;
-    private final ScheduledExecutorService scheduledExecutorService;
+public class ResourceGroupPublishLimiter extends PublishRateLimiterImpl  {
+    private volatile long publishMaxMessageRate;
+    private volatile long publishMaxByteRate;
 
-    public ResourceGroupPublishLimiter(ResourceGroup resourceGroup, ScheduledExecutorService scheduledExecutorService) {
-        this.scheduledExecutorService = scheduledExecutorService;
+    public ResourceGroupPublishLimiter(ResourceGroup resourceGroup) {
         update(resourceGroup);
     }
-
 
     @Override
     public void update(Policies policies, String clusterName) {
@@ -70,95 +61,10 @@ public class ResourceGroupPublishLimiter implements PublishRateLimiter, AutoClos
             publishRateInMsgs = resourceGroup.getPublishRateInMsgs() == null
                     ? -1 : resourceGroup.getPublishRateInMsgs();
         }
-
         update(publishRateInMsgs, publishRateInBytes);
     }
 
     public void update(long publishRateInMsgs, long publishRateInBytes) {
-        replaceLimiters(() -> {
-            if (publishRateInMsgs > 0 || publishRateInBytes > 0) {
-                this.publishThrottlingEnabled = true;
-                this.publishMaxMessageRate = Math.max(publishRateInMsgs, 0);
-                this.publishMaxByteRate = Math.max(publishRateInBytes, 0);
-                if (this.publishMaxMessageRate > 0) {
-                    publishRateLimiterOnMessage = RateLimiter.builder()
-                            .scheduledExecutorService(scheduledExecutorService)
-                            .permits(publishMaxMessageRate)
-                            .rateTime(1L)
-                            .timeUnit(TimeUnit.SECONDS)
-                            .rateLimitFunction(this::apply)
-                            .build();
-                }
-                if (this.publishMaxByteRate > 0) {
-                    publishRateLimiterOnByte =
-                    RateLimiter.builder()
-                            .scheduledExecutorService(scheduledExecutorService)
-                            .permits(publishMaxByteRate)
-                            .rateTime(1L)
-                            .timeUnit(TimeUnit.SECONDS)
-                            .rateLimitFunction(this::apply)
-                            .build();
-                }
-            } else {
-                this.publishMaxMessageRate = 0;
-                this.publishMaxByteRate = 0;
-                this.publishThrottlingEnabled = false;
-                publishRateLimiterOnMessage = null;
-                publishRateLimiterOnByte = null;
-            }
-        });
-    }
-
-    @Override
-    public void incrementPublishCountAndMaybeThrottle(int numOfMessages, long msgSizeInBytes, ThrottleHandler throttleHandler) {
-        if (publishRateLimiterOnMessage != null) {
-            publishRateLimiterOnMessage.tryAcquire(numOfMessages);
-        }
-        if (publishRateLimiterOnByte != null) {
-            publishRateLimiterOnByte.tryAcquire(msgSizeInBytes);
-        }
-    }
-
-    private void replaceLimiters(Runnable updater) {
-        RateLimiter previousPublishRateLimiterOnMessage = publishRateLimiterOnMessage;
-        publishRateLimiterOnMessage = null;
-        RateLimiter previousPublishRateLimiterOnByte = publishRateLimiterOnByte;
-        publishRateLimiterOnByte = null;
-        try {
-            if (updater != null) {
-                updater.run();
-            }
-        } finally {
-            // Close previous limiters to prevent resource leakages.
-            // Delay closing of previous limiters after new ones are in place so that updating the limiter
-            // doesn't cause unavailability.
-            if (previousPublishRateLimiterOnMessage != null) {
-                previousPublishRateLimiterOnMessage.close();
-            }
-            if (previousPublishRateLimiterOnByte != null) {
-                previousPublishRateLimiterOnByte.close();
-            }
-        }
-    }
-
-    @Override
-    public void close() {
-        // Unblock any producers, consumers waiting first.
-        // This needs to be done before replacing the filters to null
-        this.apply();
-        replaceLimiters(null);
-    }
-
-    @Override
-    public void apply() {
-        // Make sure that both the rate limiters are applied before opening the flood gates.
-        RateLimiter currentTopicPublishRateLimiterOnMessage = publishRateLimiterOnMessage;
-        RateLimiter currentTopicPublishRateLimiterOnByte = publishRateLimiterOnByte;
-        if ((currentTopicPublishRateLimiterOnMessage != null
-                && currentTopicPublishRateLimiterOnMessage.getAvailablePermits() <= 0)
-            || (currentTopicPublishRateLimiterOnByte != null
-                && currentTopicPublishRateLimiterOnByte.getAvailablePermits() <= 0)) {
-            return;
-        }
+        updateTokenBuckets(publishRateInMsgs, publishRateInBytes);
     }
 }

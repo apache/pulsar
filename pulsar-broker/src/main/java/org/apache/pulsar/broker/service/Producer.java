@@ -321,7 +321,7 @@ public class Producer {
         // barrier
         pendingPublishAcksUpdater.lazySet(this, pendingPublishAcks + 1);
         // increment publish-count
-        this.getTopic().incrementPublishCount(batchSize, msgSize);
+        this.getTopic().incrementPublishCount(cnx, batchSize, msgSize);
     }
 
     private void publishOperationCompleted() {

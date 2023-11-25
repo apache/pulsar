@@ -219,7 +219,7 @@ public interface Topic {
 
     void checkMessageDeduplicationInfo();
 
-    void incrementPublishCount(int numOfMessages, long msgSizeInBytes);
+    void incrementPublishCount(TransportCnx cnx, int numOfMessages, long msgSizeInBytes);
 
     boolean shouldProducerMigrate();
 

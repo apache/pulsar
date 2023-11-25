@@ -38,6 +38,10 @@ public class PublishRateLimiterImpl implements PublishRateLimiter {
         update(maxPublishRate);
     }
 
+    public PublishRateLimiterImpl() {
+
+    }
+
     @Override
     public ThrottleInstruction incrementPublishCount(int numOfMessages, long msgSizeInBytes) {
         long pauseNanos = 0L;
@@ -81,20 +85,24 @@ public class PublishRateLimiterImpl implements PublishRateLimiter {
 
     public void update(PublishRate maxPublishRate) {
         if (maxPublishRate != null) {
-            if (maxPublishRate.publishThrottlingRateInMsg > 0) {
-                tokenBucketOnMessage = new AsyncTokenBucket(BURST_FACTOR * maxPublishRate.publishThrottlingRateInMsg,
-                        maxPublishRate.publishThrottlingRateInMsg, DEFAULT_CLOCK_SOURCE);
-            } else {
-                tokenBucketOnMessage = null;
-            }
-            if (maxPublishRate.publishThrottlingRateInByte > 0) {
-                tokenBucketOnByte = new AsyncTokenBucket(BURST_FACTOR * maxPublishRate.publishThrottlingRateInByte,
-                        maxPublishRate.publishThrottlingRateInByte, DEFAULT_CLOCK_SOURCE);
-            } else {
-                tokenBucketOnByte = null;
-            }
+            updateTokenBuckets(maxPublishRate.publishThrottlingRateInMsg, maxPublishRate.publishThrottlingRateInByte);
         } else {
             tokenBucketOnMessage = null;
+            tokenBucketOnByte = null;
+        }
+    }
+
+    protected void updateTokenBuckets(long publishThrottlingRateInMsg, long publishThrottlingRateInByte) {
+        if (publishThrottlingRateInMsg > 0) {
+            tokenBucketOnMessage = new AsyncTokenBucket(BURST_FACTOR * publishThrottlingRateInMsg,
+                    publishThrottlingRateInMsg, DEFAULT_CLOCK_SOURCE);
+        } else {
+            tokenBucketOnMessage = null;
+        }
+        if (publishThrottlingRateInByte > 0) {
+            tokenBucketOnByte = new AsyncTokenBucket(BURST_FACTOR * publishThrottlingRateInByte,
+                    publishThrottlingRateInByte, DEFAULT_CLOCK_SOURCE);
+        } else {
             tokenBucketOnByte = null;
         }
     }
