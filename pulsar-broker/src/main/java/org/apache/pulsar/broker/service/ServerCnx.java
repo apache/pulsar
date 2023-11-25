@@ -58,6 +58,7 @@ import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
+import java.util.function.LongSupplier;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import javax.naming.AuthenticationException;
@@ -187,6 +188,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             .name("pulsar_broker_throttled_connections")
             .help("Counter of connections throttled because of per-connection limit")
             .register();
+    private static final LongSupplier CLOCK_SOURCE = System::nanoTime;
     private final BrokerService service;
     private final SchemaRegistryService schemaService;
     private final String listenerName;
@@ -294,10 +296,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     final class ServerCnxThrottleTracker extends ThrottleTracker {
         private static final int PUBLISH_BUFFER_LIMITING_INDEX = 0;
         private static final int PENDING_SEND_REQUESTS_EXCEEDED = 1;
-        private static final int BROKER_PUBLISH_RATE_EXCEEDED = 2;
-        private static final int RESOURCE_GROUP_RATE_EXCEEDED = 3;
         public ServerCnxThrottleTracker() {
-            super(ServerCnx.this::ctx);
+            super(ServerCnx.this::ctx, CLOCK_SOURCE);
         }
 
         public void setPublishBufferLimiting(boolean throttlingEnabled) {
@@ -3505,9 +3505,9 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     }
 
     @Override
-    public void updatePublishRateLimitersAndMaybeThrottle(List<PublishRateLimiter> rateLimiters, int numOfMessages,
-                                                          long msgSizeInBytes) {
-        throttleTracker.updatePublishRateLimitersAndMaybeThrottle(rateLimiters, numOfMessages, msgSizeInBytes);
+    public void consumeQuotaAndMaybeThrottle(List<PublishRateLimiter> rateLimiters, int numOfMessages,
+                                             long msgSizeInBytes) {
+        throttleTracker.consumeQuotaAndMaybeThrottle(rateLimiters, numOfMessages, msgSizeInBytes);
     }
 
     @Override

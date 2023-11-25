@@ -68,8 +68,8 @@ public class ThrottleTracker {
         }
     }
 
-    void updatePublishRateLimitersAndMaybeThrottle(List<PublishRateLimiter> rateLimiters, int numOfMessages,
-                                                   long msgSizeInBytes) {
+    void consumeQuotaAndMaybeThrottle(List<PublishRateLimiter> rateLimiters, int numOfMessages,
+                                      long msgSizeInBytes) {
         int rateLimitersSize = rateLimiters.size();
         if (rateLimitersSize == 0) {
             return;

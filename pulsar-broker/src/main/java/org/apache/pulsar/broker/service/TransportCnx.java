@@ -94,6 +94,6 @@ public interface TransportCnx {
      * @param numOfMessages number of messages to publish
      * @param msgSizeInBytes size of messages to publish
      */
-    void updatePublishRateLimitersAndMaybeThrottle(List<PublishRateLimiter> rateLimiters, int numOfMessages,
-                                                   long msgSizeInBytes);
+    void consumeQuotaAndMaybeThrottle(List<PublishRateLimiter> rateLimiters, int numOfMessages,
+                                      long msgSizeInBytes);
 }
