@@ -25,14 +25,12 @@ public interface PublishRateLimiter {
     PublishRateLimiter DISABLED_RATE_LIMITER = PublishRateLimiterDisable.DISABLED_RATE_LIMITER;
 
     /**
-     * increments current publish count and calls the throttleHandler when throttling is needed.
+     * Increments current publish count and returns the throttling result.
      *
      * @param numOfMessages   number of messages to publish
      * @param msgSizeInBytes  size of messages in bytes to publish
-     * @param throttleHandler handler to call when throttling is needed
      */
-    void incrementPublishCountAndMaybeThrottle(int numOfMessages, long msgSizeInBytes,
-                                               ThrottleHandler throttleHandler);
+    ThrottleInstruction incrementPublishCount(int numOfMessages, long msgSizeInBytes);
 
     /**
      * updates rate-limiting threshold based on policies.

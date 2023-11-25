@@ -39,8 +39,7 @@ public class PublishRateLimiterImpl implements PublishRateLimiter {
     }
 
     @Override
-    public void incrementPublishCountAndMaybeThrottle(int numOfMessages, long msgSizeInBytes,
-                                                      ThrottleHandler throttleHandler) {
+    public ThrottleInstruction incrementPublishCount(int numOfMessages, long msgSizeInBytes) {
         AsyncTokenBucket currentTokenBucketOnMessage = tokenBucketOnMessage;
         long pauseNanos = 0L;
         if (currentTokenBucketOnMessage != null) {
@@ -52,7 +51,9 @@ public class PublishRateLimiterImpl implements PublishRateLimiter {
                     currentTokenBucketOnByte.updateAndConsumeTokensAndCalculatePause(msgSizeInBytes));
         }
         if (pauseNanos > 0) {
-            throttleHandler.throttle(pauseNanos, this::calculateAdditionalPause);
+            return new ThrottleInstruction(pauseNanos, this::calculateAdditionalPause);
+        } else {
+            return ThrottleInstruction.NO_THROTTLE;
         }
     }
 
