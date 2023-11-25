@@ -22,7 +22,6 @@ import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.PublishRate;
 
 public interface PublishRateLimiter {
-    PublishRateLimiter DISABLED_RATE_LIMITER = PublishRateLimiterDisable.DISABLED_RATE_LIMITER;
 
     /**
      * Increments current publish count and returns the throttling result.

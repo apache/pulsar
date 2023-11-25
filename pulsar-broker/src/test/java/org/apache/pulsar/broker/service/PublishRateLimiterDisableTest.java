@@ -26,7 +26,7 @@ public class PublishRateLimiterDisableTest {
     // GH issue #10603
     @Test
     void shouldAlwaysAllowAcquire() {
-        PublishRateLimiterDisable publishRateLimiter = PublishRateLimiterDisable.DISABLED_RATE_LIMITER;
+        PublishRateLimiter publishRateLimiter = new PublishRateLimiterImpl(null);
         assertFalse(publishRateLimiter.incrementPublishCount(Integer.MAX_VALUE, Long.MAX_VALUE).shouldThrottle());
     }
 }
