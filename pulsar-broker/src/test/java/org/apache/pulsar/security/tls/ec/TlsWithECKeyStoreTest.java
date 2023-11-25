@@ -21,8 +21,6 @@ package org.apache.pulsar.security.tls.ec;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
-import java.nio.charset.StandardCharsets;
-import java.util.UUID;
 import lombok.Cleanup;
 import lombok.SneakyThrows;
 import org.apache.pulsar.base.MockedPulsarStandalone;
@@ -33,18 +31,19 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.client.impl.auth.AuthenticationTls;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
+import java.nio.charset.StandardCharsets;
+import java.util.UUID;
 
 
 @Test
-public class TlsWithECCertificateFileTest extends MockedPulsarStandalone {
+public class TlsWithECJKSTest extends MockedPulsarStandalone {
 
     @BeforeClass(alwaysRun = true)
     public void suitSetup() {
-        loadECTlsCertificateWithFile();
+        loadECTlsCertificateWithJKS();
         enableTlsAuthentication();
         super.start(); // start standalone service
     }
@@ -71,20 +70,23 @@ public class TlsWithECCertificateFileTest extends MockedPulsarStandalone {
     @Test
     @SneakyThrows
     public void testConnectionSuccessWithCertificate() {
-        final AuthenticationTls authentication = new AuthenticationTls(TLS_EC_CLIENT_CERT_PATH, TLS_EC_CLIENT_KEY_PATH);
         final String topicName = "persistent://public/default/" + UUID.randomUUID();
         final int testMsgNum = 10;
         final PulsarAdmin admin = PulsarAdmin.builder()
-                .authentication(authentication)
+                .tlsKeyStorePath(TLS_EC_JKS_CLIENT_STORE)
+                .tlsKeyStorePassword(TLS_EC_JKS_CLIENT_PASS)
+                .tlsTrustStorePath(TLS_EC_JKS_TRUST_CLIENT_STORE)
+                .tlsTrustStorePassword(TLS_EC_JKS_CLIENT_PASS)
                 .serviceHttpUrl(getPulsarService().getWebServiceAddressTls())
-                .tlsTrustCertsFilePath(TLS_EC_TRUSTED_CERT_PATH)
                 .build();
         admin.topics().createNonPartitionedTopic(topicName);
         admin.topics().createSubscription(topicName, "sub-1", MessageId.earliest);
         @Cleanup final PulsarClient client = PulsarClient.builder()
                 .serviceUrl(getPulsarService().getBrokerServiceUrlTls())
-                .authentication(authentication)
-                .tlsTrustCertsFilePath(TLS_EC_TRUSTED_CERT_PATH)
+                .tlsKeyStorePath(TLS_EC_JKS_CLIENT_STORE)
+                .tlsKeyStorePassword(TLS_EC_JKS_CLIENT_PASS)
+                .tlsTrustStorePath(TLS_EC_JKS_TRUST_CLIENT_STORE)
+                .tlsTrustStorePassword(TLS_EC_JKS_CLIENT_PASS)
                 .build();
         @Cleanup final Producer<byte[]> producer = client.newProducer()
                 .topic(topicName)
