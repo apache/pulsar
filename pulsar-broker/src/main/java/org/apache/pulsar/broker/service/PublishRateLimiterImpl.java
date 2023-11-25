@@ -40,8 +40,8 @@ public class PublishRateLimiterImpl implements PublishRateLimiter {
 
     @Override
     public ThrottleInstruction incrementPublishCount(int numOfMessages, long msgSizeInBytes) {
-        AsyncTokenBucket currentTokenBucketOnMessage = tokenBucketOnMessage;
         long pauseNanos = 0L;
+        AsyncTokenBucket currentTokenBucketOnMessage = tokenBucketOnMessage;
         if (currentTokenBucketOnMessage != null) {
             pauseNanos = currentTokenBucketOnMessage.updateAndConsumeTokensAndCalculatePause(numOfMessages);
         }
