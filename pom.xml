@@ -1656,8 +1656,6 @@ flexible messaging model and an intuitive client API.</description>
                 <exclude>**/*.pyc</exclude>
                 <exclude>**/*.graffle</exclude>
                 <exclude>**/*.hgrm</exclude>
-                <exlucde>**/*.jks</exlucde>
-                <exlucde>**/*.srl</exlucde>
                 <exclude>**/src/main/java/org/apache/bookkeeper/mledger/proto/MLDataFormats.java</exclude>
                 <exclude>**/src/main/java/org/apache/pulsar/transaction/coordinator/proto/PulsarTransactionMetadata.java</exclude>
                 <exclude>**/src/main/java/org/apache/pulsar/broker/service/schema/proto/SchemaRegistryFormat.java</exclude>
@@ -1782,6 +1780,8 @@ flexible messaging model and an intuitive client API.</description>
             <exclude>**/*.crt</exclude>
             <exclude>**/*.key</exclude>
             <exclude>**/*.csr</exclude>
+            <exclude>**/*.srl</exclude>
+            <exclude>**/*.txt</exclude>
             <exclude>**/*.pem</exclude>
             <exclude>**/*.json</exclude>
             <exclude>**/*.htpasswd</exclude>
