@@ -4,21 +4,33 @@ import io.netty.channel.ChannelHandlerContext;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
+import java.util.concurrent.atomic.AtomicLongFieldUpdater;
+import java.util.function.LongSupplier;
 import java.util.function.Supplier;
 
 public class ThrottleTracker {
-    private final Supplier<ChannelHandlerContext> ctxSupplier;
+    public static final long PAUSE_DEDUPLICATION_RESOLUTION = TimeUnit.MILLISECONDS.toNanos(10);
     private static final AtomicIntegerFieldUpdater<ThrottleTracker> THROTTLE_COUNT_UPDATER =
             AtomicIntegerFieldUpdater.newUpdater(
                     ThrottleTracker.class, "throttleCount");
+
+    private static final AtomicLongFieldUpdater<ThrottleTracker> MAX_END_OF_THROTTLE_UPDATER =
+            AtomicLongFieldUpdater.newUpdater(
+                    ThrottleTracker.class, "maxEndOfThrottleNanos");
     private volatile int throttleCount;
+    private volatile long maxEndOfThrottleNanos = 0L;
+    private final Supplier<ChannelHandlerContext> ctxSupplier;
     private final AtomicIntegerFlags throttlingFlags = new AtomicIntegerFlags();
 
+    private final LongSupplier clockSource;
     private final List<PublishRateLimiter> rateLimiters;
     private int rateLimitersSize;
 
-    public ThrottleTracker(Supplier<ChannelHandlerContext> ctxSupplier, List<PublishRateLimiter> rateLimiters) {
+
+    public ThrottleTracker(Supplier<ChannelHandlerContext> ctxSupplier, LongSupplier clockSource,
+                           List<PublishRateLimiter> rateLimiters) {
         this.ctxSupplier = ctxSupplier;
+        this.clockSource = clockSource;
         this.rateLimiters = List.copyOf(rateLimiters);
         this.rateLimitersSize = rateLimiters.size();
     }
@@ -82,8 +94,14 @@ public class ThrottleTracker {
             if (maxPauseTimeNanos > 0) {
                 ChannelHandlerContext ctx = ctxSupplier.get();
                 if (ctx != null) {
-                    incrementThrottleCount();
-                    decrementThrottleCountAfterPause(ctx, maxPauseTimeNanos, throttleInstructions);
+                    long currentMaxEndOfThrottleNanos = maxEndOfThrottleNanos;
+                    long endOfThrottleNanos = clockSource.getAsLong() + maxPauseTimeNanos;
+                    if (endOfThrottleNanos > currentMaxEndOfThrottleNanos + PAUSE_DEDUPLICATION_RESOLUTION
+                            && MAX_END_OF_THROTTLE_UPDATER.compareAndSet(this, currentMaxEndOfThrottleNanos,
+                            endOfThrottleNanos)) {
+                        incrementThrottleCount();
+                        decrementThrottleCountAfterPause(ctx, maxPauseTimeNanos, throttleInstructions);
+                    }
                 }
             }
         }
@@ -98,7 +116,15 @@ public class ThrottleTracker {
                         throttleInstructions[i].getAdditionalPauseTimeSupplier().getAsLong());
             }
             if (additionalPauseTimeNanos > 0) {
-                decrementThrottleCountAfterPause(ctx, additionalPauseTimeNanos, throttleInstructions);
+                long currentMaxEndOfThrottleNanos = maxEndOfThrottleNanos;
+                long endOfThrottleNanos = clockSource.getAsLong() + additionalPauseTimeNanos;
+                if (endOfThrottleNanos > currentMaxEndOfThrottleNanos + PAUSE_DEDUPLICATION_RESOLUTION
+                        && MAX_END_OF_THROTTLE_UPDATER.compareAndSet(this, currentMaxEndOfThrottleNanos,
+                        endOfThrottleNanos)) {
+                    decrementThrottleCountAfterPause(ctx, additionalPauseTimeNanos, throttleInstructions);
+                } else {
+                    decrementThrottleCount();
+                }
             } else {
                 decrementThrottleCount();
             }
