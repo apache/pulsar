@@ -9,7 +9,7 @@ public class AtomicIntegerFlags {
                     AtomicIntegerFlags.class, "flags");
 
     /**
-     * enable/disable the flag at the specified index
+     * enable/disable the flag at the specified index.
      *
      * @param index   the index of the flag in range of 0 to 30
      * @param enabled used to enable/disable the flag
@@ -27,7 +27,7 @@ public class AtomicIntegerFlags {
     }
 
     /**
-     * get the enabled status of the flag
+     * get the enabled status of the flag.
      *
      * @param index the index of the flag in the range of 0 to 30
      * @return true if the flag is set

@@ -247,13 +247,14 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     private final long connectionLivenessCheckTimeoutMillis;
 
     // Tracks and limits number of bytes pending to be published from a single specific IO thread.
-    final static class PendingBytesPerThreadTracker {
-        private static final FastThreadLocal<PendingBytesPerThreadTracker> pendingBytesPerThread = new FastThreadLocal<>() {
-            @Override
-            protected PendingBytesPerThreadTracker initialValue() throws Exception {
-                return new PendingBytesPerThreadTracker();
-            }
-        };
+    static final class PendingBytesPerThreadTracker {
+        private static final FastThreadLocal<PendingBytesPerThreadTracker> pendingBytesPerThread =
+                new FastThreadLocal<>() {
+                    @Override
+                    protected PendingBytesPerThreadTracker initialValue() throws Exception {
+                        return new PendingBytesPerThreadTracker();
+                    }
+                };
 
         private long pendingBytes;
         private boolean limitExceeded;

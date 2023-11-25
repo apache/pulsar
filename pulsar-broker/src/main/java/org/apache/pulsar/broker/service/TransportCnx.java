@@ -88,9 +88,9 @@ public interface TransportCnx {
     CompletableFuture<Boolean> checkConnectionLiveness();
 
     /**
-     * Updates
+     * Consume quota from all of the rate limiters and maybe throttle.
      *
-     * @param rateLimiters list of rate limiters to update
+     * @param rateLimiters list of rate limiters to consume quota from
      * @param numOfMessages number of messages to publish
      * @param msgSizeInBytes size of messages to publish
      */
