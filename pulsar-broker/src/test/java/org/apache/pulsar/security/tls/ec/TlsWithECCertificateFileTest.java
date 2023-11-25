@@ -40,7 +40,7 @@ import org.testng.annotations.Test;
 
 
 @Test
-public class TlsWithECCertificateTest extends MockedPulsarStandalone {
+public class TlsWithECCertificateFileTest extends MockedPulsarStandalone {
 
     @BeforeClass(alwaysRun = true)
     public void suitSetup() {

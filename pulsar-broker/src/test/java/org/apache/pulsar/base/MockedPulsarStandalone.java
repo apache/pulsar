@@ -31,6 +31,7 @@ import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationProviderTls;
 import org.apache.pulsar.broker.testcontext.PulsarTestContext;
 import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.impl.auth.AuthenticationKeyStoreTls;
 import org.apache.pulsar.client.impl.auth.AuthenticationTls;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfo;
@@ -60,7 +61,7 @@ public abstract class MockedPulsarStandalone implements AutoCloseable {
     }
 
     @SneakyThrows
-    protected void loadECTlsCertificate() {
+    protected void loadECTlsCertificateWithFile() {
         serviceConfiguration.setTlsEnabled(true);
         serviceConfiguration.setBrokerServicePort(Optional.empty());
         serviceConfiguration.setWebServicePort(Optional.empty());
@@ -73,6 +74,30 @@ public abstract class MockedPulsarStandalone implements AutoCloseable {
         final Map<String, String> brokerClientAuthParams = new HashMap<>();
         brokerClientAuthParams.put("tlsCertFile", TLS_EC_BROKER_CLIENT_CERT_PATH);
         brokerClientAuthParams.put("tlsKeyFile", TLS_EC_BROKER_CLIENT_KEY_PATH);
+        serviceConfiguration.setBrokerClientAuthenticationParameters(mapper.writeValueAsString(brokerClientAuthParams));
+    }
+
+    @SneakyThrows
+    protected void loadECTlsCertificateWithKeyStore() {
+        serviceConfiguration.setTlsEnabled(true);
+        serviceConfiguration.setBrokerServicePort(Optional.empty());
+        serviceConfiguration.setWebServicePort(Optional.empty());
+        serviceConfiguration.setTlsEnabledWithKeyStore(true);
+        serviceConfiguration.setTlsKeyStore(TLS_EC_KS_SERVER_STORE);
+        serviceConfiguration.setTlsKeyStorePassword(TLS_EC_KS_SERVER_PASS);
+        serviceConfiguration.setTlsTrustStore(TLS_EC_KS_TRUSTED_STORE);
+        serviceConfiguration.setTlsTrustStorePassword(TLS_EC_KS_TRUSTED_STORE_PASS);
+        serviceConfiguration.setTlsRequireTrustedClientCertOnConnect(true);
+        serviceConfiguration.setBrokerClientTlsEnabled(true);
+        serviceConfiguration.setBrokerClientTlsEnabledWithKeyStore(true);
+        serviceConfiguration.setBrokerClientTlsKeyStore(TLS_EC_KS_BROKER_CLIENT_STORE);
+        serviceConfiguration.setBrokerClientTlsKeyStorePassword(TLS_EC_KS_BROKER_CLIENT_PASS);
+        serviceConfiguration.setBrokerClientTlsTrustStore(TLS_EC_KS_TRUSTED_STORE);
+        serviceConfiguration.setBrokerClientTlsTrustStorePassword(TLS_EC_KS_TRUSTED_STORE_PASS);
+        serviceConfiguration.setBrokerClientAuthenticationPlugin(AuthenticationKeyStoreTls.class.getName());
+        final Map<String, String> brokerClientAuthParams = new HashMap<>();
+        brokerClientAuthParams.put("keyStorePath", TLS_EC_KS_BROKER_CLIENT_STORE);
+        brokerClientAuthParams.put("keyStorePassword", TLS_EC_KS_BROKER_CLIENT_PASS);
         serviceConfiguration.setBrokerClientAuthenticationParameters(mapper.writeValueAsString(brokerClientAuthParams));
     }
 
@@ -120,7 +145,7 @@ public abstract class MockedPulsarStandalone implements AutoCloseable {
     }
 
     // Utils
-    private static final ObjectMapper mapper = new ObjectMapper();
+    protected static final ObjectMapper mapper = new ObjectMapper();
 
     // Static name
     private static final String DEFAULT_TENANT = "public";
@@ -142,4 +167,18 @@ public abstract class MockedPulsarStandalone implements AutoCloseable {
             getPathFromResource("authentication/tls/ec/client.key-pk8.pem");
     protected static final String TLS_EC_CLIENT_CERT_PATH =
             getPathFromResource("authentication/tls/ec/client.cert.pem");
+
+    // EC KeyStore
+    private static final String TLS_EC_KS_SERVER_STORE =
+            getPathFromResource("authentication/tls/ec/jks/server.keystore.jks");
+    private static final String TLS_EC_KS_SERVER_PASS = "serverpw";
+    private static final String TLS_EC_KS_BROKER_CLIENT_STORE =
+            getPathFromResource("authentication/tls/ec/jks/broker_client.keystore.jks");
+    private static final String TLS_EC_KS_BROKER_CLIENT_PASS = "brokerclientpw";
+    protected static final String TLS_EC_KS_CLIENT_STORE =
+            getPathFromResource("authentication/tls/ec/jks/client.keystore.jks");
+    protected static final String TLS_EC_KS_CLIENT_PASS = "clientpw";
+    protected static final String TLS_EC_KS_TRUSTED_STORE =
+            getPathFromResource("authentication/tls/ec/jks/ca.truststore.jks");
+    protected static final String TLS_EC_KS_TRUSTED_STORE_PASS = "rootpw";
 }

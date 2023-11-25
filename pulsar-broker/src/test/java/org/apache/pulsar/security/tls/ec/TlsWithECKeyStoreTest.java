@@ -31,19 +31,22 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.impl.auth.AuthenticationKeyStoreTls;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 import java.nio.charset.StandardCharsets;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.UUID;
 
 
 @Test
-public class TlsWithECJKSTest extends MockedPulsarStandalone {
+public class TlsWithECKeyStoreTest extends MockedPulsarStandalone {
 
     @BeforeClass(alwaysRun = true)
     public void suitSetup() {
-        loadECTlsCertificateWithJKS();
+        loadECTlsCertificateWithKeyStore();
         enableTlsAuthentication();
         super.start(); // start standalone service
     }
@@ -72,21 +75,28 @@ public class TlsWithECJKSTest extends MockedPulsarStandalone {
     public void testConnectionSuccessWithCertificate() {
         final String topicName = "persistent://public/default/" + UUID.randomUUID();
         final int testMsgNum = 10;
+        final Map<String, String> clientAuthParams = new HashMap<>();
+        clientAuthParams.put("keyStorePath", TLS_EC_KS_CLIENT_STORE);
+        clientAuthParams.put("keyStorePassword", TLS_EC_KS_CLIENT_PASS);
         final PulsarAdmin admin = PulsarAdmin.builder()
-                .tlsKeyStorePath(TLS_EC_JKS_CLIENT_STORE)
-                .tlsKeyStorePassword(TLS_EC_JKS_CLIENT_PASS)
-                .tlsTrustStorePath(TLS_EC_JKS_TRUST_CLIENT_STORE)
-                .tlsTrustStorePassword(TLS_EC_JKS_CLIENT_PASS)
+                .useKeyStoreTls(true)
+                .tlsKeyStorePath(TLS_EC_KS_CLIENT_STORE)
+                .tlsKeyStorePassword(TLS_EC_KS_CLIENT_PASS)
+                .tlsTrustStorePath(TLS_EC_KS_TRUSTED_STORE)
+                .tlsTrustStorePassword(TLS_EC_KS_TRUSTED_STORE_PASS)
+                .authentication(AuthenticationKeyStoreTls.class.getName(), mapper.writeValueAsString(clientAuthParams))
                 .serviceHttpUrl(getPulsarService().getWebServiceAddressTls())
                 .build();
         admin.topics().createNonPartitionedTopic(topicName);
         admin.topics().createSubscription(topicName, "sub-1", MessageId.earliest);
         @Cleanup final PulsarClient client = PulsarClient.builder()
                 .serviceUrl(getPulsarService().getBrokerServiceUrlTls())
-                .tlsKeyStorePath(TLS_EC_JKS_CLIENT_STORE)
-                .tlsKeyStorePassword(TLS_EC_JKS_CLIENT_PASS)
-                .tlsTrustStorePath(TLS_EC_JKS_TRUST_CLIENT_STORE)
-                .tlsTrustStorePassword(TLS_EC_JKS_CLIENT_PASS)
+                .useKeyStoreTls(true)
+                .tlsKeyStorePath(TLS_EC_KS_CLIENT_STORE)
+                .tlsKeyStorePassword(TLS_EC_KS_CLIENT_PASS)
+                .tlsTrustStorePath(TLS_EC_KS_TRUSTED_STORE)
+                .tlsTrustStorePassword(TLS_EC_KS_TRUSTED_STORE_PASS)
+                .authentication(AuthenticationKeyStoreTls.class.getName(), mapper.writeValueAsString(clientAuthParams))
                 .build();
         @Cleanup final Producer<byte[]> producer = client.newProducer()
                 .topic(topicName)
