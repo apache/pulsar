@@ -39,8 +39,8 @@ public class PublishRateLimiterImpl implements PublishRateLimiter {
     }
 
     @Override
-    public void incrementPublishCountAndThrottleWhenNeeded(int numOfMessages, long msgSizeInBytes,
-                                                           ThrottleHandler throttleHandler) {
+    public void incrementPublishCountAndMaybeThrottle(int numOfMessages, long msgSizeInBytes,
+                                                      ThrottleHandler throttleHandler) {
         AsyncTokenBucket currentTokenBucketOnMessage = tokenBucketOnMessage;
         long pauseNanos = 0L;
         if (currentTokenBucketOnMessage != null) {
@@ -52,8 +52,22 @@ public class PublishRateLimiterImpl implements PublishRateLimiter {
                     currentTokenBucketOnByte.updateAndConsumeTokensAndCalculatePause(msgSizeInBytes));
         }
         if (pauseNanos > 0) {
-            throttleHandler.accept(pauseNanos);
+            throttleHandler.throttle(pauseNanos, this::calculateAdditionalPause);
         }
+    }
+
+    private long calculateAdditionalPause() {
+        AsyncTokenBucket currentTokenBucketOnMessage = tokenBucketOnMessage;
+        long pauseNanos = 0L;
+        if (currentTokenBucketOnMessage != null) {
+            pauseNanos = currentTokenBucketOnMessage.calculatePause();
+        }
+        AsyncTokenBucket currentTokenBucketOnByte = tokenBucketOnByte;
+        if (currentTokenBucketOnByte != null) {
+            pauseNanos = Math.max(pauseNanos,
+                    currentTokenBucketOnByte.calculatePause());
+        }
+        return pauseNanos;
     }
 
     @Override

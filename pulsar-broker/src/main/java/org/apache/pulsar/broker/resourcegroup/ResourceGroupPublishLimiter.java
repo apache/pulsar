@@ -110,7 +110,7 @@ public class ResourceGroupPublishLimiter implements PublishRateLimiter, AutoClos
     }
 
     @Override
-    public void incrementPublishCountAndThrottleWhenNeeded(int numOfMessages, long msgSizeInBytes, ThrottleHandler throttleHandler) {
+    public void incrementPublishCountAndMaybeThrottle(int numOfMessages, long msgSizeInBytes, ThrottleHandler throttleHandler) {
         if (publishRateLimiterOnMessage != null) {
             publishRateLimiterOnMessage.tryAcquire(numOfMessages);
         }

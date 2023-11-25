@@ -890,9 +890,9 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
     @Override
     public void incrementPublishCount(int numOfMessages, long msgSizeInBytes) {
         // increase topic publish rate limiter
-        this.topicPublishRateLimiter.incrementPublishCountAndThrottleWhenNeeded(numOfMessages, msgSizeInBytes, null);
+        this.topicPublishRateLimiter.incrementPublishCountAndMaybeThrottle(numOfMessages, msgSizeInBytes, null);
         // increase broker publish rate limiter
-        getBrokerPublishRateLimiter().incrementPublishCountAndThrottleWhenNeeded(numOfMessages, msgSizeInBytes, null);
+        getBrokerPublishRateLimiter().incrementPublishCountAndMaybeThrottle(numOfMessages, msgSizeInBytes, null);
         // increase counters
         bytesInCounter.add(msgSizeInBytes);
         msgInCounter.add(numOfMessages);

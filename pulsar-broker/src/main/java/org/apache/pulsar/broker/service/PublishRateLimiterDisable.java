@@ -26,7 +26,7 @@ public class PublishRateLimiterDisable implements PublishRateLimiter {
 
 
     @Override
-    public void incrementPublishCountAndThrottleWhenNeeded(int numOfMessages, long msgSizeInBytes, ThrottleHandler throttleHandler) {
+    public void incrementPublishCountAndMaybeThrottle(int numOfMessages, long msgSizeInBytes, ThrottleHandler throttleHandler) {
         // No-op
     }
 

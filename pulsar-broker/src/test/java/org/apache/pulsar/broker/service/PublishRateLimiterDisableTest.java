@@ -30,7 +30,7 @@ public class PublishRateLimiterDisableTest {
         ThrottleHandler throttleHandler = (initialPauseTimeNanos, additionalPauseTimeSupplier) -> {
             fail("Should not be throttled");
         };
-        publishRateLimiter.incrementPublishCountAndThrottleWhenNeeded(Integer.MAX_VALUE, Long.MAX_VALUE,
+        publishRateLimiter.incrementPublishCountAndMaybeThrottle(Integer.MAX_VALUE, Long.MAX_VALUE,
                 throttleHandler);
     }
 }

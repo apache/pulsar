@@ -54,19 +54,19 @@ public class PublishRateLimiterTest {
     @Test
     public void testPublishRateLimiterImplExceed() throws Exception {
         // increment not exceed
-        publishRateLimiter.incrementPublishCountAndThrottleWhenNeeded(5, 50, null);
+        publishRateLimiter.incrementPublishCountAndMaybeThrottle(5, 50, null);
         publishRateLimiter.calculateThrottlingPauseNanos();
         assertFalse(publishRateLimiter.isPublishRateExceeded());
         publishRateLimiter.resetPublishCount();
 
         // numOfMessages increment exceeded
-        publishRateLimiter.incrementPublishCountAndThrottleWhenNeeded(11, 100, null);
+        publishRateLimiter.incrementPublishCountAndMaybeThrottle(11, 100, null);
         publishRateLimiter.calculateThrottlingPauseNanos();
         assertTrue(publishRateLimiter.isPublishRateExceeded());
         publishRateLimiter.resetPublishCount();
 
         // msgSizeInBytes increment exceeded
-        publishRateLimiter.incrementPublishCountAndThrottleWhenNeeded(9, 110, null);
+        publishRateLimiter.incrementPublishCountAndMaybeThrottle(9, 110, null);
         publishRateLimiter.calculateThrottlingPauseNanos();
         assertTrue(publishRateLimiter.isPublishRateExceeded());
 
@@ -74,13 +74,13 @@ public class PublishRateLimiterTest {
 
     @Test
     public void testPublishRateLimiterImplUpdate() {
-        publishRateLimiter.incrementPublishCountAndThrottleWhenNeeded(11, 110, null);
+        publishRateLimiter.incrementPublishCountAndMaybeThrottle(11, 110, null);
         publishRateLimiter.calculateThrottlingPauseNanos();
         assertTrue(publishRateLimiter.isPublishRateExceeded());
 
         // update
         publishRateLimiter.update(newPublishRate);
-        publishRateLimiter.incrementPublishCountAndThrottleWhenNeeded(11, 110, null);
+        publishRateLimiter.incrementPublishCountAndMaybeThrottle(11, 110, null);
         publishRateLimiter.calculateThrottlingPauseNanos();
         assertFalse(publishRateLimiter.isPublishRateExceeded());
 

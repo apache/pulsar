@@ -102,14 +102,15 @@ public class AsyncTokenBucket {
         updateAndConsumeTokens(consumeTokens, false);
     }
 
-    public long tokens(boolean forceUpdateTokens) {
+    protected long tokens(boolean forceUpdateTokens) {
         if (forceUpdateTokens) {
             updateAndConsumeTokens(0, forceUpdateTokens);
         }
         return tokens;
     }
 
-    private long updateAndConsumeTokensAndCalculatePause(long consumeTokens, long minTokens, boolean forceUpdateTokens) {
+    protected long updateAndConsumeTokensAndCalculatePause(long consumeTokens, long minTokens,
+                                                           boolean forceUpdateTokens) {
         updateAndConsumeTokens(consumeTokens, forceUpdateTokens);
         long needTokens = minTokens - tokens;
         if (needTokens <= 0) {
@@ -120,6 +121,13 @@ public class AsyncTokenBucket {
 
     public long updateAndConsumeTokensAndCalculatePause(long consumeTokens) {
         return updateAndConsumeTokensAndCalculatePause(consumeTokens, defaultMinTokensForPause, false);
+    }
+
+    public long calculatePause() {
+        if (tokens > 0) {
+            return 0;
+        }
+        return updateAndConsumeTokensAndCalculatePause(0);
     }
 
     public long getCapacity() {
