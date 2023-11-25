@@ -18,10 +18,10 @@
  */
 package org.apache.pulsar.broker.service.persistent;
 
+import static org.apache.pulsar.common.util.AsyncTokenBucket.DEFAULT_CLOCK_SOURCE;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
-import java.util.function.LongSupplier;
 import java.util.function.Supplier;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.BrokerService;
@@ -35,7 +35,6 @@ import org.slf4j.LoggerFactory;
 
 public class DispatchRateLimiter {
     private static final int BURST_FACTOR = 2;
-    public static final LongSupplier DEFAULT_CLOCK_SOURCE = System::nanoTime;
     public enum Type {
         TOPIC,
         SUBSCRIPTION,

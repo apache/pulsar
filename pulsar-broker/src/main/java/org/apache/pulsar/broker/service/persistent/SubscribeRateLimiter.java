@@ -31,6 +31,7 @@ import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
+import org.apache.pulsar.common.util.AsyncTokenBucket;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -38,7 +39,7 @@ public class SubscribeRateLimiter {
 
     private final String topicName;
     private final BrokerService brokerService;
-    private ConcurrentHashMap<ConsumerIdentifier, RateLimiter> subscribeRateLimiter;
+    private ConcurrentHashMap<ConsumerIdentifier, AsyncTokenBucket> subscribeRateLimiter;
     private final ScheduledExecutorService executorService;
     private ScheduledFuture<?> resetTask;
     private SubscribeRate subscribeRate;
@@ -63,7 +64,7 @@ public class SubscribeRateLimiter {
      */
     public long getAvailableSubscribeRateLimit(ConsumerIdentifier consumerIdentifier) {
         return subscribeRateLimiter.get(consumerIdentifier)
-                == null ? -1 : subscribeRateLimiter.get(consumerIdentifier).getAvailablePermits();
+                == null ? -1 : subscribeRateLimiter.get(consumerIdentifier).getTokens();
     }
 
     /**
@@ -85,7 +86,7 @@ public class SubscribeRateLimiter {
      */
     public boolean subscribeAvailable(ConsumerIdentifier consumerIdentifier) {
         return (subscribeRateLimiter.get(consumerIdentifier)
-                == null || subscribeRateLimiter.get(consumerIdentifier).getAvailablePermits() > 0);
+                == null || subscribeRateLimiter.get(consumerIdentifier).getTokens() > 0);
     }
 
     /**
@@ -103,7 +104,6 @@ public class SubscribeRateLimiter {
 
     private synchronized void removeSubscribeLimiter(ConsumerIdentifier consumerIdentifier) {
         if (this.subscribeRateLimiter.get(consumerIdentifier) != null) {
-            this.subscribeRateLimiter.get(consumerIdentifier).close();
             this.subscribeRateLimiter.remove(consumerIdentifier);
         }
     }
