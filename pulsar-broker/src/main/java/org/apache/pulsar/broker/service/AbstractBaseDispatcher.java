@@ -315,10 +315,10 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
                 || (cursor != null && !cursor.isActive())) {
             long permits = dispatchThrottlingOnBatchMessageEnabled ? totalEntries : totalMessagesSent;
             topic.getBrokerDispatchRateLimiter().ifPresent(rateLimiter ->
-                    rateLimiter.tryDispatchPermit(permits, totalBytesSent));
+                    rateLimiter.consumeDispatchQuota(permits, totalBytesSent));
             topic.getDispatchRateLimiter().ifPresent(rateLimter ->
-                    rateLimter.tryDispatchPermit(permits, totalBytesSent));
-            getRateLimiter().ifPresent(rateLimiter -> rateLimiter.tryDispatchPermit(permits, totalBytesSent));
+                    rateLimter.consumeDispatchQuota(permits, totalBytesSent));
+            getRateLimiter().ifPresent(rateLimiter -> rateLimiter.consumeDispatchQuota(permits, totalBytesSent));
         }
     }
 

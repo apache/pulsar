@@ -148,7 +148,7 @@ public class GeoPersistentReplicator extends PersistentReplicator {
                     continue;
                 }
 
-                dispatchRateLimiter.ifPresent(rateLimiter -> rateLimiter.tryDispatchPermit(1, entry.getLength()));
+                dispatchRateLimiter.ifPresent(rateLimiter -> rateLimiter.consumeDispatchQuota(1, entry.getLength()));
 
                 msgOut.recordEvent(headersAndPayload.readableBytes());
 

@@ -72,6 +72,10 @@ public class AsyncTokenBucket {
         this(capacity, rate, clockSource, ONE_SECOND_NANOS, DEFAULT_MINIMUM_INCREMENT_NANOS);
     }
 
+    public AsyncTokenBucket(long capacity, long rate, LongSupplier clockSource, long ratePeriodNanos) {
+        this(capacity, rate, clockSource, ratePeriodNanos, DEFAULT_MINIMUM_INCREMENT_NANOS);
+    }
+
     public AsyncTokenBucket(long capacity, long rate, LongSupplier clockSource, long ratePeriodNanos,
                             long minimumIncrementNanos) {
         this.capacity = capacity;
@@ -151,5 +155,13 @@ public class AsyncTokenBucket {
 
     public long getCapacity() {
         return capacity;
+    }
+
+    public long getTokens() {
+        return tokens;
+    }
+
+    public long getRate() {
+        return rate;
     }
 }

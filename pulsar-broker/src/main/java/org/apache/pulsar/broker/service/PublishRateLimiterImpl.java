@@ -25,7 +25,7 @@ import org.apache.pulsar.common.policies.data.PublishRate;
 import org.apache.pulsar.common.util.AsyncTokenBucket;
 
 public class PublishRateLimiterImpl implements PublishRateLimiter {
-    public static final int BURST_FACTOR = 2;
+    private static final int BURST_FACTOR = 2;
     public static final LongSupplier DEFAULT_CLOCK_SOURCE = System::nanoTime;
     private volatile AsyncTokenBucket tokenBucketOnMessage;
     private volatile AsyncTokenBucket tokenBucketOnByte;
