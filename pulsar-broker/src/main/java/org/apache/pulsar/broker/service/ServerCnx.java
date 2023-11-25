@@ -3505,6 +3505,12 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     }
 
     @Override
+    public void updatePublishRateLimitersAndMaybeThrottle(List<PublishRateLimiter> rateLimiters, int numOfMessages,
+                                                          long msgSizeInBytes) {
+        throttleTracker.updatePublishRateLimitersAndMaybeThrottle(rateLimiters, numOfMessages, msgSizeInBytes);
+    }
+
+    @Override
     protected void messageReceived() {
         super.messageReceived();
         if (connectionCheckInProgress != null && !connectionCheckInProgress.isDone()) {

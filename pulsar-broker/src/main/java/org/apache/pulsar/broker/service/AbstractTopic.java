@@ -156,6 +156,7 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
     protected final LongAdder bytesOutFromRemovedSubscriptions = new LongAdder();
     protected volatile Pair<String, List<EntryFilter>> entryFilters;
     protected volatile boolean transferring = false;
+    private volatile List<PublishRateLimiter> activeRateLimiters;
 
     public AbstractTopic(String topic, BrokerService brokerService) {
         this.topic = topic;
@@ -170,6 +171,7 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
 
         this.lastActive = System.nanoTime();
         this.preciseTopicPublishRateLimitingEnable = config.isPreciseTopicPublishRateLimiterEnable();
+        updateActiveRateLimiters();
     }
 
     public SubscribeRate getSubscribeRate() {
@@ -889,12 +891,20 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
     public void incrementPublishCount(TransportCnx sourceCnx, int numOfMessages, long msgSizeInBytes) {
         // consume tokens from rate limiters and possibly throttle the connection that published the message
         // if it's publishing too fast. Each connection will be throttled lazily when they publish messages.
-        sourceCnx.updatePublishRateLimitersAndMaybeThrottle(
-                List.of(this.topicPublishRateLimiter, getBrokerPublishRateLimiter()), numOfMessages, msgSizeInBytes);
+        sourceCnx.updatePublishRateLimitersAndMaybeThrottle(activeRateLimiters, numOfMessages, msgSizeInBytes);
 
         // increase counters
         bytesInCounter.add(msgSizeInBytes);
         msgInCounter.add(numOfMessages);
+    }
+
+    private void updateActiveRateLimiters() {
+        if (isResourceGroupRateLimitingEnabled()) {
+            activeRateLimiters =
+                    List.of(this.topicPublishRateLimiter, getBrokerPublishRateLimiter(), resourceGroupPublishLimiter);
+        } else {
+            activeRateLimiters = List.of(this.topicPublishRateLimiter, getBrokerPublishRateLimiter());
+        }
     }
 
     public void updateDispatchRateLimiter() {
@@ -1099,6 +1109,7 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
                 this.resourceGroupRateLimitingEnabled = false;
             }
         }
+        updateActiveRateLimiters();
     }
 
     public void updateEntryFilters() {

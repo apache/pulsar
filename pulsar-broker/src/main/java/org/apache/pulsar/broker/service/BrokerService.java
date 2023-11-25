@@ -243,7 +243,7 @@ public class BrokerService implements Closeable {
     private final ScheduledExecutorService compactionMonitor;
     private final ScheduledExecutorService consumedLedgersMonitor;
     private ScheduledExecutorService deduplicationSnapshotMonitor;
-    protected volatile PublishRateLimiter brokerPublishRateLimiter = new PublishRateLimiterImpl();
+    protected final PublishRateLimiter brokerPublishRateLimiter = new PublishRateLimiterImpl();
     protected volatile DispatchRateLimiter brokerDispatchRateLimiter = null;
 
     private DistributedIdGenerator producerNameGenerator;
@@ -2724,12 +2724,7 @@ public class BrokerService implements Closeable {
         final PublishRate publishRate = new PublishRate(currentMaxMessageRate, currentMaxByteRate);
 
         log.info("Update broker publish rate limiting {}", publishRate);
-        if (brokerPublishRateLimiter == null) {
-            // create new rateLimiter if rate-limiter is disabled
-            brokerPublishRateLimiter = new PublishRateLimiterImpl(publishRate);
-        } else {
-            brokerPublishRateLimiter.update(publishRate);
-        }
+        brokerPublishRateLimiter.update(publishRate);
     }
 
     private void updateTopicMessageDispatchRate() {
