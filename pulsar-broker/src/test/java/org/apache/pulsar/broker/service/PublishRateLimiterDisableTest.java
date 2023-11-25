@@ -19,7 +19,6 @@
 package org.apache.pulsar.broker.service;
 
 import static org.testng.Assert.fail;
-import java.util.function.LongConsumer;
 import org.testng.annotations.Test;
 
 public class PublishRateLimiterDisableTest {
@@ -28,10 +27,10 @@ public class PublishRateLimiterDisableTest {
     @Test
     void shouldAlwaysAllowAcquire() {
         PublishRateLimiterDisable publishRateLimiter = PublishRateLimiterDisable.DISABLED_RATE_LIMITER;
-        LongConsumer throttlingPauseHandler = (pauseTime) -> {
+        ThrottleHandler throttleHandler = (initialPauseTimeNanos, additionalPauseTimeSupplier) -> {
             fail("Should not be throttled");
         };
         publishRateLimiter.incrementPublishCountAndThrottleWhenNeeded(Integer.MAX_VALUE, Long.MAX_VALUE,
-                throttlingPauseHandler);
+                throttleHandler);
     }
 }

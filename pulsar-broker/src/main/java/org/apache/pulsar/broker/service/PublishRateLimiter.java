@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker.service;
 
-import java.util.function.LongConsumer;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.PublishRate;
 
@@ -26,14 +25,14 @@ public interface PublishRateLimiter {
     PublishRateLimiter DISABLED_RATE_LIMITER = PublishRateLimiterDisable.DISABLED_RATE_LIMITER;
 
     /**
-     * increments current publish count and calls the throttingPauseHandler when throttling is needed.
+     * increments current publish count and calls the throttleHandler when throttling is needed.
      *
-     * @param numOfMessages number of messages to publish
-     * @param msgSizeInBytes size of messages in bytes to publish
-     * @param throttlingPauseHandler handler to call when throttling is needed for a duration of nanoseconds
+     * @param numOfMessages   number of messages to publish
+     * @param msgSizeInBytes  size of messages in bytes to publish
+     * @param throttleHandler handler to call when throttling is needed
      */
     void incrementPublishCountAndThrottleWhenNeeded(int numOfMessages, long msgSizeInBytes,
-                                                    LongConsumer throttlingPauseHandler);
+                                                    ThrottleHandler throttleHandler);
 
     /**
      * updates rate-limiting threshold based on policies.

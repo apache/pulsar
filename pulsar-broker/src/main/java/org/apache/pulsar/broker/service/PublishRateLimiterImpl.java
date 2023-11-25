@@ -19,7 +19,6 @@
 
 package org.apache.pulsar.broker.service;
 
-import java.util.function.LongConsumer;
 import java.util.function.LongSupplier;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.PublishRate;
@@ -41,7 +40,7 @@ public class PublishRateLimiterImpl implements PublishRateLimiter {
 
     @Override
     public void incrementPublishCountAndThrottleWhenNeeded(int numOfMessages, long msgSizeInBytes,
-                                                           LongConsumer throttlingPauseHandler) {
+                                                           ThrottleHandler throttleHandler) {
         AsyncTokenBucket currentTokenBucketOnMessage = tokenBucketOnMessage;
         long pauseNanos = 0L;
         if (currentTokenBucketOnMessage != null) {
@@ -53,7 +52,7 @@ public class PublishRateLimiterImpl implements PublishRateLimiter {
                     currentTokenBucketOnByte.updateAndConsumeTokensAndCalculatePause(msgSizeInBytes));
         }
         if (pauseNanos > 0) {
-            throttlingPauseHandler.accept(pauseNanos);
+            throttleHandler.accept(pauseNanos);
         }
     }
 

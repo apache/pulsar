@@ -18,13 +18,11 @@
  */
 package org.apache.pulsar.broker.resourcegroup;
 
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-import java.util.function.LongConsumer;
 import org.apache.pulsar.broker.resourcegroup.ResourceGroup.BytesAndMessagesCount;
 import org.apache.pulsar.broker.service.PublishRateLimiter;
+import org.apache.pulsar.broker.service.ThrottleHandler;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.PublishRate;
 import org.apache.pulsar.common.policies.data.ResourceGroup;
@@ -112,7 +110,7 @@ public class ResourceGroupPublishLimiter implements PublishRateLimiter, AutoClos
     }
 
     @Override
-    public void incrementPublishCountAndThrottleWhenNeeded(int numOfMessages, long msgSizeInBytes, LongConsumer throttlingPauseHandler) {
+    public void incrementPublishCountAndThrottleWhenNeeded(int numOfMessages, long msgSizeInBytes, ThrottleHandler throttleHandler) {
         if (publishRateLimiterOnMessage != null) {
             publishRateLimiterOnMessage.tryAcquire(numOfMessages);
         }
