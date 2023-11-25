@@ -29,21 +29,28 @@ public class PublishRateLimiterImpl implements PublishRateLimiter {
     public static final LongSupplier DEFAULT_CLOCK_SOURCE = System::nanoTime;
     private volatile AsyncTokenBucket tokenBucketOnMessage;
     private volatile AsyncTokenBucket tokenBucketOnByte;
+    private final LongSupplier clockSource;
 
     public PublishRateLimiterImpl(Policies policies, String clusterName) {
+        this();
         update(policies, clusterName);
     }
 
     public PublishRateLimiterImpl(PublishRate maxPublishRate) {
+        this();
         update(maxPublishRate);
     }
 
     public PublishRateLimiterImpl() {
+        this.clockSource = DEFAULT_CLOCK_SOURCE;
+    }
 
+    public PublishRateLimiterImpl(LongSupplier clockSource) {
+        this.clockSource = clockSource;
     }
 
     @Override
-    public ThrottleInstruction incrementPublishCount(int numOfMessages, long msgSizeInBytes) {
+    public ThrottleInstruction consumePublishQuota(int numOfMessages, long msgSizeInBytes) {
         long pauseNanos = 0L;
         AsyncTokenBucket currentTokenBucketOnMessage = tokenBucketOnMessage;
         if (currentTokenBucketOnMessage != null) {
@@ -95,13 +102,13 @@ public class PublishRateLimiterImpl implements PublishRateLimiter {
     protected void updateTokenBuckets(long publishThrottlingRateInMsg, long publishThrottlingRateInByte) {
         if (publishThrottlingRateInMsg > 0) {
             tokenBucketOnMessage = new AsyncTokenBucket(BURST_FACTOR * publishThrottlingRateInMsg,
-                    publishThrottlingRateInMsg, DEFAULT_CLOCK_SOURCE);
+                    publishThrottlingRateInMsg, clockSource);
         } else {
             tokenBucketOnMessage = null;
         }
         if (publishThrottlingRateInByte > 0) {
             tokenBucketOnByte = new AsyncTokenBucket(BURST_FACTOR * publishThrottlingRateInByte,
-                    publishThrottlingRateInByte, DEFAULT_CLOCK_SOURCE);
+                    publishThrottlingRateInByte, clockSource);
         } else {
             tokenBucketOnByte = null;
         }

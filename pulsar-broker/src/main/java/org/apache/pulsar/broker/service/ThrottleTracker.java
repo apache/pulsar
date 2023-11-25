@@ -78,7 +78,7 @@ public class ThrottleTracker {
         boolean shouldThrottle = false;
         for (int i = 0; i < rateLimitersSize; i++) {
             PublishRateLimiter rateLimiter = rateLimiters.get(i);
-            throttleInstructions[i] = rateLimiter.incrementPublishCount(numOfMessages, msgSizeInBytes);
+            throttleInstructions[i] = rateLimiter.consumePublishQuota(numOfMessages, msgSizeInBytes);
             if (throttleInstructions[i].shouldThrottle()) {
                 shouldThrottle = true;
             }

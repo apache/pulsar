@@ -24,12 +24,12 @@ import org.apache.pulsar.common.policies.data.PublishRate;
 public interface PublishRateLimiter {
 
     /**
-     * Increments current publish count and returns the throttling result.
+     * Consumes publishing quota and returns the throttling result.
      *
      * @param numOfMessages   number of messages to publish
      * @param msgSizeInBytes  size of messages in bytes to publish
      */
-    ThrottleInstruction incrementPublishCount(int numOfMessages, long msgSizeInBytes);
+    ThrottleInstruction consumePublishQuota(int numOfMessages, long msgSizeInBytes);
 
     /**
      * updates rate-limiting threshold based on policies.
