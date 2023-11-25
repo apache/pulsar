@@ -25,7 +25,6 @@ import io.prometheus.client.Gauge;
 import io.prometheus.client.Summary;
 import java.util.Arrays;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
@@ -262,8 +261,8 @@ public class FunctionStatsManager extends ComponentStatsManager {
                 .help("Exception from sink.")
                 .create());
 
-        userExceptionRateLimiter = RateLimiter.create(5.0d/60.0d);
-        sysExceptionRateLimiter = RateLimiter.create(5.0d/60.0d);
+        userExceptionRateLimiter = RateLimiter.create(5.0d / 60.0d);
+        sysExceptionRateLimiter = RateLimiter.create(5.0d / 60.0d);
     }
 
     public void addUserException(Throwable ex) {

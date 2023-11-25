@@ -195,8 +195,8 @@ public class SourceStatsManager extends ComponentStatsManager {
                 .help("Exception from source.")
                 .create());
 
-        sysExceptionRateLimiter = RateLimiter.create(5.0d/60.0d);
-        sourceExceptionRateLimiter = RateLimiter.create(5.0d/60.0d);
+        sysExceptionRateLimiter = RateLimiter.create(5.0d / 60.0d);
+        sourceExceptionRateLimiter = RateLimiter.create(5.0d / 60.0d);
     }
 
     @Override

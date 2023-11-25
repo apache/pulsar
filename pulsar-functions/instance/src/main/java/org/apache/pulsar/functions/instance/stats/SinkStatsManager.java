@@ -195,8 +195,8 @@ public class SinkStatsManager extends ComponentStatsManager {
                 .help("Exception from sink.")
                 .create());
 
-        sysExceptionRateLimiter = RateLimiter.create(5.0d/60.0d);
-        sinkExceptionRateLimiter = RateLimiter.create(5.0d/60.0d);
+        sysExceptionRateLimiter = RateLimiter.create(5.0d / 60.0d);
+        sinkExceptionRateLimiter = RateLimiter.create(5.0d / 60.0d);
     }
 
     @Override
