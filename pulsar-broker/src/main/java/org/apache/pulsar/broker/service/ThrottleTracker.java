@@ -23,16 +23,11 @@ public class ThrottleTracker {
     private final AtomicIntegerFlags throttlingFlags = new AtomicIntegerFlags();
 
     private final LongSupplier clockSource;
-    private final List<PublishRateLimiter> rateLimiters;
-    private int rateLimitersSize;
 
 
-    public ThrottleTracker(Supplier<ChannelHandlerContext> ctxSupplier, LongSupplier clockSource,
-                           List<PublishRateLimiter> rateLimiters) {
+    public ThrottleTracker(Supplier<ChannelHandlerContext> ctxSupplier, LongSupplier clockSource) {
         this.ctxSupplier = ctxSupplier;
         this.clockSource = clockSource;
-        this.rateLimiters = List.copyOf(rateLimiters);
-        this.rateLimitersSize = rateLimiters.size();
     }
 
     public boolean changeThrottlingFlag(int index, boolean throttlingEnabled) {
@@ -73,7 +68,8 @@ public class ThrottleTracker {
         }
     }
 
-    public void incrementPublishCount(int numOfMessages, long msgSizeInBytes) {
+    public void incrementPublishCount(int numOfMessages, long msgSizeInBytes, List<PublishRateLimiter> rateLimiters) {
+        int rateLimitersSize = rateLimiters.size();
         if (rateLimitersSize == 0) {
             return;
         }
@@ -111,7 +107,7 @@ public class ThrottleTracker {
                                                   ThrottleInstruction[] throttleInstructions) {
         ctx.executor().schedule(() -> {
             long additionalPauseTimeNanos = 0;
-            for (int i = 0; i < rateLimitersSize; i++) {
+            for (int i = 0; i < throttleInstructions.length; i++) {
                 additionalPauseTimeNanos = Math.max(additionalPauseTimeNanos,
                         throttleInstructions[i].getAdditionalPauseTimeSupplier().getAsLong());
             }
