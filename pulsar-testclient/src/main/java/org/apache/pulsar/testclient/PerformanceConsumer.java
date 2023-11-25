@@ -247,13 +247,6 @@ public class PerformanceConsumer {
         Semaphore messageReceiveLimiter = new Semaphore(arguments.numMessagesPerTransaction);
         Thread thread = Thread.currentThread();
         MessageListener<ByteBuffer> listener = (consumer, msg) -> {
-                if (arguments.testTime > 0) {
-                    if (System.nanoTime() > testEndTime) {
-                        log.info("------------------- DONE -----------------------");
-                        PerfClientUtils.exit(0);
-                        thread.interrupt();
-                    }
-                }
                 if (arguments.totalNumTxn > 0) {
                     if (totalEndTxnOpFailNum.sum() + totalEndTxnOpSuccessNum.sum() >= arguments.totalNumTxn) {
                         log.info("------------------- DONE -----------------------");
@@ -505,6 +498,14 @@ public class PerformanceConsumer {
 
             reportHistogram.reset();
             oldTime = now;
+
+            if (arguments.testTime > 0) {
+                if (now > testEndTime) {
+                    log.info("------------------- DONE -----------------------");
+                    PerfClientUtils.exit(0);
+                    thread.interrupt();
+                }
+            }
         }
 
         pulsarClient.close();
