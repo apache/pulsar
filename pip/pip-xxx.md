@@ -43,32 +43,41 @@ and using that to hand over an implementation of the API where ever needed in Pu
 of the user, as OTel provides a way to expose the metrics as `/metrics` endpoint on a configured port, so Prometheus
 compatible scrapers can grab it from it directly. They can also send it via OTLP to OTel collector.
 
+## Telemetry layers
+PIP-264 clearly outlined there will be two layers of metrics, collected and exported, side by side: OpenTelemetry 
+and the existing metric system - currently exporting in Prometheus. This PIP will explain in detail how it will work. 
+The basic premise is that you will be able to enable or disable OTel metrics, alongside the existing Prometheus 
+metric exporting.
+
+## Why OTel in Pulsar will be marked experimental and not GA
+As specified in [PIP-264]((pip-264.md), OpenTelemetry Java SDK has several fixes the Pulsar community must 
+complete before it can be used in production. They are [documented](pip-264.md#what-we-need-to-fix-in-opentelemetry)
+in PIP-264. The most important one is reducing memory allocations to be negligible. OTel SDK is built upon immutability, 
+hence allocated memory in O(`#topics`) which is a performance killer for low latency application like Pulsar. 
+
+You can track the proposal and progress the Pulsar and OTel communities are making in 
+[this issue](https://github.com/open-telemetry/opentelemetry-java/issues/5105).
 
 # Motivation
 
-
-
-<!--
-Describe the problem this proposal is trying to solve.
-
-* Explain what is the problem you're trying to solve - current situation.
-* This section is the "Why" of your proposal.
--->
+Implementing PIP-264 consists of a long list of steps, which are detailed in 
+[this issue](https://github.com/apache/pulsar/issues/21121). The first step is add all the bare-bones infrastructure
+to use OpenTelemetry in Pulsar, such that next PRs can use it to start translating existing metrics to their 
+OTel form. It means the same metrics will co-exist in the codebase and also in runtime, if OTel was enabled.
 
 # Goals
 
 ## In Scope
+- Ability to add metrics using OpenTelemetry to Pulsar components: Broker, Function Worker and Proxy.
+- User can disable or enable OpenTelemetry metrics, which by default will be disabled
+- OpenTelemetry metrics will be configured via its native OTel Java SDK configuration options
+- All the necessary information to use OTel with Pulsar will be documented in Pulsar documentation site
+- OpenTelemetry metrics layer defined as experimental, and *not* GA
 
-<!--
-What this PIP intend to achieve once It's integrated into Pulsar.
-Why does it benefit Pulsar.
--->
 
 ## Out of Scope
-
-<!--
-Describe what you have decided to keep out of scope, perhaps left for a different PIP/s.
--->
+- Ability to add metrics using OpenTelemetry as Pulsar Function author.
+- Only authenticated sessions can access OTel Prometheus endpoint, using Pulsar authentication 
 
 
 # High Level Design
@@ -84,6 +93,8 @@ how you intend to solve it, end to end.
 DON'T
 * Avoid code snippets, unless it's essential to explain your intent.
 -->
+
+
 
 # Detailed Design
 
