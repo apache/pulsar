@@ -82,17 +82,65 @@ OTel form. It means the same metrics will co-exist in the codebase and also in r
 
 # High Level Design
 
-<!--
-Describe the design of your solution in *high level*.
-Describe the solution end to end, from a birds-eye view.
-Don't go into implementation details in this section.
+## Configuration
+OpenTelemetry, as any good telemetry library (e.g. log4j, logback), has its own configuration mechanisms:
+- System properties
+- Environment variables
+- Experimental file-based configuration
 
-I should be able to finish reading from beginning of the PIP to here (including) and understand the feature and 
-how you intend to solve it, end to end.
+Pulsar doesn't need to introduce any additional configuration. The user can decide, using OTel configuration
+things like:
+* How do I want to export the metrics? Prometheus? Which port prometheus will be exposed at
+* Change histogram buckets using Views
+* and more
 
-DON'T
-* Avoid code snippets, unless it's essential to explain your intent.
--->
+Pulsar will use `AutoConfiguredOpenTelemetrySdk` which uses all the above configuration mechanisms
+(documented [here](https://github.com/open-telemetry/opentelemetry-java/tree/main/sdk-extensions/autoconfigure)).
+This class builds an `OpenTelemetrySdk` based on configurations. This is the entry point to OpenTelemetry API, as it
+implements `OpenTelemetry` API class.
+
+### Setting sensible defaults for Pulsar
+There are some configuration options we wish to change their default, but still allow the users to override it 
+if they wish. We think those default values will make a much easier user experience. 
+
+* `otel.experimental.metrics.cardinality.limit` - value: 10,000
+This property sets an upper bound on the amount of unique `Attributes` an instrument can have. Take Pulsar for example,
+an instrument like `pulsar.broker.messaging.topic.received.size`, the unique `Attributes` would be in the amount of
+active topics in the broker. Since Pulsar can handle up to 1M topics, it makes more sense to put the default value
+to 10k, which translates to 10k topics.
+
+`AutoConfiguredOpenTelemetrySdkBuilder` allows to add properties using the method `addPropertiesSupplier`. The
+System properties and environment variables override it. The file-based configuration still doesn't take 
+those properties supplied into account, but it will.
+
+
+## Opting in
+We would like to have the ability to toggle OpenTelemetry-based metrics, as they are still new. 
+We won't need any special Pulsar configuration, as OpenTelemetry SDK comes with a configuration key to do that.
+Since OTel is still experimental, it will have to be opt-in, hence we will add the following property to be the default
+using the mechanism described [above](#setting-sensible-defaults-for-pulsar):
+
+* `otel.sdk.disabled` - value: true
+  This property value disables OpenTelemetry.
+
+With OTel disabled, the user remains with the existing metrics system.
+
+## Cluster attribute name
+A broker is part of a cluster. It is configured in Pulsar configuration key `clusterName`. When the broker is part
+of the cluster, it means it shares the topics defined in that cluster (persisted in Metadata service: e.g. ZK) 
+among the brokers of that cluster.
+
+Today, each unique time series emitted in Prometheus metrics contains the `cluster` label (almost all of them, as it
+is done manually). We wish the same with OTel - to have that attribute in each exported unique time series.
+
+OTel has the perfect location to place attributes which are shared across all time series: Resource. An application
+can have multiple Resource, with each having 1 or more attributes. You define it once, in OTel initialization or
+configuration. It can contain attributes like the hostname, AWS region, etc. The default contains the service name
+and some info on the SDK version. 
+
+Attributes can be added dynamically, through `addResourceCustomizer()` in `AutoConfiguredOpenTelemetrySdkBuilder`. 
+We will use that to inject the `cluster` attribute, taken from the configuration. It is 
+
 
 
 
