@@ -74,7 +74,7 @@ public class TlsWithECCertificateFileTest extends MockedPulsarStandalone {
         final AuthenticationTls authentication = new AuthenticationTls(TLS_EC_CLIENT_CERT_PATH, TLS_EC_CLIENT_KEY_PATH);
         final String topicName = "persistent://public/default/" + UUID.randomUUID();
         final int testMsgNum = 10;
-        final PulsarAdmin admin = PulsarAdmin.builder()
+        @Cleanup final PulsarAdmin admin = PulsarAdmin.builder()
                 .authentication(authentication)
                 .serviceHttpUrl(getPulsarService().getWebServiceAddressTls())
                 .tlsTrustCertsFilePath(TLS_EC_TRUSTED_CERT_PATH)

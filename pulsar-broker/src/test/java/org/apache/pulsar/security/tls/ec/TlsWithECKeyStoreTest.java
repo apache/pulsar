@@ -78,7 +78,7 @@ public class TlsWithECKeyStoreTest extends MockedPulsarStandalone {
         final Map<String, String> clientAuthParams = new HashMap<>();
         clientAuthParams.put("keyStorePath", TLS_EC_KS_CLIENT_STORE);
         clientAuthParams.put("keyStorePassword", TLS_EC_KS_CLIENT_PASS);
-        final PulsarAdmin admin = PulsarAdmin.builder()
+        @Cleanup final PulsarAdmin admin = PulsarAdmin.builder()
                 .useKeyStoreTls(true)
                 .tlsKeyStorePath(TLS_EC_KS_CLIENT_STORE)
                 .tlsKeyStorePassword(TLS_EC_KS_CLIENT_PASS)
