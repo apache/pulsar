@@ -30,6 +30,8 @@ public class PublishRateLimiterImpl implements PublishRateLimiter {
     private volatile AsyncTokenBucket tokenBucketOnByte;
     private final LongSupplier clockSource;
 
+
+
     public PublishRateLimiterImpl(Policies policies, String clusterName) {
         this();
         update(policies, clusterName);
@@ -64,8 +66,12 @@ public class PublishRateLimiterImpl implements PublishRateLimiter {
         }
         if (shouldThrottle) {
             producer.incrementThrottleCount();
-            // TODO: schedule a task to decrement throttle count
+            scheduleDecrementThrottleCount(producer);
         }
+    }
+
+    private void scheduleDecrementThrottleCount(Producer producer) {
+        //TODO: LH schedule a task to decrement throttle count
     }
 
     private long calculateAdditionalPause() {
