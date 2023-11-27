@@ -521,7 +521,7 @@ public class SecurityUtility {
                 sb.append(currentLine);
             }
             final KeySpec keySpec = new PKCS8EncodedKeySpec(Base64.getDecoder().decode(sb.toString()));
-            final List<String> failedAlgorithm = new ArrayList<>(3);
+            final List<String> failedAlgorithm = new ArrayList<>(KEY_FACTORIES.size());
             for (KeyFactory kf : KEY_FACTORIES) {
                 try {
                     return kf.generatePrivate(keySpec);
