@@ -2406,6 +2406,10 @@ public class PulsarAdminToolTest {
         cmdTransactions = new CmdTransactions(() -> admin);
         cmdTransactions.run(split("coordinators-list"));
         verify(transactions).listTransactionCoordinators();
+
+        cmdTransactions = new CmdTransactions(() -> admin);
+        cmdTransactions.run(split("abort-transaction -m 1 -l 2"));
+        verify(transactions).abortTransaction(new TxnID(1, 2));
     }
 
     @Test
