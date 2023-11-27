@@ -247,7 +247,15 @@ public class PerformanceConsumer {
         Semaphore messageReceiveLimiter = new Semaphore(arguments.numMessagesPerTransaction);
         Thread thread = Thread.currentThread();
         MessageListener<ByteBuffer> listener = (consumer, msg) -> {
-                if (arguments.totalNumTxn > 0) {
+            if (arguments.testTime > 0) {
+                if (System.nanoTime() > testEndTime) {
+                    log.info("------------------- DONE -----------------------");
+                    PerfClientUtils.exit(0);
+                    thread.interrupt();
+                }
+            }
+
+            if (arguments.totalNumTxn > 0) {
                     if (totalEndTxnOpFailNum.sum() + totalEndTxnOpSuccessNum.sum() >= arguments.totalNumTxn) {
                         log.info("------------------- DONE -----------------------");
                         PerfClientUtils.exit(0);
