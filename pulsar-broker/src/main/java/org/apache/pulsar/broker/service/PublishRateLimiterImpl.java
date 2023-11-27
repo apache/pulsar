@@ -19,18 +19,27 @@
 
 package org.apache.pulsar.broker.service;
 
+import io.netty.channel.EventLoopGroup;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.LongSupplier;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.PublishRate;
 import org.apache.pulsar.common.util.AsyncTokenBucket;
+import org.jctools.queues.MessagePassingQueue;
+import org.jctools.queues.MpscUnboundedArrayQueue;
 
 public class PublishRateLimiterImpl implements PublishRateLimiter {
     private static final int BURST_FACTOR = 2;
+    private static final int CONSISTENT_VIEW_OF_TOKENS_INTERVAL_IN_UNTHROTTLE_LOOP = 10;
     private volatile AsyncTokenBucket tokenBucketOnMessage;
     private volatile AsyncTokenBucket tokenBucketOnByte;
     private final LongSupplier clockSource;
 
+    private final MessagePassingQueue<Producer> unthrottlingQueue = new MpscUnboundedArrayQueue<>(1024);
 
+    private final AtomicBoolean unthrottlingScheduled = new AtomicBoolean(false);
 
     public PublishRateLimiterImpl(Policies policies, String clusterName) {
         this();
@@ -43,7 +52,7 @@ public class PublishRateLimiterImpl implements PublishRateLimiter {
     }
 
     public PublishRateLimiterImpl() {
-        this.clockSource = AsyncTokenBucket.DEFAULT_CLOCK_SOURCE;
+        this(AsyncTokenBucket.DEFAULT_CLOCK_SOURCE);
     }
 
     public PublishRateLimiterImpl(LongSupplier clockSource) {
@@ -71,21 +80,55 @@ public class PublishRateLimiterImpl implements PublishRateLimiter {
     }
 
     private void scheduleDecrementThrottleCount(Producer producer) {
-        //TODO: LH schedule a task to decrement throttle count
+        unthrottlingQueue.offer(producer);
+        if (unthrottlingScheduled.compareAndSet(false, true)) {
+            EventLoopGroup executor = producer.getCnx().getBrokerService().executor();
+            scheduleUnthrottling(executor);
+        }
     }
 
-    private long calculateAdditionalPause() {
+    private void scheduleUnthrottling(ScheduledExecutorService executor) {
+        executor.schedule(() -> this.unthrottleQueuedProducers(executor), calculatePause(), TimeUnit.NANOSECONDS);
+    }
+
+    private void unthrottleQueuedProducers(ScheduledExecutorService executor) {
+        Producer producer;
+        int handledProducersCount = 0;
+        while (containsTokens(handledProducersCount++ % CONSISTENT_VIEW_OF_TOKENS_INTERVAL_IN_UNTHROTTLE_LOOP == 0)
+                && (producer = unthrottlingQueue.poll()) != null) {
+            producer.decrementThrottleCount();
+        }
+        if (!unthrottlingQueue.isEmpty()) {
+            scheduleUnthrottling(executor);
+        } else {
+            unthrottlingScheduled.set(false);
+        }
+    }
+
+    private long calculatePause() {
         AsyncTokenBucket currentTokenBucketOnMessage = tokenBucketOnMessage;
         long pauseNanos = 0L;
         if (currentTokenBucketOnMessage != null) {
-            pauseNanos = currentTokenBucketOnMessage.calculatePause();
+            pauseNanos = currentTokenBucketOnMessage.calculatePause(true);
         }
         AsyncTokenBucket currentTokenBucketOnByte = tokenBucketOnByte;
         if (currentTokenBucketOnByte != null) {
             pauseNanos = Math.max(pauseNanos,
-                    currentTokenBucketOnByte.calculatePause());
+                    currentTokenBucketOnByte.calculatePause(true));
         }
         return pauseNanos;
+    }
+
+    private boolean containsTokens(boolean forceUpdateTokens) {
+        AsyncTokenBucket currentTokenBucketOnMessage = tokenBucketOnMessage;
+        if (currentTokenBucketOnMessage != null && !currentTokenBucketOnMessage.containsTokens(forceUpdateTokens)) {
+            return false;
+        }
+        AsyncTokenBucket currentTokenBucketOnByte = tokenBucketOnByte;
+        if (currentTokenBucketOnByte != null && !currentTokenBucketOnByte.containsTokens(forceUpdateTokens)) {
+            return false;
+        }
+        return true;
     }
 
     @Override

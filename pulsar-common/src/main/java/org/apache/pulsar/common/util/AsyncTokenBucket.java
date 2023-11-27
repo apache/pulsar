@@ -146,15 +146,14 @@ public class AsyncTokenBucket {
         return (needTokens * ratePeriodNanos) / rate;
     }
 
-    public long updateAndConsumeTokensAndCalculatePause(long consumeTokens) {
-        return updateAndConsumeTokensAndCalculatePause(consumeTokens, defaultMinTokensForPause, false);
-    }
-
-    public long calculatePause() {
-        if (tokens > 0) {
-            return 0;
-        }
-        return updateAndConsumeTokensAndCalculatePause(0);
+    /**
+     * Calculate the pause duration in nanoseconds if the tokens are fully consumed.
+     * This method shouldn't be called from the hot path since it calculates a consistent value for the tokens which
+     * isn't necessary on the hotpath.
+     * @param forceUpdateTokens
+     */
+    public long calculatePause(boolean forceUpdateTokens) {
+        return updateAndConsumeTokensAndCalculatePause(0, defaultMinTokensForPause, forceUpdateTokens);
     }
 
     public long getCapacity() {
@@ -170,6 +169,10 @@ public class AsyncTokenBucket {
     }
 
     public boolean containsTokens() {
-        return tokens > 0;
+        return containsTokens(false);
+    }
+
+    public boolean containsTokens(boolean forceUpdateTokens) {
+        return tokens(forceUpdateTokens) > 0;
     }
 }
