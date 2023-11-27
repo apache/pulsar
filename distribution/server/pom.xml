@@ -149,6 +149,12 @@
     <dependency>
       <groupId>io.dropwizard.metrics</groupId>
       <artifactId>metrics-graphite</artifactId>
+      <exclusions>
+        <exclusion>
+          <artifactId>amqp-client</artifactId>
+          <groupId>com.rabbitmq</groupId>
+        </exclusion>
+      </exclusions>
     </dependency>
 
     <dependency>
