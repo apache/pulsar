@@ -73,6 +73,9 @@ final class ServerCnxThrottleTracker {
     }
 
     private void changeAutoRead(boolean autoRead) {
+        if (!isChannelActive()) {
+            return;
+        }
         serverCnx.ctx().channel().config().setAutoRead(autoRead);
         if (autoRead) {
             serverCnx.getBrokerService().resumedConnections(1);
@@ -80,6 +83,10 @@ final class ServerCnxThrottleTracker {
             serverCnx.increasePublishLimitedTimesForTopics();
             serverCnx.getBrokerService().pausedConnections(1);
         }
+    }
+
+    private boolean isChannelActive() {
+        return serverCnx.isActive() && serverCnx.ctx() != null && serverCnx.ctx().channel().isActive();
     }
 
     public void setPublishBufferLimiting(boolean throttlingEnabled) {
@@ -99,6 +106,10 @@ final class ServerCnxThrottleTracker {
 
     private boolean changeThrottlingFlag(AtomicIntegerFieldUpdater<ServerCnxThrottleTracker> throttlingFlagFieldUpdater,
                                          boolean throttlingEnabled) {
+        // don't change a throttling flag if the channel is not active
+        if (!isChannelActive()) {
+            return false;
+        }
         if (throttlingFlagFieldUpdater.compareAndSet(this, booleanToInt(!throttlingEnabled),
                 booleanToInt(throttlingEnabled))) {
             if (throttlingEnabled) {
