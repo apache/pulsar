@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.security.tls;
 
-import static java.util.Objects.requireNonNull;
+import static org.apache.pulsar.utils.ResourceUtils.getAbsolutePath;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Sets;
 import java.util.HashMap;
@@ -140,10 +140,6 @@ public abstract class MockedPulsarStandalone implements AutoCloseable {
         }
     }
 
-    private static String getPathFromResource(String resourceName) {
-        return requireNonNull(MockedPulsarStandalone.class.getClassLoader().getResource(resourceName)).getPath();
-    }
-
     // Utils
     protected static final ObjectMapper mapper = new ObjectMapper();
 
@@ -154,31 +150,31 @@ public abstract class MockedPulsarStandalone implements AutoCloseable {
 
     // EC certificate
     protected static final String TLS_EC_TRUSTED_CERT_PATH =
-            getPathFromResource("authentication/tls/ec/ca.cert.pem");
+            getAbsolutePath("certificate-authority/ec/ca.cert.pem");
     private static final String TLS_EC_SERVER_KEY_PATH =
-            getPathFromResource("authentication/tls/ec/server.key-pk8.pem");
+            getAbsolutePath("certificate-authority/ec/server.key-pk8.pem");
     private static final String TLS_EC_SERVER_CERT_PATH =
-            getPathFromResource("authentication/tls/ec/server.cert.pem");
+            getAbsolutePath("certificate-authority/ec/server.cert.pem");
     private static final String TLS_EC_BROKER_CLIENT_KEY_PATH =
-            getPathFromResource("authentication/tls/ec/broker_client.key-pk8.pem");
+            getAbsolutePath("certificate-authority/ec/broker_client.key-pk8.pem");
     private static final String TLS_EC_BROKER_CLIENT_CERT_PATH =
-            getPathFromResource("authentication/tls/ec/broker_client.cert.pem");
+            getAbsolutePath("certificate-authority/ec/broker_client.cert.pem");
     protected static final String TLS_EC_CLIENT_KEY_PATH =
-            getPathFromResource("authentication/tls/ec/client.key-pk8.pem");
+            getAbsolutePath("certificate-authority/ec/client.key-pk8.pem");
     protected static final String TLS_EC_CLIENT_CERT_PATH =
-            getPathFromResource("authentication/tls/ec/client.cert.pem");
+            getAbsolutePath("certificate-authority/ec/client.cert.pem");
 
     // EC KeyStore
     private static final String TLS_EC_KS_SERVER_STORE =
-            getPathFromResource("authentication/tls/ec/jks/server.keystore.jks");
+            getAbsolutePath("certificate-authority/ec/jks/server.keystore.jks");
     private static final String TLS_EC_KS_SERVER_PASS = "serverpw";
     private static final String TLS_EC_KS_BROKER_CLIENT_STORE =
-            getPathFromResource("authentication/tls/ec/jks/broker_client.keystore.jks");
+            getAbsolutePath("certificate-authority/ec/jks/broker_client.keystore.jks");
     private static final String TLS_EC_KS_BROKER_CLIENT_PASS = "brokerclientpw";
     protected static final String TLS_EC_KS_CLIENT_STORE =
-            getPathFromResource("authentication/tls/ec/jks/client.keystore.jks");
+            getAbsolutePath("certificate-authority/ec/jks/client.keystore.jks");
     protected static final String TLS_EC_KS_CLIENT_PASS = "clientpw";
     protected static final String TLS_EC_KS_TRUSTED_STORE =
-            getPathFromResource("authentication/tls/ec/jks/ca.truststore.jks");
+            getAbsolutePath("certificate-authority/ec/jks/ca.truststore.jks");
     protected static final String TLS_EC_KS_TRUSTED_STORE_PASS = "rootpw";
 }
