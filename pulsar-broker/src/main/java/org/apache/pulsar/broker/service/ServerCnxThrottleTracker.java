@@ -14,8 +14,8 @@ import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
  * Besides the rate limiters, the connection can also be throttled if the number of pending publish requests exceeds
  * a configured threshold. This throttling is toggled with the {@link #setPendingSendRequestsExceeded} method.
  * There's also per-thread memory limits which could throttle the connection. This throttling is toggled with the
- * {@link #setPublishBufferLimiting} method. Internally, these two methods will call the {@link #incrementThrottleCount()}
- * and {@link #decrementThrottleCount()} methods.
+ * {@link #setPublishBufferLimiting} method. Internally, these two methods will call the
+ * {@link #incrementThrottleCount()} and {@link #decrementThrottleCount()} methods.
  */
 final class ServerCnxThrottleTracker {
     private static final Gauge throttledConnections = Gauge.build()
