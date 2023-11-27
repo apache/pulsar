@@ -95,6 +95,9 @@ public class AsyncTokenBucket {
     }
 
     private void updateAndConsumeTokens(long consumeTokens, boolean forceUpdateTokens) {
+        if (consumeTokens < 0) {
+            throw new IllegalArgumentException("consumeTokens must be >= 0");
+        }
         long currentNanos = clockSource.getAsLong();
         long currentIncrement = currentNanos / minIncrementNanos;
         long currentLastIncrement = lastIncrement;
@@ -164,5 +167,9 @@ public class AsyncTokenBucket {
 
     public long getRate() {
         return rate;
+    }
+
+    public boolean containsTokens() {
+        return tokens > 0;
     }
 }

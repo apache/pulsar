@@ -19,11 +19,13 @@
 
 package org.apache.pulsar.broker.service;
 
+import static org.mockito.Mockito.mock;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import java.util.HashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
+import org.apache.pulsar.broker.service.PublishRateLimiter.ThrottleInstruction;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.PublishRate;
 import org.testng.annotations.AfterMethod;
@@ -38,6 +40,7 @@ public class PublishRateLimiterTest {
     private final PublishRate newPublishRate = new PublishRate(20, 200);
     private AtomicLong manualClockSource;
 
+    private PublishSource publishSource = new PublishSource(mock(TransportCnx.class), mock(Topic.class));
     private PublishRateLimiterImpl publishRateLimiter;
 
     @BeforeMethod
@@ -62,30 +65,30 @@ public class PublishRateLimiterTest {
     @Test
     public void testPublishRateLimiterImplExceed() throws Exception {
         // increment not exceed
-        ThrottleInstruction throttleInstruction = publishRateLimiter.consumePublishQuota(5, 50);
+        ThrottleInstruction throttleInstruction = publishRateLimiter.consumePublishQuota(publishSource, 5, 50);
         assertFalse(throttleInstruction.shouldThrottle());
 
         incrementSeconds(1);
 
         // numOfMessages increment exceeded
-        throttleInstruction = publishRateLimiter.consumePublishQuota(11, 100);
+        throttleInstruction = publishRateLimiter.consumePublishQuota(publishSource, 11, 100);
         assertTrue(throttleInstruction.shouldThrottle());
 
         incrementSeconds(1);
 
         // msgSizeInBytes increment exceeded
-        throttleInstruction = publishRateLimiter.consumePublishQuota(9, 110);
+        throttleInstruction = publishRateLimiter.consumePublishQuota(publishSource, 9, 110);
         assertTrue(throttleInstruction.shouldThrottle());
     }
 
     @Test
     public void testPublishRateLimiterImplUpdate() {
-        ThrottleInstruction throttleInstruction = publishRateLimiter.consumePublishQuota(11, 110);
+        ThrottleInstruction throttleInstruction = publishRateLimiter.consumePublishQuota(publishSource, 11, 110);
         assertTrue(throttleInstruction.shouldThrottle());
 
         // update
         publishRateLimiter.update(newPublishRate);
-        throttleInstruction = publishRateLimiter.consumePublishQuota(11, 110);
+        throttleInstruction = publishRateLimiter.consumePublishQuota(publishSource, 11, 110);
         assertFalse(throttleInstruction.shouldThrottle());
     }
 }

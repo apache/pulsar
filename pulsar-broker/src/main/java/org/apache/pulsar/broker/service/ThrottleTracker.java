@@ -20,7 +20,6 @@
 package org.apache.pulsar.broker.service;
 
 import io.netty.channel.ChannelHandlerContext;
-import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
@@ -85,65 +84,5 @@ public class ThrottleTracker {
         if (ctx != null) {
             ctx.channel().config().setAutoRead(autoRead);
         }
-    }
-
-    void consumeQuotaAndMaybeThrottle(List<PublishRateLimiter> rateLimiters, int numOfMessages,
-                                      long msgSizeInBytes) {
-        int rateLimitersSize = rateLimiters.size();
-        if (rateLimitersSize == 0) {
-            return;
-        }
-        final ThrottleInstruction[] throttleInstructions = new ThrottleInstruction[rateLimitersSize];
-        boolean shouldThrottle = false;
-        for (int i = 0; i < rateLimitersSize; i++) {
-            PublishRateLimiter rateLimiter = rateLimiters.get(i);
-            throttleInstructions[i] = rateLimiter.consumePublishQuota(numOfMessages, msgSizeInBytes);
-            if (throttleInstructions[i].shouldThrottle()) {
-                shouldThrottle = true;
-            }
-        }
-        if (shouldThrottle) {
-            long maxPauseTimeNanos = 0;
-            for (int i = 0; i < rateLimitersSize; i++) {
-                maxPauseTimeNanos = Math.max(maxPauseTimeNanos, throttleInstructions[i].getPauseTimeNanos());
-            }
-            if (maxPauseTimeNanos > 0) {
-                ChannelHandlerContext ctx = ctxSupplier.get();
-                if (ctx != null) {
-                    long currentMaxEndOfThrottleNanos = maxEndOfThrottleNanos;
-                    long endOfThrottleNanos = clockSource.getAsLong() + maxPauseTimeNanos;
-                    if (endOfThrottleNanos > currentMaxEndOfThrottleNanos + PAUSE_DEDUPLICATION_RESOLUTION
-                            && MAX_END_OF_THROTTLE_UPDATER.compareAndSet(this, currentMaxEndOfThrottleNanos,
-                            endOfThrottleNanos)) {
-                        incrementThrottleCount();
-                        decrementThrottleCountAfterPause(ctx, maxPauseTimeNanos, throttleInstructions);
-                    }
-                }
-            }
-        }
-    }
-
-    private void decrementThrottleCountAfterPause(ChannelHandlerContext ctx, long pauseTimeNanos,
-                                                  ThrottleInstruction[] throttleInstructions) {
-        ctx.executor().schedule(() -> {
-            long additionalPauseTimeNanos = 0;
-            for (int i = 0; i < throttleInstructions.length; i++) {
-                additionalPauseTimeNanos = Math.max(additionalPauseTimeNanos,
-                        throttleInstructions[i].getAdditionalPauseTimeSupplier().getAsLong());
-            }
-            if (additionalPauseTimeNanos > 0) {
-                long currentMaxEndOfThrottleNanos = maxEndOfThrottleNanos;
-                long endOfThrottleNanos = clockSource.getAsLong() + additionalPauseTimeNanos;
-                if (endOfThrottleNanos > currentMaxEndOfThrottleNanos + PAUSE_DEDUPLICATION_RESOLUTION
-                        && MAX_END_OF_THROTTLE_UPDATER.compareAndSet(this, currentMaxEndOfThrottleNanos,
-                        endOfThrottleNanos)) {
-                    decrementThrottleCountAfterPause(ctx, additionalPauseTimeNanos, throttleInstructions);
-                } else {
-                    decrementThrottleCount();
-                }
-            } else {
-                decrementThrottleCount();
-            }
-        }, pauseTimeNanos, TimeUnit.NANOSECONDS);
     }
 }

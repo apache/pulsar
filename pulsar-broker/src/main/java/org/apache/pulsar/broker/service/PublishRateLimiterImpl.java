@@ -49,22 +49,29 @@ public class PublishRateLimiterImpl implements PublishRateLimiter {
     }
 
     @Override
-    public ThrottleInstruction consumePublishQuota(int numOfMessages, long msgSizeInBytes) {
-        long pauseNanos = 0L;
+    public ThrottleInstruction consumePublishQuota(PublishSource publishSource, int numOfMessages,
+                                                   long msgSizeInBytes) {
+        boolean shouldThrottle = false;
         AsyncTokenBucket currentTokenBucketOnMessage = tokenBucketOnMessage;
         if (currentTokenBucketOnMessage != null) {
-            pauseNanos = currentTokenBucketOnMessage.updateAndConsumeTokensAndCalculatePause(numOfMessages);
+            currentTokenBucketOnMessage.consumeTokens(numOfMessages);
+            shouldThrottle = !currentTokenBucketOnMessage.containsTokens();
         }
         AsyncTokenBucket currentTokenBucketOnByte = tokenBucketOnByte;
         if (currentTokenBucketOnByte != null) {
-            pauseNanos = Math.max(pauseNanos,
-                    currentTokenBucketOnByte.updateAndConsumeTokensAndCalculatePause(msgSizeInBytes));
+            currentTokenBucketOnByte.consumeTokens(msgSizeInBytes);
+            shouldThrottle = shouldThrottle || !currentTokenBucketOnMessage.containsTokens();
         }
-        if (pauseNanos > 0) {
-            return new ThrottleInstruction(pauseNanos, this::calculateAdditionalPause);
+        if (shouldThrottle) {
+            return ThrottleInstruction.THROTTLE;
         } else {
             return ThrottleInstruction.NO_THROTTLE;
         }
+    }
+
+    @Override
+    public void registerThrottledSource(ThrottledPublishSource throttledSource) {
+        
     }
 
     private long calculateAdditionalPause() {
