@@ -23,7 +23,7 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import lombok.Cleanup;
 import lombok.SneakyThrows;
-import org.apache.pulsar.base.MockedPulsarStandalone;
+import org.apache.pulsar.security.tls.MockedPulsarStandalone;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;

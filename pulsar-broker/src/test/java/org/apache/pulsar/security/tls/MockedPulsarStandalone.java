@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.base;
+package org.apache.pulsar.security.tls;
 
 import static java.util.Objects.requireNonNull;
 import com.fasterxml.jackson.databind.ObjectMapper;
