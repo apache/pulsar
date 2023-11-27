@@ -3176,7 +3176,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     }
 
     private void increasePendingSendRequestsAndPublishBytes(int msgSize) {
-        if (++pendingSendRequest >= maxPendingSendRequests) {
+        if (++pendingSendRequest == maxPendingSendRequests) {
             throttleTracker.setPendingSendRequestsExceeded(true);
         }
         PendingBytesPerThreadTracker.getInstance().incrementPublishBytes(msgSize, maxPendingBytesPerThread);
@@ -3197,7 +3197,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     public void completedSendOperation(boolean isNonPersistentTopic, int msgSize) {
         PendingBytesPerThreadTracker.getInstance().decrementPublishBytes(msgSize, resumeThresholdPendingBytesPerThread);
 
-        if (--pendingSendRequest <= resumeReadsThreshold) {
+        if (--pendingSendRequest == resumeReadsThreshold) {
             throttleTracker.setPendingSendRequestsExceeded(false);
         }
 
