@@ -499,8 +499,6 @@ The Apache Software License, Version 2.0
     - com.github.seancfoley-ipaddress-5.3.3.jar
   * RxJava
     - io.reactivex.rxjava3-rxjava-3.0.1.jar
-  * RabbitMQ Java Client
-    - com.rabbitmq-amqp-client-5.18.0.jar
   * RoaringBitmap
     - org.roaringbitmap-RoaringBitmap-0.9.44.jar
 

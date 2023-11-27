@@ -478,8 +478,6 @@ The Apache Software License, Version 2.0
     - audience-annotations-0.12.0.jar
   * Perfmark
     - perfmark-api-0.26.0.jar
-  * RabbitMQ Java Client
-    - amqp-client-5.18.0.jar
   * Stream Lib
     - stream-2.9.5.jar
   * High Performance Primitive Collections for Java
