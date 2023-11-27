@@ -321,7 +321,7 @@ public class Producer {
         // barrier
         pendingPublishAcksUpdater.lazySet(this, pendingPublishAcks + 1);
         // increment publish-count
-        this.getTopic().incrementPublishCount(cnx, batchSize, msgSize);
+        this.getTopic().incrementPublishCount(this, batchSize, msgSize);
     }
 
     private void publishOperationCompleted() {
@@ -852,4 +852,25 @@ public class Producer {
 
     private static final Logger log = LoggerFactory.getLogger(Producer.class);
 
+    /**
+     * Increments the counter that controls the throttling of the connection by pausing reads.
+     * The connection will be throttled while the counter is greater than 0.
+     * <p>
+     * The caller is responsible for decrementing the counter by calling {@link #decrementThrottleCount()}  when the
+     * connection should no longer be throttled.
+     */
+    public void incrementThrottleCount() {
+        cnx.incrementThrottleCount();
+    }
+
+    /**
+     * Decrements the counter that controls the throttling of the connection by pausing reads.
+     * The connection will be throttled while the counter is greater than 0.
+     * <p>
+     * This method should be called when the connection should no longer be throttled. However, the caller should have
+     * previously called {@link #incrementThrottleCount()}.
+     */
+    public void decrementThrottleCount() {
+        cnx.decrementThrottleCount();
+    }
 }

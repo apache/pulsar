@@ -888,14 +888,20 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
             .register();
 
     @Override
-    public void incrementPublishCount(TransportCnx sourceCnx, int numOfMessages, long msgSizeInBytes) {
-        // consume tokens from rate limiters and possibly throttle the connection that published the message
-        // if it's publishing too fast. Each connection will be throttled lazily when they publish messages.
-        sourceCnx.consumeQuotaAndMaybeThrottle(activeRateLimiters, numOfMessages, msgSizeInBytes);
+    public void incrementPublishCount(Producer producer, int numOfMessages, long msgSizeInBytes) {
+        handlePublishThrottling(producer, numOfMessages, msgSizeInBytes);
 
         // increase counters
         bytesInCounter.add(msgSizeInBytes);
         msgInCounter.add(numOfMessages);
+    }
+
+    private void handlePublishThrottling(Producer producer, int numOfMessages, long msgSizeInBytes) {
+        // consume tokens from rate limiters and possibly throttle the connection that published the message
+        // if it's publishing too fast. Each connection will be throttled lazily when they publish messages.
+        for (PublishRateLimiter rateLimiter : activeRateLimiters) {
+            rateLimiter.handlePublishThrottling(producer, numOfMessages, msgSizeInBytes);
+        }
     }
 
     private void updateActiveRateLimiters() {

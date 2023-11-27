@@ -21,7 +21,6 @@ package org.apache.pulsar.broker.service;
 import io.netty.handler.codec.haproxy.HAProxyMessage;
 import io.netty.util.concurrent.Promise;
 import java.net.SocketAddress;
-import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
@@ -88,12 +87,20 @@ public interface TransportCnx {
     CompletableFuture<Boolean> checkConnectionLiveness();
 
     /**
-     * Consume quota from all of the rate limiters and maybe throttle.
-     *
-     * @param rateLimiters list of rate limiters to consume quota from
-     * @param numOfMessages number of messages to publish
-     * @param msgSizeInBytes size of messages to publish
+     * Increments the counter that controls the throttling of the connection by pausing reads.
+     * The connection will be throttled while the counter is greater than 0.
+     * <p>
+     * The caller is responsible for decrementing the counter by calling {@link #decrementThrottleCount()}  when the
+     * connection should no longer be throttled.
      */
-    void consumeQuotaAndMaybeThrottle(List<PublishRateLimiter> rateLimiters, int numOfMessages,
-                                      long msgSizeInBytes);
+    void incrementThrottleCount();
+
+    /**
+     * Decrements the counter that controls the throttling of the connection by pausing reads.
+     * The connection will be throttled while the counter is greater than 0.
+     * <p>
+     * This method should be called when the connection should no longer be throttled. However, the caller should have
+     * previously called {@link #incrementThrottleCount()}.
+     */
+    void decrementThrottleCount();
 }

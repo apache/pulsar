@@ -19,7 +19,8 @@
 package org.apache.pulsar.broker.service;
 
 import static org.mockito.Mockito.mock;
-import static org.testng.Assert.assertFalse;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import org.testng.annotations.Test;
 
 public class PublishRateLimiterDisableTest {
@@ -28,9 +29,8 @@ public class PublishRateLimiterDisableTest {
     @Test
     void shouldAlwaysAllowAcquire() {
         PublishRateLimiter publishRateLimiter = new PublishRateLimiterImpl();
-        assertFalse(
-                publishRateLimiter.consumePublishQuota(new PublishSource(mock(TransportCnx.class), mock(Topic.class)),
-                                Integer.MAX_VALUE, Long.MAX_VALUE)
-                        .shouldThrottle());
+        Producer producer = mock(Producer.class);
+        publishRateLimiter.handlePublishThrottling(producer, Integer.MAX_VALUE, Long.MAX_VALUE);
+        verify(producer, never()).incrementThrottleCount();
     }
 }

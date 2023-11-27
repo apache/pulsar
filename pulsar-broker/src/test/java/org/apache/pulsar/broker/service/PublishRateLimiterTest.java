@@ -19,13 +19,13 @@
 
 package org.apache.pulsar.broker.service;
 
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
-import static org.testng.Assert.assertFalse;
-import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.assertEquals;
 import java.util.HashMap;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
-import org.apache.pulsar.broker.service.PublishRateLimiter.ThrottleInstruction;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.PublishRate;
 import org.testng.annotations.AfterMethod;
@@ -40,8 +40,10 @@ public class PublishRateLimiterTest {
     private final PublishRate newPublishRate = new PublishRate(20, 200);
     private AtomicLong manualClockSource;
 
-    private PublishSource publishSource = new PublishSource(mock(TransportCnx.class), mock(Topic.class));
+    private Producer producer;
     private PublishRateLimiterImpl publishRateLimiter;
+
+    private AtomicInteger throttleCount = new AtomicInteger(0);
 
     @BeforeMethod
     public void setup() throws Exception {
@@ -50,6 +52,16 @@ public class PublishRateLimiterTest {
         manualClockSource = new AtomicLong(TimeUnit.SECONDS.toNanos(100));
         publishRateLimiter = new PublishRateLimiterImpl(manualClockSource::get);
         publishRateLimiter.update(policies, CLUSTER_NAME);
+        producer = mock(Producer.class);
+        throttleCount.set(0);
+        doAnswer(a -> {
+            throttleCount.incrementAndGet();
+            return null;
+        }).when(producer).incrementThrottleCount();
+        doAnswer(a -> {
+            throttleCount.decrementAndGet();
+            return null;
+        }).when(producer).decrementThrottleCount();
     }
 
     @AfterMethod
@@ -65,30 +77,31 @@ public class PublishRateLimiterTest {
     @Test
     public void testPublishRateLimiterImplExceed() throws Exception {
         // increment not exceed
-        ThrottleInstruction throttleInstruction = publishRateLimiter.consumePublishQuota(publishSource, 5, 50);
-        assertFalse(throttleInstruction.shouldThrottle());
+        publishRateLimiter.handlePublishThrottling(producer, 5, 50);
+        assertEquals(throttleCount.get(), 0);
 
         incrementSeconds(1);
 
         // numOfMessages increment exceeded
-        throttleInstruction = publishRateLimiter.consumePublishQuota(publishSource, 11, 100);
-        assertTrue(throttleInstruction.shouldThrottle());
+        publishRateLimiter.handlePublishThrottling(producer, 11, 100);
+        assertEquals(throttleCount.get(), 1);
 
         incrementSeconds(1);
 
         // msgSizeInBytes increment exceeded
-        throttleInstruction = publishRateLimiter.consumePublishQuota(publishSource, 9, 110);
-        assertTrue(throttleInstruction.shouldThrottle());
+        publishRateLimiter.handlePublishThrottling(producer, 9, 110);
+        assertEquals(throttleCount.get(), 2);
     }
 
     @Test
     public void testPublishRateLimiterImplUpdate() {
-        ThrottleInstruction throttleInstruction = publishRateLimiter.consumePublishQuota(publishSource, 11, 110);
-        assertTrue(throttleInstruction.shouldThrottle());
+        publishRateLimiter.handlePublishThrottling(producer, 11, 110);
+        assertEquals(throttleCount.get(), 1);
 
         // update
+        throttleCount.set(0);
         publishRateLimiter.update(newPublishRate);
-        throttleInstruction = publishRateLimiter.consumePublishQuota(publishSource, 11, 110);
-        assertFalse(throttleInstruction.shouldThrottle());
+        publishRateLimiter.handlePublishThrottling(producer, 11, 110);
+        assertEquals(throttleCount.get(), 0);
     }
 }

@@ -49,8 +49,8 @@ public class PublishRateLimiterImpl implements PublishRateLimiter {
     }
 
     @Override
-    public ThrottleInstruction consumePublishQuota(PublishSource publishSource, int numOfMessages,
-                                                   long msgSizeInBytes) {
+    public void handlePublishThrottling(Producer producer, int numOfMessages,
+                                        long msgSizeInBytes) {
         boolean shouldThrottle = false;
         AsyncTokenBucket currentTokenBucketOnMessage = tokenBucketOnMessage;
         if (currentTokenBucketOnMessage != null) {
@@ -63,15 +63,9 @@ public class PublishRateLimiterImpl implements PublishRateLimiter {
             shouldThrottle = shouldThrottle || !currentTokenBucketOnMessage.containsTokens();
         }
         if (shouldThrottle) {
-            return ThrottleInstruction.THROTTLE;
-        } else {
-            return ThrottleInstruction.NO_THROTTLE;
+            producer.incrementThrottleCount();
+            // TODO: schedule a task to decrement throttle count
         }
-    }
-
-    @Override
-    public void registerThrottledSource(ThrottledPublishSource throttledSource) {
-        
     }
 
     private long calculateAdditionalPause() {

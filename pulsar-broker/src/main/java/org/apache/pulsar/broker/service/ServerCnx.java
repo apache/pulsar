@@ -184,10 +184,6 @@ import org.slf4j.LoggerFactory;
  * parameter instance lifecycle.
  */
 public class ServerCnx extends PulsarHandler implements TransportCnx {
-    private static final Gauge throttledConnections = Gauge.build()
-            .name("pulsar_broker_throttled_connections")
-            .help("Counter of connections throttled because of per-connection limit")
-            .register();
     private static final LongSupplier CLOCK_SOURCE = System::nanoTime;
     private final BrokerService service;
     private final SchemaRegistryService schemaService;
@@ -294,49 +290,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         Start, Connected, Failed, Connecting
     }
 
-    final class ServerCnxThrottleTracker extends ThrottleTracker {
-        private static final int PUBLISH_BUFFER_LIMITING_INDEX = 0;
-        private static final int PENDING_SEND_REQUESTS_EXCEEDED = 1;
-        public ServerCnxThrottleTracker() {
-            super(ServerCnx.this::ctx, CLOCK_SOURCE);
-        }
-
-        public void setPublishBufferLimiting(boolean throttlingEnabled) {
-            changeThrottlingFlag(PUBLISH_BUFFER_LIMITING_INDEX, throttlingEnabled);
-        }
-
-        public boolean isPublishBufferLimiting() {
-            return getThrottlingFlag(PUBLISH_BUFFER_LIMITING_INDEX);
-        }
-
-        public void setPendingSendRequestsExceeded(boolean throttlingEnabled) {
-            boolean changed = changeThrottlingFlag(PENDING_SEND_REQUESTS_EXCEEDED, throttlingEnabled);
-            if (changed) {
-                if (throttlingEnabled) {
-                    throttledConnections.inc();
-                } else {
-                    throttledConnections.dec();
-                }
-            }
-        }
-
-        public boolean isPendingSendRequestsExceeded() {
-            return getThrottlingFlag(PENDING_SEND_REQUESTS_EXCEEDED);
-        }
-
-        @Override
-        protected void changeAutoRead(boolean autoRead) {
-            super.changeAutoRead(autoRead);
-            if (autoRead) {
-                getBrokerService().resumedConnections(1);
-            } else {
-                increasePublishLimitedTimesForTopics();
-                getBrokerService().pausedConnections(1);
-            }
-        }
-    }
-
-    private final ServerCnxThrottleTracker throttleTracker = new ServerCnxThrottleTracker();
+    private final ServerCnxThrottleTracker throttleTracker = new ServerCnxThrottleTracker(this);
 
 
     public ServerCnx(PulsarService pulsar) {
@@ -3228,7 +3182,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         PendingBytesPerThreadTracker.getInstance().incrementPublishBytes(msgSize, maxPendingBytesPerThread);
     }
 
-    private void increasePublishLimitedTimesForTopics() {
+    void increasePublishLimitedTimesForTopics() {
         producers.forEach((key, producerFuture) -> {
             if (producerFuture != null && producerFuture.isDone()) {
                 Producer p = producerFuture.getNow(null);
@@ -3506,12 +3460,6 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     }
 
     @Override
-    public void consumeQuotaAndMaybeThrottle(List<PublishRateLimiter> rateLimiters, int numOfMessages,
-                                             long msgSizeInBytes) {
-        throttleTracker.consumeQuotaAndMaybeThrottle(rateLimiters, numOfMessages, msgSizeInBytes);
-    }
-
-    @Override
     protected void messageReceived() {
         super.messageReceived();
         if (connectionCheckInProgress != null && !connectionCheckInProgress.isDone()) {
@@ -3571,5 +3519,15 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     @VisibleForTesting
     protected void setAuthRole(String authRole) {
         this.authRole = authRole;
+    }
+
+    @Override
+    public void incrementThrottleCount() {
+        throttleTracker.incrementThrottleCount();
+    }
+
+    @Override
+    public void decrementThrottleCount() {
+        throttleTracker.decrementThrottleCount();
     }
 }

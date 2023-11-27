@@ -22,24 +22,17 @@ import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.PublishRate;
 
 public interface PublishRateLimiter {
-    enum ThrottleInstruction {
-        NO_THROTTLE,
-        THROTTLE;
-
-        public boolean shouldThrottle() {
-            return this == THROTTLE;
-        }
-    }
 
     /**
-     * Consumes publishing quota and returns the throttling instruction for the caller.
+     * Consumes publishing quota and handles throttling.
+     * <p>
+     * The rate limiter implementation calls {@link Producer#incrementThrottleCount()} when throttling
+     * should happen and then call {@link Producer#decrementThrottleCount} when throttling is no longer needed.
      *
      * @param numOfMessages   number of messages to publish
      * @param msgSizeInBytes  size of messages in bytes to publish
      */
-    ThrottleInstruction consumePublishQuota(PublishSource publishSource, int numOfMessages, long msgSizeInBytes);
-
-    void registerThrottledSource(ThrottledPublishSource throttledSource);
+    void handlePublishThrottling(Producer producer, int numOfMessages, long msgSizeInBytes);
 
     /**
      * updates rate-limiting threshold based on policies.
