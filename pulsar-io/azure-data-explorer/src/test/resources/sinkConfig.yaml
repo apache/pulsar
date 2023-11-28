@@ -29,6 +29,6 @@
   "mappingRefType":"CSV",
   "flushImmediately":false,
   "managedIngestion":false,
-  "batchSize":"100",
-  "batchTimeMs":"10000",
+  "batchSize":100,
+  "batchTimeMs":10000,
 }

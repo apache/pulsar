@@ -36,9 +36,9 @@ import java.util.concurrent.ThreadLocalRandom;
 
 public class ADXSinkE2ETest {
 
-    private String table = "ADXPulsarTest_"+ ThreadLocalRandom.current().nextInt(0,100);
+    private String table = "ADXPulsarTest_" + ThreadLocalRandom.current().nextInt(0, 100);
 
-    private Client kustoAdminClient= null;
+    private Client kustoAdminClient = null;
     String database;
 
     @BeforeMethod
@@ -52,31 +52,34 @@ public class ADXSinkE2ETest {
 
         database = System.getenv("kustoDatabase");
         String cluster = System.getenv("kustoCluster");
-        String authorityId  = System.getenv("kustoAadAuthorityID");
-        String appId  = System.getenv("kustoAadAppId");
+        String authorityId = System.getenv("kustoAadAuthorityID");
+        String appId = System.getenv("kustoAadAppId");
         String appkey = System.getenv("kustoAadAppSecret");
 
-        ConnectionStringBuilder engineKcsb = ConnectionStringBuilder.createWithAadApplicationCredentials(ADXSinkUtils.getQueryEndpoint(cluster), appId, appkey, authorityId);
+        ConnectionStringBuilder engineKcsb =
+                ConnectionStringBuilder.createWithAadApplicationCredentials(ADXSinkUtils.getQueryEndpoint(cluster),
+                        appId, appkey, authorityId);
         kustoAdminClient = ClientFactory.createClient(engineKcsb);
 
-        kustoAdminClient.execute(database,generateAlterIngestionBatchingPolicyCommand(
-                database,
+        kustoAdminClient.execute(database, generateAlterIngestionBatchingPolicyCommand(database,
                 "{\"MaximumBatchingTimeSpan\":\"00:00:10\", \"MaximumNumberOfItems\": 500, \"MaximumRawDataSizeMB\": 1024}"));
 
-        String createTableCommand = ".create table "+table+" ( Key:string , Value:string, EventTime:datetime , ProducerName:string , SequenceId:long ,Properties:dynamic )";
+        String createTableCommand = ".create table " + table +
+                " ( Key:string , Value:string, EventTime:datetime , ProducerName:string , SequenceId:long ,Properties:dynamic )";
         kustoAdminClient.execute(database, createTableCommand);
 
     }
 
-    private String generateAlterIngestionBatchingPolicyCommand( String entityName, String targetBatchingPolicy){
-        return  ".alter database "+entityName+" policy ingestionbatching ```"+targetBatchingPolicy +"```";
+    private String generateAlterIngestionBatchingPolicyCommand(String entityName, String targetBatchingPolicy) {
+        return ".alter database " + entityName + " policy ingestionbatching ```" + targetBatchingPolicy + "```";
     }
 
     @AfterMethod(alwaysRun = true)
     public void tearDown() {
         try {
             kustoAdminClient.execute(".drop table " + table + " ifexists");
-        }catch (Exception ignore){}
+        } catch (Exception ignore) {
+        }
     }
 
     @Test
@@ -97,16 +100,16 @@ public class ADXSinkE2ETest {
         sink.open(configs, null);
         int writeCount = 50;
 
-        for (int i = 0; i < writeCount ; i++) {
-            Record<byte[]> record = build("key_"+i, "test data from ADX Pulsar Sink_"+i);
+        for (int i = 0; i < writeCount; i++) {
+            Record<byte[]> record = build("key_" + i, "test data from ADX Pulsar Sink_" + i);
             sink.write(record);
         }
         Thread.sleep(40000);
-        KustoOperationResult result =  kustoAdminClient.execute(database,table+ " | count");
+        KustoOperationResult result = kustoAdminClient.execute(database, table + " | count");
         KustoResultSetTable mainTableResult = result.getPrimaryResults();
         mainTableResult.next();
         int actualRowsCount = mainTableResult.getInt(0);
-        Assert.assertEquals(actualRowsCount,writeCount);
+        Assert.assertEquals(actualRowsCount, writeCount);
 
         sink.close();
     }
@@ -125,8 +128,8 @@ public class ADXSinkE2ETest {
             }
 
             @Override
-            public Optional<Long> getEventTime(){
-                return  Optional.of(System.currentTimeMillis());
+            public Optional<Long> getEventTime() {
+                return Optional.of(System.currentTimeMillis());
             }
 
             @Override

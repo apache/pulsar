@@ -34,19 +34,19 @@ public class ADXSinkConfigTest {
     @Test
     public final void loadFromMapTest() throws IOException {
         Map<String, Object> map = new HashMap<>();
-        map.put("clusterUrl","https://somecluster.eastus.kusto.windows.net");
-        map.put("database","somedb");
+        map.put("clusterUrl", "https://somecluster.eastus.kusto.windows.net");
+        map.put("database", "somedb");
         map.put("table", "tableName");
         map.put("appId", "xxxx-xxxx-xxxx-xxxx");
         map.put("appKey", "xxxx-xxxx-xxxx-xxxx");
         map.put("tenantId", "xxxx-xxxx-xxxx-xxxx");
-        map.put("managedIdentityId", "xxxx-some-id-xxxx OR empty string");
+        //map.put("managedIdentityId", "xxxx-some-id-xxxx OR empty string");
         map.put("mappingRefName", "mapping ref name");
-        map.put("mappingRefType","CSV");
-        map.put("flushImmediately",false);
-        map.put("managedIngestion",false);
-        map.put("batchSize","100");
-        map.put("batchTimeMs","10000");
+        map.put("mappingRefType", "CSV");
+        map.put("flushImmediately", false);
+        map.put("managedIngestion", false);
+        map.put("batchSize", 100);
+        map.put("batchTimeMs", 10000);
 
         ADXSinkConfig config = ADXSinkConfig.load(map);
         assertNotNull(config);
