@@ -91,7 +91,7 @@ public class TopicLookupBase extends PulsarWebResource {
         existFuture.thenAccept(exist -> {
             if (!exist) {
                 completeLookupResponseExceptionally(asyncResponse, new RestException(Response.Status.NOT_FOUND,
-                        "Topic not found."));
+                        String.format("Topic not found %s", topicName.toString())));
                 return;
             }
             CompletableFuture<Optional<LookupResult>> lookupFuture = pulsar().getNamespaceService()
