@@ -694,14 +694,15 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
                             log.warn("[{}] Attempting to add producer to a terminated topic", topic);
                             throw new TopicTerminatedException("Topic was already terminated");
                         }
-                        return internalAddProducer(producer).thenApply(ignore -> {
-                            USAGE_COUNT_UPDATER.incrementAndGet(this);
-                            if (log.isDebugEnabled()) {
-                                log.debug("[{}] [{}] Added producer -- count: {}", topic, producer.getProducerName(),
-                                        USAGE_COUNT_UPDATER.get(this));
-                            }
-                            return producerEpoch;
-                        });
+                        internalAddProducer(producer);
+
+                        USAGE_COUNT_UPDATER.incrementAndGet(this);
+                        if (log.isDebugEnabled()) {
+                            log.debug("[{}] [{}] Added producer -- count: {}", topic, producer.getProducerName(),
+                                    USAGE_COUNT_UPDATER.get(this));
+                        }
+
+                        return CompletableFuture.completedFuture(producerEpoch);
                     } catch (BrokerServiceException e) {
                         return FutureUtil.failedFuture(e);
                     } finally {
@@ -908,21 +909,15 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
         }
     }
 
-    protected CompletableFuture<Void> internalAddProducer(Producer producer) {
+    protected void internalAddProducer(Producer producer) throws BrokerServiceException {
         if (isProducersExceeded(producer)) {
             log.warn("[{}] Attempting to add producer to topic which reached max producers limit", topic);
-            CompletableFuture<Void> res = new CompletableFuture<>();
-            res.completeExceptionally(
-                    new BrokerServiceException.ProducerBusyException("Topic reached max producers limit"));
-            return res;
+            throw new BrokerServiceException.ProducerBusyException("Topic reached max producers limit");
         }
 
         if (isSameAddressProducersExceeded(producer)) {
             log.warn("[{}] Attempting to add producer to topic which reached max same address producers limit", topic);
-            CompletableFuture<Void> res = new CompletableFuture<>();
-            res.completeExceptionally(
-                    new BrokerServiceException.ProducerBusyException("Topic reached max same address producers limit"));
-            return res;
+            throw new BrokerServiceException.ProducerBusyException("Topic reached max same address producers limit");
         }
 
         if (log.isDebugEnabled()) {
@@ -931,52 +926,31 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
 
         Producer existProducer = producers.putIfAbsent(producer.getProducerName(), producer);
         if (existProducer != null) {
-            return tryOverwriteOldProducer(existProducer, producer);
+            tryOverwriteOldProducer(existProducer, producer);
         } else if (!producer.isRemote()) {
             USER_CREATED_PRODUCER_COUNTER_UPDATER.incrementAndGet(this);
         }
-        return CompletableFuture.completedFuture(null);
     }
 
-    private CompletableFuture<Void> tryOverwriteOldProducer(Producer oldProducer, Producer newProducer) {
+    private void tryOverwriteOldProducer(Producer oldProducer, Producer newProducer)
+            throws BrokerServiceException {
         if (newProducer.isSuccessorTo(oldProducer)) {
             oldProducer.close(false);
             if (!producers.replace(newProducer.getProducerName(), oldProducer, newProducer)) {
                 // Met concurrent update, throw exception here so that client can try reconnect later.
-                CompletableFuture<Void> res = new CompletableFuture<>();
-                res.completeExceptionally(new BrokerServiceException.NamingException("Producer with name '"
-                        + newProducer.getProducerName() + "' replace concurrency error"));
-                return res;
+                throw new BrokerServiceException.NamingException("Producer with name '" + newProducer.getProducerName()
+                        + "' replace concurrency error");
             } else {
                 handleProducerRemoved(oldProducer);
-                return CompletableFuture.completedFuture(null);
             }
         } else {
             // If a producer with the same name tries to use a new connection, async check the old connection is
             // available. The producers related the connection that not available are automatically cleaned up.
             if (!Objects.equals(oldProducer.getCnx(), newProducer.getCnx())) {
-                return oldProducer.getCnx().checkConnectionLiveness().thenCompose(previousIsActive -> {
-                    if (previousIsActive) {
-                        CompletableFuture<Void> res = new CompletableFuture<>();
-                        res.completeExceptionally(new BrokerServiceException.NamingException(
-                                "Producer with name '" + newProducer.getProducerName()
-                                        + "' is already connected to topic"));
-                        return res;
-                    } else {
-                        // If the connection of the previous producer is not active, the method
-                        // "cnx().checkConnectionLiveness()" will trigger the close for it and kick off the previous
-                        // producer. So try to add current producer again.
-                        // The recursive call will be stopped by these two case(This prevents infinite call):
-                        //   1. add current producer success.
-                        //   2. once another same name producer registered.
-                        return internalAddProducer(newProducer);
-                    }
-                });
+                oldProducer.getCnx().checkConnectionLiveness();
             }
-            CompletableFuture<Void> res = new CompletableFuture<>();
-            res.completeExceptionally(new BrokerServiceException.NamingException(
-                    "Producer with name '" + newProducer.getProducerName() + "' is already connected to topic"));
-            return res;
+            throw new BrokerServiceException.NamingException(
+                    "Producer with name '" + newProducer.getProducerName() + "' is already connected to topic");
         }
     }
 

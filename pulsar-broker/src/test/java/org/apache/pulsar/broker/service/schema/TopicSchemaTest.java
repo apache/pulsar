@@ -22,17 +22,11 @@ import static org.apache.pulsar.broker.service.schema.SchemaRegistry.SchemaAndMe
 import static org.testng.Assert.assertTrue;
 import java.util.List;
 import java.util.Objects;
-import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
-import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.BrokerTestUtil;
-import org.apache.pulsar.client.api.Consumer;
-import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.Schema;
-import org.apache.pulsar.client.impl.TopicMessageImpl;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.testng.annotations.AfterClass;
@@ -40,7 +34,6 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-@Slf4j
 @Test(groups = "broker")
 public class TopicSchemaTest extends ProducerConsumerBase {
 
@@ -121,34 +114,5 @@ public class TopicSchemaTest extends ProducerConsumerBase {
         List<SchemaAndMetadata> schemaList4 = pulsar.getSchemaRegistryService().getAllSchemas(schemaId).join()
                 .stream().map(s -> s.join()).filter(Objects::nonNull).collect(Collectors.toList());
         assertTrue(schemaList4 == null || schemaList4.isEmpty());
-    }
-
-    public void testTopicName() throws Exception {
-        final String partitionTopic = "your-topic";
-        final String sub = "my-sub";
-        admin.topics().createPartitionedTopic(partitionTopic, 5);
-        @Cleanup
-        Producer<byte[]> producer1 = this.pulsarClient.newProducer()
-                .topic(partitionTopic)
-                .sendTimeout(0, TimeUnit.SECONDS)
-                .create();
-        @Cleanup
-        Consumer<byte[]> consumer1 = this.pulsarClient.newConsumer()
-                .topic(partitionTopic)
-                .subscriptionName(sub)
-                .subscribe();
-
-        for (int i = 0; i < 10; i++) {
-            producer1.newMessage().send();
-        }
-
-        for (int i = 0; i < 10; i++) {
-            Message<byte[]> message = consumer1.receive();
-            assertTrue(message instanceof TopicMessageImpl);
-            String topicName1 = message.getTopicName();
-            String topicName2 = ((TopicMessageImpl<byte[]>) message).getTopicPartitionName();
-            log.info("topicName1: {}, topicName2: {}", topicName1, topicName2);
-        }
-
     }
 }
