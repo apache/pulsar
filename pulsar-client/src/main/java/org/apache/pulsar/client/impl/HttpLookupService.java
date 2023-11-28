@@ -19,7 +19,6 @@
 package org.apache.pulsar.client.impl;
 
 import io.netty.channel.EventLoopGroup;
-import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.nio.ByteBuffer;
@@ -187,7 +186,7 @@ public class HttpLookupService implements LookupService {
                             .props(response.getProperties())
                             .build();
                     future.complete(Optional.of(SchemaInfoUtil.newSchemaInfo(schemaName, data)));
-                } catch (IOException err) {
+                } catch (Exception err) {
                     future.completeExceptionally(err);
                 }
             } else {

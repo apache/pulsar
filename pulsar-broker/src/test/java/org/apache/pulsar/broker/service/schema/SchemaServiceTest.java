@@ -40,16 +40,21 @@ import java.util.TreeMap;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.service.schema.SchemaRegistry.SchemaAndMetadata;
 import org.apache.pulsar.broker.stats.PrometheusMetricsTest;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsGenerator;
+import org.apache.pulsar.client.impl.schema.KeyValueSchemaInfo;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.protocol.schema.SchemaData;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
+import org.apache.pulsar.common.schema.KeyValueEncodingType;
 import org.apache.pulsar.common.schema.LongSchemaVersion;
+import org.apache.pulsar.common.schema.SchemaInfo;
+import org.apache.pulsar.common.schema.SchemaInfoWithVersion;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
@@ -93,6 +98,7 @@ public class SchemaServiceTest extends MockedPulsarServiceBaseTest {
         Map<SchemaType, SchemaCompatibilityCheck> checkMap = new HashMap<>();
         checkMap.put(SchemaType.AVRO, new AvroSchemaCompatibilityCheck());
         schemaRegistryService = new SchemaRegistryServiceImpl(storage, checkMap, MockClock, null);
+        setupDefaultTenantAndNamespace();
     }
 
     @AfterMethod(alwaysRun = true)
@@ -384,5 +390,28 @@ public class SchemaServiceTest extends MockedPulsarServiceBaseTest {
 
     private SchemaVersion version(long version) {
         return new LongSchemaVersion(version);
+    }
+
+    @Test
+    public void testKeyValueSchema() throws Exception {
+        final String topicName = "persistent://public/default/testKeyValueSchema";
+        admin.topics().createNonPartitionedTopic(BrokerTestUtil.newUniqueName(topicName));
+
+        final SchemaInfo schemaInfo = KeyValueSchemaInfo.encodeKeyValueSchemaInfo(
+                "keyValue",
+                SchemaInfo.builder().type(SchemaType.STRING).schema(new byte[0])
+                        .build(),
+                SchemaInfo.builder().type(SchemaType.BOOLEAN).schema(new byte[0])
+                        .build(), KeyValueEncodingType.SEPARATED);
+        admin.schemas().createSchema(topicName, schemaInfo);
+
+        final SchemaInfoWithVersion schemaInfoWithVersion = admin.schemas().getSchemaInfoWithVersion(topicName);
+        Assert.assertEquals(schemaInfoWithVersion.getVersion(), 0);
+
+        final Long version1 = admin.schemas().getVersionBySchema(topicName, schemaInfo);
+        Assert.assertEquals(version1, 0);
+
+        final Long version2 = admin.schemas().getVersionBySchema(topicName, schemaInfoWithVersion.getSchemaInfo());
+        Assert.assertEquals(version2, 0);
     }
 }

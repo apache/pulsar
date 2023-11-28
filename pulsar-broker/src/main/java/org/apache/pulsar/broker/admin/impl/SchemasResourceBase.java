@@ -34,6 +34,7 @@ import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.service.schema.SchemaRegistry.SchemaAndMetadata;
 import org.apache.pulsar.broker.service.schema.SchemaRegistryService;
 import org.apache.pulsar.broker.web.RestException;
+import org.apache.pulsar.client.impl.schema.SchemaUtils;
 import org.apache.pulsar.client.internal.DefaultImplementation;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
@@ -163,7 +164,9 @@ public class SchemasResourceBase extends AdminResource {
                     String schemaId = getSchemaId();
                     return pulsar().getSchemaRegistryService()
                             .findSchemaVersion(schemaId,
-                                    SchemaData.builder().data(payload.getSchema().getBytes(StandardCharsets.UTF_8))
+                                    SchemaData.builder().data(
+                                            SchemaUtils.convertKeyValueDataStringToSchemaInfoSchema(
+                                                    payload.getSchema().getBytes(StandardCharsets.UTF_8)))
                                             .isDeleted(false).timestamp(clock.millis())
                                             .type(SchemaType.valueOf(payload.getType()))
                                             .user(defaultIfEmpty(clientAppId(), ""))
