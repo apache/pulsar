@@ -58,6 +58,13 @@ hence allocated memory in O(`#topics`) which is a performance killer for low lat
 You can track the proposal and progress the Pulsar and OTel communities are making in 
 [this issue](https://github.com/open-telemetry/opentelemetry-java/issues/5105).
 
+
+## Metrics endpoint authentication
+Today Pulsar metrics endpoint `/metrics` has an option to be protected by the configured `AuthenticationProvider`.
+The configuration option is named `authenticateMetricsEndpoint` in the broker and 
+`authenticateMetricsEndpoint` in the proxy.
+
+
 # Motivation
 
 Implementing PIP-264 consists of a long list of steps, which are detailed in 
@@ -126,8 +133,8 @@ using the mechanism described [above](#setting-sensible-defaults-for-pulsar):
 With OTel disabled, the user remains with the existing metrics system.
 
 ## Cluster attribute name
-A broker is part of a cluster. It is configured in Pulsar configuration key `clusterName`. When the broker is part
-of the cluster, it means it shares the topics defined in that cluster (persisted in Metadata service: e.g. ZK) 
+A broker is part of a cluster. It is configured in the Pulsar configuration key `clusterName`. When the broker is part
+of a cluster, it means it shares the topics defined in that cluster (persisted in Metadata service: e.g. ZK) 
 among the brokers of that cluster.
 
 Today, each unique time series emitted in Prometheus metrics contains the `cluster` label (almost all of them, as it
@@ -139,103 +146,91 @@ configuration. It can contain attributes like the hostname, AWS region, etc. The
 and some info on the SDK version. 
 
 Attributes can be added dynamically, through `addResourceCustomizer()` in `AutoConfiguredOpenTelemetrySdkBuilder`. 
-We will use that to inject the `cluster` attribute, taken from the configuration. It is 
+We will use that to inject the `cluster` attribute, taken from the configuration.
 
+In Prometheus, we submitted a [proposal](https://github.com/open-telemetry/opentelemetry-specification/pull/3761) 
+to opentelemetry specifications, which was merged, to allow copying resource attributes into each exported
+unique time series in Prometheus exporter.
+We plan to contribute its implementation to OTel Java SDK.
 
+Resources in Prometheus exporter, are exported as `target_info{} 1` and the attributes are added to this 
+time series. This will require making joins to get it, making it extremely difficult to use.
+The other alternative was to introduce our own `PulsarAttributesBuilder` class, on top of 
+`AttributesBuilder` of OTel. Getting every contributor to know this class, use it, is hard. Getting this
+across Pulsar Functions or Plugins authors, will be immensely hard.  Also, when exporting as
+OTLP, it is very inefficient to repeat the attribute across all unique time series, instead of once using 
+Resource. Hence, this needed to be solved in the Prometheus exporter as we did in the proposal.
+
+The attribute will be named `pulsar.cluster`, as both the proxy and the broker are part of this cluster.
+
+## Naming and using OpenTelemetry
+
+### Attributes
+* We shall prefix each attribute with `pulsar.`. Example: `pulsar.topic`, `pulsar.cluster`.
+
+### Instruments
+We should have a clear hierarchy, hence use the following prefix
+* `pulsar.broker`
+* `pulsar.proxy`
+* `pulsar.function_worker`
+
+### Meter
+It's customary to use reverse domain name for meter names. Hence, we'll use:
+* `org.apache.pulsar.broker`
+* `org.apache.pulsar.proxy`
+* `org.apache.pulsar.function_worker`
+
+OTel meter name is converted to the attribute name `otel_scope_name` and added to each unique time series
+attributes by Prometheus exporter.
+
+We won't specify a meter version, as it is used solely to signify the version of the instrumentation and 
+currently we are the first version, hence not use it.
 
 
 # Detailed Design
 
 ## Design & Implementation Details
 
-<!--
-This is the section where you dive into the details. It can be:
-* Concrete class names and their roles and responsibility, including methods.
-* Code snippets of existing code.
-* Interface names and its methods.
-* ...
--->
+* `OpenTelemetryService` class
+   * Parameters: 
+      * Cluster name
+  * What it will do:
+     - Override default max cardinality to 10k
+     - Register a resource with cluster name
+     - Place defaults setting to instruct Prometheus Exporter to copy resource attributes
+     - In the future: place defaults for Memory Mode to be REUSABLE_DATA 
 
+* `PulsarBrokerOpenTelemetry` class
+  * Initialization
+    * Construct an `OpenTelemetryService` using the cluster name taken from the broker configuration
+    * Constructs a Meter for the broker metrics
+  * Methods
+    * `getMeter()` returns the `Meter` for the broker
+  * Notes
+    * This is the class that will be passed along to other Pulsar service classes that needs to define
+      telemetry such as metrics (in the future: traces).
+    
+* `PulsarProxyOpenTelemetry` class
+  * Same as `PulsarBrokerOpenTelemetry` but for Pulsar Proxy
+* `PulsarWorkerOpenTelemetry` class
+  * Same as `PulsarBrokerOpenTelemetry` but for Pulsar function worker
+
+  
 ## Public-facing Changes
 
-<!--
-Describe the additions you plan to make for each public facing component. 
-Remove the sections you are not changing.
-Clearly mark any changes which are BREAKING backward compatability.
--->
-
 ### Public API
-<!--
-When adding a new endpoint to the REST API, please make sure to document the following:
-
-* path
-* query parameters
-* HTTP body parameters, usually as JSON.
-* Response codes, and for each what they mean.
-  For each response code, please include a detailed description of the response body JSON, specifying each field and what it means.
-  This is the place to document the errors.
--->
-
-### Binary protocol
+* OTel Prometheus Exporter adds `/metrics` endpoint on a user defined port, if user chose to use it
 
 ### Configuration
-
-### CLI
-
-### Metrics
-
-<!--
-For each metric provide:
-* Full name
-* Description
-* Attributes (labels)
-* Unit
--->
-
-
-# Monitoring
-
-<!-- 
-Describe how the changes you make in this proposal should be monitored. 
-Don't describe the detailed metrics - they should be at "Public-facing Changes" / "Metrics" section.
-Describe how the user will use the metrics to monitor the feature: Which alerts they should set up, which thresholds, ...
--->
+* OTel configurations are used
 
 # Security Considerations
-<!--
-A detailed description of the security details that ought to be considered for the PIP. This is most relevant for any new HTTP endpoints, new Pulsar Protocol Commands, and new security features. The goal is to describe details like which role will have permission to perform an action.
-
-An important aspect to consider is also multi-tenancy: Does the feature I'm adding have the permissions / roles set in such a way that prevent one tenant accessing another tenant's data/configuration? For example, the Admin API to read a specific message for a topic only allows a client to read messages for the target topic. However, that was not always the case. CVE-2021-41571 (https://github.com/apache/pulsar/wiki/CVE-2021-41571) resulted because the API was incorrectly written and did not properly prevent a client from reading another topic's messages even though authorization was in place. The problem was missing input validation that verified the requested message was actually a message for that topic. The fix to CVE-2021-41571 was input validation. 
-
-If there is uncertainty for this section, please submit the PIP and request for feedback on the mailing list.
--->
-
-# Backward & Forward Compatibility
-
-## Revert
-
-<!--
-Describe a cookbook detailing the steps required to revert pulsar to previous version *without* this feature.
--->
-
-## Upgrade
-
-<!--
-Specify the list of instructions, if there are such, needed to perform before/after upgrading to Pulsar version containing this feature.
--->
-
-# Alternatives
-
-<!--
-If there are alternatives that were already considered by the authors or, after the discussion, by the community, and were rejected, please list them here along with the reason why they were rejected.
--->
-
-# General Notes
+* OTel currently does not support setting a custom Authenicator for Prometheus exporter.  
+An issue has been raised [here](https://github.com/open-telemetry/opentelemetry-java/issues/6013).  
+   * Once it do we can secure the Prometheus exporter metrics endpoint using `AuthenticationProvider` 
+* Any user can access metrics, and they are not protected per tenant. Like today's implementation
 
 # Links
 
-<!--
-Updated afterwards
--->
 * Mailing List discussion thread:
 * Mailing List voting thread:
