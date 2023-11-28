@@ -35,6 +35,7 @@ import java.text.SimpleDateFormat;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Date;
+import java.util.concurrent.atomic.AtomicReference;
 import lombok.Getter;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.core.util.datetime.FixedDateFormat;
@@ -51,6 +52,7 @@ import org.apache.pulsar.common.util.ShutdownUtil;
 import org.apache.pulsar.docs.tools.CmdGenerateDocs;
 import org.apache.pulsar.proxy.stats.ProxyStats;
 import org.apache.pulsar.websocket.WebSocketConsumerServlet;
+import org.apache.pulsar.websocket.WebSocketMultiTopicConsumerServlet;
 import org.apache.pulsar.websocket.WebSocketProducerServlet;
 import org.apache.pulsar.websocket.WebSocketReaderServlet;
 import org.apache.pulsar.websocket.WebSocketService;
@@ -101,6 +103,7 @@ public class ProxyServiceStarter {
     private ProxyService proxyService;
 
     private WebServer server;
+    private WebSocketService webSocketService;
     private static boolean metricsInitialized;
 
     public ProxyServiceStarter(String[] args) throws Exception {
@@ -228,7 +231,9 @@ public class ProxyServiceStarter {
             metricsInitialized = true;
         }
 
-        addWebServerHandlers(server, config, proxyService, proxyService.getDiscoveryProvider());
+        AtomicReference<WebSocketService> webSocketServiceRef = new AtomicReference<>();
+        addWebServerHandlers(server, config, proxyService, proxyService.getDiscoveryProvider(), webSocketServiceRef);
+        webSocketService = webSocketServiceRef.get();
 
         // start web-service
         server.start();
@@ -242,6 +247,9 @@ public class ProxyServiceStarter {
             if (server != null) {
                 server.stop();
             }
+            if (webSocketService != null) {
+                webSocketService.close();
+            }
         } catch (Exception e) {
             log.warn("server couldn't stop gracefully {}", e.getMessage(), e);
         } finally {
@@ -250,12 +258,22 @@ public class ProxyServiceStarter {
     }
 
     public static void addWebServerHandlers(WebServer server,
-                                     ProxyConfiguration config,
-                                     ProxyService service,
-                                     BrokerDiscoveryProvider discoveryProvider) throws Exception {
+                                            ProxyConfiguration config,
+                                            ProxyService service,
+                                            BrokerDiscoveryProvider discoveryProvider) throws Exception {
+        addWebServerHandlers(server, config, service, discoveryProvider, null);
+    }
+
+    public static void addWebServerHandlers(WebServer server,
+                                            ProxyConfiguration config,
+                                            ProxyService service,
+                                            BrokerDiscoveryProvider discoveryProvider,
+                                            AtomicReference<WebSocketService> webSocketServiceRef) throws Exception {
+        // We can make 'status.html' publicly accessible without authentication since
+        // it does not contain any sensitive data.
+        server.addRestResource("/", VipStatus.ATTRIBUTE_STATUS_FILE_PATH, config.getStatusFilePath(),
+                VipStatus.class, false);
         if (config.isEnableProxyStatsEndpoints()) {
-            server.addRestResource("/", VipStatus.ATTRIBUTE_STATUS_FILE_PATH, config.getStatusFilePath(),
-                    VipStatus.class);
             server.addRestResource("/proxy-stats", ProxyStats.ATTRIBUTE_PULSAR_PROXY_NAME, service,
                     ProxyStats.class);
             if (service != null) {
@@ -299,6 +317,9 @@ public class ProxyServiceStarter {
             serviceConfiguration.setBrokerClientTlsEnabled(config.isTlsEnabledWithBroker());
             WebSocketService webSocketService = new WebSocketService(createClusterData(config), serviceConfiguration);
             webSocketService.start();
+            if (webSocketServiceRef != null) {
+                webSocketServiceRef.set(webSocketService);
+            }
             final WebSocketServlet producerWebSocketServlet = new WebSocketProducerServlet(webSocketService);
             server.addServlet(WebSocketProducerServlet.SERVLET_PATH,
                     new ServletHolder(producerWebSocketServlet));
@@ -316,6 +337,11 @@ public class ProxyServiceStarter {
                     new ServletHolder(readerWebSocketServlet));
             server.addServlet(WebSocketReaderServlet.SERVLET_PATH_V2,
                     new ServletHolder(readerWebSocketServlet));
+
+            final WebSocketMultiTopicConsumerServlet multiTopicConsumerWebSocketServlet =
+                    new WebSocketMultiTopicConsumerServlet(webSocketService);
+            server.addServlet(WebSocketMultiTopicConsumerServlet.SERVLET_PATH,
+                    new ServletHolder(multiTopicConsumerWebSocketServlet));
         }
     }
 

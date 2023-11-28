@@ -25,10 +25,12 @@ import java.lang.reflect.Field;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.URL;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Date;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -140,6 +142,8 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
 
     protected boolean enableBrokerInterceptor = false;
 
+    private final List<AutoCloseable> closeables = new ArrayList<>();
+
     public MockedPulsarServiceBaseTest() {
         resetConfig();
     }
@@ -159,7 +163,6 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
     }
 
     protected final void internalSetup() throws Exception {
-        incrementSetupNumber();
         init();
         lookupUrl = new URI(brokerUrl.toString());
         if (isTcpLookup) {
@@ -237,6 +240,7 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
     }
 
     protected final void init() throws Exception {
+        incrementSetupNumber();
         doInitConf();
         // trying to config the broker internal client
         if (conf.getWebServicePortTls().isPresent()
@@ -261,13 +265,7 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
         markCurrentSetupNumberCleaned();
         // if init fails, some of these could be null, and if so would throw
         // an NPE in shutdown, obscuring the real error
-        if (admin != null) {
-            admin.close();
-            if (MockUtil.isMock(admin)) {
-                Mockito.reset(admin);
-            }
-            admin = null;
-        }
+        closeAdmin();
         if (pulsarClient != null) {
             pulsarClient.shutdown();
             pulsarClient = null;
@@ -280,11 +278,38 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
             pulsarTestContext = null;
         }
         resetConfig();
+        callCloseables(closeables);
+        closeables.clear();
         onCleanup();
+    }
+
+    protected void closeAdmin() {
+        if (admin != null) {
+            admin.close();
+            if (MockUtil.isMock(admin)) {
+                Mockito.reset(admin);
+            }
+            admin = null;
+        }
     }
 
     protected void onCleanup() {
 
+    }
+
+    protected <T extends AutoCloseable> T registerCloseable(T closeable) {
+        closeables.add(closeable);
+        return closeable;
+    }
+
+    private static void callCloseables(List<AutoCloseable> closeables) {
+        for (int i = closeables.size() - 1; i >= 0; i--) {
+            try {
+                closeables.get(i).close();
+            } catch (Exception e) {
+                log.error("Failure in calling close method", e);
+            }
+        }
     }
 
     protected abstract void setup() throws Exception;

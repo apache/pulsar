@@ -451,7 +451,7 @@ public class WebServiceTest {
                 + "/lookup/v2/destination/persistent/my-property/local/my-namespace/my-topic";
         BROKER_LOOKUP_URL_TLS = BROKER_URL_BASE_TLS
                 + "/lookup/v2/destination/persistent/my-property/local/my-namespace/my-topic";
-
+        @Cleanup
         PulsarAdmin pulsarAdmin = adminBuilder.serviceHttpUrl(serviceUrl).build();
 
         try {
@@ -459,8 +459,6 @@ public class WebServiceTest {
                     ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
         } catch (ConflictException ce) {
             // This is OK.
-        } finally {
-            pulsarAdmin.close();
         }
     }
 

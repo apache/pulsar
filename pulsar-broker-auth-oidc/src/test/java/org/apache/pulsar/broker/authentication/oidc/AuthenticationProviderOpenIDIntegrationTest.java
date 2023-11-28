@@ -257,7 +257,8 @@ public class AuthenticationProviderOpenIDIntegrationTest {
     }
 
     @AfterClass
-    void afterClass() {
+    void afterClass() throws IOException {
+        provider.close();
         server.stop();
     }
 
@@ -340,6 +341,7 @@ public class AuthenticationProviderOpenIDIntegrationTest {
         props.setProperty(AuthenticationProviderOpenID.ALLOWED_AUDIENCES, "allowed-audience");
         props.setProperty(AuthenticationProviderOpenID.ALLOWED_TOKEN_ISSUERS, issuerWithMissingKid);
 
+        @Cleanup
         AuthenticationProviderOpenID provider = new AuthenticationProviderOpenID();
         provider.initialize(conf);
 
@@ -360,6 +362,7 @@ public class AuthenticationProviderOpenIDIntegrationTest {
         props.setProperty(AuthenticationProviderOpenID.ALLOWED_AUDIENCES, "allowed-audience");
         props.setProperty(AuthenticationProviderOpenID.ALLOWED_TOKEN_ISSUERS, issuerWithMissingKid);
 
+        @Cleanup
         AuthenticationProviderOpenID provider = new AuthenticationProviderOpenID();
         provider.initialize(conf);
 
@@ -387,6 +390,7 @@ public class AuthenticationProviderOpenIDIntegrationTest {
         // Test requires that k8sIssuer is not in the allowed token issuers
         props.setProperty(AuthenticationProviderOpenID.ALLOWED_TOKEN_ISSUERS, "");
 
+        @Cleanup
         AuthenticationProviderOpenID provider = new AuthenticationProviderOpenID();
         provider.initialize(conf);
 
@@ -420,6 +424,7 @@ public class AuthenticationProviderOpenIDIntegrationTest {
         props.setProperty(AuthenticationProviderOpenID.FALLBACK_DISCOVERY_MODE, "KUBERNETES_DISCOVER_TRUSTED_ISSUER");
         props.setProperty(AuthenticationProviderOpenID.ALLOWED_TOKEN_ISSUERS, "");
 
+        @Cleanup
         AuthenticationProviderOpenID provider = new AuthenticationProviderOpenID();
         provider.initialize(conf);
 
@@ -446,6 +451,7 @@ public class AuthenticationProviderOpenIDIntegrationTest {
         // Test requires that k8sIssuer is not in the allowed token issuers
         props.setProperty(AuthenticationProviderOpenID.ALLOWED_TOKEN_ISSUERS, "");
 
+        @Cleanup
         AuthenticationProviderOpenID provider = new AuthenticationProviderOpenID();
         provider.initialize(conf);
 
@@ -476,6 +482,7 @@ public class AuthenticationProviderOpenIDIntegrationTest {
         props.setProperty(AuthenticationProviderOpenID.FALLBACK_DISCOVERY_MODE, "KUBERNETES_DISCOVER_PUBLIC_KEYS");
         props.setProperty(AuthenticationProviderOpenID.ALLOWED_TOKEN_ISSUERS, "");
 
+        @Cleanup
         AuthenticationProviderOpenID provider = new AuthenticationProviderOpenID();
         provider.initialize(conf);
 
@@ -538,6 +545,7 @@ public class AuthenticationProviderOpenIDIntegrationTest {
         props.setProperty(AuthenticationProviderOpenID.ALLOWED_TOKEN_ISSUERS, issuer);
         // Use the leeway to allow the token to pass validation and then fail expiration
         props.setProperty(AuthenticationProviderOpenID.ACCEPTED_TIME_LEEWAY_SECONDS, "10");
+        @Cleanup
         AuthenticationProviderOpenID provider = new AuthenticationProviderOpenID();
         provider.initialize(conf);
 
@@ -603,6 +611,7 @@ public class AuthenticationProviderOpenIDIntegrationTest {
 
     @Test
     void ensureRoleClaimForNonSubClaimReturnsRole() throws Exception {
+        @Cleanup
         AuthenticationProviderOpenID provider = new AuthenticationProviderOpenID();
         Properties props = new Properties();
         props.setProperty(AuthenticationProviderOpenID.ALLOWED_TOKEN_ISSUERS, issuer);
@@ -623,6 +632,7 @@ public class AuthenticationProviderOpenIDIntegrationTest {
 
     @Test
     void ensureRoleClaimForNonSubClaimFailsWhenClaimIsMissing() throws Exception {
+        @Cleanup
         AuthenticationProviderOpenID provider = new AuthenticationProviderOpenID();
         Properties props = new Properties();
         props.setProperty(AuthenticationProviderOpenID.ALLOWED_TOKEN_ISSUERS, issuer);

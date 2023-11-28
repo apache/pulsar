@@ -1406,6 +1406,9 @@ public class BacklogQuotaManagerTest {
         config.setBacklogQuotaDefaultRetentionPolicy(BacklogQuota.RetentionPolicy.consumer_backlog_eviction);
         pulsar = new PulsarService(config);
         pulsar.start();
+        if (admin != null) {
+            admin.close();
+        }
         admin = PulsarAdmin.builder().serviceHttpUrl(adminUrl.toString()).build();
 
         @Cleanup

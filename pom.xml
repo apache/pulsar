@@ -140,9 +140,9 @@ flexible messaging model and an intuitive client API.</description>
     <snappy.version>1.1.10.5</snappy.version> <!-- ZooKeeper server -->
     <dropwizardmetrics.version>4.1.12.1</dropwizardmetrics.version> <!-- ZooKeeper server -->
     <curator.version>5.1.0</curator.version>
-    <netty.version>4.1.99.Final</netty.version>
+    <netty.version>4.1.100.Final</netty.version>
     <netty-iouring.version>0.0.21.Final</netty-iouring.version>
-    <jetty.version>9.4.52.v20230823</jetty.version>
+    <jetty.version>9.4.53.v20231009</jetty.version>
     <conscrypt.version>2.5.2</conscrypt.version>
     <jersey.version>2.34</jersey.version>
     <athenz.version>1.10.50</athenz.version>
@@ -175,7 +175,7 @@ flexible messaging model and an intuitive client API.</description>
     <cassandra.version>3.11.2</cassandra.version>
     <aerospike-client.version>4.4.20</aerospike-client.version>
     <kafka-client.version>3.4.0</kafka-client.version>
-    <rabbitmq-client.version>5.5.3</rabbitmq-client.version>
+    <rabbitmq-client.version>5.18.0</rabbitmq-client.version>
     <aws-sdk.version>1.12.262</aws-sdk.version>
     <avro.version>1.11.3</avro.version>
     <joda.version>2.10.10</joda.version>
@@ -258,10 +258,10 @@ flexible messaging model and an intuitive client API.</description>
     <docker-java.version>3.3.0</docker-java.version>
     <kerby.version>1.1.1</kerby.version>
     <testng.version>7.7.1</testng.version>
-    <mockito.version>3.12.4</mockito.version>
+    <mockito.version>5.6.0</mockito.version>
     <javassist.version>3.25.0-GA</javassist.version>
     <skyscreamer.version>1.5.0</skyscreamer.version>
-    <objenesis.version>3.1</objenesis.version>
+    <objenesis.version>3.3</objenesis.version> <!-- should match mockito-core objenesis version -->
     <awaitility.version>4.2.0</awaitility.version>
     <jettison.version>1.5.4</jettison.version>
     <woodstox.version>5.4.0</woodstox.version>
@@ -289,7 +289,7 @@ flexible messaging model and an intuitive client API.</description>
     <wagon-ssh-external.version>3.5.3</wagon-ssh-external.version>
     <os-maven-plugin.version>1.7.0</os-maven-plugin.version>
     <jacoco-maven-plugin.version>0.8.11</jacoco-maven-plugin.version>
-    <spotbugs-maven-plugin.version>4.7.3.0</spotbugs-maven-plugin.version>
+    <spotbugs-maven-plugin.version>4.7.3.6</spotbugs-maven-plugin.version>
     <spotbugs.version>4.7.3</spotbugs.version>
     <errorprone.version>2.5.1</errorprone.version>
     <errorprone.javac.version>9+181-r4173-1</errorprone.javac.version>
@@ -300,6 +300,7 @@ flexible messaging model and an intuitive client API.</description>
     <roaringbitmap.version>0.9.44</roaringbitmap.version>
     <extra-enforcer-rules.version>1.6.1</extra-enforcer-rules.version>
     <oshi.version>6.4.0</oshi.version>
+    <checkerframework.version>3.33.0</checkerframework.version>
 
     <!-- Used to configure rename.netty.native. Libs -->
     <rename.netty.native.libs>rename-netty-native-libs.sh</rename.netty.native.libs>
@@ -363,12 +364,6 @@ flexible messaging model and an intuitive client API.</description>
       </dependency>
 
       <dependency>
-        <groupId>org.mockito</groupId>
-        <artifactId>mockito-inline</artifactId>
-        <version>${mockito.version}</version>
-      </dependency>
-
-      <dependency>
         <groupId>org.apache.zookeeper</groupId>
         <artifactId>zookeeper</artifactId>
         <version>${zookeeper.version}</version>
@@ -406,6 +401,12 @@ flexible messaging model and an intuitive client API.</description>
         <groupId>io.dropwizard.metrics</groupId>
         <artifactId>metrics-graphite</artifactId>
         <version>${dropwizardmetrics.version}</version>
+        <exclusions>
+          <exclusion>
+            <groupId>com.rabbitmq</groupId>
+            <artifactId>amqp-client</artifactId>
+          </exclusion>
+        </exclusions>
       </dependency>
       <dependency>
         <groupId>io.dropwizard.metrics</groupId>
@@ -1417,6 +1418,11 @@ flexible messaging model and an intuitive client API.</description>
         <artifactId>oshi-core-java11</artifactId>
         <version>${oshi.version}</version>
       </dependency>
+      <dependency>
+        <groupId>org.checkerframework</groupId>
+        <artifactId>checker-qual</artifactId>
+        <version>${checkerframework.version}</version>
+      </dependency>
     </dependencies>
   </dependencyManagement>
 
@@ -1438,12 +1444,6 @@ flexible messaging model and an intuitive client API.</description>
     <dependency>
       <groupId>org.mockito</groupId>
       <artifactId>mockito-core</artifactId>
-      <scope>test</scope>
-    </dependency>
-
-    <dependency>
-      <groupId>org.mockito</groupId>
-      <artifactId>mockito-inline</artifactId>
       <scope>test</scope>
     </dependency>
 
@@ -1579,7 +1579,7 @@ flexible messaging model and an intuitive client API.</description>
           <properties>
             <property>
               <name>listener</name>
-              <value>org.apache.pulsar.tests.PulsarTestListener,org.apache.pulsar.tests.JacocoDumpListener,org.apache.pulsar.tests.AnnotationListener,org.apache.pulsar.tests.FailFastNotifier,org.apache.pulsar.tests.MockitoCleanupListener,org.apache.pulsar.tests.FastThreadLocalCleanupListener,org.apache.pulsar.tests.ThreadLeakDetectorListener,org.apache.pulsar.tests.SingletonCleanerListener</value>
+              <value>org.apache.pulsar.tests.PulsarTestListener,org.apache.pulsar.tests.JacocoDumpListener,org.apache.pulsar.tests.TraceTestResourceCleanupListener,org.apache.pulsar.tests.AnnotationListener,org.apache.pulsar.tests.FailFastNotifier,org.apache.pulsar.tests.MockitoCleanupListener,org.apache.pulsar.tests.FastThreadLocalCleanupListener,org.apache.pulsar.tests.ThreadLeakDetectorListener,org.apache.pulsar.tests.SingletonCleanerListener</value>
             </property>
           </properties>
         </configuration>
@@ -1677,7 +1677,7 @@ flexible messaging model and an intuitive client API.</description>
                 <exclude>**/ByteBufCodedOutputStream.java</exclude>
                 <exclude>**/ahc.properties</exclude>
                 <exclude>bin/proto/*</exclude>
-                <exclude>conf/schema_example.conf</exclude>
+                <exclude>conf/schema_example.json</exclude>
                 <exclude>data/**</exclude>
                 <exclude>logs/**</exclude>
                 <exclude>**/circe/**</exclude>
@@ -1786,6 +1786,8 @@ flexible messaging model and an intuitive client API.</description>
             <exclude>**/*.crt</exclude>
             <exclude>**/*.key</exclude>
             <exclude>**/*.csr</exclude>
+            <exclude>**/*.srl</exclude>
+            <exclude>**/*.txt</exclude>
             <exclude>**/*.pem</exclude>
             <exclude>**/*.json</exclude>
             <exclude>**/*.htpasswd</exclude>
@@ -1802,7 +1804,7 @@ flexible messaging model and an intuitive client API.</description>
             <exclude>**/requirements.txt</exclude>
 
             <!-- Configuration Templates -->
-            <exclude>conf/schema_example.conf</exclude>
+            <exclude>conf/schema_example.json</exclude>
             <exclude>**/templates/*.tpl</exclude>
 
             <!-- helm files -->

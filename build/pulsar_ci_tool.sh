@@ -55,9 +55,11 @@ function ci_dependency_check() {
   _ci_mvn -Pmain,skip-all,skipDocker,owasp-dependency-check initialize verify -pl '!pulsar-client-tools-test' "$@"
 }
 
-function ci_pick_ubuntu_mirror() {
-  echo "Choosing fastest up-to-date ubuntu mirror based on download speed..."
-  UBUNTU_MIRROR=$({
+# Finds fastest up-to-date ubuntu mirror based on download speed
+function ci_find_fast_ubuntu_mirror() {
+  local ubuntu_release=${1:-"$(lsb_release -c 2>/dev/null | cut -f2 || echo "jammy")"}
+  local ubuntu_arch=${2:-"$(dpkg --print-architecture 2>/dev/null || echo "amd64")"}
+  {
     # choose mirrors that are up-to-date by checking the Last-Modified header for
     {
       # randomly choose up to 10 mirrors using http:// protocol
@@ -65,12 +67,20 @@ function ci_pick_ubuntu_mirror() {
       curl -s http://mirrors.ubuntu.com/mirrors.txt | grep '^http://' | shuf -n 10
       # also consider Azure's Ubuntu mirror
       echo http://azure.archive.ubuntu.com/ubuntu/
-    } | xargs -I {} sh -c 'echo "$(curl -m 5 -sI {}dists/$(lsb_release -c | cut -f2)-security/Contents-$(dpkg --print-architecture).gz|sed s/\\r\$//|grep Last-Modified|awk -F": " "{ print \$2 }" | LANG=C date -f- -u +%s)" "{}"' | sort -rg | awk '{ if (NR==1) TS=$1; if ($1 == TS) print $2 }'
+    } | xargs -I {} sh -c "ubuntu_release=$ubuntu_release ubuntu_arch=$ubuntu_arch;"'echo "$(curl -m 5 -sI {}dists/${ubuntu_release}/Contents-${ubuntu_arch}.gz|sed s/\\r\$//|grep Last-Modified|awk -F": " "{ print \$2 }" | LANG=C date -f- -u +%s)" "{}"' | sort -rg | awk '{ if (NR==1) TS=$1; if ($1 == TS) print $2 }'
   } | xargs -I {} sh -c 'echo `curl -r 0-102400 -m 5 -s -w %{speed_download} -o /dev/null {}ls-lR.gz` {}' \
-    |sort -g -r |head -1| awk '{ print $2  }')
+    |sort -g -r |head -1| awk '{ print $2  }'
+}
+
+function ci_pick_ubuntu_mirror() {
+  echo "Choosing fastest up-to-date ubuntu mirror based on download speed..."
+  UBUNTU_MIRROR=$(ci_find_fast_ubuntu_mirror)
   if [ -z "$UBUNTU_MIRROR" ]; then
-      # fallback to full mirrors list
-      UBUNTU_MIRROR="mirror://mirrors.ubuntu.com/mirrors.txt"
+      # fallback to no mirror
+      UBUNTU_MIRROR="http://archive.ubuntu.com/ubuntu/"
+      UBUNTU_SECURITY_MIRROR="http://security.ubuntu.com/ubuntu/"
+  else
+      UBUNTU_SECURITY_MIRROR="${UBUNTU_MIRROR}"
   fi
   OLD_MIRROR=$(cat /etc/apt/sources.list | grep '^deb ' | head -1 | awk '{ print $2 }')
   echo "Picked '$UBUNTU_MIRROR'. Current mirror is '$OLD_MIRROR'."
@@ -81,7 +91,7 @@ function ci_pick_ubuntu_mirror() {
   # set the chosen mirror also in the UBUNTU_MIRROR and UBUNTU_SECURITY_MIRROR environment variables
   # that can be used by docker builds
   export UBUNTU_MIRROR
-  export UBUNTU_SECURITY_MIRROR=$UBUNTU_MIRROR
+  export UBUNTU_SECURITY_MIRROR
   # make environment variables available for later GitHub Actions steps
   if [ -n "$GITHUB_ENV" ]; then
     echo "UBUNTU_MIRROR=$UBUNTU_MIRROR" >> $GITHUB_ENV

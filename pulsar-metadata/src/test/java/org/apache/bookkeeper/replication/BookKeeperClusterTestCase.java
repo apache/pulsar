@@ -115,6 +115,8 @@ public abstract class BookKeeperClusterTestCase {
     protected ExecutorService executor;
     private final List<Integer> bookiePorts = new ArrayList<>();
 
+    private final List<AutoCloseable> closeables = new ArrayList<>();
+
     SynchronousQueue<Throwable> asyncExceptions = new SynchronousQueue<>();
     protected void captureThrowable(Runnable c) {
         try {
@@ -187,6 +189,9 @@ public abstract class BookKeeperClusterTestCase {
 
     @AfterTest(alwaysRun = true)
     public void tearDown() throws Exception {
+        callCloseables(closeables);
+        closeables.clear();
+
         boolean failed = false;
         for (Throwable e : asyncExceptions) {
             LOG.error("Got async exception: ", e);
@@ -228,6 +233,21 @@ public abstract class BookKeeperClusterTestCase {
         }
     }
 
+    protected <T extends AutoCloseable> T registerCloseable(T closeable) {
+        closeables.add(closeable);
+        return closeable;
+    }
+
+    private static void callCloseables(List<AutoCloseable> closeables) {
+        for (int i = closeables.size() - 1; i >= 0; i--) {
+            try {
+                closeables.get(i).close();
+            } catch (Exception e) {
+                LOG.error("Failure in calling close method", e);
+            }
+        }
+    }
+
     /**
      * Start zookeeper cluster.
      *
@@ -238,7 +258,7 @@ public abstract class BookKeeperClusterTestCase {
         zkc = zkUtil.getZooKeeperClient();
         metadataStore = new FaultInjectionMetadataStore(
                 MetadataStoreExtended.create(zkUtil.getZooKeeperConnectString(),
-                MetadataStoreConfig.builder().build()));
+                MetadataStoreConfig.builder().metadataStoreName("metastore-" + getClass().getSimpleName()).build()));
     }
 
     /**
