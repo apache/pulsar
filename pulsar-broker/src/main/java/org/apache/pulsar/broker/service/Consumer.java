@@ -1088,7 +1088,7 @@ public class Consumer {
 
     private int addAndGetUnAckedMsgs(Consumer consumer, int ackedMessages) {
         int unackedMsgs = 0;
-        if (isDurable && Subscription.isIndividualAckMode(subType)) {
+        if (subscription.getTopic() instanceof PersistentTopic && Subscription.isIndividualAckMode(subType)) {
             subscription.addUnAckedMessages(ackedMessages);
             unackedMsgs = UNACKED_MESSAGES_UPDATER.addAndGet(consumer, ackedMessages);
         }
