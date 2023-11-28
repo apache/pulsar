@@ -1967,6 +1967,15 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
         // Wait for phase one to complete
         Thread.sleep(500);
 
+        Awaitility.await().untilAsserted(() -> {
+            PersistentTopic persistentTopic = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topic).get();
+            PulsarTopicCompactionService topicCompactionService =
+                    (PulsarTopicCompactionService) persistentTopic.getTopicCompactionService();
+            Optional<CompactedTopicContext> compactedTopicContext = topicCompactionService.getCompactedTopic()
+                    .getCompactedTopicContext();
+            Assert.assertTrue(compactedTopicContext.isPresent());
+        });
+
         // Unload topic make reader of compaction reconnect
         admin.topics().unload(topic);
 
