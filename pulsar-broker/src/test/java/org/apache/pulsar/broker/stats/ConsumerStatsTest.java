@@ -470,10 +470,13 @@ public class ConsumerStatsTest extends ProducerConsumerBase {
             Message<byte[]> msg = consumer.receive(5, TimeUnit.SECONDS);
             consumer.acknowledge(msg);
         }
+        TimeUnit.SECONDS.sleep(1);
+
         TopicStats topicStats = admin.topics().getStats(topicName);
-        assertEquals(topicStats.getSubscriptions().size(), 1);
+        assertEquals(1, topicStats.getSubscriptions().size());
         List<? extends ConsumerStats> consumers = topicStats.getSubscriptions().get(subName).getConsumers();
-        assertEquals(consumers.size(), 1);
-        assertEquals(consumers.get(0).getUnackedMessages(), 0);
+        assertEquals(1, consumers.size());
+        assertEquals(0, consumers.get(0).getUnackedMessages());
     }
+
 }
