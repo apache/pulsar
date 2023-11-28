@@ -239,7 +239,7 @@ public class ConcurrentLongPairSetTest {
                 } catch (Exception e) {
                     throw new RuntimeException(e);
                 }
-                while (true) {
+                while (!Thread.currentThread().isInterrupted()) {
                     try {
                         set.contains(1, 1);
                     } catch (Exception e) {

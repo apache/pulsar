@@ -91,8 +91,8 @@ public class BookieLedgerIndexTest extends BookKeeperClusterTestCase {
 
         String ledgersRoot = "/ledgers";
         String storeUri = metadataServiceUri.replaceAll("zk://", "").replaceAll("/ledgers", "");
-        MetadataStoreExtended store = MetadataStoreExtended.create(storeUri,
-                MetadataStoreConfig.builder().fsyncEnable(false).build());
+        MetadataStoreExtended store = registerCloseable(MetadataStoreExtended.create(storeUri,
+                MetadataStoreConfig.builder().fsyncEnable(false).build()));
         LayoutManager layoutManager = new PulsarLayoutManager(store, ledgersRoot);
         newLedgerManagerFactory = new PulsarLedgerManagerFactory();
 

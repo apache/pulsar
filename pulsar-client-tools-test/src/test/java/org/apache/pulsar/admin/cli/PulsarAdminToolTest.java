@@ -54,6 +54,7 @@ import java.util.Optional;
 import java.util.Properties;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.admin.cli.extensions.CustomCommandFactory;
 import org.apache.pulsar.admin.cli.utils.SchemaExtractor;
@@ -2254,7 +2255,9 @@ public class PulsarAdminToolTest {
             //Ok
         }
 
-        ClientConfigurationData conf =  ((PulsarAdminImpl)tool.getPulsarAdminSupplier().get()).getClientConfigData();
+        @Cleanup
+        PulsarAdminImpl pulsarAdmin = (PulsarAdminImpl) tool.getPulsarAdminSupplier().get();
+        ClientConfigurationData conf =  pulsarAdmin.getClientConfigData();
 
         assertEquals(1000, conf.getRequestTimeoutMs());
     }
@@ -2264,7 +2267,6 @@ public class PulsarAdminToolTest {
         Properties properties = new Properties();
         properties.put("webServiceUrl", "http://localhost:2181");
         PulsarAdminTool tool = new PulsarAdminTool(properties);
-
         assertFalse(tool.run("sources create --source-config-file doesnotexist.yaml".split(" ")));
     }
 
@@ -2298,8 +2300,9 @@ public class PulsarAdminToolTest {
         }
 
         // validate Authentication-tls has been configured
-        ClientConfigurationData conf = ((PulsarAdminImpl)tool.getPulsarAdminSupplier().get())
-                .getClientConfigData();
+        @Cleanup
+        PulsarAdminImpl pulsarAdmin = (PulsarAdminImpl) tool.getPulsarAdminSupplier().get();
+        ClientConfigurationData conf =  pulsarAdmin.getClientConfigData();
         AuthenticationTls atuh = (AuthenticationTls) conf.getAuthentication();
         assertEquals(atuh.getCertFilePath(), certFilePath);
         assertEquals(atuh.getKeyFilePath(), keyFilePath);
@@ -2312,8 +2315,9 @@ public class PulsarAdminToolTest {
             // Ok
         }
 
-        conf = conf = ((PulsarAdminImpl)tool.getPulsarAdminSupplier().get())
-                .getClientConfigData();
+        @Cleanup
+        PulsarAdminImpl pulsarAdmin2 = (PulsarAdminImpl) tool.getPulsarAdminSupplier().get();
+        conf =  pulsarAdmin2.getClientConfigData();
         atuh = (AuthenticationTls) conf.getAuthentication();
         assertEquals(atuh.getCertFilePath(), certFilePath);
         assertEquals(atuh.getKeyFilePath(), keyFilePath);

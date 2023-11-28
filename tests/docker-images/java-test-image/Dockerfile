@@ -33,11 +33,11 @@ RUN chmod a+rx /pulsar/bin/*
 WORKDIR /pulsar
 
 ARG DEBIAN_FRONTEND=noninteractive
-ARG UBUNTU_MIRROR=mirror://mirrors.ubuntu.com/mirrors.txt
+ARG UBUNTU_MIRROR=http://archive.ubuntu.com/ubuntu/
 ARG UBUNTU_SECURITY_MIRROR=http://security.ubuntu.com/ubuntu/
 ARG JDK_MAJOR_VERSION=17
 
-RUN sed -i -e "s|http://archive\.ubuntu\.com/ubuntu/|${UBUNTU_MIRROR:-mirror://mirrors.ubuntu.com/mirrors.txt}|g" \
+RUN sed -i -e "s|http://archive\.ubuntu\.com/ubuntu/|${UBUNTU_MIRROR:-http://archive.ubuntu.com/ubuntu/}|g" \
      -e "s|http://security\.ubuntu\.com/ubuntu/|${UBUNTU_SECURITY_MIRROR:-http://security.ubuntu.com/ubuntu/}|g" /etc/apt/sources.list \
      && apt-get update \
      && apt-get -y dist-upgrade \
