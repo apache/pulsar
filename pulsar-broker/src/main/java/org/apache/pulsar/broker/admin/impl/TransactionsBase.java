@@ -501,11 +501,13 @@ public abstract class TransactionsBase extends AdminResource {
             CompletableFuture<Optional<Topic>> topicFuture = pulsar().getBrokerService()
                     .getTopics().get(topicName.toString());
             if (topicFuture == null) {
-                return FutureUtil.failedFuture(new RestException(NOT_FOUND, "Topic not found"));
+                return FutureUtil.failedFuture(new RestException(NOT_FOUND,
+                        String.format("Topic not found %s", topicName.toString())));
             }
             return topicFuture.thenCompose(optionalTopic -> {
                 if (!optionalTopic.isPresent()) {
-                    return FutureUtil.failedFuture(new RestException(NOT_FOUND, "Topic not found"));
+                    return FutureUtil.failedFuture(new RestException(NOT_FOUND,
+                            String.format("Topic not found %s", topicName.toString())));
                 }
                 return CompletableFuture.completedFuture((PersistentTopic) optionalTopic.get());
             });
