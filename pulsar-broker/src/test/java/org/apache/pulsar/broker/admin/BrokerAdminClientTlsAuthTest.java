@@ -114,7 +114,6 @@ public class BrokerAdminClientTlsAuthTest extends MockedPulsarServiceBaseTest {
         /***** Start Broker 2 ******/
         ServiceConfiguration conf = new ServiceConfiguration();
         conf.setBrokerShutdownTimeoutMs(0L);
-        conf.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
         conf.setBrokerServicePort(Optional.of(0));
         conf.setBrokerServicePortTls(Optional.of(0));
         conf.setWebServicePort(Optional.of(0));

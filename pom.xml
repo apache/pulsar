@@ -1921,7 +1921,6 @@ flexible messaging model and an intuitive client API.</description>
           --add-opens java.base/java.io=ALL-UNNAMED <!--Bookkeeper NativeIO -->
           --add-opens java.management/sun.management=ALL-UNNAMED <!--JvmDefaultGCMetricsLogger & MBeanStatsGenerator-->
           --add-opens jdk.management/com.sun.management.internal=ALL-UNNAMED <!--MBeanStatsGenerator-->
-          --add-opens java.base/jdk.internal.platform=ALL-UNNAMED <!--LinuxInfoUtils-->
         </test.additional.args>
       </properties>
       <build>

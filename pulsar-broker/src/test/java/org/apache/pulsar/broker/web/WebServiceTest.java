@@ -397,7 +397,6 @@ public class WebServiceTest {
         ServiceConfiguration config = new ServiceConfiguration();
         config.setAdvertisedAddress("localhost");
         config.setBrokerShutdownTimeoutMs(0L);
-        config.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
         config.setBrokerServicePort(Optional.of(0));
         config.setWebServicePort(Optional.of(0));
         if (enableTls) {

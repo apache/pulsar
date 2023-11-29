@@ -78,7 +78,6 @@ public class SLAMonitoringTest {
         for (int i = 0; i < BROKER_COUNT; i++) {
             ServiceConfiguration config = new ServiceConfiguration();
             config.setBrokerShutdownTimeoutMs(0L);
-            config.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
             config.setBrokerServicePort(Optional.of(0));
             config.setBrokerShutdownTimeoutMs(0L);
             config.setClusterName("my-cluster");

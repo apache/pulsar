@@ -22,6 +22,7 @@ import static org.testng.Assert.assertEquals;
 import java.util.Optional;
 import org.apache.commons.lang3.SystemUtils;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
+import org.apache.pulsar.broker.loadbalance.impl.LinuxBrokerHostUsageImpl;
 import org.apache.pulsar.policies.data.loadbalancer.LoadManagerReport;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -29,21 +30,17 @@ import org.testng.annotations.Test;
 
 @Test(groups = "broker")
 public class LoadReportNetworkLimitTest extends MockedPulsarServiceBaseTest {
-    int usableNicCount;
-
-    @Override
-    protected void doInitConf() throws Exception {
-        super.doInitConf();
-        conf.setLoadBalancerEnabled(true);
-        conf.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(5.4));
-    }
+    int nicCount;
 
     @BeforeClass
     @Override
     public void setup() throws Exception {
+        conf.setLoadBalancerEnabled(true);
+        conf.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(5.4));
         super.internalSetup();
+
         if (SystemUtils.IS_OS_LINUX) {
-            usableNicCount = LinuxInfoUtils.getUsablePhysicalNICs().size();
+            nicCount = new LinuxBrokerHostUsageImpl(pulsar).getNicCount();
         }
     }
 
@@ -60,12 +57,12 @@ public class LoadReportNetworkLimitTest extends MockedPulsarServiceBaseTest {
         LoadManagerReport report = admin.brokerStats().getLoadReport();
 
         if (SystemUtils.IS_OS_LINUX) {
-            assertEquals(report.getBandwidthIn().limit, usableNicCount * 5.4 * 1000 * 1000, 0.0001);
-            assertEquals(report.getBandwidthOut().limit, usableNicCount * 5.4 * 1000 * 1000, 0.0001);
+            assertEquals(report.getBandwidthIn().limit, nicCount * 5.4 * 1000 * 1000);
+            assertEquals(report.getBandwidthOut().limit, nicCount * 5.4 * 1000 * 1000);
         } else {
             // On non-Linux system we don't report the network usage
-            assertEquals(report.getBandwidthIn().limit, -1.0, 0.0001);
-            assertEquals(report.getBandwidthOut().limit, -1.0, 0.0001);
+            assertEquals(report.getBandwidthIn().limit, -1.0);
+            assertEquals(report.getBandwidthOut().limit, -1.0);
         }
     }
 
