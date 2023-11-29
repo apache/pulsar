@@ -101,6 +101,7 @@ public class SchemaServiceTest extends MockedPulsarServiceBaseTest {
         Map<SchemaType, SchemaCompatibilityCheck> checkMap = new HashMap<>();
         checkMap.put(SchemaType.AVRO, new AvroSchemaCompatibilityCheck());
         schemaRegistryService = new SchemaRegistryServiceImpl(storage, checkMap, MockClock, null);
+        setupDefaultTenantAndNamespace();
     }
 
     @AfterMethod(alwaysRun = true)
@@ -411,6 +412,8 @@ public class SchemaServiceTest extends MockedPulsarServiceBaseTest {
         final IsCompatibilityResponse isCompatibilityResponse = admin.schemas().testCompatibility(topicName, schemaInfo);
         Assert.assertTrue(isCompatibilityResponse.isCompatibility());
 
+        admin.schemas().createSchema(topicName, schemaInfo);
+
         final SchemaInfoWithVersion schemaInfoWithVersion = admin.schemas().getSchemaInfoWithVersion(topicName);
         Assert.assertEquals(schemaInfoWithVersion.getVersion(), 0);
 
@@ -419,6 +422,5 @@ public class SchemaServiceTest extends MockedPulsarServiceBaseTest {
 
         final Long version2 = admin.schemas().getVersionBySchema(topicName, schemaInfoWithVersion.getSchemaInfo());
         Assert.assertEquals(version2, 0);
-
     }
 }
