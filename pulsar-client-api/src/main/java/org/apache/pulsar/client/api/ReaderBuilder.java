@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -210,6 +210,15 @@ public interface ReaderBuilder<T> extends Cloneable {
      */
     ReaderBuilder<T> cryptoFailureAction(ConsumerCryptoFailureAction action);
 
+    /**
+     * Sets a {@link MessageCrypto}.
+     *
+     * <p>Contains methods to encrypt/decrypt message for End to End Encryption.
+     *
+     * @param messageCrypto message Crypto Object
+     * @return ReaderBuilder instance
+     */
+    ReaderBuilder<T> messageCrypto(MessageCrypto messageCrypto);
     /**
      * Sets the size of the consumer receive queue.
      *

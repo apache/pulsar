@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -53,7 +53,7 @@ import org.apache.pulsar.compaction.TwoPhaseCompactor;
 import org.apache.pulsar.functions.LocalRunner;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.functions.utils.FunctionCommon;
-import org.apache.pulsar.functions.worker.PulsarFunctionTestUtils;
+import org.apache.pulsar.functions.worker.TestPulsarFunctionUtils;
 import org.apache.pulsar.io.core.Sink;
 import org.apache.pulsar.io.core.SinkContext;
 import org.awaitility.Awaitility;
@@ -122,9 +122,9 @@ public class PulsarSinkE2ETest extends AbstractPulsarE2ETest {
 
         // 5 Sink should only read compacted value, so we will only receive compacted messages
         Awaitility.await().ignoreExceptions().untilAsserted(() -> {
-            String prometheusMetrics = PulsarFunctionTestUtils.getPrometheusMetrics(pulsar.getListenPortHTTP().get());
-            Map<String, PulsarFunctionTestUtils.Metric> metrics = PulsarFunctionTestUtils.parseMetrics(prometheusMetrics);
-            PulsarFunctionTestUtils.Metric m = metrics.get("pulsar_sink_received_total");
+            String prometheusMetrics = TestPulsarFunctionUtils.getPrometheusMetrics(pulsar.getListenPortHTTP().get());
+            Map<String, TestPulsarFunctionUtils.Metric> metrics = TestPulsarFunctionUtils.parseMetrics(prometheusMetrics);
+            TestPulsarFunctionUtils.Metric m = metrics.get("pulsar_sink_received_total");
             assertEquals(m.value, maxKeys);
         });
     }
@@ -142,13 +142,15 @@ public class PulsarSinkE2ETest extends AbstractPulsarE2ETest {
         admin.namespaces().createNamespace(replNamespace);
         Set<String> clusters = Sets.newHashSet(Lists.newArrayList("use"));
         admin.namespaces().setNamespaceReplicationClusters(replNamespace, clusters);
-        // 1 create producer、DLQ consumer
+        // 1. create producer and DLQ consumer
+        @Cleanup
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(sourceTopic).create();
+        @Cleanup
         Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING).topic(dlqTopic).subscriptionName(subscriptionName).subscribe();
 
-        // 2 setup sink
+        // 2. setup sink
         SinkConfig sinkConfig = createSinkConfig(tenant, namespacePortion, sinkName, sourceTopic, subscriptionName);
-        sinkConfig.setNegativeAckRedeliveryDelayMs(1001L);
+        sinkConfig.setNegativeAckRedeliveryDelayMs(1L);
         sinkConfig.setProcessingGuarantees(FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE);
         sinkConfig.setMaxMessageRetries(2);
         sinkConfig.setDeadLetterTopic(dlqTopic);
@@ -180,7 +182,7 @@ public class PulsarSinkE2ETest extends AbstractPulsarE2ETest {
             }
         }, 50, 150);
 
-        // 3 send message
+        // 3. send message
         int totalMsgs = 10;
         Set<String> remainingMessagesToReceive = new HashSet<>();
         for (int i = 0; i < totalMsgs; i++) {
@@ -189,7 +191,7 @@ public class PulsarSinkE2ETest extends AbstractPulsarE2ETest {
             remainingMessagesToReceive.add(messageBody);
         }
 
-        //4 All messages should enter DLQ
+        // 4. All messages should enter DLQ
         for (int i = 0; i < totalMsgs; i++) {
             Message<String> message = consumer.receive(10, TimeUnit.SECONDS);
             assertNotNull(message);
@@ -197,10 +199,6 @@ public class PulsarSinkE2ETest extends AbstractPulsarE2ETest {
         }
 
         assertEquals(remainingMessagesToReceive, Collections.emptySet());
-
-        //clean up
-        producer.close();
-        consumer.close();
     }
 
     private void testPulsarSinkStats(String jarFilePathUrl) throws Exception {
@@ -273,11 +271,11 @@ public class PulsarSinkE2ETest extends AbstractPulsarE2ETest {
         status.getInstances().forEach(sinkInstanceStatus -> assertEquals(sinkInstanceStatus.status.numSystemExceptions, 0));
 
         // validate prometheus metrics empty
-        String prometheusMetrics = PulsarFunctionTestUtils.getPrometheusMetrics(pulsar.getListenPortHTTP().get());
+        String prometheusMetrics = TestPulsarFunctionUtils.getPrometheusMetrics(pulsar.getListenPortHTTP().get());
         log.info("prometheus metrics: {}", prometheusMetrics);
 
-        Map<String, PulsarFunctionTestUtils.Metric> metrics = PulsarFunctionTestUtils.parseMetrics(prometheusMetrics);
-        PulsarFunctionTestUtils.Metric m = metrics.get("pulsar_sink_received_total");
+        Map<String, TestPulsarFunctionUtils.Metric> metrics = TestPulsarFunctionUtils.parseMetrics(prometheusMetrics);
+        TestPulsarFunctionUtils.Metric m = metrics.get("pulsar_sink_received_total");
         assertEquals(m.tags.get("cluster"), config.getClusterName());
         assertEquals(m.tags.get("instance_id"), "0");
         assertEquals(m.tags.get("name"), sinkName);
@@ -366,10 +364,10 @@ public class PulsarSinkE2ETest extends AbstractPulsarE2ETest {
         status.getInstances().forEach(sinkInstanceStatus -> assertEquals(sinkInstanceStatus.status.numSystemExceptions, 0));
 
         // get stats after producing
-        prometheusMetrics = PulsarFunctionTestUtils.getPrometheusMetrics(pulsar.getListenPortHTTP().get());
+        prometheusMetrics = TestPulsarFunctionUtils.getPrometheusMetrics(pulsar.getListenPortHTTP().get());
         log.info("prometheusMetrics: {}", prometheusMetrics);
 
-        metrics = PulsarFunctionTestUtils.parseMetrics(prometheusMetrics);
+        metrics = TestPulsarFunctionUtils.parseMetrics(prometheusMetrics);
         m = metrics.get("pulsar_sink_received_total");
         assertEquals(m.tags.get("cluster"), config.getClusterName());
         assertEquals(m.tags.get("instance_id"), "0");

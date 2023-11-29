@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -23,6 +23,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.loadbalance.LoadManager;
@@ -65,13 +66,13 @@ public class ModularLoadManagerWrapper implements LoadManager {
 
     @Override
     public Optional<ResourceUnit> getLeastLoaded(final ServiceUnitId serviceUnit) {
+        String bundleRange = LoadManagerShared.getBundleRangeFromBundleName(serviceUnit.toString());
+        String affinityBroker = loadManager.setNamespaceBundleAffinity(bundleRange, null);
+        if (!StringUtils.isBlank(affinityBroker)) {
+            return Optional.of(buildBrokerResourceUnit(affinityBroker));
+        }
         Optional<String> leastLoadedBroker = loadManager.selectBrokerForAssignment(serviceUnit);
-        return leastLoadedBroker.map(s -> {
-            String webServiceUrl = getBrokerWebServiceUrl(s);
-            String brokerZnodeName = getBrokerZnodeName(s, webServiceUrl);
-            return new SimpleResourceUnit(webServiceUrl,
-                new PulsarResourceDescription(), Map.of(ResourceUnit.PROPERTY_KEY_BROKER_ZNODE_NAME, brokerZnodeName));
-        });
+        return leastLoadedBroker.map(this::buildBrokerResourceUnit);
     }
 
     private String getBrokerWebServiceUrl(String broker) {
@@ -145,5 +146,17 @@ public class ModularLoadManagerWrapper implements LoadManager {
     @Override
     public CompletableFuture<Set<String>> getAvailableBrokersAsync() {
         return loadManager.getAvailableBrokersAsync();
+    }
+
+    private SimpleResourceUnit buildBrokerResourceUnit (String broker) {
+        String webServiceUrl = getBrokerWebServiceUrl(broker);
+        String brokerZnodeName = getBrokerZnodeName(broker, webServiceUrl);
+        return new SimpleResourceUnit(webServiceUrl,
+                new PulsarResourceDescription(), Map.of(ResourceUnit.PROPERTY_KEY_BROKER_ZNODE_NAME, brokerZnodeName));
+    }
+
+    @Override
+    public String setNamespaceBundleAffinity(String bundle, String broker) {
+        return loadManager.setNamespaceBundleAffinity(bundle, broker);
     }
 }

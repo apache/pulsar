@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -41,7 +41,7 @@ import org.testng.annotations.Test;
  * However it is useful to see which logs are produced when there's an
  * failure or error in authentication.
  */
-@Test(groups = "flaky")
+@Test(groups = "broker")
 public class AuthLogsTest extends MockedPulsarServiceBaseTest {
     private static final Logger log = LoggerFactory.getLogger(AuthLogsTest.class);
 
@@ -60,6 +60,8 @@ public class AuthLogsTest extends MockedPulsarServiceBaseTest {
         conf.setAuthorizationEnabled(true);
         conf.setAuthorizationAllowWildcardsMatching(true);
         conf.setSuperUserRoles(Sets.newHashSet("super"));
+        conf.setBrokerClientAuthenticationPlugin(MockAuthentication.class.getName());
+        conf.setBrokerClientAuthenticationParameters("user:pass.pass");
         internalSetup();
 
         try (PulsarAdmin admin = PulsarAdmin.builder()

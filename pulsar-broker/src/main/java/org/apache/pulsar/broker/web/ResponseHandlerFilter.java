@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.web;
 
 import java.io.IOException;
+import java.util.Objects;
 import javax.servlet.AsyncEvent;
 import javax.servlet.AsyncListener;
 import javax.servlet.Filter;
@@ -46,12 +47,10 @@ public class ResponseHandlerFilter implements Filter {
 
     private final String brokerAddress;
     private final BrokerInterceptor interceptor;
-    private final boolean interceptorEnabled;
 
     public ResponseHandlerFilter(PulsarService pulsar) {
         this.brokerAddress = pulsar.getAdvertisedAddress();
-        this.interceptor = pulsar.getBrokerInterceptor();
-        this.interceptorEnabled = !pulsar.getConfig().getBrokerInterceptors().isEmpty();
+        this.interceptor = Objects.requireNonNull(pulsar.getBrokerInterceptor());
     }
 
     @Override
@@ -77,24 +76,24 @@ public class ResponseHandlerFilter implements Filter {
         if (request.isAsyncSupported() && request.isAsyncStarted()) {
             request.getAsyncContext().addListener(new AsyncListener() {
                 @Override
-                public void onComplete(AsyncEvent asyncEvent) throws IOException {
+                public void onComplete(AsyncEvent asyncEvent) {
                     handleInterceptor(request, response);
                 }
 
                 @Override
-                public void onTimeout(AsyncEvent asyncEvent) throws IOException {
+                public void onTimeout(AsyncEvent asyncEvent) {
                     LOG.warn("Http request {} async context timeout.", request);
                     handleInterceptor(request, response);
                 }
 
                 @Override
-                public void onError(AsyncEvent asyncEvent) throws IOException {
+                public void onError(AsyncEvent asyncEvent) {
                     LOG.warn("Http request {} async context error.", request, asyncEvent.getThrowable());
                     handleInterceptor(request, response);
                 }
 
                 @Override
-                public void onStartAsync(AsyncEvent asyncEvent) throws IOException {
+                public void onStartAsync(AsyncEvent asyncEvent) {
                     // nothing to do
                 }
             });
@@ -104,8 +103,7 @@ public class ResponseHandlerFilter implements Filter {
     }
 
     private void handleInterceptor(ServletRequest request, ServletResponse response) {
-        if (interceptorEnabled
-                && !StringUtils.containsIgnoreCase(request.getContentType(), MediaType.MULTIPART_FORM_DATA)
+        if (!StringUtils.containsIgnoreCase(request.getContentType(), MediaType.MULTIPART_FORM_DATA)
                 && !StringUtils.containsIgnoreCase(request.getContentType(), MediaType.APPLICATION_OCTET_STREAM)) {
             try {
                 interceptor.onWebserviceResponse(request, response);

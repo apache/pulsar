@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.proxy.server;
 
+import static org.apache.pulsar.proxy.server.AdminProxyHandler.INIT_PARAM_REQUEST_BUFFER_SIZE;
 import io.prometheus.client.jetty.JettyStatisticsCollector;
 import java.io.IOException;
 import java.net.URI;
@@ -93,6 +94,7 @@ public class WebServer {
 
         HttpConfiguration httpConfig = new HttpConfiguration();
         httpConfig.setOutputBufferSize(config.getHttpOutputBufferSize());
+        httpConfig.setRequestHeaderSize(config.getHttpMaxRequestHeaderSize());
 
         if (config.getWebServicePort().isPresent()) {
             this.externalServicePort = config.getWebServicePort().get();
@@ -131,7 +133,7 @@ public class WebServer {
                             config.getWebServiceTlsProtocols(),
                             config.getTlsCertRefreshCheckDurationSec());
                 }
-                connectorTls = new ServerConnector(server, sslCtxFactory);
+                connectorTls = new ServerConnector(server, sslCtxFactory, new HttpConnectionFactory(httpConfig));
                 connectorTls.setPort(config.getWebServicePortTls().get());
                 connectorTls.setHost(config.getBindAddress());
                 connectors.add(connectorTls);
@@ -195,10 +197,20 @@ public class WebServer {
 
     public void addServlet(String basePath, ServletHolder servletHolder,
                            List<Pair<String, Object>> attributes, boolean requireAuthentication) {
-        Optional<String> existingPath = servletPaths.stream().filter(p -> p.startsWith(basePath)).findFirst();
-        if (existingPath.isPresent()) {
-            throw new IllegalArgumentException(
-                    String.format("Cannot add servlet at %s, path %s already exists", basePath, existingPath.get()));
+        addServlet(basePath, servletHolder, attributes, requireAuthentication, true);
+    }
+
+    private void addServlet(String basePath, ServletHolder servletHolder,
+            List<Pair<String, Object>> attributes, boolean requireAuthentication, boolean checkForExistingPaths) {
+        popularServletParams(servletHolder, config);
+
+        if (checkForExistingPaths) {
+            Optional<String> existingPath = servletPaths.stream().filter(p -> p.startsWith(basePath)).findFirst();
+            if (existingPath.isPresent()) {
+                throw new IllegalArgumentException(
+                        String.format("Cannot add servlet at %s, path %s already exists", basePath,
+                                existingPath.get()));
+            }
         }
         servletPaths.add(basePath);
 
@@ -214,17 +226,53 @@ public class WebServer {
         handlers.add(context);
     }
 
+    private static void popularServletParams(ServletHolder servletHolder, ProxyConfiguration config) {
+        int requestBufferSize = -1;
+        try {
+            requestBufferSize = Integer.parseInt(servletHolder.getInitParameter(INIT_PARAM_REQUEST_BUFFER_SIZE));
+        } catch (NumberFormatException nfe){
+            log.warn("The init-param {} is invalidated, because it is not a number", INIT_PARAM_REQUEST_BUFFER_SIZE);
+        }
+        if (requestBufferSize > 0 || config.getHttpMaxRequestHeaderSize() > 0) {
+            int v = Math.max(requestBufferSize, config.getHttpMaxRequestHeaderSize());
+            servletHolder.setInitParameter(INIT_PARAM_REQUEST_BUFFER_SIZE, String.valueOf(v));
+        }
+    }
+
+    /**
+     * Add a REST resource to the servlet context with authentication coverage.
+     *
+     * @see WebServer#addRestResource(String, String, Object, Class, boolean)
+     *
+     * @param basePath             The base path for the resource.
+     * @param attribute            An attribute associated with the resource.
+     * @param attributeValue       The value of the attribute.
+     * @param resourceClass        The class representing the resource.
+     */
     public void addRestResource(String basePath, String attribute, Object attributeValue, Class<?> resourceClass) {
+        addRestResource(basePath, attribute, attributeValue, resourceClass, true);
+    }
+
+    /**
+     * Add a REST resource to the servlet context.
+     *
+     * @param basePath             The base path for the resource.
+     * @param attribute            An attribute associated with the resource.
+     * @param attributeValue       The value of the attribute.
+     * @param resourceClass        The class representing the resource.
+     * @param requireAuthentication A boolean indicating whether authentication is required for this resource.
+     */
+    public void addRestResource(String basePath, String attribute, Object attributeValue,
+                                Class<?> resourceClass, boolean requireAuthentication) {
         ResourceConfig config = new ResourceConfig();
         config.register(resourceClass);
         config.register(JsonMapperProvider.class);
         ServletHolder servletHolder = new ServletHolder(new ServletContainer(config));
         servletHolder.setAsyncSupported(true);
-        ServletContextHandler context = new ServletContextHandler(ServletContextHandler.SESSIONS);
-        context.setContextPath(basePath);
-        context.addServlet(servletHolder, MATCH_ALL);
-        context.setAttribute(attribute, attributeValue);
-        handlers.add(context);
+        // This method has not historically checked for existing paths, so we don't check here either. The
+        // method call is added to reduce code duplication.
+        addServlet(basePath, servletHolder, Collections.singletonList(Pair.of(attribute, attributeValue)),
+                requireAuthentication, false);
     }
 
     public int getExternalServicePort() {

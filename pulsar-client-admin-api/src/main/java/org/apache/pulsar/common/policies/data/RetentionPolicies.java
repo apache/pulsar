@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -35,7 +35,7 @@ public class RetentionPolicies {
         this(0, 0);
     }
 
-    public RetentionPolicies(int retentionTimeInMinutes, int retentionSizeInMB) {
+    public RetentionPolicies(int retentionTimeInMinutes, long retentionSizeInMB) {
         this.retentionSizeInMB = retentionSizeInMB;
         this.retentionTimeInMinutes = retentionTimeInMinutes;
     }

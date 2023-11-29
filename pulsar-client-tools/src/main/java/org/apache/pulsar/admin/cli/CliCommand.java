@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,10 +18,10 @@
  */
 package org.apache.pulsar.admin.cli;
 
+import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParameterException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
-import com.google.common.collect.Sets;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -37,6 +37,13 @@ import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 
 public abstract class CliCommand {
+
+    @Parameter(names = { "--help", "-h" }, help = true, hidden = true)
+    private boolean help = false;
+
+    public boolean isHelp() {
+        return help;
+    }
 
     static String[] validatePropertyCluster(List<String> params) {
         return splitParameter(params, 2);
@@ -68,47 +75,6 @@ public abstract class CliCommand {
             throw new ParameterException("Need to provide a non-persistent topic name");
         }
         return topicName.toString();
-    }
-
-    static void validateLatencySampleRate(int sampleRate) {
-        if (sampleRate < 0) {
-            throw new ParameterException(
-                    "Latency sample rate should be positive and non-zero (found " + sampleRate + ")");
-        }
-    }
-
-    static long validateSizeString(String s) {
-        char last = s.charAt(s.length() - 1);
-        String subStr = s.substring(0, s.length() - 1);
-        long size;
-        try {
-            size = sizeUnit.contains(last)
-                    ? Long.parseLong(subStr)
-                    : Long.parseLong(s);
-        } catch (IllegalArgumentException e) {
-            throw new ParameterException(String.format("Invalid size '%s'. Valid formats are: %s",
-                    s, "(4096, 100K, 10M, 16G, 2T)"));
-        }
-        switch (last) {
-        case 'k':
-        case 'K':
-            return size * 1024;
-
-        case 'm':
-        case 'M':
-            return size * 1024 * 1024;
-
-        case 'g':
-        case 'G':
-            return size * 1024 * 1024 * 1024;
-
-        case 't':
-        case 'T':
-            return size * 1024 * 1024 * 1024 * 1024;
-
-        default:
-            return size;
-        }
     }
 
     static MessageId validateMessageIdString(String resetMessageIdStr) throws PulsarAdminException {
@@ -206,16 +172,23 @@ public abstract class CliCommand {
             if (item instanceof String) {
                 System.out.println(item);
             } else {
-                System.out.println(writer.writeValueAsString(item));
+                prettyPrint(item);
             }
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
     }
 
-    private static ObjectMapper mapper = ObjectMapperFactory.create();
-    private static ObjectWriter writer = mapper.writerWithDefaultPrettyPrinter();
-    private static Set<Character> sizeUnit = Sets.newHashSet('k', 'K', 'm', 'M', 'g', 'G', 't', 'T');
+    <T> void prettyPrint(T item) {
+        try {
+            System.out.println(WRITER.writeValueAsString(item));
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private static final ObjectMapper MAPPER = ObjectMapperFactory.create();
+    private static final ObjectWriter WRITER = MAPPER.writerWithDefaultPrettyPrinter();
 
     abstract void run() throws Exception;
 }

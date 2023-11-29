@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -21,16 +21,22 @@ package org.apache.pulsar.broker.loadbalance;
 import static org.testng.Assert.assertEquals;
 
 import java.lang.reflect.Field;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Collections;
+import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Optional;
 
 
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicInteger;
+import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.loadbalance.impl.LeastLongTermMessageRate;
 import org.apache.pulsar.broker.loadbalance.impl.LeastResourceUsageWithWeight;
+import org.apache.pulsar.broker.loadbalance.impl.RoundRobinBrokerSelector;
 import org.apache.pulsar.policies.data.loadbalancer.LocalBrokerData;
 import org.apache.pulsar.policies.data.loadbalancer.ResourceUsage;
 import org.apache.pulsar.policies.data.loadbalancer.BrokerData;
@@ -131,6 +137,16 @@ public class ModularLoadManagerStrategyTest {
         brokerDataMap.put("2", brokerData2);
         brokerDataMap.put("3", brokerData3);
         assertEquals(strategy.selectBroker(candidates, bundleData, loadData, conf), Optional.of("2"));
+
+        // test restart broker can load bundle as one of the best brokers.
+        brokerData1 = initBrokerData(35,100);
+        brokerData2 = initBrokerData(20,100);
+        brokerData3 = initBrokerData(0,100);
+        brokerData3.getLocalData().setBundles(Collections.emptySet());
+        brokerDataMap.put("1", brokerData1);
+        brokerDataMap.put("2", brokerData2);
+        brokerDataMap.put("3", brokerData3);
+        assertEquals(strategy.selectBroker(candidates, bundleData, loadData, conf), Optional.of("3"));
     }
 
     public void testLeastResourceUsageWithWeightWithArithmeticException()
@@ -173,6 +189,62 @@ public class ModularLoadManagerStrategyTest {
         assertEquals(strategy.selectBroker(candidates, bundleData, loadData, conf), Optional.of("1"));
     }
 
+    public void testRoundRobinBrokerSelector() throws IllegalAccessException {
+        Set<String> brokers = new LinkedHashSet(Arrays.asList("1", "2", "3"));
+        int n = brokers.size();
+        RoundRobinBrokerSelector strategy = new RoundRobinBrokerSelector();
+
+        assertEquals(strategy.selectBroker(Set.of(), null, null, null), Optional.empty());
+
+        int i = 0;
+        for (; i < 10; i++) {
+            String id = (i % n) + 1 + "";
+            assertEquals(strategy.selectBroker(brokers, null, null, null), Optional.of(id));
+        }
+
+        Set<String> brokers2 = new LinkedHashSet(Arrays.asList("2", "3", "1"));
+        for (; i < 20; i++) {
+            String id = (i % n) + 1 + "";
+            assertEquals(strategy.selectBroker(brokers2, null, null, null), Optional.of(id));
+        }
+
+        Set<String> brokers3 = new LinkedHashSet(Arrays.asList("1", "2", "4"));
+        assertEquals(strategy.selectBroker(brokers3, null, null, null), Optional.of("4"));
+        assertEquals(strategy.selectBroker(brokers3, null, null, null), Optional.of("1"));
+        assertEquals(strategy.selectBroker(brokers3, null, null, null), Optional.of("2"));
+        assertEquals(strategy.selectBroker(brokers3, null, null, null), Optional.of("4"));
+        assertEquals(strategy.selectBroker(brokers3, null, null, null), Optional.of("1"));
+        assertEquals(strategy.selectBroker(brokers3, null, null, null), Optional.of("2"));
+
+        Set<String> brokers4 = new LinkedHashSet(Arrays.asList("2", "4"));
+        assertEquals(strategy.selectBroker(brokers4, null, null, null), Optional.of("2"));
+        assertEquals(strategy.selectBroker(brokers4, null, null, null), Optional.of("4"));
+        assertEquals(strategy.selectBroker(brokers4, null, null, null), Optional.of("2"));
+        assertEquals(strategy.selectBroker(brokers4, null, null, null), Optional.of("4"));
+
+
+        FieldUtils.writeDeclaredField(strategy, "count", new AtomicInteger(Integer.MAX_VALUE), true);
+        assertEquals(strategy.selectBroker(brokers, null, null, null), Optional.of((Integer.MAX_VALUE % n) + 1 + ""));
+        assertEquals(((AtomicInteger) FieldUtils.readDeclaredField(strategy, "count", true)).get(), 0);
+    }
+
+    public void testActiveBrokersChange() throws Exception {
+        LoadData loadData = new LoadData();
+        Map<String, BrokerData> brokerDataMap = loadData.getBrokerData();
+        brokerDataMap.put("1", initBrokerData());
+        brokerDataMap.put("2", initBrokerData());
+        brokerDataMap.put("3", initBrokerData());
+        ServiceConfiguration conf = new ServiceConfiguration();
+        LeastResourceUsageWithWeight strategy = new LeastResourceUsageWithWeight();
+        strategy.selectBroker(brokerDataMap.keySet(), new BundleData(), loadData, conf);
+        Field field = LeastResourceUsageWithWeight.class.getDeclaredField("brokerAvgResourceUsageWithWeight");
+        field.setAccessible(true);
+        Map<String, Double> map = (Map<String, Double>) field.get(strategy);
+        assertEquals(map.size(), 3);
+        strategy.onActiveBrokersChange(new HashSet<>());
+        assertEquals(map.size(), 0);
+    }
+
     private BrokerData initBrokerData(double usage, double limit) {
         LocalBrokerData localBrokerData = new LocalBrokerData();
         localBrokerData.setCpu(new ResourceUsage(usage, limit));
@@ -180,6 +252,12 @@ public class ModularLoadManagerStrategyTest {
         localBrokerData.setDirectMemory(new ResourceUsage(usage, limit));
         localBrokerData.setBandwidthIn(new ResourceUsage(usage, limit));
         localBrokerData.setBandwidthOut(new ResourceUsage(usage, limit));
+        // add msgRate and bundle for update resource usage check.
+        localBrokerData.setMsgRateIn(100.00);
+        localBrokerData.setMsgRateOut(100.00);
+        Set<String> bundles = new HashSet<>();
+        bundles.add("0x00000000_0xffffffff");
+        localBrokerData.setBundles(bundles);
         BrokerData brokerData = new BrokerData(localBrokerData);
         TimeAverageBrokerData timeAverageBrokerData = new TimeAverageBrokerData();
         brokerData.setTimeAverageData(timeAverageBrokerData);

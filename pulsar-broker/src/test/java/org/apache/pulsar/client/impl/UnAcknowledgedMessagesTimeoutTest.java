@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -185,7 +185,7 @@ public class UnAcknowledgedMessagesTimeoutTest extends BrokerTestBase {
         }
         long size = ((ConsumerImpl<?>) consumer).getUnAckedMessageTracker().size();
         assertEquals(size, totalMessages);
-        log.info("Comulative Ack sent for " + new String(lastMessage.getData()));
+        log.info("Cumulative Ack sent for " + new String(lastMessage.getData()));
         log.info("Message ID details " + lastMessage.getMessageId().toString());
         consumer.acknowledgeCumulative(lastMessage);
         size = ((ConsumerImpl<?>) consumer).getUnAckedMessageTracker().size();

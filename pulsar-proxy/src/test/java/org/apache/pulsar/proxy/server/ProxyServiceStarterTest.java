@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -76,18 +76,6 @@ public class ProxyServiceStarterTest extends MockedPulsarServiceBaseTest {
         return String.format("ws://localhost:%d/ws", serviceStarter.getServer().getListenPortHTTP().get());
     }
 
-    @Test
-    public void testEnableWebSocketServer() throws Exception {
-        HttpClient httpClient = new HttpClient();
-        WebSocketClient webSocketClient = new WebSocketClient(httpClient);
-        webSocketClient.start();
-        MyWebSocket myWebSocket = new MyWebSocket();
-        String webSocketUri = computeWsBasePath() + "/pingpong";
-        Future<Session> sessionFuture = webSocketClient.connect(myWebSocket, URI.create(webSocketUri));
-        System.out.println("uri" + webSocketUri);
-        sessionFuture.get().getRemote().sendPing(ByteBuffer.wrap("ping".getBytes()));
-        assertTrue(myWebSocket.getResponse().contains("ping"));
-    }
 
     @Test
     public void testProducer() throws Exception {
@@ -107,7 +95,9 @@ public class ProxyServiceStarterTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testProduceAndConsumeMessageWithWebsocket() throws Exception {
+        @Cleanup("stop")
         HttpClient producerClient = new HttpClient();
+        @Cleanup("stop")
         WebSocketClient producerWebSocketClient = new WebSocketClient(producerClient);
         producerWebSocketClient.start();
         MyWebSocket producerSocket = new MyWebSocket();
@@ -118,16 +108,18 @@ public class ProxyServiceStarterTest extends MockedPulsarServiceBaseTest {
         produceRequest.setContext("context");
         produceRequest.setPayload(Base64.getEncoder().encodeToString("my payload".getBytes()));
 
+        @Cleanup("stop")
         HttpClient consumerClient = new HttpClient();
+        @Cleanup("stop")
         WebSocketClient consumerWebSocketClient = new WebSocketClient(consumerClient);
         consumerWebSocketClient.start();
         MyWebSocket consumerSocket = new MyWebSocket();
         String consumeUri = computeWsBasePath() + "/consumer/persistent/sample/test/local/websocket-topic/my-sub";
         Future<Session> consumerSession = consumerWebSocketClient.connect(consumerSocket, URI.create(consumeUri));
         consumerSession.get().getRemote().sendPing(ByteBuffer.wrap("ping".getBytes()));
-        producerSession.get().getRemote().sendString(ObjectMapperFactory.getThreadLocal().writeValueAsString(produceRequest));
+        producerSession.get().getRemote().sendString(ObjectMapperFactory.getMapper().writer().writeValueAsString(produceRequest));
         assertTrue(consumerSocket.getResponse().contains("ping"));
-        ProducerMessage message = ObjectMapperFactory.getThreadLocal().readValue(consumerSocket.getResponse(), ProducerMessage.class);
+        ProducerMessage message = ObjectMapperFactory.getMapper().reader().readValue(consumerSocket.getResponse(), ProducerMessage.class);
         assertEquals(new String(Base64.getDecoder().decode(message.getPayload())), "my payload");
     }
 

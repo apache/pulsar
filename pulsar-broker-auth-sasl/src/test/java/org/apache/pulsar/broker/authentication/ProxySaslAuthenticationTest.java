@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -25,6 +25,7 @@ import java.io.FileWriter;
 import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Optional;
@@ -36,7 +37,6 @@ import javax.security.auth.login.Configuration;
 
 import lombok.Cleanup;
 import org.apache.commons.io.FileUtils;
-import org.apache.curator.shaded.com.google.common.collect.Maps;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationFactory;
@@ -49,6 +49,7 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.auth.AuthenticationSasl;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.proxy.server.ProxyConfiguration;
 import org.apache.pulsar.proxy.server.ProxyService;
 import org.slf4j.Logger;
@@ -193,16 +194,19 @@ public class ProxySaslAuthenticationTest extends ProducerConsumerBase {
 		conf.setAuthenticationProviders(providers);
 		conf.setClusterName("test");
 		conf.setSuperUserRoles(ImmutableSet.of("client/" + localHostname + "@" + kdc.getRealm()));
+		// set admin auth, to verify admin web resources
+		Map<String, String> clientSaslConfig = new HashMap<>();
+		clientSaslConfig.put("saslJaasClientSectionName", "PulsarClient");
+		clientSaslConfig.put("serverType", "broker");
+		conf.setBrokerClientAuthenticationPlugin(AuthenticationSasl.class.getName());
+		conf.setBrokerClientAuthenticationParameters(ObjectMapperFactory
+				.getMapper().getObjectMapper().writeValueAsString(clientSaslConfig));
 
 		super.init();
 
 		lookupUrl = new URI(pulsar.getBrokerServiceUrl());
-
-		// set admin auth, to verify admin web resources
-		Map<String, String> clientSaslConfig = Maps.newHashMap();
-		clientSaslConfig.put("saslJaasClientSectionName", "PulsarClient");
-		clientSaslConfig.put("serverType", "broker");
 		log.info("set client jaas section name: PulsarClient");
+		closeAdmin();
 		admin = PulsarAdmin.builder()
 			.serviceHttpUrl(brokerUrl.toString())
 			.authentication(AuthenticationFactory.create(AuthenticationSasl.class.getName(), clientSaslConfig))
@@ -295,7 +299,7 @@ public class ProxySaslAuthenticationTest extends ProducerConsumerBase {
 	}
 
 	private PulsarClient createProxyClient(String proxyServiceUrl, int numberOfConnections) throws PulsarClientException {
-		Map<String, String> clientSaslConfig = Maps.newHashMap();
+		Map<String, String> clientSaslConfig = new HashMap<>();
 		clientSaslConfig.put("saslJaasClientSectionName", "PulsarClient");
 		clientSaslConfig.put("serverType", "proxy");
 		log.info("set client jaas section name: PulsarClient, serverType: proxy");

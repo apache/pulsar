@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -25,6 +25,7 @@ import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import com.google.common.collect.Sets;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
@@ -43,6 +44,7 @@ import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.MessageIdAdv;
 import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerBuilder;
@@ -51,9 +53,11 @@ import org.apache.pulsar.client.api.Range;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.ReaderBuilder;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.TopicMessageId;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats;
+import org.apache.pulsar.common.policies.data.PartitionedTopicInternalStats;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
@@ -135,6 +139,56 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
         Assert.assertTrue(reader.hasMessageAvailable());
         Assert.assertTrue(keys.remove(reader.readNext().getKey()));
         Assert.assertFalse(reader.hasMessageAvailable());
+    }
+
+    @Test
+    public void testReaderGetLastMessageIds() throws Exception {
+        String topic1 = "persistent://my-property/my-ns/testReaderGetLastMessageIds-1";
+        String topic2 = "persistent://my-property/my-ns/testReaderGetLastMessageIds-2";
+        List<String> topicList = new ArrayList<>();
+        topicList.add(topic1);
+        topicList.add(topic2);
+        @Cleanup
+        Reader<byte[]> reader1 = pulsarClient.newReader()
+                .topic(topic1)
+                .startMessageId(MessageId.earliest)
+                .readerName(subscription)
+                .create();
+        @Cleanup
+        Reader<byte[]> reader2 = pulsarClient.newReader()
+                .topics(topicList)
+                .startMessageId(MessageId.earliest)
+                .readerName(subscription)
+                .create();
+
+        Producer<byte[]> producer1 = pulsarClient.newProducer()
+                .topic(topic1)
+                .create();
+        Producer<byte[]> producer2 = pulsarClient.newProducer()
+                .topic(topic2)
+                .create();
+        MessageIdImpl messageId1 = (MessageIdImpl) producer1.newMessage().send();
+        MessageIdImpl messageId2 = (MessageIdImpl) producer2.newMessage().send();
+        reader1.readNext();
+        reader2.readNext();
+        reader2.readNext();
+        List<TopicMessageId> topicMessageIds1 =  reader1.getLastMessageIds();
+        assertEquals(topicMessageIds1.size(), 1);
+        assertEquals(topicMessageIds1.get(0).getOwnerTopic(), topic1);
+        assertEquals(((MessageIdAdv)topicMessageIds1.get(0)).getEntryId(), messageId1.getEntryId());
+        assertEquals(((MessageIdAdv)topicMessageIds1.get(0)).getLedgerId(), messageId1.getLedgerId());
+
+        List<TopicMessageId> topicMessageIds2 = reader2.getLastMessageIds();
+        assertEquals(topicMessageIds2.size(), 2);
+        for (TopicMessageId topicMessageId: topicMessageIds2) {
+            if (topicMessageId.getOwnerTopic().equals(topic1)) {
+                assertEquals(((MessageIdAdv)topicMessageId).getEntryId(), messageId1.getEntryId());
+                assertEquals(((MessageIdAdv)topicMessageId).getLedgerId(), messageId1.getLedgerId());
+            } else {
+                assertEquals(((MessageIdAdv)topicMessageId).getEntryId(), messageId2.getEntryId());
+                assertEquals(((MessageIdAdv)topicMessageId).getLedgerId(), messageId2.getLedgerId());
+            }
+        }
     }
 
     @Test
@@ -598,7 +652,7 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
                 .until(() -> {
             TopicStats topicStats = admin.topics().getStats(topic);
             System.out.println("subscriptions size: " + topicStats.getSubscriptions().size());
-            return topicStats.getSubscriptions().size() == 1;
+            return topicStats.getSubscriptions().size() == 0;
         });
     }
 
@@ -618,6 +672,117 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
         reader.close();
         internalStats = admin.topics().getInternalStats(readerNotAckTopic);
         Assert.assertEquals(internalStats.cursors.size(), 0);
+    }
+
+    @Test
+    public void testReaderListenerAcknowledgement()
+            throws IOException, InterruptedException, PulsarAdminException {
+        // non-partitioned topic
+        final String topic = "persistent://my-property/my-ns/" + UUID.randomUUID();
+        admin.topics().createNonPartitionedTopic(topic);
+        final Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(topic)
+                .create();
+        producer.send("0".getBytes(StandardCharsets.UTF_8));
+        // non-pool
+        final CountDownLatch readerNonPoolLatch = new CountDownLatch(1);
+        final Reader<byte[]> readerNonPool = pulsarClient.newReader()
+                .topic(topic)
+                .subscriptionName("reader-non-pool")
+                .startMessageId(MessageId.earliest)
+                .readerListener((innerReader, message) -> {
+                    // no operation
+                    readerNonPoolLatch.countDown();
+                }).create();
+        readerNonPoolLatch.await();
+        Awaitility.await().untilAsserted(() -> {
+            final PersistentTopicInternalStats internal = admin.topics().getInternalStats(topic);
+            final String lastConfirmedEntry = internal.lastConfirmedEntry;
+            Assert.assertTrue(internal.cursors.containsKey("reader-non-pool"));
+            Assert.assertEquals(internal.cursors.get("reader-non-pool").markDeletePosition, lastConfirmedEntry);
+        });
+        // pooled
+        final CountDownLatch readerPooledLatch = new CountDownLatch(1);
+        final Reader<byte[]> readerPooled = pulsarClient.newReader()
+                .topic(topic)
+                .subscriptionName("reader-pooled")
+                .startMessageId(MessageId.earliest)
+                .poolMessages(true)
+                .readerListener((innerReader, message) -> {
+                    try {
+                        // no operation
+                        readerPooledLatch.countDown();
+                    } finally {
+                        message.release();
+                    }
+                }).create();
+        readerPooledLatch.await();
+        Awaitility.await().untilAsserted(() -> {
+            final PersistentTopicInternalStats internal = admin.topics().getInternalStats(topic);
+            final String lastConfirmedEntry = internal.lastConfirmedEntry;
+            Assert.assertTrue(internal.cursors.containsKey("reader-pooled"));
+            Assert.assertEquals(internal.cursors.get("reader-pooled").markDeletePosition, lastConfirmedEntry);
+        });
+        producer.close();
+        readerNonPool.close();
+        readerPooled.close();
+        admin.topics().delete(topic);
+        // ---- partitioned topic
+        final String partitionedTopic = "persistent://my-property/my-ns/" + UUID.randomUUID();
+        admin.topics().createPartitionedTopic(partitionedTopic, 2);
+        final Producer<byte[]> producer2 = pulsarClient.newProducer()
+                .topic(partitionedTopic)
+                .create();
+        producer2.send("0".getBytes(StandardCharsets.UTF_8));
+        // non-pool
+        final CountDownLatch readerNonPoolLatch2 = new CountDownLatch(1);
+        final Reader<byte[]> readerNonPool2 = pulsarClient.newReader()
+                .topic(partitionedTopic)
+                .subscriptionName("reader-non-pool")
+                .startMessageId(MessageId.earliest)
+                .readerListener((innerReader, message) -> {
+                    // no operation
+                    readerNonPoolLatch2.countDown();
+                }).create();
+        readerNonPoolLatch2.await();
+        Awaitility.await().untilAsserted(() -> {
+            PartitionedTopicInternalStats partitionedInternal =
+                    admin.topics().getPartitionedInternalStats(partitionedTopic);
+            for (PersistentTopicInternalStats internal : partitionedInternal.partitions.values()) {
+                final String lastConfirmedEntry = internal.lastConfirmedEntry;
+                Assert.assertTrue(internal.cursors.containsKey("reader-non-pool"));
+                Assert.assertEquals(internal.cursors.get("reader-non-pool").markDeletePosition, lastConfirmedEntry);
+            }
+        });
+        // pooled
+        final CountDownLatch readerPooledLatch2 = new CountDownLatch(1);
+        final Reader<byte[]> readerPooled2 = pulsarClient.newReader()
+                .topic(partitionedTopic)
+                .subscriptionName("reader-pooled")
+                .startMessageId(MessageId.earliest)
+                .poolMessages(true)
+                .readerListener((innerReader, message) -> {
+                    try {
+                        // no operation
+                        readerPooledLatch2.countDown();
+                    } finally {
+                        message.release();
+                    }
+                }).create();
+        readerPooledLatch2.await();
+        Awaitility.await().untilAsserted(() -> {
+            PartitionedTopicInternalStats partitionedInternal =
+                    admin.topics().getPartitionedInternalStats(partitionedTopic);
+            for (PersistentTopicInternalStats internal : partitionedInternal.partitions.values()) {
+                final String lastConfirmedEntry = internal.lastConfirmedEntry;
+                Assert.assertTrue(internal.cursors.containsKey("reader-pooled"));
+                Assert.assertEquals(internal.cursors.get("reader-pooled").markDeletePosition, lastConfirmedEntry);
+            }
+        });
+        producer2.close();
+        readerNonPool2.close();
+        readerPooled2.close();
+        admin.topics().deletePartitionedTopic(partitionedTopic);
     }
 
 }

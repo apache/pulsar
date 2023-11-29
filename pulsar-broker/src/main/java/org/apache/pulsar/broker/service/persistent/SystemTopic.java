@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,16 +16,18 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.pulsar.broker.service.persistent;
 
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.service.BrokerService;
+import org.apache.pulsar.broker.service.plugin.EntryFilter;
 import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.EntryFilters;
 
 public class SystemTopic extends PersistentTopic {
 
@@ -76,5 +78,21 @@ public class SystemTopic extends PersistentTopic {
         // All system topics are using compaction except `HealthCheck`,
         // even though is not explicitly set in the policies.
         return !NamespaceService.isHeartbeatNamespace(TopicName.get(topic));
+    }
+
+    @Override
+    public boolean isEncryptionRequired() {
+        // System topics are only written by the broker that can't know the encryption context.
+        return false;
+    }
+
+    @Override
+    public EntryFilters getEntryFiltersPolicy() {
+        return null;
+    }
+
+    @Override
+    public List<EntryFilter> getEntryFilters() {
+        return null;
     }
 }

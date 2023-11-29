@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -58,6 +58,7 @@ import org.apache.bookkeeper.conf.ServerConfiguration;
 import org.apache.bookkeeper.conf.TestBKConfiguration;
 import org.apache.bookkeeper.meta.zk.ZKMetadataDriverBase;
 import org.apache.bookkeeper.metastore.InMemoryMetaStore;
+import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.net.BookieId;
 import org.apache.bookkeeper.net.BookieSocketAddress;
 import org.apache.bookkeeper.proto.BookieServer;
@@ -206,6 +207,8 @@ public abstract class BookKeeperClusterTestCase {
         }
         // stop zookeeper service
         try {
+            // cleanup for metrics.
+            metadataStore.close();
             stopZKCluster();
         } catch (Exception e) {
             LOG.error("Got Exception while trying to stop ZKCluster", e);
@@ -237,7 +240,9 @@ public abstract class BookKeeperClusterTestCase {
         zkc = zkUtil.getZooKeeperClient();
         metadataStore = new FaultInjectionMetadataStore(
                 MetadataStoreExtended.create(zkUtil.getZooKeeperConnectString(),
-                MetadataStoreConfig.builder().build()));
+                        MetadataStoreConfig.builder()
+                                .metadataStoreName("metastore-" + getClass().getSimpleName())
+                                .build()));
     }
 
     /**
@@ -848,4 +853,14 @@ public abstract class BookKeeperClusterTestCase {
         return servers.get(index).getStatsProvider();
     }
 
+    public static void closeManagedLedgerWithRetry(ManagedLedger closeable){
+        Awaitility.await().until(() -> {
+            try {
+                closeable.close();
+                return true;
+            } catch (Exception ex){
+                return false;
+            }
+        });
+    }
 }

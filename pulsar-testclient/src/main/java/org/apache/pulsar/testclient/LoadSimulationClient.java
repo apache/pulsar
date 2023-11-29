@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -37,6 +37,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
+import org.apache.pulsar.cli.converters.ByteUnitToLongConverter;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
@@ -180,6 +181,10 @@ public class LoadSimulationClient {
 
         @Parameter(names = { "--service-url" }, description = "Pulsar Service URL", required = true)
         public String serviceURL;
+
+        @Parameter(names = { "-ml", "--memory-limit", }, description = "Configure the Pulsar client memory limit "
+            + "(eg: 32M, 64M)", converter = ByteUnitToLongConverter.class)
+        public long memoryLimit = 0L;
     }
 
     // Configuration class for initializing or modifying TradeUnits.
@@ -318,7 +323,7 @@ public class LoadSimulationClient {
                     .serviceHttpUrl(arguments.serviceURL)
                     .build();
         client = PulsarClient.builder()
-                    .memoryLimit(0, SizeUnit.BYTES)
+                    .memoryLimit(arguments.memoryLimit, SizeUnit.BYTES)
                     .serviceUrl(arguments.serviceURL)
                     .connectionsPerBroker(4)
                     .ioThreads(Runtime.getRuntime().availableProcessors())
@@ -343,7 +348,7 @@ public class LoadSimulationClient {
         } catch (ParameterException e) {
             System.out.println(e.getMessage());
             jc.usage();
-            PerfClientUtils.exit(-1);
+            PerfClientUtils.exit(1);
         }
         PerfClientUtils.printJVMInformation(log);
         (new LoadSimulationClient(mainArguments)).run();

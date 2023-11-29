@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -22,6 +22,7 @@ import static org.mockito.Mockito.spy;
 
 import com.google.common.collect.Sets;
 
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Optional;
@@ -77,6 +78,8 @@ public class ProxyWithAuthorizationNegTest extends ProducerConsumerBase {
     protected void setup() throws Exception {
 
         // enable tls and auth&auth at broker
+        conf.setTopicLevelPoliciesEnabled(false);
+
         conf.setAuthenticationEnabled(true);
         conf.setAuthorizationEnabled(true);
 
@@ -91,6 +94,7 @@ public class ProxyWithAuthorizationNegTest extends ProducerConsumerBase {
         Set<String> superUserRoles = new HashSet<>();
         superUserRoles.add("superUser");
         conf.setSuperUserRoles(superUserRoles);
+        conf.setProxyRoles(Collections.singleton("Proxy"));
 
         conf.setBrokerClientAuthenticationPlugin(AuthenticationTls.class.getName());
         conf.setBrokerClientAuthenticationParameters(
@@ -231,7 +235,7 @@ public class ProxyWithAuthorizationNegTest extends ProducerConsumerBase {
         Map<String, String> authParams = Maps.newHashMap();
         authParams.put("tlsCertFile", TLS_SUPERUSER_CLIENT_CERT_FILE_PATH);
         authParams.put("tlsKeyFile", TLS_SUPERUSER_CLIENT_KEY_FILE_PATH);
-
+        closeAdmin();
         admin = spy(PulsarAdmin.builder().serviceHttpUrl(brokerUrlTls.toString())
                 .tlsTrustCertsFilePath(TLS_BROKER_TRUST_CERT_FILE_PATH).allowTlsInsecureConnection(true)
                 .authentication(AuthenticationTls.class.getName(), authParams).build());

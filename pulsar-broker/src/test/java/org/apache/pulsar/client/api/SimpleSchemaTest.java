@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -1237,6 +1237,79 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
         pulsarClient.newConsumer(Schema.STRING).topic(topic2).subscriptionName("sub").subscribe().close();
         // topic2's schema becomes STRING now.
         Assert.assertEquals(admin.schemas().getSchemaInfo(topic2).getType(), SchemaType.STRING);
+    }
+
+    @Test(dataProvider = "topicDomain")
+    public void testSubscribeWithSchemaAfterAutoConsumeNewTopic(String domain) throws Exception {
+        final String topic = domain + "my-property/my-ns/testSubscribeWithSchemaAfterAutoConsume-1";
+
+        @Cleanup
+        Consumer<GenericRecord> autoConsumer1 = pulsarClient.newConsumer(Schema.AUTO_CONSUME())
+                .topic(topic)
+                .subscriptionType(SubscriptionType.Shared)
+                .subscriptionName("sub0")
+                .consumerName("autoConsumer1")
+                .subscribe();
+        @Cleanup
+        Consumer<GenericRecord> autoConsumer2 = pulsarClient.newConsumer(Schema.AUTO_CONSUME())
+                .topic(topic)
+                .subscriptionType(SubscriptionType.Shared)
+                .subscriptionName("sub0")
+                .consumerName("autoConsumer2")
+                .subscribe();
+        @Cleanup
+        Consumer<GenericRecord> autoConsumer3 = pulsarClient.newConsumer(Schema.AUTO_CONSUME())
+                .topic(topic)
+                .subscriptionType(SubscriptionType.Shared)
+                .subscriptionName("sub1")
+                .consumerName("autoConsumer3")
+                .subscribe();
+        @Cleanup
+        Consumer<GenericRecord> autoConsumer4 = pulsarClient.newConsumer(Schema.AUTO_CONSUME())
+                .topic(topic)
+                .subscriptionType(SubscriptionType.Shared)
+                .subscriptionName("sub1")
+                .consumerName("autoConsumer4")
+                .subscribe();
+        try {
+            log.info("The autoConsumer1 isConnected: " + autoConsumer1.isConnected());
+            log.info("The autoConsumer2 isConnected: " + autoConsumer2.isConnected());
+            log.info("The autoConsumer3 isConnected: " + autoConsumer3.isConnected());
+            log.info("The autoConsumer4 isConnected: " + autoConsumer4.isConnected());
+            admin.schemas().getSchemaInfo(topic);
+            fail("The schema of topic should not exist");
+        } catch (PulsarAdminException e) {
+            assertEquals(e.getStatusCode(), 404);
+        }
+
+        @Cleanup
+        Consumer<V1Data> consumerWithSchema1 = pulsarClient.newConsumer(Schema.AVRO(V1Data.class))
+                .topic(topic)
+                .subscriptionType(SubscriptionType.Shared)
+                .subscriptionName("sub0")
+                .consumerName("consumerWithSchema-1")
+                .subscribe();
+        @Cleanup
+        Consumer<V1Data> consumerWithSchema2 = pulsarClient.newConsumer(Schema.AVRO(V1Data.class))
+                .topic(topic)
+                .subscriptionType(SubscriptionType.Shared)
+                .subscriptionName("sub0")
+                .consumerName("consumerWithSchema-2")
+                .subscribe();
+        @Cleanup
+        Consumer<V1Data> consumerWithSchema3 = pulsarClient.newConsumer(Schema.AVRO(V1Data.class))
+                .topic(topic)
+                .subscriptionType(SubscriptionType.Shared)
+                .subscriptionName("sub1")
+                .consumerName("consumerWithSchema-3")
+                .subscribe();
+        @Cleanup
+        Consumer<V1Data> consumerWithSchema4 = pulsarClient.newConsumer(Schema.AVRO(V1Data.class))
+                .topic(topic)
+                .subscriptionType(SubscriptionType.Shared)
+                .subscriptionName("sub1")
+                .consumerName("consumerWithSchema-4")
+                .subscribe();
     }
 
     @DataProvider(name = "keyEncodingType")

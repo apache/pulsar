@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -35,6 +35,9 @@ import org.apache.pulsar.common.policies.data.BrokerNamespaceIsolationData;
 import org.apache.pulsar.common.policies.data.BrokerNamespaceIsolationDataImpl;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.ClusterDataImpl;
+import org.apache.pulsar.common.policies.data.ClusterPolicies;
+import org.apache.pulsar.common.policies.data.ClusterPolicies.ClusterUrl;
+import org.apache.pulsar.common.policies.data.ClusterPoliciesImpl;
 import org.apache.pulsar.common.policies.data.FailureDomain;
 import org.apache.pulsar.common.policies.data.FailureDomainImpl;
 import org.apache.pulsar.common.policies.data.NamespaceIsolationData;
@@ -104,6 +107,31 @@ public class ClustersImpl extends BaseResource implements Clusters {
     public CompletableFuture<Void> updatePeerClusterNamesAsync(String cluster, LinkedHashSet<String> peerClusterNames) {
         WebTarget path = adminClusters.path(cluster).path("peers");
         return asyncPostRequest(path, Entity.entity(peerClusterNames, MediaType.APPLICATION_JSON));
+    }
+
+    @Override
+    public ClusterPolicies getClusterMigration(String cluster) throws PulsarAdminException {
+        return sync(() -> getClusterMigrationAsync(cluster));
+    }
+
+    @Override
+    public CompletableFuture<ClusterPolicies> getClusterMigrationAsync(String cluster) {
+        WebTarget path = adminClusters.path(cluster).path("migrate");
+        return asyncGetRequest(path, new FutureCallback<ClusterPoliciesImpl>() {
+        }).thenApply(policies -> policies);
+    }
+
+    @Override
+    public void updateClusterMigration(String cluster, boolean isMigrated, ClusterUrl clusterUrl)
+            throws PulsarAdminException {
+        sync(() -> updateClusterMigrationAsync(cluster, isMigrated, clusterUrl));
+    }
+
+    @Override
+    public CompletableFuture<Void> updateClusterMigrationAsync(String cluster, boolean isMigrated,
+            ClusterUrl clusterUrl) {
+        WebTarget path = adminClusters.path(cluster).path("migrate").queryParam("migrated", isMigrated);
+        return asyncPostRequest(path, Entity.entity(clusterUrl, MediaType.APPLICATION_JSON));
     }
 
     @Override

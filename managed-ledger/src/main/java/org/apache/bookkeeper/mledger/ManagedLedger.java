@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -221,8 +221,7 @@ public interface ManagedLedger {
      * @param name
      *            the name associated with the ManagedCursor
      * @param initialPosition
-     *            the cursor will be set at latest position or not when first created
-     *            default is <b>true</b>
+     *            if null, the cursor will be set at latest position when first created
      * @return the ManagedCursor
      * @throws ManagedLedgerException
      */
@@ -237,8 +236,7 @@ public interface ManagedLedger {
      * @param name
      *            the name associated with the ManagedCursor
      * @param initialPosition
-     *            the cursor will be set at latest position or not when first created
-     *            default is <b>true</b>
+     *            if null, the cursor will be set at latest position when first created
      * @param properties
      *             user defined properties that will be attached to the first position of the cursor, if the open
      *             operation will trigger the creation of the cursor.
@@ -324,8 +322,7 @@ public interface ManagedLedger {
      * @param name
      *            the name associated with the ManagedCursor
      * @param initialPosition
-     *            the cursor will be set at lastest position or not when first created
-     *            default is <b>true</b>
+     *            if null, the cursor will be set at latest position when first created
      * @param callback
      *            callback object
      * @param ctx
@@ -340,8 +337,7 @@ public interface ManagedLedger {
      * @param name
      *            the name associated with the ManagedCursor
      * @param initialPosition
-     *            the cursor will be set at lastest position or not when first created
-     *            default is <b>true</b>
+     *            if null, the cursor will be set at latest position when first created
      * @param cursorProperties
      *            the properties for the Cursor
      * @param callback
@@ -443,6 +439,8 @@ public interface ManagedLedger {
 
     void asyncTerminate(TerminateCallback callback, Object ctx);
 
+    CompletableFuture<Position> asyncMigrate();
+
     /**
      * Terminate the managed ledger and return the last committed entry.
      *
@@ -533,6 +531,11 @@ public interface ManagedLedger {
      * Returns whether the managed ledger was terminated.
      */
     boolean isTerminated();
+
+    /**
+     * Returns whether the managed ledger was migrated.
+     */
+    boolean isMigrated();
 
     /**
      * Returns managed-ledger config.
@@ -629,6 +632,12 @@ public interface ManagedLedger {
     void trimConsumedLedgersInBackground(CompletableFuture<?> promise);
 
     /**
+     * If a ledger is lost, this ledger will be skipped after enabled "autoSkipNonRecoverableData", and the method is
+     * used to delete information about this ledger in the ManagedCursor.
+     */
+    default void skipNonRecoverableLedger(long ledgerId){}
+
+    /**
      * Roll current ledger if it is full.
      */
     @Deprecated
@@ -673,8 +682,10 @@ public interface ManagedLedger {
     /**
      * Check current inactive ledger (based on {@link ManagedLedgerConfig#getInactiveLedgerRollOverTimeMs()} and
      * roll over that ledger if inactive.
+     *
+     * @return true if ledger is considered for rolling over
      */
-    void checkInactiveLedgerAndRollOver();
+    boolean checkInactiveLedgerAndRollOver();
 
     /**
      * Check if managed ledger should cache backlog reads.

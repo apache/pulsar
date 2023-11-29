@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -76,7 +76,7 @@ public class OwnerShipCacheForCurrentServerTest extends OwnerShipForCurrentServe
         int verifiedBrokerNum = 0;
         for (PulsarService pulsarService : this.getPulsarServiceList()) {
             BrokerService bs = pulsarService.getBrokerService();
-            if (bs.isTopicNsOwnedByBroker(TopicName.get(topicName))) {
+            if (bs.isTopicNsOwnedByBrokerAsync(TopicName.get(topicName)).join()) {
                 continue;
             }
             verifiedBrokerNum ++;

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.auth;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.fail;
 import org.apache.pulsar.broker.PulsarServerException;
+import org.testng.annotations.AfterMethod;
 import org.testng.annotations.Test;
 
 public class InvalidBrokerConfigForAuthorizationTest extends MockedPulsarServiceBaseTest {
@@ -32,7 +33,8 @@ public class InvalidBrokerConfigForAuthorizationTest extends MockedPulsarService
         try {
             internalSetup();
             fail("An exception should have been thrown");
-        } catch (Exception e) {
+        } catch (Exception rte) {
+            Throwable e = rte.getCause();
             assertEquals(e.getClass(), PulsarServerException.class);
             assertEquals(e.getCause().getClass(), IllegalStateException.class);
             assertEquals(e.getCause().getMessage(), "Invalid broker configuration. Authentication must be "
@@ -46,6 +48,8 @@ public class InvalidBrokerConfigForAuthorizationTest extends MockedPulsarService
 
     }
 
+
+    @AfterMethod(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
         internalCleanup();

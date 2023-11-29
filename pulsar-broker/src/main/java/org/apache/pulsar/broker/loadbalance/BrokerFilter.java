@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -26,7 +26,7 @@ import org.apache.pulsar.policies.data.loadbalancer.BundleData;
  * Load management component which determines what brokers should not be considered for topic placement by the placement
  * strategy. For example, the placement strategy may determine that the broker with the least msg/s should get the
  * bundle assignment, but we may not want to consider brokers whose CPU usage is very high. Thus, we could use a filter
- * to blacklist brokers with high CPU usage.
+ * to exclude brokers with high CPU usage.
  */
 public interface BrokerFilter {
 

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -105,7 +105,10 @@ public class AutoProduceBytesSchema<T> implements Schema<byte[]> {
 
     @Override
     public Optional<Object> getNativeSchema() {
-        return Optional.ofNullable(schema);
+        return Optional
+                .ofNullable(schema)
+                .map(s->s.getNativeSchema())
+                .orElse(Optional.empty());
     }
 
     @Override

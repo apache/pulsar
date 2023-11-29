@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,19 +16,27 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.pulsar.broker.authentication;
 
+import java.net.SocketAddress;
 import java.util.concurrent.CompletableFuture;
 import javax.naming.AuthenticationException;
+import javax.net.ssl.SSLSession;
 import org.apache.pulsar.common.api.AuthData;
 import org.apache.pulsar.common.util.FutureUtil;
 
 /**
  * Interface for authentication state.
- *
- * It tell broker whether the authentication is completed or not,
- * if completed, what is the AuthRole is.
+ * <p>
+ * Pulsar integrates with this class in the following order:
+ * 1. Initialize the class by calling {@link AuthenticationProvider#newAuthState(AuthData, SocketAddress, SSLSession)}
+ * 2. Call {@link #authenticate(AuthData)}. If result is not null, send to client. And call
+ *    {@link #authenticate(AuthData)} with the client's response. Repeat until result of {@link #authenticate(AuthData)}
+ *    is null or an exception.
+ * 3. Call {@link #getAuthRole()} and {@link #getAuthDataSource()} to use for authentication. It is expected that these
+ *    responses update with each call to {@link #authenticate(AuthData)}.
+ * 4. Poll {@link #isExpired()} until it returns true.
+ * 5. Call {@link #refreshAuthentication()} and GoTo step 2 when client responds.
  */
 public interface AuthenticationState {
     /**

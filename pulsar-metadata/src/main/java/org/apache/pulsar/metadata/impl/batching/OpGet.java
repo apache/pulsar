@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -29,6 +29,7 @@ import org.apache.pulsar.metadata.api.GetResult;
 public class OpGet implements MetadataOp {
 
     private final String path;
+    public final long created = System.currentTimeMillis();
     private final CompletableFuture<Optional<GetResult>> future = new CompletableFuture<>();
 
     @Override
@@ -39,5 +40,10 @@ public class OpGet implements MetadataOp {
     @Override
     public int size() {
         return path.length();
+    }
+
+    @Override
+    public long created() {
+        return this.created;
     }
 }

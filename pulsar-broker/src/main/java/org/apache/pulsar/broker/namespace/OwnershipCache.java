@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.namespace;
 import com.github.benmanes.caffeine.cache.AsyncCacheLoader;
 import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
 import com.github.benmanes.caffeine.cache.Caffeine;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.util.concurrent.MoreExecutors;
 import java.util.ArrayList;
 import java.util.List;
@@ -157,8 +158,7 @@ public class OwnershipCache {
      * @param suName
      *            name of the <code>ServiceUnit</code>
      * @return The ephemeral node data showing the current ownership info in <code>ZooKeeper</code>
-     * @throws Exception
-     *             throws exception if no ownership info is found
+     * or empty if no ownership info is found
      */
     public CompletableFuture<Optional<NamespaceEphemeralData>> getOwnerAsync(NamespaceBundle suName) {
         CompletableFuture<OwnedBundle> ownedBundleFuture = ownedBundlesCache.getIfPresent(suName);
@@ -207,7 +207,7 @@ public class OwnershipCache {
      *
      */
     public CompletableFuture<Void> removeOwnership(NamespaceBundle bundle) {
-        ResourceLock<NamespaceEphemeralData> lock = locallyAcquiredLocks.get(bundle);
+        ResourceLock<NamespaceEphemeralData> lock = locallyAcquiredLocks.remove(bundle);
         if (lock == null) {
             // We don't own the specified bundle anymore
             return CompletableFuture.completedFuture(null);
@@ -288,10 +288,10 @@ public class OwnershipCache {
 
     /**
      * Disable bundle in local cache and on zk.
-     *
-     * @param bundle
-     * @throws Exception
+     * @Deprecated This is a dangerous method  which is currently only used for test, it will occupy the ZK thread.
+     * Please switch to your own thread after calling this method.
      */
+    @Deprecated
     public CompletableFuture<Void> disableOwnership(NamespaceBundle bundle) {
         return updateBundleState(bundle, false)
                 .thenCompose(__ -> {
@@ -327,6 +327,12 @@ public class OwnershipCache {
     public void invalidateLocalOwnerCache(NamespaceBundle namespaceBundle) {
         this.ownedBundlesCache.synchronous().invalidate(namespaceBundle);
     }
+
+    @VisibleForTesting
+    public Map<NamespaceBundle, ResourceLock<NamespaceEphemeralData>> getLocallyAcquiredLocks() {
+        return locallyAcquiredLocks;
+    }
+
 
     public synchronized boolean refreshSelfOwnerInfo() {
         this.selfOwnerInfo = new NamespaceEphemeralData(pulsar.getBrokerServiceUrl(),

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -99,10 +99,8 @@ public class DispatchRateLimiter {
      */
     public boolean tryDispatchPermit(long msgPermits, long bytePermits) {
         boolean acquiredMsgPermit = msgPermits <= 0 || dispatchRateLimiterOnMessage == null
-        // acquiring permits must be < configured msg-rate;
                 || dispatchRateLimiterOnMessage.tryAcquire(msgPermits);
         boolean acquiredBytePermit = bytePermits <= 0 || dispatchRateLimiterOnByte == null
-        // acquiring permits must be < configured msg-rate;
                 || dispatchRateLimiterOnByte.tryAcquire(bytePermits);
         return acquiredMsgPermit && acquiredBytePermit;
     }
@@ -194,8 +192,8 @@ public class DispatchRateLimiter {
         if (type == Type.BROKER) {
             log.info("configured broker message-dispatch rate {}", dispatchRate);
         } else {
-            log.info("[{}] configured {} message-dispatch rate at broker {}",
-                this.topicName, type, dispatchRate);
+            log.info("[{}] configured {} message-dispatch rate at broker {} subscriptionName [{}]",
+                    this.topicName, type, subscriptionName == null ? "null" : subscriptionName, dispatchRate);
         }
         updateDispatchRate(dispatchRate);
     }
@@ -206,6 +204,12 @@ public class DispatchRateLimiter {
         return brokerService.pulsar().getPulsarResources().getNamespaceResources().getPoliciesAsync(namespace);
     }
 
+    /**
+     * @deprecated Avoid using the deprecated method
+     * #{@link org.apache.pulsar.broker.resources.NamespaceResources#getPoliciesIfCached(NamespaceName)} and blocking
+     * call. we can use #{@link DispatchRateLimiter#getPoliciesAsync(BrokerService, String)} to instead of it.
+     */
+    @Deprecated
     public static Optional<Policies> getPolicies(BrokerService brokerService, String topicName) {
         final NamespaceName namespace = TopicName.get(topicName).getNamespaceObject();
         return brokerService.pulsar().getPulsarResources().getNamespaceResources().getPoliciesIfCached(namespace);

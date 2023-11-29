@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,40 +18,6 @@
  */
 package org.apache.pulsar.sql.presto.decoder.avro;
 
-import com.google.common.collect.ImmutableList;
-import io.netty.buffer.ByteBuf;
-import io.trino.decoder.DecoderColumnHandle;
-import io.trino.decoder.FieldValueProvider;
-import io.trino.spi.TrinoException;
-import io.trino.spi.type.ArrayType;
-import io.trino.spi.type.BigintType;
-import io.trino.spi.type.DecimalType;
-import io.trino.spi.type.RowType;
-import io.trino.spi.type.StandardTypes;
-import io.trino.spi.type.Timestamps;
-import io.trino.spi.type.Type;
-import io.trino.spi.type.TypeSignatureParameter;
-import io.trino.spi.type.VarcharType;
-import java.math.BigDecimal;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import org.apache.pulsar.client.impl.schema.AvroSchema;
-import org.apache.pulsar.client.impl.schema.generic.GenericAvroRecord;
-import org.apache.pulsar.client.impl.schema.generic.GenericAvroSchema;
-import org.apache.pulsar.sql.presto.PulsarColumnHandle;
-import org.apache.pulsar.sql.presto.decoder.AbstractDecoderTester;
-import org.apache.pulsar.sql.presto.decoder.DecoderTestMessage;
-import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.Test;
-
-import java.time.LocalDate;
-import java.time.LocalTime;
-import java.time.ZoneId;
-import java.time.temporal.ChronoUnit;
-
 import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.spi.type.BooleanType.BOOLEAN;
 import static io.trino.spi.type.DoubleType.DOUBLE;
@@ -65,6 +31,40 @@ import static org.apache.pulsar.sql.presto.TestPulsarConnector.getPulsarConnecto
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.expectThrows;
+import com.google.common.collect.ImmutableList;
+import io.netty.buffer.ByteBuf;
+import io.trino.decoder.DecoderColumnHandle;
+import io.trino.decoder.FieldValueProvider;
+import io.trino.spi.TrinoException;
+import io.trino.spi.type.ArrayType;
+import io.trino.spi.type.BigintType;
+import io.trino.spi.type.DecimalType;
+import io.trino.spi.type.RowType;
+import io.trino.spi.type.StandardTypes;
+import io.trino.spi.type.Timestamps;
+import io.trino.spi.type.Type;
+import io.trino.spi.type.TypeSignatureParameter;
+import io.trino.spi.type.UuidType;
+import io.trino.spi.type.VarcharType;
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.LocalTime;
+import java.time.ZoneId;
+import java.time.temporal.ChronoUnit;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+import org.apache.pulsar.client.impl.schema.AvroSchema;
+import org.apache.pulsar.client.impl.schema.generic.GenericAvroRecord;
+import org.apache.pulsar.client.impl.schema.generic.GenericAvroSchema;
+import org.apache.pulsar.sql.presto.PulsarColumnHandle;
+import org.apache.pulsar.sql.presto.decoder.AbstractDecoderTester;
+import org.apache.pulsar.sql.presto.decoder.DecoderTestMessage;
+import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.Test;
 
 public class TestAvroDecoder extends AbstractDecoderTester {
 
@@ -92,6 +92,7 @@ public class TestAvroDecoder extends AbstractDecoderTester {
         message.longField = 222L;
         message.timestampField = System.currentTimeMillis();
         message.enumField = DecoderTestMessage.TestEnum.TEST_ENUM_1;
+        message.uuidField = UUID.randomUUID();
 
         LocalTime now = LocalTime.now(ZoneId.systemDefault());
         message.timeField = now.toSecondOfDay() * 1000;
@@ -139,6 +140,10 @@ public class TestAvroDecoder extends AbstractDecoderTester {
         PulsarColumnHandle timeFieldColumnHandle = new PulsarColumnHandle(getPulsarConnectorId().toString(),
                 "timeField", TIME_MILLIS, false, false, "timeField", null, null, PulsarColumnHandle.HandleKeyValueType.NONE);
         checkValue(decodedRow, timeFieldColumnHandle, (long) message.timeField * Timestamps.PICOSECONDS_PER_MILLISECOND);
+
+        PulsarColumnHandle uuidHandle = new PulsarColumnHandle(getPulsarConnectorId().toString(),
+                "uuidField", UuidType.UUID, false, false, "uuidField", null, null, PulsarColumnHandle.HandleKeyValueType.NONE);
+        checkValue(decodedRow, uuidHandle, UuidType.javaUuidToTrinoUuid(message.uuidField));
     }
 
     @Test

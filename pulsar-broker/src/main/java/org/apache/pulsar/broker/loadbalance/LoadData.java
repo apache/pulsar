@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -64,7 +64,7 @@ public class LoadData {
 
     public Map<String, BundleData> getBundleDataForLoadShedding() {
         return bundleData.entrySet().stream()
-                .filter(e -> !NamespaceService.isSystemServiceNamespace(
+                .filter(e -> !NamespaceService.isSLAOrHeartbeatNamespace(
                         NamespaceBundle.getBundleNamespace(e.getKey())))
                 .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
     }

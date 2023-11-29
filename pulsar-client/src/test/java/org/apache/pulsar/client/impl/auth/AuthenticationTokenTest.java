@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -28,9 +28,11 @@ import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.util.function.Supplier;
 
+import lombok.Cleanup;
 import org.apache.commons.io.FileUtils;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
+import org.apache.pulsar.client.api.AuthenticationFactory;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.testng.annotations.Test;
@@ -64,9 +66,10 @@ public class AuthenticationTokenTest {
     public void testAuthTokenClientConfig() throws Exception {
         ClientConfigurationData clientConfig = new ClientConfigurationData();
         clientConfig.setServiceUrl("pulsar://service-url");
-        clientConfig.setAuthPluginClassName(AuthenticationToken.class.getName());
-        clientConfig.setAuthParams("token-xyz");
+        clientConfig.setAuthentication(AuthenticationFactory.create(
+                AuthenticationToken.class.getName(), "token-xyz"));
 
+        @Cleanup
         PulsarClientImpl pulsarClient = new PulsarClientImpl(clientConfig);
 
         Authentication authToken = pulsarClient.getConfiguration().getAuthentication();

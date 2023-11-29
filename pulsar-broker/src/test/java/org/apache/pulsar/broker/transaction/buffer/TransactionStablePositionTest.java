@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -78,6 +78,7 @@ public class TransactionStablePositionTest extends TransactionTestBase {
                 .withTransactionTimeout(5, TimeUnit.SECONDS)
                 .build().get();
 
+        @Cleanup
         Producer<byte[]> producer = pulsarClient
                 .newProducer()
                 .topic(TOPIC)
@@ -85,6 +86,7 @@ public class TransactionStablePositionTest extends TransactionTestBase {
                 .enableBatching(false)
                 .create();
 
+        @Cleanup
         Consumer<byte[]> consumer = pulsarClient.newConsumer()
                 .topic(TOPIC)
                 .subscriptionName("test")
@@ -124,6 +126,7 @@ public class TransactionStablePositionTest extends TransactionTestBase {
                 .withTransactionTimeout(5, TimeUnit.SECONDS)
                 .build().get();
 
+        @Cleanup
         Producer<byte[]> producer = pulsarClient
                 .newProducer()
                 .topic(TOPIC)
@@ -131,6 +134,7 @@ public class TransactionStablePositionTest extends TransactionTestBase {
                 .enableBatching(false)
                 .create();
 
+        @Cleanup
         Consumer<byte[]> consumer = pulsarClient.newConsumer()
                 .topic(TOPIC)
                 .subscriptionName("test")
@@ -177,6 +181,9 @@ public class TransactionStablePositionTest extends TransactionTestBase {
 
         final String topicName = NAMESPACE1 + "/testSyncNormalPositionWhenTBRecover-"
                 + clientEnableTransaction + state.name();
+        if (pulsarClient != null) {
+            pulsarClient.shutdown();
+        }
         pulsarClient = PulsarClient.builder()
                 .serviceUrl(getPulsarServiceList().get(0).getBrokerServiceUrl())
                 .statsInterval(0, TimeUnit.SECONDS)
@@ -232,10 +239,10 @@ public class TransactionStablePositionTest extends TransactionTestBase {
         Awaitility.await().until(() -> {
             if (clientEnableTransaction) {
                 // recover success, client enable transaction will change to Ready State
-                return topicTransactionBuffer.getStats(false).state.equals(Ready.name());
+                return topicTransactionBuffer.getStats(false, false).state.equals(Ready.name());
             } else {
                 // recover success, client disable transaction will change to NoSnapshot State
-                return topicTransactionBuffer.getStats(false).state.equals(NoSnapshot.name());
+                return topicTransactionBuffer.getStats(false, false).state.equals(NoSnapshot.name());
             }
         });
     }

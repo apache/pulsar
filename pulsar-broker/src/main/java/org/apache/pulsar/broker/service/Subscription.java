@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -30,7 +30,7 @@ import org.apache.pulsar.common.api.proto.CommandAck.AckType;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.api.proto.ReplicatedSubscriptionsSnapshot;
 
-public interface Subscription {
+public interface Subscription extends MessageExpirer {
 
     BrokerInterceptor interceptor();
 
@@ -84,10 +84,6 @@ public interface Subscription {
 
     CompletableFuture<Entry> peekNthMessage(int messagePosition);
 
-    boolean expireMessages(int messageTTLInSeconds);
-
-    boolean expireMessages(Position position);
-
     void redeliverUnacknowledgedMessages(Consumer consumer, long consumerEpoch);
 
     void redeliverUnacknowledgedMessages(Consumer consumer, List<PositionImpl> positions);
@@ -105,6 +101,8 @@ public interface Subscription {
     Map<String, String> getSubscriptionProperties();
 
     CompletableFuture<Void> updateSubscriptionProperties(Map<String, String> subscriptionProperties);
+
+    boolean isSubscriptionMigrated();
 
     default void processReplicatedSubscriptionSnapshot(ReplicatedSubscriptionsSnapshot snapshot) {
         // Default is no-op
@@ -134,4 +132,5 @@ public interface Subscription {
     static boolean isIndividualAckMode(SubType subType) {
         return SubType.Shared.equals(subType) || SubType.Key_Shared.equals(subType);
     }
+
 }

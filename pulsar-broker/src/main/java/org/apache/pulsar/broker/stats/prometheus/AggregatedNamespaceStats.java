@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.stats.prometheus;
 import java.util.HashMap;
 import java.util.Map;
 import org.apache.bookkeeper.mledger.util.StatsBuckets;
+import org.apache.pulsar.common.policies.data.stats.TopicMetricBean;
 import org.apache.pulsar.compaction.CompactionRecord;
 
 public class AggregatedNamespaceStats {
@@ -33,7 +34,7 @@ public class AggregatedNamespaceStats {
     public double throughputIn;
     public double throughputOut;
 
-    public long messageAckRate;
+    public double messageAckRate;
     public long bytesInCounter;
     public long msgInCounter;
     public long bytesOutCounter;
@@ -63,7 +64,9 @@ public class AggregatedNamespaceStats {
     long compactionCompactedEntriesCount;
     long compactionCompactedEntriesSize;
     StatsBuckets compactionLatencyBuckets = new StatsBuckets(CompactionRecord.WRITE_LATENCY_BUCKETS_USEC);
-    int delayedTrackerMemoryUsage;
+    long delayedMessageIndexSizeInBytes;
+
+    Map<String, TopicMetricBean> bucketDelayedIndexStats = new HashMap<>();
 
     void updateStats(TopicStats stats) {
         topicsCount++;
@@ -81,7 +84,15 @@ public class AggregatedNamespaceStats {
         msgInCounter += stats.msgInCounter;
         bytesOutCounter += stats.bytesOutCounter;
         msgOutCounter += stats.msgOutCounter;
-        delayedTrackerMemoryUsage += stats.delayedTrackerMemoryUsage;
+        delayedMessageIndexSizeInBytes += stats.delayedMessageIndexSizeInBytes;
+
+        stats.bucketDelayedIndexStats.forEach((k, v) -> {
+            TopicMetricBean topicMetricBean =
+                    bucketDelayedIndexStats.computeIfAbsent(k, __ -> new TopicMetricBean());
+            topicMetricBean.name = v.name;
+            topicMetricBean.labelsAndValues = v.labelsAndValues;
+            topicMetricBean.value += v.value;
+        });
 
         this.ongoingTxnCount += stats.ongoingTxnCount;
         this.abortedTxnCount += stats.abortedTxnCount;
@@ -96,6 +107,7 @@ public class AggregatedNamespaceStats {
 
         managedLedgerStats.storageWriteRate += stats.managedLedgerStats.storageWriteRate;
         managedLedgerStats.storageReadRate += stats.managedLedgerStats.storageReadRate;
+        managedLedgerStats.storageReadCacheMissesRate += stats.managedLedgerStats.storageReadCacheMissesRate;
 
         msgBacklog += stats.msgBacklog;
 
@@ -131,6 +143,14 @@ public class AggregatedNamespaceStats {
             subsStats.filterAcceptedMsgCount += as.filterAcceptedMsgCount;
             subsStats.filterRejectedMsgCount += as.filterRejectedMsgCount;
             subsStats.filterRescheduledMsgCount += as.filterRescheduledMsgCount;
+            subsStats.delayedMessageIndexSizeInBytes += as.delayedMessageIndexSizeInBytes;
+            as.bucketDelayedIndexStats.forEach((k, v) -> {
+                TopicMetricBean topicMetricBean =
+                        subsStats.bucketDelayedIndexStats.computeIfAbsent(k, __ -> new TopicMetricBean());
+                topicMetricBean.name = v.name;
+                topicMetricBean.labelsAndValues = v.labelsAndValues;
+                topicMetricBean.value += v.value;
+            });
             as.consumerStat.forEach((c, v) -> {
                 AggregatedConsumerStats consumerStats =
                         subsStats.consumerStat.computeIfAbsent(c, k -> new AggregatedConsumerStats());
@@ -162,14 +182,35 @@ public class AggregatedNamespaceStats {
         rateOut = 0;
         throughputIn = 0;
         throughputOut = 0;
+        messageAckRate = 0;
+        bytesInCounter = 0;
+        msgInCounter = 0;
+
+        bytesOutCounter = 0;
+        msgOutCounter = 0;
 
         msgBacklog = 0;
         msgDelayed = 0;
+        ongoingTxnCount = 0;
+        abortedTxnCount = 0;
+        committedTxnCount = 0;
+
         backlogQuotaLimit = 0;
         backlogQuotaLimitTime = -1;
 
         replicationStats.clear();
         subscriptionStats.clear();
-        delayedTrackerMemoryUsage = 0;
+
+        compactionRemovedEventCount = 0;
+        compactionSucceedCount = 0;
+        compactionFailedCount = 0;
+        compactionDurationTimeInMills = 0;
+        compactionReadThroughput = 0;
+        compactionWriteThroughput = 0;
+        compactionCompactedEntriesCount = 0;
+        compactionCompactedEntriesSize = 0;
+
+        delayedMessageIndexSizeInBytes = 0;
+        bucketDelayedIndexStats.clear();
     }
 }

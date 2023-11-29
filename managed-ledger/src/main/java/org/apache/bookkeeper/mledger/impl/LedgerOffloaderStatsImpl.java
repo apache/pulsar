@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -276,17 +276,19 @@ public final class LedgerOffloaderStatsImpl implements LedgerOffloaderStats, Run
     }
 
     @Override
-    public void close() throws Exception {
+    public synchronized void close() throws Exception {
         if (instance == this && this.closed.compareAndSet(false, true)) {
             CollectorRegistry.defaultRegistry.unregister(this.offloadError);
             CollectorRegistry.defaultRegistry.unregister(this.offloadRate);
             CollectorRegistry.defaultRegistry.unregister(this.readLedgerLatency);
             CollectorRegistry.defaultRegistry.unregister(this.writeStorageError);
             CollectorRegistry.defaultRegistry.unregister(this.readOffloadError);
+            CollectorRegistry.defaultRegistry.unregister(this.readOffloadBytes);
             CollectorRegistry.defaultRegistry.unregister(this.readOffloadRate);
             CollectorRegistry.defaultRegistry.unregister(this.readOffloadIndexLatency);
             CollectorRegistry.defaultRegistry.unregister(this.readOffloadDataLatency);
-            this.offloadAndReadOffloadBytesMap.clear();
+            CollectorRegistry.defaultRegistry.unregister(this.deleteOffloadOps);
+            instance = null;
         }
     }
 

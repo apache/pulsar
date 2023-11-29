@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -30,6 +30,7 @@ import javax.ws.rs.client.Client;
 import javax.ws.rs.client.ClientBuilder;
 import javax.ws.rs.client.WebTarget;
 
+import lombok.Cleanup;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.broker.resources.PulsarResources;
@@ -78,9 +79,9 @@ public class UnauthedAdminProxyHandlerTest extends MockedPulsarServiceBaseTest {
         webServer = new WebServer(proxyConfig, new AuthenticationService(
                                           PulsarConfigurationLoader.convertFrom(proxyConfig)));
 
-        resource = new PulsarResources(new ZKMetadataStore(mockZooKeeper),
-                new ZKMetadataStore(mockZooKeeperGlobal));
-        discoveryProvider = spy(new BrokerDiscoveryProvider(proxyConfig, resource));
+        resource = new PulsarResources(registerCloseable(new ZKMetadataStore(mockZooKeeper)),
+                registerCloseable(new ZKMetadataStore(mockZooKeeperGlobal)));
+        discoveryProvider = spy(registerCloseable(new BrokerDiscoveryProvider(proxyConfig, resource)));
         adminProxyHandler = new AdminProxyWrapper(proxyConfig, discoveryProvider);
         ServletHolder servletHolder = new ServletHolder(adminProxyHandler);
         webServer.addServlet("/admin", servletHolder);
@@ -103,6 +104,7 @@ public class UnauthedAdminProxyHandlerTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testUnauthenticatedProxy() throws Exception {
+        @Cleanup
         PulsarAdmin admin = PulsarAdmin.builder()
             .serviceHttpUrl("http://127.0.0.1:" + webServer.getListenPortHTTP().get())
             .build();
@@ -114,12 +116,12 @@ public class UnauthedAdminProxyHandlerTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testVipStatus() throws Exception {
+        @Cleanup
         Client client = ClientBuilder.newClient(new ClientConfig().register(LoggingFeature.class));
         WebTarget webTarget = client.target("http://127.0.0.1:" + webServer.getListenPortHTTP().get())
                 .path("/status.html");
         String response = webTarget.request().get(String.class);
         Assert.assertEquals(response, "OK");
-        client.close();
     }
 
     static class AdminProxyWrapper extends AdminProxyHandler {

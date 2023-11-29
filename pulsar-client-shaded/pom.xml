@@ -25,7 +25,7 @@
   <parent>
     <groupId>org.apache.pulsar</groupId>
     <artifactId>pulsar</artifactId>
-    <version>2.11.0-SNAPSHOT</version>
+    <version>3.2.0-SNAPSHOT</version>
     <relativePath>..</relativePath>
   </parent>
 
@@ -145,11 +145,9 @@
                   <include>com.google.errorprone:*</include>
                   <include>com.google.j2objc:*</include>
                   <include>com.google.code.gson:gson</include>
-                  <include>com.fasterxml.jackson.core</include>
-                  <include>com.fasterxml.jackson.module</include>
-                  <include>com.fasterxml.jackson.core:jackson-core</include>
-                  <include>com.fasterxml.jackson.dataformat</include>
+                  <include>com.fasterxml.jackson.*:*</include>
                   <include>io.netty:*</include>
+                  <include>io.netty.incubator:*</include>
                   <include>io.perfmark:*</include>
                   <include>org.eclipse.jetty:*</include>
                   <include>com.yahoo.datasketches:*</include>
@@ -170,6 +168,9 @@
                   <!-- Issue #6834, Since Netty ByteBuf shaded, we need also shade this module -->
                   <include>org.apache.pulsar:pulsar-client-messagecrypto-bc</include>
                 </includes>
+                <excludes>
+                  <exclude>com.fasterxml.jackson.core:jackson-annotations</exclude>
+                </excludes>
               </artifactSet>
               <filters>
                 <filter>
@@ -206,6 +207,9 @@
                 <relocation>
                   <pattern>com.fasterxml.jackson</pattern>
                   <shadedPattern>org.apache.pulsar.shade.com.fasterxml.jackson</shadedPattern>
+                  <excludes>
+                    <exclude>com.fasterxml.jackson.annotation.*</exclude>
+                  </excludes>
                 </relocation>
                 <relocation>
                   <pattern>io.netty</pattern>

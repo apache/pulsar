@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -32,7 +32,7 @@ public class SingleConsumerPulsarSourceConfig extends PulsarSourceConfig {
     private ConsumerConfig consumerConfig;
 
     public static SingleConsumerPulsarSourceConfig load(Map<String, Object> map) throws IOException {
-        ObjectMapper mapper = ObjectMapperFactory.getThreadLocal();
-        return mapper.readValue(new ObjectMapper().writeValueAsString(map), SingleConsumerPulsarSourceConfig.class);
+        ObjectMapper mapper = ObjectMapperFactory.getMapper().getObjectMapper();
+        return mapper.readValue(mapper.writeValueAsString(map), SingleConsumerPulsarSourceConfig.class);
     }
 }

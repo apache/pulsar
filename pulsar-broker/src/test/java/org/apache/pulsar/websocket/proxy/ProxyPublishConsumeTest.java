@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,8 +18,8 @@
  */
 package org.apache.pulsar.websocket.proxy;
 
-import static java.util.concurrent.Executors.newFixedThreadPool;
 import static org.apache.pulsar.broker.BrokerTestUtil.spyWithClassAndConstructorArgs;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doReturn;
@@ -40,7 +40,6 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import javax.servlet.http.HttpServletResponse;
@@ -101,7 +100,8 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
         config.setClusterName("test");
         config.setConfigurationMetadataStoreUrl(GLOBAL_DUMMY_VALUE);
         service = spyWithClassAndConstructorArgs(WebSocketService.class, config);
-        doReturn(new ZKMetadataStore(mockZooKeeperGlobal)).when(service).createConfigMetadataStore(anyString(), anyInt());
+        doReturn(registerCloseable(new ZKMetadataStore(mockZooKeeperGlobal))).when(service)
+                .createConfigMetadataStore(anyString(), anyInt(), anyBoolean());
         proxyServer = new ProxyServer(config);
         WebSocketServiceStarter.start(proxyServer, service);
         log.info("Proxy Server Started");
@@ -168,16 +168,12 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
 
             int retry = 0;
             int maxRetry = 400;
-            while ((consumeSocket1.getReceivedMessagesCount() < 10 && consumeSocket2.getReceivedMessagesCount() < 10)
-                    || readSocket.getReceivedMessagesCount() < 10) {
-                Thread.sleep(10);
-                if (retry++ > maxRetry) {
-                    final String msg = String.format("Consumer still has not received the message after %s ms",
-                            (maxRetry * 10));
-                    log.warn(msg);
-                    throw new IllegalStateException(msg);
-                }
-            }
+
+            Awaitility.await().untilAsserted(() -> {
+                assertTrue(consumeSocket1.getReceivedMessagesCount() >= 10
+                        || consumeSocket2.getReceivedMessagesCount() >= 10);
+                assertTrue(readSocket.getReceivedMessagesCount() >= 10);
+            });
 
             // if the subscription type is exclusive (default), either of the consumer sessions has already been closed
             assertTrue(consumerFuture1.get().isOpen());
@@ -290,9 +286,9 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
             // do unsubscribe
             consumeSocket.unsubscribe();
             //wait for delete
-            Thread.sleep(1000);
-            subs = admin.topics().getSubscriptions(topic);
-            assertEquals(subs.size(), 0);
+            Awaitility.await().untilAsserted(() -> {
+                assertEquals(admin.topics().getSubscriptions(topic).size(), 0);
+            });
         } finally {
             stopWebSocketClient(consumeClient);
         }
@@ -633,17 +629,11 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
             assertTrue(producerFuture.get().isOpen());
 
             // sleep so, proxy can deliver few messages to consumers for stats
-            int retry = 0;
-            int maxRetry = 400;
-            while (consumeSocket1.getReceivedMessagesCount() < 2) {
-                Thread.sleep(10);
-                if (retry++ > maxRetry) {
-                    final String msg = String.format("Consumer still has not received the message after %s ms", (maxRetry * 10));
-                    log.warn(msg);
-                    break;
-                }
-            }
+            Awaitility.await().untilAsserted(() -> {
+                assertTrue(consumeSocket1.getReceivedMessagesCount() >= 2);
+            });
 
+            @Cleanup
             Client client = ClientBuilder.newClient(new ClientConfig().register(LoggingFeature.class));
             final String baseUrl = pulsar.getSafeWebServiceAddress()
                     .replace(Integer.toString(pulsar.getConfiguration().getWebServicePort().get()),
@@ -755,11 +745,10 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
             consumeSocket2.sendPermits(2);
             consumeSocket2.sendPermits(2);
 
-            Thread.sleep(500);
-
-            assertEquals(consumeSocket1.getReceivedMessagesCount(), 3);
-            assertEquals(consumeSocket2.getReceivedMessagesCount(), 6);
-
+            Awaitility.await().untilAsserted(() -> {
+                assertEquals(consumeSocket1.getReceivedMessagesCount(), 3);
+                assertEquals(consumeSocket2.getReceivedMessagesCount(), 6);
+            });
         } finally {
             stopWebSocketClient(consumeClient1, consumeClient2, produceClient);
         }
@@ -897,6 +886,7 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
 
         WebSocketClient consumerClient = new WebSocketClient();
         SimpleConsumerSocket consumeSocket = new SimpleConsumerSocket();
+        @Cleanup
         Producer<byte[]> producer = pulsarClient.newProducer()
                 .topic(topic)
                 .batchingMaxPublishDelay(1, TimeUnit.SECONDS)
@@ -944,6 +934,7 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
         final String rsaPublicKeyData = "data:application/x-pem-file;base64,LS0tLS1CRUdJTiBQVUJMSUMgS0VZLS0tLS0KTUlJQklqQU5CZ2txaGtpRzl3MEJBUUVGQUFPQ0FROEFNSUlCQ2dLQ0FRRUF0S1d3Z3FkblRZck9DditqMU1rVApXZlNIMHdDc0haWmNhOXdBVzNxUDR1dWhsQnZuYjEwSmNGZjVaanpQOUJTWEsrdEhtSTh1b04zNjh2RXY2eWhVClJITTR5dVhxekN4enVBd2tRU28zOXJ6WDhQR0M3cWRqQ043TERKM01ucWlCSXJVc1NhRVAxd3JOc0Ixa0krbzkKRVIxZTVPL3VFUEFvdFA5MzNoSFEwSjJoTUVla0hxTDdzQmxKOThoNk5tc2ljRWFVa2FyZGswVE9YcmxrakMrYwpNZDhaYkdTY1BxSTlNMzhibW4zT0x4RlRuMXZ0aHB2blhMdkNtRzRNKzZ4dFl0RCtucGNWUFp3MWkxUjkwZk1zCjdwcFpuUmJ2OEhjL0RGZE9LVlFJZ2FtNkNEZG5OS2dXN2M3SUJNclAwQUVtMzdIVHUwTFNPalAyT0hYbHZ2bFEKR1FJREFRQUIKLS0tLS1FTkQgUFVCTElDIEtFWS0tLS0tCg==";
         final String rsaPrivateKeyData = "data:application/x-pem-file;base64,LS0tLS1CRUdJTiBSU0EgUFJJVkFURSBLRVktLS0tLQpNSUlFb3dJQkFBS0NBUUVBdEtXd2dxZG5UWXJPQ3YrajFNa1RXZlNIMHdDc0haWmNhOXdBVzNxUDR1dWhsQnZuCmIxMEpjRmY1Wmp6UDlCU1hLK3RIbUk4dW9OMzY4dkV2NnloVVJITTR5dVhxekN4enVBd2tRU28zOXJ6WDhQR0MKN3FkakNON0xESjNNbnFpQklyVXNTYUVQMXdyTnNCMWtJK285RVIxZTVPL3VFUEFvdFA5MzNoSFEwSjJoTUVlawpIcUw3c0JsSjk4aDZObXNpY0VhVWthcmRrMFRPWHJsa2pDK2NNZDhaYkdTY1BxSTlNMzhibW4zT0x4RlRuMXZ0Cmhwdm5YTHZDbUc0TSs2eHRZdEQrbnBjVlBadzFpMVI5MGZNczdwcFpuUmJ2OEhjL0RGZE9LVlFJZ2FtNkNEZG4KTktnVzdjN0lCTXJQMEFFbTM3SFR1MExTT2pQMk9IWGx2dmxRR1FJREFRQUJBb0lCQUFhSkZBaTJDN3UzY05yZgpBc3RZOXZWRExvTEl2SEZabGtCa3RqS1pEWW1WSXNSYitoU0NWaXdWVXJXTEw2N1I2K0l2NGVnNERlVE9BeDAwCjhwbmNYS2daVHcyd0liMS9RalIvWS9SamxhQzhsa2RtUldsaTd1ZE1RQ1pWc3lodVNqVzZQajd2cjhZRTR3b2oKRmhOaWp4RUdjZjl3V3JtTUpyemRuVFdRaVhCeW8rZVR2VVE5QlBnUEdyUmpzTVptVGtMeUFWSmZmMkRmeE81YgpJV0ZEWURKY3lZQU1DSU1RdTd2eXMvSTUwb3U2aWxiMUNPNlFNNlo3S3BQZU9vVkZQd3R6Ymg4Y2Y5eE04VU5TCmo2Si9KbWRXaGdJMzRHUzNOQTY4eFRRNlBWN3pqbmhDYytpY2NtM0pLeXpHWHdhQXBBWitFb2NlLzlqNFdLbXUKNUI0emlSMENnWUVBM2wvOU9IYmwxem15VityUnhXT0lqL2kyclR2SHp3Qm5iblBKeXVlbUw1Vk1GZHBHb2RRMwp2d0h2eVFtY0VDUlZSeG1Yb2pRNFF1UFBIczNxcDZ3RUVGUENXeENoTFNUeGxVYzg1U09GSFdVMk85OWpWN3pJCjcrSk9wREsvTXN0c3g5bkhnWGR1SkYrZ2xURnRBM0xIOE9xeWx6dTJhRlBzcHJ3S3VaZjk0UThDZ1lFQXovWngKYWtFRytQRU10UDVZUzI4Y1g1WGZqc0lYL1YyNkZzNi9zSDE2UWpVSUVkZEU1VDRmQ3Vva3hDalNpd1VjV2htbApwSEVKNVM1eHAzVllSZklTVzNqUlczcXN0SUgxdHBaaXBCNitTMHpUdUptTEpiQTNJaVdFZzJydE10N1gxdUp2CkEvYllPcWUwaE9QVHVYdVpkdFZaMG5NVEtrN0dHOE82VmtCSTdGY0NnWUVBa0RmQ21zY0pnczdKYWhsQldIbVgKekg5cHdlbStTUEtqSWMvNE5CNk4rZGdpa3gyUHAwNWhwUC9WaWhVd1lJdWZ2cy9MTm9nVllOUXJ0SGVwVW5yTgoyK1RtYkhiWmdOU3YxTGR4dDgyVWZCN3kwRnV0S3U2bGhtWEh5TmVjaG8zRmk4c2loMFYwYWlTV21ZdUhmckFICkdhaXNrRVpLbzFpaVp2UVhKSXg5TzJNQ2dZQVRCZjByOWhUWU10eXh0YzZIMy9zZGQwMUM5dGhROGdEeTB5alAKMFRxYzBkTVNKcm9EcW1JV2tvS1lldzkvYmhGQTRMVzVUQ25Xa0NBUGJIbU50RzRmZGZiWXdta0gvaGRuQTJ5MApqS2RscGZwOEdYZVVGQUdIR3gxN0ZBM3NxRnZnS1VoMGVXRWdSSFVMN3ZkUU1WRkJnSlM5M283elFNOTRmTGdQCjZjT0I4d0tCZ0ZjR1Y0R2pJMld3OWNpbGxhQzU1NE12b1NqZjhCLyswNGtYekRPaDhpWUlJek85RVVpbDFqaksKSnZ4cDRobkx6VEtXYnV4M01FV3F1ckxrWWFzNkdwS0JqdytpTk9DYXI2WWRxV0dWcU0zUlV4N1BUVWFad2tLeApVZFA2M0lmWTdpWkNJVC9RYnlIUXZJVWUyTWFpVm5IK3VseGRrSzZZNWU3Z3hjYmNrSUg0Ci0tLS0tRU5EIFJTQSBQUklWQVRFIEtFWS0tLS0tCg==";
 
+        @Cleanup
         Producer<byte[]> producer = pulsarClient.newProducer()
                 .topic(topic)
                 .enableBatching(false)
@@ -1052,21 +1043,79 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
     }
 
     private void stopWebSocketClient(WebSocketClient... clients) {
-        @Cleanup("shutdownNow")
-        ExecutorService executor = newFixedThreadPool(1);
+        for (WebSocketClient client : clients) {
+            try {
+                client.stop();
+            } catch (Exception e) {
+                log.error(e.getMessage());
+            }
+        }
+        log.info("proxy clients are stopped successfully");
+    }
+
+    @Test
+    public void testMultiTopics() throws Exception {
+        final String subscription1 = "my-sub1";
+        final String subscription2 = "my-sub2";
+        final String topic1 = "my-property/my-ns/testMultiTopics" + UUID.randomUUID();
+        final String topic2 = "my-property/my-ns/testMultiTopics" + UUID.randomUUID();
+        final String consumerUri1 = "ws://localhost:" + proxyServer.getListenPortHTTP().get() +
+                "/ws/v3/consumer/" + subscription1 + "?topics=" + topic1 + "," + topic2;
+
+        final String consumerUri2 = "ws://localhost:" + proxyServer.getListenPortHTTP().get() +
+                "/ws/v3/consumer/" + subscription2 + "?topicsPattern=my-property/my-ns/testMultiTopics.*";
+
+        int messages = 10;
+        WebSocketClient consumerClient1 = new WebSocketClient();
+        WebSocketClient consumerClient2 = new WebSocketClient();
+        SimpleConsumerSocket consumeSocket1 = new SimpleConsumerSocket();
+        SimpleConsumerSocket consumeSocket2 = new SimpleConsumerSocket();
+        @Cleanup
+        Producer<byte[]> producer1 = pulsarClient.newProducer()
+                .topic(topic1)
+                .batchingMaxMessages(1)
+                .create();
+        @Cleanup
+        Producer<byte[]> producer2 = pulsarClient.newProducer()
+                .topic(topic2)
+                .batchingMaxMessages(1)
+                .create();
+
         try {
-            executor.submit(() -> {
-                for (WebSocketClient client : clients) {
-                    try {
-                        client.stop();
-                    } catch (Exception e) {
-                        log.error(e.getMessage());
-                    }
-                }
-                log.info("proxy clients are stopped successfully");
-            }).get(2, TimeUnit.SECONDS);
-        } catch (Exception e) {
-            log.error("failed to close proxy clients", e);
+            consumerClient1.start();
+            consumerClient2.start();
+            ClientUpgradeRequest consumerRequest1 = new ClientUpgradeRequest();
+            ClientUpgradeRequest consumerRequest2 = new ClientUpgradeRequest();
+            Future<Session> consumerFuture1 = consumerClient1.connect(consumeSocket1, URI.create(consumerUri1), consumerRequest1);
+            Future<Session> consumerFuture2 = consumerClient2.connect(consumeSocket2, URI.create(consumerUri2), consumerRequest2);
+
+            assertTrue(consumerFuture1.get().isOpen());
+            assertTrue(consumerFuture2.get().isOpen());
+            assertEquals(consumeSocket1.getReceivedMessagesCount(), 0);
+            assertEquals(consumeSocket2.getReceivedMessagesCount(), 0);
+
+            for (int i = 1; i <= messages; i ++) {
+                producer1.sendAsync(String.valueOf(i).getBytes(StandardCharsets.UTF_8));
+                producer2.sendAsync(String.valueOf(i).getBytes(StandardCharsets.UTF_8));
+            }
+            producer1.flush();
+            producer2.flush();
+
+            consumeSocket1.sendPermits(2 * messages);
+            Awaitility.await().untilAsserted(() ->
+                    assertEquals(consumeSocket1.getReceivedMessagesCount(), 2 * messages));
+            Awaitility.await().untilAsserted(() ->
+                    assertEquals(admin.topics().getStats(topic1).getSubscriptions()
+                            .get(subscription1).getMsgBacklog(), 0));
+            Awaitility.await().untilAsserted(() ->
+                    assertEquals(admin.topics().getStats(topic2).getSubscriptions()
+                            .get(subscription1).getMsgBacklog(), 0));
+
+            consumeSocket2.sendPermits(2 * messages);
+            Awaitility.await().untilAsserted(() ->
+                    assertEquals(consumeSocket2.getReceivedMessagesCount(), 2 * messages));
+        } finally {
+            stopWebSocketClient(consumerClient1, consumerClient2);
         }
     }
 

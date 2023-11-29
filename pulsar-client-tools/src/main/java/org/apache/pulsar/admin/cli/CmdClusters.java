@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -24,6 +24,7 @@ import com.beust.jcommander.Parameters;
 import com.google.common.collect.Sets;
 import java.util.Arrays;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 import lombok.Getter;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.admin.cli.utils.CmdUtils;
@@ -32,6 +33,7 @@ import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.ProxyProtocol;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.ClusterDataImpl;
+import org.apache.pulsar.common.policies.data.ClusterPolicies.ClusterUrl;
 import org.apache.pulsar.common.policies.data.FailureDomain;
 import org.apache.pulsar.common.policies.data.FailureDomainImpl;
 
@@ -40,8 +42,18 @@ public class CmdClusters extends CmdBase {
 
     @Parameters(commandDescription = "List the existing clusters")
     private class List extends CliCommand {
+
+        @Parameter(names = { "-c", "--current" },
+                description = "Print the current cluster with (*)", required = false)
+        private boolean current = false;
+
         void run() throws PulsarAdminException {
-            print(getAdmin().clusters().getClusters());
+            java.util.List<String> clusters = getAdmin().clusters().getClusters();
+            String clusterName = getAdmin().brokers().getRuntimeConfigurations().get("clusterName");
+            final java.util.List<String> result = clusters.stream().map(c ->
+                    c.equals(clusterName) ? (current ? c + "(*)" : c) : c
+            ).collect(Collectors.toList());
+            print(result);
         }
     }
 
@@ -139,6 +151,45 @@ public class CmdClusters extends CmdBase {
             java.util.LinkedHashSet<String> clusters = StringUtils.isBlank(peerClusterNames) ? null
                     : Sets.newLinkedHashSet(Arrays.asList(peerClusterNames.split(",")));
             getAdmin().clusters().updatePeerClusterNames(cluster, clusters);
+        }
+    }
+
+    @Parameters(commandDescription = "Get the cluster migration configuration data for the specified cluster")
+    private class GetClusterMigration extends CliCommand {
+        @Parameter(description = "cluster-name", required = true)
+        private java.util.List<String> params;
+
+        void run() throws PulsarAdminException {
+            String cluster = getOneArgument(params);
+            print(getAdmin().clusters().getClusterMigration(cluster));
+        }
+    }
+
+    @Parameters(commandDescription = "Update cluster migration")
+    private class UpdateClusterMigration extends CliCommand {
+        @Parameter(description = "cluster-name", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = "--migrated", description = "Is cluster migrated")
+        private boolean migrated;
+
+        @Parameter(names = "--service-url", description = "New migrated cluster service url")
+        private String serviceUrl;
+
+        @Parameter(names = "--service-url-secure",
+                description = "New migrated cluster service url secure")
+        private String serviceUrlTls;
+
+        @Parameter(names = "--broker-url", description = "New migrated cluster broker service url")
+        private String brokerServiceUrl;
+
+        @Parameter(names = "--broker-url-secure", description = "New migrated cluster broker service url secure")
+        private String brokerServiceUrlTls;
+
+        void run() throws PulsarAdminException {
+            String cluster = getOneArgument(params);
+            ClusterUrl clusterUrl = new ClusterUrl(serviceUrl, serviceUrlTls, brokerServiceUrl, brokerServiceUrlTls);
+            getAdmin().clusters().updateClusterMigration(cluster, migrated, clusterUrl);
         }
     }
 
@@ -245,11 +296,9 @@ public class CmdClusters extends CmdBase {
             try {
                 processArguments();
             } catch (Exception e) {
-                System.err.println(e.getMessage());
-                System.err.println();
                 String chosenCommand = jcommander.getParsedCommand();
                 getUsageFormatter().usage(chosenCommand);
-                return;
+                throw e;
             }
             runCmd();
         }
@@ -313,9 +362,29 @@ public class CmdClusters extends CmdBase {
                 description = "TLS TrustStore password for internal client", required = false)
         protected String brokerClientTlsTrustStorePassword;
 
+        @Parameter(names = "--tls-key-store-type",
+                description = "TLS TrustStore type configuration for internal client eg: JKS", required = false)
+        protected String brokerClientTlsKeyStoreType;
+
+        @Parameter(names = "--tls-key-store",
+                description = "TLS KeyStore path for internal client", required = false)
+        protected String brokerClientTlsKeyStore;
+
+        @Parameter(names = "--tls-key-store-pwd",
+                description = "TLS KeyStore password for internal client", required = false)
+        protected String brokerClientTlsKeyStorePassword;
+
         @Parameter(names = "--tls-trust-certs-filepath",
                 description = "path for the trusted TLS certificate file", required = false)
         protected String brokerClientTrustCertsFilePath;
+
+        @Parameter(names = "--tls-key-filepath",
+                description = "path for the TLS private key file", required = false)
+        protected String brokerClientKeyFilePath;
+
+        @Parameter(names = "--tls-certs-filepath",
+                description = "path for the TLS certificate file", required = false)
+        protected String brokerClientCertificateFilePath;
 
         @Parameter(names = "--listener-name",
                 description = "listenerName when client would like to connect to cluster", required = false)
@@ -380,8 +449,23 @@ public class CmdClusters extends CmdBase {
             if (brokerClientTlsTrustStorePassword != null) {
                 builder.brokerClientTlsTrustStorePassword(brokerClientTlsTrustStorePassword);
             }
+            if (brokerClientTlsKeyStoreType != null) {
+                builder.brokerClientTlsKeyStoreType(brokerClientTlsKeyStoreType);
+            }
+            if (brokerClientTlsKeyStore != null) {
+                builder.brokerClientTlsKeyStore(brokerClientTlsKeyStore);
+            }
+            if (brokerClientTlsKeyStorePassword != null) {
+                builder.brokerClientTlsKeyStorePassword(brokerClientTlsKeyStorePassword);
+            }
             if (brokerClientTrustCertsFilePath != null) {
                 builder.brokerClientTrustCertsFilePath(brokerClientTrustCertsFilePath);
+            }
+            if (brokerClientKeyFilePath != null) {
+                builder.brokerClientKeyFilePath(brokerClientKeyFilePath);
+            }
+            if (brokerClientCertificateFilePath != null) {
+                builder.brokerClientCertificateFilePath(brokerClientCertificateFilePath);
             }
 
             if (listenerName != null) {
@@ -401,6 +485,7 @@ public class CmdClusters extends CmdBase {
         jcommander.addCommand("delete", new Delete());
         jcommander.addCommand("list", new List());
         jcommander.addCommand("update-peer-clusters", new UpdatePeerClusters());
+        jcommander.addCommand("update-cluster-migration", new UpdateClusterMigration());
         jcommander.addCommand("get-peer-clusters", new GetPeerClusters());
         jcommander.addCommand("get-failure-domain", new GetFailureDomain());
         jcommander.addCommand("create-failure-domain", new CreateFailureDomain());

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -40,8 +40,8 @@ public abstract class Compactor {
 
     protected final ServiceConfiguration conf;
     protected final ScheduledExecutorService scheduler;
-    private final PulsarClient pulsar;
-    private final BookKeeper bk;
+    protected final PulsarClient pulsar;
+    protected final BookKeeper bk;
     protected final CompactorMXBeanImpl mxBean;
 
     public Compactor(ServiceConfiguration conf,

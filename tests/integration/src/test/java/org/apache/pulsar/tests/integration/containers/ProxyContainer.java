@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -28,16 +28,13 @@ public class ProxyContainer extends PulsarContainer<ProxyContainer> {
     public static final String NAME = "pulsar-proxy";
 
     public ProxyContainer(String clusterName, String hostName) {
-        super(
-            clusterName, hostName, hostName, "bin/run-proxy.sh", BROKER_PORT, BROKER_HTTP_PORT);
+        this(clusterName, hostName, false);
     }
 
-    public String getPlainTextServiceUrl() {
-        return "pulsar://" + getHost() + ":" + getMappedPort(BROKER_PORT);
-    }
-
-    public String getHttpServiceUrl() {
-        return "http://" + getHost() + ":" + getMappedPort(BROKER_HTTP_PORT);
+    public ProxyContainer(String clusterName, String hostName, boolean enableTls) {
+        super(clusterName, hostName, hostName, "bin/run-proxy.sh", BROKER_PORT,
+                enableTls ? BROKER_PORT_TLS : 0, BROKER_HTTP_PORT,
+                enableTls ? BROKER_HTTPS_PORT : 0, DEFAULT_HTTP_PATH, DEFAULT_IMAGE_NAME);
     }
 
     @Override

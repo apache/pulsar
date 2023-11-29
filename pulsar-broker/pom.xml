@@ -25,7 +25,7 @@
   <parent>
     <groupId>org.apache.pulsar</groupId>
     <artifactId>pulsar</artifactId>
-    <version>2.11.0-SNAPSHOT</version>
+    <version>3.2.0-SNAPSHOT</version>
     <relativePath>..</relativePath>
   </parent>
 
@@ -79,6 +79,12 @@
     <dependency>
       <groupId>${project.groupId}</groupId>
       <artifactId>pulsar-client-admin-original</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>pulsar-cli-utils</artifactId>
       <version>${project.version}</version>
     </dependency>
 
@@ -151,6 +157,13 @@
       <scope>test</scope>
     </dependency>
 
+    <dependency>
+      <groupId>com.github.tomakehurst</groupId>
+      <artifactId>wiremock-jre8</artifactId>
+      <version>${wiremock.version}</version>
+      <scope>test</scope>
+    </dependency>
+
     <!-- zookeeper server -->
     <dependency>
        <groupId>io.dropwizard.metrics</groupId>
@@ -182,7 +195,6 @@
       <groupId>${project.groupId}</groupId>
       <artifactId>pulsar-client-messagecrypto-bc</artifactId>
       <version>${project.version}</version>
-      <scope>test</scope>
     </dependency>
 
     <dependency>
@@ -278,6 +290,18 @@
     </dependency>
 
     <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>pulsar-docs-tools</artifactId>
+      <version>${project.version}</version>
+      <exclusions>
+        <exclusion>
+          <groupId>io.swagger</groupId>
+          <artifactId>*</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+
+    <dependency>
       <groupId>com.beust</groupId>
       <artifactId>jcommander</artifactId>
     </dependency>
@@ -285,6 +309,7 @@
     <dependency>
       <groupId>io.swagger</groupId>
       <artifactId>swagger-annotations</artifactId>
+      <scope>provided</scope>
     </dependency>
 
     <dependency>
@@ -310,6 +335,7 @@
     <dependency>
       <groupId>io.swagger</groupId>
       <artifactId>swagger-core</artifactId>
+      <scope>provided</scope>
     </dependency>
 
     <dependency>
@@ -341,6 +367,11 @@
     <dependency>
       <groupId>org.roaringbitmap</groupId>
       <artifactId>RoaringBitmap</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>com.github.oshi</groupId>
+      <artifactId>oshi-core-java11</artifactId>
     </dependency>
 
     <dependency>
@@ -426,6 +457,7 @@
       <artifactId>pulsar-package-filesystem-storage</artifactId>
       <version>${project.version}</version>
     </dependency>
+
   </dependencies>
 
   <build>
@@ -556,11 +588,13 @@
         <artifactId>protobuf-maven-plugin</artifactId>
         <version>${protobuf-maven-plugin.version}</version>
         <configuration>
+          <!--suppress UnresolvedMavenProperty -->
           <protocArtifact>com.google.protobuf:protoc:${protoc3.version}:exe:${os.detected.classifier}</protocArtifact>
           <checkStaleness>true</checkStaleness>
           <excludes>
             <exclude>**/ResourceUsage.proto</exclude>
             <exclude>**/TransactionPendingAck.proto</exclude>
+            <exclude>**/DelayedMessageIndexBucketSegment.proto</exclude>
           </excludes>
         </configuration>
         <executions>
@@ -605,6 +639,7 @@
           <sources>
             <source>${project.basedir}/src/main/proto/TransactionPendingAck.proto</source>
             <source>${project.basedir}/src/main/proto/ResourceUsage.proto</source>
+            <source>${project.basedir}/src/main/proto/DelayedMessageIndexBucketSegment.proto</source>
           </sources>
           <targetSourcesSubDir>generated-sources/lightproto/java</targetSourcesSubDir>
           <targetTestSourcesSubDir>generated-sources/lightproto/java</targetTestSourcesSubDir>
@@ -692,12 +727,32 @@
           <plugin>
             <groupId>com.github.kongchen</groupId>
             <artifactId>swagger-maven-plugin</artifactId>
-            <version>3.1.7</version>
+            <version>3.1.8</version>
             <configuration>
               <apiSources>
                 <apiSource>
                   <springmvc>false</springmvc>
-                  <locations>org.apache.pulsar.broker.admin.v2</locations>
+                  <operationIdFormat>{{className}}_{{methodName}}</operationIdFormat>
+                  <outputFormats>json</outputFormats>
+                  <locations>
+                    <location>org.apache.pulsar.broker.admin.v2.Bookies</location>
+                    <location>org.apache.pulsar.broker.admin.v2.BrokerStats</location>
+                    <location>org.apache.pulsar.broker.admin.v2.Brokers</location>
+                    <location>org.apache.pulsar.broker.admin.v2.Clusters</location>
+                    <location>org.apache.pulsar.broker.admin.v2.Functions</location>
+                    <location>org.apache.pulsar.broker.admin.v2.Namespaces</location>
+                    <location>org.apache.pulsar.broker.admin.v2.NonPersistentTopics</location>
+                    <location>org.apache.pulsar.broker.admin.v2.PersistentTopics</location>
+                    <!-- See https://github.com/apache/pulsar/issues/18947 -->
+                    <!-- <location>org.apache.pulsar.broker.admin.v2.ExtPersistentTopics</location> -->
+                    <!-- <location>org.apache.pulsar.broker.admin.v2.ExtNonPersistentTopics</location> -->
+                    <location>org.apache.pulsar.broker.admin.v2.ResourceGroups</location>
+                    <location>org.apache.pulsar.broker.admin.v2.ResourceQuotas</location>
+                    <location>org.apache.pulsar.broker.admin.v2.SchemasResource</location>
+                    <location>org.apache.pulsar.broker.admin.v2.Tenants</location>
+                    <location>org.apache.pulsar.broker.admin.v2.Worker</location>
+                    <location>org.apache.pulsar.broker.admin.v2.WorkerStats</location>
+                  </locations>
                   <schemes>http,https</schemes>
                   <basePath>/admin/v2</basePath>
                   <info>
@@ -714,6 +769,8 @@
                 </apiSource>
                 <apiSource>
                   <springmvc>false</springmvc>
+                  <operationIdFormat>{{className}}_{{methodName}}</operationIdFormat>
+                  <outputFormats>json</outputFormats>
                   <locations>org.apache.pulsar.broker.lookup.v2</locations>
                   <schemes>http,https</schemes>
                   <basePath>/lookup</basePath>
@@ -731,6 +788,8 @@
                 </apiSource>
                 <apiSource>
                   <springmvc>false</springmvc>
+                  <operationIdFormat>{{className}}_{{methodName}}</operationIdFormat>
+                  <outputFormats>json</outputFormats>
                   <locations>org.apache.pulsar.broker.admin.v3.Functions</locations>
                   <schemes>http,https</schemes>
                   <basePath>/admin/v3</basePath>
@@ -748,6 +807,8 @@
                 </apiSource>
                 <apiSource>
                   <springmvc>false</springmvc>
+                  <operationIdFormat>{{className}}_{{methodName}}</operationIdFormat>
+                  <outputFormats>json</outputFormats>
                   <locations>org.apache.pulsar.broker.admin.v3.Transactions</locations>
                   <schemes>http,https</schemes>
                   <basePath>/admin/v3</basePath>
@@ -765,6 +826,8 @@
                 </apiSource>
                 <apiSource>
                   <springmvc>false</springmvc>
+                  <operationIdFormat>{{className}}_{{methodName}}</operationIdFormat>
+                  <outputFormats>json</outputFormats>
                   <locations>org.apache.pulsar.broker.admin.v3.Sources</locations>
                   <schemes>http,https</schemes>
                   <basePath>/admin/v3</basePath>
@@ -782,6 +845,8 @@
                 </apiSource>
                 <apiSource>
                   <springmvc>false</springmvc>
+                  <operationIdFormat>{{className}}_{{methodName}}</operationIdFormat>
+                  <outputFormats>json</outputFormats>
                   <locations>org.apache.pulsar.broker.admin.v3.Sinks</locations>
                   <schemes>http,https</schemes>
                   <basePath>/admin/v3</basePath>
@@ -799,6 +864,8 @@
                 </apiSource>
                 <apiSource>
                   <springmvc>false</springmvc>
+                  <operationIdFormat>{{className}}_{{methodName}}</operationIdFormat>
+                  <outputFormats>json</outputFormats>
                   <locations>org.apache.pulsar.broker.admin.v3.Packages</locations>
                   <schemes>http,https</schemes>
                   <basePath>/admin/v3</basePath>
@@ -857,7 +924,7 @@
                         </goals>
                       </pluginExecutionFilter>
                       <action>
-                        <ignore></ignore>
+                        <ignore/>
                       </action>
                     </pluginExecution>
                   </pluginExecutions>

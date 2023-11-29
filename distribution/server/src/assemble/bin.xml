@@ -116,6 +116,11 @@
       <destName>example-window-function-config.yaml</destName>
       <outputDirectory>examples</outputDirectory>
     </file>
+    <file>
+      <source>${basedir}/../../pulsar-functions/java-examples/src/main/resources/example-stateful-function-config.yaml</source>
+      <destName>example-stateful-function-config.yaml</destName>
+      <outputDirectory>examples</outputDirectory>
+    </file>
   </files>
   <dependencySets>
     <dependencySet>

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -108,7 +108,7 @@ public class GenericJsonRecordTest {
         GenericSchema genericJsonSchema = GenericJsonSchema.of(jsonSchema.getSchemaInfo());
         PC pc = new PC("dell", "alienware", 2021, GPU.AMD,
                 new Seller("WA", "street", 98004));
-        JsonNode jsonNode = ObjectMapperFactory.getThreadLocal().valueToTree(pc);
+        JsonNode jsonNode = ObjectMapperFactory.getMapper().getObjectMapper().valueToTree(pc);
         GenericJsonRecord genericJsonRecord =
                 new GenericJsonRecord(null, null, jsonNode, genericJsonSchema.getSchemaInfo());
         byte[] encoded = genericJsonSchema.encode(genericJsonRecord);

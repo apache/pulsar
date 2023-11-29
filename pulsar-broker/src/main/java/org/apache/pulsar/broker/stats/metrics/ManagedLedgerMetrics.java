@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -108,6 +108,8 @@ public class ManagedLedgerMetrics extends AbstractMetrics {
                         (double) lStats.getReadEntriesErrors());
                 populateAggregationMapWithSum(tempAggregatedMetricsMap, "brk_ml_ReadEntriesRate",
                         lStats.getReadEntriesRate());
+                populateAggregationMapWithSum(tempAggregatedMetricsMap, "brk_ml_ReadEntriesOpsCacheMissesRate",
+                        lStats.getReadEntriesOpsCacheMissesRate());
                 populateAggregationMapWithSum(tempAggregatedMetricsMap, "brk_ml_ReadEntriesSucceeded",
                         (double) lStats.getReadEntriesSucceeded());
                 populateAggregationMapWithSum(tempAggregatedMetricsMap, "brk_ml_StoredMessagesSize",

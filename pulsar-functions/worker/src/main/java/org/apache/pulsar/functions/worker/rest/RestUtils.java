@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -23,13 +23,14 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import javax.ws.rs.core.Response;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.common.util.RestException;
 
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public final class RestUtils {
 
     public static ObjectNode createBaseMessage(String message) {
-        final ObjectMapper mapper = new ObjectMapper();
+        final ObjectMapper mapper = ObjectMapperFactory.getMapperWithIncludeAlways().getObjectMapper();
         return mapper.createObjectNode().put("message", message);
     }
 

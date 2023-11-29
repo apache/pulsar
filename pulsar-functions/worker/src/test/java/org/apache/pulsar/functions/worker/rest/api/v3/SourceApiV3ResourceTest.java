@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -22,6 +22,7 @@ import static org.apache.pulsar.functions.worker.rest.api.v3.SinkApiV3ResourceTe
 import static org.apache.pulsar.functions.worker.rest.api.v3.SinkApiV3ResourceTest.getPulsarIOInvalidNar;
 import static org.apache.pulsar.functions.worker.rest.api.v3.SinkApiV3ResourceTest.getPulsarIOTwitterNar;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
@@ -32,6 +33,8 @@ import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotEquals;
+import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import com.google.common.collect.Lists;
 import java.io.File;
@@ -50,12 +53,14 @@ import javax.ws.rs.core.Response;
 import org.apache.distributedlog.api.namespace.Namespace;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.core.config.Configurator;
+import org.apache.pulsar.broker.authentication.AuthenticationParameters;
 import org.apache.pulsar.client.admin.Functions;
 import org.apache.pulsar.client.admin.Namespaces;
 import org.apache.pulsar.client.admin.Packages;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.Tenants;
+import org.apache.pulsar.common.functions.UpdateOptionsImpl;
 import org.apache.pulsar.common.functions.Utils;
 import org.apache.pulsar.common.io.SourceConfig;
 import org.apache.pulsar.common.nar.NarClassLoader;
@@ -380,8 +385,8 @@ public class SourceApiV3ResourceTest {
         }
     }
 
-    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Source package does not have "
-            + "the correct format.*")
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Failed to extract source class"
+            + " from archive")
     public void testRegisterSourceInvalidJarWithNoSource() throws IOException {
         try (InputStream inputStream = new FileInputStream(getPulsarIOInvalidNar())) {
             testRegisterSourceMissingArguments(
@@ -402,7 +407,7 @@ public class SourceApiV3ResourceTest {
         }
     }
 
-    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Topic name cannot be null")
+    @Test
     public void testRegisterSourceNoOutputTopic() throws IOException {
         try (InputStream inputStream = new FileInputStream(getPulsarIOTwitterNar())) {
             testRegisterSourceMissingArguments(
@@ -418,8 +423,8 @@ public class SourceApiV3ResourceTest {
                     null
             );
         } catch (RestException re) {
-            assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
-            throw re;
+            // https://github.com/apache/pulsar/pull/18769 releases the restriction of topic name
+            assertNotEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
         }
     }
 
@@ -487,7 +492,7 @@ public class SourceApiV3ResourceTest {
                 details,
                 pkgUrl,
                 sourceConfig,
-                null, null);
+                null);
 
     }
 
@@ -501,7 +506,7 @@ public class SourceApiV3ResourceTest {
                 mockedFormData,
                 null,
                 null,
-                null, null);
+                null);
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Source config is not provided")
@@ -515,7 +520,7 @@ public class SourceApiV3ResourceTest {
                 mockedFormData,
                 null,
                 null,
-                null, null, null);
+                null, null);
     }
 
     private void registerDefaultSource() throws IOException {
@@ -532,7 +537,7 @@ public class SourceApiV3ResourceTest {
                 null,
                 packageUrl,
                 sourceConfig,
-                null, null);
+                null);
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Source test-source already "
@@ -633,7 +638,7 @@ public class SourceApiV3ResourceTest {
                     mockedFormData,
                     null,
                     sourceConfig,
-                    null, null);
+                    null);
         }
     }
 
@@ -844,6 +849,72 @@ public class SourceApiV3ResourceTest {
                 null);
     }
 
+    @Test
+    public void testUpdateSourceWithNoChange() {
+        mockWorkerUtils();
+
+        // No change on config,
+        SourceConfig sourceConfig = createDefaultSourceConfig();
+        mockStatic(SourceConfigUtils.class, ctx -> {
+            ctx.when(() -> SourceConfigUtils.convertFromDetails(any())).thenReturn(sourceConfig);
+            ctx.when(() -> SourceConfigUtils.convert(any(), any())).thenCallRealMethod();
+            ctx.when(() -> SourceConfigUtils.validateUpdate(any(), any())).thenCallRealMethod();
+            ctx.when(() -> SourceConfigUtils.clone(any())).thenCallRealMethod();
+            ctx.when(() -> SourceConfigUtils.validateAndExtractDetails(any(),any(),anyBoolean())).thenCallRealMethod();
+        });
+
+        mockFunctionCommon(sourceConfig.getTenant(), sourceConfig.getNamespace(), sourceConfig.getName());
+
+        // config has not changes and don't update auth, should fail
+        try {
+            resource.updateSource(
+                    sourceConfig.getTenant(),
+                    sourceConfig.getNamespace(),
+                    sourceConfig.getName(),
+                    null,
+                    mockedFormData,
+                    null,
+                    sourceConfig,
+                    null,
+                    null);
+            fail("Update without changes should fail");
+        } catch (RestException e) {
+            assertTrue(e.getMessage().contains("Update contains no change"));
+        }
+
+        try {
+            UpdateOptionsImpl updateOptions = new UpdateOptionsImpl();
+            updateOptions.setUpdateAuthData(false);
+            resource.updateSource(
+                    sourceConfig.getTenant(),
+                    sourceConfig.getNamespace(),
+                    sourceConfig.getName(),
+                    null,
+                    mockedFormData,
+                    null,
+                    sourceConfig,
+                    null,
+                    updateOptions);
+            fail("Update without changes should fail");
+        } catch (RestException e) {
+            assertTrue(e.getMessage().contains("Update contains no change"));
+        }
+
+        // no changes but set the auth-update flag to true, should not fail
+        UpdateOptionsImpl updateOptions = new UpdateOptionsImpl();
+        updateOptions.setUpdateAuthData(true);
+        resource.updateSource(
+                sourceConfig.getTenant(),
+                sourceConfig.getNamespace(),
+                sourceConfig.getName(),
+                null,
+                mockedFormData,
+                null,
+                sourceConfig,
+                null,
+                updateOptions);
+    }
+
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Source parallelism must be a "
             + "positive number")
     public void testUpdateSourceZeroParallelism() throws Exception {
@@ -879,26 +950,7 @@ public class SourceApiV3ResourceTest {
             Integer parallelism,
             String expectedError) throws Exception {
 
-        mockStatic(ConnectorUtils.class, c -> {
-        });
-        mockStatic(ClassLoaderUtils.class, c -> {
-        });
-        mockStatic(FunctionCommon.class, ctx -> {
-            ctx.when(() -> FunctionCommon.createPkgTempFile()).thenCallRealMethod();
-            ctx.when(() -> FunctionCommon.getClassLoaderFromPackage(any(), any(), any(), any())).thenCallRealMethod();
-            ctx.when(() -> FunctionCommon.getSourceType(argThat(clazz -> clazz.getName().equals(TWITTER_FIRE_HOSE))))
-                    .thenReturn(String.class);
-            ctx.when(() -> FunctionCommon.extractNarClassLoader(any(), any()))
-                    .thenReturn(narClassLoader);
-
-
-        });
-
-        this.mockedFunctionMetaData =
-                FunctionMetaData.newBuilder().setFunctionDetails(createDefaultFunctionDetails()).build();
-        when(mockedManager.getFunctionMetaData(any(), any(), any())).thenReturn(mockedFunctionMetaData);
-
-        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(true);
+        mockFunctionCommon(tenant, namespace, function);
 
         SourceConfig sourceConfig = new SourceConfig();
         if (tenant != null) {
@@ -936,8 +988,29 @@ public class SourceApiV3ResourceTest {
                 details,
                 null,
                 sourceConfig,
-                null, null, null);
+                null, null);
 
+    }
+
+    private void mockFunctionCommon(String tenant, String namespace, String function) {
+        mockStatic(ConnectorUtils.class, c -> {
+        });
+        mockStatic(ClassLoaderUtils.class, c -> {
+        });
+        mockStatic(FunctionCommon.class, ctx -> {
+            ctx.when(() -> FunctionCommon.createPkgTempFile()).thenCallRealMethod();
+            ctx.when(() -> FunctionCommon.getClassLoaderFromPackage(any(), any(), any(), any())).thenCallRealMethod();
+            ctx.when(() -> FunctionCommon.getSourceType(argThat(clazz -> clazz.getName().equals(TWITTER_FIRE_HOSE))))
+                    .thenReturn(String.class);
+            ctx.when(() -> FunctionCommon.extractNarClassLoader(any(), any()))
+                    .thenReturn(narClassLoader);
+        });
+
+        this.mockedFunctionMetaData =
+                FunctionMetaData.newBuilder().setFunctionDetails(createDefaultFunctionDetails()).build();
+        when(mockedManager.getFunctionMetaData(any(), any(), any())).thenReturn(mockedFunctionMetaData);
+
+        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(true);
     }
 
     private void updateDefaultSource() throws Exception {
@@ -982,7 +1055,7 @@ public class SourceApiV3ResourceTest {
                     mockedFormData,
                     packageUrl,
                     sourceConfig,
-                    null, null, null);
+                    null, null);
         }
     }
 
@@ -1068,7 +1141,7 @@ public class SourceApiV3ResourceTest {
                 null,
                 filePackageUrl,
                 sourceConfig,
-                null, null, null);
+                null, null);
 
     }
 
@@ -1181,7 +1254,7 @@ public class SourceApiV3ResourceTest {
                 tenant,
                 namespace,
                 function,
-                null, null);
+                null);
 
     }
 
@@ -1190,7 +1263,7 @@ public class SourceApiV3ResourceTest {
                 tenant,
                 namespace,
                 source,
-                null, null);
+                null);
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Source test-source doesn't " +
@@ -1384,7 +1457,8 @@ public class SourceApiV3ResourceTest {
         resource.getFunctionInfo(
                 tenant,
                 namespace,
-                source, null, null
+                source,
+                AuthenticationParameters.builder().build()
         );
     }
 
@@ -1392,7 +1466,8 @@ public class SourceApiV3ResourceTest {
         return resource.getSourceInfo(
                 tenant,
                 namespace,
-                source
+                source,
+                AuthenticationParameters.builder().build()
         );
     }
 
@@ -1475,14 +1550,17 @@ public class SourceApiV3ResourceTest {
     ) {
         resource.listFunctions(
                 tenant,
-                namespace, null, null
+                namespace,
+                AuthenticationParameters.builder().build()
         );
     }
 
     private List<String> listDefaultSources() {
         return resource.listFunctions(
                 tenant,
-                namespace, null, null);
+                namespace,
+                AuthenticationParameters.builder().build()
+        );
     }
 
     @Test

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -25,7 +25,7 @@ import com.beust.jcommander.Parameter;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import io.netty.channel.EventLoopGroup;
 import io.netty.util.concurrent.DefaultThreadFactory;
-import java.nio.file.Paths;
+import java.nio.file.Path;
 import java.util.Optional;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -41,8 +41,8 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SizeUnit;
 import org.apache.pulsar.client.internal.PropertiesUtils;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
-import org.apache.pulsar.common.util.CmdGenerateDocs;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
+import org.apache.pulsar.docs.tools.CmdGenerateDocs;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.policies.data.loadbalancer.AdvertisedListener;
@@ -53,7 +53,7 @@ public class CompactorTool {
 
     private static class Arguments {
         @Parameter(names = {"-c", "--broker-conf"}, description = "Configuration file for Broker")
-        private String brokerConfigFile = Paths.get("").toAbsolutePath().normalize().toString() + "/conf/broker.conf";
+        private String brokerConfigFile = "conf/broker.conf";
 
         @Parameter(names = {"-t", "--topic"}, description = "Topic to compact", required = true)
         private String topic;
@@ -82,7 +82,8 @@ public class CompactorTool {
         AdvertisedListener internalListener = ServiceConfigurationUtils.getInternalListener(brokerConfig, "pulsar+ssl");
         if (internalListener.getBrokerServiceUrlTls() != null && brokerConfig.isBrokerClientTlsEnabled()) {
             clientBuilder.serviceUrl(internalListener.getBrokerServiceUrlTls().toString())
-                    .allowTlsInsecureConnection(brokerConfig.isTlsAllowInsecureConnection());
+                    .allowTlsInsecureConnection(brokerConfig.isTlsAllowInsecureConnection())
+                    .enableTlsHostnameVerification(brokerConfig.isTlsHostnameVerificationEnabled());
             if (brokerConfig.isBrokerClientTlsEnabledWithKeyStore()) {
                 clientBuilder.useKeyStoreTls(true)
                         .tlsKeyStoreType(brokerConfig.getBrokerClientTlsKeyStoreType())
@@ -113,35 +114,35 @@ public class CompactorTool {
         jcommander.parse(args);
         if (arguments.help) {
             jcommander.usage();
-            System.exit(-1);
+            System.exit(0);
         }
 
         if (arguments.generateDocs) {
             CmdGenerateDocs cmd = new CmdGenerateDocs("pulsar");
             cmd.addCommand("compact-topic", arguments);
             cmd.run(null);
-            System.exit(-1);
+            System.exit(0);
         }
 
         // init broker config
-        ServiceConfiguration brokerConfig;
         if (isBlank(arguments.brokerConfigFile)) {
             jcommander.usage();
             throw new IllegalArgumentException("Need to specify a configuration file for broker");
-        } else {
-            log.info(String.format("read configuration file %s", arguments.brokerConfigFile));
-            brokerConfig = PulsarConfigurationLoader.create(
-                    arguments.brokerConfigFile, ServiceConfiguration.class);
         }
+
+        final String filepath = Path.of(arguments.brokerConfigFile).toAbsolutePath().normalize().toString();
+        log.info(String.format("read configuration file %s", filepath));
+        final ServiceConfiguration brokerConfig =
+                PulsarConfigurationLoader.create(filepath, ServiceConfiguration.class);
 
 
         if (isBlank(brokerConfig.getMetadataStoreUrl())) {
-            throw new IllegalArgumentException(
-                    String.format("Need to specify `metadataStoreUrl` or `zookeeperServers` in configuration file \n"
-                                    + "or specify configuration file path from command line.\n"
-                                    + "now configuration file path is=[%s]\n",
-                            arguments.brokerConfigFile)
-            );
+            final String message = String.format("""
+                    Need to specify `metadataStoreUrl` or `zookeeperServers` in configuration file
+                    or specify configuration file path from command line.
+                    now configuration file path is=[%s]
+                    """, filepath);
+            throw new IllegalArgumentException(message);
         }
 
         @Cleanup(value = "shutdownNow")

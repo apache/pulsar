@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.pulsar.io.kafka.sink;
 
 import org.apache.kafka.clients.producer.ProducerConfig;
@@ -48,7 +47,7 @@ public class KafkaAbstractSinkTest {
     private static class DummySink extends KafkaAbstractSink<String, byte[]> {
 
         @Override
-        public KeyValue extractKeyValue(Record record) {
+        public KeyValue<String, byte[]> extractKeyValue(Record<byte[]> record) {
             return new KeyValue<>(record.getKey().orElse(null), record.getValue());
         }
     }
@@ -75,7 +74,7 @@ public class KafkaAbstractSinkTest {
 
     @Test
     public void testInvalidConfigWillThrownException() throws Exception {
-        KafkaAbstractSink sink = new DummySink();
+        KafkaAbstractSink<String, byte[]> sink = new DummySink();
         Map<String, Object> config = new HashMap<>();
         SinkContext sc = new SinkContext() {
             @Override
@@ -165,12 +164,12 @@ public class KafkaAbstractSinkTest {
             public CompletableFuture<ByteBuffer> getStateAsync(String key) {
                 return null;
             }
-            
+
             @Override
             public void deleteState(String key) {
-            	
+
             }
-            
+
             @Override
             public CompletableFuture<Void> deleteStateAsync(String key) {
             	return null;
@@ -179,6 +178,11 @@ public class KafkaAbstractSinkTest {
             @Override
             public PulsarClient getPulsarClient() {
                 return null;
+            }
+
+            @Override
+            public void fatal(Throwable t) {
+
             }
         };
         ThrowingRunnable openAndClose = ()->{

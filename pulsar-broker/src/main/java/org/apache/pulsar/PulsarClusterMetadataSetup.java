@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -44,8 +44,8 @@ import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
-import org.apache.pulsar.common.util.CmdGenerateDocs;
 import org.apache.pulsar.common.util.ShutdownUtil;
+import org.apache.pulsar.docs.tools.CmdGenerateDocs;
 import org.apache.pulsar.functions.worker.WorkerUtils;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
@@ -333,7 +333,7 @@ public class PulsarClusterMetadataSetup {
             resources.getClusterResources().createCluster("global", globalClusterData);
         }
 
-        // Create public tenant, whitelisted to use the this same cluster, along with other clusters
+        // Create public tenant, allowed to use this same cluster, along with other clusters
         createTenantIfAbsent(resources, TopicName.PUBLIC_TENANT, arguments.cluster);
 
         // Create system tenant
@@ -385,15 +385,24 @@ public class PulsarClusterMetadataSetup {
             namespaceResources.createPolicies(namespaceName, policies);
         } else {
             log.info("Namespace {} already exists.", namespaceName);
-            namespaceResources.setPolicies(namespaceName, policies -> {
-                policies.replication_clusters.add(cluster);
-                return policies;
-            });
+            var replicaClusterFound = false;
+            var policiesOptional = namespaceResources.getPolicies(namespaceName);
+            if (policiesOptional.isPresent() && policiesOptional.get().replication_clusters.contains(cluster)) {
+                replicaClusterFound = true;
+            }
+            if (!replicaClusterFound) {
+                namespaceResources.setPolicies(namespaceName, policies -> {
+                    policies.replication_clusters.add(cluster);
+                    return policies;
+                });
+                log.info("Updated namespace:{} policies. Added the replication cluster:{}",
+                        namespaceName, cluster);
+            }
         }
     }
 
-    static void createNamespaceIfAbsent(PulsarResources resources, NamespaceName namespaceName,
-            String cluster) throws IOException {
+    public static void createNamespaceIfAbsent(PulsarResources resources, NamespaceName namespaceName,
+                                               String cluster) throws IOException {
         createNamespaceIfAbsent(resources, namespaceName, cluster, DEFAULT_BUNDLE_NUMBER);
     }
 

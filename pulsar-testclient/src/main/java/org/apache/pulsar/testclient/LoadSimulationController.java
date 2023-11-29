@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.testclient;
 
+import static org.apache.pulsar.broker.resources.LoadBalanceResources.BUNDLE_DATA_BASE_PATH;
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParameterException;
@@ -60,8 +61,7 @@ import org.slf4j.LoggerFactory;
  */
 public class LoadSimulationController {
     private static final Logger log = LoggerFactory.getLogger(LoadSimulationController.class);
-    private static final String QUOTA_ROOT = "/loadbalance/resource-quota/namespace";
-    private static final String BUNDLE_DATA_ROOT = "/loadbalance/bundle-data";
+    private static final String QUOTA_ROOT = "/loadbalance/resource-quota";
 
     // Input streams for each client to send commands through.
     private final DataInputStream[] inputStreams;
@@ -185,7 +185,7 @@ public class LoadSimulationController {
         public synchronized void process(final WatchedEvent event) {
             try {
                 // Get the load report and put this back as a watch.
-                final LoadReport loadReport = ObjectMapperFactory.getThreadLocal()
+                final LoadReport loadReport = ObjectMapperFactory.getMapper().getObjectMapper()
                         .readValue(zkClient.getData(path, this, null), LoadReport.class);
                 for (final Map.Entry<String, NamespaceBundleStats> entry : loadReport.getBundleStats().entrySet()) {
                     final String bundle = entry.getKey();
@@ -250,7 +250,7 @@ public class LoadSimulationController {
             final Map<String, ResourceQuota>[] threadLocalMaps) throws Exception {
         final List<String> children = zkClient.getChildren(path, false);
         if (children.isEmpty()) {
-            threadLocalMaps[random.nextInt(clients.length)].put(path, ObjectMapperFactory.getThreadLocal()
+            threadLocalMaps[random.nextInt(clients.length)].put(path, ObjectMapperFactory.getMapper().getObjectMapper()
                     .readValue(zkClient.getData(path, false, null), ResourceQuota.class));
         } else {
             for (final String child : children) {
@@ -427,11 +427,11 @@ public class LoadSimulationController {
                                 "/loadbalance/resource-quota/namespace/%s/%s/%s/0x00000000_0xffffffff", tenantName,
                                 cluster, mangledNamespace);
                         final String newAPITargetPath = String.format(
-                                "/loadbalance/bundle-data/%s/%s/%s/0x00000000_0xffffffff", tenantName, cluster,
+                                "%s/%s/%s/%s/0x00000000_0xffffffff", BUNDLE_DATA_BASE_PATH, tenantName, cluster,
                                 mangledNamespace);
                         try {
                             ZkUtils.createFullPathOptimistic(targetZKClient, oldAPITargetPath,
-                                    ObjectMapperFactory.getThreadLocal().writeValueAsBytes(quota),
+                                    ObjectMapperFactory.getMapper().writer().writeValueAsBytes(quota),
                                     ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
                         } catch (KeeperException.NodeExistsException e) {
                             // Ignore already created nodes.
@@ -441,7 +441,7 @@ public class LoadSimulationController {
                         // Put the bundle data in the new ZooKeeper.
                         try {
                             ZkUtils.createFullPathOptimistic(targetZKClient, newAPITargetPath,
-                                    ObjectMapperFactory.getThreadLocal().writeValueAsBytes(bundleData),
+                                    ObjectMapperFactory.getMapper().writer().writeValueAsBytes(bundleData),
                                     ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
                         } catch (KeeperException.NodeExistsException e) {
                             // Ignore already created nodes.
@@ -484,7 +484,7 @@ public class LoadSimulationController {
             futures.add(threadPool.submit(() -> {
                 for (final Map.Entry<String, ResourceQuota> entry : bundleToQuota.entrySet()) {
                     final String bundle = entry.getKey();
-                    final String newAPIPath = bundle.replace(QUOTA_ROOT, BUNDLE_DATA_ROOT);
+                    final String newAPIPath = bundle.replace(QUOTA_ROOT, BUNDLE_DATA_BASE_PATH);
                     final ResourceQuota quota = entry.getValue();
                     final int tenantStart = QUOTA_ROOT.length() + 1;
                     final String topic = String.format("persistent://%s/t", bundle.substring(tenantStart));
@@ -492,12 +492,12 @@ public class LoadSimulationController {
                     // Put the bundle data in the new ZooKeeper.
                     try {
                         ZkUtils.createFullPathOptimistic(zkClient, newAPIPath,
-                                ObjectMapperFactory.getThreadLocal().writeValueAsBytes(bundleData),
+                                ObjectMapperFactory.getMapper().writer().writeValueAsBytes(bundleData),
                                 ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
                     } catch (KeeperException.NodeExistsException e) {
                         try {
                             zkClient.setData(newAPIPath,
-                                    ObjectMapperFactory.getThreadLocal().writeValueAsBytes(bundleData), -1);
+                                    ObjectMapperFactory.getMapper().writer().writeValueAsBytes(bundleData), -1);
                         } catch (Exception ex) {
                             throw new RuntimeException(ex);
                         }
@@ -723,7 +723,7 @@ public class LoadSimulationController {
         } catch (Exception ex) {
             System.out.println(ex.getMessage());
             jc.usage();
-            PerfClientUtils.exit(-1);
+            PerfClientUtils.exit(1);
         }
         (new LoadSimulationController(arguments)).run();
     }

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -23,6 +23,7 @@ import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.TypedMessageBuilder;
 import org.apache.pulsar.client.impl.MessageIdImpl;
+import org.apache.pulsar.client.impl.TypedMessageBuilderImpl;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.websocket.data.ProducerMessage;
 import org.eclipse.jetty.websocket.servlet.ServletUpgradeResponse;
@@ -53,7 +54,7 @@ public class ProducerHandlerTest {
         PulsarClient pulsarClient = mock(PulsarClient.class);
         ProducerBuilder producerBuilder = mock(ProducerBuilder.class);
         Producer producer = mock(Producer.class);
-        TypedMessageBuilder messageBuilder = mock(TypedMessageBuilder.class);
+        TypedMessageBuilder messageBuilder = mock(TypedMessageBuilderImpl.class);
         ProducerMessage produceRequest = new ProducerMessage();
 
         produceRequest.setDeliverAfterMs(11111);
@@ -86,7 +87,7 @@ public class ProducerHandlerTest {
         ServletUpgradeResponse response = mock(ServletUpgradeResponse.class);
 
         ProducerHandler producerHandler = new ProducerHandler(service, httpServletRequest, response);
-        producerHandler.onWebSocketText(ObjectMapperFactory.getThreadLocal().writeValueAsString(produceRequest));
+        producerHandler.onWebSocketText(ObjectMapperFactory.getMapper().writer().writeValueAsString(produceRequest));
 
         verify(messageBuilder, times(1)).deliverAfter(11111, TimeUnit.MILLISECONDS);
         verify(messageBuilder, times(1)).deliverAt(22222);

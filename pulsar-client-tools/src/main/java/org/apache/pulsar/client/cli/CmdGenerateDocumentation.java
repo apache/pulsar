@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -68,9 +68,6 @@ public class CmdGenerateDocumentation {
                 .append("$ pulsar-client ").append(module).append(" [options]")
                 .append("\n```");
         sb.append("\n\n");
-        for (String s : cmd.getCommands().keySet()) {
-            sb.append("* `").append(s).append("`\n");
-        }
         sb.append("|Flag|Description|Default|\n");
         sb.append("|---|---|---|\n");
         List<ParameterDescription> options = cmd.getParameters();

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -128,7 +128,7 @@ class OpScan implements ReadEntriesCallback {
         }
         if (cursor.hasMoreEntries(searchPosition)) {
             OpReadEntry opReadEntry = OpReadEntry.create(cursor, searchPosition, batchSize,
-            this, OpScan.this.ctx, null);
+            this, OpScan.this.ctx, null, null);
             ledger.asyncReadEntries(opReadEntry);
         } else {
             callback.scanComplete(lastSeenPosition, ScanOutcome.COMPLETED, OpScan.this.ctx);

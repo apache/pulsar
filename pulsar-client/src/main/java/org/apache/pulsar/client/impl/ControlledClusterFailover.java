@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -20,12 +20,10 @@ package org.apache.pulsar.client.impl;
 
 import static org.apache.pulsar.common.util.Runnables.catchingAndLoggingThrowables;
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
 import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpResponse;
-import io.netty.util.concurrent.DefaultThreadFactory;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
@@ -44,6 +42,7 @@ import org.apache.pulsar.client.api.AuthenticationFactory;
 import org.apache.pulsar.client.api.ControlledClusterFailoverBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.ServiceUrlProvider;
+import org.apache.pulsar.client.util.ExecutorProvider;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.asynchttpclient.AsyncHttpClient;
 import org.asynchttpclient.AsyncHttpClientConfig;
@@ -66,7 +65,6 @@ public class ControlledClusterFailover implements ServiceUrlProvider {
     private volatile ControlledConfiguration currentControlledConfiguration;
     private final ScheduledExecutorService executor;
     private final long interval;
-    private ObjectMapper objectMapper = null;
     private final AsyncHttpClient httpClient;
     private final BoundRequestBuilder requestBuilder;
 
@@ -74,7 +72,7 @@ public class ControlledClusterFailover implements ServiceUrlProvider {
         this.currentPulsarServiceUrl = builder.defaultServiceUrl;
         this.interval = builder.interval;
         this.executor = Executors.newSingleThreadScheduledExecutor(
-                new DefaultThreadFactory("pulsar-service-provider"));
+                new ExecutorProvider.ExtendedThreadFactory("pulsar-service-provider"));
 
         this.httpClient = buildHttpClient();
         this.requestBuilder = httpClient.prepareGet(builder.urlProvider)
@@ -140,6 +138,7 @@ public class ControlledClusterFailover implements ServiceUrlProvider {
                     }
 
                     pulsarClient.updateServiceUrl(serviceUrl);
+                    pulsarClient.reloadLookUp();
                     currentPulsarServiceUrl = serviceUrl;
                     currentControlledConfiguration = controlledConfiguration;
                 }
@@ -166,7 +165,7 @@ public class ControlledClusterFailover implements ServiceUrlProvider {
             int statusCode = response.getStatusCode();
             if (statusCode == 200) {
                 String content = response.getResponseBody(StandardCharsets.UTF_8);
-                return getObjectMapper().readValue(content, ControlledConfiguration.class);
+                return ObjectMapperFactory.getMapper().reader().readValue(content, ControlledConfiguration.class);
             }
             log.warn("Failed to fetch controlled configuration, status code: {}", statusCode);
         } catch (InterruptedException | ExecutionException e) {
@@ -174,13 +173,6 @@ public class ControlledClusterFailover implements ServiceUrlProvider {
         }
 
         return null;
-    }
-
-    private ObjectMapper getObjectMapper() {
-        if (objectMapper == null) {
-            objectMapper = new ObjectMapper();
-        }
-        return objectMapper;
     }
 
     @Data
@@ -192,9 +184,8 @@ public class ControlledClusterFailover implements ServiceUrlProvider {
         private String authParamsString;
 
         public String toJson() {
-            ObjectMapper objectMapper = ObjectMapperFactory.getThreadLocal();
             try {
-                return objectMapper.writeValueAsString(this);
+                return ObjectMapperFactory.getMapper().writer().writeValueAsString(this);
             } catch (JsonProcessingException e) {
                 log.warn("Failed to write as json. ", e);
                 return null;

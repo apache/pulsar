@@ -168,7 +168,7 @@ OPTS="$OPTS -Dlog4j.configurationFile=`basename $BOOKIE_LOG_CONF`"
 # Allow Netty to use reflection access
 OPTS="$OPTS -Dio.netty.tryReflectionSetAccessible=true"
 
-IS_JAVA_8=`$JAVA -version 2>&1 |grep version|grep '"1\.8'`
+IS_JAVA_8=$( $JAVA -version 2>&1 | grep version | grep '"1\.8' )
 # Start --add-opens options
 # '--add-opens' option is not supported in jdk8
 if [[ -z "$IS_JAVA_8" ]]; then
@@ -182,10 +182,10 @@ fi
 
 OPTS="-cp $BOOKIE_CLASSPATH $OPTS"
 
-OPTS="$OPTS $BOOKIE_MEM $BOOKIE_GC $BOOKIE_GC_LOG $BOOKIE_EXTRA_OPTS"
-
 # Disable ipv6 as it can cause issues
 OPTS="$OPTS -Djava.net.preferIPv4Stack=true"
+
+OPTS="$OPTS $BOOKIE_MEM $BOOKIE_GC $BOOKIE_GC_LOG $BOOKIE_EXTRA_OPTS"
 
 # log directory & file
 BOOKIE_LOG_APPENDER=${BOOKIE_LOG_APPENDER:-"Console"}

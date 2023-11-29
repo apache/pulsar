@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -23,6 +23,7 @@ import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import com.google.common.util.concurrent.UncheckedExecutionException;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.ExecutionException;
@@ -101,6 +102,7 @@ public class TopicName implements ServiceUnitId {
         }
     }
 
+    @SuppressFBWarnings("DCN_NULLPOINTER_EXCEPTION")
     private TopicName(String completeTopicName) {
         try {
             // The topic name can be in two different forms, one is fully qualified topic name,
@@ -229,7 +231,7 @@ public class TopicName implements ServiceUnitId {
     }
 
     public TopicName getPartition(int index) {
-        if (index == -1 || this.toString().contains(PARTITIONED_TOPIC_SUFFIX)) {
+        if (index == -1 || this.toString().endsWith(PARTITIONED_TOPIC_SUFFIX + index)) {
             return this;
         }
         String partitionName = this.toString() + PARTITIONED_TOPIC_SUFFIX + index;
@@ -291,6 +293,14 @@ public class TopicName implements ServiceUnitId {
     }
 
     /**
+     * A helper method to get a partition name of a topic in String.
+     * @return topic + "-partition-" + partition.
+     */
+    public static String getTopicPartitionNameString(String topic, int partitionIndex) {
+        return topic + PARTITIONED_TOPIC_SUFFIX + partitionIndex;
+    }
+
+    /**
      * Returns the http rest path for use in the admin web service.
      * Eg:
      *   * "persistent/my-tenant/my-namespace/my-topic"
@@ -326,6 +336,42 @@ public class TopicName implements ServiceUnitId {
             return String.format("%s/%s/%s/%s", tenant, namespacePortion, domain, getEncodedLocalName());
         } else {
             return String.format("%s/%s/%s/%s/%s", tenant, cluster, namespacePortion, domain, getEncodedLocalName());
+        }
+    }
+
+    /**
+     * get topic full name from managedLedgerName.
+     *
+     * @return the topic full name, format -> domain://tenant/namespace/topic
+     */
+    public static String fromPersistenceNamingEncoding(String mlName) {
+        // The managedLedgerName convention is: tenant/namespace/domain/topic
+        // We want to transform to topic full name in the order: domain://tenant/namespace/topic
+        if (mlName == null || mlName.length() == 0) {
+            return mlName;
+        }
+        List<String> parts = Splitter.on("/").splitToList(mlName);
+        String tenant;
+        String cluster;
+        String namespacePortion;
+        String domain;
+        String localName;
+        if (parts.size() == 4) {
+            tenant = parts.get(0);
+            cluster = null;
+            namespacePortion = parts.get(1);
+            domain = parts.get(2);
+            localName = parts.get(3);
+            return String.format("%s://%s/%s/%s", domain, tenant, namespacePortion, localName);
+        } else if (parts.size() == 5) {
+            tenant = parts.get(0);
+            cluster = parts.get(1);
+            namespacePortion = parts.get(2);
+            domain = parts.get(3);
+            localName = parts.get(4);
+            return String.format("%s://%s/%s/%s/%s", domain, tenant, cluster, namespacePortion, localName);
+        } else {
+            throw new IllegalArgumentException("Invalid managedLedger name: " + mlName);
         }
     }
 

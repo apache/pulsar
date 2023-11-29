@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -26,7 +26,6 @@ import com.google.common.cache.LoadingCache;
 import io.netty.channel.EventLoopGroup;
 import io.netty.util.HashedWheelTimer;
 import io.netty.util.Timer;
-import io.netty.util.concurrent.DefaultThreadFactory;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.time.Clock;
@@ -34,6 +33,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -49,9 +49,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import lombok.Builder;
 import lombok.Getter;
-import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.Authentication;
-import org.apache.pulsar.client.api.AuthenticationFactory;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerBuilder;
 import org.apache.pulsar.client.api.Producer;
@@ -73,6 +71,7 @@ import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
 import org.apache.pulsar.client.impl.conf.ReaderConfigurationData;
 import org.apache.pulsar.client.impl.schema.AutoConsumeSchema;
 import org.apache.pulsar.client.impl.schema.AutoProduceBytesSchema;
+import org.apache.pulsar.client.impl.schema.generic.GenericAvroSchema;
 import org.apache.pulsar.client.impl.schema.generic.MultiVersionSchemaInfoProvider;
 import org.apache.pulsar.client.impl.transaction.TransactionBuilderImpl;
 import org.apache.pulsar.client.impl.transaction.TransactionCoordinatorClientImpl;
@@ -84,6 +83,7 @@ import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.schema.SchemaInfo;
+import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.topics.TopicList;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
@@ -105,6 +105,7 @@ public class PulsarClientImpl implements PulsarClient {
 
     private final boolean createdScheduledProviders;
     private LookupService lookup;
+    private Map<String, LookupService> urlLookupMap = new ConcurrentHashMap<>();
     private final ConnectionPool cnxPool;
     @Getter
     private final Timer timer;
@@ -190,7 +191,6 @@ public class PulsarClientImpl implements PulsarClient {
             if (conf == null || isBlank(conf.getServiceUrl())) {
                 throw new PulsarClientException.InvalidConfigurationException("Invalid client configuration");
             }
-            setAuth(conf);
             this.conf = conf;
             clientClock = conf.getClock();
             conf.getAuthentication().start();
@@ -207,7 +207,7 @@ public class PulsarClientImpl implements PulsarClient {
                 lookup = new HttpLookupService(conf, this.eventLoopGroup);
             } else {
                 lookup = new BinaryProtoLookupService(this, conf.getServiceUrl(), conf.getListenerName(),
-                        conf.isUseTls(), this.externalExecutorProvider.getExecutor());
+                        conf.isUseTls(), this.scheduledExecutorProvider.getExecutor());
             }
             if (timer == null) {
                 this.timer = new HashedWheelTimer(getThreadFactory("pulsar-timer"), 1, TimeUnit.MILLISECONDS);
@@ -241,19 +241,6 @@ public class PulsarClientImpl implements PulsarClient {
     private void reduceConsumerReceiverQueueSize() {
         for (ConsumerBase<?> consumer : consumers) {
             consumer.reduceCurrentReceiverQueueSize();
-        }
-    }
-
-    private void setAuth(ClientConfigurationData conf) throws PulsarClientException {
-        if (StringUtils.isBlank(conf.getAuthPluginClassName())
-                || (StringUtils.isBlank(conf.getAuthParams()) && conf.getAuthParamMap() == null)) {
-            return;
-        }
-
-        if (StringUtils.isNotBlank(conf.getAuthParams())) {
-            conf.setAuthentication(AuthenticationFactory.create(conf.getAuthPluginClassName(), conf.getAuthParams()));
-        } else if (conf.getAuthParamMap() != null) {
-            conf.setAuthentication(AuthenticationFactory.create(conf.getAuthPluginClassName(), conf.getAuthParamMap()));
         }
     }
 
@@ -306,8 +293,22 @@ public class PulsarClientImpl implements PulsarClient {
         return new ReaderBuilderImpl<>(this, schema);
     }
 
+    /**
+     * @deprecated use {@link #newTableView(Schema)} instead.
+     */
     @Override
+    @Deprecated
     public <T> TableViewBuilder<T> newTableViewBuilder(Schema<T> schema) {
+        return new TableViewBuilderImpl<>(this, schema);
+    }
+
+    @Override
+    public TableViewBuilder<byte[]> newTableView() {
+        return new TableViewBuilderImpl<>(this, Schema.BYTES);
+    }
+
+    @Override
+    public <T> TableViewBuilder<T> newTableView(Schema<T> schema) {
         return new TableViewBuilderImpl<>(this, schema);
     }
 
@@ -353,7 +354,12 @@ public class PulsarClientImpl implements PulsarClient {
             return lookup.getSchema(TopicName.get(conf.getTopicName()))
                     .thenCompose(schemaInfoOptional -> {
                         if (schemaInfoOptional.isPresent()) {
-                            autoProduceBytesSchema.setSchema(Schema.getSchema(schemaInfoOptional.get()));
+                            SchemaInfo schemaInfo = schemaInfoOptional.get();
+                            if (schemaInfo.getType() == SchemaType.PROTOBUF) {
+                                autoProduceBytesSchema.setSchema(new GenericAvroSchema(schemaInfo));
+                            } else {
+                                autoProduceBytesSchema.setSchema(Schema.getSchema(schemaInfo));
+                            }
                         } else {
                             autoProduceBytesSchema.setSchema(Schema.BYTES);
                         }
@@ -756,7 +762,7 @@ public class PulsarClientImpl implements PulsarClient {
         // would happen
         CompletableFuture<Void> combinedFuture = FutureUtil.waitForAll(futures);
         ScheduledExecutorService shutdownExecutor = Executors.newSingleThreadScheduledExecutor(
-                new DefaultThreadFactory("pulsar-client-shutdown-timeout-scheduler"));
+                new ExecutorProvider.ExtendedThreadFactory("pulsar-client-shutdown-timeout-scheduler"));
         FutureUtil.addTimeoutHandling(combinedFuture, Duration.ofSeconds(CLOSE_TIMEOUT_SECONDS),
                 shutdownExecutor, () -> FutureUtil.createTimeoutException("Closing producers and consumers timed out.",
                         PulsarClientImpl.class, "closeAsync"));
@@ -940,10 +946,37 @@ public class PulsarClientImpl implements PulsarClient {
         conf.setTlsTrustStorePassword(tlsTrustStorePassword);
     }
 
+    public CompletableFuture<ClientCnx> getConnection(final String topic, int randomKeyForSelectConnection) {
+        TopicName topicName = TopicName.get(topic);
+        return lookup.getBroker(topicName)
+                .thenCompose(pair -> getConnection(pair.getLeft(), pair.getRight(), randomKeyForSelectConnection));
+    }
+
+    /**
+     * Only for test.
+     */
+    @VisibleForTesting
     public CompletableFuture<ClientCnx> getConnection(final String topic) {
         TopicName topicName = TopicName.get(topic);
         return lookup.getBroker(topicName)
-                .thenCompose(pair -> getConnection(pair.getLeft(), pair.getRight()));
+                .thenCompose(pair -> getConnection(pair.getLeft(), pair.getRight(), cnxPool.genRandomKeyToSelectCon()));
+    }
+
+    public CompletableFuture<ClientCnx> getConnection(final String topic, final String url) {
+        TopicName topicName = TopicName.get(topic);
+        return getLookup(url).getBroker(topicName)
+                .thenCompose(pair -> getConnection(pair.getLeft(), pair.getRight(), cnxPool.genRandomKeyToSelectCon()));
+    }
+
+    public LookupService getLookup(String serviceUrl) {
+        return urlLookupMap.computeIfAbsent(serviceUrl, url -> {
+            try {
+                return createLookup(serviceUrl);
+            } catch (PulsarClientException e) {
+                log.warn("Failed to update url to lookup service {}, {}", url, e.getMessage());
+                throw new IllegalStateException("Failed to update url " + url);
+            }
+        });
     }
 
     public CompletableFuture<ClientCnx> getConnectionToServiceUrl() {
@@ -952,12 +985,13 @@ public class PulsarClientImpl implements PulsarClient {
                     "Can't get client connection to HTTP service URL", null));
         }
         InetSocketAddress address = lookup.resolveHost();
-        return getConnection(address, address);
+        return getConnection(address, address, cnxPool.genRandomKeyToSelectCon());
     }
 
     public CompletableFuture<ClientCnx> getConnection(final InetSocketAddress logicalAddress,
-                                                      final InetSocketAddress physicalAddress) {
-        return cnxPool.getConnection(logicalAddress, physicalAddress);
+                                                      final InetSocketAddress physicalAddress,
+                                                      final int randomKeyForSelectConnection) {
+        return cnxPool.getConnection(logicalAddress, physicalAddress, randomKeyForSelectConnection);
     }
 
     /** visible for pulsar-functions. **/
@@ -1003,10 +1037,14 @@ public class PulsarClientImpl implements PulsarClient {
     }
 
     public void reloadLookUp() throws PulsarClientException {
-        if (conf.getServiceUrl().startsWith("http")) {
-            lookup = new HttpLookupService(conf, eventLoopGroup);
+        lookup = createLookup(conf.getServiceUrl());
+    }
+
+    public LookupService createLookup(String url) throws PulsarClientException {
+        if (url.startsWith("http")) {
+            return new HttpLookupService(conf, eventLoopGroup);
         } else {
-            lookup = new BinaryProtoLookupService(this, conf.getServiceUrl(), conf.getListenerName(), conf.isUseTls(),
+            return new BinaryProtoLookupService(this, url, conf.getListenerName(), conf.isUseTls(),
                     externalExecutorProvider.getExecutor());
         }
     }
@@ -1087,7 +1125,7 @@ public class PulsarClientImpl implements PulsarClient {
     }
 
     private static ThreadFactory getThreadFactory(String poolName) {
-        return new DefaultThreadFactory(poolName, Thread.currentThread().isDaemon());
+        return new ExecutorProvider.ExtendedThreadFactory(poolName, Thread.currentThread().isDaemon());
     }
 
     void cleanupProducer(ProducerBase<?> producer) {
@@ -1189,10 +1227,7 @@ public class PulsarClientImpl implements PulsarClient {
     // This method should be exposed in the PulsarClient interface. Only expose it when all the transaction features
     // are completed.
     // @Override
-    public TransactionBuilder newTransaction() throws PulsarClientException {
-        if (!conf.isEnableTransaction()) {
-            throw new PulsarClientException.InvalidConfigurationException("Transactions are not enabled");
-        }
+    public TransactionBuilder newTransaction() {
         return new TransactionBuilderImpl(this, tcClient);
     }
 }

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -99,7 +99,7 @@ public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
     @ApiModelProperty(
             name = "negativeAckRedeliveryBackoff",
             value = "Interface for custom message is negativeAcked policy. You can specify `RedeliveryBackoff` for a"
-                    + "consumer."
+                    + " consumer."
     )
     @JsonIgnore
     private RedeliveryBackoff negativeAckRedeliveryBackoff;
@@ -136,6 +136,12 @@ public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
                     + "re-deliveries after a failure."
     )
     private long acknowledgementsGroupTimeMicros = TimeUnit.MILLISECONDS.toMicros(100);
+
+    @ApiModelProperty(
+            name = "maxAcknowledgmentGroupSize",
+            value = "Group a consumer acknowledgment for the number of messages."
+    )
+    private int maxAcknowledgmentGroupSize = 1000;
 
     @ApiModelProperty(
             name = "negativeAckRedeliveryDelayMicros",
@@ -229,7 +235,7 @@ public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
 
     @ApiModelProperty(
             name = "autoAckOldestChunkedMessageOnQueueFull",
-            value = "Whether to automatically acknowledge pending chunked messages when the threashold of"
+            value = "Whether to automatically acknowledge pending chunked messages when the threshold of"
                     + " `maxPendingChunkedMessage` is reached. If set to `false`, these messages will be redelivered"
                     + " by their broker."
     )
@@ -376,6 +382,7 @@ public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
 
     private boolean resetIncludeHead = false;
 
+    @JsonIgnore
     private transient KeySharedPolicy keySharedPolicy;
 
     private boolean batchIndexAckEnabled = false;

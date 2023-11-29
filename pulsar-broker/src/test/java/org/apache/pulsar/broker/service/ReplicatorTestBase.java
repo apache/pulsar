@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.service;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 
+import com.google.common.io.Resources;
 import com.google.common.collect.Sets;
 
 import io.netty.util.concurrent.DefaultThreadFactory;
@@ -37,6 +38,7 @@ import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.TopicType;
 import org.apache.pulsar.tests.TestRetrySupport;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.Consumer;
@@ -80,14 +82,43 @@ public abstract class ReplicatorTestBase extends TestRetrySupport {
     PulsarAdmin admin3;
     LocalBookkeeperEnsemble bkEnsemble3;
 
+    URL url4;
+    URL urlTls4;
+    ServiceConfiguration config4 = new ServiceConfiguration();
+    PulsarService pulsar4;
+    PulsarAdmin admin4;
+    LocalBookkeeperEnsemble bkEnsemble4;
+
     ZookeeperServerTest globalZkS;
 
     ExecutorService executor;
 
     static final int TIME_TO_CHECK_BACKLOG_QUOTA = 5;
 
-    protected static final String TLS_SERVER_CERT_FILE_PATH = "./src/test/resources/certificate/server.crt";
-    protected static final String TLS_SERVER_KEY_FILE_PATH = "./src/test/resources/certificate/server.key";
+    // PEM
+    protected final String brokerCertFilePath = Resources.getResource("certificate-authority/server-keys/broker.cert.pem").getPath();
+    protected final String brokerFilePath = Resources.getResource("certificate-authority/server-keys/broker.key-pk8.pem").getPath();
+    protected final String clientCertFilePath = Resources.getResource("certificate-authority/client-keys/admin.cert.pem").getPath();
+    protected final String clientKeyFilePath = Resources.getResource("certificate-authority/client-keys/admin.key-pk8.pem").getPath();
+    protected final String caCertFilePath = Resources.getResource("certificate-authority/certs/ca.cert.pem").getPath();
+
+    // KEYSTORE
+    protected boolean tlsWithKeyStore = false;
+    protected final static String brokerKeyStorePath =
+            Resources.getResource("certificate-authority/jks/broker.keystore.jks").getPath();
+    protected final static String brokerTrustStorePath =
+            Resources.getResource("certificate-authority/jks/broker.truststore.jks").getPath();
+    protected final static String clientKeyStorePath =
+            Resources.getResource("certificate-authority/jks/client.keystore.jks").getPath();
+    protected final static String clientTrustStorePath =
+            Resources.getResource("certificate-authority/jks/client.truststore.jks").getPath();
+    protected final static String keyStoreType = "JKS";
+    protected final static String keyStorePassword = "111111";
+
+    protected final String cluster1 = "r1";
+    protected final String cluster2 = "r2";
+    protected final String cluster3 = "r3";
+    protected final String cluster4 = "r4";
 
     // Default frequency
     public int getBrokerServicePurgeInactiveFrequency() {
@@ -155,24 +186,89 @@ public abstract class ReplicatorTestBase extends TestRetrySupport {
         urlTls3 = new URL(pulsar3.getWebServiceAddressTls());
         admin3 = PulsarAdmin.builder().serviceHttpUrl(url3.toString()).build();
 
+        // Start region 4
+
+        // Start zk & bks
+        bkEnsemble4 = new LocalBookkeeperEnsemble(3, 0, () -> 0);
+        bkEnsemble4.start();
+
+        setConfig4DefaultValue();
+        pulsar4 = new PulsarService(config4);
+        pulsar4.start();
+
+        url4 = new URL(pulsar4.getWebServiceAddress());
+        urlTls4 = new URL(pulsar4.getWebServiceAddressTls());
+        admin4 = PulsarAdmin.builder().serviceHttpUrl(url4.toString()).build();
+
+
         // Provision the global namespace
-        admin1.clusters().createCluster("r1", ClusterData.builder()
+        admin1.clusters().createCluster(cluster1, ClusterData.builder()
                 .serviceUrl(url1.toString())
                 .serviceUrlTls(urlTls1.toString())
                 .brokerServiceUrl(pulsar1.getBrokerServiceUrl())
                 .brokerServiceUrlTls(pulsar1.getBrokerServiceUrlTls())
+                .brokerClientTlsEnabled(true)
+                .brokerClientCertificateFilePath(clientCertFilePath)
+                .brokerClientKeyFilePath(clientKeyFilePath)
+                .brokerClientTrustCertsFilePath(caCertFilePath)
+                .brokerClientTlsEnabledWithKeyStore(tlsWithKeyStore)
+                .brokerClientTlsKeyStore(clientKeyStorePath)
+                .brokerClientTlsKeyStorePassword(keyStorePassword)
+                .brokerClientTlsKeyStoreType(keyStoreType)
+                .brokerClientTlsTrustStore(clientTrustStorePath)
+                .brokerClientTlsTrustStorePassword(keyStorePassword)
+                .brokerClientTlsTrustStoreType(keyStoreType)
                 .build());
-        admin1.clusters().createCluster("r2", ClusterData.builder()
+        admin1.clusters().createCluster(cluster2, ClusterData.builder()
                 .serviceUrl(url2.toString())
                 .serviceUrlTls(urlTls2.toString())
                 .brokerServiceUrl(pulsar2.getBrokerServiceUrl())
                 .brokerServiceUrlTls(pulsar2.getBrokerServiceUrlTls())
+                .brokerClientTlsEnabled(true)
+                .brokerClientCertificateFilePath(clientCertFilePath)
+                .brokerClientKeyFilePath(clientKeyFilePath)
+                .brokerClientTrustCertsFilePath(caCertFilePath)
+                .brokerClientTlsEnabledWithKeyStore(tlsWithKeyStore)
+                .brokerClientTlsKeyStore(clientKeyStorePath)
+                .brokerClientTlsKeyStorePassword(keyStorePassword)
+                .brokerClientTlsKeyStoreType(keyStoreType)
+                .brokerClientTlsTrustStore(clientTrustStorePath)
+                .brokerClientTlsTrustStorePassword(keyStorePassword)
+                .brokerClientTlsTrustStoreType(keyStoreType)
                 .build());
-        admin1.clusters().createCluster("r3", ClusterData.builder()
+        admin1.clusters().createCluster(cluster3, ClusterData.builder()
                 .serviceUrl(url3.toString())
                 .serviceUrlTls(urlTls3.toString())
                 .brokerServiceUrl(pulsar3.getBrokerServiceUrl())
                 .brokerServiceUrlTls(pulsar3.getBrokerServiceUrlTls())
+                .brokerClientTlsEnabled(true)
+                .brokerClientCertificateFilePath(clientCertFilePath)
+                .brokerClientKeyFilePath(clientKeyFilePath)
+                .brokerClientTrustCertsFilePath(caCertFilePath)
+                .brokerClientTlsEnabledWithKeyStore(tlsWithKeyStore)
+                .brokerClientTlsKeyStore(clientKeyStorePath)
+                .brokerClientTlsKeyStorePassword(keyStorePassword)
+                .brokerClientTlsKeyStoreType(keyStoreType)
+                .brokerClientTlsTrustStore(clientTrustStorePath)
+                .brokerClientTlsTrustStorePassword(keyStorePassword)
+                .brokerClientTlsTrustStoreType(keyStoreType)
+                .build());
+        admin4.clusters().createCluster(cluster4, ClusterData.builder()
+                .serviceUrl(url4.toString())
+                .serviceUrlTls(urlTls4.toString())
+                .brokerServiceUrl(pulsar4.getBrokerServiceUrl())
+                .brokerServiceUrlTls(pulsar4.getBrokerServiceUrlTls())
+                .brokerClientTlsEnabled(true)
+                .brokerClientCertificateFilePath(clientCertFilePath)
+                .brokerClientKeyFilePath(clientKeyFilePath)
+                .brokerClientTrustCertsFilePath(caCertFilePath)
+                .brokerClientTlsEnabledWithKeyStore(tlsWithKeyStore)
+                .brokerClientTlsKeyStore(clientKeyStorePath)
+                .brokerClientTlsKeyStorePassword(keyStorePassword)
+                .brokerClientTlsKeyStoreType(keyStoreType)
+                .brokerClientTlsTrustStore(clientTrustStorePath)
+                .brokerClientTlsTrustStorePassword(keyStorePassword)
+                .brokerClientTlsTrustStoreType(keyStoreType)
                 .build());
 
         admin1.tenants().createTenant("pulsar",
@@ -180,12 +276,12 @@ public abstract class ReplicatorTestBase extends TestRetrySupport {
         admin1.namespaces().createNamespace("pulsar/ns", Sets.newHashSet("r1", "r2", "r3"));
         admin1.namespaces().createNamespace("pulsar/ns1", Sets.newHashSet("r1", "r2"));
 
-        assertEquals(admin2.clusters().getCluster("r1").getServiceUrl(), url1.toString());
-        assertEquals(admin2.clusters().getCluster("r2").getServiceUrl(), url2.toString());
-        assertEquals(admin2.clusters().getCluster("r3").getServiceUrl(), url3.toString());
-        assertEquals(admin2.clusters().getCluster("r1").getBrokerServiceUrl(), pulsar1.getBrokerServiceUrl());
-        assertEquals(admin2.clusters().getCluster("r2").getBrokerServiceUrl(), pulsar2.getBrokerServiceUrl());
-        assertEquals(admin2.clusters().getCluster("r3").getBrokerServiceUrl(), pulsar3.getBrokerServiceUrl());
+        assertEquals(admin2.clusters().getCluster(cluster1).getServiceUrl(), url1.toString());
+        assertEquals(admin2.clusters().getCluster(cluster2).getServiceUrl(), url2.toString());
+        assertEquals(admin2.clusters().getCluster(cluster3).getServiceUrl(), url3.toString());
+        assertEquals(admin2.clusters().getCluster(cluster1).getBrokerServiceUrl(), pulsar1.getBrokerServiceUrl());
+        assertEquals(admin2.clusters().getCluster(cluster2).getBrokerServiceUrl(), pulsar2.getBrokerServiceUrl());
+        assertEquals(admin2.clusters().getCluster(cluster3).getBrokerServiceUrl(), pulsar3.getBrokerServiceUrl());
 
         // Also create V1 namespace for compatibility check
         admin1.clusters().createCluster("global", ClusterData.builder()
@@ -193,7 +289,7 @@ public abstract class ReplicatorTestBase extends TestRetrySupport {
                 .serviceUrlTls("https://global:8443")
                 .build());
         admin1.namespaces().createNamespace("pulsar/global/ns");
-        admin1.namespaces().setNamespaceReplicationClusters("pulsar/global/ns", Sets.newHashSet("r1", "r2", "r3"));
+        admin1.namespaces().setNamespaceReplicationClusters("pulsar/global/ns", Sets.newHashSet(cluster1, cluster2, cluster3));
 
         Thread.sleep(100);
         log.info("--- ReplicatorTestBase::setup completed ---");
@@ -201,16 +297,21 @@ public abstract class ReplicatorTestBase extends TestRetrySupport {
     }
 
     public void setConfig3DefaultValue() {
-        setConfigDefaults(config3, "r3", bkEnsemble3);
+        setConfigDefaults(config3, cluster3, bkEnsemble3);
         config3.setTlsEnabled(true);
     }
 
     public void setConfig1DefaultValue(){
-        setConfigDefaults(config1, "r1", bkEnsemble1);
+        setConfigDefaults(config1, cluster1, bkEnsemble1);
     }
 
     public void setConfig2DefaultValue() {
-        setConfigDefaults(config2, "r2", bkEnsemble2);
+        setConfigDefaults(config2, cluster2, bkEnsemble2);
+    }
+
+    public void setConfig4DefaultValue() {
+        setConfigDefaults(config4, cluster4, bkEnsemble4);
+        config4.setEnableReplicatedSubscriptions(false);
     }
 
     private void setConfigDefaults(ServiceConfiguration config, String clusterName,
@@ -228,12 +329,19 @@ public abstract class ReplicatorTestBase extends TestRetrySupport {
         config.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
         config.setBrokerServicePort(Optional.of(0));
         config.setBrokerServicePortTls(Optional.of(0));
-        config.setTlsCertificateFilePath(TLS_SERVER_CERT_FILE_PATH);
-        config.setTlsKeyFilePath(TLS_SERVER_KEY_FILE_PATH);
-        config.setTlsTrustCertsFilePath(TLS_SERVER_CERT_FILE_PATH);
+        config.setTlsCertificateFilePath(brokerCertFilePath);
+        config.setTlsKeyFilePath(brokerFilePath);
+        config.setTlsTrustCertsFilePath(caCertFilePath);
+        config.setTlsEnabledWithKeyStore(tlsWithKeyStore);
+        config.setTlsKeyStore(brokerKeyStorePath);
+        config.setTlsKeyStoreType(keyStoreType);
+        config.setTlsKeyStorePassword(keyStorePassword);
+        config.setTlsTrustStore(brokerTrustStorePath);
+        config.setTlsTrustStoreType(keyStoreType);
+        config.setTlsTrustStorePassword(keyStorePassword);
         config.setBacklogQuotaCheckIntervalInSeconds(TIME_TO_CHECK_BACKLOG_QUOTA);
         config.setDefaultNumberOfNamespaceBundles(1);
-        config.setAllowAutoTopicCreationType("non-partitioned");
+        config.setAllowAutoTopicCreationType(TopicType.NON_PARTITIONED);
         config.setEnableReplicatedSubscriptions(true);
         config.setReplicatedSubscriptionsSnapshotFrequencyMillis(1000);
     }
@@ -253,6 +361,11 @@ public abstract class ReplicatorTestBase extends TestRetrySupport {
         setConfig3DefaultValue();
     }
 
+    public void resetConfig4() {
+        config4 = new ServiceConfiguration();
+        setConfig4DefaultValue();
+    }
+
     private int inSec(int time, TimeUnit unit) {
         return (int) TimeUnit.SECONDS.convert(time, unit);
     }
@@ -269,7 +382,11 @@ public abstract class ReplicatorTestBase extends TestRetrySupport {
         admin1.close();
         admin2.close();
         admin3.close();
+        admin4.close();
 
+        if (pulsar4 != null) {
+            pulsar4.close();
+        }
         if (pulsar3 != null) {
             pulsar3.close();
         }
@@ -283,11 +400,13 @@ public abstract class ReplicatorTestBase extends TestRetrySupport {
         bkEnsemble1.stop();
         bkEnsemble2.stop();
         bkEnsemble3.stop();
+        bkEnsemble4.stop();
         globalZkS.stop();
 
         resetConfig1();
         resetConfig2();
         resetConfig3();
+        resetConfig4();
     }
 
     static class MessageProducer implements AutoCloseable {
@@ -302,12 +421,16 @@ public abstract class ReplicatorTestBase extends TestRetrySupport {
             this.namespace = dest.getNamespace();
             this.topicName = dest.toString();
             client = PulsarClient.builder().serviceUrl(url.toString()).statsInterval(0, TimeUnit.SECONDS).build();
-            producer = client.newProducer()
-                .topic(topicName)
-                .enableBatching(false)
-                .messageRoutingMode(MessageRoutingMode.SinglePartition)
-                .create();
-
+            try {
+                producer = client.newProducer()
+                        .topic(topicName)
+                        .enableBatching(false)
+                        .messageRoutingMode(MessageRoutingMode.SinglePartition)
+                        .create();
+            } catch (Exception e) {
+                client.close();
+                throw e;
+            }
         }
 
         MessageProducer(URL url, final TopicName dest, boolean batch) throws Exception {
@@ -320,8 +443,12 @@ public abstract class ReplicatorTestBase extends TestRetrySupport {
                 .enableBatching(batch)
                 .batchingMaxPublishDelay(1, TimeUnit.SECONDS)
                 .batchingMaxMessages(5);
-            producer = producerBuilder.create();
-
+            try {
+                producer = producerBuilder.create();
+            } catch (Exception e) {
+                client.close();
+                throw e;
+            }
         }
 
         void produceBatch(int messages) throws Exception {

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -28,10 +28,12 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Consumer;
+import lombok.Getter;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.service.nonpersistent.NonPersistentTopic;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.stats.BrokerOperabilityMetrics;
+import org.apache.pulsar.broker.stats.BrokerStats;
 import org.apache.pulsar.broker.stats.ClusterReplicationMetrics;
 import org.apache.pulsar.broker.stats.NamespaceStats;
 import org.apache.pulsar.common.naming.NamespaceBundle;
@@ -47,7 +49,11 @@ public class PulsarStats implements Closeable {
 
     private volatile ByteBuf topicStatsBuf;
     private volatile ByteBuf tempTopicStatsBuf;
+
+    @Getter
+    private BrokerStats brokerStats;
     private NamespaceStats nsStats;
+
     private final ClusterReplicationMetrics clusterReplicationMetrics;
     private Map<String, NamespaceBundleStats> bundleStats;
     private List<Metrics> tempMetricsCollection;
@@ -58,11 +64,15 @@ public class PulsarStats implements Closeable {
 
     private final ReentrantReadWriteLock bufferLock = new ReentrantReadWriteLock();
 
+    @Getter
+    private long updatedAt;
+
     public PulsarStats(PulsarService pulsar) {
         this.topicStatsBuf = Unpooled.buffer(16 * 1024);
         this.tempTopicStatsBuf = Unpooled.buffer(16 * 1024);
 
         this.nsStats = new NamespaceStats(pulsar.getConfig().getStatsUpdateFrequencyInSecs());
+        this.brokerStats = new BrokerStats(pulsar.getConfig().getStatsUpdateFrequencyInSecs());
         this.clusterReplicationMetrics = new ClusterReplicationMetrics(pulsar.getConfiguration().getClusterName(),
                 pulsar.getConfiguration().isReplicationMetricsEnabled());
         this.bundleStats = new ConcurrentHashMap<>();
@@ -73,6 +83,8 @@ public class PulsarStats implements Closeable {
         this.tempNonPersistentTopics = new ArrayList<>();
 
         this.exposePublisherStats = pulsar.getConfiguration().isExposePublisherStats();
+        this.updatedAt = 0;
+
     }
 
     @Override
@@ -100,6 +112,7 @@ public class PulsarStats implements Closeable {
             tempMetricsCollection.clear();
             bundleStats.clear();
             brokerOperabilityMetrics.reset();
+            brokerStats.reset();
 
             // Json begin
             topicStatsStream.startObject();
@@ -119,6 +132,7 @@ public class PulsarStats implements Closeable {
                                 k -> new NamespaceBundleStats());
                         currentBundleStats.reset();
                         currentBundleStats.topics = topics.size();
+                        brokerStats.topics += topics.size();
 
                         topicStatsStream.startObject(NamespaceBundle.getBundleRange(bundle));
 
@@ -169,6 +183,18 @@ public class PulsarStats implements Closeable {
                         topicStatsStream.endObject();
                     });
 
+                    brokerStats.bundleCount += bundles.size();
+                    brokerStats.producerCount += nsStats.producerCount;
+                    brokerStats.replicatorCount += nsStats.replicatorCount;
+                    brokerStats.subsCount += nsStats.subsCount;
+                    brokerStats.consumerCount += nsStats.consumerCount;
+                    brokerStats.msgBacklog += nsStats.msgBacklog;
+                    brokerStats.msgRateIn += nsStats.msgRateIn;
+                    brokerStats.msgRateOut += nsStats.msgRateOut;
+                    brokerStats.msgThroughputIn += nsStats.msgThroughputIn;
+                    brokerStats.msgThroughputOut += nsStats.msgThroughputOut;
+                    NamespaceStats.add(nsStats.addLatencyBucket, brokerStats.addLatencyBucket);
+
                     topicStatsStream.endObject();
                     // Update metricsCollection with namespace stats
                     tempMetricsCollection.add(nsStats.add(namespaceName));
@@ -178,11 +204,10 @@ public class PulsarStats implements Closeable {
                 }
             });
             if (clusterReplicationMetrics.isMetricsEnabled()) {
-                clusterReplicationMetrics.get().forEach(clusterMetric -> tempMetricsCollection.add(clusterMetric));
+                tempMetricsCollection.addAll(clusterReplicationMetrics.get());
                 clusterReplicationMetrics.reset();
             }
-            brokerOperabilityMetrics.getMetrics()
-                    .forEach(brokerOperabilityMetric -> tempMetricsCollection.add(brokerOperabilityMetric));
+            tempMetricsCollection.addAll(brokerOperabilityMetrics.getMetrics());
 
             // json end
             topicStatsStream.endObject();
@@ -204,9 +229,10 @@ public class PulsarStats implements Closeable {
         } finally {
             bufferLock.writeLock().unlock();
         }
+        updatedAt = System.currentTimeMillis();
     }
 
-    public NamespaceBundleStats invalidBundleStats(String bundleName) {
+    public synchronized NamespaceBundleStats invalidBundleStats(String bundleName) {
         return bundleStats.remove(bundleName);
     }
 
@@ -227,7 +253,7 @@ public class PulsarStats implements Closeable {
         return brokerOperabilityMetrics;
     }
 
-    public Map<String, NamespaceBundleStats> getBundleStats() {
+    public synchronized Map<String, NamespaceBundleStats> getBundleStats() {
         return bundleStats;
     }
 
@@ -237,6 +263,10 @@ public class PulsarStats implements Closeable {
         } catch (Exception ex) {
             log.warn("Exception while recording topic load time for topic {}, {}", topic, ex.getMessage());
         }
+    }
+
+    public void recordTopicLoadFailed() {
+        brokerOperabilityMetrics.recordTopicLoadFailed();
     }
 
     public void recordConnectionCreate() {

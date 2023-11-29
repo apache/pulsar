@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -40,6 +40,14 @@ public interface ManagedLedgerInterceptor {
      * @return an OpAddEntry.
      */
     OpAddEntry beforeAddEntry(OpAddEntry op, int numberOfMessages);
+
+    /**
+     * Intercept When add entry failed.
+     * @param numberOfMessages
+     */
+    default void afterFailedAddEntry(int numberOfMessages){
+
+    }
 
     /**
      * Intercept when ManagedLedger is initialized.

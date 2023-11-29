@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.pulsar.metadata.impl;
 
 import java.nio.charset.StandardCharsets;
@@ -133,6 +132,7 @@ public class RocksdbMetadataStoreTest {
         store1.close();
         store2.put("/test-2", new byte[0], Optional.empty()).join();
         Assert.assertTrue(store2.exists("/test-2").join());
+        store2.close();
 
         FileUtils.deleteQuietly(tempDir.toFile());
     }

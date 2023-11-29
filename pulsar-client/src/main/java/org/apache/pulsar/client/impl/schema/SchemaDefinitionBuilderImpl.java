@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -129,7 +129,7 @@ public class SchemaDefinitionBuilderImpl<T> implements SchemaDefinitionBuilder<T
         if (properties.containsKey(ALWAYS_ALLOW_NULL)) {
             alwaysAllowNull = Boolean.parseBoolean(properties.get(ALWAYS_ALLOW_NULL));
         }
-        if (properties.containsKey(ALWAYS_ALLOW_NULL)) {
+        if (properties.containsKey(JSR310_CONVERSION_ENABLED)) {
             jsr310ConversionEnabled = Boolean.parseBoolean(properties.get(JSR310_CONVERSION_ENABLED));
         }
         return this;

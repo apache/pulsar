@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.pulsar.io.kafka.connect.schema;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -53,6 +52,14 @@ public class KafkaConnectData {
             out.add(getKafkaConnectData(elem, kafkaValueSchema));
         }
         return out;
+    }
+
+
+    public static Object getKafkaConnectDataFromSchema(Object nativeObject, Schema kafkaSchema) {
+        if (kafkaSchema != null && nativeObject == null) {
+            return null;
+        }
+        return getKafkaConnectData(nativeObject, kafkaSchema);
     }
 
     @SuppressWarnings("unchecked")
@@ -381,6 +388,7 @@ public class KafkaConnectData {
         if (kafkaSchema.isOptional()) {
             return null;
         }
+
         throw new DataException("Invalid null value for required " + kafkaSchema.type() + " field");
     }
 }

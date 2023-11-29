@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -22,5 +22,5 @@ package org.apache.pulsar.io.hdfs3;
  * An enumeration of compression codecs available for HDFS.
  */
 public enum Compression {
-    BZIP2, DEFLATE, GZIP, LZ4, SNAPPY
+    BZIP2, DEFLATE, GZIP, LZ4, SNAPPY, ZSTANDARD
 }

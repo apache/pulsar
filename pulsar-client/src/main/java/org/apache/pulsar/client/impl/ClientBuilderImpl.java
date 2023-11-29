@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -21,6 +21,7 @@ package org.apache.pulsar.client.impl;
 import static com.google.common.base.Preconditions.checkArgument;
 import java.net.InetSocketAddress;
 import java.time.Clock;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
@@ -36,6 +37,7 @@ import org.apache.pulsar.client.api.ServiceUrlProvider;
 import org.apache.pulsar.client.api.SizeUnit;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.conf.ConfigurationDataUtils;
+import org.apache.pulsar.common.tls.InetAddressUtils;
 
 public class ClientBuilderImpl implements ClientBuilder {
     ClientConfigurationData conf;
@@ -75,6 +77,7 @@ public class ClientBuilderImpl implements ClientBuilder {
     @Override
     public ClientBuilder loadConf(Map<String, Object> config) {
         conf = ConfigurationDataUtils.loadData(config, conf, ClientConfigurationData.class);
+        setAuthenticationFromPropsIfAvailable(conf);
         return this;
     }
 
@@ -136,6 +139,24 @@ public class ClientBuilderImpl implements ClientBuilder {
         conf.setAuthParams(null);
         conf.setAuthentication(AuthenticationFactory.create(authPluginClassName, authParams));
         return this;
+    }
+
+    private void setAuthenticationFromPropsIfAvailable(ClientConfigurationData clientConfig) {
+        String authPluginClass = clientConfig.getAuthPluginClassName();
+        String authParams = clientConfig.getAuthParams();
+        Map<String, String> authParamMap = clientConfig.getAuthParamMap();
+        if (StringUtils.isBlank(authPluginClass) || (StringUtils.isBlank(authParams) && authParamMap == null)) {
+            return;
+        }
+        try {
+            if (StringUtils.isNotBlank(authParams)) {
+                authentication(authPluginClass, authParams);
+            } else if (authParamMap != null) {
+                authentication(authPluginClass, authParamMap);
+            }
+        } catch (UnsupportedAuthenticationException ex) {
+            throw new RuntimeException("Failed to create authentication: " + ex.getMessage(), ex);
+        }
     }
 
     @Override
@@ -375,6 +396,17 @@ public class ClientBuilderImpl implements ClientBuilder {
     }
 
     @Override
+    public ClientBuilder dnsServerAddresses(List<InetSocketAddress> addresses) {
+        for (InetSocketAddress address : addresses) {
+            String ip = address.getHostString();
+            checkArgument(InetAddressUtils.isIPv4Address(ip) || InetAddressUtils.isIPv6Address(ip),
+                    "DnsServerAddresses need to be valid IPv4 or IPv6 addresses");
+        }
+        conf.setDnsServerAddresses(addresses);
+        return this;
+    }
+
+    @Override
     public ClientBuilder socks5ProxyAddress(InetSocketAddress socks5ProxyAddress) {
         conf.setSocks5ProxyAddress(socks5ProxyAddress);
         return this;
@@ -389,6 +421,29 @@ public class ClientBuilderImpl implements ClientBuilder {
     @Override
     public ClientBuilder socks5ProxyPassword(String socks5ProxyPassword) {
         conf.setSocks5ProxyPassword(socks5ProxyPassword);
+        return this;
+    }
+
+    /**
+     * Set the description.
+     *
+     * <p> By default, when the client connects to the broker, a version string like "Pulsar-Java-v<x.y.z>" will be
+     * carried and saved by the broker. The client version string could be queried from the topic stats.
+     *
+     * <p> This method provides a way to add more description to a specific PulsarClient instance. If it's configured,
+     * the description will be appended to the original client version string, with '-' as the separator.
+     *
+     * <p>For example, if the client version is 3.0.0, and the description is "forked", the final client version string
+     * will be "Pulsar-Java-v3.0.0-forked".
+     *
+     * @param description the description of the current PulsarClient instance
+     * @throws IllegalArgumentException if the length of description exceeds 64
+     */
+    public ClientBuilder description(String description) {
+        if (description != null && description.length() > 64) {
+            throw new IllegalArgumentException("description should be at most 64 characters");
+        }
+        conf.setDescription(description);
         return this;
     }
 }

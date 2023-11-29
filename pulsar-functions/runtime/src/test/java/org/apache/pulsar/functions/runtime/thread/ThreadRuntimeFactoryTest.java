@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.pulsar.functions.runtime.thread;
 
 import lombok.extern.slf4j.Slf4j;
@@ -117,7 +116,8 @@ public class ThreadRuntimeFactoryTest {
 
             WorkerConfig workerConfig = new WorkerConfig();
             workerConfig.setFunctionRuntimeFactoryClassName(ThreadRuntimeFactory.class.getName());
-            workerConfig.setFunctionRuntimeFactoryConfigs(ObjectMapperFactory.getThreadLocal().convertValue(threadRuntimeFactoryConfig, Map.class));
+            workerConfig.setFunctionRuntimeFactoryConfigs(
+                    ObjectMapperFactory.getMapper().getObjectMapper().convertValue(threadRuntimeFactoryConfig, Map.class));
             workerConfig.setPulsarServiceUrl("pulsar://broker.pulsar:6650");
 
             ThreadRuntimeFactory threadRuntimeFactory = new ThreadRuntimeFactory();

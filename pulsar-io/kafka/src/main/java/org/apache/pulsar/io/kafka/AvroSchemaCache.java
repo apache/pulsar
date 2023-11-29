@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -38,9 +38,9 @@ final class AvroSchemaCache {
     private final LoadingCache<Integer, Schema<ByteBuffer>> cache = CacheBuilder
             .newBuilder()
             .maximumSize(100)
-            .build(new CacheLoader<Integer, Schema<ByteBuffer>>() {
+            .build(new CacheLoader<>() {
                 @Override
-                public Schema<ByteBuffer> load(Integer schemaId) throws Exception {
+                public Schema<ByteBuffer> load(Integer schemaId) {
                     return fetchSchema(schemaId);
                 }
             });

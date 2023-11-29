@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -29,6 +29,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import javax.crypto.SecretKey;
+import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.authentication.AuthenticationProviderToken;
@@ -58,6 +59,8 @@ public class AdminApiSchemaWithAuthTest extends MockedPulsarServiceBaseTest {
     private static final String ADMIN_TOKEN = Jwts.builder().setSubject("admin").signWith(SECRET_KEY).compact();
     private static final String CONSUME_TOKEN = Jwts.builder().setSubject("consumer").signWith(SECRET_KEY).compact();
 
+    private static final String PRODUCE_TOKEN = Jwts.builder().setSubject("producer").signWith(SECRET_KEY).compact();
+
     @BeforeMethod
     @Override
     public void setup() throws Exception {
@@ -79,6 +82,7 @@ public class AdminApiSchemaWithAuthTest extends MockedPulsarServiceBaseTest {
                         ? brokerUrl.toString() : brokerUrlTls.toString())
                 .authentication(AuthenticationToken.class.getName(),
                         ADMIN_TOKEN);
+        closeAdmin();
         admin = Mockito.spy(pulsarAdminBuilder.build());
 
         // Setup namespaces
@@ -97,22 +101,32 @@ public class AdminApiSchemaWithAuthTest extends MockedPulsarServiceBaseTest {
     @Test
     public void testGetCreateDeleteSchema() throws Exception {
         String topicName = "persistent://schematest/test/testCreateSchema";
+        @Cleanup
         PulsarAdmin adminWithoutPermission = PulsarAdmin.builder()
                 .serviceHttpUrl(brokerUrl != null ? brokerUrl.toString() : brokerUrlTls.toString())
                 .build();
+        @Cleanup
         PulsarAdmin adminWithAdminPermission = PulsarAdmin.builder()
                 .serviceHttpUrl(brokerUrl != null ? brokerUrl.toString() : brokerUrlTls.toString())
                 .authentication(AuthenticationToken.class.getName(), ADMIN_TOKEN)
                 .build();
+        @Cleanup
         PulsarAdmin adminWithConsumePermission = PulsarAdmin.builder()
                 .serviceHttpUrl(brokerUrl != null ? brokerUrl.toString() : brokerUrlTls.toString())
                 .authentication(AuthenticationToken.class.getName(), CONSUME_TOKEN)
+                .build();
+        @Cleanup
+        PulsarAdmin adminWithProducePermission = PulsarAdmin.builder()
+                .serviceHttpUrl(brokerUrl != null ? brokerUrl.toString() : brokerUrlTls.toString())
+                .authentication(AuthenticationToken.class.getName(), PRODUCE_TOKEN)
                 .build();
         admin.topics().grantPermission(topicName, "consumer", EnumSet.of(AuthAction.consume));
         admin.topics().grantPermission(topicName, "producer", EnumSet.of(AuthAction.produce));
 
         SchemaInfo si = Schema.BOOL.getSchemaInfo();
+        assertThrows(PulsarAdminException.class, () -> adminWithConsumePermission.schemas().getSchemaInfo(topicName));
         assertThrows(PulsarAdminException.class, () -> adminWithoutPermission.schemas().createSchema(topicName, si));
+        adminWithProducePermission.schemas().createSchema(topicName, si);
         adminWithAdminPermission.schemas().createSchema(topicName, si);
 
         assertThrows(PulsarAdminException.class, () -> adminWithoutPermission.schemas().getSchemaInfo(topicName));

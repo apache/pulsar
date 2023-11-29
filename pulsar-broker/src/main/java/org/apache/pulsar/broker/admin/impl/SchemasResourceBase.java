@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -114,8 +114,8 @@ public class SchemasResourceBase extends AdminResource {
     }
 
     public CompletableFuture<SchemaVersion> postSchemaAsync(PostSchemaPayload payload, boolean authoritative) {
-        return validateDestinationAndAdminOperationAsync(authoritative)
-                .thenCompose(__ -> getSchemaCompatibilityStrategyAsync())
+        return validateOwnershipAndOperationAsync(authoritative, TopicOperation.PRODUCE)
+                .thenCompose(__ -> getSchemaCompatibilityStrategyAsyncWithoutAuth())
                 .thenCompose(schemaCompatibilityStrategy -> {
                     byte[] data;
                     if (SchemaType.KEY_VALUE.name().equals(payload.getType())) {
@@ -224,6 +224,11 @@ public class SchemasResourceBase extends AdminResource {
                                                                        TopicOperation operation) {
         return validateTopicOwnershipAsync(topicName, authoritative)
                 .thenCompose(__ -> validateTopicOperationAsync(topicName, operation));
+    }
+
+
+    protected boolean shouldPrintErrorLog(Throwable ex) {
+        return !isRedirectException(ex) && !isNotFoundException(ex);
     }
 
     private static final Logger log = LoggerFactory.getLogger(SchemasResourceBase.class);

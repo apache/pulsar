@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -407,7 +407,7 @@ public class SchemaCompatibilityCheckTest extends MockedPulsarServiceBaseTest {
         assertEquals(admin.namespaces().getSchemaCompatibilityStrategy(namespaceName.toString()),
                 SchemaCompatibilityStrategy.UNDEFINED);
         byte[] changeSchemaBytes = (new String(Schema.AVRO(Schemas.PersonOne.class)
-                .getSchemaInfo().getSchema(), UTF_8) + "/n   /n   /n").getBytes();
+                .getSchemaInfo().getSchema(), UTF_8) + "\n   \n   \n").getBytes();
         SchemaInfo schemaInfo = SchemaInfo.builder().type(SchemaType.AVRO).schema(changeSchemaBytes).build();
         admin.schemas().createSchema(fqtn, schemaInfo);
 
@@ -510,7 +510,7 @@ public class SchemaCompatibilityCheckTest extends MockedPulsarServiceBaseTest {
             producer.close();
         }
         // The other ledgers are about 5.
-        Assert.assertTrue(mockBookKeeper.getLedgerMap().values().stream()
+        Assert.assertTrue(pulsarTestContext.getMockBookKeeper().getLedgerMap().values().stream()
                 .filter(ledger -> !ledger.isFenced())
                 .collect(Collectors.toList()).size() < 20);
         admin.topics().delete(topicName, true);

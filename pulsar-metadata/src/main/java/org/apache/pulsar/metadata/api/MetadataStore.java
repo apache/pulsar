@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -49,6 +49,17 @@ public interface MetadataStore extends AutoCloseable {
      * @return a future to track the async request
      */
     CompletableFuture<Optional<GetResult>> get(String path);
+
+
+    /**
+     * Ensure that the next value read from  the local client will be up-to-date with the latest version of the value
+     * as it can be seen by all the other clients.
+     * @param path
+     * @return a handle to the operation
+     */
+    default CompletableFuture<Void> sync(String path) {
+        return CompletableFuture.completedFuture(null);
+    }
 
     /**
      * Return all the nodes (lexicographically sorted) that are children to the specific path.

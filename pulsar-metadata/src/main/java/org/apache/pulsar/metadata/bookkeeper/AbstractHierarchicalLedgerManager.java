@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -206,10 +206,11 @@ abstract class AbstractHierarchicalLedgerManager {
                             mcb = new BookkeeperInternalCallbacks.MultiCallback(activeLedgers.size(), finalCb, ctx,
                             successRc, failureRc);
                     // start loop over all ledgers
-                    for (Long ledger : activeLedgers) {
-                        processor.process(ledger, mcb);
-                    }
-
+                    scheduler.submit(() -> {
+                        for (Long ledger : activeLedgers) {
+                            processor.process(ledger, mcb);
+                        }
+                    });
                 }).exceptionally(ex -> {
                     finalCb.processResult(failureRc, null, ctx);
                     return null;

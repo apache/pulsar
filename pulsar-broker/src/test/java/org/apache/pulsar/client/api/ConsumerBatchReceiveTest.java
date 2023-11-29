@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -28,7 +28,6 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
-
 import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ForkJoinPool;
@@ -646,6 +645,86 @@ public class ConsumerBatchReceiveTest extends ProducerConsumerBase {
             consumer.acknowledge(messages);
         } while (messageReceived < expected * 2);
         Assert.assertEquals(expected * 2, messageReceived);
+    }
+
+
+    @Test(timeOut = 30000)
+    public void testBatchReceiveTheSameTopicMessages() throws Exception {
+        final String topic = "persistent://my-property/my-ns/testBatchReceiveTheSameTopicMessages" + UUID.randomUUID();
+        final String singleTopicBatchReceiveSub = "singleTopicBatchReceiveSub-sub";
+        final String multiTopicBatchReceiveSub = "multiTopicBatchReceiveSub-sub";
+        admin.topics().createPartitionedTopic(topic, 5);
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topic)
+                .enableBatching(false)
+                .create();
+
+        @Cleanup
+        Consumer<String> singleTopicBatchReceiveConsumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topic)
+                .batchReceivePolicy(BatchReceivePolicy.DEFAULT_MULTI_TOPICS_DISABLE_POLICY)
+                .subscriptionName(singleTopicBatchReceiveSub)
+                .subscribe();
+
+        @Cleanup
+        Consumer<String> multiTopicBatchReceiveConsumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topic)
+                .batchReceivePolicy(BatchReceivePolicy.DEFAULT_POLICY)
+                .subscriptionName(multiTopicBatchReceiveSub)
+                .subscribe();
+
+        // prepare messages
+        int number = 1000;
+        for (int i = 0; i < number; i++) {
+            producer.sendAsync(i + "");
+        }
+
+        // test receive single topic messages
+        // if this flag become true, it means the batch receive multi-number messages
+        boolean multiNumberFlag = false;
+
+        // if number = 0, it means all the messages has been consumed
+        while (number != 0) {
+            Messages<String> messages = singleTopicBatchReceiveConsumer.batchReceive();
+            if (messages.size() > 0) {
+                if (messages.size() > 1) {
+                    multiNumberFlag = true;
+                }
+                String topicName = null;
+                for (Message<String> message : messages) {
+                    number--;
+                    if (topicName != null) {
+                        // check if the topicName is the same
+                        Assert.assertEquals(message.getTopicName(), topicName);
+                    }
+                    topicName = message.getTopicName();
+                }
+            }
+        }
+        Assert.assertTrue(multiNumberFlag);
+
+        number  = 1000;
+        // test default batch policy can receive the multi topics messages
+        while (number != 0) {
+            Messages<String> messages = multiTopicBatchReceiveConsumer.batchReceive();
+            if (messages.size() > 0) {
+                String topicName = null;
+                for (Message<String> message : messages) {
+                    number--;
+                    if (topicName != null) {
+                        // receive the different topic messages in one batch receive
+                        if (!topicName.equals(message.getTopicName())) {
+                            return;
+                        }
+                    }
+                    topicName = message.getTopicName();
+                }
+            }
+        }
+        // if BatchReceivePolicy.DEFAULT_MULTI_TOPICS_DISABLE_POLICY can not receive the multi topics messages,
+        // the test should fail
+        Assert.fail();
     }
 
     private static final Logger log = LoggerFactory.getLogger(ConsumerBatchReceiveTest.class);

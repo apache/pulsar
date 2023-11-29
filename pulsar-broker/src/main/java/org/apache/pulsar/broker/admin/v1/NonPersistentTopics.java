@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.pulsar.broker.admin.v1;
 
 import io.swagger.annotations.Api;
@@ -122,7 +121,9 @@ public class NonPersistentTopics extends PersistentTopics {
     @Path("/{property}/{cluster}/{namespace}/{topic}/partitions")
     @ApiOperation(hidden = true, value = "Create a partitioned topic.",
             notes = "It needs to be called before creating a producer on a partitioned topic.")
-    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+    @ApiResponses(value = {
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Namespace doesn't exist"),
             @ApiResponse(code = 406, message = "The number of partitions should be more than 0 and less than or equal"
                     + " to maxNumPartitionsPerPartitionedTopic"),
             @ApiResponse(code = 409, message = "Partitioned topic already exist")})
@@ -149,7 +150,7 @@ public class NonPersistentTopics extends PersistentTopics {
     @ApiResponses(value = {
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Topic does not exist")})
+            @ApiResponse(code = 404, message = "Namespace or topic does not exist")})
     public void unloadTopic(@Suspended final AsyncResponse asyncResponse, @PathParam("property") String property,
                             @PathParam("cluster") String cluster, @PathParam("namespace") String namespace,
                             @PathParam("topic") @Encoded String encodedTopic,
@@ -283,11 +284,12 @@ public class NonPersistentTopics extends PersistentTopics {
         }
     }
 
-    private Topic getTopicReference(TopicName topicName) {
+    private Topic getTopicReference(final TopicName topicName) {
         try {
             return pulsar().getBrokerService().getTopicIfExists(topicName.toString())
                     .get(config().getMetadataStoreOperationTimeoutSeconds(), TimeUnit.SECONDS)
-                    .orElseThrow(() -> new RestException(Status.NOT_FOUND, "Topic not found"));
+                    .orElseThrow(() -> new RestException(Status.NOT_FOUND,
+                            String.format("Topic not found %s", topicName.toString())));
         } catch (ExecutionException e) {
             throw new RuntimeException(e.getCause());
         } catch (InterruptedException | TimeoutException e) {

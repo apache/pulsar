@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -25,6 +25,7 @@ import com.google.common.collect.Sets;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import java.util.Base64;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.Optional;
 import java.util.Set;
@@ -32,12 +33,21 @@ import java.util.concurrent.TimeUnit;
 import javax.crypto.SecretKey;
 import javax.ws.rs.client.Client;
 import javax.ws.rs.core.Response;
+import lombok.Cleanup;
 import org.apache.pulsar.broker.authentication.AuthenticationProviderToken;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.broker.authentication.utils.AuthTokenUtils;
 import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.client.admin.PulsarAdmin;
-import org.apache.pulsar.client.api.*;
+import org.apache.pulsar.client.api.AuthenticationFactory;
+import org.apache.pulsar.client.api.ClientBuilder;
+import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.ProducerConsumerBase;
+import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.auth.AuthenticationToken;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.common.policies.data.AuthAction;
@@ -56,7 +66,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 public class ProxyWithJwtAuthorizationTest extends ProducerConsumerBase {
-    private static final Logger log = LoggerFactory.getLogger(ProxyWithAuthorizationTest.class);
+    private static final Logger log = LoggerFactory.getLogger(ProxyWithJwtAuthorizationTest.class);
 
     private final String ADMIN_ROLE = "admin";
     private final String PROXY_ROLE = "proxy";
@@ -70,6 +80,7 @@ public class ProxyWithJwtAuthorizationTest extends ProducerConsumerBase {
     private final String CLIENT_TOKEN = Jwts.builder().setSubject(CLIENT_ROLE).signWith(SECRET_KEY).compact();
 
     private ProxyService proxyService;
+    private WebServer webServer;
     private final ProxyConfiguration proxyConfig = new ProxyConfiguration();
 
     @BeforeMethod
@@ -85,6 +96,7 @@ public class ProxyWithJwtAuthorizationTest extends ProducerConsumerBase {
         superUserRoles.add(PROXY_ROLE);
         superUserRoles.add(BROKER_ROLE);
         conf.setSuperUserRoles(superUserRoles);
+        conf.setProxyRoles(Collections.singleton(PROXY_ROLE));
 
         conf.setBrokerClientAuthenticationPlugin(AuthenticationToken.class.getName());
         conf.setBrokerClientAuthenticationParameters(BROKER_TOKEN);
@@ -102,6 +114,7 @@ public class ProxyWithJwtAuthorizationTest extends ProducerConsumerBase {
         proxyConfig.setAuthorizationEnabled(false);
         proxyConfig.getProperties().setProperty("tokenSecretKey", "data:;base64," + Base64.getEncoder().encodeToString(SECRET_KEY.getEncoded()));
         proxyConfig.setBrokerServiceURL(pulsar.getBrokerServiceUrl());
+        proxyConfig.setBrokerWebServiceURL(pulsar.getWebServiceAddress());
 
         proxyConfig.setServicePort(Optional.of(0));
         proxyConfig.setBrokerProxyAllowedTargetPorts("*");
@@ -111,10 +124,12 @@ public class ProxyWithJwtAuthorizationTest extends ProducerConsumerBase {
         proxyConfig.setBrokerClientAuthenticationPlugin(AuthenticationToken.class.getName());
         proxyConfig.setBrokerClientAuthenticationParameters(PROXY_TOKEN);
         proxyConfig.setAuthenticationProviders(providers);
+        proxyConfig.setStatusFilePath("./src/test/resources/vip_status.html");
 
-        proxyService = Mockito.spy(new ProxyService(proxyConfig,
-                new AuthenticationService(
-                        PulsarConfigurationLoader.convertFrom(proxyConfig))));
+        AuthenticationService authService =
+                new AuthenticationService(PulsarConfigurationLoader.convertFrom(proxyConfig));
+        proxyService = Mockito.spy(new ProxyService(proxyConfig, authService));
+        webServer = new WebServer(proxyConfig, authService);
     }
 
     @AfterMethod(alwaysRun = true)
@@ -122,10 +137,13 @@ public class ProxyWithJwtAuthorizationTest extends ProducerConsumerBase {
     protected void cleanup() throws Exception {
         super.internalCleanup();
         proxyService.close();
+        webServer.stop();
     }
 
     private void startProxy() throws Exception {
         proxyService.start();
+        ProxyServiceStarter.addWebServerHandlers(webServer, proxyConfig, proxyService, null);
+        webServer.start();
     }
 
     /**
@@ -146,6 +164,7 @@ public class ProxyWithJwtAuthorizationTest extends ProducerConsumerBase {
 
         startProxy();
         createAdminClient();
+        @Cleanup
         PulsarClient proxyClient = createPulsarClient(proxyService.getServiceUrl(), PulsarClient.builder());
 
         String namespaceName = "my-property/proxy-authorization/my-ns";
@@ -226,6 +245,7 @@ public class ProxyWithJwtAuthorizationTest extends ProducerConsumerBase {
 
         startProxy();
         createAdminClient();
+        @Cleanup
         PulsarClient proxyClient = createPulsarClient(proxyService.getServiceUrl(), PulsarClient.builder());
 
         String clusterName = "proxy-authorization";
@@ -341,6 +361,7 @@ public class ProxyWithJwtAuthorizationTest extends ProducerConsumerBase {
 
         startProxy();
         createAdminClient();
+        @Cleanup
         PulsarClient proxyClient = createPulsarClient(proxyService.getServiceUrl(), PulsarClient.builder());
 
         String namespaceName = "my-property/proxy-authorization/my-ns";
@@ -394,18 +415,42 @@ public class ProxyWithJwtAuthorizationTest extends ProducerConsumerBase {
     }
 
     @Test
+    void testGetStatus() throws Exception {
+        log.info("-- Starting {} test --", methodName);
+        final PulsarResources resource = new PulsarResources(registerCloseable(new ZKMetadataStore(mockZooKeeper)),
+                registerCloseable(new ZKMetadataStore(mockZooKeeperGlobal)));
+        final AuthenticationService authService = new AuthenticationService(
+                PulsarConfigurationLoader.convertFrom(proxyConfig));
+        final WebServer webServer = new WebServer(proxyConfig, authService);
+        ProxyServiceStarter.addWebServerHandlers(webServer, proxyConfig, proxyService,
+                registerCloseable(new BrokerDiscoveryProvider(proxyConfig, resource)));
+        webServer.start();
+        @Cleanup
+        final Client client = javax.ws.rs.client.ClientBuilder
+                .newClient(new ClientConfig().register(LoggingFeature.class));
+        try {
+            final Response r = client.target(webServer.getServiceUri()).path("/status.html").request().get();
+            Assert.assertEquals(r.getStatus(), Response.Status.OK.getStatusCode());
+        } finally {
+            webServer.stop();
+        }
+        log.info("-- Exiting {} test --", methodName);
+    }
+
+    @Test
     void testGetMetrics() throws Exception {
         log.info("-- Starting {} test --", methodName);
         startProxy();
-        PulsarResources resource = new PulsarResources(new ZKMetadataStore(mockZooKeeper),
-                new ZKMetadataStore(mockZooKeeperGlobal));
+        PulsarResources resource = new PulsarResources(registerCloseable(new ZKMetadataStore(mockZooKeeper)),
+                registerCloseable(new ZKMetadataStore(mockZooKeeperGlobal)));
         AuthenticationService authService = new AuthenticationService(
                 PulsarConfigurationLoader.convertFrom(proxyConfig));
         proxyConfig.setAuthenticateMetricsEndpoint(false);
         WebServer webServer = new WebServer(proxyConfig, authService);
         ProxyServiceStarter.addWebServerHandlers(webServer, proxyConfig, proxyService,
-                new BrokerDiscoveryProvider(proxyConfig, resource));
+                registerCloseable(new BrokerDiscoveryProvider(proxyConfig, resource)));
         webServer.start();
+        @Cleanup
         Client client = javax.ws.rs.client.ClientBuilder.newClient(new ClientConfig().register(LoggingFeature.class));
         try {
             Response r = client.target(webServer.getServiceUri()).path("/metrics").request().get();
@@ -416,7 +461,7 @@ public class ProxyWithJwtAuthorizationTest extends ProducerConsumerBase {
         proxyConfig.setAuthenticateMetricsEndpoint(true);
         webServer = new WebServer(proxyConfig, authService);
         ProxyServiceStarter.addWebServerHandlers(webServer, proxyConfig, proxyService,
-                new BrokerDiscoveryProvider(proxyConfig, resource));
+                registerCloseable(new BrokerDiscoveryProvider(proxyConfig, resource)));
         webServer.start();
         try {
             Response r = client.target(webServer.getServiceUri()).path("/metrics").request().get();
@@ -428,7 +473,8 @@ public class ProxyWithJwtAuthorizationTest extends ProducerConsumerBase {
     }
 
     private void createAdminClient() throws Exception {
-        admin = spy(PulsarAdmin.builder().serviceHttpUrl(brokerUrl.toString())
+        closeAdmin();
+        admin = spy(PulsarAdmin.builder().serviceHttpUrl(webServer.getServiceUri().toString())
                 .authentication(AuthenticationFactory.token(ADMIN_TOKEN)).build());
     }
 

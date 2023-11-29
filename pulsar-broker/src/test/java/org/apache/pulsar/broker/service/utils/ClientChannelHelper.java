@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,9 +19,16 @@
 package org.apache.pulsar.broker.service.utils;
 
 import java.util.Queue;
-
+import org.apache.pulsar.common.api.proto.CommandAddPartitionToTxnResponse;
+import org.apache.pulsar.common.api.proto.CommandAddSubscriptionToTxnResponse;
+import org.apache.pulsar.common.api.proto.CommandAuthChallenge;
+import org.apache.pulsar.common.api.proto.CommandEndTxnOnPartitionResponse;
+import org.apache.pulsar.common.api.proto.CommandEndTxnOnSubscriptionResponse;
+import org.apache.pulsar.common.api.proto.CommandEndTxnResponse;
 import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespaceResponse;
 import org.apache.pulsar.common.api.proto.CommandPartitionedTopicMetadataResponse;
+import org.apache.pulsar.common.api.proto.CommandPing;
+import org.apache.pulsar.common.api.proto.CommandPong;
 import org.apache.pulsar.common.api.proto.CommandWatchTopicListSuccess;
 import org.apache.pulsar.common.protocol.PulsarDecoder;
 import org.apache.pulsar.common.api.proto.CommandAck;
@@ -77,6 +84,11 @@ public class ClientChannelHelper {
         @Override
         protected void handleConnected(CommandConnected connected) {
             queue.offer(new CommandConnected().copyFrom(connected));
+        }
+
+        @Override
+        protected void handleAuthChallenge(CommandAuthChallenge challenge) {
+            queue.offer(new CommandAuthChallenge().copyFrom(challenge));
         }
 
         @Override
@@ -167,6 +179,45 @@ public class ClientChannelHelper {
         @Override
         protected void handlePartitionResponse(CommandPartitionedTopicMetadataResponse response) {
             queue.offer(new CommandPartitionedTopicMetadataResponse().copyFrom(response));
+        }
+
+        @Override
+        protected void handleAddPartitionToTxnResponse(
+                CommandAddPartitionToTxnResponse commandAddPartitionToTxnResponse) {
+            queue.offer(new CommandAddPartitionToTxnResponse().copyFrom(commandAddPartitionToTxnResponse));
+        }
+
+        @Override
+        protected void handleAddSubscriptionToTxnResponse(
+                CommandAddSubscriptionToTxnResponse commandAddSubscriptionToTxnResponse) {
+            queue.offer(new CommandAddSubscriptionToTxnResponse().copyFrom(commandAddSubscriptionToTxnResponse));
+        }
+
+        @Override
+        protected void handleEndTxnResponse(CommandEndTxnResponse commandEndTxnResponse) {
+            queue.offer(new CommandEndTxnResponse().copyFrom(commandEndTxnResponse));
+        }
+
+        @Override
+        protected void handleEndTxnOnPartitionResponse(
+                CommandEndTxnOnPartitionResponse commandEndTxnOnPartitionResponse) {
+            queue.offer(new CommandEndTxnOnPartitionResponse().copyFrom(commandEndTxnOnPartitionResponse));
+        }
+
+        @Override
+        protected void handleEndTxnOnSubscriptionResponse(
+                CommandEndTxnOnSubscriptionResponse commandEndTxnOnSubscriptionResponse) {
+            queue.offer(new CommandEndTxnOnSubscriptionResponse().copyFrom(commandEndTxnOnSubscriptionResponse));
+        }
+
+        @Override
+        protected void handlePing(CommandPing ping) {
+            queue.offer(new CommandPing().copyFrom(ping));
+        }
+
+        @Override
+        protected void handlePong(CommandPong pong) {
+            return;
         }
     };
 

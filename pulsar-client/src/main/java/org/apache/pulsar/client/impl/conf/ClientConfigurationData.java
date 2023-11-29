@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,11 +19,14 @@
 package org.apache.pulsar.client.impl.conf;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import io.swagger.annotations.ApiModelProperty;
 import java.io.Serializable;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.time.Clock;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -110,13 +113,13 @@ public class ClientConfigurationData implements Serializable, Cloneable {
             name = "numIoThreads",
             value = "Number of IO threads."
     )
-    private int numIoThreads = 1;
+    private int numIoThreads = Runtime.getRuntime().availableProcessors();
 
     @ApiModelProperty(
             name = "numListenerThreads",
             value = "Number of consumer listener threads."
     )
-    private int numListenerThreads = 1;
+    private int numListenerThreads = Runtime.getRuntime().availableProcessors();
 
     @ApiModelProperty(
             name = "connectionsPerBroker",
@@ -170,7 +173,7 @@ public class ClientConfigurationData implements Serializable, Cloneable {
 
     @ApiModelProperty(
             name = "tlsHostnameVerificationEnable",
-            value = "Whether the hostname is validated when the proxy creates a TLS connection with brokers."
+            value = "Whether the hostname is validated when the client creates a TLS connection with brokers."
     )
     private boolean tlsHostnameVerificationEnable = false;
     @ApiModelProperty(
@@ -218,6 +221,18 @@ public class ClientConfigurationData implements Serializable, Cloneable {
             value = "Maximum duration for completing a request."
     )
     private int requestTimeoutMs = 60000;
+
+    @ApiModelProperty(
+            name = "readTimeoutMs",
+            value = "Maximum read time of a request."
+    )
+    private int readTimeoutMs = 60000;
+
+    @ApiModelProperty(
+            name = "autoCertRefreshSeconds",
+            value = "Seconds of auto refreshing certificate."
+    )
+    private int autoCertRefreshSeconds = 300;
 
     @ApiModelProperty(
             name = "initialBackoffIntervalNanos",
@@ -347,6 +362,13 @@ public class ClientConfigurationData implements Serializable, Cloneable {
     )
     private int dnsLookupBindPort = 0;
 
+    @ApiModelProperty(
+            name = "dnsServerAddresses",
+            value = "The Pulsar client dns lookup server address"
+    )
+    @SuppressFBWarnings({"EI_EXPOSE_REP2", "EI_EXPOSE_REP"})
+    private List<InetSocketAddress> dnsServerAddresses = new ArrayList<>();
+
     // socks5
     @ApiModelProperty(
             name = "socks5ProxyAddress",
@@ -367,16 +389,25 @@ public class ClientConfigurationData implements Serializable, Cloneable {
     @Secret
     private String socks5ProxyPassword;
 
+    @ApiModelProperty(
+            name = "description",
+            value = "The extra description of the client version. The length cannot exceed 64."
+    )
+    private String description;
+
+    /**
+     * Gets the authentication settings for the client.
+     *
+     * @return authentication settings for the client or {@link AuthenticationDisabled} when auth has not been specified
+     */
     public Authentication getAuthentication() {
-        if (authentication == null) {
-            this.authentication = AuthenticationDisabled.INSTANCE;
-        }
-        return authentication;
+        return this.authentication != null ? this.authentication : AuthenticationDisabled.INSTANCE;
     }
 
     public void setAuthentication(Authentication authentication) {
         this.authentication = authentication;
     }
+
     public boolean isUseTls() {
         if (useTls) {
             return true;

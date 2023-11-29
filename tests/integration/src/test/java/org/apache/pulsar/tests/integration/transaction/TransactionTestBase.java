@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -39,8 +39,6 @@ public abstract class TransactionTestBase extends PulsarTestSuite {
         super.beforeStartCluster();
         for (BrokerContainer brokerContainer : pulsarCluster.getBrokers()) {
             brokerContainer.withEnv("transactionCoordinatorEnabled", "true");
-            brokerContainer.withEnv("transactionMetadataStoreProviderClassName",
-                    "org.apache.pulsar.transaction.coordinator.impl.InMemTransactionMetadataStoreProvider");
             brokerContainer.withEnv("transactionBufferProviderClassName",
                     "org.apache.pulsar.broker.transaction.buffer.impl.TopicTransactionBufferProvider");
             brokerContainer.withEnv("acknowledgmentAtBatchIndexLevelEnabled", "true");

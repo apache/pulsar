@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -114,9 +114,7 @@ public class OverloadShedder implements LoadSheddingStrategy {
                 }).filter(e -> {
                     // Only consider bundles that were not already unloaded recently
                     return !recentlyUnloadedBundles.containsKey(e.getLeft());
-                }).filter(e ->
-                        localData.getBundles().contains(e.getLeft())
-                ).sorted((e1, e2) -> {
+                }).sorted((e1, e2) -> {
                     // Sort by throughput in reverse order
                     return Double.compare(e2.getRight(), e1.getRight());
                 }).forEach(e -> {

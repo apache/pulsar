@@ -23,7 +23,7 @@
   <parent>
     <groupId>org.apache.pulsar</groupId>
     <artifactId>docker-images</artifactId>
-    <version>2.11.0-SNAPSHOT</version>
+    <version>3.2.0-SNAPSHOT</version>
   </parent>
   <modelVersion>4.0.0</modelVersion>
   <artifactId>pulsar-all-docker-image</artifactId>
@@ -67,11 +67,18 @@
 
   <profiles>
     <profile>
-      <id>docker</id>
+      <id>git-commit-id-no-git</id>
+      <activation>
+        <file>
+          <missing>${basedir}/../../.git/index</missing>
+        </file>
+      </activation>
       <properties>
-        <docker.buildArg.PULSAR_IO_DIR>target/apache-pulsar-io-connectors-${project.version}-bin</docker.buildArg.PULSAR_IO_DIR>
-        <docker.buildArg.PULSAR_OFFLOADER_TARBALL>target/pulsar-offloader-distribution-${project.version}-bin.tar.gz</docker.buildArg.PULSAR_OFFLOADER_TARBALL>
+        <git.commit.id.abbrev>no-git</git.commit.id.abbrev>
       </properties>
+    </profile>
+    <profile>
+      <id>docker</id>
       <!-- include the docker image only when docker profile is active -->
       <dependencies>
         <dependency>
@@ -138,6 +145,7 @@
                 <phase>package</phase>
                 <goals>
                   <goal>build</goal>
+                  <goal>tag</goal>
                 </goals>
                 <configuration>
                   <images>
@@ -147,48 +155,18 @@
                         <contextDir>${project.basedir}</contextDir>
                         <tags>
                           <tag>latest</tag>
-                          <tag>${project.version}</tag>
+                          <tag>${project.version}-${git.commit.id.abbrev}</tag>
                         </tags>
-                      </build>
-                    </image>
-                  </images>
-                </configuration>
-              </execution>
-              <execution>
-                <id>push-latest</id>
-                <goals>
-                  <goal>push</goal>
-                </goals>
-                <configuration>
-                  <images>
-                    <image>
-                      <name>${docker.organization}/pulsar-all</name>
-                      <build>
-                        <contextDir>${project.basedir}</contextDir>
-                        <tags>
-                          <tag>latest</tag>
-                        </tags>
-                      </build>
-                    </image>
-                  </images>
-                </configuration>
-              </execution>
-              <execution>
-                <id>add-no-repo</id>
-                <phase>package</phase>
-                <goals>
-                  <goal>build</goal>
-                </goals>
-                <configuration>
-                  <images>
-                    <image>
-                      <name>pulsar-all</name>
-                      <build>
-                        <contextDir>${project.basedir}</contextDir>
-                        <tags>
-                          <tag>latest</tag>
-                          <tag>${project.version}</tag>
-                        </tags>
+                        <args>
+                          <PULSAR_IO_DIR>target/apache-pulsar-io-connectors-${project.version}-bin</PULSAR_IO_DIR>
+                          <PULSAR_OFFLOADER_TARBALL>target/pulsar-offloader-distribution-${project.version}-bin.tar.gz</PULSAR_OFFLOADER_TARBALL>
+                          <PULSAR_IMAGE>${docker.organization}/pulsar:${project.version}-${git.commit.id.abbrev}</PULSAR_IMAGE>
+                        </args>
+                        <buildx>
+                          <platforms>
+                            <platform>${docker.platforms}</platform>
+                          </platforms>
+                        </buildx>
                       </build>
                     </image>
                   </images>
@@ -199,5 +177,29 @@
         </plugins>
       </build>
     </profile>
+
+    <profile>
+      <id>docker-push</id>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>io.fabric8</groupId>
+            <artifactId>docker-maven-plugin</artifactId>
+            <executions>
+              <execution>
+                <id>default</id>
+                <phase>package</phase>
+                <goals>
+                  <goal>build</goal>
+                  <goal>tag</goal>
+                  <goal>push</goal>
+                </goals>
+              </execution>
+            </executions>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+
   </profiles>
 </project>

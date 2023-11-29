@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 /*
  * This file is derived from LocalBookkeeperEnsemble from Apache BookKeeper
  * http://bookkeeper.apache.org
@@ -53,7 +52,6 @@ import org.apache.bookkeeper.clients.config.StorageClientSettings;
 import org.apache.bookkeeper.clients.exceptions.NamespaceExistsException;
 import org.apache.bookkeeper.clients.exceptions.NamespaceNotFoundException;
 import org.apache.bookkeeper.common.allocator.PoolingPolicy;
-import org.apache.bookkeeper.common.component.ComponentStarter;
 import org.apache.bookkeeper.common.component.LifecycleComponent;
 import org.apache.bookkeeper.common.component.LifecycleComponentStack;
 import org.apache.bookkeeper.common.concurrent.FutureUtils;
@@ -133,7 +131,7 @@ public class LocalBookkeeperEnsemble {
                                    boolean clearOldData,
                                    String advertisedAddress) {
         this(numberOfBookies, zkPort, streamStoragePort, zkDataDirName, bkDataDirName, clearOldData, advertisedAddress,
-                new BasePortManager(bkBasePort));
+                bkBasePort != 0 ? new BasePortManager(bkBasePort) : () -> 0);
     }
 
     public LocalBookkeeperEnsemble(int numberOfBookies,
@@ -312,6 +310,7 @@ public class LocalBookkeeperEnsemble {
             bsConfs[i] = new ServerConfiguration(baseConf);
             // override settings
             bsConfs[i].setBookiePort(bookiePort);
+            bsConfs[i].setBookieId("bk" + i + "test");
             String zkServers = "127.0.0.1:" + zkPort;
             String metadataServiceUriStr = "zk://" + zkServers + "/ledgers";
 
@@ -456,8 +455,10 @@ public class LocalBookkeeperEnsemble {
         try {
             bookieComponents[i] = org.apache.bookkeeper.server.Main
                     .buildBookieServer(new BookieConfiguration(bsConfs[i]));
-            ComponentStarter.startComponent(bookieComponents[i]);
+            bookieComponents[i].start();
         } catch (BookieException.InvalidCookieException ice) {
+            LOG.warn("Invalid cookie found for bookie {}", i, ice);
+
             // InvalidCookieException can happen if the machine IP has changed
             // Since we are running here a local bookie that is always accessed
             // from localhost, we can ignore the error
@@ -474,7 +475,7 @@ public class LocalBookkeeperEnsemble {
 
             bookieComponents[i] = org.apache.bookkeeper.server.Main
                     .buildBookieServer(new BookieConfiguration(bsConfs[i]));
-            ComponentStarter.startComponent(bookieComponents[i]);
+            bookieComponents[i].start();
         }
 
 

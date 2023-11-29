@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -61,6 +61,8 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler {
     private final PulsarService pulsarService;
     private final PulsarClientImpl pulsarClient;
 
+    private final int randomKeyForSelectConnection;
+
     private static final AtomicIntegerFieldUpdater<TransactionBufferHandlerImpl> REQUEST_CREDITS_UPDATER =
             AtomicIntegerFieldUpdater.newUpdater(TransactionBufferHandlerImpl.class, "requestCredits");
     private volatile int requestCredits;
@@ -74,6 +76,7 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler {
         this.operationTimeoutInMills = operationTimeoutInMills;
         this.timer = timer;
         this.requestCredits = Math.max(100, maxConcurrentRequests);
+        this.randomKeyForSelectConnection = pulsarClient.getCnxPool().genRandomKeyToSelectCon();
     }
 
     @Override
@@ -134,8 +137,9 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler {
                 if (clientCnx.ctx().channel().isActive()) {
                     clientCnx.registerTransactionBufferHandler(TransactionBufferHandlerImpl.this);
                     outstandingRequests.put(op.requestId, op);
+                    final long requestId = op.requestId;
                     timer.newTimeout(timeout -> {
-                        OpRequestSend peek = outstandingRequests.remove(op.requestId);
+                        OpRequestSend peek = outstandingRequests.remove(requestId);
                         if (peek != null && !peek.cb.isDone() && !peek.cb.isCompletedExceptionally()) {
                             peek.cb.completeExceptionally(new TransactionBufferClientException
                                     .RequestTimeoutException());
@@ -296,7 +300,7 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler {
     }
 
     public CompletableFuture<ClientCnx> getClientCnxWithLookup(String topic) {
-        return pulsarClient.getConnection(topic);
+        return pulsarClient.getConnection(topic, randomKeyForSelectConnection);
     }
 
     public CompletableFuture<ClientCnx> getClientCnx(String topic) {
@@ -317,7 +321,8 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler {
                                 }
                                 InetSocketAddress brokerAddress =
                                         InetSocketAddress.createUnresolved(uri.getHost(), uri.getPort());
-                                return pulsarClient.getConnection(brokerAddress, brokerAddress);
+                                return pulsarClient.getConnection(brokerAddress, brokerAddress,
+                                        randomKeyForSelectConnection);
                             } else {
                                 // Bundle is unloading, lookup topic
                                 return getClientCnxWithLookup(topic);

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -83,4 +83,24 @@ public class LastCumulativeAckTest {
         assertEquals(lastCumulativeAckToFlush.getBitSetRecyclable(), bitSetRecyclable);
     }
 
+    @Test
+    public void testCompareTo() {
+        LastCumulativeAck lastCumulativeAck = new LastCumulativeAck();
+        lastCumulativeAck.update(new MessageIdImpl(0L, 1L, -1), null);
+
+        assertTrue(lastCumulativeAck.compareTo(new MessageIdImpl(0L, 0L, -1)) > 0);
+        assertEquals(lastCumulativeAck.compareTo(new MessageIdImpl(0L, 1L, -1)), 0);
+        assertTrue(lastCumulativeAck.compareTo(new MessageIdImpl(0L, 2L, -1)) < 0);
+        assertTrue(lastCumulativeAck.compareTo(new BatchMessageIdImpl(0L, 1L, -1, 0)) > 0);
+
+        lastCumulativeAck = new LastCumulativeAck();
+        lastCumulativeAck.update(new BatchMessageIdImpl(0L, 1L, -1, 1), null);
+
+        assertTrue(lastCumulativeAck.compareTo(new MessageIdImpl(0L, 0L, -1)) > 0);
+        assertTrue(lastCumulativeAck.compareTo(new MessageIdImpl(0L, 1L, -1)) < 0);
+        assertTrue(lastCumulativeAck.compareTo(new MessageIdImpl(0L, 2L, -1)) < 0);
+        assertTrue(lastCumulativeAck.compareTo(new BatchMessageIdImpl(0L, 1L, -1, 0)) > 0);
+        assertTrue(lastCumulativeAck.compareTo(new BatchMessageIdImpl(0L, 1L, -1, 2)) < 0);
+        assertEquals(lastCumulativeAck.compareTo(new BatchMessageIdImpl(0L, 1L, -1, 1)), 0);
+    }
 }

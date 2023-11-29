@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -23,6 +23,7 @@ public class RetryMessageUtil {
     public static final String SYSTEM_PROPERTY_RECONSUMETIMES = "RECONSUMETIMES";
     public static final String SYSTEM_PROPERTY_DELAY_TIME = "DELAY_TIME";
     public static final String SYSTEM_PROPERTY_REAL_TOPIC = "REAL_TOPIC";
+    public static final String SYSTEM_PROPERTY_REAL_SUBSCRIPTION = "REAL_SUBSCRIPTION";
     public static final String SYSTEM_PROPERTY_RETRY_TOPIC = "RETRY_TOPIC";
     @Deprecated
     public static final String SYSTEM_PROPERTY_ORIGIN_MESSAGE_ID = "ORIGIN_MESSAGE_IDY_TIME";

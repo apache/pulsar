@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -21,10 +21,10 @@ package org.apache.pulsar.client.impl.auth;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 import org.testng.annotations.Test;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import static org.apache.pulsar.common.util.Codec.encode;
-import org.testng.Assert;
 import org.testng.annotations.BeforeClass;
 
 import java.io.File;
@@ -44,6 +44,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.yahoo.athenz.auth.util.Crypto;
 import com.yahoo.athenz.zts.RoleToken;
 import com.yahoo.athenz.zts.ZTSClient;
+
+import lombok.Cleanup;
 
 public class AuthenticationAthenzTest {
 
@@ -144,7 +146,7 @@ public class AuthenticationAthenzTest {
             PrivateKey key = (PrivateKey) field.get(authBase64);
             assertEquals(key, privateKey);
         } catch (Exception e) {
-            Assert.fail();
+            fail();
         }
     }
 
@@ -171,8 +173,70 @@ public class AuthenticationAthenzTest {
             PrivateKey key = (PrivateKey) field.get(authEncode);
             assertEquals(key, privateKey);
         } catch (Exception e) {
-            Assert.fail();
+            fail();
         }
+    }
+
+    @Test
+    public void testCopperArgos() throws Exception {
+        @Cleanup
+        AuthenticationAthenz caAuth = new AuthenticationAthenz();
+        Field ztsClientField = caAuth.getClass().getDeclaredField("ztsClient");
+        ztsClientField.setAccessible(true);
+        ztsClientField.set(caAuth, new MockZTSClient("dummy"));
+
+        ObjectMapper jsonMapper = ObjectMapperFactory.create();
+        Map<String, String> authParamsMap = new HashMap<>();
+        authParamsMap.put("providerDomain", "test_provider");
+        authParamsMap.put("ztsUrl", "https://localhost:4443/");
+
+        try {
+            caAuth.configure(jsonMapper.writeValueAsString(authParamsMap));
+            fail("Should not succeed if some required parameters are missing");
+        } catch (Exception e) {
+            assertTrue(e instanceof IllegalArgumentException);
+        }
+
+        authParamsMap.put("x509CertChain", "data:application/x-pem-file;base64,aW52YWxpZAo=");
+        try {
+            caAuth.configure(jsonMapper.writeValueAsString(authParamsMap));
+            fail("'data' scheme url should not be accepted");
+        } catch (Exception e) {
+            assertTrue(e instanceof IllegalArgumentException);
+        }
+
+        authParamsMap.put("x509CertChain", "file:./src/test/resources/copper_argos_client.crt");
+        try {
+            caAuth.configure(jsonMapper.writeValueAsString(authParamsMap));
+            fail("Should not succeed if 'privateKey' or 'caCert' is missing");
+        } catch (Exception e) {
+            assertTrue(e instanceof IllegalArgumentException);
+        }
+
+        authParamsMap.put("privateKey", "./src/test/resources/copper_argos_client.key");
+        authParamsMap.put("caCert", "./src/test/resources/copper_argos_ca.crt");
+        caAuth.configure(jsonMapper.writeValueAsString(authParamsMap));
+
+        Field x509CertChainPathField = caAuth.getClass().getDeclaredField("x509CertChainPath");
+        x509CertChainPathField.setAccessible(true);
+        String actualX509CertChainPath = (String) x509CertChainPathField.get(caAuth);
+        assertFalse(actualX509CertChainPath.startsWith("file:"));
+        assertFalse(actualX509CertChainPath.startsWith("./"));
+        assertTrue(actualX509CertChainPath.endsWith("/src/test/resources/copper_argos_client.crt"));
+
+        Field privateKeyPathField = caAuth.getClass().getDeclaredField("privateKeyPath");
+        privateKeyPathField.setAccessible(true);
+        String actualPrivateKeyPath = (String) privateKeyPathField.get(caAuth);
+        assertFalse(actualPrivateKeyPath.startsWith("file:"));
+        assertFalse(actualPrivateKeyPath.startsWith("./"));
+        assertTrue(actualPrivateKeyPath.endsWith("/src/test/resources/copper_argos_client.key"));
+
+        Field caCertPathField = caAuth.getClass().getDeclaredField("caCertPath");
+        caCertPathField.setAccessible(true);
+        String actualCaCertPath = (String) caCertPathField.get(caAuth);
+        assertFalse(actualCaCertPath.startsWith("file:"));
+        assertFalse(actualCaCertPath.startsWith("./"));
+        assertTrue(actualCaCertPath.endsWith("/src/test/resources/copper_argos_ca.crt"));
     }
 
     @Test

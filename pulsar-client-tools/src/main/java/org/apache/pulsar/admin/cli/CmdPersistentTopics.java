@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -20,7 +20,6 @@ package org.apache.pulsar.admin.cli;
 
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import com.beust.jcommander.Parameter;
-import com.beust.jcommander.ParameterException;
 import com.beust.jcommander.Parameters;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -29,9 +28,11 @@ import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
+import org.apache.pulsar.cli.converters.TimeUnitToMillisConverter;
+import org.apache.pulsar.cli.converters.TimeUnitToSecondsConverter;
 import org.apache.pulsar.client.admin.LongRunningProcessStatus;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -41,7 +42,6 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.cli.NoSplitter;
 import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
-import org.apache.pulsar.common.util.RelativeTimeUtil;
 
 @Parameters(commandDescription = "Operations on persistent topics. The persistent-topics "
         + "has been deprecated in favor of topics", hidden = true)
@@ -211,7 +211,7 @@ public class CmdPersistentTopics extends CmdBase {
         }
     }
 
-    @Parameters(commandDescription = "Update existing non-global partitioned topic. "
+    @Parameters(commandDescription = "Update existing partitioned topic. "
             + "New updating number of partitions must be greater than existing number of partitions.")
     private class UpdatePartitionedCmd extends CliCommand {
 
@@ -347,7 +347,7 @@ public class CmdPersistentTopics extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
-            print(persistentTopics.getStats(persistentTopic, getPreciseBacklog));
+            print(getPersistentTopics().getStats(persistentTopic, getPreciseBacklog));
         }
     }
 
@@ -457,17 +457,12 @@ public class CmdPersistentTopics extends CmdBase {
         private String subName;
 
         @Parameter(names = { "-t", "--expireTime" }, description = "Expire messages older than time in seconds "
-                + "(or minutes, hours, days, weeks eg: 100m, 3h, 2d, 5w)", required = true)
-        private String expireTimeStr;
+                + "(or minutes, hours, days, weeks eg: 100m, 3h, 2d, 5w)", required = true,
+                converter = TimeUnitToSecondsConverter.class)
+        private Long expireTimeInSeconds;
 
         @Override
         void run() throws PulsarAdminException {
-            long expireTimeInSeconds;
-            try {
-                expireTimeInSeconds = RelativeTimeUtil.parseRelativeTimeInSeconds(expireTimeStr);
-            } catch (IllegalArgumentException e) {
-                throw new ParameterException(e.getMessage());
-            }
             String persistentTopic = validatePersistentTopic(params);
             getPersistentTopics().expireMessages(persistentTopic, subName, expireTimeInSeconds);
         }
@@ -480,17 +475,12 @@ public class CmdPersistentTopics extends CmdBase {
         private java.util.List<String> params;
 
         @Parameter(names = { "-t", "--expireTime" }, description = "Expire messages older than time in seconds "
-                + "(or minutes, hours, days, weeks eg: 100m, 3h, 2d, 5w)", required = true)
-        private String expireTimeStr;
+                + "(or minutes, hours, days, weeks eg: 100m, 3h, 2d, 5w)", required = true,
+                converter = TimeUnitToSecondsConverter.class)
+        private Long expireTimeInSeconds;
 
         @Override
         void run() throws PulsarAdminException {
-            long expireTimeInSeconds;
-            try {
-                expireTimeInSeconds = RelativeTimeUtil.parseRelativeTimeInSeconds(expireTimeStr);
-            } catch (IllegalArgumentException e) {
-                throw new ParameterException(e.getMessage());
-            }
             String persistentTopic = validatePersistentTopic(params);
             getPersistentTopics().expireMessagesForAllSubscriptions(persistentTopic, expireTimeInSeconds);
         }
@@ -502,7 +492,7 @@ public class CmdPersistentTopics extends CmdBase {
         private java.util.List<String> params;
 
         @Parameter(names = { "-s",
-                "--subscription" }, description = "Subscription to reset position on", required = true)
+                "--subscription" }, description = "Subscription name", required = true)
         private String subscriptionName;
 
         @Parameter(names = { "--messageId",
@@ -541,8 +531,9 @@ public class CmdPersistentTopics extends CmdBase {
 
         @Parameter(names = { "--time",
                 "-t" }, description = "time in minutes to reset back to "
-                + "(or minutes, hours,days,weeks eg: 100m, 3h, 2d, 5w)", required = false)
-        private String resetTimeStr;
+                + "(or minutes, hours,days,weeks eg: 100m, 3h, 2d, 5w)", required = false,
+                converter = TimeUnitToMillisConverter.class)
+        private Long resetTimeInMillis = null;
 
         @Parameter(names = { "--messageId",
                 "-m" }, description = "messageId to reset back to (ledgerId:entryId)", required = false)
@@ -554,14 +545,7 @@ public class CmdPersistentTopics extends CmdBase {
             if (isNotBlank(resetMessageIdStr)) {
                 MessageId messageId = validateMessageIdString(resetMessageIdStr);
                 getPersistentTopics().resetCursor(persistentTopic, subName, messageId);
-            } else if (isNotBlank(resetTimeStr)) {
-                long resetTimeInMillis;
-                try {
-                    resetTimeInMillis = TimeUnit.SECONDS.toMillis(
-                            RelativeTimeUtil.parseRelativeTimeInSeconds(resetTimeStr));
-                } catch (IllegalArgumentException exception) {
-                    throw new ParameterException(exception.getMessage());
-                }
+            } else if (Objects.nonNull(resetTimeInMillis)) {
                 // now - go back time
                 long timestamp = System.currentTimeMillis() - resetTimeInMillis;
                 getPersistentTopics().resetCursor(persistentTopic, subName, timestamp);

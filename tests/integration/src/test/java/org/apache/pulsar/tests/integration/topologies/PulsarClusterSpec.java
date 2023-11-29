@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -151,6 +151,11 @@ public class PulsarClusterSpec {
     Map<String, String> brokerEnvs;
 
     /**
+     * Specify envs for bookkeeper.
+     */
+    Map<String, String> bookkeeperEnvs;
+
+    /**
      * Specify mount files.
      */
     Map<String, String> proxyMountFiles;
@@ -167,4 +172,15 @@ public class PulsarClusterSpec {
      * Additional ports to expose on broker containers.
      */
     List<Integer> brokerAdditionalPorts;
+
+    /**
+     * Additional ports to expose on bookie containers.
+     */
+    List<Integer> bookieAdditionalPorts;
+
+    /**
+     * Enable TLS for connection.
+     */
+    @Default
+    boolean enableTls = false;
 }

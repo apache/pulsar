@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,8 +19,8 @@
 package org.apache.pulsar.client.impl;
 
 import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import io.netty.buffer.ByteBuf;
@@ -33,8 +33,6 @@ import java.util.List;
 import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -64,6 +62,7 @@ import org.apache.pulsar.common.protocol.ByteBufPair;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.Commands.ChecksumType;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.awaitility.Awaitility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
@@ -116,10 +115,10 @@ public class MessageChunkingTest extends ProducerConsumerBase {
     public void testLargeMessage(boolean ackReceiptEnabled, boolean clientSizeMaxMessageSize) throws Exception {
 
         log.info("-- Starting {} test --", methodName);
-        clientSizeMaxMessageSize = false;
-        this.conf.setMaxMessageSize(50);
         if (clientSizeMaxMessageSize) {
-            this.conf.setMaxMessageSize(5);
+            this.conf.setMaxMessageSize(35);
+        } else {
+            this.conf.setMaxMessageSize(50);
         }
         final int totalMessages = 5;
         final String topicName = "persistent://my-property/my-ns/my-topic1";
@@ -130,7 +129,7 @@ public class MessageChunkingTest extends ProducerConsumerBase {
 
         ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer().topic(topicName);
         if (clientSizeMaxMessageSize) {
-            producerBuilder.chunkMaxMessageSize(5);
+            producerBuilder.chunkMaxMessageSize(35);
         }
 
         Producer<byte[]> producer = producerBuilder.compressionType(CompressionType.LZ4).enableChunking(true)
@@ -309,53 +308,143 @@ public class MessageChunkingTest extends ProducerConsumerBase {
         producer.close();
     }
 
-    @Test(enabled = false)
+    private void sendSingleChunk(Producer<String> producer, String uuid, int chunkId, int totalChunks)
+            throws PulsarClientException {
+        TypedMessageBuilderImpl<String> msg = (TypedMessageBuilderImpl<String>) producer.newMessage()
+                .value(String.format("chunk-%s-%d|", uuid, chunkId));
+        MessageMetadata msgMetadata = msg.getMetadataBuilder();
+        msgMetadata.setUuid(uuid)
+                .setChunkId(chunkId)
+                .setNumChunksFromMsg(totalChunks)
+                .setTotalChunkMsgSize(100);
+        msg.send();
+    }
+
+    /**
+     * This test used to test the consumer configuration of maxPendingChunkedMessage.
+     * If we set maxPendingChunkedMessage is 1 that means only one incomplete chunk message can be store in this
+     * consumer.
+     * For example:
+     * ChunkMessage1 chunk-1: uuid = 0, chunkId = 0, totalChunk = 2;
+     * ChunkMessage2 chunk-1: uuid = 1, chunkId = 0, totalChunk = 2;
+     * ChunkMessage2 chunk-2: uuid = 1, chunkId = 1, totalChunk = 2;
+     * ChunkMessage1 chunk-2: uuid = 0, chunkId = 1, totalChunk = 2;
+     * The chunk-1 in the ChunkMessage1 and ChunkMessage2 all is incomplete.
+     * chunk-1 in the ChunkMessage1 will be discarded and acked when receive the chunk-1 in the ChunkMessage2.
+     * If ack ChunkMessage2 and redeliver unacknowledged messages, the consumer can not receive any message again.
+     * @throws Exception
+     */
+    @Test
     public void testMaxPendingChunkMessages() throws Exception {
-
         log.info("-- Starting {} test --", methodName);
-        this.conf.setMaxMessageSize(10);
-        final int totalMessages = 25;
         final String topicName = "persistent://my-property/my-ns/maxPending";
-        final int totalProducers = 25;
-        @Cleanup("shutdownNow")
-        ExecutorService executor = Executors.newFixedThreadPool(totalProducers);
+        final String subName = "my-subscriber-name";
+        @Cleanup
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topicName)
+                .subscriptionName(subName)
+                .maxPendingChunkedMessage(1)
+                .autoAckOldestChunkedMessageOnQueueFull(true)
+                .subscribe();
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topicName)
+                .chunkMaxMessageSize(100)
+                .enableChunking(true)
+                .enableBatching(false)
+                .create();
 
-        ConsumerImpl<byte[]> consumer = (ConsumerImpl<byte[]>) pulsarClient.newConsumer().topic(topicName)
-                .subscriptionName("my-subscriber-name").acknowledgmentGroupTime(0, TimeUnit.SECONDS)
-                .maxPendingChunkedMessage(1).autoAckOldestChunkedMessageOnQueueFull(true)
-                .ackTimeout(5, TimeUnit.SECONDS).subscribe();
+        sendSingleChunk(producer, "0", 0, 2);
+        sendSingleChunk(producer, "1", 0, 2);
+        sendSingleChunk(producer, "1", 1, 2);
 
-        ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer().topic(topicName);
+        // The chunked message of uuid 0 is discarded.
+        Message<String> receivedMsg = consumer.receive(5, TimeUnit.SECONDS);
+        assertEquals(receivedMsg.getValue(), "chunk-1-0|chunk-1-1|");
 
-        Producer<byte[]>[] producers = new Producer[totalProducers];
-        int totalPublishedMessages = totalProducers;
-        List<CompletableFuture<MessageId>> futures = new ArrayList<>();
-        for (int i = 0; i < totalProducers; i++) {
-            producers[i] = producerBuilder.enableChunking(true).enableBatching(false).create();
-            int index = i;
-            executor.submit(() -> {
-                futures.add(producers[index].sendAsync(createMessagePayload(45).getBytes()));
-            });
-        }
+        consumer.acknowledge(receivedMsg);
+        Awaitility.await().untilAsserted(() -> assertEquals(admin.topics().getStats(topicName)
+                .getSubscriptions().get(subName).getNonContiguousDeletedMessagesRanges(), 0));
+        consumer.redeliverUnacknowledgedMessages();
 
-        FutureUtil.waitForAll(futures).get();
-        PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getTopicIfExists(topicName).get().get();
+        sendSingleChunk(producer, "0", 1, 2);
 
-        Message<byte[]> msg = null;
-        Set<String> messageSet = new HashSet<>();
-        for (int i = 0; i < totalMessages; i++) {
-            msg = consumer.receive(1, TimeUnit.SECONDS);
-            if (msg == null) {
-                break;
-            }
-            String receivedMessage = new String(msg.getData());
-            log.info("Received message: [{}]", receivedMessage);
-            messageSet.add(receivedMessage);
-            consumer.acknowledge(msg);
-        }
+        // Ensure that the chunked message of uuid 0 is discarded.
+        assertNull(consumer.receive(5, TimeUnit.SECONDS));
+    }
 
-        assertNotEquals(messageSet.size(), totalPublishedMessages);
+    @Test
+    public void testResendChunkMessagesWithoutAckHole() throws Exception {
+        log.info("-- Starting {} test --", methodName);
+        final String topicName = "persistent://my-property/my-ns/testResendChunkMessagesWithoutAckHole";
+        final String subName = "my-subscriber-name";
+        @Cleanup
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topicName)
+                .subscriptionName(subName)
+                .maxPendingChunkedMessage(10)
+                .autoAckOldestChunkedMessageOnQueueFull(true)
+                .subscribe();
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topicName)
+                .chunkMaxMessageSize(100)
+                .enableChunking(true)
+                .enableBatching(false)
+                .create();
 
+        sendSingleChunk(producer, "0", 0, 2);
+
+        sendSingleChunk(producer, "0", 0, 2); // Resending the first chunk
+        sendSingleChunk(producer, "0", 1, 2);
+
+        Message<String> receivedMsg = consumer.receive(5, TimeUnit.SECONDS);
+        assertEquals(receivedMsg.getValue(), "chunk-0-0|chunk-0-1|");
+        consumer.acknowledge(receivedMsg);
+        assertEquals(admin.topics().getStats(topicName).getSubscriptions().get(subName)
+                .getNonContiguousDeletedMessagesRanges(), 0);
+    }
+
+    @Test
+    public void testResendChunkMessages() throws Exception {
+        log.info("-- Starting {} test --", methodName);
+        final String topicName = "persistent://my-property/my-ns/testResendChunkMessages";
+
+        @Cleanup
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topicName)
+                .subscriptionName("my-subscriber-name")
+                .maxPendingChunkedMessage(10)
+                .autoAckOldestChunkedMessageOnQueueFull(true)
+                .subscribe();
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topicName)
+                .chunkMaxMessageSize(100)
+                .enableChunking(true)
+                .enableBatching(false)
+                .create();
+
+        sendSingleChunk(producer, "0", 0, 2);
+
+        sendSingleChunk(producer, "0", 0, 2); // Resending the first chunk
+        sendSingleChunk(producer, "1", 0, 3); // This is for testing the interwoven chunked message
+        sendSingleChunk(producer, "1", 1, 3);
+        sendSingleChunk(producer, "1", 0, 3); // Resending the UUID-1 chunked message
+
+        sendSingleChunk(producer, "0", 1, 2);
+
+        Message<String> receivedMsg = consumer.receive(5, TimeUnit.SECONDS);
+        assertEquals(receivedMsg.getValue(), "chunk-0-0|chunk-0-1|");
+        consumer.acknowledge(receivedMsg);
+
+        sendSingleChunk(producer, "1", 1, 3);
+        sendSingleChunk(producer, "1", 2, 3);
+
+        receivedMsg = consumer.receive(5, TimeUnit.SECONDS);
+        assertEquals(receivedMsg.getValue(), "chunk-1-0|chunk-1-1|chunk-1-2|");
+        consumer.acknowledge(receivedMsg);
+        Assert.assertEquals(((ConsumerImpl<String>) consumer).getAvailablePermits(), 8);
     }
 
     /**

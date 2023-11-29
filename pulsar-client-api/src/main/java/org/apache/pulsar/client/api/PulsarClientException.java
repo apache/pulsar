@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -459,6 +459,22 @@ public class PulsarClientException extends IOException {
          */
         public TopicTerminatedException(String msg, long sequenceId) {
             super(msg, sequenceId);
+        }
+    }
+
+    /**
+     * TopicMigration exception thrown by Pulsar client.
+     */
+    public static class TopicMigrationException extends PulsarClientException {
+        /**
+         * Constructs an {@code TopicMigrationException} with the specified detail message.
+         *
+         * @param msg
+         *        The detail message (which is saved for later retrieval
+         *        by the {@link #getMessage()} method)
+         */
+        public TopicMigrationException(String msg) {
+            super(msg);
         }
     }
 

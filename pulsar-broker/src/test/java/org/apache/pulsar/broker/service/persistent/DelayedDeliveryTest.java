@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -23,7 +23,6 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
-
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -32,9 +31,7 @@ import java.util.Set;
 import java.util.TreeSet;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
-
 import lombok.Cleanup;
-
 import org.apache.bookkeeper.client.BKException;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.service.Dispatcher;
@@ -236,7 +233,7 @@ public class DelayedDeliveryTest extends ProducerConsumerBase {
                 .topic(topic)
                 .subscriptionName("shared-sub")
                 .subscriptionType(SubscriptionType.Shared)
-                .receiverQueueSize(1) // Use small prefecthing to simulate the multiple read batches
+                .receiverQueueSize(1) // Use small prefetching to simulate the multiple read batches
                 .subscribe();
 
         // Simulate race condition with high frequency of calls to dispatcher.readMoreEntries()
@@ -611,7 +608,7 @@ public class DelayedDeliveryTest extends ProducerConsumerBase {
         assertNull(msg);
 
         // Inject failure in BK read
-        this.mockBookKeeper.failNow(BKException.Code.ReadException);
+        pulsarTestContext.getMockBookKeeper().failNow(BKException.Code.ReadException);
 
         Set<String> receivedMsgs = new TreeSet<>();
         for (int i = 0; i < 10; i++) {

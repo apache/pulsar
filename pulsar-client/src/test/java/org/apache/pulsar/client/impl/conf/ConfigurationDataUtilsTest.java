@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -20,6 +20,7 @@ package org.apache.pulsar.client.impl.conf;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableSet;
+import lombok.Cleanup;
 import org.testng.Assert;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
@@ -29,6 +30,8 @@ import static org.testng.Assert.fail;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.util.Arrays;
+import java.util.List;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -62,7 +65,10 @@ public class ConfigurationDataUtilsTest {
         config.put("authParamMap", authParamMap);
         config.put("dnsLookupBindAddress", "0.0.0.0");
         config.put("dnsLookupBindPort", 0);
-
+        List<InetSocketAddress> dnsServerAddresses = Arrays.asList(new InetSocketAddress[] {
+                new InetSocketAddress("1.1.1.1", 53), new InetSocketAddress("2.2.2.2",100)
+        });
+        config.put("dnsServerAddresses", dnsServerAddresses);
         confData = ConfigurationDataUtils.loadData(config, confData, ClientConfigurationData.class);
         assertEquals("pulsar://localhost:6650", confData.getServiceUrl());
         assertEquals(70000, confData.getMaxLookupRequest());
@@ -73,6 +79,7 @@ public class ConfigurationDataUtilsTest {
         assertEquals("v2", confData.getAuthParamMap().get("k2"));
         assertEquals("0.0.0.0", confData.getDnsLookupBindAddress());
         assertEquals(0, confData.getDnsLookupBindPort());
+        assertEquals(dnsServerAddresses, confData.getDnsServerAddresses());
     }
 
     @Test
@@ -148,11 +155,14 @@ public class ConfigurationDataUtilsTest {
         clientConfig.setServiceUrl("pulsar://unknown:6650");
         clientConfig.setStatsIntervalSeconds(80);
 
+        @Cleanup
         PulsarClientImpl pulsarClient = new PulsarClientImpl(clientConfig);
         assertNotNull(pulsarClient, "Pulsar client built using config should not be null");
 
         assertEquals(pulsarClient.getConfiguration().getServiceUrl(), "pulsar://unknown:6650");
-        assertEquals(pulsarClient.getConfiguration().getNumListenerThreads(), 1, "builder default not set properly");
+        assertEquals(pulsarClient.getConfiguration().getNumListenerThreads(),
+                Runtime.getRuntime().availableProcessors(), "builder default not set properly");
+        assertEquals(pulsarClient.getConfiguration().getNumIoThreads(), Runtime.getRuntime().availableProcessors());
         assertEquals(pulsarClient.getConfiguration().getStatsIntervalSeconds(), 80,
                 "builder default should override if set explicitly");
     }
@@ -211,6 +221,7 @@ public class ConfigurationDataUtilsTest {
         clientConfig.setSocks5ProxyUsername("test");
         clientConfig.setSocks5ProxyPassword("test123");
 
+        @Cleanup
         PulsarClientImpl pulsarClient = new PulsarClientImpl(clientConfig);
         assertEquals(pulsarClient.getConfiguration().getSocks5ProxyAddress(), new InetSocketAddress("localhost", 11080));
         assertEquals(pulsarClient.getConfiguration().getSocks5ProxyUsername(), "test");

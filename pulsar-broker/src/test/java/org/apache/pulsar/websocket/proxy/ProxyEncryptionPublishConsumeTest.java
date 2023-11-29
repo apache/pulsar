@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,24 +18,20 @@
  */
 package org.apache.pulsar.websocket.proxy;
 
-import static java.util.concurrent.Executors.newFixedThreadPool;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
-
 import java.io.IOException;
 import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
-
 import org.apache.pulsar.client.api.CryptoKeyReader;
 import org.apache.pulsar.client.api.EncryptionKeyInfo;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
@@ -45,6 +41,7 @@ import org.apache.pulsar.websocket.WebSocketService;
 import org.apache.pulsar.websocket.service.ProxyServer;
 import org.apache.pulsar.websocket.service.WebSocketProxyConfiguration;
 import org.apache.pulsar.websocket.service.WebSocketServiceStarter;
+import org.awaitility.Awaitility;
 import org.eclipse.jetty.websocket.api.Session;
 import org.eclipse.jetty.websocket.client.ClientUpgradeRequest;
 import org.eclipse.jetty.websocket.client.WebSocketClient;
@@ -54,8 +51,6 @@ import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-
-import lombok.Cleanup;
 
 @Test(groups = "websocket")
 public class ProxyEncryptionPublishConsumeTest extends ProducerConsumerBase {
@@ -78,8 +73,9 @@ public class ProxyEncryptionPublishConsumeTest extends ProducerConsumerBase {
         config.setClusterName("test");
         config.setConfigurationMetadataStoreUrl(GLOBAL_DUMMY_VALUE);
         config.setCryptoKeyReaderFactoryClassName(CryptoKeyReaderFactoryImpl.class.getName());
-        WebSocketService service = spy(new WebSocketService(config));
-        doReturn(new ZKMetadataStore(mockZooKeeperGlobal)).when(service).createConfigMetadataStore(anyString(), anyInt());
+        service = spy(new WebSocketService(config));
+        doReturn(registerCloseable(new ZKMetadataStore(mockZooKeeperGlobal))).when(service)
+                .createConfigMetadataStore(anyString(), anyInt(), anyBoolean());
         proxyServer = new ProxyServer(config);
         WebSocketServiceStarter.start(proxyServer, service);
         log.info("Proxy Server Started");
@@ -146,18 +142,11 @@ public class ProxyEncryptionPublishConsumeTest extends ProducerConsumerBase {
             Future<Session> producerFuture = produceClient.connect(produceSocket, produceUri, produceRequest);
             assertTrue(producerFuture.get().isOpen());
 
-            int retry = 0;
-            int maxRetry = 400;
-            while ((consumeSocket1.getReceivedMessagesCount() < 10 && consumeSocket2.getReceivedMessagesCount() < 10)
-                    || readSocket.getReceivedMessagesCount() < 10) {
-                Thread.sleep(10);
-                if (retry++ > maxRetry) {
-                    final String msg = String.format("Consumer still has not received the message after %s ms",
-                            (maxRetry * 10));
-                    log.warn(msg);
-                    throw new IllegalStateException(msg);
-                }
-            }
+            Awaitility.await().untilAsserted(() -> {
+                assertTrue(consumeSocket1.getReceivedMessagesCount() >= 10
+                        || consumeSocket2.getReceivedMessagesCount() >= 10);
+                assertTrue(readSocket.getReceivedMessagesCount() >= 10);
+            });
 
             // if the subscription type is exclusive (default), either of the
             // consumer
@@ -226,22 +215,14 @@ public class ProxyEncryptionPublishConsumeTest extends ProducerConsumerBase {
     }
 
     private void stopWebSocketClient(WebSocketClient... clients) {
-        @Cleanup("shutdownNow")
-        ExecutorService executor = newFixedThreadPool(1);
-        try {
-            executor.submit(() -> {
-                for (WebSocketClient client : clients) {
-                    try {
-                        client.stop();
-                    } catch (Exception e) {
-                        log.error(e.getMessage());
-                    }
-                }
-                log.info("proxy clients are stopped successfully");
-            }).get(2, TimeUnit.SECONDS);
-        } catch (Exception e) {
-            log.error("failed to close proxy clients", e);
+        for (WebSocketClient client : clients) {
+            try {
+                client.stop();
+            } catch (Exception e) {
+                log.error(e.getMessage());
+            }
         }
+        log.info("proxy clients are stopped successfully");
     }
 
     private static final Logger log = LoggerFactory.getLogger(ProxyEncryptionPublishConsumeTest.class);

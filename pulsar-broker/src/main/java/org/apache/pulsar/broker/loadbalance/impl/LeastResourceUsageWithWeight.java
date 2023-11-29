@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -91,9 +91,13 @@ public class LeastResourceUsageWithWeight implements ModularLoadManagerStrategy 
                                                           ServiceConfiguration conf) {
         final double historyPercentage = conf.getLoadBalancerHistoryResourcePercentage();
         Double historyUsage = brokerAvgResourceUsageWithWeight.get(broker);
-        double resourceUsage = brokerData.getLocalData().getMaxResourceUsageWithWeightWithinLimit(
+        LocalBrokerData localData = brokerData.getLocalData();
+        // If the broker restarted or MsgRate is 0, should use current resourceUsage to cover the historyUsage
+        if (localData.getBundles().size() == 0 || (localData.getMsgRateIn() == 0 && localData.getMsgRateOut() == 0)){
+            historyUsage = null;
+        }
+        double resourceUsage = brokerData.getLocalData().getMaxResourceUsageWithWeight(
                 conf.getLoadBalancerCPUResourceWeight(),
-                conf.getLoadBalancerMemoryResourceWeight(),
                 conf.getLoadBalancerDirectMemoryResourceWeight(),
                 conf.getLoadBalancerBandwithInResourceWeight(),
                 conf.getLoadBalancerBandwithOutResourceWeight());
@@ -124,8 +128,9 @@ public class LeastResourceUsageWithWeight implements ModularLoadManagerStrategy 
      * @return The name of the selected broker as it appears on ZooKeeper.
      */
     @Override
-    public Optional<String> selectBroker(Set<String> candidates, BundleData bundleToAssign, LoadData loadData,
-                                         ServiceConfiguration conf) {
+    public synchronized Optional<String> selectBroker(Set<String> candidates, BundleData bundleToAssign,
+                                                      LoadData loadData,
+                                                      ServiceConfiguration conf) {
         if (candidates.isEmpty()) {
             log.info("There are no available brokers as candidates at this point for bundle: {}", bundleToAssign);
             return Optional.empty();
@@ -162,5 +167,9 @@ public class LeastResourceUsageWithWeight implements ModularLoadManagerStrategy 
                     candidates);
         }
         return Optional.of(bestBrokers.get(ThreadLocalRandom.current().nextInt(bestBrokers.size())));
+    }
+    @Override
+    public synchronized void onActiveBrokersChange(Set<String> activeBrokers) {
+        brokerAvgResourceUsageWithWeight.keySet().removeIf((key) -> !activeBrokers.contains(key));
     }
 }

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,7 +19,9 @@
 package org.apache.pulsar.client.api;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNull;
+import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import java.lang.reflect.Field;
 import java.util.HashMap;
@@ -27,8 +29,13 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
+import lombok.Data;
+import org.apache.avro.AvroRuntimeException;
+import org.apache.avro.reflect.Nullable;
+import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.impl.ConsumerImpl;
 import org.apache.pulsar.client.impl.MultiTopicsConsumerImpl;
 import org.apache.pulsar.client.util.RetryMessageUtil;
@@ -103,7 +110,7 @@ public class RetryTopicTest extends ProducerConsumerBase {
 
         int totalInDeadLetter = 0;
         do {
-            Message message = deadLetterConsumer.receive();
+            Message<byte[]> message = deadLetterConsumer.receive();
             log.info("dead letter consumer received message : {} {}", message.getMessageId(), new String(message.getData()));
             deadLetterConsumer.acknowledge(message);
             totalInDeadLetter++;
@@ -126,6 +133,124 @@ public class RetryTopicTest extends ProducerConsumerBase {
         assertNull(checkMessage);
 
         checkConsumer.close();
+    }
+
+    @Data
+    public static class Foo {
+        @Nullable
+        private String field1;
+        @Nullable
+        private String field2;
+    }
+
+    @Data
+    public static class FooV2 {
+        @Nullable
+        private String field1;
+        @Nullable
+        private String field2;
+        @Nullable
+        private String field3;
+    }
+
+    @Test(timeOut = 20000)
+    public void testAutoConsumeSchemaRetryLetter() throws Exception {
+        final String topic = "persistent://my-property/my-ns/retry-letter-topic";
+        final String subName = "my-subscription";
+        final String retrySubName = "my-subscription" + "-RETRY";
+        final int sendMessages = 10;
+        final String retryTopic = topic + "-RETRY";
+
+        admin.topics().createNonPartitionedTopic(topic);
+
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient.newProducer(Schema.AUTO_PRODUCE_BYTES())
+                .topic(topic)
+                .enableBatching(false)
+                .create();
+        @Cleanup
+        Consumer<GenericRecord> consumer = pulsarClient.newConsumer(Schema.AUTO_CONSUME())
+                .topic(topic)
+                .subscriptionName(subName)
+                .isAckReceiptEnabled(true)
+                .subscriptionType(SubscriptionType.Shared)
+                .enableRetry(true)
+                .deadLetterPolicy(DeadLetterPolicy.builder().retryLetterTopic(retryTopic)
+                        .maxRedeliverCount(Integer.MAX_VALUE).build())
+                .subscribe();
+        @Cleanup
+        Consumer<GenericRecord> retryTopicConsumer = pulsarClient.newConsumer(Schema.AUTO_CONSUME())
+                .topic(retryTopic)
+                .subscriptionName(retrySubName)
+                .subscriptionType(SubscriptionType.Shared)
+                .subscribe();
+        Set<MessageId> messageIds = new HashSet<>();
+        for (int i = 0; i < sendMessages; i++) {
+            if (i % 2 == 0) {
+                Foo foo = new Foo();
+                foo.field1 = i + "";
+                foo.field2 = i + "";
+                messageIds.add(producer.newMessage(Schema.AVRO(Foo.class)).value(foo).send());
+            } else {
+                FooV2 foo = new FooV2();
+                foo.field1 = i + "";
+                foo.field2 = i + "";
+                foo.field3 = i + "";
+                messageIds.add(producer.newMessage(Schema.AVRO(FooV2.class)).value(foo).send());
+            }
+        }
+        producer.close();
+
+        int totalReceived = 0;
+        do {
+            Message<GenericRecord> message = consumer.receive();
+            log.info(
+                    "consumer received message (schema={}) : {} {}",
+                    message.getReaderSchema().get(), message.getMessageId(), new String(message.getData()));
+            consumer.reconsumeLater(message, 1, TimeUnit.SECONDS);
+            assertTrue(messageIds.contains(message.getMessageId()));
+            totalReceived++;
+        } while (totalReceived < sendMessages);
+
+        // consume receive retry message
+        Set<MessageId> retryTopicMessageIds = new HashSet<>();
+        do {
+            Message<GenericRecord> message = consumer.receive();
+            log.info(
+                    "consumer received retry message (schema={}) : {} {}",
+                    message.getReaderSchema().get(), message.getMessageId(), new String(message.getData()));
+            consumer.acknowledge(message);
+            retryTopicMessageIds.add(message.getMessageId());
+            assertFalse(messageIds.contains(message.getMessageId()));
+            totalReceived++;
+        } while (totalReceived - sendMessages < sendMessages);
+
+        Message<GenericRecord> message = consumer.receive(2, TimeUnit.SECONDS);
+        assertNull(message);
+
+        totalReceived = 0;
+
+        // retryTopicConsumer receive retry messages
+        do {
+            Message<GenericRecord> retryTopicMessage = retryTopicConsumer.receive();
+            assertTrue(retryTopicMessageIds.contains(retryTopicMessage.getMessageId()));
+            assertEquals(retryTopicMessage.getValue().getField("field1"), totalReceived + "");
+            assertEquals(retryTopicMessage.getValue().getField("field2"), totalReceived + "");
+            if (totalReceived % 2 == 0) {
+                try {
+                    retryTopicMessage.getValue().getField("field3");
+                } catch (Exception e) {
+                    assertTrue(e instanceof AvroRuntimeException);
+                    assertEquals(e.getMessage(), "Not a valid schema field: field3");
+                }
+            } else {
+                assertEquals(retryTopicMessage.getValue().getField("field3"), totalReceived + "");
+            }
+            totalReceived++;
+        } while (totalReceived < sendMessages);
+
+        message = retryTopicConsumer.receive(2, TimeUnit.SECONDS);
+        assertNull(message);
     }
 
     @Test(timeOut = 60000)
@@ -524,6 +649,53 @@ public class RetryTopicTest extends ProducerConsumerBase {
             fail("exception should be PulsarClientException.InvalidTopicNameException");
         }
         consumer.close();
+    }
+
+
+    @Test(timeOut = 30000L)
+    public void testRetryProducerWillCloseByConsumer() throws Exception {
+        final String topicName = "persistent://my-property/my-ns/tp_" + UUID.randomUUID().toString();
+        final String subscriptionName = "sub1";
+        final String topicRetry = topicName + "-" + subscriptionName + "-RETRY";
+        final String topicDLQ = topicName + "-" + subscriptionName + "-DLQ";
+
+        // Trigger the DLQ and retry topic creation.
+        final Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topicName)
+                .subscriptionName(subscriptionName)
+                .subscriptionType(SubscriptionType.Shared)
+                .enableRetry(true)
+                .deadLetterPolicy(DeadLetterPolicy.builder().deadLetterTopic(topicDLQ).maxRedeliverCount(2).build())
+                .receiverQueueSize(100)
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                .subscribe();
+        final Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topicName)
+                .create();
+        // send messages.
+        for (int i = 0; i < 5; i++) {
+            producer.newMessage()
+                    .value("msg-" + i)
+                    .sendAsync();
+        }
+        producer.flush();
+        for (int i = 0; i < 20; i++) {
+            Message<String> msg = consumer.receive(5, TimeUnit.SECONDS);
+            if (msg != null) {
+                consumer.reconsumeLater(msg, 1, TimeUnit.SECONDS);
+            } else {
+                break;
+            }
+        }
+
+        consumer.close();
+        producer.close();
+        admin.topics().delete(topicName, false);
+
+        // Verify: "retryLetterProducer" and "deadLetterProducer" will be closed by "consumer.close()", so these two
+        //  topics can be deleted successfully.
+        admin.topics().delete(topicRetry, false);
+        admin.topics().delete(topicDLQ, false);
     }
 
 }

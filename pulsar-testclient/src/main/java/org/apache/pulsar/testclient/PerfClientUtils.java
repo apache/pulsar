@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -67,7 +67,7 @@ public class PerfClientUtils {
             throws PulsarClientException.UnsupportedAuthenticationException {
 
         ClientBuilder clientBuilder = PulsarClient.builder()
-                .memoryLimit(0, SizeUnit.BYTES)
+                .memoryLimit(arguments.memoryLimit, SizeUnit.BYTES)
                 .serviceUrl(arguments.serviceURL)
                 .connectionsPerBroker(arguments.maxConnections)
                 .ioThreads(arguments.ioThreads)
@@ -118,6 +118,5 @@ public class PerfClientUtils {
 
         return pulsarAdminBuilder;
     }
-
 
 }

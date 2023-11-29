@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,13 +16,13 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.pulsar.client.impl;
 
 import java.util.Map;
 import java.util.Optional;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.MessageIdAdv;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.api.EncryptionContext;
 
@@ -37,18 +37,17 @@ public class TopicMessageImpl<T> implements Message<T> {
     final ConsumerImpl receivedByconsumer;
 
     TopicMessageImpl(String topicPartitionName,
-                     String topicName,
                      Message<T> msg,
                      ConsumerImpl receivedByConsumer) {
         this.topicPartitionName = topicPartitionName;
         this.receivedByconsumer = receivedByConsumer;
 
         this.msg = msg;
-        this.messageId = new TopicMessageIdImpl(topicPartitionName, topicName, msg.getMessageId());
+        this.messageId = new TopicMessageIdImpl(topicPartitionName, (MessageIdAdv) msg.getMessageId());
     }
 
     /**
-     * Get the topic name without partition part of this message.
+     * Get the topic name with partition part of this message.
      * @return the name of the topic on which this message was published
      */
     @Override
@@ -60,6 +59,7 @@ public class TopicMessageImpl<T> implements Message<T> {
      * Get the topic name which contains partition part for this message.
      * @return the topic name which contains Partition part
      */
+    @Deprecated
     public String getTopicPartitionName() {
         return topicPartitionName;
     }
@@ -69,6 +69,7 @@ public class TopicMessageImpl<T> implements Message<T> {
         return messageId;
     }
 
+    @Deprecated
     public MessageId getInnerMessageId() {
         return messageId.getInnerMessageId();
     }

@@ -19,8 +19,39 @@
 
 -->
 <FindBugsFilter>
-    <Match>
-        <Class name="org.apache.pulsar.functions.LocalRunner"/>
-        <Bug pattern="REC_CATCH_EXCEPTION"/>
-    </Match>
+  <Match>
+    <Class name="org.apache.pulsar.functions.LocalRunner"/>
+    <Bug pattern="REC_CATCH_EXCEPTION"/>
+  </Match>
+  <!-- Ignore violations that were present when the rule was enabled -->
+  <Match>
+    <Class name="org.apache.pulsar.functions.LocalRunner"/>
+    <Method name="&lt;init&gt;"/>
+    <Bug pattern="EI_EXPOSE_REP2"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.functions.LocalRunner"/>
+    <Method name="&lt;init&gt;"/>
+    <Bug pattern="EI_EXPOSE_REP2"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.functions.LocalRunner"/>
+    <Method name="&lt;init&gt;"/>
+    <Bug pattern="EI_EXPOSE_REP2"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.functions.LocalRunner$LocalRunnerBuilder"/>
+    <Method name="functionConfig"/>
+    <Bug pattern="EI_EXPOSE_REP2"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.functions.LocalRunner$LocalRunnerBuilder"/>
+    <Method name="sinkConfig"/>
+    <Bug pattern="EI_EXPOSE_REP2"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.functions.LocalRunner$LocalRunnerBuilder"/>
+    <Method name="sourceConfig"/>
+    <Bug pattern="EI_EXPOSE_REP2"/>
+  </Match>
 </FindBugsFilter>

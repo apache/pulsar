@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.pulsar.broker.service.persistent;
 
 
@@ -104,9 +103,6 @@ public class ShadowReplicator extends PersistentReplicator {
 
                 dispatchRateLimiter.ifPresent(rateLimiter -> rateLimiter.tryDispatchPermit(1, entry.getLength()));
 
-                // Increment pending messages for messages produced locally
-                PENDING_MESSAGES_UPDATER.incrementAndGet(this);
-
                 msgOut.recordEvent(headersAndPayload.readableBytes());
 
                 msg.setReplicatedFrom(localCluster);
@@ -115,11 +111,14 @@ public class ShadowReplicator extends PersistentReplicator {
 
                 headersAndPayload.retain();
 
+                // Increment pending messages for messages produced locally
+                PENDING_MESSAGES_UPDATER.incrementAndGet(this);
                 producer.sendAsync(msg, ProducerSendCallback.create(this, entry, msg));
                 atLeastOneMessageSentForReplication = true;
             }
         } catch (Exception e) {
-            log.error("[{}] Unexpected exception: {}", replicatorId, e.getMessage(), e);
+            log.error("[{}] Unexpected exception in replication task for shadow topic: {}",
+                    replicatorId, e.getMessage(), e);
         }
         return atLeastOneMessageSentForReplication;
     }

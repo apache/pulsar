@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -43,8 +43,8 @@ class BatchMessageKeyBasedContainer extends AbstractBatchMessageContainer {
     @Override
     public boolean add(MessageImpl<?> msg, SendCallback callback) {
         if (log.isDebugEnabled()) {
-            log.debug("[{}] [{}] add message to batch, num messages in batch so far is {}", topicName, producerName,
-                    numMessagesInBatch);
+            log.debug("[{}] [{}] add message to batch, num messages in batch so far is {}", topicName,
+                    producer.getProducerName(), numMessagesInBatch);
         }
         String key = getKey(msg);
         final BatchMessageContainerImpl batchMessageContainer = batches.computeIfAbsent(key,
@@ -67,6 +67,7 @@ class BatchMessageKeyBasedContainer extends AbstractBatchMessageContainer {
         batches.clear();
         currentTxnidMostBits = -1L;
         currentTxnidLeastBits = -1L;
+        batchAllocatedSizeBytes = 0;
     }
 
     @Override
@@ -83,6 +84,11 @@ class BatchMessageKeyBasedContainer extends AbstractBatchMessageContainer {
     @Override
     public boolean isMultiBatches() {
         return true;
+    }
+
+    @Override
+    public int getBatchAllocatedSizeBytes() {
+        return batches.values().stream().mapToInt(AbstractBatchMessageContainer::getBatchAllocatedSizeBytes).sum();
     }
 
     @Override

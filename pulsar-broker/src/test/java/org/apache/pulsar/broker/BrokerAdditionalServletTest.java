@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -66,7 +66,7 @@ public class BrokerAdditionalServletTest extends MockedPulsarServiceBaseTest {
     }
 
     @Override
-    protected void beforePulsarStartMocks(PulsarService pulsar) throws Exception {
+    protected void beforePulsarStart(PulsarService pulsar) throws Exception {
         mockAdditionalServlet(pulsar);
     }
 

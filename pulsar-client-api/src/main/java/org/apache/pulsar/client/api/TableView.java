@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.pulsar.client.api;
 
 import java.io.Closeable;
@@ -90,7 +89,15 @@ public interface TableView<T> extends Closeable {
     void forEach(BiConsumer<String, T> action);
 
     /**
-     * Performs the give action for each entry in this map until all entries
+     * Performs the given action for each future entry in this map until all entries
+     * have been processed or the action throws an exception.
+     *
+     * @param action The action to be performed for each entry
+     */
+    void listen(BiConsumer<String, T> action);
+
+    /**
+     * Performs the given action for each entry in this map until all entries
      * have been processed or the action throws an exception.
      *
      * @param action The action to be performed for each entry

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -28,7 +28,7 @@ import lombok.NoArgsConstructor;
 public class EntryFilters {
 
     /**
-     * The class name for the entry filter.
+     * Entry filters class names separated by a comma.
      */
     private String entryFilterNames;
 

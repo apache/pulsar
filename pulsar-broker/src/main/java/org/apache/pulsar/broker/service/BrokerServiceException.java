@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -88,6 +88,10 @@ public class BrokerServiceException extends Exception {
         public PersistenceException(Throwable t) {
             super(t);
         }
+
+        public PersistenceException(String msg) {
+            super(msg);
+        }
     }
 
     public static class TopicTerminatedException extends BrokerServiceException {
@@ -96,6 +100,16 @@ public class BrokerServiceException extends Exception {
         }
 
         public TopicTerminatedException(Throwable t) {
+            super(t);
+        }
+    }
+
+    public static class TopicMigratedException extends BrokerServiceException {
+        public TopicMigratedException(String msg) {
+            super(msg);
+        }
+
+        public TopicMigratedException(Throwable t) {
             super(t);
         }
     }
@@ -142,6 +156,18 @@ public class BrokerServiceException extends Exception {
 
     public static class SubscriptionNotFoundException extends BrokerServiceException {
         public SubscriptionNotFoundException(String msg) {
+            super(msg);
+        }
+    }
+
+    public static class UnsupportedSubscriptionException extends BrokerServiceException {
+        public UnsupportedSubscriptionException(String msg) {
+            super(msg);
+        }
+    }
+
+    public static class SubscriptionConflictUnloadException extends BrokerServiceException {
+        public SubscriptionConflictUnloadException(String msg) {
             super(msg);
         }
     }

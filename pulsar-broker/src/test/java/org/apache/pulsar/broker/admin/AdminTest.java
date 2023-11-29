@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -238,10 +238,10 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
                 conf.isBookkeeperMetadataStoreSeparated() ? conf.getBookkeeperMetadataStoreUrl() : null,
                 pulsar.getWorkerConfig().map(WorkerConfig::getStateStorageServiceUrl).orElse(null));
 
-        final Map<String, Object> oldDataJson = ObjectMapperFactory
-                .getThreadLocal().convertValue(oldDataModel, Map.class);
+        final Map<String, Object> oldDataJson = ObjectMapperFactory.getMapper().getObjectMapper()
+                .convertValue(oldDataModel, Map.class);
 
-        final InternalConfigurationData newData = ObjectMapperFactory.getThreadLocal()
+        final InternalConfigurationData newData = ObjectMapperFactory.getMapper().getObjectMapper()
                 .convertValue(oldDataJson, InternalConfigurationData.class);
 
         assertEquals(newData.getMetadataStoreUrl(), conf.getMetadataStoreUrl());
@@ -444,9 +444,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         try {
             asyncRequests(ctx -> clusters.createCluster(ctx, "auth", ClusterDataImpl.builder()
                     .serviceUrl("http://dummy.web.example.com")
-                    .serviceUrlTls("")
-                    .brokerServiceUrl("http://dummy.messaging.example.com")
-                    .brokerServiceUrlTls("")
+                    .brokerServiceUrl("pulsar://dummy.messaging.example.com")
                     .authenticationPlugin("authenticationPlugin")
                     .authenticationParameters("authenticationParameters")
                     .listenerName("listenerName")
@@ -775,7 +773,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         TenantInfoImpl admin = TenantInfoImpl.builder()
                 .allowedClusters(Collections.singleton(cluster))
                 .build();
-        ClusterDataImpl clusterData = ClusterDataImpl.builder().serviceUrl(cluster).build();
+        ClusterDataImpl clusterData = ClusterDataImpl.builder().serviceUrl("http://example.pulsar").build();
         asyncRequests(ctx -> clusters.createCluster(ctx, cluster, clusterData ));
         asyncRequests(ctx -> properties.createTenant(ctx, property, admin));
 
@@ -870,10 +868,10 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         Assert.assertEquals(responseCaptor.getValue().getStatus(), Response.Status.NO_CONTENT.getStatusCode());
         // verify permission
         response = mock(AsyncResponse.class);
-        responseCaptor = ArgumentCaptor.forClass(Response.class);
+        ArgumentCaptor<Map<String, Set<AuthAction>>> permissionsCaptor = ArgumentCaptor.forClass(Map.class);
         persistentTopics.getPermissionsOnTopic(response, property, cluster, namespace, topic);
-        verify(response, timeout(5000).times(1)).resume(responseCaptor.capture());
-        Map<String, Set<AuthAction>> permission = (Map<String, Set<AuthAction>>) responseCaptor.getValue();
+        verify(response, timeout(5000).times(1)).resume(permissionsCaptor.capture());
+        Map<String, Set<AuthAction>> permission = permissionsCaptor.getValue();
         assertEquals(permission.get(role), actions);
         // remove permission
         response = mock(AsyncResponse.class);
@@ -884,10 +882,10 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         // verify removed permission
         Awaitility.await().untilAsserted(() -> {
             AsyncResponse response1 = mock(AsyncResponse.class);
-            ArgumentCaptor<Response> responseCaptor1 = ArgumentCaptor.forClass(Response.class);
+            ArgumentCaptor<Map<String, Set<AuthAction>>> permissionsCaptor1 = ArgumentCaptor.forClass(Map.class);
             persistentTopics.getPermissionsOnTopic(response1, property, cluster, namespace, topic);
-            verify(response1, timeout(5000).times(1)).resume(responseCaptor1.capture());
-            Map<String, Set<AuthAction>> p = (Map<String, Set<AuthAction>>) responseCaptor1.getValue();
+            verify(response1, timeout(5000).times(1)).resume(permissionsCaptor1.capture());
+            Map<String, Set<AuthAction>> p = permissionsCaptor1.getValue();
             assertTrue(p.isEmpty());
         });
     }
@@ -938,13 +936,10 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         AsyncResponse response1 = mock(AsyncResponse.class);
         ArgumentCaptor<RestException> responseCaptor = ArgumentCaptor.forClass(RestException.class);
         NamespaceName namespaceName = NamespaceName.get(property, cluster, namespace);
-        NamespaceService ns = spy(pulsar.getNamespaceService());
-        Field namespaceField = pulsar.getClass().getDeclaredField("nsService");
-        namespaceField.setAccessible(true);
-        namespaceField.set(pulsar, ns);
         CompletableFuture<List<String>> future = new CompletableFuture();
         future.completeExceptionally(new RuntimeException("500 error contains error message"));
-        doReturn(future).when(ns).getListOfTopics(namespaceName, CommandGetTopicsOfNamespace.Mode.ALL);
+        NamespaceService namespaceService = pulsar.getNamespaceService();
+        doReturn(future).when(namespaceService).getListOfTopics(namespaceName, CommandGetTopicsOfNamespace.Mode.ALL);
         persistentTopics.createPartitionedTopic(response1, property, cluster, namespace, partitionedTopicName, 5, false);
         verify(response1, timeout(5000).times(1)).resume(responseCaptor.capture());
         Assert.assertEquals(responseCaptor.getValue().getResponse().getStatus(), Status.INTERNAL_SERVER_ERROR.getStatusCode());

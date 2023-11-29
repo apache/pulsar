@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -26,18 +26,17 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import lombok.Getter;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
-import org.apache.pulsar.common.policies.data.LocalPolicies;
 import org.apache.pulsar.common.policies.data.NamespaceIsolationDataImpl;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.impl.NamespaceIsolationPolicies;
 import org.apache.pulsar.common.util.Codec;
-import org.apache.pulsar.metadata.api.MetadataCache;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.slf4j.Logger;
@@ -51,27 +50,18 @@ public class NamespaceResources extends BaseResources<Policies> {
     private final PartitionedTopicResources partitionedTopicResources;
     private final MetadataStore configurationStore;
 
-    private final MetadataCache<LocalPolicies> localPoliciesCache;
-
-    private static final String POLICIES_READONLY_FLAG_PATH = "/admin/flags/policies-readonly";
+    public static final String POLICIES_READONLY_FLAG_PATH = "/admin/flags/policies-readonly";
     private static final String NAMESPACE_BASE_PATH = "/namespace";
-    private static final String BUNDLE_DATA_BASE_PATH = "/loadbalance/bundle-data";
 
-    public NamespaceResources(MetadataStore localStore, MetadataStore configurationStore, int operationTimeoutSec) {
+    public NamespaceResources(MetadataStore configurationStore, int operationTimeoutSec) {
         super(configurationStore, Policies.class, operationTimeoutSec);
         this.configurationStore = configurationStore;
         isolationPolicies = new IsolationPolicyResources(configurationStore, operationTimeoutSec);
         partitionedTopicResources = new PartitionedTopicResources(configurationStore, operationTimeoutSec);
-
-        if (localStore != null) {
-            localPoliciesCache = localStore.getMetadataCache(LocalPolicies.class);
-        } else {
-            localPoliciesCache = null;
-        }
     }
 
     public CompletableFuture<List<String>> listNamespacesAsync(String tenant) {
-        return getChildrenAsync(joinPath(BASE_POLICIES_PATH, tenant));
+        return getChildrenRecursiveAsync(joinPath(BASE_POLICIES_PATH, tenant));
     }
 
     public CompletableFuture<Boolean> getPoliciesReadOnlyAsync() {
@@ -126,6 +116,13 @@ public class NamespaceResources extends BaseResources<Policies> {
         return get(joinPath(BASE_POLICIES_PATH, ns.toString()));
     }
 
+    /**
+     * Get the namespace policy from the metadata cache. This method will not trigger the load of metadata cache.
+     *
+     * @deprecated Since this method may introduce inconsistent namespace policies. we should use
+     * #{@link NamespaceResources#getPoliciesAsync}
+     */
+    @Deprecated
     public Optional<Policies> getPoliciesIfCached(NamespaceName ns) {
         return getCache().getIfCached(joinPath(BASE_POLICIES_PATH, ns.toString()));
     }
@@ -267,8 +264,18 @@ public class NamespaceResources extends BaseResources<Policies> {
         }
 
         public CompletableFuture<Optional<PartitionedTopicMetadata>> getPartitionedTopicMetadataAsync(TopicName tn) {
-            return getAsync(joinPath(PARTITIONED_TOPIC_PATH, tn.getNamespace(), tn.getDomain().value(),
-                    tn.getEncodedLocalName()));
+            return getPartitionedTopicMetadataAsync(tn, false);
+        }
+
+        public CompletableFuture<Optional<PartitionedTopicMetadata>> getPartitionedTopicMetadataAsync(TopicName tn,
+                                                                                                      boolean refresh) {
+            if (refresh) {
+                return refreshAndGetAsync(joinPath(PARTITIONED_TOPIC_PATH, tn.getNamespace(), tn.getDomain().value(),
+                        tn.getEncodedLocalName()));
+            } else {
+                return getAsync(joinPath(PARTITIONED_TOPIC_PATH, tn.getNamespace(), tn.getDomain().value(),
+                        tn.getEncodedLocalName()));
+            }
         }
 
         public boolean partitionedTopicExists(TopicName tn) throws MetadataStoreException {
@@ -295,18 +302,78 @@ public class NamespaceResources extends BaseResources<Policies> {
             final String partitionedTopicPath = joinPath(PARTITIONED_TOPIC_PATH, tenant);
             return deleteIfExistsAsync(partitionedTopicPath);
         }
-    }
 
-    // clear resource of `/loadbalance/bundle-data/{tenant}/{namespace}/` in metadata-store
-    public CompletableFuture<Void> deleteBundleDataAsync(NamespaceName ns) {
-        final String namespaceBundlePath = joinPath(BUNDLE_DATA_BASE_PATH, ns.toString());
-        return getStore().deleteRecursive(namespaceBundlePath);
-    }
+        public CompletableFuture<Void> markPartitionedTopicDeletedAsync(TopicName tn) {
+            if (tn.isPartitioned()) {
+                return CompletableFuture.completedFuture(null);
+            }
+            if (log.isDebugEnabled()) {
+                log.debug("markPartitionedTopicDeletedAsync {}", tn);
+            }
+            return updatePartitionedTopicAsync(tn, md -> {
+                md.deleted = true;
+                return md;
+            });
+        }
 
-    // clear resource of `/loadbalance/bundle-data/{tenant}/` in metadata-store
-    public CompletableFuture<Void> deleteBundleDataTenantAsync(String tenant) {
-        final String tenantBundlePath = joinPath(BUNDLE_DATA_BASE_PATH, tenant);
-        return getStore().deleteRecursive(tenantBundlePath);
-    }
+        public CompletableFuture<Void> unmarkPartitionedTopicDeletedAsync(TopicName tn) {
+            if (tn.isPartitioned()) {
+                return CompletableFuture.completedFuture(null);
+            }
+            if (log.isDebugEnabled()) {
+                log.debug("unmarkPartitionedTopicDeletedAsync {}", tn);
+            }
+            return updatePartitionedTopicAsync(tn, md -> {
+                md.deleted = false;
+                return md;
+            });
+        }
 
+        public CompletableFuture<Boolean> isPartitionedTopicBeingDeletedAsync(TopicName tn) {
+            if (tn.isPartitioned()) {
+                tn = TopicName.get(tn.getPartitionedTopicName());
+            }
+            return getPartitionedTopicMetadataAsync(tn, true)
+                    .thenApply(mdOpt -> mdOpt.map(partitionedTopicMetadata -> partitionedTopicMetadata.deleted)
+                            .orElse(false));
+        }
+
+        public CompletableFuture<Void> runWithMarkDeleteAsync(TopicName topic,
+                                                              Supplier<CompletableFuture<Void>> supplier) {
+            CompletableFuture<Void> future = new CompletableFuture<>();
+
+            markPartitionedTopicDeletedAsync(topic).whenCompleteAsync((markResult, markExc) -> {
+                final boolean mdFound;
+                if (markExc != null) {
+                    if (markExc.getCause() instanceof MetadataStoreException.NotFoundException) {
+                        mdFound = false;
+                    } else {
+                        log.error("Failed to mark the topic {} as deleted", topic, markExc);
+                        future.completeExceptionally(markExc);
+                        return;
+                    }
+                } else {
+                    mdFound = true;
+                }
+
+                supplier.get().whenComplete((deleteResult, deleteExc) -> {
+                    if (deleteExc != null && mdFound) {
+                        unmarkPartitionedTopicDeletedAsync(topic)
+                                .thenRun(() -> future.completeExceptionally(deleteExc))
+                                .exceptionally(ex -> {
+                                    log.warn("Failed to unmark the topic {} as deleted", topic, ex);
+                                    future.completeExceptionally(deleteExc);
+                                    return null;
+                                });
+                    } else if (deleteExc != null) {
+                        future.completeExceptionally(deleteExc);
+                    } else {
+                        future.complete(deleteResult);
+                    }
+                });
+            });
+
+            return future;
+        }
+    }
 }

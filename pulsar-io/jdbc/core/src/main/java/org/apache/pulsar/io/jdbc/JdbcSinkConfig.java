@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.pulsar.io.jdbc;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -87,15 +86,24 @@ public class JdbcSinkConfig implements Serializable {
     @FieldDoc(
         required = false,
         defaultValue = "500",
-        help = "The jdbc operation timeout in milliseconds"
+        help = "Enable batch mode by time. After timeoutMs milliseconds the operations queue will be flushed."
     )
     private int timeoutMs = 500;
     @FieldDoc(
         required = false,
         defaultValue = "200",
-        help = "The batch size of updates made to the database"
+        help = "Enable batch mode by number of operations. This value is the max number of operations "
+                + "batched in the same transaction/batch."
     )
     private int batchSize = 200;
+
+    @FieldDoc(
+            required = false,
+            defaultValue = "false",
+            help = "Use the JDBC batch API. This option is suggested to improve write performance."
+    )
+    private boolean useJdbcBatch = false;
+
     @FieldDoc(
             required = false,
             defaultValue = "true",
@@ -139,6 +147,13 @@ public class JdbcSinkConfig implements Serializable {
 
     public static JdbcSinkConfig load(Map<String, Object> map) throws IOException {
         ObjectMapper mapper = new ObjectMapper();
-        return mapper.readValue(new ObjectMapper().writeValueAsString(map), JdbcSinkConfig.class);
+        return mapper.readValue(mapper.writeValueAsString(map), JdbcSinkConfig.class);
     }
+
+    public void validate() {
+        if (timeoutMs <= 0 && batchSize <= 0) {
+            throw new IllegalArgumentException("timeoutMs or batchSize must be set to a positive value.");
+        }
+    }
+
 }

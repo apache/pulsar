@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -83,6 +83,7 @@ public class CLITest extends PulsarTestSuite {
         final String namespace = "public/" + namespaceLocalName;
         assertEquals(0, result.getExitCode());
 
+        @Cleanup
         PulsarClient client = PulsarClient.builder().serviceUrl(pulsarCluster.getPlainTextServiceUrl()).build();
 
         final String persistentTopicName = TopicName.get(
@@ -401,7 +402,7 @@ public class CLITest extends PulsarTestSuite {
             "upload",
             topicName,
             "-f",
-            "/pulsar/conf/schema_example.conf"
+            "/pulsar/conf/schema_example.json"
         );
         result.assertNoOutput();
 

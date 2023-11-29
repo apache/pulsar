@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -1096,6 +1096,12 @@ public class TopicReaderTest extends ProducerConsumerBase {
         assertFalse(lastMsgId instanceof BatchMessageIdImpl);
         assertEquals(lastMsgId.getLedgerId(), messageId.getLedgerId());
         assertEquals(lastMsgId.getEntryId(), messageId.getEntryId());
+        List<TopicMessageId> lastMsgIds = reader.getConsumer().getLastMessageIds();
+        assertEquals(lastMsgIds.size(), 1);
+        assertEquals(lastMsgIds.get(0).getOwnerTopic(), topicName);
+        MessageIdAdv lastMsgIdAdv = (MessageIdAdv) lastMsgIds.get(0);
+        assertEquals(lastMsgIdAdv.getLedgerId(), messageId.getLedgerId());
+        assertEquals(lastMsgIdAdv.getEntryId(), messageId.getEntryId());
         reader.close();
 
         CountDownLatch latch = new CountDownLatch(numOfMessage);

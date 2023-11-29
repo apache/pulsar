@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -33,6 +33,8 @@ public interface MetadataOp {
     CompletableFuture<?> getFuture();
 
     int size();
+
+    long created();
 
     default OpGet asGet() {
         return (OpGet) this;

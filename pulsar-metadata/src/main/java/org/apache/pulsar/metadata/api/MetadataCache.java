@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -147,6 +147,11 @@ public interface MetadataCache<T> {
      * @param path the path of the object in the metadata store
      */
     void invalidate(String path);
+
+    /**
+     * Force the invalidation of all object in the metadata cache.
+     */
+    void invalidateAll();
 
     /**
      * Invalidate and reload an object in the metadata cache.

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,12 +18,15 @@
  */
 package org.apache.pulsar.broker.service.plugin;
 
+import com.google.common.annotations.VisibleForTesting;
 import java.io.IOException;
+import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.pulsar.common.nar.NarClassLoader;
 
 @Slf4j
+@ToString
 public class EntryFilterWithClassLoader implements EntryFilter {
     private final EntryFilter entryFilter;
     private final NarClassLoader classLoader;
@@ -36,6 +39,11 @@ public class EntryFilterWithClassLoader implements EntryFilter {
     @Override
     public FilterResult filterEntry(Entry entry, FilterContext context) {
         return entryFilter.filterEntry(entry, context);
+    }
+
+    @VisibleForTesting
+    public EntryFilter getEntryFilter() {
+        return entryFilter;
     }
 
     @Override

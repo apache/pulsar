@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -44,6 +44,7 @@ import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.impl.auth.AuthenticationToken;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
@@ -111,13 +112,12 @@ public class MultiRolesTokenAuthorizationProviderTest extends MockedPulsarServic
 
         admin.clusters().createCluster(configClusterName,
                 ClusterData.builder()
-                        .brokerServiceUrl(brokerUrl.toString())
-                        .serviceUrl(getPulsar().getWebServiceAddress())
+                        .serviceUrl(brokerUrl.toString())
                         .build()
         );
     }
 
-    @BeforeClass
+    @AfterClass
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();

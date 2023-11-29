@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.pulsar.broker.admin.impl;
 
 import static org.apache.pulsar.common.naming.Constants.GLOBAL_CLUSTER;
@@ -79,7 +78,7 @@ public class TenantsBase extends PulsarWebResource {
 
     @GET
     @Path("/{tenant}")
-    @ApiOperation(value = "Get the admin configuration for a given tenant.")
+    @ApiOperation(value = "Get the admin configuration for a given tenant.", response = TenantInfo.class)
     @ApiResponses(value = {@ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
             @ApiResponse(code = 404, message = "Tenant does not exist")})
     public void getTenantAdmin(@Suspended final AsyncResponse asyncResponse,
@@ -237,7 +236,7 @@ public class TenantsBase extends PulsarWebResource {
                             .getPartitionedTopicResources().clearPartitionedTopicTenantAsync(tenant))
                 .thenCompose(__ -> pulsar().getPulsarResources().getLocalPolicies()
                             .deleteLocalPoliciesTenantAsync(tenant))
-                .thenCompose(__ -> pulsar().getPulsarResources().getNamespaceResources()
+                .thenCompose(__ -> pulsar().getPulsarResources().getLoadBalanceResources().getBundleDataResources()
                             .deleteBundleDataTenantAsync(tenant));
     }
 

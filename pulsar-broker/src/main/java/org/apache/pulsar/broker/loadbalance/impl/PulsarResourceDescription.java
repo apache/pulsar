@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -37,7 +37,11 @@ public class PulsarResourceDescription extends ResourceDescription {
         if (o.getResourceUsage().size() > resourceUsageByName.size()) {
             return -1;
         }
-        // TODO need to return zero if two resourceDescription match exactly
+
+        if (exactlyEquals(o.getResourceUsage())) {
+            return 0;
+        }
+
         for (Map.Entry<String, ResourceUsage> entry : o.getResourceUsage().entrySet()) {
             // if we don't have any entry which is in other but not in our set, we fail
             String resourceName = entry.getKey();
@@ -54,6 +58,16 @@ public class PulsarResourceDescription extends ResourceDescription {
         }
         return 1;
     }
+
+
+    private boolean exactlyEquals(Map<String, ResourceUsage> o) {
+        if (this.resourceUsageByName.size() != o.size()) {
+            return false;
+        }
+        return this.resourceUsageByName.entrySet().stream()
+                .allMatch(e -> e.getValue().equals(o.get(e.getKey())));
+    }
+
 
     @Override
     public void removeUsage(ResourceDescription rd) {

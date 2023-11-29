@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.client.admin.internal;
 
-import static com.google.common.base.Preconditions.checkArgument;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -157,9 +156,9 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
             return asyncPutRequest(path, Entity.entity(policies, MediaType.APPLICATION_JSON));
         } else {
             // For V1 API, we pass the BundlesData on creation
-            return asyncPutRequest(path, Entity.entity("", MediaType.APPLICATION_JSON)).thenAccept(ignore -> {
+            return asyncPutRequest(path, Entity.entity("", MediaType.APPLICATION_JSON)).thenCompose(ignore -> {
                 // For V1, we need to do it in 2 steps
-                setNamespaceReplicationClustersAsync(namespace, clusters);
+                return setNamespaceReplicationClustersAsync(namespace, clusters);
             });
         }
     }
@@ -182,9 +181,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     @Override
     public CompletableFuture<Void> createNamespaceAsync(String namespace, Policies policies) {
         NamespaceName ns = NamespaceName.get(namespace);
-        checkArgument(ns.isV2(), "Create namespace with policies is only supported on newer namespaces");
-        WebTarget path = namespacePath(ns);
-        // For V2 API we pass full Policy class instance
+        WebTarget path = ns.isV2() ? namespacePath(ns) : namespacePath(ns, "policy");
         return asyncPutRequest(path, Entity.entity(policies, MediaType.APPLICATION_JSON));
     }
 
@@ -815,9 +812,23 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     }
 
     @Override
+    public void unloadNamespaceBundle(String namespace,
+           String bundle, String destinationBroker) throws PulsarAdminException {
+        sync(() -> unloadNamespaceBundleAsync(namespace, bundle, destinationBroker));
+    }
+
+    @Override
     public CompletableFuture<Void> unloadNamespaceBundleAsync(String namespace, String bundle) {
         NamespaceName ns = NamespaceName.get(namespace);
         WebTarget path = namespacePath(ns, bundle, "unload");
+        return asyncPutRequest(path, Entity.entity("", MediaType.APPLICATION_JSON));
+    }
+
+    @Override
+    public CompletableFuture<Void> unloadNamespaceBundleAsync(String namespace,
+                                   String bundle, String destinationBroker) {
+        NamespaceName ns = NamespaceName.get(namespace);
+        WebTarget path = namespacePath(ns, bundle, "unload").queryParam("destinationBroker", destinationBroker);
         return asyncPutRequest(path, Entity.entity("", MediaType.APPLICATION_JSON));
     }
 
@@ -1519,6 +1530,16 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     }
 
     @Override
+    public long getOffloadThresholdInSeconds(String namespace) throws PulsarAdminException {
+        return sync(() -> getOffloadThresholdInSecondsAsync(namespace));
+    }
+
+    @Override
+    public CompletableFuture<Long> getOffloadThresholdInSecondsAsync(String namespace) {
+        return asyncGetNamespaceParts(new FutureCallback<Long>(){}, namespace, "offloadThresholdInSeconds");
+    }
+
+    @Override
     public void setOffloadThreshold(String namespace, long offloadThreshold) throws PulsarAdminException {
         sync(() -> setOffloadThresholdAsync(namespace, offloadThreshold));
     }
@@ -1528,6 +1549,19 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
         NamespaceName ns = NamespaceName.get(namespace);
         WebTarget path = namespacePath(ns, "offloadThreshold");
         return asyncPutRequest(path, Entity.entity(offloadThreshold, MediaType.APPLICATION_JSON));
+    }
+
+    @Override
+    public void setOffloadThresholdInSeconds(String namespace, long offloadThresholdInSeconds)
+            throws PulsarAdminException {
+        sync(() -> setOffloadThresholdInSecondsAsync(namespace, offloadThresholdInSeconds));
+    }
+
+    @Override
+    public CompletableFuture<Void> setOffloadThresholdInSecondsAsync(String namespace, long offloadThresholdInSeconds) {
+        NamespaceName ns = NamespaceName.get(namespace);
+        WebTarget path = namespacePath(ns, "offloadThresholdInSeconds");
+        return asyncPutRequest(path, Entity.entity(offloadThresholdInSeconds, MediaType.APPLICATION_JSON));
     }
 
     @Override
@@ -1861,6 +1895,17 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
         NamespaceName ns = NamespaceName.get(namespace);
         WebTarget path = namespacePath(ns, "resourcegroup");
         return asyncDeleteRequest(path);
+    }
+
+    @Override
+    public void updateMigrationState(String namespace, boolean migrated) throws PulsarAdminException {
+        sync(() -> updateMigrationStateAsync(namespace, migrated));
+    }
+
+    public CompletableFuture<Void> updateMigrationStateAsync(String namespace, boolean migrated) {
+        NamespaceName ns = NamespaceName.get(namespace);
+        WebTarget path = namespacePath(ns, "migration");
+        return asyncPostRequest(path, Entity.entity(migrated, MediaType.APPLICATION_JSON));
     }
 
     private WebTarget namespacePath(NamespaceName namespace, String... parts) {

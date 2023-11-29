@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -141,9 +141,10 @@ public interface TransactionBuffer {
     /**
      * Close the buffer asynchronously.
      * @param txnID {@link TxnID} txnId.
+     * @param readPosition the persistent position of the txn message.
      * @return the txnId is aborted.
      */
-    boolean isTxnAborted(TxnID txnID);
+    boolean isTxnAborted(TxnID txnID, PositionImpl readPosition);
 
     /**
      * Sync max read position for normal publish.
@@ -158,10 +159,27 @@ public interface TransactionBuffer {
     PositionImpl getMaxReadPosition();
 
     /**
+     * Get the snapshot type.
+     *
+     * The snapshot type can be either "Single" or "Segment". In "Single" mode, a single snapshot log is used
+     * to record the transaction buffer stats. In "Segment" mode, a snapshot segment topic is used to record
+     * the stats, and a separate snapshot segment index topic is used to index these stats.
+     *
+     * @return the snapshot type
+     */
+    AbortedTxnProcessor.SnapshotType getSnapshotType();
+
+    /**
      * Get transaction in buffer stats.
      * @return the transaction in buffer stats.
      */
     TransactionInBufferStats getTransactionInBufferStats(TxnID txnID);
+
+    /**
+     * Get transaction stats in buffer.
+     * @return the transaction stats in buffer.
+     */
+    TransactionBufferStats getStats(boolean lowWaterMarks, boolean segmentStats);
 
     /**
      * Get transaction stats in buffer.

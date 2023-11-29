@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -52,7 +52,6 @@ public class BookKeeperTestClient extends BookKeeper {
             throws IOException, InterruptedException, BKException {
         super(conf, zkc, null, new UnpooledByteBufAllocator(false),
                 NullStatsLogger.INSTANCE, null, null, null);
-        this.statsProvider = statsProvider;
     }
 
     public BookKeeperTestClient(ClientConfiguration conf)

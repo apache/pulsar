@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.client.impl;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import io.netty.util.Timeout;
@@ -34,7 +33,9 @@ import java.util.stream.Collectors;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerStats;
 import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.ProducerStats;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -62,6 +63,10 @@ public class ConsumerStatsRecorderImpl implements ConsumerStatsRecorder {
 
     private volatile double receivedMsgsRate;
     private volatile double receivedBytesRate;
+
+    volatile ProducerStats deadLetterProducerStats;
+
+    volatile ProducerStats retryLetterProducerStats;
 
     private static final DecimalFormat THROUGHPUT_FORMAT = new DecimalFormat("0.00");
 
@@ -106,9 +111,8 @@ public class ConsumerStatsRecorderImpl implements ConsumerStatsRecorder {
     }
 
     private void init(ConsumerConfigurationData<?> conf) {
-        ObjectMapper m = new ObjectMapper();
-        m.configure(SerializationFeature.FAIL_ON_EMPTY_BEANS, false);
-        ObjectWriter w = m.writer();
+        ObjectWriter w = ObjectMapperFactory.getMapperWithIncludeAlways().writer()
+                .without(SerializationFeature.FAIL_ON_EMPTY_BEANS);
 
         try {
             log.info("Starting Pulsar consumer status recorder with config: {}", w.writeValueAsString(conf));
@@ -239,7 +243,11 @@ public class ConsumerStatsRecorderImpl implements ConsumerStatsRecorder {
     @Override
     public Integer getMsgNumInReceiverQueue() {
         if (consumer instanceof ConsumerBase) {
-            return ((ConsumerBase<?>) consumer).incomingMessages.size();
+            ConsumerBase<?> consumerBase = (ConsumerBase<?>) consumer;
+            if (consumerBase.listener != null){
+                return ConsumerBase.MESSAGE_LISTENER_QUEUE_SIZE_UPDATER.get(consumerBase);
+            }
+            return consumerBase.incomingMessages.size();
         }
         return null;
     }
@@ -254,6 +262,26 @@ public class ConsumerStatsRecorderImpl implements ConsumerStatsRecorder {
             );
         }
         return null;
+    }
+
+    @Override
+    public ProducerStats getDeadLetterProducerStats() {
+        return deadLetterProducerStats;
+    }
+
+    @Override
+    public ProducerStats getRetryLetterProducerStats() {
+        return retryLetterProducerStats;
+    }
+
+    @Override
+    public void setDeadLetterProducerStats(ProducerStats producerStats) {
+        this.deadLetterProducerStats = producerStats;
+    }
+
+    @Override
+    public void setRetryLetterProducerStats(ProducerStats producerStats) {
+        this.retryLetterProducerStats = producerStats;
     }
 
     @Override
