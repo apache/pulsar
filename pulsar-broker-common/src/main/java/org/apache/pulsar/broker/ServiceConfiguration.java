@@ -331,6 +331,18 @@ public class ServiceConfiguration implements PulsarConfiguration {
             + "(0 to disable limiting)")
     private int maxHttpServerConnections = 2048;
 
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "Enable or disable compress output metrics in prometheus"
+    )
+    private boolean compressOutputMetricsInPrometheus = false;
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "Set the minimum response size to trigger dynamic compression"
+    )
+    private int minGzipSize = 32;
+
     @FieldContext(category = CATEGORY_SERVER, doc = "Whether to enable the delayed delivery for messages.")
     private boolean delayedDeliveryEnabled = true;
 

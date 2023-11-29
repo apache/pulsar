@@ -44,6 +44,7 @@ import org.eclipse.jetty.server.handler.HandlerCollection;
 import org.eclipse.jetty.server.handler.RequestLogHandler;
 import org.eclipse.jetty.server.handler.ResourceHandler;
 import org.eclipse.jetty.server.handler.StatisticsHandler;
+import org.eclipse.jetty.server.handler.gzip.GzipHandler;
 import org.eclipse.jetty.servlet.FilterHolder;
 import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.servlet.ServletHolder;
@@ -194,7 +195,7 @@ public class WebService implements AutoCloseable {
         config.register(MultiPartFeature.class);
         ServletHolder servletHolder = new ServletHolder(new ServletContainer(config));
         servletHolder.setAsyncSupported(true);
-        addServlet(basePath, servletHolder, requiresAuthentication, attributeMap);
+        addServlet(basePath, servletHolder, requiresAuthentication, attributeMap, false);
     }
 
     private static class FilterInitializer {
@@ -257,7 +258,7 @@ public class WebService implements AutoCloseable {
     }
 
     public void addServlet(String path, ServletHolder servletHolder, boolean requiresAuthentication,
-                           Map<String, Object> attributeMap) {
+                           Map<String, Object> attributeMap, boolean isCompress) {
         ServletContextHandler context = new ServletContextHandler(ServletContextHandler.SESSIONS);
         // Notice: each context path should be unique, but there's nothing here to verify that
         context.setContextPath(path);
@@ -266,7 +267,16 @@ public class WebService implements AutoCloseable {
             attributeMap.forEach(context::setAttribute);
         }
         filterInitializer.addFilters(context, requiresAuthentication);
-        handlers.add(context);
+        // Enable compress on /metrics endpoint
+        if (isCompress) {
+            GzipHandler gzipHandler = new GzipHandler();
+            gzipHandler.setMinGzipSize(pulsar.getConfiguration().getMinGzipSize());
+            gzipHandler.setHandler(context);
+            handlers.add(gzipHandler);
+        } else {
+            handlers.add(context);
+        }
+
     }
 
     public void addStaticResources(String basePath, String resourcePath) {
