@@ -177,18 +177,14 @@ public class HttpLookupService implements LookupService {
         }
         httpClient.get(path, GetSchemaResponse.class).thenAccept(response -> {
             if (response.getType() == SchemaType.KEY_VALUE) {
-                try {
-                    SchemaData data = SchemaData
-                            .builder()
-                            .data(SchemaUtils.convertKeyValueDataStringToSchemaInfoSchema(
-                                    response.getData().getBytes(StandardCharsets.UTF_8)))
-                            .type(response.getType())
-                            .props(response.getProperties())
-                            .build();
-                    future.complete(Optional.of(SchemaInfoUtil.newSchemaInfo(schemaName, data)));
-                } catch (Exception err) {
-                    future.completeExceptionally(err);
-                }
+                SchemaData data = SchemaData
+                        .builder()
+                        .data(SchemaUtils.convertKeyValueDataStringToSchemaInfoSchema(
+                                response.getData().getBytes(StandardCharsets.UTF_8)))
+                        .type(response.getType())
+                        .props(response.getProperties())
+                        .build();
+                future.complete(Optional.of(SchemaInfoUtil.newSchemaInfo(schemaName, data)));
             } else {
                 future.complete(Optional.of(SchemaInfoUtil.newSchemaInfo(schemaName, response)));
             }

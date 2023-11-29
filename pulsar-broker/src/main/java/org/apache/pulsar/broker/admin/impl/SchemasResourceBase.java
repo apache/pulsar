@@ -162,12 +162,14 @@ public class SchemasResourceBase extends AdminResource {
         return validateOwnershipAndOperationAsync(authoritative, TopicOperation.GET_METADATA)
                 .thenCompose(__ -> {
                     String schemaId = getSchemaId();
+                    final SchemaType schemaType = SchemaType.valueOf(payload.getType());
+                    byte[] data = payload.getSchema().getBytes(StandardCharsets.UTF_8);
+                    if (schemaType.getValue() == SchemaType.KEY_VALUE.getValue()) {
+                        data = SchemaUtils.convertKeyValueDataStringToSchemaInfoSchema(data);
+                    }
                     return pulsar().getSchemaRegistryService()
                             .findSchemaVersion(schemaId,
-                                    SchemaData.builder().data(
-                                            SchemaUtils.convertKeyValueDataStringToSchemaInfoSchema(
-                                                    payload.getSchema().getBytes(StandardCharsets.UTF_8)))
-                                            .isDeleted(false).timestamp(clock.millis())
+                                    SchemaData.builder().data(data).isDeleted(false).timestamp(clock.millis())
                                             .type(SchemaType.valueOf(payload.getType()))
                                             .user(defaultIfEmpty(clientAppId(), ""))
                                             .props(payload.getProperties()).build());
