@@ -1966,6 +1966,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
 
         // Wait for phase one to complete
         Thread.sleep(500);
+
         // Unload topic make reader of compaction reconnect
         admin.topics().unload(topic);
 
