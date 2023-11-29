@@ -87,7 +87,6 @@ public abstract class MockedPulsarStandalone implements AutoCloseable {
         serviceConfiguration.setTlsKeyStorePassword(TLS_EC_KS_SERVER_PASS);
         serviceConfiguration.setTlsTrustStore(TLS_EC_KS_TRUSTED_STORE);
         serviceConfiguration.setTlsTrustStorePassword(TLS_EC_KS_TRUSTED_STORE_PASS);
-        serviceConfiguration.setTlsRequireTrustedClientCertOnConnect(true);
         serviceConfiguration.setBrokerClientTlsEnabled(true);
         serviceConfiguration.setBrokerClientTlsEnabledWithKeyStore(true);
         serviceConfiguration.setBrokerClientTlsKeyStore(TLS_EC_KS_BROKER_CLIENT_STORE);
