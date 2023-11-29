@@ -60,20 +60,6 @@ public interface AuthorizationProvider extends Closeable {
     }
 
     /**
-     * @deprecated - Use method {@link #isSuperUser(String, AuthenticationDataSource, ServiceConfiguration)}.
-     * Will be removed after 2.12.
-     * Check if specified role is a super user
-     * @param role the role to check
-     * @return a CompletableFuture containing a boolean in which true means the role is a super user
-     * and false if it is not
-     */
-    @Deprecated
-    default CompletableFuture<Boolean> isSuperUser(String role, ServiceConfiguration serviceConfiguration) {
-        Set<String> superUserRoles = serviceConfiguration.getSuperUserRoles();
-        return CompletableFuture.completedFuture(role != null && superUserRoles.contains(role));
-    }
-
-    /**
      * Check if specified role is an admin of the tenant.
      * @param tenant the tenant to check
      * @param role the role to check
@@ -271,21 +257,6 @@ public interface AuthorizationProvider extends Closeable {
     }
 
     /**
-     * @deprecated - will be removed after 2.12. Use async variant.
-     */
-    @Deprecated
-    default Boolean allowTenantOperation(String tenantName, String role, TenantOperation operation,
-                                         AuthenticationDataSource authData) {
-        try {
-            return allowTenantOperationAsync(tenantName, role, operation, authData).get();
-        } catch (InterruptedException e) {
-            throw new RestException(e);
-        } catch (ExecutionException e) {
-            throw new RestException(e.getCause());
-        }
-    }
-
-    /**
      * Check if a given <tt>role</tt> is allowed to execute a given <tt>operation</tt> on the namespace.
      *
      * @param namespaceName namespace name
@@ -301,23 +272,6 @@ public interface AuthorizationProvider extends Closeable {
         return FutureUtil.failedFuture(
             new IllegalStateException("NamespaceOperation [" + operation.name() + "] is not supported by "
                     + "the Authorization provider you are using."));
-    }
-
-    /**
-     * @deprecated - will be removed after 2.12. Use async variant.
-     */
-    @Deprecated
-    default Boolean allowNamespaceOperation(NamespaceName namespaceName,
-                                            String role,
-                                            NamespaceOperation operation,
-                                            AuthenticationDataSource authData) {
-        try {
-            return allowNamespaceOperationAsync(namespaceName, role, operation, authData).get();
-        } catch (InterruptedException e) {
-            throw new RestException(e);
-        } catch (ExecutionException e) {
-            throw new RestException(e.getCause());
-        }
     }
 
     /**
@@ -341,24 +295,6 @@ public interface AuthorizationProvider extends Closeable {
     }
 
     /**
-     * @deprecated - will be removed after 2.12. Use async variant.
-     */
-    @Deprecated
-    default Boolean allowNamespacePolicyOperation(NamespaceName namespaceName,
-                                                  PolicyName policy,
-                                                  PolicyOperation operation,
-                                                  String role,
-                                                  AuthenticationDataSource authData) {
-        try {
-            return allowNamespacePolicyOperationAsync(namespaceName, policy, operation, role, authData).get();
-        } catch (InterruptedException e) {
-            throw new RestException(e);
-        } catch (ExecutionException e) {
-            throw new RestException(e.getCause());
-        }
-    }
-
-    /**
      * Check if a given <tt>role</tt> is allowed to execute a given topic <tt>operation</tt> on the topic.
      *
      * @param topic topic name
@@ -374,23 +310,6 @@ public interface AuthorizationProvider extends Closeable {
         return FutureUtil.failedFuture(
             new IllegalStateException("TopicOperation [" + operation.name() + "] is not supported by the Authorization"
                     + "provider you are using."));
-    }
-
-    /**
-     * @deprecated - will be removed after 2.12. Use async variant.
-     */
-    @Deprecated
-    default Boolean allowTopicOperation(TopicName topicName,
-                                        String role,
-                                        TopicOperation operation,
-                                        AuthenticationDataSource authData) {
-        try {
-            return allowTopicOperationAsync(topicName, role, operation, authData).get();
-        } catch (InterruptedException e) {
-            throw new RestException(e);
-        } catch (ExecutionException e) {
-            throw new RestException(e.getCause());
-        }
     }
 
     /**
@@ -410,24 +329,6 @@ public interface AuthorizationProvider extends Closeable {
         return FutureUtil.failedFuture(
                 new IllegalStateException("TopicPolicyOperation [" + policy.name() + "/" + operation.name() + "] "
                         + "is not supported by the Authorization provider you are using."));
-    }
-
-    /**
-     * @deprecated - will be removed after 2.12. Use async variant.
-     */
-    @Deprecated
-    default Boolean allowTopicPolicyOperation(TopicName topicName,
-                                              String role,
-                                              PolicyName policy,
-                                              PolicyOperation operation,
-                                              AuthenticationDataSource authData) {
-        try {
-            return allowTopicPolicyOperationAsync(topicName, role, policy, operation, authData).get();
-        } catch (InterruptedException e) {
-            throw new RestException(e);
-        } catch (ExecutionException e) {
-            throw new RestException(e.getCause());
-        }
     }
 
     /**
