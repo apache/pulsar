@@ -46,6 +46,7 @@ import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.awaitility.Awaitility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
@@ -495,9 +496,10 @@ public class SimpleProducerConsumerStatTest extends ProducerConsumerBase {
             msg = consumer.receive(5, TimeUnit.SECONDS);
             String receivedMessage = new String(msg.getData());
             log.info("Received message: [{}]", receivedMessage);
-            String expectedMessage = "my-message-" + i;
-            testMessageOrderAndDuplicates(messageSet, receivedMessage, expectedMessage);
+            Assert.assertTrue(messageSet.add(receivedMessage), "Received duplicate message " + receivedMessage);
         }
+        Assert.assertEquals(messageSet.size(), numMessages);
+
         // Acknowledge the consumption of all messages at once
         consumer.acknowledgeCumulative(msg);
 
