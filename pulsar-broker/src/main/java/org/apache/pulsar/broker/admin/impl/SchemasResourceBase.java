@@ -147,8 +147,13 @@ public class SchemasResourceBase extends AdminResource {
                 .thenCompose(__ -> getSchemaCompatibilityStrategyAsync())
                 .thenCompose(strategy -> {
                     String schemaId = getSchemaId();
+                    final SchemaType schemaType = SchemaType.valueOf(payload.getType());
+                    byte[] data = payload.getSchema().getBytes(StandardCharsets.UTF_8);
+                    if (schemaType.getValue() == SchemaType.KEY_VALUE.getValue()) {
+                        data = SchemaUtils.convertKeyValueDataStringToSchemaInfoSchema(data);
+                    }
                     return pulsar().getSchemaRegistryService().isCompatible(schemaId,
-                            SchemaData.builder().data(payload.getSchema().getBytes(StandardCharsets.UTF_8))
+                            SchemaData.builder().data(data)
                                     .isDeleted(false)
                                     .timestamp(clock.millis()).type(SchemaType.valueOf(payload.getType()))
                                     .user(defaultIfEmpty(clientAppId(), ""))
