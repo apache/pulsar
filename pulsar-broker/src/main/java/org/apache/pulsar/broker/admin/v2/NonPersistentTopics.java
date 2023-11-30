@@ -214,7 +214,11 @@ public class NonPersistentTopics extends PersistentTopics {
                     + "not to use when there's heavy traffic.")
             @QueryParam("subscriptionBacklogSize") @DefaultValue("false") boolean subscriptionBacklogSize,
             @ApiParam(value = "If return the earliest time in backlog")
-            @QueryParam("getEarliestTimeInBacklog") @DefaultValue("false") boolean getEarliestTimeInBacklog) {
+            @QueryParam("getEarliestTimeInBacklog") @DefaultValue("false") boolean getEarliestTimeInBacklog,
+            @ApiParam(value = "If exclude the publishers")
+            @QueryParam("excludePublishers") @DefaultValue("false") boolean excludePublishers,
+            @ApiParam(value = "If exclude the consumers")
+            @QueryParam("excludeConsumers") @DefaultValue("false") boolean excludeConsumers) {
         try {
             validateTopicName(tenant, namespace, encodedTopic);
             if (topicName.isPartitioned()) {
@@ -240,12 +244,19 @@ public class NonPersistentTopics extends PersistentTopics {
                 NonPersistentPartitionedTopicStatsImpl stats =
                         new NonPersistentPartitionedTopicStatsImpl(partitionMetadata);
                 List<CompletableFuture<TopicStats>> topicStatsFutureList = new ArrayList<>();
+                org.apache.pulsar.client.admin.GetStatsOptions statsOptions =
+                        new org.apache.pulsar.client.admin.GetStatsOptions(
+                                getPreciseBacklog,
+                                subscriptionBacklogSize,
+                                getEarliestTimeInBacklog,
+                                excludePublishers,
+                                excludeConsumers
+                        );
                 for (int i = 0; i < partitionMetadata.partitions; i++) {
                     try {
                         topicStatsFutureList
                                 .add(pulsar().getAdminClient().topics().getStatsAsync(
-                                        (topicName.getPartition(i).toString()), getPreciseBacklog,
-                                        subscriptionBacklogSize, getEarliestTimeInBacklog));
+                                        (topicName.getPartition(i).toString()), statsOptions));
                     } catch (PulsarServerException e) {
                         asyncResponse.resume(new RestException(e));
                         return;

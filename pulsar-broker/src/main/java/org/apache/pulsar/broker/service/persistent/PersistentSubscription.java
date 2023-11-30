@@ -68,6 +68,7 @@ import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionInval
 import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.Dispatcher;
 import org.apache.pulsar.broker.service.EntryFilterSupport;
+import org.apache.pulsar.broker.service.GetStatsOptions;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.plugin.EntryFilter;
@@ -1099,8 +1100,7 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
         return cursor.getEstimatedSizeSinceMarkDeletePosition();
     }
 
-    public SubscriptionStatsImpl getStats(Boolean getPreciseBacklog, boolean subscriptionBacklogSize,
-                                          boolean getEarliestTimeInBacklog) {
+    public SubscriptionStatsImpl getStats(GetStatsOptions getStatsOptions) {
         SubscriptionStatsImpl subStats = new SubscriptionStatsImpl();
         subStats.lastExpireTimestamp = lastExpireTimestamp;
         subStats.lastConsumedFlowTimestamp = lastConsumedFlowTimestamp;
@@ -1114,7 +1114,9 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
                     ? ((PersistentStickyKeyDispatcherMultipleConsumers) dispatcher).getConsumerKeyHashRanges() : null;
             dispatcher.getConsumers().forEach(consumer -> {
                 ConsumerStatsImpl consumerStats = consumer.getStats();
-                subStats.consumers.add(consumerStats);
+                if (!getStatsOptions.isExcludeConsumers()) {
+                    subStats.consumers.add(consumerStats);
+                }
                 subStats.msgRateOut += consumerStats.msgRateOut;
                 subStats.msgThroughputOut += consumerStats.msgThroughputOut;
                 subStats.bytesOutCounter += consumerStats.bytesOutCounter;
@@ -1164,14 +1166,14 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
                 subStats.msgDelayed = d.getNumberOfDelayedMessages();
             }
         }
-        subStats.msgBacklog = getNumberOfEntriesInBacklog(getPreciseBacklog);
-        if (subscriptionBacklogSize) {
+        subStats.msgBacklog = getNumberOfEntriesInBacklog(getStatsOptions.isGetPreciseBacklog());
+        if (getStatsOptions.isSubscriptionBacklogSize()) {
             subStats.backlogSize = ((ManagedLedgerImpl) topic.getManagedLedger())
                     .getEstimatedBacklogSize((PositionImpl) cursor.getMarkDeletedPosition());
         } else {
             subStats.backlogSize = -1;
         }
-        if (getEarliestTimeInBacklog) {
+        if (getStatsOptions.isGetEarliestTimeInBacklog()) {
             if (subStats.msgBacklog > 0) {
                 ManagedLedgerImpl managedLedger = ((ManagedLedgerImpl) cursor.getManagedLedger());
                 PositionImpl markDeletedPosition = (PositionImpl) cursor.getMarkDeletedPosition();
