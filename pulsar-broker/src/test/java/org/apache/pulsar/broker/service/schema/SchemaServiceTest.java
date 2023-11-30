@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.service.schema;
 
+import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.fail;
 import static org.testng.AssertJUnit.assertEquals;
 import static org.testng.AssertJUnit.assertFalse;
@@ -46,9 +47,11 @@ import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.service.schema.SchemaRegistry.SchemaAndMetadata;
 import org.apache.pulsar.broker.stats.PrometheusMetricsTest;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsGenerator;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.impl.schema.KeyValueSchemaInfo;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
+import org.apache.pulsar.common.protocol.schema.IsCompatibilityResponse;
 import org.apache.pulsar.common.protocol.schema.SchemaData;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.schema.KeyValueEncodingType;
@@ -403,7 +406,11 @@ public class SchemaServiceTest extends MockedPulsarServiceBaseTest {
                         .build(),
                 SchemaInfo.builder().type(SchemaType.BOOLEAN).schema(new byte[0])
                         .build(), KeyValueEncodingType.SEPARATED);
+        assertThrows(PulsarAdminException.ServerSideErrorException.class, () -> admin.schemas().testCompatibility(topicName, schemaInfo));
         admin.schemas().createSchema(topicName, schemaInfo);
+
+        final IsCompatibilityResponse isCompatibilityResponse = admin.schemas().testCompatibility(topicName, schemaInfo);
+        Assert.assertTrue(isCompatibilityResponse.isCompatibility());
 
         final SchemaInfoWithVersion schemaInfoWithVersion = admin.schemas().getSchemaInfoWithVersion(topicName);
         Assert.assertEquals(schemaInfoWithVersion.getVersion(), 0);
@@ -413,5 +420,6 @@ public class SchemaServiceTest extends MockedPulsarServiceBaseTest {
 
         final Long version2 = admin.schemas().getVersionBySchema(topicName, schemaInfoWithVersion.getSchemaInfo());
         Assert.assertEquals(version2, 0);
+
     }
 }
