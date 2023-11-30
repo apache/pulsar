@@ -1967,18 +1967,33 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
         // Wait for phase one to complete
         Thread.sleep(500);
 
+        Optional<Topic> previousTopicRef = pulsar.getBrokerService().getTopicIfExists(topic).get();
+        Assert.assertTrue(previousTopicRef.isPresent());
+        PersistentTopic previousPersistentTopic = (PersistentTopic) previousTopicRef.get();
+
         // Unload topic make reader of compaction reconnect
         admin.topics().unload(topic);
 
-        Optional<Topic> topicRef = pulsar.getBrokerService().getTopicIfExists(topic).get();
-        Assert.assertTrue(topicRef.isPresent());
-        PersistentTopic persistentTopic = (PersistentTopic) topicRef.get();
         Awaitility.await().untilAsserted(() -> {
-            PulsarTopicCompactionService topicCompactionService =
-                    (PulsarTopicCompactionService) persistentTopic.getTopicCompactionService();
-            Optional<CompactedTopicContext> compactedTopicContext = topicCompactionService.getCompactedTopic()
-                    .getCompactedTopicContext();
-            Assert.assertTrue(compactedTopicContext.isPresent());
+            LongRunningProcessStatus previousLongRunningProcessStatus = previousPersistentTopic.compactionStatus();
+
+            Optional<Topic> currentTopicReference = pulsar.getBrokerService().getTopicReference(topic);
+            Assert.assertTrue(currentTopicReference.isPresent());
+            PersistentTopic currentPersistentTopic = (PersistentTopic) currentTopicReference.get();
+            LongRunningProcessStatus currentLongRunningProcessStatus = currentPersistentTopic.compactionStatus();
+
+            if (previousLongRunningProcessStatus.status == LongRunningProcessStatus.Status.ERROR
+                    && (currentLongRunningProcessStatus.status == LongRunningProcessStatus.Status.NOT_RUN
+                    || currentLongRunningProcessStatus.status == LongRunningProcessStatus.Status.ERROR)) {
+                // trigger compaction again
+                admin.topics().triggerCompaction(topic);
+                Assert.assertEquals(currentLongRunningProcessStatus.status, LongRunningProcessStatus.Status.SUCCESS);
+            } else if (previousLongRunningProcessStatus.status == LongRunningProcessStatus.Status.RUNNING
+                    || previousLongRunningProcessStatus.status == LongRunningProcessStatus.Status.SUCCESS) {
+                Assert.assertEquals(previousLongRunningProcessStatus.status, LongRunningProcessStatus.Status.SUCCESS);
+            } else {
+                Assert.assertEquals(currentLongRunningProcessStatus.status, LongRunningProcessStatus.Status.SUCCESS);
+            }
         });
 
         Awaitility.await().untilAsserted(() -> {
