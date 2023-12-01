@@ -34,7 +34,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class SubscribeRateLimiter {
-    private static final int BURST_FACTOR = 2;
     private final String topicName;
     private final BrokerService brokerService;
     private ConcurrentHashMap<ConsumerIdentifier, AsyncTokenBucket> subscribeRateLimiter;
@@ -115,9 +114,11 @@ public class SubscribeRateLimiter {
 
         // update subscribe-rateLimiter
         if (ratePerConsumer > 0) {
-            this.subscribeRateLimiter.put(consumerIdentifier,
-                    new AsyncTokenBucket(BURST_FACTOR * ratePerConsumer, ratePerConsumer, DEFAULT_CLOCK_SOURCE,
-                            ratePeriodNanos));
+            AsyncTokenBucket tokenBucket =
+                    new AsyncTokenBucket(ratePerConsumer, ratePerConsumer, DEFAULT_CLOCK_SOURCE,
+                            ratePeriodNanos);
+            tokenBucket.fillBucket();
+            this.subscribeRateLimiter.put(consumerIdentifier, tokenBucket);
         } else {
             // subscribe-rate should be disable and close
             removeSubscribeLimiter(consumerIdentifier);

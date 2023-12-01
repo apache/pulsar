@@ -90,6 +90,13 @@ public class AsyncTokenBucket {
         updateTokens();
     }
 
+    public void fillBucket() {
+        tokens = capacity;
+        lastNanos = 0;
+        lastIncrement = 0;
+        remainderNanos = 0;
+    }
+
     public void updateTokens() {
         updateAndConsumeTokens(0, false);
     }
@@ -168,11 +175,12 @@ public class AsyncTokenBucket {
         return rate;
     }
 
+    // TODO: LH Rename to something that is a better name
     public boolean containsTokens() {
         return containsTokens(false);
     }
 
     public boolean containsTokens(boolean forceUpdateTokens) {
-        return tokens(forceUpdateTokens) > 0;
+        return tokens(forceUpdateTokens) >= 0;
     }
 }
