@@ -1988,6 +1988,8 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
                 // trigger compaction again
                 admin.topics().triggerCompaction(topic);
                 Assert.assertEquals(currentLongRunningProcessStatus.status, LongRunningProcessStatus.Status.SUCCESS);
+            } else if (previousLongRunningProcessStatus.status == LongRunningProcessStatus.Status.RUNNING) {
+                Assert.assertEquals(previousLongRunningProcessStatus.status, LongRunningProcessStatus.Status.SUCCESS);
             }
         });
 
