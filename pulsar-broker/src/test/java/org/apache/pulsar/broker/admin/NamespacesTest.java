@@ -32,6 +32,7 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
+import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import java.lang.reflect.Field;
@@ -1292,6 +1293,14 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
 
         // reset back to false
         pulsar.getConfiguration().setForceDeleteNamespaceAllowed(false);
+    }
+
+    @Test
+    public void testSetNamespaceReplicationCluters() throws Exception {
+        String namespace = BrokerTestUtil.newUniqueName(this.testTenant + "/namespace");
+        admin.namespaces().createNamespace(namespace, 100);
+        assertThrows(PulsarAdminException.PreconditionFailedException.class,
+                () -> admin.namespaces().setNamespaceReplicationClusters(namespace, Set.of()));
     }
 
     @Test
