@@ -62,6 +62,7 @@ public class AsyncTokenBucket {
 
     private final long capacity;
     private final long rate;
+    private final long minTokens;
     private final long ratePeriodNanos;
     private final long minIncrementNanos;
     private final LongSupplier clockSource;
@@ -70,31 +71,27 @@ public class AsyncTokenBucket {
     private final long defaultMinTokensForPause;
 
     public AsyncTokenBucket(long capacity, long rate, LongSupplier clockSource) {
-        this(capacity, rate, clockSource, ONE_SECOND_NANOS, DEFAULT_MINIMUM_INCREMENT_NANOS);
+        this(capacity, rate, clockSource, ONE_SECOND_NANOS);
     }
 
     public AsyncTokenBucket(long capacity, long rate, LongSupplier clockSource, long ratePeriodNanos) {
-        this(capacity, rate, clockSource, ratePeriodNanos, DEFAULT_MINIMUM_INCREMENT_NANOS);
+        this(capacity, rate, clockSource, ratePeriodNanos, DEFAULT_MINIMUM_INCREMENT_NANOS, rate, 1);
     }
 
     public AsyncTokenBucket(long capacity, long rate, LongSupplier clockSource, long ratePeriodNanos,
-                            long minimumIncrementNanos) {
+                            long minimumIncrementNanos, long initialTokens, long minTokens) {
         this.capacity = capacity;
         this.rate = rate;
         this.ratePeriodNanos = ratePeriodNanos;
         this.clockSource = clockSource;
         this.minIncrementNanos =
-                Math.max(ratePeriodNanos / rate + 1, minimumIncrementNanos);
+                Math.max(ratePeriodNanos / rate + 1,
+                        minimumIncrementNanos != -1 ? minimumIncrementNanos : DEFAULT_MINIMUM_INCREMENT_NANOS);
         // The default minimum tokens is the amount of tokens made available in the minimum increment duration
         this.defaultMinTokensForPause = this.minIncrementNanos * rate / ratePeriodNanos;
+        this.tokens = initialTokens;
+        this.minTokens = minTokens;
         updateTokens();
-    }
-
-    public void fillBucket() {
-        tokens = capacity;
-        lastNanos = 0;
-        lastIncrement = 0;
-        remainderNanos = 0;
     }
 
     public void updateTokens() {
@@ -181,6 +178,6 @@ public class AsyncTokenBucket {
     }
 
     public boolean containsTokens(boolean forceUpdateTokens) {
-        return tokens(forceUpdateTokens) >= 0;
+        return tokens(forceUpdateTokens) >= minTokens;
     }
 }
