@@ -905,6 +905,11 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
     }
 
     private void updateActiveRateLimiters() {
+        if (getBrokerPublishRateLimiter() == null) {
+            // Happens only in tests
+            // TODO: LH Find a better way of handling this
+            return;
+        }
         if (isResourceGroupRateLimitingEnabled()) {
             activeRateLimiters =
                     List.of(this.topicPublishRateLimiter, getBrokerPublishRateLimiter(), resourceGroupPublishLimiter);
