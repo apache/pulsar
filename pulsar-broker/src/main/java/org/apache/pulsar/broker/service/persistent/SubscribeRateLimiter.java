@@ -73,7 +73,7 @@ public class SubscribeRateLimiter {
             return true;
         }
         tokenBucket.consumeTokens(1);
-        return tokenBucket.getTokens() > 0;
+        return tokenBucket.containsTokens(true);
     }
 
     /**
@@ -84,7 +84,7 @@ public class SubscribeRateLimiter {
      */
     public boolean subscribeAvailable(ConsumerIdentifier consumerIdentifier) {
         return (subscribeRateLimiter.get(consumerIdentifier)
-                == null || subscribeRateLimiter.get(consumerIdentifier).getTokens() > 0);
+                == null || subscribeRateLimiter.get(consumerIdentifier).containsTokens());
     }
 
     /**
