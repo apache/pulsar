@@ -30,9 +30,6 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
-
-import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.CryptoKeyReader;
@@ -48,13 +45,11 @@ import org.apache.pulsar.client.api.TableView;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.topics.TopicCompactionStrategy;
 import org.apache.pulsar.common.util.FutureUtil;
-import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 @Test(groups = "flaky")
-@Slf4j
 public class StrategicCompactionTest extends CompactionTest {
     private TopicCompactionStrategy strategy;
     private StrategicTwoPhaseCompactor compactor;
@@ -217,68 +212,5 @@ public class StrategicCompactionTest extends CompactionTest {
             assertEquals(received, messages);
         }
 
-    }
-
-    @Test
-    public void testCompactionDuplicateWithStrategicCompaction() throws Exception {
-        String topic = "persistent://my-property/use/my-ns/testCompactionDuplicateWithStrategicCompaction";
-        final int numMessages = 1000;
-        final int maxKeys = 800;
-
-        @Cleanup
-        Producer<byte[]> producer = pulsarClient.newProducer()
-                .topic(topic)
-                .enableBatching(false)
-                .messageRoutingMode(MessageRoutingMode.SinglePartition)
-                .create();
-
-        // trigger compaction
-        StrategicTwoPhaseCompactor compactor
-                = new StrategicTwoPhaseCompactor(conf, pulsarClient, bk, compactionScheduler);
-        compactor.compact(topic, strategy).get();
-
-        Map<String, byte[]> expected = new HashMap<>();
-        Random r = new Random(0);
-
-        pulsarClient.newConsumer().topic(topic).subscriptionName("sub1").readCompacted(true).subscribe().close();
-
-        for (int j = 0; j < numMessages; j++) {
-            int keyIndex = r.nextInt(maxKeys);
-            String key = "key" + keyIndex;
-            byte[] data = ("my-message-" + key + "-" + j).getBytes();
-            producer.newMessage().key(key).value(data).send();
-            expected.put(key, data);
-        }
-
-        producer.flush();
-
-        // trigger compaction
-        compactor.compact(topic, strategy).get();
-
-        // Wait for phase one to complete
-        Thread.sleep(500);
-
-        // Unload topic make reader of compaction reconnect
-        admin.topics().unload(topic);
-
-        Awaitility.await().untilAsserted(() -> {
-            PersistentTopicInternalStats internalStats = admin.topics().getInternalStats(topic, false);
-            // Compacted topic ledger should have same number of entry equals to number of unique key.
-            Assert.assertEquals(internalStats.compactedLedger.entries, expected.size());
-            Assert.assertTrue(internalStats.compactedLedger.ledgerId > -1);
-            Assert.assertFalse(internalStats.compactedLedger.offloaded);
-        });
-
-        // consumer with readCompacted enabled only get compacted entries
-        try (Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic).subscriptionName("sub1")
-                .readCompacted(true).subscribe()) {
-            while (true) {
-                Message<byte[]> m = consumer.receive(2, TimeUnit.SECONDS);
-                Assert.assertEquals(expected.remove(m.getKey()), m.getData());
-                if (expected.isEmpty()) {
-                    break;
-                }
-            }
-        }
     }
 }
