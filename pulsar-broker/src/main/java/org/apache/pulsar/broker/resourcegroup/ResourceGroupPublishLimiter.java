@@ -65,6 +65,8 @@ public class ResourceGroupPublishLimiter extends PublishRateLimiterImpl  {
     }
 
     public void update(long publishRateInMsgs, long publishRateInBytes) {
+        this.publishMaxMessageRate = publishRateInMsgs;
+        this.publishMaxByteRate = publishRateInBytes;
         updateTokenBuckets(publishRateInMsgs, publishRateInBytes);
     }
 }
