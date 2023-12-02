@@ -24,12 +24,14 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.LongSupplier;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.PublishRate;
 import org.apache.pulsar.common.util.AsyncTokenBucket;
 import org.jctools.queues.MessagePassingQueue;
 import org.jctools.queues.MpscUnboundedArrayQueue;
 
+@Slf4j
 public class PublishRateLimiterImpl implements PublishRateLimiter {
     private static final int BURST_FACTOR = 1;
     private static final int DEFAULT_CONSISTENT_VIEW_INTERVAL = 10;
@@ -97,7 +99,9 @@ public class PublishRateLimiterImpl implements PublishRateLimiter {
     }
 
     private void scheduleUnthrottling(ScheduledExecutorService executor) {
-        executor.schedule(() -> this.unthrottleQueuedProducers(executor), calculatePause(), TimeUnit.NANOSECONDS);
+        long delay = calculatePause();
+        log.info("Scheduling unthrottling of {} producers after {} ns", unthrottlingQueue.size(), delay);
+        executor.schedule(() -> this.unthrottleQueuedProducers(executor), delay, TimeUnit.NANOSECONDS);
     }
 
     private void unthrottleQueuedProducers(ScheduledExecutorService executor) {

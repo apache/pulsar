@@ -121,7 +121,7 @@ public class ResourceGroupRateLimiterTest extends BrokerTestBase {
 
         // In the next interval, the above message will be accepted. Wait for one more second (total 2s),
         // to publish the next message.
-        Thread.sleep(2000);
+        Thread.sleep(4000);
 
         try {
             // third one should succeed

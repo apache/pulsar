@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.service;
 
 import io.prometheus.client.Gauge;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * Tracks the state of throttling for a connection. The throttling happens by pausing reads by setting
@@ -35,6 +36,7 @@ import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
  * {@link #setPublishBufferLimiting} method. Internally, these two methods will call the
  * {@link #incrementThrottleCount()} and {@link #decrementThrottleCount()} methods.
  */
+@Slf4j
 final class ServerCnxThrottleTracker {
     private static final Gauge throttledConnections = Gauge.build()
             .name("pulsar_broker_throttled_connections")
@@ -94,6 +96,7 @@ final class ServerCnxThrottleTracker {
         if (!isChannelActive()) {
             return;
         }
+        log.info("[{}] Setting auto read to {}", serverCnx.ctx().channel(), autoRead);
         serverCnx.ctx().channel().config().setAutoRead(autoRead);
         if (autoRead) {
             serverCnx.getBrokerService().resumedConnections(1);
