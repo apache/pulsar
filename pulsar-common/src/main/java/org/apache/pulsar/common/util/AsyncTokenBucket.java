@@ -82,7 +82,7 @@ public class AsyncTokenBucket {
                             long minimumIncrementNanos, long initialTokens, long minTokens) {
         this.capacity = capacity;
         this.rate = rate;
-        this.ratePeriodNanos = ratePeriodNanos;
+        this.ratePeriodNanos = ratePeriodNanos != -1 ? ratePeriodNanos : ONE_SECOND_NANOS;
         this.clockSource = clockSource;
         this.minIncrementNanos = minimumIncrementNanos != 0 ?
                 Math.max(ratePeriodNanos / rate + 1,
