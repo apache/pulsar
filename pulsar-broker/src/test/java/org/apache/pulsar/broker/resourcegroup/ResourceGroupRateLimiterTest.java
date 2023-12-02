@@ -41,6 +41,7 @@ import java.util.concurrent.TimeoutException;
 
 public class ResourceGroupRateLimiterTest extends BrokerTestBase {
 
+    private static final long MESSAGE_SIZE_SERIALIZED = 41L;
     final String rgName = "testRG";
     org.apache.pulsar.common.policies.data.ResourceGroup testAddRg =
     new org.apache.pulsar.common.policies.data.ResourceGroup();
@@ -121,7 +122,7 @@ public class ResourceGroupRateLimiterTest extends BrokerTestBase {
 
         // In the next interval, the above message will be accepted. Wait for one more second (total 2s),
         // to publish the next message.
-        Thread.sleep(4000);
+        Thread.sleep(2000);
 
         try {
             // third one should succeed
@@ -135,6 +136,8 @@ public class ResourceGroupRateLimiterTest extends BrokerTestBase {
         admin.namespaces().removeNamespaceResourceGroup(namespaceName);
         deleteResourceGroup(rgName);
 
+        Thread.sleep(2000);
+        
         // No rate limits should be applied.
         for (int i = 0; i < 5; i++) {
             messageId = producer.sendAsync(new byte[MESSAGE_SIZE]).get(100, TimeUnit.MILLISECONDS);
@@ -150,7 +153,7 @@ public class ResourceGroupRateLimiterTest extends BrokerTestBase {
     }
 
     private void prepareData() {
-        testAddRg.setPublishRateInBytes(Long.valueOf(MESSAGE_SIZE));
+        testAddRg.setPublishRateInBytes(Long.valueOf(MESSAGE_SIZE_SERIALIZED));
         testAddRg.setPublishRateInMsgs(1);
         testAddRg.setDispatchRateInMsgs(-1);
         testAddRg.setDispatchRateInBytes(Long.valueOf(-1));
