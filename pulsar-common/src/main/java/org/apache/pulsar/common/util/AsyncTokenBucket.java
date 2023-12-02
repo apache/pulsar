@@ -126,6 +126,7 @@ public class AsyncTokenBucket {
                     currentTokens -> Math.min(currentTokens + newTokens, capacity) - consumeTokens - pendingConsumed);
         } else {
             if (consumeTokens > 0) {
+                log.info("Adding {} to pending consumed tokens", consumeTokens);
                 pendingConsumedTokens.add(consumeTokens);
             }
         }
