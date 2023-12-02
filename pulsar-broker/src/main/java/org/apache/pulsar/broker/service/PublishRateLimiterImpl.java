@@ -84,6 +84,8 @@ public class PublishRateLimiterImpl implements PublishRateLimiter {
             currentTokenBucketOnByte.consumeTokens(msgSizeInBytes);
             shouldThrottle = shouldThrottle || !currentTokenBucketOnMessage.containsTokens();
         }
+        log.info("Producer {} {} publish {} messages of total size {} bytes, should throttle: {}",
+                producer.getTopic(), producer.getProducerName(), numOfMessages, msgSizeInBytes, shouldThrottle);
         if (shouldThrottle) {
             producer.incrementThrottleCount();
             scheduleDecrementThrottleCount(producer);
