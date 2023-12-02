@@ -24,14 +24,12 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.LongSupplier;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.PublishRate;
 import org.apache.pulsar.common.util.AsyncTokenBucket;
 import org.jctools.queues.MessagePassingQueue;
 import org.jctools.queues.MpscUnboundedArrayQueue;
 
-@Slf4j
 public class PublishRateLimiterImpl implements PublishRateLimiter {
     private static final int BURST_FACTOR = 1;
     private static final int DEFAULT_CONSISTENT_VIEW_INTERVAL = 10;
@@ -84,8 +82,6 @@ public class PublishRateLimiterImpl implements PublishRateLimiter {
             currentTokenBucketOnByte.consumeTokens(msgSizeInBytes);
             shouldThrottle = shouldThrottle || !currentTokenBucketOnMessage.containsTokens();
         }
-        log.info("Producer {} {} publish {} messages of total size {} bytes, should throttle: {}",
-                producer.getTopic(), producer.getProducerName(), numOfMessages, msgSizeInBytes, shouldThrottle);
         if (shouldThrottle) {
             producer.incrementThrottleCount();
             scheduleDecrementThrottleCount(producer);
@@ -102,8 +98,6 @@ public class PublishRateLimiterImpl implements PublishRateLimiter {
 
     private void scheduleUnthrottling(ScheduledExecutorService executor) {
         long delay = calculatePause();
-        log.info("Scheduling unthrottling of {} producers after {} ms", unthrottlingQueue.size(),
-                TimeUnit.NANOSECONDS.toMillis(delay));
         executor.schedule(() -> this.unthrottleQueuedProducers(executor), delay, TimeUnit.NANOSECONDS);
     }
 

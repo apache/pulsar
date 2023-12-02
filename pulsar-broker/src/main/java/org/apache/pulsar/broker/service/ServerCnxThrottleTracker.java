@@ -96,7 +96,9 @@ final class ServerCnxThrottleTracker {
         if (!isChannelActive()) {
             return;
         }
-        log.info("[{}] Setting auto read to {}", serverCnx.ctx().channel(), autoRead);
+        if (log.isDebugEnabled()) {
+            log.debug("[{}] Setting auto read to {}", serverCnx.ctx().channel(), autoRead);
+        }
         serverCnx.ctx().channel().config().setAutoRead(autoRead);
         if (autoRead) {
             serverCnx.getBrokerService().resumedConnections(1);
