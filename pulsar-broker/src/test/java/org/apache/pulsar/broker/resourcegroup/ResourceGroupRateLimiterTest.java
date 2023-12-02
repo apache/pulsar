@@ -21,9 +21,10 @@ package org.apache.pulsar.broker.resourcegroup;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
-
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import org.apache.pulsar.broker.service.BrokerTestBase;
-import org.apache.pulsar.broker.service.PublishRateLimiterImpl;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
@@ -34,10 +35,6 @@ import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
-
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 
 public class ResourceGroupRateLimiterTest extends BrokerTestBase {
 
@@ -52,7 +49,6 @@ public class ResourceGroupRateLimiterTest extends BrokerTestBase {
     @BeforeClass
     @Override
     protected void setup() throws Exception {
-        PublishRateLimiterImpl.switchToConsistentTokensView();
         conf.setMaxPendingPublishRequestsPerConnection(0);
         super.baseSetup();
         prepareData();
@@ -62,7 +58,6 @@ public class ResourceGroupRateLimiterTest extends BrokerTestBase {
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
-        PublishRateLimiterImpl.resetConsistentTokensViewToDefault();
     }
 
     public void createResourceGroup(String rgName, org.apache.pulsar.common.policies.data.ResourceGroup rg) throws PulsarAdminException {
@@ -137,7 +132,7 @@ public class ResourceGroupRateLimiterTest extends BrokerTestBase {
         deleteResourceGroup(rgName);
 
         Thread.sleep(2000);
-        
+
         // No rate limits should be applied.
         for (int i = 0; i < 5; i++) {
             messageId = producer.sendAsync(new byte[MESSAGE_SIZE]).get(100, TimeUnit.MILLISECONDS);
