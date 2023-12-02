@@ -1630,4 +1630,63 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         log.info("Got {} other messages...", sum);
         Assert.assertEquals(sum, delayedMessages + messages);
     }
+
+    @Test
+    public void test()
+            throws Exception {
+        String topic = "persistent://public/default/key_shared-" + UUID.randomUUID();
+        boolean enableBatch = false;
+        Set<Integer> values = new HashSet<>();
+
+        @Cleanup
+        Consumer<Integer> consumer1 = createConsumer(topic);
+
+        @Cleanup
+        Producer<Integer> producer = createProducer(topic, enableBatch);
+        int count = 0;
+        for (int i = 0; i < 10; i++) {
+            // Send the same key twice so that we'll have a batch message
+            String key = String.valueOf(random.nextInt(NUMBER_OF_KEYS));
+            producer.newMessage().key(key).value(count++).send();
+        }
+
+        @Cleanup
+        Consumer<Integer> consumer2 = createConsumer(topic);
+
+        for (int i = 0; i < 10; i++) {
+            // Send the same key twice so that we'll have a batch message
+            String key = String.valueOf(random.nextInt(NUMBER_OF_KEYS));
+            producer.newMessage().key(key).value(count++).send();
+        }
+
+        @Cleanup
+        Consumer<Integer> consumer3 = createConsumer(topic);
+
+        consumer2.redeliverUnacknowledgedMessages();
+
+        for (int i = 0; i < 10; i++) {
+            // Send the same key twice so that we'll have a batch message
+            String key = String.valueOf(random.nextInt(NUMBER_OF_KEYS));
+            producer.newMessage().key(key).value(count++).send();
+        }
+        consumer1.close();
+
+        for(int i = 0; i < count; i++) {
+            Message<Integer> msg = consumer2.receive(100, TimeUnit.MILLISECONDS);
+            if (msg!=null) {
+                values.add(msg.getValue());
+            } else {
+                break;
+            }
+        }
+        for(int i = 0; i < count; i++) {
+            Message<Integer> msg = consumer3.receive(1, TimeUnit.MILLISECONDS);
+            if (msg!=null) {
+                values.add(msg.getValue());
+            } else {
+                break;
+            }
+        }
+        assertEquals(values.size(), count);
+    }
 }

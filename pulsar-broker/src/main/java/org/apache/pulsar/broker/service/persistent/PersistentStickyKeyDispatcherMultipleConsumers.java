@@ -355,25 +355,8 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
             return maxMessages;
         }
 
-        // If the read type is Replay, we should avoid send messages that hold by other consumer to the new consumers,
-        // For example, we have 10 messages [0,1,2,3,4,5,6,7,8,9]
-        // If the consumer0 get message 0 and 1, and does not acked message 0, then consumer1 joined,
-        // when consumer1 get message 2,3, the broker will not dispatch messages to consumer1
-        // because of the mark delete position did not move forward.
-        // So message 2,3 will stored in the redeliver tracker.
-        // Now, consumer2 joined, it will read new messages from the cursor,
-        // so the recentJoinedPosition is 4 for consumer2
-        // Because of there are messages need to redeliver, so the broker will read the redelivery message first [2,3]
-        // message [2,3] is lower than the recentJoinedPosition 4,
-        // so the message [2,3] will dispatched to the consumer2
-        // But the message [2,3] should not dispatch to consumer2.
-
         if (readType == ReadType.Replay) {
-            PositionImpl minReadPositionForRecentJoinedConsumer = recentlyJoinedConsumers.values().iterator().next();
-            if (minReadPositionForRecentJoinedConsumer != null
-                    && minReadPositionForRecentJoinedConsumer.compareTo(maxReadPosition) < 0) {
-                maxReadPosition = minReadPositionForRecentJoinedConsumer;
-            }
+            return maxMessages;
         }
         // Here, the consumer is one that has recently joined, so we can only send messages that were
         // published before it has joined.
