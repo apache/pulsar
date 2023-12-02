@@ -123,7 +123,10 @@ public class AsyncTokenBucket {
             }
             long pendingConsumed = pendingConsumedTokens.sumThenReset();
             TOKENS_UPDATER.updateAndGet(this,
-                    currentTokens -> Math.min(currentTokens + newTokens, capacity) - consumeTokens - pendingConsumed);
+                    currentTokens -> {
+                        log.info("current: {} new: {} consumed: {}, pendingConsumed: {}", currentTokens, newTokens, consumeTokens, pendingConsumed);
+                        return Math.min(currentTokens + newTokens, capacity) - consumeTokens - pendingConsumed;
+                    });
         } else {
             if (consumeTokens > 0) {
                 log.info("Adding {} to pending consumed tokens", consumeTokens);
@@ -158,6 +161,7 @@ public class AsyncTokenBucket {
      * Calculate the pause duration in nanoseconds if the tokens are fully consumed.
      * This method shouldn't be called from the hot path since it calculates a consistent value for the tokens which
      * isn't necessary on the hotpath.
+     *
      * @param forceUpdateTokens
      */
     public long calculatePause(boolean forceUpdateTokens) {
