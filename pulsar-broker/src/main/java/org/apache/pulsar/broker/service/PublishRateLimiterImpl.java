@@ -100,7 +100,8 @@ public class PublishRateLimiterImpl implements PublishRateLimiter {
 
     private void scheduleUnthrottling(ScheduledExecutorService executor) {
         long delay = calculatePause();
-        log.info("Scheduling unthrottling of {} producers after {} ns", unthrottlingQueue.size(), delay);
+        log.info("Scheduling unthrottling of {} producers after {} ms", unthrottlingQueue.size(),
+                TimeUnit.NANOSECONDS.toMillis(delay));
         executor.schedule(() -> this.unthrottleQueuedProducers(executor), delay, TimeUnit.NANOSECONDS);
     }
 

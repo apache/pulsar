@@ -23,6 +23,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.LongAdder;
 import java.util.function.LongSupplier;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * An asynchronous token bucket algorithm implementation that is optimized for performance with highly concurrent
@@ -36,6 +37,7 @@ import java.util.function.LongSupplier;
  * function. Indeed, it is just a sophisticated counter. It can be used as a building block for implementing higher
  * level asynchronous rate limiter implementations which do need side effects.
  */
+@Slf4j
 public class AsyncTokenBucket {
 
     public static final LongSupplier DEFAULT_CLOCK_SOURCE = System::nanoTime;
@@ -143,6 +145,7 @@ public class AsyncTokenBucket {
     protected long updateAndConsumeTokensAndCalculatePause(long consumeTokens, long minTokens,
                                                            boolean forceUpdateTokens) {
         updateAndConsumeTokens(consumeTokens, forceUpdateTokens);
+        log.info("available tokens: {}, minTokens: {}", tokens, minTokens);
         long needTokens = minTokens - tokens;
         if (needTokens <= 0) {
             return 0;
