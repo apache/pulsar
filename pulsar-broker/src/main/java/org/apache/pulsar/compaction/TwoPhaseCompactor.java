@@ -253,6 +253,7 @@ public class TwoPhaseCompactor extends Compactor {
             }
 
             if (m.getMessageId().compareTo(lastCompactedMessageId) <= 0) {
+                m.close();
                 phaseTwoLoop(reader, to, latestForKey, lh, outstanding, promise, lastCompactedMessageId);
                 return;
             }
