@@ -159,7 +159,7 @@ flexible messaging model and an intuitive client API.</description>
     <reflections.version>0.10.2</reflections.version>
     <swagger.version>1.6.2</swagger.version>
     <puppycrawl.checkstyle.version>8.37</puppycrawl.checkstyle.version>
-    <docker-maven.version>0.42.1</docker-maven.version>
+    <docker-maven.version>0.43.3</docker-maven.version>
     <docker.verbose>true</docker.verbose>
     <typetools.version>0.5.0</typetools.version>
     <protobuf3.version>3.19.6</protobuf3.version>
