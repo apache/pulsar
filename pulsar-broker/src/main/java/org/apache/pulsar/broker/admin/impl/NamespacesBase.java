@@ -668,7 +668,9 @@ public abstract class NamespacesBase extends AdminResource {
         return validateNamespacePolicyOperationAsync(namespaceName, PolicyName.REPLICATION, PolicyOperation.WRITE)
                 .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
                 .thenApply(__ -> {
-                    checkNotNull(clusterIds, "ClusterIds should not be null");
+                    if (CollectionUtils.isEmpty(clusterIds)) {
+                        throw new RestException(Status.PRECONDITION_FAILED, "ClusterIds should not be null or empty");
+                    }
                     if (!namespaceName.isGlobal() && !(clusterIds.size() == 1
                             && clusterIds.get(0).equals(pulsar().getConfiguration().getClusterName()))) {
                             throw new RestException(Status.PRECONDITION_FAILED,
