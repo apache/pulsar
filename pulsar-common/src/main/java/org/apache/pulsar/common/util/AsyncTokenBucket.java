@@ -121,9 +121,9 @@ public class AsyncTokenBucket {
                     REMAINDER_NANOS_UPDATER.addAndGet(this, remainderNanos);
                 }
             }
+            long pendingConsumed = pendingConsumedTokens.sumThenReset();
             TOKENS_UPDATER.updateAndGet(this,
-                    currentTokens -> Math.min(currentTokens + newTokens, capacity) - consumeTokens
-                            - pendingConsumedTokens.sumThenReset());
+                    currentTokens -> Math.min(currentTokens + newTokens, capacity) - consumeTokens - pendingConsumed);
         } else {
             if (consumeTokens > 0) {
                 pendingConsumedTokens.add(consumeTokens);
