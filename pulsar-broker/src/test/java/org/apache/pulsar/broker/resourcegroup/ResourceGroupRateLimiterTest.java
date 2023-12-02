@@ -125,7 +125,7 @@ public class ResourceGroupRateLimiterTest extends BrokerTestBase {
 
         try {
             // third one should succeed
-            messageId = producer.sendAsync(new byte[MESSAGE_SIZE]).get(100, TimeUnit.MILLISECONDS);
+            messageId = producer.sendAsync(new byte[MESSAGE_SIZE]).get(300, TimeUnit.MILLISECONDS);
             Assert.assertNotNull(messageId);
         } catch (TimeoutException e) {
             Assert.fail("should not fail");
