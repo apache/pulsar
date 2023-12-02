@@ -31,8 +31,9 @@ import org.jctools.queues.MessagePassingQueue;
 import org.jctools.queues.MpscUnboundedArrayQueue;
 
 public class PublishRateLimiterImpl implements PublishRateLimiter {
-    private static final int BURST_FACTOR = 2;
-    private static final int CONSISTENT_VIEW_OF_TOKENS_INTERVAL_IN_UNTHROTTLE_LOOP = 10;
+    private static final int BURST_FACTOR = 1;
+    private static final int DEFAULT_CONSISTENT_VIEW_INTERVAL = 10;
+    private static int CONSISTENT_VIEW_OF_TOKENS_INTERVAL_IN_UNTHROTTLE_LOOP = DEFAULT_CONSISTENT_VIEW_INTERVAL;
     private volatile AsyncTokenBucket tokenBucketOnMessage;
     private volatile AsyncTokenBucket tokenBucketOnByte;
     private final LongSupplier clockSource;
@@ -40,6 +41,14 @@ public class PublishRateLimiterImpl implements PublishRateLimiter {
     private final MessagePassingQueue<Producer> unthrottlingQueue = new MpscUnboundedArrayQueue<>(1024);
 
     private final AtomicBoolean unthrottlingScheduled = new AtomicBoolean(false);
+
+    public static void switchToConsistentTokensView() {
+        CONSISTENT_VIEW_OF_TOKENS_INTERVAL_IN_UNTHROTTLE_LOOP = 1;
+    }
+
+    public static void resetConsistentTokensViewToDefault() {
+        CONSISTENT_VIEW_OF_TOKENS_INTERVAL_IN_UNTHROTTLE_LOOP = DEFAULT_CONSISTENT_VIEW_INTERVAL;
+    }
 
     public PublishRateLimiterImpl(Policies policies, String clusterName) {
         this();

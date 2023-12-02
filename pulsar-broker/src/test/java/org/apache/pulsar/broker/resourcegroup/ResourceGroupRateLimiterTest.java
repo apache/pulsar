@@ -23,6 +23,7 @@ import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 
 import org.apache.pulsar.broker.service.BrokerTestBase;
+import org.apache.pulsar.broker.service.PublishRateLimiterImpl;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
@@ -50,16 +51,17 @@ public class ResourceGroupRateLimiterTest extends BrokerTestBase {
     @BeforeClass
     @Override
     protected void setup() throws Exception {
+        PublishRateLimiterImpl.switchToConsistentTokensView();
         conf.setMaxPendingPublishRequestsPerConnection(0);
         super.baseSetup();
         prepareData();
-
     }
 
     @AfterClass(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
+        PublishRateLimiterImpl.resetConsistentTokensViewToDefault();
     }
 
     public void createResourceGroup(String rgName, org.apache.pulsar.common.policies.data.ResourceGroup rg) throws PulsarAdminException {
