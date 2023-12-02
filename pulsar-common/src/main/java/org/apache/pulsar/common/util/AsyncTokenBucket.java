@@ -84,8 +84,7 @@ public class AsyncTokenBucket {
         this.rate = rate;
         this.ratePeriodNanos = ratePeriodNanos != -1 ? ratePeriodNanos : ONE_SECOND_NANOS;
         this.clockSource = clockSource;
-        this.minIncrementNanos = minimumIncrementNanos != 0 ?
-                Math.max(ratePeriodNanos / rate + 1,
+        this.minIncrementNanos = minimumIncrementNanos != 0 ? Math.max(ratePeriodNanos / rate + 1,
                         minimumIncrementNanos != -1 ? minimumIncrementNanos : DEFAULT_MINIMUM_INCREMENT_NANOS) : 0;
         // The default minimum tokens is the amount of tokens made available in the minimum increment duration
         this.defaultMinTokensForPause = Math.max(this.minIncrementNanos * rate / ratePeriodNanos, minTokens);
