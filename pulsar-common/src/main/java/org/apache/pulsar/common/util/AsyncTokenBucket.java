@@ -84,11 +84,11 @@ public class AsyncTokenBucket {
         this.rate = rate;
         this.ratePeriodNanos = ratePeriodNanos;
         this.clockSource = clockSource;
-        this.minIncrementNanos =
+        this.minIncrementNanos = minimumIncrementNanos != 0 ?
                 Math.max(ratePeriodNanos / rate + 1,
-                        minimumIncrementNanos != -1 ? minimumIncrementNanos : DEFAULT_MINIMUM_INCREMENT_NANOS);
+                        minimumIncrementNanos != -1 ? minimumIncrementNanos : DEFAULT_MINIMUM_INCREMENT_NANOS) : 0;
         // The default minimum tokens is the amount of tokens made available in the minimum increment duration
-        this.defaultMinTokensForPause = this.minIncrementNanos * rate / ratePeriodNanos;
+        this.defaultMinTokensForPause = Math.max(this.minIncrementNanos * rate / ratePeriodNanos, minTokens);
         this.tokens = initialTokens;
         this.minTokens = minTokens;
         updateTokens();
@@ -103,10 +103,10 @@ public class AsyncTokenBucket {
             throw new IllegalArgumentException("consumeTokens must be >= 0");
         }
         long currentNanos = clockSource.getAsLong();
-        long currentIncrement = currentNanos / minIncrementNanos;
+        long currentIncrement = minIncrementNanos != 0 ? currentNanos / minIncrementNanos : 0;
         long currentLastIncrement = lastIncrement;
-        if (forceUpdateTokens || (currentIncrement > currentLastIncrement && LAST_INCREMENT_UPDATER
-                .compareAndSet(this, currentLastIncrement, currentIncrement))) {
+        if (forceUpdateTokens || minIncrementNanos == 0 || (currentIncrement > currentLastIncrement
+                && LAST_INCREMENT_UPDATER.compareAndSet(this, currentLastIncrement, currentIncrement))) {
             long newTokens;
             long previousLastNanos = LAST_NANOS_UPDATER.getAndSet(this, currentNanos);
             if (previousLastNanos == 0) {
