@@ -19,6 +19,7 @@
 
 package org.apache.pulsar.broker.service;
 
+import com.google.common.annotations.VisibleForTesting;
 import io.netty.channel.EventLoopGroup;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -170,5 +171,15 @@ public class PublishRateLimiterImpl implements PublishRateLimiter {
         } else {
             tokenBucketOnByte = null;
         }
+    }
+
+    @VisibleForTesting
+    public AsyncTokenBucket getTokenBucketOnMessage() {
+        return tokenBucketOnMessage;
+    }
+
+    @VisibleForTesting
+    public AsyncTokenBucket getTokenBucketOnByte() {
+        return tokenBucketOnByte;
     }
 }

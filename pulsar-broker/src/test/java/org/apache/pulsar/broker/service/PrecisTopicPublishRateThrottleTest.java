@@ -163,9 +163,10 @@ public class PrecisTopicPublishRateThrottleTest extends BrokerTestBase{
                     "" + rateInMsg));
         Topic topicRef = pulsar.getBrokerService().getTopicReference(topic).get();
         Assert.assertNotNull(topicRef);
-//        PrecisePublishLimiter limiter = ((PrecisePublishLimiter) ((AbstractTopic) topicRef).topicPublishRateLimiter);
-//        Awaitility.await().untilAsserted(() -> Assert.assertEquals(limiter.publishMaxMessageRate, rateInMsg));
-//        Assert.assertEquals(limiter.publishMaxByteRate, 0);
+        PublishRateLimiterImpl limiter = ((PublishRateLimiterImpl) ((AbstractTopic) topicRef).topicPublishRateLimiter);
+        Awaitility.await()
+                .untilAsserted(() -> Assert.assertEquals(limiter.getTokenBucketOnMessage().getRate(), rateInMsg));
+        Assert.assertNull(limiter.getTokenBucketOnByte());
 
         // maxPublishRatePerTopicInBytes
         admin.brokers().updateDynamicConfiguration("maxPublishRatePerTopicInBytes", "" + rateInByte);
@@ -173,8 +174,9 @@ public class PrecisTopicPublishRateThrottleTest extends BrokerTestBase{
             .untilAsserted(() ->
                 Assert.assertEquals(admin.brokers().getAllDynamicConfigurations().get("maxPublishRatePerTopicInBytes"),
                     "" + rateInByte));
-//        Awaitility.await().untilAsserted(() -> Assert.assertEquals(limiter.publishMaxByteRate, rateInByte));
-//        Assert.assertEquals(limiter.publishMaxMessageRate, rateInMsg);
+        Awaitility.await()
+                .untilAsserted(() -> Assert.assertEquals(limiter.getTokenBucketOnByte().getRate(), rateInByte));
+        Assert.assertEquals(limiter.getTokenBucketOnMessage().getRate(), rateInMsg);
 
         producer.close();
         super.internalCleanup();
