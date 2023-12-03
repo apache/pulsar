@@ -34,7 +34,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class DispatchRateLimiter {
-    private static final int BURST_FACTOR = 2;
     public enum Type {
         TOPIC,
         SUBSCRIPTION,
@@ -238,7 +237,7 @@ public class DispatchRateLimiter {
         // update msg-rateLimiter
         if (msgRate > 0) {
             this.dispatchRateLimiterOnMessage =
-                    new AsyncTokenBucket(BURST_FACTOR * msgRate, msgRate, DEFAULT_CLOCK_SOURCE, ratePeriodNanos);
+                    new AsyncTokenBucket(msgRate, msgRate, DEFAULT_CLOCK_SOURCE, ratePeriodNanos);
         } else {
             this.dispatchRateLimiterOnMessage = null;
         }
@@ -249,7 +248,7 @@ public class DispatchRateLimiter {
         // update byte-rateLimiter
         if (byteRate > 0) {
             this.dispatchRateLimiterOnByte =
-                    new AsyncTokenBucket(BURST_FACTOR * byteRate, byteRate, DEFAULT_CLOCK_SOURCE, ratePeriodNanos);
+                    new AsyncTokenBucket(byteRate, byteRate, DEFAULT_CLOCK_SOURCE, ratePeriodNanos);
         } else {
             this.dispatchRateLimiterOnByte = null;
         }
