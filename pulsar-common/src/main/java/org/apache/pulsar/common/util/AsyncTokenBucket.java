@@ -140,9 +140,9 @@ public abstract class AsyncTokenBucket {
         long currentNanos = clockSource.getAsLong();
         long currentIncrement = getMinIncrementNanos() != 0 ? currentNanos / getMinIncrementNanos() : 0;
         long currentLastIncrement = lastIncrement;
-        if (forceUpdateTokens || getMinIncrementNanos() == 0 || (currentIncrement > currentLastIncrement
+        if (forceUpdateTokens || currentIncrement == 0 || (currentIncrement > currentLastIncrement
                 && LAST_INCREMENT_UPDATER.compareAndSet(this, currentLastIncrement, currentIncrement))) {
-            if (forceUpdateTokens) {
+            if (forceUpdateTokens && currentIncrement != 0) {
                 LAST_INCREMENT_UPDATER.updateAndGet(this, currentValue -> Math.max(currentValue, currentIncrement));
             }
             long newTokens;
