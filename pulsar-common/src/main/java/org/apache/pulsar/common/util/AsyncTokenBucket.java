@@ -171,7 +171,7 @@ public abstract class AsyncTokenBucket {
         updateAndConsumeTokens(consumeTokens, false);
     }
 
-    protected long tokens(boolean forceUpdateTokens) {
+    public long tokens(boolean forceUpdateTokens) {
         if (forceUpdateTokens) {
             updateAndConsumeTokens(0, forceUpdateTokens);
         }
