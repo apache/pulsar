@@ -174,10 +174,8 @@ public abstract class AsyncTokenBucket {
         updateAndConsumeTokens(consumeTokens, false);
     }
 
-    public long tokens(boolean forceUpdateTokens) {
-        if (forceUpdateTokens) {
-            updateAndConsumeTokens(0, forceUpdateTokens);
-        }
+    protected long tokens(boolean forceUpdateTokens) {
+        updateAndConsumeTokens(0, forceUpdateTokens);
         return tokens;
     }
 
@@ -205,7 +203,7 @@ public abstract class AsyncTokenBucket {
     public abstract long getCapacity();
 
     public final long getTokens() {
-        return tokens;
+        return tokens(false);
     }
 
     public abstract long getRate();
