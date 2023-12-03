@@ -49,6 +49,7 @@ import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.impl.DispatchRateImpl;
+import org.apache.pulsar.common.util.AsyncTokenBucket;
 import org.awaitility.Awaitility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -66,6 +67,7 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
     @BeforeClass
     @Override
     protected void setup() throws Exception {
+        AsyncTokenBucket.switchToConsistentTokensView();
         this.conf.setClusterName("test");
         super.internalSetup();
         super.producerBaseSetup();
@@ -75,6 +77,7 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
+        AsyncTokenBucket.resetToDefaultEventualConsistentTokensView();
     }
 
     @AfterMethod(alwaysRun = true)
