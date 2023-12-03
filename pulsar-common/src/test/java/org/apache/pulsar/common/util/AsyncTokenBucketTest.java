@@ -54,21 +54,21 @@ public class AsyncTokenBucketTest {
         asyncTokenBucket =
                 AsyncTokenBucket.builder().capacity(100).rate(10).initialTokens(0).clockSource(clockSource).build();
         incrementSeconds(5);
-        assertEquals(asyncTokenBucket.tokens(true), 50);
+        assertEquals(asyncTokenBucket.getTokens(), 50);
         incrementSeconds(1);
-        assertEquals(asyncTokenBucket.tokens(true), 60);
+        assertEquals(asyncTokenBucket.getTokens(), 60);
         incrementSeconds(4);
-        assertEquals(asyncTokenBucket.tokens(true), 100);
+        assertEquals(asyncTokenBucket.getTokens(), 100);
 
         // No matter how long the period is, tokens do not go above capacity
         incrementSeconds(5);
-        assertEquals(asyncTokenBucket.tokens(true), 100);
+        assertEquals(asyncTokenBucket.getTokens(), 100);
 
         // Consume all and verify none available and then wait 1 period and check replenished
         asyncTokenBucket.consumeTokens(100);
         assertEquals(asyncTokenBucket.tokens(true), 0);
         incrementSeconds(1);
-        assertEquals(asyncTokenBucket.tokens(true), 10);
+        assertEquals(asyncTokenBucket.getTokens(), 10);
     }
 
     @Test
@@ -87,7 +87,7 @@ public class AsyncTokenBucketTest {
         asyncTokenBucket =
                 AsyncTokenBucket.builder().capacity(100).rate(10).initialTokens(0).clockSource(clockSource).build();
         incrementMillis(100);
-        assertEquals(asyncTokenBucket.tokens(true), 1);
+        assertEquals(asyncTokenBucket.getTokens(), 1);
     }
 
     @Test
@@ -97,9 +97,9 @@ public class AsyncTokenBucketTest {
         for (int i = 0; i < 150; i++) {
             incrementMillis(1);
         }
-        assertEquals(asyncTokenBucket.tokens(true), 1);
+        assertEquals(asyncTokenBucket.getTokens(), 1);
         incrementMillis(150);
-        assertEquals(asyncTokenBucket.tokens(true), 3);
+        assertEquals(asyncTokenBucket.getTokens(), 3);
     }
 
 }
