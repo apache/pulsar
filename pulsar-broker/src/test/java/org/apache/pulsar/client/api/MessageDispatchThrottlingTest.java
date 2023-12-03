@@ -545,8 +545,8 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
         // it can make sure that consumer had enough time to consume message but couldn't consume due to throttling
         Thread.sleep(1000);
 
-        // consumer should not have received all published message due to message-rate throttling
-        Assert.assertNotEquals(totalReceived.get(), numProducedMessages);
+        // rate limiter should have limited messages with at least 10% accuracy (or 2 messages if messageRate is low)
+        Assert.assertEquals(totalReceived.get(), messageRate, Math.max(messageRate / 10, 2));
 
         consumer1.close();
         consumer2.close();
