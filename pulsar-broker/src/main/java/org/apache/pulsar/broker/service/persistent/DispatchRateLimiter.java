@@ -104,16 +104,6 @@ public class DispatchRateLimiter {
     }
 
     /**
-     * checks if dispatch-rate limit is configured and if it's configured then check if permits are available or not.
-     *
-     * @return
-     */
-    public boolean hasMessageDispatchPermit() {
-        return (dispatchRateLimiterOnMessage == null || dispatchRateLimiterOnMessage.containsTokens())
-                && (dispatchRateLimiterOnByte == null || dispatchRateLimiterOnByte.containsTokens());
-    }
-
-    /**
      * Checks if dispatch-rate limiting is enabled.
      *
      * @return
