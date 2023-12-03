@@ -19,6 +19,7 @@
 
 package org.apache.pulsar.common.util;
 
+import com.google.common.annotations.VisibleForTesting;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.LongAdder;
@@ -41,6 +42,8 @@ public abstract class AsyncTokenBucket {
     private static final long ONE_SECOND_NANOS = TimeUnit.SECONDS.toNanos(1);
     private static final long DEFAULT_RESOLUTION_NANOS = TimeUnit.MILLISECONDS.toNanos(10);
 
+    private static long defaultResolutionNanos = DEFAULT_RESOLUTION_NANOS;
+
     private static final AtomicLongFieldUpdater<AsyncTokenBucket> LAST_NANOS_UPDATER =
             AtomicLongFieldUpdater.newUpdater(AsyncTokenBucket.class, "lastNanos");
 
@@ -52,6 +55,16 @@ public abstract class AsyncTokenBucket {
 
     private static final AtomicLongFieldUpdater<AsyncTokenBucket> REMAINDER_NANOS_UPDATER =
             AtomicLongFieldUpdater.newUpdater(AsyncTokenBucket.class, "remainderNanos");
+
+    @VisibleForTesting
+    public static void switchToConsistentTokensView() {
+        defaultResolutionNanos = 0;
+    }
+
+    @VisibleForTesting
+    public static void resetToDefaultEventualConsistentTokensView() {
+        defaultResolutionNanos = DEFAULT_RESOLUTION_NANOS;
+    }
 
     // Atomically updated via updaters above
     protected volatile long tokens;
@@ -214,7 +227,7 @@ public abstract class AsyncTokenBucket {
     public abstract static class AsyncTokenBucketBuilder<SELF extends AsyncTokenBucketBuilder<SELF>> {
         protected LongSupplier clockSource = DEFAULT_CLOCK_SOURCE;
         protected long minTokens = 1L;
-        protected long resolutionNanos = DEFAULT_RESOLUTION_NANOS;
+        protected long resolutionNanos = defaultResolutionNanos;
 
         protected AsyncTokenBucketBuilder() {
         }
