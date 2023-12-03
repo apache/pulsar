@@ -70,8 +70,11 @@ public class SubscribeRateLimiter {
         if (tokenBucket == null) {
             return true;
         }
+        if (!tokenBucket.containsTokens(true)) {
+            return false;
+        }
         tokenBucket.consumeTokens(1);
-        return tokenBucket.containsTokens(true);
+        return true;
     }
 
     /**
@@ -115,7 +118,7 @@ public class SubscribeRateLimiter {
         if (ratePerConsumer > 0) {
             AsyncTokenBucket tokenBucket =
                     AsyncTokenBucket.builder().rate(ratePerConsumer).ratePeriodNanos(ratePeriodNanos)
-                            .minTokens(0L).build();
+                            .minTokens(1L).build();
             this.subscribeRateLimiter.put(consumerIdentifier, tokenBucket);
         } else {
             // subscribe-rate should be disable and close
