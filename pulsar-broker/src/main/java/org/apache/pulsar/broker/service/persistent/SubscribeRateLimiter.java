@@ -19,7 +19,6 @@
 package org.apache.pulsar.broker.service.persistent;
 
 
-import static org.apache.pulsar.common.util.AsyncTokenBucket.DEFAULT_CLOCK_SOURCE;
 import com.google.common.base.MoreObjects;
 import java.util.Objects;
 import java.util.Optional;

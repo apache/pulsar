@@ -38,7 +38,7 @@ import java.util.function.LongSupplier;
  */
 public class AsyncTokenBucket {
 
-    private static final LongSupplier DEFAULT_CLOCK_SOURCE = System::nanoTime;
+    public static final LongSupplier DEFAULT_CLOCK_SOURCE = System::nanoTime;
     private static final long ONE_SECOND_NANOS = TimeUnit.SECONDS.toNanos(1);
     private static final long DEFAULT_MINIMUM_INCREMENT_NANOS = TimeUnit.MILLISECONDS.toNanos(10);
 
