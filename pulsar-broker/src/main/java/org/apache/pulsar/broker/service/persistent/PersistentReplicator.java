@@ -216,7 +216,7 @@ public abstract class PersistentReplicator extends AbstractReplicator
                 }
                 return -1;
             }
-            if (availablePermitsOnMsg >= 0) {
+            if (availablePermitsOnMsg > 0) {
                 availablePermits = Math.min(availablePermits, (int) availablePermitsOnMsg);
             }
         }
