@@ -109,8 +109,8 @@ public class DispatchRateLimiter {
      * @return
      */
     public boolean hasMessageDispatchPermit() {
-        return (dispatchRateLimiterOnMessage == null || dispatchRateLimiterOnMessage.getTokens() > 0)
-                && (dispatchRateLimiterOnByte == null || dispatchRateLimiterOnByte.getTokens() > 0);
+        return (dispatchRateLimiterOnMessage == null || dispatchRateLimiterOnMessage.containsTokens())
+                && (dispatchRateLimiterOnByte == null || dispatchRateLimiterOnByte.containsTokens());
     }
 
     /**
