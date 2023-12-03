@@ -19,9 +19,14 @@
 
 package org.apache.pulsar.broker.service;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
+import io.netty.channel.EventLoopGroup;
 import java.util.HashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -62,6 +67,14 @@ public class PublishRateLimiterTest {
             throttleCount.decrementAndGet();
             return null;
         }).when(producer).decrementThrottleCount();
+        TransportCnx transportCnx = mock(TransportCnx.class);
+        when(producer.getCnx()).thenReturn(transportCnx);
+        BrokerService brokerService = mock(BrokerService.class);
+        when(transportCnx.getBrokerService()).thenReturn(brokerService);
+        EventLoopGroup eventLoopGroup = mock(EventLoopGroup.class);
+        when(brokerService.executor()).thenReturn(eventLoopGroup);
+        doReturn(null).when(eventLoopGroup).schedule(any(Runnable.class), anyLong(), any());
+        incrementSeconds(1);
     }
 
     @AfterMethod
