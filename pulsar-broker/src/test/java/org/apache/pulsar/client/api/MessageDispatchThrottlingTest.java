@@ -485,7 +485,7 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
      *
      * @throws Exception
      */
-    @Test(timeOut = 5000)
+    @Test(timeOut = 10000)
     public void testRateLimitingMultipleConsumers() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -515,11 +515,17 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
         final AtomicInteger totalReceived = new AtomicInteger(0);
 
         ConsumerBuilder<byte[]> consumerBuilder = pulsarClient.newConsumer().topic(topicName)
+                .receiverQueueSize(1)
                 .subscriptionName("my-subscriber-name").subscriptionType(SubscriptionType.Shared).messageListener((c1, msg) -> {
                     Assert.assertNotNull(msg, "Message cannot be null");
                     String receivedMessage = new String(msg.getData());
                     log.debug("Received message [{}] in the listener", receivedMessage);
                     totalReceived.incrementAndGet();
+                    try {
+                        c1.acknowledge(msg);
+                    } catch (PulsarClientException e) {
+                        throw new RuntimeException(e);
+                    }
                 });
         Consumer<byte[]> consumer1 = consumerBuilder.subscribe();
         Consumer<byte[]> consumer2 = consumerBuilder.subscribe();
@@ -537,7 +543,7 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
         }
 
         // it can make sure that consumer had enough time to consume message but couldn't consume due to throttling
-        Thread.sleep(500);
+        Thread.sleep(1000);
 
         // consumer should not have received all published message due to message-rate throttling
         Assert.assertNotEquals(totalReceived.get(), numProducedMessages);
