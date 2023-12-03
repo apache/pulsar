@@ -142,6 +142,9 @@ public abstract class AsyncTokenBucket {
         long currentLastIncrement = lastIncrement;
         if (forceUpdateTokens || getMinIncrementNanos() == 0 || (currentIncrement > currentLastIncrement
                 && LAST_INCREMENT_UPDATER.compareAndSet(this, currentLastIncrement, currentIncrement))) {
+            if (forceUpdateTokens) {
+                LAST_INCREMENT_UPDATER.updateAndGet(this, currentValue -> Math.max(currentValue, currentIncrement));
+            }
             long newTokens;
             long previousLastNanos = LAST_NANOS_UPDATER.getAndSet(this, currentNanos);
             if (previousLastNanos == 0) {
