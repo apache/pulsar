@@ -76,7 +76,7 @@ public class DispatchRateLimiter {
      * @return
      */
     public long getAvailableDispatchRateLimitOnMsg() {
-        return dispatchRateLimiterOnMessage == null ? -1 : Math.max(dispatchRateLimiterOnMessage.getTokens(), 0);
+        return dispatchRateLimiterOnMessage == null ? -1 : Math.max(dispatchRateLimiterOnMessage.tokens(true), 0);
     }
 
     /**
@@ -85,7 +85,7 @@ public class DispatchRateLimiter {
      * @return
      */
     public long getAvailableDispatchRateLimitOnByte() {
-        return dispatchRateLimiterOnByte == null ? -1 : Math.max(dispatchRateLimiterOnByte.getTokens(), 0);
+        return dispatchRateLimiterOnByte == null ? -1 : Math.max(dispatchRateLimiterOnByte.tokens(true), 0);
     }
 
     /**
