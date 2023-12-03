@@ -237,7 +237,7 @@ public class DispatchRateLimiter {
         // update msg-rateLimiter
         if (msgRate > 0) {
             this.dispatchRateLimiterOnMessage =
-                    new AsyncTokenBucket(msgRate, msgRate, DEFAULT_CLOCK_SOURCE, ratePeriodNanos);
+                    AsyncTokenBucket.builder().rate(msgRate).initialTokens(0).ratePeriodNanos(ratePeriodNanos).build();
         } else {
             this.dispatchRateLimiterOnMessage = null;
         }
@@ -248,7 +248,7 @@ public class DispatchRateLimiter {
         // update byte-rateLimiter
         if (byteRate > 0) {
             this.dispatchRateLimiterOnByte =
-                    new AsyncTokenBucket(byteRate, byteRate, DEFAULT_CLOCK_SOURCE, ratePeriodNanos);
+                    AsyncTokenBucket.builder().rate(byteRate).initialTokens(0).ratePeriodNanos(ratePeriodNanos).build();
         } else {
             this.dispatchRateLimiterOnByte = null;
         }

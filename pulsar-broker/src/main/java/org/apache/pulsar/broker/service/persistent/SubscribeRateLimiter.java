@@ -115,8 +115,8 @@ public class SubscribeRateLimiter {
         // update subscribe-rateLimiter
         if (ratePerConsumer > 0) {
             AsyncTokenBucket tokenBucket =
-                    new AsyncTokenBucket(ratePerConsumer, ratePerConsumer, DEFAULT_CLOCK_SOURCE,
-                            ratePeriodNanos, -1, ratePerConsumer, 0L);
+                    AsyncTokenBucket.builder().rate(ratePerConsumer).initialTokens(0).ratePeriodNanos(ratePeriodNanos)
+                            .minTokens(0L).build();
             this.subscribeRateLimiter.put(consumerIdentifier, tokenBucket);
         } else {
             // subscribe-rate should be disable and close

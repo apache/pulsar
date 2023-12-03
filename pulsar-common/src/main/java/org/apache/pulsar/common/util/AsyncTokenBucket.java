@@ -38,7 +38,7 @@ import java.util.function.LongSupplier;
  */
 public class AsyncTokenBucket {
 
-    public static final LongSupplier DEFAULT_CLOCK_SOURCE = System::nanoTime;
+    private static final LongSupplier DEFAULT_CLOCK_SOURCE = System::nanoTime;
     private static final long ONE_SECOND_NANOS = TimeUnit.SECONDS.toNanos(1);
     private static final long DEFAULT_MINIMUM_INCREMENT_NANOS = TimeUnit.MILLISECONDS.toNanos(10);
 
@@ -70,27 +70,23 @@ public class AsyncTokenBucket {
 
     private final long defaultMinTokensForPause;
 
-    public AsyncTokenBucket(long capacity, long rate, LongSupplier clockSource) {
-        this(capacity, rate, clockSource, ONE_SECOND_NANOS);
-    }
-
-    public AsyncTokenBucket(long capacity, long rate, LongSupplier clockSource, long ratePeriodNanos) {
-        this(capacity, rate, clockSource, ratePeriodNanos, DEFAULT_MINIMUM_INCREMENT_NANOS, rate, 1);
-    }
-
-    public AsyncTokenBucket(long capacity, long rate, LongSupplier clockSource, long ratePeriodNanos,
+    protected AsyncTokenBucket(long capacity, long rate, LongSupplier clockSource, long ratePeriodNanos,
                             long minimumIncrementNanos, long initialTokens, long minTokens) {
         this.capacity = capacity;
         this.rate = rate;
         this.ratePeriodNanos = ratePeriodNanos != -1 ? ratePeriodNanos : ONE_SECOND_NANOS;
         this.clockSource = clockSource;
         this.minIncrementNanos = minimumIncrementNanos != 0 ? Math.max(ratePeriodNanos / rate + 1,
-                        minimumIncrementNanos != -1 ? minimumIncrementNanos : DEFAULT_MINIMUM_INCREMENT_NANOS) : 0;
+                minimumIncrementNanos != -1 ? minimumIncrementNanos : DEFAULT_MINIMUM_INCREMENT_NANOS) : 0;
         // The default minimum tokens is the amount of tokens made available in the minimum increment duration
         this.defaultMinTokensForPause = Math.max(this.minIncrementNanos * rate / ratePeriodNanos, minTokens);
         this.tokens = initialTokens;
         this.minTokens = minTokens;
         updateTokens();
+    }
+
+    public static AsyncTokenBucketBuilder builder() {
+        return new AsyncTokenBucketBuilder();
     }
 
     public void updateTokens() {
@@ -179,5 +175,67 @@ public class AsyncTokenBucket {
 
     public boolean containsTokens(boolean forceUpdateTokens) {
         return tokens(forceUpdateTokens) >= minTokens;
+    }
+
+    public static class AsyncTokenBucketBuilder {
+        protected Long capacity;
+        protected Long initialTokens;
+        protected long rate;
+        protected LongSupplier clockSource = DEFAULT_CLOCK_SOURCE;
+        protected long ratePeriodNanos = ONE_SECOND_NANOS;
+        protected long minimumIncrementNanos = DEFAULT_MINIMUM_INCREMENT_NANOS;
+        protected long minTokens = 1L;
+
+        protected AsyncTokenBucketBuilder() {
+        }
+
+        public AsyncTokenBucketBuilder capacity(long capacity) {
+            this.capacity = capacity;
+            return this;
+        }
+
+        public AsyncTokenBucketBuilder rate(long rate) {
+            this.rate = rate;
+            return this;
+        }
+
+        public AsyncTokenBucketBuilder clockSource(LongSupplier clockSource) {
+            this.clockSource = clockSource;
+            return this;
+        }
+
+        public AsyncTokenBucketBuilder ratePeriodNanos(long ratePeriodNanos) {
+            this.ratePeriodNanos = ratePeriodNanos;
+            return this;
+        }
+
+        public AsyncTokenBucketBuilder minimumIncrementNanos(long minimumIncrementNanos) {
+            this.minimumIncrementNanos = minimumIncrementNanos;
+            return this;
+        }
+
+        public AsyncTokenBucketBuilder initialTokens(long initialTokens) {
+            this.initialTokens = initialTokens;
+            return this;
+        }
+
+        public AsyncTokenBucketBuilder minTokens(long minTokens) {
+            this.minTokens = minTokens;
+            return this;
+        }
+
+        public AsyncTokenBucket build() {
+            return new AsyncTokenBucket(this.capacity != null ? this.capacity : this.rate, this.rate, this.clockSource,
+                    this.ratePeriodNanos, this.minimumIncrementNanos,
+                    this.initialTokens != null ? this.initialTokens : this.rate,
+                    this.minTokens);
+        }
+
+        public String toString() {
+            return "AsyncTokenBucket.AsyncTokenBucketBuilder(capacity=" + this.capacity + ", rate=" + this.rate
+                    + ", clockSource=" + this.clockSource + ", ratePeriodNanos=" + this.ratePeriodNanos
+                    + ", minimumIncrementNanos=" + this.minimumIncrementNanos + ", initialTokens=" + this.initialTokens
+                    + ", minTokens=" + this.minTokens + ")";
+        }
     }
 }
