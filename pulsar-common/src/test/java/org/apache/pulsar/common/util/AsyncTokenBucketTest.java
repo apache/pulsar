@@ -79,7 +79,7 @@ public class AsyncTokenBucketTest {
         incrementSeconds(5);
         asyncTokenBucket.consumeTokens(100);
         assertEquals(asyncTokenBucket.tokens(true), -50);
-        assertEquals(TimeUnit.NANOSECONDS.toMillis(asyncTokenBucket.calculatePause(true)), 5100);
+        assertEquals(TimeUnit.NANOSECONDS.toMillis(asyncTokenBucket.calculatePause(true)), 5000);
     }
 
     @Test

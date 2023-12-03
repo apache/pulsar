@@ -39,7 +39,7 @@ import java.util.function.LongSupplier;
 public abstract class AsyncTokenBucket {
     public static final LongSupplier DEFAULT_CLOCK_SOURCE = System::nanoTime;
     private static final long ONE_SECOND_NANOS = TimeUnit.SECONDS.toNanos(1);
-    private static final long DEFAULT_MINIMUM_INCREMENT_NANOS = TimeUnit.MILLISECONDS.toNanos(10);
+    private static final long DEFAULT_RESOLUTION_NANOS = TimeUnit.MILLISECONDS.toNanos(10);
 
     private static final AtomicLongFieldUpdater<AsyncTokenBucket> LAST_NANOS_UPDATER =
             AtomicLongFieldUpdater.newUpdater(AsyncTokenBucket.class, "lastNanos");
@@ -60,6 +60,8 @@ public abstract class AsyncTokenBucket {
     private volatile long remainderNanos;
 
     private final long minTokens;
+
+    protected final long resolutionNanos;
     private final LongSupplier clockSource;
     private final LongAdder pendingConsumedTokens = new LongAdder();
 
@@ -67,25 +69,17 @@ public abstract class AsyncTokenBucket {
         private final long capacity;
         private final long rate;
         private final long ratePeriodNanos;
-        private final long minIncrementNanos;
         private final long defaultMinTokensForPause;
 
         protected FixedRateAsyncTokenBucket(long capacity, long rate, LongSupplier clockSource, long ratePeriodNanos,
-                                            long minimumIncrementNanos, long initialTokens, long minTokens) {
-            super(clockSource, minTokens);
+                                            long resolutionNanos, long initialTokens, long minTokens) {
+            super(clockSource, minTokens, resolutionNanos);
             this.capacity = capacity;
             this.rate = rate;
             this.ratePeriodNanos = ratePeriodNanos != -1 ? ratePeriodNanos : ONE_SECOND_NANOS;
-            this.minIncrementNanos = minimumIncrementNanos != 0 ? Math.max(ratePeriodNanos / rate + 1,
-                    minimumIncrementNanos != -1 ? minimumIncrementNanos : DEFAULT_MINIMUM_INCREMENT_NANOS) : 0;
             // The default minimum tokens is the amount of tokens made available in the minimum increment duration
-            this.defaultMinTokensForPause = Math.max(this.minIncrementNanos * rate / ratePeriodNanos, minTokens);
+            this.defaultMinTokensForPause = Math.max(this.resolutionNanos * rate / ratePeriodNanos, minTokens);
             this.tokens = initialTokens;
-        }
-
-        @Override
-        protected final long getMinIncrementNanos() {
-            return minIncrementNanos;
         }
 
         @Override
@@ -109,9 +103,10 @@ public abstract class AsyncTokenBucket {
         }
     }
 
-    protected AsyncTokenBucket(LongSupplier clockSource, long minTokens) {
+    protected AsyncTokenBucket(LongSupplier clockSource, long minTokens, long resolutionNanos) {
         this.clockSource = clockSource;
         this.minTokens = minTokens;
+        this.resolutionNanos = resolutionNanos;
         updateTokens();
     }
 
@@ -127,8 +122,6 @@ public abstract class AsyncTokenBucket {
         updateAndConsumeTokens(0, false);
     }
 
-    protected abstract long getMinIncrementNanos();
-
     protected abstract long getRatePeriodNanos();
 
     protected abstract long getMinTokensForPause();
@@ -138,7 +131,7 @@ public abstract class AsyncTokenBucket {
             throw new IllegalArgumentException("consumeTokens must be >= 0");
         }
         long currentNanos = clockSource.getAsLong();
-        long currentIncrement = getMinIncrementNanos() != 0 ? currentNanos / getMinIncrementNanos() : 0;
+        long currentIncrement = resolutionNanos != 0 ? currentNanos / resolutionNanos : 0;
         long currentLastIncrement = lastIncrement;
         if (forceUpdateTokens || currentIncrement == 0 || (currentIncrement > currentLastIncrement
                 && LAST_INCREMENT_UPDATER.compareAndSet(this, currentLastIncrement, currentIncrement))) {
@@ -221,7 +214,7 @@ public abstract class AsyncTokenBucket {
     public abstract static class AsyncTokenBucketBuilder<SELF extends AsyncTokenBucketBuilder<SELF>> {
         protected LongSupplier clockSource = DEFAULT_CLOCK_SOURCE;
         protected long minTokens = 1L;
-        protected long minimumIncrementNanos = DEFAULT_MINIMUM_INCREMENT_NANOS;
+        protected long resolutionNanos = DEFAULT_RESOLUTION_NANOS;
 
         protected AsyncTokenBucketBuilder() {
         }
@@ -240,8 +233,8 @@ public abstract class AsyncTokenBucket {
             return self();
         }
 
-        public SELF minimumIncrementNanos(long minimumIncrementNanos) {
-            this.minimumIncrementNanos = minimumIncrementNanos;
+        public SELF resolutionNanos(long resolutionNanos) {
+            this.resolutionNanos = resolutionNanos;
             return self();
         }
 
@@ -281,7 +274,7 @@ public abstract class AsyncTokenBucket {
         public AsyncTokenBucket build() {
             return new FixedRateAsyncTokenBucket(this.capacity != null ? this.capacity : this.rate, this.rate,
                     this.clockSource,
-                    this.ratePeriodNanos, this.minimumIncrementNanos,
+                    this.ratePeriodNanos, this.resolutionNanos,
                     this.initialTokens != null ? this.initialTokens : this.rate,
                     this.minTokens);
         }
@@ -327,7 +320,7 @@ public abstract class AsyncTokenBucket {
         public AsyncTokenBucket build() {
             return new DynamicRateAsyncTokenBucket(this.capacityFactor, this.rateFunction,
                     this.clockSource,
-                    this.ratePeriodNanosFunction, this.minimumIncrementNanos,
+                    this.ratePeriodNanosFunction, this.resolutionNanos,
                     this.initialTokensFactor,
                     this.minTokens, minTokensForPauseFactor);
         }
@@ -338,26 +331,19 @@ public abstract class AsyncTokenBucket {
         private final LongSupplier rateFunction;
         private final LongSupplier ratePeriodNanosFunction;
         private final double capacityFactor;
-        private final long minimumIncrementNanos;
 
         private final double minTokensForPauseFactor;
 
         protected DynamicRateAsyncTokenBucket(double capacityFactor, LongSupplier rateFunction,
                                               LongSupplier clockSource, LongSupplier ratePeriodNanosFunction,
-                                              long minimumIncrementNanos, double initialTokensFactor, long minTokens,
+                                              long resolutionNanos, double initialTokensFactor, long minTokens,
                                               double minTokensForPauseFactor) {
-            super(clockSource, minTokens);
+            super(clockSource, minTokens, resolutionNanos);
             this.capacityFactor = capacityFactor;
             this.rateFunction = rateFunction;
             this.ratePeriodNanosFunction = ratePeriodNanosFunction;
-            this.minimumIncrementNanos = minimumIncrementNanos;
             this.minTokensForPauseFactor = minTokensForPauseFactor;
             this.tokens = (long) (rateFunction.getAsLong() * initialTokensFactor);
-        }
-
-        @Override
-        protected final long getMinIncrementNanos() {
-            return minimumIncrementNanos;
         }
 
         @Override
