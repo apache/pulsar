@@ -114,7 +114,7 @@ public class SubscribeRateLimiter {
         // update subscribe-rateLimiter
         if (ratePerConsumer > 0) {
             AsyncTokenBucket tokenBucket =
-                    AsyncTokenBucket.builder().rate(ratePerConsumer).initialTokens(0).ratePeriodNanos(ratePeriodNanos)
+                    AsyncTokenBucket.builder().rate(ratePerConsumer).ratePeriodNanos(ratePeriodNanos)
                             .minTokens(0L).build();
             this.subscribeRateLimiter.put(consumerIdentifier, tokenBucket);
         } else {
