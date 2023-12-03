@@ -42,7 +42,6 @@ public class AsyncTokenBucketTest {
 
     private void incrementSeconds(int seconds) {
         manualClockSource.addAndGet(TimeUnit.SECONDS.toNanos(seconds));
-        asyncTokenBucket.updateTokens();
     }
 
     private void incrementMillis(long millis) {
@@ -78,7 +77,7 @@ public class AsyncTokenBucketTest {
                         .build();
         incrementSeconds(5);
         asyncTokenBucket.consumeTokens(100);
-        assertEquals(asyncTokenBucket.tokens(true), -50);
+        assertEquals(asyncTokenBucket.getTokens(), -50);
         assertEquals(TimeUnit.NANOSECONDS.toMillis(asyncTokenBucket.calculatePause(true)), 5000);
     }
 
