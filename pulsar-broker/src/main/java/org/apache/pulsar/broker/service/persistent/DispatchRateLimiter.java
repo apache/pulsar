@@ -21,7 +21,6 @@ package org.apache.pulsar.broker.service.persistent;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
-import java.util.function.Supplier;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.common.naming.NamespaceName;
@@ -228,26 +227,38 @@ public class DispatchRateLimiter {
         long byteRate = dispatchRate.getDispatchThrottlingRateInByte();
         long ratePeriodNanos = TimeUnit.SECONDS.toNanos(Math.max(dispatchRate.getRatePeriodInSecond(), 1));
 
-        // TODO: LH Implement "relative to publish rate" functionality
-        Supplier<Long> permitUpdaterMsg = dispatchRate.isRelativeToPublishRate()
-                ? () -> getRelativeDispatchRateInMsg(dispatchRate)
-                : null;
-
         // update msg-rateLimiter
         if (msgRate > 0) {
-            this.dispatchRateLimiterOnMessage =
-                    AsyncTokenBucket.builder().rate(msgRate).initialTokens(0).ratePeriodNanos(ratePeriodNanos).build();
+            if (dispatchRate.isRelativeToPublishRate()) {
+                this.dispatchRateLimiterOnMessage =
+                        AsyncTokenBucket.builderForDynamicRate()
+                                .rateFunction(() -> getRelativeDispatchRateInMsg(dispatchRate))
+                                .ratePeriodNanosFunction(() -> ratePeriodNanos)
+                                .initialTokensFactor(0.0d)
+                                .build();
+            } else {
+                this.dispatchRateLimiterOnMessage =
+                        AsyncTokenBucket.builder().rate(msgRate).initialTokens(0).ratePeriodNanos(ratePeriodNanos)
+                                .build();
+            }
         } else {
             this.dispatchRateLimiterOnMessage = null;
         }
 
-        Supplier<Long> permitUpdaterByte = dispatchRate.isRelativeToPublishRate()
-                ? () -> getRelativeDispatchRateInByte(dispatchRate)
-                : null;
         // update byte-rateLimiter
         if (byteRate > 0) {
-            this.dispatchRateLimiterOnByte =
-                    AsyncTokenBucket.builder().rate(byteRate).initialTokens(0).ratePeriodNanos(ratePeriodNanos).build();
+            if (dispatchRate.isRelativeToPublishRate()) {
+                this.dispatchRateLimiterOnByte =
+                        AsyncTokenBucket.builderForDynamicRate()
+                                .rateFunction(() -> getRelativeDispatchRateInByte(dispatchRate))
+                                .ratePeriodNanosFunction(() -> ratePeriodNanos)
+                                .initialTokensFactor(0.0d)
+                                .build();
+            } else {
+                this.dispatchRateLimiterOnByte =
+                        AsyncTokenBucket.builder().rate(byteRate).initialTokens(0).ratePeriodNanos(ratePeriodNanos)
+                                .build();
+            }
         } else {
             this.dispatchRateLimiterOnByte = null;
         }
