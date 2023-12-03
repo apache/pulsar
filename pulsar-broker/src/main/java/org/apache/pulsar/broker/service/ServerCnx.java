@@ -57,7 +57,6 @@ import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
-import java.util.function.LongSupplier;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import javax.naming.AuthenticationException;
@@ -183,7 +182,6 @@ import org.slf4j.LoggerFactory;
  * parameter instance lifecycle.
  */
 public class ServerCnx extends PulsarHandler implements TransportCnx {
-    private static final LongSupplier CLOCK_SOURCE = System::nanoTime;
     private final BrokerService service;
     private final SchemaRegistryService schemaService;
     private final String listenerName;
