@@ -127,11 +127,11 @@ public abstract class AsyncTokenBucket {
         updateAndConsumeTokens(0, false);
     }
 
-    abstract protected long getMinIncrementNanos();
+    protected abstract long getMinIncrementNanos();
 
-    abstract protected long getRatePeriodNanos();
+    protected abstract long getRatePeriodNanos();
 
-    abstract protected long getMinTokensForPause();
+    protected abstract long getMinTokensForPause();
 
     private void updateAndConsumeTokens(long consumeTokens, boolean forceUpdateTokens) {
         if (consumeTokens < 0) {
@@ -199,13 +199,13 @@ public abstract class AsyncTokenBucket {
         return updateAndConsumeTokensAndCalculatePause(0, getMinTokensForPause(), forceUpdateTokens);
     }
 
-    abstract public long getCapacity();
+    public abstract long getCapacity();
 
     public final long getTokens() {
         return tokens;
     }
 
-    abstract public long getRate();
+    public abstract long getRate();
 
     // TODO: LH Rename to something that is a better name
     public boolean containsTokens() {
@@ -216,7 +216,8 @@ public abstract class AsyncTokenBucket {
         return tokens(forceUpdateTokens) >= minTokens;
     }
 
-    public static abstract class AsyncTokenBucketBuilder<SELF extends AsyncTokenBucketBuilder<SELF>> {
+    // CHECKSTYLE.OFF: ClassTypeParameterName
+    public abstract static class AsyncTokenBucketBuilder<SELF extends AsyncTokenBucketBuilder<SELF>> {
         protected LongSupplier clockSource = DEFAULT_CLOCK_SOURCE;
         protected long minTokens = 1L;
         protected long minimumIncrementNanos = DEFAULT_MINIMUM_INCREMENT_NANOS;
