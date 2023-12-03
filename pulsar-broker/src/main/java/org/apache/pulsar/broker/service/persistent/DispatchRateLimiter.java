@@ -234,11 +234,10 @@ public class DispatchRateLimiter {
                         AsyncTokenBucket.builderForDynamicRate()
                                 .rateFunction(() -> getRelativeDispatchRateInMsg(dispatchRate))
                                 .ratePeriodNanosFunction(() -> ratePeriodNanos)
-                                .initialTokensFactor(0.0d)
                                 .build();
             } else {
                 this.dispatchRateLimiterOnMessage =
-                        AsyncTokenBucket.builder().rate(msgRate).initialTokens(0).ratePeriodNanos(ratePeriodNanos)
+                        AsyncTokenBucket.builder().rate(msgRate).ratePeriodNanos(ratePeriodNanos)
                                 .build();
             }
         } else {
@@ -252,11 +251,10 @@ public class DispatchRateLimiter {
                         AsyncTokenBucket.builderForDynamicRate()
                                 .rateFunction(() -> getRelativeDispatchRateInByte(dispatchRate))
                                 .ratePeriodNanosFunction(() -> ratePeriodNanos)
-                                .initialTokensFactor(0.0d)
                                 .build();
             } else {
                 this.dispatchRateLimiterOnByte =
-                        AsyncTokenBucket.builder().rate(byteRate).initialTokens(0).ratePeriodNanos(ratePeriodNanos)
+                        AsyncTokenBucket.builder().rate(byteRate).ratePeriodNanos(ratePeriodNanos)
                                 .build();
             }
         } else {
