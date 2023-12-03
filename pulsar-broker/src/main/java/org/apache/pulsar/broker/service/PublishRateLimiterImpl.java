@@ -80,7 +80,7 @@ public class PublishRateLimiterImpl implements PublishRateLimiter {
         AsyncTokenBucket currentTokenBucketOnByte = tokenBucketOnByte;
         if (currentTokenBucketOnByte != null) {
             currentTokenBucketOnByte.consumeTokens(msgSizeInBytes);
-            shouldThrottle = shouldThrottle || !currentTokenBucketOnMessage.containsTokens();
+            shouldThrottle = shouldThrottle || !currentTokenBucketOnByte.containsTokens();
         }
         if (shouldThrottle) {
             producer.incrementThrottleCount();
