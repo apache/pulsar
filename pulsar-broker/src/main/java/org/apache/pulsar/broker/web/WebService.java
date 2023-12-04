@@ -44,6 +44,7 @@ import org.eclipse.jetty.server.handler.HandlerCollection;
 import org.eclipse.jetty.server.handler.RequestLogHandler;
 import org.eclipse.jetty.server.handler.ResourceHandler;
 import org.eclipse.jetty.server.handler.StatisticsHandler;
+import org.eclipse.jetty.server.handler.gzip.GzipHandler;
 import org.eclipse.jetty.servlet.FilterHolder;
 import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.servlet.ServletHolder;
@@ -266,6 +267,12 @@ public class WebService implements AutoCloseable {
             attributeMap.forEach(context::setAttribute);
         }
         filterInitializer.addFilters(context, requiresAuthentication);
+
+        if (pulsar.getConfiguration().isHttpResponseCompressionEnabled()) {
+            GzipHandler gzipHandler = new GzipHandler();
+            context.setHandler(gzipHandler);
+        }
+
         handlers.add(context);
     }
 
