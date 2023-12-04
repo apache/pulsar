@@ -787,7 +787,6 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         log.info("[{}][{}] Subscribing to topic on cnx {}, consumerId {}",
                 topic, subscription, cnx.ctx().channel(), consumerId);
 
-        long requestId = client.newRequestId();
         if (duringSeek.get()) {
             acknowledgmentsGroupingTracker.flushAndClean();
         }
@@ -838,39 +837,41 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         final CompletableFuture<Void> future = new CompletableFuture<>();
         synchronized (this) {
             setClientCnx(cnx);
-            ByteBuf request = Commands.newSubscribe(topic, subscription, consumerId, requestId, getSubType(),
-                    priorityLevel, consumerName, isDurable, startMessageIdData, metadata, readCompacted,
-                    conf.isReplicateSubscriptionState(),
-                    InitialPosition.valueOf(subscriptionInitialPosition.getValue()),
-                    startMessageRollbackDuration, si, createTopicIfDoesNotExist, conf.getKeySharedPolicy(),
-                    // Use the current epoch to subscribe.
-                    conf.getSubscriptionProperties(), CONSUMER_EPOCH.get(this));
-
-            cnx.sendRequestWithId(request, requestId).thenRun(() -> {
-                synchronized (ConsumerImpl.this) {
-                    if (changeToReadyState()) {
-                        consumerIsReconnectedToBroker(cnx, currentSize);
-                    } else {
-                        // Consumer was closed while reconnecting, close the connection to make sure the broker
-                        // drops the consumer on its side
-                        setState(State.Closed);
-                        deregisterFromClientCnx();
-                        client.cleanupConsumer(this);
-                        cnx.channel().close();
-                        future.complete(null);
-                        return;
+            final SchemaInfo finalSi = si;
+            sendCloseConsumerCommand(cnx).thenCompose(ignore -> {
+                long requestId = client.newRequestId();
+                ByteBuf request = Commands.newSubscribe(topic, subscription, consumerId, requestId, getSubType(),
+                        priorityLevel, consumerName, isDurable, startMessageIdData, metadata, readCompacted,
+                        conf.isReplicateSubscriptionState(),
+                        InitialPosition.valueOf(subscriptionInitialPosition.getValue()),
+                        startMessageRollbackDuration, finalSi, createTopicIfDoesNotExist, conf.getKeySharedPolicy(),
+                        // Use the current epoch to subscribe.
+                        conf.getSubscriptionProperties(), CONSUMER_EPOCH.get(this));
+                return cnx.sendRequestWithId(request, requestId).thenRun(() -> {
+                    synchronized (ConsumerImpl.this) {
+                        if (changeToReadyState()) {
+                            consumerIsReconnectedToBroker(cnx, currentSize);
+                        } else {
+                            // Consumer was closed while reconnecting, close the connection to make sure the broker
+                            // drops the consumer on its side
+                            setState(State.Closed);
+                            deregisterFromClientCnx();
+                            client.cleanupConsumer(this);
+                            cnx.channel().close();
+                            future.complete(null);
+                            return;
+                        }
                     }
-                }
-
-                resetBackoff();
-
-                boolean firstTimeConnect = subscribeFuture.complete(this);
-                // if the consumer is not partitioned or is re-connected and is partitioned, we send the flow
-                // command to receive messages.
-                if (!(firstTimeConnect && hasParentConsumer) && getCurrentReceiverQueueSize() != 0) {
-                    increaseAvailablePermits(cnx, getCurrentReceiverQueueSize());
-                }
-                future.complete(null);
+                    // reset timer backoff.
+                    resetBackoff();
+                    // if the consumer is not partitioned or is re-connected and is partitioned, we send the flow
+                    // command to receive messages.
+                    boolean firstTimeConnect = subscribeFuture.complete(this);
+                    if (!(firstTimeConnect && hasParentConsumer) && getCurrentReceiverQueueSize() != 0) {
+                        increaseAvailablePermits(cnx, getCurrentReceiverQueueSize());
+                    }
+                    future.complete(null);
+                });
             }).exceptionally((e) -> {
                 deregisterFromClientCnx();
                 if (getState() == State.Closing || getState() == State.Closed) {
@@ -883,20 +884,17 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 log.warn("[{}][{}] Failed to subscribe to topic on {}", topic,
                         subscription, cnx.channel().remoteAddress());
 
-                if (e.getCause() instanceof PulsarClientException.TimeoutException) {
-                    // Creating the consumer has timed out. We need to ensure the broker closes the consumer
-                    // in case it was indeed created, otherwise it might prevent new create consumer operation,
-                    // since we are not necessarily closing the connection.
-                    long closeRequestId = client.newRequestId();
-                    ByteBuf cmd = Commands.newCloseConsumer(consumerId, closeRequestId);
-                    cnx.sendRequestWithId(cmd, closeRequestId);
-                }
-
                 if (e.getCause() instanceof PulsarClientException
                         && PulsarClientException.isRetriableError(e.getCause())
                         && System.currentTimeMillis() < SUBSCRIBE_DEADLINE_UPDATER.get(ConsumerImpl.this)) {
                     future.completeExceptionally(e.getCause());
                 } else if (!subscribeFuture.isDone()) {
+                    // Creating the consumer has timed out. We need to ensure the broker closes the consumer
+                    // in case it was indeed created, otherwise it might prevent new create consumer operation,
+                    // since we are not necessarily closing the connection.
+                    if (e.getCause() instanceof PulsarClientException.TimeoutException) {
+                        sendCloseConsumerCommand(cnx);
+                    }
                     // unable to create new consumer, fail operation
                     setState(State.Failed);
                     closeConsumerTasks();
@@ -929,6 +927,12 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             });
         }
         return future;
+    }
+
+    private CompletableFuture<ProducerResponse> sendCloseConsumerCommand(ClientCnx cnx) {
+        long closeRequestId = client.newRequestId();
+        ByteBuf cmd = Commands.newCloseConsumer(consumerId, closeRequestId);
+        return cnx.sendRequestWithId(cmd, closeRequestId);
     }
 
     protected void consumerIsReconnectedToBroker(ClientCnx cnx, int currentQueueSize) {
