@@ -138,7 +138,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
     private long inFlightStateWaitingTimeInMillis;
 
     private long ownershipMonitorDelayTimeInSecs;
-    private long stateTombstoneDelayTimeInSeconds;
+    private long stateTombstoneDelayTimeInMillis;
     private long maxCleanupDelayTimeInSecs;
     private long minCleanupDelayTimeInSecs;
     // cleanup metrics
@@ -206,14 +206,14 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         this.getOwnerRequests = new ConcurrentHashMap<>();
         this.cleanupJobs = new ConcurrentHashMap<>();
         this.stateChangeListeners = new StateChangeListeners();
-        this.stateTombstoneDelayTimeInSeconds = config.getLoadBalancerServiceUnitStateTombstoneDelayTimeInSeconds()
+        this.stateTombstoneDelayTimeInMillis = config.getLoadBalancerServiceUnitStateTombstoneDelayTimeInSeconds()
                 * 1000;
         this.inFlightStateWaitingTimeInMillis = config.getLoadBalancerInFlightServiceUnitStateWaitingTimeInMillis();
         this.ownershipMonitorDelayTimeInSecs = config.getLoadBalancerServiceUnitStateMonitorIntervalInSeconds();
-        if (stateTombstoneDelayTimeInSeconds < inFlightStateWaitingTimeInMillis) {
+        if (stateTombstoneDelayTimeInMillis < inFlightStateWaitingTimeInMillis) {
             throw new IllegalArgumentException(
                     "Invalid Config: loadBalancerServiceUnitStateTombstoneDelayTimeInSeconds"
-                            + stateTombstoneDelayTimeInSeconds + " secs"
+                            + stateTombstoneDelayTimeInMillis / 1000 + " secs"
                             + "< loadBalancerInFlightServiceUnitStateWaitingTimeInMillis"
                             + inFlightStateWaitingTimeInMillis + " millis");
         }
@@ -1446,7 +1446,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                 continue;
             }
 
-            if (now - stateData.timestamp() > stateTombstoneDelayTimeInSeconds) {
+            if (now - stateData.timestamp() > stateTombstoneDelayTimeInMillis) {
                 log.info("Found semi-terminal states to tombstone"
                         + " serviceUnit:{}, stateData:{}", serviceUnit, stateData);
                 tombstoneAsync(serviceUnit).whenComplete((__, e) -> {
