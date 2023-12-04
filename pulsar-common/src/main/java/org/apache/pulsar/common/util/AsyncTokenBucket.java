@@ -93,6 +93,7 @@ public abstract class AsyncTokenBucket {
             // The default minimum tokens is the amount of tokens made available in the minimum increment duration
             this.defaultMinTokensForPause = Math.max(this.resolutionNanos * rate / ratePeriodNanos, minTokens);
             this.tokens = initialTokens;
+            updateTokens();
         }
 
         @Override
@@ -120,7 +121,6 @@ public abstract class AsyncTokenBucket {
         this.clockSource = clockSource;
         this.minTokens = minTokens;
         this.resolutionNanos = resolutionNanos;
-        updateTokens();
     }
 
     public static FixedRateAsyncTokenBucketBuilder builder() {
@@ -357,6 +357,7 @@ public abstract class AsyncTokenBucket {
             this.ratePeriodNanosFunction = ratePeriodNanosFunction;
             this.minTokensForPauseFactor = minTokensForPauseFactor;
             this.tokens = (long) (rateFunction.getAsLong() * initialTokensFactor);
+            updateTokens();
         }
 
         @Override
