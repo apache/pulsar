@@ -26,6 +26,7 @@ import static org.mockito.Mockito.anyString;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
@@ -33,12 +34,15 @@ import com.google.common.collect.Lists;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.PrintStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import org.apache.pulsar.client.admin.ListTopicsOptions;
 import org.apache.pulsar.client.admin.Lookup;
 import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.Schemas;
 import org.apache.pulsar.client.admin.Topics;
 import org.apache.pulsar.client.impl.MessageIdImpl;
@@ -58,19 +62,23 @@ public class TestCmdTopics {
     private PulsarAdmin pulsarAdmin;
     private CmdTopics cmdTopics;
     private Lookup mockLookup;
+    private Topics mockTopics;
     private CmdTopics.PartitionedLookup partitionedLookup;
+    private CmdTopics.DeleteCmd deleteCmd;
 
     @BeforeMethod
     public void setup() throws Exception {
         pulsarAdmin = Mockito.mock(PulsarAdmin.class);
-        Topics mockTopics = mock(Topics.class);
+        mockTopics = mock(Topics.class);
         when(pulsarAdmin.topics()).thenReturn(mockTopics);
         Schemas mockSchemas = mock(Schemas.class);
         when(pulsarAdmin.schemas()).thenReturn(mockSchemas);
         mockLookup = mock(Lookup.class);
         when(pulsarAdmin.lookups()).thenReturn(mockLookup);
+        when(pulsarAdmin.topics()).thenReturn(mockTopics);
         cmdTopics = spy(new CmdTopics(() -> pulsarAdmin));
         partitionedLookup = spy(cmdTopics.getPartitionedLookup());
+        deleteCmd = spy(cmdTopics.getDeleteCmd());
     }
 
     @AfterMethod(alwaysRun = true)
@@ -159,5 +167,60 @@ public class TestCmdTopics {
         topic.append(PARTITIONED_TOPIC_NAME);
         partitionedLookup.sortByBroker = true;
         verify(mockLookup).lookupPartitionedTopic(eq(topic.toString()));
+    }
+    @Test
+    public void testRunDeleteSingleTopic() throws PulsarAdminException, IOException {
+        // Setup: Specify a single topic to delete
+        deleteCmd.params = List.of("persistent://tenant/namespace/topic");
+
+        // Act: Run the delete command
+        deleteCmd.run();
+
+        // Assert: Verify that the delete method was called once for the specified topic
+        verify(mockTopics, times(1)).delete("persistent://tenant/namespace/topic", false);
+    }
+
+    @Test
+    public void testRunDeleteMultipleTopics() throws PulsarAdminException, IOException {
+        // Setup: Specify a regex to delete multiple topics
+        deleteCmd.params = List.of("persistent://tenant/namespace/.*");
+        deleteCmd.regex = true;
+
+        // Mock: Simulate the return of multiple topics that match the regex
+        when(mockTopics.getList("tenant/namespace")).thenReturn(List.of(
+                "persistent://tenant/namespace/topic1",
+                "persistent://tenant/namespace/topic2"));
+
+        // Act: Run the delete command
+        deleteCmd.run();
+
+        // Assert: Verify that the delete method was called once for each of the matching topics
+        verify(mockTopics, times(1)).delete("persistent://tenant/namespace/topic1");
+        verify(mockTopics, times(1)).delete("persistent://tenant/namespace/topic2");
+    }
+
+    @Test
+    public void testRunDeleteTopicsFromFile() throws PulsarAdminException, IOException {
+        // Setup: Create a temporary file and write some topics to it
+        Path tempFile = Files.createTempFile("topics", ".txt");
+        List<String> topics = List.of(
+                "persistent://tenant/namespace/topic1",
+                "persistent://tenant/namespace/topic2");
+        Files.write(tempFile, topics);
+
+        // Setup: Specify the temporary file as input for the delete command
+        deleteCmd.params = List.of(tempFile.toString());
+        deleteCmd.readFromFile = true;
+
+        // Act: Run the delete command
+        deleteCmd.run();
+
+        // Assert: Verify that the delete method was called once for each topic in the file
+        for (String topic : topics) {
+            verify(mockTopics, times(1)).delete(topic);
+        }
+
+        // Cleanup: Delete the temporary file
+        Files.delete(tempFile);
     }
 }
