@@ -751,7 +751,7 @@ public class CmdTopics extends CmdBase {
                 String path = checkArgument(params);
                 List<String> topicsFromFile = Files.readAllLines(Path.of(path));
                 for (String t : topicsFromFile) {
-                    getTopics().delete(t);
+                    getTopics().delete(t, force);
                 }
             } else {
                 String topic = validateTopicName(params);
@@ -760,7 +760,7 @@ public class CmdTopics extends CmdBase {
                     List<String> topics = getTopics().getList(namespace);
                     topics = topics.stream().filter(s -> s.matches(topic)).toList();
                     for (String t : topics) {
-                        getTopics().delete(t);
+                        getTopics().delete(t, force);
                     }
                 } else {
                     getTopics().delete(topic, force);
