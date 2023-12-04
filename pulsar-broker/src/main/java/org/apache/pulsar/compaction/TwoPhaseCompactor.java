@@ -62,6 +62,7 @@ public class TwoPhaseCompactor extends Compactor {
     private static final int MAX_OUTSTANDING = 500;
     private static final String COMPACTED_TOPIC_LEDGER_PROPERTY = "CompactedTopicLedger";
     private final Duration phaseOneLoopReadTimeout;
+    private final boolean topicCompactionRemainNullKey;
 
     public TwoPhaseCompactor(ServiceConfiguration conf,
                              PulsarClient pulsar,
@@ -69,6 +70,7 @@ public class TwoPhaseCompactor extends Compactor {
                              ScheduledExecutorService scheduler) {
         super(conf, pulsar, bk, scheduler);
         phaseOneLoopReadTimeout = Duration.ofSeconds(conf.getBrokerServiceCompactionPhaseOneLoopTimeInSeconds());
+        topicCompactionRemainNullKey = conf.isTopicCompactionRemainNullKey();
     }
 
     @Override
@@ -133,8 +135,16 @@ public class TwoPhaseCompactor extends Compactor {
                         int numMessagesInBatch = metadata.getNumMessagesInBatch();
                         int deleteCnt = 0;
                         for (ImmutableTriple<MessageId, String, Integer> e : RawBatchConverter
-                                .extractIdsAndKeysAndSize(m, false)) {
+                                .extractIdsAndKeysAndSize(m, true)) {
                             if (e != null) {
+                                if (e.getMiddle() == null) {
+                                    if (!topicCompactionRemainNullKey) {
+                                        // record delete null-key message event
+                                        deleteCnt++;
+                                        mxBean.addCompactionRemovedEvent(reader.getTopic());
+                                    }
+                                    continue;
+                                }
                                 if (e.getRight() > 0) {
                                     MessageId old = latestForKey.put(e.getMiddle(), e.getLeft());
                                     if (old != null) {
@@ -163,6 +173,10 @@ public class TwoPhaseCompactor extends Compactor {
                         } else {
                             deletedMessage = true;
                             latestForKey.remove(keyAndSize.getLeft());
+                        }
+                    } else {
+                        if (!topicCompactionRemainNullKey) {
+                            deletedMessage = true;
                         }
                     }
                     if (replaceMessage || deletedMessage) {
@@ -242,7 +256,6 @@ public class TwoPhaseCompactor extends Compactor {
             }
 
             if (m.getMessageId().compareTo(lastCompactedMessageId) <= 0) {
-                m.close();
                 phaseTwoLoop(reader, to, latestForKey, lh, outstanding, promise, lastCompactedMessageId);
                 return;
             }
@@ -254,7 +267,7 @@ public class TwoPhaseCompactor extends Compactor {
                 if (RawBatchConverter.isReadableBatch(m)) {
                     try {
                         messageToAdd = RawBatchConverter.rebatchMessage(
-                                m, (key, subid) -> subid.equals(latestForKey.get(key)));
+                                m, (key, subid) -> subid.equals(latestForKey.get(key)), topicCompactionRemainNullKey);
                     } catch (IOException ioe) {
                         log.info("Error decoding batch for message {}. Whole batch will be included in output",
                                 id, ioe);
@@ -263,8 +276,8 @@ public class TwoPhaseCompactor extends Compactor {
                 } else {
                     Pair<String, Integer> keyAndSize = extractKeyAndSize(m);
                     MessageId msg;
-                    if (keyAndSize == null) { // pass through messages without a key
-                        messageToAdd = Optional.of(m);
+                    if (keyAndSize == null) {
+                        messageToAdd = topicCompactionRemainNullKey ? Optional.of(m) : Optional.empty();
                     } else if ((msg = latestForKey.get(keyAndSize.getLeft())) != null
                             && msg.equals(id)) { // consider message only if present into latestForKey map
                         if (keyAndSize.getRight() <= 0) {
