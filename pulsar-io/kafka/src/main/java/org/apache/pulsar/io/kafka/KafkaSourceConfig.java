@@ -75,6 +75,7 @@ public class KafkaSourceConfig implements Serializable {
 
     @FieldDoc(
             defaultValue = "",
+            sensitive = true,
             help = "The password for the trust store file.")
     private String sslTruststorePassword;
 

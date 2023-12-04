@@ -38,6 +38,7 @@ import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionBusyE
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionFencedException;
 import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.Dispatcher;
+import org.apache.pulsar.broker.service.GetStatsOptions;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.common.api.proto.CommandAck.AckType;
@@ -437,7 +438,7 @@ public class NonPersistentSubscription extends AbstractSubscription implements S
                 + " non-persistent topic.");
     }
 
-    public NonPersistentSubscriptionStatsImpl getStats() {
+    public NonPersistentSubscriptionStatsImpl getStats(GetStatsOptions getStatsOptions) {
         NonPersistentSubscriptionStatsImpl subStats = new NonPersistentSubscriptionStatsImpl();
         subStats.bytesOutCounter = bytesOutFromRemovedConsumers.longValue();
         subStats.msgOutCounter = msgOutFromRemovedConsumer.longValue();
@@ -446,7 +447,9 @@ public class NonPersistentSubscription extends AbstractSubscription implements S
         if (dispatcher != null) {
             dispatcher.getConsumers().forEach(consumer -> {
                 ConsumerStatsImpl consumerStats = consumer.getStats();
-                subStats.consumers.add(consumerStats);
+                if (!getStatsOptions.isExcludeConsumers()) {
+                    subStats.consumers.add(consumerStats);
+                }
                 subStats.msgRateOut += consumerStats.msgRateOut;
                 subStats.messageAckRate += consumerStats.messageAckRate;
                 subStats.msgThroughputOut += consumerStats.msgThroughputOut;

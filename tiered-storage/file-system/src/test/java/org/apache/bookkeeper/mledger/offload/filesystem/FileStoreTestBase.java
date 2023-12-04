@@ -19,6 +19,7 @@
 package org.apache.bookkeeper.mledger.offload.filesystem;
 
 import java.io.File;
+import java.io.IOException;
 import java.nio.file.Files;
 import java.util.Properties;
 import java.util.concurrent.Executors;
@@ -53,12 +54,15 @@ public abstract class FileStoreTestBase {
     }
 
     @AfterClass(alwaysRun = true)
-    public final void afterClass() {
+    public final void afterClass() throws IOException {
         cleanup();
     }
 
-    public void cleanup() {
-        scheduler.shutdownNow();
+    public void cleanup() throws IOException {
+        if (scheduler != null) {
+            scheduler.shutdownNow();
+            scheduler = null;
+        }
     }
 
     @BeforeMethod(alwaysRun = true)
@@ -66,6 +70,7 @@ public abstract class FileStoreTestBase {
         File baseDir = Files.createTempDirectory(basePath).toFile().getAbsoluteFile();
         Configuration conf = new Configuration();
         conf.set(MiniDFSCluster.HDFS_MINIDFS_BASEDIR, baseDir.getAbsolutePath());
+        conf.set("dfs.namenode.gc.time.monitor.enable", "false");
         MiniDFSCluster.Builder builder = new MiniDFSCluster.Builder(conf);
         hdfsCluster = builder.build();
 
@@ -80,9 +85,18 @@ public abstract class FileStoreTestBase {
 
     @AfterMethod(alwaysRun = true)
     public void tearDown() {
-        hdfsCluster.shutdown(true, true);
-        hdfsCluster.close();
-        scheduledExecutorService.shutdownNow();
+        if (fileSystemManagedLedgerOffloader != null) {
+            fileSystemManagedLedgerOffloader.close();
+            fileSystemManagedLedgerOffloader = null;
+        }
+        if (hdfsCluster != null) {
+            hdfsCluster.shutdown(true, true);
+            hdfsCluster = null;
+        }
+        if (scheduledExecutorService != null) {
+            scheduledExecutorService.shutdownNow();
+            scheduledExecutorService = null;
+        }
     }
 
     public String getURI() {

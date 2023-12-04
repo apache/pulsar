@@ -1757,7 +1757,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
         category = CATEGORY_STORAGE_BK,
         doc = "Enable/disable reordering read sequence on reading entries")
-    private boolean bookkeeperClientReorderReadSequenceEnabled = false;
+    private boolean bookkeeperClientReorderReadSequenceEnabled = true;
     @FieldContext(
         category = CATEGORY_STORAGE_BK,
         required = false,
@@ -2771,6 +2771,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
                     + "phase one loop exceeds this time, the compaction will not proceed."
     )
     private long brokerServiceCompactionPhaseOneLoopTimeInSeconds = 30;
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "Whether retain null-key message during topic compaction."
+    )
+    private boolean topicCompactionRemainNullKey = false;
 
     @FieldContext(
         category = CATEGORY_SERVER,

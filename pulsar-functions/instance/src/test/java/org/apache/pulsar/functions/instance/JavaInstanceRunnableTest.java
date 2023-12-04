@@ -28,6 +28,7 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -37,6 +38,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicReference;
 import lombok.Getter;
 import lombok.Setter;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -60,10 +62,14 @@ import org.apache.pulsar.io.core.SourceContext;
 import org.awaitility.Awaitility;
 import org.jetbrains.annotations.NotNull;
 import org.testng.Assert;
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.AfterMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
+@Slf4j
 public class JavaInstanceRunnableTest {
+    private final List<AutoCloseable> closeables = new ArrayList<>();
 
     static class IntegerSerDe implements SerDe<Integer> {
         @Override
@@ -113,8 +119,10 @@ public class JavaInstanceRunnableTest {
                 .build();
         InstanceConfig config = createInstanceConfig(functionDetails);
         config.setClusterName("test-cluster");
+        PulsarClient pulsarClient = PulsarClient.builder().serviceUrl("pulsar://test-cluster:6650").build();
+        registerCloseable(pulsarClient);
         return new JavaInstanceRunnable(config, clientBuilder,
-                PulsarClient.builder().serviceUrl("pulsar://test-cluster:6650").build(), null, null, null, null, null,
+                pulsarClient, null, null, null, null, null,
                 Thread.currentThread().getContextClassLoader(), null);
     }
 
@@ -492,5 +500,30 @@ public class JavaInstanceRunnableTest {
                     Assert.assertFalse(fnThread.isAlive());
                     Assert.assertFalse((boolean) getPrivateField(javaInstanceRunnable, "isInitialized"));
                 });
+    }
+
+    @AfterClass
+    public void cleanupInstanceCache() {
+        InstanceCache.shutdown();
+    }
+
+    @AfterMethod(alwaysRun = true)
+    public void cleanupCloseables() {
+        callCloseables(closeables);
+    }
+
+    protected <T extends AutoCloseable> T registerCloseable(T closeable) {
+        closeables.add(closeable);
+        return closeable;
+    }
+
+    private static void callCloseables(List<AutoCloseable> closeables) {
+        for (int i = closeables.size() - 1; i >= 0; i--) {
+            try {
+                closeables.get(i).close();
+            } catch (Exception e) {
+                log.error("Failure in calling close method", e);
+            }
+        }
     }
 }

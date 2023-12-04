@@ -115,6 +115,9 @@ public class Consumer {
     private final ConsumerStatsImpl stats;
 
     private final boolean isDurable;
+
+    private final boolean isPersistentTopic;
+
     private static final AtomicIntegerFieldUpdater<Consumer> UNACKED_MESSAGES_UPDATER =
             AtomicIntegerFieldUpdater.newUpdater(Consumer.class, "unackedMessages");
     private volatile int unackedMessages = 0;
@@ -172,6 +175,7 @@ public class Consumer {
         this.readCompacted = readCompacted;
         this.consumerName = consumerName;
         this.isDurable = isDurable;
+        this.isPersistentTopic = subscription.getTopic() instanceof PersistentTopic;
         this.keySharedMeta = keySharedMeta;
         this.cnx = cnx;
         this.msgOut = new Rate();
@@ -239,6 +243,7 @@ public class Consumer {
         this.pendingAcks = null;
         this.stats = null;
         this.isDurable = false;
+        this.isPersistentTopic = false;
         this.metadata = null;
         this.keySharedMeta = null;
         this.clientAddress = null;
@@ -1088,7 +1093,7 @@ public class Consumer {
 
     private int addAndGetUnAckedMsgs(Consumer consumer, int ackedMessages) {
         int unackedMsgs = 0;
-        if (Subscription.isIndividualAckMode(subType)) {
+        if (isPersistentTopic && Subscription.isIndividualAckMode(subType)) {
             subscription.addUnAckedMessages(ackedMessages);
             unackedMsgs = UNACKED_MESSAGES_UPDATER.addAndGet(consumer, ackedMessages);
         }

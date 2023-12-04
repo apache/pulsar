@@ -19,7 +19,6 @@
 package org.apache.pulsar.client.impl;
 
 import io.netty.channel.EventLoopGroup;
-import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.nio.ByteBuffer;
@@ -178,18 +177,14 @@ public class HttpLookupService implements LookupService {
         }
         httpClient.get(path, GetSchemaResponse.class).thenAccept(response -> {
             if (response.getType() == SchemaType.KEY_VALUE) {
-                try {
-                    SchemaData data = SchemaData
-                            .builder()
-                            .data(SchemaUtils.convertKeyValueDataStringToSchemaInfoSchema(
-                                    response.getData().getBytes(StandardCharsets.UTF_8)))
-                            .type(response.getType())
-                            .props(response.getProperties())
-                            .build();
-                    future.complete(Optional.of(SchemaInfoUtil.newSchemaInfo(schemaName, data)));
-                } catch (IOException err) {
-                    future.completeExceptionally(err);
-                }
+                SchemaData data = SchemaData
+                        .builder()
+                        .data(SchemaUtils.convertKeyValueDataStringToSchemaInfoSchema(
+                                response.getData().getBytes(StandardCharsets.UTF_8)))
+                        .type(response.getType())
+                        .props(response.getProperties())
+                        .build();
+                future.complete(Optional.of(SchemaInfoUtil.newSchemaInfo(schemaName, data)));
             } else {
                 future.complete(Optional.of(SchemaInfoUtil.newSchemaInfo(schemaName, response)));
             }
