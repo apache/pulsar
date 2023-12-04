@@ -140,6 +140,8 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
         ManagedCursor cursor = this.lastMutableBucket.getCursor();
         Map<String, String> cursorProperties = cursor.getCursorProperties();
         if (MapUtils.isEmpty(cursorProperties)) {
+            log.info("[{}] Recover delayed message index bucket snapshot finish, don't find bucket snapshot",
+                    dispatcher.getName());
             return 0;
         }
         FutureUtil.Sequencer<Void> sequencer = this.lastMutableBucket.getSequencer();
