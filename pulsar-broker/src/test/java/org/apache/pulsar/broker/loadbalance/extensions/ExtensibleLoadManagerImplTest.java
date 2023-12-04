@@ -38,11 +38,9 @@ import static org.apache.pulsar.broker.loadbalance.extensions.models.UnloadDecis
 import static org.apache.pulsar.broker.namespace.NamespaceService.getHeartbeatNamespace;
 import static org.apache.pulsar.broker.namespace.NamespaceService.getHeartbeatNamespaceV2;
 import static org.apache.pulsar.broker.namespace.NamespaceService.getSLAMonitorNamespace;
-import static org.mockito.ArgumentMatchers.isA;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
@@ -120,7 +118,6 @@ import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.policies.data.loadbalancer.ResourceUsage;
 import org.apache.pulsar.policies.data.loadbalancer.SystemResourceUsage;
 import org.awaitility.Awaitility;
-import org.mockito.MockedStatic;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.BeforeMethod;
@@ -154,53 +151,47 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
     @BeforeClass
     @Override
     public void setup() throws Exception {
-        try (MockedStatic<ServiceUnitStateChannelImpl> channelMockedStatic =
-                     mockStatic(ServiceUnitStateChannelImpl.class)) {
-            channelMockedStatic.when(() -> ServiceUnitStateChannelImpl.newInstance(isA(PulsarService.class)))
-                    .thenAnswer(invocation -> {
-                        PulsarService pulsarService = invocation.getArgument(0);
-                        // Set the inflight state waiting time and ownership monitor delay time to 5 seconds to avoid
-                        // stuck when doing unload.
-                        return new ServiceUnitStateChannelImpl(pulsarService, 5 * 1000, 1);
-                    });
-            conf.setForceDeleteNamespaceAllowed(true);
-            conf.setAllowAutoTopicCreationType(TopicType.NON_PARTITIONED);
-            conf.setAllowAutoTopicCreation(true);
-            conf.setLoadManagerClassName(ExtensibleLoadManagerImpl.class.getName());
-            conf.setLoadBalancerLoadSheddingStrategy(TransferShedder.class.getName());
-            conf.setLoadBalancerSheddingEnabled(false);
-            conf.setLoadBalancerDebugModeEnabled(true);
-            conf.setTopicLevelPoliciesEnabled(true);
-            super.internalSetup(conf);
-            pulsar1 = pulsar;
-            ServiceConfiguration defaultConf = getDefaultConf();
-            defaultConf.setAllowAutoTopicCreation(true);
-            defaultConf.setForceDeleteNamespaceAllowed(true);
-            defaultConf.setLoadManagerClassName(ExtensibleLoadManagerImpl.class.getName());
-            defaultConf.setLoadBalancerLoadSheddingStrategy(TransferShedder.class.getName());
-            defaultConf.setLoadBalancerSheddingEnabled(false);
-            defaultConf.setTopicLevelPoliciesEnabled(true);
-            additionalPulsarTestContext = createAdditionalPulsarTestContext(defaultConf);
-            pulsar2 = additionalPulsarTestContext.getPulsarService();
+        // Set the inflight state waiting time and ownership monitor delay time to 5 seconds to avoid
+        // stuck when doing unload.
+        conf.setLoadBalancerInFlightServiceUnitStateWaitingTimeInMillis(5 * 1000);
+        conf.setLoadBalancerServiceUnitStateMonitorIntervalInSeconds(1);
+        conf.setForceDeleteNamespaceAllowed(true);
+        conf.setAllowAutoTopicCreationType(TopicType.NON_PARTITIONED);
+        conf.setAllowAutoTopicCreation(true);
+        conf.setLoadManagerClassName(ExtensibleLoadManagerImpl.class.getName());
+        conf.setLoadBalancerLoadSheddingStrategy(TransferShedder.class.getName());
+        conf.setLoadBalancerSheddingEnabled(false);
+        conf.setLoadBalancerDebugModeEnabled(true);
+        conf.setTopicLevelPoliciesEnabled(true);
+        super.internalSetup(conf);
+        pulsar1 = pulsar;
+        ServiceConfiguration defaultConf = getDefaultConf();
+        defaultConf.setAllowAutoTopicCreation(true);
+        defaultConf.setForceDeleteNamespaceAllowed(true);
+        defaultConf.setLoadManagerClassName(ExtensibleLoadManagerImpl.class.getName());
+        defaultConf.setLoadBalancerLoadSheddingStrategy(TransferShedder.class.getName());
+        defaultConf.setLoadBalancerSheddingEnabled(false);
+        defaultConf.setTopicLevelPoliciesEnabled(true);
+        additionalPulsarTestContext = createAdditionalPulsarTestContext(defaultConf);
+        pulsar2 = additionalPulsarTestContext.getPulsarService();
 
-            setPrimaryLoadManager();
+        setPrimaryLoadManager();
 
-            setSecondaryLoadManager();
+        setSecondaryLoadManager();
 
-            admin.clusters().createCluster(this.conf.getClusterName(),
-                    ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
-            admin.tenants().createTenant("public",
-                    new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"),
-                            Sets.newHashSet(this.conf.getClusterName())));
-            admin.namespaces().createNamespace("public/default");
-            admin.namespaces().setNamespaceReplicationClusters("public/default",
-                    Sets.newHashSet(this.conf.getClusterName()));
+        admin.clusters().createCluster(this.conf.getClusterName(),
+                ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
+        admin.tenants().createTenant("public",
+                new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"),
+                        Sets.newHashSet(this.conf.getClusterName())));
+        admin.namespaces().createNamespace("public/default");
+        admin.namespaces().setNamespaceReplicationClusters("public/default",
+                Sets.newHashSet(this.conf.getClusterName()));
 
-            admin.namespaces().createNamespace(defaultTestNamespace, 128);
-            admin.namespaces().setNamespaceReplicationClusters(defaultTestNamespace,
-                    Sets.newHashSet(this.conf.getClusterName()));
-            lookupService = (LookupService) FieldUtils.readDeclaredField(pulsarClient, "lookup", true);
-        }
+        admin.namespaces().createNamespace(defaultTestNamespace, 128);
+        admin.namespaces().setNamespaceReplicationClusters(defaultTestNamespace,
+                Sets.newHashSet(this.conf.getClusterName()));
+        lookupService = (LookupService) FieldUtils.readDeclaredField(pulsarClient, "lookup", true);
     }
 
     @Override
@@ -468,8 +459,11 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
                 throw new RuntimeException(e);
             }
         });
-        assertTrue(producer.isConnected());
-        verify(lookup, times(lookupCountBeforeUnload)).getBroker(topicName);
+
+        Awaitility.await().atMost(5, TimeUnit.SECONDS).untilAsserted(() -> {
+            assertTrue(producer.isConnected());
+            verify(lookup, times(lookupCountBeforeUnload)).getBroker(topicName);
+        });
         producer.close();
     }
 
@@ -568,15 +562,21 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
 
         admin.namespaces().splitNamespaceBundle(namespace, firstBundle, true, null);
 
-        BundlesData bundlesData = admin.namespaces().getBundles(namespace);
-        assertEquals(bundlesData.getNumBundles(), numBundles + 1);
-        String lowBundle = String.format("0x%08x", bundleRanges.get(0));
-        String midBundle = String.format("0x%08x", mid);
-        String highBundle = String.format("0x%08x", bundleRanges.get(1));
-        assertTrue(bundlesData.getBoundaries().contains(lowBundle));
-        assertTrue(bundlesData.getBoundaries().contains(midBundle));
-        assertTrue(bundlesData.getBoundaries().contains(highBundle));
-        assertEquals(splitCount.get(), 1);
+
+        Awaitility.await()
+                .atMost(5, TimeUnit.SECONDS)
+                .untilAsserted(() -> {
+                    BundlesData bundlesData = admin.namespaces().getBundles(namespace);
+                    assertEquals(bundlesData.getNumBundles(), numBundles + 1);
+                    String lowBundle = String.format("0x%08x", bundleRanges.get(0));
+                    String midBundle = String.format("0x%08x", mid);
+                    String highBundle = String.format("0x%08x", bundleRanges.get(1));
+                    assertTrue(bundlesData.getBoundaries().contains(lowBundle));
+                    assertTrue(bundlesData.getBoundaries().contains(midBundle));
+                    assertTrue(bundlesData.getBoundaries().contains(highBundle));
+                    assertEquals(splitCount.get(), 1);
+                });
+
 
         // Test split bundle with invalid bundle range.
         try {
@@ -619,15 +619,24 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
         final String namespace = "public/testDeleteNamespaceBundle";
         admin.namespaces().createNamespace(namespace, 3);
         TopicName topicName = TopicName.get(namespace + "/test-delete-namespace-bundle");
-        NamespaceBundle bundle = getBundleAsync(pulsar1, topicName).get();
 
-        String broker = admin.lookups().lookupTopic(topicName.toString());
-        log.info("Assign the bundle {} to {}", bundle, broker);
 
-        checkOwnershipState(broker, bundle);
 
-        admin.namespaces().deleteNamespaceBundle(topicName.getNamespace(), bundle.getBundleRange());
-        assertFalse(primaryLoadManager.checkOwnershipAsync(Optional.empty(), bundle).get());
+        Awaitility.await()
+                .atMost(30, TimeUnit.SECONDS)
+                .ignoreExceptions()
+                .untilAsserted(() -> {
+                    NamespaceBundle bundle = getBundleAsync(pulsar1, topicName).get();
+                    String broker = admin.lookups().lookupTopic(topicName.toString());
+                    log.info("Assign the bundle {} to {}", bundle, broker);
+                    checkOwnershipState(broker, bundle);
+                    admin.namespaces().deleteNamespaceBundle(topicName.getNamespace(), bundle.getBundleRange(), true);
+                    // this could fail if the system topic lookup asynchronously happens before this.
+                    // we will retry if it fails.
+                    assertFalse(primaryLoadManager.checkOwnershipAsync(Optional.empty(), bundle).get());
+                });
+
+        admin.namespaces().deleteNamespace(namespace, true);
     }
 
     @Test(timeOut = 30 * 1000)
@@ -704,15 +713,6 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testDeployAndRollbackLoadManager() throws Exception {
-        try (MockedStatic<ServiceUnitStateChannelImpl> channelMockedStatic =
-                     mockStatic(ServiceUnitStateChannelImpl.class)) {
-            channelMockedStatic.when(() -> ServiceUnitStateChannelImpl.newInstance(isA(PulsarService.class)))
-                    .thenAnswer(invocation -> {
-                        PulsarService pulsarService = invocation.getArgument(0);
-                        // Set the inflight state waiting time and ownership monitor delay time to 5 seconds to avoid
-                        // stuck when doing unload.
-                        return new ServiceUnitStateChannelImpl(pulsarService, 5 * 1000, 1);
-                    });
             // Test rollback to modular load manager.
             ServiceConfiguration defaultConf = getDefaultConf();
             defaultConf.setAllowAutoTopicCreation(true);
@@ -833,8 +833,6 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
                     }
                 }
             }
-        }
-
     }
 
     private void assertLookupHeartbeatOwner(PulsarService pulsar,
