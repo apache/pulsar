@@ -460,10 +460,8 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
             }
         });
 
-        Awaitility.await().atMost(5, TimeUnit.SECONDS).untilAsserted(() -> {
-            assertTrue(producer.isConnected());
-            verify(lookup, times(lookupCountBeforeUnload)).getBroker(topicName);
-        });
+        Awaitility.await().atMost(5, TimeUnit.SECONDS).until(producer::isConnected);
+        verify(lookup, times(lookupCountBeforeUnload)).getBroker(topicName);
         producer.close();
     }
 

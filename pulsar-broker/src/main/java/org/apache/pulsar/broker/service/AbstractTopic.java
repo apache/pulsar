@@ -157,6 +157,7 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
     protected final LongAdder msgOutFromRemovedSubscriptions = new LongAdder();
     protected final LongAdder bytesOutFromRemovedSubscriptions = new LongAdder();
     protected volatile Pair<String, List<EntryFilter>> entryFilters;
+    protected volatile boolean transferring = false;
 
     public AbstractTopic(String topic, BrokerService brokerService) {
         this.topic = topic;
@@ -956,11 +957,6 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
         }
     }
 
-    @Override
-    public boolean isFenced() {
-        return isFenced;
-    }
-
     protected CompletableFuture<Void> internalAddProducer(Producer producer) {
         if (isProducersExceeded(producer)) {
             log.warn("[{}] Attempting to add producer to topic which reached max producers limit", topic);
@@ -1248,6 +1244,10 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
     protected abstract boolean isTerminated();
 
     protected abstract boolean isMigrated();
+
+    public boolean isTransferring() {
+        return transferring;
+    }
 
     private static final Logger log = LoggerFactory.getLogger(AbstractTopic.class);
 
