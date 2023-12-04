@@ -466,7 +466,8 @@ public class Namespaces extends NamespacesBase {
                                                  @PathParam("tenant") String tenant,
                                                  @PathParam("namespace") String namespace) {
         validateNamespaceName(tenant, namespace);
-        validateAdminAccessForTenantAsync(tenant)
+        validateNamespacePolicyOperationAsync(namespaceName, PolicyName.SUBSCRIPTION_EXPIRATION_TIME,
+                PolicyOperation.READ)
                 .thenCompose(__ -> getNamespacePoliciesAsync(namespaceName))
                 .thenAccept(policies -> asyncResponse.resume(policies.subscription_expiration_time_minutes))
                 .exceptionally(ex -> {
