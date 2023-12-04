@@ -132,10 +132,10 @@ public class TopicLookupBase extends PulsarWebResource {
                             pulsar().getBrokerService().getLookupRequestSemaphore().release();
                             return result.getLookupData();
                         }
-                    }).exceptionally(ex->{
-                        pulsar().getBrokerService().getLookupRequestSemaphore().release();
-                        throw FutureUtil.wrapToCompletionException(ex);
                     });
+                }).exceptionally(ex -> {
+                    pulsar().getBrokerService().getLookupRequestSemaphore().release();
+                    throw FutureUtil.wrapToCompletionException(ex);
                 });
     }
 
