@@ -154,7 +154,11 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
         executor.execute(() -> internalReadEntriesComplete(entries, obj));
     }
 
-    public synchronized void internalReadEntriesComplete(final List<Entry> entries, Object obj) {
+    private synchronized void internalReadEntriesComplete(final List<Entry> entries, Object obj) {
+        if (topic.isClosingOrDeleting()) {
+            return;
+        }
+
         ReadEntriesCtx readEntriesCtx = (ReadEntriesCtx) obj;
         Consumer readConsumer = readEntriesCtx.getConsumer();
         long epoch = readEntriesCtx.getEpoch();

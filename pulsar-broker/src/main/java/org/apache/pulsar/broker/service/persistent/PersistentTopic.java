@@ -104,6 +104,7 @@ import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionNotFo
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicBacklogQuotaExceededException;
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicBusyException;
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicClosedException;
+import org.apache.pulsar.broker.service.BrokerServiceException.TopicClosingOrDeletingException;
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicFencedException;
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicMigratedException;
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicTerminatedException;
@@ -440,6 +441,11 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         return pendingWriteOps;
     }
 
+    @Override
+    public boolean isClosingOrDeleting() {
+        return isClosingOrDeleting;
+    }
+
     private void createPersistentSubscriptions() {
         for (ManagedCursor cursor : ledger.getCursors()) {
                 if (cursor.getName().equals(DEDUPLICATION_CURSOR_NAME)
@@ -477,7 +483,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                     new UnsupportedSubscriptionException(String.format("Unsupported subscription: %s", subName)));
         }
         // Fence old subscription -> Rewind cursor -> Replace with a new subscription.
-        return sub.disconnect().thenCompose(ignore -> {
+        return sub.disconnect(Optional.empty()).thenCompose(ignore -> {
             if (!lock.writeLock().tryLock()) {
                 return CompletableFuture.failedFuture(new SubscriptionConflictUnloadException(String.format("Conflict"
                         + " topic-close, topic-delete, another-subscribe-unload, cannot unload subscription %s now",
@@ -523,14 +529,18 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     @Override
     public void publishMessage(ByteBuf headersAndPayload, PublishContext publishContext) {
         pendingWriteOps.incrementAndGet();
+        if (isClosingOrDeleting) {
+            publishContext.completed(new TopicClosingOrDeletingException("topic closing or deleting"), -1, -1);
+            decrementPendingWriteOpsAndCheck();
+            return;
+        }
         if (isFenced) {
             publishContext.completed(new TopicFencedException("fenced"), -1, -1);
             decrementPendingWriteOpsAndCheck();
             return;
         }
         if (isExceedMaximumMessageSize(headersAndPayload.readableBytes(), publishContext)) {
-            publishContext.completed(new NotAllowedException("Exceed maximum message size")
-                    , -1, -1);
+            publishContext.completed(new NotAllowedException("Exceed maximum message size"), -1, -1);
             decrementPendingWriteOpsAndCheck();
             return;
         }
@@ -1348,7 +1358,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
                 CompletableFuture<Void> closeClientFuture = new CompletableFuture<>();
                 List<CompletableFuture<Void>> futures = new ArrayList<>();
-                subscriptions.forEach((s, sub) -> futures.add(sub.disconnect()));
+                subscriptions.forEach((s, sub) -> futures.add(sub.disconnect(Optional.empty())));
                 if (closeIfClientsConnected) {
                     replicators.forEach((cluster, replicator) -> futures.add(replicator.disconnect()));
                     shadowReplicators.forEach((__, replicator) -> futures.add(replicator.disconnect()));
@@ -1493,14 +1503,15 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         shadowReplicators.forEach((__, replicator) -> futures.add(replicator.disconnect()));
         if (disconnectClients) {
             futures.add(ExtensibleLoadManagerImpl.getAssignedBrokerLookupData(
-                    brokerService.getPulsar(), topic).thenAccept(lookupData ->
-                    producers.values().forEach(producer -> futures.add(producer.disconnect(lookupData)))
+                    brokerService.getPulsar(), topic).thenAccept(lookupData -> {
+                      producers.values().forEach(producer -> futures.add(producer.disconnect(lookupData)));
+                      subscriptions.forEach((s, sub) -> futures.add(sub.disconnect(lookupData)));
+                    }
             ));
         }
         if (topicPublishRateLimiter != null) {
             topicPublishRateLimiter.close();
         }
-        subscriptions.forEach((s, sub) -> futures.add(sub.disconnect()));
         if (this.resourceGroupPublishLimiter != null) {
             this.resourceGroupPublishLimiter.unregisterRateLimitFunction(this.getName());
         }

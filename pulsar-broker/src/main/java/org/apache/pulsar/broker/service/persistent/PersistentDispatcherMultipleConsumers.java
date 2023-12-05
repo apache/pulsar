@@ -51,6 +51,7 @@ import org.apache.pulsar.broker.delayed.DelayedDeliveryTracker;
 import org.apache.pulsar.broker.delayed.DelayedDeliveryTrackerFactory;
 import org.apache.pulsar.broker.delayed.InMemoryDelayedDeliveryTracker;
 import org.apache.pulsar.broker.delayed.bucket.BucketDelayedDeliveryTracker;
+import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLookupData;
 import org.apache.pulsar.broker.service.AbstractDispatcherMultipleConsumers;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerBusyException;
@@ -484,7 +485,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
     }
 
     @Override
-    public CompletableFuture<Void> close() {
+    public CompletableFuture<Void> close(Optional<BrokerLookupData> assignedBrokerLookupData) {
         IS_CLOSED_UPDATER.set(this, TRUE);
 
         Optional<DelayedDeliveryTracker> delayedDeliveryTracker;
@@ -497,16 +498,17 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
 
         dispatchRateLimiter.ifPresent(DispatchRateLimiter::close);
 
-        return disconnectAllConsumers();
+        return disconnectAllConsumers(false, assignedBrokerLookupData);
     }
 
     @Override
-    public synchronized CompletableFuture<Void> disconnectAllConsumers(boolean isResetCursor) {
+    public synchronized CompletableFuture<Void> disconnectAllConsumers(
+            boolean isResetCursor, Optional<BrokerLookupData> assignedBrokerLookupData) {
         closeFuture = new CompletableFuture<>();
         if (consumerList.isEmpty()) {
             closeFuture.complete(null);
         } else {
-            consumerList.forEach(consumer -> consumer.disconnect(isResetCursor));
+            consumerList.forEach(consumer -> consumer.disconnect(isResetCursor, assignedBrokerLookupData));
             cancelPendingRead();
         }
         return closeFuture;
@@ -542,6 +544,10 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
 
     @Override
     public final synchronized void readEntriesComplete(List<Entry> entries, Object ctx) {
+        if (topic.isClosingOrDeleting()) {
+            return;
+        }
+
         ReadType readType = (ReadType) ctx;
         if (readType == ReadType.Normal) {
             havePendingRead = false;

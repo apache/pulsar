@@ -324,7 +324,7 @@ public class ClientCnx extends PulsarHandler {
 
         // Notify all attached producers/consumers so they have a chance to reconnect
         producers.forEach((id, producer) -> producer.connectionClosed(this));
-        consumers.forEach((id, consumer) -> consumer.connectionClosed(this));
+        consumers.forEach((id, consumer) -> consumer.connectionClosed(this, Optional.empty(), Optional.empty()));
         transactionMetaStoreHandlers.forEach((id, handler) -> handler.connectionClosed(this));
         topicListWatchers.forEach((__, watcher) -> watcher.connectionClosed(this));
 
@@ -835,14 +835,42 @@ public class ClientCnx extends PulsarHandler {
 
     @Override
     protected void handleCloseConsumer(CommandCloseConsumer closeConsumer) {
-        log.info("[{}] Broker notification of Closed consumer: {}", remoteAddress, closeConsumer.getConsumerId());
+        log.info("[{}] Broker notification of Closed consumer: {}, assignedBrokerUrl: {}, assignedBrokerUrlTls: {}",
+                remoteAddress, closeConsumer.getConsumerId(),
+                closeConsumer.hasAssignedBrokerServiceUrl() ? closeConsumer.getAssignedBrokerServiceUrl() : null,
+                closeConsumer.hasAssignedBrokerServiceUrlTls() ? closeConsumer.getAssignedBrokerServiceUrlTls() : null);
         final long consumerId = closeConsumer.getConsumerId();
         ConsumerImpl<?> consumer = consumers.remove(consumerId);
         if (consumer != null) {
-            consumer.connectionClosed(this);
+            String brokerServiceUrl = getBrokerServiceUrl(closeConsumer, consumer);
+            Optional<URI> hostUri = parseUri(brokerServiceUrl, closeConsumer.getRequestId());
+            Optional<Long> initialConnectionDelayMs = hostUri.map(__ -> 0L);
+            consumer.connectionClosed(this, initialConnectionDelayMs, hostUri);
         } else {
             log.warn("Consumer with id {} not found while closing consumer ", consumerId);
         }
+    }
+
+    private static String getBrokerServiceUrl(CommandCloseConsumer closeConsumer, ConsumerImpl<?> consumer) {
+        if (consumer.getClient().getConfiguration().isUseTls()) {
+            if (closeConsumer.hasAssignedBrokerServiceUrlTls()) {
+                return closeConsumer.getAssignedBrokerServiceUrlTls();
+            }
+        } else if (closeConsumer.hasAssignedBrokerServiceUrl()) {
+            return closeConsumer.getAssignedBrokerServiceUrl();
+        }
+        return null;
+    }
+
+    private Optional<URI> parseUri(String url, long requestId) {
+        try {
+            if (url != null) {
+                return Optional.of(new URI(url));
+            }
+        } catch (URISyntaxException e) {
+            log.warn("[{}] Invalid redirect URL {} for {}: ", remoteAddress, url, requestId, e);
+        }
+        return Optional.empty();
     }
 
     @Override

@@ -338,7 +338,7 @@ public interface Topic {
 
     boolean isPersistent();
 
-    boolean isFenced();
+    boolean isClosingOrDeleting();
 
     /* ------ Transaction related ------ */
 

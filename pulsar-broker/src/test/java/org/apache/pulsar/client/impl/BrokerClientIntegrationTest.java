@@ -104,6 +104,7 @@ import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.awaitility.Awaitility;
 import org.mockito.Mockito;
+import org.mockito.invocation.InvocationOnMock;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
@@ -173,10 +174,7 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
         doAnswer(invocationOnMock -> cons1.getState()).when(consumer1).getState();
         doAnswer(invocationOnMock -> cons1.getClientCnx()).when(consumer1).getClientCnx();
         doAnswer(invocationOnMock -> cons1.cnx()).when(consumer1).cnx();
-        doAnswer(invocationOnMock -> {
-            cons1.connectionClosed((ClientCnx) invocationOnMock.getArguments()[0]);
-            return null;
-        }).when(consumer1).connectionClosed(any());
+        doAnswer(InvocationOnMock::callRealMethod).when(consumer1).connectionClosed(any(), any(), any());
         ProducerImpl<byte[]> producer1 = spy(prod1);
         doAnswer(invocationOnMock -> prod1.getState()).when(producer1).getState();
         doAnswer(invocationOnMock -> prod1.getClientCnx()).when(producer1).getClientCnx();
@@ -225,7 +223,7 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
         // [1] Verify: producer1 must get connectionClosed signal
         verify(producer1, atLeastOnce()).connectionClosed(any());
         // [2] Verify: consumer1 must get connectionClosed signal
-        verify(consumer1, atLeastOnce()).connectionClosed(any());
+        verify(consumer1, atLeastOnce()).connectionClosed(any(), any(), any());
         // [3] Verify: producer2 should have not received connectionClosed signal
         verify(producer2, never()).connectionClosed(any());
 

@@ -185,6 +185,11 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
     }
 
     @Override
+    public boolean isClosingOrDeleting() {
+        return isFenced;
+    }
+
+    @Override
     public void publishMessage(ByteBuf data, PublishContext callback) {
         if (isExceedMaximumMessageSize(data.readableBytes(), callback)) {
             callback.completed(new NotAllowedException("Exceed maximum message size")
@@ -422,7 +427,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
                 List<CompletableFuture<Void>> futures = new ArrayList<>();
                 replicators.forEach((cluster, replicator) -> futures.add(replicator.disconnect()));
                 producers.values().forEach(producer -> futures.add(producer.disconnect()));
-                subscriptions.forEach((s, sub) -> futures.add(sub.disconnect()));
+                subscriptions.forEach((s, sub) -> futures.add(sub.disconnect(Optional.empty())));
                 FutureUtil.waitForAll(futures).thenRun(() -> {
                     closeClientFuture.complete(null);
                 }).exceptionally(ex -> {
@@ -523,14 +528,15 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
         replicators.forEach((cluster, replicator) -> futures.add(replicator.disconnect()));
         if (disconnectClients) {
             futures.add(ExtensibleLoadManagerImpl.getAssignedBrokerLookupData(
-                    brokerService.getPulsar(), topic).thenAccept(lookupData ->
-                    producers.values().forEach(producer -> futures.add(producer.disconnect(lookupData)))
+                    brokerService.getPulsar(), topic).thenAccept(lookupData -> {
+                        producers.values().forEach(producer -> futures.add(producer.disconnect(lookupData)));
+                        subscriptions.forEach((s, sub) -> futures.add(sub.disconnect(lookupData)));
+                    }
             ));
         }
         if (topicPublishRateLimiter != null) {
             topicPublishRateLimiter.close();
         }
-        subscriptions.forEach((s, sub) -> futures.add(sub.disconnect()));
         if (this.resourceGroupPublishLimiter != null) {
             this.resourceGroupPublishLimiter.unregisterRateLimitFunction(this.getName());
         }

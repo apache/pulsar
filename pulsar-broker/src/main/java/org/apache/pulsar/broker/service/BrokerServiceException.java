@@ -71,6 +71,12 @@ public class BrokerServiceException extends Exception {
         }
     }
 
+    public static class TopicClosingOrDeletingException extends BrokerServiceException {
+        public TopicClosingOrDeletingException(String message) {
+            super(message);
+        }
+    }
+
     public static class TopicClosedException extends BrokerServiceException {
         public TopicClosedException(Throwable t) {
             super(t);

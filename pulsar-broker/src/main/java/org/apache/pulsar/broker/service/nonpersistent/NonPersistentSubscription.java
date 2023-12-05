@@ -30,6 +30,7 @@ import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
+import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLookupData;
 import org.apache.pulsar.broker.service.AbstractSubscription;
 import org.apache.pulsar.broker.service.AnalyzeBacklogResult;
 import org.apache.pulsar.broker.service.BrokerServiceException;
@@ -289,14 +290,14 @@ public class NonPersistentSubscription extends AbstractSubscription implements S
      * @return CompletableFuture indicating the completion of disconnect operation
      */
     @Override
-    public synchronized CompletableFuture<Void> disconnect() {
+    public synchronized CompletableFuture<Void> disconnect(Optional<BrokerLookupData> assignedBrokerLookupData) {
         CompletableFuture<Void> disconnectFuture = new CompletableFuture<>();
 
         // block any further consumers on this subscription
         IS_FENCED_UPDATER.set(this, TRUE);
 
-        (dispatcher != null ? dispatcher.close() : CompletableFuture.completedFuture(null)).thenCompose(v -> close())
-                .thenRun(() -> {
+        (dispatcher != null ? dispatcher.close(assignedBrokerLookupData) : CompletableFuture.completedFuture(null))
+                .thenCompose(v -> close()).thenRun(() -> {
                     log.info("[{}][{}] Successfully disconnected and closed subscription", topicName, subName);
                     disconnectFuture.complete(null);
                 }).exceptionally(exception -> {
@@ -349,7 +350,7 @@ public class NonPersistentSubscription extends AbstractSubscription implements S
         CompletableFuture<Void> closeSubscriptionFuture = new CompletableFuture<>();
 
         if (closeIfConsumersConnected) {
-            this.disconnect().thenRun(() -> {
+            this.disconnect(Optional.empty()).thenRun(() -> {
                 closeSubscriptionFuture.complete(null);
             }).exceptionally(ex -> {
                 log.error("[{}][{}] Error disconnecting and closing subscription", topicName, subName, ex);

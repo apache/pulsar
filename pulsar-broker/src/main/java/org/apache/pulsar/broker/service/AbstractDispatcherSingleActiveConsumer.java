@@ -24,6 +24,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.NavigableMap;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -32,6 +33,7 @@ import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLookupData;
 import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerBusyException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServerMetadataException;
 import org.apache.pulsar.client.impl.Murmur3Hash32;
@@ -257,9 +259,9 @@ public abstract class AbstractDispatcherSingleActiveConsumer extends AbstractBas
         return (consumers.size() == 1) && Objects.equals(consumer, ACTIVE_CONSUMER_UPDATER.get(this));
     }
 
-    public CompletableFuture<Void> close() {
+    public CompletableFuture<Void> close(Optional<BrokerLookupData> assignedBrokerLookupData) {
         IS_CLOSED_UPDATER.set(this, TRUE);
-        return disconnectAllConsumers();
+        return disconnectAllConsumers(false, assignedBrokerLookupData);
     }
 
     public boolean isClosed() {
@@ -272,11 +274,12 @@ public abstract class AbstractDispatcherSingleActiveConsumer extends AbstractBas
      *
      * @return
      */
-    public synchronized CompletableFuture<Void> disconnectAllConsumers(boolean isResetCursor) {
+    public synchronized CompletableFuture<Void> disconnectAllConsumers(
+            boolean isResetCursor, Optional<BrokerLookupData> assignedBrokerLookupData) {
         closeFuture = new CompletableFuture<>();
 
         if (!consumers.isEmpty()) {
-            consumers.forEach(consumer -> consumer.disconnect(isResetCursor));
+            consumers.forEach(consumer -> consumer.disconnect(isResetCursor, assignedBrokerLookupData));
             cancelPendingRead();
         } else {
             // no consumer connected, complete disconnect immediately

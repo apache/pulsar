@@ -28,6 +28,7 @@ import static org.apache.pulsar.broker.lookup.TopicLookupBase.lookupTopicAsync;
 import static org.apache.pulsar.broker.service.persistent.PersistentTopic.getMigratedClusterUrl;
 import static org.apache.pulsar.common.api.proto.ProtocolVersion.v5;
 import static org.apache.pulsar.common.protocol.Commands.DEFAULT_CONSUMER_EPOCH;
+import static org.apache.pulsar.common.protocol.Commands.newCloseConsumer;
 import static org.apache.pulsar.common.protocol.Commands.newLookupErrorResponse;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
@@ -1321,7 +1322,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                                 topicName, remoteAddress, consumerId);
                                     }
                                     consumers.remove(consumerId, consumerFuture);
-                                    closeConsumer(consumerId);
+                                    closeConsumer(consumerId, Optional.empty());
                                     return null;
                                 }
                             } else if (exception.getCause() instanceof BrokerServiceException) {
@@ -1763,10 +1764,10 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         }
 
         PulsarService pulsar = getBrokerService().pulsar();
-        if (producer.getTopic().isFenced()
+        if (producer.getTopic().isClosingOrDeleting()
                 && ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(pulsar)) {
             long ignoredMsgCount = ExtensibleLoadManagerImpl.get(pulsar)
-                    .getIgnoredSendMsgCounter().incrementAndGet();
+                    .getIgnoredSendMsgCounter().addAndGet(send.getNumMessages());
             if (log.isDebugEnabled()) {
                 log.debug("Ignored send msg from:{}:{} to fenced topic:{} during unloading."
                                 + " Ignored message count:{}.",
@@ -3071,15 +3072,17 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     }
 
     @Override
-    public void closeConsumer(Consumer consumer) {
+    public void closeConsumer(Consumer consumer, Optional<BrokerLookupData> assignedBrokerLookupData) {
         // removes consumer-connection from map and send close command to consumer
         safelyRemoveConsumer(consumer);
-        closeConsumer(consumer.consumerId());
+        closeConsumer(consumer.consumerId(), assignedBrokerLookupData);
     }
 
-    private void closeConsumer(long consumerId) {
+    private void closeConsumer(long consumerId, Optional<BrokerLookupData> assignedBrokerLookupData) {
         if (getRemoteEndpointProtocolVersion() >= v5.getValue()) {
-            writeAndFlush(Commands.newCloseConsumer(consumerId, -1L));
+            writeAndFlush(newCloseConsumer(consumerId, -1L,
+                    assignedBrokerLookupData.map(BrokerLookupData::pulsarServiceUrl).orElse(null),
+                    assignedBrokerLookupData.map(BrokerLookupData::pulsarServiceUrlTls).orElse(null)));
         } else {
             close();
         }

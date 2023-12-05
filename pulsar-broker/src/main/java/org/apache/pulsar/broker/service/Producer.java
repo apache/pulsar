@@ -41,6 +41,7 @@ import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
 import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLookupData;
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicClosedException;
+import org.apache.pulsar.broker.service.BrokerServiceException.TopicClosingOrDeletingException;
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicTerminatedException;
 import org.apache.pulsar.broker.service.Topic.PublishContext;
 import org.apache.pulsar.broker.service.nonpersistent.NonPersistentTopic;
@@ -488,9 +489,11 @@ public class Producer {
                 final ServerError serverError = getServerError(exception);
 
                 producer.cnx.execute(() -> {
-                    if (!(exception instanceof TopicClosedException)) {
+                    if (!(exception instanceof TopicClosedException)
+                            && !(exception instanceof TopicClosingOrDeletingException)) {
                         // For TopicClosed exception there's no need to send explicit error, since the client was
                         // already notified
+                        // For TopicClosingOrDeleting exception, a notification will be sent separately
                         long callBackSequenceId = Math.max(highestSequenceId, sequenceId);
                         producer.cnx.getCommandSender().sendSendError(producer.producerId, callBackSequenceId,
                                 serverError, exception.getMessage());
@@ -712,7 +715,7 @@ public class Producer {
      */
     public CompletableFuture<Void> disconnect(Optional<BrokerLookupData> assignedBrokerLookupData) {
         if (!closeFuture.isDone() && isDisconnecting.compareAndSet(false, true)) {
-            log.info("Disconnecting producer: {}", this);
+            log.info("Disconnecting producer: {}, assignedBrokerLookupData: {}", this, assignedBrokerLookupData);
             cnx.execute(() -> {
                 cnx.closeProducer(this, assignedBrokerLookupData);
                 closeNow(true);

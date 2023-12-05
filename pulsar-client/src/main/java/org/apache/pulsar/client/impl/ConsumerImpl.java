@@ -35,6 +35,7 @@ import io.netty.util.ReferenceCountUtil;
 import io.netty.util.Timeout;
 import io.netty.util.concurrent.FastThreadLocal;
 import java.io.IOException;
+import java.net.URI;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -888,7 +889,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                     // in case it was indeed created, otherwise it might prevent new create consumer operation,
                     // since we are not necessarily closing the connection.
                     long closeRequestId = client.newRequestId();
-                    ByteBuf cmd = Commands.newCloseConsumer(consumerId, closeRequestId);
+                    ByteBuf cmd = Commands.newCloseConsumer(consumerId, closeRequestId, null, null);
                     cnx.sendRequestWithId(cmd, closeRequestId);
                 }
 
@@ -1057,7 +1058,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         if (null == cnx) {
             cleanupAtClose(closeFuture, null);
         } else {
-            ByteBuf cmd = Commands.newCloseConsumer(consumerId, requestId);
+            ByteBuf cmd = Commands.newCloseConsumer(consumerId, requestId, null, null);
             cnx.sendRequestWithId(cmd, requestId).handle((v, exception) -> {
                 final ChannelHandlerContext ctx = cnx.ctx();
                 boolean ignoreException = ctx == null || !ctx.channel().isActive();
@@ -2669,8 +2670,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         this.connectionHandler.resetBackoff();
     }
 
-    void connectionClosed(ClientCnx cnx) {
-        this.connectionHandler.connectionClosed(cnx);
+    void connectionClosed(ClientCnx cnx, Optional<Long> initialConnectionDelayMs, Optional<URI> hostUrl) {
+        this.connectionHandler.connectionClosed(cnx, initialConnectionDelayMs, hostUrl);
     }
 
     public ClientCnx getClientCnx() {
