@@ -283,6 +283,9 @@ public abstract class AsyncTokenBucket {
         public abstract AsyncTokenBucket build();
     }
 
+    /**
+     * A builder class for creating instances of {@link FinalRateAsyncTokenBucket}.
+     */
     public static class FinalRateAsyncTokenBucketBuilder
             extends AsyncTokenBucketBuilder<FinalRateAsyncTokenBucketBuilder> {
         protected Long capacity;
@@ -322,6 +325,54 @@ public abstract class AsyncTokenBucket {
         }
     }
 
+    /**
+     * A subclass of {@link AsyncTokenBucket} that represents a token bucket with a dynamic rate.
+     * The rate and capacity of the token bucket can change over time based on the rate function and capacity factor.
+     */
+    public static class DynamicRateAsyncTokenBucket extends AsyncTokenBucket {
+        private final LongSupplier rateFunction;
+        private final LongSupplier ratePeriodNanosFunction;
+        private final double capacityFactor;
+
+        private final double minTokensForPauseFactor;
+
+        protected DynamicRateAsyncTokenBucket(double capacityFactor, LongSupplier rateFunction,
+                                              LongSupplier clockSource, LongSupplier ratePeriodNanosFunction,
+                                              long resolutionNanos, double initialTokensFactor,
+                                              double minTokensForPauseFactor) {
+            super(clockSource, resolutionNanos);
+            this.capacityFactor = capacityFactor;
+            this.rateFunction = rateFunction;
+            this.ratePeriodNanosFunction = ratePeriodNanosFunction;
+            this.minTokensForPauseFactor = minTokensForPauseFactor;
+            this.tokens = (long) (rateFunction.getAsLong() * initialTokensFactor);
+            updateTokens();
+        }
+
+        @Override
+        protected long getRatePeriodNanos() {
+            return ratePeriodNanosFunction.getAsLong();
+        }
+
+        @Override
+        protected long getMinTokensForPause() {
+            return (long) (getRate() * minTokensForPauseFactor);
+        }
+
+        @Override
+        public long getCapacity() {
+            return capacityFactor == 1.0d ? getRate() : (long) (getRate() * capacityFactor);
+        }
+
+        @Override
+        public long getRate() {
+            return rateFunction.getAsLong();
+        }
+    }
+
+    /**
+     * A builder class for creating instances of {@link DynamicRateAsyncTokenBucket}.
+     */
     public static class DynamicRateAsyncTokenBucketBuilder
             extends AsyncTokenBucketBuilder<DynamicRateAsyncTokenBucketBuilder> {
         protected LongSupplier rateFunction;
@@ -365,48 +416,6 @@ public abstract class AsyncTokenBucket {
                     this.ratePeriodNanosFunction, this.resolutionNanos,
                     this.initialTokensFactor,
                     minTokensForPauseFactor);
-        }
-
-    }
-
-    public static class DynamicRateAsyncTokenBucket extends AsyncTokenBucket {
-        private final LongSupplier rateFunction;
-        private final LongSupplier ratePeriodNanosFunction;
-        private final double capacityFactor;
-
-        private final double minTokensForPauseFactor;
-
-        protected DynamicRateAsyncTokenBucket(double capacityFactor, LongSupplier rateFunction,
-                                              LongSupplier clockSource, LongSupplier ratePeriodNanosFunction,
-                                              long resolutionNanos, double initialTokensFactor,
-                                              double minTokensForPauseFactor) {
-            super(clockSource, resolutionNanos);
-            this.capacityFactor = capacityFactor;
-            this.rateFunction = rateFunction;
-            this.ratePeriodNanosFunction = ratePeriodNanosFunction;
-            this.minTokensForPauseFactor = minTokensForPauseFactor;
-            this.tokens = (long) (rateFunction.getAsLong() * initialTokensFactor);
-            updateTokens();
-        }
-
-        @Override
-        protected long getRatePeriodNanos() {
-            return ratePeriodNanosFunction.getAsLong();
-        }
-
-        @Override
-        protected long getMinTokensForPause() {
-            return (long) (getRate() * minTokensForPauseFactor);
-        }
-
-        @Override
-        public long getCapacity() {
-            return capacityFactor == 1.0d ? getRate() : (long) (getRate() * capacityFactor);
-        }
-
-        @Override
-        public long getRate() {
-            return rateFunction.getAsLong();
         }
     }
 }
