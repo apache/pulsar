@@ -24,7 +24,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertNotEquals;
+import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -98,6 +98,9 @@ public class SimpleLoadManagerImplTest {
     BrokerStats brokerStatsClient2;
 
     String primaryHost;
+
+    String primaryTlsHost;
+
     String secondaryHost;
 
     private String defaultNamespace;
@@ -130,7 +133,8 @@ public class SimpleLoadManagerImplTest {
         url1 = new URL(pulsar1.getWebServiceAddress());
         admin1 = PulsarAdmin.builder().serviceHttpUrl(url1.toString()).build();
         brokerStatsClient1 = admin1.brokerStats();
-        primaryHost = pulsar1.getSafeWebServiceAddress();
+        primaryHost = pulsar1.getWebServiceAddress();
+        primaryTlsHost = pulsar1.getWebServiceAddressTls();
 
         // Start broker 2
         ServiceConfiguration config2 = new ServiceConfiguration();
@@ -151,7 +155,7 @@ public class SimpleLoadManagerImplTest {
         url2 = new URL(pulsar2.getWebServiceAddress());
         admin2 = PulsarAdmin.builder().serviceHttpUrl(url2.toString()).build();
         brokerStatsClient2 = admin2.brokerStats();
-        secondaryHost = pulsar2.getSafeWebServiceAddress();
+        secondaryHost = pulsar2.getWebServiceAddress();
         Thread.sleep(100);
 
         setupClusters();
@@ -268,10 +272,9 @@ public class SimpleLoadManagerImplTest {
         sortedRankingsInstance.get().put(lr.getRank(rd), rus);
         setObjectField(SimpleLoadManagerImpl.class, loadManager, "sortedRankings", sortedRankingsInstance);
 
-        ResourceUnit found = loadManager
-                .getLeastLoaded(NamespaceName.get("pulsar/use/primary-ns.10")).get();
+        final Optional<ResourceUnit> leastLoaded = loadManager.getLeastLoaded(NamespaceName.get("pulsar/use/primary-ns.10"));
         // broker is not active so found should be null
-        assertNotEquals(found, null, "did not find a broker when expected one to be found");
+        assertFalse(leastLoaded.isPresent());
 
     }
 
@@ -411,7 +414,7 @@ public class SimpleLoadManagerImplTest {
         final SimpleLoadManagerImpl loadManager = (SimpleLoadManagerImpl) pulsar1.getLoadManager().get();
 
         for (final NamespaceBundle bundle : bundles) {
-            if (getAddress(loadManager.getLeastLoaded(bundle).get().getResourceId()).equals(getAddress(primaryHost))) {
+            if (loadManager.getLeastLoaded(bundle).get().getResourceId().equals(getAddress(primaryTlsHost))) {
                 ++numAssignedToPrimary;
             } else {
                 ++numAssignedToSecondary;
@@ -424,7 +427,7 @@ public class SimpleLoadManagerImplTest {
     }
 
     private static String getAddress(String url) {
-        return url.replaceAll("https?://", "");
+        return url.replaceAll("https", "http");
     }
 
     @Test
