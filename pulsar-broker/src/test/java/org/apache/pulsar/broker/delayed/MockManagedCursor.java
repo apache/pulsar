@@ -415,4 +415,10 @@ public class MockManagedCursor implements ManagedCursor {
     public boolean isClosed() {
         return false;
     }
+
+    @Override
+    public boolean isMessageDeleted(Position position) {
+        // TODO Auto-generated method stub
+        return false;
+    }
 }

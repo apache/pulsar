@@ -269,7 +269,12 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
                 for (int i = messagesForC; i < entriesWithSameKeyCount; i++) {
                     Entry entry = entriesWithSameKey.get(i);
                     long stickyKeyHash = getStickyKeyHash(entry);
-                    addMessageToReplay(entry.getLedgerId(), entry.getEntryId(), stickyKeyHash);
+                    // add to replay only if message is not received by previous consumer
+                    boolean isDeleted = cursor
+                            .isMessageDeleted(new PositionImpl(entry.getLedgerId(), entry.getEntryId()));
+                    if (!isDeleted && !isEntryPendingAck(entry.getLedgerId(), entry.getEntryId())) {
+                        addMessageToReplay(entry.getLedgerId(), entry.getEntryId(), stickyKeyHash);
+                    }
                     entry.release();
                     entriesWithSameKey.set(i, null);
                 }
@@ -369,6 +374,17 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
         }
 
         return maxMessages;
+    }
+
+    private boolean isEntryPendingAck(long ledgerId, long entryId) {
+        int size = consumerList.size();
+        for (int i = 0; i < size; i++) {
+            Consumer consumer = consumerList.get(i);
+            if (consumer != null && consumer.isPendingAck(ledgerId, entryId)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     @Override

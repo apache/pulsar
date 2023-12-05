@@ -862,4 +862,11 @@ public interface ManagedCursor {
      * @return whether this cursor is closed.
      */
     boolean isClosed();
+
+    /**
+     * Checks if position is already deleted.
+     * @param position
+     * @return whether position is deleted.
+     */
+    boolean isMessageDeleted(Position position);
 }

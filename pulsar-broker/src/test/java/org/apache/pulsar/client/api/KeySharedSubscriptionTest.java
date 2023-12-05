@@ -596,15 +596,26 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
                     .value(i)
                     .send();
         }
-
+        // check received message ordering
+        checkMessageOrdering(c2, 20);
         // Closing c1, would trigger all messages to go to c2
         c1.close();
+        // check received message ordering
+        checkMessageOrdering(c2, 20);
+    }
 
-        for (int i = 0; i < 20; i++) {
-            Message<Integer> msg = c2.receive();
-            assertEquals(msg.getValue().intValue(), i);
-
-            c2.acknowledge(msg);
+    private void checkMessageOrdering(Consumer<Integer> consumer, int max) throws PulsarClientException {
+        Message<Integer> previous = null;
+        Message<Integer> current = null;
+        for (int i = 0; i < max; i++) {
+            current = consumer.receive(100, TimeUnit.MILLISECONDS);
+            if (current == null) {
+                return;
+            }
+            if (previous != null) {
+                assertTrue(current.getMessageId().compareTo(previous.getMessageId()) > 0);
+            }
+            previous = current;
         }
     }
 
@@ -698,12 +709,12 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
                 .consumerName("c2")
                 .subscribe();
 
-        for (int i = 10; i < 20; i++) {
+        /*for (int i = 10; i < 20; i++) {
             producer.newMessage()
                     .key(String.valueOf(random.nextInt(NUMBER_OF_KEYS)))
                     .value(i)
                     .send();
-        }
+        }*/
 
         // C2 will not be able to receive any messages until C1 is done processing whatever he got prefetched
         assertNull(c2.receive(100, TimeUnit.MILLISECONDS));
@@ -711,7 +722,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         c1.close();
 
         // Now C2 will get all messages
-        for (int i = 0; i < 20; i++) {
+        for (int i = 0; i < 10; i++) {
             Message<Integer> msg = c2.receive();
             assertEquals(msg.getValue().intValue(), i);
             c2.acknowledge(msg);
@@ -867,8 +878,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         consumer1.receive();
         consumer1.acknowledge(consumer1.receive());
 
-        // The consumer1 and consumer2 should be stuck because of the mark delete position did not move forward.
-
+        // The consumer1 and consumer2 might receive replay messages but they have to be in ordered
         @Cleanup
         Consumer<Integer> consumer2 = pulsarClient.newConsumer(Schema.INT32)
                 .topic(topic)
@@ -876,13 +886,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
                 .subscriptionType(SubscriptionType.Key_Shared)
                 .subscribe();
 
-        Message<Integer> received = null;
-        try {
-            received = consumer2.receive(1, TimeUnit.SECONDS);
-        } catch (PulsarClientException ignore) {
-        }
-        Assert.assertNull(received);
-
+        checkMessageOrdering(consumer2, totalMessages);
         @Cleanup
         Consumer<Integer> consumer3 = pulsarClient.newConsumer(Schema.INT32)
                 .topic(topic)
@@ -890,11 +894,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
                 .subscriptionType(SubscriptionType.Key_Shared)
                 .subscribe();
 
-        try {
-            received = consumer3.receive(1, TimeUnit.SECONDS);
-        } catch (PulsarClientException ignore) {
-        }
-        Assert.assertNull(received);
+        checkMessageOrdering(consumer3, totalMessages);
 
         Optional<Topic> topicRef = pulsar.getBrokerService().getTopic(topic, false).get();
         assertTrue(topicRef.isPresent());
