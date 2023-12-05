@@ -111,13 +111,17 @@ public abstract class AsyncTokenBucket {
      */
     private final LongAdder pendingConsumedTokens = new LongAdder();
 
-    private static class FixedRateAsyncTokenBucket extends AsyncTokenBucket {
+    /**
+     * A subclass of {@link AsyncTokenBucket} that represents a token bucket with a rate which is final.
+     * The rate and capacity of the token bucket are constant and do not change over time.
+     */
+    private static class FinalRateAsyncTokenBucket extends AsyncTokenBucket {
         private final long capacity;
         private final long rate;
         private final long ratePeriodNanos;
         private final long defaultMinTokensForPause;
 
-        protected FixedRateAsyncTokenBucket(long capacity, long rate, LongSupplier clockSource, long ratePeriodNanos,
+        protected FinalRateAsyncTokenBucket(long capacity, long rate, LongSupplier clockSource, long ratePeriodNanos,
                                             long resolutionNanos, long initialTokens) {
             super(clockSource, resolutionNanos);
             this.capacity = capacity;
@@ -155,8 +159,8 @@ public abstract class AsyncTokenBucket {
         this.resolutionNanos = resolutionNanos;
     }
 
-    public static FixedRateAsyncTokenBucketBuilder builder() {
-        return new FixedRateAsyncTokenBucketBuilder();
+    public static FinalRateAsyncTokenBucketBuilder builder() {
+        return new FinalRateAsyncTokenBucketBuilder();
     }
 
     public static DynamicRateAsyncTokenBucketBuilder builderForDynamicRate() {
@@ -279,38 +283,38 @@ public abstract class AsyncTokenBucket {
         public abstract AsyncTokenBucket build();
     }
 
-    public static class FixedRateAsyncTokenBucketBuilder
-            extends AsyncTokenBucketBuilder<FixedRateAsyncTokenBucketBuilder> {
+    public static class FinalRateAsyncTokenBucketBuilder
+            extends AsyncTokenBucketBuilder<FinalRateAsyncTokenBucketBuilder> {
         protected Long capacity;
         protected Long initialTokens;
         protected Long rate;
         protected long ratePeriodNanos = ONE_SECOND_NANOS;
 
-        protected FixedRateAsyncTokenBucketBuilder() {
+        protected FinalRateAsyncTokenBucketBuilder() {
         }
 
-        public FixedRateAsyncTokenBucketBuilder rate(long rate) {
+        public FinalRateAsyncTokenBucketBuilder rate(long rate) {
             this.rate = rate;
             return this;
         }
 
-        public FixedRateAsyncTokenBucketBuilder ratePeriodNanos(long ratePeriodNanos) {
+        public FinalRateAsyncTokenBucketBuilder ratePeriodNanos(long ratePeriodNanos) {
             this.ratePeriodNanos = ratePeriodNanos;
             return this;
         }
 
-        public FixedRateAsyncTokenBucketBuilder capacity(long capacity) {
+        public FinalRateAsyncTokenBucketBuilder capacity(long capacity) {
             this.capacity = capacity;
             return this;
         }
 
-        public FixedRateAsyncTokenBucketBuilder initialTokens(long initialTokens) {
+        public FinalRateAsyncTokenBucketBuilder initialTokens(long initialTokens) {
             this.initialTokens = initialTokens;
             return this;
         }
 
         public AsyncTokenBucket build() {
-            return new FixedRateAsyncTokenBucket(this.capacity != null ? this.capacity : this.rate, this.rate,
+            return new FinalRateAsyncTokenBucket(this.capacity != null ? this.capacity : this.rate, this.rate,
                     this.clockSource,
                     this.ratePeriodNanos, this.resolutionNanos,
                     this.initialTokens != null ? this.initialTokens : this.rate
