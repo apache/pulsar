@@ -29,20 +29,35 @@ import java.util.function.LongSupplier;
  * An asynchronous token bucket algorithm implementation that is optimized for performance with highly concurrent
  * use. CAS (compare-and-swap) operations are used and multiple levels of CAS fields are used to minimize contention
  * when using CAS fields. The {@link LongAdder} class is used in the hot path to hold the sum of consumed tokens.
+ * It is eventually consistent, meaning that the tokens are not updated on every call to the "consumeTokens" method.
  * <p>Main usage flow:
  * 1. tokens are consumed by calling the "consumeTokens" method.
- * 2. the "calculatePauseNanos" method is called to calculate the duration of a possible needed pause when
- * the tokens are fully consumed.
- * <p>This class doesn't have side effects, it's like a stateful function, just like a counter function is a stateful
- * function. Indeed, it is just a sophisticated counter. It can be used as a building block for implementing higher
- * level asynchronous rate limiter implementations which do need side effects.
+ * 2. the "calculatePause" method is called to calculate the duration of a possible needed pause when the tokens
+ * are fully consumed.
+ * <p>This class does not produce side effects outside of its own scope. It functions similarly to a stateful function,
+ * akin to a counter function. In essence, it is a sophisticated counter. It can serve as a foundational component for
+ * constructing higher-level asynchronous rate limiter implementations, which require side effects for throttling.
  */
 public abstract class AsyncTokenBucket {
     public static final LongSupplier DEFAULT_CLOCK_SOURCE = System::nanoTime;
     private static final long ONE_SECOND_NANOS = TimeUnit.SECONDS.toNanos(1);
     private static final long DEFAULT_RESOLUTION_NANOS = TimeUnit.MILLISECONDS.toNanos(10);
 
+    // The default resolution is 10 milliseconds. This means that the consumed tokens are subtracted from the
+    // current amount of tokens about every 10 milliseconds. This solution helps prevent a CAS loop what could cause
+    // extra CPU usage when a single CAS field is updated at a high rate from multiple threads.
     private static long defaultResolutionNanos = DEFAULT_RESOLUTION_NANOS;
+
+    // used in tests to disable the optimization and instead use a consistent view of the tokens
+    @VisibleForTesting
+    public static void switchToConsistentTokensView() {
+        defaultResolutionNanos = 0;
+    }
+
+    @VisibleForTesting
+    public static void resetToDefaultEventualConsistentTokensView() {
+        defaultResolutionNanos = DEFAULT_RESOLUTION_NANOS;
+    }
 
     private static final AtomicLongFieldUpdater<AsyncTokenBucket> LAST_NANOS_UPDATER =
             AtomicLongFieldUpdater.newUpdater(AsyncTokenBucket.class, "lastNanos");
@@ -56,16 +71,6 @@ public abstract class AsyncTokenBucket {
     private static final AtomicLongFieldUpdater<AsyncTokenBucket> REMAINDER_NANOS_UPDATER =
             AtomicLongFieldUpdater.newUpdater(AsyncTokenBucket.class, "remainderNanos");
 
-    @VisibleForTesting
-    public static void switchToConsistentTokensView() {
-        defaultResolutionNanos = 0;
-    }
-
-    @VisibleForTesting
-    public static void resetToDefaultEventualConsistentTokensView() {
-        defaultResolutionNanos = DEFAULT_RESOLUTION_NANOS;
-    }
-
     // Atomically updated via updaters above
     protected volatile long tokens;
     private volatile long lastNanos;
@@ -73,7 +78,6 @@ public abstract class AsyncTokenBucket {
     private volatile long remainderNanos;
 
     private final long minTokens;
-
     protected final long resolutionNanos;
     private final LongSupplier clockSource;
     private final LongAdder pendingConsumedTokens = new LongAdder();
