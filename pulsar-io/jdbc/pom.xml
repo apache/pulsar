@@ -31,7 +31,7 @@
     <module>openmldb</module>
   </modules>
   <parent>
-    <groupId>org.apache.pulsar</groupId>
+    <groupId>com.datastax.oss</groupId>
     <artifactId>pulsar-io</artifactId>
     <version>3.1.1</version>
   </parent>

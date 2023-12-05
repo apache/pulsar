@@ -29,7 +29,7 @@
     <relativePath />
   </parent>
 
-  <groupId>org.apache.pulsar</groupId>
+  <groupId>com.datastax.oss</groupId>
   <artifactId>buildtools</artifactId>
   <version>3.1.1</version>
   <packaging>jar</packaging>

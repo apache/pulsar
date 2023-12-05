@@ -29,7 +29,7 @@
     <version>29</version>
   </parent>
 
-  <groupId>org.apache.pulsar</groupId>
+  <groupId>com.datastax.oss</groupId>
   <artifactId>pulsar</artifactId>
 
   <version>3.1.1</version>
@@ -1606,7 +1606,7 @@ flexible messaging model and an intuitive client API.</description>
             <configuration>
               <property>pulsar.basedir</property>
               <project>
-                <groupId>org.apache.pulsar</groupId>
+                <groupId>com.datastax.oss</groupId>
                 <artifactId>pulsar</artifactId>
               </project>
             </configuration>
