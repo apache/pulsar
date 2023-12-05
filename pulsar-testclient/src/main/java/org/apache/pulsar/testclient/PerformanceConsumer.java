@@ -254,7 +254,6 @@ public class PerformanceConsumer {
                         thread.interrupt();
                     }
                 }
-
                 if (arguments.totalNumTxn > 0) {
                     if (totalEndTxnOpFailNum.sum() + totalEndTxnOpSuccessNum.sum() >= arguments.totalNumTxn) {
                         log.info("------------------- DONE -----------------------");
