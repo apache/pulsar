@@ -485,18 +485,16 @@ public class Producer {
         @Override
         public void completed(Exception exception, long ledgerId, long entryId) {
             if (exception != null) {
-                // if the topic is transferring, we don't send error code to the clients.
-                if (producer.getTopic().isTransferring()) {
-                    if (log.isDebugEnabled()) {
-                        log.debug("[{}] Received producer exception: {} while transferring.",
-                                producer.getTopic().getName(), exception.getMessage(), exception);
-                    }
-                    return;
-                }
                 final ServerError serverError = getServerError(exception);
 
                 producer.cnx.execute(() -> {
-                    if (!(exception instanceof TopicClosedException)) {
+                    // if the topic is transferring, we don't send error code to the clients.
+                    if (producer.getTopic().isTransferring()) {
+                        if (log.isDebugEnabled()) {
+                            log.debug("[{}] Received producer exception: {} while transferring.",
+                                    producer.getTopic().getName(), exception.getMessage(), exception);
+                        }
+                    } else if (!(exception instanceof TopicClosedException)) {
                         // For TopicClosed exception there's no need to send explicit error, since the client was
                         // already notified
                         long callBackSequenceId = Math.max(highestSequenceId, sequenceId);
