@@ -73,12 +73,12 @@ public class AsyncTokenBucketTest {
     @Test
     void shouldCalculatePauseCorrectly() {
         asyncTokenBucket =
-                AsyncTokenBucket.builder().capacity(100).rate(10).initialTokens(0).minTokens(0).clockSource(clockSource)
+                AsyncTokenBucket.builder().capacity(100).rate(10).initialTokens(0).clockSource(clockSource)
                         .build();
         incrementSeconds(5);
         asyncTokenBucket.consumeTokens(100);
         assertEquals(asyncTokenBucket.getTokens(), -50);
-        assertEquals(TimeUnit.NANOSECONDS.toMillis(asyncTokenBucket.calculatePause(true)), 5000);
+        assertEquals(TimeUnit.NANOSECONDS.toMillis(asyncTokenBucket.calculatePause(true)), 5100);
     }
 
     @Test

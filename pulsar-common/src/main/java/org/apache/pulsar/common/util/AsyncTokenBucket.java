@@ -77,7 +77,6 @@ public abstract class AsyncTokenBucket {
     private volatile long lastIncrement;
     private volatile long remainderNanos;
 
-    private final long minTokens;
     protected final long resolutionNanos;
     private final LongSupplier clockSource;
     private final LongAdder pendingConsumedTokens = new LongAdder();
@@ -89,13 +88,13 @@ public abstract class AsyncTokenBucket {
         private final long defaultMinTokensForPause;
 
         protected FixedRateAsyncTokenBucket(long capacity, long rate, LongSupplier clockSource, long ratePeriodNanos,
-                                            long resolutionNanos, long initialTokens, long minTokens) {
-            super(clockSource, minTokens, resolutionNanos);
+                                            long resolutionNanos, long initialTokens) {
+            super(clockSource, resolutionNanos);
             this.capacity = capacity;
             this.rate = rate;
             this.ratePeriodNanos = ratePeriodNanos != -1 ? ratePeriodNanos : ONE_SECOND_NANOS;
-            // The default minimum tokens is the amount of tokens made available in the minimum increment duration
-            this.defaultMinTokensForPause = Math.max(this.resolutionNanos * rate / ratePeriodNanos, minTokens);
+            // The default minimum tokens is the amount of tokens made available in resolution duration
+            this.defaultMinTokensForPause = Math.max(this.resolutionNanos * rate / ratePeriodNanos, 1);
             this.tokens = initialTokens;
             updateTokens();
         }
@@ -121,9 +120,8 @@ public abstract class AsyncTokenBucket {
         }
     }
 
-    protected AsyncTokenBucket(LongSupplier clockSource, long minTokens, long resolutionNanos) {
+    protected AsyncTokenBucket(LongSupplier clockSource, long resolutionNanos) {
         this.clockSource = clockSource;
-        this.minTokens = minTokens;
         this.resolutionNanos = resolutionNanos;
     }
 
@@ -218,19 +216,17 @@ public abstract class AsyncTokenBucket {
 
     public abstract long getRate();
 
-    // TODO: LH Rename to something that is a better name
     public boolean containsTokens() {
         return containsTokens(false);
     }
 
     public boolean containsTokens(boolean forceUpdateTokens) {
-        return tokens(forceUpdateTokens) >= minTokens;
+        return tokens(forceUpdateTokens) > 0;
     }
 
     // CHECKSTYLE.OFF: ClassTypeParameterName
     public abstract static class AsyncTokenBucketBuilder<SELF extends AsyncTokenBucketBuilder<SELF>> {
         protected LongSupplier clockSource = DEFAULT_CLOCK_SOURCE;
-        protected long minTokens = 1L;
         protected long resolutionNanos = defaultResolutionNanos;
 
         protected AsyncTokenBucketBuilder() {
@@ -242,11 +238,6 @@ public abstract class AsyncTokenBucket {
 
         public SELF clockSource(LongSupplier clockSource) {
             this.clockSource = clockSource;
-            return self();
-        }
-
-        public SELF minTokens(long minTokens) {
-            this.minTokens = minTokens;
             return self();
         }
 
@@ -292,8 +283,8 @@ public abstract class AsyncTokenBucket {
             return new FixedRateAsyncTokenBucket(this.capacity != null ? this.capacity : this.rate, this.rate,
                     this.clockSource,
                     this.ratePeriodNanos, this.resolutionNanos,
-                    this.initialTokens != null ? this.initialTokens : this.rate,
-                    this.minTokens);
+                    this.initialTokens != null ? this.initialTokens : this.rate
+            );
         }
     }
 
@@ -339,7 +330,7 @@ public abstract class AsyncTokenBucket {
                     this.clockSource,
                     this.ratePeriodNanosFunction, this.resolutionNanos,
                     this.initialTokensFactor,
-                    this.minTokens, minTokensForPauseFactor);
+                    minTokensForPauseFactor);
         }
 
     }
@@ -353,9 +344,9 @@ public abstract class AsyncTokenBucket {
 
         protected DynamicRateAsyncTokenBucket(double capacityFactor, LongSupplier rateFunction,
                                               LongSupplier clockSource, LongSupplier ratePeriodNanosFunction,
-                                              long resolutionNanos, double initialTokensFactor, long minTokens,
+                                              long resolutionNanos, double initialTokensFactor,
                                               double minTokensForPauseFactor) {
-            super(clockSource, minTokens, resolutionNanos);
+            super(clockSource, resolutionNanos);
             this.capacityFactor = capacityFactor;
             this.rateFunction = rateFunction;
             this.ratePeriodNanosFunction = ratePeriodNanosFunction;
