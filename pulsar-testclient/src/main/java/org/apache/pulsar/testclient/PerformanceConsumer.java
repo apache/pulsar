@@ -251,6 +251,7 @@ public class PerformanceConsumer {
                     if (System.nanoTime() > testEndTime) {
                         log.info("------------------- DONE -----------------------");
                         PerfClientUtils.exit(0);
+                        thread.interrupt();
                     }
                 }
 
@@ -258,6 +259,7 @@ public class PerformanceConsumer {
                     if (totalEndTxnOpFailNum.sum() + totalEndTxnOpSuccessNum.sum() >= arguments.totalNumTxn) {
                         log.info("------------------- DONE -----------------------");
                         PerfClientUtils.exit(0);
+                        thread.interrupt();
                     }
                 }
                 if (qRecorder != null) {
@@ -272,6 +274,7 @@ public class PerformanceConsumer {
                 if (arguments.numMessages > 0 && totalMessagesReceived.sum() >= arguments.numMessages) {
                     log.info("------------------- DONE -----------------------");
                     PerfClientUtils.exit(0);
+                    thread.interrupt();
                 }
 
                 if (limiter != null) {
@@ -508,6 +511,7 @@ public class PerformanceConsumer {
                 if (now > testEndTime) {
                     log.info("------------------- DONE -----------------------");
                     PerfClientUtils.exit(0);
+                    thread.interrupt();
                 }
             }
         }
