@@ -42,13 +42,13 @@ public class RedisSinkConfig extends RedisAbstractConfig implements Serializable
 
     @FieldDoc(
         required = false,
-        defaultValue = "10000L",
+        defaultValue = "10000",
         help = "The amount of time in milliseconds before an operation is marked as timed out")
     private long operationTimeout = 10000L;
 
     @FieldDoc(
         required = false,
-        defaultValue = "1000L",
+        defaultValue = "1000",
         help = "The Redis operation time in milliseconds")
     private long batchTimeMs = 1000L;
 

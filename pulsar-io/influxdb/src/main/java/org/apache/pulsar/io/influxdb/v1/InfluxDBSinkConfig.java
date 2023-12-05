@@ -96,7 +96,7 @@ public class InfluxDBSinkConfig implements Serializable {
 
     @FieldDoc(
         required = false,
-        defaultValue = "1000L",
+        defaultValue = "1000",
         help = "The InfluxDB operation time in milliseconds")
     private long batchTimeMs = 1000L;
 
