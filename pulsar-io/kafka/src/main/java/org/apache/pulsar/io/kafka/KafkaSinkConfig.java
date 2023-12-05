@@ -26,6 +26,8 @@ import java.io.Serializable;
 import java.util.Map;
 import lombok.Data;
 import lombok.experimental.Accessors;
+import org.apache.pulsar.io.common.IOConfigUtils;
+import org.apache.pulsar.io.core.SinkContext;
 import org.apache.pulsar.io.core.annotations.FieldDoc;
 
 @Data
@@ -123,8 +125,7 @@ public class KafkaSinkConfig implements Serializable {
         return mapper.readValue(new File(yamlFile), KafkaSinkConfig.class);
     }
 
-    public static KafkaSinkConfig load(Map<String, Object> map) throws IOException {
-        ObjectMapper mapper = new ObjectMapper();
-        return mapper.readValue(mapper.writeValueAsString(map), KafkaSinkConfig.class);
+    public static KafkaSinkConfig load(Map<String, Object> map, SinkContext sinkContext) throws IOException {
+        return IOConfigUtils.loadWithSecrets(map, KafkaSinkConfig.class, sinkContext);
     }
 }

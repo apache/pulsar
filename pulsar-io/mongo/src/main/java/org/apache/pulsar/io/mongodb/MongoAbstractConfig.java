@@ -42,6 +42,7 @@ public abstract class MongoAbstractConfig implements Serializable {
 
     @FieldDoc(
             required = true,
+            sensitive = true, // it may contain password
             defaultValue = "",
             help = "The URI of MongoDB that the connector connects to "
                     + "(see: https://docs.mongodb.com/manual/reference/connection-string/)"

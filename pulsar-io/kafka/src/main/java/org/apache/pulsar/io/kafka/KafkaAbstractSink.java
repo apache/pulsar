@@ -79,7 +79,7 @@ public abstract class KafkaAbstractSink<K, V> implements Sink<byte[]> {
 
     @Override
     public void open(Map<String, Object> config, SinkContext sinkContext) throws Exception {
-        kafkaSinkConfig = KafkaSinkConfig.load(config);
+        kafkaSinkConfig = KafkaSinkConfig.load(config, sinkContext);
         Objects.requireNonNull(kafkaSinkConfig.getTopic(), "Kafka topic is not set");
         Objects.requireNonNull(kafkaSinkConfig.getBootstrapServers(), "Kafka bootstrapServers is not set");
         Objects.requireNonNull(kafkaSinkConfig.getAcks(), "Kafka acks mode is not set");

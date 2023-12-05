@@ -27,6 +27,7 @@ import java.io.Serializable;
 import java.util.Map;
 import lombok.Data;
 import lombok.experimental.Accessors;
+import org.apache.pulsar.io.core.SourceContext;
 import org.apache.pulsar.io.core.annotations.FieldDoc;
 
 @Data
@@ -152,8 +153,13 @@ public class KafkaSourceConfig implements Serializable {
         return mapper.readValue(new File(yamlFile), KafkaSourceConfig.class);
     }
 
-    public static KafkaSourceConfig load(Map<String, Object> map) throws IOException {
+    public static KafkaSourceConfig load(Map<String, Object> map, SourceContext sourceContext) throws IOException {
         ObjectMapper mapper = new ObjectMapper();
+        try {
+            map.put("sslTruststorePassword", sourceContext.getSecret("sslTruststorePassword"));
+        } catch (Exception e) {
+            // ignore
+        }
         mapper.enable(DeserializationFeature.ACCEPT_EMPTY_STRING_AS_NULL_OBJECT);
         return mapper.readValue(mapper.writeValueAsString(map), KafkaSourceConfig.class);
     }

@@ -27,6 +27,8 @@ import java.io.Serializable;
 import java.util.Map;
 import lombok.Data;
 import lombok.experimental.Accessors;
+import org.apache.pulsar.io.common.IOConfigUtils;
+import org.apache.pulsar.io.core.SinkContext;
 import org.apache.pulsar.io.core.annotations.FieldDoc;
 
 /**
@@ -103,9 +105,8 @@ public class InfluxDBSinkConfig implements Serializable {
         return mapper.readValue(new File(yamlFile), InfluxDBSinkConfig.class);
     }
 
-    public static InfluxDBSinkConfig load(Map<String, Object> map) throws IOException {
-        ObjectMapper mapper = new ObjectMapper();
-        return mapper.readValue(mapper.writeValueAsString(map), InfluxDBSinkConfig.class);
+    public static InfluxDBSinkConfig load(Map<String, Object> map, SinkContext sinkContext) throws IOException {
+        return IOConfigUtils.loadWithSecrets(map, InfluxDBSinkConfig.class, sinkContext);
     }
 
     public void validate() {
