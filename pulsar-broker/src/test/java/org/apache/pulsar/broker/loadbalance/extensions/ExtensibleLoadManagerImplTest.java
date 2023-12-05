@@ -569,7 +569,7 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
         }
     }
 
-    @Test(timeOut = 30_000, dataProvider = "subscriptionTypeTest", invocationCount = 100, skipFailedInvocations = true)
+    @Test(timeOut = 30_000, dataProvider = "subscriptionTypeTest")
     public void testTransferNonPersistentClientReconnectionWithoutLookup(SubscriptionType subscriptionType)
             throws Exception {
         var id = String.format("test-tx-non-persistent-client-reconnect-%s-%s", subscriptionType, UUID.randomUUID());
