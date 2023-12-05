@@ -278,4 +278,36 @@ public class HttpTopicLookupv2Test {
         assertEquals(data2.getRedirectLookupAddress(), url);
     }
 
+    @Test
+    public void topicNotFound() throws Exception {
+        MockTopicLookup destLookup = spy(MockTopicLookup.class);
+        doReturn(false).when(destLookup).isRequestHttps();
+        BrokerService brokerService = pulsar.getBrokerService();
+        doReturn(new Semaphore(1000,true)).when(brokerService).getLookupRequestSemaphore();
+        destLookup.setPulsar(pulsar);
+        doReturn("null").when(destLookup).clientAppId();
+        Field uriField = PulsarWebResource.class.getDeclaredField("uri");
+        uriField.setAccessible(true);
+        UriInfo uriInfo = mock(UriInfo.class);
+        uriField.set(destLookup, uriInfo);
+        URI uri = URI.create("http://localhost:8080/lookup/v2/destination/topic/myprop/usc/ns2/topic1");
+        doReturn(uri).when(uriInfo).getRequestUri();
+        config.setAuthorizationEnabled(true);
+        NamespaceService namespaceService = pulsar.getNamespaceService();
+        CompletableFuture<Boolean> future = new CompletableFuture<>();
+        future.complete(false);
+        doReturn(future).when(namespaceService).checkTopicExists(any(TopicName.class));
+
+        // Get the current semaphore first
+        Integer state1 = pulsar.getBrokerService().getLookupRequestSemaphore().availablePermits();
+        AsyncResponse asyncResponse1 = mock(AsyncResponse.class);
+        // We used a nonexistent topic to test
+        destLookup.lookupTopicAsync(asyncResponse1, TopicDomain.persistent.value(), "myprop", "usc", "ns2", "topic2", false, null, null);
+        // Gets semaphore status
+        Integer state2 = pulsar.getBrokerService().getLookupRequestSemaphore().availablePermits();
+        // If it is successfully released, it should be equal
+        assertEquals(state1, state2);
+
+    }
+
 }
