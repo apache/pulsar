@@ -1631,8 +1631,14 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         Assert.assertEquals(sum, delayedMessages + messages);
     }
 
+    /**
+     * This test validates key-shared subscription should not get stuck and if one of the consumer dies then broker
+     * should redeliver those messages to the new consumer instead stop dispatching messages to all consumers.
+     * 
+     * @throws Exception
+     */
     @Test
-    public void test()
+    public void testKeySharedMessageRedeliveryWithoutStuck()
             throws Exception {
         String topic = "persistent://public/default/key_shared-" + UUID.randomUUID();
         boolean enableBatch = false;
@@ -1645,7 +1651,6 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         Producer<Integer> producer = createProducer(topic, enableBatch);
         int count = 0;
         for (int i = 0; i < 10; i++) {
-            // Send the same key twice so that we'll have a batch message
             String key = String.valueOf(random.nextInt(NUMBER_OF_KEYS));
             producer.newMessage().key(key).value(count++).send();
         }
@@ -1654,7 +1659,6 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         Consumer<Integer> consumer2 = createConsumer(topic);
 
         for (int i = 0; i < 10; i++) {
-            // Send the same key twice so that we'll have a batch message
             String key = String.valueOf(random.nextInt(NUMBER_OF_KEYS));
             producer.newMessage().key(key).value(count++).send();
         }
@@ -1665,7 +1669,6 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         consumer2.redeliverUnacknowledgedMessages();
 
         for (int i = 0; i < 10; i++) {
-            // Send the same key twice so that we'll have a batch message
             String key = String.valueOf(random.nextInt(NUMBER_OF_KEYS));
             producer.newMessage().key(key).value(count++).send();
         }
