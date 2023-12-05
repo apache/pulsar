@@ -544,7 +544,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
 
     @Override
     public final synchronized void readEntriesComplete(List<Entry> entries, Object ctx) {
-        if (topic.isClosingOrDeleting()) {
+        if (topic.isTransferring()) {
             return;
         }
 

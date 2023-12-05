@@ -185,11 +185,6 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
     }
 
     @Override
-    public boolean isClosingOrDeleting() {
-        return isFenced;
-    }
-
-    @Override
     public void publishMessage(ByteBuf data, PublishContext callback) {
         if (isExceedMaximumMessageSize(data.readableBytes(), callback)) {
             callback.completed(new NotAllowedException("Exceed maximum message size")
@@ -512,6 +507,9 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
 
         lock.writeLock().lock();
         try {
+            if (!disconnectClients) {
+                transferring = true;
+            }
             if (!isFenced || closeWithoutWaitingClientDisconnect) {
                 isFenced = true;
             } else {

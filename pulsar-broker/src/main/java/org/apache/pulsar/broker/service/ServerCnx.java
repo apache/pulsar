@@ -1764,12 +1764,12 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         }
 
         PulsarService pulsar = getBrokerService().pulsar();
-        if (producer.getTopic().isClosingOrDeleting()
-                && ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(pulsar)) {
+        // if the topic is transferring, we ignore send msg.
+        if (producer.getTopic().isTransferring()) {
             long ignoredMsgCount = ExtensibleLoadManagerImpl.get(pulsar)
                     .getIgnoredSendMsgCounter().addAndGet(send.getNumMessages());
             if (log.isDebugEnabled()) {
-                log.debug("Ignored send msg from:{}:{} to fenced topic:{} during unloading."
+                log.debug("Ignored send msg from:{}:{} to fenced topic:{} while transferring."
                                 + " Ignored message count:{}.",
                         remoteAddress, send.getProducerId(), producer.getTopic().getName(), ignoredMsgCount);
             }

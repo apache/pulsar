@@ -41,7 +41,6 @@ import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
 import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLookupData;
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicClosedException;
-import org.apache.pulsar.broker.service.BrokerServiceException.TopicClosingOrDeletingException;
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicTerminatedException;
 import org.apache.pulsar.broker.service.Topic.PublishContext;
 import org.apache.pulsar.broker.service.nonpersistent.NonPersistentTopic;
@@ -489,8 +488,13 @@ public class Producer {
                 final ServerError serverError = getServerError(exception);
 
                 producer.cnx.execute(() -> {
-                    if (!(exception instanceof TopicClosedException)
-                            && !(exception instanceof TopicClosingOrDeletingException)) {
+                    // if the topic is transferring, we don't send error code to the clients.
+                    if (producer.getTopic().isTransferring()) {
+                        if (log.isDebugEnabled()) {
+                            log.debug("[{}] Received producer exception: {} while transferring.",
+                                    producer.getTopic().getName(), exception.getMessage(), exception);
+                        }
+                    } else if (!(exception instanceof TopicClosedException)) {
                         // For TopicClosed exception there's no need to send explicit error, since the client was
                         // already notified
                         // For TopicClosingOrDeleting exception, a notification will be sent separately

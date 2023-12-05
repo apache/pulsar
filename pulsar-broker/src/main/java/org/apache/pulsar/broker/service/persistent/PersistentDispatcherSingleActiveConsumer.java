@@ -155,7 +155,7 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
     }
 
     private synchronized void internalReadEntriesComplete(final List<Entry> entries, Object obj) {
-        if (topic.isClosingOrDeleting()) {
+        if (topic.isTransferring()) {
             return;
         }
 

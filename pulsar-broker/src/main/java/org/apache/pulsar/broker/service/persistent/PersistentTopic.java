@@ -104,7 +104,6 @@ import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionNotFo
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicBacklogQuotaExceededException;
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicBusyException;
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicClosedException;
-import org.apache.pulsar.broker.service.BrokerServiceException.TopicClosingOrDeletingException;
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicFencedException;
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicMigratedException;
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicTerminatedException;
@@ -441,11 +440,6 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         return pendingWriteOps;
     }
 
-    @Override
-    public boolean isClosingOrDeleting() {
-        return isClosingOrDeleting;
-    }
-
     private void createPersistentSubscriptions() {
         for (ManagedCursor cursor : ledger.getCursors()) {
                 if (cursor.getName().equals(DEDUPLICATION_CURSOR_NAME)
@@ -529,11 +523,6 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     @Override
     public void publishMessage(ByteBuf headersAndPayload, PublishContext publishContext) {
         pendingWriteOps.incrementAndGet();
-        if (isClosingOrDeleting) {
-            publishContext.completed(new TopicClosingOrDeletingException("topic closing or deleting"), -1, -1);
-            decrementPendingWriteOpsAndCheck();
-            return;
-        }
         if (isFenced) {
             publishContext.completed(new TopicFencedException("fenced"), -1, -1);
             decrementPendingWriteOpsAndCheck();
@@ -661,6 +650,19 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
     @Override
     public synchronized void addFailed(ManagedLedgerException exception, Object ctx) {
+        /* If the topic is being transferred(in the Releasing bundle state),
+         we don't want to forcefully close topic here.
+         Instead, we will rely on the service unit state channel's bundle(topic) transfer protocol.
+         At the end of the transfer protocol, at Owned state, the source broker should close the topic properly.
+         */
+        if (transferring) {
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] Failed to persist msg in store: {} while transferring.",
+                        topic, exception.getMessage(), exception);
+            }
+            return;
+        }
+
         PublishContext callback = (PublishContext) ctx;
         if (exception instanceof ManagedLedgerFencedException) {
             // If the managed ledger has been fenced, we cannot continue using it. We need to close and reopen
@@ -1483,6 +1485,9 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
         lock.writeLock().lock();
         try {
+            if (!disconnectClients) {
+                transferring = true;
+            }
             // closing managed-ledger waits until all producers/consumers/replicators get closed. Sometimes, broker
             // forcefully wants to close managed-ledger without waiting all resources to be closed.
             if (!isClosingOrDeleting || closeWithoutWaitingClientDisconnect) {
