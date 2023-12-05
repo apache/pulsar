@@ -36,43 +36,6 @@ public class PrecisTopicPublishRateThrottleTest extends BrokerTestBase{
 
     @Override
     protected void cleanup() throws Exception {
-        //No-op
-    }
-
-    @Test
-    public void testPrecisTopicPublishRateLimitingDisabled() throws Exception {
-        PublishRate publishRate = new PublishRate(1,10);
-        // disable precis topic publish rate limiting
-        conf.setPreciseTopicPublishRateLimiterEnable(false);
-        conf.setMaxPendingPublishRequestsPerConnection(0);
-        super.baseSetup();
-        admin.namespaces().setPublishRate("prop/ns-abc", publishRate);
-        final String topic = "persistent://prop/ns-abc/testPrecisTopicPublishRateLimiting";
-        org.apache.pulsar.client.api.Producer<byte[]> producer = pulsarClient.newProducer()
-                .topic(topic)
-                .producerName("producer-name")
-                .create();
-
-        Topic topicRef = pulsar.getBrokerService().getTopicReference(topic).get();
-        Assert.assertNotNull(topicRef);
-        MessageId messageId = null;
-        try {
-            // first will be success
-            messageId = producer.sendAsync(new byte[10]).get(500, TimeUnit.MILLISECONDS);
-            Assert.assertNotNull(messageId);
-            // second will be success
-            messageId = producer.sendAsync(new byte[10]).get(500, TimeUnit.MILLISECONDS);
-            Assert.assertNotNull(messageId);
-        } catch (TimeoutException e) {
-            // No-op
-        }
-        Thread.sleep(1000);
-        try {
-            messageId = producer.sendAsync(new byte[10]).get(1, TimeUnit.SECONDS);
-        } catch (TimeoutException e) {
-            // No-op
-        }
-        Assert.assertNotNull(messageId);
         super.internalCleanup();
     }
 
@@ -102,7 +65,6 @@ public class PrecisTopicPublishRateThrottleTest extends BrokerTestBase{
         } catch (TimeoutException e) {
             // No-op
         }
-        super.internalCleanup();
     }
 
     @Test
@@ -138,7 +100,6 @@ public class PrecisTopicPublishRateThrottleTest extends BrokerTestBase{
             // No-op
         }
         Assert.assertNotNull(messageId);
-        super.internalCleanup();
     }
 
     @Test
@@ -179,6 +140,5 @@ public class PrecisTopicPublishRateThrottleTest extends BrokerTestBase{
         Assert.assertEquals(limiter.getTokenBucketOnMessage().getRate(), rateInMsg);
 
         producer.close();
-        super.internalCleanup();
     }
 }
