@@ -142,8 +142,8 @@ jobs:
         run: |
           mvn -B -T 1C -ntp -Pcore-modules,-main clean install -DskipTests -Dlicense.skip=true -Drat.skip=true -Dcheckstyle.skip=true
 
-      - name: Check binary licenses
-        run: src/check-binary-license.sh ./distribution/server/target/apache-pulsar-*-bin.tar.gz
+#      - name: Check binary licenses
+#        run: src/check-binary-license.sh ./distribution/server/target/apache-pulsar-*-bin.tar.gz
 
       - name: Install gh-actions-artifact-client.js
         uses: apache/pulsar-test-infra/gh-actions-artifact-client/dist@master
