@@ -59,6 +59,8 @@ public abstract class AsyncTokenBucket {
         defaultResolutionNanos = DEFAULT_RESOLUTION_NANOS;
     }
 
+    // atomic field updaters for the volatile fields in this class
+
     private static final AtomicLongFieldUpdater<AsyncTokenBucket> LAST_NANOS_UPDATER =
             AtomicLongFieldUpdater.newUpdater(AsyncTokenBucket.class, "lastNanos");
 
@@ -71,14 +73,42 @@ public abstract class AsyncTokenBucket {
     private static final AtomicLongFieldUpdater<AsyncTokenBucket> REMAINDER_NANOS_UPDATER =
             AtomicLongFieldUpdater.newUpdater(AsyncTokenBucket.class, "remainderNanos");
 
-    // Atomically updated via updaters above
+    /**
+     * This field represents the number of tokens in the bucket. It is eventually consistent, as the
+     * pendingConsumedTokens are subtracted from the total number of tokens at most once during each "tick" or
+     * "increment", when time advances according to the configured resolution.
+     */
     protected volatile long tokens;
+    /**
+     * This field represents the last time the tokens were updated, in nanoseconds.
+     * The configured clockSource is used to obtain the current nanoseconds.
+     * By default, a monotonic clock (System.nanoTime()) is used.
+     */
     private volatile long lastNanos;
+    /**
+     * This field represents the last time the tokens were updated, in increments.
+     */
     private volatile long lastIncrement;
+    /**
+     * As time progresses, tokens are added to the bucket. When the rate is low, significant rounding errors could
+     * accumulate over time if the remainder nanoseconds are not accounted for in the calculations. This field is used
+     * to carry forward the leftover nanoseconds in the update calculation.
+     */
     private volatile long remainderNanos;
 
+    /**
+     * The resolution in nanoseconds. This is the amount of time that must pass before the tokens are updated.
+     */
     protected final long resolutionNanos;
+    /**
+     * This field is used to obtain the current time in nanoseconds. By default, a monotonic clock is used.
+     */
     private final LongSupplier clockSource;
+    /**
+     * This field is used to hold the sum of consumed tokens that are pending to be subtracted from the total amount of
+     * tokens. This solution is to prevent CAS loop contention problem. pendingConsumedTokens used JVM's LongAdder
+     * which has a complex solution to prevent the CAS loop content problem.
+     */
     private final LongAdder pendingConsumedTokens = new LongAdder();
 
     private static class FixedRateAsyncTokenBucket extends AsyncTokenBucket {
