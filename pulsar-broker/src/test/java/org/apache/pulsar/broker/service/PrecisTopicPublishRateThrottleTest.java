@@ -22,21 +22,27 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.common.policies.data.PublishRate;
+import org.apache.pulsar.common.util.AsyncTokenBucket;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
+import org.testng.annotations.AfterMethod;
+import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker")
 public class PrecisTopicPublishRateThrottleTest extends BrokerTestBase{
 
+    @BeforeMethod(alwaysRun = true)
     @Override
     protected void setup() throws Exception {
-        //No-op
+        AsyncTokenBucket.switchToConsistentTokensView();
     }
 
+    @AfterMethod(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
+        AsyncTokenBucket.resetToDefaultEventualConsistentTokensView();
     }
 
     @Test
