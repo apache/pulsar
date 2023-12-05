@@ -30,7 +30,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker")
-public class PrecisTopicPublishRateThrottleTest extends BrokerTestBase{
+public class TopicPublishRateThrottleTest extends BrokerTestBase{
 
     @BeforeMethod(alwaysRun = true)
     @Override
