@@ -35,13 +35,13 @@ public class VerboseLoggerThrottle {
 
     /**
      * The last time of refreshing the bucket of permits.
-     * No thread-safe processing is done because a particularly precise count is not required.
+     * No thread-safe support because a particularly precise count is not required.
      */
     private long lastFillTimestamp;
 
     /**
      * How many permits are there now.
-     * No thread-safe processing is done because a particularly precise count is not required.
+     * No thread-safe support because a particularly precise count is not required.
      */
     private int permits;
 
