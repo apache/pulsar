@@ -55,7 +55,7 @@ public class VerboseLoggerThrottle {
         this.lastFillTimestamp = System.currentTimeMillis();
     }
 
-    public boolean acquire() {
+    public boolean tryAcquire() {
         if (System.currentTimeMillis() - lastFillTimestamp >= periodInMilliSecond) {
             permits = permitsPerFilling;
             lastFillTimestamp = System.currentTimeMillis();

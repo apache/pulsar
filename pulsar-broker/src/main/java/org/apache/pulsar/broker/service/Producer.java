@@ -304,7 +304,7 @@ public class Producer {
                 if (checksum == computedChecksum) {
                     return true;
                 } else {
-                    if (verboseLoggerThrottle.acquire()) {
+                    if (verboseLoggerThrottle.tryAcquire()) {
                         headersAndPayload.readerIndex(readerIndex);
                         String hexHeadersAndPayload = ByteBufUtil.prettyHexDump(headersAndPayload);
                         log.error("[{}] [{}] Failed to verify checksum, client-side checksum: {},"

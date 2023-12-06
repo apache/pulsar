@@ -30,12 +30,12 @@ public class VerboseLoggerThrottleTest {
         int permits = 10;
         VerboseLoggerThrottle throttle = new VerboseLoggerThrottle(periodInSecond, permits);
         for (int i = 0; i < permits; i++) {
-            assertTrue(throttle.acquire());
+            assertTrue(throttle.tryAcquire());
         }
-        assertFalse(throttle.acquire());
+        assertFalse(throttle.tryAcquire());
         Thread.sleep(periodInSecond * 1000);
         for (int i = 0; i < permits; i++) {
-            assertTrue(throttle.acquire());
+            assertTrue(throttle.tryAcquire());
         }
     }
 }
