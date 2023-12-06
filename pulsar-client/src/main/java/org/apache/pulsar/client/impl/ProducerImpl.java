@@ -32,6 +32,7 @@ import static org.apache.pulsar.common.protocol.Commands.readChecksum;
 import static org.apache.pulsar.common.util.Runnables.catchingAndLoggingThrowables;
 import com.google.common.annotations.VisibleForTesting;
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufUtil;
 import io.netty.util.AbstractReferenceCounted;
 import io.netty.util.Recycler;
 import io.netty.util.Recycler.Handle;
@@ -1341,6 +1342,17 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                     // msg.readerIndex is already at header-payload index, Recompute checksum for headers-payload
                     int metadataChecksum = computeChecksum(headerFrame);
                     long computedChecksum = resumeChecksum(metadataChecksum, msg.getSecond());
+                    if (log.isTraceEnabled()) {
+                        int payloadReaderIndex = msg.getSecond().readerIndex();
+                        try {
+                            log.trace("[{}] [{}] verify checksum message with id {}, metadata checksum: {},"
+                                            + " computed checksum: {}, headerFrame: {}, payload: {}",
+                                    topic, producerName, op.sequenceId, metadataChecksum, computedChecksum,
+                                    ByteBufUtil.prettyHexDump(headerFrame), ByteBufUtil.prettyHexDump(msg.getSecond()));
+                        } finally {
+                            msg.getSecond().readerIndex(payloadReaderIndex);
+                        }
+                    }
                     return checksum == computedChecksum;
                 } else {
                     log.warn("[{}] [{}] checksum is not present into message with id {}", topic, producerName,

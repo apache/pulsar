@@ -60,7 +60,7 @@ import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.stats.Rate;
 import org.apache.pulsar.common.util.DateFormatter;
-import org.apache.pulsar.logger.ThrottledLog;
+import org.apache.pulsar.logger.VerboseLoggerThrottle;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -304,15 +304,16 @@ public class Producer {
                 if (checksum == computedChecksum) {
                     return true;
                 } else {
-                    headersAndPayload.readerIndex(readerIndex);
-                    String hexHeadersAndPayload = ByteBufUtil.prettyHexDump(headersAndPayload);
-                    log.error("[{}] [{}] Failed to verify checksum, client checksum: {}, broker checksum: {}",
-                            topic, producerName, checksum, computedChecksum);
-                    throttledLog.errorWithGeneratedArgs("[{}] [{}] Failed to verify checksum, client checksum: {},"
-                                    + " broker checksum: {}",
-                            topic, producerName, checksum, () -> {
-                                    return null;
-                            });
+                    if (verboseLoggerThrottle.acquire()) {
+                        headersAndPayload.readerIndex(readerIndex);
+                        String hexHeadersAndPayload = ByteBufUtil.prettyHexDump(headersAndPayload);
+                        log.error("[{}] [{}] Failed to verify checksum, client-side checksum: {},"
+                                        + " broker-side checksum: {}, hexHeadersAndPayload: {}",
+                                topic, producerName, checksum, computedChecksum, hexHeadersAndPayload);
+                    } else {
+                        log.error("[{}] [{}] Failed to verify checksum, client checksum: {}, broker checksum: {}",
+                                topic, producerName, checksum, computedChecksum);
+                    }
                     return false;
                 }
             } finally {
@@ -863,6 +864,6 @@ public class Producer {
 
     private static final Logger log = LoggerFactory.getLogger(Producer.class);
 
-    private static final ThrottledLog throttledLog = new ThrottledLog(log, 1, 3600);
+    private static final VerboseLoggerThrottle verboseLoggerThrottle = new VerboseLoggerThrottle(1, 3600);
 
 }
