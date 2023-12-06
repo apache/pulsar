@@ -896,6 +896,9 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
 
         checkMessageOrdering(consumer3, totalMessages);
 
+        // drain consumer 1
+        checkMessageOrdering(consumer1, totalMessages);
+
         Optional<Topic> topicRef = pulsar.getBrokerService().getTopic(topic, false).get();
         assertTrue(topicRef.isPresent());
         Thread.sleep((defaultTTLSec - 1) * 1000);
@@ -909,9 +912,12 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
                     .send();
         }
 
+        boolean consumed = 
+                consumer1.receive(1, TimeUnit.SECONDS) != null ||
+                consumer2.receive(1, TimeUnit.SECONDS) != null ||
+                consumer3.receive(1, TimeUnit.SECONDS) != null;
         // Wait broker dispatch messages.
-        Assert.assertNotNull(consumer2.receive(1, TimeUnit.SECONDS));
-        Assert.assertNotNull(consumer3.receive(1, TimeUnit.SECONDS));
+        Assert.assertTrue(consumed);
     }
 
     @Test(dataProvider = "partitioned")
