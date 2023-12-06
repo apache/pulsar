@@ -25,6 +25,7 @@ import static org.apache.pulsar.common.protocol.Commands.readChecksum;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.MoreObjects;
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufUtil;
 import io.netty.util.Recycler;
 import io.netty.util.Recycler.Handle;
 import java.util.Collections;
@@ -59,6 +60,7 @@ import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.stats.Rate;
 import org.apache.pulsar.common.util.DateFormatter;
+import org.apache.pulsar.logger.ThrottledLog;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -238,6 +240,7 @@ public class Producer {
 
         if (!verifyChecksum(headersAndPayload)) {
             cnx.execute(() -> {
+
                 cnx.getCommandSender().sendSendError(producerId, sequenceId, ServerError.ChecksumError,
                         "Checksum failed on the broker");
                 cnx.completedSendOperation(isNonPersistentTopic, headersAndPayload.readableBytes());
@@ -301,7 +304,15 @@ public class Producer {
                 if (checksum == computedChecksum) {
                     return true;
                 } else {
-                    log.error("[{}] [{}] Failed to verify checksum", topic, producerName);
+                    headersAndPayload.readerIndex(readerIndex);
+                    String hexHeadersAndPayload = ByteBufUtil.prettyHexDump(headersAndPayload);
+                    log.error("[{}] [{}] Failed to verify checksum, client checksum: {}, broker checksum: {}",
+                            topic, producerName, checksum, computedChecksum);
+                    throttledLog.errorWithGeneratedArgs("[{}] [{}] Failed to verify checksum, client checksum: {},"
+                                    + " broker checksum: {}",
+                            topic, producerName, checksum, () -> {
+                                    return null;
+                            });
                     return false;
                 }
             } finally {
@@ -851,5 +862,7 @@ public class Producer {
     }
 
     private static final Logger log = LoggerFactory.getLogger(Producer.class);
+
+    private static final ThrottledLog throttledLog = new ThrottledLog(log, 1, 3600);
 
 }
