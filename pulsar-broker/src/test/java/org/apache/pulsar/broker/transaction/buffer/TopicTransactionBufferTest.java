@@ -22,7 +22,6 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.Mockito.when;
 import static org.testng.AssertJUnit.assertEquals;
-import static org.testng.AssertJUnit.assertTrue;
 import static org.testng.AssertJUnit.fail;
 import java.util.List;
 import lombok.Cleanup;
@@ -277,14 +276,9 @@ public class TopicTransactionBufferTest extends TransactionTestBase {
         for (int i = 0; i < 3; i++) {
             expectedLastMessageID = (MessageIdImpl) producer.newMessage().send();
         }
-        TopicMessageIdImpl actualLastMessageID = (TopicMessageIdImpl) consumer.getLastMessageIds().get(0);
-        assertEquals(expectedLastMessageID.getEntryId(), actualLastMessageID.getEntryId());
-        assertEquals(expectedLastMessageID.getLedgerId(), actualLastMessageID.getLedgerId());
+        assertMessageId(consumer, expectedLastMessageID, 0);
         // 2.2 Case2: send 2 ongoing transactional messages and 2 original messages.
         // |1:0|1:1|1:2|txn1->1:3|1:4|txn2->1:5|1:6|.
-        // 2.2.1 Last message ID will not change when txn1 and txn2 do not end.
-        // 2.2.2 Last message ID will update to 1:4 when txn1 committed.
-        // 2.2.3 Last message ID will update to 1:6 when txn2 aborted.
         Transaction txn1 = pulsarClient.newTransaction()
                 .withTransactionTimeout(5, TimeUnit.HOURS)
                 .build()
@@ -297,17 +291,21 @@ public class TopicTransactionBufferTest extends TransactionTestBase {
         MessageIdImpl expectedLastMessageID1 = (MessageIdImpl) producer.newMessage().send();
         producer.newMessage(txn2).send();
         MessageIdImpl expectedLastMessageID2 = (MessageIdImpl) producer.newMessage().send();
-        actualLastMessageID = (TopicMessageIdImpl) consumer.getLastMessageIds().get(0);
-        assertEquals(expectedLastMessageID.getEntryId(), actualLastMessageID.getEntryId());
-        assertEquals(expectedLastMessageID.getLedgerId(), actualLastMessageID.getLedgerId());
+        // 2.2.1 Last message ID will not change when txn1 and txn2 do not end.
+        assertMessageId(consumer, expectedLastMessageID, 0);
+        // 2.2.2 Last message ID will update to 1:4 when txn1 committed.
         txn1.commit().get(5, TimeUnit.SECONDS);
-        actualLastMessageID = (TopicMessageIdImpl) consumer.getLastMessageIds().get(0);
-        assertEquals(expectedLastMessageID1.getEntryId(), actualLastMessageID.getEntryId());
-        assertEquals(expectedLastMessageID1.getLedgerId(), actualLastMessageID.getLedgerId());
+        assertMessageId(consumer, expectedLastMessageID1, 0);
+        // 2.2.3 Last message ID will update to 1:6 when txn2 aborted.
         txn2.abort().get(5, TimeUnit.SECONDS);
-        actualLastMessageID = (TopicMessageIdImpl) consumer.getLastMessageIds().get(0);
         // Todo: We can not ignore the marker's position in this fix.
-        assertEquals(expectedLastMessageID2.getEntryId(), actualLastMessageID.getEntryId() - 2);
-        assertEquals(expectedLastMessageID2.getLedgerId(), actualLastMessageID.getLedgerId());
+        assertMessageId(consumer, expectedLastMessageID2, 2);
     }
+
+    private void assertMessageId(Consumer<?> consumer, MessageIdImpl expected, int entryOffset) throws Exception {
+        TopicMessageIdImpl actual = (TopicMessageIdImpl) consumer.getLastMessageIds().get(0);
+        assertEquals(expected.getEntryId(), actual.getEntryId() - entryOffset);
+        assertEquals(expected.getLedgerId(), actual.getLedgerId());
+    }
+
 }
