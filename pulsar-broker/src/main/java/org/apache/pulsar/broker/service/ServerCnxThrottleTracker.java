@@ -34,7 +34,7 @@ import lombok.extern.slf4j.Slf4j;
  * a configured threshold. This throttling is toggled with the {@link #setPendingSendRequestsExceeded} method.
  * There's also per-thread memory limits which could throttle the connection. This throttling is toggled with the
  * {@link #setPublishBufferLimiting} method. Internally, these two methods will call the
- * {@link #incrementThrottleCount()} and {@link #decrementThrottleCount()} methods.
+ * {@link #incrementThrottleCount()} and {@link #decrementThrottleCount()} methods when the state changes.
  */
 @Slf4j
 final class ServerCnxThrottleTracker {
@@ -93,16 +93,17 @@ final class ServerCnxThrottleTracker {
     }
 
     private void changeAutoRead(boolean autoRead) {
-        if (!isChannelActive()) {
-            return;
+        if (isChannelActive()) {
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] Setting auto read to {}", serverCnx.ctx().channel(), autoRead);
+            }
+            // change the auto read flag on the channel
+            serverCnx.ctx().channel().config().setAutoRead(autoRead);
         }
-        if (log.isDebugEnabled()) {
-            log.debug("[{}] Setting auto read to {}", serverCnx.ctx().channel(), autoRead);
-        }
-        serverCnx.ctx().channel().config().setAutoRead(autoRead);
+        // update the metrics that track throttling
         if (autoRead) {
             serverCnx.getBrokerService().resumedConnections(1);
-        } else {
+        } else if (isChannelActive()) {
             serverCnx.increasePublishLimitedTimesForTopics();
             serverCnx.getBrokerService().pausedConnections(1);
         }
@@ -119,6 +120,7 @@ final class ServerCnxThrottleTracker {
     public void setPendingSendRequestsExceeded(boolean throttlingEnabled) {
         boolean changed = changeThrottlingFlag(PENDING_SEND_REQUESTS_EXCEEDED_UPDATER, throttlingEnabled);
         if (changed) {
+            // update the metrics that track throttling due to pending send requests
             if (throttlingEnabled) {
                 throttledConnections.inc();
             } else {

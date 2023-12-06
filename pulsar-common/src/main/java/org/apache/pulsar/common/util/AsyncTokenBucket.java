@@ -119,7 +119,7 @@ public abstract class AsyncTokenBucket {
         private final long capacity;
         private final long rate;
         private final long ratePeriodNanos;
-        private final long defaultMinTokensForPause;
+        private final long targetAmountOfTokensAfterThrottling;
 
         protected FinalRateAsyncTokenBucket(long capacity, long rate, LongSupplier clockSource, long ratePeriodNanos,
                                             long resolutionNanos, long initialTokens) {
@@ -127,8 +127,8 @@ public abstract class AsyncTokenBucket {
             this.capacity = capacity;
             this.rate = rate;
             this.ratePeriodNanos = ratePeriodNanos != -1 ? ratePeriodNanos : ONE_SECOND_NANOS;
-            // The default minimum tokens is the amount of tokens made available in resolution duration
-            this.defaultMinTokensForPause = Math.max(this.resolutionNanos * rate / ratePeriodNanos, 1);
+            // The target amount of tokens is the amount of tokens made available in the resolution duration
+            this.targetAmountOfTokensAfterThrottling = Math.max(this.resolutionNanos * rate / ratePeriodNanos, 1);
             this.tokens = initialTokens;
             updateTokens();
         }
@@ -139,8 +139,8 @@ public abstract class AsyncTokenBucket {
         }
 
         @Override
-        protected final long getMinTokensForPause() {
-            return defaultMinTokensForPause;
+        protected final long getTargetAmountOfTokensAfterThrottling() {
+            return targetAmountOfTokensAfterThrottling;
         }
 
         @Override
@@ -173,7 +173,7 @@ public abstract class AsyncTokenBucket {
 
     protected abstract long getRatePeriodNanos();
 
-    protected abstract long getMinTokensForPause();
+    protected abstract long getTargetAmountOfTokensAfterThrottling();
 
     private void updateAndConsumeTokens(long consumeTokens, boolean forceUpdateTokens) {
         if (consumeTokens < 0) {
@@ -221,25 +221,19 @@ public abstract class AsyncTokenBucket {
         return tokens;
     }
 
-    protected long updateAndConsumeTokensAndCalculatePause(long consumeTokens, long minTokens,
-                                                           boolean forceUpdateTokens) {
-        updateAndConsumeTokens(consumeTokens, forceUpdateTokens);
-        long needTokens = minTokens - tokens;
+    /**
+     * Calculate the required throttling duration in nanoseconds to fill up the bucket with the minimum amount of
+     * tokens.
+     * This method shouldn't be called from the hot path since it calculates a consistent value for the tokens which
+     * isn't necessary on the hotpath.
+     */
+    public long calculateThrottlingDuration() {
+        updateAndConsumeTokens(0, true);
+        long needTokens = getTargetAmountOfTokensAfterThrottling() - tokens;
         if (needTokens <= 0) {
             return 0;
         }
         return (needTokens * getRatePeriodNanos()) / getRate();
-    }
-
-    /**
-     * Calculate the pause duration in nanoseconds if the tokens are fully consumed.
-     * This method shouldn't be called from the hot path since it calculates a consistent value for the tokens which
-     * isn't necessary on the hotpath.
-     *
-     * @param forceUpdateTokens
-     */
-    public long calculatePause(boolean forceUpdateTokens) {
-        return updateAndConsumeTokensAndCalculatePause(0, getMinTokensForPause(), forceUpdateTokens);
     }
 
     public abstract long getCapacity();
@@ -334,17 +328,17 @@ public abstract class AsyncTokenBucket {
         private final LongSupplier ratePeriodNanosFunction;
         private final double capacityFactor;
 
-        private final double minTokensForPauseFactor;
+        private final double targetFillFactorAfterThrottling;
 
         protected DynamicRateAsyncTokenBucket(double capacityFactor, LongSupplier rateFunction,
                                               LongSupplier clockSource, LongSupplier ratePeriodNanosFunction,
                                               long resolutionNanos, double initialTokensFactor,
-                                              double minTokensForPauseFactor) {
+                                              double targetFillFactorAfterThrottling) {
             super(clockSource, resolutionNanos);
             this.capacityFactor = capacityFactor;
             this.rateFunction = rateFunction;
             this.ratePeriodNanosFunction = ratePeriodNanosFunction;
-            this.minTokensForPauseFactor = minTokensForPauseFactor;
+            this.targetFillFactorAfterThrottling = targetFillFactorAfterThrottling;
             this.tokens = (long) (rateFunction.getAsLong() * initialTokensFactor);
             updateTokens();
         }
@@ -355,8 +349,8 @@ public abstract class AsyncTokenBucket {
         }
 
         @Override
-        protected long getMinTokensForPause() {
-            return (long) (getRate() * minTokensForPauseFactor);
+        protected long getTargetAmountOfTokensAfterThrottling() {
+            return (long) (getRate() * targetFillFactorAfterThrottling);
         }
 
         @Override
@@ -377,9 +371,9 @@ public abstract class AsyncTokenBucket {
             extends AsyncTokenBucketBuilder<DynamicRateAsyncTokenBucketBuilder> {
         protected LongSupplier rateFunction;
         protected double capacityFactor = 1.0d;
-        protected double initialTokensFactor = 1.0d;
+        protected double initialFillFactor = 1.0d;
         protected LongSupplier ratePeriodNanosFunction;
-        protected double minTokensForPauseFactor = 0.01d;
+        protected double targetFillFactorAfterThrottling = 0.01d;
 
         protected DynamicRateAsyncTokenBucketBuilder() {
         }
@@ -399,13 +393,14 @@ public abstract class AsyncTokenBucket {
             return this;
         }
 
-        public DynamicRateAsyncTokenBucketBuilder initialTokensFactor(double initialTokensFactor) {
-            this.initialTokensFactor = initialTokensFactor;
+        public DynamicRateAsyncTokenBucketBuilder initialFillFactor(double initialFillFactor) {
+            this.initialFillFactor = initialFillFactor;
             return this;
         }
 
-        public DynamicRateAsyncTokenBucketBuilder minTokensForPauseFactor(double minTokensForPauseFactor) {
-            this.minTokensForPauseFactor = minTokensForPauseFactor;
+        public DynamicRateAsyncTokenBucketBuilder targetFillFactorAfterThrottling(
+                double targetFillFactorAfterThrottling) {
+            this.targetFillFactorAfterThrottling = targetFillFactorAfterThrottling;
             return this;
         }
 
@@ -414,8 +409,8 @@ public abstract class AsyncTokenBucket {
             return new DynamicRateAsyncTokenBucket(this.capacityFactor, this.rateFunction,
                     this.clockSource,
                     this.ratePeriodNanosFunction, this.resolutionNanos,
-                    this.initialTokensFactor,
-                    minTokensForPauseFactor);
+                    this.initialFillFactor,
+                    targetFillFactorAfterThrottling);
         }
     }
 }

@@ -258,6 +258,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
         public void incrementPublishBytes(long bytes, long maxPendingBytesPerThread) {
             pendingBytes += bytes;
+            // when the limit is exceeded we throttle all connections that are sharing the same thread
             if (maxPendingBytesPerThread > 0 && pendingBytes > maxPendingBytesPerThread
                     && !limitExceeded) {
                 limitExceeded = true;
@@ -267,6 +268,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
         public void decrementPublishBytes(long bytes, long resumeThresholdPendingBytesPerThread) {
             pendingBytes -= bytes;
+            // when the limit has been exceeded, and we are below the resume threshold
+            // we resume all connections sharing the same thread
             if (limitExceeded && pendingBytes <= resumeThresholdPendingBytesPerThread) {
                 limitExceeded = false;
                 cnxsPerThread.get().forEach(cnx -> cnx.throttleTracker.setPublishBufferLimiting(false));
@@ -3172,6 +3175,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         return ctx.channel().isWritable();
     }
 
+    // handle throttling based on pending send requests in the same connection
+    // or the pending publish bytes
     private void increasePendingSendRequestsAndPublishBytes(int msgSize) {
         if (++pendingSendRequest == maxPendingSendRequests) {
             throttleTracker.setPendingSendRequestsExceeded(true);
@@ -3179,6 +3184,10 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         PendingBytesPerThreadTracker.getInstance().incrementPublishBytes(msgSize, maxPendingBytesPerThread);
     }
 
+
+    /**
+     * Increase the throttling metric for the topic when a producer is throttled.
+     */
     void increasePublishLimitedTimesForTopics() {
         producers.forEach((key, producerFuture) -> {
             if (producerFuture != null && producerFuture.isDone()) {
@@ -3518,11 +3527,17 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         this.authRole = authRole;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public void incrementThrottleCount() {
         throttleTracker.incrementThrottleCount();
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public void decrementThrottleCount() {
         throttleTracker.decrementThrottleCount();

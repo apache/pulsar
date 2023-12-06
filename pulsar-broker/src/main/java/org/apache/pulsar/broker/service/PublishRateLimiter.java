@@ -26,11 +26,12 @@ public interface PublishRateLimiter {
     /**
      * Consumes publishing quota and handles throttling.
      * <p>
-     * The rate limiter implementation calls {@link Producer#incrementThrottleCount()} when throttling
-     * should happen and then call {@link Producer#decrementThrottleCount} when throttling is no longer needed.
+     * The rate limiter implementation calls {@link Producer#incrementThrottleCount()} to indicate
+     * that the producer should be throttled. The rate limiter must schedule a call to
+     * {@link Producer#decrementThrottleCount()} after a throttling period that it calculates.
      *
-     * @param numOfMessages   number of messages to publish
-     * @param msgSizeInBytes  size of messages in bytes to publish
+     * @param numOfMessages  number of messages to publish
+     * @param msgSizeInBytes size of messages in bytes to publish
      */
     void handlePublishThrottling(Producer producer, int numOfMessages, long msgSizeInBytes);
 

@@ -78,7 +78,7 @@ public class AsyncTokenBucketTest {
         incrementSeconds(5);
         asyncTokenBucket.consumeTokens(100);
         assertEquals(asyncTokenBucket.getTokens(), -50);
-        assertEquals(TimeUnit.NANOSECONDS.toMillis(asyncTokenBucket.calculatePause(true)), 5100);
+        assertEquals(TimeUnit.NANOSECONDS.toMillis(asyncTokenBucket.calculateThrottlingDuration()), 5100);
     }
 
     @Test

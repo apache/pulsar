@@ -58,28 +58,40 @@ public class PublishRateLimiterImpl implements PublishRateLimiter {
         this.clockSource = clockSource;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public void handlePublishThrottling(Producer producer, int numOfMessages,
                                         long msgSizeInBytes) {
         boolean shouldThrottle = false;
         AsyncTokenBucket currentTokenBucketOnMessage = tokenBucketOnMessage;
         if (currentTokenBucketOnMessage != null) {
+            // consume tokens from the token bucket for messages
             currentTokenBucketOnMessage.consumeTokens(numOfMessages);
+            // check if the token bucket contains remaining tokens, if not, we should throttle
             shouldThrottle = !currentTokenBucketOnMessage.containsTokens();
         }
         AsyncTokenBucket currentTokenBucketOnByte = tokenBucketOnByte;
         if (currentTokenBucketOnByte != null) {
+            // consume tokens from the token bucket for bytes
             currentTokenBucketOnByte.consumeTokens(msgSizeInBytes);
+            // check if the token bucket contains remaining tokens, if not, we should throttle
             shouldThrottle = shouldThrottle || !currentTokenBucketOnByte.containsTokens();
         }
         if (shouldThrottle) {
+            // throttle the producer by incrementing the throttle count
             producer.incrementThrottleCount();
+            // schedule decrementing the throttle count to possibly unthrottle the producer after the
+            // throttling period
             scheduleDecrementThrottleCount(producer);
         }
     }
 
     private void scheduleDecrementThrottleCount(Producer producer) {
+        // add the producer to the queue of producers to be unthrottled
         unthrottlingQueue.offer(producer);
+        // schedule unthrottling if not already scheduled
         if (unthrottlingScheduled.compareAndSet(false, true)) {
             EventLoopGroup executor = producer.getCnx().getBrokerService().executor();
             scheduleUnthrottling(executor);
@@ -87,15 +99,32 @@ public class PublishRateLimiterImpl implements PublishRateLimiter {
     }
 
     private void scheduleUnthrottling(ScheduledExecutorService executor) {
-        long delay = calculatePause();
-        executor.schedule(() -> this.unthrottleQueuedProducers(executor), delay, TimeUnit.NANOSECONDS);
+        executor.schedule(() -> this.unthrottleQueuedProducers(executor), calculateThrottlingDurationNanos(),
+                TimeUnit.NANOSECONDS);
+    }
+
+    private long calculateThrottlingDurationNanos() {
+        AsyncTokenBucket currentTokenBucketOnMessage = tokenBucketOnMessage;
+        long throttlingDurationNanos = 0L;
+        if (currentTokenBucketOnMessage != null) {
+            throttlingDurationNanos = currentTokenBucketOnMessage.calculateThrottlingDuration();
+        }
+        AsyncTokenBucket currentTokenBucketOnByte = tokenBucketOnByte;
+        if (currentTokenBucketOnByte != null) {
+            throttlingDurationNanos = Math.max(throttlingDurationNanos,
+                    currentTokenBucketOnByte.calculateThrottlingDuration());
+        }
+        return throttlingDurationNanos;
     }
 
     private void unthrottleQueuedProducers(ScheduledExecutorService executor) {
         Producer producer;
+        // unthrottle producers until the token buckets contain tokens
         while (containsTokens(true) && (producer = unthrottlingQueue.poll()) != null) {
             producer.decrementThrottleCount();
         }
+        // if there are still producers to be unthrottled, schedule unthrottling again
+        // after another throttling period
         if (!unthrottlingQueue.isEmpty()) {
             scheduleUnthrottling(executor);
         } else {
@@ -103,20 +132,7 @@ public class PublishRateLimiterImpl implements PublishRateLimiter {
         }
     }
 
-    private long calculatePause() {
-        AsyncTokenBucket currentTokenBucketOnMessage = tokenBucketOnMessage;
-        long pauseNanos = 0L;
-        if (currentTokenBucketOnMessage != null) {
-            pauseNanos = currentTokenBucketOnMessage.calculatePause(true);
-        }
-        AsyncTokenBucket currentTokenBucketOnByte = tokenBucketOnByte;
-        if (currentTokenBucketOnByte != null) {
-            pauseNanos = Math.max(pauseNanos,
-                    currentTokenBucketOnByte.calculatePause(true));
-        }
-        return pauseNanos;
-    }
-
+    // check if the effective token buckets contain tokens
     private boolean containsTokens(boolean forceUpdateTokens) {
         AsyncTokenBucket currentTokenBucketOnMessage = tokenBucketOnMessage;
         if (currentTokenBucketOnMessage != null && !currentTokenBucketOnMessage.containsTokens(forceUpdateTokens)) {
