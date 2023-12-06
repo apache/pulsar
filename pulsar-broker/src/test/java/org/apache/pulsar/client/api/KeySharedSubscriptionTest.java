@@ -709,13 +709,6 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
                 .consumerName("c2")
                 .subscribe();
 
-        /*for (int i = 10; i < 20; i++) {
-            producer.newMessage()
-                    .key(String.valueOf(random.nextInt(NUMBER_OF_KEYS)))
-                    .value(i)
-                    .send();
-        }*/
-
         // C2 will not be able to receive any messages until C1 is done processing whatever he got prefetched
         assertNull(c2.receive(100, TimeUnit.MILLISECONDS));
 

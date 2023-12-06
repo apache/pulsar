@@ -421,7 +421,6 @@ public class ManagedCursorContainerTest {
 
         @Override
         public boolean isMessageDeleted(Position position) {
-            // TODO Auto-generated method stub
             return false;
         }
     }

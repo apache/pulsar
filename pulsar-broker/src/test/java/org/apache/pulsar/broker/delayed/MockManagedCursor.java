@@ -418,7 +418,6 @@ public class MockManagedCursor implements ManagedCursor {
 
     @Override
     public boolean isMessageDeleted(Position position) {
-        // TODO Auto-generated method stub
         return false;
     }
 }
