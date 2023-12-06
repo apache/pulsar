@@ -55,7 +55,6 @@ import static org.testng.Assert.fail;
 import com.google.common.collect.Sets;
 import java.net.URL;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -110,7 +109,6 @@ import org.apache.pulsar.broker.testcontext.PulsarTestContext;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
-import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
@@ -429,225 +427,6 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
         }
     }
 
-    @DataProvider(name = "subscriptionTypeTest")
-    public Object[][] subscriptionTypeTest() {
-        return new Object[][]{
-                {SubscriptionType.Exclusive},
-                {SubscriptionType.Shared},
-                {SubscriptionType.Failover},
-                {SubscriptionType.Key_Shared},
-        };
-    }
-
-    @Test(timeOut = 30_000, dataProvider = "subscriptionTypeTest")
-    public void testTransferPersistentClientReconnectionWithoutLookup(SubscriptionType subscriptionType)
-            throws Exception {
-        var id = String.format("test-tx-persistent-client-reconnect-%s-%s", subscriptionType, UUID.randomUUID());
-        var topic = String.format("persistent://%s/%s", defaultTestNamespace, id);
-        var topicName = TopicName.get(topic);
-        var timeoutMs = 30_000;
-
-        var lookups = new ArrayList<LookupService>();
-
-        @Cleanup
-        var producer = pulsarClient.newProducer(Schema.STRING).topic(topic).create();
-        lookups.add(spyLookupService(pulsarClient));
-
-        var consumers = new ArrayList<Consumer<String>>();
-        final var isSingleConsumer = subscriptionType == SubscriptionType.Exclusive;
-
-        @Cleanup
-        var client1 = newPulsarClient(lookupUrl.toString(), 1);
-        @Cleanup
-        var client2 = isSingleConsumer ? null : newPulsarClient(lookupUrl.toString(), 1);
-        @Cleanup
-        var client3 = isSingleConsumer ? null : newPulsarClient(lookupUrl.toString(), 1);
-
-        @Cleanup
-        var consumer1 = setupConsumer(consumers, lookups, client1, subscriptionType, id, topic);
-        @Cleanup
-        var consumer2 = isSingleConsumer ? null : setupConsumer(consumers, lookups, client2, subscriptionType, id, topic);
-        @Cleanup
-        var consumer3 = isSingleConsumer ? null : setupConsumer(consumers, lookups, client3, subscriptionType, id, topic);
-
-        Awaitility.await().until(() -> producer.isConnected() && consumers.stream().allMatch(Consumer::isConnected));
-
-        NamespaceBundle bundle = getBundleAsync(pulsar1, TopicName.get(topic)).get();
-        String broker = admin.lookups().lookupTopic(topic);
-        final String dstBrokerUrl;
-        final String dstBrokerServiceUrl;
-        if (broker.equals(pulsar1.getBrokerServiceUrl())) {
-            dstBrokerUrl = pulsar2.getLookupServiceAddress();
-            dstBrokerServiceUrl = pulsar2.getBrokerServiceUrl();
-        } else {
-            dstBrokerUrl = pulsar1.getLookupServiceAddress();
-            dstBrokerServiceUrl = pulsar1.getBrokerServiceUrl();
-        }
-        checkOwnershipState(broker, bundle);
-
-        var messageCountBeforeUnloading = 100;
-        var messageCountDuringUnloading = 100;
-        var messageCountAfterUnloading = 100;
-        var messageCount = messageCountBeforeUnloading + messageCountDuringUnloading + messageCountAfterUnloading;
-
-        var semMessagesReadyToSend = new Semaphore(0);
-        var cdlMessagesReceived = new CountDownLatch(messageCountBeforeUnloading);
-
-        @Cleanup(value = "shutdown")
-        var executor = Executors.newFixedThreadPool(1 /* bundle unload */ + 1 /* producer */ + consumers.size());
-
-        var futures = new ArrayList<CompletableFuture<?>>();
-        futures.add(CompletableFuture.runAsync(() -> {
-            try {
-                cdlMessagesReceived.await();
-                semMessagesReadyToSend.release(messageCountDuringUnloading / 2);
-                admin.namespaces().unloadNamespaceBundle(defaultTestNamespace, bundle.getBundleRange(), dstBrokerUrl);
-                semMessagesReadyToSend.release(messageCountDuringUnloading - messageCountDuringUnloading / 2);
-            } catch (InterruptedException | PulsarAdminException e) {
-                fail();
-            }
-        }, executor));
-
-        var pendingMessages = Collections.synchronizedSet(new HashSet<>(messageCount));
-        var producerFuture = CompletableFuture.runAsync(() -> {
-            try {
-                for (int i = 0; i < messageCount; i++) {
-                    semMessagesReadyToSend.acquire();
-                    String message = String.format("message-%d", i);
-                    pendingMessages.add(message);
-                    producer.send(message);
-                }
-            } catch (PulsarClientException | InterruptedException e) {
-                fail();
-            }
-        }, executor);
-        futures.add(producerFuture);
-
-        consumers.stream().map(consumer -> CompletableFuture.runAsync(() -> {
-            while (!producerFuture.isDone() || !pendingMessages.isEmpty()) {
-                try {
-                    var message = consumer.receive(1500, TimeUnit.MILLISECONDS);
-                    if (message != null) {
-                        consumer.acknowledge(message);
-                        if (pendingMessages.remove(message.getValue())) {
-                            cdlMessagesReceived.countDown();
-                        }
-                    }
-                } catch (PulsarClientException e) {
-                    // Retry read
-                }
-            }
-        }, executor)).forEach(futures::add);
-
-        var asyncTasks = FutureUtil.waitForAllAndSupportCancel(futures).orTimeout(timeoutMs, TimeUnit.MILLISECONDS);
-
-        semMessagesReadyToSend.release(messageCountBeforeUnloading);
-        Awaitility.await().atMost(timeoutMs, TimeUnit.MILLISECONDS).ignoreExceptions().until(
-            () -> dstBrokerServiceUrl.equals(admin.lookups().lookupTopic(topic)));
-        semMessagesReadyToSend.release(messageCountAfterUnloading);
-
-        asyncTasks.get();
-
-        assertTrue(futures.stream().allMatch(CompletableFuture::isDone));
-        assertTrue(futures.stream().noneMatch(CompletableFuture::isCompletedExceptionally));
-        assertTrue(pendingMessages.isEmpty());
-
-        assertTrue(producer.isConnected());
-        assertTrue(consumers.stream().allMatch(Consumer::isConnected));
-
-        for (LookupService lookupService : lookups) {
-            verify(lookupService, never()).getBroker(topicName);
-        }
-    }
-
-    @Test(timeOut = 30_000, dataProvider = "subscriptionTypeTest")
-    public void testTransferNonPersistentClientReconnectionWithoutLookup(SubscriptionType subscriptionType)
-            throws Exception {
-        var id = String.format("test-tx-non-persistent-client-reconnect-%s-%s", subscriptionType, UUID.randomUUID());
-        var topic = String.format("non-persistent://%s/%s", defaultTestNamespace, id);
-        var topicName = TopicName.get(topic);
-        var timeoutMs = 30_000;
-
-        var producer = pulsarClient.newProducer(Schema.STRING).topic(topic).create();
-        var consumers = new ArrayList<Consumer<String>>();
-        var consumerCount = subscriptionType == SubscriptionType.Exclusive ? 1 : 3;
-        for (int i = 0; i < consumerCount; i++) {
-            consumers.add(pulsarClient.newConsumer(Schema.STRING).
-                    subscriptionName(id).subscriptionType(subscriptionType).topic(topic).subscribe());
-        }
-        Awaitility.await().atMost(5, TimeUnit.SECONDS).until(
-                () -> producer.isConnected() && consumers.stream().allMatch(Consumer::isConnected));
-
-        var lookup = spyLookupService(topicName);
-
-        NamespaceBundle bundle = getBundleAsync(pulsar1, TopicName.get(topic)).get();
-        String broker = admin.lookups().lookupTopic(topic);
-        final String dstBrokerUrl;
-        final String dstBrokerServiceUrl;
-        if (broker.equals(pulsar1.getBrokerServiceUrl())) {
-            dstBrokerUrl = pulsar2.getLookupServiceAddress();
-            dstBrokerServiceUrl = pulsar2.getBrokerServiceUrl();
-        } else {
-            dstBrokerUrl = pulsar1.getLookupServiceAddress();
-            dstBrokerServiceUrl = pulsar1.getBrokerServiceUrl();
-        }
-        checkOwnershipState(broker, bundle);
-
-        var messageCountBeforeUnloading = 100;
-        var messageCountDuringUnloading = 100;
-        var messageCountAfterUnloading = 100;
-        var messageCount = messageCountBeforeUnloading + messageCountDuringUnloading + messageCountAfterUnloading;
-
-        var cdl = new CountDownLatch(messageCountBeforeUnloading);
-        var semReadyToSend = new Semaphore(messageCountBeforeUnloading);
-
-        var futures = new ArrayList<CompletableFuture<?>>();
-
-        futures.add(CompletableFuture.runAsync(() -> {
-            try {
-                assertTrue(cdl.await(timeoutMs, TimeUnit.MILLISECONDS));
-                admin.namespaces().unloadNamespaceBundle(defaultTestNamespace, bundle.getBundleRange(), dstBrokerUrl);
-                semReadyToSend.release(messageCountDuringUnloading);
-            } catch (InterruptedException | PulsarAdminException e) {
-                fail();
-            }
-        }).orTimeout(timeoutMs, TimeUnit.MILLISECONDS));
-
-        futures.add(CompletableFuture.runAsync(() -> {
-            for (int i = 0; i < messageCount; i++) {
-                try {
-                    assertTrue(semReadyToSend.tryAcquire(timeoutMs, TimeUnit.MILLISECONDS));
-                    var message = String.format("message-%d", i);
-
-                    if (i < messageCountBeforeUnloading ||
-                        i >= messageCountBeforeUnloading + messageCountDuringUnloading) {
-                        sendAndReceiveMessage(producer, consumers, message);
-                    } else {
-                        producer.send(message);
-                    }
-
-                    cdl.countDown();
-                } catch (Exception e) {
-                    // Retry
-                }
-            }
-        }).orTimeout(timeoutMs, TimeUnit.MILLISECONDS));
-
-        Awaitility.await().atMost(timeoutMs, TimeUnit.MILLISECONDS).ignoreExceptions().until(
-                () -> dstBrokerServiceUrl.equals(admin.lookups().lookupTopic(topic)));
-        semReadyToSend.release(messageCountAfterUnloading);
-
-        FutureUtil.waitForAllAndSupportCancel(futures).orTimeout(timeoutMs, TimeUnit.MILLISECONDS).get();
-        assertTrue(producer.isConnected());
-        assertTrue(consumers.stream().allMatch(Consumer::isConnected));
-        verify(lookup, never()).getBroker(topicName);
-        for (var consumer : consumers) {
-            consumer.close();
-        }
-        producer.close();
-    }
-
-
     @DataProvider(name = "isPersistentTopicSubscriptionTypeTest")
     public Object[][] isPersistentTopicSubscriptionTypeTest() {
         return new Object[][]{
@@ -662,6 +441,144 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
         };
     }
 
+    @Test(timeOut = 30_000, dataProvider = "isPersistentTopicSubscriptionTypeTest")
+    public void testTransferClientReconnectionWithoutLookup(TopicDomain topicDomain, SubscriptionType subscriptionType)
+            throws Exception {
+        var id = String.format("test-tx-client-reconnect-%s-%s", subscriptionType, UUID.randomUUID());
+        var topic = String.format("%s://%s/%s", topicDomain.toString(), defaultTestNamespace, id);
+        var topicName = TopicName.get(topic);
+        var timeoutMs = 30_000;
+
+        var clients = new ArrayList<PulsarClient>();
+        var consumers = new ArrayList<Consumer<String>>();
+        try {
+            var lookups = new ArrayList<LookupService>();
+
+            @Cleanup
+            var producer = pulsarClient.newProducer(Schema.STRING).topic(topic).create();
+            lookups.add(spyLookupService(pulsarClient));
+
+            var consumerCount = subscriptionType == SubscriptionType.Exclusive ? 1 : 3;
+
+            for (int i = 0; i < consumerCount; i++) {
+                var client = newPulsarClient(lookupUrl.toString(), 0);
+                clients.add(client);
+                var consumer = client.newConsumer(Schema.STRING).
+                        subscriptionName(id).
+                        subscriptionType(subscriptionType).
+                        subscriptionInitialPosition(SubscriptionInitialPosition.Earliest).
+                        ackTimeout(1000, TimeUnit.MILLISECONDS).
+                        topic(topic).
+                        subscribe();
+                consumers.add(consumer);
+                lookups.add(spyLookupService(client));
+            }
+
+            Awaitility.await()
+                    .until(() -> producer.isConnected() && consumers.stream().allMatch(Consumer::isConnected));
+
+            NamespaceBundle bundle = getBundleAsync(pulsar1, TopicName.get(topic)).get();
+            String broker = admin.lookups().lookupTopic(topic);
+            final String dstBrokerUrl;
+            final String dstBrokerServiceUrl;
+            if (broker.equals(pulsar1.getBrokerServiceUrl())) {
+                dstBrokerUrl = pulsar2.getLookupServiceAddress();
+                dstBrokerServiceUrl = pulsar2.getBrokerServiceUrl();
+            } else {
+                dstBrokerUrl = pulsar1.getLookupServiceAddress();
+                dstBrokerServiceUrl = pulsar1.getBrokerServiceUrl();
+            }
+            checkOwnershipState(broker, bundle);
+
+            var messageCountBeforeUnloading = 100;
+            var messageCountAfterUnloading = 100;
+            var messageCount = messageCountBeforeUnloading + messageCountAfterUnloading;
+
+            var semMessagesReadyToSend = new Semaphore(0);
+            var cdlStart = new CountDownLatch(1);
+
+            @Cleanup(value = "shutdown")
+            var executor = Executors.newFixedThreadPool(1 /* bundle unload */ + 1 /* producer */ + consumers.size());
+
+            var futures = new ArrayList<CompletableFuture<?>>();
+            futures.add(CompletableFuture.runAsync(() -> {
+                try {
+                    cdlStart.await();
+                    semMessagesReadyToSend.release(messageCountBeforeUnloading);
+                    admin.namespaces()
+                            .unloadNamespaceBundle(defaultTestNamespace, bundle.getBundleRange(), dstBrokerUrl);
+                    semMessagesReadyToSend.release(messageCountAfterUnloading);
+                } catch (InterruptedException | PulsarAdminException e) {
+                    fail();
+                }
+            }, executor));
+
+            var pendingMessages = Collections.synchronizedSet(new HashSet<>(messageCount));
+            var producerFuture = CompletableFuture.runAsync(() -> {
+                try {
+                    cdlStart.await();
+                    for (int i = 0; i < messageCount; i++) {
+                        semMessagesReadyToSend.acquire();
+                        String message = String.format("message-%d", i);
+                        if (topicDomain == TopicDomain.persistent) {
+                            // Only verify receipt of persistent topic messages.
+                            pendingMessages.add(message);
+                        }
+                        producer.send(message);
+                    }
+                } catch (PulsarClientException | InterruptedException e) {
+                    fail();
+                }
+            }, executor);
+            futures.add(producerFuture);
+
+            consumers.stream().map(consumer -> CompletableFuture.runAsync(() -> {
+                try {
+                    cdlStart.await();
+                } catch (InterruptedException e) {
+                    fail();
+                }
+                while (!producerFuture.isDone() || !pendingMessages.isEmpty()) {
+                    try {
+                        var message = consumer.receive(1500, TimeUnit.MILLISECONDS);
+                        if (message != null) {
+                            consumer.acknowledge(message);
+                            pendingMessages.remove(message.getValue());
+                        }
+                    } catch (PulsarClientException e) {
+                        // Retry read
+                    }
+                }
+            }, executor)).forEach(futures::add);
+
+            var asyncTasks = FutureUtil.waitForAllAndSupportCancel(futures).orTimeout(timeoutMs, TimeUnit.MILLISECONDS);
+
+            cdlStart.countDown();
+            Awaitility.await().atMost(timeoutMs, TimeUnit.MILLISECONDS).ignoreExceptions().until(
+                    () -> dstBrokerServiceUrl.equals(admin.lookups().lookupTopic(topic)));
+
+            asyncTasks.get();
+
+            assertTrue(futures.stream().allMatch(CompletableFuture::isDone));
+            assertTrue(futures.stream().noneMatch(CompletableFuture::isCompletedExceptionally));
+            assertTrue(pendingMessages.isEmpty());
+
+            assertTrue(producer.isConnected());
+            assertTrue(consumers.stream().allMatch(Consumer::isConnected));
+
+            for (LookupService lookupService : lookups) {
+                verify(lookupService, never()).getBroker(topicName);
+            }
+        } finally {
+            for (var consumer: consumers) {
+                consumer.close();
+            }
+            for (var client: clients) {
+                client.close();
+            }
+        }
+    }
+
     @Test(timeOut = 30 * 1000, dataProvider = "isPersistentTopicSubscriptionTypeTest")
     public void testUnloadClientReconnectionWithLookup(TopicDomain topicDomain,
                                                        SubscriptionType subscriptionType) throws Exception {
@@ -670,79 +587,77 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
         var topic = String.format("%s://%s/%s", topicDomain, defaultTestNamespace, id);
         var topicName = TopicName.get(topic);
 
-        var producer = pulsarClient.newProducer(Schema.STRING).topic(topic).create();
         var consumers = new ArrayList<Consumer<String>>();
-        var consumerCount = subscriptionType == SubscriptionType.Exclusive ? 1 : 3;
-        for (int i = 0; i < consumerCount; i++) {
-            consumers.add(pulsarClient.newConsumer(Schema.STRING).
-                subscriptionName(id).subscriptionType(subscriptionType).topic(topic).subscribe());
-        }
-        Awaitility.await().atMost(5, TimeUnit.SECONDS).until(
-                () -> producer.isConnected() && consumers.stream().allMatch(Consumer::isConnected));
+        try {
+            @Cleanup
+            var producer = pulsarClient.newProducer(Schema.STRING).topic(topic).create();
 
-        var lookup = spyLookupService(topicName);
-
-        final CountDownLatch cdl = new CountDownLatch(3);
-
-        NamespaceBundle bundle = getBundleAsync(pulsar1, TopicName.get(topic)).get();
-        CompletableFuture<Void> unloadNamespaceBundle = CompletableFuture.runAsync(() -> {
-            try {
-                cdl.await();
-                admin.namespaces().unloadNamespaceBundle(defaultTestNamespace, bundle.getBundleRange());
-            } catch (InterruptedException | PulsarAdminException e) {
-                fail();
+            var consumerCount = subscriptionType == SubscriptionType.Exclusive ? 1 : 3;
+            for (int i = 0; i < consumerCount; i++) {
+                consumers.add(pulsarClient.newConsumer(Schema.STRING).
+                        subscriptionName(id).subscriptionType(subscriptionType).topic(topic).subscribe());
             }
-        });
+            Awaitility.await()
+                    .until(() -> producer.isConnected() && consumers.stream().allMatch(Consumer::isConnected));
 
-        MutableInt sendCount = new MutableInt();
-        Awaitility.await().atMost(10, TimeUnit.SECONDS).ignoreExceptions().until(() -> {
-            var message = String.format("message-%d", sendCount.getValue());
-            if (topicDomain == TopicDomain.persistent) {
-                sendAndReceiveMessage(producer, consumers, message);
-            } else {
-                producer.send(message);
+            var lookup = spyLookupService(pulsarClient);
+
+            final CountDownLatch cdl = new CountDownLatch(3);
+
+            NamespaceBundle bundle = getBundleAsync(pulsar1, TopicName.get(topic)).get();
+            CompletableFuture<Void> unloadNamespaceBundle = CompletableFuture.runAsync(() -> {
+                try {
+                    cdl.await();
+                    admin.namespaces().unloadNamespaceBundle(defaultTestNamespace, bundle.getBundleRange());
+                } catch (InterruptedException | PulsarAdminException e) {
+                    fail();
+                }
+            });
+
+            MutableInt sendCount = new MutableInt();
+            Awaitility.await().atMost(20, TimeUnit.SECONDS).ignoreExceptions().until(() -> {
+                var message = String.format("message-%d", sendCount.getValue());
+
+                boolean messageSent = false;
+                while (true) {
+                    var recvFutures = consumers.stream().
+                            map(consumer -> consumer.receiveAsync().orTimeout(1000, TimeUnit.MILLISECONDS)).
+                            collect(Collectors.toList());
+
+                    if (!messageSent) {
+                        producer.send(message);
+                        messageSent = true;
+                    }
+
+                    if (topicDomain == TopicDomain.non_persistent) {
+                        // No need to wait for message receipt, we're only trying to stress the consumer lookup pathway.
+                        break;
+                    }
+                    var msg = (Message<String>) FutureUtil.waitForAny(recvFutures, __ -> true).get().get();
+                    if (Objects.equals(msg.getValue(), message)) {
+                        break;
+                    }
+                }
+
+                cdl.countDown();
+                return sendCount.incrementAndGet() == 10;
+            });
+
+            assertTrue(producer.isConnected());
+            assertTrue(consumers.stream().allMatch(Consumer::isConnected));
+            assertTrue(unloadNamespaceBundle.isDone());
+            verify(lookup, times(1 + consumerCount)).getBroker(topicName);
+        } finally {
+            for (var consumer : consumers) {
+                consumer.close();
             }
-            cdl.countDown();
-            return sendCount.incrementAndGet() == 10;
-        });
-
-        assertTrue(producer.isConnected());
-        assertTrue(consumers.stream().allMatch(Consumer::isConnected));
-        assertTrue(unloadNamespaceBundle.isDone());
-        verify(lookup, times(1 + consumerCount)).getBroker(topicName);
-        for (var consumer : consumers) {
-            consumer.close();
         }
-        producer.close();
-    }
-
-    private Consumer<String> setupConsumer(Collection<Consumer<String>> consumers,
-                                           Collection<LookupService> lookupServiceMocks,
-                                           PulsarClient client,
-                                           SubscriptionType subscriptionType,
-                                           String subscriptionName,
-                                           String topic) throws Exception {
-        var consumer = client.newConsumer(Schema.STRING).
-                subscriptionName(subscriptionName).
-                subscriptionType(subscriptionType).
-                subscriptionInitialPosition(SubscriptionInitialPosition.Earliest).
-                ackTimeout(1000, TimeUnit.MILLISECONDS).
-                topic(topic).
-                subscribe();
-        consumers.add(consumer);
-        lookupServiceMocks.add(spyLookupService(client));
-        return consumer;
     }
 
     private LookupService spyLookupService(PulsarClient client) throws IllegalAccessException {
         LookupService svc = (LookupService) FieldUtils.readDeclaredField(client, "lookup", true);
         var lookup = spy(svc);
         FieldUtils.writeDeclaredField(client, "lookup", lookup, true);
-        return lookup;
-    }
-    private LookupService spyLookupService(TopicName topicName) throws IllegalAccessException {
-        var lookup = spy(lookupService);
-        FieldUtils.writeDeclaredField(pulsarClient, "lookup", lookup, true);
         return lookup;
     }
     private void checkOwnershipState(String broker, NamespaceBundle bundle)
@@ -755,27 +670,6 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
         }
         assertTrue(targetLoadManager.checkOwnershipAsync(Optional.empty(), bundle).get());
         assertFalse(otherLoadManager.checkOwnershipAsync(Optional.empty(), bundle).get());
-    }
-
-    private <T> void sendAndReceiveMessage(Producer<T> producer, List<Consumer<T>> consumers, T message)
-            throws Exception {
-        boolean messageSent = false;
-        while (true) {
-            var recvFutures = consumers.stream().
-                    map(consumer -> consumer.receiveAsync().orTimeout(1000, TimeUnit.MILLISECONDS)).
-                    collect(Collectors.toList());
-
-            if (!messageSent) {
-                producer.send(message);
-                messageSent = true;
-            }
-
-            var msg = (Message<String>) FutureUtil.waitForAny(recvFutures, __ -> true).get().get();
-            assertTrue(recvFutures.stream().allMatch(CompletableFuture::isDone));
-            if (Objects.equals(msg.getValue(), message)) {
-                break;
-            }
-        }
     }
 
     @Test(timeOut = 30 * 1000)
