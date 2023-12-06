@@ -32,8 +32,6 @@ import org.jctools.queues.MessagePassingQueue;
 import org.jctools.queues.MpscUnboundedArrayQueue;
 
 public class PublishRateLimiterImpl implements PublishRateLimiter {
-    private static final int DEFAULT_CONSISTENT_VIEW_INTERVAL = 10;
-    private static int consistentViewOfTokensIntervalInUnthrottleLoop = DEFAULT_CONSISTENT_VIEW_INTERVAL;
     private volatile AsyncTokenBucket tokenBucketOnMessage;
     private volatile AsyncTokenBucket tokenBucketOnByte;
     private final LongSupplier clockSource;
@@ -41,14 +39,6 @@ public class PublishRateLimiterImpl implements PublishRateLimiter {
     private final MessagePassingQueue<Producer> unthrottlingQueue = new MpscUnboundedArrayQueue<>(1024);
 
     private final AtomicBoolean unthrottlingScheduled = new AtomicBoolean(false);
-
-    public static void switchToConsistentTokensView() {
-        consistentViewOfTokensIntervalInUnthrottleLoop = 1;
-    }
-
-    public static void resetConsistentTokensViewToDefault() {
-        consistentViewOfTokensIntervalInUnthrottleLoop = DEFAULT_CONSISTENT_VIEW_INTERVAL;
-    }
 
     public PublishRateLimiterImpl(Policies policies, String clusterName) {
         this();
@@ -103,9 +93,7 @@ public class PublishRateLimiterImpl implements PublishRateLimiter {
 
     private void unthrottleQueuedProducers(ScheduledExecutorService executor) {
         Producer producer;
-        int handledProducersCount = 0;
-        while (containsTokens(handledProducersCount++ % consistentViewOfTokensIntervalInUnthrottleLoop == 0)
-                && (producer = unthrottlingQueue.poll()) != null) {
+        while (containsTokens(true) && (producer = unthrottlingQueue.poll()) != null) {
             producer.decrementThrottleCount();
         }
         if (!unthrottlingQueue.isEmpty()) {
