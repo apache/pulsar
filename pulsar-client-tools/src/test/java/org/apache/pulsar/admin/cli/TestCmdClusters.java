@@ -25,6 +25,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import java.io.ByteArrayOutputStream;
@@ -121,5 +122,11 @@ public class TestCmdClusters {
         } finally {
             System.setOut(defaultSystemOut);
         }
+    }
+
+    @Test
+    public void testGetClusterMigration() throws Exception {
+        cmdClusters.run(new String[]{"get-cluster-migration", "test_cluster"});
+        verify(clusters, times(1)).getClusterMigration("test_cluster");
     }
 }
