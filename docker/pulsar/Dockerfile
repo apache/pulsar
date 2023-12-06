@@ -104,4 +104,5 @@ RUN chmod +x /pulsar/bin/install-pulsar-client.sh
 RUN /pulsar/bin/install-pulsar-client.sh
 
 # The UID must be non-zero. Otherwise, it is arbitrary. No logic should rely on its specific value.
-USER 10000
+RUN useradd pulsar -u 10000 -g 0
+USER pulsar
