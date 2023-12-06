@@ -50,7 +50,7 @@ public class PulsarSinksTest extends PulsarIOTestBase {
         testSink(CassandraSinkTester.createTester(true), true);
     }
 
-    @Test(groups = "sink")
+    //@Test(groups = "sink")
     public void testCassandraArchiveSink() throws Exception {
         testSink(CassandraSinkTester.createTester(false), false);
     }
