@@ -231,7 +231,7 @@ enum ServerError {
                          // new producer
     TransactionComponentLoadFailed = 26; // When TransactionBuffer, TransactionPendingAck
                                          // init failed with no-retryable exception.
-                                         // All operations related to this component should be failed with this error.
+                                         // All operations related to this components should be failed with this error.
 }
 
 enum AuthMethod {
