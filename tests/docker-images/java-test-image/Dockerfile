@@ -20,7 +20,7 @@
 FROM ubuntu:22.04
 
 RUN groupadd -g 10000 pulsar && \
-    useradd -r -u 10000 -g pulsar --disabled-login --disabled-password --gecos '' pulsar
+    useradd -r -u 10000 -g pulsar pulsar
 
 ARG PULSAR_TARBALL=target/pulsar-server-distribution-bin.tar.gz
 ADD ${PULSAR_TARBALL} /
