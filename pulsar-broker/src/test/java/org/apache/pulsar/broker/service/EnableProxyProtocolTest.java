@@ -108,7 +108,7 @@ public class EnableProxyProtocolTest extends BrokerTestBase  {
     }
 
     @Test
-    public void testSlowNetwork() throws Exception {
+    public void testPubSubWhenSlowNetwork() throws Exception {
         final String namespace = "prop/ns-abc";
         final String topicName = BrokerTestUtil.newUniqueName("persistent://" + namespace + "/tp");
         final String subName = "my-subscriber-name";
