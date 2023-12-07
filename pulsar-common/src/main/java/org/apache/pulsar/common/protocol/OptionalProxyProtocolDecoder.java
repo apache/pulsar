@@ -19,7 +19,6 @@
 package org.apache.pulsar.common.protocol;
 
 import io.netty.buffer.ByteBuf;
-import io.netty.buffer.ByteBufAllocator;
 import io.netty.buffer.CompositeByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelHandlerContext;
@@ -29,6 +28,7 @@ import io.netty.handler.codec.ProtocolDetectionResult;
 import io.netty.handler.codec.ProtocolDetectionState;
 import io.netty.handler.codec.haproxy.HAProxyMessageDecoder;
 import io.netty.handler.codec.haproxy.HAProxyProtocolVersion;
+import io.netty.util.IllegalReferenceCountException;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -44,13 +44,6 @@ public class OptionalProxyProtocolDecoder extends ChannelInboundHandlerAdapter {
 
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
-        doChannelRead(ctx, msg);
-    }
-
-    /**
-     * @return the msg has been handled correctly, so not need to keep it.
-     */
-    public void doChannelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
         if (msg instanceof ByteBuf) {
             // Combine cumulated buffers.
             ByteBuf buf = (ByteBuf) msg;
@@ -74,7 +67,15 @@ public class OptionalProxyProtocolDecoder extends ChannelInboundHandlerAdapter {
             } finally {
                 // After the cumulated buffer has been handle correctly, release it.
                 if (cumulatedByteBuf != null && !cumulatedByteBuf.isReadable()) {
-                    cumulatedByteBuf.release();
+                    try {
+                        cumulatedByteBuf.release();
+                    } catch (IllegalReferenceCountException e) {
+                        //noinspection ThrowFromFinallyBlock
+                        throw new IllegalReferenceCountException(this.getClass().getSimpleName()
+                                + ".super.channelRead() might have released its input buffer, "
+                                + "or passed it down the pipeline without a retain() call, "
+                                + "which is not allowed.", e);
+                    }
                     cumulatedByteBuf = null;
                 }
             }
