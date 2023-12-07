@@ -20,15 +20,12 @@ package org.apache.pulsar.common.protocol;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.CompositeByteBuf;
-import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
-import io.netty.handler.codec.ByteToMessageDecoder;
 import io.netty.handler.codec.ProtocolDetectionResult;
 import io.netty.handler.codec.ProtocolDetectionState;
 import io.netty.handler.codec.haproxy.HAProxyMessageDecoder;
 import io.netty.handler.codec.haproxy.HAProxyProtocolVersion;
-import io.netty.util.IllegalReferenceCountException;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -40,7 +37,7 @@ public class OptionalProxyProtocolDecoder extends ChannelInboundHandlerAdapter {
 
     public static final String NAME = "optional-proxy-protocol-decoder";
 
-    ByteBuf cumulatedByteBuf;
+    private CompositeByteBuf cumulatedByteBuf;
 
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
@@ -48,39 +45,34 @@ public class OptionalProxyProtocolDecoder extends ChannelInboundHandlerAdapter {
             // Combine cumulated buffers.
             ByteBuf buf = (ByteBuf) msg;
             if (cumulatedByteBuf != null) {
-                buf = new CompositeByteBuf(ctx.alloc(), false, 2, cumulatedByteBuf, buf);
+                buf = cumulatedByteBuf.addComponent(true, buf);
             }
 
-            try {
-                ProtocolDetectionResult<HAProxyProtocolVersion> result = HAProxyMessageDecoder.detectProtocol(buf);
-                if (result.state() == ProtocolDetectionState.NEEDS_MORE_DATA) {
-                    // Accumulate data if need more data to detect the protocol.
-                    cumulatedByteBuf = ByteToMessageDecoder.MERGE_CUMULATOR.cumulate(ctx.alloc(),
-                            cumulatedByteBuf == null ? Unpooled.EMPTY_BUFFER : cumulatedByteBuf, (ByteBuf) msg);
-                    return;
+            ProtocolDetectionResult<HAProxyProtocolVersion> result = HAProxyMessageDecoder.detectProtocol(buf);
+            if (result.state() == ProtocolDetectionState.NEEDS_MORE_DATA) {
+                // Accumulate data if need more data to detect the protocol.
+                if (cumulatedByteBuf == null) {
+                    cumulatedByteBuf = new CompositeByteBuf(ctx.alloc(), false, 12, buf);
                 }
-                if (result.state() == ProtocolDetectionState.DETECTED) {
-                    ctx.pipeline().addAfter(NAME, null, new HAProxyMessageDecoder());
-                    ctx.pipeline().remove(this);
-                }
-                super.channelRead(ctx, buf);
-            } finally {
-                // After the cumulated buffer has been handle correctly, release it.
-                if (cumulatedByteBuf != null && !cumulatedByteBuf.isReadable()) {
-                    try {
-                        cumulatedByteBuf.release();
-                    } catch (IllegalReferenceCountException e) {
-                        //noinspection ThrowFromFinallyBlock
-                        throw new IllegalReferenceCountException(this.getClass().getSimpleName()
-                                + ".super.channelRead() might have released its input buffer, "
-                                + "or passed it down the pipeline without a retain() call, "
-                                + "which is not allowed.", e);
-                    }
-                    cumulatedByteBuf = null;
-                }
+                return;
             }
-            return;
+            cumulatedByteBuf = null;
+            if (result.state() == ProtocolDetectionState.DETECTED) {
+                ctx.pipeline().addAfter(NAME, null, new HAProxyMessageDecoder());
+                ctx.pipeline().remove(this);
+            }
+            super.channelRead(ctx, buf);
+        } else {
+            super.channelRead(ctx, msg);
         }
-        super.channelRead(ctx, msg);
+    }
+
+    @Override
+    public void channelInactive(ChannelHandlerContext ctx) throws Exception {
+        if (cumulatedByteBuf != null) {
+            log.info("Release cumulated byte buffer when channel inactive.");
+            cumulatedByteBuf = null;
+        }
+        ctx.fireChannelInactive();
     }
 }
