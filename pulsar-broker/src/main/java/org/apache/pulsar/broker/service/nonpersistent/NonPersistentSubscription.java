@@ -289,8 +289,8 @@ public class NonPersistentSubscription extends AbstractSubscription implements S
      * @return CompletableFuture indicating the completion of disconnect operation
      */
     @Override
-    public synchronized CompletableFuture<Void> disconnect(boolean disconnectConsumers,
-                                                           Optional<BrokerLookupData> assignedBrokerLookupData) {
+    public synchronized CompletableFuture<Void> close(boolean disconnectConsumers,
+                                                      Optional<BrokerLookupData> assignedBrokerLookupData) {
         CompletableFuture<Void> disconnectFuture = new CompletableFuture<>();
 
         // block any further consumers on this subscription
@@ -351,7 +351,7 @@ public class NonPersistentSubscription extends AbstractSubscription implements S
         CompletableFuture<Void> closeSubscriptionFuture = new CompletableFuture<>();
 
         if (closeIfConsumersConnected) {
-            this.disconnect(true, Optional.empty()).thenRun(() -> {
+            this.close(true, Optional.empty()).thenRun(() -> {
                 closeSubscriptionFuture.complete(null);
             }).exceptionally(ex -> {
                 log.error("[{}][{}] Error disconnecting and closing subscription", topicName, subName, ex);

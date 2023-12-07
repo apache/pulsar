@@ -69,8 +69,7 @@ public interface Subscription extends MessageExpirer {
 
     CompletableFuture<Void> deleteForcefully();
 
-    CompletableFuture<Void> disconnect(boolean disconnectConsumers,
-                                       Optional<BrokerLookupData> assignedBrokerLookupData);
+    CompletableFuture<Void> close(boolean disconnectConsumers, Optional<BrokerLookupData> assignedBrokerLookupData);
 
     CompletableFuture<Void> doUnsubscribe(Consumer consumer);
 

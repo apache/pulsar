@@ -422,7 +422,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
                 List<CompletableFuture<Void>> futures = new ArrayList<>();
                 replicators.forEach((cluster, replicator) -> futures.add(replicator.disconnect()));
                 producers.values().forEach(producer -> futures.add(producer.disconnect()));
-                subscriptions.forEach((s, sub) -> futures.add(sub.disconnect(true, Optional.empty())));
+                subscriptions.forEach((s, sub) -> futures.add(sub.close(true, Optional.empty())));
                 FutureUtil.waitForAll(futures).thenRun(() -> {
                     closeClientFuture.complete(null);
                 }).exceptionally(ex -> {
@@ -528,11 +528,11 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
             futures.add(ExtensibleLoadManagerImpl.getAssignedBrokerLookupData(
                     brokerService.getPulsar(), topic).thenAccept(lookupData -> {
                         producers.values().forEach(producer -> futures.add(producer.disconnect(lookupData)));
-                        subscriptions.forEach((s, sub) -> futures.add(sub.disconnect(true, lookupData)));
+                        subscriptions.forEach((s, sub) -> futures.add(sub.close(true, lookupData)));
                     }
             ));
         } else {
-            subscriptions.forEach((s, sub) -> futures.add(sub.disconnect(false, Optional.empty())));
+            subscriptions.forEach((s, sub) -> futures.add(sub.close(false, Optional.empty())));
         }
         if (topicPublishRateLimiter != null) {
             topicPublishRateLimiter.close();

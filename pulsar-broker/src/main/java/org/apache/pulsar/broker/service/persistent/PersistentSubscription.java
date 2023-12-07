@@ -903,13 +903,13 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
     }
 
     /**
-     * Disconnect all consumers attached to the dispatcher and close this subscription.
+     * Fence this subscription and optionally disconnect all consumers.
      *
-     * @return CompletableFuture indicating the completion of disconnect operation
+     * @return CompletableFuture indicating the completion of the operation.
      */
     @Override
-    public synchronized CompletableFuture<Void> disconnect(boolean disconnectConsumers,
-                                                           Optional<BrokerLookupData> assignedBrokerLookupData) {
+    public synchronized CompletableFuture<Void> close(boolean disconnectConsumers,
+                                                      Optional<BrokerLookupData> assignedBrokerLookupData) {
         if (fenceFuture != null) {
             return fenceFuture;
         }
@@ -926,11 +926,10 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
                 ? dispatcher.close(disconnectConsumers, assignedBrokerLookupData)
                 : CompletableFuture.completedFuture(null))
                 .thenCompose(v -> close()).thenRun(() -> {
-                    log.info("[{}][{}] Successfully disconnected and closed subscription", topicName, subName);
+                    log.info("[{}][{}] Successfully closed the subscription", topicName, subName);
                     future.complete(null);
                 }).exceptionally(exception -> {
-                    log.error("[{}][{}] Error disconnecting consumers from subscription", topicName, subName,
-                            exception);
+                    log.error("[{}][{}] Error closing the subscription", topicName, subName, exception);
                     future.completeExceptionally(exception);
                     resumeAfterFence();
                     return null;
@@ -942,7 +941,7 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
      * Resume subscription after topic deletion or close failure.
      */
     public synchronized void resumeAfterFence() {
-        // If "fenceFuture" is null, it means that "disconnect" has never been called.
+        // If "fenceFuture" is null, it means that "close" has never been called.
         if (fenceFuture != null) {
             fenceFuture.whenComplete((ignore, ignoreEx) -> {
                 synchronized (PersistentSubscription.this) {
@@ -999,7 +998,7 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
         CompletableFuture<Void> closeSubscriptionFuture = new CompletableFuture<>();
 
         if (closeIfConsumersConnected) {
-            this.disconnect(true, Optional.empty()).thenRun(() -> {
+            this.close(true, Optional.empty()).thenRun(() -> {
                 closeSubscriptionFuture.complete(null);
             }).exceptionally(ex -> {
                 log.error("[{}][{}] Error disconnecting and closing subscription", topicName, subName, ex);
