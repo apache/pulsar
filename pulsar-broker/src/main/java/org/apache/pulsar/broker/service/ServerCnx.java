@@ -642,6 +642,10 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         String authRole = useOriginalAuthState ? originalPrincipal : this.authRole;
         AuthData brokerData = authState.authenticate(clientData);
 
+        if (log.isDebugEnabled()) {
+            log.debug("Authenticate using original auth state : {}, role = {}", useOriginalAuthState, authRole);
+        }
+
         if (authState.isComplete()) {
             // Authentication has completed. It was either:
             // 1. the 1st time the authentication process was done, in which case we'll send
@@ -649,11 +653,6 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             // 2. an authentication refresh, in which case we need to refresh authenticationData
 
             String newAuthRole = authState.getAuthRole();
-
-            // Refresh the auth data.
-            if (log.isDebugEnabled()) {
-                log.debug("[{}] Auth data refreshed for role={}", remoteAddress, this.authRole);
-            }
 
             AuthenticationDataSource newAuthDataSource = authState.getAuthDataSource();
             if (state != State.Connected) {
