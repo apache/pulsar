@@ -55,21 +55,21 @@ public class OptionalProxyProtocolDecoder extends ChannelInboundHandlerAdapter {
             // Combine cumulated buffers.
             ByteBuf buf = (ByteBuf) msg;
             if (cumulatedByteBuf != null) {
-                buf = new CompositeByteBuf(ByteBufAllocator.DEFAULT, false, 2, cumulatedByteBuf, buf);
+                buf = new CompositeByteBuf(ctx.alloc(), false, 2, cumulatedByteBuf, buf);
             }
 
-            ProtocolDetectionResult<HAProxyProtocolVersion> result = HAProxyMessageDecoder.detectProtocol(buf);
-            if (result.state() == ProtocolDetectionState.NEEDS_MORE_DATA) {
-                // Accumulate data if need more data to detect the protocol.
-                cumulatedByteBuf = ByteToMessageDecoder.MERGE_CUMULATOR.cumulate(ctx.alloc(),
-                        cumulatedByteBuf == null ? Unpooled.EMPTY_BUFFER : cumulatedByteBuf, (ByteBuf) msg);
-                return;
-            }
-            if (result.state() == ProtocolDetectionState.DETECTED) {
-                ctx.pipeline().addAfter(NAME, null, new HAProxyMessageDecoder());
-                ctx.pipeline().remove(this);
-            }
             try {
+                ProtocolDetectionResult<HAProxyProtocolVersion> result = HAProxyMessageDecoder.detectProtocol(buf);
+                if (result.state() == ProtocolDetectionState.NEEDS_MORE_DATA) {
+                    // Accumulate data if need more data to detect the protocol.
+                    cumulatedByteBuf = ByteToMessageDecoder.MERGE_CUMULATOR.cumulate(ctx.alloc(),
+                            cumulatedByteBuf == null ? Unpooled.EMPTY_BUFFER : cumulatedByteBuf, (ByteBuf) msg);
+                    return;
+                }
+                if (result.state() == ProtocolDetectionState.DETECTED) {
+                    ctx.pipeline().addAfter(NAME, null, new HAProxyMessageDecoder());
+                    ctx.pipeline().remove(this);
+                }
                 super.channelRead(ctx, buf);
             } finally {
                 // After the cumulated buffer has been handle correctly, release it.
