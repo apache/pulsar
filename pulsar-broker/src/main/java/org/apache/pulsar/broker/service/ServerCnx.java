@@ -642,10 +642,6 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         String authRole = useOriginalAuthState ? originalPrincipal : this.authRole;
         AuthData brokerData = authState.authenticate(clientData);
 
-        if (log.isDebugEnabled()) {
-            log.debug("Authenticate using original auth state : {}, role = {}", useOriginalAuthState, authRole);
-        }
-
         if (authState.isComplete()) {
             // Authentication has completed. It was either:
             // 1. the 1st time the authentication process was done, in which case we'll send
@@ -659,18 +655,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 log.debug("[{}] Auth data refreshed for role={}", remoteAddress, this.authRole);
             }
 
-            if (!useOriginalAuthState) {
-                this.authRole = newAuthRole;
-                this.authenticationData = authState.getAuthDataSource();
-            } else {
-                this.originalAuthData = authState.getAuthDataSource();
-            }
-
-            if (log.isDebugEnabled()) {
-                log.debug("[{}] Client successfully authenticated with {} role {} and originalPrincipal {}",
-                        remoteAddress, authMethod, this.authRole, originalPrincipal);
-            }
-
+            AuthenticationDataSource newAuthDataSource = authState.getAuthDataSource();
             if (state != State.Connected) {
                 // First time authentication is done
                 if (service.isAuthenticationEnabled()) {
@@ -685,10 +670,23 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                             return;
                         }
                     }
+                    if (!useOriginalAuthState) {
+                        this.authRole = newAuthRole;
+                        this.authenticationData = newAuthDataSource;
+                    }
                     maybeScheduleAuthenticationCredentialsRefresh();
                 }
                 completeConnect(clientProtocolVersion, clientVersion);
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}] Client successfully authenticated with {} role {} and originalPrincipal {}",
+                            remoteAddress, authMethod, this.authRole, originalPrincipal);
+                }
             } else {
+                if (!useOriginalAuthState) {
+                    this.authenticationData = newAuthDataSource;
+                } else {
+                    this.originalAuthData = newAuthDataSource;
+                }
                 // If the connection was already ready, it means we're doing a refresh
                 if (!StringUtils.isEmpty(authRole)) {
                     if (!authRole.equals(newAuthRole)) {
