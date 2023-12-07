@@ -278,7 +278,7 @@ public class NonPersistentSubscription extends AbstractSubscription implements S
         return topic.isMigrated();
     }
 
-    private CompletableFuture<Void> close() {
+    private CompletableFuture<Void> fence() {
         IS_FENCED_UPDATER.set(this, TRUE);
         return CompletableFuture.completedFuture(null);
     }
@@ -291,7 +291,7 @@ public class NonPersistentSubscription extends AbstractSubscription implements S
     @Override
     public synchronized CompletableFuture<Void> close(boolean disconnectConsumers,
                                                       Optional<BrokerLookupData> assignedBrokerLookupData) {
-        CompletableFuture<Void> disconnectFuture = new CompletableFuture<>();
+        CompletableFuture<Void> closeFuture = new CompletableFuture<>();
 
         // block any further consumers on this subscription
         IS_FENCED_UPDATER.set(this, TRUE);
@@ -299,20 +299,20 @@ public class NonPersistentSubscription extends AbstractSubscription implements S
         (dispatcher != null
                 ? dispatcher.close(disconnectConsumers, assignedBrokerLookupData)
                 : CompletableFuture.completedFuture(null))
-                .thenCompose(v -> close()).thenRun(() -> {
+                .thenRun(() -> {
                     log.info("[{}][{}] Successfully closed subscription", topicName, subName);
-                    disconnectFuture.complete(null);
+                    closeFuture.complete(null);
                 }).exceptionally(exception -> {
                     IS_FENCED_UPDATER.set(this, FALSE);
                     if (dispatcher != null) {
                         dispatcher.reset();
                     }
                     log.error("[{}][{}] Error closing subscription", topicName, subName, exception);
-                    disconnectFuture.completeExceptionally(exception);
+                    closeFuture.completeExceptionally(exception);
                     return null;
                 });
 
-        return disconnectFuture;
+        return closeFuture;
     }
 
     /**
@@ -359,7 +359,7 @@ public class NonPersistentSubscription extends AbstractSubscription implements S
                 return null;
             });
         } else {
-            this.close().thenRun(() -> {
+            this.fence().thenRun(() -> {
                 closeSubscriptionFuture.complete(null);
             }).exceptionally(exception -> {
                 log.error("[{}][{}] Error closing subscription", topicName, subName, exception);

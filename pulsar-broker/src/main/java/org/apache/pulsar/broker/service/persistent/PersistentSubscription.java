@@ -309,7 +309,7 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
 
             if (!cursor.isDurable()) {
                 // If cursor is not durable, we need to clean up the subscription as well
-                this.close().thenRun(() -> {
+                this.close(true).thenRun(() -> {
                     synchronized (this) {
                         if (dispatcher != null) {
                             dispatcher.close().thenRun(() -> {
@@ -890,16 +890,14 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
      *
      * @return CompletableFuture indicating the completion of delete operation
      */
-    private CompletableFuture<Void> close() {
-        synchronized (this) {
-            if (dispatcher != null && dispatcher.isConsumerConnected()) {
-                return FutureUtil.failedFuture(new SubscriptionBusyException("Subscription has active consumers"));
-            }
-            return this.pendingAckHandle.closeAsync().thenAccept(v -> {
-                IS_FENCED_UPDATER.set(this, TRUE);
-                log.info("[{}][{}] Successfully closed subscription [{}]", topicName, subName, cursor);
-            });
+    private synchronized CompletableFuture<Void> close(boolean checkActiveConsumers) {
+        if (checkActiveConsumers && dispatcher != null && dispatcher.isConsumerConnected()) {
+            return FutureUtil.failedFuture(new SubscriptionBusyException("Subscription has active consumers"));
         }
+        return this.pendingAckHandle.closeAsync().thenAccept(v -> {
+            IS_FENCED_UPDATER.set(this, TRUE);
+            log.info("[{}][{}] Successfully closed subscription [{}]", topicName, subName, cursor);
+        });
     }
 
     /**
@@ -925,7 +923,7 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
         (dispatcher != null
                 ? dispatcher.close(disconnectConsumers, assignedBrokerLookupData)
                 : CompletableFuture.completedFuture(null))
-                .thenCompose(v -> close()).thenRun(() -> {
+                .thenCompose(v -> close(false)).thenRun(() -> {
                     log.info("[{}][{}] Successfully closed the subscription", topicName, subName);
                     future.complete(null);
                 }).exceptionally(exception -> {
@@ -1006,7 +1004,7 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
                 return null;
             });
         } else {
-            this.close().thenRun(() -> {
+            this.close(true).thenRun(() -> {
                 closeSubscriptionFuture.complete(null);
             }).exceptionally(exception -> {
                 log.error("[{}][{}] Error closing subscription", topicName, subName, exception);
