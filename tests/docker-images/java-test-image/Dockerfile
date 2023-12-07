@@ -19,8 +19,8 @@
 
 FROM ubuntu:22.04
 
-RUN groupadd -g 10001 pulsar
-RUN adduser -u 10000 --gid 10001 --disabled-login --disabled-password --gecos '' pulsar
+RUN groupadd -g 10000 pulsar && \
+    useradd -r -u 10000 -g pulsar pulsar
 
 ARG PULSAR_TARBALL=target/pulsar-server-distribution-bin.tar.gz
 ADD ${PULSAR_TARBALL} /
@@ -33,11 +33,11 @@ RUN chmod a+rx /pulsar/bin/*
 WORKDIR /pulsar
 
 ARG DEBIAN_FRONTEND=noninteractive
-ARG UBUNTU_MIRROR=mirror://mirrors.ubuntu.com/mirrors.txt
+ARG UBUNTU_MIRROR=http://archive.ubuntu.com/ubuntu/
 ARG UBUNTU_SECURITY_MIRROR=http://security.ubuntu.com/ubuntu/
 ARG JDK_MAJOR_VERSION=17
 
-RUN sed -i -e "s|http://archive\.ubuntu\.com/ubuntu/|${UBUNTU_MIRROR:-mirror://mirrors.ubuntu.com/mirrors.txt}|g" \
+RUN sed -i -e "s|http://archive\.ubuntu\.com/ubuntu/|${UBUNTU_MIRROR:-http://archive.ubuntu.com/ubuntu/}|g" \
      -e "s|http://security\.ubuntu\.com/ubuntu/|${UBUNTU_SECURITY_MIRROR:-http://security.ubuntu.com/ubuntu/}|g" /etc/apt/sources.list \
      && apt-get update \
      && apt-get -y dist-upgrade \
@@ -76,7 +76,7 @@ COPY target/java-test-functions.jar /pulsar/examples/
 
 ENV PULSAR_ROOT_LOGGER=INFO,CONSOLE
 
-RUN chown -R pulsar:0 /pulsar && chmod -R g=u /pulsar
+RUN chown -R pulsar:pulsar /pulsar
 
 # cleanup
 RUN apt-get -y --purge autoremove \

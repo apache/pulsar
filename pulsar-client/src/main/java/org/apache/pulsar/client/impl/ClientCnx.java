@@ -971,10 +971,6 @@ public class ClientCnx extends PulsarHandler {
         return ctx.channel();
     }
 
-    SocketAddress serverAddrees() {
-        return remoteAddress;
-    }
-
     CompletableFuture<Void> connectionFuture() {
         return connectionFuture;
     }
