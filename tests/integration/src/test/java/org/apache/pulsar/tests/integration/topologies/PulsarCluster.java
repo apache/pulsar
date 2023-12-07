@@ -116,14 +116,14 @@ public class PulsarCluster {
             prestoWorkerContainer = null;
         }
 
-
+        String configurationStore = csContainer.getUrl();
         this.zkContainer = new ZKContainer(clusterName);
         this.zkContainer
             .withNetwork(network)
             .withNetworkAliases(appendClusterName(ZKContainer.NAME))
             .withEnv("clusterName", clusterName)
             .withEnv("zkServers", appendClusterName(ZKContainer.NAME))
-            .withEnv("configurationStore", CSContainer.NAME + ":" + CS_PORT)
+            .withEnv("configurationStore", configurationStore)
             .withEnv("forceSync", "no")
             .withEnv("pulsarNode", appendClusterName("pulsar-broker-0"));
 
@@ -138,7 +138,7 @@ public class PulsarCluster {
                 .withNetworkAliases(appendClusterName("pulsar-proxy"))
                 .withEnv("zkServers", appendClusterName(ZKContainer.NAME))
                 .withEnv("zookeeperServers", appendClusterName(ZKContainer.NAME))
-                .withEnv("configurationStoreServers", CSContainer.NAME + ":" + CS_PORT)
+                .withEnv("configurationStoreServers", configurationStore)
                 .withEnv("clusterName", clusterName);
                 // enable mTLS
         if (spec.enableTls) {
@@ -200,7 +200,7 @@ public class PulsarCluster {
                         .withNetworkAliases(appendClusterName(name))
                         .withEnv("zkServers", appendClusterName(ZKContainer.NAME))
                         .withEnv("zookeeperServers", appendClusterName(ZKContainer.NAME))
-                        .withEnv("configurationStoreServers", CSContainer.NAME + ":" + CS_PORT)
+                        .withEnv("configurationStoreServers", configurationStore)
                         .withEnv("clusterName", clusterName)
                         .withEnv("brokerServiceCompactionMonitorIntervalInSeconds", "1")
                         .withEnv("loadBalancerOverrideBrokerNicSpeedGbps", "1")
@@ -253,6 +253,14 @@ public class PulsarCluster {
 
     public String getHttpServiceUrl() {
         return proxyContainer.getHttpServiceUrl();
+    }
+
+    public String getInternalBrokerServiceUrl() {
+        return proxyContainer.getInternalBrokerServiceUrl();
+    }
+
+    public String getInternalHttpServiceUrl() {
+        return proxyContainer.getInternalHttpServiceUrl();
     }
 
     public String getAnyBrokersHttpsServiceUrl() {

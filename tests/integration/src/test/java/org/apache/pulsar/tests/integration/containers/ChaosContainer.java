@@ -19,11 +19,10 @@
 package org.apache.pulsar.tests.integration.containers;
 
 import com.github.dockerjava.api.DockerClient;
-
 import java.util.Base64;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
-
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
 import org.apache.pulsar.tests.integration.utils.DockerUtils;
@@ -35,6 +34,7 @@ import org.testcontainers.containers.GenericContainer;
 @Slf4j
 public class ChaosContainer<SelfT extends ChaosContainer<SelfT>> extends GenericContainer<SelfT> {
 
+    @Getter
     protected final String clusterName;
 
     protected ChaosContainer(String clusterName, String image) {

@@ -30,7 +30,7 @@ public class PulsarGeoCluster {
     private final PulsarClusterSpec[] clusterSpecs;
 
     @Getter
-    private final CSContainer csContainer;
+    private final CSContainer[] csContainers;
 
     @Getter
     private final PulsarCluster[] clusters;
@@ -48,20 +48,25 @@ public class PulsarGeoCluster {
     public PulsarGeoCluster(PulsarClusterSpec... clusterSpecs) {
         this.clusterSpecs = clusterSpecs;
         this.clusters = new PulsarCluster[clusterSpecs.length];
+        this.csContainers = new CSContainer[clusterSpecs.length];
 
-        this.csContainer = new CSContainer("geo-cluster")
-                .withNetwork(Network.newNetwork())
-                .withNetworkAliases(CSContainer.NAME);
-
+        Network network = Network.newNetwork();
         for (int i = 0; i < this.clusters.length; i++) {
-            clusters[i] = PulsarCluster.forSpec(this.clusterSpecs[i], this.csContainer);
+            String csName = "configuration-store-" + i;
+            CSContainer csContainer = new CSContainer(csName, csName)
+                    .withNetwork(network)
+                    .withNetworkAliases(CSContainer.NAME);
+            csContainers[i] = csContainer;
+            clusters[i] = PulsarCluster.forSpec(this.clusterSpecs[i], csContainer);
         }
     }
 
     public void start() throws Exception {
         // start the configuration store
-        this.csContainer.start();
-        log.info("Successfully started configuration store container.");
+        for (CSContainer csContainer : csContainers) {
+            csContainer.start();
+            log.info("Successfully started configuration store container for cluster {}.", csContainer.getClusterName());
+        }
 
         for (PulsarCluster cluster : clusters) {
             cluster.start();
@@ -75,8 +80,11 @@ public class PulsarGeoCluster {
             log.info("Successfully stopped all components for cluster {}.", cluster.getClusterName());
         }
         // stop the configuration store
-        this.csContainer.stop();
-        log.info("Successfully stopped configuration store container.");
+        for (CSContainer csContainer : csContainers) {
+            csContainer.stop();
+            log.info("Successfully stopped configuration store container for cluster {}.",
+                    csContainer.getClusterName());
+        }
     }
 
 }

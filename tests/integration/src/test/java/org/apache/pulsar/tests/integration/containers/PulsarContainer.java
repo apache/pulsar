@@ -19,13 +19,13 @@
 package org.apache.pulsar.tests.integration.containers;
 
 import static java.time.temporal.ChronoUnit.SECONDS;
-
 import java.io.File;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.time.Duration;
 import java.util.Objects;
 import java.util.UUID;
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.FileUtils;
 import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
@@ -70,6 +70,7 @@ public abstract class PulsarContainer<SelfT extends PulsarContainer<SelfT>> exte
     public static final boolean PULSAR_CONTAINERS_LEAVE_RUNNING =
             Boolean.parseBoolean(System.getenv("PULSAR_CONTAINERS_LEAVE_RUNNING"));
 
+    @Getter
     protected final String hostname;
     private final String serviceName;
     private final String serviceEntryPoint;
@@ -319,5 +320,13 @@ public abstract class PulsarContainer<SelfT extends PulsarContainer<SelfT>> exte
 
     public String getHttpsServiceUrl() {
         return "https://" + getHost() + ":" + getMappedPort(httpsPort);
+    }
+
+    public String getInternalBrokerServiceUrl() {
+        return "pulsar://" + getNetworkAliases().get(0) + ":" + servicePort;
+    }
+
+    public String getInternalHttpServiceUrl() {
+        return "http://" + getNetworkAliases().get(0) + ":" + httpPort;
     }
 }
