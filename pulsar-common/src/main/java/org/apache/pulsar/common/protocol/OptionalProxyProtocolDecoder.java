@@ -57,6 +57,7 @@ public class OptionalProxyProtocolDecoder extends ChannelInboundHandlerAdapter {
                 return;
             }
             cumulatedByteBuf = null;
+
             if (result.state() == ProtocolDetectionState.DETECTED) {
                 ctx.pipeline().addAfter(NAME, null, new HAProxyMessageDecoder());
                 ctx.pipeline().remove(this);
