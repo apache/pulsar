@@ -309,7 +309,7 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
 
             if (!cursor.isDurable()) {
                 // If cursor is not durable, we need to clean up the subscription as well
-                this.close(true).thenRun(() -> {
+                this.close(false).thenRun(() -> {
                     synchronized (this) {
                         if (dispatcher != null) {
                             dispatcher.close().thenRun(() -> {
@@ -900,6 +900,31 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
         });
     }
 
+
+    /**
+     * Disconnect all consumers from this subscription.
+     *
+     * @return CompletableFuture indicating the completion of the operation.
+     */
+    @Override
+    public synchronized CompletableFuture<Void> disconnect(Optional<BrokerLookupData> assignedBrokerLookupData) {
+        CompletableFuture<Void> disconnectFuture = new CompletableFuture<>();
+
+        (dispatcher != null
+                ? dispatcher.disconnectAllConsumers(false, assignedBrokerLookupData)
+                : CompletableFuture.completedFuture(null))
+                .thenRun(() -> {
+                    log.info("[{}][{}] Successfully disconnected subscription consumers", topicName, subName);
+                    disconnectFuture.complete(null);
+                }).exceptionally(exception -> {
+                    log.error("[{}][{}] Error disconnecting subscription consumers", topicName, subName, exception);
+                    disconnectFuture.completeExceptionally(exception);
+                    return null;
+                });
+
+        return disconnectFuture;
+    }
+
     /**
      * Fence this subscription and optionally disconnect all consumers.
      *
@@ -912,10 +937,7 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
             return fenceFuture;
         }
 
-        CompletableFuture<Void> future = new CompletableFuture<>();
-        if (disconnectConsumers) {
-            fenceFuture = future;
-        }
+        fenceFuture = new CompletableFuture<>();
 
         // block any further consumers on this subscription
         IS_FENCED_UPDATER.set(this, TRUE);
@@ -925,14 +947,15 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
                 : CompletableFuture.completedFuture(null))
                 .thenCompose(v -> close(false)).thenRun(() -> {
                     log.info("[{}][{}] Successfully closed the subscription", topicName, subName);
-                    future.complete(null);
+                    fenceFuture.complete(null);
                 }).exceptionally(exception -> {
                     log.error("[{}][{}] Error closing the subscription", topicName, subName, exception);
-                    future.completeExceptionally(exception);
+                    fenceFuture.completeExceptionally(exception);
                     resumeAfterFence();
                     return null;
                 });
-        return future;
+
+        return fenceFuture;
     }
 
     /**

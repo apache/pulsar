@@ -278,6 +278,26 @@ public class NonPersistentSubscription extends AbstractSubscription implements S
         return topic.isMigrated();
     }
 
+    @Override
+    public synchronized CompletableFuture<Void> disconnect(Optional<BrokerLookupData> assignedBrokerLookupData) {
+        CompletableFuture<Void> closeFuture = new CompletableFuture<>();
+
+        (dispatcher != null
+                ? dispatcher.disconnectAllConsumers(false, assignedBrokerLookupData)
+                : CompletableFuture.completedFuture(null))
+                .thenRun(() -> {
+                    log.info("[{}][{}] Successfully disconnected subscription consumers", topicName, subName);
+                    closeFuture.complete(null);
+                }).exceptionally(exception -> {
+                    log.error("[{}][{}] Error disconnecting subscription consumers", topicName, subName, exception);
+                    closeFuture.completeExceptionally(exception);
+                    return null;
+                });
+
+        return closeFuture;
+
+    }
+
     private CompletableFuture<Void> fence() {
         IS_FENCED_UPDATER.set(this, TRUE);
         return CompletableFuture.completedFuture(null);

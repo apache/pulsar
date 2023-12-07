@@ -328,6 +328,12 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
             }
             return;
         }
+        if (topic.isTransferring()) {
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] Skipping read for the topic: topic is transferring", topic.getName());
+            }
+            return;
+        }
 
         if (consumer.getAvailablePermits() > 0) {
             synchronized (this) {

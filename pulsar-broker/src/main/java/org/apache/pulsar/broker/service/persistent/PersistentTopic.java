@@ -1510,7 +1510,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             futures.add(ExtensibleLoadManagerImpl.getAssignedBrokerLookupData(
                     brokerService.getPulsar(), topic).thenAccept(lookupData -> {
                       producers.values().forEach(producer -> futures.add(producer.disconnect(lookupData)));
-                      subscriptions.forEach((s, sub) -> futures.add(sub.close(true, lookupData)));
+                      subscriptions.forEach((s, sub) -> futures.add(sub.disconnect(lookupData)));
                     }
             ));
         } else {
