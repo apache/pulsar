@@ -477,7 +477,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                     new UnsupportedSubscriptionException(String.format("Unsupported subscription: %s", subName)));
         }
         // Fence old subscription -> Rewind cursor -> Replace with a new subscription.
-        return sub.disconnect(Optional.empty()).thenCompose(ignore -> {
+        return sub.disconnect(true, Optional.empty()).thenCompose(ignore -> {
             if (!lock.writeLock().tryLock()) {
                 return CompletableFuture.failedFuture(new SubscriptionConflictUnloadException(String.format("Conflict"
                         + " topic-close, topic-delete, another-subscribe-unload, cannot unload subscription %s now",
@@ -1360,7 +1360,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
                 CompletableFuture<Void> closeClientFuture = new CompletableFuture<>();
                 List<CompletableFuture<Void>> futures = new ArrayList<>();
-                subscriptions.forEach((s, sub) -> futures.add(sub.disconnect(Optional.empty())));
+                subscriptions.forEach((s, sub) -> futures.add(sub.disconnect(true, Optional.empty())));
                 if (closeIfClientsConnected) {
                     replicators.forEach((cluster, replicator) -> futures.add(replicator.disconnect()));
                     shadowReplicators.forEach((__, replicator) -> futures.add(replicator.disconnect()));
@@ -1510,9 +1510,11 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             futures.add(ExtensibleLoadManagerImpl.getAssignedBrokerLookupData(
                     brokerService.getPulsar(), topic).thenAccept(lookupData -> {
                       producers.values().forEach(producer -> futures.add(producer.disconnect(lookupData)));
-                      subscriptions.forEach((s, sub) -> futures.add(sub.disconnect(lookupData)));
+                      subscriptions.forEach((s, sub) -> futures.add(sub.disconnect(true, lookupData)));
                     }
             ));
+        } else {
+            subscriptions.forEach((s, sub) -> futures.add(sub.disconnect(false, Optional.empty())));
         }
         if (topicPublishRateLimiter != null) {
             topicPublishRateLimiter.close();

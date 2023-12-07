@@ -82,8 +82,6 @@ public abstract class AbstractDispatcherSingleActiveConsumer extends AbstractBas
 
     protected abstract void scheduleReadOnActiveConsumer();
 
-    protected abstract void readMoreEntries(Consumer consumer);
-
     protected abstract void cancelPendingRead();
 
     protected void notifyActiveConsumerChanged(Consumer activeConsumer) {
@@ -259,9 +257,12 @@ public abstract class AbstractDispatcherSingleActiveConsumer extends AbstractBas
         return (consumers.size() == 1) && Objects.equals(consumer, ACTIVE_CONSUMER_UPDATER.get(this));
     }
 
-    public CompletableFuture<Void> close(Optional<BrokerLookupData> assignedBrokerLookupData) {
+    @Override
+    public CompletableFuture<Void> close(boolean disconnectConsumers,
+                                         Optional<BrokerLookupData> assignedBrokerLookupData) {
         IS_CLOSED_UPDATER.set(this, TRUE);
-        return disconnectAllConsumers(false, assignedBrokerLookupData);
+        return disconnectConsumers
+                ? disconnectAllConsumers(false, assignedBrokerLookupData) : CompletableFuture.completedFuture(null);
     }
 
     public boolean isClosed() {

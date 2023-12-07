@@ -890,8 +890,7 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
      *
      * @return CompletableFuture indicating the completion of delete operation
      */
-    @Override
-    public CompletableFuture<Void> close() {
+    private CompletableFuture<Void> close() {
         synchronized (this) {
             if (dispatcher != null && dispatcher.isConsumerConnected()) {
                 return FutureUtil.failedFuture(new SubscriptionBusyException("Subscription has active consumers"));
@@ -909,27 +908,34 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
      * @return CompletableFuture indicating the completion of disconnect operation
      */
     @Override
-    public synchronized CompletableFuture<Void> disconnect(Optional<BrokerLookupData> assignedBrokerLookupData) {
+    public synchronized CompletableFuture<Void> disconnect(boolean disconnectConsumers,
+                                                           Optional<BrokerLookupData> assignedBrokerLookupData) {
         if (fenceFuture != null) {
             return fenceFuture;
         }
-        fenceFuture = new CompletableFuture<>();
+
+        CompletableFuture<Void> future = new CompletableFuture<>();
+        if (disconnectConsumers) {
+            fenceFuture = future;
+        }
 
         // block any further consumers on this subscription
         IS_FENCED_UPDATER.set(this, TRUE);
 
-        (dispatcher != null ? dispatcher.close(assignedBrokerLookupData) : CompletableFuture.completedFuture(null))
+        (dispatcher != null
+                ? dispatcher.close(disconnectConsumers, assignedBrokerLookupData)
+                : CompletableFuture.completedFuture(null))
                 .thenCompose(v -> close()).thenRun(() -> {
                     log.info("[{}][{}] Successfully disconnected and closed subscription", topicName, subName);
-                    fenceFuture.complete(null);
+                    future.complete(null);
                 }).exceptionally(exception -> {
                     log.error("[{}][{}] Error disconnecting consumers from subscription", topicName, subName,
                             exception);
-                    fenceFuture.completeExceptionally(exception);
+                    future.completeExceptionally(exception);
                     resumeAfterFence();
                     return null;
                 });
-        return fenceFuture;
+        return future;
     }
 
     /**
@@ -993,7 +999,7 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
         CompletableFuture<Void> closeSubscriptionFuture = new CompletableFuture<>();
 
         if (closeIfConsumersConnected) {
-            this.disconnect(Optional.empty()).thenRun(() -> {
+            this.disconnect(true, Optional.empty()).thenRun(() -> {
                 closeSubscriptionFuture.complete(null);
             }).exceptionally(ex -> {
                 log.error("[{}][{}] Error disconnecting and closing subscription", topicName, subName, ex);

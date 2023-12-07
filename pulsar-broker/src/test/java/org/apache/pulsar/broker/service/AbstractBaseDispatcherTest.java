@@ -280,7 +280,8 @@ public class AbstractBaseDispatcherTest {
         }
 
         @Override
-        public CompletableFuture<Void> close(Optional<BrokerLookupData> assignedBrokerLookupData) {
+        public CompletableFuture<Void> close(boolean disconnectConsumers,
+                                             Optional<BrokerLookupData> assignedBrokerLookupData) {
             return null;
         }
 

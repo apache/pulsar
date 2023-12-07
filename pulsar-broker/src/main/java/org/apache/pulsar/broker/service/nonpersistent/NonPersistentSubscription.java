@@ -278,8 +278,7 @@ public class NonPersistentSubscription extends AbstractSubscription implements S
         return topic.isMigrated();
     }
 
-    @Override
-    public CompletableFuture<Void> close() {
+    private CompletableFuture<Void> close() {
         IS_FENCED_UPDATER.set(this, TRUE);
         return CompletableFuture.completedFuture(null);
     }
@@ -290,23 +289,25 @@ public class NonPersistentSubscription extends AbstractSubscription implements S
      * @return CompletableFuture indicating the completion of disconnect operation
      */
     @Override
-    public synchronized CompletableFuture<Void> disconnect(Optional<BrokerLookupData> assignedBrokerLookupData) {
+    public synchronized CompletableFuture<Void> disconnect(boolean disconnectConsumers,
+                                                           Optional<BrokerLookupData> assignedBrokerLookupData) {
         CompletableFuture<Void> disconnectFuture = new CompletableFuture<>();
 
         // block any further consumers on this subscription
         IS_FENCED_UPDATER.set(this, TRUE);
 
-        (dispatcher != null ? dispatcher.close(assignedBrokerLookupData) : CompletableFuture.completedFuture(null))
+        (dispatcher != null
+                ? dispatcher.close(disconnectConsumers, assignedBrokerLookupData)
+                : CompletableFuture.completedFuture(null))
                 .thenCompose(v -> close()).thenRun(() -> {
-                    log.info("[{}][{}] Successfully disconnected and closed subscription", topicName, subName);
+                    log.info("[{}][{}] Successfully closed subscription", topicName, subName);
                     disconnectFuture.complete(null);
                 }).exceptionally(exception -> {
                     IS_FENCED_UPDATER.set(this, FALSE);
                     if (dispatcher != null) {
                         dispatcher.reset();
                     }
-                    log.error("[{}][{}] Error disconnecting consumers from subscription", topicName, subName,
-                            exception);
+                    log.error("[{}][{}] Error closing subscription", topicName, subName, exception);
                     disconnectFuture.completeExceptionally(exception);
                     return null;
                 });
@@ -350,7 +351,7 @@ public class NonPersistentSubscription extends AbstractSubscription implements S
         CompletableFuture<Void> closeSubscriptionFuture = new CompletableFuture<>();
 
         if (closeIfConsumersConnected) {
-            this.disconnect(Optional.empty()).thenRun(() -> {
+            this.disconnect(true, Optional.empty()).thenRun(() -> {
                 closeSubscriptionFuture.complete(null);
             }).exceptionally(ex -> {
                 log.error("[{}][{}] Error disconnecting and closing subscription", topicName, subName, ex);

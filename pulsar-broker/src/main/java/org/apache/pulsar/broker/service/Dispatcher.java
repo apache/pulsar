@@ -51,10 +51,10 @@ public interface Dispatcher {
      * @return
      */
     default CompletableFuture<Void> close() {
-        return close(Optional.empty());
+        return close(true, Optional.empty());
     }
 
-    CompletableFuture<Void> close(Optional<BrokerLookupData> assignedBrokerLookupData);
+    CompletableFuture<Void> close(boolean disconnectClients, Optional<BrokerLookupData> assignedBrokerLookupData);
 
     boolean isClosed();
 

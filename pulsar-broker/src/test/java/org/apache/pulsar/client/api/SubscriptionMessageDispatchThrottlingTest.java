@@ -909,7 +909,7 @@ public class SubscriptionMessageDispatchThrottlingTest extends MessageDispatchTh
 
         producer.close();
         consumer.close();
-        sub.disconnect(Optional.empty()).get();
+        sub.disconnect(true, Optional.empty()).get();
 
         // Make sure that the rate limiter is closed
         Assert.assertEquals(dispatchRateLimiter.getDispatchRateOnMsg(), -1);
