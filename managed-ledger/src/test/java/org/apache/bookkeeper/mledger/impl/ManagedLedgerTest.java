@@ -4171,7 +4171,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         // And the second is the complete the offload. This case is testing when completing the offload,
         // the metadata store meets an exception.
         AtomicInteger metadataPutCallCount = new AtomicInteger(0);
-        metadataStore.failConditional(new MetadataStoreException("mock error"),
+        metadataStore.failConditional(new MetadataStoreException("mock completion error"),
             (key, value) -> key.equals(FaultInjectionMetadataStore.OperationType.PUT) &&
                 metadataPutCallCount.incrementAndGet() == 2);
 
@@ -4197,8 +4197,10 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         // waiting for the offload complete
         try {
             future.join();
+            fail("The offload should fail");
         } catch (Exception e) {
-            // ignore
+            // the offload should fail
+            assertTrue(e.getCause().getMessage().contains("mock completion error"));
         }
 
         // the ledger deletion shouldn't happen
