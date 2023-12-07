@@ -19,8 +19,8 @@
 
 FROM ubuntu:22.04
 
-RUN groupadd -g 10001 pulsar
-RUN adduser -u 10000 --gid 10001 --disabled-login --disabled-password --gecos '' pulsar
+RUN groupadd -g 10000 pulsar && \
+    useradd -r -u 10000 -g pulsar pulsar
 
 ARG PULSAR_TARBALL=target/pulsar-server-distribution-bin.tar.gz
 ADD ${PULSAR_TARBALL} /
@@ -76,7 +76,7 @@ COPY target/java-test-functions.jar /pulsar/examples/
 
 ENV PULSAR_ROOT_LOGGER=INFO,CONSOLE
 
-RUN chown -R pulsar:0 /pulsar && chmod -R g=u /pulsar
+RUN chown -R pulsar:pulsar /pulsar
 
 # cleanup
 RUN apt-get -y --purge autoremove \
