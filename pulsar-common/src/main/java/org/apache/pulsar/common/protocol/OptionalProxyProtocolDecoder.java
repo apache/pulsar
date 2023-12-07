@@ -37,6 +37,8 @@ public class OptionalProxyProtocolDecoder extends ChannelInboundHandlerAdapter {
 
     public static final String NAME = "optional-proxy-protocol-decoder";
 
+    public static final int MIN_BYTES_SIZE_TO_DETECT_PROTOCOL = 12;
+
     private CompositeByteBuf cumulatedByteBuf;
 
     @Override
@@ -52,7 +54,7 @@ public class OptionalProxyProtocolDecoder extends ChannelInboundHandlerAdapter {
             if (result.state() == ProtocolDetectionState.NEEDS_MORE_DATA) {
                 // Accumulate data if need more data to detect the protocol.
                 if (cumulatedByteBuf == null) {
-                    cumulatedByteBuf = new CompositeByteBuf(ctx.alloc(), false, 12, buf);
+                    cumulatedByteBuf = new CompositeByteBuf(ctx.alloc(), false, MIN_BYTES_SIZE_TO_DETECT_PROTOCOL, buf);
                 }
                 return;
             }
@@ -70,10 +72,10 @@ public class OptionalProxyProtocolDecoder extends ChannelInboundHandlerAdapter {
 
     @Override
     public void channelInactive(ChannelHandlerContext ctx) throws Exception {
+        super.channelInactive(ctx);
         if (cumulatedByteBuf != null) {
             log.info("Release cumulated byte buffer when channel inactive.");
             cumulatedByteBuf = null;
         }
-        ctx.fireChannelInactive();
     }
 }
