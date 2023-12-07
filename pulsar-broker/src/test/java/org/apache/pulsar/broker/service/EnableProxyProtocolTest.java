@@ -19,12 +19,18 @@
 package org.apache.pulsar.broker.service;
 
 import io.netty.buffer.Unpooled;
+import io.netty.channel.ChannelHandlerContext;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import org.apache.pulsar.broker.BrokerTestUtil;
+import org.apache.pulsar.client.api.ClientBuilder;
+import org.apache.pulsar.client.api.InjectedClientCnxClientBuilder;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.impl.ClientBuilderImpl;
 import org.apache.pulsar.client.impl.ClientCnx;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
@@ -35,9 +41,6 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-import java.net.InetSocketAddress;
-import java.util.concurrent.CompletableFuture;
-
 @Test(groups = "broker")
 public class EnableProxyProtocolTest extends BrokerTestBase  {
 
@@ -46,6 +49,15 @@ public class EnableProxyProtocolTest extends BrokerTestBase  {
     protected void setup() throws Exception {
         conf.setHaProxyProtocolEnabled(true);
         super.baseSetup();
+    }
+
+    protected PulsarClient newPulsarClient(String url, int intervalInSecs) throws PulsarClientException {
+        ClientBuilder clientBuilder =
+                PulsarClient.builder()
+                        .serviceUrl(url)
+                        .statsInterval(intervalInSecs, TimeUnit.SECONDS);
+        customizeNewPulsarClientBuilder(clientBuilder);
+        return createNewPulsarClient(clientBuilder);
     }
 
     @AfterClass(alwaysRun = true)
@@ -93,15 +105,20 @@ public class EnableProxyProtocolTest extends BrokerTestBase  {
         final String namespace = "prop/ns-abc";
         final String topicName = "persistent://" + namespace + "/testProxyProtocol";
         final String subName = "my-subscriber-name";
-        PulsarClientImpl client = (PulsarClientImpl) pulsarClient;
-        CompletableFuture<ClientCnx> cnx = client.getCnxPool().getConnection(
-                InetSocketAddress.createUnresolved("localhost", pulsar.getBrokerListenPort().get()));
-        // Simulate the proxy protcol message
-        cnx.get().ctx().channel().writeAndFlush(
-                Unpooled.copiedBuffer("PROXY TCP4 198.51.100.22 203.0.113.7 35646 80\r\n".getBytes()));
+
+        // Create a client that injected the protocol implementation.
+        ClientBuilderImpl clientBuilder = (ClientBuilderImpl) PulsarClient.builder().serviceUrl(lookupUrl.toString());
+        PulsarClientImpl protocolClient = InjectedClientCnxClientBuilder.create(clientBuilder,
+                (conf, eventLoopGroup) -> new ClientCnx(conf, eventLoopGroup) {
+                    public void channelActive(ChannelHandlerContext ctx) throws Exception {
+                        byte[] bs = "PROXY TCP4 198.51.100.22 203.0.113.7 35646 80\r\n".getBytes();
+                        ctx.writeAndFlush(Unpooled.copiedBuffer(bs));
+                        super.channelActive(ctx);
+                    }
+                });
 
         // Verify the addr can be handled correctly.
-        testPubAndSub(topicName, subName, "198.51.100.22:35646");
+        testPubAndSub(topicName, subName, "198.51.100.22:35646", protocolClient);
 
         // cleanup.
         admin.topics().delete(topicName);
@@ -112,24 +129,30 @@ public class EnableProxyProtocolTest extends BrokerTestBase  {
         final String namespace = "prop/ns-abc";
         final String topicName = BrokerTestUtil.newUniqueName("persistent://" + namespace + "/tp");
         final String subName = "my-subscriber-name";
-        PulsarClientImpl client = (PulsarClientImpl) pulsarClient;
-        CompletableFuture<ClientCnx> cnx = client.getCnxPool().getConnection(
-                InetSocketAddress.createUnresolved("localhost", pulsar.getBrokerListenPort().get()));
-        // Simulate the proxy protcol message
-        byte[] bs = "PROXY TCP4 198.51.100.22 203.0.113.7 35646 80\r\n".getBytes();
-        for (int i = 0; i < bs.length; i++) {
-            cnx.get().ctx().channel().writeAndFlush(Unpooled.copiedBuffer(new byte[]{bs[i]}));
-            Thread.sleep(100);
-        }
+
+        // Create a client that injected the protocol implementation.
+        ClientBuilderImpl clientBuilder = (ClientBuilderImpl) PulsarClient.builder().serviceUrl(lookupUrl.toString());
+        PulsarClientImpl protocolClient = InjectedClientCnxClientBuilder.create(clientBuilder,
+                (conf, eventLoopGroup) -> new ClientCnx(conf, eventLoopGroup) {
+                    public void channelActive(ChannelHandlerContext ctx) throws Exception {
+                        byte[] bs = "PROXY TCP4 198.51.100.22 203.0.113.7 35646 80\r\n".getBytes();
+                        for (int i = 0; i < bs.length; i++) {
+                            ctx.channel().writeAndFlush(Unpooled.copiedBuffer(new byte[]{bs[i]}));
+                            Thread.sleep(100);
+                        }
+                        super.channelActive(ctx);
+                    }
+                });
 
         // Verify the addr can be handled correctly.
-        testPubAndSub(topicName, subName, "198.51.100.22:35646");
+        testPubAndSub(topicName, subName, "198.51.100.22:35646", protocolClient);
 
         // cleanup.
         admin.topics().delete(topicName);
     }
 
-    private void testPubAndSub(String topicName, String subName, String expectedHostAndPort) throws Exception {
+    private void testPubAndSub(String topicName, String subName, String expectedHostAndPort,
+                               PulsarClientImpl pulsarClient) throws Exception {
         // Verify: subscribe
         org.apache.pulsar.client.api.Consumer<String> clientConsumer = pulsarClient.newConsumer(Schema.STRING).topic(topicName)
                 .subscriptionName(subName).subscribe();

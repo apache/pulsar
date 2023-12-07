@@ -62,8 +62,8 @@ public class OptionalProxyProtocolDecoder extends ChannelInboundHandlerAdapter {
 
             if (result.state() == ProtocolDetectionState.DETECTED) {
                 ctx.pipeline().addAfter(NAME, null, new HAProxyMessageDecoder());
-                ctx.pipeline().remove(this);
             }
+            ctx.pipeline().remove(this);
             super.channelRead(ctx, buf);
         } else {
             super.channelRead(ctx, msg);
