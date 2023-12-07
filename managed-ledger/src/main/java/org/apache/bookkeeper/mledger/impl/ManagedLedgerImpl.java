@@ -3209,7 +3209,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
     }
 
-    private void offloadLoop(CompletableFuture<PositionImpl> promise, Queue<LedgerInfo> ledgersToOffload,
+    void offloadLoop(CompletableFuture<PositionImpl> promise, Queue<LedgerInfo> ledgersToOffload,
             PositionImpl firstUnoffloaded, Optional<Throwable> firstError) {
         State currentState = getState();
         if (currentState == State.Closed) {
@@ -3257,6 +3257,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                                             log.error("[{}] Failed to update offloaded metadata for the ledgerId {}, "
                                                             + "the offloaded data will not be cleaned up",
                                                     name, ledgerId, exception);
+                                            return;
                                         } else {
                                             log.error("[{}] Failed to offload data for the ledgerId {}, "
                                                             + "clean up the offloaded data",
