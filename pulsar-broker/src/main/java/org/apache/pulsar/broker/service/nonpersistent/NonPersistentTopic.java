@@ -631,8 +631,8 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
         return AbstractReplicator.validatePartitionedTopicAsync(nonPersistentTopic.getName(), brokerService)
                 .thenCompose(__ -> brokerService.pulsar().getPulsarResources().getClusterResources()
                         .getClusterAsync(remoteCluster)
-                        .thenApply(clusterData ->
-                                brokerService.getReplicationClient(remoteCluster, clusterData)))
+                        .thenCompose(clusterData -> createTopicForRemoteCluster(remoteCluster, clusterData)
+                                .thenApply(___ -> brokerService.getReplicationClient(remoteCluster, clusterData))))
                 .thenAccept(replicationClient -> {
                     replicators.computeIfAbsent(remoteCluster, r -> {
                         try {
