@@ -34,6 +34,7 @@ import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.service.schema.SchemaRegistry.SchemaAndMetadata;
 import org.apache.pulsar.broker.service.schema.SchemaRegistryService;
 import org.apache.pulsar.broker.web.RestException;
+import org.apache.pulsar.client.impl.schema.SchemaUtils;
 import org.apache.pulsar.client.internal.DefaultImplementation;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
@@ -146,8 +147,13 @@ public class SchemasResourceBase extends AdminResource {
                 .thenCompose(__ -> getSchemaCompatibilityStrategyAsync())
                 .thenCompose(strategy -> {
                     String schemaId = getSchemaId();
+                    final SchemaType schemaType = SchemaType.valueOf(payload.getType());
+                    byte[] data = payload.getSchema().getBytes(StandardCharsets.UTF_8);
+                    if (schemaType.getValue() == SchemaType.KEY_VALUE.getValue()) {
+                        data = SchemaUtils.convertKeyValueDataStringToSchemaInfoSchema(data);
+                    }
                     return pulsar().getSchemaRegistryService().isCompatible(schemaId,
-                            SchemaData.builder().data(payload.getSchema().getBytes(StandardCharsets.UTF_8))
+                            SchemaData.builder().data(data)
                                     .isDeleted(false)
                                     .timestamp(clock.millis()).type(SchemaType.valueOf(payload.getType()))
                                     .user(defaultIfEmpty(clientAppId(), ""))
@@ -161,10 +167,14 @@ public class SchemasResourceBase extends AdminResource {
         return validateOwnershipAndOperationAsync(authoritative, TopicOperation.GET_METADATA)
                 .thenCompose(__ -> {
                     String schemaId = getSchemaId();
+                    final SchemaType schemaType = SchemaType.valueOf(payload.getType());
+                    byte[] data = payload.getSchema().getBytes(StandardCharsets.UTF_8);
+                    if (schemaType.getValue() == SchemaType.KEY_VALUE.getValue()) {
+                        data = SchemaUtils.convertKeyValueDataStringToSchemaInfoSchema(data);
+                    }
                     return pulsar().getSchemaRegistryService()
                             .findSchemaVersion(schemaId,
-                                    SchemaData.builder().data(payload.getSchema().getBytes(StandardCharsets.UTF_8))
-                                            .isDeleted(false).timestamp(clock.millis())
+                                    SchemaData.builder().data(data).isDeleted(false).timestamp(clock.millis())
                                             .type(SchemaType.valueOf(payload.getType()))
                                             .user(defaultIfEmpty(clientAppId(), ""))
                                             .props(payload.getProperties()).build());

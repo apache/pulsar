@@ -80,6 +80,7 @@ import org.apache.pulsar.broker.service.AnalyzeBacklogResult;
 import org.apache.pulsar.broker.service.BrokerServiceException.AlreadyRunningException;
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionBusyException;
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionInvalidCursorPosition;
+import org.apache.pulsar.broker.service.GetStatsOptions;
 import org.apache.pulsar.broker.service.MessageExpirer;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.Topic;
@@ -1254,9 +1255,7 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     protected CompletableFuture<? extends TopicStats> internalGetStatsAsync(boolean authoritative,
-                                                                            boolean getPreciseBacklog,
-                                                                            boolean subscriptionBacklogSize,
-                                                                            boolean getEarliestTimeInBacklog) {
+                                                                            GetStatsOptions getStatsOptions) {
         CompletableFuture<Void> future;
 
         if (topicName.isGlobal()) {
@@ -1268,8 +1267,7 @@ public class PersistentTopicsBase extends AdminResource {
         return future.thenCompose(__ -> validateTopicOwnershipAsync(topicName, authoritative))
                 .thenComposeAsync(__ -> validateTopicOperationAsync(topicName, TopicOperation.GET_STATS))
                 .thenCompose(__ -> getTopicReferenceAsync(topicName))
-                .thenCompose(topic -> topic.asyncGetStats(getPreciseBacklog, subscriptionBacklogSize,
-                        getEarliestTimeInBacklog));
+                .thenCompose(topic -> topic.asyncGetStats(getStatsOptions));
     }
 
     protected CompletableFuture<PersistentTopicInternalStats> internalGetInternalStatsAsync(boolean authoritative,
@@ -1402,8 +1400,7 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     protected void internalGetPartitionedStats(AsyncResponse asyncResponse, boolean authoritative, boolean perPartition,
-                                               boolean getPreciseBacklog, boolean subscriptionBacklogSize,
-                                               boolean getEarliestTimeInBacklog) {
+                                               GetStatsOptions getStatsOptions) {
         CompletableFuture<Void> future;
         if (topicName.isGlobal()) {
             future = validateGlobalNamespaceOwnershipAsync(namespaceName);
@@ -1419,6 +1416,14 @@ public class PersistentTopicsBase extends AdminResource {
             }
             PartitionedTopicStatsImpl stats = new PartitionedTopicStatsImpl(partitionMetadata);
             List<CompletableFuture<TopicStats>> topicStatsFutureList = new ArrayList<>(partitionMetadata.partitions);
+            org.apache.pulsar.client.admin.GetStatsOptions statsOptions =
+                    new org.apache.pulsar.client.admin.GetStatsOptions(
+                            getStatsOptions.isGetPreciseBacklog(),
+                            getStatsOptions.isSubscriptionBacklogSize(),
+                            getStatsOptions.isGetEarliestTimeInBacklog(),
+                            getStatsOptions.isExcludePublishers(),
+                            getStatsOptions.isExcludeConsumers()
+                    );
             for (int i = 0; i < partitionMetadata.partitions; i++) {
                 TopicName partition = topicName.getPartition(i);
                 topicStatsFutureList.add(
@@ -1428,13 +1433,11 @@ public class PersistentTopicsBase extends AdminResource {
                             if (owned) {
                                 return getTopicReferenceAsync(partition)
                                     .thenApply(ref ->
-                                        ref.getStats(getPreciseBacklog, subscriptionBacklogSize,
-                                            getEarliestTimeInBacklog));
+                                        ref.getStats(getStatsOptions));
                             } else {
                                 try {
                                     return pulsar().getAdminClient().topics().getStatsAsync(
-                                        partition.toString(), getPreciseBacklog, subscriptionBacklogSize,
-                                        getEarliestTimeInBacklog);
+                                        partition.toString(), statsOptions);
                                 } catch (PulsarServerException e) {
                                     return FutureUtil.failedFuture(e);
                                 }
@@ -3370,6 +3373,9 @@ public class PersistentTopicsBase extends AdminResource {
         return validateTopicPolicyOperationAsync(topicName, PolicyName.REPLICATION, PolicyOperation.WRITE)
                 .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
                 .thenCompose(__ -> {
+                    if (CollectionUtils.isEmpty(clusterIds)) {
+                        throw new RestException(Status.PRECONDITION_FAILED, "ClusterIds should not be null or empty");
+                    }
                     Set<String> replicationClusters = Sets.newHashSet(clusterIds);
                     if (replicationClusters.contains("global")) {
                         throw new RestException(Status.PRECONDITION_FAILED,

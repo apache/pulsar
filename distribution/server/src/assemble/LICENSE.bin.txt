@@ -307,7 +307,6 @@ The Apache Software License, Version 2.0
     - io.netty-netty-transport-4.1.100.Final.jar
     - io.netty-netty-transport-classes-epoll-4.1.100.Final.jar
     - io.netty-netty-transport-native-epoll-4.1.100.Final-linux-x86_64.jar
-    - io.netty-netty-transport-native-epoll-4.1.100.Final.jar
     - io.netty-netty-transport-native-unix-common-4.1.100.Final.jar
     - io.netty-netty-transport-native-unix-common-4.1.100.Final-linux-x86_64.jar
     - io.netty-netty-tcnative-boringssl-static-2.0.61.Final.jar
@@ -480,9 +479,9 @@ The Apache Software License, Version 2.0
     - io.vertx-vertx-web-common-4.3.8.jar
     - io.vertx-vertx-grpc-4.3.5.jar
   * Apache ZooKeeper
-    - org.apache.zookeeper-zookeeper-3.8.3.jar
-    - org.apache.zookeeper-zookeeper-jute-3.8.3.jar
-    - org.apache.zookeeper-zookeeper-prometheus-metrics-3.8.3.jar
+    - org.apache.zookeeper-zookeeper-3.9.1.jar
+    - org.apache.zookeeper-zookeeper-jute-3.9.1.jar
+    - org.apache.zookeeper-zookeeper-prometheus-metrics-3.9.1.jar
   * Snappy Java
     - org.xerial.snappy-snappy-java-1.1.10.5.jar
   * Google HTTP Client
@@ -499,8 +498,6 @@ The Apache Software License, Version 2.0
     - com.github.seancfoley-ipaddress-5.3.3.jar
   * RxJava
     - io.reactivex.rxjava3-rxjava-3.0.1.jar
-  * RabbitMQ Java Client
-    - com.rabbitmq-amqp-client-5.5.3.jar
   * RoaringBitmap
     - org.roaringbitmap-RoaringBitmap-0.9.44.jar
 

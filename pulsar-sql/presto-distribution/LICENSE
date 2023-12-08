@@ -472,14 +472,12 @@ The Apache Software License, Version 2.0
     - memory-0.8.3.jar
     - sketches-core-0.8.3.jar
   * Apache Zookeeper
-    - zookeeper-3.8.3.jar
-    - zookeeper-jute-3.8.3.jar
+    - zookeeper-3.9.1.jar
+    - zookeeper-jute-3.9.1.jar
   * Apache Yetus Audience Annotations
     - audience-annotations-0.12.0.jar
   * Perfmark
     - perfmark-api-0.26.0.jar
-  * RabbitMQ Java Client
-    - amqp-client-5.5.3.jar
   * Stream Lib
     - stream-2.9.5.jar
   * High Performance Primitive Collections for Java

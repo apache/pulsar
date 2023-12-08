@@ -23,6 +23,7 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
+import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import java.lang.reflect.Field;
@@ -2990,6 +2991,10 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         admin.topics().removeReplicationClusters(topic);
         Awaitility.await().untilAsserted(()
                 -> assertNull(admin.topics().getReplicationClusters(topic, false)));
+
+        assertThrows(PulsarAdminException.PreconditionFailedException.class, () -> admin.topics().setReplicationClusters(topic, List.of()));
+        assertThrows(PulsarAdminException.PreconditionFailedException.class, () -> admin.topics().setReplicationClusters(topic, null));
+
     }
 
     @Test

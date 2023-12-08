@@ -26,7 +26,6 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
-
 import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import io.netty.buffer.ByteBuf;
@@ -648,9 +647,9 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
 
     @Test(dataProvider = "retainNullKey")
     public void testKeyLessMessagesPassThrough(boolean retainNullKey) throws Exception {
-        conf.setTopicCompactionRemainNullKey(retainNullKey);
+        conf.setTopicCompactionRetainNullKey(retainNullKey);
         restartBroker();
-        FieldUtils.writeDeclaredField(compactor, "topicCompactionRemainNullKey", retainNullKey, true);
+        FieldUtils.writeDeclaredField(compactor, "topicCompactionRetainNullKey", retainNullKey, true);
 
         String topic = "persistent://my-property/use/my-ns/my-topic1";
 
@@ -1967,8 +1966,31 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
         // Wait for phase one to complete
         Thread.sleep(500);
 
+        Optional<Topic> previousTopicRef = pulsar.getBrokerService().getTopicIfExists(topic).get();
+        Assert.assertTrue(previousTopicRef.isPresent());
+        PersistentTopic previousPersistentTopic = (PersistentTopic) previousTopicRef.get();
+
         // Unload topic make reader of compaction reconnect
         admin.topics().unload(topic);
+
+        Awaitility.await().untilAsserted(() -> {
+            LongRunningProcessStatus previousLongRunningProcessStatus = previousPersistentTopic.compactionStatus();
+
+            Optional<Topic> currentTopicReference = pulsar.getBrokerService().getTopicReference(topic);
+            Assert.assertTrue(currentTopicReference.isPresent());
+            PersistentTopic currentPersistentTopic = (PersistentTopic) currentTopicReference.get();
+            LongRunningProcessStatus currentLongRunningProcessStatus = currentPersistentTopic.compactionStatus();
+
+            if (previousLongRunningProcessStatus.status == LongRunningProcessStatus.Status.ERROR
+                    && (currentLongRunningProcessStatus.status == LongRunningProcessStatus.Status.NOT_RUN
+                    || currentLongRunningProcessStatus.status == LongRunningProcessStatus.Status.ERROR)) {
+                // trigger compaction again
+                admin.topics().triggerCompaction(topic);
+                Assert.assertEquals(currentLongRunningProcessStatus.status, LongRunningProcessStatus.Status.SUCCESS);
+            } else if (previousLongRunningProcessStatus.status == LongRunningProcessStatus.Status.RUNNING) {
+                Assert.assertEquals(previousLongRunningProcessStatus.status, LongRunningProcessStatus.Status.SUCCESS);
+            }
+        });
 
         Awaitility.await().untilAsserted(() -> {
             PersistentTopicInternalStats internalStats = admin.topics().getInternalStats(topic, false);
