@@ -119,7 +119,7 @@ public class PublishRateLimiterImpl implements PublishRateLimiter {
 
     private void unthrottleQueuedProducers(ScheduledExecutorService executor) {
         Producer producer;
-        // unthrottle producers until the token buckets contain tokens
+        // unthrottle as many producers as possible while there are token available
         while (containsTokens(true) && (producer = unthrottlingQueue.poll()) != null) {
             producer.decrementThrottleCount();
         }
