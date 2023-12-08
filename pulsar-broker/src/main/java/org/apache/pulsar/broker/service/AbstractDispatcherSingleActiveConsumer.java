@@ -271,10 +271,17 @@ public abstract class AbstractDispatcherSingleActiveConsumer extends AbstractBas
 
     /**
      * Disconnect all consumers on this dispatcher (server side close). This triggers channelInactive on the inbound
-     * handler which calls dispatcher.removeConsumer(), where the closeFuture is completed
+     * handler which calls dispatcher.removeConsumer(), where the closeFuture is completed.
      *
-     * @return
+     * @param isResetCursor
+     *              Specifies if the cursor has been reset.
+     * @param assignedBrokerLookupData
+     *              Optional target broker redirect information. Allows the consumer to quickly reconnect to a broker
+     *              during bundle unloading.
+     *
+     * @return CompletableFuture indicating the completion of the operation.
      */
+    @Override
     public synchronized CompletableFuture<Void> disconnectAllConsumers(
             boolean isResetCursor, Optional<BrokerLookupData> assignedBrokerLookupData) {
         closeFuture = new CompletableFuture<>();
