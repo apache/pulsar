@@ -77,7 +77,7 @@ public class PublishRateLimiterImpl implements PublishRateLimiter {
             // consume tokens from the token bucket for bytes
             currentTokenBucketOnByte.consumeTokens(msgSizeInBytes);
             // check if the token bucket contains remaining tokens, if not, we should throttle
-            shouldThrottle = shouldThrottle || !currentTokenBucketOnByte.containsTokens();
+            shouldThrottle |= !currentTokenBucketOnByte.containsTokens();
         }
         if (shouldThrottle) {
             // throttle the producer by incrementing the throttle count
