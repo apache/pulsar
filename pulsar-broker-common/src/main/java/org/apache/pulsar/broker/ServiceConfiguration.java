@@ -2797,7 +2797,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
             category = CATEGORY_SERVER,
             doc = "Whether retain null-key message during topic compaction."
     )
-    private boolean topicCompactionRemainNullKey = false;
+    private boolean topicCompactionRetainNullKey = false;
 
     @FieldContext(
         category = CATEGORY_SERVER,
