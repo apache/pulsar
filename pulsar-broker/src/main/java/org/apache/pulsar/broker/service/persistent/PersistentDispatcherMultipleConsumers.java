@@ -672,15 +672,9 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         long totalEntries = 0;
         int avgBatchSizePerMsg = remainingMessages > 0 ? Math.max(remainingMessages / entries.size(), 1) : 1;
 
-        int firstAvailableConsumerPermits, currentTotalAvailablePermits;
-        boolean dispatchMessage;
-        while (entriesToDispatch > 0) {
-            firstAvailableConsumerPermits = getFirstAvailableConsumerPermits();
-            currentTotalAvailablePermits = Math.max(totalAvailablePermits, firstAvailableConsumerPermits);
-            dispatchMessage = currentTotalAvailablePermits > 0 && firstAvailableConsumerPermits > 0;
-            if (!dispatchMessage) {
-                break;
-            }
+        // If the dispatcher is closed, firstAvailableConsumerPermits will be 0, which skips dispatching the
+        // messages.
+        while (entriesToDispatch > 0 && getFirstAvailableConsumerPermits() > 0) {
             Consumer c = getNextConsumer();
             if (c == null) {
                 // Do nothing, cursor will be rewind at reconnection
