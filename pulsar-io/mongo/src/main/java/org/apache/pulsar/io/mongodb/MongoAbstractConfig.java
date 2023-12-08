@@ -96,7 +96,6 @@ public abstract class MongoAbstractConfig implements Serializable {
     }
 
     public void validate() {
-        checkArgument(!StringUtils.isEmpty(getMongoUri()), "Required MongoDB URI is not set.");
         checkArgument(getBatchSize() > 0, "batchSize must be a positive integer.");
         checkArgument(getBatchTimeMs() > 0, "batchTimeMs must be a positive long.");
     }

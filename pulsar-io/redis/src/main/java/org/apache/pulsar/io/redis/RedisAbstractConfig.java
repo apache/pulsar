@@ -93,8 +93,6 @@ public class RedisAbstractConfig implements Serializable {
     private long connectTimeout = 10000L;
 
     public void validate() {
-        Preconditions.checkNotNull(redisHosts, "redisHosts property not set.");
-        Preconditions.checkNotNull(redisDatabase, "redisDatabase property not set.");
         Preconditions.checkNotNull(clientMode, "clientMode property not set.");
     }
 
@@ -105,7 +103,6 @@ public class RedisAbstractConfig implements Serializable {
 
     public List<HostAndPort> getHostAndPorts() {
         List<HostAndPort> hostAndPorts = Lists.newArrayList();
-        Preconditions.checkNotNull(redisHosts, "redisHosts property not set.");
         String[] hosts = StringUtils.split(redisHosts, ",");
         for (String host : hosts) {
             HostAndPort hostAndPort = HostAndPort.fromString(host);

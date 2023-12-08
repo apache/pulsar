@@ -117,8 +117,6 @@ public class InfluxDBSinkConfig implements Serializable {
     }
 
     public void validate() {
-        Preconditions.checkNotNull(influxdbUrl, "influxdbUrl property not set.");
-        Preconditions.checkNotNull(database, "database property not set.");
         Preconditions.checkArgument(batchSize > 0, "batchSize must be a positive integer.");
         Preconditions.checkArgument(batchTimeMs > 0, "batchTimeMs must be a positive long.");
     }

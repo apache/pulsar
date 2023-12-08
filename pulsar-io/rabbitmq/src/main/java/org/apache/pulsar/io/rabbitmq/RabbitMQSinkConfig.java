@@ -69,6 +69,5 @@ public class RabbitMQSinkConfig extends RabbitMQAbstractConfig implements Serial
     @Override
     public void validate() {
         super.validate();
-        Preconditions.checkNotNull(exchangeName, "exchangeName property not set.");
     }
 }
