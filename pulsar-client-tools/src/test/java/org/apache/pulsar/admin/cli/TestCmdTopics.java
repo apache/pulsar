@@ -197,8 +197,9 @@ public class TestCmdTopics {
         deleteCmd.run();
 
         // Assert: Verify that the delete method was called once for each of the matching topics
-        verify(mockTopics, times(1)).delete("persistent://tenant/namespace/topic1");
-        verify(mockTopics, times(1)).delete("persistent://tenant/namespace/topic2");
+        verify(mockTopics, times(1)).getList("tenant/namespace");
+        verify(mockTopics, times(1)).delete("persistent://tenant/namespace/topic1", false);
+        verify(mockTopics, times(1)).delete("persistent://tenant/namespace/topic2", false);
     }
 
     @Test
@@ -219,7 +220,7 @@ public class TestCmdTopics {
 
         // Assert: Verify that the delete method was called once for each topic in the file
         for (String topic : topics) {
-            verify(mockTopics, times(1)).delete(topic);
+            verify(mockTopics, times(1)).delete(topic, false);
         }
 
         // Cleanup: Delete the temporary file
@@ -254,8 +255,9 @@ public class TestCmdTopics {
             verify(mockTopics, times(1)).delete(topic, false);
         }
 
-        // Cleanup: Delete the temporary file
+        // Cleanup: Delete the temporary file and recreate the mockTopics.
         Files.delete(tempFile);
+        mockTopics = mock(Topics.class);
     }
 
 }
