@@ -229,9 +229,6 @@ enum ServerError {
                          // use this error to indicate that this producer is now permanently
                          // fenced. Applications are now supposed to close it and create a
                          // new producer
-    TransactionComponentLoadFailed = 26; // When TransactionBuffer, TransactionPendingAck
-                                         // init failed with no-retryable exception.
-                                         // All operations related to this component should be failed with this error.
 }
 
 enum AuthMethod {
