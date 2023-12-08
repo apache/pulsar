@@ -155,7 +155,12 @@ public class KafkaSourceConfig implements Serializable {
 
     public static KafkaSourceConfig load(Map<String, Object> map, SourceContext sourceContext) throws IOException {
         ObjectMapper mapper = new ObjectMapper();
-        map.put("sslTruststorePassword", sourceContext.getSecret("sslTruststorePassword"));
+        // since the KafkaSourceConfig requires the ACCEPT_EMPTY_STRING_AS_NULL_OBJECT feature
+        // We manually set the sensitive fields here instead of calling `IOConfigUtils.loadWithSecrets`
+        String sslTruststorePassword = sourceContext.getSecret("sslTruststorePassword");
+        if (sslTruststorePassword != null) {
+            map.put("sslTruststorePassword", sslTruststorePassword);
+        }
         mapper.enable(DeserializationFeature.ACCEPT_EMPTY_STRING_AS_NULL_OBJECT);
         return mapper.readValue(mapper.writeValueAsString(map), KafkaSourceConfig.class);
     }
