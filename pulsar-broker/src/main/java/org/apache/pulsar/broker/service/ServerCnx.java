@@ -2123,7 +2123,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                         consumer.getSubscription().getName());
             }).exceptionally(e -> {
                 writeAndFlush(Commands.newError(getLastMessageId.getRequestId(),
-                        ServerError.TransactionComponentLoadFailed, "Transaction Buffer failed to load."));
+                        ServerError.PersistenceError, "Failed to recover Transaction Buffer."));
                 return null;
             });
         } else {

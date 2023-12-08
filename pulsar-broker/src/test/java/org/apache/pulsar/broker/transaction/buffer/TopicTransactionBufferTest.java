@@ -236,7 +236,7 @@ public class TopicTransactionBufferTest extends TransactionTestBase {
         try {
             consumer.getLastMessageIds();
             fail();
-        } catch (PulsarClientException.TransactionComponentLoadFailedException ignore) {
+        } catch (PulsarClientException.BrokerPersistenceException ignore) {
         }
         List<TopicMessageId> messageIdList = consumer.getLastMessageIds();
         assertEquals(messageIdList.size(), 1);
