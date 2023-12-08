@@ -308,8 +308,9 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
             topic.getManagedLedger().removeWaitingCursor(cursor);
 
             if (!cursor.isDurable()) {
-                // If cursor is not durable, we need to clean up the subscription as well
-                this.close(false).thenRun(() -> {
+                // If cursor is not durable, we need to clean up the subscription as well. No need to check for active
+                // consumers since we already validated that there are no consumers on this dispatcher.
+                this.closeCursor(false).thenRun(() -> {
                     synchronized (this) {
                         if (dispatcher != null) {
                             dispatcher.close().thenRun(() -> {
@@ -886,11 +887,12 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
     }
 
     /**
-     * Close the cursor ledger for this subscription. Requires that there are no active consumers on the dispatcher
+     * Close the cursor ledger for this subscription. Optionally verifies that there are no active consumers on the
+     * dispatcher.
      *
-     * @return CompletableFuture indicating the completion of delete operation
+     * @return CompletableFuture indicating the completion of close operation
      */
-    private synchronized CompletableFuture<Void> close(boolean checkActiveConsumers) {
+    private synchronized CompletableFuture<Void> closeCursor(boolean checkActiveConsumers) {
         if (checkActiveConsumers && dispatcher != null && dispatcher.isConsumerConnected()) {
             return FutureUtil.failedFuture(new SubscriptionBusyException("Subscription has active consumers"));
         }
@@ -945,7 +947,8 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
         (dispatcher != null
                 ? dispatcher.close(disconnectConsumers, assignedBrokerLookupData)
                 : CompletableFuture.completedFuture(null))
-                .thenCompose(v -> close(false)).thenRun(() -> {
+                // checkActiveConsumers is false since we just closed all of them if we wanted.
+                .thenCompose(__ -> closeCursor(false)).thenRun(() -> {
                     log.info("[{}][{}] Successfully closed the subscription", topicName, subName);
                     fenceFuture.complete(null);
                 }).exceptionally(exception -> {
@@ -1027,7 +1030,7 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
                 return null;
             });
         } else {
-            this.close(true).thenRun(() -> {
+            this.closeCursor(true).thenRun(() -> {
                 closeSubscriptionFuture.complete(null);
             }).exceptionally(exception -> {
                 log.error("[{}][{}] Error closing subscription", topicName, subName, exception);
