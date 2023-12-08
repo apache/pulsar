@@ -853,22 +853,24 @@ public class Producer {
     private static final Logger log = LoggerFactory.getLogger(Producer.class);
 
     /**
-     * Increments the counter that controls the throttling of the connection by pausing reads.
-     * The connection will be throttled while the counter is greater than 0.
-     * <p>
-     * The caller is responsible for decrementing the counter by calling {@link #decrementThrottleCount()}  when the
-     * connection should no longer be throttled.
+     * This method increments a counter that is used to control the throttling of a connection.
+     * The connection's read operations are paused when the counter's value is greater than 0, indicating that
+     * throttling is in effect.
+     * It's important to note that after calling this method, it is the caller's responsibility to ensure that the
+     * counter is decremented by calling the {@link #decrementThrottleCount()} method when throttling is no longer
+     * needed on the connection.
      */
     public void incrementThrottleCount() {
         cnx.incrementThrottleCount();
     }
 
     /**
-     * Decrements the counter that controls the throttling of the connection by pausing reads.
-     * The connection will be throttled while the counter is greater than 0.
-     * <p>
-     * This method should be called when the connection should no longer be throttled. However, the caller should have
-     * previously called {@link #incrementThrottleCount()}.
+     * This method decrements a counter that is used to control the throttling of a connection.
+     * The connection's read operations are resumed when the counter's value is 0, indicating that
+     * throttling is no longer in effect.
+     * It's important to note that before calling this method, the caller should have previously
+     * incremented the counter by calling the {@link #incrementThrottleCount()} method when throttling
+     * was needed on the connection.
      */
     public void decrementThrottleCount() {
         cnx.decrementThrottleCount();
