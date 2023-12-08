@@ -498,4 +498,55 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
                     .get().auth_policies.getTopicAuthentication().containsKey(topic));
         });
     }
+
+    @Test
+    public void testCleanupEmptySubscriptionAuthenticationMap() throws Exception {
+        Map<String, String> authParams = new HashMap<>();
+        authParams.put("tlsCertFile", getTlsFileForClient("admin.cert"));
+        authParams.put("tlsKeyFile", getTlsFileForClient("admin.key-pk8"));
+        Authentication authTls = new AuthenticationTls();
+        authTls.configure(authParams);
+        internalSetup(authTls);
+
+        admin.clusters().createCluster("test", ClusterData.builder().build());
+        admin.tenants().createTenant("p1",
+                new TenantInfoImpl(Collections.emptySet(), new HashSet<>(admin.clusters().getClusters())));
+        String namespace = "p1/ns1";
+        admin.namespaces().createNamespace("p1/ns1");
+
+        // grant permission1 and permission2
+        String subscription = "test-sub-1";
+        String role1 = "test-user-1";
+        String role2 = "test-user-2";
+        Set<String> roles = new HashSet<>();
+        roles.add(role1);
+        roles.add(role2);
+        admin.namespaces().grantPermissionOnSubscription(namespace, subscription, roles);
+        Awaitility.await().untilAsserted(() -> {
+            assertTrue(pulsar.getPulsarResources().getNamespaceResources().getPolicies(NamespaceName.get(namespace))
+                    .get().auth_policies.getSubscriptionAuthentication().containsKey(subscription));
+            assertTrue(pulsar.getPulsarResources().getNamespaceResources().getPolicies(NamespaceName.get(namespace))
+                    .get().auth_policies.getSubscriptionAuthentication().get(subscription).contains(role1));
+            assertTrue(pulsar.getPulsarResources().getNamespaceResources().getPolicies(NamespaceName.get(namespace))
+                    .get().auth_policies.getSubscriptionAuthentication().get(subscription).contains(role2));
+        });
+
+        // revoke permission1
+        admin.namespaces().revokePermissionOnSubscription(namespace, subscription, role1);
+        Awaitility.await().untilAsserted(() -> {
+            assertTrue(pulsar.getPulsarResources().getNamespaceResources().getPolicies(NamespaceName.get(namespace))
+                    .get().auth_policies.getSubscriptionAuthentication().containsKey(subscription));
+            assertFalse(pulsar.getPulsarResources().getNamespaceResources().getPolicies(NamespaceName.get(namespace))
+                    .get().auth_policies.getSubscriptionAuthentication().get(subscription).contains(role1));
+            assertTrue(pulsar.getPulsarResources().getNamespaceResources().getPolicies(NamespaceName.get(namespace))
+                    .get().auth_policies.getSubscriptionAuthentication().get(subscription).contains(role2));
+        });
+
+        // revoke permission2
+        admin.namespaces().revokePermissionOnSubscription(namespace, subscription, role2);
+        Awaitility.await().untilAsserted(() -> {
+            assertFalse(pulsar.getPulsarResources().getNamespaceResources().getPolicies(NamespaceName.get(namespace))
+                    .get().auth_policies.getSubscriptionAuthentication().containsKey(subscription));
+        });
+    }
 }
