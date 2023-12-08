@@ -20,10 +20,12 @@ package org.apache.pulsar.admin.cli;
 
 import static org.apache.pulsar.common.naming.TopicName.DEFAULT_NAMESPACE;
 import static org.apache.pulsar.common.naming.TopicName.PUBLIC_TENANT;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.anyString;
 import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
@@ -223,4 +225,37 @@ public class TestCmdTopics {
         // Cleanup: Delete the temporary file
         Files.delete(tempFile);
     }
+
+    @Test
+    public void testRunDeleteTopicsFromFileWithException() throws PulsarAdminException, IOException {
+        // Setup: Create a temporary file and write some topics to it.
+        // Configure the delete method of mockTopics to throw a PulsarAdminException on any input.
+        doThrow(new PulsarAdminException("mock fail")).when(mockTopics).delete(anyString(), anyBoolean());
+        Path tempFile = Files.createTempFile("topics", ".txt");
+        List<String> topics = List.of(
+                "persistent://tenant/namespace/topic1",
+                "persistent://tenant/namespace/topic2");
+        Files.write(tempFile, topics);
+
+        // Setup: Specify the temporary file as input for the delete command
+        deleteCmd.params = List.of(tempFile.toString());
+        deleteCmd.readFromFile = true;
+
+        // Act: Run the delete command
+        // Since we have configured the delete method of mockTopics to throw an exception when called,
+        // an exception should be thrown here.
+        deleteCmd.run();
+
+        // Assert: Verify that the delete method was called once for each topic in the file,
+        // even if one of them threw an exception.
+        // This proves that the program continues to attempt to delete the other topics
+        // even if an exception occurred while deleting a topic.
+        for (String topic : topics) {
+            verify(mockTopics, times(1)).delete(topic, false);
+        }
+
+        // Cleanup: Delete the temporary file
+        Files.delete(tempFile);
+    }
+
 }
