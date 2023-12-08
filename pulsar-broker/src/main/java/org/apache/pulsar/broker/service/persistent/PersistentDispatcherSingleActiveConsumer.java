@@ -155,10 +155,6 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
     }
 
     private synchronized void internalReadEntriesComplete(final List<Entry> entries, Object obj) {
-        if (topic.isTransferring()) {
-            return;
-        }
-
         ReadEntriesCtx readEntriesCtx = (ReadEntriesCtx) obj;
         Consumer readConsumer = readEntriesCtx.getConsumer();
         long epoch = readEntriesCtx.getEpoch();
@@ -198,11 +194,17 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
             }
         }
 
-        if (currentConsumer == null || readConsumer != currentConsumer) {
-            // Active consumer has changed since the read request has been issued. We need to rewind the cursor and
-            // re-issue the read request for the new consumer
+        if (currentConsumer == null || readConsumer != currentConsumer || topic.isTransferring()) {
+            // Active consumer has changed since the read request has been issued, or the topic is being transferred to
+            // another broker. We need to rewind the cursor and re-issue the read request for the new consumer.
             if (log.isDebugEnabled()) {
-                log.debug("[{}] rewind because no available consumer found", name);
+                if (currentConsumer == null) {
+                    log.debug("[{}] rewind because no available consumer found", name);
+                } else if (readConsumer != currentConsumer) {
+                    log.debug("[{}] rewind because active consumer changed", name);
+                } else {
+                    log.debug("[{}] rewind because topic is transferring", name);
+                }
             }
             entries.forEach(Entry::release);
             cursor.rewind();

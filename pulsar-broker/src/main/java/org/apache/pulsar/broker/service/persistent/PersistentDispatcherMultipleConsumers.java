@@ -549,10 +549,6 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
 
     @Override
     public final synchronized void readEntriesComplete(List<Entry> entries, Object ctx) {
-        if (topic.isTransferring()) {
-            return;
-        }
-
         ReadType readType = (ReadType) ctx;
         if (readType == ReadType.Normal) {
             havePendingRead = false;
