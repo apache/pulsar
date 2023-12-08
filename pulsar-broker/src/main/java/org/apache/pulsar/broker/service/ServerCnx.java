@@ -658,6 +658,10 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             if (state != State.Connected) {
                 // First time authentication is done
                 if (service.isAuthenticationEnabled()) {
+                    if (!useOriginalAuthState) {
+                        this.authRole = newAuthRole;
+                        this.authenticationData = newAuthDataSource;
+                    }
                     if (service.isAuthorizationEnabled()) {
                         if (!service.getAuthorizationService()
                                 .isValidOriginalPrincipal(this.authRole, originalPrincipal, remoteAddress, false)) {
@@ -668,10 +672,6 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                             ctx.writeAndFlush(msg).addListener(ChannelFutureListener.CLOSE);
                             return;
                         }
-                    }
-                    if (!useOriginalAuthState) {
-                        this.authRole = newAuthRole;
-                        this.authenticationData = newAuthDataSource;
                     }
                     maybeScheduleAuthenticationCredentialsRefresh();
                 }
