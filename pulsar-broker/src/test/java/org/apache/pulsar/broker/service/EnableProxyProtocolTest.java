@@ -124,7 +124,7 @@ public class EnableProxyProtocolTest extends BrokerTestBase  {
         admin.topics().delete(topicName);
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testPubSubWhenSlowNetwork() throws Exception {
         final String namespace = "prop/ns-abc";
         final String topicName = BrokerTestUtil.newUniqueName("persistent://" + namespace + "/tp");
@@ -135,12 +135,19 @@ public class EnableProxyProtocolTest extends BrokerTestBase  {
         PulsarClientImpl protocolClient = InjectedClientCnxClientBuilder.create(clientBuilder,
                 (conf, eventLoopGroup) -> new ClientCnx(conf, eventLoopGroup) {
                     public void channelActive(ChannelHandlerContext ctx) throws Exception {
-                        byte[] bs = "PROXY TCP4 198.51.100.22 203.0.113.7 35646 80\r\n".getBytes();
-                        for (int i = 0; i < bs.length; i++) {
-                            ctx.channel().writeAndFlush(Unpooled.copiedBuffer(new byte[]{bs[i]}));
-                            Thread.sleep(100);
-                        }
-                        super.channelActive(ctx);
+                        Thread task = new Thread(() -> {
+                            try {
+                                byte[] bs1 = "PROXY".getBytes();
+                                byte[] bs2 = " TCP4 198.51.100.22 203.0.113.7 35646 80\r\n".getBytes();
+                                ctx.writeAndFlush(Unpooled.copiedBuffer(bs1));
+                                Thread.sleep(100);
+                                ctx.writeAndFlush(Unpooled.copiedBuffer(bs2));
+                                super.channelActive(ctx);
+                            } catch (Exception e) {
+                                throw new RuntimeException(e);
+                            }
+                        });
+                        task.start();
                     }
                 });
 

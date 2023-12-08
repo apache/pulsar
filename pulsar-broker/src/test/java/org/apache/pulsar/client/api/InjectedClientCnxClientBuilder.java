@@ -45,7 +45,7 @@ public class InjectedClientCnxClientBuilder {
         return new PulsarClientImpl(conf, eventLoopGroup, pool);
     }
 
-    public static interface ClientCnxFactory {
+    public interface ClientCnxFactory {
 
         ClientCnx generate(ClientConfigurationData conf, EventLoopGroup eventLoopGroup);
     }
