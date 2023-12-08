@@ -751,7 +751,11 @@ public class CmdTopics extends CmdBase {
                 String path = checkArgument(params);
                 List<String> topicsFromFile = Files.readAllLines(Path.of(path));
                 for (String t : topicsFromFile) {
-                    getTopics().delete(t, force);
+                    try {
+                        getTopics().delete(t, force);
+                    } catch (Exception e) {
+                        print("Failed to delete topic: " + t + ". Exception: " + e);
+                    }
                 }
             } else {
                 String topic = validateTopicName(params);
@@ -760,10 +764,18 @@ public class CmdTopics extends CmdBase {
                     List<String> topics = getTopics().getList(namespace);
                     topics = topics.stream().filter(s -> s.matches(topic)).toList();
                     for (String t : topics) {
-                        getTopics().delete(t, force);
+                        try {
+                            getTopics().delete(t, force);
+                        } catch (Exception e) {
+                            print("Failed to delete topic: " + t + ". Exception: " + e);
+                        }
                     }
                 } else {
-                    getTopics().delete(topic, force);
+                    try {
+                        getTopics().delete(topic, force);
+                    } catch (Exception e) {
+                        print("Failed to delete topic: " + topic + ". Exception: " + e);
+                    }
                 }
             }
         }
