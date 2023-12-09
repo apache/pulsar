@@ -118,7 +118,7 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
 
     protected volatile Boolean isAllowAutoUpdateSchema;
 
-    protected volatile PublishRateLimiter topicPublishRateLimiter = new PublishRateLimiterImpl();
+    protected volatile PublishRateLimiter topicPublishRateLimiter;
     protected volatile ResourceGroupPublishLimiter resourceGroupPublishLimiter;
 
     protected boolean preciseTopicPublishRateLimitingEnable;
@@ -171,6 +171,7 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
 
         this.lastActive = System.nanoTime();
         this.preciseTopicPublishRateLimitingEnable = config.isPreciseTopicPublishRateLimiterEnable();
+        topicPublishRateLimiter = new PublishRateLimiterImpl(brokerService.getPulsar().getMonotonicClockSource());
         updateActiveRateLimiters();
     }
 

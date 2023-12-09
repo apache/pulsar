@@ -243,7 +243,7 @@ public class BrokerService implements Closeable {
     private final ScheduledExecutorService compactionMonitor;
     private final ScheduledExecutorService consumedLedgersMonitor;
     private ScheduledExecutorService deduplicationSnapshotMonitor;
-    protected final PublishRateLimiter brokerPublishRateLimiter = new PublishRateLimiterImpl();
+    protected final PublishRateLimiter brokerPublishRateLimiter;
     protected volatile DispatchRateLimiter brokerDispatchRateLimiter = null;
 
     private DistributedIdGenerator producerNameGenerator;
@@ -293,6 +293,7 @@ public class BrokerService implements Closeable {
 
     public BrokerService(PulsarService pulsar, EventLoopGroup eventLoopGroup) throws Exception {
         this.pulsar = pulsar;
+        this.brokerPublishRateLimiter = new PublishRateLimiterImpl(pulsar.getMonotonicClockSource());
         this.preciseTopicPublishRateLimitingEnable =
                 pulsar.getConfiguration().isPreciseTopicPublishRateLimiterEnable();
         this.managedLedgerFactory = pulsar.getManagedLedgerFactory();

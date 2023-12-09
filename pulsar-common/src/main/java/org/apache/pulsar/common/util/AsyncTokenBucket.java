@@ -19,7 +19,6 @@
 
 package org.apache.pulsar.common.util;
 
-import com.google.common.annotations.VisibleForTesting;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.LongAdder;
@@ -32,16 +31,19 @@ import java.util.function.LongSupplier;
  * It is eventually consistent, meaning that the tokens are not updated on every call to the "consumeTokens" method.
  * <p>Main usage flow:
  * 1. tokens are consumed by calling the "consumeTokens" method.
- * 2. the "calculatePause" method is called to calculate the duration of a possible needed pause when the tokens
+ * 2. the "calculateThrottlingDuration" method is called to calculate the duration of a possible needed pause when the
+ * tokens
  * are fully consumed.
  * <p>This class does not produce side effects outside of its own scope. It functions similarly to a stateful function,
  * akin to a counter function. In essence, it is a sophisticated counter. It can serve as a foundational component for
  * constructing higher-level asynchronous rate limiter implementations, which require side effects for throttling.
+ * <p>To achieve optimal performance, pass a {@link GranularMonotonicClockSource} as the clock source.
  */
 public abstract class AsyncTokenBucket {
-    public static final LongSupplier DEFAULT_CLOCK_SOURCE = System::nanoTime;
+    public static final MonotonicClockSource DEFAULT_CLOCK_SOURCE = highPrecision -> System.nanoTime();
     private static final long ONE_SECOND_NANOS = TimeUnit.SECONDS.toNanos(1);
-    private static final long DEFAULT_RESOLUTION_NANOS = TimeUnit.MILLISECONDS.toNanos(10);
+    // 2^24 nanoseconds is 16 milliseconds
+    private static final long DEFAULT_RESOLUTION_NANOS = TimeUnit.MILLISECONDS.toNanos(16);
 
     // The default resolution is 10 milliseconds. This means that the consumed tokens are subtracted from the
     // current amount of tokens about every 10 milliseconds. This solution helps prevent a CAS loop what could cause
@@ -49,12 +51,10 @@ public abstract class AsyncTokenBucket {
     private static long defaultResolutionNanos = DEFAULT_RESOLUTION_NANOS;
 
     // used in tests to disable the optimization and instead use a consistent view of the tokens
-    @VisibleForTesting
     public static void switchToConsistentTokensView() {
         defaultResolutionNanos = 0;
     }
 
-    @VisibleForTesting
     public static void resetToDefaultEventualConsistentTokensView() {
         defaultResolutionNanos = DEFAULT_RESOLUTION_NANOS;
     }
@@ -101,9 +101,9 @@ public abstract class AsyncTokenBucket {
      */
     protected final long resolutionNanos;
     /**
-     * This field is used to obtain the current time in nanoseconds. By default, a monotonic clock is used.
+     * This field is used to obtain the current monotonic clock time in nanoseconds.
      */
-    private final LongSupplier clockSource;
+    private final MonotonicClockSource clockSource;
     /**
      * This field is used to hold the sum of consumed tokens that are pending to be subtracted from the total amount of
      * tokens. This solution is to prevent CAS loop contention problem. pendingConsumedTokens used JVM's LongAdder
@@ -121,8 +121,8 @@ public abstract class AsyncTokenBucket {
         private final long ratePeriodNanos;
         private final long targetAmountOfTokensAfterThrottling;
 
-        protected FinalRateAsyncTokenBucket(long capacity, long rate, LongSupplier clockSource, long ratePeriodNanos,
-                                            long resolutionNanos, long initialTokens) {
+        protected FinalRateAsyncTokenBucket(long capacity, long rate, MonotonicClockSource clockSource,
+                                            long ratePeriodNanos, long resolutionNanos, long initialTokens) {
             super(clockSource, resolutionNanos);
             this.capacity = capacity;
             this.rate = rate;
@@ -154,7 +154,7 @@ public abstract class AsyncTokenBucket {
         }
     }
 
-    protected AsyncTokenBucket(LongSupplier clockSource, long resolutionNanos) {
+    protected AsyncTokenBucket(MonotonicClockSource clockSource, long resolutionNanos) {
         this.clockSource = clockSource;
         this.resolutionNanos = resolutionNanos;
     }
@@ -179,7 +179,7 @@ public abstract class AsyncTokenBucket {
         if (consumeTokens < 0) {
             throw new IllegalArgumentException("consumeTokens must be >= 0");
         }
-        long currentNanos = clockSource.getAsLong();
+        long currentNanos = clockSource.getNanos(forceUpdateTokens);
         long currentIncrement = resolutionNanos != 0 ? currentNanos / resolutionNanos : 0;
         long currentLastIncrement = lastIncrement;
         if (forceUpdateTokens || currentIncrement == 0 || (currentIncrement > currentLastIncrement
@@ -254,7 +254,7 @@ public abstract class AsyncTokenBucket {
 
     // CHECKSTYLE.OFF: ClassTypeParameterName
     public abstract static class AsyncTokenBucketBuilder<SELF extends AsyncTokenBucketBuilder<SELF>> {
-        protected LongSupplier clockSource = DEFAULT_CLOCK_SOURCE;
+        protected MonotonicClockSource clockSource = DEFAULT_CLOCK_SOURCE;
         protected long resolutionNanos = defaultResolutionNanos;
 
         protected AsyncTokenBucketBuilder() {
@@ -264,7 +264,7 @@ public abstract class AsyncTokenBucket {
             return (SELF) this;
         }
 
-        public SELF clockSource(LongSupplier clockSource) {
+        public SELF clockSource(MonotonicClockSource clockSource) {
             this.clockSource = clockSource;
             return self();
         }
@@ -331,7 +331,7 @@ public abstract class AsyncTokenBucket {
         private final double targetFillFactorAfterThrottling;
 
         protected DynamicRateAsyncTokenBucket(double capacityFactor, LongSupplier rateFunction,
-                                              LongSupplier clockSource, LongSupplier ratePeriodNanosFunction,
+                                              MonotonicClockSource clockSource, LongSupplier ratePeriodNanosFunction,
                                               long resolutionNanos, double initialTokensFactor,
                                               double targetFillFactorAfterThrottling) {
             super(clockSource, resolutionNanos);
@@ -411,6 +411,70 @@ public abstract class AsyncTokenBucket {
                     this.ratePeriodNanosFunction, this.resolutionNanos,
                     this.initialFillFactor,
                     targetFillFactorAfterThrottling);
+        }
+    }
+
+    /**
+     * Interface for a clock source that returns a monotonic time in nanoseconds with a required precision.
+     */
+    public interface MonotonicClockSource {
+        /**
+         * Returns the current monotonic clock time in nanoseconds.
+         *
+         * @param highPrecision if true, the returned value must be a high precision monotonic time in nanoseconds.
+         *                      if false, the returned value can be a granular precision monotonic time in nanoseconds.
+         * @return the current monotonic clock time in nanoseconds
+         */
+        long getNanos(boolean highPrecision);
+    }
+
+    /**
+     * A clock source that is optimized for performance by updating the returned low precision monotonic
+     * time in a separate thread with a configurable resolution.
+     * This resolves a performance bottleneck on platforms where calls to System.nanoTime() are relatively
+     * costly. For example, this happens on MacOS with Apple silicon CPUs (M1,M2,M3).
+     * Instantiating this class creates a daemon thread that updates the monotonic time. The close method
+     * should be called to stop the thread.
+     */
+    public static class GranularMonotonicClockSource implements MonotonicClockSource, AutoCloseable {
+        private final long sleepMillis;
+        private final int sleepNanos;
+        private final LongSupplier clockSource;
+        private volatile long lastNanos;
+        private volatile boolean closed;
+
+        public GranularMonotonicClockSource(long granularityNanos, LongSupplier clockSource) {
+            this.sleepMillis = TimeUnit.NANOSECONDS.toMillis(granularityNanos);
+            this.sleepNanos = (int) (granularityNanos - TimeUnit.MILLISECONDS.toNanos(sleepMillis));
+            this.clockSource = clockSource;
+            Thread thread = new Thread(this::updateLoop, "AsyncTokenBucket-DefaultMonotonicClockSource");
+            thread.setDaemon(true);
+            thread.start();
+        }
+
+        @Override
+        public long getNanos(boolean highPrecision) {
+            if (highPrecision) {
+                lastNanos = clockSource.getAsLong();
+            }
+            return lastNanos;
+        }
+
+        private void updateLoop() {
+            while (!closed && !Thread.currentThread().isInterrupted()) {
+                lastNanos = clockSource.getAsLong();
+                try {
+                    Thread.sleep(sleepMillis, sleepNanos);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    break;
+                }
+            }
+        }
+
+        @Override
+        public void close() {
+            closed = true;
         }
     }
 }

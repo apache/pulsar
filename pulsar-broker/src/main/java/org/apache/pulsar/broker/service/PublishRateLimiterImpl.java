@@ -24,7 +24,6 @@ import io.netty.channel.EventLoopGroup;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.function.LongSupplier;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.PublishRate;
 import org.apache.pulsar.common.util.AsyncTokenBucket;
@@ -34,27 +33,13 @@ import org.jctools.queues.MpscUnboundedArrayQueue;
 public class PublishRateLimiterImpl implements PublishRateLimiter {
     private volatile AsyncTokenBucket tokenBucketOnMessage;
     private volatile AsyncTokenBucket tokenBucketOnByte;
-    private final LongSupplier clockSource;
+    private final AsyncTokenBucket.MonotonicClockSource clockSource;
 
     private final MessagePassingQueue<Producer> unthrottlingQueue = new MpscUnboundedArrayQueue<>(1024);
 
     private final AtomicBoolean unthrottlingScheduled = new AtomicBoolean(false);
 
-    public PublishRateLimiterImpl(Policies policies, String clusterName) {
-        this();
-        update(policies, clusterName);
-    }
-
-    public PublishRateLimiterImpl(PublishRate maxPublishRate) {
-        this();
-        update(maxPublishRate);
-    }
-
-    public PublishRateLimiterImpl() {
-        this(AsyncTokenBucket.DEFAULT_CLOCK_SOURCE);
-    }
-
-    public PublishRateLimiterImpl(LongSupplier clockSource) {
+    public PublishRateLimiterImpl(AsyncTokenBucket.MonotonicClockSource clockSource) {
         this.clockSource = clockSource;
     }
 

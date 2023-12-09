@@ -22,21 +22,20 @@ package org.apache.pulsar.common.util;
 import static org.testng.Assert.assertEquals;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.function.LongSupplier;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 
 public class AsyncTokenBucketTest {
     private AtomicLong manualClockSource;
-    private LongSupplier clockSource;
+    private AsyncTokenBucket.MonotonicClockSource clockSource;
 
     private AsyncTokenBucket asyncTokenBucket;
 
     @BeforeMethod
     public void setup() {
         manualClockSource = new AtomicLong(TimeUnit.SECONDS.toNanos(100));
-        clockSource = manualClockSource::get;
+        clockSource = highPrecision -> manualClockSource.get();
     }
 
 

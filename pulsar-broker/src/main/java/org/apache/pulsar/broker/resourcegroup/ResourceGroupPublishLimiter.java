@@ -23,12 +23,14 @@ import org.apache.pulsar.broker.service.PublishRateLimiterImpl;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.PublishRate;
 import org.apache.pulsar.common.policies.data.ResourceGroup;
+import org.apache.pulsar.common.util.AsyncTokenBucket;
 
 public class ResourceGroupPublishLimiter extends PublishRateLimiterImpl  {
     private volatile long publishMaxMessageRate;
     private volatile long publishMaxByteRate;
 
-    public ResourceGroupPublishLimiter(ResourceGroup resourceGroup) {
+    public ResourceGroupPublishLimiter(ResourceGroup resourceGroup, AsyncTokenBucket.MonotonicClockSource clockSource) {
+        super(clockSource);
         update(resourceGroup);
     }
 
