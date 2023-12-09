@@ -65,11 +65,7 @@ final class ServerCnxThrottleTracker {
     }
 
     /**
-     * Increments the counter that controls the throttling of the connection by pausing reads.
-     * The connection will be throttled while the counter is greater than 0.
-     * <p>
-     * The caller is responsible for decrementing the counter by calling {@link #decrementThrottleCount()}  when the
-     * connection should no longer be throttled.
+     * See {@link Producer#incrementThrottleCount()} for documentation.
      */
     public void incrementThrottleCount() {
         int currentThrottleCount = THROTTLE_COUNT_UPDATER.incrementAndGet(this);
@@ -79,11 +75,7 @@ final class ServerCnxThrottleTracker {
     }
 
     /**
-     * Decrements the counter that controls the throttling of the connection by pausing reads.
-     * The connection will be throttled while the counter is greater than 0.
-     * <p>
-     * This method should be called when the connection should no longer be throttled. However, the caller should have
-     * previously called {@link #incrementThrottleCount()}.
+     * See {@link Producer#decrementThrottleCount()} for documentation.
      */
     public void decrementThrottleCount() {
         int currentThrottleCount = THROTTLE_COUNT_UPDATER.decrementAndGet(this);
