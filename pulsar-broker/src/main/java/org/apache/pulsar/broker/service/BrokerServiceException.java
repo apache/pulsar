@@ -230,13 +230,6 @@ public class BrokerServiceException extends Exception {
         }
     }
 
-    // Todo: clean up transaction exception to make the transactional exception follow up the way of other component.
-    public static class TransactionComponentLoadFailedException extends BrokerServiceException {
-        public TransactionComponentLoadFailedException(String msg) {
-            super(msg);
-        }
-    }
-
     public static org.apache.pulsar.common.api.proto.ServerError getClientErrorCode(Throwable t) {
         return getClientErrorCode(t, true);
     }
@@ -286,8 +279,6 @@ public class BrokerServiceException extends Exception {
             return ServerError.TransactionConflict;
         } else if (t instanceof CoordinatorException.TransactionNotFoundException) {
             return ServerError.TransactionNotFound;
-        } else if (t instanceof TransactionComponentLoadFailedException) {
-            return ServerError.TransactionComponentLoadFailed;
         } else {
             if (checkCauseIfUnknown) {
                 return getClientErrorCode(t.getCause(), false);
