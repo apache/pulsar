@@ -943,12 +943,6 @@ public class PulsarClientException extends IOException {
         }
     }
 
-    public static class TransactionComponentLoadFailedException extends PulsarClientException {
-        public TransactionComponentLoadFailedException(String msg) {
-            super(msg);
-        }
-    }
-
     // wrap an exception to enriching more info messages.
     public static Throwable wrap(Throwable t, String msg) {
         msg += "\n" + t.getMessage();
@@ -1013,8 +1007,6 @@ public class PulsarClientException extends IOException {
             return new TransactionConflictException(msg);
         } else if (t instanceof  TransactionHasOperationFailedException) {
             return new TransactionHasOperationFailedException(msg);
-        } else if (t instanceof TransactionComponentLoadFailedException) {
-            return new TransactionComponentLoadFailedException(msg);
         } else if (t instanceof PulsarClientException) {
             return new PulsarClientException(msg);
         } else if (t instanceof CompletionException) {
@@ -1115,8 +1107,6 @@ public class PulsarClientException extends IOException {
             newException = new NotFoundException(msg);
         } else if (cause instanceof TransactionHasOperationFailedException) {
             newException = new TransactionHasOperationFailedException(msg);
-        } else if (cause instanceof TransactionComponentLoadFailedException) {
-            newException = new TransactionComponentLoadFailedException(msg);
         } else {
             newException = new PulsarClientException(t);
         }
