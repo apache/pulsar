@@ -313,7 +313,6 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 .build();
         this.backloggedCursorThresholdEntries =
                 brokerService.pulsar().getConfiguration().getManagedLedgerCursorBackloggedThreshold();
-        registerTopicPolicyListener();
 
         this.messageDeduplication = new MessageDeduplication(brokerService.pulsar(), this, ledger);
         if (ledger.getProperties().containsKey(TOPIC_EPOCH_PROPERTY_NAME)) {
@@ -1632,6 +1631,11 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         }
 
         List<String> configuredClusters = topicPolicies.getReplicationClusters().get();
+        if (CollectionUtils.isEmpty(configuredClusters)) {
+            log.warn("[{}] No replication clusters configured", name);
+            return CompletableFuture.completedFuture(null);
+        }
+
         int newMessageTTLInSeconds = topicPolicies.getMessageTTLInSeconds().get();
 
         String localCluster = brokerService.pulsar().getConfiguration().getClusterName();
@@ -3752,6 +3756,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     }
 
     protected CompletableFuture<Void> initTopicPolicy() {
+        registerTopicPolicyListener();
         if (brokerService.pulsar().getConfig().isSystemTopicEnabled()
                 && brokerService.pulsar().getConfig().isTopicLevelPoliciesEnabled()) {
             return CompletableFuture.completedFuture(null).thenRunAsync(() -> onUpdate(
