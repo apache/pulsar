@@ -906,12 +906,11 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
     }
 
     private void updateActiveRateLimiters() {
-        List<PublishRateLimiter> updatedRateLimiters;
+        List<PublishRateLimiter> updatedRateLimiters = new ArrayList<>();
+        updatedRateLimiters.add(this.topicPublishRateLimiter);
+        updatedRateLimiters.add(getBrokerPublishRateLimiter());
         if (isResourceGroupRateLimitingEnabled()) {
-            updatedRateLimiters =
-                    List.of(this.topicPublishRateLimiter, getBrokerPublishRateLimiter(), resourceGroupPublishLimiter);
-        } else {
-            updatedRateLimiters = List.of(this.topicPublishRateLimiter, getBrokerPublishRateLimiter());
+            updatedRateLimiters.add(resourceGroupPublishLimiter);
         }
         activeRateLimiters = updatedRateLimiters.stream().filter(Objects::nonNull).toList();
     }

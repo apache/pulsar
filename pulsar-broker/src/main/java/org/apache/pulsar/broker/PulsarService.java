@@ -1784,6 +1784,10 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         return brokerService.getListenPortTls();
     }
 
+    public AsyncTokenBucket.MonotonicClockSource getMonotonicClockSource() {
+        return monotonicClockSource;
+    }
+
     public static WorkerConfig initializeWorkerConfigFromBrokerConfig(ServiceConfiguration brokerConfig,
                                                                       String workerConfigFile) throws IOException {
         WorkerConfig workerConfig = WorkerConfig.load(workerConfigFile);
