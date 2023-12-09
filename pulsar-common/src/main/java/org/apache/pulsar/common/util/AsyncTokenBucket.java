@@ -448,7 +448,7 @@ public abstract class AsyncTokenBucket {
             this.sleepNanos = (int) (granularityNanos - TimeUnit.MILLISECONDS.toNanos(sleepMillis));
             this.clockSource = clockSource;
             this.lastNanos = clockSource.getAsLong();
-            Thread thread = new Thread(this::updateLoop, "AsyncTokenBucket-DefaultMonotonicClockSource");
+            Thread thread = new Thread(this::updateLoop, getClass().getSimpleName() + "-update-loop");
             thread.setDaemon(true);
             thread.start();
         }
