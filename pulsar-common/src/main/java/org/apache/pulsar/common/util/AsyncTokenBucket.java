@@ -45,8 +45,8 @@ public abstract class AsyncTokenBucket {
     // 2^24 nanoseconds is 16 milliseconds
     private static final long DEFAULT_RESOLUTION_NANOS = TimeUnit.MILLISECONDS.toNanos(16);
 
-    // The default resolution is 10 milliseconds. This means that the consumed tokens are subtracted from the
-    // current amount of tokens about every 10 milliseconds. This solution helps prevent a CAS loop what could cause
+    // The default resolution is 16 milliseconds. This means that the consumed tokens are subtracted from the
+    // current amount of tokens about every 16 milliseconds. This solution helps prevent a CAS loop what could cause
     // extra CPU usage when a single CAS field is updated at a high rate from multiple threads.
     private static long defaultResolutionNanos = DEFAULT_RESOLUTION_NANOS;
 
