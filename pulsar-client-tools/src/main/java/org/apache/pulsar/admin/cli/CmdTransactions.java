@@ -253,7 +253,7 @@ public class CmdTransactions extends CmdBase {
     @Parameters(commandDescription = "Abort transaction")
     private class AbortTransaction extends CliCommand {
         @Parameter(names = {"-m", "--most-sig-bits"}, description = "The most sig bits", required = true)
-        private int mostSigBits;
+        private long mostSigBits;
 
         @Parameter(names = {"-l", "--least-sig-bits"}, description = "The least sig bits", required = true)
         private long leastSigBits;

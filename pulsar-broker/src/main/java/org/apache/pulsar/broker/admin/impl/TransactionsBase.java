@@ -562,9 +562,9 @@ public abstract class TransactionsBase extends AdminResource {
 
     protected CompletableFuture<Void> internalAbortTransaction(boolean authoritative, long mostSigBits,
                                                                long leastSigBits) {
-        validateTopicOwnership(SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN.getPartition((int) mostSigBits),
-                authoritative);
-        return validateSuperUserAccessAsync()
+        return validateTopicOwnershipAsync(
+                SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN.getPartition((int) mostSigBits), authoritative)
+                .thenCompose(__ -> validateSuperUserAccessAsync())
                 .thenCompose(__ -> pulsar().getTransactionMetadataStoreService()
                         .endTransaction(new TxnID(mostSigBits, leastSigBits), TxnAction.ABORT_VALUE, false));
     }
