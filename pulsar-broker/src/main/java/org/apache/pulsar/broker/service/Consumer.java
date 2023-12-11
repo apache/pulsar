@@ -444,6 +444,15 @@ public class Consumer {
                 .collect(Collectors.toMap(KeyLongValue::getKey, KeyLongValue::getValue));
         }
 
+        if (subscription.isTransferring()) {
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] [{}] Ignoring message acknowledgement on transferring topic, ack(s) count: {}",
+                        subscription, consumerId, ack.getMessageIdsCount());
+            }
+            return FutureUtil.failedFuture(new BrokerServiceException.TopicTransferringException(
+                    "Topic is transferring, ignoring message acknowledgement"));
+        }
+
         if (ack.getAckType() == AckType.Cumulative) {
             if (ack.getMessageIdsCount() != 1) {
                 log.warn("[{}] [{}] Received multi-message ack", subscription, consumerId);
@@ -720,7 +729,7 @@ public class Consumer {
 
     private boolean isTransactionEnabled() {
         return subscription instanceof PersistentSubscription
-                && ((PersistentTopic) subscription.getTopic())
+                && subscription.getTopic()
                 .getBrokerService().getPulsar().getConfig().isTransactionCoordinatorEnabled();
     }
 

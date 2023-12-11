@@ -105,6 +105,10 @@ public interface Subscription extends MessageExpirer {
 
     boolean isSubscriptionMigrated();
 
+    default boolean isTransferring() {
+        return getTopic().isTransferring();
+    }
+
     default void processReplicatedSubscriptionSnapshot(ReplicatedSubscriptionsSnapshot snapshot) {
         // Default is no-op
     }
