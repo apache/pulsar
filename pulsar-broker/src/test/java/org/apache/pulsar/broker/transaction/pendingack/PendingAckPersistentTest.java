@@ -154,7 +154,7 @@ public class PendingAckPersistentTest extends TransactionTestBase {
                     .subscribe();
             fail();
         } catch (Exception exception) {
-            assertTrue(exception instanceof PulsarClientException.TransactionComponentLoadFailedException);
+            assertTrue(exception.getMessage().contains("Failed to init transaction pending ack."));
         }
     }
 

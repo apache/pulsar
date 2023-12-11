@@ -970,11 +970,12 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
         log.error("[{}] [{}] PendingAckHandleImpl init fail!", topicName, subName, t);
         handleCacheRequest();
         changeToErrorState();
-        this.pendingAckStoreFuture = FutureUtil.failedFuture(new BrokerServiceException
-                .TransactionComponentLoadFailedException(
+        // ToDo: Add a new serverError `TransactionComponentLoadFailedException`
+        //  and before that a `Unknown` will be returned first.
+        this.pendingAckStoreFuture = FutureUtil.failedFuture(new BrokerServiceException(
                         String.format("[%s][%s] Failed to init transaction pending ack.", topicName, subName)));
         final boolean completedNow = this.pendingAckHandleCompletableFuture.completeExceptionally(
-                new BrokerServiceException.TransactionComponentLoadFailedException(
+                new BrokerServiceException(
                 String.format("[%s][%s] Failed to init transaction pending ack.", topicName, subName)));
         if (completedNow) {
             recoverTime.setRecoverEndTime(System.currentTimeMillis());
