@@ -1843,6 +1843,15 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
         if (consumerFuture != null && consumerFuture.isDone() && !consumerFuture.isCompletedExceptionally()) {
             Consumer consumer = consumerFuture.getNow(null);
+            Subscription subscription = consumer.getSubscription();
+            if (subscription.getTopic().isTransferring()) {
+                // Message acks are silently ignored during topic transfer.
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}] [{}] Ignoring message acknowledgment during topic transfer, ack count: {}",
+                            subscription, consumerId, ack.getMessageIdsCount());
+                }
+                return;
+            }
             consumer.messageAcked(ack).thenRun(() -> {
                 if (hasRequestId) {
                     writeAndFlush(Commands.newAckResponse(
