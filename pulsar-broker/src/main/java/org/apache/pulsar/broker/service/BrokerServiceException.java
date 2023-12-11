@@ -234,6 +234,12 @@ public class BrokerServiceException extends Exception {
         public TopicTransferringException(String msg) {
             super(msg);
         }
+
+        @Override
+        public Throwable fillInStackTrace() {
+            // Disable stack trace collection to improve performance.
+            return null;
+        }
     }
 
     public static org.apache.pulsar.common.api.proto.ServerError getClientErrorCode(Throwable t) {
