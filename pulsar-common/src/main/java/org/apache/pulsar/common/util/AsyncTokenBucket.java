@@ -30,10 +30,19 @@ import java.util.function.LongSupplier;
  * when using CAS fields. The {@link LongAdder} class is used in the hot path to hold the sum of consumed tokens.
  * It is eventually consistent, meaning that the tokens are not updated on every call to the "consumeTokens" method.
  * <p>Main usage flow:
- * 1. tokens are consumed by calling the "consumeTokens" method.
- * 2. the "calculateThrottlingDuration" method is called to calculate the duration of a possible needed pause when the
- * tokens
- * are fully consumed.
+ * 1. Tokens are consumed by invoking the "consumeTokens" or "consumeTokensAndCheckIfContainsTokens" methods.
+ * 2. The "consumeTokensAndCheckIfContainsTokens" or "containsTokens" methods return false if there are no
+ * tokens available, indicating a need for throttling.
+ * 3. In case of throttling, the application should throttle in a way that is suitable for the use case
+ * and then call the "calculateThrottlingDuration" method to calculate the duration of the required pause.
+ * 4. After the pause duration, the application should verify if there are any available tokens by invoking the
+ * containsTokens method. If tokens are available, the application should cease throttling. However, if tokens are
+ * not available, the application should maintain the throttling and recompute the throttling duration. In a
+ * concurrent environment, it is advisable to use a throttling queue to ensure fair distribution of resources across
+ * throttled connections or clients. Once the throttling duration has elapsed, the application should select the next
+ * connection or client from the throttling queue to unthrottle. Before unthrottling, the application should check
+ * for available tokens. If tokens are still not available, the application should continue with throttling and
+ * repeat the throttling loop.
  * <p>This class does not produce side effects outside of its own scope. It functions similarly to a stateful function,
  * akin to a counter function. In essence, it is a sophisticated counter. It can serve as a foundational component for
  * constructing higher-level asynchronous rate limiter implementations, which require side effects for throttling.
