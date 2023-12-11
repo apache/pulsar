@@ -1857,12 +1857,9 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 }
             }).exceptionally(e -> {
                 if (hasRequestId) {
-                    if (!(e instanceof BrokerServiceException.TopicTransferringException)) {
-                        // Message acks are silently ignored during topic transfer
-                        writeAndFlush(Commands.newAckResponse(requestId,
-                                BrokerServiceException.getClientErrorCode(e),
-                                e.getMessage(), consumerId));
-                    }
+                    writeAndFlush(Commands.newAckResponse(requestId,
+                            BrokerServiceException.getClientErrorCode(e),
+                            e.getMessage(), consumerId));
                 }
                 return null;
             });

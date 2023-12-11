@@ -230,12 +230,6 @@ public class BrokerServiceException extends Exception {
         }
     }
 
-    public static class TopicTransferringException extends BrokerServiceException {
-        public TopicTransferringException(String msg) {
-            super(msg);
-        }
-    }
-
     public static org.apache.pulsar.common.api.proto.ServerError getClientErrorCode(Throwable t) {
         return getClientErrorCode(t, true);
     }
