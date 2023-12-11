@@ -130,7 +130,7 @@ public abstract class AsyncTokenBucket {
             // The target amount of tokens is the amount of tokens made available in the resolution duration
             this.targetAmountOfTokensAfterThrottling = Math.max(this.resolutionNanos * rate / ratePeriodNanos, 1);
             this.tokens = initialTokens;
-            updateTokens();
+            tokens(false);
         }
 
         @Override
@@ -165,10 +165,6 @@ public abstract class AsyncTokenBucket {
 
     public static DynamicRateAsyncTokenBucketBuilder builderForDynamicRate() {
         return new DynamicRateAsyncTokenBucketBuilder();
-    }
-
-    public void updateTokens() {
-        updateAndConsumeTokens(0, false);
     }
 
     protected abstract long getRatePeriodNanos();
@@ -375,7 +371,7 @@ public abstract class AsyncTokenBucket {
             this.ratePeriodNanosFunction = ratePeriodNanosFunction;
             this.targetFillFactorAfterThrottling = targetFillFactorAfterThrottling;
             this.tokens = (long) (rateFunction.getAsLong() * initialTokensFactor);
-            updateTokens();
+            tokens(false);
         }
 
         @Override
