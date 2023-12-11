@@ -53,16 +53,14 @@ public class PublishRateLimiterImpl implements PublishRateLimiter {
         AsyncTokenBucket currentTokenBucketOnMessage = tokenBucketOnMessage;
         if (currentTokenBucketOnMessage != null) {
             // consume tokens from the token bucket for messages
-            currentTokenBucketOnMessage.consumeTokens(numOfMessages);
-            // check if the token bucket contains remaining tokens, if not, we should throttle
-            shouldThrottle = !currentTokenBucketOnMessage.containsTokens();
+            // we should throttle if it returns false since the token bucket is empty in that case
+            shouldThrottle = !currentTokenBucketOnMessage.consumeTokensAndCheckIfContainsTokens(numOfMessages);
         }
         AsyncTokenBucket currentTokenBucketOnByte = tokenBucketOnByte;
         if (currentTokenBucketOnByte != null) {
             // consume tokens from the token bucket for bytes
-            currentTokenBucketOnByte.consumeTokens(msgSizeInBytes);
-            // check if the token bucket contains remaining tokens, if not, we should throttle
-            shouldThrottle |= !currentTokenBucketOnByte.containsTokens();
+            // we should throttle if it returns false since the token bucket is empty in that case
+            shouldThrottle |= !currentTokenBucketOnByte.consumeTokensAndCheckIfContainsTokens(msgSizeInBytes);
         }
         if (shouldThrottle) {
             // throttle the producer by incrementing the throttle count

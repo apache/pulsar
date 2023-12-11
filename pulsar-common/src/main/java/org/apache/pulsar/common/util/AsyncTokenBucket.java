@@ -175,7 +175,7 @@ public abstract class AsyncTokenBucket {
 
     protected abstract long getTargetAmountOfTokensAfterThrottling();
 
-    private void updateAndConsumeTokens(long consumeTokens, boolean forceUpdateTokens) {
+    private long updateAndConsumeTokens(long consumeTokens, boolean forceUpdateTokens) {
         if (consumeTokens < 0) {
             throw new IllegalArgumentException("consumeTokens must be >= 0");
         }
@@ -202,23 +202,54 @@ public abstract class AsyncTokenBucket {
                 }
             }
             long pendingConsumed = pendingConsumedTokens.sumThenReset();
-            TOKENS_UPDATER.updateAndGet(this,
+            return TOKENS_UPDATER.updateAndGet(this,
                     currentTokens -> Math.min(currentTokens + newTokens, getCapacity()) - consumeTokens
                             - pendingConsumed);
         } else {
             if (consumeTokens > 0) {
                 pendingConsumedTokens.add(consumeTokens);
             }
+            return Long.MIN_VALUE;
         }
     }
 
+    /**
+     * Eventually consume tokens from the bucket.
+     * The number of tokens is eventually consistent with the configured granularity of resolutionNanos.
+     *
+     * @param consumeTokens the number of tokens to consume
+     */
     public void consumeTokens(long consumeTokens) {
         updateAndConsumeTokens(consumeTokens, false);
     }
 
+    /**
+     * Eventually consume tokens from the bucket and check if tokens remain available.
+     * The number of tokens is eventually consistent with the configured granularity of resolutionNanos.
+     * Therefore, the returned result is not definite.
+     *
+     * @param consumeTokens the number of tokens to consume
+     * @return true if there is tokens remains, false if tokens are all consumed. The answer isn't definite since the
+     * comparison is made with eventually consistent token value.
+     */
+    public boolean consumeTokensAndCheckIfContainsTokens(long consumeTokens) {
+        long currentTokens = updateAndConsumeTokens(consumeTokens, false);
+        if (currentTokens > 0) {
+            return true;
+        } else if (currentTokens == Long.MIN_VALUE) {
+            return tokens - consumeTokens > 0;
+        } else {
+            return false;
+        }
+    }
+
     protected long tokens(boolean forceUpdateTokens) {
-        updateAndConsumeTokens(0, forceUpdateTokens);
-        return tokens;
+        long currentTokens = updateAndConsumeTokens(0, forceUpdateTokens);
+        if (currentTokens != Long.MIN_VALUE) {
+            return currentTokens;
+        } else {
+            return tokens;
+        }
     }
 
     /**
@@ -228,8 +259,12 @@ public abstract class AsyncTokenBucket {
      * isn't necessary on the hotpath.
      */
     public long calculateThrottlingDuration() {
-        updateAndConsumeTokens(0, true);
-        long needTokens = getTargetAmountOfTokensAfterThrottling() - tokens;
+        long currentTokens = updateAndConsumeTokens(0, true);
+        if (currentTokens == Long.MIN_VALUE) {
+            throw new IllegalArgumentException(
+                    "Unexpected result from updateAndConsumeTokens with forceUpdateTokens set to true");
+        }
+        long needTokens = getTargetAmountOfTokensAfterThrottling() - currentTokens;
         if (needTokens <= 0) {
             return 0;
         }
