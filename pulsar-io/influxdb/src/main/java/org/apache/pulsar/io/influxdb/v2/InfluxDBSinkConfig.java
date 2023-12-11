@@ -27,6 +27,8 @@ import java.io.Serializable;
 import java.util.Map;
 import lombok.Data;
 import lombok.experimental.Accessors;
+import org.apache.pulsar.io.common.IOConfigUtils;
+import org.apache.pulsar.io.core.SinkContext;
 import org.apache.pulsar.io.core.annotations.FieldDoc;
 
 /**
@@ -87,7 +89,7 @@ public class InfluxDBSinkConfig implements Serializable {
 
     @FieldDoc(
             required = false,
-            defaultValue = "1000L",
+            defaultValue = "1000",
             help = "The InfluxDB operation time in milliseconds")
     private long batchTimeMs = 1000;
 
@@ -103,17 +105,11 @@ public class InfluxDBSinkConfig implements Serializable {
         return mapper.readValue(new File(yamlFile), InfluxDBSinkConfig.class);
     }
 
-    public static InfluxDBSinkConfig load(Map<String, Object> map) throws IOException {
-        ObjectMapper mapper = new ObjectMapper();
-        return mapper.readValue(mapper.writeValueAsString(map), InfluxDBSinkConfig.class);
+    public static InfluxDBSinkConfig load(Map<String, Object> map, SinkContext sinkContext) throws IOException {
+        return IOConfigUtils.loadWithSecrets(map, InfluxDBSinkConfig.class, sinkContext);
     }
 
     public void validate() {
-        Preconditions.checkNotNull(influxdbUrl, "influxdbUrl property not set.");
-        Preconditions.checkNotNull(token, "token property not set.");
-        Preconditions.checkNotNull(organization, "organization property not set.");
-        Preconditions.checkNotNull(bucket, "bucket property not set.");
-
         Preconditions.checkArgument(batchSize > 0, "batchSize must be a positive integer.");
         Preconditions.checkArgument(batchTimeMs > 0, "batchTimeMs must be a positive long.");
     }

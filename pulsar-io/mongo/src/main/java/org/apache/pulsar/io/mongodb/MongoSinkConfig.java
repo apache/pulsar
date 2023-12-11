@@ -30,6 +30,8 @@ import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.experimental.Accessors;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.io.common.IOConfigUtils;
+import org.apache.pulsar.io.core.SinkContext;
 
 /**
  * Configuration class for the MongoDB Sink Connectors.
@@ -59,11 +61,8 @@ public class MongoSinkConfig extends MongoAbstractConfig {
         return cfg;
     }
 
-    public static MongoSinkConfig load(Map<String, Object> map) throws IOException {
-        final ObjectMapper mapper = new ObjectMapper();
-        final MongoSinkConfig cfg = mapper.readValue(mapper.writeValueAsString(map), MongoSinkConfig.class);
-
-        return cfg;
+    public static MongoSinkConfig load(Map<String, Object> map, SinkContext sinkContext) throws IOException {
+        return IOConfigUtils.loadWithSecrets(map, MongoSinkConfig.class, sinkContext);
     }
 
     @Override
