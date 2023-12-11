@@ -18,13 +18,18 @@
 # under the License.
 #
 
-set -x
+set -e -x
 
-# TODO: remove these lines once grpcio doesn't need to compile from source on ARM64 platform
-ARCH=$(uname -m | sed -r 's/aarch64/arm64/g' |  awk '!/arm64/{$0="amd64"}1')
-if [ "${ARCH}" == "arm64" ]; then
-  apt update
-  apt -y install build-essential python3-dev
+ARCH=$(uname -m)
+if [ "$ARCH" == "x86_64" ]
+then
+  cd /tmp
+  echo 'https://storage.sev.monster/alpine/edge/testing' | tee -a /etc/apk/repositories
+  wget https://storage.sev.monster/alpine/edge/testing/x86_64/sevmonster-keys-1-r0.apk
+  apk add --no-cache --allow-untrusted ./sevmonster-keys-1-r0.apk
+  apk update
+  apk add gcompat libuuid
+  rm /lib/ld-linux-x86-64.so.2
+  apk add --no-cache --force-overwrite glibc glibc-bin
+  rm *.apk
 fi
-
-pip3 install pulsar-client[all]==${PULSAR_CLIENT_PYTHON_VERSION}
