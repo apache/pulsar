@@ -27,6 +27,7 @@ import java.io.Serializable;
 import java.util.Map;
 import lombok.Data;
 import lombok.experimental.Accessors;
+import org.apache.pulsar.io.core.SourceContext;
 import org.apache.pulsar.io.core.annotations.FieldDoc;
 
 @Data
@@ -152,8 +153,14 @@ public class KafkaSourceConfig implements Serializable {
         return mapper.readValue(new File(yamlFile), KafkaSourceConfig.class);
     }
 
-    public static KafkaSourceConfig load(Map<String, Object> map) throws IOException {
+    public static KafkaSourceConfig load(Map<String, Object> map, SourceContext sourceContext) throws IOException {
         ObjectMapper mapper = new ObjectMapper();
+        // since the KafkaSourceConfig requires the ACCEPT_EMPTY_STRING_AS_NULL_OBJECT feature
+        // We manually set the sensitive fields here instead of calling `IOConfigUtils.loadWithSecrets`
+        String sslTruststorePassword = sourceContext.getSecret("sslTruststorePassword");
+        if (sslTruststorePassword != null) {
+            map.put("sslTruststorePassword", sslTruststorePassword);
+        }
         mapper.enable(DeserializationFeature.ACCEPT_EMPTY_STRING_AS_NULL_OBJECT);
         return mapper.readValue(mapper.writeValueAsString(map), KafkaSourceConfig.class);
     }

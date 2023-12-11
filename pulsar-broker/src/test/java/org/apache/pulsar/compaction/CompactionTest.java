@@ -26,7 +26,6 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
-
 import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import io.netty.buffer.ByteBuf;
@@ -648,9 +647,9 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
 
     @Test(dataProvider = "retainNullKey")
     public void testKeyLessMessagesPassThrough(boolean retainNullKey) throws Exception {
-        conf.setTopicCompactionRemainNullKey(retainNullKey);
+        conf.setTopicCompactionRetainNullKey(retainNullKey);
         restartBroker();
-        FieldUtils.writeDeclaredField(compactor, "topicCompactionRemainNullKey", retainNullKey, true);
+        FieldUtils.writeDeclaredField(compactor, "topicCompactionRetainNullKey", retainNullKey, true);
 
         String topic = "persistent://my-property/use/my-ns/my-topic1";
 

@@ -26,6 +26,8 @@ import java.io.Serializable;
 import java.util.Map;
 import lombok.Data;
 import lombok.experimental.Accessors;
+import org.apache.pulsar.io.common.IOConfigUtils;
+import org.apache.pulsar.io.core.SinkContext;
 import org.apache.pulsar.io.core.annotations.FieldDoc;
 
 @Data
@@ -85,12 +87,12 @@ public class KafkaSinkConfig implements Serializable {
                     + " before considering a request complete. This controls the durability of records that are sent.")
     private String acks;
     @FieldDoc(
-            defaultValue = "16384L",
+            defaultValue = "16384",
             help = "The batch size that Kafka producer will attempt to batch records together"
                     + " before sending them to brokers.")
     private long batchSize = 16384L;
     @FieldDoc(
-            defaultValue = "1048576L",
+            defaultValue = "1048576",
             help =
                     "The maximum size of a Kafka request in bytes.")
     private long maxRequestSize = 1048576L;
@@ -123,8 +125,7 @@ public class KafkaSinkConfig implements Serializable {
         return mapper.readValue(new File(yamlFile), KafkaSinkConfig.class);
     }
 
-    public static KafkaSinkConfig load(Map<String, Object> map) throws IOException {
-        ObjectMapper mapper = new ObjectMapper();
-        return mapper.readValue(mapper.writeValueAsString(map), KafkaSinkConfig.class);
+    public static KafkaSinkConfig load(Map<String, Object> map, SinkContext sinkContext) throws IOException {
+        return IOConfigUtils.loadWithSecrets(map, KafkaSinkConfig.class, sinkContext);
     }
 }

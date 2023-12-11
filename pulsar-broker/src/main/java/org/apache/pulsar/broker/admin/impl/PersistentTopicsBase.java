@@ -188,19 +188,6 @@ public class PersistentTopicsBase extends AdminResource {
             );
     }
 
-    protected CompletableFuture<List<String>> internalGetListAsync() {
-        return validateNamespaceOperationAsync(namespaceName, NamespaceOperation.GET_TOPICS)
-                .thenCompose(__ -> namespaceResources().namespaceExistsAsync(namespaceName))
-                .thenAccept(exists -> {
-                    if (!exists) {
-                        throw new RestException(Status.NOT_FOUND, "Namespace does not exist");
-                    }
-                })
-                .thenCompose(__ -> topicResources().listPersistentTopicsAsync(namespaceName))
-                .thenApply(topics -> topics.stream().filter(topic ->
-                        !isTransactionInternalName(TopicName.get(topic))).collect(Collectors.toList()));
-    }
-
     protected CompletableFuture<List<String>> internalGetPartitionedTopicListAsync() {
         return validateNamespaceOperationAsync(namespaceName, NamespaceOperation.GET_TOPICS)
                 .thenCompose(__ -> namespaceResources().namespaceExistsAsync(namespaceName))
@@ -4502,54 +4489,6 @@ public class PersistentTopicsBase extends AdminResource {
             }
         }
         return CompletableFuture.completedFuture(null);
-    }
-
-    /**
-     * Validate update of number of partition for partitioned topic.
-     * If there's already non partition topic with same name and contains partition suffix "-partition-"
-     * followed by numeric value X then the new number of partition of that partitioned topic can not be greater
-     * than that X else that non partition topic will essentially be overwritten and cause unexpected consequence.
-     *
-     * @param topicName
-     */
-    private CompletableFuture<Void> validatePartitionTopicUpdateAsync(String topicName, int numberOfPartition) {
-        return internalGetListAsync().thenCompose(existingTopicList -> {
-            TopicName partitionTopicName = TopicName.get(domain(), namespaceName, topicName);
-            String prefix = partitionTopicName.getPartitionedTopicName() + PARTITIONED_TOPIC_SUFFIX;
-            return getPartitionedTopicMetadataAsync(partitionTopicName, false, false)
-                    .thenAccept(metadata -> {
-                        int oldPartition = metadata.partitions;
-                        for (String existingTopicName : existingTopicList) {
-                            if (existingTopicName.startsWith(prefix)) {
-                                try {
-                                    long suffix = Long.parseLong(existingTopicName.substring(
-                                            existingTopicName.indexOf(PARTITIONED_TOPIC_SUFFIX)
-                                                    + PARTITIONED_TOPIC_SUFFIX.length()));
-                                    // Skip partition of partitioned topic by making sure
-                                    // the numeric suffix greater than old partition number.
-                                    if (suffix >= oldPartition && suffix <= (long) numberOfPartition) {
-                                        log.warn(
-                                                "[{}] Already have non partition topic {} which contains partition"
-                                                        + " suffix '-partition-' and end with numeric value smaller"
-                                                        + " than the new number of partition. Update of partitioned"
-                                                        + " topic {} could cause conflict.",
-                                                clientAppId(),
-                                                existingTopicName, topicName);
-                                        throw new RestException(Status.PRECONDITION_FAILED,
-                                                "Already have non partition topic " + existingTopicName
-                                                        + " which contains partition suffix '-partition-' "
-                                                        + "and end with numeric value and end with numeric value"
-                                                        + " smaller than the new number of partition. Update of"
-                                                        + " partitioned topic " + topicName + " could cause conflict.");
-                                    }
-                                } catch (NumberFormatException e) {
-                                    // Do nothing, if value after partition suffix is not pure numeric value,
-                                    // as it can't conflict with internal created partitioned topic's name.
-                                }
-                            }
-                        }
-                    });
-        });
     }
 
     /**
