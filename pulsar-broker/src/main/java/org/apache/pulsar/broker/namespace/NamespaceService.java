@@ -1351,26 +1351,40 @@ public class NamespaceService implements AutoCloseable {
     }
 
     public CompletableFuture<Boolean> checkTopicExists(TopicName topic) {
-        return pulsar.getBrokerService()
-                .fetchPartitionedTopicMetadataAsync(TopicName.get(topic.getPartitionedTopicName()))
-                .thenCompose(metadata -> {
-                    if (metadata.partitions > 0) {
-                        return CompletableFuture.completedFuture(true);
-                    }
+        CompletableFuture<Boolean> future;
+        // If the topic is persistent and the name includes `-partition-`, find the topic from the managed/ledger.
+        if (topic.isPersistent() && topic.isPartitioned()) {
+            future = pulsar.getPulsarResources().getTopicResources().persistentTopicExists(topic);
+        } else {
+            future = CompletableFuture.completedFuture(false);
+        }
 
-                    if (topic.isPersistent()) {
-                        return pulsar.getPulsarResources().getTopicResources().persistentTopicExists(topic);
-                    } else {
-                        // The non-partitioned non-persistent topic only exist in the broker topics.
-                        CompletableFuture<Optional<Topic>> nonPersistentTopicFuture =
-                                pulsar.getBrokerService().getTopics().get(topic.toString());
-                        if (nonPersistentTopicFuture == null) {
-                            return CompletableFuture.completedFuture(false);
-                        } else {
-                            return nonPersistentTopicFuture.thenApply(Optional::isPresent);
+        return future.thenCompose(found -> {
+            if (found != null && found) {
+                return CompletableFuture.completedFuture(true);
+            }
+
+            return pulsar.getBrokerService()
+                    .fetchPartitionedTopicMetadataAsync(TopicName.get(topic.getPartitionedTopicName()))
+                    .thenCompose(metadata -> {
+                        if (metadata.partitions > 0) {
+                            return CompletableFuture.completedFuture(true);
                         }
-                    }
-                });
+
+                        if (topic.isPersistent()) {
+                            return pulsar.getPulsarResources().getTopicResources().persistentTopicExists(topic);
+                        } else {
+                            // The non-partitioned non-persistent topic only exist in the broker topics.
+                            CompletableFuture<Optional<Topic>> nonPersistentTopicFuture =
+                                    pulsar.getBrokerService().getTopics().get(topic.toString());
+                            if (nonPersistentTopicFuture == null) {
+                                return CompletableFuture.completedFuture(false);
+                            } else {
+                                return nonPersistentTopicFuture.thenApply(Optional::isPresent);
+                            }
+                        }
+                    });
+        });
     }
 
     public CompletableFuture<List<String>> getListOfTopics(NamespaceName namespaceName, Mode mode) {
