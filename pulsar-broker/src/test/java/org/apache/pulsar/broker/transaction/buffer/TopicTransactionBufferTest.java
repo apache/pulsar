@@ -22,6 +22,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.Mockito.when;
 import static org.testng.AssertJUnit.assertEquals;
+import static org.testng.AssertJUnit.assertTrue;
 import static org.testng.AssertJUnit.fail;
 import java.util.List;
 import lombok.Cleanup;
@@ -236,7 +237,8 @@ public class TopicTransactionBufferTest extends TransactionTestBase {
         try {
             consumer.getLastMessageIds();
             fail();
-        } catch (PulsarClientException.BrokerPersistenceException ignore) {
+        } catch (PulsarClientException exception) {
+            assertTrue(exception.getMessage().contains("Failed to recover Transaction Buffer."));
         }
         List<TopicMessageId> messageIdList = consumer.getLastMessageIds();
         assertEquals(messageIdList.size(), 1);
