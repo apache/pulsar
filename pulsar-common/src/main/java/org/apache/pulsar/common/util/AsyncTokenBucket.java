@@ -171,6 +171,19 @@ public abstract class AsyncTokenBucket {
 
     protected abstract long getTargetAmountOfTokensAfterThrottling();
 
+    /**
+     * Update the tokens and consume tokens from the bucket. The number of tokens is eventually consistent with the
+     * configured granularity of resolutionNanos. For example, if the resolutionNanos is 16 milliseconds, the tokens
+     * are updated at most once every 16 milliseconds. This means that the tokens are not updated on every call to this
+     * method. On the fast path, the tokens are added to a pendingConsumedTokens LongAdder and the tokens are updated
+     * when the configured resolutionNanos has passed again. This solution is in place to prevent CAS loop contention
+     * and excessive CPU consumption.
+     *
+     * @param consumeTokens     number of tokens to consume
+     * @param forceUpdateTokens if true, the tokens are updated even if the configured resolution hasn't passed
+     * @return the current number of tokens in the bucket or Long.MIN_VALUE when the number of tokens is unknown due
+     * to eventual consistency
+     */
     private long updateAndConsumeTokens(long consumeTokens, boolean forceUpdateTokens) {
         if (consumeTokens < 0) {
             throw new IllegalArgumentException("consumeTokens must be >= 0");
@@ -205,6 +218,7 @@ public abstract class AsyncTokenBucket {
             if (consumeTokens > 0) {
                 pendingConsumedTokens.add(consumeTokens);
             }
+            // return Long.MIN_VALUE if the current value of tokens is unknown due to the eventual consistency
             return Long.MIN_VALUE;
         }
     }
