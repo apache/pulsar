@@ -179,18 +179,10 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
         doAnswer(invocationOnMock -> prod1.getState()).when(producer1).getState();
         doAnswer(invocationOnMock -> prod1.getClientCnx()).when(producer1).getClientCnx();
         doAnswer(invocationOnMock -> prod1.cnx()).when(producer1).cnx();
-        doAnswer(invocationOnMock -> {
-            prod1.connectionClosed((ClientCnx) invocationOnMock.getArguments()[0]);
-            return null;
-        }).when(producer1).connectionClosed(any());
         ProducerImpl<byte[]> producer2 = spy(prod2);
         doAnswer(invocationOnMock -> prod2.getState()).when(producer2).getState();
         doAnswer(invocationOnMock -> prod2.getClientCnx()).when(producer2).getClientCnx();
         doAnswer(invocationOnMock -> prod2.cnx()).when(producer2).cnx();
-        doAnswer(invocationOnMock -> {
-            prod2.connectionClosed((ClientCnx) invocationOnMock.getArguments()[0]);
-            return null;
-        }).when(producer2).connectionClosed(any());
 
         ClientCnx clientCnx = producer1.getClientCnx();
 
@@ -221,11 +213,11 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
         // let server send signal to close-connection and client close the connection
         Thread.sleep(1000);
         // [1] Verify: producer1 must get connectionClosed signal
-        verify(producer1, atLeastOnce()).connectionClosed(any());
+        verify(producer1, atLeastOnce()).connectionClosed(any(), any(), any());
         // [2] Verify: consumer1 must get connectionClosed signal
         verify(consumer1, atLeastOnce()).connectionClosed(any(), any(), any());
         // [3] Verify: producer2 should have not received connectionClosed signal
-        verify(producer2, never()).connectionClosed(any());
+        verify(producer2, never()).connectionClosed(any(), any(), any());
 
         // sleep for sometime to let other disconnected producer and consumer connect again: but they should not get
         // connected with same broker as that broker is already out from active-broker list
@@ -245,7 +237,7 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
         pulsar.getNamespaceService().unloadNamespaceBundle((NamespaceBundle) bundle2).join();
         // let producer2 give some time to get disconnect signal and get disconnected
         Thread.sleep(200);
-        verify(producer2, atLeastOnce()).connectionClosed(any());
+        verify(producer2, atLeastOnce()).connectionClosed(any(), any(), any());
 
         // producer1 must not be able to connect again
         assertNull(prod1.getClientCnx());
