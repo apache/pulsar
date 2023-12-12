@@ -191,7 +191,6 @@ flexible messaging model and an intuitive client API.</description>
     <json-smart.version>2.4.10</json-smart.version>
     <opensearch.version>1.2.4</opensearch.version>
     <elasticsearch-java.version>8.5.2</elasticsearch-java.version>
-    <trino.version>368</trino.version>
     <debezium.version>1.9.7.Final</debezium.version>
     <debezium.postgresql.version>42.5.0</debezium.postgresql.version>
     <debezium.mysql.version>8.0.30</debezium.mysql.version>
@@ -1776,7 +1775,6 @@ flexible messaging model and an intuitive client API.</description>
 
             <!-- This is a text property file that contains just a class name -->
             <exclude>**/META-INF/services/com.scurrilous.circe.HashProvider</exclude>
-            <exclude>**/META-INF/services/io.trino.spi.Plugin</exclude>
 
             <!-- Django generated code -->
             <exclude>**/django/stats/migrations/*.py</exclude>
@@ -2214,7 +2212,6 @@ flexible messaging model and an intuitive client API.</description>
         <module>pulsar-testclient</module>
         <module>pulsar-broker-auth-athenz</module>
         <module>pulsar-client-auth-athenz</module>
-        <module>pulsar-sql</module>
         <module>pulsar-broker-auth-oidc</module>
         <module>pulsar-broker-auth-sasl</module>
         <module>pulsar-client-auth-sasl</module>
@@ -2497,13 +2494,6 @@ flexible messaging model and an intuitive client API.</description>
       <id>pulsar-io-kafka-connect-tests</id>
       <modules>
         <module>pulsar-io</module>
-      </modules>
-    </profile>
-
-    <profile>
-      <id>pulsar-sql-tests</id>
-      <modules>
-        <module>pulsar-sql</module>
       </modules>
     </profile>
 
