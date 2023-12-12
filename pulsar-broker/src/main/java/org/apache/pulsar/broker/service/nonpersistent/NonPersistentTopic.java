@@ -507,6 +507,9 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
 
         lock.writeLock().lock();
         try {
+            if (!disconnectClients) {
+                transferring = true;
+            }
             if (!isFenced || closeWithoutWaitingClientDisconnect) {
                 isFenced = true;
             } else {
