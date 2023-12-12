@@ -303,12 +303,18 @@ public class ClientCnxTest {
         ClientCnx cnx = new ClientCnx(conf, eventLoop);
 
         long producerId = 1;
-        cnx.registerProducer(producerId, mock(ProducerImpl.class));
+        PulsarClientImpl pulsarClient = mock(PulsarClientImpl.class);
+        when(pulsarClient.getConfiguration()).thenReturn(conf);
+        ProducerImpl producer = mock(ProducerImpl.class);
+        when(producer.getClient()).thenReturn(pulsarClient);
+        cnx.registerProducer(producerId, producer);
         assertEquals(cnx.producers.size(), 1);
 
-        CommandCloseProducer closeProducerCmd = new CommandCloseProducer().setProducerId(producerId);
+        CommandCloseProducer closeProducerCmd = new CommandCloseProducer().setProducerId(producerId).setRequestId(1);
         cnx.handleCloseProducer(closeProducerCmd);
         assertEquals(cnx.producers.size(), 0);
+
+        verify(producer).connectionClosed(cnx, Optional.empty(), Optional.empty());
 
         eventLoop.shutdownGracefully();
     }
