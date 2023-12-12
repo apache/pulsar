@@ -730,6 +730,25 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         });
     }
 
+    @Test(timeOut = 30000)
+    public void testUpdateCustomDynamicConfiguration() throws Exception {
+        final var key = "custom-key";
+        final var invalidValue = "invalid-value";
+        pulsar.getBrokerService().registerCustomDynamicConfiguration(key, value -> !value.equals(invalidValue));
+        assertThrows(IllegalArgumentException.class, () -> pulsar.getBrokerService()
+                .registerCustomDynamicConfiguration("brokerShutdownTimeoutMs", __ -> true));
+
+        admin.brokers().updateDynamicConfiguration(key, "valid-value");
+
+        Awaitility.waitAtMost(10, TimeUnit.SECONDS).untilAsserted(() -> {
+            final var configs = admin.brokers().getAllDynamicConfigurations();
+            assertEquals(configs.get(key), "valid-value");
+        });
+
+        assertThrows(PulsarAdminException.PreconditionFailedException.class,
+                () -> admin.brokers().updateDynamicConfiguration(key, invalidValue));
+    }
+
     @Test
     public void testUpdatableConfigurationName() throws Exception {
         // (1) try to update dynamic field

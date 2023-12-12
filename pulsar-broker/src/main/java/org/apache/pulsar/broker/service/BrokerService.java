@@ -2528,8 +2528,6 @@ public class BrokerService implements Closeable {
                                 } catch (Exception e) {
                                     log.error("Failed to update config {}/{}", configKey, newValue);
                                 }
-                            } else {
-                                log.error("Found non-dynamic field in dynamicConfigMap {}/{}", configKey, newValue);
                             }
                         });
                     });
@@ -3682,6 +3680,15 @@ public class BrokerService implements Closeable {
     @VisibleForTesting
     public void setPulsarChannelInitializerFactory(PulsarChannelInitializer.Factory factory) {
         this.pulsarChannelInitFactory = factory;
+    }
+
+    public void registerCustomDynamicConfiguration(String key, Predicate<String> validator) {
+        if (dynamicConfigurationMap.containsKey(key)) {
+            throw new IllegalArgumentException(key + " already exists in the dynamicConfigurationMap");
+        }
+        var configField = new ConfigField(null);
+        configField.validator = validator;
+        dynamicConfigurationMap.put(key, configField);
     }
 
     @AllArgsConstructor
