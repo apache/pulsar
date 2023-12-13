@@ -57,7 +57,7 @@
       <groupId>org.apache.commons</groupId>
       <artifactId>commons-lang3</artifactId>
     </dependency>
-    
+
   	<dependency>
   		<groupId>org.apache.hadoop</groupId>
   		<artifactId>hadoop-client</artifactId>
@@ -78,6 +78,10 @@
           <exclusion>
             <groupId>commons-net</groupId>
             <artifactId>commons-net</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>org.apache.avro</groupId>
+            <artifactId>avro</artifactId>
           </exclusion>
         </exclusions>
   	</dependency>
