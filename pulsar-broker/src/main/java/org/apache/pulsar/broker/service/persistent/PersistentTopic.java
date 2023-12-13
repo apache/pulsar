@@ -1515,9 +1515,9 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                     // cases when Topic.close is called outside the scope of the ExtensibleLoadManager. In these
                     // situations, we must pursue the regular Subscription.close, as Topic.close is invoked just once.
                     if (isTransferring()) {
-                          subscriptions.forEach((s, sub) -> futures.add(sub.disconnect(lookupData)));
+                        subscriptions.forEach((s, sub) -> futures.add(sub.disconnect(lookupData)));
                     } else {
-                          subscriptions.forEach((s, sub) -> futures.add(sub.close(true, lookupData)));
+                        subscriptions.forEach((s, sub) -> futures.add(sub.close(true, lookupData)));
                     }
                 }
             ));
