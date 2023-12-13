@@ -2515,9 +2515,8 @@ public class BrokerService implements Closeable {
                             }
                             Field configField = configFieldWrapper.field;
                             Consumer listener = configRegisteredListeners.get(configKey);
-                            Object existingValue;
-
                             try {
+                                final Object existingValue;
                                 final Object newValue;
                                 if (configField != null) {
                                     newValue = FieldParser.value(data.get(configKey), configField);
