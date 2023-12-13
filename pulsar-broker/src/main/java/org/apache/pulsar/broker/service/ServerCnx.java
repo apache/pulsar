@@ -1927,23 +1927,28 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             long requestId = getLastMessageId.getRequestId();
 
             Topic topic = consumer.getSubscription().getTopic();
-            Position lastPosition = topic.getLastPosition();
-            int partitionIndex = TopicName.getPartitionIndex(topic.getName());
+            topic.checkIfTransactionBufferRecoverCompletely(true).thenRun(() -> {
+                Position lastPosition = ((PersistentTopic) topic).getMaxReadPosition();
+                int partitionIndex = TopicName.getPartitionIndex(topic.getName());
 
-            Position markDeletePosition = null;
-            if (consumer.getSubscription() instanceof PersistentSubscription) {
-                markDeletePosition = ((PersistentSubscription) consumer.getSubscription()).getCursor()
-                        .getMarkDeletedPosition();
-            }
+                Position markDeletePosition = null;
+                if (consumer.getSubscription() instanceof PersistentSubscription) {
+                    markDeletePosition = ((PersistentSubscription) consumer.getSubscription()).getCursor()
+                            .getMarkDeletedPosition();
+                }
 
-            getLargestBatchIndexWhenPossible(
-                    topic,
-                    (PositionImpl) lastPosition,
-                    (PositionImpl) markDeletePosition,
-                    partitionIndex,
-                    requestId,
-                    consumer.getSubscription().getName());
-
+                getLargestBatchIndexWhenPossible(
+                        topic,
+                        (PositionImpl) lastPosition,
+                        (PositionImpl) markDeletePosition,
+                        partitionIndex,
+                        requestId,
+                        consumer.getSubscription().getName());
+            }).exceptionally(e -> {
+                ctx.writeAndFlush(Commands.newError(getLastMessageId.getRequestId(),
+                        ServerError.UnknownError, "Failed to recover Transaction Buffer."));
+                return null;
+            });
         } else {
             ctx.writeAndFlush(Commands.newError(getLastMessageId.getRequestId(),
                     ServerError.MetadataError, "Consumer not found"));

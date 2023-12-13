@@ -211,9 +211,12 @@ class InMemTransactionBuffer implements TransactionBuffer {
 
     final ConcurrentMap<TxnID, TxnBuffer> buffers;
     final Map<Long, Set<TxnID>> txnIndex;
+    private final Topic topic;
+
     public InMemTransactionBuffer(Topic topic) {
         this.buffers = new ConcurrentHashMap<>();
         this.txnIndex = new HashMap<>();
+        this.topic = topic;
     }
 
     @Override
@@ -371,7 +374,7 @@ class InMemTransactionBuffer implements TransactionBuffer {
 
     @Override
     public PositionImpl getMaxReadPosition() {
-        return PositionImpl.LATEST;
+        return (PositionImpl) topic.getLastPosition();
     }
 
     @Override
