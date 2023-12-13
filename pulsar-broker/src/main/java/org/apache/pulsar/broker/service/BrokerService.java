@@ -2533,7 +2533,7 @@ public class BrokerService implements Closeable {
                                     listener.accept(newValue);
                                 }
                             } catch (Exception e) {
-                                log.error("Failed to update config {}/{}", configKey, newValue);
+                                log.error("Failed to update config {}", configKey, e);
                             }
                         });
                     });
