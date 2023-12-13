@@ -525,12 +525,9 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
         admin.namespaces().grantPermissionOnSubscription(namespace, subscription, roles);
         Optional<Policies> policies = pulsar.getPulsarResources().getNamespaceResources().getPolicies(NamespaceName.get(namespace));
         assertTrue(policies.isPresent());
-        assertTrue(pulsar.getPulsarResources().getNamespaceResources().getPolicies(NamespaceName.get(namespace))
-                .get().auth_policies.getSubscriptionAuthentication().containsKey(subscription));
-        assertTrue(pulsar.getPulsarResources().getNamespaceResources().getPolicies(NamespaceName.get(namespace))
-                .get().auth_policies.getSubscriptionAuthentication().get(subscription).contains(role1));
-        assertTrue(pulsar.getPulsarResources().getNamespaceResources().getPolicies(NamespaceName.get(namespace))
-                .get().auth_policies.getSubscriptionAuthentication().get(subscription).contains(role2));
+        assertTrue(policies.get().auth_policies.getSubscriptionAuthentication().containsKey(subscription));
+        assertTrue(policies.get().auth_policies.getSubscriptionAuthentication().get(subscription).contains(role1));
+        assertTrue(policies.get().auth_policies.getSubscriptionAuthentication().get(subscription).contains(role2));
 
         // revoke permission1
         admin.namespaces().revokePermissionOnSubscription(namespace, subscription, role1);
