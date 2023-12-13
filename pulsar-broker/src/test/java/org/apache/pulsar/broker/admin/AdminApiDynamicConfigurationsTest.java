@@ -92,9 +92,10 @@ public class AdminApiDynamicConfigurationsTest extends MockedPulsarServiceBaseTe
         pulsar.getBrokerService().registerConfigurationListener(key, changeValue::set);
         String newValue = "my-broker-config-value-1";
         admin.brokers().updateDynamicConfiguration(key, newValue);
+        allDynamicConfigurations = admin.brokers().getAllDynamicConfigurations();
+        assertThat(allDynamicConfigurations.get(key)).isEqualTo(newValue);
+
         Awaitility.await().untilAsserted(() -> {
-            Map<String, String> configurations = admin.brokers().getAllDynamicConfigurations();
-            assertThat(configurations).containsKey(key).containsValue(newValue);
             assertThat(changeValue.get()).isEqualTo(newValue);
         });
 
