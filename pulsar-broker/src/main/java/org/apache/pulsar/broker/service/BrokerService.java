@@ -2525,7 +2525,7 @@ public class BrokerService implements Closeable {
                                 } else {
                                     newValue = value;
                                     existingValue = configFieldWrapper.customValue;
-                                    configFieldWrapper.customValue = newValue ==null ? null :String.valueOf(newValue);
+                                    configFieldWrapper.customValue = newValue == null ? null : String.valueOf(newValue);
                                 }
                                 log.info("Successfully updated configuration {}/{}", configKey, data.get(configKey));
                                 if (listener != null && !Objects.equals(existingValue, newValue)) {
