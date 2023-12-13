@@ -49,6 +49,7 @@ import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.zookeeper.KeeperException.Code;
 import org.awaitility.Awaitility;
@@ -522,31 +523,27 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
         roles.add(role1);
         roles.add(role2);
         admin.namespaces().grantPermissionOnSubscription(namespace, subscription, roles);
-        Awaitility.await().untilAsserted(() -> {
-            assertTrue(pulsar.getPulsarResources().getNamespaceResources().getPolicies(NamespaceName.get(namespace))
-                    .get().auth_policies.getSubscriptionAuthentication().containsKey(subscription));
-            assertTrue(pulsar.getPulsarResources().getNamespaceResources().getPolicies(NamespaceName.get(namespace))
-                    .get().auth_policies.getSubscriptionAuthentication().get(subscription).contains(role1));
-            assertTrue(pulsar.getPulsarResources().getNamespaceResources().getPolicies(NamespaceName.get(namespace))
-                    .get().auth_policies.getSubscriptionAuthentication().get(subscription).contains(role2));
-        });
+        Optional<Policies> policies = pulsar.getPulsarResources().getNamespaceResources().getPolicies(NamespaceName.get(namespace));
+        assertTrue(policies.isPresent());
+        assertTrue(pulsar.getPulsarResources().getNamespaceResources().getPolicies(NamespaceName.get(namespace))
+                .get().auth_policies.getSubscriptionAuthentication().containsKey(subscription));
+        assertTrue(pulsar.getPulsarResources().getNamespaceResources().getPolicies(NamespaceName.get(namespace))
+                .get().auth_policies.getSubscriptionAuthentication().get(subscription).contains(role1));
+        assertTrue(pulsar.getPulsarResources().getNamespaceResources().getPolicies(NamespaceName.get(namespace))
+                .get().auth_policies.getSubscriptionAuthentication().get(subscription).contains(role2));
 
         // revoke permission1
         admin.namespaces().revokePermissionOnSubscription(namespace, subscription, role1);
-        Awaitility.await().untilAsserted(() -> {
-            assertTrue(pulsar.getPulsarResources().getNamespaceResources().getPolicies(NamespaceName.get(namespace))
-                    .get().auth_policies.getSubscriptionAuthentication().containsKey(subscription));
-            assertFalse(pulsar.getPulsarResources().getNamespaceResources().getPolicies(NamespaceName.get(namespace))
-                    .get().auth_policies.getSubscriptionAuthentication().get(subscription).contains(role1));
-            assertTrue(pulsar.getPulsarResources().getNamespaceResources().getPolicies(NamespaceName.get(namespace))
-                    .get().auth_policies.getSubscriptionAuthentication().get(subscription).contains(role2));
-        });
+        policies = pulsar.getPulsarResources().getNamespaceResources().getPolicies(NamespaceName.get(namespace));
+        assertTrue(policies.isPresent());
+        assertTrue(policies.get().auth_policies.getSubscriptionAuthentication().containsKey(subscription));
+        assertFalse(policies.get().auth_policies.getSubscriptionAuthentication().get(subscription).contains(role1));
+        assertTrue(policies.get().auth_policies.getSubscriptionAuthentication().get(subscription).contains(role2));
 
         // revoke permission2
         admin.namespaces().revokePermissionOnSubscription(namespace, subscription, role2);
-        Awaitility.await().untilAsserted(() -> {
-            assertFalse(pulsar.getPulsarResources().getNamespaceResources().getPolicies(NamespaceName.get(namespace))
-                    .get().auth_policies.getSubscriptionAuthentication().containsKey(subscription));
-        });
+        policies = pulsar.getPulsarResources().getNamespaceResources().getPolicies(NamespaceName.get(namespace));
+        assertTrue(policies.isPresent());
+        assertFalse(policies.get().auth_policies.getSubscriptionAuthentication().containsKey(subscription));
     }
 }
