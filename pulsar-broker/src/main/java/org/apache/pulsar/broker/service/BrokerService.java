@@ -2515,10 +2515,10 @@ public class BrokerService implements Closeable {
                             }
                             Field configField = configFieldWrapper.field;
                             Consumer listener = configRegisteredListeners.get(configKey);
-                            Object newValue = null;
                             Object existingValue;
 
                             try {
+                                final Object newValue;
                                 if (configField != null) {
                                     newValue = FieldParser.value(data.get(configKey), configField);
                                     existingValue = configField.get(pulsar.getConfiguration());
