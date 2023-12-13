@@ -33,7 +33,7 @@
   <name>Pulsar Metadata</name>
   <dependencies>
     <dependency>
-      <groupId>org.apache.pulsar</groupId>
+      <groupId>com.datastax.oss</groupId>
       <artifactId>pulsar-common</artifactId>
       <version>${project.version}</version>
     </dependency>

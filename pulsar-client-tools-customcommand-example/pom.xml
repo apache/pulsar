@@ -31,7 +31,7 @@
   <name>Pulsar CLI Custom command example</name>
   <dependencies>
     <dependency>
-      <groupId>org.apache.pulsar</groupId>
+      <groupId>com.datastax.oss</groupId>
       <artifactId>pulsar-client-tools-api</artifactId>
       <version>${project.version}</version>
       <scope>provided</scope>
