@@ -1114,7 +1114,7 @@ public class MockZooKeeper extends ZooKeeper {
         Optional<Failure> failure = failures.stream().filter(f -> f.predicate.test(op, path)).findFirst();
         if (failure.isPresent()) {
             failures.remove(failure.get());
-            return Optional.of(failure.get().failReturnCode);
+            return Optional.ofNullable(failure.get().failReturnCode);
         } else {
             return Optional.empty();
         }
@@ -1129,6 +1129,18 @@ public class MockZooKeeper extends ZooKeeper {
 
     public void failConditional(KeeperException.Code rc, BiPredicate<Op, String> predicate) {
         failures.add(new Failure(rc, predicate));
+    }
+
+    public void delay(long millis, BiPredicate<Op, String> predicate) {
+        failures.add(new Failure(null, (op, s) -> {
+            if (predicate.test(op, s)) {
+                try {
+                    Thread.sleep(millis);
+                } catch (InterruptedException e) {}
+                return true;
+            }
+            return false;
+        }));
     }
 
     public void setAlwaysFail(KeeperException.Code rc) {
