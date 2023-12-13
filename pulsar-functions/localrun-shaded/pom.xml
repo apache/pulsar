@@ -142,7 +142,7 @@
                             </artifactSet>
                             <filters>
                                 <filter>
-                                    <artifact>org.apache.pulsar:pulsar-client-original</artifact>
+                                    <artifact>com.datastax.oss:pulsar-client-original</artifact>
                                     <includes>
                                         <include>**</include>
                                     </includes>
