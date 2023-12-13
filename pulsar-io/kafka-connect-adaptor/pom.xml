@@ -24,7 +24,7 @@
   <parent>
     <groupId>com.datastax.oss</groupId>
     <artifactId>pulsar-io</artifactId>
-    <version>3.1.1</version>
+    <version>3.1.2</version>
   </parent>
 
   <artifactId>pulsar-io-kafka-connect-adaptor</artifactId>
@@ -116,6 +116,12 @@
       <groupId>io.confluent</groupId>
       <artifactId>kafka-connect-avro-converter</artifactId>
       <version>${confluent.version}</version>
+      <exclusions>
+        <exclusion>
+          <groupId>org.apache.avro</groupId>
+          <artifactId>avro</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
 
     <dependency>

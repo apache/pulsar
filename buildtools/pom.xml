@@ -31,12 +31,12 @@
 
   <groupId>com.datastax.oss</groupId>
   <artifactId>buildtools</artifactId>
-  <version>3.1.1</version>
+  <version>3.1.2</version>
   <packaging>jar</packaging>
   <name>Pulsar Build Tools</name>
 
   <properties>
-    <project.build.outputTimestamp>2023-09-27T08:29:08Z</project.build.outputTimestamp>
+    <project.build.outputTimestamp>2023-11-30T15:05:59Z</project.build.outputTimestamp>
     <maven.compiler.source>1.8</maven.compiler.source>
     <maven.compiler.target>1.8</maven.compiler.target>
     <surefire.version>3.1.0</surefire.version>
@@ -47,7 +47,7 @@
     <license-maven-plugin.version>4.1</license-maven-plugin.version>
     <puppycrawl.checkstyle.version>8.37</puppycrawl.checkstyle.version>
     <maven-checkstyle-plugin.version>3.1.2</maven-checkstyle-plugin.version>
-    <netty.version>4.1.94.Final</netty.version>
+    <netty.version>4.1.100.Final</netty.version>
     <guice.version>4.2.3</guice.version>
     <guava.version>32.1.1-jre</guava.version>
     <ant.version>1.10.12</ant.version>

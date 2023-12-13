@@ -2778,6 +2778,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private long brokerServiceCompactionPhaseOneLoopTimeInSeconds = 30;
 
     @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "Whether retain null-key message during topic compaction."
+    )
+    private boolean topicCompactionRetainNullKey = true;
+
+    @FieldContext(
         category = CATEGORY_SERVER,
         doc = "Interval between checks to see if cluster is migrated and marks topic migrated "
                 + " if cluster is marked migrated. Disable with value 0. (Default disabled)."

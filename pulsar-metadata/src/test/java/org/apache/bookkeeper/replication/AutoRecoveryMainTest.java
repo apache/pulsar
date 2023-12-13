@@ -22,19 +22,18 @@ import static org.testng.AssertJUnit.assertEquals;
 import static org.testng.AssertJUnit.assertFalse;
 import static org.testng.AssertJUnit.assertNotNull;
 import static org.testng.AssertJUnit.assertTrue;
-
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.util.concurrent.TimeUnit;
 import org.apache.bookkeeper.bookie.BookieImpl;
 import org.apache.bookkeeper.net.BookieId;
-import org.apache.bookkeeper.test.BookKeeperClusterTestCase;
 import org.apache.bookkeeper.util.TestUtils;
 import org.apache.pulsar.metadata.bookkeeper.PulsarLedgerManagerFactory;
 import org.apache.pulsar.metadata.bookkeeper.PulsarMetadataClientDriver;
 import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 import org.apache.zookeeper.ZooKeeper;
 import org.awaitility.Awaitility;
+import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
@@ -53,6 +52,54 @@ public class AutoRecoveryMainTest extends BookKeeperClusterTestCase {
     @Override
     public void setUp() throws Exception {
         super.setUp();
+    }
+
+    @AfterMethod
+    @Override
+    public void tearDown() throws Exception {
+        super.tearDown();
+    }
+
+    /**
+     * Test the startup of the auditorElector and RW.
+     */
+    @Test
+    public void testStartup() throws Exception {
+        confByIndex(0).setMetadataServiceUri(
+                zkUtil.getMetadataServiceUri().replaceAll("zk://", "metadata-store:").replaceAll("/ledgers", ""));
+        AutoRecoveryMain main = new AutoRecoveryMain(confByIndex(0));
+        try {
+            main.start();
+            Thread.sleep(500);
+            assertTrue("AuditorElector should be running",
+                    main.auditorElector.isRunning());
+            assertTrue("Replication worker should be running",
+                    main.replicationWorker.isRunning());
+        } finally {
+            main.shutdown();
+        }
+    }
+
+    /*
+     * Test the shutdown of all daemons
+     */
+    @Test
+    public void testShutdown() throws Exception {
+        confByIndex(0).setMetadataServiceUri(
+                zkUtil.getMetadataServiceUri().replaceAll("zk://", "metadata-store:").replaceAll("/ledgers", ""));
+        AutoRecoveryMain main = new AutoRecoveryMain(confByIndex(0));
+        main.start();
+        Thread.sleep(500);
+        assertTrue("AuditorElector should be running",
+                main.auditorElector.isRunning());
+        assertTrue("Replication worker should be running",
+                main.replicationWorker.isRunning());
+
+        main.shutdown();
+        assertFalse("AuditorElector should not be running",
+                main.auditorElector.isRunning());
+        assertFalse("Replication worker should not be running",
+                main.replicationWorker.isRunning());
     }
 
     /**

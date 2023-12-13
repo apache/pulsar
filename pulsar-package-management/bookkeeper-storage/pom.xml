@@ -25,7 +25,7 @@
     <parent>
         <artifactId>pulsar-package-management</artifactId>
         <groupId>com.datastax.oss</groupId>
-        <version>3.1.1</version>
+        <version>3.1.2</version>
     </parent>
     <modelVersion>4.0.0</modelVersion>
 
@@ -69,6 +69,12 @@
                     <artifactId>netty-tcnative</artifactId>
                 </exclusion>
             </exclusions>
+        </dependency>
+
+        <dependency>
+            <groupId>org.hamcrest</groupId>
+            <artifactId>hamcrest</artifactId>
+            <scope>test</scope>
         </dependency>
 
         <!-- zookeeper server -->

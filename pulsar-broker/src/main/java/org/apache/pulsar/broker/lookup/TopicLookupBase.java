@@ -56,7 +56,7 @@ public class TopicLookupBase extends PulsarWebResource {
     private static final String LOOKUP_PATH_V1 = "/lookup/v2/destination/";
     private static final String LOOKUP_PATH_V2 = "/lookup/v2/topic/";
 
-    protected CompletableFuture<LookupData> internalLookupTopicAsync(TopicName topicName, boolean authoritative,
+    protected CompletableFuture<LookupData> internalLookupTopicAsync(final TopicName topicName, boolean authoritative,
                                                                      String listenerName) {
         if (!pulsar().getBrokerService().getLookupRequestSemaphore().tryAcquire()) {
             log.warn("No broker was found available for topic {}", topicName);
@@ -79,7 +79,8 @@ public class TopicLookupBase extends PulsarWebResource {
                 })
                 .thenCompose(exist -> {
                     if (!exist) {
-                        throw new RestException(Response.Status.NOT_FOUND, "Topic not found.");
+                        throw new RestException(Response.Status.NOT_FOUND,
+                                String.format("Topic not found %s", topicName.toString()));
                     }
                     CompletableFuture<Optional<LookupResult>> lookupFuture = pulsar().getNamespaceService()
                             .getBrokerServiceUrlAsync(topicName,
@@ -131,10 +132,10 @@ public class TopicLookupBase extends PulsarWebResource {
                             pulsar().getBrokerService().getLookupRequestSemaphore().release();
                             return result.getLookupData();
                         }
-                    }).exceptionally(ex->{
-                        pulsar().getBrokerService().getLookupRequestSemaphore().release();
-                        throw FutureUtil.wrapToCompletionException(ex);
                     });
+                }).exceptionally(ex -> {
+                    pulsar().getBrokerService().getLookupRequestSemaphore().release();
+                    throw FutureUtil.wrapToCompletionException(ex);
                 });
     }
 

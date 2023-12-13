@@ -640,14 +640,18 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     }
 
     private CompletableFuture<Void> addTimeoutHandling(CompletableFuture<Void> future) {
+        long brokerShutdownTimeoutMs = getConfiguration().getBrokerShutdownTimeoutMs();
+        if (brokerShutdownTimeoutMs <= 0) {
+            return future;
+        }
         ScheduledExecutorService shutdownExecutor = Executors.newSingleThreadScheduledExecutor(
                 new ExecutorProvider.ExtendedThreadFactory(getClass().getSimpleName() + "-shutdown"));
         FutureUtil.addTimeoutHandling(future,
-                Duration.ofMillis(Math.max(1L, getConfiguration().getBrokerShutdownTimeoutMs())),
+                Duration.ofMillis(brokerShutdownTimeoutMs),
                 shutdownExecutor, () -> FutureUtil.createTimeoutException("Timeout in close", getClass(), "close"));
         future.handle((v, t) -> {
-            if (t != null && getConfiguration().getBrokerShutdownTimeoutMs() > 0) {
-                LOG.info("Shutdown timed out after {} ms", getConfiguration().getBrokerShutdownTimeoutMs());
+            if (t instanceof TimeoutException) {
+                LOG.info("Shutdown timed out after {} ms", brokerShutdownTimeoutMs);
                 LOG.info(ThreadDumpUtil.buildThreadDiagnosticString());
             }
             // shutdown the shutdown executor
@@ -1176,7 +1180,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     protected void acquireSLANamespace() {
         try {
             // Namespace not created hence no need to unload it
-            NamespaceName nsName = NamespaceService.getSLAMonitorNamespace(getAdvertisedAddress(), config);
+            NamespaceName nsName = NamespaceService.getSLAMonitorNamespace(getLookupServiceAddress(), config);
             if (!this.pulsarResources.getNamespaceResources().namespaceExists(nsName)) {
                 LOG.info("SLA Namespace = {} doesn't exist.", nsName);
                 return;
