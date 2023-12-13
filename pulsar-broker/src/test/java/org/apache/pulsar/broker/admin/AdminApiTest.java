@@ -740,10 +740,8 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
         admin.brokers().updateDynamicConfiguration(key, "valid-value");
 
-        Awaitility.waitAtMost(10, TimeUnit.SECONDS).untilAsserted(() -> {
-            final var configs = admin.brokers().getAllDynamicConfigurations();
-            assertEquals(configs.get(key), "valid-value");
-        });
+        final var configs = admin.brokers().getAllDynamicConfigurations();
+        assertEquals(configs.get(key), "valid-value");
 
         assertThrows(PulsarAdminException.PreconditionFailedException.class,
                 () -> admin.brokers().updateDynamicConfiguration(key, invalidValue));
