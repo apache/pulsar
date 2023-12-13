@@ -49,6 +49,7 @@ import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.api.proto.ReplicatedSubscriptionsSnapshot;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.Markers;
+import org.apache.pulsar.compaction.Compactor;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 @Slf4j
@@ -174,13 +175,15 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
             if (msgMetadata != null && msgMetadata.hasTxnidMostBits()
                     && msgMetadata.hasTxnidLeastBits()) {
                 if (Markers.isTxnMarker(msgMetadata)) {
-                    // because consumer can receive message is smaller than maxReadPosition,
-                    // so this marker is useless for this subscription
-                    individualAcknowledgeMessageIfNeeded(Collections.singletonList(entry.getPosition()),
-                            Collections.emptyMap());
-                    entries.set(i, null);
-                    entry.release();
-                    continue;
+                    if (cursor == null || !cursor.getName().equals(Compactor.COMPACTION_SUBSCRIPTION)) {
+                        // because consumer can receive message is smaller than maxReadPosition,
+                        // so this marker is useless for this subscription
+                        individualAcknowledgeMessageIfNeeded(Collections.singletonList(entry.getPosition()),
+                                Collections.emptyMap());
+                        entries.set(i, null);
+                        entry.release();
+                        continue;
+                    }
                 } else if (((PersistentTopic) subscription.getTopic())
                         .isTxnAborted(new TxnID(msgMetadata.getTxnidMostBits(), msgMetadata.getTxnidLeastBits()),
                                 (PositionImpl) entry.getPosition())) {
@@ -192,7 +195,7 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
                 }
             }
 
-            if (msgMetadata == null || Markers.isServerOnlyMarker(msgMetadata)) {
+            if (msgMetadata == null || (Markers.isServerOnlyMarker(msgMetadata) && !Markers.isTxnMarker(msgMetadata))) {
                 PositionImpl pos = (PositionImpl) entry.getPosition();
                 // Message metadata was corrupted or the messages was a server-only marker
 
