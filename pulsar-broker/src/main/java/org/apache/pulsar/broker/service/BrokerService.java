@@ -3371,7 +3371,7 @@ public class BrokerService implements Closeable {
         final Field field;
 
         // customValue holds the external dynamic configuration.
-        String customValue;
+        volatile String customValue;
 
         Predicate<String> validator;
 
