@@ -89,8 +89,7 @@ public class AdminApiDynamicConfigurationsTest extends MockedPulsarServiceBaseTe
 
         // update with listener
         AtomicReference<String> changeValue = new AtomicReference<>(null);
-        Consumer<String> stringConsumer = changeValue::set;
-        pulsar.getBrokerService().registerConfigurationListener(key, stringConsumer);
+        pulsar.getBrokerService().registerConfigurationListener(key, changeValue::set);
         String newValue = "my-broker-config-value-1";
         admin.brokers().updateDynamicConfiguration(key, newValue);
         Awaitility.await().untilAsserted(() -> {
