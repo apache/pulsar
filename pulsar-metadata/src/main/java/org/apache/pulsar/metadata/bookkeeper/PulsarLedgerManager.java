@@ -377,7 +377,7 @@ public class PulsarLedgerManager implements LedgerManager {
         }
     }
 
-    private String getLedgerPath(long ledgerId) {
+    public String getLedgerPath(long ledgerId) {
         return this.ledgerRootPath + StringUtils.getHybridHierarchicalLedgerPath(ledgerId);
     }
 

@@ -23,6 +23,8 @@ import com.fasterxml.jackson.databind.JsonMappingException;
 import java.io.File;
 import java.io.IOException;
 import java.util.Map;
+import org.apache.pulsar.io.core.SourceContext;
+import org.mockito.Mockito;
 import org.testng.annotations.Test;
 
 public class MongoSourceConfigTest {
@@ -32,7 +34,27 @@ public class MongoSourceConfigTest {
         final Map<String, Object> configMap = TestHelper.createCommonConfigMap();
         TestHelper.putSyncType(configMap, TestHelper.SYNC_TYPE);
 
-        final MongoSourceConfig cfg = MongoSourceConfig.load(configMap);
+        SourceContext sourceContext = Mockito.mock(SourceContext.class);
+        final MongoSourceConfig cfg = MongoSourceConfig.load(configMap, sourceContext);
+
+        assertEquals(cfg.getMongoUri(), TestHelper.URI);
+        assertEquals(cfg.getDatabase(), TestHelper.DB);
+        assertEquals(cfg.getCollection(), TestHelper.COLL);
+        assertEquals(cfg.getSyncType(), TestHelper.SYNC_TYPE);
+        assertEquals(cfg.getBatchSize(), TestHelper.BATCH_SIZE);
+        assertEquals(cfg.getBatchTimeMs(), TestHelper.BATCH_TIME);
+    }
+
+    @Test
+    public void testLoadMapConfigUriFromSecret() throws IOException {
+        final Map<String, Object> configMap = TestHelper.createCommonConfigMap();
+        TestHelper.putSyncType(configMap, TestHelper.SYNC_TYPE);
+        configMap.remove("mongoUri");
+
+        SourceContext sourceContext = Mockito.mock(SourceContext.class);
+        Mockito.when(sourceContext.getSecret("mongoUri"))
+                .thenReturn(TestHelper.URI);
+        final MongoSourceConfig cfg = MongoSourceConfig.load(configMap, sourceContext);
 
         assertEquals(cfg.getMongoUri(), TestHelper.URI);
         assertEquals(cfg.getDatabase(), TestHelper.DB);
@@ -43,12 +65,13 @@ public class MongoSourceConfigTest {
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class,
-            expectedExceptionsMessageRegExp = "Required MongoDB URI is not set.")
+            expectedExceptionsMessageRegExp = "mongoUri cannot be null")
     public void testBadMongoUri() throws IOException {
         final Map<String, Object> configMap = TestHelper.createCommonConfigMap();
         TestHelper.removeMongoUri(configMap);
 
-        final MongoSourceConfig cfg = MongoSourceConfig.load(configMap);
+        SourceContext sourceContext = Mockito.mock(SourceContext.class);
+        final MongoSourceConfig cfg = MongoSourceConfig.load(configMap, sourceContext);
 
         cfg.validate();
     }
@@ -61,7 +84,8 @@ public class MongoSourceConfigTest {
         final Map<String, Object> configMap = TestHelper.createCommonConfigMap();
         TestHelper.putSyncType(configMap, "wrong_sync_type_str");
 
-        final MongoSourceConfig cfg = MongoSourceConfig.load(configMap);
+        SourceContext sourceContext = Mockito.mock(SourceContext.class);
+        final MongoSourceConfig cfg = MongoSourceConfig.load(configMap, sourceContext);
 
         cfg.validate();
     }
@@ -72,7 +96,8 @@ public class MongoSourceConfigTest {
         final Map<String, Object> configMap = TestHelper.createCommonConfigMap();
         TestHelper.putBatchSize(configMap, 0);
 
-        final MongoSourceConfig cfg = MongoSourceConfig.load(configMap);
+        SourceContext sourceContext = Mockito.mock(SourceContext.class);
+        final MongoSourceConfig cfg = MongoSourceConfig.load(configMap, sourceContext);
 
         cfg.validate();
     }
@@ -83,7 +108,8 @@ public class MongoSourceConfigTest {
         final Map<String, Object> configMap = TestHelper.createCommonConfigMap();
         TestHelper.putBatchTime(configMap, 0L);
 
-        final MongoSourceConfig cfg = MongoSourceConfig.load(configMap);
+        SourceContext sourceContext = Mockito.mock(SourceContext.class);
+        final MongoSourceConfig cfg = MongoSourceConfig.load(configMap, sourceContext);
 
         cfg.validate();
     }

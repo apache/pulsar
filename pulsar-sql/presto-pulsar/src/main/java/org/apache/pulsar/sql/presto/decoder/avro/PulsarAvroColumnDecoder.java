@@ -54,6 +54,7 @@ import io.trino.spi.type.TimestampType;
 import io.trino.spi.type.Timestamps;
 import io.trino.spi.type.TinyintType;
 import io.trino.spi.type.Type;
+import io.trino.spi.type.UuidType;
 import io.trino.spi.type.VarbinaryType;
 import io.trino.spi.type.VarcharType;
 import java.math.BigInteger;
@@ -61,6 +62,7 @@ import java.nio.ByteBuffer;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 import org.apache.avro.generic.GenericEnumSymbol;
 import org.apache.avro.generic.GenericFixed;
 import org.apache.avro.generic.GenericRecord;
@@ -87,7 +89,8 @@ public class PulsarAvroColumnDecoder {
             TimestampType.TIMESTAMP_MILLIS,
             DateType.DATE,
             TimeType.TIME_MILLIS,
-            VarbinaryType.VARBINARY);
+            VarbinaryType.VARBINARY,
+            UuidType.UUID);
 
     private final Type columnType;
     private final String columnMapping;
@@ -253,6 +256,10 @@ public class PulsarAvroColumnDecoder {
             } else if (value instanceof GenericFixed) {
                 return Slices.wrappedBuffer(((GenericFixed) value).bytes());
             }
+        }
+
+        if (type instanceof UuidType) {
+            return UuidType.javaUuidToTrinoUuid(UUID.fromString(value.toString()));
         }
 
         throw new TrinoException(DECODER_CONVERSION_NOT_SUPPORTED,

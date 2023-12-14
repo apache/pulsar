@@ -69,6 +69,7 @@ The process works in the following way:
 3. Write the proposal following the section outlined by the template and the explanation for each section in the comment it contains (you can delete the comment once done).
    * If you need diagrams, avoid attaching large files. You can use [MermaidJS](https://mermaid.js.org/) as simple language to describe many types of diagrams. 
 4. Create GitHub Pull request (PR). The PR title should be `[improve][pip] PIP-xxx: {title}`, where the `xxx` match the number given in previous step (file-name). Replace `{title}` with a short title to your proposal.
+   *Validate* again that your number does not collide, by step (2) numbering check. 
 5. The author(s) will email the dev@pulsar.apache.org mailing list to kick off a discussion, using subject prefix `[DISCUSS] PIP-xxx: {PIP TITLE}`. The discussion will happen in broader context either on the mailing list or as general comments on the PR. Many of the discussion items will be on particular aspect of the proposal, hence they should be as comments in the PR to specific lines in the proposal file.
 6. Update file with a link to the discussion on the mailing. You can obtain it from [Apache Pony Mail](https://lists.apache.org/list.html?dev@pulsar.apache.org).
 7. Based on the discussion and feedback, some changes might be applied by authors to the text of the proposal. They will be applied as extra commits, making it easier to track the changes.
@@ -83,6 +84,31 @@ The process works in the following way:
 
 All the future implementation Pull Requests that will be created, should always reference the PIP-XXX in the commit log message and the PR title.
 It is advised to create a master GitHub issue to formulate the execution plan and track its progress.
+
+### Example 
+* Eve ran into some issues with the client metrics - she needed a metric which was missing.
+* She read the code a bit, and has an idea what metrics she wishes to add.
+* She summarized her idea and direction in an email to the DEV mailing list (she located it on
+[Discussions]([url](https://pulsar.apache.org/community/#section-discussions)) section on the website.
+* She didn't get any response from the community, so she joined the next
+[community meeting]([url](https://github.com/apache/pulsar/wiki/Community-Meetings)). There Matteo Merli and Asaf helped 
+setup a channel in Slack to brainstorm the idea and meet on Zoom with a few Pulsar contributors (e.g. Lari and Tison).
+* Once Eve had a good enough context, and good design outline, she opened a new branch in her Pulsar repository, duplicated 
+TEMPLATE.md and created pip-xxx.MD (the number she will take later).
+* She followed the template and submitted the pip as a new PR to pulsar repository.
+* Once the PR was created, she modified the version to match the rules described at step 2, both for PR title and file name.
+* She sent an email to the DEV mailing list, titled "[DISCUSS] PIP-123: Adding metrics for ..." , described shortly in the
+email what the PIP was about and gave a link.
+* She got no response for anyone for 2 weeks, so she nudged the people that helped
+  her brainstorm (e.g. Lary and Tison) and pinged in #dev that she needs more reviewers.
+* Once she got 3 reviews from PMC members and the community had at least a few days from the moment
+  the PR was announceed on DEV, she sent a vote email to the DEV mailing list titled
+  "[VOTE] PIP-123: Adding metrics for ...".
+* She nudged the reviewers to reply with a binding vote, waited for 2-3 days, and then
+  concluded the vote by sending a reply tallying up the binding and non-binding votes. 
+* She updated the PIP with links to discuss and vote emails, and then asked a PMC member
+  who voted +1, to merge (using GitHub mentionon the PR).
+
 
 ## List of PIPs
 

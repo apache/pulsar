@@ -21,6 +21,7 @@ package org.apache.pulsar.client.api;
 import java.io.Serializable;
 import java.net.InetSocketAddress;
 import java.time.Clock;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
@@ -594,6 +595,13 @@ public interface ClientBuilder extends Serializable, Cloneable {
      * @return
      */
     ClientBuilder dnsLookupBind(String address, int port);
+
+    /**
+     * Set dns lookup server addresses.
+     * @param addresses dnsServerAddresses
+     * @return
+     */
+    ClientBuilder dnsServerAddresses(List<InetSocketAddress> addresses);
 
     /**
      *  Set socks5 proxy address.

@@ -68,6 +68,7 @@ import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionInval
 import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.Dispatcher;
 import org.apache.pulsar.broker.service.EntryFilterSupport;
+import org.apache.pulsar.broker.service.GetStatsOptions;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.plugin.EntryFilter;
@@ -199,7 +200,12 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
 
         if (this.cursor != null) {
             if (replicated) {
-                return this.cursor.putProperty(REPLICATED_SUBSCRIPTION_PROPERTY, 1L);
+                if (!config.isEnableReplicatedSubscriptions()) {
+                    log.warn("[{}][{}] Failed set replicated subscription status to {}, please enable the "
+                            + "configuration enableReplicatedSubscriptions", topicName, subName, replicated);
+                } else {
+                    return this.cursor.putProperty(REPLICATED_SUBSCRIPTION_PROPERTY, 1L);
+                }
             } else {
                 return this.cursor.removeProperty(REPLICATED_SUBSCRIPTION_PROPERTY);
             }
@@ -849,6 +855,12 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
             public void readEntryComplete(Entry entry, Object ctx) {
                 future.complete(entry);
             }
+
+            @Override
+            public String toString() {
+                return String.format("Subscription [{}-{}] async replay entries", PersistentSubscription.this.topicName,
+                        PersistentSubscription.this.subName);
+            }
         }, null);
 
         return future;
@@ -1088,8 +1100,7 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
         return cursor.getEstimatedSizeSinceMarkDeletePosition();
     }
 
-    public SubscriptionStatsImpl getStats(Boolean getPreciseBacklog, boolean subscriptionBacklogSize,
-                                          boolean getEarliestTimeInBacklog) {
+    public SubscriptionStatsImpl getStats(GetStatsOptions getStatsOptions) {
         SubscriptionStatsImpl subStats = new SubscriptionStatsImpl();
         subStats.lastExpireTimestamp = lastExpireTimestamp;
         subStats.lastConsumedFlowTimestamp = lastConsumedFlowTimestamp;
@@ -1103,7 +1114,9 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
                     ? ((PersistentStickyKeyDispatcherMultipleConsumers) dispatcher).getConsumerKeyHashRanges() : null;
             dispatcher.getConsumers().forEach(consumer -> {
                 ConsumerStatsImpl consumerStats = consumer.getStats();
-                subStats.consumers.add(consumerStats);
+                if (!getStatsOptions.isExcludeConsumers()) {
+                    subStats.consumers.add(consumerStats);
+                }
                 subStats.msgRateOut += consumerStats.msgRateOut;
                 subStats.msgThroughputOut += consumerStats.msgThroughputOut;
                 subStats.bytesOutCounter += consumerStats.bytesOutCounter;
@@ -1153,14 +1166,14 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
                 subStats.msgDelayed = d.getNumberOfDelayedMessages();
             }
         }
-        subStats.msgBacklog = getNumberOfEntriesInBacklog(getPreciseBacklog);
-        if (subscriptionBacklogSize) {
+        subStats.msgBacklog = getNumberOfEntriesInBacklog(getStatsOptions.isGetPreciseBacklog());
+        if (getStatsOptions.isSubscriptionBacklogSize()) {
             subStats.backlogSize = ((ManagedLedgerImpl) topic.getManagedLedger())
                     .getEstimatedBacklogSize((PositionImpl) cursor.getMarkDeletedPosition());
         } else {
             subStats.backlogSize = -1;
         }
-        if (getEarliestTimeInBacklog) {
+        if (getStatsOptions.isGetEarliestTimeInBacklog()) {
             if (subStats.msgBacklog > 0) {
                 ManagedLedgerImpl managedLedger = ((ManagedLedgerImpl) cursor.getManagedLedger());
                 PositionImpl markDeletedPosition = (PositionImpl) cursor.getMarkDeletedPosition();
@@ -1253,7 +1266,7 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
     }
 
     @Override
-    public boolean isSubsciptionMigrated() {
+    public boolean isSubscriptionMigrated() {
         log.info("backlog for {} - {}", topicName, cursor.getNumberOfEntriesInBacklog(true));
         return topic.isMigrated() && cursor.getNumberOfEntriesInBacklog(true) <= 0;
     }

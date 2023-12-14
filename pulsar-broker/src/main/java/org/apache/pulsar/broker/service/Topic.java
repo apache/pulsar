@@ -196,6 +196,9 @@ public interface Topic {
 
     CompletableFuture<Void> close(boolean closeWithoutWaitingClientDisconnect);
 
+    CompletableFuture<Void> close(
+            boolean disconnectClients, boolean closeWithoutWaitingClientDisconnect);
+
     void checkGC();
 
     CompletableFuture<Void> checkClusterMigration();
@@ -234,6 +237,8 @@ public interface Topic {
 
     boolean isBrokerPublishRateExceeded();
 
+    boolean shouldProducerMigrate();
+
     boolean isReplicationBacklogExist();
 
     void disableCnxAutoRead();
@@ -271,9 +276,13 @@ public interface Topic {
     TopicStatsImpl getStats(boolean getPreciseBacklog, boolean subscriptionBacklogSize,
                             boolean getEarliestTimeInBacklog);
 
+    TopicStatsImpl getStats(GetStatsOptions getStatsOptions);
+
     CompletableFuture<? extends TopicStatsImpl> asyncGetStats(boolean getPreciseBacklog,
                                                               boolean subscriptionBacklogSize,
                                                               boolean getEarliestTimeInBacklog);
+
+    CompletableFuture<? extends TopicStatsImpl> asyncGetStats(GetStatsOptions getStatsOptions);
 
     CompletableFuture<PersistentTopicInternalStats> getInternalStats(boolean includeLedgerMetadata);
 
@@ -328,6 +337,8 @@ public interface Topic {
     }
 
     boolean isPersistent();
+
+    boolean isTransferring();
 
     /* ------ Transaction related ------ */
 

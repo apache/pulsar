@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.client.admin.internal;
 
-import static com.google.common.base.Preconditions.checkArgument;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -182,9 +181,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     @Override
     public CompletableFuture<Void> createNamespaceAsync(String namespace, Policies policies) {
         NamespaceName ns = NamespaceName.get(namespace);
-        checkArgument(ns.isV2(), "Create namespace with policies is only supported on newer namespaces");
-        WebTarget path = namespacePath(ns);
-        // For V2 API we pass full Policy class instance
+        WebTarget path = ns.isV2() ? namespacePath(ns) : namespacePath(ns, "policy");
         return asyncPutRequest(path, Entity.entity(policies, MediaType.APPLICATION_JSON));
     }
 
@@ -1898,6 +1895,17 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
         NamespaceName ns = NamespaceName.get(namespace);
         WebTarget path = namespacePath(ns, "resourcegroup");
         return asyncDeleteRequest(path);
+    }
+
+    @Override
+    public void updateMigrationState(String namespace, boolean migrated) throws PulsarAdminException {
+        sync(() -> updateMigrationStateAsync(namespace, migrated));
+    }
+
+    public CompletableFuture<Void> updateMigrationStateAsync(String namespace, boolean migrated) {
+        NamespaceName ns = NamespaceName.get(namespace);
+        WebTarget path = namespacePath(ns, "migration");
+        return asyncPostRequest(path, Entity.entity(migrated, MediaType.APPLICATION_JSON));
     }
 
     private WebTarget namespacePath(NamespaceName namespace, String... parts) {

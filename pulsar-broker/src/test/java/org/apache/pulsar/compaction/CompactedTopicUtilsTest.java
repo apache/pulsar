@@ -25,8 +25,8 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicReference;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.Entry;
-import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
+import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.mockito.Mockito;
 import org.testng.Assert;
@@ -46,8 +46,9 @@ public class CompactedTopicUtilsTest {
 
         PositionImpl initPosition = PositionImpl.get(1, 90);
         AtomicReference<PositionImpl> readPositionRef = new AtomicReference<>(initPosition.getNext());
-        ManagedCursor cursor = Mockito.mock(ManagedCursor.class);
+        ManagedCursorImpl cursor = Mockito.mock(ManagedCursorImpl.class);
         Mockito.doReturn(readPositionRef.get()).when(cursor).getReadPosition();
+        Mockito.doReturn(1).when(cursor).applyMaxSizeCap(Mockito.anyInt(), Mockito.anyLong());
         Mockito.doAnswer(invocation -> {
             readPositionRef.set(invocation.getArgument(0));
             return null;
@@ -68,8 +69,8 @@ public class CompactedTopicUtilsTest {
             }
         };
 
-        CompactedTopicUtils.asyncReadCompactedEntries(service, cursor, 1, 100, false,
-                readEntriesCallback, false, null);
+        CompactedTopicUtils.asyncReadCompactedEntries(service, cursor, 1, 100,
+                PositionImpl.LATEST, false, readEntriesCallback, false, null);
 
         List<Entry> entries = completableFuture.get();
         Assert.assertTrue(entries.isEmpty());

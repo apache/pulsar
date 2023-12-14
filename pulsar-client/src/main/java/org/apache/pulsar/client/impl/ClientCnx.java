@@ -30,9 +30,11 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.unix.Errors.NativeIoException;
 import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
+import io.netty.handler.ssl.SslHandshakeCompletionEvent;
 import io.netty.util.concurrent.Promise;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
+import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.channels.ClosedChannelException;
 import java.util.Arrays;
@@ -800,11 +802,32 @@ public class ClientCnx extends PulsarHandler {
 
     @Override
     protected void handleCloseProducer(CommandCloseProducer closeProducer) {
-        log.info("[{}] Broker notification of Closed producer: {}", remoteAddress, closeProducer.getProducerId());
         final long producerId = closeProducer.getProducerId();
         ProducerImpl<?> producer = producers.remove(producerId);
         if (producer != null) {
-            producer.connectionClosed(this);
+            if (closeProducer.hasAssignedBrokerServiceUrl() || closeProducer.hasAssignedBrokerServiceUrlTls()) {
+                try {
+                    final URI uri = new URI(producer.client.conf.isUseTls()
+                            ? closeProducer.getAssignedBrokerServiceUrlTls()
+                            : closeProducer.getAssignedBrokerServiceUrl());
+                    log.info("[{}] Broker notification of Closed producer: {}. Redirecting to {}.",
+                            remoteAddress, closeProducer.getProducerId(), uri);
+                    producer.getConnectionHandler().connectionClosed(
+                            this, Optional.of(0L), Optional.of(uri));
+                } catch (Throwable e) {
+                    log.error("[{}] Invalid redirect url {}/{} for {}", remoteAddress,
+                            closeProducer.hasAssignedBrokerServiceUrl()
+                                    ? closeProducer.getAssignedBrokerServiceUrl() : "",
+                            closeProducer.hasAssignedBrokerServiceUrlTls()
+                                    ? closeProducer.getAssignedBrokerServiceUrlTls() : "",
+                            closeProducer.getRequestId(), e);
+                    producer.connectionClosed(this);
+                }
+            } else {
+                log.info("[{}] Broker notification of Closed producer: {}.",
+                        remoteAddress, closeProducer.getProducerId());
+                producer.connectionClosed(this);
+            }
         } else {
             log.warn("Producer with id {} not found while closing producer ", producerId);
         }
@@ -946,10 +969,6 @@ public class ClientCnx extends PulsarHandler {
 
     Channel channel() {
         return ctx.channel();
-    }
-
-    SocketAddress serverAddrees() {
-        return remoteAddress;
     }
 
     CompletableFuture<Void> connectionFuture() {
@@ -1309,6 +1328,18 @@ public class ClientCnx extends PulsarHandler {
        if (ctx != null) {
            ctx.close();
        }
+    }
+
+    @Override
+    public void userEventTriggered(ChannelHandlerContext ctx, Object evt) throws Exception {
+        if (evt instanceof SslHandshakeCompletionEvent) {
+            SslHandshakeCompletionEvent sslHandshakeCompletionEvent = (SslHandshakeCompletionEvent) evt;
+            if (sslHandshakeCompletionEvent.cause() != null) {
+                log.warn("{} Got ssl handshake exception {}", ctx.channel(),
+                        sslHandshakeCompletionEvent);
+            }
+        }
+        ctx.fireUserEventTriggered(evt);
     }
 
     protected void closeWithException(Throwable e) {
