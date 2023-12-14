@@ -26,6 +26,8 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
+
+import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import io.netty.buffer.ByteBuf;
@@ -570,7 +572,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
 
         // compact the topic
         Compactor compactor = new TwoPhaseCompactor(conf, pulsarClient, bk, compactionScheduler);
-        compactor.compact(topic).join();
+        compactor.compact(topic).get();
 
         // Read messages before compaction to get ids
         List<Message<byte[]>> messages = new ArrayList<>();
@@ -628,8 +630,16 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
         }
     }
 
-    @Test
-    public void testKeyLessMessagesPassThrough() throws Exception {
+    @DataProvider(name = "retainNullKey")
+    public static Object[][] retainNullKey() {
+        return new Object[][] {{true}, {false}};
+    }
+
+    @Test(dataProvider = "retainNullKey")
+    public void testKeyLessMessagesPassThrough(boolean retainNullKey) throws Exception {
+        conf.setTopicCompactionRemainNullKey(retainNullKey);
+        restartBroker();
+
         String topic = "persistent://my-property/use/my-ns/my-topic1";
 
         // subscribe before sending anything, so that we get all messages
@@ -659,29 +669,25 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
 
         try (Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic)
                 .subscriptionName("sub1").readCompacted(true).subscribe()){
-            Message<byte[]> message1 = consumer.receive();
-            Assert.assertFalse(message1.hasKey());
-            Assert.assertEquals(new String(message1.getData()), "my-message-1");
+                            List<Pair<String, String>> result = new ArrayList<>();
+                while (true) {
+                    Message<byte[]> message = consumer.receive(10, TimeUnit.SECONDS);
+                    if (message == null) {
+                        break;
+                    }
+                    result.add(Pair.of(message.getKey(), message.getData() == null ? null : new String(message.getData())));
+                }
 
-            Message<byte[]> message2 = consumer.receive();
-            Assert.assertFalse(message2.hasKey());
-            Assert.assertEquals(new String(message2.getData()), "my-message-2");
-
-            Message<byte[]> message3 = consumer.receive();
-            Assert.assertEquals(message3.getKey(), "key1");
-            Assert.assertEquals(new String(message3.getData()), "my-message-4");
-
-            Message<byte[]> message4 = consumer.receive();
-            Assert.assertEquals(message4.getKey(), "key2");
-            Assert.assertEquals(new String(message4.getData()), "my-message-6");
-
-            Message<byte[]> message5 = consumer.receive();
-            Assert.assertFalse(message5.hasKey());
-            Assert.assertEquals(new String(message5.getData()), "my-message-7");
-
-            Message<byte[]> message6 = consumer.receive();
-            Assert.assertFalse(message6.hasKey());
-            Assert.assertEquals(new String(message6.getData()), "my-message-8");
+                List<Pair<String, String>> expectList;
+                if (retainNullKey) {
+                    expectList = Lists.newArrayList(
+                        Pair.of(null, "my-message-1"), Pair.of(null, "my-message-2"),
+                        Pair.of("key1", "my-message-4"), Pair.of("key2", "my-message-6"),
+                        Pair.of(null, "my-message-7"), Pair.of(null, "my-message-8"));
+                } else {
+                    expectList = Lists.newArrayList(Pair.of("key1", "my-message-4"), Pair.of("key2", "my-message-6"));
+                }
+                Assert.assertEquals(result, expectList);
         }
     }
 
