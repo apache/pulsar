@@ -1871,7 +1871,15 @@ public class TransactionTest extends TransactionTestBase {
                 .withTransactionTimeout(1, TimeUnit.MINUTES).build().get();
         producer.newMessage(txn).key("K2").value("V2").send();
         producer.newMessage(txn).key("K3").value("V3").send();
-        txn.commit();
+        txn.commit().get();
+
+        producer.newMessage().key("K1").value("V4").send();
+
+        Transaction txn2 = pulsarClient.newTransaction()
+                .withTransactionTimeout(1, TimeUnit.MINUTES).build().get();
+        producer.newMessage(txn2).key("K2").value("V5").send();
+        producer.newMessage(txn2).key("K3").value("V6").send();
+        txn2.commit().get();
 
         admin.topics().triggerCompaction(topic);
 
@@ -1879,6 +1887,25 @@ public class TransactionTest extends TransactionTestBase {
             assertEquals(admin.topics().compactionStatus(topic).status,
                     LongRunningProcessStatus.Status.SUCCESS);
         });
+
+        @Cleanup
+        Consumer<String> consumer = this.pulsarClient.newConsumer(Schema.STRING)
+                .topic(topic)
+                .subscriptionName("sub")
+                .subscriptionType(SubscriptionType.Exclusive)
+                .readCompacted(true)
+                .subscribe();
+        List<String> result = new ArrayList<>();
+        while (true) {
+            Message<String> receive = consumer.receive(2, TimeUnit.SECONDS);
+            if (receive == null) {
+                break;
+            }
+
+            result.add(receive.getValue());
+        }
+
+        Assert.assertEquals(result, List.of("V4", "V5", "V6"));
     }
 
 }
