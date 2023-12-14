@@ -2473,6 +2473,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private long brokerServiceCompactionPhaseOneLoopTimeInSeconds = 30;
 
     @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "Whether retain null-key message during topic compaction."
+    )
+    private boolean topicCompactionRemainNullKey = true;
+
+    @FieldContext(
         category = CATEGORY_SCHEMA,
         doc = "Enforce schema validation on following cases:\n\n"
             + " - if a producer without a schema attempts to produce to a topic with schema, the producer will be\n"

@@ -1393,7 +1393,7 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         assertFalse(admin.topics().getList(namespace).isEmpty());
 
         try {
-            deleteNamespaceGraceFully(namespace, false);
+            admin.namespaces().deleteNamespace(namespace, false);
             fail("should have failed due to namespace not empty");
         } catch (PulsarAdminException e) {
             // Expected: cannot delete non-empty tenant
@@ -1470,7 +1470,7 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
 
 
         try {
-            deleteNamespaceGraceFully(namespace, false);
+            admin.namespaces().deleteNamespace(namespace, false);
             fail("should have failed due to namespace not empty");
         } catch (PulsarAdminException e) {
             // Expected: cannot delete non-empty tenant
