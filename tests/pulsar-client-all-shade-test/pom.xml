@@ -36,9 +36,9 @@
     <dependencies>
 
         <dependency>
-            <groupId>com.datastax.oss</groupId>
+            <groupId>org.apache.pulsar</groupId>
             <artifactId>pulsar-client-all</artifactId>
-            <version>${project.version}</version>
+            <version>3.1.2-SNAPSHOT</version>
             <scope>test</scope>
         </dependency>
 
@@ -49,16 +49,16 @@
         </dependency>
 
         <dependency>
-            <groupId>com.datastax.oss</groupId>
+            <groupId>org.apache.pulsar</groupId>
             <artifactId>bouncy-castle-bc</artifactId>
-            <version>${project.version}</version>
+            <version>3.1.2-SNAPSHOT</version>
             <classifier>pkg</classifier>
         </dependency>
 
         <dependency>
-            <groupId>com.datastax.oss</groupId>
+            <groupId>org.apache.pulsar</groupId>
             <artifactId>pulsar-client-messagecrypto-bc</artifactId>
-            <version>${project.version}</version>
+            <version>3.1.2-SNAPSHOT</version>
         </dependency>
 
     </dependencies>

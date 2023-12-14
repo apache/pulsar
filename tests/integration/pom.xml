@@ -44,39 +44,39 @@
       <scope>test</scope>
     </dependency>
     <dependency>
-      <groupId>com.datastax.oss</groupId>
+      <groupId>org.apache.pulsar</groupId>
       <artifactId>pulsar-functions-api-examples</artifactId>
-      <version>${project.version}</version>
+      <version>3.1.2-SNAPSHOT</version>
       <scope>test</scope>
     </dependency>
     <dependency>
-      <groupId>com.datastax.oss</groupId>
+      <groupId>org.apache.pulsar</groupId>
       <artifactId>pulsar-broker</artifactId>
-      <version>${project.version}</version>
+      <version>3.1.2-SNAPSHOT</version>
       <scope>test</scope>
     </dependency>
     <dependency>
-      <groupId>com.datastax.oss</groupId>
+      <groupId>org.apache.pulsar</groupId>
       <artifactId>pulsar-common</artifactId>
-      <version>${project.version}</version>
+      <version>3.1.2-SNAPSHOT</version>
       <scope>test</scope>
     </dependency>
     <dependency>
-      <groupId>com.datastax.oss</groupId>
+      <groupId>org.apache.pulsar</groupId>
       <artifactId>pulsar-client-original</artifactId>
-      <version>${project.version}</version>
+      <version>3.1.2-SNAPSHOT</version>
       <scope>test</scope>
     </dependency>
     <dependency>
-      <groupId>com.datastax.oss</groupId>
+      <groupId>org.apache.pulsar</groupId>
       <artifactId>pulsar-client-admin-original</artifactId>
-      <version>${project.version}</version>
+      <version>3.1.2-SNAPSHOT</version>
       <scope>test</scope>
     </dependency>
     <dependency>
-      <groupId>com.datastax.oss</groupId>
+      <groupId>org.apache.pulsar</groupId>
       <artifactId>managed-ledger</artifactId>
-      <version>${project.version}</version>
+      <version>3.1.2-SNAPSHOT</version>
       <scope>test</scope>
     </dependency>
     <dependency>
@@ -96,9 +96,9 @@
       <scope>test</scope>
     </dependency>
     <dependency>
-      <groupId>com.datastax.oss</groupId>
+      <groupId>org.apache.pulsar</groupId>
       <artifactId>pulsar-io-kafka</artifactId>
-      <version>${project.version}</version>
+      <version>3.1.2-SNAPSHOT</version>
       <scope>test</scope>
     </dependency>
 
@@ -133,9 +133,9 @@
     </dependency>
 
     <dependency>
-      <groupId>com.datastax.oss</groupId>
+      <groupId>org.apache.pulsar</groupId>
       <artifactId>pulsar-io-jdbc-postgres</artifactId>
-      <version>${project.version}</version>
+      <version>3.1.2-SNAPSHOT</version>
       <scope>test</scope>
     </dependency>
 

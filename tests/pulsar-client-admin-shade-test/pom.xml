@@ -36,16 +36,16 @@
     <dependencies>
 
         <dependency>
-            <groupId>com.datastax.oss</groupId>
+            <groupId>org.apache.pulsar</groupId>
             <artifactId>pulsar-client-admin</artifactId>
-            <version>${project.version}</version>
+            <version>3.1.2-SNAPSHOT</version>
             <scope>test</scope>
         </dependency>
 
         <dependency>
-            <groupId>com.datastax.oss</groupId>
+            <groupId>org.apache.pulsar</groupId>
             <artifactId>pulsar-client-admin-api</artifactId>
-            <version>${project.version}</version>
+            <version>3.1.2-SNAPSHOT</version>
             <scope>test</scope>
         </dependency>
 
@@ -56,9 +56,9 @@
         </dependency>
 
         <dependency>
-            <groupId>com.datastax.oss</groupId>
+            <groupId>org.apache.pulsar</groupId>
             <artifactId>pulsar-client-messagecrypto-bc</artifactId>
-            <version>${project.version}</version>
+            <version>3.1.2-SNAPSHOT</version>
             <scope>test</scope>
         </dependency>
 
