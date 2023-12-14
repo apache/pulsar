@@ -108,4 +108,4 @@ RUN /pulsar/bin/install-pulsar-client.sh
 
 # The UID must be non-zero. Otherwise, it is arbitrary. No logic should rely on its specific value.
 RUN useradd ${DEFAULT_USERNAME} -u 10000 -g 0
-USER pulsar
+USER 10000
