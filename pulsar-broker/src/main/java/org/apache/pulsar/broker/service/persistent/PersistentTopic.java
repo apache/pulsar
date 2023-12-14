@@ -76,6 +76,7 @@ import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.bookkeeper.net.BookieId;
+import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.namespace.NamespaceService;
@@ -269,7 +270,6 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 .build();
         this.backloggedCursorThresholdEntries =
                 brokerService.pulsar().getConfiguration().getManagedLedgerCursorBackloggedThreshold();
-        registerTopicPolicyListener();
 
         this.compactedTopic = new CompactedTopicImpl(brokerService.pulsar().getBookKeeperClient());
 
@@ -1408,6 +1408,11 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         int newMessageTTLinSeconds = topicPolicies.getMessageTTLInSeconds().get();
 
         String localCluster = brokerService.pulsar().getConfiguration().getClusterName();
+
+        if (CollectionUtils.isEmpty(configuredClusters)) {
+            log.warn("[{}] No replication clusters configured", name);
+            return CompletableFuture.completedFuture(null);
+        }
 
         // if local cluster is removed from global namespace cluster-list : then delete topic forcefully
         // because pulsar doesn't serve global topic without local repl-cluster configured.
@@ -3160,6 +3165,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     protected CompletableFuture<Void> initTopicPolicy() {
         if (brokerService.pulsar().getConfig().isSystemTopicEnabled()
                 && brokerService.pulsar().getConfig().isTopicLevelPoliciesEnabled()) {
+            brokerService.getPulsar().getTopicPoliciesService()
+                    .registerListener(TopicName.getPartitionedTopicName(topic), this);
             return CompletableFuture.completedFuture(null).thenRunAsync(() -> onUpdate(
                             brokerService.getPulsar().getTopicPoliciesService()
                                     .getTopicPoliciesIfExists(TopicName.getPartitionedTopicName(topic))),
