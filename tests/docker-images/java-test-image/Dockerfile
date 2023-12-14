@@ -42,7 +42,7 @@ RUN sed -i -e "s|http://archive\.ubuntu\.com/ubuntu/|${UBUNTU_MIRROR:-http://arc
      && echo 'Acquire::http::Timeout "30";\nAcquire::https::Timeout "30";\nAcquire::ftp::Timeout "30";\nAcquire::Retries "3";' > /etc/apt/apt.conf.d/99timeout_and_retries \
      && apt-get update \
      && apt-get -y dist-upgrade \
-     && apt-get -y install wget apt-transport-https
+     && apt-get -y install ca-certificates wget apt-transport-https
 
 # Install Eclipse Temurin Package
 RUN mkdir -p /etc/apt/keyrings \
