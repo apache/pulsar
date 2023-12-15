@@ -24,6 +24,7 @@ import io.netty.channel.EventLoopGroup;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.pulsar.broker.qos.AsyncTokenBucket;
 import org.apache.pulsar.broker.qos.MonotonicSnapshotClock;
 import org.apache.pulsar.common.policies.data.Policies;
@@ -38,7 +39,8 @@ public class PublishRateLimiterImpl implements PublishRateLimiter {
 
     private final MessagePassingQueue<Producer> unthrottlingQueue = new MpscUnboundedArrayQueue<>(1024);
 
-    private final AtomicBoolean unthrottlingScheduled = new AtomicBoolean(false);
+    private final AtomicInteger throttledProducersCount = new AtomicInteger(0);
+    private final AtomicBoolean processingQueuedProducers = new AtomicBoolean(false);
 
     public PublishRateLimiterImpl(MonotonicSnapshotClock monotonicSnapshotClock) {
         this.monotonicSnapshotClock = monotonicSnapshotClock;
@@ -75,13 +77,32 @@ public class PublishRateLimiterImpl implements PublishRateLimiter {
     private void scheduleDecrementThrottleCount(Producer producer) {
         // add the producer to the queue of producers to be unthrottled
         unthrottlingQueue.offer(producer);
-        // schedule unthrottling if not already scheduled
-        if (unthrottlingScheduled.compareAndSet(false, true)) {
+        // schedule unthrottling when the throttling count is incremented to 1
+        // this is to avoid scheduling unthrottling multiple times for concurrent producers
+        if (throttledProducersCount.incrementAndGet() == 1) {
             EventLoopGroup executor = producer.getCnx().getBrokerService().executor();
             scheduleUnthrottling(executor);
         }
     }
 
+    /**
+     * Schedules the unthrottling operation after a throttling period.
+     *
+     * This method will usually be called only once at a time. However, in a multi-threaded environment,
+     * it's possible for concurrent threads to call this method simultaneously. This is acceptable and does not
+     * disrupt the functionality, as the method is designed to handle such scenarios gracefully.
+     *
+     * The solution avoids using locks and this nonblocking approach requires allowing concurrent calls to this method.
+     * The implementation intends to prevent skipping of scheduling as a result of a race condition, which could
+     * result in a producer never being unthrottled.
+     *
+     * The solution for skipping of scheduling is to allow 2 threads to schedule unthrottling when the throttling
+     * count is exactly 1 when unthrottleQueuedProducers checks whether there's a need to reschedule. There might
+     * be another thread that added it and also scheduled unthrottling. This is acceptable and intended for resolving
+     * the race condition.
+     *
+     * @param executor The executor service used to schedule the unthrottling operation.
+     */
     private void scheduleUnthrottling(ScheduledExecutorService executor) {
         executor.schedule(() -> this.unthrottleQueuedProducers(executor), calculateThrottlingDurationNanos(),
                 TimeUnit.NANOSECONDS);
@@ -102,17 +123,24 @@ public class PublishRateLimiterImpl implements PublishRateLimiter {
     }
 
     private void unthrottleQueuedProducers(ScheduledExecutorService executor) {
-        Producer producer;
-        // unthrottle as many producers as possible while there are token available
-        while (containsTokens(true) && (producer = unthrottlingQueue.poll()) != null) {
-            producer.decrementThrottleCount();
+        if (!processingQueuedProducers.compareAndSet(false, true)) {
+            // another thread is already processing unthrottling
+            return;
         }
-        // if there are still producers to be unthrottled, schedule unthrottling again
-        // after another throttling period
-        if (!unthrottlingQueue.isEmpty()) {
-            scheduleUnthrottling(executor);
-        } else {
-            unthrottlingScheduled.set(false);
+        try {
+            Producer producer;
+            // unthrottle as many producers as possible while there are token available
+            while (containsTokens(true) && (producer = unthrottlingQueue.poll()) != null) {
+                producer.decrementThrottleCount();
+                throttledProducersCount.decrementAndGet();
+            }
+            // if there are still producers to be unthrottled, schedule unthrottling again
+            // after another throttling period
+            if (throttledProducersCount.get() > 0) {
+                scheduleUnthrottling(executor);
+            }
+        } finally {
+            processingQueuedProducers.set(false);
         }
     }
 
