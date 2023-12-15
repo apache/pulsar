@@ -1100,6 +1100,7 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
     }
 
     @Override
+    @Deprecated
     public boolean isPublishRateExceeded() {
         // either topic or broker publish rate exceeded.
         return this.topicPublishRateLimiter.isPublishRateExceeded()
@@ -1107,23 +1108,37 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
     }
 
     @Override
+    @Deprecated
     public boolean isResourceGroupPublishRateExceeded(int numMessages, int bytes) {
         return this.resourceGroupRateLimitingEnabled
             && !this.resourceGroupPublishLimiter.tryAcquire(numMessages, bytes);
     }
 
     @Override
+    @Deprecated
     public boolean isResourceGroupRateLimitingEnabled() {
         return this.resourceGroupRateLimitingEnabled;
     }
 
     @Override
     public boolean isTopicPublishRateExceeded(int numberMessages, int bytes) {
-        // whether topic publish rate exceed if precise rate limit is enable
-        return preciseTopicPublishRateLimitingEnable && !this.topicPublishRateLimiter.tryAcquire(numberMessages, bytes);
+        if (preciseTopicPublishRateLimitingEnable) {
+            if (!this.topicPublishRateLimiter.tryAcquire(numberMessages, bytes)) {
+                return true;
+            }
+
+            return getBrokerPublishRateLimiter().isPublishRateExceeded();
+        } else {
+            if (isResourceGroupPublishRateExceeded(numberMessages, bytes)) {
+                return true;
+            }
+
+            return isPublishRateExceeded();
+        }
     }
 
     @Override
+    @Deprecated
     public boolean isBrokerPublishRateExceeded() {
         // whether broker publish rate exceed
         return  getBrokerPublishRateLimiter().isPublishRateExceeded();

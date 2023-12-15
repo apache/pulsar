@@ -227,14 +227,30 @@ public interface Topic {
 
     void resetBrokerPublishCountAndEnableReadIfRequired(boolean doneReset);
 
+    /**
+     * @deprecated use {@link #isTopicPublishRateExceeded(int, int)} instead.
+     */
+    @Deprecated
     boolean isPublishRateExceeded();
 
     boolean isTopicPublishRateExceeded(int msgSize, int numMessages);
 
+    /**
+     * @deprecated meaningless.
+     */
+    @Deprecated
     boolean isResourceGroupRateLimitingEnabled();
 
+    /**
+     * @deprecated use {@link #isTopicPublishRateExceeded(int, int)} instead.
+     */
+    @Deprecated
     boolean isResourceGroupPublishRateExceeded(int msgSize, int numMessages);
 
+    /**
+     * @deprecated use {@link #isTopicPublishRateExceeded(int, int)} instead.
+     */
+    @Deprecated
     boolean isBrokerPublishRateExceeded();
 
     boolean shouldProducerMigrate();
