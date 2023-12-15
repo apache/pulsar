@@ -572,15 +572,15 @@ public abstract class AsyncTokenBucket {
         private final long sleepMillis;
         private final int sleepNanos;
         private final LongSupplier clockSource;
+        private final Thread thread;
         private volatile long lastNanos;
-        private volatile boolean closed;
 
         public GranularMonotonicClockSource(long granularityNanos, LongSupplier clockSource) {
             this.sleepMillis = TimeUnit.NANOSECONDS.toMillis(granularityNanos);
             this.sleepNanos = (int) (granularityNanos - TimeUnit.MILLISECONDS.toNanos(sleepMillis));
             this.clockSource = clockSource;
             this.lastNanos = clockSource.getAsLong();
-            Thread thread = new Thread(this::updateLoop, getClass().getSimpleName() + "-update-loop");
+            thread = new Thread(this::updateLoop, getClass().getSimpleName() + "-update-loop");
             thread.setDaemon(true);
             thread.start();
         }
@@ -596,7 +596,7 @@ public abstract class AsyncTokenBucket {
         }
 
         private void updateLoop() {
-            while (!closed && !Thread.currentThread().isInterrupted()) {
+            while (!Thread.currentThread().isInterrupted()) {
                 lastNanos = clockSource.getAsLong();
                 try {
                     Thread.sleep(sleepMillis, sleepNanos);
@@ -609,7 +609,7 @@ public abstract class AsyncTokenBucket {
 
         @Override
         public void close() {
-            closed = true;
+            thread.interrupt();
         }
     }
 }
