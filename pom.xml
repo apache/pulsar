@@ -2247,6 +2247,8 @@ flexible messaging model and an intuitive client API.</description>
         <module>distribution</module>
         <module>docker</module>
         <module>tests</module>
+
+        <module>microbench</module>
       </modules>
     </profile>
 
@@ -2503,6 +2505,25 @@ flexible messaging model and an intuitive client API.</description>
       <modules>
         <module>pulsar-sql</module>
       </modules>
+    </profile>
+
+    <profile>
+      <id>microbench</id>
+      <modules>
+        <module>microbench</module>
+      </modules>
+      <properties>
+        <skipSourceReleaseAssembly>true</skipSourceReleaseAssembly>
+        <skipBuildDistribution>true</skipBuildDistribution>
+        <spotbugs.skip>true</spotbugs.skip>
+        <license.skip>true</license.skip>
+        <rat.skip>true</rat.skip>
+        <assembly.skipAssembly>true</assembly.skipAssembly>
+        <narPluginPhase>none</narPluginPhase>
+        <skipDocker>true</skipDocker>
+        <skipTests>true</skipTests>
+        <checkstyle.skip>true</checkstyle.skip>
+      </properties>
     </profile>
   </profiles>
 
