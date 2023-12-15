@@ -16,11 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.common.util;
-
 /**
- * Function use when rate limiter renew permit.
- * */
-public interface RateLimitFunction {
-    void apply();
-}
+ * Pulsar broker Quality of Service (QoS) related classes.
+ */
+package org.apache.pulsar.broker.qos;

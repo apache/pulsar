@@ -542,12 +542,6 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
         } else {
             subscriptions.forEach((s, sub) -> futures.add(sub.close(false, Optional.empty())));
         }
-        if (topicPublishRateLimiter != null) {
-            topicPublishRateLimiter.close();
-        }
-        if (this.resourceGroupPublishLimiter != null) {
-            this.resourceGroupPublishLimiter.unregisterRateLimitFunction(this.getName());
-        }
 
         if (entryFilters != null) {
             entryFilters.getRight().forEach(filter -> {

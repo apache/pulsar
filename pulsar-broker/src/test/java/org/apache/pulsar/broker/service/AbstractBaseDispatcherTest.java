@@ -118,7 +118,7 @@ public class AbstractBaseDispatcherTest {
 
         int size = this.helper.filterEntriesForConsumer(entries, batchSizes, sendMessageInfo, null, cursor, false, null);
         assertEquals(size, 0);
-        verify(subscriptionDispatchRateLimiter).tryDispatchPermit(1, expectedBytePermits);
+        verify(subscriptionDispatchRateLimiter).consumeDispatchQuota(1, expectedBytePermits);
     }
 
     @Test

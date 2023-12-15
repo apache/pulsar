@@ -1522,12 +1522,6 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         } else {
             subscriptions.forEach((s, sub) -> futures.add(sub.close(false, Optional.empty())));
         }
-        if (topicPublishRateLimiter != null) {
-            topicPublishRateLimiter.close();
-        }
-        if (this.resourceGroupPublishLimiter != null) {
-            this.resourceGroupPublishLimiter.unregisterRateLimitFunction(this.getName());
-        }
 
         //close entry filters
         if (entryFilters != null) {

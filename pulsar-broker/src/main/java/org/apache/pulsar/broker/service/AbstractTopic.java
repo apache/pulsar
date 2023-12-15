@@ -118,9 +118,7 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
 
     protected volatile Boolean isAllowAutoUpdateSchema;
 
-    protected volatile PublishRateLimiter topicPublishRateLimiter = PublishRateLimiter.DISABLED_RATE_LIMITER;
-    private final Object topicPublishRateLimiterLock = new Object();
-
+    protected volatile PublishRateLimiter topicPublishRateLimiter;
     protected volatile ResourceGroupPublishLimiter resourceGroupPublishLimiter;
 
     protected boolean preciseTopicPublishRateLimitingEnable;
@@ -158,6 +156,7 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
     protected final LongAdder bytesOutFromRemovedSubscriptions = new LongAdder();
     protected volatile Pair<String, List<EntryFilter>> entryFilters;
     protected volatile boolean transferring = false;
+    private volatile List<PublishRateLimiter> activeRateLimiters;
 
     public AbstractTopic(String topic, BrokerService brokerService) {
         this.topic = topic;
@@ -172,6 +171,8 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
 
         this.lastActive = System.nanoTime();
         this.preciseTopicPublishRateLimitingEnable = config.isPreciseTopicPublishRateLimiterEnable();
+        topicPublishRateLimiter = new PublishRateLimiterImpl(brokerService.getPulsar().getMonotonicSnapshotClock());
+        updateActiveRateLimiters();
     }
 
     public SubscribeRate getSubscribeRate() {
@@ -565,16 +566,6 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
         return null;
     }
 
-    @Override
-    public void disableCnxAutoRead() {
-        producers.values().forEach(producer -> producer.getCnx().disableCnxAutoRead());
-    }
-
-    @Override
-    public void enableCnxAutoRead() {
-        producers.values().forEach(producer -> producer.getCnx().enableCnxAutoRead());
-    }
-
     protected boolean hasLocalProducers() {
         if (producers.isEmpty()) {
             return false;
@@ -898,57 +889,35 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
             .register();
 
     @Override
-    public void checkTopicPublishThrottlingRate() {
-        this.topicPublishRateLimiter.checkPublishRate();
-    }
+    public void incrementPublishCount(Producer producer, int numOfMessages, long msgSizeInBytes) {
+        handlePublishThrottling(producer, numOfMessages, msgSizeInBytes);
 
-    @Override
-    public void incrementPublishCount(int numOfMessages, long msgSizeInBytes) {
-        // increase topic publish rate limiter
-        this.topicPublishRateLimiter.incrementPublishCount(numOfMessages, msgSizeInBytes);
-        // increase broker publish rate limiter
-        getBrokerPublishRateLimiter().incrementPublishCount(numOfMessages, msgSizeInBytes);
         // increase counters
         bytesInCounter.add(msgSizeInBytes);
         msgInCounter.add(numOfMessages);
     }
 
-    @Override
-    public void resetTopicPublishCountAndEnableReadIfRequired() {
-        // broker rate not exceeded. and completed topic limiter reset.
-        if (!getBrokerPublishRateLimiter().isPublishRateExceeded() && topicPublishRateLimiter.resetPublishCount()) {
-            enableProducerReadForPublishRateLimiting();
+    private void handlePublishThrottling(Producer producer, int numOfMessages, long msgSizeInBytes) {
+        // consume tokens from rate limiters and possibly throttle the connection that published the message
+        // if it's publishing too fast. Each connection will be throttled lazily when they publish messages.
+        for (PublishRateLimiter rateLimiter : activeRateLimiters) {
+            rateLimiter.handlePublishThrottling(producer, numOfMessages, msgSizeInBytes);
         }
+    }
+
+    private void updateActiveRateLimiters() {
+        List<PublishRateLimiter> updatedRateLimiters = new ArrayList<>();
+        updatedRateLimiters.add(this.topicPublishRateLimiter);
+        updatedRateLimiters.add(getBrokerPublishRateLimiter());
+        if (isResourceGroupRateLimitingEnabled()) {
+            updatedRateLimiters.add(resourceGroupPublishLimiter);
+        }
+        activeRateLimiters = updatedRateLimiters.stream().filter(Objects::nonNull).toList();
     }
 
     public void updateDispatchRateLimiter() {
     }
 
-    @Override
-    public void resetBrokerPublishCountAndEnableReadIfRequired(boolean doneBrokerReset) {
-        // topic rate not exceeded, and completed broker limiter reset.
-        if (!topicPublishRateLimiter.isPublishRateExceeded() && doneBrokerReset) {
-            enableProducerReadForPublishRateLimiting();
-        }
-    }
-
-    /**
-     * it sets cnx auto-readable if producer's cnx is disabled due to publish-throttling.
-     */
-    protected void enableProducerReadForPublishRateLimiting() {
-        if (producers != null) {
-            producers.values().forEach(producer -> {
-                producer.getCnx().cancelPublishRateLimiting();
-                producer.getCnx().enableCnxAutoRead();
-            });
-        }
-    }
-
-    protected void disableProducerRead() {
-        if (producers != null) {
-            producers.values().forEach(producer -> producer.getCnx().disableCnxAutoRead());
-        }
-    }
 
     protected void checkTopicFenced() throws BrokerServiceException {
         if (isFenced) {
@@ -1099,35 +1068,6 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
         return usageCount;
     }
 
-    @Override
-    public boolean isPublishRateExceeded() {
-        // either topic or broker publish rate exceeded.
-        return this.topicPublishRateLimiter.isPublishRateExceeded()
-                || getBrokerPublishRateLimiter().isPublishRateExceeded();
-    }
-
-    @Override
-    public boolean isResourceGroupPublishRateExceeded(int numMessages, int bytes) {
-        return this.resourceGroupRateLimitingEnabled
-            && !this.resourceGroupPublishLimiter.tryAcquire(numMessages, bytes);
-    }
-
-    @Override
-    public boolean isResourceGroupRateLimitingEnabled() {
-        return this.resourceGroupRateLimitingEnabled;
-    }
-
-    @Override
-    public boolean isTopicPublishRateExceeded(int numberMessages, int bytes) {
-        // whether topic publish rate exceed if precise rate limit is enable
-        return preciseTopicPublishRateLimitingEnable && !this.topicPublishRateLimiter.tryAcquire(numberMessages, bytes);
-    }
-
-    @Override
-    public boolean isBrokerPublishRateExceeded() {
-        // whether broker publish rate exceed
-        return  getBrokerPublishRateLimiter().isPublishRateExceeded();
-    }
 
     public PublishRateLimiter getTopicPublishRateLimiter() {
         return topicPublishRateLimiter;
@@ -1169,19 +1109,15 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
             if (resourceGroup != null) {
                 this.resourceGroupRateLimitingEnabled = true;
                 this.resourceGroupPublishLimiter = resourceGroup.getResourceGroupPublishLimiter();
-                this.resourceGroupPublishLimiter.registerRateLimitFunction(this.getName(), this::enableCnxAutoRead);
                 log.info("Using resource group {} rate limiter for topic {}", rgName, topic);
-                return;
             }
         } else {
             if (this.resourceGroupRateLimitingEnabled) {
-                this.resourceGroupPublishLimiter.unregisterRateLimitFunction(this.getName());
                 this.resourceGroupPublishLimiter = null;
                 this.resourceGroupRateLimitingEnabled = false;
             }
-            /* Namespace detached from resource group. Enable the producer read */
-            enableProducerReadForPublishRateLimiting();
         }
+        updateActiveRateLimiters();
     }
 
     public void updateEntryFilters() {
@@ -1292,37 +1228,15 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
      * update topic publish dispatcher for this topic.
      */
     public void updatePublishDispatcher() {
-        synchronized (topicPublishRateLimiterLock) {
-            PublishRate publishRate = topicPolicies.getPublishRate().get();
-            if (publishRate.publishThrottlingRateInByte > 0 || publishRate.publishThrottlingRateInMsg > 0) {
-                log.info("Enabling publish rate limiting {} on topic {}", publishRate, getName());
-                if (!preciseTopicPublishRateLimitingEnable) {
-                    this.brokerService.setupTopicPublishRateLimiterMonitor();
-                }
-
-                if (this.topicPublishRateLimiter == null
-                    || this.topicPublishRateLimiter == PublishRateLimiter.DISABLED_RATE_LIMITER) {
-                    // create new rateLimiter if rate-limiter is disabled
-                    if (preciseTopicPublishRateLimitingEnable) {
-                        this.topicPublishRateLimiter = new PrecisePublishLimiter(publishRate,
-                            () -> this.enableCnxAutoRead(), brokerService.pulsar().getExecutor());
-                    } else {
-                        this.topicPublishRateLimiter = new PublishRateLimiterImpl(publishRate);
-                    }
-                } else {
-                    this.topicPublishRateLimiter.update(publishRate);
-                }
-            } else {
-                if (log.isDebugEnabled()) {
-                    log.debug("Disabling publish throttling for {}", this.topic);
-                }
-                if (topicPublishRateLimiter != null) {
-                    topicPublishRateLimiter.close();
-                }
-                this.topicPublishRateLimiter = PublishRateLimiter.DISABLED_RATE_LIMITER;
-                enableProducerReadForPublishRateLimiting();
+        PublishRate publishRate = topicPolicies.getPublishRate().get();
+        if (publishRate.publishThrottlingRateInByte > 0 || publishRate.publishThrottlingRateInMsg > 0) {
+            log.info("Enabling publish rate limiting {} on topic {}", publishRate, getName());
+        } else {
+            if (log.isDebugEnabled()) {
+                log.debug("Disabling publish throttling for {}", this.topic);
             }
         }
+        this.topicPublishRateLimiter.update(publishRate);
     }
 
     // subscriptionTypesEnabled is dynamic and can be updated online.

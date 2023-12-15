@@ -120,25 +120,12 @@ public class PrometheusMetricsTest extends BrokerTestBase {
 
     @Test
     public void testPublishRateLimitedTimes() throws Exception {
-        checkPublishRateLimitedTimes(true);
-        checkPublishRateLimitedTimes(false);
-    }
-
-    private void checkPublishRateLimitedTimes(boolean preciseRateLimit) throws Exception {
         cleanup();
-        if (preciseRateLimit) {
-            conf.setBrokerPublisherThrottlingTickTimeMillis(10000000);
-            conf.setMaxPublishRatePerTopicInMessages(1);
-            conf.setMaxPublishRatePerTopicInBytes(1);
-            conf.setBrokerPublisherThrottlingMaxMessageRate(100000);
-            conf.setBrokerPublisherThrottlingMaxByteRate(10000000);
-        } else {
-            conf.setBrokerPublisherThrottlingTickTimeMillis(1);
-            conf.setBrokerPublisherThrottlingMaxMessageRate(1);
-            conf.setBrokerPublisherThrottlingMaxByteRate(1);
-        }
+        conf.setMaxPublishRatePerTopicInMessages(1);
+        conf.setMaxPublishRatePerTopicInBytes(1);
+        conf.setBrokerPublisherThrottlingMaxMessageRate(100000);
+        conf.setBrokerPublisherThrottlingMaxByteRate(10000000);
         conf.setStatsUpdateFrequencyInSecs(100000000);
-        conf.setPreciseTopicPublishRateLimiterEnable(preciseRateLimit);
         setup();
         String ns1 = "prop/ns-abc1" + UUID.randomUUID();
         admin.namespaces().createNamespace(ns1, 1);
@@ -180,15 +167,9 @@ public class PrometheusMetricsTest extends BrokerTestBase {
                     assertEquals(item.value, 1);
                     return;
                 } else if (item.tags.get("topic").equals(topicName3)) {
-                    //When using precise rate limiting, we only trigger the rate limiting of the topic,
-                    // so if the topic is not using the same connection, the rate limiting times will be 0
-                    //When using asynchronous rate limiting, we will trigger the broker-level rate limiting,
-                    // and all connections will be limited at this time.
-                    if (preciseRateLimit) {
-                        assertEquals(item.value, 0);
-                    } else {
-                        assertEquals(item.value, 1);
-                    }
+                    // We only trigger the rate limiting of the topic, so if the topic is not using
+                    // the same connection, the rate limiting times will be 0
+                    assertEquals(item.value, 0);
                     return;
                 }
                 fail("should not fail");
