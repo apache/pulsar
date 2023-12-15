@@ -2514,22 +2514,25 @@ public class BrokerService implements Closeable {
                                 return;
                             }
                             Field configField = configFieldWrapper.field;
-                            Object newValue = FieldParser.value(data.get(configKey), configField);
-                            if (configField != null) {
-                                Consumer listener = configRegisteredListeners.get(configKey);
-                                try {
-                                    Object existingValue = configField.get(pulsar.getConfiguration());
+                            Consumer listener = configRegisteredListeners.get(configKey);
+                            try {
+                                final Object existingValue;
+                                final Object newValue;
+                                if (configField != null) {
+                                    newValue = FieldParser.value(data.get(configKey), configField);
+                                    existingValue = configField.get(pulsar.getConfiguration());
                                     configField.set(pulsar.getConfiguration(), newValue);
-                                    log.info("Successfully updated configuration {}/{}", configKey,
-                                            data.get(configKey));
-                                    if (listener != null && !existingValue.equals(newValue)) {
-                                        listener.accept(newValue);
-                                    }
-                                } catch (Exception e) {
-                                    log.error("Failed to update config {}/{}", configKey, newValue);
+                                } else {
+                                    newValue = value;
+                                    existingValue = configFieldWrapper.customValue;
+                                    configFieldWrapper.customValue = newValue == null ? null : String.valueOf(newValue);
                                 }
-                            } else {
-                                log.error("Found non-dynamic field in dynamicConfigMap {}/{}", configKey, newValue);
+                                log.info("Successfully updated configuration {}/{}", configKey, data.get(configKey));
+                                if (listener != null && !Objects.equals(existingValue, newValue)) {
+                                    listener.accept(newValue);
+                                }
+                            } catch (Exception e) {
+                                log.error("Failed to update config {}", configKey, e);
                             }
                         });
                     });
@@ -2968,18 +2971,25 @@ public class BrokerService implements Closeable {
 
     private void addDynamicConfigValidator(String key, Predicate<String> validator) {
         validateConfigKey(key);
-        if (dynamicConfigurationMap.containsKey(key)) {
-            dynamicConfigurationMap.get(key).validator = validator;
-        }
+        dynamicConfigurationMap.get(key).validator = validator;
     }
 
     private void validateConfigKey(String key) {
-        try {
-            ServiceConfiguration.class.getDeclaredField(key);
-        } catch (Exception e) {
-            log.error("ServiceConfiguration key {} not found {}", key, e.getMessage());
-            throw new IllegalArgumentException("Invalid service config " + key, e);
+        if (!dynamicConfigurationMap.containsKey(key)) {
+            throw new IllegalArgumentException(key + " doesn't exits in the dynamicConfigurationMap");
         }
+    }
+
+    /**
+     * Allows the third-party plugin to register a custom dynamic configuration.
+     */
+    public void registerCustomDynamicConfiguration(String key, Predicate<String> validator) {
+        if (dynamicConfigurationMap.containsKey(key)) {
+            throw new IllegalArgumentException(key + " already exists in the dynamicConfigurationMap");
+        }
+        ConfigField configField = ConfigField.newCustomConfigField(null);
+        configField.validator = validator;
+        dynamicConfigurationMap.put(key, configField);
     }
 
     private void createDynamicConfigPathIfNotExist() {
@@ -3356,12 +3366,23 @@ public class BrokerService implements Closeable {
     }
 
     private static class ConfigField {
+        // field holds the pulsar dynamic configuration.
         final Field field;
+
+        // customValue holds the external dynamic configuration.
+        volatile String customValue;
+
         Predicate<String> validator;
 
         public ConfigField(Field field) {
             super();
             this.field = field;
+        }
+
+        public static ConfigField newCustomConfigField(String customValue) {
+            ConfigField configField = new ConfigField(null);
+            configField.customValue = customValue;
+            return configField;
         }
     }
 

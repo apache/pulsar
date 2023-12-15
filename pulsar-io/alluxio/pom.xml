@@ -29,9 +29,10 @@
     </parent>
 
     <properties>
-        <alluxio.version>2.7.3</alluxio.version>
+        <alluxio.version>2.9.3</alluxio.version>
         <metrics.version>4.1.11</metrics.version>
         <grpc.version>1.37.0</grpc.version>
+        <netty.version>4.1.100.Final</netty.version>
     </properties>
 
     <artifactId>pulsar-io-alluxio</artifactId>
@@ -56,12 +57,6 @@
             <groupId>org.alluxio</groupId>
             <artifactId>alluxio-core-client-fs</artifactId>
             <version>${alluxio.version}</version>
-            <exclusions>
-                <exclusion>
-                    <artifactId>grpc-netty</artifactId>
-                    <groupId>io.grpc</groupId>
-                </exclusion>
-            </exclusions>
         </dependency>
 
         <dependency>
@@ -73,10 +68,6 @@
                 <exclusion>
                     <groupId>org.glassfish</groupId>
                     <artifactId>javax.el</artifactId>
-                </exclusion>
-                <exclusion>
-                    <artifactId>grpc-netty</artifactId>
-                    <groupId>io.grpc</groupId>
                 </exclusion>
             </exclusions>
         </dependency>
@@ -90,21 +81,31 @@
             <groupId>com.google.guava</groupId>
             <artifactId>guava</artifactId>
         </dependency>
-
-        <!-- alluxio grpc dependency need higher version -->
-        <dependency>
-            <groupId>io.grpc</groupId>
-            <artifactId>grpc-netty</artifactId>
-            <version>${grpc.version}</version>
-        </dependency>
-
-        <dependency>
-            <groupId>io.dropwizard.metrics</groupId>
-            <artifactId>metrics-jvm</artifactId>
-            <version>${metrics.version}</version>
-        </dependency>
-
     </dependencies>
+
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>io.netty</groupId>
+                <artifactId>netty-bom</artifactId>
+                <version>${netty.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <dependency>
+                <groupId>io.grpc</groupId>
+                <artifactId>grpc-bom</artifactId>
+                <version>${grpc.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <dependency>
+                <groupId>io.dropwizard.metrics</groupId>
+                <artifactId>metrics-jvm</artifactId>
+                <version>${metrics.version}</version>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
 
     <build>
         <plugins>
