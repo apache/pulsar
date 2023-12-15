@@ -258,7 +258,7 @@ public class MessageDuplicationTest {
         doReturn(pulsarService).when(brokerService).pulsar();
         doReturn(pulsarService).when(brokerService).getPulsar();
         doReturn(new BacklogQuotaManager(pulsarService)).when(brokerService).getBacklogQuotaManager();
-        doReturn(AsyncTokenBucket.DEFAULT_CLOCK_SOURCE).when(pulsarService).getMonotonicClockSource();
+        doReturn(AsyncTokenBucket.DEFAULT_CLOCK).when(pulsarService).getMonotonicClockSource();
 
         PersistentTopic persistentTopic = spyWithClassAndConstructorArgs(PersistentTopic.class, "topic-1", brokerService, managedLedger, messageDeduplication);
 

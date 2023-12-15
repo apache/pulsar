@@ -149,13 +149,13 @@ public class PublishRateLimiterImpl implements PublishRateLimiter {
     protected void updateTokenBuckets(long publishThrottlingRateInMsg, long publishThrottlingRateInByte) {
         if (publishThrottlingRateInMsg > 0) {
             tokenBucketOnMessage =
-                    AsyncTokenBucket.builder().rate(publishThrottlingRateInMsg).clockSource(clockSource).build();
+                    AsyncTokenBucket.builder().rate(publishThrottlingRateInMsg).clock(clockSource).build();
         } else {
             tokenBucketOnMessage = null;
         }
         if (publishThrottlingRateInByte > 0) {
             tokenBucketOnByte =
-                    AsyncTokenBucket.builder().rate(publishThrottlingRateInByte).clockSource(clockSource).build();
+                    AsyncTokenBucket.builder().rate(publishThrottlingRateInByte).clock(clockSource).build();
         } else {
             tokenBucketOnByte = null;
         }

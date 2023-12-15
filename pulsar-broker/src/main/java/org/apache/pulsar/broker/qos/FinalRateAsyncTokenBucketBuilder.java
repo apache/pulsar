@@ -54,7 +54,7 @@ public class FinalRateAsyncTokenBucketBuilder
 
     public AsyncTokenBucket build() {
         return new FinalRateAsyncTokenBucket(this.capacity != null ? this.capacity : this.rate, this.rate,
-                this.clockSource,
+                this.clock,
                 this.ratePeriodNanos, this.resolutionNanos,
                 this.initialTokens != null ? this.initialTokens : this.rate
         );

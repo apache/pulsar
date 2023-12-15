@@ -42,13 +42,13 @@ import java.util.concurrent.atomic.LongAdder;
  * connection or client from the throttling queue to unthrottle. Before unthrottling, the application should check
  * for available tokens. If tokens are still not available, the application should continue with throttling and
  * repeat the throttling loop.
- * <p>This class does not produce side effects outside of its own scope. It functions similarly to a stateful function,
+ * <p>This class does not produce side effects outside its own scope. It functions similarly to a stateful function,
  * akin to a counter function. In essence, it is a sophisticated counter. It can serve as a foundational component for
  * constructing higher-level asynchronous rate limiter implementations, which require side effects for throttling.
- * <p>To achieve optimal performance, pass a {@link DefaultMonotonicSnapshotClock} as the clock source.
+ * <p>To achieve optimal performance, pass a {@link DefaultMonotonicSnapshotClock} instance as the clock .
  */
 public abstract class AsyncTokenBucket {
-    public static final MonotonicSnapshotClock DEFAULT_CLOCK_SOURCE = requestSnapshot -> System.nanoTime();
+    public static final MonotonicSnapshotClock DEFAULT_CLOCK = requestSnapshot -> System.nanoTime();
     static final long ONE_SECOND_NANOS = TimeUnit.SECONDS.toNanos(1);
     // 2^24 nanoseconds is 16 milliseconds
     private static final long DEFAULT_RESOLUTION_NANOS = TimeUnit.MILLISECONDS.toNanos(16);

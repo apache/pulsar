@@ -64,7 +64,7 @@ public class DynamicRateAsyncTokenBucketBuilder
     @Override
     public AsyncTokenBucket build() {
         return new DynamicRateAsyncTokenBucket(this.capacityFactor, this.rateFunction,
-                this.clockSource,
+                this.clock,
                 this.ratePeriodNanosFunction, this.resolutionNanos,
                 this.initialFillFactor,
                 targetFillFactorAfterThrottling);

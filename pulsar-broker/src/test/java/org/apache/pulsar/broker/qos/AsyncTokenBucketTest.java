@@ -50,7 +50,7 @@ public class AsyncTokenBucketTest {
     @Test
     void shouldAddTokensWithConfiguredRate() {
         asyncTokenBucket =
-                AsyncTokenBucket.builder().capacity(100).rate(10).initialTokens(0).clockSource(clockSource).build();
+                AsyncTokenBucket.builder().capacity(100).rate(10).initialTokens(0).clock(clockSource).build();
         incrementSeconds(5);
         assertEquals(asyncTokenBucket.getTokens(), 50);
         incrementSeconds(1);
@@ -72,7 +72,7 @@ public class AsyncTokenBucketTest {
     @Test
     void shouldCalculatePauseCorrectly() {
         asyncTokenBucket =
-                AsyncTokenBucket.builder().capacity(100).rate(10).initialTokens(0).clockSource(clockSource)
+                AsyncTokenBucket.builder().capacity(100).rate(10).initialTokens(0).clock(clockSource)
                         .build();
         incrementSeconds(5);
         asyncTokenBucket.consumeTokens(100);
@@ -83,7 +83,7 @@ public class AsyncTokenBucketTest {
     @Test
     void shouldSupportFractionsWhenUpdatingTokens() {
         asyncTokenBucket =
-                AsyncTokenBucket.builder().capacity(100).rate(10).initialTokens(0).clockSource(clockSource).build();
+                AsyncTokenBucket.builder().capacity(100).rate(10).initialTokens(0).clock(clockSource).build();
         incrementMillis(100);
         assertEquals(asyncTokenBucket.getTokens(), 1);
     }
@@ -91,7 +91,7 @@ public class AsyncTokenBucketTest {
     @Test
     void shouldSupportFractionsAndRetainLeftoverWhenUpdatingTokens() {
         asyncTokenBucket =
-                AsyncTokenBucket.builder().capacity(100).rate(10).initialTokens(0).clockSource(clockSource).build();
+                AsyncTokenBucket.builder().capacity(100).rate(10).initialTokens(0).clock(clockSource).build();
         for (int i = 0; i < 150; i++) {
             incrementMillis(1);
         }
