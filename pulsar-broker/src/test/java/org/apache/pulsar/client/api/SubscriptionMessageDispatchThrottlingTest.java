@@ -21,6 +21,7 @@ package org.apache.pulsar.client.api;
 import static org.awaitility.Awaitility.await;
 import com.google.common.collect.Sets;
 import java.time.Duration;
+import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.pulsar.broker.BrokerTestUtil;
@@ -908,7 +909,7 @@ public class SubscriptionMessageDispatchThrottlingTest extends MessageDispatchTh
 
         producer.close();
         consumer.close();
-        sub.disconnect().get();
+        sub.close(true, Optional.empty()).get();
 
         // Make sure that the rate limiter is closed
         Assert.assertEquals(dispatchRateLimiter.getDispatchRateOnMsg(), -1);

@@ -44,6 +44,7 @@ import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.lang3.mutable.MutableInt;
 import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSubscription;
+import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLookupData;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.api.MessageId;
@@ -407,8 +408,12 @@ public class Consumer {
     }
 
     public void disconnect(boolean isResetCursor) {
+        disconnect(isResetCursor, Optional.empty());
+    }
+
+    public void disconnect(boolean isResetCursor, Optional<BrokerLookupData> assignedBrokerLookupData) {
         log.info("Disconnecting consumer: {}", this);
-        cnx.closeConsumer(this);
+        cnx.closeConsumer(this, assignedBrokerLookupData);
         try {
             close(isResetCursor);
         } catch (BrokerServiceException e) {

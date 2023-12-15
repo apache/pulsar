@@ -24,6 +24,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.NavigableMap;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -32,6 +33,7 @@ import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLookupData;
 import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerBusyException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServerMetadataException;
 import org.apache.pulsar.client.impl.Murmur3Hash32;
@@ -79,8 +81,6 @@ public abstract class AbstractDispatcherSingleActiveConsumer extends AbstractBas
     }
 
     protected abstract void scheduleReadOnActiveConsumer();
-
-    protected abstract void readMoreEntries(Consumer consumer);
 
     protected abstract void cancelPendingRead();
 
@@ -257,9 +257,12 @@ public abstract class AbstractDispatcherSingleActiveConsumer extends AbstractBas
         return (consumers.size() == 1) && Objects.equals(consumer, ACTIVE_CONSUMER_UPDATER.get(this));
     }
 
-    public CompletableFuture<Void> close() {
+    @Override
+    public CompletableFuture<Void> close(boolean disconnectConsumers,
+                                         Optional<BrokerLookupData> assignedBrokerLookupData) {
         IS_CLOSED_UPDATER.set(this, TRUE);
-        return disconnectAllConsumers();
+        return disconnectConsumers
+                ? disconnectAllConsumers(false, assignedBrokerLookupData) : CompletableFuture.completedFuture(null);
     }
 
     public boolean isClosed() {
@@ -268,15 +271,23 @@ public abstract class AbstractDispatcherSingleActiveConsumer extends AbstractBas
 
     /**
      * Disconnect all consumers on this dispatcher (server side close). This triggers channelInactive on the inbound
-     * handler which calls dispatcher.removeConsumer(), where the closeFuture is completed
+     * handler which calls dispatcher.removeConsumer(), where the closeFuture is completed.
      *
-     * @return
+     * @param isResetCursor
+     *              Specifies if the cursor has been reset.
+     * @param assignedBrokerLookupData
+     *              Optional target broker redirect information. Allows the consumer to quickly reconnect to a broker
+     *              during bundle unloading.
+     *
+     * @return CompletableFuture indicating the completion of the operation.
      */
-    public synchronized CompletableFuture<Void> disconnectAllConsumers(boolean isResetCursor) {
+    @Override
+    public synchronized CompletableFuture<Void> disconnectAllConsumers(
+            boolean isResetCursor, Optional<BrokerLookupData> assignedBrokerLookupData) {
         closeFuture = new CompletableFuture<>();
 
         if (!consumers.isEmpty()) {
-            consumers.forEach(consumer -> consumer.disconnect(isResetCursor));
+            consumers.forEach(consumer -> consumer.disconnect(isResetCursor, assignedBrokerLookupData));
             cancelPendingRead();
         } else {
             // no consumer connected, complete disconnect immediately

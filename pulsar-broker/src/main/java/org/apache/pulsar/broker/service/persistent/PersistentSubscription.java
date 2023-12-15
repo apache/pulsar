@@ -57,6 +57,7 @@ import org.apache.commons.collections4.MapUtils;
 import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
+import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLookupData;
 import org.apache.pulsar.broker.service.AbstractSubscription;
 import org.apache.pulsar.broker.service.AnalyzeBacklogResult;
 import org.apache.pulsar.broker.service.BrokerServiceException;
@@ -307,8 +308,9 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
             topic.getManagedLedger().removeWaitingCursor(cursor);
 
             if (!cursor.isDurable()) {
-                // If cursor is not durable, we need to clean up the subscription as well
-                this.close().thenRun(() -> {
+                // If cursor is not durable, we need to clean up the subscription as well. No need to check for active
+                // consumers since we already validated that there are no consumers on this dispatcher.
+                this.closeCursor(false).thenRun(() -> {
                     synchronized (this) {
                         if (dispatcher != null) {
                             dispatcher.close().thenRun(() -> {
@@ -885,49 +887,77 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
     }
 
     /**
-     * Close the cursor ledger for this subscription. Requires that there are no active consumers on the dispatcher
+     * Close the cursor ledger for this subscription. Optionally verifies that there are no active consumers on the
+     * dispatcher.
      *
-     * @return CompletableFuture indicating the completion of delete operation
+     * @return CompletableFuture indicating the completion of close operation
+     */
+    private synchronized CompletableFuture<Void> closeCursor(boolean checkActiveConsumers) {
+        if (checkActiveConsumers && dispatcher != null && dispatcher.isConsumerConnected()) {
+            return FutureUtil.failedFuture(new SubscriptionBusyException("Subscription has active consumers"));
+        }
+        return this.pendingAckHandle.closeAsync().thenAccept(v -> {
+            IS_FENCED_UPDATER.set(this, TRUE);
+            log.info("[{}][{}] Successfully closed subscription [{}]", topicName, subName, cursor);
+        });
+    }
+
+
+    /**
+     * Disconnect all consumers from this subscription.
+     *
+     * @return CompletableFuture indicating the completion of the operation.
      */
     @Override
-    public CompletableFuture<Void> close() {
-        synchronized (this) {
-            if (dispatcher != null && dispatcher.isConsumerConnected()) {
-                return FutureUtil.failedFuture(new SubscriptionBusyException("Subscription has active consumers"));
-            }
-            return this.pendingAckHandle.closeAsync().thenAccept(v -> {
-                IS_FENCED_UPDATER.set(this, TRUE);
-                log.info("[{}][{}] Successfully closed subscription [{}]", topicName, subName, cursor);
-            });
-        }
+    public synchronized CompletableFuture<Void> disconnect(Optional<BrokerLookupData> assignedBrokerLookupData) {
+        CompletableFuture<Void> disconnectFuture = new CompletableFuture<>();
+
+        (dispatcher != null
+                ? dispatcher.disconnectAllConsumers(false, assignedBrokerLookupData)
+                : CompletableFuture.completedFuture(null))
+                .thenRun(() -> {
+                    log.info("[{}][{}] Successfully disconnected subscription consumers", topicName, subName);
+                    disconnectFuture.complete(null);
+                }).exceptionally(exception -> {
+                    log.error("[{}][{}] Error disconnecting subscription consumers", topicName, subName, exception);
+                    disconnectFuture.completeExceptionally(exception);
+                    return null;
+                });
+
+        return disconnectFuture;
     }
 
     /**
-     * Disconnect all consumers attached to the dispatcher and close this subscription.
+     * Fence this subscription and optionally disconnect all consumers.
      *
-     * @return CompletableFuture indicating the completion of disconnect operation
+     * @return CompletableFuture indicating the completion of the operation.
      */
     @Override
-    public synchronized CompletableFuture<Void> disconnect() {
-        if (fenceFuture != null){
+    public synchronized CompletableFuture<Void> close(boolean disconnectConsumers,
+                                                      Optional<BrokerLookupData> assignedBrokerLookupData) {
+        if (fenceFuture != null) {
             return fenceFuture;
         }
+
         fenceFuture = new CompletableFuture<>();
 
         // block any further consumers on this subscription
         IS_FENCED_UPDATER.set(this, TRUE);
 
-        (dispatcher != null ? dispatcher.close() : CompletableFuture.completedFuture(null))
-                .thenCompose(v -> close()).thenRun(() -> {
-                    log.info("[{}][{}] Successfully disconnected and closed subscription", topicName, subName);
+        (dispatcher != null
+                ? dispatcher.close(disconnectConsumers, assignedBrokerLookupData)
+                : CompletableFuture.completedFuture(null))
+                // checkActiveConsumers is false since we just closed all of them if we wanted.
+                .thenCompose(__ -> closeCursor(false)).thenRun(() -> {
+                    log.info("[{}][{}] Successfully closed the subscription", topicName, subName);
                     fenceFuture.complete(null);
                 }).exceptionally(exception -> {
-                    log.error("[{}][{}] Error disconnecting consumers from subscription", topicName, subName,
-                            exception);
+                    log.error("[{}][{}] Error closing the subscription", topicName, subName, exception);
                     fenceFuture.completeExceptionally(exception);
                     resumeAfterFence();
                     return null;
                 });
+
         return fenceFuture;
     }
 
@@ -935,7 +965,7 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
      * Resume subscription after topic deletion or close failure.
      */
     public synchronized void resumeAfterFence() {
-        // If "fenceFuture" is null, it means that "disconnect" has never been called.
+        // If "fenceFuture" is null, it means that "close" has never been called.
         if (fenceFuture != null) {
             fenceFuture.whenComplete((ignore, ignoreEx) -> {
                 synchronized (PersistentSubscription.this) {
@@ -992,7 +1022,7 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
         CompletableFuture<Void> closeSubscriptionFuture = new CompletableFuture<>();
 
         if (closeIfConsumersConnected) {
-            this.disconnect().thenRun(() -> {
+            this.close(true, Optional.empty()).thenRun(() -> {
                 closeSubscriptionFuture.complete(null);
             }).exceptionally(ex -> {
                 log.error("[{}][{}] Error disconnecting and closing subscription", topicName, subName, ex);
@@ -1000,7 +1030,7 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
                 return null;
             });
         } else {
-            this.close().thenRun(() -> {
+            this.closeCursor(true).thenRun(() -> {
                 closeSubscriptionFuture.complete(null);
             }).exceptionally(exception -> {
                 log.error("[{}][{}] Error closing subscription", topicName, subName, exception);

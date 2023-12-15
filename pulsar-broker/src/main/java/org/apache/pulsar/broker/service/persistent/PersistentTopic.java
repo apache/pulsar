@@ -475,7 +475,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                     new UnsupportedSubscriptionException(String.format("Unsupported subscription: %s", subName)));
         }
         // Fence old subscription -> Rewind cursor -> Replace with a new subscription.
-        return sub.disconnect().thenCompose(ignore -> {
+        return sub.close(true, Optional.empty()).thenCompose(ignore -> {
             if (!lock.writeLock().tryLock()) {
                 return CompletableFuture.failedFuture(new SubscriptionConflictUnloadException(String.format("Conflict"
                         + " topic-close, topic-delete, another-subscribe-unload, cannot unload subscription %s now",
@@ -527,8 +527,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             return;
         }
         if (isExceedMaximumMessageSize(headersAndPayload.readableBytes(), publishContext)) {
-            publishContext.completed(new NotAllowedException("Exceed maximum message size")
-                    , -1, -1);
+            publishContext.completed(new NotAllowedException("Exceed maximum message size"), -1, -1);
             decrementPendingWriteOpsAndCheck();
             return;
         }
@@ -1359,7 +1358,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
                 CompletableFuture<Void> closeClientFuture = new CompletableFuture<>();
                 List<CompletableFuture<Void>> futures = new ArrayList<>();
-                subscriptions.forEach((s, sub) -> futures.add(sub.disconnect()));
+                subscriptions.forEach((s, sub) -> futures.add(sub.close(true, Optional.empty())));
                 if (closeIfClientsConnected) {
                     replicators.forEach((cluster, replicator) -> futures.add(replicator.disconnect()));
                     shadowReplicators.forEach((__, replicator) -> futures.add(replicator.disconnect()));
@@ -1507,14 +1506,25 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         shadowReplicators.forEach((__, replicator) -> futures.add(replicator.disconnect()));
         if (disconnectClients) {
             futures.add(ExtensibleLoadManagerImpl.getAssignedBrokerLookupData(
-                    brokerService.getPulsar(), topic).thenAccept(lookupData ->
-                    producers.values().forEach(producer -> futures.add(producer.disconnect(lookupData)))
+                brokerService.getPulsar(), topic).thenAccept(lookupData -> {
+                    producers.values().forEach(producer -> futures.add(producer.disconnect(lookupData)));
+                    // Topics unloaded due to the ExtensibleLoadManager undergo closing twice: first with
+                    // disconnectClients = false, second with disconnectClients = true. The check below identifies the
+                    // cases when Topic.close is called outside the scope of the ExtensibleLoadManager. In these
+                    // situations, we must pursue the regular Subscription.close, as Topic.close is invoked just once.
+                    if (isTransferring()) {
+                        subscriptions.forEach((s, sub) -> futures.add(sub.disconnect(lookupData)));
+                    } else {
+                        subscriptions.forEach((s, sub) -> futures.add(sub.close(true, lookupData)));
+                    }
+                }
             ));
+        } else {
+            subscriptions.forEach((s, sub) -> futures.add(sub.close(false, Optional.empty())));
         }
         if (topicPublishRateLimiter != null) {
             topicPublishRateLimiter.close();
         }
-        subscriptions.forEach((s, sub) -> futures.add(sub.disconnect()));
         if (this.resourceGroupPublishLimiter != null) {
             this.resourceGroupPublishLimiter.unregisterRateLimitFunction(this.getName());
         }
