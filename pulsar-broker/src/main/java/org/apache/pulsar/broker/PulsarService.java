@@ -91,8 +91,8 @@ import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl
 import org.apache.pulsar.broker.lookup.v1.TopicLookup;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.protocol.ProtocolHandlers;
-import org.apache.pulsar.broker.qos.GranularMonotonicClockSource;
-import org.apache.pulsar.broker.qos.MonotonicClockSource;
+import org.apache.pulsar.broker.qos.DefaultMonotonicSnapshotClock;
+import org.apache.pulsar.broker.qos.MonotonicSnapshotClock;
 import org.apache.pulsar.broker.resourcegroup.ResourceGroupService;
 import org.apache.pulsar.broker.resourcegroup.ResourceUsageTopicTransportManager;
 import org.apache.pulsar.broker.resourcegroup.ResourceUsageTransportManager;
@@ -274,7 +274,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
 
     private TransactionPendingAckStoreProvider transactionPendingAckStoreProvider;
     private final ExecutorProvider transactionExecutorProvider;
-    private final GranularMonotonicClockSource monotonicClockSource;
+    private final DefaultMonotonicSnapshotClock monotonicClockSource;
 
     public enum State {
         Init, Started, Closing, Closed
@@ -353,7 +353,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         // here in the constructor we don't have the offloader scheduler yet
         this.offloaderStats = LedgerOffloaderStats.create(false, false, null, 0);
 
-        this.monotonicClockSource = new GranularMonotonicClockSource(TimeUnit.MILLISECONDS.toNanos(
+        this.monotonicClockSource = new DefaultMonotonicSnapshotClock(TimeUnit.MILLISECONDS.toNanos(
                 DEFAULT_MONOTONIC_CLOCK_GRANULARITY_MILLIS), System::nanoTime);
     }
 
@@ -1785,7 +1785,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         return brokerService.getListenPortTls();
     }
 
-    public MonotonicClockSource getMonotonicClockSource() {
+    public MonotonicSnapshotClock getMonotonicClockSource() {
         return monotonicClockSource;
     }
 

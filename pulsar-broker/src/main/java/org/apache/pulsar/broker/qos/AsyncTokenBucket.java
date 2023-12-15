@@ -45,10 +45,10 @@ import java.util.concurrent.atomic.LongAdder;
  * <p>This class does not produce side effects outside of its own scope. It functions similarly to a stateful function,
  * akin to a counter function. In essence, it is a sophisticated counter. It can serve as a foundational component for
  * constructing higher-level asynchronous rate limiter implementations, which require side effects for throttling.
- * <p>To achieve optimal performance, pass a {@link GranularMonotonicClockSource} as the clock source.
+ * <p>To achieve optimal performance, pass a {@link DefaultMonotonicSnapshotClock} as the clock source.
  */
 public abstract class AsyncTokenBucket {
-    public static final MonotonicClockSource DEFAULT_CLOCK_SOURCE = highPrecision -> System.nanoTime();
+    public static final MonotonicSnapshotClock DEFAULT_CLOCK_SOURCE = requestSnapshot -> System.nanoTime();
     static final long ONE_SECOND_NANOS = TimeUnit.SECONDS.toNanos(1);
     // 2^24 nanoseconds is 16 milliseconds
     private static final long DEFAULT_RESOLUTION_NANOS = TimeUnit.MILLISECONDS.toNanos(16);
@@ -111,7 +111,7 @@ public abstract class AsyncTokenBucket {
     /**
      * This field is used to obtain the current monotonic clock time in nanoseconds.
      */
-    private final MonotonicClockSource clockSource;
+    private final MonotonicSnapshotClock clockSource;
     /**
      * This field is used to hold the sum of consumed tokens that are pending to be subtracted from the total amount of
      * tokens. This solution is to prevent CAS loop contention problem. pendingConsumedTokens used JVM's LongAdder
@@ -119,7 +119,7 @@ public abstract class AsyncTokenBucket {
      */
     private final LongAdder pendingConsumedTokens = new LongAdder();
 
-    protected AsyncTokenBucket(MonotonicClockSource clockSource, long resolutionNanos) {
+    protected AsyncTokenBucket(MonotonicSnapshotClock clockSource, long resolutionNanos) {
         this.clockSource = clockSource;
         this.resolutionNanos = resolutionNanos;
     }
@@ -154,7 +154,7 @@ public abstract class AsyncTokenBucket {
         if (consumeTokens < 0) {
             throw new IllegalArgumentException("consumeTokens must be >= 0");
         }
-        long currentNanos = clockSource.getNanos(forceUpdateTokens);
+        long currentNanos = clockSource.getTickNanos(forceUpdateTokens);
         // check if the tokens should be updated immediately
         if (shouldUpdateTokensImmediately(currentNanos, forceUpdateTokens)) {
             // calculate the number of new tokens since the last update

@@ -33,7 +33,7 @@ public class DynamicRateAsyncTokenBucket extends AsyncTokenBucket {
     private final double targetFillFactorAfterThrottling;
 
     protected DynamicRateAsyncTokenBucket(double capacityFactor, LongSupplier rateFunction,
-                                          MonotonicClockSource clockSource, LongSupplier ratePeriodNanosFunction,
+                                          MonotonicSnapshotClock clockSource, LongSupplier ratePeriodNanosFunction,
                                           long resolutionNanos, double initialTokensFactor,
                                           double targetFillFactorAfterThrottling) {
         super(clockSource, resolutionNanos);

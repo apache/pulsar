@@ -28,14 +28,14 @@ import org.testng.annotations.Test;
 
 public class AsyncTokenBucketTest {
     private AtomicLong manualClockSource;
-    private MonotonicClockSource clockSource;
+    private MonotonicSnapshotClock clockSource;
 
     private AsyncTokenBucket asyncTokenBucket;
 
     @BeforeMethod
     public void setup() {
         manualClockSource = new AtomicLong(TimeUnit.SECONDS.toNanos(100));
-        clockSource = highPrecision -> manualClockSource.get();
+        clockSource = requestSnapshot -> manualClockSource.get();
     }
 
 

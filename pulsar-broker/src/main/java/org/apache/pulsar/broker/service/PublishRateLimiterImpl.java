@@ -25,7 +25,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.pulsar.broker.qos.AsyncTokenBucket;
-import org.apache.pulsar.broker.qos.MonotonicClockSource;
+import org.apache.pulsar.broker.qos.MonotonicSnapshotClock;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.PublishRate;
 import org.jctools.queues.MessagePassingQueue;
@@ -34,13 +34,13 @@ import org.jctools.queues.MpscUnboundedArrayQueue;
 public class PublishRateLimiterImpl implements PublishRateLimiter {
     private volatile AsyncTokenBucket tokenBucketOnMessage;
     private volatile AsyncTokenBucket tokenBucketOnByte;
-    private final MonotonicClockSource clockSource;
+    private final MonotonicSnapshotClock clockSource;
 
     private final MessagePassingQueue<Producer> unthrottlingQueue = new MpscUnboundedArrayQueue<>(1024);
 
     private final AtomicBoolean unthrottlingScheduled = new AtomicBoolean(false);
 
-    public PublishRateLimiterImpl(MonotonicClockSource clockSource) {
+    public PublishRateLimiterImpl(MonotonicSnapshotClock clockSource) {
         this.clockSource = clockSource;
     }
 

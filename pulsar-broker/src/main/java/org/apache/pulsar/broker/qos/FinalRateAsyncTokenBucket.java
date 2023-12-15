@@ -29,7 +29,7 @@ class FinalRateAsyncTokenBucket extends AsyncTokenBucket {
     private final long ratePeriodNanos;
     private final long targetAmountOfTokensAfterThrottling;
 
-    protected FinalRateAsyncTokenBucket(long capacity, long rate, MonotonicClockSource clockSource,
+    protected FinalRateAsyncTokenBucket(long capacity, long rate, MonotonicSnapshotClock clockSource,
                                         long ratePeriodNanos, long resolutionNanos, long initialTokens) {
         super(clockSource, resolutionNanos);
         this.capacity = capacity;
