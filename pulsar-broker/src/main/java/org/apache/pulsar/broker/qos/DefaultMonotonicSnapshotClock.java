@@ -55,9 +55,7 @@ public class DefaultMonotonicSnapshotClock implements MonotonicSnapshotClock, Au
     @Override
     public long getTickNanos(boolean requestSnapshot) {
         if (requestSnapshot) {
-            long currentNanos = clockSource.getAsLong();
-            snapshotTickNanos = currentNanos;
-            return currentNanos;
+            snapshotTickNanos = clockSource.getAsLong();
         }
         return snapshotTickNanos;
     }
