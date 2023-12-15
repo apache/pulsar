@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.io.rabbitmq.source;
 
+import lombok.Cleanup;
 import org.apache.pulsar.io.rabbitmq.RabbitMQBrokerManager;
 import org.apache.pulsar.io.rabbitmq.RabbitMQSource;
 import org.awaitility.Awaitility;
@@ -62,6 +63,7 @@ public class RabbitMQSourceTest {
         configs.put("prefetchGlobal", "false");
         configs.put("passive", "false");
 
+        @Cleanup
         RabbitMQSource source = new RabbitMQSource();
 
         // open should success
