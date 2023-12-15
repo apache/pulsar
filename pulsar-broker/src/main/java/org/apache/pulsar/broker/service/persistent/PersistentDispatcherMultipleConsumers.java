@@ -674,7 +674,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
 
         // If the dispatcher is closed, firstAvailableConsumerPermits will be 0, which skips dispatching the
         // messages.
-        while (entriesToDispatch > 0 && getFirstAvailableConsumerPermits() > 0) {
+        while (entriesToDispatch > 0 && isAtleastOneConsumerAvailable()) {
             Consumer c = getNextConsumer();
             if (c == null) {
                 // Do nothing, cursor will be rewind at reconnection
