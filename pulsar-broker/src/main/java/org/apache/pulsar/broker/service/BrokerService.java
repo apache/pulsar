@@ -103,7 +103,7 @@ import org.apache.pulsar.broker.delayed.DelayedDeliveryTrackerLoader;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
 import org.apache.pulsar.broker.intercept.ManagedLedgerInterceptorImpl;
 import org.apache.pulsar.broker.loadbalance.LoadManager;
-import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannelImpl;
+import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.resources.DynamicConfigurationResources;
 import org.apache.pulsar.broker.resources.LocalPoliciesResources;
@@ -3378,10 +3378,10 @@ public class BrokerService implements Closeable {
             return CompletableFuture.completedFuture(false);
         }
 
-        // ServiceUnitStateChannelImpl.TOPIC expects to be a non-partitioned-topic now.
+        // ExtensibleLoadManagerImpl.internal topics expects to be non-partitioned-topics now.
         // We don't allow the auto-creation here.
-        // ServiceUnitStateChannelImpl.start() is responsible to create the topic.
-        if (ServiceUnitStateChannelImpl.TOPIC.equals(topicName.toString())) {
+        // ExtensibleLoadManagerImpl.start() is responsible to create the internal system topics.
+        if (ExtensibleLoadManagerImpl.isInternalTopic(topicName.toString())) {
             return CompletableFuture.completedFuture(false);
         }
 

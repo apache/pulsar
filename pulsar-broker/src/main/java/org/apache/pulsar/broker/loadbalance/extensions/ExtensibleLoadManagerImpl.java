@@ -732,7 +732,7 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
         }
     }
 
-    private boolean isInternalTopic(String topic) {
+    public static boolean isInternalTopic(String topic) {
         return topic.startsWith(ServiceUnitStateChannelImpl.TOPIC)
                 || topic.startsWith(BROKER_LOAD_DATA_STORE_TOPIC)
                 || topic.startsWith(TOP_BUNDLES_LOAD_DATA_STORE_TOPIC);
