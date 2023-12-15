@@ -29,6 +29,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl;
 import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannelImpl;
@@ -577,7 +578,7 @@ public class BrokerServiceAutoTopicCreationTest extends BrokerTestBase{
 
         oldTopics.forEach((key, val) -> topics.put(key, val));
 
-        Awaitility.await().untilAsserted(()->{
+        Awaitility.await().atMost(5, TimeUnit.SECONDS).untilAsserted(() -> {
             List<String> partitionedTopicList = admin.topics().getPartitionedTopicList(namespaceName);
             assertEquals(partitionedTopicList.size(), 0);
         });
