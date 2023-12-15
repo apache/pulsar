@@ -22,7 +22,6 @@ package org.apache.pulsar.broker.qos;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.LongAdder;
-import java.util.function.LongSupplier;
 
 /**
  * An asynchronous token bucket algorithm implementation that is optimized for performance with highly concurrent
@@ -50,14 +49,14 @@ import java.util.function.LongSupplier;
  */
 public abstract class AsyncTokenBucket {
     public static final MonotonicClockSource DEFAULT_CLOCK_SOURCE = highPrecision -> System.nanoTime();
-    private static final long ONE_SECOND_NANOS = TimeUnit.SECONDS.toNanos(1);
+    static final long ONE_SECOND_NANOS = TimeUnit.SECONDS.toNanos(1);
     // 2^24 nanoseconds is 16 milliseconds
     private static final long DEFAULT_RESOLUTION_NANOS = TimeUnit.MILLISECONDS.toNanos(16);
 
     // The default resolution is 16 milliseconds. This means that the consumed tokens are subtracted from the
     // current amount of tokens about every 16 milliseconds. This solution helps prevent a CAS loop what could cause
     // extra CPU usage when a single CAS field is updated at a high rate from multiple threads.
-    private static long defaultResolutionNanos = DEFAULT_RESOLUTION_NANOS;
+    static long defaultResolutionNanos = DEFAULT_RESOLUTION_NANOS;
 
     // used in tests to disable the optimization and instead use a consistent view of the tokens
     public static void switchToConsistentTokensView() {
@@ -119,49 +118,6 @@ public abstract class AsyncTokenBucket {
      * which has a complex solution to prevent the CAS loop content problem.
      */
     private final LongAdder pendingConsumedTokens = new LongAdder();
-
-    /**
-     * A subclass of {@link AsyncTokenBucket} that represents a token bucket with a rate which is final.
-     * The rate and capacity of the token bucket are constant and do not change over time.
-     */
-    private static class FinalRateAsyncTokenBucket extends AsyncTokenBucket {
-        private final long capacity;
-        private final long rate;
-        private final long ratePeriodNanos;
-        private final long targetAmountOfTokensAfterThrottling;
-
-        protected FinalRateAsyncTokenBucket(long capacity, long rate, MonotonicClockSource clockSource,
-                                            long ratePeriodNanos, long resolutionNanos, long initialTokens) {
-            super(clockSource, resolutionNanos);
-            this.capacity = capacity;
-            this.rate = rate;
-            this.ratePeriodNanos = ratePeriodNanos != -1 ? ratePeriodNanos : ONE_SECOND_NANOS;
-            // The target amount of tokens is the amount of tokens made available in the resolution duration
-            this.targetAmountOfTokensAfterThrottling = Math.max(this.resolutionNanos * rate / ratePeriodNanos, 1);
-            this.tokens = initialTokens;
-            tokens(false);
-        }
-
-        @Override
-        protected final long getRatePeriodNanos() {
-            return ratePeriodNanos;
-        }
-
-        @Override
-        protected final long getTargetAmountOfTokensAfterThrottling() {
-            return targetAmountOfTokensAfterThrottling;
-        }
-
-        @Override
-        public final long getCapacity() {
-            return capacity;
-        }
-
-        @Override
-        public final long getRate() {
-            return rate;
-        }
-    }
 
     protected AsyncTokenBucket(MonotonicClockSource clockSource, long resolutionNanos) {
         this.clockSource = clockSource;
@@ -384,232 +340,4 @@ public abstract class AsyncTokenBucket {
         return tokens(forceUpdateTokens) > 0;
     }
 
-    // CHECKSTYLE.OFF: ClassTypeParameterName
-    public abstract static class AsyncTokenBucketBuilder<SELF extends AsyncTokenBucketBuilder<SELF>> {
-        protected MonotonicClockSource clockSource = DEFAULT_CLOCK_SOURCE;
-        protected long resolutionNanos = defaultResolutionNanos;
-
-        protected AsyncTokenBucketBuilder() {
-        }
-
-        protected SELF self() {
-            return (SELF) this;
-        }
-
-        public SELF clockSource(MonotonicClockSource clockSource) {
-            this.clockSource = clockSource;
-            return self();
-        }
-
-        public SELF resolutionNanos(long resolutionNanos) {
-            this.resolutionNanos = resolutionNanos;
-            return self();
-        }
-
-        public abstract AsyncTokenBucket build();
-    }
-
-    /**
-     * A builder class for creating instances of {@link FinalRateAsyncTokenBucket}.
-     */
-    public static class FinalRateAsyncTokenBucketBuilder
-            extends AsyncTokenBucketBuilder<FinalRateAsyncTokenBucketBuilder> {
-        protected Long capacity;
-        protected Long initialTokens;
-        protected Long rate;
-        protected long ratePeriodNanos = ONE_SECOND_NANOS;
-
-        protected FinalRateAsyncTokenBucketBuilder() {
-        }
-
-        public FinalRateAsyncTokenBucketBuilder rate(long rate) {
-            this.rate = rate;
-            return this;
-        }
-
-        public FinalRateAsyncTokenBucketBuilder ratePeriodNanos(long ratePeriodNanos) {
-            this.ratePeriodNanos = ratePeriodNanos;
-            return this;
-        }
-
-        public FinalRateAsyncTokenBucketBuilder capacity(long capacity) {
-            this.capacity = capacity;
-            return this;
-        }
-
-        public FinalRateAsyncTokenBucketBuilder initialTokens(long initialTokens) {
-            this.initialTokens = initialTokens;
-            return this;
-        }
-
-        public AsyncTokenBucket build() {
-            return new FinalRateAsyncTokenBucket(this.capacity != null ? this.capacity : this.rate, this.rate,
-                    this.clockSource,
-                    this.ratePeriodNanos, this.resolutionNanos,
-                    this.initialTokens != null ? this.initialTokens : this.rate
-            );
-        }
-    }
-
-    /**
-     * A subclass of {@link AsyncTokenBucket} that represents a token bucket with a dynamic rate.
-     * The rate and capacity of the token bucket can change over time based on the rate function and capacity factor.
-     */
-    public static class DynamicRateAsyncTokenBucket extends AsyncTokenBucket {
-        private final LongSupplier rateFunction;
-        private final LongSupplier ratePeriodNanosFunction;
-        private final double capacityFactor;
-
-        private final double targetFillFactorAfterThrottling;
-
-        protected DynamicRateAsyncTokenBucket(double capacityFactor, LongSupplier rateFunction,
-                                              MonotonicClockSource clockSource, LongSupplier ratePeriodNanosFunction,
-                                              long resolutionNanos, double initialTokensFactor,
-                                              double targetFillFactorAfterThrottling) {
-            super(clockSource, resolutionNanos);
-            this.capacityFactor = capacityFactor;
-            this.rateFunction = rateFunction;
-            this.ratePeriodNanosFunction = ratePeriodNanosFunction;
-            this.targetFillFactorAfterThrottling = targetFillFactorAfterThrottling;
-            this.tokens = (long) (rateFunction.getAsLong() * initialTokensFactor);
-            tokens(false);
-        }
-
-        @Override
-        protected long getRatePeriodNanos() {
-            return ratePeriodNanosFunction.getAsLong();
-        }
-
-        @Override
-        protected long getTargetAmountOfTokensAfterThrottling() {
-            return (long) (getRate() * targetFillFactorAfterThrottling);
-        }
-
-        @Override
-        public long getCapacity() {
-            return capacityFactor == 1.0d ? getRate() : (long) (getRate() * capacityFactor);
-        }
-
-        @Override
-        public long getRate() {
-            return rateFunction.getAsLong();
-        }
-    }
-
-    /**
-     * A builder class for creating instances of {@link DynamicRateAsyncTokenBucket}.
-     */
-    public static class DynamicRateAsyncTokenBucketBuilder
-            extends AsyncTokenBucketBuilder<DynamicRateAsyncTokenBucketBuilder> {
-        protected LongSupplier rateFunction;
-        protected double capacityFactor = 1.0d;
-        protected double initialFillFactor = 1.0d;
-        protected LongSupplier ratePeriodNanosFunction;
-        protected double targetFillFactorAfterThrottling = 0.01d;
-
-        protected DynamicRateAsyncTokenBucketBuilder() {
-        }
-
-        public DynamicRateAsyncTokenBucketBuilder rateFunction(LongSupplier rateFunction) {
-            this.rateFunction = rateFunction;
-            return this;
-        }
-
-        public DynamicRateAsyncTokenBucketBuilder ratePeriodNanosFunction(LongSupplier ratePeriodNanosFunction) {
-            this.ratePeriodNanosFunction = ratePeriodNanosFunction;
-            return this;
-        }
-
-        public DynamicRateAsyncTokenBucketBuilder capacityFactor(double capacityFactor) {
-            this.capacityFactor = capacityFactor;
-            return this;
-        }
-
-        public DynamicRateAsyncTokenBucketBuilder initialFillFactor(double initialFillFactor) {
-            this.initialFillFactor = initialFillFactor;
-            return this;
-        }
-
-        public DynamicRateAsyncTokenBucketBuilder targetFillFactorAfterThrottling(
-                double targetFillFactorAfterThrottling) {
-            this.targetFillFactorAfterThrottling = targetFillFactorAfterThrottling;
-            return this;
-        }
-
-        @Override
-        public AsyncTokenBucket build() {
-            return new DynamicRateAsyncTokenBucket(this.capacityFactor, this.rateFunction,
-                    this.clockSource,
-                    this.ratePeriodNanosFunction, this.resolutionNanos,
-                    this.initialFillFactor,
-                    targetFillFactorAfterThrottling);
-        }
-    }
-
-    /**
-     * Interface for a clock source that returns a monotonic time in nanoseconds with a required precision.
-     */
-    public interface MonotonicClockSource {
-        /**
-         * Returns the current monotonic clock time in nanoseconds.
-         *
-         * @param highPrecision if true, the returned value must be a high precision monotonic time in nanoseconds.
-         *                      if false, the returned value can be a granular precision monotonic time in nanoseconds.
-         * @return the current monotonic clock time in nanoseconds
-         */
-        long getNanos(boolean highPrecision);
-    }
-
-    /**
-     * A clock source that is optimized for performance by updating the returned low precision monotonic
-     * time in a separate thread with a configurable resolution.
-     * This resolves a performance bottleneck on platforms where calls to System.nanoTime() are relatively
-     * costly. For example, this happens on MacOS with Apple silicon CPUs (M1,M2,M3).
-     * Instantiating this class creates a daemon thread that updates the monotonic time. The close method
-     * should be called to stop the thread.
-     */
-    public static class GranularMonotonicClockSource implements MonotonicClockSource, AutoCloseable {
-        private final long sleepMillis;
-        private final int sleepNanos;
-        private final LongSupplier clockSource;
-        private final Thread thread;
-        private volatile long lastNanos;
-
-        public GranularMonotonicClockSource(long granularityNanos, LongSupplier clockSource) {
-            this.sleepMillis = TimeUnit.NANOSECONDS.toMillis(granularityNanos);
-            this.sleepNanos = (int) (granularityNanos - TimeUnit.MILLISECONDS.toNanos(sleepMillis));
-            this.clockSource = clockSource;
-            this.lastNanos = clockSource.getAsLong();
-            thread = new Thread(this::updateLoop, getClass().getSimpleName() + "-update-loop");
-            thread.setDaemon(true);
-            thread.start();
-        }
-
-        @Override
-        public long getNanos(boolean highPrecision) {
-            if (highPrecision) {
-                long currentNanos = clockSource.getAsLong();
-                lastNanos = currentNanos;
-                return currentNanos;
-            }
-            return lastNanos;
-        }
-
-        private void updateLoop() {
-            while (!Thread.currentThread().isInterrupted()) {
-                lastNanos = clockSource.getAsLong();
-                try {
-                    Thread.sleep(sleepMillis, sleepNanos);
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                    break;
-                }
-            }
-        }
-
-        @Override
-        public void close() {
-            thread.interrupt();
-        }
-    }
 }

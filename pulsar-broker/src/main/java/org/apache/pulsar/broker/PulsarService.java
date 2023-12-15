@@ -91,6 +91,8 @@ import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl
 import org.apache.pulsar.broker.lookup.v1.TopicLookup;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.protocol.ProtocolHandlers;
+import org.apache.pulsar.broker.qos.GranularMonotonicClockSource;
+import org.apache.pulsar.broker.qos.MonotonicClockSource;
 import org.apache.pulsar.broker.resourcegroup.ResourceGroupService;
 import org.apache.pulsar.broker.resourcegroup.ResourceUsageTopicTransportManager;
 import org.apache.pulsar.broker.resourcegroup.ResourceUsageTransportManager;
@@ -141,7 +143,6 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
 import org.apache.pulsar.common.protocol.schema.SchemaStorage;
-import org.apache.pulsar.broker.qos.AsyncTokenBucket;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.GracefulExecutorServicesShutdown;
 import org.apache.pulsar.common.util.Reflections;
@@ -273,7 +274,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
 
     private TransactionPendingAckStoreProvider transactionPendingAckStoreProvider;
     private final ExecutorProvider transactionExecutorProvider;
-    private final AsyncTokenBucket.GranularMonotonicClockSource monotonicClockSource;
+    private final GranularMonotonicClockSource monotonicClockSource;
 
     public enum State {
         Init, Started, Closing, Closed
@@ -352,7 +353,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         // here in the constructor we don't have the offloader scheduler yet
         this.offloaderStats = LedgerOffloaderStats.create(false, false, null, 0);
 
-        this.monotonicClockSource = new AsyncTokenBucket.GranularMonotonicClockSource(TimeUnit.MILLISECONDS.toNanos(
+        this.monotonicClockSource = new GranularMonotonicClockSource(TimeUnit.MILLISECONDS.toNanos(
                 DEFAULT_MONOTONIC_CLOCK_GRANULARITY_MILLIS), System::nanoTime);
     }
 
@@ -1784,7 +1785,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         return brokerService.getListenPortTls();
     }
 
-    public AsyncTokenBucket.MonotonicClockSource getMonotonicClockSource() {
+    public MonotonicClockSource getMonotonicClockSource() {
         return monotonicClockSource;
     }
 

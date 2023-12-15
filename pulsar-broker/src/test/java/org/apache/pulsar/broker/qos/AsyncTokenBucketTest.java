@@ -22,14 +22,13 @@ package org.apache.pulsar.broker.qos;
 import static org.testng.Assert.assertEquals;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
-import org.apache.pulsar.broker.qos.AsyncTokenBucket;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 
 public class AsyncTokenBucketTest {
     private AtomicLong manualClockSource;
-    private AsyncTokenBucket.MonotonicClockSource clockSource;
+    private MonotonicClockSource clockSource;
 
     private AsyncTokenBucket asyncTokenBucket;
 

@@ -18,18 +18,18 @@
  */
 package org.apache.pulsar.broker.resourcegroup;
 
+import org.apache.pulsar.broker.qos.MonotonicClockSource;
 import org.apache.pulsar.broker.resourcegroup.ResourceGroup.BytesAndMessagesCount;
 import org.apache.pulsar.broker.service.PublishRateLimiterImpl;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.PublishRate;
 import org.apache.pulsar.common.policies.data.ResourceGroup;
-import org.apache.pulsar.broker.qos.AsyncTokenBucket;
 
 public class ResourceGroupPublishLimiter extends PublishRateLimiterImpl  {
     private volatile long publishMaxMessageRate;
     private volatile long publishMaxByteRate;
 
-    public ResourceGroupPublishLimiter(ResourceGroup resourceGroup, AsyncTokenBucket.MonotonicClockSource clockSource) {
+    public ResourceGroupPublishLimiter(ResourceGroup resourceGroup, MonotonicClockSource clockSource) {
         super(clockSource);
         update(resourceGroup);
     }
