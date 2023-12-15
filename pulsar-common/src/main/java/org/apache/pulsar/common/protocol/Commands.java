@@ -701,7 +701,7 @@ public class Commands {
         cmd.setUnsubscribe()
                 .setConsumerId(consumerId)
                 .setRequestId(requestId)
-                .setForce(force); 
+                .setForce(force);
         return serializeWithSize(cmd);
     }
 
