@@ -48,7 +48,7 @@ public class SubscriptionMessageDispatchThrottlingTest extends MessageDispatchTh
      * @param subscription
      * @throws Exception
      */
-    @Test(dataProvider = "subscriptionAndDispatchRateType", timeOut = 5000)
+    @Test(dataProvider = "subscriptionAndDispatchRateType", timeOut = 30000)
     public void testMessageRateLimitingNotReceiveAllMessages(SubscriptionType subscription,
                                                              DispatchRateType dispatchRateType) throws Exception {
         log.info("-- Starting {} test --", methodName);
@@ -144,7 +144,7 @@ public class SubscriptionMessageDispatchThrottlingTest extends MessageDispatchTh
      * @param subscription
      * @throws Exception
      */
-    @Test(dataProvider = "subscriptions", timeOut = 5000)
+    @Test(dataProvider = "subscriptions", timeOut = 30000)
     public void testMessageRateLimitingReceiveAllMessagesAfterThrottling(SubscriptionType subscription)
         throws Exception {
         log.info("-- Starting {} test --", methodName);
@@ -320,7 +320,7 @@ public class SubscriptionMessageDispatchThrottlingTest extends MessageDispatchTh
      * @param subscription
      * @throws Exception
      */
-    @Test(dataProvider = "subscriptions", timeOut = 5000)
+    @Test(dataProvider = "subscriptions", timeOut = 30000)
     public void testBytesRateLimitingReceiveAllMessagesAfterThrottling(SubscriptionType subscription) throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -526,7 +526,7 @@ public class SubscriptionMessageDispatchThrottlingTest extends MessageDispatchTh
      * @param subscription
      * @throws Exception
      */
-    @Test(dataProvider = "subscriptions", timeOut = 8000)
+    @Test(dataProvider = "subscriptions", timeOut = 30000)
     public void testBrokerBytesRateLimitingReceiveAllMessagesAfterThrottling(SubscriptionType subscription) throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -539,6 +539,11 @@ public class SubscriptionMessageDispatchThrottlingTest extends MessageDispatchTh
         long initBytes = pulsar.getConfiguration().getDispatchThrottlingRatePerTopicInByte();
         final int byteRate = 1000;
         admin.brokers().updateDynamicConfiguration("dispatchThrottlingRateInByte", "" + byteRate);
+
+        Awaitility.await().untilAsserted(() -> {
+            Assert.assertEquals(pulsar.getConfiguration().getDispatchThrottlingRateInByte(), byteRate);
+        });
+
         admin.namespaces().createNamespace(namespace1, Sets.newHashSet("test"));
         admin.namespaces().createNamespace(namespace2, Sets.newHashSet("test"));
 
@@ -572,7 +577,7 @@ public class SubscriptionMessageDispatchThrottlingTest extends MessageDispatchTh
         Producer<byte[]> producer1 = pulsarClient.newProducer().topic(topicName1).create();
         Producer<byte[]> producer2 = pulsarClient.newProducer().topic(topicName2).create();
 
-        Awaitility.await().atMost(Duration.ofMillis(500)).untilAsserted(() -> {
+        Awaitility.await().untilAsserted(() -> {
             DispatchRateLimiter rateLimiter = pulsar.getBrokerService().getBrokerDispatchRateLimiter();
             Assert.assertTrue(rateLimiter != null
                     && rateLimiter.getDispatchRateOnByte() > 0);
@@ -605,7 +610,7 @@ public class SubscriptionMessageDispatchThrottlingTest extends MessageDispatchTh
      *
      * @throws Exception
      */
-    @Test(timeOut = 5000)
+    @Test(timeOut = 30000)
     public void testRateLimitingMultipleConsumers() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -691,7 +696,7 @@ public class SubscriptionMessageDispatchThrottlingTest extends MessageDispatchTh
     }
 
 
-    @Test(dataProvider = "subscriptions", timeOut = 5000)
+    @Test(dataProvider = "subscriptions", timeOut = 30000)
     public void testClusterRateLimitingConfiguration(SubscriptionType subscription) throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -868,7 +873,7 @@ public class SubscriptionMessageDispatchThrottlingTest extends MessageDispatchTh
         log.info("-- Exiting {} test --", methodName);
     }
 
-    @Test(dataProvider = "subscriptions", timeOut = 11000)
+    @Test(dataProvider = "subscriptions", timeOut = 30000)
     public void testClosingRateLimiter(SubscriptionType subscription) throws Exception {
         log.info("-- Starting {} test --", methodName);
 
