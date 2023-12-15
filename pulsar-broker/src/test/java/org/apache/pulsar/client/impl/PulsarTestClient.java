@@ -192,7 +192,7 @@ public class PulsarTestClient extends PulsarClientImpl {
 
         // make the existing connection between the producer and broker to break by explicitly closing it
         ClientCnx cnx = producer.cnx();
-        producer.connectionClosed(cnx);
+        producer.connectionClosed(cnx, Optional.empty(), Optional.empty());
         cnx.close();
     }
 

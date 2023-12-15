@@ -154,7 +154,7 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
         executor.execute(() -> internalReadEntriesComplete(entries, obj));
     }
 
-    public synchronized void internalReadEntriesComplete(final List<Entry> entries, Object obj) {
+    private synchronized void internalReadEntriesComplete(final List<Entry> entries, Object obj) {
         ReadEntriesCtx readEntriesCtx = (ReadEntriesCtx) obj;
         Consumer readConsumer = readEntriesCtx.getConsumer();
         long epoch = readEntriesCtx.getEpoch();
@@ -194,11 +194,17 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
             }
         }
 
-        if (currentConsumer == null || readConsumer != currentConsumer) {
-            // Active consumer has changed since the read request has been issued. We need to rewind the cursor and
-            // re-issue the read request for the new consumer
+        if (currentConsumer == null || readConsumer != currentConsumer || topic.isTransferring()) {
+            // Active consumer has changed since the read request has been issued, or the topic is being transferred to
+            // another broker. We need to rewind the cursor and re-issue the read request for the new consumer.
             if (log.isDebugEnabled()) {
-                log.debug("[{}] rewind because no available consumer found", name);
+                if (currentConsumer == null) {
+                    log.debug("[{}] rewind because no available consumer found", name);
+                } else if (readConsumer != currentConsumer) {
+                    log.debug("[{}] rewind because active consumer changed", name);
+                } else {
+                    log.debug("[{}] rewind because topic is transferring", name);
+                }
             }
             entries.forEach(Entry::release);
             cursor.rewind();
@@ -309,8 +315,7 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
         redeliverUnacknowledgedMessages(consumer, DEFAULT_CONSUMER_EPOCH);
     }
 
-    @Override
-    protected void readMoreEntries(Consumer consumer) {
+    private void readMoreEntries(Consumer consumer) {
         // consumer can be null when all consumers are disconnected from broker.
         // so skip reading more entries if currently there is no active consumer.
         if (null == consumer) {
@@ -322,6 +327,12 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
         if (havePendingRead) {
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Skipping read for the topic, Due to we have pending read.", topic.getName());
+            }
+            return;
+        }
+        if (topic.isTransferring()) {
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] Skipping read for the topic: topic is transferring", topic.getName());
             }
             return;
         }

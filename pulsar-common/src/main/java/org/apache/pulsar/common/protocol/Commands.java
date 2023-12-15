@@ -60,6 +60,7 @@ import org.apache.pulsar.common.api.proto.CommandAddPartitionToTxnResponse;
 import org.apache.pulsar.common.api.proto.CommandAddSubscriptionToTxn;
 import org.apache.pulsar.common.api.proto.CommandAddSubscriptionToTxnResponse;
 import org.apache.pulsar.common.api.proto.CommandAuthChallenge;
+import org.apache.pulsar.common.api.proto.CommandCloseConsumer;
 import org.apache.pulsar.common.api.proto.CommandCloseProducer;
 import org.apache.pulsar.common.api.proto.CommandConnect;
 import org.apache.pulsar.common.api.proto.CommandConnected;
@@ -737,11 +738,21 @@ public class Commands {
         return serializeWithSize(cmd);
     }
 
-    public static ByteBuf newCloseConsumer(long consumerId, long requestId) {
+    public static ByteBuf newCloseConsumer(
+            long consumerId, long requestId, String assignedBrokerUrl, String assignedBrokerUrlTls) {
         BaseCommand cmd = localCmd(Type.CLOSE_CONSUMER);
-        cmd.setCloseConsumer()
+        CommandCloseConsumer commandCloseConsumer = cmd.setCloseConsumer()
             .setConsumerId(consumerId)
             .setRequestId(requestId);
+
+        if (assignedBrokerUrl != null) {
+            commandCloseConsumer.setAssignedBrokerServiceUrl(assignedBrokerUrl);
+        }
+
+        if (assignedBrokerUrlTls != null) {
+            commandCloseConsumer.setAssignedBrokerServiceUrlTls(assignedBrokerUrlTls);
+        }
+
         return serializeWithSize(cmd);
     }
 

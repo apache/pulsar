@@ -102,11 +102,6 @@ public final class NonPersistentDispatcherSingleActiveConsumer extends AbstractD
     }
 
     @Override
-    protected void readMoreEntries(Consumer consumer) {
-        // No-op
-    }
-
-    @Override
     protected void cancelPendingRead() {
         // No-op
     }

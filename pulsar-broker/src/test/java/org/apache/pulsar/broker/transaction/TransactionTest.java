@@ -1378,7 +1378,7 @@ public class TransactionTest extends TransactionTestBase {
             producer.newMessage().value(Bytes.toBytes(i)).send();
         }
         ClientCnx cnx = (ClientCnx) MethodUtils.invokeMethod(consumer, true, "cnx");
-        MethodUtils.invokeMethod(consumer, true, "connectionClosed", cnx);
+        MethodUtils.invokeMethod(consumer, true, "connectionClosed", cnx, Optional.empty(), Optional.empty());
 
         Message<byte[]> message = consumer.receive();
         Transaction transaction = pulsarClient

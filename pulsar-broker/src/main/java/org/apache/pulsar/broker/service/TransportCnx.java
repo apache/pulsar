@@ -65,7 +65,7 @@ public interface TransportCnx {
 
     void removedConsumer(Consumer consumer);
 
-    void closeConsumer(Consumer consumer);
+    void closeConsumer(Consumer consumer, Optional<BrokerLookupData> assignedBrokerLookupData);
 
     boolean isPreciseDispatcherFlowControl();
 

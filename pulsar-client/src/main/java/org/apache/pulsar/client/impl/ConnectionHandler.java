@@ -182,11 +182,11 @@ public class ConnectionHandler {
             }
             long delayMs = initialConnectionDelayMs.orElse(backoff.next());
             state.setState(State.Connecting);
-            log.info("[{}] [{}] Closed connection {} -- Will try again in {} s",
-                    state.topic, state.getHandlerName(), cnx.channel(),
-                    delayMs / 1000.0);
+            log.info("[{}] [{}] Closed connection {} -- Will try again in {} s, hostUrl: {}",
+                    state.topic, state.getHandlerName(), cnx.channel(), delayMs / 1000.0, hostUrl.orElse(null));
             state.client.timer().newTimeout(timeout -> {
-                log.info("[{}] [{}] Reconnecting after timeout", state.topic, state.getHandlerName());
+                log.info("[{}] [{}] Reconnecting after {} s timeout, hostUrl: {}",
+                        state.topic, state.getHandlerName(), delayMs / 1000.0, hostUrl.orElse(null));
                 grabCnx(hostUrl);
             }, delayMs, TimeUnit.MILLISECONDS);
         }
