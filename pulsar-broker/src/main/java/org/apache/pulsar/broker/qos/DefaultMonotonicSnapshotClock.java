@@ -45,7 +45,7 @@ public class DefaultMonotonicSnapshotClock implements MonotonicSnapshotClock, Au
         this.sleepMillis = TimeUnit.NANOSECONDS.toMillis(snapshotIntervalNanos);
         this.sleepNanos = (int) (snapshotIntervalNanos - TimeUnit.MILLISECONDS.toNanos(sleepMillis));
         this.clockSource = clockSource;
-        this.snapshotTickNanos = clockSource.getAsLong();
+        updateSnapshotTickNanos();
         thread = new Thread(this::snapshotLoop, getClass().getSimpleName() + "-update-loop");
         thread.setDaemon(true);
         thread.start();
@@ -55,15 +55,19 @@ public class DefaultMonotonicSnapshotClock implements MonotonicSnapshotClock, Au
     @Override
     public long getTickNanos(boolean requestSnapshot) {
         if (requestSnapshot) {
-            snapshotTickNanos = clockSource.getAsLong();
+            updateSnapshotTickNanos();
         }
         return snapshotTickNanos;
+    }
+
+    private void updateSnapshotTickNanos() {
+        snapshotTickNanos = clockSource.getAsLong();
     }
 
     private void snapshotLoop() {
         try {
             while (!Thread.currentThread().isInterrupted()) {
-                snapshotTickNanos = clockSource.getAsLong();
+                updateSnapshotTickNanos();
                 try {
                     Thread.sleep(sleepMillis, sleepNanos);
                 } catch (InterruptedException e) {
