@@ -81,7 +81,7 @@ public class PublishRateLimiterImpl implements PublishRateLimiter {
         // this is to avoid scheduling unthrottling multiple times for concurrent producers
         if (throttledProducersCount.incrementAndGet() == 1) {
             EventLoopGroup executor = producer.getCnx().getBrokerService().executor();
-            scheduleUnthrottling(executor);
+            scheduleUnthrottling(executor, calculateThrottlingDurationNanos());
         }
     }
 
@@ -102,9 +102,10 @@ public class PublishRateLimiterImpl implements PublishRateLimiter {
      * the race condition.
      *
      * @param executor The executor service used to schedule the unthrottling operation.
+     * @param delayNanos
      */
-    private void scheduleUnthrottling(ScheduledExecutorService executor) {
-        executor.schedule(() -> this.unthrottleQueuedProducers(executor), calculateThrottlingDurationNanos(),
+    private void scheduleUnthrottling(ScheduledExecutorService executor, long delayNanos) {
+        executor.schedule(() -> this.unthrottleQueuedProducers(executor), delayNanos,
                 TimeUnit.NANOSECONDS);
     }
 
@@ -129,32 +130,21 @@ public class PublishRateLimiterImpl implements PublishRateLimiter {
         }
         try {
             Producer producer;
+            long throttlingDuration = 0L;
             // unthrottle as many producers as possible while there are token available
-            while (containsTokens(true) && (producer = unthrottlingQueue.poll()) != null) {
+            while ((throttlingDuration = calculateThrottlingDurationNanos()) == 0L
+                    && (producer = unthrottlingQueue.poll()) != null) {
                 producer.decrementThrottleCount();
                 throttledProducersCount.decrementAndGet();
             }
             // if there are still producers to be unthrottled, schedule unthrottling again
             // after another throttling period
             if (throttledProducersCount.get() > 0) {
-                scheduleUnthrottling(executor);
+                scheduleUnthrottling(executor, throttlingDuration);
             }
         } finally {
             processingQueuedProducers.set(false);
         }
-    }
-
-    // check if the effective token buckets contain tokens
-    private boolean containsTokens(boolean forceUpdateTokens) {
-        AsyncTokenBucket currentTokenBucketOnMessage = tokenBucketOnMessage;
-        if (currentTokenBucketOnMessage != null && !currentTokenBucketOnMessage.containsTokens(forceUpdateTokens)) {
-            return false;
-        }
-        AsyncTokenBucket currentTokenBucketOnByte = tokenBucketOnByte;
-        if (currentTokenBucketOnByte != null && !currentTokenBucketOnByte.containsTokens(forceUpdateTokens)) {
-            return false;
-        }
-        return true;
     }
 
     @Override

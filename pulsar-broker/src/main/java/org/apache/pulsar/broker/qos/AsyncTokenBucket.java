@@ -297,10 +297,11 @@ public abstract class AsyncTokenBucket {
             throw new IllegalArgumentException(
                     "Unexpected result from updateAndConsumeTokens with forceUpdateTokens set to true");
         }
-        long needTokens = getTargetAmountOfTokensAfterThrottling() - currentTokens;
-        if (needTokens <= 0) {
-            return 0;
+        if (currentTokens > 0) {
+            return 0L;
         }
+        // currentTokens is negative, so subtracting a negative value results in adding the absolute value (-(-x) -> +x)
+        long needTokens = getTargetAmountOfTokensAfterThrottling() - currentTokens;
         return (needTokens * getRatePeriodNanos()) / getRate();
     }
 
