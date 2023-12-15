@@ -21,7 +21,7 @@ package org.apache.pulsar.broker.qos;
 
 // CHECKSTYLE.OFF: ClassTypeParameterName
 public abstract class AsyncTokenBucketBuilder<SELF extends AsyncTokenBucketBuilder<SELF>> {
-    protected MonotonicSnapshotClock clock = AsyncTokenBucket.DEFAULT_CLOCK;
+    protected MonotonicSnapshotClock clock = AsyncTokenBucket.DEFAULT_SNAPSHOT_CLOCK;
     protected long resolutionNanos = AsyncTokenBucket.defaultResolutionNanos;
 
     protected AsyncTokenBucketBuilder() {

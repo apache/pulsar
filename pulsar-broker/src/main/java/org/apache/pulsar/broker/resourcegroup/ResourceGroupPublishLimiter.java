@@ -29,8 +29,8 @@ public class ResourceGroupPublishLimiter extends PublishRateLimiterImpl  {
     private volatile long publishMaxMessageRate;
     private volatile long publishMaxByteRate;
 
-    public ResourceGroupPublishLimiter(ResourceGroup resourceGroup, MonotonicSnapshotClock clockSource) {
-        super(clockSource);
+    public ResourceGroupPublishLimiter(ResourceGroup resourceGroup, MonotonicSnapshotClock monotonicSnapshotClock) {
+        super(monotonicSnapshotClock);
         update(resourceGroup);
     }
 

@@ -48,7 +48,7 @@ public class AbstractTopicTest {
         doReturn(pulsarService).when(brokerService).getPulsar();
         when(pulsarService.getConfiguration()).thenReturn(serviceConfiguration);
         when(brokerService.getBacklogQuotaManager()).thenReturn(backlogQuotaManager);
-        doReturn(AsyncTokenBucket.DEFAULT_CLOCK).when(pulsarService).getMonotonicClockSource();
+        doReturn(AsyncTokenBucket.DEFAULT_SNAPSHOT_CLOCK).when(pulsarService).getMonotonicSnapshotClock();
 
         topic = mock(AbstractTopic.class, withSettings()
                 .useConstructor("topic", brokerService)

@@ -34,14 +34,14 @@ import org.jctools.queues.MpscUnboundedArrayQueue;
 public class PublishRateLimiterImpl implements PublishRateLimiter {
     private volatile AsyncTokenBucket tokenBucketOnMessage;
     private volatile AsyncTokenBucket tokenBucketOnByte;
-    private final MonotonicSnapshotClock clockSource;
+    private final MonotonicSnapshotClock monotonicSnapshotClock;
 
     private final MessagePassingQueue<Producer> unthrottlingQueue = new MpscUnboundedArrayQueue<>(1024);
 
     private final AtomicBoolean unthrottlingScheduled = new AtomicBoolean(false);
 
-    public PublishRateLimiterImpl(MonotonicSnapshotClock clockSource) {
-        this.clockSource = clockSource;
+    public PublishRateLimiterImpl(MonotonicSnapshotClock monotonicSnapshotClock) {
+        this.monotonicSnapshotClock = monotonicSnapshotClock;
     }
 
     /**
@@ -149,13 +149,13 @@ public class PublishRateLimiterImpl implements PublishRateLimiter {
     protected void updateTokenBuckets(long publishThrottlingRateInMsg, long publishThrottlingRateInByte) {
         if (publishThrottlingRateInMsg > 0) {
             tokenBucketOnMessage =
-                    AsyncTokenBucket.builder().rate(publishThrottlingRateInMsg).clock(clockSource).build();
+                    AsyncTokenBucket.builder().rate(publishThrottlingRateInMsg).clock(monotonicSnapshotClock).build();
         } else {
             tokenBucketOnMessage = null;
         }
         if (publishThrottlingRateInByte > 0) {
             tokenBucketOnByte =
-                    AsyncTokenBucket.builder().rate(publishThrottlingRateInByte).clock(clockSource).build();
+                    AsyncTokenBucket.builder().rate(publishThrottlingRateInByte).clock(monotonicSnapshotClock).build();
         } else {
             tokenBucketOnByte = null;
         }

@@ -193,7 +193,7 @@ import org.slf4j.LoggerFactory;
 public class PulsarService implements AutoCloseable, ShutdownService {
     private static final Logger LOG = LoggerFactory.getLogger(PulsarService.class);
     private static final double GRACEFUL_SHUTDOWN_TIMEOUT_RATIO_OF_TOTAL_TIMEOUT = 0.5d;
-    public static final int DEFAULT_MONOTONIC_CLOCK_GRANULARITY_MILLIS = 8;
+    private static final int DEFAULT_MONOTONIC_CLOCK_GRANULARITY_MILLIS = 8;
     private final ServiceConfiguration config;
     private NamespaceService nsService = null;
     private ManagedLedgerStorage managedLedgerClientFactory = null;
@@ -274,7 +274,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
 
     private TransactionPendingAckStoreProvider transactionPendingAckStoreProvider;
     private final ExecutorProvider transactionExecutorProvider;
-    private final DefaultMonotonicSnapshotClock monotonicClockSource;
+    private final DefaultMonotonicSnapshotClock monotonicSnapshotClock;
 
     public enum State {
         Init, Started, Closing, Closed
@@ -353,7 +353,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         // here in the constructor we don't have the offloader scheduler yet
         this.offloaderStats = LedgerOffloaderStats.create(false, false, null, 0);
 
-        this.monotonicClockSource = new DefaultMonotonicSnapshotClock(TimeUnit.MILLISECONDS.toNanos(
+        this.monotonicSnapshotClock = new DefaultMonotonicSnapshotClock(TimeUnit.MILLISECONDS.toNanos(
                 DEFAULT_MONOTONIC_CLOCK_GRANULARITY_MILLIS), System::nanoTime);
     }
 
@@ -603,7 +603,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             brokerClientSharedInternalExecutorProvider.shutdownNow();
             brokerClientSharedScheduledExecutorProvider.shutdownNow();
             brokerClientSharedTimer.stop();
-            monotonicClockSource.close();
+            monotonicSnapshotClock.close();
 
             asyncCloseFutures.add(EventLoopUtil.shutdownGracefully(ioEventLoopGroup));
 
@@ -1785,8 +1785,8 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         return brokerService.getListenPortTls();
     }
 
-    public MonotonicSnapshotClock getMonotonicClockSource() {
-        return monotonicClockSource;
+    public MonotonicSnapshotClock getMonotonicSnapshotClock() {
+        return monotonicSnapshotClock;
     }
 
     public static WorkerConfig initializeWorkerConfigFromBrokerConfig(ServiceConfiguration brokerConfig,

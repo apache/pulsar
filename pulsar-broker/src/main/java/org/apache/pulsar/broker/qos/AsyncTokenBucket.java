@@ -48,7 +48,7 @@ import java.util.concurrent.atomic.LongAdder;
  * <p>To achieve optimal performance, pass a {@link DefaultMonotonicSnapshotClock} instance as the clock .
  */
 public abstract class AsyncTokenBucket {
-    public static final MonotonicSnapshotClock DEFAULT_CLOCK = requestSnapshot -> System.nanoTime();
+    public static final MonotonicSnapshotClock DEFAULT_SNAPSHOT_CLOCK = requestSnapshot -> System.nanoTime();
     static final long ONE_SECOND_NANOS = TimeUnit.SECONDS.toNanos(1);
     // 2^24 nanoseconds is 16 milliseconds
     private static final long DEFAULT_RESOLUTION_NANOS = TimeUnit.MILLISECONDS.toNanos(16);
