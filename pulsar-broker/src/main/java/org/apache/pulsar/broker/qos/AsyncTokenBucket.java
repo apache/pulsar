@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package org.apache.pulsar.common.util;
+package org.apache.pulsar.broker.qos;
 
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;

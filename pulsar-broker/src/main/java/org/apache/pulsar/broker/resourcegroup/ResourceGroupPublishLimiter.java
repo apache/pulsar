@@ -23,7 +23,7 @@ import org.apache.pulsar.broker.service.PublishRateLimiterImpl;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.PublishRate;
 import org.apache.pulsar.common.policies.data.ResourceGroup;
-import org.apache.pulsar.common.util.AsyncTokenBucket;
+import org.apache.pulsar.broker.qos.AsyncTokenBucket;
 
 public class ResourceGroupPublishLimiter extends PublishRateLimiterImpl  {
     private volatile long publishMaxMessageRate;
