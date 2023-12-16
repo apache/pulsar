@@ -35,6 +35,7 @@ import java.io.IOException;
 import java.time.Clock;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -46,6 +47,7 @@ import java.util.Optional;
 import java.util.Queue;
 import java.util.Random;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -2090,35 +2092,25 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
         long lastEntry = min(firstEntry + opReadEntry.getNumberOfEntriesToRead() - 1, lastEntryInLedger);
 
-        // Filer out and skip unnecessary read entry
-        if (opReadEntry.skipCondition != null) {
-            long firstValidEntry = -1L;
-            long lastValidEntry = -1L;
-            long entryId = firstEntry;
-            for (; entryId <= lastEntry; entryId++) {
-                if (opReadEntry.skipCondition.test(PositionImpl.get(ledger.getId(), entryId))) {
-                    if (firstValidEntry != -1L) {
-                        break;
-                    }
-                } else {
-                    if (firstValidEntry == -1L) {
-                        firstValidEntry = entryId;
-                    }
-
-                    lastValidEntry = entryId;
+        // Do skip condition.
+        Predicate<PositionImpl> skipCondition = opReadEntry.skipCondition;
+        if (skipCondition != null) {
+            Set<Long> entryIds = new TreeSet<>();
+            for (long i = firstEntry; i <= lastEntry; i++) {
+                if (!skipCondition.test(PositionImpl.get(ledger.getId(), i))) {
+                    entryIds.add(i);
                 }
             }
-
-            // If all messages in [firstEntry...lastEntry] are filter out,
-            // then manual call internalReadEntriesComplete to advance read position.
-            if (firstValidEntry == -1L) {
+            if (entryIds.isEmpty()) {
                 opReadEntry.internalReadEntriesComplete(Collections.emptyList(), opReadEntry.ctx,
                         PositionImpl.get(ledger.getId(), lastEntry));
                 return;
             }
-
-            firstEntry = firstValidEntry;
-            lastEntry = lastValidEntry;
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] Reading entries from ledger {} - entryIds {}", name, ledger.getId(), entryIds);
+            }
+            asyncReadEntry(ledger, entryIds, opReadEntry, opReadEntry.ctx);
+            return;
         }
 
         if (log.isDebugEnabled()) {
@@ -2126,6 +2118,57 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     lastEntry);
         }
         asyncReadEntry(ledger, firstEntry, lastEntry, opReadEntry, opReadEntry.ctx);
+    }
+
+    // No batch-read in bookie, this method will not slower than `read(firstEntry, lastEntry)`.
+    @VisibleForTesting
+    public void asyncReadEntry(ReadHandle ledger, Set<Long> entryIds, OpReadEntry opReadEntry,
+                                  Object ctx) {
+        if (entryIds.isEmpty()) {
+            opReadEntry.readEntriesComplete(Collections.emptyList(), ctx);
+            return;
+        }
+
+        // Maybe concurrent modification happens.
+        Set<Long> newSet = new TreeSet<>(entryIds);
+        AsyncCallbacks.ReadEntryCallback callback0 = new BatchReadEntryCallback(newSet, opReadEntry);
+        long ledgerId = ledger.getId();
+        for (long entryId : entryIds) {
+            asyncReadEntry(ledger, PositionImpl.get(ledgerId, entryId), callback0, ctx);
+        }
+    }
+
+    static class BatchReadEntryCallback implements AsyncCallbacks.ReadEntryCallback {
+        private final Set<Long> entryIds;
+        private final List<Entry> entries;
+        private final AsyncCallbacks.ReadEntriesCallback callback;
+
+        BatchReadEntryCallback(Set<Long> entryIds, AsyncCallbacks.ReadEntriesCallback callback) {
+            // Normally, there should be no competition here, but to prevent unforeseen circumstances,
+            // concurrent containers should still be used
+            this.entryIds = Collections.synchronizedSet(entryIds);
+            this.entries = Collections.synchronizedList(new ArrayList<>(entryIds.size()));
+            this.callback = callback;
+        }
+
+        @Override
+        public void readEntryComplete(Entry entry, Object ctx) {
+            long entryId = entry.getEntryId();
+            this.entries.add(entry);
+            this.entryIds.remove(entryId);
+            if (this.entryIds.isEmpty()) {
+                // Need to sort entries, so that `readPosition` of `Cursor` can be moved correctly.
+                this.entries.sort(Comparator.comparingLong(Entry::getEntryId));
+                this.callback.readEntriesComplete(this.entries, ctx);
+            }
+        }
+
+        @Override
+        public void readEntryFailed(ManagedLedgerException exception, Object ctx) {
+            this.entryIds.clear();
+            this.entries.clear();
+            this.callback.readEntriesFailed(exception, ctx);
+        }
     }
 
     protected void asyncReadEntry(ReadHandle ledger, PositionImpl position, ReadEntryCallback callback, Object ctx) {

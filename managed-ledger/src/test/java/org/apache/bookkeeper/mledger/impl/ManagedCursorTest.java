@@ -43,6 +43,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.BitSet;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -65,6 +66,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import lombok.Cleanup;
@@ -72,6 +74,7 @@ import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.BookKeeper.DigestType;
 import org.apache.bookkeeper.client.LedgerEntry;
+import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.AddEntryCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteCallback;
@@ -4483,6 +4486,189 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         cursor.close();
         ledger.close();
     }
+
+
+    @Test
+    public void testReadEntriesWithSkipDeletedEntries() throws Exception {
+        @Cleanup
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("testReadEntriesWithSkipDeletedEntries");
+        ledger = Mockito.spy(ledger);
+        List<Long> actualReadEntryIds = new ArrayList<>();
+        Mockito.doAnswer(inv -> {
+            Set<Long> ids = inv.getArgument(1);
+            actualReadEntryIds.addAll(ids);
+            return inv.callRealMethod();
+        }).when(ledger).asyncReadEntry(Mockito.any(ReadHandle.class), Mockito.any(Set.class), Mockito.any(), Mockito.any());
+        @Cleanup
+        ManagedCursor cursor = ledger.openCursor("c");
+
+        int entries = 20;
+        Position maxReadPosition = null;
+        Map<Integer, Position> map = new HashMap<>();
+        for (int i = 0; i < entries; i++) {
+            maxReadPosition = ledger.addEntry(new byte[1024]);
+            map.put(i, maxReadPosition);
+        }
+
+
+        Set<Position> deletedPositions = new HashSet<>();
+        deletedPositions.add(map.get(1));
+        deletedPositions.add(map.get(4));
+        deletedPositions.add(map.get(5));
+        deletedPositions.add(map.get(8));
+        deletedPositions.add(map.get(9));
+        deletedPositions.add(map.get(10));
+        deletedPositions.add(map.get(15));
+        deletedPositions.add(map.get(17));
+        deletedPositions.add(map.get(19));
+        cursor.delete(deletedPositions);
+
+        CompletableFuture<Void> f0 = new CompletableFuture<>();
+        List<Entry> readEntries = new ArrayList<>();
+        cursor.asyncReadEntries(5, -1L, new ReadEntriesCallback() {
+            @Override
+            public void readEntriesComplete(List<Entry> entries, Object ctx) {
+                readEntries.addAll(entries);
+                f0.complete(null);
+            }
+
+            @Override
+            public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
+                f0.completeExceptionally(exception);
+            }
+        }, null, PositionImpl.get(maxReadPosition.getLedgerId(), maxReadPosition.getEntryId()).getNext());
+
+        f0.get();
+
+        CompletableFuture<Void> f1 = new CompletableFuture<>();
+        cursor.asyncReadEntries(5, -1L, new ReadEntriesCallback() {
+            @Override
+            public void readEntriesComplete(List<Entry> entries, Object ctx) {
+                readEntries.addAll(entries);
+                f1.complete(null);
+            }
+
+            @Override
+            public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
+                f1.completeExceptionally(exception);
+            }
+        }, null, PositionImpl.get(maxReadPosition.getLedgerId(), maxReadPosition.getEntryId()).getNext());
+
+
+        f1.get();
+        CompletableFuture<Void> f2 = new CompletableFuture<>();
+        cursor.asyncReadEntries(100, -1L, new ReadEntriesCallback() {
+            @Override
+            public void readEntriesComplete(List<Entry> entries, Object ctx) {
+                readEntries.addAll(entries);
+                f2.complete(null);
+            }
+
+            @Override
+            public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
+                f2.completeExceptionally(exception);
+            }
+        }, null, PositionImpl.get(maxReadPosition.getLedgerId(), maxReadPosition.getEntryId()).getNext());
+
+        f2.get();
+
+        Position cursorReadPosition = cursor.getReadPosition();
+        Position expectReadPosition = maxReadPosition.getNext();
+        assertTrue(cursorReadPosition.getLedgerId() == expectReadPosition.getLedgerId()
+                && cursorReadPosition.getEntryId() == expectReadPosition.getEntryId());
+
+        assertEquals(readEntries.size(), actualReadEntryIds.size());
+        assertEquals(entries - deletedPositions.size(), actualReadEntryIds.size());
+        for (Entry entry : readEntries) {
+            long entryId = entry.getEntryId();
+            assertTrue(actualReadEntryIds.contains(entryId));
+        }
+    }
+
+
+    @Test
+    public void testReadEntriesWithSkipDeletedEntriesAndWithSkipConditions() throws Exception {
+        @Cleanup
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("testReadEntriesWithSkipDeletedEntries");
+        ledger = Mockito.spy(ledger);
+
+        List<Long> actualReadEntryIds = new ArrayList<>();
+        Mockito.doAnswer(inv -> {
+            Set<Long> ids = inv.getArgument(1);
+            actualReadEntryIds.addAll(ids);
+            return inv.callRealMethod();
+        }).when(ledger).asyncReadEntry(Mockito.any(ReadHandle.class), Mockito.any(Set.class), Mockito.any(), Mockito.any());
+        @Cleanup
+        ManagedCursor cursor = ledger.openCursor("c");
+
+        int entries = 20;
+        Position maxReadPosition0 = null;
+        Map<Integer, Position> map = new HashMap<>();
+        for (int i = 0; i < entries; i++) {
+            maxReadPosition0 = ledger.addEntry(new byte[1024]);
+            map.put(i, maxReadPosition0);
+        }
+
+        PositionImpl maxReadPosition =
+                PositionImpl.get(maxReadPosition0.getLedgerId(), maxReadPosition0.getEntryId()).getNext();
+
+        Set<Position> deletedPositions = new HashSet<>();
+        deletedPositions.add(map.get(1));
+        deletedPositions.add(map.get(3));
+        deletedPositions.add(map.get(5));
+        cursor.delete(deletedPositions);
+
+        Set<Long> skippedPositions = new HashSet<>();
+        skippedPositions.add(map.get(6).getEntryId());
+        skippedPositions.add(map.get(7).getEntryId());
+        skippedPositions.add(map.get(8).getEntryId());
+        skippedPositions.add(map.get(11).getEntryId());
+        skippedPositions.add(map.get(15).getEntryId());
+        skippedPositions.add(map.get(16).getEntryId());
+
+        Predicate<PositionImpl> skipCondition = position -> skippedPositions.contains(position.getEntryId());
+        List<Entry> readEntries = new ArrayList<>();
+
+        CompletableFuture<Void> f0 = new CompletableFuture<>();
+        cursor.asyncReadEntriesWithSkip(10, -1L, new ReadEntriesCallback() {
+            @Override
+            public void readEntriesComplete(List<Entry> entries, Object ctx) {
+                readEntries.addAll(entries);
+                f0.complete(null);
+            }
+
+            @Override
+            public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
+                f0.completeExceptionally(exception);
+            }
+        }, null, maxReadPosition, skipCondition);
+
+        f0.get();
+        CompletableFuture<Void> f1 = new CompletableFuture<>();
+        cursor.asyncReadEntriesWithSkip(100, -1L, new ReadEntriesCallback() {
+            @Override
+            public void readEntriesComplete(List<Entry> entries, Object ctx) {
+                readEntries.addAll(entries);
+                f1.complete(null);
+            }
+
+            @Override
+            public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
+                f1.completeExceptionally(exception);
+            }
+        }, null, maxReadPosition, skipCondition);
+        f1.get();
+
+
+        assertEquals(actualReadEntryIds.size(), readEntries.size());
+        assertEquals(entries - deletedPositions.size() - skippedPositions.size(), actualReadEntryIds.size());
+        for (Entry entry : readEntries) {
+            long entryId = entry.getEntryId();
+            assertTrue(actualReadEntryIds.contains(entryId));
+        }
+    }
+
+
 
     private static final Logger log = LoggerFactory.getLogger(ManagedCursorTest.class);
 }

@@ -60,7 +60,8 @@ class OpReadEntry implements ReadEntriesCallback {
             maxPosition = PositionImpl.LATEST;
         }
         op.maxPosition = maxPosition;
-        op.skipCondition = skipCondition;
+        Predicate<PositionImpl> skipCondition0 = cursor::deleted;
+        op.skipCondition = skipCondition == null ? skipCondition0 : skipCondition.or(skipCondition0);
         op.ctx = ctx;
         op.nextReadPosition = PositionImpl.get(op.readPosition);
         return op;
