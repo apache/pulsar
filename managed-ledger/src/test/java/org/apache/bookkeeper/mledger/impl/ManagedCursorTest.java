@@ -4666,6 +4666,11 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
             long entryId = entry.getEntryId();
             assertTrue(actualReadEntryIds.contains(entryId));
         }
+
+        Position cursorReadPosition = cursor.getReadPosition();
+        Position expectReadPosition = maxReadPosition;
+        assertTrue(cursorReadPosition.getLedgerId() == expectReadPosition.getLedgerId()
+                && cursorReadPosition.getEntryId() == expectReadPosition.getEntryId());
     }
 
 
