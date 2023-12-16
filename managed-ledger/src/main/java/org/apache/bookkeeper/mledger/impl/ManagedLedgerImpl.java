@@ -157,7 +157,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     protected Map<String, String> propertiesMap;
     protected final MetaStore store;
 
-    final ConcurrentLongHashMap<CompletableFuture<ReadHandle>> ledgerCache =
+    final ConcurrentLongHashMap<CompletableFuture<ReadHandle>> ledgerHandleCache =
             ConcurrentLongHashMap.<CompletableFuture<ReadHandle>>newBuilder()
                     .expectedItems(16) // initial capacity
                     .concurrencyLevel(1) // number of sections
@@ -1506,7 +1506,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 return;
             }
 
-            ledgerCache.forEach((ledgerId, readHandle) -> {
+            ledgerHandleCache.forEach((ledgerId, readHandle) -> {
                 invalidateReadHandle(ledgerId);
             });
 
@@ -1928,13 +1928,13 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     }
 
     CompletableFuture<ReadHandle> getLedgerHandle(long ledgerId) {
-        CompletableFuture<ReadHandle> ledgerHandle = ledgerCache.get(ledgerId);
+        CompletableFuture<ReadHandle> ledgerHandle = ledgerHandleCache.get(ledgerId);
         if (ledgerHandle != null) {
             return ledgerHandle;
         }
 
         // If not present try again and create if necessary
-        return ledgerCache.computeIfAbsent(ledgerId, lid -> {
+        return ledgerHandleCache.computeIfAbsent(ledgerId, lid -> {
             // Open the ledger for reading if it was not already opened
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Asynchronously opening ledger {} for read", name, ledgerId);
@@ -1970,7 +1970,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             openFuture.whenCompleteAsync((res, ex) -> {
                 mbean.endDataLedgerOpenOp();
                 if (ex != null) {
-                    ledgerCache.remove(ledgerId, promise);
+                    ledgerHandleCache.remove(ledgerId, promise);
                     promise.completeExceptionally(createManagedLedgerException(ex));
                 } else {
                     if (log.isDebugEnabled()) {
@@ -1984,7 +1984,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     }
 
     void invalidateReadHandle(long ledgerId) {
-        CompletableFuture<ReadHandle> rhf = ledgerCache.remove(ledgerId);
+        CompletableFuture<ReadHandle> rhf = ledgerHandleCache.remove(ledgerId);
         if (rhf != null) {
             rhf.thenAccept(ReadHandle::closeAsync)
                     .exceptionally(ex -> {
@@ -2000,7 +2000,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
         if (currentLedger != null && ledgerId != currentLedger.getId()) {
             // remove handle from ledger cache since we got a (read) error
-            ledgerCache.remove(ledgerId);
+            ledgerHandleCache.remove(ledgerId);
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Removed ledger read handle {} from cache", name, ledgerId);
             }
@@ -2762,6 +2762,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                         config.getLedgerOffloader().getOffloadDriverMetadata());
                 OffloadUtils.setOffloadDriverMetadata(newInfoBuilder, driverName, driverMetadata);
                 ledgers.put(ls.getLedgerId(), newInfoBuilder.build());
+                invalidateReadHandle(ls.getLedgerId());
             }
 
             if (log.isDebugEnabled()) {

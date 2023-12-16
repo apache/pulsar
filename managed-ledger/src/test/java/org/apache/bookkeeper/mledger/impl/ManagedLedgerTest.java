@@ -3652,13 +3652,13 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         List<Entry> entryList = cursor.readEntries(3);
         assertEquals(entryList.size(), 3);
         assertEquals(ledger.ledgers.size(), 3);
-        assertEquals(ledger.ledgerCache.size(), 2);
+        assertEquals(ledger.ledgerHandleCache.size(), 2);
         cursor.clearBacklog();
         cursor2.clearBacklog();
         ledger.trimConsumedLedgersInBackground(Futures.NULL_PROMISE);
         Awaitility.await().untilAsserted(() -> {
             assertEquals(ledger.ledgers.size(), 1);
-            assertEquals(ledger.ledgerCache.size(), 0);
+            assertEquals(ledger.ledgerHandleCache.size(), 0);
         });
 
         cursor.close();
@@ -3682,14 +3682,14 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         List<Entry> entryList = cursor.readEntries(entries);
         assertEquals(entryList.size(), entries);
         assertEquals(ledger.ledgers.size(), entries);
-        assertEquals(ledger.ledgerCache.size(), entries - 1);
+        assertEquals(ledger.ledgerHandleCache.size(), entries - 1);
         cursor.clearBacklog();
         ledger.trimConsumedLedgersInBackground(Futures.NULL_PROMISE);
         ledger.trimConsumedLedgersInBackground(Futures.NULL_PROMISE);
         // Cleanup fails because ManagedLedgerNotFoundException is thrown
         Awaitility.await().untilAsserted(() -> {
             assertEquals(ledger.ledgers.size(), entries);
-            assertEquals(ledger.ledgerCache.size(), entries - 1);
+            assertEquals(ledger.ledgerHandleCache.size(), entries - 1);
         });
         // The lock is released even if an ManagedLedgerNotFoundException occurs, so it can be called repeatedly
         Awaitility.await().untilAsserted(() ->
@@ -3716,25 +3716,25 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         List<Entry> entryList = cursor.readEntries(3);
         assertEquals(entryList.size(), 3);
         assertEquals(ledger.ledgers.size(), 3);
-        assertEquals(ledger.ledgerCache.size(), 2);
+        assertEquals(ledger.ledgerHandleCache.size(), 2);
         cursor.clearBacklog();
         cursor2.clearBacklog();
         ledger.trimConsumedLedgersInBackground(Futures.NULL_PROMISE);
         Awaitility.await().untilAsserted(() -> {
             assertEquals(ledger.ledgers.size(), 3);
-            assertEquals(ledger.ledgerCache.size(), 0);
+            assertEquals(ledger.ledgerHandleCache.size(), 0);
         });
 
         // Verify the ReadHandle can be reopened.
         ManagedCursor cursor3 = ledger.openCursor("test-cursor3", InitialPosition.Earliest);
         entryList = cursor3.readEntries(3);
         assertEquals(entryList.size(), 3);
-        assertEquals(ledger.ledgerCache.size(), 2);
+        assertEquals(ledger.ledgerHandleCache.size(), 2);
         cursor3.clearBacklog();
         ledger.trimConsumedLedgersInBackground(Futures.NULL_PROMISE);
         Awaitility.await().untilAsserted(() -> {
             assertEquals(ledger.ledgers.size(), 3);
-            assertEquals(ledger.ledgerCache.size(), 0);
+            assertEquals(ledger.ledgerHandleCache.size(), 0);
         });
 
 
@@ -3967,7 +3967,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         ManagedLedgerImpl managedLedger = (ManagedLedgerImpl) factory.open("testGetLedgerMetadata");
         long lastLedger = managedLedger.ledgers.lastEntry().getKey();
         managedLedger.getLedgerMetadata(lastLedger);
-        Assert.assertFalse(managedLedger.ledgerCache.containsKey(lastLedger));
+        Assert.assertFalse(managedLedger.ledgerHandleCache.containsKey(lastLedger));
     }
 
     @Test
@@ -3976,7 +3976,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         ManagedLedgerImpl managedLedger = (ManagedLedgerImpl) factory.open("testGetLedgerMetadata");
         long lastLedger = managedLedger.ledgers.lastEntry().getKey();
         managedLedger.getEnsemblesAsync(lastLedger).join();
-        Assert.assertFalse(managedLedger.ledgerCache.containsKey(lastLedger));
+        Assert.assertFalse(managedLedger.ledgerHandleCache.containsKey(lastLedger));
     }
 
     @Test
