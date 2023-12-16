@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.io.rabbitmq.source;
 
-import lombok.Cleanup;
 import org.apache.pulsar.io.rabbitmq.RabbitMQBrokerManager;
 import org.apache.pulsar.io.rabbitmq.RabbitMQSource;
 import org.awaitility.Awaitility;
@@ -45,7 +44,7 @@ public class RabbitMQSourceTest {
     }
 
     @Test
-    public void TestOpenAndWriteSink() {
+    public void TestOpenAndWriteSink() throws Exception {
         Map<String, Object> configs = new HashMap<>();
         configs.put("host", "localhost");
         configs.put("port", "5672");
@@ -63,12 +62,12 @@ public class RabbitMQSourceTest {
         configs.put("prefetchGlobal", "false");
         configs.put("passive", "false");
 
-        @Cleanup
         RabbitMQSource source = new RabbitMQSource();
 
         // open should success
         // rabbitmq service may need time to initialize
         Awaitility.await().ignoreExceptions().untilAsserted(() -> source.open(configs, null));
+        source.close();
     }
 
 }
