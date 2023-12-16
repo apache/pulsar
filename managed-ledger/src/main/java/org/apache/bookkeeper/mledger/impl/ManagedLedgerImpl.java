@@ -2125,7 +2125,12 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     public void asyncReadEntry(ReadHandle ledger, Set<Long> entryIds, OpReadEntry opReadEntry,
                                   Object ctx) {
         if (entryIds.isEmpty()) {
-            opReadEntry.readEntriesComplete(Collections.emptyList(), ctx);
+            // If the entryIds is empty, should not move the `readPosition` of `cursor`.
+            // OpReadEntry#internalReadEntriesComplete will move the `readPosition` of `cursor`
+            // to the next position of `lastEntry`, so here uses the previous position of `readPosition`
+            // to offset the impact of OpReadEntry#internalReadEntriesComplete.
+            PositionImpl previous = this.getPreviousPosition(opReadEntry.readPosition);
+            opReadEntry.internalReadEntriesComplete(Collections.emptyList(), ctx, previous);
             return;
         }
 
