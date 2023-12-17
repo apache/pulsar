@@ -791,28 +791,6 @@ public class ManagedCursorImpl implements ManagedCursor {
         ledger.asyncReadEntries(op);
     }
 
-    /**
-     * Is the position deleted.
-     *
-     * @param position entry position.
-     * @return
-     */
-    protected boolean deleted(PositionImpl position) {
-        if (position.compareTo(this.markDeletePosition) <= 0) {
-            return true;
-        }
-
-        this.lock.readLock().lock();
-        try {
-            if (this.individualDeletedMessages.isEmpty()) {
-                return false;
-            }
-            return this.individualDeletedMessages.contains(position.getLedgerId(), position.getEntryId());
-        } finally {
-            this.lock.readLock().unlock();
-        }
-    }
-
     @Override
     public Entry getNthEntry(int n, IndividualDeletedEntries deletedEntries)
             throws InterruptedException, ManagedLedgerException {
@@ -3424,6 +3402,13 @@ public class ManagedCursorImpl implements ManagedCursor {
 
     public boolean isMessageDeleted(Position position) {
         checkArgument(position instanceof PositionImpl);
+        // The `markDeletePosition` of `ReadonlyCursor` maybe null.
+        // if (this instanceof ReadOnlyCursor) {
+        //     return false;
+        // }
+        if (markDeletePosition == null) {
+            return false;
+        }
         return ((PositionImpl) position).compareTo(markDeletePosition) <= 0
                 || individualDeletedMessages.contains(position.getLedgerId(), position.getEntryId());
     }
