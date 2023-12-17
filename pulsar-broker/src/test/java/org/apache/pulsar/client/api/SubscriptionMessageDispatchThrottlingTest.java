@@ -20,7 +20,6 @@ package org.apache.pulsar.client.api;
 
 import static org.awaitility.Awaitility.await;
 import com.google.common.collect.Sets;
-import java.time.Duration;
 import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicInteger;
