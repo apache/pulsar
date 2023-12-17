@@ -30,6 +30,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.NonRecoverableLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.TooManyRequestsException;
 import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.ReadOnlyCursor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -60,8 +61,18 @@ class OpReadEntry implements ReadEntriesCallback {
             maxPosition = PositionImpl.LATEST;
         }
         op.maxPosition = maxPosition;
-        Predicate<PositionImpl> skipCondition0 = cursor::isMessageDeleted;
-        op.skipCondition = skipCondition == null ? skipCondition0 : skipCondition.or(skipCondition0);
+
+        Predicate<PositionImpl> skipCondition0 = cursor instanceof ReadOnlyCursor ? null : cursor::isMessageDeleted;
+        if (skipCondition == null) {
+            op.skipCondition = skipCondition0;
+        } else {
+            if (skipCondition0 == null) {
+                op.skipCondition = skipCondition;
+            } else {
+                op.skipCondition = skipCondition.or(skipCondition0);
+            }
+        }
+
         op.ctx = ctx;
         op.nextReadPosition = PositionImpl.get(op.readPosition);
         return op;

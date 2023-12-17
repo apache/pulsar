@@ -3402,13 +3402,6 @@ public class ManagedCursorImpl implements ManagedCursor {
 
     public boolean isMessageDeleted(Position position) {
         checkArgument(position instanceof PositionImpl);
-        // The `markDeletePosition` of `ReadonlyCursor` maybe null.
-        // if (this instanceof ReadOnlyCursor) {
-        //     return false;
-        // }
-        if (markDeletePosition == null) {
-            return false;
-        }
         return ((PositionImpl) position).compareTo(markDeletePosition) <= 0
                 || individualDeletedMessages.contains(position.getLedgerId(), position.getEntryId());
     }
