@@ -33,23 +33,15 @@ import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Range;
+import com.google.common.collect.RangeSet;
+import com.google.common.collect.TreeRangeSet;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
 import java.lang.reflect.Field;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.BitSet;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
@@ -4495,10 +4487,16 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         ledger = Mockito.spy(ledger);
         List<Long> actualReadEntryIds = new ArrayList<>();
         Mockito.doAnswer(inv -> {
-            Set<Long> ids = inv.getArgument(1);
-            actualReadEntryIds.addAll(ids);
-            return inv.callRealMethod();
-        }).when(ledger).asyncReadEntry(Mockito.any(ReadHandle.class), Mockito.any(Set.class), Mockito.any(), Mockito.any());
+                    long start = inv.getArgument(1);
+                    long end = inv.getArgument(2);
+                    for (long i = start; i <= end; i++) {
+                        actualReadEntryIds.add(i);
+                    }
+                    return inv.callRealMethod();
+                })
+                .when(ledger)
+                .asyncReadEntry(Mockito.any(ReadHandle.class), Mockito.anyLong(), Mockito.anyLong(),
+                        Mockito.anyBoolean(), Mockito.any(), Mockito.any());
         @Cleanup
         ManagedCursor cursor = ledger.openCursor("c");
 
@@ -4595,10 +4593,16 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
         List<Long> actualReadEntryIds = new ArrayList<>();
         Mockito.doAnswer(inv -> {
-            Set<Long> ids = inv.getArgument(1);
-            actualReadEntryIds.addAll(ids);
-            return inv.callRealMethod();
-        }).when(ledger).asyncReadEntry(Mockito.any(ReadHandle.class), Mockito.any(Set.class), Mockito.any(), Mockito.any());
+                    long start = inv.getArgument(1);
+                    long end = inv.getArgument(2);
+                    for (long i = start; i <= end; i++) {
+                        actualReadEntryIds.add(i);
+                    }
+                    return inv.callRealMethod();
+                })
+                .when(ledger)
+                .asyncReadEntry(Mockito.any(ReadHandle.class), Mockito.anyLong(), Mockito.anyLong(),
+                        Mockito.anyBoolean(), Mockito.any(), Mockito.any());
         @Cleanup
         ManagedCursor cursor = ledger.openCursor("c");
 
@@ -4676,44 +4680,34 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
 
     @Test
-    public void testReadEmptyEntryIds() throws Exception {
-        @Cleanup
-        ManagedLedgerImpl ledger = (ManagedLedgerImpl)
-                factory.open("testReadEntriesWithSkipDeletedEntriesAndWithSkipConditions");
-        @Cleanup
-        ManagedCursor cursor = ledger.openCursor("c");
+    @SuppressWarnings("unchecked")
+    public void testRangeSet() {
+        SortedSet<Long> ids = new TreeSet<>();
+        ids.add(1L);
+        ids.add(7L);
+        ids.add(8L);
+        ids.add(9L);
+        ids.add(15L);
+        ids.add(17L);
+        ids.add(19L);
+        ids.add(20L);
+        ids.add(21L);
 
-        int entries = 20;
-        Position maxPosition = PositionImpl.EARLIEST;
-        for (int i = 0; i < entries; i++) {
-            maxPosition = ledger.addEntry(new byte[1024]);
-        }
+        Set<Range<Long>> ranges = ManagedLedgerImpl.toRanges(ids);
+        assertEquals(ranges.size(), 5);
+        Object[] rangeArr = ranges.toArray();
 
-        CompletableFuture<Void> future = new CompletableFuture<>();
-        Position cursorPosition = cursor.getReadPosition();
-        ReadHandle handle = ledger.getLedgerHandle(maxPosition.getLedgerId()).get();
-        OpReadEntry opReadEntry = OpReadEntry.create(
-                (ManagedCursorImpl) cursor,
-                PositionImpl.get(cursorPosition.getLedgerId(), cursorPosition.getEntryId()),
-                0, // Set count = 0.
-                new ReadEntriesCallback() {
-                    @Override
-                    public void readEntriesComplete(List<Entry> entries, Object ctx) {
-                        future.complete(null);
-                    }
+        Range<Long> range0 = (Range<Long>) rangeArr[0];
+        Range<Long> range1 = (Range<Long>) rangeArr[1];
+        Range<Long> range2 = (Range<Long>) rangeArr[2];
+        Range<Long> range3 = (Range<Long>) rangeArr[3];
+        Range<Long> range4 = (Range<Long>) rangeArr[4];
 
-                    @Override
-                    public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
-                        future.completeExceptionally(exception);
-                    }
-                }, null, PositionImpl.get(maxPosition.getLedgerId(), maxPosition.getEntryId()), null);
-        ledger.asyncReadEntry(handle, Collections.emptySet(), opReadEntry, null);
-        future.get();
-
-        // `readPosition` should not be moved.
-        Position newCursorReadPosition = cursor.getReadPosition();
-        assertTrue(newCursorReadPosition.getLedgerId() == cursorPosition.getLedgerId()
-                && newCursorReadPosition.getEntryId() == cursorPosition.getEntryId());
+        assertTrue(range0.lowerEndpoint() == 1L && range0.upperEndpoint() == 1L);
+        assertTrue(range1.lowerEndpoint() == 7L && range1.upperEndpoint() == 9L);
+        assertTrue(range2.lowerEndpoint() == 15L && range2.upperEndpoint() == 15L);
+        assertTrue(range3.lowerEndpoint() == 17L && range3.upperEndpoint() == 17L);
+        assertTrue(range4.lowerEndpoint() == 19L && range4.upperEndpoint() == 21L);
     }
 
     private static final Logger log = LoggerFactory.getLogger(ManagedCursorTest.class);
