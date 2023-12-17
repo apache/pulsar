@@ -23,6 +23,7 @@ import com.beust.jcommander.Parameter;
 import com.beust.jcommander.Parameters;
 import com.google.common.collect.Sets;
 import java.util.Arrays;
+import java.util.Set;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import lombok.Getter;
@@ -36,6 +37,7 @@ import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.ClusterPolicies.ClusterUrl;
 import org.apache.pulsar.common.policies.data.FailureDomain;
 import org.apache.pulsar.common.policies.data.FailureDomainImpl;
+import org.apache.pulsar.common.policies.data.TenantInfo;
 
 @Parameters(commandDescription = "Operations about clusters")
 public class CmdClusters extends CmdBase {
@@ -116,8 +118,8 @@ public class CmdClusters extends CmdBase {
         void run() throws PulsarAdminException {
             String cluster = getOneArgument(params);
 
-            if (deleteAll) {
-                for (String tenant : getAdmin().tenants().getTenants()) {
+            for (String tenant : getAdmin().tenants().getTenants()) {
+                if (deleteAll) {
                     for (String namespace : getAdmin().namespaces().getNamespaces(tenant)) {
                         // Partitioned topic's schema must be deleted by deletePartitionedTopic()
                         // but not delete() for each partition
@@ -130,6 +132,13 @@ public class CmdClusters extends CmdBase {
                         getAdmin().namespaces().deleteNamespace(namespace, true);
                     }
                     getAdmin().tenants().deleteTenant(tenant);
+                } else {
+                    Set<String> clusters = getAdmin().tenants().getTenantInfo(tenant).getAllowedClusters();
+                    clusters.remove(cluster);
+                    getAdmin().tenants().updateTenant(tenant, TenantInfo.builder()
+                            .adminRoles(getAdmin().tenants().getTenantInfo(tenant).getAdminRoles())
+                            .allowedClusters(clusters)
+                            .build());
                 }
             }
 
