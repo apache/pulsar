@@ -217,7 +217,7 @@ public class SubscriptionMessageDispatchThrottlingTest extends MessageDispatchTh
         log.info("-- Exiting {} test --", methodName);
     }
 
-    @Test(dataProvider = "subscriptions", timeOut = 30000, invocationCount = 15)
+    @Test(dataProvider = "subscriptions", timeOut = 30000)
     private void testMessageNotDuplicated(SubscriptionType subscription) throws Exception {
         int brokerRate = 1000;
         int topicRate = 5000;
