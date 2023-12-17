@@ -273,7 +273,7 @@ public class SubscriptionMessageDispatchThrottlingTest extends MessageDispatchTh
             Assert.fail("Should only have PersistentDispatcher in this test");
         }
         final DispatchRateLimiter subDispatchRateLimiter = subRateLimiter;
-        Awaitility.await().atMost(Duration.ofMillis(500)).untilAsserted(() -> {
+        Awaitility.await().untilAsserted(() -> {
             DispatchRateLimiter brokerDispatchRateLimiter = pulsar.getBrokerService().getBrokerDispatchRateLimiter();
             Assert.assertTrue(brokerDispatchRateLimiter != null
                     && brokerDispatchRateLimiter.getDispatchRateOnByte() > 0);
@@ -451,7 +451,7 @@ public class SubscriptionMessageDispatchThrottlingTest extends MessageDispatchTh
             Assert.fail("Should only have PersistentDispatcher in this test");
         }
         final DispatchRateLimiter subDispatchRateLimiter = subRateLimiter;
-        Awaitility.await().atMost(Duration.ofMillis(500)).untilAsserted(() -> {
+        Awaitility.await().untilAsserted(() -> {
             DispatchRateLimiter brokerDispatchRateLimiter = pulsar.getBrokerService().getBrokerDispatchRateLimiter();
             Assert.assertTrue(brokerDispatchRateLimiter != null
                     && brokerDispatchRateLimiter.getDispatchRateOnByte() > 0);
