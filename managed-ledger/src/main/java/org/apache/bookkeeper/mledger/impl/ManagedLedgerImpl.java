@@ -2111,7 +2111,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         int count = 0;
         SortedSet<Long> entryIds = new TreeSet<>();
         int entriesToRead = opReadEntry.getNumberOfEntriesToRead();
-        while (entryId <= lastEntryInLedger && count <= entriesToRead) {
+        while (entryId <= lastEntryInLedger && count < entriesToRead) {
             PositionImpl position = PositionImpl.get(ledger.getId(), entryId);
             if (!skipCond.test(position)) {
                 entryIds.add(entryId);
