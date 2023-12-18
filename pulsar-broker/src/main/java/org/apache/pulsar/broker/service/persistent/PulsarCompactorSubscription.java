@@ -22,12 +22,14 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.pulsar.broker.service.AbstractBaseDispatcher.checkAndApplyReachedEndOfTopicOrTopicMigration;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.MarkDeleteCallback;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.pulsar.common.api.proto.CommandAck.AckType;
 import org.apache.pulsar.compaction.CompactedTopic;
+import org.apache.pulsar.compaction.CompactedTopicImpl;
 import org.apache.pulsar.compaction.Compactor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -103,6 +105,17 @@ public class PulsarCompactorSubscription extends PersistentSubscription {
         if (topic.getManagedLedger().isTerminated() && cursor.getNumberOfEntriesInBacklog(false) == 0) {
             // Notify all consumer that the end of topic was reached
             checkAndApplyReachedEndOfTopicOrTopicMigration(topic, dispatcher.getConsumers());
+        }
+    }
+
+    CompletableFuture<Void> cleanCompactedLedger() {
+        Long compactedLedgerId = cursor.getProperties().get(Compactor.COMPACTED_TOPIC_LEDGER_PROPERTY);
+        if (compactedLedgerId != null) {
+            ((CompactedTopicImpl) compactedTopic).reset();
+            cursor.removeProperty(Compactor.COMPACTED_TOPIC_LEDGER_PROPERTY);
+            return compactedTopic.deleteCompactedLedger(compactedLedgerId);
+        } else {
+            return CompletableFuture.completedFuture(null);
         }
     }
 

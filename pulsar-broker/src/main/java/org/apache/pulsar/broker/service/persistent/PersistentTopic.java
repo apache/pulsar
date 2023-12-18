@@ -1199,13 +1199,14 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                                                           CompletableFuture<Void> unsubscribeFuture) {
         PersistentSubscription persistentSubscription = subscriptions.get(subscriptionName);
         if (persistentSubscription == null) {
-            log.warn("[{}][{}] Can't find subscription, skip clear delayed message", topic, subscriptionName);
+            log.warn("[{}][{}] Can't find subscription, skip delete cursor", topic, subscriptionName);
             unsubscribeFuture.complete(null);
             return;
         }
+
         if (!isDelayedDeliveryEnabled()
                 || !(brokerService.getDelayedDeliveryTrackerFactory() instanceof BucketDelayedDeliveryTrackerFactory)) {
-            asyncDeleteCursor(subscriptionName, unsubscribeFuture);
+            asyncDeleteCursor(subscriptionName, persistentSubscription, unsubscribeFuture);
             return;
         }
 
@@ -1220,7 +1221,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                     if (ex != null) {
                         unsubscribeFuture.completeExceptionally(ex);
                     } else {
-                        asyncDeleteCursor(subscriptionName, unsubscribeFuture);
+                        asyncDeleteCursor(subscriptionName, persistentSubscription, unsubscribeFuture);
                     }
                 });
             }
@@ -1231,37 +1232,53 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             if (ex != null) {
                 unsubscribeFuture.completeExceptionally(ex);
             } else {
-                asyncDeleteCursor(subscriptionName, unsubscribeFuture);
+                asyncDeleteCursor(subscriptionName, persistentSubscription, unsubscribeFuture);
             }
         });
     }
 
-    private void asyncDeleteCursor(String subscriptionName, CompletableFuture<Void> unsubscribeFuture) {
-        ledger.asyncDeleteCursor(Codec.encode(subscriptionName), new DeleteCursorCallback() {
-            @Override
-            public void deleteCursorComplete(Object ctx) {
-                if (log.isDebugEnabled()) {
-                    log.debug("[{}][{}] Cursor deleted successfully", topic, subscriptionName);
-                }
-                removeSubscription(subscriptionName);
-                unsubscribeFuture.complete(null);
-                lastActive = System.nanoTime();
-            }
+    private void asyncDeleteCursor(String subscriptionName,
+                                   PersistentSubscription subscription,
+                                   CompletableFuture<Void> unsubscribeFuture) {
+        final CompletableFuture<Void> cleanCompactedLedgerFuture;
+        if (isCompactionSubscription(subscriptionName) && subscription instanceof PulsarCompactorSubscription) {
+            cleanCompactedLedgerFuture = ((PulsarCompactorSubscription) subscription).cleanCompactedLedger();
+        } else {
+            cleanCompactedLedgerFuture = CompletableFuture.completedFuture(null);
+        }
 
-            @Override
-            public void deleteCursorFailed(ManagedLedgerException exception, Object ctx) {
-                if (log.isDebugEnabled()) {
-                    log.debug("[{}][{}] Error deleting cursor for subscription",
-                            topic, subscriptionName, exception);
-                }
-                if (exception instanceof ManagedLedgerException.ManagedLedgerNotFoundException) {
-                    unsubscribeFuture.complete(null);
-                    lastActive = System.nanoTime();
-                    return;
-                }
-                unsubscribeFuture.completeExceptionally(new PersistenceException(exception));
+        cleanCompactedLedgerFuture.whenComplete((__, ex) -> {
+            if (ex != null) {
+                log.error("[{}][{}] Error cleaning compacted ledger", topic, subscriptionName, ex);
+                unsubscribeFuture.completeExceptionally(ex);
+            } else {
+                ledger.asyncDeleteCursor(Codec.encode(subscriptionName), new DeleteCursorCallback() {
+                    @Override
+                    public void deleteCursorComplete(Object ctx) {
+                        if (log.isDebugEnabled()) {
+                            log.debug("[{}][{}] Cursor deleted successfully", topic, subscriptionName);
+                        }
+                        removeSubscription(subscriptionName);
+                        unsubscribeFuture.complete(null);
+                        lastActive = System.nanoTime();
+                    }
+
+                    @Override
+                    public void deleteCursorFailed(ManagedLedgerException exception, Object ctx) {
+                        if (log.isDebugEnabled()) {
+                            log.debug("[{}][{}] Error deleting cursor for subscription",
+                                    topic, subscriptionName, exception);
+                        }
+                        if (exception instanceof ManagedLedgerException.ManagedLedgerNotFoundException) {
+                            unsubscribeFuture.complete(null);
+                            lastActive = System.nanoTime();
+                            return;
+                        }
+                        unsubscribeFuture.completeExceptionally(new PersistenceException(exception));
+                    }
+                }, null);
             }
-        }, null);
+        });
     }
 
     void removeSubscription(String subscriptionName) {

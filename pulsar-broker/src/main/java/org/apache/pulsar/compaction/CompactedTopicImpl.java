@@ -330,6 +330,11 @@ public class CompactedTopicImpl implements CompactedTopic {
         return Optional.ofNullable(this.compactionHorizon);
     }
 
+    public void reset() {
+        this.compactionHorizon = null;
+        this.compactedTopicContext = null;
+    }
+
     @Nullable
     public CompletableFuture<CompactedTopicContext> getCompactedTopicContextFuture() {
         return compactedTopicContext;

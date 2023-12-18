@@ -49,6 +49,7 @@ import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.api.OpenBuilder;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
@@ -91,6 +92,7 @@ import org.apache.pulsar.common.protocol.Markers;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.awaitility.Awaitility;
 import org.mockito.Mockito;
+import org.testcontainers.shaded.org.apache.commons.lang3.mutable.MutableLong;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -2011,5 +2013,71 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
                 }
             }
         }
+    }
+
+    @Test
+    public void testDeleteCompactedLedger() throws Exception {
+        String topicName = "persistent://my-property/use/my-ns/testDeleteCompactedLedger";
+
+        final String subName = "my-sub";
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .enableBatching(false).topic(topicName).create();
+
+        pulsarClient.newConsumer().topic(topicName).subscriptionName(subName).readCompacted(true).subscribe().close();
+
+        for (int i = 0; i < 10; i++) {
+            producer.newMessage().key(String.valueOf(i % 2)).value(String.valueOf(i)).sendAsync();
+        }
+        producer.flush();
+
+        compact(topicName);
+
+        MutableLong compactedLedgerId = new MutableLong(-1);
+        Awaitility.await().untilAsserted(() -> {
+            PersistentTopicInternalStats stats = admin.topics().getInternalStats(topicName);
+            Assert.assertNotEquals(stats.compactedLedger.ledgerId, -1L);
+            compactedLedgerId.setValue(stats.compactedLedger.ledgerId);
+            Assert.assertEquals(stats.compactedLedger.entries, 2L);
+        });
+
+        // delete compacted ledger
+        admin.topics().deleteSubscription(topicName, "__compaction");
+
+        Awaitility.await().untilAsserted(() -> {
+            PersistentTopicInternalStats stats = admin.topics().getInternalStats(topicName);
+            Assert.assertEquals(stats.compactedLedger.ledgerId, -1L);
+            Assert.assertEquals(stats.compactedLedger.entries, -1L);
+            try {
+                pulsarTestContext.getBookKeeperClient()
+                        .openLedger(compactedLedgerId.getValue(), BookKeeper.DigestType.CRC32C, new byte[]{});
+                Assert.fail("Should fail");
+            } catch (BKException.BKNoSuchLedgerExistsException e) {
+                // ignore it
+            }
+        });
+
+        compact(topicName);
+
+        MutableLong compactedLedgerId2 = new MutableLong(-1);
+        Awaitility.await().untilAsserted(() -> {
+            PersistentTopicInternalStats stats = admin.topics().getInternalStats(topicName);
+            Assert.assertNotEquals(stats.compactedLedger.ledgerId, -1L);
+            compactedLedgerId2.setValue(stats.compactedLedger.ledgerId);
+            Assert.assertEquals(stats.compactedLedger.entries, 2L);
+        });
+
+        producer.close();
+        admin.topics().delete(topicName);
+
+        Awaitility.await().untilAsserted(() -> {
+            try {
+                pulsarTestContext.getBookKeeperClient()
+                        .openLedger(compactedLedgerId2.getValue(), BookKeeper.DigestType.CRC32C, new byte[]{});
+                Assert.fail("Should fail");
+            } catch (BKException.BKNoSuchLedgerExistsException e) {
+                // ignore it
+            }
+        });
     }
 }
