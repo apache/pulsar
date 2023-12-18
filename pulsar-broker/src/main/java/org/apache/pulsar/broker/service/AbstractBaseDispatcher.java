@@ -195,19 +195,23 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
                 }
             }
 
-            if (msgMetadata == null || (Markers.isServerOnlyMarker(msgMetadata) && !Markers.isTxnMarker(msgMetadata))) {
-                PositionImpl pos = (PositionImpl) entry.getPosition();
-                // Message metadata was corrupted or the messages was a server-only marker
+            if (msgMetadata == null || (Markers.isServerOnlyMarker(msgMetadata))) {
+                // Deliver marker to __compaction cursor to avoid compaction task stuck,
+                // and filter out them when doing topic compaction.
+                if (cursor == null || !cursor.getName().equals(Compactor.COMPACTION_SUBSCRIPTION)) {
+                    PositionImpl pos = (PositionImpl) entry.getPosition();
+                    // Message metadata was corrupted or the messages was a server-only marker
 
-                if (Markers.isReplicatedSubscriptionSnapshotMarker(msgMetadata)) {
-                    processReplicatedSubscriptionSnapshot(pos, metadataAndPayload);
+                    if (Markers.isReplicatedSubscriptionSnapshotMarker(msgMetadata)) {
+                        processReplicatedSubscriptionSnapshot(pos, metadataAndPayload);
+                    }
+
+                    entries.set(i, null);
+                    entry.release();
+                    individualAcknowledgeMessageIfNeeded(Collections.singletonList(pos),
+                            Collections.emptyMap());
+                    continue;
                 }
-
-                entries.set(i, null);
-                entry.release();
-                individualAcknowledgeMessageIfNeeded(Collections.singletonList(pos),
-                        Collections.emptyMap());
-                continue;
             } else if (trackDelayedDelivery(entry.getLedgerId(), entry.getEntryId(), msgMetadata)) {
                 // The message is marked for delayed delivery. Ignore for now.
                 entries.set(i, null);

@@ -131,7 +131,7 @@ public class TwoPhaseCompactor extends Compactor {
                 boolean replaceMessage = false;
                 mxBean.addCompactionReadOp(reader.getTopic(), m.getHeadersAndPayload().readableBytes());
                 MessageMetadata metadata = Commands.parseMessageMetadata(m.getHeadersAndPayload());
-                if (Markers.isTxnMarker(metadata)) {
+                if (Markers.isServerOnlyMarker(metadata)) {
                     mxBean.addCompactionRemovedEvent(reader.getTopic());
                     deletedMessage = true;
                 } else if (RawBatchConverter.isReadableBatch(metadata)) {
