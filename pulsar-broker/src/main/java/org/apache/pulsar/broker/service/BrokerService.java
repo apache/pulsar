@@ -1240,7 +1240,7 @@ public class BrokerService implements Closeable {
                 ClientBuilder clientBuilder = PulsarClient.builder()
                         .enableTcpNoDelay(false)
                         .connectionsPerBroker(pulsar.getConfiguration().getReplicationConnectionsPerBroker())
-                        .statsInterval(0, TimeUnit.SECONDS);
+                        .statsInterval(pulsar.getConfiguration().getStatsUpdateFrequencyInSecs(), TimeUnit.SECONDS);
 
                 // Disable memory limit for replication client
                 clientBuilder.memoryLimit(0, SizeUnit.BYTES);
