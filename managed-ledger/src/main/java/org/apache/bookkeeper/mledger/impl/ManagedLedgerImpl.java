@@ -2111,7 +2111,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         int count = 0;
         SortedSet<Long> entryIds = new TreeSet<>();
         int entriesToRead = opReadEntry.getNumberOfEntriesToRead();
-        while (entryId <= lastEntryInLedger || count <= entriesToRead) {
+        while (entryId <= lastEntryInLedger && count <= entriesToRead) {
             PositionImpl position = PositionImpl.get(ledger.getId(), entryId);
             if (!skipCond.test(position)) {
                 entryIds.add(entryId);
@@ -2119,21 +2119,18 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             }
             entryId++;
         }
+        if (entryIds.isEmpty()) {
+            // Move `readPosition` of `cursor`.
+            PositionImpl position = PositionImpl.get(ledger.getId(), entryId - 1);
+            opReadEntry.internalReadEntriesComplete(Collections.emptyList(), opReadEntry.ctx, position);
+            return;
+        }
         asyncReadEntry(ledger, entryIds, opReadEntry, opReadEntry.ctx);
     }
 
 
     private void asyncReadEntry(ReadHandle ledger, SortedSet<Long> entryIds, OpReadEntry opReadEntry, Object ctx) {
-        if (entryIds.isEmpty()) {
-            // If the entryIds is empty, should not move the `readPosition` of `cursor`.
-            // OpReadEntry#internalReadEntriesComplete will move the `readPosition` of `cursor`
-            // to the next position of `lastEntry`, so here uses the previous position of `readPosition`
-            // to offset the impact of OpReadEntry#internalReadEntriesComplete.
-            PositionImpl previous = this.getPreviousPosition(opReadEntry.readPosition);
-            opReadEntry.internalReadEntriesComplete(Collections.emptyList(), ctx, previous);
-            return;
-        }
-
+        checkArgument(!entryIds.isEmpty());
         Set<Range<Long>> ranges = toRanges(entryIds);
         ReadEntriesCallback callback = new BatchReadEntriesCallback(entryIds, opReadEntry);
         for (Range<Long> range : ranges) {
@@ -2179,13 +2176,11 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
         @Override
         public synchronized void readEntriesComplete(List<Entry> entries0, Object ctx) {
-            for (Entry entry : entries0) {
-                entrySet.add(entry);
-                if (entrySet.size() != entryIdSet.size()) {
-                    return;
-                }
-                callback.readEntriesComplete(entrySet.stream().toList(), ctx);
+            entrySet.addAll(entries0);
+            if (entrySet.size() < entryIdSet.size()) {
+                return;
             }
+            callback.readEntriesComplete(entrySet.stream().toList(), ctx);
         }
 
         @Override
