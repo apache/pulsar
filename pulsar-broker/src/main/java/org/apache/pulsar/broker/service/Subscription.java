@@ -26,6 +26,7 @@ import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
+import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLookupData;
 import org.apache.pulsar.common.api.proto.CommandAck.AckType;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.api.proto.ReplicatedSubscriptionsSnapshot;
@@ -64,13 +65,13 @@ public interface Subscription extends MessageExpirer {
 
     List<Consumer> getConsumers();
 
-    CompletableFuture<Void> close();
-
     CompletableFuture<Void> delete();
 
     CompletableFuture<Void> deleteForcefully();
 
-    CompletableFuture<Void> disconnect();
+    CompletableFuture<Void> disconnect(Optional<BrokerLookupData> assignedBrokerLookupData);
+
+    CompletableFuture<Void> close(boolean disconnectConsumers, Optional<BrokerLookupData> assignedBrokerLookupData);
 
     CompletableFuture<Void> doUnsubscribe(Consumer consumer);
 

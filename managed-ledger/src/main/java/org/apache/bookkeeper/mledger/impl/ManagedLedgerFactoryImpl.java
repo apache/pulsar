@@ -837,7 +837,10 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                 // If it's open, delete in the normal way
                 ml.asyncDelete(callback, ctx);
             }).exceptionally(ex -> {
-                // If it's failing to get open, just delete from metadata
+                // If it fails to get open, it will be cleaned by managed ledger opening error handling.
+                // then retry will go to `future=null` branch.
+                final Throwable rc = FutureUtil.unwrapCompletionException(ex);
+                callback.deleteLedgerFailed(getManagedLedgerException(rc), ctx);
                 return null;
             });
         }

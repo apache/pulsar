@@ -315,10 +315,10 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
                 || (cursor != null && !cursor.isActive())) {
             long permits = dispatchThrottlingOnBatchMessageEnabled ? totalEntries : totalMessagesSent;
             topic.getBrokerDispatchRateLimiter().ifPresent(rateLimiter ->
-                    rateLimiter.tryDispatchPermit(permits, totalBytesSent));
+                    rateLimiter.consumeDispatchQuota(permits, totalBytesSent));
             topic.getDispatchRateLimiter().ifPresent(rateLimter ->
-                    rateLimter.tryDispatchPermit(permits, totalBytesSent));
-            getRateLimiter().ifPresent(rateLimiter -> rateLimiter.tryDispatchPermit(permits, totalBytesSent));
+                    rateLimter.consumeDispatchQuota(permits, totalBytesSent));
+            getRateLimiter().ifPresent(rateLimiter -> rateLimiter.consumeDispatchQuota(permits, totalBytesSent));
         }
     }
 
@@ -356,16 +356,6 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
 
     protected abstract void reScheduleRead();
 
-    protected boolean reachDispatchRateLimit(DispatchRateLimiter dispatchRateLimiter) {
-        if (dispatchRateLimiter.isDispatchRateLimitingEnabled()) {
-            if (!dispatchRateLimiter.hasMessageDispatchPermit()) {
-                reScheduleRead();
-                return true;
-            }
-        }
-        return false;
-    }
-
     protected Pair<Integer, Long> updateMessagesToRead(DispatchRateLimiter dispatchRateLimiter,
                                                        int messagesToRead, long bytesToRead) {
         // update messagesToRead according to available dispatch rate limit.
@@ -376,11 +366,11 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
 
     protected static Pair<Integer, Long> computeReadLimits(int messagesToRead, int availablePermitsOnMsg,
                                                            long bytesToRead, long availablePermitsOnByte) {
-        if (availablePermitsOnMsg > 0) {
+        if (availablePermitsOnMsg >= 0) {
             messagesToRead = Math.min(messagesToRead, availablePermitsOnMsg);
         }
 
-        if (availablePermitsOnByte > 0) {
+        if (availablePermitsOnByte >= 0) {
             bytesToRead = Math.min(bytesToRead, availablePermitsOnByte);
         }
 

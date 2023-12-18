@@ -38,11 +38,10 @@ import static org.apache.pulsar.broker.loadbalance.extensions.models.UnloadDecis
 import static org.apache.pulsar.broker.namespace.NamespaceService.getHeartbeatNamespace;
 import static org.apache.pulsar.broker.namespace.NamespaceService.getHeartbeatNamespaceV2;
 import static org.apache.pulsar.broker.namespace.NamespaceService.getSLAMonitorNamespace;
-import static org.mockito.ArgumentMatchers.isA;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
@@ -55,19 +54,27 @@ import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import com.google.common.collect.Sets;
 import java.net.URL;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
+import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.mutable.MutableInt;
 import org.apache.commons.lang3.reflect.FieldUtils;
@@ -100,13 +107,20 @@ import org.apache.pulsar.broker.namespace.NamespaceEphemeralData;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.testcontext.PulsarTestContext;
 import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.SubscriptionInitialPosition;
+import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.LookupService;
 import org.apache.pulsar.client.impl.TableViewImpl;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.ServiceUnitId;
 import org.apache.pulsar.common.naming.SystemTopicNames;
+import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.naming.TopicVersion;
 import org.apache.pulsar.common.policies.data.BrokerAssignment;
@@ -120,7 +134,6 @@ import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.policies.data.loadbalancer.ResourceUsage;
 import org.apache.pulsar.policies.data.loadbalancer.SystemResourceUsage;
 import org.awaitility.Awaitility;
-import org.mockito.MockedStatic;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.BeforeMethod;
@@ -154,53 +167,47 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
     @BeforeClass
     @Override
     public void setup() throws Exception {
-        try (MockedStatic<ServiceUnitStateChannelImpl> channelMockedStatic =
-                     mockStatic(ServiceUnitStateChannelImpl.class)) {
-            channelMockedStatic.when(() -> ServiceUnitStateChannelImpl.newInstance(isA(PulsarService.class)))
-                    .thenAnswer(invocation -> {
-                        PulsarService pulsarService = invocation.getArgument(0);
-                        // Set the inflight state waiting time and ownership monitor delay time to 5 seconds to avoid
-                        // stuck when doing unload.
-                        return new ServiceUnitStateChannelImpl(pulsarService, 5 * 1000, 1);
-                    });
-            conf.setForceDeleteNamespaceAllowed(true);
-            conf.setAllowAutoTopicCreationType(TopicType.NON_PARTITIONED);
-            conf.setAllowAutoTopicCreation(true);
-            conf.setLoadManagerClassName(ExtensibleLoadManagerImpl.class.getName());
-            conf.setLoadBalancerLoadSheddingStrategy(TransferShedder.class.getName());
-            conf.setLoadBalancerSheddingEnabled(false);
-            conf.setLoadBalancerDebugModeEnabled(true);
-            conf.setTopicLevelPoliciesEnabled(true);
-            super.internalSetup(conf);
-            pulsar1 = pulsar;
-            ServiceConfiguration defaultConf = getDefaultConf();
-            defaultConf.setAllowAutoTopicCreation(true);
-            defaultConf.setForceDeleteNamespaceAllowed(true);
-            defaultConf.setLoadManagerClassName(ExtensibleLoadManagerImpl.class.getName());
-            defaultConf.setLoadBalancerLoadSheddingStrategy(TransferShedder.class.getName());
-            defaultConf.setLoadBalancerSheddingEnabled(false);
-            defaultConf.setTopicLevelPoliciesEnabled(true);
-            additionalPulsarTestContext = createAdditionalPulsarTestContext(defaultConf);
-            pulsar2 = additionalPulsarTestContext.getPulsarService();
+        // Set the inflight state waiting time and ownership monitor delay time to 5 seconds to avoid
+        // stuck when doing unload.
+        conf.setLoadBalancerInFlightServiceUnitStateWaitingTimeInMillis(5 * 1000);
+        conf.setLoadBalancerServiceUnitStateMonitorIntervalInSeconds(1);
+        conf.setForceDeleteNamespaceAllowed(true);
+        conf.setAllowAutoTopicCreationType(TopicType.NON_PARTITIONED);
+        conf.setAllowAutoTopicCreation(true);
+        conf.setLoadManagerClassName(ExtensibleLoadManagerImpl.class.getName());
+        conf.setLoadBalancerLoadSheddingStrategy(TransferShedder.class.getName());
+        conf.setLoadBalancerSheddingEnabled(false);
+        conf.setLoadBalancerDebugModeEnabled(true);
+        conf.setTopicLevelPoliciesEnabled(true);
+        super.internalSetup(conf);
+        pulsar1 = pulsar;
+        ServiceConfiguration defaultConf = getDefaultConf();
+        defaultConf.setAllowAutoTopicCreation(true);
+        defaultConf.setForceDeleteNamespaceAllowed(true);
+        defaultConf.setLoadManagerClassName(ExtensibleLoadManagerImpl.class.getName());
+        defaultConf.setLoadBalancerLoadSheddingStrategy(TransferShedder.class.getName());
+        defaultConf.setLoadBalancerSheddingEnabled(false);
+        defaultConf.setTopicLevelPoliciesEnabled(true);
+        additionalPulsarTestContext = createAdditionalPulsarTestContext(defaultConf);
+        pulsar2 = additionalPulsarTestContext.getPulsarService();
 
-            setPrimaryLoadManager();
+        setPrimaryLoadManager();
 
-            setSecondaryLoadManager();
+        setSecondaryLoadManager();
 
-            admin.clusters().createCluster(this.conf.getClusterName(),
-                    ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
-            admin.tenants().createTenant("public",
-                    new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"),
-                            Sets.newHashSet(this.conf.getClusterName())));
-            admin.namespaces().createNamespace("public/default");
-            admin.namespaces().setNamespaceReplicationClusters("public/default",
-                    Sets.newHashSet(this.conf.getClusterName()));
+        admin.clusters().createCluster(this.conf.getClusterName(),
+                ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
+        admin.tenants().createTenant("public",
+                new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"),
+                        Sets.newHashSet(this.conf.getClusterName())));
+        admin.namespaces().createNamespace("public/default");
+        admin.namespaces().setNamespaceReplicationClusters("public/default",
+                Sets.newHashSet(this.conf.getClusterName()));
 
-            admin.namespaces().createNamespace(defaultTestNamespace, 128);
-            admin.namespaces().setNamespaceReplicationClusters(defaultTestNamespace,
-                    Sets.newHashSet(this.conf.getClusterName()));
-            lookupService = (LookupService) FieldUtils.readDeclaredField(pulsarClient, "lookup", true);
-        }
+        admin.namespaces().createNamespace(defaultTestNamespace, 128);
+        admin.namespaces().setNamespaceReplicationClusters(defaultTestNamespace,
+                Sets.newHashSet(this.conf.getClusterName()));
+        lookupService = (LookupService) FieldUtils.readDeclaredField(pulsarClient, "lookup", true);
     }
 
     @Override
@@ -419,110 +426,240 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
             assertTrue(ex.getMessage().contains("cannot be transfer to same broker"));
         }
     }
-    @DataProvider(name = "isPersistentTopicTest")
-    public Object[][] isPersistentTopicTest() {
-        return new Object[][] { { true }, { false }};
+
+    @DataProvider(name = "isPersistentTopicSubscriptionTypeTest")
+    public Object[][] isPersistentTopicSubscriptionTypeTest() {
+        return new Object[][]{
+                {TopicDomain.persistent, SubscriptionType.Exclusive},
+                {TopicDomain.persistent, SubscriptionType.Shared},
+                {TopicDomain.persistent, SubscriptionType.Failover},
+                {TopicDomain.persistent, SubscriptionType.Key_Shared},
+                {TopicDomain.non_persistent, SubscriptionType.Exclusive},
+                {TopicDomain.non_persistent, SubscriptionType.Shared},
+                {TopicDomain.non_persistent, SubscriptionType.Failover},
+                {TopicDomain.non_persistent, SubscriptionType.Key_Shared},
+        };
     }
-    @Test(timeOut = 30 * 1000, dataProvider = "isPersistentTopicTest")
-    public void testTransferClientReconnectionWithoutLookup(boolean isPersistentTopicTest) throws Exception {
-        String topicType = isPersistentTopicTest? "persistent" : "non-persistent";
-        String topic = topicType + "://" + defaultTestNamespace + "/test-transfer-client-reconnect";
-        TopicName topicName = TopicName.get(topic);
 
-        AtomicInteger lookupCount = new AtomicInteger();
-        var lookup = spyLookupService(lookupCount, topicName);
-        var producer = pulsarClient.newProducer().topic(topic).create();
-        int lookupCountBeforeUnload = lookupCount.get();
+    @Test(timeOut = 30_000, dataProvider = "isPersistentTopicSubscriptionTypeTest")
+    public void testTransferClientReconnectionWithoutLookup(TopicDomain topicDomain, SubscriptionType subscriptionType)
+            throws Exception {
+        var id = String.format("test-tx-client-reconnect-%s-%s", subscriptionType, UUID.randomUUID());
+        var topic = String.format("%s://%s/%s", topicDomain.toString(), defaultTestNamespace, id);
+        var topicName = TopicName.get(topic);
+        var timeoutMs = 30_000;
 
-        NamespaceBundle bundle = getBundleAsync(pulsar1, TopicName.get(topic)).get();
-        String broker = admin.lookups().lookupTopic(topic);
-        String dstBrokerUrl = pulsar1.getLookupServiceAddress();
-        String dstBrokerServiceUrl;
-        if (broker.equals(pulsar1.getBrokerServiceUrl())) {
-            dstBrokerUrl = pulsar2.getLookupServiceAddress();
-            dstBrokerServiceUrl = pulsar2.getBrokerServiceUrl();
-        } else {
-            dstBrokerServiceUrl = pulsar1.getBrokerServiceUrl();
-        }
-        checkOwnershipState(broker, bundle);
+        var clients = new ArrayList<PulsarClient>();
+        var consumers = new ArrayList<Consumer<String>>();
+        try {
+            var lookups = new ArrayList<LookupService>();
 
-        final String finalDstBrokerUrl = dstBrokerUrl;
-        CompletableFuture.runAsync(() -> {
+            @Cleanup
+            var producer = pulsarClient.newProducer(Schema.STRING).topic(topic).create();
+            lookups.add(spyLookupService(pulsarClient));
+
+            var consumerCount = subscriptionType == SubscriptionType.Exclusive ? 1 : 3;
+
+            for (int i = 0; i < consumerCount; i++) {
+                var client = newPulsarClient(lookupUrl.toString(), 0);
+                clients.add(client);
+                var consumer = client.newConsumer(Schema.STRING).
+                        subscriptionName(id).
+                        subscriptionType(subscriptionType).
+                        subscriptionInitialPosition(SubscriptionInitialPosition.Earliest).
+                        ackTimeout(1000, TimeUnit.MILLISECONDS).
+                        topic(topic).
+                        subscribe();
+                consumers.add(consumer);
+                lookups.add(spyLookupService(client));
+            }
+
+            Awaitility.await()
+                    .until(() -> producer.isConnected() && consumers.stream().allMatch(Consumer::isConnected));
+
+            NamespaceBundle bundle = getBundleAsync(pulsar1, TopicName.get(topic)).get();
+            String broker = admin.lookups().lookupTopic(topic);
+            final String dstBrokerUrl;
+            final String dstBrokerServiceUrl;
+            if (broker.equals(pulsar1.getBrokerServiceUrl())) {
+                dstBrokerUrl = pulsar2.getLookupServiceAddress();
+                dstBrokerServiceUrl = pulsar2.getBrokerServiceUrl();
+            } else {
+                dstBrokerUrl = pulsar1.getLookupServiceAddress();
+                dstBrokerServiceUrl = pulsar1.getBrokerServiceUrl();
+            }
+            checkOwnershipState(broker, bundle);
+
+            var messageCountBeforeUnloading = 100;
+            var messageCountAfterUnloading = 100;
+            var messageCount = messageCountBeforeUnloading + messageCountAfterUnloading;
+
+            var semMessagesReadyToSend = new Semaphore(0);
+            var cdlStart = new CountDownLatch(1);
+
+            @Cleanup(value = "shutdown")
+            var executor = Executors.newFixedThreadPool(1 /* bundle unload */ + 1 /* producer */ + consumers.size());
+
+            var futures = new ArrayList<CompletableFuture<?>>();
+            futures.add(CompletableFuture.runAsync(() -> {
                 try {
-                    admin.namespaces().unloadNamespaceBundle(
-                            defaultTestNamespace, bundle.getBundleRange(), finalDstBrokerUrl);
-                } catch (PulsarAdminException e) {
-                    throw new RuntimeException(e);
+                    cdlStart.await();
+                    semMessagesReadyToSend.release(messageCountBeforeUnloading);
+                    admin.namespaces()
+                            .unloadNamespaceBundle(defaultTestNamespace, bundle.getBundleRange(), dstBrokerUrl);
+                    semMessagesReadyToSend.release(messageCountAfterUnloading);
+                } catch (InterruptedException | PulsarAdminException e) {
+                    fail();
                 }
-            }
-        );
+            }, executor));
 
-        Awaitility.await().atMost(5, TimeUnit.SECONDS).untilAsserted(() -> {
-            try {
-                producer.send("hi".getBytes());
-                String newOwner = admin.lookups().lookupTopic(topic);
-                assertEquals(dstBrokerServiceUrl, newOwner);
-            } catch (PulsarClientException e) {
-                throw new RuntimeException(e);
-            } catch (PulsarAdminException e) {
-                throw new RuntimeException(e);
-            }
-        });
-        assertTrue(producer.isConnected());
-        verify(lookup, times(lookupCountBeforeUnload)).getBroker(topicName);
-        producer.close();
-    }
+            var pendingMessages = Collections.synchronizedSet(new HashSet<>(messageCount));
+            var producerFuture = CompletableFuture.runAsync(() -> {
+                try {
+                    cdlStart.await();
+                    for (int i = 0; i < messageCount; i++) {
+                        semMessagesReadyToSend.acquire();
+                        String message = String.format("message-%d", i);
+                        if (topicDomain == TopicDomain.persistent) {
+                            // Only verify receipt of persistent topic messages.
+                            pendingMessages.add(message);
+                        }
+                        producer.send(message);
+                    }
+                } catch (PulsarClientException | InterruptedException e) {
+                    fail();
+                }
+            }, executor);
+            futures.add(producerFuture);
 
-
-
-    @Test(timeOut = 30 * 1000, dataProvider = "isPersistentTopicTest")
-    public void testUnloadClientReconnectionWithLookup(boolean isPersistentTopicTest) throws Exception {
-        String topicType = isPersistentTopicTest? "persistent" : "non-persistent";
-        String topic = topicType + "://" + defaultTestNamespace + "/test-unload-client-reconnect-"
-                + isPersistentTopicTest;
-        TopicName topicName = TopicName.get(topic);
-
-        AtomicInteger lookupCount = new AtomicInteger();
-        var lookup = spyLookupService(lookupCount, topicName);
-
-        var producer = pulsarClient.newProducer().topic(topic).create();
-        int lookupCountBeforeUnload = lookupCount.get();
-
-        NamespaceBundle bundle = getBundleAsync(pulsar1, TopicName.get(topic)).get();
-        CompletableFuture.runAsync(() -> {
+            consumers.stream().map(consumer -> CompletableFuture.runAsync(() -> {
+                try {
+                    cdlStart.await();
+                } catch (InterruptedException e) {
+                    fail();
+                }
+                while (!producerFuture.isDone() || !pendingMessages.isEmpty()) {
                     try {
-                        admin.namespaces().unloadNamespaceBundle(
-                                defaultTestNamespace, bundle.getBundleRange());
-                    } catch (PulsarAdminException e) {
-                        throw new RuntimeException(e);
+                        var message = consumer.receive(1500, TimeUnit.MILLISECONDS);
+                        if (message != null) {
+                            consumer.acknowledge(message);
+                            pendingMessages.remove(message.getValue());
+                        }
+                    } catch (PulsarClientException e) {
+                        // Retry read
                     }
                 }
-        );
-        MutableInt sendCount = new MutableInt();
-        Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() -> {
-            try {
-                producer.send("hi".getBytes());
-                assertEquals(sendCount.incrementAndGet(), 10);
-            } catch (PulsarClientException e) {
-                throw new RuntimeException(e);
+            }, executor)).forEach(futures::add);
+
+            var asyncTasks = FutureUtil.waitForAllAndSupportCancel(futures).orTimeout(timeoutMs, TimeUnit.MILLISECONDS);
+
+            cdlStart.countDown();
+            Awaitility.await().atMost(timeoutMs, TimeUnit.MILLISECONDS).ignoreExceptions().until(
+                    () -> dstBrokerServiceUrl.equals(admin.lookups().lookupTopic(topic)));
+
+            asyncTasks.get();
+
+            assertTrue(futures.stream().allMatch(CompletableFuture::isDone));
+            assertTrue(futures.stream().noneMatch(CompletableFuture::isCompletedExceptionally));
+            assertTrue(pendingMessages.isEmpty());
+
+            assertTrue(producer.isConnected());
+            assertTrue(consumers.stream().allMatch(Consumer::isConnected));
+
+            for (LookupService lookupService : lookups) {
+                verify(lookupService, never()).getBroker(topicName);
             }
-        });
-        assertTrue(producer.isConnected());
-        verify(lookup, times(lookupCountBeforeUnload + 1)).getBroker(topicName);
-        producer.close();
+        } finally {
+            for (var consumer: consumers) {
+                consumer.close();
+            }
+            for (var client: clients) {
+                client.close();
+            }
+        }
     }
 
-    private LookupService spyLookupService(AtomicInteger lookupCount, TopicName topicName)
-            throws IllegalAccessException {
-        var lookup = spy(lookupService);
-        FieldUtils.writeDeclaredField(pulsarClient, "lookup", lookup, true);
-        doAnswer(invocationOnMock -> {
-            lookupCount.incrementAndGet();
-            return invocationOnMock.callRealMethod();
-        }).when(lookup).getBroker(topicName);
+    @Test(timeOut = 30 * 1000, dataProvider = "isPersistentTopicSubscriptionTypeTest")
+    public void testUnloadClientReconnectionWithLookup(TopicDomain topicDomain,
+                                                       SubscriptionType subscriptionType) throws Exception {
+        var id = String.format("test-unload-%s-client-reconnect-%s-%s",
+                topicDomain, subscriptionType, UUID.randomUUID());
+        var topic = String.format("%s://%s/%s", topicDomain, defaultTestNamespace, id);
+        var topicName = TopicName.get(topic);
+
+        var consumers = new ArrayList<Consumer<String>>();
+        try {
+            @Cleanup
+            var producer = pulsarClient.newProducer(Schema.STRING).topic(topic).create();
+
+            var consumerCount = subscriptionType == SubscriptionType.Exclusive ? 1 : 3;
+            for (int i = 0; i < consumerCount; i++) {
+                consumers.add(pulsarClient.newConsumer(Schema.STRING).
+                        subscriptionName(id).subscriptionType(subscriptionType).topic(topic).subscribe());
+            }
+            Awaitility.await()
+                    .until(() -> producer.isConnected() && consumers.stream().allMatch(Consumer::isConnected));
+
+            var lookup = spyLookupService(pulsarClient);
+
+            final CountDownLatch cdl = new CountDownLatch(3);
+
+            NamespaceBundle bundle = getBundleAsync(pulsar1, TopicName.get(topic)).get();
+            CompletableFuture<Void> unloadNamespaceBundle = CompletableFuture.runAsync(() -> {
+                try {
+                    cdl.await();
+                    admin.namespaces().unloadNamespaceBundle(defaultTestNamespace, bundle.getBundleRange());
+                } catch (InterruptedException | PulsarAdminException e) {
+                    fail();
+                }
+            });
+
+            MutableInt sendCount = new MutableInt();
+            Awaitility.await().atMost(20, TimeUnit.SECONDS).ignoreExceptions().until(() -> {
+                var message = String.format("message-%d", sendCount.getValue());
+
+                boolean messageSent = false;
+                while (true) {
+                    var recvFutures = consumers.stream().
+                            map(consumer -> consumer.receiveAsync().orTimeout(1000, TimeUnit.MILLISECONDS)).
+                            collect(Collectors.toList());
+
+                    if (!messageSent) {
+                        producer.send(message);
+                        messageSent = true;
+                    }
+
+                    if (topicDomain == TopicDomain.non_persistent) {
+                        // No need to wait for message receipt, we're only trying to stress the consumer lookup pathway.
+                        break;
+                    }
+                    var msg = (Message<String>) FutureUtil.waitForAny(recvFutures, __ -> true).get().get();
+                    if (Objects.equals(msg.getValue(), message)) {
+                        break;
+                    }
+                }
+
+                cdl.countDown();
+                return sendCount.incrementAndGet() == 10;
+            });
+
+            assertTrue(producer.isConnected());
+            assertTrue(consumers.stream().allMatch(Consumer::isConnected));
+            assertTrue(unloadNamespaceBundle.isDone());
+            verify(lookup, times(1 + consumerCount)).getBroker(topicName);
+        } finally {
+            for (var consumer : consumers) {
+                consumer.close();
+            }
+        }
+    }
+
+    private LookupService spyLookupService(PulsarClient client) throws IllegalAccessException {
+        LookupService svc = (LookupService) FieldUtils.readDeclaredField(client, "lookup", true);
+        var lookup = spy(svc);
+        FieldUtils.writeDeclaredField(client, "lookup", lookup, true);
         return lookup;
     }
-
     private void checkOwnershipState(String broker, NamespaceBundle bundle)
             throws ExecutionException, InterruptedException {
         var targetLoadManager = secondaryLoadManager;
@@ -568,15 +705,21 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
 
         admin.namespaces().splitNamespaceBundle(namespace, firstBundle, true, null);
 
-        BundlesData bundlesData = admin.namespaces().getBundles(namespace);
-        assertEquals(bundlesData.getNumBundles(), numBundles + 1);
-        String lowBundle = String.format("0x%08x", bundleRanges.get(0));
-        String midBundle = String.format("0x%08x", mid);
-        String highBundle = String.format("0x%08x", bundleRanges.get(1));
-        assertTrue(bundlesData.getBoundaries().contains(lowBundle));
-        assertTrue(bundlesData.getBoundaries().contains(midBundle));
-        assertTrue(bundlesData.getBoundaries().contains(highBundle));
-        assertEquals(splitCount.get(), 1);
+
+        Awaitility.await()
+                .atMost(5, TimeUnit.SECONDS)
+                .untilAsserted(() -> {
+                    BundlesData bundlesData = admin.namespaces().getBundles(namespace);
+                    assertEquals(bundlesData.getNumBundles(), numBundles + 1);
+                    String lowBundle = String.format("0x%08x", bundleRanges.get(0));
+                    String midBundle = String.format("0x%08x", mid);
+                    String highBundle = String.format("0x%08x", bundleRanges.get(1));
+                    assertTrue(bundlesData.getBoundaries().contains(lowBundle));
+                    assertTrue(bundlesData.getBoundaries().contains(midBundle));
+                    assertTrue(bundlesData.getBoundaries().contains(highBundle));
+                    assertEquals(splitCount.get(), 1);
+                });
+
 
         // Test split bundle with invalid bundle range.
         try {
@@ -619,15 +762,24 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
         final String namespace = "public/testDeleteNamespaceBundle";
         admin.namespaces().createNamespace(namespace, 3);
         TopicName topicName = TopicName.get(namespace + "/test-delete-namespace-bundle");
-        NamespaceBundle bundle = getBundleAsync(pulsar1, topicName).get();
 
-        String broker = admin.lookups().lookupTopic(topicName.toString());
-        log.info("Assign the bundle {} to {}", bundle, broker);
 
-        checkOwnershipState(broker, bundle);
 
-        admin.namespaces().deleteNamespaceBundle(topicName.getNamespace(), bundle.getBundleRange());
-        assertFalse(primaryLoadManager.checkOwnershipAsync(Optional.empty(), bundle).get());
+        Awaitility.await()
+                .atMost(30, TimeUnit.SECONDS)
+                .ignoreExceptions()
+                .untilAsserted(() -> {
+                    NamespaceBundle bundle = getBundleAsync(pulsar1, topicName).get();
+                    String broker = admin.lookups().lookupTopic(topicName.toString());
+                    log.info("Assign the bundle {} to {}", bundle, broker);
+                    checkOwnershipState(broker, bundle);
+                    admin.namespaces().deleteNamespaceBundle(topicName.getNamespace(), bundle.getBundleRange(), true);
+                    // this could fail if the system topic lookup asynchronously happens before this.
+                    // we will retry if it fails.
+                    assertFalse(primaryLoadManager.checkOwnershipAsync(Optional.empty(), bundle).get());
+                });
+
+        admin.namespaces().deleteNamespace(namespace, true);
     }
 
     @Test(timeOut = 30 * 1000)
@@ -704,15 +856,6 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testDeployAndRollbackLoadManager() throws Exception {
-        try (MockedStatic<ServiceUnitStateChannelImpl> channelMockedStatic =
-                     mockStatic(ServiceUnitStateChannelImpl.class)) {
-            channelMockedStatic.when(() -> ServiceUnitStateChannelImpl.newInstance(isA(PulsarService.class)))
-                    .thenAnswer(invocation -> {
-                        PulsarService pulsarService = invocation.getArgument(0);
-                        // Set the inflight state waiting time and ownership monitor delay time to 5 seconds to avoid
-                        // stuck when doing unload.
-                        return new ServiceUnitStateChannelImpl(pulsarService, 5 * 1000, 1);
-                    });
             // Test rollback to modular load manager.
             ServiceConfiguration defaultConf = getDefaultConf();
             defaultConf.setAllowAutoTopicCreation(true);
@@ -833,8 +976,6 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
                     }
                 }
             }
-        }
-
     }
 
     private void assertLookupHeartbeatOwner(PulsarService pulsar,

@@ -505,6 +505,14 @@ public class PerformanceConsumer {
 
             reportHistogram.reset();
             oldTime = now;
+
+            if (arguments.testTime > 0) {
+                if (now > testEndTime) {
+                    log.info("------------------- DONE -----------------------");
+                    PerfClientUtils.exit(0);
+                    thread.interrupt();
+                }
+            }
         }
 
         pulsarClient.close();

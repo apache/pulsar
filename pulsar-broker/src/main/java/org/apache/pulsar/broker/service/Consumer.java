@@ -44,6 +44,7 @@ import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.lang3.mutable.MutableInt;
 import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSubscription;
+import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLookupData;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.api.MessageId;
@@ -115,6 +116,9 @@ public class Consumer {
     private final ConsumerStatsImpl stats;
 
     private final boolean isDurable;
+
+    private final boolean isPersistentTopic;
+
     private static final AtomicIntegerFieldUpdater<Consumer> UNACKED_MESSAGES_UPDATER =
             AtomicIntegerFieldUpdater.newUpdater(Consumer.class, "unackedMessages");
     private volatile int unackedMessages = 0;
@@ -172,6 +176,7 @@ public class Consumer {
         this.readCompacted = readCompacted;
         this.consumerName = consumerName;
         this.isDurable = isDurable;
+        this.isPersistentTopic = subscription.getTopic() instanceof PersistentTopic;
         this.keySharedMeta = keySharedMeta;
         this.cnx = cnx;
         this.msgOut = new Rate();
@@ -239,6 +244,7 @@ public class Consumer {
         this.pendingAcks = null;
         this.stats = null;
         this.isDurable = false;
+        this.isPersistentTopic = false;
         this.metadata = null;
         this.keySharedMeta = null;
         this.clientAddress = null;
@@ -402,8 +408,12 @@ public class Consumer {
     }
 
     public void disconnect(boolean isResetCursor) {
+        disconnect(isResetCursor, Optional.empty());
+    }
+
+    public void disconnect(boolean isResetCursor, Optional<BrokerLookupData> assignedBrokerLookupData) {
         log.info("Disconnecting consumer: {}", this);
-        cnx.closeConsumer(this);
+        cnx.closeConsumer(this, assignedBrokerLookupData);
         try {
             close(isResetCursor);
         } catch (BrokerServiceException e) {
@@ -1088,7 +1098,7 @@ public class Consumer {
 
     private int addAndGetUnAckedMsgs(Consumer consumer, int ackedMessages) {
         int unackedMsgs = 0;
-        if (Subscription.isIndividualAckMode(subType)) {
+        if (isPersistentTopic && Subscription.isIndividualAckMode(subType)) {
             subscription.addUnAckedMessages(ackedMessages);
             unackedMsgs = UNACKED_MESSAGES_UPDATER.addAndGet(consumer, ackedMessages);
         }

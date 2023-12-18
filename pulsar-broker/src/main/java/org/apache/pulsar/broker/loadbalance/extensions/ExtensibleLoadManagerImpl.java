@@ -353,7 +353,7 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
                             }
                         });
                     });
-            this.serviceUnitStateChannel = ServiceUnitStateChannelImpl.newInstance(pulsar);
+            this.serviceUnitStateChannel = new ServiceUnitStateChannelImpl(pulsar);
             this.brokerRegistry.start();
             this.splitManager = new SplitManager(splitCounter);
             this.unloadManager = new UnloadManager(unloadCounter);
@@ -781,7 +781,7 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
         }
     }
 
-    private boolean isInternalTopic(String topic) {
+    public static boolean isInternalTopic(String topic) {
         return topic.startsWith(ServiceUnitStateChannelImpl.TOPIC)
                 || topic.startsWith(BROKER_LOAD_DATA_STORE_TOPIC)
                 || topic.startsWith(TOP_BUNDLES_LOAD_DATA_STORE_TOPIC);

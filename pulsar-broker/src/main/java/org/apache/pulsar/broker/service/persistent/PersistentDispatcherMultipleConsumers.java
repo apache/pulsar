@@ -51,6 +51,7 @@ import org.apache.pulsar.broker.delayed.DelayedDeliveryTracker;
 import org.apache.pulsar.broker.delayed.DelayedDeliveryTrackerFactory;
 import org.apache.pulsar.broker.delayed.InMemoryDelayedDeliveryTracker;
 import org.apache.pulsar.broker.delayed.bucket.BucketDelayedDeliveryTracker;
+import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLookupData;
 import org.apache.pulsar.broker.service.AbstractDispatcherMultipleConsumers;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerBusyException;
@@ -275,6 +276,10 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         if (shouldPauseDeliveryForDelayTracker()) {
             return;
         }
+        if (topic.isTransferring()) {
+            // Do not deliver messages for topics that are undergoing transfer, as the acknowledgments would be ignored.
+            return;
+        }
 
         // totalAvailablePermits may be updated by other threads
         int firstAvailableConsumerPermits = getFirstAvailableConsumerPermits();
@@ -397,52 +402,52 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         if (serviceConfig.isDispatchThrottlingOnNonBacklogConsumerEnabled() || !cursor.isActive()) {
             if (topic.getBrokerDispatchRateLimiter().isPresent()) {
                 DispatchRateLimiter brokerRateLimiter = topic.getBrokerDispatchRateLimiter().get();
-                if (reachDispatchRateLimit(brokerRateLimiter)) {
+                Pair<Integer, Long> calculateToRead =
+                        updateMessagesToRead(brokerRateLimiter, messagesToRead, bytesToRead);
+                messagesToRead = calculateToRead.getLeft();
+                bytesToRead = calculateToRead.getRight();
+                if (messagesToRead == 0 || bytesToRead == 0) {
                     if (log.isDebugEnabled()) {
                         log.debug("[{}] message-read exceeded broker message-rate {}/{}, schedule after a {}", name,
                                 brokerRateLimiter.getDispatchRateOnMsg(), brokerRateLimiter.getDispatchRateOnByte(),
                                 MESSAGE_RATE_BACKOFF_MS);
                     }
+                    reScheduleRead();
                     return Pair.of(-1, -1L);
-                } else {
-                    Pair<Integer, Long> calculateToRead =
-                            updateMessagesToRead(brokerRateLimiter, messagesToRead, bytesToRead);
-                    messagesToRead = calculateToRead.getLeft();
-                    bytesToRead = calculateToRead.getRight();
                 }
             }
 
             if (topic.getDispatchRateLimiter().isPresent()) {
                 DispatchRateLimiter topicRateLimiter = topic.getDispatchRateLimiter().get();
-                if (reachDispatchRateLimit(topicRateLimiter)) {
+                Pair<Integer, Long> calculateToRead =
+                        updateMessagesToRead(topicRateLimiter, messagesToRead, bytesToRead);
+                messagesToRead = calculateToRead.getLeft();
+                bytesToRead = calculateToRead.getRight();
+                if (messagesToRead == 0 || bytesToRead == 0) {
                     if (log.isDebugEnabled()) {
                         log.debug("[{}] message-read exceeded topic message-rate {}/{}, schedule after a {}", name,
                                 topicRateLimiter.getDispatchRateOnMsg(), topicRateLimiter.getDispatchRateOnByte(),
                                 MESSAGE_RATE_BACKOFF_MS);
                     }
+                    reScheduleRead();
                     return Pair.of(-1, -1L);
-                } else {
-                    Pair<Integer, Long> calculateToRead =
-                            updateMessagesToRead(topicRateLimiter, messagesToRead, bytesToRead);
-                    messagesToRead = calculateToRead.getLeft();
-                    bytesToRead = calculateToRead.getRight();
                 }
             }
 
             if (dispatchRateLimiter.isPresent()) {
-                if (reachDispatchRateLimit(dispatchRateLimiter.get())) {
+                Pair<Integer, Long> calculateToRead =
+                        updateMessagesToRead(dispatchRateLimiter.get(), messagesToRead, bytesToRead);
+                messagesToRead = calculateToRead.getLeft();
+                bytesToRead = calculateToRead.getRight();
+                if (messagesToRead == 0 || bytesToRead == 0) {
                     if (log.isDebugEnabled()) {
                         log.debug("[{}] message-read exceeded subscription message-rate {}/{}, schedule after a {}",
                                 name, dispatchRateLimiter.get().getDispatchRateOnMsg(),
                                 dispatchRateLimiter.get().getDispatchRateOnByte(),
                                 MESSAGE_RATE_BACKOFF_MS);
                     }
+                    reScheduleRead();
                     return Pair.of(-1, -1L);
-                } else {
-                    Pair<Integer, Long> calculateToRead =
-                            updateMessagesToRead(dispatchRateLimiter.get(), messagesToRead, bytesToRead);
-                    messagesToRead = calculateToRead.getLeft();
-                    bytesToRead = calculateToRead.getRight();
                 }
             }
         }
@@ -484,7 +489,8 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
     }
 
     @Override
-    public CompletableFuture<Void> close() {
+    public CompletableFuture<Void> close(boolean disconnectConsumers,
+                                         Optional<BrokerLookupData> assignedBrokerLookupData) {
         IS_CLOSED_UPDATER.set(this, TRUE);
 
         Optional<DelayedDeliveryTracker> delayedDeliveryTracker;
@@ -494,19 +500,20 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         }
 
         delayedDeliveryTracker.ifPresent(DelayedDeliveryTracker::close);
-
         dispatchRateLimiter.ifPresent(DispatchRateLimiter::close);
 
-        return disconnectAllConsumers();
+        return disconnectConsumers
+                ? disconnectAllConsumers(false, assignedBrokerLookupData) : CompletableFuture.completedFuture(null);
     }
 
     @Override
-    public synchronized CompletableFuture<Void> disconnectAllConsumers(boolean isResetCursor) {
+    public synchronized CompletableFuture<Void> disconnectAllConsumers(
+            boolean isResetCursor, Optional<BrokerLookupData> assignedBrokerLookupData) {
         closeFuture = new CompletableFuture<>();
         if (consumerList.isEmpty()) {
             closeFuture.complete(null);
         } else {
-            consumerList.forEach(consumer -> consumer.disconnect(isResetCursor));
+            consumerList.forEach(consumer -> consumer.disconnect(isResetCursor, assignedBrokerLookupData));
             cancelPendingRead();
         }
         return closeFuture;
@@ -665,15 +672,9 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         long totalEntries = 0;
         int avgBatchSizePerMsg = remainingMessages > 0 ? Math.max(remainingMessages / entries.size(), 1) : 1;
 
-        int firstAvailableConsumerPermits, currentTotalAvailablePermits;
-        boolean dispatchMessage;
-        while (entriesToDispatch > 0) {
-            firstAvailableConsumerPermits = getFirstAvailableConsumerPermits();
-            currentTotalAvailablePermits = Math.max(totalAvailablePermits, firstAvailableConsumerPermits);
-            dispatchMessage = currentTotalAvailablePermits > 0 && firstAvailableConsumerPermits > 0;
-            if (!dispatchMessage) {
-                break;
-            }
+        // If the dispatcher is closed, firstAvailableConsumerPermits will be 0, which skips dispatching the
+        // messages.
+        while (entriesToDispatch > 0 && isAtleastOneConsumerAvailable()) {
             Consumer c = getNextConsumer();
             if (c == null) {
                 // Do nothing, cursor will be rewind at reconnection

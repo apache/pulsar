@@ -61,7 +61,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
@@ -1480,81 +1479,6 @@ public class BrokerServiceTest extends BrokerTestBase {
             sb.append(str);
         }
         Assert.assertTrue(sb.toString().contains("test_metrics"));
-    }
-
-    @Test
-    public void testPublishRateLimiterMonitor() {
-        BrokerService.PublishRateLimiterMonitor monitor = new BrokerService.PublishRateLimiterMonitor("test");
-        AtomicInteger checkCnt = new AtomicInteger(0);
-        AtomicInteger refreshCnt = new AtomicInteger(0);
-        monitor.startOrUpdate(100, checkCnt::incrementAndGet, refreshCnt::incrementAndGet);
-        Assert.assertEquals(monitor.getTickTimeMs(), 100);
-        Awaitility.await().until(() -> checkCnt.get() > 0);
-        Awaitility.await().until(() -> refreshCnt.get() > 0);
-
-        monitor.startOrUpdate(500, checkCnt::incrementAndGet, refreshCnt::incrementAndGet);
-        Assert.assertEquals(monitor.getTickTimeMs(), 500);
-        checkCnt.set(0);
-        refreshCnt.set(0);
-        Awaitility.await().until(() -> checkCnt.get() > 0);
-        Awaitility.await().until(() -> refreshCnt.get() > 0);
-
-        monitor.stop();
-        Assert.assertEquals(monitor.getTickTimeMs(), 0);
-    }
-
-    @Test
-    public void testDynamicBrokerPublisherThrottlingTickTimeMillis() throws Exception {
-        cleanup();
-        conf.setBrokerPublisherThrottlingMaxMessageRate(1000);
-        conf.setBrokerPublisherThrottlingTickTimeMillis(100);
-        setup();
-
-        int prevTickMills = 100;
-        BrokerService.PublishRateLimiterMonitor monitor = pulsar.getBrokerService().brokerPublishRateLimiterMonitor;
-        Awaitility.await().until(() -> monitor.getTickTimeMs() == prevTickMills);
-
-        int newTickMills = prevTickMills * 2;
-        admin.brokers().updateDynamicConfiguration("brokerPublisherThrottlingTickTimeMillis",
-                String.valueOf(newTickMills));
-        Awaitility.await().until(() -> monitor.getTickTimeMs() == newTickMills);
-
-        admin.brokers().updateDynamicConfiguration("brokerPublisherThrottlingTickTimeMillis",
-                String.valueOf(0));
-        Awaitility.await().until(() -> monitor.getTickTimeMs() == 0);
-
-        admin.brokers().updateDynamicConfiguration("brokerPublisherThrottlingTickTimeMillis",
-                String.valueOf(prevTickMills));
-        Awaitility.await().until(() -> monitor.getTickTimeMs() == prevTickMills);
-    }
-
-    @Test
-    public void testDynamicTopicPublisherThrottlingTickTimeMillis() throws Exception {
-        cleanup();
-        conf.setPreciseTopicPublishRateLimiterEnable(false);
-        conf.setMaxPublishRatePerTopicInMessages(1000);
-        conf.setTopicPublisherThrottlingTickTimeMillis(100);
-        setup();
-
-        @Cleanup
-        Producer<byte[]> producer = pulsarClient.newProducer().topic("persistent://prop/ns-abc/test-topic").create();
-
-        int prevTickMills = 100;
-        BrokerService.PublishRateLimiterMonitor monitor = pulsar.getBrokerService().topicPublishRateLimiterMonitor;
-        Awaitility.await().until(() -> monitor.getTickTimeMs() == prevTickMills);
-
-        int newTickMills = prevTickMills * 2;
-        admin.brokers().updateDynamicConfiguration("topicPublisherThrottlingTickTimeMillis",
-                String.valueOf(newTickMills));
-        Awaitility.await().until(() -> monitor.getTickTimeMs() == newTickMills);
-
-        admin.brokers().updateDynamicConfiguration("topicPublisherThrottlingTickTimeMillis",
-                String.valueOf(0));
-        Awaitility.await().until(() -> monitor.getTickTimeMs() == 0);
-
-        admin.brokers().updateDynamicConfiguration("topicPublisherThrottlingTickTimeMillis",
-                String.valueOf(prevTickMills));
-        Awaitility.await().until(() -> monitor.getTickTimeMs() == prevTickMills);
     }
 
     @Test
