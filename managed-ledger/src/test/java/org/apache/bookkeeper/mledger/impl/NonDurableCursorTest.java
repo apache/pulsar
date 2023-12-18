@@ -775,11 +775,11 @@ public class NonDurableCursorTest extends MockedBookKeeperTestCase {
         ledger.internalTrimConsumedLedgers(promise);
         promise.join();
 
-        Assert.assertTrue(ledger.ledgerHandleCache.containsKey(positions.get(0).getLedgerId()));
-        Assert.assertTrue(ledger.ledgerHandleCache.containsKey(positions.get(1).getLedgerId()));
-        Assert.assertTrue(ledger.ledgerHandleCache.containsKey(positions.get(2).getLedgerId()));
-        Assert.assertTrue(ledger.ledgerHandleCache.containsKey(positions.get(3).getLedgerId()));
-        Assert.assertTrue(ledger.ledgerHandleCache.containsKey(positions.get(4).getLedgerId()));
+        Assert.assertTrue(ledger.ledgerCache.containsKey(positions.get(0).getLedgerId()));
+        Assert.assertTrue(ledger.ledgerCache.containsKey(positions.get(1).getLedgerId()));
+        Assert.assertTrue(ledger.ledgerCache.containsKey(positions.get(2).getLedgerId()));
+        Assert.assertTrue(ledger.ledgerCache.containsKey(positions.get(3).getLedgerId()));
+        Assert.assertTrue(ledger.ledgerCache.containsKey(positions.get(4).getLedgerId()));
 
         promise = new CompletableFuture<>();
 
@@ -788,11 +788,11 @@ public class NonDurableCursorTest extends MockedBookKeeperTestCase {
         ledger.internalTrimConsumedLedgers(promise);
         promise.join();
 
-        Assert.assertFalse(ledger.ledgerHandleCache.containsKey(positions.get(0).getLedgerId()));
-        Assert.assertFalse(ledger.ledgerHandleCache.containsKey(positions.get(1).getLedgerId()));
-        Assert.assertFalse(ledger.ledgerHandleCache.containsKey(positions.get(2).getLedgerId()));
-        Assert.assertFalse(ledger.ledgerHandleCache.containsKey(positions.get(3).getLedgerId()));
-        Assert.assertTrue(ledger.ledgerHandleCache.containsKey(positions.get(4).getLedgerId()));
+        Assert.assertFalse(ledger.ledgerCache.containsKey(positions.get(0).getLedgerId()));
+        Assert.assertFalse(ledger.ledgerCache.containsKey(positions.get(1).getLedgerId()));
+        Assert.assertFalse(ledger.ledgerCache.containsKey(positions.get(2).getLedgerId()));
+        Assert.assertFalse(ledger.ledgerCache.containsKey(positions.get(3).getLedgerId()));
+        Assert.assertTrue(ledger.ledgerCache.containsKey(positions.get(4).getLedgerId()));
 
         ledger.close();
     }

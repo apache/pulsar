@@ -260,13 +260,13 @@ public class OffloadPrefixReadTest extends MockedBookKeeperTestCase {
         assertEventuallyTrue(() -> !bkc.getLedgers().contains(secondLedger.getLedgerId()));
         Assert.assertTrue(ledger.getLedgersInfoAsList().get(0).getOffloadContext().getBookkeeperDeleted());
         Assert.assertTrue(ledger.getLedgersInfoAsList().get(1).getOffloadContext().getBookkeeperDeleted());
-        assertEquals(ledger.ledgerHandleCache.size(), 0);
+        assertEquals(ledger.ledgerCache.size(), 0);
 
         // Continue to consume, for offloaded ledger has deleted from bookkeeper, they should be read from offloader.
         for (Entry e : cursor.readEntries(5)) {
             Assert.assertEquals(new String(e.getData()), "entry-" + i++);
         }
-        assertEquals(ledger.ledgerHandleCache.size(), 1);
+        assertEquals(ledger.ledgerCache.size(), 1);
 
         // Ledgers deleted from bookkeeper, now should read from offloader
         verify(offloader, atLeastOnce())
