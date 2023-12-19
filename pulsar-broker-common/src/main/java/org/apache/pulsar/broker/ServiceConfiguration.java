@@ -2250,6 +2250,18 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private boolean autoSkipNonRecoverableData = false;
     @FieldContext(
+        dynamic = true,
+        category = CATEGORY_STORAGE_ML,
+        doc = "Skip managed ledger failure to forcefully recover managed ledger."
+    )
+    private boolean managedLedgerForceRecovery = false;
+    @FieldContext(
+        dynamic = true,
+        category = CATEGORY_STORAGE_ML,
+        doc = "Skip schema ledger failure to forcefully recover topic successfully."
+    )
+    private boolean schemaLedgerForceRecovery = false;
+    @FieldContext(
         category = CATEGORY_STORAGE_ML,
         doc = "operation timeout while updating managed-ledger metadata."
     )
