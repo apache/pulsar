@@ -28,6 +28,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
@@ -49,6 +50,7 @@ import org.apache.pulsar.broker.service.BrokerServiceException.NotAllowedExcepti
 import org.apache.pulsar.broker.service.BrokerServiceException.ServiceUnitNotReadyException;
 import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
+import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.transaction.pendingack.PendingAckHandle;
 import org.apache.pulsar.broker.transaction.pendingack.PendingAckHandleStats;
 import org.apache.pulsar.broker.transaction.pendingack.PendingAckStore;
@@ -949,6 +951,18 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
         if (completedNow) {
             recoverTime.setRecoverEndTime(System.currentTimeMillis());
         }
+
+        // Remove the subscription from the topic if PendingAckHandleImpl recover failed to prevent subscribe stuck.
+        PersistentTopic topic = (PersistentTopic) persistentSubscription.getTopic();
+        topic.removeSubscription(subName);
+        persistentSubscription.close(true, Optional.empty())
+                .thenAccept(__ ->
+                        log.info("[{}] Remove subscription {} after close due to PendingAckHandle recover failed",
+                                topicName, subName))
+                .exceptionally(ex -> {
+                    log.error("[{}] Failed to remove subscription {} after close", topicName, subName, t);
+                    return null;
+                });
     }
 
     @Override
