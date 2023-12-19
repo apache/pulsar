@@ -44,6 +44,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -72,6 +73,7 @@ import org.apache.pulsar.common.naming.NamespaceBundleSplitAlgorithm;
 import org.apache.pulsar.common.naming.NamespaceBundles;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.ServiceUnitId;
+import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.LocalPolicies;
@@ -94,6 +96,7 @@ import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Test(groups = "flaky")
@@ -798,6 +801,30 @@ public class NamespaceServiceTest extends BrokerTestBase {
 
         getResult = pulsar.getLocalMetadataStore().get(path).get();
         assertFalse(getResult.isPresent());
+    }
+
+    @DataProvider(name = "topicDomain")
+    public Object[] topicDomain() {
+        return new Object[]{
+                TopicDomain.persistent.value(),
+                TopicDomain.non_persistent.value()
+        };
+    }
+
+    @Test(dataProvider = "topicDomain")
+    public void testCheckTopicExists(String topicDomain) throws Exception {
+        String topic = topicDomain + "://prop/ns-abc/" + UUID.randomUUID();
+        admin.topics().createNonPartitionedTopic(topic);
+        Awaitility.await().untilAsserted(() -> {
+            assertTrue(pulsar.getNamespaceService().checkTopicExists(TopicName.get(topic)).get());
+        });
+
+        String partitionedTopic = topicDomain + "://prop/ns-abc/" + UUID.randomUUID();
+        admin.topics().createPartitionedTopic(partitionedTopic, 5);
+        Awaitility.await().untilAsserted(() -> {
+            assertTrue(pulsar.getNamespaceService().checkTopicExists(TopicName.get(partitionedTopic)).get());
+            assertTrue(pulsar.getNamespaceService().checkTopicExists(TopicName.get(partitionedTopic + "-partition-2")).get());
+        });
     }
 
     /**
