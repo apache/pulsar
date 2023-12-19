@@ -21,15 +21,15 @@ package org.apache.pulsar.io.azuredataexplorer;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
+import java.io.File;
+import java.io.IOException;
+import java.io.Serializable;
+import java.util.Map;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.experimental.Accessors;
 import org.apache.pulsar.io.core.annotations.FieldDoc;
 
-import java.io.File;
-import java.io.IOException;
-import java.io.Serializable;
-import java.util.Map;
 
 @Data
 @EqualsAndHashCode(callSuper = false)
@@ -54,26 +54,44 @@ public class ADXSinkConfig implements Serializable {
     @FieldDoc(required = false, defaultValue = "", help = "The tenent Id for authentication")
     private String tenantId;
 
-    @FieldDoc(required = false, defaultValue = "", help = "The Managed Identity credential for authentication. Set this with clientId in case of User assigned MI.")
+    @FieldDoc(required = false, defaultValue = "", help = "The Managed Identity credential for authentication."
+            + " Set this with clientId in case of User assigned MI.")
     private String managedIdentityId;
 
     @FieldDoc(required = false, defaultValue = "", help = "The mapping reference for ingestion")
     private String mappingRefName;
 
     @FieldDoc(required = false, defaultValue = "CSV", help = "The type of mapping reference provided")
-    private String mappingRefType;//="CSV";
+    private String mappingRefType;
 
     @FieldDoc(required = false, defaultValue = "false", help = "")
     private boolean flushImmediately = false;
 
-    @FieldDoc(required = false, defaultValue = "false", help = "This defines the ingestion type managed Ingestion or queued Ingestion")
+    @FieldDoc(required = false, defaultValue = "false", help = "This defines the ingestion type "
+            + "managed Ingestion or queued Ingestion")
     private boolean managedIngestion = false;
 
-    @FieldDoc(required = false, defaultValue = "100", help = "For batching, this defines the number of records to hold for batching, to sink data to adx")
+    @FieldDoc(required = false, defaultValue = "100", help = "For batching, this defines the number of "
+            + "records to hold for batching, to sink data to adx")
     private int batchSize = 100;
 
-    @FieldDoc(required = false, defaultValue = "10000", help = "For batching, this defines the time to hold records before sink to adx")
+    @FieldDoc(required = false, defaultValue = "10000", help = "For batching, this defines the time to hold"
+            + " records before sink to adx")
     private long batchTimeMs = 10000;
+
+    @FieldDoc(required = false, defaultValue = "1", help = "Max retry attempts, In case of transient ingestion error")
+    private int maxRetryAttempts = 1;
+
+    @FieldDoc(required = false, defaultValue = "10", help = "Period of time in milliseconds to backoff"
+            + " before retry for transient errors")
+    private long retryBackOffTime = 10;
+
+   /* @FieldDoc(required = false, defaultValue = "", help = "Service URL required for creating pulsar client "
+            + "for DLQ enabled failure retry")
+    private String serviceUrl = "";
+
+    @FieldDoc(required = false, defaultValue = "", help = "DLQ topic for publishing failed messages.")
+    private String dlqTopic = "";*/
 
     public static ADXSinkConfig load(String yamlFile) throws IOException {
         ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
@@ -84,6 +102,4 @@ public class ADXSinkConfig implements Serializable {
         ObjectMapper mapper = new ObjectMapper();
         return mapper.readValue(mapper.writeValueAsString(config), ADXSinkConfig.class);
     }
-
-
 }

@@ -65,9 +65,8 @@ public class ADXSinkE2ETest {
                 "{\"MaximumBatchingTimeSpan\":\"00:00:10\", \"MaximumNumberOfItems\": 500, \"MaximumRawDataSizeMB\": 1024}"));
 
         String createTableCommand = ".create table " + table +
-                " ( Key:string , Value:string, EventTime:datetime , ProducerName:string , SequenceId:long ,Properties:dynamic )";
+                " ( key:string , value:string, eventTime:datetime , producerName:string , sequenceId:long ,properties:dynamic )";
         kustoAdminClient.execute(database, createTableCommand);
-
     }
 
     private String generateAlterIngestionBatchingPolicyCommand(String entityName, String targetBatchingPolicy) {
@@ -81,7 +80,6 @@ public class ADXSinkE2ETest {
         } catch (Exception ignore) {
         }
     }
-
     @Test
     public void TestOpenAndWriteSink() throws Exception {
 
@@ -95,10 +93,47 @@ public class ADXSinkE2ETest {
         configs.put("appId", System.getenv("kustoAadAppId"));
         configs.put("appKey", System.getenv("kustoAadAppSecret"));
         configs.put("tenantId", System.getenv("kustoAadAuthorityID"));
+        configs.put("maxRetryAttempts", 3);
+        configs.put("retryBackOffTime", 100);
+        /*configs.put("serviceUrl","pulsar://localhost:3000");
+        configs.put("dlqTopic","something-DLQ");*/
 
         ADXSink sink = new ADXSink();
         sink.open(configs, null);
         int writeCount = 50;
+
+        for (int i = 0; i < writeCount; i++) {
+            Record<byte[]> record = build("key_" + i, "test data from ADX Pulsar Sink_" + i);
+            sink.write(record);
+        }
+        Thread.sleep(40000);
+        KustoOperationResult result = kustoAdminClient.execute(database, table + " | count");
+        KustoResultSetTable mainTableResult = result.getPrimaryResults();
+        mainTableResult.next();
+        int actualRowsCount = mainTableResult.getInt(0);
+        Assert.assertEquals(actualRowsCount, writeCount);
+
+        sink.close();
+    }
+
+    @Test
+    public void TestOpenAndWriteSinkWithTimeouts() throws Exception {
+
+
+        Map<String, Object> configs = new HashMap<>();
+        configs.put("clusterUrl", System.getenv("kustoCluster"));
+        configs.put("database", System.getenv("kustoDatabase"));
+        configs.put("table", table);
+        configs.put("batchSize",10);
+        configs.put("batchTimeMs", 5000);
+        configs.put("flushImmediately", true);
+        configs.put("appId", System.getenv("kustoAadAppId"));
+        configs.put("appKey", System.getenv("kustoAadAppSecret"));
+        configs.put("tenantId", System.getenv("kustoAadAuthorityID"));
+
+        ADXSink sink = new ADXSink();
+        sink.open(configs, null);
+        int writeCount = 9;
 
         for (int i = 0; i < writeCount; i++) {
             Record<byte[]> record = build("key_" + i, "test data from ADX Pulsar Sink_" + i);

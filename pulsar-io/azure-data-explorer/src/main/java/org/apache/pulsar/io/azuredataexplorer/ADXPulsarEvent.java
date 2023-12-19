@@ -18,10 +18,9 @@
  */
 package org.apache.pulsar.io.azuredataexplorer;
 
+import java.time.Instant;
 import lombok.Data;
 import lombok.experimental.Accessors;
-
-import java.time.Instant;
 
 @Data
 @Accessors(chain = true)

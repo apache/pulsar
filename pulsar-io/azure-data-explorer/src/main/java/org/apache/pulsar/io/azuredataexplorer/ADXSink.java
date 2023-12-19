@@ -18,25 +18,37 @@
  */
 package org.apache.pulsar.io.azuredataexplorer;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.microsoft.azure.kusto.data.StringUtils;
+import com.microsoft.azure.kusto.data.auth.ConnectionStringBuilder;
+import com.microsoft.azure.kusto.data.exceptions.KustoDataExceptionBase;
+import com.microsoft.azure.kusto.ingest.IngestClient;
+import com.microsoft.azure.kusto.ingest.IngestClientFactory;
+import com.microsoft.azure.kusto.ingest.IngestionMapping;
+import com.microsoft.azure.kusto.ingest.IngestionProperties;
+import com.microsoft.azure.kusto.ingest.ManagedStreamingIngestClient;
+import com.microsoft.azure.kusto.ingest.exceptions.IngestionClientException;
+import com.microsoft.azure.kusto.ingest.exceptions.IngestionServiceException;
+import com.microsoft.azure.kusto.ingest.result.IngestionResult;
+import com.microsoft.azure.kusto.ingest.result.IngestionStatus;
+import com.microsoft.azure.kusto.ingest.result.TableReportIngestionResult;
+import com.microsoft.azure.kusto.ingest.source.StreamSourceInfo;
 import java.io.ByteArrayInputStream;
+import java.net.ConnectException;
+import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.microsoft.azure.kusto.data.auth.ConnectionStringBuilder;
-import com.microsoft.azure.kusto.ingest.IngestClient;
-import com.microsoft.azure.kusto.ingest.IngestClientFactory;
-import com.microsoft.azure.kusto.ingest.IngestionMapping;
-import com.microsoft.azure.kusto.ingest.IngestionProperties;
-import com.microsoft.azure.kusto.ingest.result.OperationStatus;
-import com.microsoft.azure.kusto.ingest.source.StreamSourceInfo;
+import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.io.core.Sink;
 import org.apache.pulsar.io.core.SinkContext;
@@ -45,15 +57,18 @@ import org.slf4j.LoggerFactory;
 
 public class ADXSink implements Sink<byte[]> {
 
-    private IngestClient client;
+    private IngestClient ingestClient;
     IngestionProperties ingestionProperties;
     private static final Logger LOG = LoggerFactory.getLogger(ADXSink.class);
     private List<Record<byte[]>> incomingRecordsList;
     private int batchSize;
     private ScheduledExecutorService adxSinkExecutor;
-
     private final ObjectMapper mapper = com.microsoft.azure.kusto.data.Utils.getObjectMapper();
-
+    private int maxRetryAttempts;
+    private long retryBackOffTime;
+//    private PulsarClient pulsarClient;
+//    private Producer dlqProducer;
+    private boolean dlqEnabled = false;
 
     @Override
     public void open(Map<String, Object> config, SinkContext sinkContext) throws Exception {
@@ -65,7 +80,7 @@ public class ADXSink implements Sink<byte[]> {
             throw new Exception("Kusto Connection String NULL");
         }
         LOG.debug(String.format("ConnectionString created: %s.", kcsb));
-        client = adxconfig.isManagedIngestion() ? IngestClientFactory.createManagedStreamingIngestClient(kcsb) :
+        ingestClient = adxconfig.isManagedIngestion() ? IngestClientFactory.createManagedStreamingIngestClient(kcsb) :
                 IngestClientFactory.createClient(kcsb);
         ingestionProperties = new IngestionProperties(adxconfig.getDatabase(), adxconfig.getTable());
         ingestionProperties.setIngestionMapping(adxconfig.getMappingRefName(),
@@ -76,12 +91,24 @@ public class ADXSink implements Sink<byte[]> {
         ingestionProperties.setDataFormat(IngestionProperties.DataFormat.MULTIJSON);
         LOG.debug("Ingestion Properties:  " + ingestionProperties.toString());
 
-        //incoming records list will hold incoming messages, flushExecutor executes the flushData according to batch time
+        maxRetryAttempts = adxconfig.getMaxRetryAttempts() + 1;
+        retryBackOffTime = adxconfig.getRetryBackOffTime();
+        /*incoming records list will hold incoming messages,
+         flushExecutor executes the flushData according to batch time */
         batchSize = adxconfig.getBatchSize();
         long batchTimeMs = adxconfig.getBatchTimeMs();
         incomingRecordsList = new ArrayList<>();
         adxSinkExecutor = Executors.newScheduledThreadPool(1);
         adxSinkExecutor.scheduleAtFixedRate(this::sinkData, batchTimeMs, batchTimeMs, TimeUnit.MILLISECONDS);
+
+        //setup dlq
+        /*String serviceUrl = adxconfig.getServiceUrl();
+        String dlqTopic = adxconfig.getDlqTopic();
+        dlqEnabled = (!dlqTopic.equals("")) && (!serviceUrl.equals(""));
+        if (dlqEnabled) {
+            pulsarClient = PulsarClient.builder().serviceUrl(serviceUrl).build();
+            dlqProducer = pulsarClient.newProducer().topic(dlqTopic).create();
+        }*/
     }
 
     @Override
@@ -112,21 +139,114 @@ public class ADXSink implements Sink<byte[]> {
         for (Record<byte[]> record : recordsToSink) {
             try {
                 eventsToSink.add(getADXPulsarEvent(record));
-                record.ack();
             } catch (Exception ex) {
                 record.fail();
                 LOG.error("Failed to collect the record for ADX cluster.", ex);
             }
         }
         try {
-            StreamSourceInfo streamSourceInfo =
-                    new StreamSourceInfo(new ByteArrayInputStream(mapper.writeValueAsBytes(eventsToSink)));
-            OperationStatus status =
-                    client.ingestFromStream(streamSourceInfo, ingestionProperties).getIngestionStatusCollection()
-                            .get(0).status;
-            LOG.debug("Record sent to ADX sink");
+            for (int retryAttempts = 0; true; retryAttempts++) {
+                try {
+                    StreamSourceInfo streamSourceInfo =
+                            new StreamSourceInfo(new ByteArrayInputStream(mapper.writeValueAsBytes(eventsToSink)));
+                    IngestionResult ingestionResult =
+                            ingestClient.ingestFromStream(streamSourceInfo, ingestionProperties);
+                    if (ingestionResult instanceof TableReportIngestionResult) {
+                        // If TableReportIngestionResult returned then the ingestion status is from streaming ingest
+                        IngestionStatus ingestionStatus = ingestionResult.getIngestionStatusCollection().get(0);
+                        if (!hasStreamingSucceeded(ingestionStatus)) {
+                            retryAttempts += ManagedStreamingIngestClient.ATTEMPT_COUNT;
+                            backOffForRemainingAttempts(retryAttempts, null, recordsToSink);
+                            continue;
+                        }
+                        recordsToSink.forEach(Record::ack);
+                    }
+                    return;
+                } catch (IngestionServiceException exception) {
+                    Throwable innerException = exception.getCause();
+                    if (innerException instanceof KustoDataExceptionBase
+                            && ((KustoDataExceptionBase) innerException).isPermanent()) {
+                        recordsToSink.forEach(Record::fail);
+                        throw new ConnectException(exception.getMessage());
+                    }
+                    // retrying transient exceptions
+                    backOffForRemainingAttempts(retryAttempts, exception, recordsToSink);
+                } catch (IngestionClientException | URISyntaxException exception) {
+                    recordsToSink.forEach(Record::fail);
+                    throw new ConnectException(exception.getMessage());
+                }
+            }
+
         } catch (Exception ex) {
             LOG.error("Failed to publish the message to ADX cluster.", ex);
+        }
+    }
+
+    private boolean hasStreamingSucceeded(IngestionStatus status) {
+        switch (status.status) {
+            case Succeeded:
+            case Queued:
+            case Pending:
+                return true;
+            case Skipped:
+            case PartiallySucceeded:
+                String failureStatus = status.getFailureStatus();
+                String details = status.getDetails();
+                UUID ingestionSourceId = status.getIngestionSourceId();
+                LOG.warn("A batch of streaming records has {} ingestion: table:{}, database:{}, operationId: {},"
+                                + "ingestionSourceId: {}{}{}.\n"
+                                + "Status is final and therefore ingestion won't be retried and data won't reach dlq",
+                        status.getStatus(),
+                        status.getTable(),
+                        status.getDatabase(),
+                        status.getOperationId(),
+                        ingestionSourceId,
+                        (StringUtils.isNotEmpty(failureStatus) ? (", failure: " + failureStatus) : ""),
+                        (StringUtils.isNotEmpty(details) ? (", details: " + details) : ""));
+                return true;
+            case Failed:
+        }
+        return false;
+    }
+
+    private void backOffForRemainingAttempts(int retryAttempts, Exception exception, List<Record<byte[]>> records)
+            throws PulsarClientException.ConnectException {
+        if (retryAttempts < maxRetryAttempts) {
+            long sleepTimeMs = retryBackOffTime;
+            LOG.error(
+                    "Failed to ingest records into Kusto, backing off and retrying ingesting records "
+                            + "after {} milliseconds.",
+                    sleepTimeMs);
+            try {
+                TimeUnit.MILLISECONDS.sleep(sleepTimeMs);
+                throw new InterruptedException();
+            } catch (InterruptedException interruptedErr) {
+                if (dlqEnabled) {
+                    //records.forEach(this::sendFailedRecordToDlq);
+                    records.forEach(Record::fail);
+                }
+                throw new PulsarClientException.ConnectException(String.format(
+                        "Retrying ingesting records into KustoDB was interuppted after retryAttempts=%s",
+                        retryAttempts + 1)
+                );
+            }
+        } else {
+            if (dlqEnabled) {
+                //records.forEach(this::sendFailedRecordToDlq);
+                records.forEach(Record::fail);
+            }
+            throw new PulsarClientException.ConnectException(
+                    String.format("Retry attempts exhausted, failed to ingest records into KustoDB. Exception: %s",
+                            exception.getMessage()));
+        }
+    }
+
+    public void sendFailedRecordToDlq(Record<byte[]> record) {
+        try {
+            LOG.warn("Writing failed records to miscellaneous dead-letter queue topic={}", dlqProducer.getTopic());
+            dlqProducer.send(record);
+        } catch (PulsarClientException e) {
+            throw new RuntimeException(e);
         }
     }
 
@@ -169,7 +289,7 @@ public class ADXSink implements Sink<byte[]> {
 
     @Override
     public void close() throws Exception {
-        client.close();
+        ingestClient.close();
         LOG.info("Kusto ingest client closed.");
     }
 }
