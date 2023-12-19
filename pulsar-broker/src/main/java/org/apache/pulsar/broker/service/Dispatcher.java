@@ -16,6 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+
 package org.apache.pulsar.broker.service;
 
 import java.util.List;
@@ -101,7 +102,8 @@ public interface Dispatcher {
     }
 
     default void updateRateLimiter() {
-        //No-op
+        initializeDispatchRateLimiterIfNeeded();
+        getRateLimiter().ifPresent(DispatchRateLimiter::updateDispatchRate);
     }
 
     default boolean initializeDispatchRateLimiterIfNeeded() {
