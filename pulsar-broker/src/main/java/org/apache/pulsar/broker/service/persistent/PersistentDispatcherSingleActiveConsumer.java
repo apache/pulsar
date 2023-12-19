@@ -572,13 +572,6 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
     }
 
     @Override
-    public CompletableFuture<Void> close() {
-        IS_CLOSED_UPDATER.set(this, TRUE);
-        dispatchRateLimiter.ifPresent(DispatchRateLimiter::close);
-        return disconnectAllConsumers();
-    }
-
-    @Override
     public boolean checkAndUnblockIfStuck() {
         Consumer consumer = ACTIVE_CONSUMER_UPDATER.get(this);
         if (consumer == null || cursor.checkAndUpdateReadPositionChanged()) {
