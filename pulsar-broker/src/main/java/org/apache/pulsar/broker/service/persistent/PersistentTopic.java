@@ -1261,7 +1261,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         }, null);
     }
 
-    public void removeSubscription(String subscriptionName) {
+    void removeSubscription(String subscriptionName) {
         PersistentSubscription sub = subscriptions.remove(subscriptionName);
         if (sub != null) {
             // preserve accumulative stats form removed subscription

@@ -952,15 +952,13 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
             recoverTime.setRecoverEndTime(System.currentTimeMillis());
         }
 
-        // Remove the subscription from the topic if PendingAckHandleImpl recover failed to prevent subscribe stuck.
+        // Unload the subscription if PendingAckHandleImpl recover failed to prevent subscribe stuck.
         PersistentTopic topic = (PersistentTopic) persistentSubscription.getTopic();
-        topic.removeSubscription(subName);
-        persistentSubscription.close(true, Optional.empty())
-                .thenAccept(__ ->
-                        log.info("[{}] Remove subscription {} after close due to PendingAckHandle recover failed",
-                                topicName, subName))
+        topic.unloadSubscription(subName)
+                .thenAccept(v -> log.info("[{}] Unload subscription {} after recover failed.", topicName, subName))
                 .exceptionally(ex -> {
-                    log.error("[{}] Failed to remove subscription {} after close", topicName, subName, t);
+                    log.error("[{}] Unload subscription {} after recover failed failed.",
+                            topicName, subName, ex);
                     return null;
                 });
     }
