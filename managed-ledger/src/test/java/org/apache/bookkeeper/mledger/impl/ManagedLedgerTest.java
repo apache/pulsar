@@ -4185,7 +4185,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         // mock the read handle to make the offload successful
         CompletableFuture<ReadHandle> readHandle = new CompletableFuture<>();
         readHandle.complete(mock(ReadHandle.class));
-        when(ml.getLedgerHandle(eq(ledgerInfo.getLedgerId()))).thenReturn(readHandle);
+        doReturn(readHandle).when(ml).getLedgerHandle(eq(ledgerInfo.getLedgerId()));
         when(ledgerOffloader.offload(any(), any(), anyMap())).thenReturn(CompletableFuture.completedFuture(null));
 
         ml.ledgers.put(ledgerInfo.getLedgerId(), ledgerInfo);
