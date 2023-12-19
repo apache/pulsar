@@ -200,7 +200,9 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
                 // Message metadata was corrupted or the messages was a server-only marker
 
                 if (Markers.isReplicatedSubscriptionSnapshotMarker(msgMetadata)) {
+                    final int readerIndex = metadataAndPayload.readerIndex();
                     processReplicatedSubscriptionSnapshot(pos, metadataAndPayload);
+                    metadataAndPayload.readerIndex(readerIndex);
                 }
 
                 // Deliver marker to __compaction cursor to avoid compaction task stuck,
