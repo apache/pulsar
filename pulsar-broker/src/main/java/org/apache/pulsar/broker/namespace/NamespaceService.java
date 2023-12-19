@@ -1320,42 +1320,40 @@ public class NamespaceService implements AutoCloseable {
     }
 
     public CompletableFuture<Boolean> checkTopicExists(TopicName topic) {
-        if (topic.isPersistent()) {
-            if (topic.isPartitioned()) {
-                return pulsar.getBrokerService()
-                        .fetchPartitionedTopicMetadataAsync(TopicName.get(topic.getPartitionedTopicName()))
-                        .thenCompose(metadata -> {
-                            // Allow creating the non-partitioned persistent topic that name includes `-partition-`
-                            if (metadata.partitions == 0
-                                    || topic.getPartitionIndex() < metadata.partitions) {
-                                return pulsar.getPulsarResources().getTopicResources().persistentTopicExists(topic);
-                            }
-                            return CompletableFuture.completedFuture(false);
-                        });
-            } else {
-                return pulsar.getPulsarResources().getTopicResources().persistentTopicExists(topic);
-            }
+        CompletableFuture<Boolean> future;
+        // If the topic is persistent and the name includes `-partition-`, find the topic from the managed/ledger.
+        if (topic.isPersistent() && topic.isPartitioned()) {
+            future = pulsar.getPulsarResources().getTopicResources().persistentTopicExists(topic);
         } else {
-            if (topic.isPartitioned()) {
-                final TopicName partitionedTopicName = TopicName.get(topic.getPartitionedTopicName());
-                return pulsar.getBrokerService()
-                        .fetchPartitionedTopicMetadataAsync(partitionedTopicName)
-                        .thenApply((metadata) -> topic.getPartitionIndex() < metadata.partitions);
-            } else {
-                // only checks and don't do any topic creating and loading.
-                CompletableFuture<Optional<Topic>> topicFuture =
-                        pulsar.getBrokerService().getTopics().get(topic.toString());
-                if (topicFuture == null) {
-                    return CompletableFuture.completedFuture(false);
-                } else {
-                    return topicFuture.thenApply(Optional::isPresent).exceptionally(throwable -> {
-                        LOG.warn("[{}] topicFuture completed with exception when checkTopicExists, {}",
-                                topic, throwable.getMessage());
-                        return false;
-                    });
-                }
-            }
+            future = CompletableFuture.completedFuture(false);
         }
+
+        return future.thenCompose(found -> {
+            if (found != null && found) {
+                return CompletableFuture.completedFuture(true);
+            }
+
+            return pulsar.getBrokerService()
+                    .fetchPartitionedTopicMetadataAsync(TopicName.get(topic.getPartitionedTopicName()))
+                    .thenCompose(metadata -> {
+                        if (metadata.partitions > 0) {
+                            return CompletableFuture.completedFuture(true);
+                        }
+
+                        if (topic.isPersistent()) {
+                            return pulsar.getPulsarResources().getTopicResources().persistentTopicExists(topic);
+                        } else {
+                            // The non-partitioned non-persistent topic only exist in the broker topics.
+                            CompletableFuture<Optional<Topic>> nonPersistentTopicFuture =
+                                    pulsar.getBrokerService().getTopics().get(topic.toString());
+                            if (nonPersistentTopicFuture == null) {
+                                return CompletableFuture.completedFuture(false);
+                            } else {
+                                return nonPersistentTopicFuture.thenApply(Optional::isPresent);
+                            }
+                        }
+                    });
+        });
     }
 
     public CompletableFuture<List<String>> getListOfTopics(NamespaceName namespaceName, Mode mode) {
