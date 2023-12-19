@@ -196,16 +196,17 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
             }
 
             if (msgMetadata == null || (Markers.isServerOnlyMarker(msgMetadata))) {
+                PositionImpl pos = (PositionImpl) entry.getPosition();
+                // Message metadata was corrupted or the messages was a server-only marker
+
+                if (Markers.isReplicatedSubscriptionSnapshotMarker(msgMetadata)) {
+                    processReplicatedSubscriptionSnapshot(pos, metadataAndPayload);
+                }
+
                 // Deliver marker to __compaction cursor to avoid compaction task stuck,
                 // and filter out them when doing topic compaction.
-                if (cursor == null || !cursor.getName().equals(Compactor.COMPACTION_SUBSCRIPTION)) {
-                    PositionImpl pos = (PositionImpl) entry.getPosition();
-                    // Message metadata was corrupted or the messages was a server-only marker
-
-                    if (Markers.isReplicatedSubscriptionSnapshotMarker(msgMetadata)) {
-                        processReplicatedSubscriptionSnapshot(pos, metadataAndPayload);
-                    }
-
+                if (msgMetadata == null || cursor == null
+                        || !cursor.getName().equals(Compactor.COMPACTION_SUBSCRIPTION)) {
                     entries.set(i, null);
                     entry.release();
                     individualAcknowledgeMessageIfNeeded(Collections.singletonList(pos),

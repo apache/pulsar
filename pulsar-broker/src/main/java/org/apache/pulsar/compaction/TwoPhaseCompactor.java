@@ -267,7 +267,7 @@ public class TwoPhaseCompactor extends Compactor {
                 Optional<RawMessage> messageToAdd = Optional.empty();
                 mxBean.addCompactionReadOp(reader.getTopic(), m.getHeadersAndPayload().readableBytes());
                 MessageMetadata metadata = Commands.parseMessageMetadata(m.getHeadersAndPayload());
-                if (Markers.isTxnMarker(metadata)) {
+                if (Markers.isServerOnlyMarker(metadata)) {
                     messageToAdd = Optional.empty();
                 } else if (RawBatchConverter.isReadableBatch(metadata)) {
                     try {
