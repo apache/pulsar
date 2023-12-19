@@ -19,16 +19,14 @@
 package org.apache.pulsar.client.api;
 
 import static org.testng.Assert.assertEquals;
-import static org.apache.pulsar.client.impl.InjectedClientCnxClientBuilder.ClientCnxCustomizer;
 import static org.apache.pulsar.client.api.KeySharedPolicy.KeySharedPolicySticky;
-import static org.apache.pulsar.common.api.proto.BaseCommand.Type;
 import java.util.Collections;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.impl.ClientBuilderImpl;
-import org.apache.pulsar.client.impl.InjectedClientCnxClientBuilder;
+import org.apache.pulsar.client.impl.ClientCnx;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.common.api.proto.CommandPing;
 import org.awaitility.Awaitility;
@@ -92,14 +90,11 @@ public class DispatcherLockTest extends ProducerConsumerBase {
         // Create a client that injected logic: do not answer for the command Ping
         ClientBuilderImpl clientBuilder = (ClientBuilderImpl) PulsarClient.builder().serviceUrl(lookupUrl.toString());
         PulsarClient skipHealthCheckClient = InjectedClientCnxClientBuilder.create(clientBuilder,
-            new ClientCnxCustomizer(Type.PING){
-                @Override
-                public void handleCommand(Object command) {
-                    if (command instanceof CommandPing) {
+                (conf, eventLoopGroup) -> new ClientCnx(conf, eventLoopGroup) {
+                    public void handlePing(CommandPing ping) {
                         // do not response anything.
                     }
-                }
-            });
+                });
         PulsarClientImpl normalClient = (PulsarClientImpl) newPulsarClient(lookupUrl.toString(), 0);
 
         // 1. Register "consumer-1"
