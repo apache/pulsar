@@ -1054,6 +1054,9 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
         CompletableFuture<Void> future = new CompletableFuture<>();
         try {
             if (force || dispatcher.canUnsubscribe(consumer)) {
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}] unsubscribing forcefully {}-{}", topicName, subName, consumer.consumerName());
+                }
                 consumer.close();
                 return delete(force);
             }
