@@ -73,6 +73,31 @@ public interface Consumer<T> extends Closeable, MessageAcknowledger {
      */
     CompletableFuture<Void> unsubscribeAsync();
 
+
+    /**
+     * Unsubscribe the consumer.
+     *
+     * <p>This call blocks until the consumer is unsubscribed.
+     *
+     * <p>Unsubscribing will the subscription to be deleted and all the
+     * data retained can potentially be deleted as well.
+     *
+     * <p>The operation will fail when performed on a shared subscription
+     * where multiple consumers are currently connected.
+     *
+     * @param force forcefully unsubscribe by disconnecting connected consumers.
+     * @throws PulsarClientException if the operation fails
+     */
+    void unsubscribe(boolean force) throws PulsarClientException;
+
+    /**
+     * Asynchronously unsubscribe the consumer.
+     *
+     * @see Consumer#unsubscribe()
+     * @param force forcefully unsubscribe by disconnecting connected consumers.
+     * @return {@link CompletableFuture} to track the operation
+     */
+    CompletableFuture<Void> unsubscribeAsync(boolean force);
     /**
      * Receives a single message.
      *
