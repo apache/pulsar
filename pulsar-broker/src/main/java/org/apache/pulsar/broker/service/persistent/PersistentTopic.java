@@ -1206,7 +1206,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
         if (!isDelayedDeliveryEnabled()
                 || !(brokerService.getDelayedDeliveryTrackerFactory() instanceof BucketDelayedDeliveryTrackerFactory)) {
-            asyncDeleteCursor(subscriptionName, persistentSubscription, unsubscribeFuture);
+            asyncDeleteCursor(persistentSubscription, unsubscribeFuture);
             return;
         }
 
@@ -1221,7 +1221,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                     if (ex != null) {
                         unsubscribeFuture.completeExceptionally(ex);
                     } else {
-                        asyncDeleteCursor(subscriptionName, persistentSubscription, unsubscribeFuture);
+                        asyncDeleteCursor(persistentSubscription, unsubscribeFuture);
                     }
                 });
             }
@@ -1232,14 +1232,14 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             if (ex != null) {
                 unsubscribeFuture.completeExceptionally(ex);
             } else {
-                asyncDeleteCursor(subscriptionName, persistentSubscription, unsubscribeFuture);
+                asyncDeleteCursor(persistentSubscription, unsubscribeFuture);
             }
         });
     }
 
-    private void asyncDeleteCursor(String subscriptionName,
-                                   PersistentSubscription subscription,
+    private void asyncDeleteCursor(PersistentSubscription subscription,
                                    CompletableFuture<Void> unsubscribeFuture) {
+        final String subscriptionName = subscription.getName();
         final CompletableFuture<Void> cleanCompactedLedgerFuture;
         if (isCompactionSubscription(subscriptionName) && subscription instanceof PulsarCompactorSubscription) {
             cleanCompactedLedgerFuture = ((PulsarCompactorSubscription) subscription).cleanCompactedLedger();
