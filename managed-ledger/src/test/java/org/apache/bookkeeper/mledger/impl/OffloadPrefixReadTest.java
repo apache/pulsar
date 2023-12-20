@@ -181,9 +181,9 @@ public class OffloadPrefixReadTest extends MockedBookKeeperTestCase {
         promise.join();
 
         // assert bk ledger is deleted
-        assertEventuallyTrue(() -> !bkc.getLedgers().contains(firstLedger.getLedgerId()));
+        assertEventuallyTrue(() -> bkc.getLedgers().contains(firstLedger.getLedgerId()));
+        Assert.assertFalse(ledger.getLedgersInfoAsList().get(0).getOffloadContext().getBookkeeperDeleted());
         assertEventuallyTrue(() -> !bkc.getLedgers().contains(secondLedger.getLedgerId()));
-        Assert.assertTrue(ledger.getLedgersInfoAsList().get(0).getOffloadContext().getBookkeeperDeleted());
         Assert.assertTrue(ledger.getLedgersInfoAsList().get(1).getOffloadContext().getBookkeeperDeleted());
 
         for (Entry e : cursor.readEntries(10)) {
