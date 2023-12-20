@@ -356,8 +356,7 @@ public class SubscriptionPauseOnAckStatPersistTest extends ProducerConsumerBase 
             messageIdsSent.add(messageId);
         }
         // Make ack holes.
-        ReceivedMessages receivedMessagesC1 = ackOddMessagesOnly(c1);
-        ReceivedMessages receivedMessagesC2 = ackOddMessagesOnly(c2);
+        ReceivedMessages receivedMessagesC1AndC2 = ackOddMessagesOnly(c1, c2);
 
         cancelPendingRead(tpName, subscription);
         triggerNewReadMoreEntries(tpName, subscription);
@@ -381,11 +380,10 @@ public class SubscriptionPauseOnAckStatPersistTest extends ProducerConsumerBase 
         c1.close();
         c2.close();
         ReceivedMessages receivedMessagesC3AndC4 = ackAllMessages(c3, c4);
-        int messageCountAckedByC1 = receivedMessagesC1.messagesAcked.size();
-        int messageCountAckedByC2 = receivedMessagesC2.messagesAcked.size();
+        int messageCountAckedByC1AndC2 = receivedMessagesC1AndC2.messagesAcked.size();
         int messageCountAckedByC3AndC4 = receivedMessagesC3AndC4.messagesAcked.size();
         Assert.assertEquals(messageCountAckedByC3AndC4,
-                msgSendCount - messageCountAckedByC1 - messageCountAckedByC2 + specifiedMessageCount);
+                msgSendCount - messageCountAckedByC1AndC2 + specifiedMessageCount);
 
         // cleanup, c1 has been closed before.
         p1.close();
