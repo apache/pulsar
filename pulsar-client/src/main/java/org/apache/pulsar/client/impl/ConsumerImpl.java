@@ -946,36 +946,39 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     private MessageIdAdv clearReceiverQueue() {
         List<Message<?>> currentMessageQueue = new ArrayList<>(incomingMessages.size());
         incomingMessages.drainTo(currentMessageQueue);
-        resetIncomingMessageSize();
-
-        if (duringSeek.compareAndSet(true, false)) {
-            return seekMessageId;
-        } else if (subscriptionMode == SubscriptionMode.Durable) {
-            return startMessageId;
-        }
-
-        if (!currentMessageQueue.isEmpty()) {
-            MessageIdAdv nextMessageInQueue = (MessageIdAdv) currentMessageQueue.get(0).getMessageId();
-            MessageIdAdv previousMessage;
-            if (MessageIdAdvUtils.isBatch(nextMessageInQueue)) {
-                // Get on the previous message within the current batch
-                previousMessage = new BatchMessageIdImpl(nextMessageInQueue.getLedgerId(),
-                        nextMessageInQueue.getEntryId(), nextMessageInQueue.getPartitionIndex(),
-                        nextMessageInQueue.getBatchIndex() - 1);
-            } else {
-                // Get on previous message in previous entry
-                previousMessage = MessageIdAdvUtils.prevMessageId(nextMessageInQueue);
+        try {
+            if (duringSeek.compareAndSet(true, false)) {
+                return seekMessageId;
+            } else if (subscriptionMode == SubscriptionMode.Durable) {
+                return startMessageId;
             }
-            // release messages if they are pooled messages
-            currentMessageQueue.forEach(Message::release);
-            return previousMessage;
-        } else if (!lastDequeuedMessageId.equals(MessageId.earliest)) {
-            // If the queue was empty we need to restart from the message just after the last one that has been dequeued
-            // in the past
-            return new BatchMessageIdImpl((MessageIdImpl) lastDequeuedMessageId);
-        } else {
-            // No message was received or dequeued by this consumer. Next message would still be the startMessageId
-            return startMessageId;
+
+            if (!currentMessageQueue.isEmpty()) {
+                MessageIdAdv nextMessageInQueue = (MessageIdAdv) currentMessageQueue.get(0).getMessageId();
+                MessageIdAdv previousMessage;
+                if (MessageIdAdvUtils.isBatch(nextMessageInQueue)) {
+                    // Get on the previous message within the current batch
+                    previousMessage = new BatchMessageIdImpl(nextMessageInQueue.getLedgerId(),
+                            nextMessageInQueue.getEntryId(), nextMessageInQueue.getPartitionIndex(),
+                            nextMessageInQueue.getBatchIndex() - 1);
+                } else {
+                    // Get on previous message in previous entry
+                    previousMessage = MessageIdAdvUtils.prevMessageId(nextMessageInQueue);
+                }
+                return previousMessage;
+            } else if (!lastDequeuedMessageId.equals(MessageId.earliest)) {
+                // If the queue was empty we need to restart from the message just after the last one that has been
+                // dequeued in the past
+                return new BatchMessageIdImpl((MessageIdImpl) lastDequeuedMessageId);
+            } else {
+                // No message was received or dequeued by this consumer. Next message would still be the startMessageId
+                return startMessageId;
+            }
+        } finally {
+            for (Message<?> message : currentMessageQueue) {
+                decreaseIncomingMessageSize(message);
+                message.release();
+            }
         }
     }
 
