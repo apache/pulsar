@@ -39,7 +39,7 @@ public class TableViewLoadDataStoreImpl<T> implements LoadDataStore<T> {
 
     private TableView<T> tableView;
 
-    private final Producer<T> producer;
+    private Producer<T> producer;
 
     private final PulsarClient client;
 
@@ -50,7 +50,6 @@ public class TableViewLoadDataStoreImpl<T> implements LoadDataStore<T> {
     public TableViewLoadDataStoreImpl(PulsarClient client, String topic, Class<T> clazz) throws LoadDataStoreException {
         try {
             this.client = client;
-            this.producer = client.newProducer(Schema.JSON(clazz)).topic(topic).create();
             this.topic = topic;
             this.clazz = clazz;
         } catch (Exception e) {
@@ -100,6 +99,12 @@ public class TableViewLoadDataStoreImpl<T> implements LoadDataStore<T> {
     }
 
     @Override
+    public void start() throws LoadDataStoreException {
+        startProducer();
+        startTableView();
+    }
+
+    @Override
     public void startTableView() throws LoadDataStoreException {
         if (tableView == null) {
             try {
@@ -112,11 +117,30 @@ public class TableViewLoadDataStoreImpl<T> implements LoadDataStore<T> {
     }
 
     @Override
+    public void startProducer() throws LoadDataStoreException {
+        if (producer == null) {
+            try {
+                producer = client.newProducer(Schema.JSON(clazz)).topic(topic).create();
+            } catch (PulsarClientException e) {
+                producer = null;
+                throw new LoadDataStoreException(e);
+            }
+        }
+    }
+
+    @Override
     public void close() throws IOException {
         if (producer != null) {
             producer.close();
+            producer = null;
         }
         closeTableView();
+    }
+
+    @Override
+    public void init() throws IOException {
+        close();
+        start();
     }
 
     private void validateTableViewStart() {
