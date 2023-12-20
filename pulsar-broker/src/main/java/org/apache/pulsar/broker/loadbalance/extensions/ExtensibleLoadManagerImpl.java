@@ -792,7 +792,7 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
         log.info("This broker:{} is setting the role from {} to {}",
                 pulsar.getLookupServiceAddress(), role, Leader);
         int retry = 0;
-        while (true) {
+        while (!Thread.currentThread().isInterrupted()) {
             try {
                 initWaiter.await();
                 // Confirm the system topics have been created or create them if they do not exist.
@@ -812,6 +812,8 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
                     Thread.sleep(Math.min(retry * 10, MAX_ROLE_CHANGE_RETRY_DELAY_IN_MILLIS));
                 } catch (InterruptedException ex) {
                     log.warn("Interrupted while sleeping.");
+                    // preserve thread's interrupt status
+                    Thread.currentThread().interrupt();
                 }
             }
         }
@@ -828,7 +830,7 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
         log.info("This broker:{} is setting the role from {} to {}",
                 pulsar.getLookupServiceAddress(), role, Follower);
         int retry = 0;
-        while (true) {
+        while (!Thread.currentThread().isInterrupted()) {
             try {
                 initWaiter.await();
                 unloadScheduler.close();
@@ -844,6 +846,8 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
                     Thread.sleep(Math.min(retry * 10, MAX_ROLE_CHANGE_RETRY_DELAY_IN_MILLIS));
                 } catch (InterruptedException ex) {
                     log.warn("Interrupted while sleeping.");
+                    // preserve thread's interrupt status
+                    Thread.currentThread().interrupt();
                 }
             }
         }

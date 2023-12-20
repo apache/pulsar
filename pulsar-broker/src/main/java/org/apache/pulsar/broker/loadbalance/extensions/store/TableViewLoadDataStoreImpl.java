@@ -37,9 +37,9 @@ import org.apache.pulsar.client.api.TableView;
  */
 public class TableViewLoadDataStoreImpl<T> implements LoadDataStore<T> {
 
-    private TableView<T> tableView;
+    private volatile TableView<T> tableView;
 
-    private Producer<T> producer;
+    private volatile Producer<T> producer;
 
     private final PulsarClient client;
 
