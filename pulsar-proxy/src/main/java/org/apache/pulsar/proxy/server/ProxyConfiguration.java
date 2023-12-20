@@ -373,7 +373,7 @@ public class ProxyConfiguration implements PulsarConfiguration {
 
     @FieldContext(
         category = CATEGORY_HTTP,
-        doc = "Whether to enable the proxy's /metrics, /proxy-stats, and /status.html http endpoints"
+        doc = "Whether to enable the proxy's /metrics and /proxy-stats http endpoints"
     )
     private boolean enableProxyStatsEndpoints = true;
 
