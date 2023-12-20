@@ -33,7 +33,7 @@ TESTNG_VERSION="7.3.0"
 # returns a CSV value
 mvn_list_modules() {
   (
-    mvn -B -ntp -Dscan=false "$@" initialize \
+    mvn -fae -B -ntp -Dscan=false "$@" initialize \
       | grep -- "-< .* >-" \
       | sed -E 's/.*-< (.*) >-.*/\1/' \
       | tr '\n' ',' | sed 's/,$/\n/'
