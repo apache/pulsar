@@ -192,6 +192,9 @@ public class WebService implements AutoCloseable {
             config.register(JsonMapperProvider.class);
         }
         config.register(MultiPartFeature.class);
+        if (pulsar.getConfiguration().isExposePerRestEndpointMetricsInPrometheus()) {
+            config.register(RestEndpointMetricsFilter.class);
+        }
         ServletHolder servletHolder = new ServletHolder(new ServletContainer(config));
         servletHolder.setAsyncSupported(true);
         addServlet(basePath, servletHolder, requiresAuthentication, attributeMap);
