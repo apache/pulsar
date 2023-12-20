@@ -36,7 +36,7 @@ import org.apache.pulsar.common.api.proto.BaseCommand;
 import org.apache.pulsar.common.api.proto.CommandPartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.protocol.Commands;
-import org.junit.Assert;
+import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -52,14 +52,13 @@ import java.util.concurrent.TimeUnit;
 @Test(groups = "broker")
 public class ServerCnxStatsTest extends BrokerTestBase {
 
-    private final String tenant = "my-tenant";
-    private final String namespace = "my-tenant/my-ns";
-
     @BeforeMethod(alwaysRun = true)
     @Override
     protected void setup() throws Exception {
         super.baseSetup();
+        String tenant = "my-tenant";
         admin.tenants().createTenant(tenant, TenantInfo.builder().allowedClusters(Sets.newHashSet("test")).build());
+        String namespace = "my-tenant/my-ns";
         admin.namespaces().createNamespace(namespace);
     }
 
