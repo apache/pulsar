@@ -462,14 +462,18 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
                 log.debug("[{}][{}] Deleted message at {}", topicName, subName, context);
             }
             // Signal the dispatchers to give chance to take extra actions
-            dispatcher.afterAckMessages(null, context);
+            if (dispatcher != null) {
+                dispatcher.afterAckMessages(null, context);
+            }
             notifyTheMarkDeletePositionMoveForwardIfNeeded((PositionImpl) context);
         }
 
         @Override
         public void deleteFailed(ManagedLedgerException exception, Object ctx) {
             log.warn("[{}][{}] Failed to delete message at {}: {}", topicName, subName, ctx, exception);
-            dispatcher.afterAckMessages(exception, ctx);
+            if (dispatcher != null) {
+                dispatcher.afterAckMessages(exception, ctx);
+            }
         }
     };
 
