@@ -1225,12 +1225,22 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
         int releasedCount = 0;
         Message<T> message;
         while ((message = incomingMessages.poll()) != null) {
-            decreaseIncomingMessageSize(message);
-            unAckedMessageTracker.remove(message.getMessageId());
-            message.release();
+            discardIncomingMessage(message);
             releasedCount++;
         }
         return releasedCount;
+    }
+
+    /**
+     * Discard the incoming message.
+     * Unregister the tracked entries related to the message from internal datastructures and release any
+     * resources held by the message.
+     * @param message the message to discard.
+     */
+    protected void discardIncomingMessage(Message<?> message) {
+        decreaseIncomingMessageSize(message);
+        unAckedMessageTracker.remove(message.getMessageId());
+        message.release();
     }
 
     /**

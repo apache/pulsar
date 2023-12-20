@@ -976,8 +976,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             }
         } finally {
             for (Message<?> message : currentMessageQueue) {
-                decreaseIncomingMessageSize(message);
-                message.release();
+                discardIncomingMessage(message);
             }
         }
     }
