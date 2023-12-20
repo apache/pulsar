@@ -123,7 +123,12 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
     protected final ExecutorService dispatchMessagesThread;
     private final SharedConsumerAssignor assignor;
 
-    private AtomicInteger pausedCountDueToCursorDataCanNotFullyPersist = new AtomicInteger();
+    /**
+     * Delivery was paused at least once in the earlier time, due to the cursor data can not fully persist.
+     * Note: do not use this field to confirm whether the delivery should be paused,
+     *       please call {@link #shouldPauseOnAckStatePersist}.
+     */
+    protected volatile boolean pausedDueToCursorDataCanNotFullyPersist = false;
 
     protected enum ReadType {
         Normal, Replay
@@ -333,7 +338,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                 }
             } else if (!havePendingRead) {
                 if (shouldPauseOnAckStatePersist(ReadType.Normal)) {
-                    pausedCountDueToCursorDataCanNotFullyPersist.incrementAndGet();
+                    pausedDueToCursorDataCanNotFullyPersist = true;
                     if (log.isDebugEnabled()) {
                         log.debug("[{}] [{}] Skipping read for the topic, Due to blocked on ack state persistent.",
                                 topic.getName(), getSubscriptionName());
@@ -1032,10 +1037,9 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
     public void afterAckMessages(Throwable exOfDeletion, Object ctxOfDeletion) {
         // If there was no previous pause due to cursor data is too large to persist, we don't need to manually
         // trigger a new read. This can avoid too many CPU circles.
-        int pausedCount = pausedCountDueToCursorDataCanNotFullyPersist.get();
-        if (pausedCount > 0 && cursor.isCursorDataFullyPersistable()) {
+        if (pausedDueToCursorDataCanNotFullyPersist && cursor.isCursorDataFullyPersistable()) {
             // clear paused count, and trigger a new reading.
-            pausedCountDueToCursorDataCanNotFullyPersist.addAndGet(-pausedCount);
+            pausedDueToCursorDataCanNotFullyPersist = false;
             readMoreEntriesAsync();
         }
     }
