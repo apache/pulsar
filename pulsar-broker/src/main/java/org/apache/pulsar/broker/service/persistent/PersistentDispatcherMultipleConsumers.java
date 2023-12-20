@@ -1029,7 +1029,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
     }
 
     @Override
-    public void afterAckMessages(Throwable error, Object ctx) {
+    public void afterAckMessages(Throwable exOfDeletion, Object ctxOfDeletion) {
         // If there was no previous pause due to cursor data is too large to persist, we don't need to manually
         // trigger a new read. This can avoid too many CPU circles.
         int pausedCount = pausedCountDueToCursorDataCanNotFullyPersist.get();

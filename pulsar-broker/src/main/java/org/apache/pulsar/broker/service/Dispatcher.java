@@ -144,7 +144,7 @@ public interface Dispatcher {
     /**
      * A callback hook after acknowledge messages.
      */
-    default void afterAckMessages(Throwable ex, Object ctx){}
+    default void afterAckMessages(Throwable exOfDeletion, Object ctxOfDeletion){}
 
     default long getFilterProcessedMsgCount() {
         return 0;
