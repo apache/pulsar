@@ -147,7 +147,7 @@ public interface Dispatcher {
      * null.
      * If acknowledge failed. {@param position} will be null, and {@param position} and {@param ctx} will not be null.
      */
-    default void afterAckMessages(Object position, Throwable error, Object ctx){}
+    default void afterAckMessages(Throwable error, Object ctx){}
 
     default long getFilterProcessedMsgCount() {
         return 0;

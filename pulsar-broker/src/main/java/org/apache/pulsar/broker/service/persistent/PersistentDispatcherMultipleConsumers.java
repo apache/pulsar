@@ -333,6 +333,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                 }
             } else if (!havePendingRead) {
                 if (shouldPauseOnAckStatePersist(ReadType.Normal)) {
+                    pausedCountDueToCursorDataCanNotFullyPersist.incrementAndGet();
                     if (log.isDebugEnabled()) {
                         log.debug("[{}] [{}] Skipping read for the topic, Due to blocked on ack state persistent.",
                                 topic.getName(), getSubscriptionName());
@@ -387,11 +388,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         if (cursor == null) {
             return true;
         }
-        if (!cursor.isCursorDataFullyPersistable()) {
-            pausedCountDueToCursorDataCanNotFullyPersist.incrementAndGet();
-            return true;
-        }
-        return false;
+        return !cursor.isCursorDataFullyPersistable();
     }
 
     @Override
@@ -1032,7 +1029,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
     }
 
     @Override
-    public void afterAckMessages(Object position, Throwable error, Object ctx) {
+    public void afterAckMessages(Throwable error, Object ctx) {
         // If there was no previous pause due to cursor data is too large to persist, we don't need to manually
         // trigger a new read. This can avoid too many CPU circles.
         int pausedCount = pausedCountDueToCursorDataCanNotFullyPersist.get();

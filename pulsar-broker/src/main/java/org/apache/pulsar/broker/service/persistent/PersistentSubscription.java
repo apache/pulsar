@@ -456,19 +456,20 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
 
     private final DeleteCallback deleteCallback = new DeleteCallback() {
         @Override
-        public void deleteComplete(Object position) {
+        public void deleteComplete(Object context) {
             if (log.isDebugEnabled()) {
-                log.debug("[{}][{}] Deleted message at {}", topicName, subName, position);
+                // The value of the param "context" is a position.
+                log.debug("[{}][{}] Deleted message at {}", topicName, subName, context);
             }
             // Signal the dispatchers to give chance to take extra actions
-            dispatcher.afterAckMessages(position, null, null);
-            notifyTheMarkDeletePositionMoveForwardIfNeeded((PositionImpl) position);
+            dispatcher.afterAckMessages(null, context);
+            notifyTheMarkDeletePositionMoveForwardIfNeeded((PositionImpl) context);
         }
 
         @Override
         public void deleteFailed(ManagedLedgerException exception, Object ctx) {
             log.warn("[{}][{}] Failed to delete message at {}: {}", topicName, subName, ctx, exception);
-            dispatcher.afterAckMessages(null, exception, ctx);
+            dispatcher.afterAckMessages(exception, ctx);
         }
     };
 
