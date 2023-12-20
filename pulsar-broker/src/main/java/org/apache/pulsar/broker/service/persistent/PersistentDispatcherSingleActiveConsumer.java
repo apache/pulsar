@@ -396,7 +396,7 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
         if (cursor == null) {
             return true;
         }
-        if (!cursor.isMetadataTooLargeToPersist()) {
+        if (!cursor.isCursorDataFullyPersistable()) {
             return false;
         }
         // The cursor state is too large to persist, let us check whether the read is a replay read.

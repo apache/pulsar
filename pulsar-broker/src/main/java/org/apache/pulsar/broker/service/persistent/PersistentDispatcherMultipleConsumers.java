@@ -384,7 +384,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         if (cursor == null) {
             return true;
         }
-        return cursor.isMetadataTooLargeToPersist();
+        return cursor.isCursorDataFullyPersistable();
     }
 
     @Override
@@ -1026,7 +1026,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
 
     @Override
     public void afterAckMessages(Object position, Throwable error, Object ctx) {
-        if (!cursor.isMetadataTooLargeToPersist()) {
+        if (!cursor.isCursorDataFullyPersistable()) {
             readMoreEntriesAsync();
         }
     }

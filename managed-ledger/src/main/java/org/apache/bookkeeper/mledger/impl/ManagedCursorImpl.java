@@ -341,7 +341,7 @@ public class ManagedCursorImpl implements ManagedCursor {
     }
 
     @Override
-    public boolean isMetadataTooLargeToPersist() {
+    public boolean isCursorDataFullyPersistable() {
         return individualDeletedMessages.size() > config.getMaxUnackedRangesToPersist();
     }
 

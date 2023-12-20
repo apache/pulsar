@@ -863,7 +863,7 @@ public interface ManagedCursor {
      */
     boolean isClosed();
 
-    default boolean isMetadataTooLargeToPersist() {
+    default boolean isCursorDataFullyPersistable() {
         return false;
     }
 }
