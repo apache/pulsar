@@ -1226,6 +1226,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
         Message<T> message;
         while ((message = incomingMessages.poll()) != null) {
             decreaseIncomingMessageSize(message);
+            unAckedMessageTracker.remove(message.getMessageId());
             message.release();
             releasedCount++;
         }
