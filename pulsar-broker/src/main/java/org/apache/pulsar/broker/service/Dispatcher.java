@@ -143,6 +143,8 @@ public interface Dispatcher {
 
     /**
      * A callback hook after acknowledge messages.
+     * @param exOfDeletion the ex of {@link org.apache.bookkeeper.mledger.ManagedCursor#asyncDelete}.
+     * @param ctxOfDeletion the param ctx of calling {@link org.apache.bookkeeper.mledger.ManagedCursor#asyncDelete}.
      */
     default void afterAckMessages(Throwable exOfDeletion, Object ctxOfDeletion){}
 
