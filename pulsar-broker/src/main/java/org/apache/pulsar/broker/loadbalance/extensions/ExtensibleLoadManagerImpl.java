@@ -182,6 +182,8 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
     // Record the ignored send msg count during unloading
     @Getter
     private final AtomicLong ignoredSendMsgCounter = new AtomicLong();
+    @Getter
+    private final AtomicLong ignoredAckCounter = new AtomicLong();
 
     // record unload metrics
     private final AtomicReference<List<Metrics>> unloadMetrics = new AtomicReference<>();

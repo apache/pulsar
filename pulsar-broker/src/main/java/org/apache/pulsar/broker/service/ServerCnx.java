@@ -1870,10 +1870,14 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             Consumer consumer = consumerFuture.getNow(null);
             Subscription subscription = consumer.getSubscription();
             if (subscription.getTopic().isTransferring()) {
+                PulsarService pulsar = getBrokerService().getPulsar();
                 // Message acks are silently ignored during topic transfer.
+                long ignoredAckCount = ack.getMessageIdsCount();
+                long totalIgnoredAckCount =
+                        ExtensibleLoadManagerImpl.get(pulsar).getIgnoredAckCounter().addAndGet(ignoredAckCount);
                 if (log.isDebugEnabled()) {
-                    log.debug("[{}] [{}] Ignoring message acknowledgment during topic transfer, ack count: {}",
-                            subscription, consumerId, ack.getMessageIdsCount());
+                    log.debug("[{}] [{}] Ignoring {} message acks during topic transfer. Total ignored ack count: {}",
+                            subscription, consumerId, ignoredAckCount, totalIgnoredAckCount);
                 }
                 return;
             }
