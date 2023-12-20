@@ -143,11 +143,8 @@ public interface Dispatcher {
 
     /**
      * A callback hook after acknowledge messages.
-     * If acknowledge successfully, {@param position} will not be null, and {@param position} and {@param ctx} will be
-     * null.
-     * If acknowledge failed. {@param position} will be null, and {@param position} and {@param ctx} will not be null.
      */
-    default void afterAckMessages(Throwable error, Object ctx){}
+    default void afterAckMessages(Throwable ex, Object ctx){}
 
     default long getFilterProcessedMsgCount() {
         return 0;
