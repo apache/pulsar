@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.service.persistent;
 
 import static java.util.Objects.requireNonNull;
+import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.pulsar.broker.service.persistent.SubscribeRateLimiter.isSubscribeRateEnabled;
 import static org.apache.pulsar.common.naming.SystemTopicNames.isEventSystemTopic;
@@ -52,6 +53,7 @@ import java.util.function.BiFunction;
 import java.util.stream.Collectors;
 import javax.annotation.Nonnull;
 import lombok.Getter;
+import lombok.Value;
 import org.apache.bookkeeper.client.api.LedgerMetadata;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.AddEntryCallback;
@@ -73,6 +75,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException.MetadataNotFoundExce
 import org.apache.bookkeeper.mledger.ManagedLedgerException.NonRecoverableLedgerException;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorContainer;
+import org.apache.bookkeeper.mledger.impl.ManagedCursorContainer.CursorInfo;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
@@ -1133,7 +1136,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     private void resetSubscriptionCursor(Subscription subscription, CompletableFuture<Subscription> subscriptionFuture,
                                          long startMessageRollbackDurationSec) {
         long timestamp = System.currentTimeMillis()
-                - TimeUnit.SECONDS.toMillis(startMessageRollbackDurationSec);
+                - SECONDS.toMillis(startMessageRollbackDurationSec);
         final Subscription finalSubscription = subscription;
         subscription.resetCursor(timestamp).handle((s, ex) -> {
             if (ex != null) {
@@ -1608,7 +1611,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             if (!(th.getCause() instanceof TopicFencedException)) {
                 // retriable exception
                 brokerService.executor().schedule(this::checkReplicationAndRetryOnFailure,
-                        POLICY_UPDATE_FAILURE_RETRY_TIME_SECONDS, TimeUnit.SECONDS);
+                        POLICY_UPDATE_FAILURE_RETRY_TIME_SECONDS, SECONDS);
             }
             result.completeExceptionally(th);
             return null;
@@ -2842,7 +2845,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         int maxInactiveDurationInSec = topicPolicies.getInactiveTopicPolicies().get().getMaxInactiveDurationSeconds();
         if (isActive(deleteMode)) {
             lastActive = System.nanoTime();
-        } else if (System.nanoTime() - lastActive < TimeUnit.SECONDS.toNanos(maxInactiveDurationInSec)) {
+        } else if (System.nanoTime() - lastActive < SECONDS.toNanos(maxInactiveDurationInSec)) {
             // Gc interval did not expire yet
             return;
         } else if (shouldTopicBeRetained()) {
@@ -3151,6 +3154,15 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         return (storageSize >= backlogQuotaLimitInBytes);
     }
 
+    @Value
+    private static class TimeBasedBacklogQuotaCheckResult {
+        PositionImpl oldestCursorMarkDeletePosition;
+        String cursorName;
+        Long positionPublishTimestamp;
+    }
+
+    private volatile TimeBasedBacklogQuotaCheckResult timeBasedBacklogQuotaCheckResult;
+
     /**
      * @return determine if backlog quota enforcement needs to be done for topic based on time limit
      */
@@ -3158,28 +3170,66 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         TopicName topicName = TopicName.get(getName());
         int backlogQuotaLimitInSecond = getBacklogQuota(BacklogQuotaType.message_age).getLimitTime();
 
-        // If backlog quota by time is not set and we have no durable cursor.
+        ManagedCursorContainer managedCursorContainer = (ManagedCursorContainer) ledger.getCursors();
+        CursorInfo oldestMarkDeleteCursorInfo = managedCursorContainer.getCursorWithOldestMarkDeletePosition();
+
+        // If backlog quota by time is not set, and we have no durable cursor.
         if (backlogQuotaLimitInSecond <= 0
-                || ((ManagedCursorContainer) ledger.getCursors()).getSlowestReaderPosition() == null) {
+                || oldestMarkDeleteCursorInfo == null
+                || oldestMarkDeleteCursorInfo.getMarkDeletePosition() == null) {
             return CompletableFuture.completedFuture(false);
+        }
+
+        PositionImpl oldestMarkDeletePosition = oldestMarkDeleteCursorInfo.getMarkDeletePosition();
+
+        TimeBasedBacklogQuotaCheckResult lastCheckResult = timeBasedBacklogQuotaCheckResult;
+        if (lastCheckResult != null
+            && oldestMarkDeletePosition.compareTo(lastCheckResult.getOldestCursorMarkDeletePosition()) == 0) {
+
+            // Same position, but the cursor causing it has changed?
+            if (!lastCheckResult.getCursorName().equals(oldestMarkDeleteCursorInfo.getCursor().getName())) {
+                lastCheckResult = new TimeBasedBacklogQuotaCheckResult(
+                        lastCheckResult.getOldestCursorMarkDeletePosition(),
+                        oldestMarkDeleteCursorInfo.getCursor().getName(),
+                        lastCheckResult.getPositionPublishTimestamp());
+
+                timeBasedBacklogQuotaCheckResult = lastCheckResult;
+            }
+
+            Long entryTimestamp = lastCheckResult.getPositionPublishTimestamp();
+            if (entryTimestamp == null) {
+                return CompletableFuture.completedFuture(false);
+            }
+            boolean expired = MessageImpl.isEntryExpired(backlogQuotaLimitInSecond, entryTimestamp);
+            if (expired && log.isDebugEnabled()) {
+                log.debug("(Using cache) Time based backlog quota exceeded, oldest entry in cursor {}'s backlog"
+                                + "exceeded quota {}", lastCheckResult.getCursorName(), backlogQuotaLimitInSecond);
+            }
+
+            return CompletableFuture.completedFuture(expired);
         }
 
         if (brokerService.pulsar().getConfiguration().isPreciseTimeBasedBacklogQuotaCheck()) {
             CompletableFuture<Boolean> future = new CompletableFuture<>();
             // Check if first unconsumed message(first message after mark delete position)
             // for slowest cursor's has expired.
-            PositionImpl position = ((ManagedLedgerImpl) ledger).getNextValidPosition(((ManagedCursorContainer)
-                    ledger.getCursors()).getSlowestReaderPosition());
+            PositionImpl position = ((ManagedLedgerImpl) ledger).getNextValidPosition(oldestMarkDeletePosition);
             ((ManagedLedgerImpl) ledger).asyncReadEntry(position,
                     new AsyncCallbacks.ReadEntryCallback() {
                         @Override
                         public void readEntryComplete(Entry entry, Object ctx) {
                             try {
                                 long entryTimestamp = Commands.getEntryTimestamp(entry.getDataBuffer());
+
+                                timeBasedBacklogQuotaCheckResult = new TimeBasedBacklogQuotaCheckResult(
+                                        oldestMarkDeleteCursorInfo.getMarkDeletePosition(),
+                                        oldestMarkDeleteCursorInfo.getCursor().getName(),
+                                        entryTimestamp);
+
                                 boolean expired = MessageImpl.isEntryExpired(backlogQuotaLimitInSecond, entryTimestamp);
                                 if (expired && log.isDebugEnabled()) {
                                     log.debug("Time based backlog quota exceeded, oldest entry in cursor {}'s backlog"
-                                    + "exceeded quota {}", ((ManagedLedgerImpl) ledger).getSlowestConsumer().getName(),
+                                    + "exceeded quota {}", ledger.getSlowestConsumer().getName(),
                                             backlogQuotaLimitInSecond);
                                 }
                                 future.complete(expired);
@@ -3200,9 +3250,14 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                     }, null);
             return future;
         } else {
-            PositionImpl slowestPosition = ((ManagedCursorContainer) ledger.getCursors()).getSlowestReaderPosition();
             try {
-                return slowestReaderTimeBasedBacklogQuotaCheck(slowestPosition);
+                CheckResult checkResult = estimatedTimeBasedBacklogQuotaCheck(oldestMarkDeletePosition);
+                timeBasedBacklogQuotaCheckResult = new TimeBasedBacklogQuotaCheckResult(
+                        oldestMarkDeleteCursorInfo.getMarkDeletePosition(),
+                        oldestMarkDeleteCursorInfo.getCursor().getName(),
+                        checkResult.getEstimatedOldestUnacknowledgedMessageTimestamp());
+
+                return CompletableFuture.completedFuture(checkResult.isShouldTruncateBacklogToMatchQuota());
             } catch (Exception e) {
                 log.error("[{}][{}] Error reading entry for precise time based backlog check", topicName, e);
                 return CompletableFuture.completedFuture(false);
@@ -3210,33 +3265,40 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         }
     }
 
-    private CompletableFuture<Boolean> slowestReaderTimeBasedBacklogQuotaCheck(PositionImpl slowestPosition)
+    @Value
+    private static class CheckResult {
+        boolean shouldTruncateBacklogToMatchQuota;
+        Long estimatedOldestUnacknowledgedMessageTimestamp;
+    }
+    private CheckResult estimatedTimeBasedBacklogQuotaCheck(PositionImpl markDeletePosition)
             throws ExecutionException, InterruptedException {
         int backlogQuotaLimitInSecond = getBacklogQuota(BacklogQuotaType.message_age).getLimitTime();
-        Long ledgerId = slowestPosition.getLedgerId();
-        if (((ManagedLedgerImpl) ledger).getLedgersInfo().lastKey().equals(ledgerId)) {
-            return CompletableFuture.completedFuture(false);
+        ManagedLedgerImpl managedLedger = (ManagedLedgerImpl) ledger;
+        if (managedLedger.getLedgersInfo().lastKey().equals(markDeletePosition.getLedgerId())) {
+            return new CheckResult(false, null);
         }
-        int result;
+
         org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo
-                ledgerInfo = ledger.getLedgerInfo(ledgerId).get();
-        if (ledgerInfo != null && ledgerInfo.hasTimestamp() && ledgerInfo.getTimestamp() > 0
-                && ((ManagedLedgerImpl) ledger).getClock().millis() - ledgerInfo.getTimestamp()
-                > backlogQuotaLimitInSecond * 1000 && (result = slowestPosition.compareTo(
-                new PositionImpl(ledgerInfo.getLedgerId(), ledgerInfo.getEntries() - 1))) <= 0) {
-            if (result < 0) {
-                if (log.isDebugEnabled()) {
-                    log.debug("Time based backlog quota exceeded, quota {}, age of ledger "
-                                    + "slowest cursor currently on {}", backlogQuotaLimitInSecond * 1000,
-                            ((ManagedLedgerImpl) ledger).getClock().millis() - ledgerInfo.getTimestamp());
-                }
-                return CompletableFuture.completedFuture(true);
-            } else {
-                return slowestReaderTimeBasedBacklogQuotaCheck(
-                        ((ManagedLedgerImpl) ledger).getNextValidPosition(slowestPosition));
-            }
+                markDeletePositionLedgerInfo = ledger.getLedgerInfo(markDeletePosition.getLedgerId()).get();
+
+        org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo positionToCheckLedgerInfo =
+                markDeletePositionLedgerInfo;
+
+        // if the mark-delete position is the last entry it means all entries for
+        // that ledger are acknowledged
+        if (markDeletePosition.getEntryId() == markDeletePositionLedgerInfo.getEntries() - 1) {
+            PositionImpl positionToCheck = managedLedger.getNextValidPosition(markDeletePosition);
+            positionToCheckLedgerInfo = ledger.getLedgerInfo(positionToCheck.getLedgerId()).get();
+        }
+
+        if (positionToCheckLedgerInfo != null
+                && positionToCheckLedgerInfo.hasTimestamp()
+                && positionToCheckLedgerInfo.getTimestamp() > 0) {
+            long estimateMsgAgeMs = managedLedger.getClock().millis() - positionToCheckLedgerInfo.getTimestamp();
+            boolean shouldTruncateBacklog = estimateMsgAgeMs > SECONDS.toMillis(backlogQuotaLimitInSecond);
+            return new CheckResult(shouldTruncateBacklog, positionToCheckLedgerInfo.getTimestamp());
         } else {
-            return CompletableFuture.completedFuture(false);
+            return new CheckResult(false, null);
         }
     }
 
@@ -3599,7 +3661,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             final int timeout = brokerService.pulsar().getConfiguration().getTopicFencingTimeoutSeconds();
             if (timeout > 0) {
                 this.fencedTopicMonitoringTask = brokerService.executor().schedule(this::closeFencedTopicForcefully,
-                        timeout, TimeUnit.SECONDS);
+                        timeout, SECONDS);
             }
         }
     }

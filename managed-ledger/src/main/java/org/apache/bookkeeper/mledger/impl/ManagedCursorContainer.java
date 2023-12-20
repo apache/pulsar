@@ -25,6 +25,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.locks.StampedLock;
+import lombok.Value;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.commons.lang3.tuple.Pair;
@@ -44,6 +45,12 @@ import org.apache.commons.lang3.tuple.Pair;
  */
 public class ManagedCursorContainer implements Iterable<ManagedCursor> {
 
+    @Value
+    public class CursorInfo {
+        ManagedCursor cursor;
+        PositionImpl markDeletePosition;
+    }
+
     private static class Item {
         final ManagedCursor cursor;
         PositionImpl position;
@@ -57,7 +64,6 @@ public class ManagedCursorContainer implements Iterable<ManagedCursor> {
     }
 
     public ManagedCursorContainer() {
-
     }
 
     // Used to keep track of slowest cursor.
@@ -199,6 +205,16 @@ public class ManagedCursorContainer implements Iterable<ManagedCursor> {
         long stamp = rwLock.readLock();
         try {
             return heap.isEmpty() ? null : heap.get(0).cursor;
+        } finally {
+            rwLock.unlockRead(stamp);
+        }
+    }
+
+    public CursorInfo getCursorWithOldestMarkDeletePosition() {
+        long stamp = rwLock.readLock();
+        try {
+            Item item = heap.get(0);
+            return heap.isEmpty() ? null : new CursorInfo(item.cursor, item.position);
         } finally {
             rwLock.unlockRead(stamp);
         }
