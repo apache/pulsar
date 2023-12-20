@@ -20,10 +20,13 @@ package org.apache.pulsar.client.api;
 
 import java.lang.reflect.Method;
 import java.util.ArrayList;
-import java.util.LinkedHashSet;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import java.util.function.BiFunction;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.service.Dispatcher;
 import org.apache.pulsar.broker.service.SystemTopicBasedTopicPoliciesService;
@@ -69,7 +72,8 @@ public class SubscriptionPauseOnAckStatPersistTest extends ProducerConsumerBase 
         policies.setIsGlobal(false);
         SystemTopicBasedTopicPoliciesService policiesService =
                 (SystemTopicBasedTopicPoliciesService) pulsar.getTopicPoliciesService();
-        Map<TopicName, TopicPolicies> policiesCache = WhiteboxImpl.getInternalState(policiesService, "policiesCache");
+        Map<TopicName, TopicPolicies> policiesCache =
+                WhiteboxImpl.getInternalState(policiesService, "policiesCache");
         policiesCache.put(TopicName.get(tpName), policies);
     }
 
@@ -90,16 +94,105 @@ public class SubscriptionPauseOnAckStatPersistTest extends ProducerConsumerBase 
         }
     }
 
-    @DataProvider(name = "subscriptionTypes")
-    private Object[][] subscriptionTypes() {
+    private void triggerNewReadMoreEntries(String tpName, String cursorName) throws Exception {
+        PersistentTopic persistentTopic =
+                (PersistentTopic) pulsar.getBrokerService().getTopic(tpName, false).join().get();
+        Dispatcher dispatcher = persistentTopic.getSubscription(cursorName).getDispatcher();
+        if (dispatcher instanceof PersistentDispatcherMultipleConsumers) {
+            ((PersistentDispatcherMultipleConsumers) dispatcher).readMoreEntries();
+        } else if (dispatcher instanceof PersistentDispatcherSingleActiveConsumer) {
+            PersistentDispatcherSingleActiveConsumer persistentDispatcherSingleActiveConsumer =
+                    ((PersistentDispatcherSingleActiveConsumer) dispatcher);
+            Method readMoreEntries = PersistentDispatcherSingleActiveConsumer.class.getDeclaredMethod(
+                    "readMoreEntries", new Class[]{org.apache.pulsar.broker.service.Consumer.class});
+            readMoreEntries.setAccessible(true);
+            readMoreEntries.invoke(dispatcher,
+                    new Object[]{persistentDispatcherSingleActiveConsumer.getActiveConsumer()});
+        }
+    }
+
+    @DataProvider(name = "multiConsumerSubscriptionTypes")
+    private Object[][] multiConsumerSubscriptionTypes() {
         return new Object[][]{
                 {SubscriptionType.Key_Shared},
-                {SubscriptionType.Shared},
-                {SubscriptionType.Failover}
+                {SubscriptionType.Shared}
         };
     }
 
-    @Test(dataProvider = "subscriptionTypes")
+    @DataProvider(name = "singleConsumerSubscriptionTypes")
+    private Object[][] singleConsumerSubscriptionTypes() {
+        return new Object[][]{
+                {SubscriptionType.Failover},
+                {SubscriptionType.Exclusive}
+        };
+    }
+
+    private ReceivedMessages receiveAndAckMessages(BiFunction<MessageId, String, Boolean> ackPredicate,
+                                                Consumer<String>...consumers) throws Exception {
+        ReceivedMessages receivedMessages = new ReceivedMessages();
+        while (true) {
+            int receivedMsgCount = 0;
+            for (int i = 0; i < consumers.length; i++) {
+                Consumer<String> consumer = consumers[i];
+                while (true) {
+                    Message<String> msg = consumer.receive(2, TimeUnit.SECONDS);
+                    if (msg != null) {
+                        receivedMsgCount++;
+                        String v = msg.getValue();
+                        MessageId messageId = msg.getMessageId();
+                        receivedMessages.messagesReceived.add(Pair.of(msg.getMessageId(), v));
+                        if (ackPredicate.apply(messageId, v)) {
+                            consumer.acknowledge(msg);
+                            receivedMessages.messagesAcked.add(Pair.of(msg.getMessageId(), v));
+                        }
+                    } else {
+                        break;
+                    }
+                }
+            }
+            // Because of the possibility of consumers getting stuck with each other, only jump out of the loop if all
+            // consumers could not receive messages.
+            if (receivedMsgCount == 0) {
+                break;
+            }
+        }
+        return receivedMessages;
+    }
+
+    private ReceivedMessages ackAllMessages(Consumer<String>...consumers) throws Exception {
+        return receiveAndAckMessages((msgId, msgV) -> true, consumers);
+    }
+
+    private ReceivedMessages ackOddMessagesOnly(Consumer<String>...consumers) throws Exception {
+        return receiveAndAckMessages((msgId, msgV) -> Integer.valueOf(msgV) % 2 == 1, consumers);
+    }
+
+    private static class ReceivedMessages {
+
+        List<Pair<MessageId,String>> messagesReceived = new ArrayList<>();
+
+        List<Pair<MessageId,String>> messagesAcked = new ArrayList<>();
+
+        public boolean hasReceivedMessage(String v) {
+            for (Pair<MessageId,String> pair : messagesReceived) {
+                if (pair.getRight().equals(v)) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        public boolean hasAckedMessage(String v) {
+            for (Pair<MessageId,String> pair : messagesAcked) {
+                if (pair.getRight().equals(v)) {
+                    return true;
+                }
+            }
+            return false;
+        }
+    }
+
+    @Test(dataProvider = "multiConsumerSubscriptionTypes")
     public void testPauseOnAckStatPersist(SubscriptionType subscriptionType) throws Exception {
         final String tpName = BrokerTestUtil.newUniqueName("persistent://public/default/tp");
         final String subscription = "s1";
@@ -118,23 +211,13 @@ public class SubscriptionPauseOnAckStatPersistTest extends ProducerConsumerBase 
             messageIdsSent.add(messageId);
         }
         // Make ack holes.
-        ArrayList<String> messagesReceived = new ArrayList<>();
         Consumer<String> c1 = pulsarClient.newConsumer(Schema.STRING).topic(tpName).subscriptionName(subscription)
                 .receiverQueueSize(incomingQueueSize).isAckReceiptEnabled(true).subscriptionType(subscriptionType)
                 .subscribe();
-        while (true) {
-            Message<String> msg = c1.receive(2, TimeUnit.SECONDS);
-            if (msg != null) {
-                messagesReceived.add(msg.getValue());
-                if (Integer.valueOf(msg.getValue()) % 2 == 1) {
-                    c1.acknowledge(msg);
-                }
-            } else {
-                break;
-            }
-        }
+        ackOddMessagesOnly(c1);
 
         cancelPendingRead(tpName, subscription);
+        triggerNewReadMoreEntries(tpName, subscription);
 
         // Verify: the dispatcher has been paused.
         final String specifiedMessage = "9876543210";
@@ -144,16 +227,9 @@ public class SubscriptionPauseOnAckStatPersistTest extends ProducerConsumerBase 
 
         // Verify: after ack messages, will unpause the dispatcher.
         c1.acknowledge(messageIdsSent);
-        LinkedHashSet<String> messagesReceivedAfterAck = new LinkedHashSet<>();
-        while (true) {
-            Message<String> msg = c1.receive(2, TimeUnit.SECONDS);
-            if (msg != null) {
-                messagesReceivedAfterAck.add(msg.getValue());
-            } else {
-                break;
-            }
-        }
-        Assert.assertTrue(messagesReceivedAfterAck.contains(specifiedMessage));
+        ReceivedMessages receivedMessagesAfterPause = ackAllMessages(c1);
+        Assert.assertTrue(receivedMessagesAfterPause.hasReceivedMessage(specifiedMessage));
+        Assert.assertTrue(receivedMessagesAfterPause.hasAckedMessage(specifiedMessage));
 
         // cleanup.
         p1.close();
@@ -161,7 +237,48 @@ public class SubscriptionPauseOnAckStatPersistTest extends ProducerConsumerBase 
         admin.topics().delete(tpName, false);
     }
 
-    @Test(dataProvider = "subscriptionTypes")
+    @Test(dataProvider = "singleConsumerSubscriptionTypes")
+    public void testSingleConsumerDispatcherWillNotPause(SubscriptionType subscriptionType) throws Exception {
+        final String tpName = BrokerTestUtil.newUniqueName("persistent://public/default/tp");
+        final String subscription = "s1";
+        final int msgSendCount = MAX_UNACKED_RANGES_TO_PERSIST * 4;
+        final int incomingQueueSize = MAX_UNACKED_RANGES_TO_PERSIST * 10;
+
+        enablePolicyDispatcherPauseOnAckStatePersistent(tpName);
+        admin.topics().createNonPartitionedTopic(tpName);
+        admin.topics().createSubscription(tpName, subscription, MessageId.earliest);
+
+        // Send double MAX_UNACKED_RANGES_TO_PERSIST messages.
+        Producer<String> p1 = pulsarClient.newProducer(Schema.STRING).topic(tpName).enableBatching(false).create();
+        ArrayList<MessageId> messageIdsSent = new ArrayList<>();
+        for (int i = 0; i < msgSendCount; i++) {
+            MessageIdImpl messageId = (MessageIdImpl) p1.send(Integer.valueOf(i).toString());
+            messageIdsSent.add(messageId);
+        }
+        // Make ack holes.
+        Consumer<String> c1 = pulsarClient.newConsumer(Schema.STRING).topic(tpName).subscriptionName(subscription)
+                .receiverQueueSize(incomingQueueSize).isAckReceiptEnabled(true)
+                .subscriptionType(subscriptionType)
+                .subscribe();
+        ackOddMessagesOnly(c1);
+
+        cancelPendingRead(tpName, subscription);
+        triggerNewReadMoreEntries(tpName, subscription);
+
+        // Verify: the dispatcher has been paused.
+        final String specifiedMessage = "9876543210";
+        p1.send(specifiedMessage);
+        Message<String> msg1 = c1.receive(2, TimeUnit.SECONDS);
+        Assert.assertNotNull(msg1);
+        Assert.assertEquals(msg1.getValue(), specifiedMessage);
+
+        // cleanup.
+        p1.close();
+        c1.close();
+        admin.topics().delete(tpName, false);
+    }
+
+    @Test(dataProvider = "multiConsumerSubscriptionTypes")
     public void testPauseOnAckStatPersistNotAffectReplayRead(SubscriptionType subscriptionType) throws Exception {
         final String tpName = BrokerTestUtil.newUniqueName("persistent://public/default/tp");
         final String subscription = "s1";
@@ -183,50 +300,97 @@ public class SubscriptionPauseOnAckStatPersistTest extends ProducerConsumerBase 
             messageIdsSent.add(messageId);
         }
         // Make ack holes.
-        ArrayList<String> messagesReceived = new ArrayList<>();
-        int messageCountAckedByC1 = 0;
-        while (true) {
-            Message<String> msg = c1.receive(2, TimeUnit.SECONDS);
-            if (msg != null) {
-                messagesReceived.add(msg.getValue());
-                if (Integer.valueOf(msg.getValue()) % 2 == 1) {
-                    c1.acknowledge(msg);
-                    messageCountAckedByC1++;
-                }
-            } else {
-                break;
-            }
-        }
+        ReceivedMessages receivedMessagesC1 = ackOddMessagesOnly(c1);
 
         cancelPendingRead(tpName, subscription);
+        triggerNewReadMoreEntries(tpName, subscription);
 
         // Verify: the dispatcher has been paused.
+        Consumer<String> c2 = pulsarClient.newConsumer(Schema.STRING).topic(tpName).subscriptionName(subscription)
+                .receiverQueueSize(incomingQueueSize).isAckReceiptEnabled(true).subscriptionType(subscriptionType)
+                .subscribe();
         final String specifiedMessage = "9876543210";
         final int specifiedMessageCount = 1;
         p1.send(specifiedMessage);
         Message<String> msg1 = c1.receive(2, TimeUnit.SECONDS);
         Assert.assertNull(msg1);
+        Message<String> msg2 = c2.receive(2, TimeUnit.SECONDS);
+        Assert.assertNull(msg2);
 
         // Verify: close the previous consumer, the new one could receive all messages.
-        Consumer<String> c2 = pulsarClient.newConsumer(Schema.STRING).topic(tpName).subscriptionName(subscription)
-                .receiverQueueSize(incomingQueueSize).isAckReceiptEnabled(true).subscriptionType(subscriptionType)
-                .subscribe();
         c1.close();
-        LinkedHashSet<String> messagesReceived2 = new LinkedHashSet<>();
-        while (true) {
-            Message<String> msg = c2.receive(10, TimeUnit.SECONDS);
-            if (msg != null) {
-                messagesReceived2.add(msg.getValue());
-                c2.acknowledge(msg);
-            } else {
-                break;
-            }
-        }
-        Assert.assertEquals(messagesReceived2.size(), msgSendCount - messageCountAckedByC1 + specifiedMessageCount);
+        ReceivedMessages receivedMessagesC2 = ackAllMessages(c2);
+        int messageCountAckedByC1 = receivedMessagesC1.messagesAcked.size();
+        int messageCountAckedByC2 = receivedMessagesC2.messagesAcked.size();
+        Assert.assertEquals(messageCountAckedByC2, msgSendCount - messageCountAckedByC1 + specifiedMessageCount);
 
         // cleanup, c1 has been closed before.
         p1.close();
         c2.close();
+        admin.topics().delete(tpName, false);
+    }
+
+    @Test(dataProvider = "multiConsumerSubscriptionTypes")
+    public void testMultiConsumersPauseOnAckStatPersistNotAffectReplayRead(SubscriptionType subscriptionType)
+            throws Exception {
+        final String tpName = BrokerTestUtil.newUniqueName("persistent://public/default/tp");
+        final String subscription = "s1";
+        final int msgSendCount = MAX_UNACKED_RANGES_TO_PERSIST * 4;
+        final int incomingQueueSize = MAX_UNACKED_RANGES_TO_PERSIST * 10;
+
+        enablePolicyDispatcherPauseOnAckStatePersistent(tpName);
+        admin.topics().createNonPartitionedTopic(tpName);
+        admin.topics().createSubscription(tpName, subscription, MessageId.earliest);
+
+        // Send double MAX_UNACKED_RANGES_TO_PERSIST messages.
+        Consumer<String> c1 = pulsarClient.newConsumer(Schema.STRING).topic(tpName).subscriptionName(subscription)
+                .receiverQueueSize(incomingQueueSize).isAckReceiptEnabled(true).subscriptionType(subscriptionType)
+                .subscribe();
+        Consumer<String> c2 = pulsarClient.newConsumer(Schema.STRING).topic(tpName).subscriptionName(subscription)
+                .receiverQueueSize(incomingQueueSize).isAckReceiptEnabled(true).subscriptionType(subscriptionType)
+                .subscribe();
+        Producer<String> p1 = pulsarClient.newProducer(Schema.STRING).topic(tpName).enableBatching(false).create();
+        ArrayList<MessageId> messageIdsSent = new ArrayList<>();
+        for (int i = 0; i < msgSendCount; i++) {
+            MessageIdImpl messageId = (MessageIdImpl) p1.send(Integer.valueOf(i).toString());
+            messageIdsSent.add(messageId);
+        }
+        // Make ack holes.
+        ReceivedMessages receivedMessagesC1 = ackOddMessagesOnly(c1);
+        ReceivedMessages receivedMessagesC2 = ackOddMessagesOnly(c2);
+
+        cancelPendingRead(tpName, subscription);
+        triggerNewReadMoreEntries(tpName, subscription);
+
+        // Verify: the dispatcher has been paused.
+        Consumer<String> c3 = pulsarClient.newConsumer(Schema.STRING).topic(tpName).subscriptionName(subscription)
+                .receiverQueueSize(incomingQueueSize).isAckReceiptEnabled(true).subscriptionType(subscriptionType)
+                .subscribe();
+        Consumer<String> c4 = pulsarClient.newConsumer(Schema.STRING).topic(tpName).subscriptionName(subscription)
+                .receiverQueueSize(incomingQueueSize).isAckReceiptEnabled(true).subscriptionType(subscriptionType)
+                .subscribe();
+        final String specifiedMessage = "9876543210";
+        final int specifiedMessageCount = 1;
+        p1.send(specifiedMessage);
+        for (Consumer c : Arrays.asList(c1, c2, c3, c4)) {
+            Message<String> m = c.receive(2, TimeUnit.SECONDS);
+            Assert.assertNull(m);
+        }
+
+        // Verify: close the previous consumer, the new one could receive all messages.
+        c1.close();
+        c2.close();
+        ReceivedMessages receivedMessagesC3AndC4 = ackAllMessages(c3, c4);
+        int messageCountAckedByC1 = receivedMessagesC1.messagesAcked.size();
+        int messageCountAckedByC2 = receivedMessagesC2.messagesAcked.size();
+        int messageCountAckedByC3AndC4 = receivedMessagesC3AndC4.messagesAcked.size();
+        Assert.assertEquals(messageCountAckedByC3AndC4,
+                msgSendCount - messageCountAckedByC1 - messageCountAckedByC2 + specifiedMessageCount);
+
+        // cleanup, c1 has been closed before.
+        p1.close();
+        c3.close();
+        c4.close();
         admin.topics().delete(tpName, false);
     }
 }
