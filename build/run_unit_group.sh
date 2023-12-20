@@ -151,7 +151,7 @@ function test_group_proxy() {
 
 function test_group_other() {
   mvn_test --clean --install \
-           -pl '!com.datastax.oss:distribution,!com.datastax.oss:pulsar-offloader-distribution,!com.datastax.oss:pulsar-server-distribution,!com.datastax.oss:pulsar-io-distribution,!com.datastax.oss:pulsar-all-docker-image' \
+           -pl '!com.datastax.oss:distribution,!com.datastax.oss:pulsar-offloader-distribution,!com.datastax.oss:pulsar-server-distribution,!com.datastax.oss:pulsar-io-distribution,!com.datastax.oss:pulsar-all-docker-image,!com.datastax.oss:pulsar-experimental-docker-image' \
            -PskipTestsForUnitGroupOther -DdisableIoMainProfile=true -DdisableSqlMainProfile=true -DskipIntegrationTests \
            -Dexclude='**/ManagedLedgerTest.java,
                    **/OffloadersCacheTest.java
