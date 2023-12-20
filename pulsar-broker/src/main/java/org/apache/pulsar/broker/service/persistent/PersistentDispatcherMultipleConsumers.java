@@ -123,6 +123,8 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
     protected final ExecutorService dispatchMessagesThread;
     private final SharedConsumerAssignor assignor;
 
+    private AtomicInteger pausedCountDueToCursorDataCanNotFullyPersist = new AtomicInteger();
+
     protected enum ReadType {
         Normal, Replay
     }
@@ -385,7 +387,11 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         if (cursor == null) {
             return true;
         }
-        return !cursor.isCursorDataFullyPersistable();
+        if (!cursor.isCursorDataFullyPersistable()) {
+            pausedCountDueToCursorDataCanNotFullyPersist.incrementAndGet();
+            return true;
+        }
+        return false;
     }
 
     @Override
@@ -1027,7 +1033,12 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
 
     @Override
     public void afterAckMessages(Object position, Throwable error, Object ctx) {
-        if (cursor.isCursorDataFullyPersistable()) {
+        // If there was no previous pause due to cursor data is too large to persist, we don't need to manually
+        // trigger a new read. This can avoid too many CPU circles.
+        int pausedCount = pausedCountDueToCursorDataCanNotFullyPersist.get();
+        if (pausedCount > 0 && cursor.isCursorDataFullyPersistable()) {
+            // clear paused count, and trigger a new reading.
+            pausedCountDueToCursorDataCanNotFullyPersist.addAndGet(-pausedCount);
             readMoreEntriesAsync();
         }
     }
