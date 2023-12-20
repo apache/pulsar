@@ -2004,8 +2004,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 }
 
                 // clear local message
-                currentSize = incomingMessages.size();
-                clearIncomingMessages();
+                currentSize = clearIncomingMessages();
                 unAckedMessageTracker.clear();
             } finally {
                 incomingQueueLock.unlock();

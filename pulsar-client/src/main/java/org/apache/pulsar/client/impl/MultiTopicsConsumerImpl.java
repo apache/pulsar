@@ -751,8 +751,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         List<CompletableFuture<Void>> futures = new ArrayList<>(consumers.size());
         consumers.values().forEach(consumer -> futures.add(consumer.seekAsync(function)));
         unAckedMessageTracker.clear();
-        incomingMessages.clear();
-        resetIncomingMessageSize();
+        clearIncomingMessages();
         return FutureUtil.waitForAll(futures);
     }
 
