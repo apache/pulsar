@@ -375,6 +375,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
     }
 
     private boolean shouldPauseOnAckStatePersist(ReadType readType) {
+        // Allows new consumers to consume redelivered messages caused by the just-closed consumer.
         if (readType != ReadType.Normal) {
             return false;
         }
@@ -384,7 +385,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         if (cursor == null) {
             return true;
         }
-        return cursor.isCursorDataFullyPersistable();
+        return !cursor.isCursorDataFullyPersistable();
     }
 
     @Override
@@ -1026,7 +1027,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
 
     @Override
     public void afterAckMessages(Object position, Throwable error, Object ctx) {
-        if (!cursor.isCursorDataFullyPersistable()) {
+        if (cursor.isCursorDataFullyPersistable()) {
             readMoreEntriesAsync();
         }
     }

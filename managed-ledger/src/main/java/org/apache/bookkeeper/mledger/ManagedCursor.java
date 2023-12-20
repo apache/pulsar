@@ -864,6 +864,6 @@ public interface ManagedCursor {
     boolean isClosed();
 
     default boolean isCursorDataFullyPersistable() {
-        return false;
+        return true;
     }
 }
