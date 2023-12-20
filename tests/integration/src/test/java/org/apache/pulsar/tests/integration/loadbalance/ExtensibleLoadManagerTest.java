@@ -316,23 +316,40 @@ public class ExtensibleLoadManagerTest extends TestRetrySupport {
         parameters1.put("min_limit", "1");
         parameters1.put("usage_threshold", "100");
 
-        List<String> activeBrokers = admin.brokers().getActiveBrokers();
+        Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(
+                () -> {
+                    List<String> activeBrokers = admin.brokers().getActiveBrokers();
+                    assertEquals(activeBrokers.size(), NUM_BROKERS);
+                }
+        );
+        try {
+            admin.namespaces().createNamespace(isolationEnabledNameSpace);
+        } catch (PulsarAdminException.ConflictException e) {
+            //expected when retried
+        }
 
-        assertEquals(activeBrokers.size(), NUM_BROKERS);
+        try {
+            admin.clusters()
+                    .createNamespaceIsolationPolicy(clusterName, namespaceIsolationPolicyName, NamespaceIsolationData
+                            .builder()
+                            .namespaces(List.of(isolationEnabledNameSpace))
+                            .autoFailoverPolicy(AutoFailoverPolicyData.builder()
+                                    .policyType(AutoFailoverPolicyType.min_available)
+                                    .parameters(parameters1)
+                                    .build())
+                            .primary(List.of(getHostName(0)))
+                            .secondary(List.of(getHostName(1)))
+                            .build());
+        } catch (PulsarAdminException.ConflictException e) {
+            //expected when retried
+        }
 
-        admin.namespaces().createNamespace(isolationEnabledNameSpace);
-        admin.clusters().createNamespaceIsolationPolicy(clusterName, namespaceIsolationPolicyName, NamespaceIsolationData
-                .builder()
-                .namespaces(List.of(isolationEnabledNameSpace))
-                .autoFailoverPolicy(AutoFailoverPolicyData.builder()
-                        .policyType(AutoFailoverPolicyType.min_available)
-                        .parameters(parameters1)
-                        .build())
-                .primary(List.of(getHostName(0)))
-                .secondary(List.of(getHostName(1)))
-                .build());
         final String topic = "persistent://" + isolationEnabledNameSpace + "/topic";
-        admin.topics().createNonPartitionedTopic(topic);
+        try {
+            admin.topics().createNonPartitionedTopic(topic);
+        } catch (PulsarAdminException.ConflictException e) {
+            //expected when retried
+        }
 
         String broker = admin.lookups().lookupTopic(topic);
 
