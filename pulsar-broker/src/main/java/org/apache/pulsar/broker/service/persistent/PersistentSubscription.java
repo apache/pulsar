@@ -652,6 +652,7 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
                             future.complete(null);
                         }
                     });
+                    dispatcher.afterAckMessages(null, ctx);
                 } else {
                     future.complete(null);
                 }
@@ -661,6 +662,9 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
             public void clearBacklogFailed(ManagedLedgerException exception, Object ctx) {
                 log.error("[{}][{}] Failed to clear backlog", topicName, subName, exception);
                 future.completeExceptionally(exception);
+                if (dispatcher != null) {
+                    dispatcher.afterAckMessages(exception, ctx);
+                }
             }
         }, null);
 
@@ -684,6 +688,9 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
                                     numMessagesToSkip, cursor.getNumberOfEntriesInBacklog(false));
                         }
                         future.complete(null);
+                        if (dispatcher != null) {
+                            dispatcher.afterAckMessages(null, ctx);
+                        }
                     }
 
                     @Override
@@ -691,6 +698,9 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
                         log.error("[{}][{}] Failed to skip {} messages", topicName, subName, numMessagesToSkip,
                                 exception);
                         future.completeExceptionally(exception);
+                        if (dispatcher != null) {
+                            dispatcher.afterAckMessages(exception, ctx);
+                        }
                     }
                 }, null);
 
