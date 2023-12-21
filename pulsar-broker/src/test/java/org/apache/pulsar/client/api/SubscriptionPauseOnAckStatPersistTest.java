@@ -26,6 +26,7 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BiFunction;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.bookkeeper.mledger.Position;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.service.Dispatcher;
@@ -33,6 +34,7 @@ import org.apache.pulsar.broker.service.SystemTopicBasedTopicPoliciesService;
 import org.apache.pulsar.broker.service.persistent.PersistentDispatcherMultipleConsumers;
 import org.apache.pulsar.broker.service.persistent.PersistentDispatcherSingleActiveConsumer;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.client.admin.GetStatsOptions;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.TopicPolicies;
@@ -125,6 +127,23 @@ public class SubscriptionPauseOnAckStatPersistTest extends ProducerConsumerBase 
                 {SubscriptionType.Failover},
                 {SubscriptionType.Exclusive}
         };
+    }
+
+    @DataProvider(name = "skipTypes")
+    private Object[][] skipTypes() {
+        return new Object[][]{
+                {SkipType.SKIP_ENTRIES},
+                {SkipType.CLEAR_BACKLOG},
+                {SkipType.SEEK},
+                {SkipType.RESET_CURSOR}
+        };
+    }
+
+    private enum SkipType{
+        SKIP_ENTRIES,
+        CLEAR_BACKLOG,
+        SEEK,
+        RESET_CURSOR;
     }
 
     private ReceivedMessages receiveAndAckMessages(BiFunction<MessageId, String, Boolean> ackPredicate,
@@ -235,6 +254,84 @@ public class SubscriptionPauseOnAckStatPersistTest extends ProducerConsumerBase 
         p1.close();
         c1.close();
         admin.topics().delete(tpName, false);
+    }
+
+    @Test(dataProvider = "skipTypes")
+    public void testUnPauseOnSkipEntries(SkipType skipType) throws Exception {
+        final String tpName = BrokerTestUtil.newUniqueName("persistent://public/default/tp");
+        final String subscription = "s1";
+        final int msgSendCount = MAX_UNACKED_RANGES_TO_PERSIST * 4;
+        final int incomingQueueSize = MAX_UNACKED_RANGES_TO_PERSIST * 10;
+
+        enablePolicyDispatcherPauseOnAckStatePersistent(tpName);
+        admin.topics().createNonPartitionedTopic(tpName);
+        admin.topics().createSubscription(tpName, subscription, MessageId.earliest);
+
+        // Send double MAX_UNACKED_RANGES_TO_PERSIST messages.
+        Producer<String> p1 = pulsarClient.newProducer(Schema.STRING).topic(tpName).enableBatching(false).create();
+        ArrayList<MessageId> messageIdsSent = new ArrayList<>();
+        for (int i = 0; i < msgSendCount; i++) {
+            MessageIdImpl messageId = (MessageIdImpl) p1.send(Integer.valueOf(i).toString());
+            messageIdsSent.add(messageId);
+        }
+        // Make ack holes.
+        Consumer<String> c1 = pulsarClient.newConsumer(Schema.STRING).topic(tpName).subscriptionName(subscription)
+                .receiverQueueSize(incomingQueueSize).isAckReceiptEnabled(true)
+                .subscriptionType(SubscriptionType.Shared).subscribe();
+        ackOddMessagesOnly(c1);
+
+        cancelPendingRead(tpName, subscription);
+        triggerNewReadMoreEntries(tpName, subscription);
+
+        // Verify: the dispatcher has been paused.
+        final String specifiedMessage1 = "9876543210";
+        p1.send(specifiedMessage1);
+        Message<String> msg1 = c1.receive(2, TimeUnit.SECONDS);
+        Assert.assertNull(msg1);
+
+        // Verify: after enough messages have been skipped, will unpause the dispatcher.
+        skipMessages(tpName, subscription, skipType, c1);
+        // Since the message "specifiedMessage1" might be skipped, we send a new message to verify the result.
+        final String specifiedMessage2 = "9876543211";
+        p1.send(specifiedMessage2);
+
+        ReceivedMessages receivedMessagesAfterPause = ackAllMessages(c1);
+        Assert.assertTrue(receivedMessagesAfterPause.hasReceivedMessage(specifiedMessage2));
+        Assert.assertTrue(receivedMessagesAfterPause.hasAckedMessage(specifiedMessage2));
+
+        // cleanup.
+        p1.close();
+        c1.close();
+        admin.topics().delete(tpName, false);
+    }
+
+    private void skipMessages(String tpName, String subscription, SkipType skipType, Consumer c) throws Exception {
+        PersistentTopic persistentTopic =
+                (PersistentTopic) pulsar.getBrokerService().getTopic(tpName, false).join().get();
+        Position LAC = persistentTopic.getManagedLedger().getLastConfirmedEntry();
+        MessageIdImpl LACMessageId = new MessageIdImpl(LAC.getLedgerId(), LAC.getEntryId(), -1);
+        if (skipType == SkipType.SKIP_ENTRIES) {
+            while (true) {
+                GetStatsOptions getStatsOptions = new GetStatsOptions(
+                        true, /* getPreciseBacklog */
+                        false, /* subscriptionBacklogSize */
+                        false, /* getEarliestTimeInBacklog */
+                        true, /* excludePublishers */
+                        true /* excludeConsumers */);
+                org.apache.pulsar.common.policies.data.SubscriptionStats subscriptionStats =
+                        admin.topics().getStats(tpName, getStatsOptions).getSubscriptions().get(subscription);
+                if (subscriptionStats.getMsgBacklog() < MAX_UNACKED_RANGES_TO_PERSIST) {
+                    break;
+                }
+                admin.topics().skipMessages(tpName, subscription, 100);
+            }
+        } else if (skipType == SkipType.CLEAR_BACKLOG){
+            admin.topics().skipAllMessages(tpName, subscription);
+        } else if (skipType == SkipType.SEEK) {
+            c.seek(LACMessageId);
+        } else if (skipType == SkipType.RESET_CURSOR) {
+            admin.topics().resetCursor(tpName, subscription, LACMessageId, false);
+        }
     }
 
     @Test(dataProvider = "singleConsumerSubscriptionTypes")
