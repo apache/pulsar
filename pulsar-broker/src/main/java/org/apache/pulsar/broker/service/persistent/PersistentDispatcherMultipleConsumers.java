@@ -114,11 +114,12 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                     "totalUnackedMessages");
     protected volatile int totalUnackedMessages = 0;
     /**
-     * Delivery was paused at least once in the earlier time, due to the cursor data can not fully persist.
+     * A signature that relate to the check of "Dispatching has paused on cursor data can fully persist".
      * Note: do not use this field to confirm whether the delivery should be paused,
-     *       please call {@link #shouldPauseOnAckStatePersist}.
+     *      please call {@link #shouldPauseOnAckStatePersist}.
      */
-    private volatile boolean blockedDispatcherOnCursorDataCanNotFullyPersist = false;
+    private BlockDispatcherSignatureOnCursorDataCanNotFullyPersist blockSignatureOnCursorDataCanNotFullyPersist =
+            new BlockDispatcherSignatureOnCursorDataCanNotFullyPersist();
     private volatile int blockedDispatcherOnUnackedMsgs = FALSE;
     protected static final AtomicIntegerFieldUpdater<PersistentDispatcherMultipleConsumers>
             BLOCKED_DISPATCHER_ON_UNACKMSG_UPDATER =
@@ -338,7 +339,6 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                 }
             } else if (!havePendingRead) {
                 if (shouldPauseOnAckStatePersist(ReadType.Normal)) {
-                    blockedDispatcherOnCursorDataCanNotFullyPersist = true;
                     if (log.isDebugEnabled()) {
                         log.debug("[{}] [{}] Skipping read for the topic, Due to blocked on ack state persistent.",
                                 topic.getName(), getSubscriptionName());
@@ -393,7 +393,28 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         if (cursor == null) {
             return true;
         }
-        return !cursor.isCursorDataFullyPersistable();
+
+        /**
+         * Double check for "Cursor data can be fully persistent".
+         * - Clear the marker that represent some acknowledgements were executed.
+         * - Check whether dispatching should be paused due to cursor data is too large to persistent.
+         * - If dispatching should be paused, but some acknowledgements have been executed, re-calculate the result.
+         * - Mark delivery was paused at least once.
+         */
+        // Clear the marker that represent some acknowledgements were executed.
+        blockSignatureOnCursorDataCanNotFullyPersist.clearMakerNewAcknowledged();
+        // Check whether dispatching should be paused due to cursor data is too large to persistent.
+        if (cursor.isCursorDataFullyPersistable()) {
+            return false;
+        }
+        // At this pause, dispatching should be paused, but some acknowledgements have been executed.
+        // We should re-calculate the result.
+        if (blockSignatureOnCursorDataCanNotFullyPersist.hasNewAcknowledged()) {
+            return shouldPauseOnAckStatePersist(readType);
+        }
+        // Mark delivery was paused at least once.
+        blockSignatureOnCursorDataCanNotFullyPersist.markPaused();
+        return true;
     }
 
     @Override
@@ -1034,12 +1055,18 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
     }
 
     @Override
-    public synchronized void afterAckMessages(Throwable exOfDeletion, Object ctxOfDeletion) {
-        // If there was no previous pause due to cursor data is too large to persist, we don't need to manually
-        // trigger a new read. This can avoid too many CPU circles.
-        if (blockedDispatcherOnCursorDataCanNotFullyPersist && cursor.isCursorDataFullyPersistable()) {
+    public void afterAckMessages(Throwable exOfDeletion, Object ctxOfDeletion) {
+        /**
+         * - Mark a acknowledgement were executed.
+         * - If there was no previous pause due to cursor data is too large to persist, we don't need to manually
+         *   trigger a new read. This can avoid too many CPU circles.
+         * - Clear the marker that represent delivery was paused at least once in the earlier time.
+         */
+        blockSignatureOnCursorDataCanNotFullyPersist.markNewAcknowledged();
+        if (blockSignatureOnCursorDataCanNotFullyPersist.hasPausedAtLeastOnce()
+                && cursor.isCursorDataFullyPersistable()) {
             // clear paused count, and trigger a new reading.
-            blockedDispatcherOnCursorDataCanNotFullyPersist = false;
+            blockSignatureOnCursorDataCanNotFullyPersist.clearMarkerPaused();
             readMoreEntriesAsync();
         }
     }
