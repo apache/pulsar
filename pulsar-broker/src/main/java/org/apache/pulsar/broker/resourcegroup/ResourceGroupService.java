@@ -173,7 +173,6 @@ public class ResourceGroupService implements AutoCloseable{
             throw new PulsarAdminException(errMesg);
         }
 
-        rg.resourceGroupPublishLimiter.close();
         rg.resourceGroupPublishLimiter = null;
         resourceGroupsMap.remove(name);
     }

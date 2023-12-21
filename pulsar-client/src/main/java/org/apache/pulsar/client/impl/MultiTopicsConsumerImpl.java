@@ -559,7 +559,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
     }
 
     @Override
-    public CompletableFuture<Void> unsubscribeAsync() {
+    public CompletableFuture<Void> unsubscribeAsync(boolean force) {
         if (getState() == State.Closing || getState() == State.Closed) {
             return FutureUtil.failedFuture(
                     new PulsarClientException.AlreadyClosedException("Topics Consumer was already closed"));
@@ -568,7 +568,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
 
         CompletableFuture<Void> unsubscribeFuture = new CompletableFuture<>();
         List<CompletableFuture<Void>> futureList = consumers.values().stream()
-            .map(ConsumerImpl::unsubscribeAsync).collect(Collectors.toList());
+            .map(c -> c.unsubscribeAsync(force)).collect(Collectors.toList());
 
         FutureUtil.waitForAll(futureList)
             .thenComposeAsync((r) -> {

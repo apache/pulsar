@@ -313,8 +313,6 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 .build();
         this.backloggedCursorThresholdEntries =
                 brokerService.pulsar().getConfiguration().getManagedLedgerCursorBackloggedThreshold();
-        registerTopicPolicyListener();
-
         this.messageDeduplication = new MessageDeduplication(brokerService.pulsar(), this, ledger);
         if (ledger.getProperties().containsKey(TOPIC_EPOCH_PROPERTY_NAME)) {
             topicEpoch = Optional.of(Long.parseLong(ledger.getProperties().get(TOPIC_EPOCH_PROPERTY_NAME)));
@@ -327,7 +325,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             this.transactionBuffer = brokerService.getPulsar()
                     .getTransactionBufferProvider().newTransactionBuffer(this);
         } else {
-            this.transactionBuffer = new TransactionBufferDisable();
+            this.transactionBuffer = new TransactionBufferDisable(this);
         }
         transactionBuffer.syncMaxReadPositionForNormalPublish((PositionImpl) ledger.getLastConfirmedEntry());
         if (ledger instanceof ShadowManagedLedgerImpl) {
@@ -420,7 +418,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             this.transactionBuffer = brokerService.getPulsar()
                     .getTransactionBufferProvider().newTransactionBuffer(this);
         } else {
-            this.transactionBuffer = new TransactionBufferDisable();
+            this.transactionBuffer = new TransactionBufferDisable(this);
         }
         shadowSourceTopic = null;
     }
@@ -477,7 +475,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                     new UnsupportedSubscriptionException(String.format("Unsupported subscription: %s", subName)));
         }
         // Fence old subscription -> Rewind cursor -> Replace with a new subscription.
-        return sub.disconnect().thenCompose(ignore -> {
+        return sub.close(true, Optional.empty()).thenCompose(ignore -> {
             if (!lock.writeLock().tryLock()) {
                 return CompletableFuture.failedFuture(new SubscriptionConflictUnloadException(String.format("Conflict"
                         + " topic-close, topic-delete, another-subscribe-unload, cannot unload subscription %s now",
@@ -529,8 +527,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             return;
         }
         if (isExceedMaximumMessageSize(headersAndPayload.readableBytes(), publishContext)) {
-            publishContext.completed(new NotAllowedException("Exceed maximum message size")
-                    , -1, -1);
+            publishContext.completed(new NotAllowedException("Exceed maximum message size"), -1, -1);
             decrementPendingWriteOpsAndCheck();
             return;
         }
@@ -651,6 +648,19 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
     @Override
     public synchronized void addFailed(ManagedLedgerException exception, Object ctx) {
+        /* If the topic is being transferred(in the Releasing bundle state),
+         we don't want to forcefully close topic here.
+         Instead, we will rely on the service unit state channel's bundle(topic) transfer protocol.
+         At the end of the transfer protocol, at Owned state, the source broker should close the topic properly.
+         */
+        if (transferring) {
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] Failed to persist msg in store: {} while transferring.",
+                        topic, exception.getMessage(), exception);
+            }
+            return;
+        }
+
         PublishContext callback = (PublishContext) ctx;
         if (exception instanceof ManagedLedgerFencedException) {
             // If the managed ledger has been fenced, we cannot continue using it. We need to close and reopen
@@ -1348,7 +1358,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
                 CompletableFuture<Void> closeClientFuture = new CompletableFuture<>();
                 List<CompletableFuture<Void>> futures = new ArrayList<>();
-                subscriptions.forEach((s, sub) -> futures.add(sub.disconnect()));
+                subscriptions.forEach((s, sub) -> futures.add(sub.close(true, Optional.empty())));
                 if (closeIfClientsConnected) {
                     replicators.forEach((cluster, replicator) -> futures.add(replicator.disconnect()));
                     shadowReplicators.forEach((__, replicator) -> futures.add(replicator.disconnect()));
@@ -1473,6 +1483,9 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
         lock.writeLock().lock();
         try {
+            if (!disconnectClients) {
+                transferring = true;
+            }
             // closing managed-ledger waits until all producers/consumers/replicators get closed. Sometimes, broker
             // forcefully wants to close managed-ledger without waiting all resources to be closed.
             if (!isClosingOrDeleting || closeWithoutWaitingClientDisconnect) {
@@ -1493,16 +1506,21 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         shadowReplicators.forEach((__, replicator) -> futures.add(replicator.disconnect()));
         if (disconnectClients) {
             futures.add(ExtensibleLoadManagerImpl.getAssignedBrokerLookupData(
-                    brokerService.getPulsar(), topic).thenAccept(lookupData ->
-                    producers.values().forEach(producer -> futures.add(producer.disconnect(lookupData)))
+                brokerService.getPulsar(), topic).thenAccept(lookupData -> {
+                    producers.values().forEach(producer -> futures.add(producer.disconnect(lookupData)));
+                    // Topics unloaded due to the ExtensibleLoadManager undergo closing twice: first with
+                    // disconnectClients = false, second with disconnectClients = true. The check below identifies the
+                    // cases when Topic.close is called outside the scope of the ExtensibleLoadManager. In these
+                    // situations, we must pursue the regular Subscription.close, as Topic.close is invoked just once.
+                    if (isTransferring()) {
+                        subscriptions.forEach((s, sub) -> futures.add(sub.disconnect(lookupData)));
+                    } else {
+                        subscriptions.forEach((s, sub) -> futures.add(sub.close(true, lookupData)));
+                    }
+                }
             ));
-        }
-        if (topicPublishRateLimiter != null) {
-            topicPublishRateLimiter.close();
-        }
-        subscriptions.forEach((s, sub) -> futures.add(sub.disconnect()));
-        if (this.resourceGroupPublishLimiter != null) {
-            this.resourceGroupPublishLimiter.unregisterRateLimitFunction(this.getName());
+        } else {
+            subscriptions.forEach((s, sub) -> futures.add(sub.close(false, Optional.empty())));
         }
 
         //close entry filters
@@ -1632,6 +1650,11 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         }
 
         List<String> configuredClusters = topicPolicies.getReplicationClusters().get();
+        if (CollectionUtils.isEmpty(configuredClusters)) {
+            log.warn("[{}] No replication clusters configured", name);
+            return CompletableFuture.completedFuture(null);
+        }
+
         int newMessageTTLInSeconds = topicPolicies.getMessageTTLInSeconds().get();
 
         String localCluster = brokerService.pulsar().getConfiguration().getClusterName();
@@ -3754,6 +3777,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     protected CompletableFuture<Void> initTopicPolicy() {
         if (brokerService.pulsar().getConfig().isSystemTopicEnabled()
                 && brokerService.pulsar().getConfig().isTopicLevelPoliciesEnabled()) {
+            brokerService.getPulsar().getTopicPoliciesService()
+                    .registerListener(TopicName.getPartitionedTopicName(topic), this);
             return CompletableFuture.completedFuture(null).thenRunAsync(() -> onUpdate(
                             brokerService.getPulsar().getTopicPoliciesService()
                                     .getTopicPoliciesIfExists(TopicName.getPartitionedTopicName(topic))),

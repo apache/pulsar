@@ -201,8 +201,11 @@ public abstract class PersistentReplicator extends AbstractReplicator
         // handle rate limit
         if (dispatchRateLimiter.isPresent() && dispatchRateLimiter.get().isDispatchRateLimitingEnabled()) {
             DispatchRateLimiter rateLimiter = dispatchRateLimiter.get();
+            // if dispatch-rate is in msg then read only msg according to available permit
+            long availablePermitsOnMsg = rateLimiter.getAvailableDispatchRateLimitOnMsg();
+            long availablePermitsOnByte = rateLimiter.getAvailableDispatchRateLimitOnByte();
             // no permits from rate limit
-            if (!rateLimiter.hasMessageDispatchPermit()) {
+            if (availablePermitsOnByte == 0 || availablePermitsOnMsg == 0) {
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] message-read exceeded topic replicator message-rate {}/{},"
                                     + " schedule after a {}",
@@ -213,9 +216,6 @@ public abstract class PersistentReplicator extends AbstractReplicator
                 }
                 return -1;
             }
-
-            // if dispatch-rate is in msg then read only msg according to available permit
-            long availablePermitsOnMsg = rateLimiter.getAvailableDispatchRateLimitOnMsg();
             if (availablePermitsOnMsg > 0) {
                 availablePermits = Math.min(availablePermits, (int) availablePermitsOnMsg);
             }

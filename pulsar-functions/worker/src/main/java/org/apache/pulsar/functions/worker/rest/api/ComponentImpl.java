@@ -20,17 +20,12 @@ package org.apache.pulsar.functions.worker.rest.api;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.concurrent.TimeUnit.SECONDS;
-import static org.apache.bookkeeper.common.concurrent.FutureUtils.result;
 import static org.apache.commons.lang3.StringUtils.isEmpty;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.pulsar.functions.utils.FunctionCommon.createPkgTempFile;
-import static org.apache.pulsar.functions.utils.FunctionCommon.getStateNamespace;
 import static org.apache.pulsar.functions.utils.FunctionCommon.getUniquePackageName;
 import static org.apache.pulsar.functions.worker.rest.RestUtils.throwUnavailableException;
 import com.google.common.base.Utf8;
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.ByteBufUtil;
-import io.netty.buffer.Unpooled;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -38,6 +33,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
 import java.net.URL;
+import java.nio.ByteBuffer;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -48,7 +44,6 @@ import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.Response;
@@ -56,14 +51,6 @@ import javax.ws.rs.core.Response.Status;
 import javax.ws.rs.core.StreamingOutput;
 import javax.ws.rs.core.UriBuilder;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.bookkeeper.api.StorageClient;
-import org.apache.bookkeeper.api.kv.Table;
-import org.apache.bookkeeper.api.kv.result.KeyValue;
-import org.apache.bookkeeper.clients.StorageClientBuilder;
-import org.apache.bookkeeper.clients.admin.StorageAdminClient;
-import org.apache.bookkeeper.clients.config.StorageClientSettings;
-import org.apache.bookkeeper.clients.exceptions.NamespaceNotFoundException;
-import org.apache.bookkeeper.clients.exceptions.StreamNotFoundException;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
@@ -88,6 +75,7 @@ import org.apache.pulsar.common.policies.data.FunctionStatsImpl;
 import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.RestException;
 import org.apache.pulsar.functions.instance.InstanceUtils;
+import org.apache.pulsar.functions.instance.state.DefaultStateStore;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 import org.apache.pulsar.functions.proto.Function.FunctionMetaData;
@@ -116,7 +104,6 @@ import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
 @Slf4j
 public abstract class ComponentImpl implements Component<PulsarWorkerService> {
 
-    private final AtomicReference<StorageClient> storageClient = new AtomicReference<>();
     protected final Supplier<PulsarWorkerService> workerServiceSupplier;
     protected final Function.FunctionDetails.ComponentType componentType;
 
@@ -433,25 +420,6 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
         return packageLocationMetaDataBuilder;
     }
 
-    private void deleteStatestoreTableAsync(String namespace, String table) {
-        StorageAdminClient adminClient = worker().getStateStoreAdminClient();
-        if (adminClient != null) {
-            adminClient.deleteStream(namespace, table).whenComplete((res, throwable) -> {
-                if ((throwable == null && res)
-                        || ((throwable instanceof NamespaceNotFoundException
-                        || throwable instanceof StreamNotFoundException))) {
-                    log.info("{}/{} table deleted successfully", namespace, table);
-                } else {
-                    if (throwable != null) {
-                        log.error("{}/{} table deletion failed {}  but moving on", namespace, table, throwable);
-                    } else {
-                        log.error("{}/{} table deletion failed but moving on", namespace, table);
-                    }
-                }
-            });
-        }
-    }
-
     @Override
     public void deregisterFunction(final String tenant,
                                    final String namespace,
@@ -508,7 +476,13 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
                     functionMetaData.getTransformFunctionPackageLocation().getPackagePath());
         }
 
-        deleteStatestoreTableAsync(getStateNamespace(tenant, namespace), componentName);
+        if (worker().getStateStoreProvider() != null) {
+            try {
+                worker().getStateStoreProvider().cleanUp(tenant, namespace, componentName);
+            } catch (Throwable e) {
+                log.error("failed to clean up the state store for {}/{}/{}", tenant, namespace, componentName);
+            }
+        }
     }
 
     private void deleteComponentFromStorage(String tenant, String namespace, String componentName,
@@ -1162,7 +1136,7 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
         throwRestExceptionIfUnauthorizedForNamespace(tenant, namespace, functionName, "get state for",
                 authParams);
 
-        if (null == worker().getStateStoreAdminClient()) {
+        if (null == worker().getStateStoreProvider()) {
             throwStateStoreUnvailableResponse();
         }
 
@@ -1175,53 +1149,31 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
             throw new RestException(Status.BAD_REQUEST, e.getMessage());
         }
 
-        String tableNs = getStateNamespace(tenant, namespace);
-        String tableName = functionName;
-
-        String stateStorageServiceUrl = worker().getWorkerConfig().getStateStorageServiceUrl();
-
-        if (storageClient.get() == null) {
-            storageClient.compareAndSet(null, StorageClientBuilder.newBuilder()
-                    .withSettings(StorageClientSettings.newBuilder()
-                            .serviceUri(stateStorageServiceUrl)
-                            .clientName("functions-admin")
-                            .build())
-                    .withNamespace(tableNs)
-                    .build());
-        }
-
-        FunctionState value;
-        try (Table<ByteBuf, ByteBuf> table = result(storageClient.get().openTable(tableName))) {
-            try (KeyValue<ByteBuf, ByteBuf> kv = result(table.getKv(Unpooled.wrappedBuffer(key.getBytes(UTF_8))))) {
-                if (null == kv) {
-                    throw new RestException(Status.NOT_FOUND, "key '" + key + "' doesn't exist.");
-                } else {
-                    if (kv.isNumber()) {
-                        value = new FunctionState(key, null, null, kv.numberValue(), kv.version());
-                    } else {
-                        byte[] bytes = ByteBufUtil.getBytes(kv.value());
-                        if (Utf8.isWellFormed(bytes)) {
-                            value = new FunctionState(key, new String(bytes, UTF_8),
-                                    null, null, kv.version());
-                        } else {
-                            value = new FunctionState(
-                                    key, null, bytes, null, kv.version());
-                        }
-                    }
-                }
+        try {
+            DefaultStateStore store = worker().getStateStoreProvider().getStateStore(tenant, namespace, functionName);
+            ByteBuffer buf = store.get(key);
+            if (buf == null) {
+                throw new RestException(Status.NOT_FOUND, "key '" + key + "' doesn't exist.");
             }
-        } catch (RestException e) {
-            throw e;
-        } catch (org.apache.bookkeeper.clients.exceptions.NamespaceNotFoundException | StreamNotFoundException e) {
-            log.debug("State not found while processing getFunctionState request @ /{}/{}/{}/{}",
-                    tenant, namespace, functionName, key, e);
-            throw new RestException(Status.NOT_FOUND, e.getMessage());
-        } catch (Exception e) {
+
+            // try to parse the state as a long
+            // but even if it can be parsed as a long, this number may not be the actual state,
+            // so we will always return a `stringValue` or `bytesValue` with the number value
+            Long number = null;
+            if (buf.remaining() == Long.BYTES) {
+                number = buf.getLong();
+            }
+
+            if (Utf8.isWellFormed(buf.array())) {
+                return new FunctionState(key, new String(buf.array(), UTF_8), null, number, null);
+            } else {
+                return new FunctionState(key, null, buf.array(), number, null);
+            }
+        } catch (Throwable e) {
             log.error("Error while getFunctionState request @ /{}/{}/{}/{}",
                     tenant, namespace, functionName, key, e);
             throw new RestException(Status.INTERNAL_SERVER_ERROR, e.getMessage());
         }
-        return value;
     }
 
     @Override
@@ -1236,7 +1188,7 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
             throwUnavailableException();
         }
 
-        if (null == worker().getStateStoreAdminClient()) {
+        if (null == worker().getStateStoreProvider()) {
             throwStateStoreUnvailableResponse();
         }
 
@@ -1248,9 +1200,6 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
                     functionName);
             throw new RestException(Status.BAD_REQUEST, "Path key doesn't match key in json");
         }
-        if (state.getStringValue() == null && state.getByteValue() == null) {
-            throw new RestException(Status.BAD_REQUEST, "Setting Counter values not supported in put state");
-        }
 
         // validate parameters
         try {
@@ -1261,35 +1210,21 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
             throw new RestException(Status.BAD_REQUEST, e.getMessage());
         }
 
-        String tableNs = getStateNamespace(tenant, namespace);
-        String tableName = functionName;
-
-        String stateStorageServiceUrl = worker().getWorkerConfig().getStateStorageServiceUrl();
-
-        if (storageClient.get() == null) {
-            storageClient.compareAndSet(null, StorageClientBuilder.newBuilder()
-                    .withSettings(StorageClientSettings.newBuilder()
-                            .serviceUri(stateStorageServiceUrl)
-                            .clientName("functions-admin")
-                            .build())
-                    .withNamespace(tableNs)
-                    .build());
-        }
-
-        ByteBuf value;
-        if (!isEmpty(state.getStringValue())) {
-            value = Unpooled.wrappedBuffer(state.getStringValue().getBytes());
-        } else {
-            value = Unpooled.wrappedBuffer(state.getByteValue());
-        }
-        try (Table<ByteBuf, ByteBuf> table = result(storageClient.get().openTable(tableName))) {
-            result(table.put(Unpooled.wrappedBuffer(key.getBytes(UTF_8)), value));
-        } catch (org.apache.bookkeeper.clients.exceptions.NamespaceNotFoundException
-                | org.apache.bookkeeper.clients.exceptions.StreamNotFoundException e) {
-            log.debug("State not found while processing putFunctionState request @ /{}/{}/{}/{}",
-                    tenant, namespace, functionName, key, e);
-            throw new RestException(Status.NOT_FOUND, e.getMessage());
-        } catch (Exception e) {
+        try {
+            DefaultStateStore store = worker().getStateStoreProvider().getStateStore(tenant, namespace, functionName);
+            ByteBuffer data;
+            if (StringUtils.isNotEmpty(state.getStringValue())) {
+                data = ByteBuffer.wrap(state.getStringValue().getBytes(UTF_8));
+            } else if (state.getByteValue() != null) {
+                data = ByteBuffer.wrap(state.getByteValue());
+            } else if (state.getNumberValue() != null) {
+                data = ByteBuffer.allocate(Long.BYTES);
+                data.putLong(state.getNumberValue());
+            } else {
+                throw new IllegalArgumentException("Invalid state value");
+            }
+            store.put(key, data);
+        } catch (Throwable e) {
             log.error("Error while putFunctionState request @ /{}/{}/{}/{}",
                     tenant, namespace, functionName, key, e);
             throw new RestException(Status.INTERNAL_SERVER_ERROR, e.getMessage());

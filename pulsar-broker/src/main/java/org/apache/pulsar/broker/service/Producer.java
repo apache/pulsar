@@ -321,7 +321,7 @@ public class Producer {
         // barrier
         pendingPublishAcksUpdater.lazySet(this, pendingPublishAcks + 1);
         // increment publish-count
-        this.getTopic().incrementPublishCount(batchSize, msgSize);
+        this.getTopic().incrementPublishCount(this, batchSize, msgSize);
     }
 
     private void publishOperationCompleted() {
@@ -488,9 +488,16 @@ public class Producer {
                 final ServerError serverError = getServerError(exception);
 
                 producer.cnx.execute(() -> {
-                    if (!(exception instanceof TopicClosedException)) {
+                    // if the topic is transferring, we don't send error code to the clients.
+                    if (producer.getTopic().isTransferring()) {
+                        if (log.isDebugEnabled()) {
+                            log.debug("[{}] Received producer exception: {} while transferring.",
+                                    producer.getTopic().getName(), exception.getMessage(), exception);
+                        }
+                    } else if (!(exception instanceof TopicClosedException)) {
                         // For TopicClosed exception there's no need to send explicit error, since the client was
                         // already notified
+                        // For TopicClosingOrDeleting exception, a notification will be sent separately
                         long callBackSequenceId = Math.max(highestSequenceId, sequenceId);
                         producer.cnx.getCommandSender().sendSendError(producer.producerId, callBackSequenceId,
                                 serverError, exception.getMessage());
@@ -712,7 +719,7 @@ public class Producer {
      */
     public CompletableFuture<Void> disconnect(Optional<BrokerLookupData> assignedBrokerLookupData) {
         if (!closeFuture.isDone() && isDisconnecting.compareAndSet(false, true)) {
-            log.info("Disconnecting producer: {}", this);
+            log.info("Disconnecting producer: {}, assignedBrokerLookupData: {}", this, assignedBrokerLookupData);
             cnx.execute(() -> {
                 cnx.closeProducer(this, assignedBrokerLookupData);
                 closeNow(true);
@@ -846,4 +853,27 @@ public class Producer {
 
     private static final Logger log = LoggerFactory.getLogger(Producer.class);
 
+    /**
+     * This method increments a counter that is used to control the throttling of a connection.
+     * The connection's read operations are paused when the counter's value is greater than 0, indicating that
+     * throttling is in effect.
+     * It's important to note that after calling this method, it is the caller's responsibility to ensure that the
+     * counter is decremented by calling the {@link #decrementThrottleCount()} method when throttling is no longer
+     * needed on the connection.
+     */
+    public void incrementThrottleCount() {
+        cnx.incrementThrottleCount();
+    }
+
+    /**
+     * This method decrements a counter that is used to control the throttling of a connection.
+     * The connection's read operations are resumed when the counter's value is 0, indicating that
+     * throttling is no longer in effect.
+     * It's important to note that before calling this method, the caller should have previously
+     * incremented the counter by calling the {@link #incrementThrottleCount()} method when throttling
+     * was needed on the connection.
+     */
+    public void decrementThrottleCount() {
+        cnx.decrementThrottleCount();
+    }
 }

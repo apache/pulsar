@@ -658,6 +658,10 @@ public class PulsarClientException extends IOException {
         public NotConnectedException(long sequenceId) {
             super("Not connected to broker", sequenceId);
         }
+
+        public NotConnectedException(String msg) {
+            super(msg);
+        }
     }
 
     /**
