@@ -34,6 +34,8 @@ import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import io.netty.buffer.Unpooled;
@@ -100,6 +102,7 @@ import org.apache.pulsar.broker.transaction.buffer.impl.TopicTransactionBufferPr
 import org.apache.pulsar.broker.transaction.buffer.impl.TopicTransactionBufferRecoverCallBack;
 import org.apache.pulsar.broker.transaction.buffer.impl.TopicTransactionBufferState;
 import org.apache.pulsar.broker.transaction.buffer.metadata.TransactionBufferSnapshot;
+import org.apache.pulsar.broker.transaction.pendingack.PendingAckHandle;
 import org.apache.pulsar.broker.transaction.pendingack.PendingAckStore;
 import org.apache.pulsar.broker.transaction.pendingack.TransactionPendingAckStoreProvider;
 import org.apache.pulsar.broker.transaction.pendingack.impl.MLPendingAckReplyCallBack;
@@ -124,6 +127,7 @@ import org.apache.pulsar.client.impl.ClientCnx;
 import org.apache.pulsar.client.impl.ConsumerBase;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.MessagesImpl;
+import org.apache.pulsar.client.impl.ProducerImpl;
 import org.apache.pulsar.client.impl.transaction.TransactionImpl;
 import org.apache.pulsar.client.util.ExecutorProvider;
 import org.apache.pulsar.common.api.proto.CommandSubscribe;
@@ -1774,6 +1778,88 @@ public class TransactionTest extends TransactionTestBase {
         producer.close();
         admin.topics().unload(topic);
         checkSnapshotPublisherCount(namespace, 0);
+    }
+
+
+    @Test
+    public void testOnlyReDeliverMessagesAfterTxnAbort() throws Exception {
+        String topic = NAMESPACE1 + "/testOnlyReDeliverMessagesAfterTxnAbort";
+        String subName = "mysub";
+        int messageCount = 5;
+
+        @Cleanup
+        Producer<Integer> producer = pulsarClient.newProducer(Schema.INT32)
+                .topic(topic)
+                .enableBatching(true)
+                .create();
+
+        @Cleanup
+        Consumer<Integer> consumer1 = pulsarClient.newConsumer(Schema.INT32)
+                .subscriptionName(subName)
+                .subscriptionType(SubscriptionType.Shared)
+                .topic(topic)
+                .subscribe();
+
+        for (int i = 0; i < messageCount; i++) {
+            producer.newMessage().value(i).sendAsync();
+        }
+
+        PulsarClient pulsarClient2 = PulsarClient.builder().serviceUrl(pulsarServiceList.get(0).getBrokerServiceUrl()).build();
+
+        @Cleanup
+        Consumer<Integer> consumer2 = pulsarClient2.newConsumer(Schema.INT32)
+                .subscriptionName(subName)
+                .subscriptionType(SubscriptionType.Shared)
+                .topic(topic)
+                .subscribe();
+
+        Transaction transaction = pulsarClient.newTransaction()
+                .withTransactionTimeout(5, TimeUnit.HOURS)
+                .build()
+                .get();
+        // Wait register ack topic for the transaction completely.
+        consumer1.acknowledgeAsync(consumer1.receive(5, TimeUnit.SECONDS).getMessageId(), transaction).get();
+
+        PendingAckHandle pendingAckHandle = ((PersistentSubscription) getPulsarServiceList().get(0)
+                .getBrokerService()
+                .getTopic(topic, false)
+                .get().get()
+                .getSubscription(subName)).getPendingAckHandle();
+
+        CompletableFuture<PendingAckStore> pendingAckStoreCompletableFuture = new CompletableFuture<>();
+        Field pendingAckStoreFutureField = PendingAckHandleImpl.class.getDeclaredField("pendingAckStoreFuture");
+        pendingAckStoreFutureField.setAccessible(true);
+        CompletableFuture<PendingAckStore> oldPendingAckStoreCompletableFuture =
+                (CompletableFuture<PendingAckStore>) pendingAckStoreFutureField.get(pendingAckHandle);
+        PendingAckStore pendingAckStore = oldPendingAckStoreCompletableFuture.get();
+        pendingAckStoreFutureField.set(pendingAckHandle, pendingAckStoreCompletableFuture);
+
+        for (int i = 0; i < messageCount - 1; i++) {
+            Message<Integer> message = consumer1.receive(5, TimeUnit.SECONDS);
+            consumer1.acknowledgeAsync(message.getMessageId(), transaction);
+        }
+
+        ((ProducerImpl<?>) producer).getClientCnx().close();
+
+        Thread.sleep(1000);
+        pendingAckStoreCompletableFuture.complete(pendingAckStore);
+
+        Message<Integer> msg1 = consumer1.receive(10, TimeUnit.SECONDS);
+        assertNull(msg1);
+
+        Message<Integer> msg2 = consumer2.receive(10, TimeUnit.SECONDS);
+        assertNull(msg2);
+
+        transaction.abort().get();
+        for (int i = 0; i < messageCount; i++) {
+            Message<Integer> message = consumer1.receive(5, TimeUnit.SECONDS);
+            if (message == null) {
+                message = consumer2.receive(5, TimeUnit.SECONDS);
+                assertNotNull(message);
+            }
+        }
+        pulsarClient2.close();
+
     }
 
     private void getTopic(String topicName) {
