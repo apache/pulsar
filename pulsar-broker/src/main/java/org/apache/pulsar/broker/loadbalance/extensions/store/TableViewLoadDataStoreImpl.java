@@ -29,6 +29,7 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.TableView;
+import org.apache.pulsar.common.util.FutureUtil;
 
 /**
  * The load data store, base on {@link TableView <T>}.
@@ -58,40 +59,46 @@ public class TableViewLoadDataStoreImpl<T> implements LoadDataStore<T> {
     }
 
     @Override
-    public CompletableFuture<Void> pushAsync(String key, T loadData) {
+    public synchronized CompletableFuture<Void> pushAsync(String key, T loadData) {
+        if (producer == null) {
+            return FutureUtil.failedFuture(new IllegalStateException("producer has not been started"));
+        }
         return producer.newMessage().key(key).value(loadData).sendAsync().thenAccept(__ -> {});
     }
 
     @Override
-    public CompletableFuture<Void> removeAsync(String key) {
+    public synchronized CompletableFuture<Void> removeAsync(String key) {
+        if (producer == null) {
+            return FutureUtil.failedFuture(new IllegalStateException("producer has not been started"));
+        }
         return producer.newMessage().key(key).value(null).sendAsync().thenAccept(__ -> {});
     }
 
     @Override
-    public Optional<T> get(String key) {
+    public synchronized Optional<T> get(String key) {
         validateTableViewStart();
         return Optional.ofNullable(tableView.get(key));
     }
 
     @Override
-    public void forEach(BiConsumer<String, T> action) {
+    public synchronized void forEach(BiConsumer<String, T> action) {
         validateTableViewStart();
         tableView.forEach(action);
     }
 
-    public Set<Map.Entry<String, T>> entrySet() {
+    public synchronized Set<Map.Entry<String, T>> entrySet() {
         validateTableViewStart();
         return tableView.entrySet();
     }
 
     @Override
-    public int size() {
+    public synchronized int size() {
         validateTableViewStart();
         return tableView.size();
     }
 
     @Override
-    public void closeTableView() throws IOException {
+    public synchronized void closeTableView() throws IOException {
         if (tableView != null) {
             tableView.close();
             tableView = null;
@@ -99,13 +106,13 @@ public class TableViewLoadDataStoreImpl<T> implements LoadDataStore<T> {
     }
 
     @Override
-    public void start() throws LoadDataStoreException {
+    public synchronized void start() throws LoadDataStoreException {
         startProducer();
         startTableView();
     }
 
     @Override
-    public void startTableView() throws LoadDataStoreException {
+    public synchronized void startTableView() throws LoadDataStoreException {
         if (tableView == null) {
             try {
                 tableView = client.newTableViewBuilder(Schema.JSON(clazz)).topic(topic).create();
@@ -117,7 +124,7 @@ public class TableViewLoadDataStoreImpl<T> implements LoadDataStore<T> {
     }
 
     @Override
-    public void startProducer() throws LoadDataStoreException {
+    public synchronized void startProducer() throws LoadDataStoreException {
         if (producer == null) {
             try {
                 producer = client.newProducer(Schema.JSON(clazz)).topic(topic).create();
@@ -129,7 +136,7 @@ public class TableViewLoadDataStoreImpl<T> implements LoadDataStore<T> {
     }
 
     @Override
-    public void close() throws IOException {
+    public synchronized void close() throws IOException {
         if (producer != null) {
             producer.close();
             producer = null;
@@ -138,15 +145,14 @@ public class TableViewLoadDataStoreImpl<T> implements LoadDataStore<T> {
     }
 
     @Override
-    public void init() throws IOException {
+    public synchronized void init() throws IOException {
         close();
         start();
     }
 
-    private void validateTableViewStart() {
+    private synchronized void validateTableViewStart() {
         if (tableView == null) {
             throw new IllegalStateException("table view has not been started");
         }
     }
-
 }
