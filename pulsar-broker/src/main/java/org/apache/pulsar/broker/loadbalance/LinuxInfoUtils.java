@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.loadbalance;
 import com.google.common.annotations.VisibleForTesting;
 import java.io.IOException;
 import java.lang.reflect.Method;
+import java.net.SocketException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -28,7 +29,6 @@ import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import java.util.Locale;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -39,6 +39,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.SystemUtils;
 import org.apache.pulsar.broker.BitRateUnit;
+import oshi.hardware.NetworkIF;
 
 @Slf4j
 public class LinuxInfoUtils {
@@ -50,10 +51,6 @@ public class LinuxInfoUtils {
 
     // proc states
     private static final String PROC_STAT_PATH = "/proc/stat";
-    private static final String NIC_PATH = "/sys/class/net/";
-    // NIC type
-    private static final int ARPHRD_ETHER = 1;
-    private static final String NIC_SPEED_TEMPLATE = "/sys/class/net/%s/speed";
 
     private static Object /*jdk.internal.platform.Metrics*/ metrics;
     private static Method getMetricsProviderMethod;
@@ -78,6 +75,9 @@ public class LinuxInfoUtils {
         } catch (Throwable e) {
             log.warn("Failed to get runtime metrics", e);
         }
+    }
+
+    private LinuxInfoUtils() {
     }
 
     /**
@@ -188,74 +188,18 @@ public class LinuxInfoUtils {
     }
 
     /**
-     * Determine whether the VM has physical nic.
-     * @param nicPath Nic path
-     * @return whether The VM has physical nic.
-     */
-    private static boolean isPhysicalNic(Path nicPath) {
-        try {
-            if (nicPath.toString().contains("/virtual/")) {
-                return false;
-            }
-            // Check the type to make sure it's ethernet (type "1")
-            final Path nicTypePath = nicPath.resolve("type");
-            if (!Files.exists(nicTypePath)) {
-                if (log.isDebugEnabled()) {
-                    log.debug("Failed to read NIC type, the expected linux type file does not exist."
-                              + " nic_type_path={}", nicTypePath);
-                }
-               return false;
-            }
-            // wireless NICs don't report speed, ignore them.
-            return Integer.parseInt(readTrimStringFromFile(nicTypePath)) == ARPHRD_ETHER;
-        } catch (Exception ex) {
-            if (log.isDebugEnabled()) {
-                log.debug("Failed to read NIC type. nic_path={}", nicPath, ex);
-            }
-            return false;
-        }
-    }
-
-    /**
-     * Determine whether nic is usable.
-     * @param nicPath Nic path
-     * @return whether nic is usable.
-     */
-    private static boolean isUsable(Path nicPath) {
-        try {
-            String operstate = readTrimStringFromFile(nicPath.resolve("operstate"));
-            Operstate operState = Operstate.valueOf(operstate.toUpperCase(Locale.ROOT));
-            switch (operState) {
-                case UP:
-                case UNKNOWN:
-                case DORMANT:
-                    return true;
-                default:
-                    return false;
-            }
-        } catch (Exception e) {
-            log.warn("[LinuxInfo] Failed to read {} NIC operstate, the detail is: {}", nicPath, e.getMessage());
-            // Read operstate got error.
-            return false;
-        }
-    }
-
-    /**
      * Get all physical nic limit.
      * @param nics All nic path
      * @param bitRateUnit Bit rate unit
      * @return Total nic limit
      */
     public static double getTotalNicLimit(List<String> nics, BitRateUnit bitRateUnit) {
-        return bitRateUnit.convert(nics.stream().mapToDouble(nicPath -> {
-            try {
-                return readDoubleFromFile(getReplacedNICPath(NIC_SPEED_TEMPLATE, nicPath));
-            } catch (IOException e) {
-                log.error("[LinuxInfo] Failed to get total nic limit.", e);
-                return 0d;
-            }
-        }).sum(), BitRateUnit.Megabit);
+        List<NetworkIF> networkIFs = OshiUtil.getNetworkIFs();
+        return bitRateUnit.convert(networkIFs.stream()
+                .filter(intf -> nics.contains(intf.getName()))
+                .mapToDouble(iface -> (double) iface.getSpeed()).sum(), BitRateUnit.Megabit);
     }
+
 
     /**
      * Get all physical nic usage.
@@ -265,28 +209,52 @@ public class LinuxInfoUtils {
      * @return Total nic usage
      */
     public static double getTotalNicUsage(List<String> nics, NICUsageType type, BitRateUnit bitRateUnit) {
-        return bitRateUnit.convert(nics.stream().mapToDouble(nic -> {
-            try {
-                return readDoubleFromFile(getReplacedNICPath(type.template, nic));
-            } catch (IOException e) {
-                log.error("[LinuxInfo] Failed to read {} bytes for NIC {} ", type, nic, e);
-                return 0d;
+        double totalUsage = 0;
+        BitRateUnit byteUnit = BitRateUnit.Byte;
+        List<NetworkIF> networkIFs = OshiUtil.getNetworkIFs().stream()
+                .filter(intf -> nics.contains(intf.getName())).toList();
+        for (NetworkIF networkIF : networkIFs) {
+            if (networkIF != null) {
+                switch (type) {
+                    case TX:
+                        totalUsage += networkIF.getBytesSent();
+                        break;
+                    case RX:
+                        totalUsage += networkIF.getBytesRecv();
+                        break;
+                    default:
+                        // Handle unsupported NICUsageType
+                        break;
+                }
             }
-        }).sum(), BitRateUnit.Byte);
+        }
+        return bitRateUnit.convert(totalUsage, byteUnit);
     }
+
 
     /**
      * Get paths of all usable physical nic.
+     *
      * @return All usable physical nic paths.
      */
     public static List<String> getUsablePhysicalNICs() {
-        try (Stream<Path> stream = Files.list(Paths.get(NIC_PATH))) {
-            return stream.filter(LinuxInfoUtils::isPhysicalNic)
-                    .filter(LinuxInfoUtils::isUsable)
-                    .map(path -> path.getFileName().toString())
+        List<NetworkIF> networkIFs = OshiUtil.getNetworkIFs();
+        if (networkIFs != null) {
+            return networkIFs.stream()
+                    .filter(intf -> {
+                        try {
+                            return (intf.queryNetworkInterface().isUp())
+                                    && !intf.queryNetworkInterface().isLoopback()
+                                    && !intf.queryNetworkInterface().isVirtual()
+                                    && !intf.queryNetworkInterface().isPointToPoint();
+                        } catch (SocketException e) {
+                            throw new RuntimeException(e);
+                        }
+                    })
+                    .map(NetworkIF::getName)
                     .collect(Collectors.toList());
-        } catch (IOException e) {
-            log.error("[LinuxInfo] Failed to find NICs", e);
+        } else {
+            log.error("Failed to find NICs");
             return Collections.emptyList();
         }
     }
@@ -304,43 +272,12 @@ public class LinuxInfoUtils {
         return totalNicLimit > 0;
     }
 
-    private static Path getReplacedNICPath(String template, String nic) {
-        return Paths.get(String.format(template, nic));
-    }
-
     private static String readTrimStringFromFile(Path path) throws IOException {
         return new String(Files.readAllBytes(path), StandardCharsets.UTF_8).trim();
     }
 
     private static long readLongFromFile(Path path) throws IOException {
         return Long.parseLong(readTrimStringFromFile(path));
-    }
-
-    private static double readDoubleFromFile(Path path) throws IOException {
-        return Double.parseDouble(readTrimStringFromFile(path));
-    }
-
-    /**
-     * TLV IFLA_OPERSTATE
-     * contains RFC2863 state of the interface in numeric representation:
-     * See <a href="https://www.kernel.org/doc/Documentation/networking/operstates.txt">...</a>
-     */
-    enum Operstate {
-        // Interface is in unknown state, neither driver nor userspace has set
-        // operational state. Interface must be considered for user data as
-        // setting operational state has not been implemented in every driver.
-        UNKNOWN,
-        // Interface is unable to transfer data on L1, f.e. ethernet is not
-        // plugged or interface is ADMIN down.
-        DOWN,
-        // Interfaces stacked on an interface that is IF_OPER_DOWN show this
-        // state (f.e. VLAN).
-        LOWERLAYERDOWN,
-        // Interface is L1 up, but waiting for an external event, f.e. for a
-        // protocol to establish. (802.1X)
-        DORMANT,
-        // Interface is operational up and can be used.
-        UP
     }
 
     @VisibleForTesting

@@ -311,8 +311,9 @@ flexible messaging model and an intuitive client API.</description>
     <dependency-check-maven.version>9.1.0</dependency-check-maven.version>
     <roaringbitmap.version>0.9.44</roaringbitmap.version>
     <extra-enforcer-rules.version>1.6.1</extra-enforcer-rules.version>
-    <oshi.version>6.4.0</oshi.version>
     <checkerframework.version>3.33.0</checkerframework.version>
+    <oshi.version>6.4.9</oshi.version>
+    <jna-platform.version>5.14.0</jna-platform.version>
 
     <!-- Used to configure rename.netty.native. Libs -->
     <rename.netty.native.libs>rename-netty-native-libs.sh</rename.netty.native.libs>
@@ -527,6 +528,18 @@ flexible messaging model and an intuitive client API.</description>
         <groupId>org.apache.bookkeeper</groupId>
         <artifactId>bookkeeper-tools-framework</artifactId>
         <version>${bookkeeper.version}</version>
+      </dependency>
+
+      <!-- Get system info-->
+      <dependency>
+        <groupId>com.github.oshi</groupId>
+        <artifactId>oshi-core</artifactId>
+        <version>${oshi.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>net.java.dev.jna</groupId>
+        <artifactId>jna-platform</artifactId>
+        <version>${jna-platform.version}</version>
       </dependency>
 
       <!-- reflection libs -->
@@ -2315,7 +2328,6 @@ flexible messaging model and an intuitive client API.</description>
         <module>pulsar-bom</module>
         <module>pulsar-broker-common</module>
         <module>pulsar-broker</module>
-        <module>pulsar-cli-utils</module>
         <module>pulsar-client-api</module>
         <module>pulsar-client</module>
         <module>pulsar-client-shaded</module>
