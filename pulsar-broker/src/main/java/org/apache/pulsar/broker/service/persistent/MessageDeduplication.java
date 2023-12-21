@@ -561,5 +561,10 @@ public class MessageDeduplication {
         return managedCursor;
     }
 
+    @VisibleForTesting
+    Map<String, Long> getInactiveProducers() {
+        return inactiveProducers;
+    }
+
     private static final Logger log = LoggerFactory.getLogger(MessageDeduplication.class);
 }
