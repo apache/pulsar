@@ -202,6 +202,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         addUnAckedMessages(-consumer.getUnackedMessages());
         if (consumerSet.removeAll(consumer) == 1) {
             consumerList.remove(consumer);
+            FutureUtil.waitForAll(consumer.getTransactionAckTasks()).join();
             log.info("Removed consumer {} with pending {} acks", consumer, consumer.getPendingAcks().size());
             if (consumerList.isEmpty()) {
                 cancelPendingRead();

@@ -33,6 +33,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.LongAdder;
 import java.util.stream.Collectors;
@@ -147,6 +148,8 @@ public class Consumer {
 
     @Getter
     private final SchemaType schemaType;
+
+    private final List<CompletableFuture<Void>> transactionAckTasks = new CopyOnWriteArrayList<>();
 
     public Consumer(Subscription subscription, SubType subType, String topicName, long consumerId,
                     int priorityLevel, String consumerName,
@@ -585,20 +588,25 @@ public class Consumer {
 
             totalAckCount.add(ackedCount);
         }
-
+        CompletableFuture<Void> ackTask = new CompletableFuture<>();
         CompletableFuture<Void> completableFuture = transactionIndividualAcknowledge(ack.getTxnidMostBits(),
                 ack.getTxnidLeastBits(), positionsAcked);
         if (Subscription.isIndividualAckMode(subType)) {
-            completableFuture.whenComplete((v, e) ->
-                    positionsAcked.forEach(positionLongMutablePair -> {
-                        if (positionLongMutablePair.getLeft().getAckSet() != null) {
-                            if (((PersistentSubscription) subscription)
-                                    .checkIsCanDeleteConsumerPendingAck(positionLongMutablePair.left)) {
-                                removePendingAcks(positionLongMutablePair.left);
-                            }
+            completableFuture.whenComplete((v, e) -> {
+                positionsAcked.forEach(positionLongMutablePair -> {
+                    if (positionLongMutablePair.getLeft().getAckSet() != null) {
+                        if (((PersistentSubscription) subscription)
+                                .checkIsCanDeleteConsumerPendingAck(positionLongMutablePair.left)) {
+                            removePendingAcks(positionLongMutablePair.left);
                         }
-                    }));
+                    }
+                });
+                ackTask.complete(null);
+            });
+        } else {
+            ackTask.complete(null);
         }
+        transactionAckTasks.add(ackTask);
         return completableFuture.thenApply(__ -> totalAckCount.sum());
     }
 
@@ -1146,6 +1154,10 @@ public class Consumer {
             stickyKey = Commands.peekStickyKey(entry.getDataBuffer(), topicName, subscription.getName());
         }
         return StickyKeyConsumerSelector.makeStickyKeyHash(stickyKey);
+    }
+
+    public List<CompletableFuture<Void>> getTransactionAckTasks() {
+        return transactionAckTasks;
     }
 
     private static final Logger log = LoggerFactory.getLogger(Consumer.class);
