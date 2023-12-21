@@ -407,13 +407,13 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         if (cursor.isCursorDataFullyPersistable()) {
             return false;
         }
+        // Mark delivery was paused at least once.
+        blockSignatureOnCursorDataCanNotFullyPersist.markPaused();
         // At this pause, dispatching should be paused, but some acknowledgements have been executed.
         // We should re-calculate the result.
         if (blockSignatureOnCursorDataCanNotFullyPersist.hasNewAcknowledged()) {
             return shouldPauseOnAckStatePersist(readType);
         }
-        // Mark delivery was paused at least once.
-        blockSignatureOnCursorDataCanNotFullyPersist.markPaused();
         return true;
     }
 
@@ -1057,7 +1057,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
     @Override
     public void afterAckMessages(Throwable exOfDeletion, Object ctxOfDeletion) {
         /**
-         * - Mark a acknowledgement were executed.
+         * - Mark an acknowledgement were executed.
          * - If there was no previous pause due to cursor data is too large to persist, we don't need to manually
          *   trigger a new read. This can avoid too many CPU circles.
          * - Clear the marker that represent delivery was paused at least once in the earlier time.
