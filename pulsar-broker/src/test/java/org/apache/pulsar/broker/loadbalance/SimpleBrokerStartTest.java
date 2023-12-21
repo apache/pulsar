@@ -37,10 +37,8 @@ import org.testng.annotations.Test;
 @Test(groups = "broker")
 public class SimpleBrokerStartTest {
 
+    @Test
     public void testHasNICSpeed() throws Exception {
-        if (!LinuxInfoUtils.isLinux()) {
-            return;
-        }
         // Start local bookkeeper ensemble
         @Cleanup("stop")
         LocalBookkeeperEnsemble bkEnsemble = new LocalBookkeeperEnsemble(3, 0, () -> 0);
@@ -65,10 +63,8 @@ public class SimpleBrokerStartTest {
         }
     }
 
+    @Test
     public void testNoNICSpeed() throws Exception {
-        if (!LinuxInfoUtils.isLinux()) {
-            return;
-        }
         // Start local bookkeeper ensemble
         @Cleanup("stop")
         LocalBookkeeperEnsemble bkEnsemble = new LocalBookkeeperEnsemble(3, 0, () -> 0);
