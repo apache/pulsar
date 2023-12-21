@@ -1800,11 +1800,18 @@ public class TransactionTest extends TransactionTestBase {
                 .topic(topic)
                 .subscribe();
 
+        // Send some batch messages
         for (int i = 0; i < messageCount; i++) {
             producer.newMessage().value(i).sendAsync();
         }
 
-        PulsarClient pulsarClient2 = PulsarClient.builder().serviceUrl(pulsarServiceList.get(0).getBrokerServiceUrl()).build();
+        // Create a new Pulsar client to create consumer2, so that the thread should not be blocked when redelivering
+        // messages to consumer2.
+        PulsarClient pulsarClient2 = PulsarClient
+                .builder()
+                .serviceUrl(pulsarServiceList.get(0)
+                .getBrokerServiceUrl())
+                .build();
 
         @Cleanup
         Consumer<Integer> consumer2 = pulsarClient2.newConsumer(Schema.INT32)
@@ -1817,9 +1824,11 @@ public class TransactionTest extends TransactionTestBase {
                 .withTransactionTimeout(5, TimeUnit.HOURS)
                 .build()
                 .get();
-        // Wait register ack topic for the transaction completely.
+        // Wait for the transaction's acknowledgment topic to be registered completely, so that the acknowledgment
+        // requests will not be blocked at the client side.
         consumer1.acknowledgeAsync(consumer1.receive(5, TimeUnit.SECONDS).getMessageId(), transaction).get();
 
+        // Block the acknowledgment requests in the transaction thread `pulsar-transaction-executor`.
         PendingAckHandle pendingAckHandle = ((PersistentSubscription) getPulsarServiceList().get(0)
                 .getBrokerService()
                 .getTopic(topic, false)
@@ -1834,22 +1843,27 @@ public class TransactionTest extends TransactionTestBase {
         PendingAckStore pendingAckStore = oldPendingAckStoreCompletableFuture.get();
         pendingAckStoreFutureField.set(pendingAckHandle, pendingAckStoreCompletableFuture);
 
+        // Acknowledge messages with the transaction, and these requests will be blocked.
         for (int i = 0; i < messageCount - 1; i++) {
             Message<Integer> message = consumer1.receive(5, TimeUnit.SECONDS);
             consumer1.acknowledgeAsync(message.getMessageId(), transaction);
         }
 
+        // Close the connection of client1, which will trigger redelivery of messages in the pending acknowledgments before this fix.
         ((ProducerImpl<?>) producer).getClientCnx().close();
 
+        // Wait for a moment to ensure messages are redelivered completely.
         Thread.sleep(1000);
         pendingAckStoreCompletableFuture.complete(pendingAckStore);
 
+        // Check whether the consumers receive the redelivered messages.
         Message<Integer> msg1 = consumer1.receive(10, TimeUnit.SECONDS);
         assertNull(msg1);
 
         Message<Integer> msg2 = consumer2.receive(10, TimeUnit.SECONDS);
         assertNull(msg2);
 
+        // The messages should be redelivered after aborting the transaction.
         transaction.abort().get();
         for (int i = 0; i < messageCount; i++) {
             Message<Integer> message = consumer1.receive(5, TimeUnit.SECONDS);
@@ -1858,8 +1872,8 @@ public class TransactionTest extends TransactionTestBase {
                 assertNotNull(message);
             }
         }
+        // Clean up the environment.
         pulsarClient2.close();
-
     }
 
     private void getTopic(String topicName) {

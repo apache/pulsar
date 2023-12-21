@@ -149,7 +149,7 @@ public class Consumer {
     @Getter
     private final SchemaType schemaType;
 
-    private final List<CompletableFuture<Void>> transactionAckTasks = new CopyOnWriteArrayList<>();
+    private final List<CompletableFuture<Void>> transactionalAckTasks = new CopyOnWriteArrayList<>();
 
     public Consumer(Subscription subscription, SubType subType, String topicName, long consumerId,
                     int priorityLevel, String consumerName,
@@ -606,7 +606,7 @@ public class Consumer {
         } else {
             ackTask.complete(null);
         }
-        transactionAckTasks.add(ackTask);
+        transactionalAckTasks.add(ackTask);
         return completableFuture.thenApply(__ -> totalAckCount.sum());
     }
 
@@ -1156,8 +1156,8 @@ public class Consumer {
         return StickyKeyConsumerSelector.makeStickyKeyHash(stickyKey);
     }
 
-    public List<CompletableFuture<Void>> getTransactionAckTasks() {
-        return transactionAckTasks;
+    public List<CompletableFuture<Void>> getTransactionalAckTasks() {
+        return transactionalAckTasks;
     }
 
     private static final Logger log = LoggerFactory.getLogger(Consumer.class);
