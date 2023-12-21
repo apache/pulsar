@@ -34,16 +34,16 @@ public class BlockDispatcherSignatureOnCursorDataCanNotFullyPersist {
      * We just call {@link PersistentDispatcherMultipleConsumers#readMoreEntries()} after the dispatching has been
      * paused at least once earlier.
      */
-    private volatile boolean markerAtLeastPausedOnce;
+    private volatile boolean markerPausedAtLeastOnce;
 
     /**
      * Used to mark some acknowledgements were executed.
      * Because there is a race condition might cause dispatching stuck, the steps to reproduce the issue is like below:
-     * - {@link #markerAtLeastPausedOnce} is "false" now.
+     * - {@link #markerPausedAtLeastOnce} is "false" now.
      * - Thread-reading-entries: there are too many ack holes, so start to pause dispatching
      * - Thread-ack: acked all messages.
-     * -             Since {@link #markerAtLeastPausedOnce} is "false", skip to trigger a new reading.
-     * - Thread-reading-entries: Set {@link #markerAtLeastPausedOnce} to "true" and discard the reading task.
+     * -             Since {@link #markerPausedAtLeastOnce} is "false", skip to trigger a new reading.
+     * - Thread-reading-entries: Set {@link #markerPausedAtLeastOnce} to "true" and discard the reading task.
      * - No longer to trigger a new reading.
      * So we add this field to solve the issue:
      * - Check ack holes in {@link org.apache.bookkeeper.mledger.impl.ManagedCursorImpl#individualDeletedMessages}.
@@ -56,7 +56,7 @@ public class BlockDispatcherSignatureOnCursorDataCanNotFullyPersist {
     }
 
     public boolean hasPausedAtLeastOnce() {
-        return markerAtLeastPausedOnce;
+        return markerPausedAtLeastOnce;
     }
 
     /** Calling when any messages have been acked. **/
@@ -91,7 +91,7 @@ public class BlockDispatcherSignatureOnCursorDataCanNotFullyPersist {
          * {@link PersistentDispatcherMultipleConsumers#afterAckMessages(Throwable, Object)} will trigger a new reading,
          * and the state "markerAtLeastPausedOnce" will be reset by the new reading.
          */
-        markerAtLeastPausedOnce = true;
+        markerPausedAtLeastOnce = true;
     }
 
     public void clearMarkerPaused() {
@@ -101,6 +101,6 @@ public class BlockDispatcherSignatureOnCursorDataCanNotFullyPersist {
          * {@link PersistentDispatcherMultipleConsumers#afterAckMessages(Throwable, Object)} will trigger a new reading
          * caused by the wrong state "markerAtLeastPausedOnce". It is not important.
          */
-        markerAtLeastPausedOnce = false;
+        markerPausedAtLeastOnce = false;
     }
 }
