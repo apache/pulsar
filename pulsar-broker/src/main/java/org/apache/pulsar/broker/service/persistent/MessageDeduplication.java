@@ -503,7 +503,9 @@ public class MessageDeduplication {
 
         // if not enabled just clear all inactive producer record.
         if (!isEnabled()) {
-            inactiveProducers.clear();
+            if (!inactiveProducers.isEmpty()) {
+                inactiveProducers.clear();
+            }
             return;
         }
 
