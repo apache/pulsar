@@ -121,9 +121,6 @@ public class ProxyWithExtensibleLoadManagerTest extends MultiBrokerBaseTest {
     private PulsarClientImpl createClient(ProxyService proxyService) {
         try {
             return Mockito.spy((PulsarClientImpl) PulsarClient.builder().
-                    // operationTimeout(5, TimeUnit.SECONDS).
-                    // connectionTimeout(5, TimeUnit.SECONDS).
-                    // lookupTimeout(5, TimeUnit.SECONDS).
                     serviceUrl(proxyService.getServiceUrl()).
                     build());
         } catch (PulsarClientException e) {
@@ -195,7 +192,6 @@ public class ProxyWithExtensibleLoadManagerTest extends MultiBrokerBaseTest {
 
         var bundleRange = admin.lookups().getBundleRange(topicName.toString());
 
-        var cdl = new CountDownLatch(1);
         var semSend = new Semaphore(0);
         var messagesBeforeUnload = 100;
         var messagesAfterUnload = 100;
@@ -227,22 +223,12 @@ public class ProxyWithExtensibleLoadManagerTest extends MultiBrokerBaseTest {
             }
         }, threadPool).orTimeout(TEST_TIMEOUT_MS, TimeUnit.MILLISECONDS);
 
-        var unloadFuture = CompletableFuture.runAsync(() -> {
-            try {
-                cdl.await();
-                var dstBrokerLookupUrl = getDstBrokerLookupUrl(topicName);
-                semSend.release(messagesBeforeUnload);
-                admin.namespaces().unloadNamespaceBundle(namespaceName.toString(), bundleRange, dstBrokerLookupUrl);
-                semSend.release(messagesAfterUnload);
-            } catch (Exception e) {
-                throw new CompletionException(e);
-            }
-        }, threadPool).orTimeout(TEST_TIMEOUT_MS, TimeUnit.MILLISECONDS);
-
-        cdl.countDown();
+        var dstBrokerLookupUrl = getDstBrokerLookupUrl(topicName);
+        semSend.release(messagesBeforeUnload);
+        admin.namespaces().unloadNamespaceBundle(namespaceName.toString(), bundleRange, dstBrokerLookupUrl);
+        semSend.release(messagesAfterUnload);
 
         // Verify all futures completed successfully.
-        unloadFuture.get();
         producerFuture.get();
         consumerFuture.get();
 
@@ -257,7 +243,7 @@ public class ProxyWithExtensibleLoadManagerTest extends MultiBrokerBaseTest {
     public void testClientReconnectsToBrokerOnProxyClosing() throws Exception {
         var namespaceName = NamespaceName.get("public", "default");
         var topicName = TopicName.get(TopicDomain.persistent.toString(), namespaceName,
-                BrokerTestUtil.newUniqueName("testProxyReconnect"));
+                BrokerTestUtil.newUniqueName("testClientReconnectsToBrokerOnProxyClosing"));
 
         @Cleanup("shutdownNow")
         var threadPool = Executors.newCachedThreadPool();
