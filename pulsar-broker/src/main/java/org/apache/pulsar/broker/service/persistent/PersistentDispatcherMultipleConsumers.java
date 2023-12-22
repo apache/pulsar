@@ -204,9 +204,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
             consumerList.remove(consumer);
             // Transactional acknowledgment is not executed in the `pulsar-io` thread.
             // So, wait the all the transactional acknowledgment completely to avoid redeliver twice.
-            List<CompletableFuture<Void>> tasks = consumer.getTransactionalAckTasks();
-            FutureUtil.waitForAll(tasks).join();
-            consumer.getTransactionalAckTasks().removeAll(tasks);
+            FutureUtil.waitForAll(consumer.getTransactionalAckTasks()).join();
 
             log.info("Removed consumer {} with pending {} acks", consumer, consumer.getPendingAcks().size());
             if (consumerList.isEmpty()) {

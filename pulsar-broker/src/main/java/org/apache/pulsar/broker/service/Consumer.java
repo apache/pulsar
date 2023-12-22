@@ -588,10 +588,11 @@ public class Consumer {
 
             totalAckCount.add(ackedCount);
         }
-        CompletableFuture<Void> ackTask = new CompletableFuture<>();
+
         CompletableFuture<Void> completableFuture = transactionIndividualAcknowledge(ack.getTxnidMostBits(),
                 ack.getTxnidLeastBits(), positionsAcked);
         if (Subscription.isIndividualAckMode(subType)) {
+            CompletableFuture<Void> ackTask = new CompletableFuture<>();
             completableFuture.whenComplete((v, e) -> {
                 positionsAcked.forEach(positionLongMutablePair -> {
                     if (positionLongMutablePair.getLeft().getAckSet() != null) {
@@ -602,11 +603,11 @@ public class Consumer {
                     }
                 });
                 ackTask.complete(null);
+                transactionalAckTasks.remove(ackTask);
             });
-        } else {
-            ackTask.complete(null);
+            transactionalAckTasks.add(ackTask);
         }
-        transactionalAckTasks.add(ackTask);
+
         return completableFuture.thenApply(__ -> totalAckCount.sum());
     }
 
