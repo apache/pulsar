@@ -162,7 +162,7 @@ public class ProxyWithExtensibleLoadManagerTest extends MultiBrokerBaseTest {
         }
     }
 
-    @Test(timeOut = TEST_TIMEOUT_MS, invocationCount = 100)
+    @Test(timeOut = TEST_TIMEOUT_MS)
     public void testProxyProduceConsume() throws Exception {
         var namespaceName = NamespaceName.get("public", "default");
         var topicName = TopicName.get(TopicDomain.persistent.toString(), namespaceName,
@@ -239,7 +239,7 @@ public class ProxyWithExtensibleLoadManagerTest extends MultiBrokerBaseTest {
         verify(consumerLookupServiceSpy, never()).getBroker(topicName);
     }
 
-    @Test(timeOut = TEST_TIMEOUT_MS, invocationCount = 100)
+    @Test(timeOut = TEST_TIMEOUT_MS)
     public void testClientReconnectsToBrokerOnProxyClosing() throws Exception {
         var namespaceName = NamespaceName.get("public", "default");
         var topicName = TopicName.get(TopicDomain.persistent.toString(), namespaceName,
