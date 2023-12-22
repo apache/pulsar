@@ -135,7 +135,7 @@ public class ProxyWithExtensibleLoadManagerTest extends MultiBrokerBaseTest {
         }
     }
 
-    @Test(timeOut = TEST_TIMEOUT_MS, invocationCount = 100, skipFailedInvocations = true)
+    @Test(timeOut = TEST_TIMEOUT_MS)
     public void testProxyProduceConsume() throws Exception {
         var namespaceName = NamespaceName.get("public", "default");
         var topicName = TopicName.get(TopicDomain.persistent.toString(), namespaceName,
