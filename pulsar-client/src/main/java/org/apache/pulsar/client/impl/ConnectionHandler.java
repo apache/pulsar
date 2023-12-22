@@ -47,7 +47,7 @@ public class ConnectionHandler {
     private final AtomicBoolean duringConnect = new AtomicBoolean(false);
     protected final int randomKeyForSelectConnection;
 
-    private boolean useProxy = false;
+    private volatile Boolean useProxy;
 
     interface Connection {
 
@@ -95,7 +95,7 @@ public class ConnectionHandler {
 
         try {
             CompletableFuture<ClientCnx> cnxFuture;
-            if (hostURI.isPresent()) {
+            if (hostURI.isPresent() && useProxy != null) {
                 URI uri = hostURI.get();
                 InetSocketAddress address = InetSocketAddress.createUnresolved(uri.getHost(), uri.getPort());
                 if (useProxy) {
