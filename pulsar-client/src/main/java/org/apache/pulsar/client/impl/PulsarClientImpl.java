@@ -990,8 +990,8 @@ public class PulsarClientImpl implements PulsarClient {
         return getConnection(address, address, cnxPool.genRandomKeyToSelectCon());
     }
 
-    public CompletableFuture<ClientCnx> getProxiedConnection(final InetSocketAddress logicalAddress,
-                                                             final int randomKeyForSelectConnection) {
+    public CompletableFuture<ClientCnx> getProxyConnection(final InetSocketAddress logicalAddress,
+                                                           final int randomKeyForSelectConnection) {
         if (!(lookup instanceof BinaryProtoLookupService)) {
             return FutureUtil.failedFuture(new PulsarClientException.InvalidServiceURL(
                     "Cannot proxy connection through HTTP service URL", null));

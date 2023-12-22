@@ -99,7 +99,7 @@ public class ConnectionHandler {
                 URI uri = hostURI.get();
                 InetSocketAddress address = InetSocketAddress.createUnresolved(uri.getHost(), uri.getPort());
                 if (useProxy) {
-                    cnxFuture = state.client.getProxiedConnection(address, randomKeyForSelectConnection);
+                    cnxFuture = state.client.getProxyConnection(address, randomKeyForSelectConnection);
                 } else {
                     cnxFuture = state.client.getConnection(address, address, randomKeyForSelectConnection);
                 }

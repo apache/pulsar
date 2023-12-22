@@ -220,10 +220,10 @@ public class ProxyWithExtensibleLoadManagerTest extends MultiBrokerBaseTest {
         producerFuture.get();
         consumerFuture.get();
 
-        verify(producerClient, times(1)).getProxiedConnection(any(), anyInt());
+        verify(producerClient, times(1)).getProxyConnection(any(), anyInt());
         verify(producerLookupServiceSpy, never()).getBroker(topicName);
 
-        verify(consumerClient, times(1)).getProxiedConnection(any(), anyInt());
+        verify(consumerClient, times(1)).getProxyConnection(any(), anyInt());
         verify(consumerLookupServiceSpy, never()).getBroker(topicName);
     }
 }
