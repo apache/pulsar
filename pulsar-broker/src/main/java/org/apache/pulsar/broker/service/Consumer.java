@@ -396,8 +396,13 @@ public class Consumer {
     }
 
     public void close(boolean isResetCursor) throws BrokerServiceException {
-        subscription.removeConsumer(this, isResetCursor);
-        cnx.removedConsumer(this);
+        if (this.getTransactionalAckTasks().isEmpty()) {
+            subscription.removeConsumer(this, isResetCursor);
+            cnx.removedConsumer(this);
+        } else {
+            throw new BrokerServiceException.ServiceUnitNotReadyException(
+                    String.format("Consumer %s could not be closed at this time. Please try it again", this));
+        }
     }
 
     public void disconnect() {
@@ -589,11 +594,12 @@ public class Consumer {
             totalAckCount.add(ackedCount);
         }
 
+        CompletableFuture<Void> ackTask = new CompletableFuture<>();
+        transactionalAckTasks.add(ackTask);
         CompletableFuture<Void> completableFuture = transactionIndividualAcknowledge(ack.getTxnidMostBits(),
                 ack.getTxnidLeastBits(), positionsAcked);
-        if (Subscription.isIndividualAckMode(subType)) {
-            CompletableFuture<Void> ackTask = new CompletableFuture<>();
-            completableFuture.whenComplete((v, e) -> {
+        completableFuture.whenComplete((v, e) -> {
+            if (Subscription.isIndividualAckMode(subType)) {
                 positionsAcked.forEach(positionLongMutablePair -> {
                     if (positionLongMutablePair.getLeft().getAckSet() != null) {
                         if (((PersistentSubscription) subscription)
@@ -602,11 +608,10 @@ public class Consumer {
                         }
                     }
                 });
-                ackTask.complete(null);
-                transactionalAckTasks.remove(ackTask);
-            });
-            transactionalAckTasks.add(ackTask);
-        }
+            }
+            transactionalAckTasks.remove(ackTask);
+            ackTask.complete(null);
+        });
 
         return completableFuture.thenApply(__ -> totalAckCount.sum());
     }

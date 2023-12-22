@@ -376,14 +376,18 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             }
             if (consumerFuture.isDone() && !consumerFuture.isCompletedExceptionally()) {
                 Consumer consumer = consumerFuture.getNow(null);
-                try {
-                    consumer.close();
-                    if (brokerInterceptor != null) {
-                        brokerInterceptor.consumerClosed(this, consumer, consumer.getMetadata());
+                // Transactional acknowledgment is not executed in the `pulsar-io` thread.
+                // So, wait the all the transactional acknowledgment completely before closing to avoid redeliver twice.
+                FutureUtil.waitForAll(consumer.getTransactionalAckTasks()).whenComplete((ignore, throwable) -> {
+                    try {
+                        consumer.close();
+                        if (brokerInterceptor != null) {
+                            brokerInterceptor.consumerClosed(this, consumer, consumer.getMetadata());
+                        }
+                    } catch (BrokerServiceException e) {
+                        log.warn("Consumer {} was already closed: {}", consumer, e);
                     }
-                } catch (BrokerServiceException e) {
-                    log.warn("Consumer {} was already closed: {}", consumer, e);
-                }
+                });
             }
         });
         this.topicListService.inactivate();
