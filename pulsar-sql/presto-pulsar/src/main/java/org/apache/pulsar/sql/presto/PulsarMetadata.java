@@ -55,6 +55,7 @@ import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import javax.inject.Inject;
+import org.apache.avro.AvroRuntimeException;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -310,9 +311,18 @@ public class PulsarMetadata implements ConnectorMetadata {
                         + topicName + ": " + ExceptionUtils.getRootCause(e).getLocalizedMessage(), e);
             }
         }
-        List<ColumnMetadata> handles = getPulsarColumns(
-                topicName, schemaInfo, withInternalColumns, PulsarColumnHandle.HandleKeyValueType.NONE
-        );
+        List<ColumnMetadata> handles;
+        try {
+            handles = getPulsarColumns(
+                    topicName, schemaInfo, withInternalColumns, PulsarColumnHandle.HandleKeyValueType.NONE
+            );
+        } catch (AvroRuntimeException | UnsupportedOperationException e) {
+            log.error(e, "Failed to get pulsar columns");
+            schemaInfo = PulsarSqlSchemaInfoProvider.defaultSchema();
+            handles = getPulsarColumns(
+                    topicName, schemaInfo, withInternalColumns, PulsarColumnHandle.HandleKeyValueType.NONE
+            );
+        }
 
 
         return new ConnectorTableMetadata(schemaTableName, handles);
