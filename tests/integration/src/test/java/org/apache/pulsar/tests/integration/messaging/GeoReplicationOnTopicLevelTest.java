@@ -19,7 +19,9 @@
 package org.apache.pulsar.tests.integration.messaging;
 
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
@@ -31,7 +33,6 @@ import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
 import org.apache.pulsar.tests.integration.topologies.PulsarClusterSpec;
@@ -43,10 +44,10 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 /**
- * Geo replication test.
+ * Geo replication test on topic level.
  */
 @Slf4j
-public class GeoReplicationTest extends PulsarGeoClusterTestBase {
+public class GeoReplicationOnTopicLevelTest extends PulsarGeoClusterTestBase {
 
     @BeforeMethod(alwaysRun = true)
     public final void setupBeforeMethod() throws Exception {
@@ -58,8 +59,8 @@ public class GeoReplicationTest extends PulsarGeoClusterTestBase {
             PulsarClusterSpec.PulsarClusterSpecBuilder... specBuilder) {
         if (specBuilder != null) {
             Map<String, String> brokerEnvs = new HashMap<>();
-            brokerEnvs.put("systemTopicEnabled", "false");
-            brokerEnvs.put("topicLevelPoliciesEnabled", "false");
+            brokerEnvs.put("systemTopicEnabled", "true");
+            brokerEnvs.put("topicLevelPoliciesEnabled", "true");
             for(PulsarClusterSpec.PulsarClusterSpecBuilder builder : specBuilder) {
                 builder.brokerEnvs(brokerEnvs);
             }
@@ -72,14 +73,17 @@ public class GeoReplicationTest extends PulsarGeoClusterTestBase {
         cleanup();
     }
 
-    @Test(timeOut = 1000 * 30, dataProvider = "TopicDomain")
-    public void testTopicReplication(String domain) throws Exception {
+    @Test(timeOut = 1000 * 60)
+    public void testTopicReplication() throws Exception {
+        // TODO: Disable non-persistent test due to `admin1.topics().setReplicationClusters` throws TopicNotFound.
+
+        String domain = "persistent";
         String cluster1Name = getGeoCluster().getClusters()[0].getClusterName();
         PulsarCluster cluster2 = getGeoCluster().getClusters()[1];
         String cluster2Name = cluster2.getClusterName();
 
         @Cleanup
-        PulsarAdmin admin = PulsarAdmin.builder()
+        PulsarAdmin admin1 = PulsarAdmin.builder()
                 .serviceHttpUrl(getGeoCluster().getClusters()[0].getHttpServiceUrl())
                 .requestTimeout(30, TimeUnit.SECONDS)
                 .build();
@@ -87,29 +91,27 @@ public class GeoReplicationTest extends PulsarGeoClusterTestBase {
         ClusterData cluster2Data = ClusterData.builder()
                 .serviceUrl(cluster2.getInternalHttpServiceUrl())
                 .brokerServiceUrl(cluster2.getInternalBrokerServiceUrl()).build();
-        admin.clusters().createCluster(cluster2Name, cluster2Data);
+        admin1.clusters().createCluster(cluster2Name, cluster2Data);
 
         String tenant = "public";
-        TenantInfo tenantInfo = admin.tenants().getTenantInfo(tenant);
+        TenantInfo tenantInfo = admin1.tenants().getTenantInfo(tenant);
         tenantInfo.getAllowedClusters().add(cluster2Name);
-        admin.tenants().updateTenant(tenant, tenantInfo);
-        String namespace = "public/default";
-        Policies policies = admin.namespaces().getPolicies(namespace);
-        policies.replication_clusters.add(cluster2Name);
-        admin.namespaces().setNamespaceReplicationClusters(namespace, policies.replication_clusters);
+        admin1.tenants().updateTenant(tenant, tenantInfo);
 
         String topic = domain + "://public/default/testTopicReplication-" + UUID.randomUUID();
         Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() -> {
             try {
-                admin.topics().createPartitionedTopic(topic, 10);
+                admin1.topics().createPartitionedTopic(topic, 10);
             } catch (Exception e) {
                 log.error("Failed to create partitioned topic {}.", topic, e);
                 Assert.fail("Failed to create partitioned topic " + topic);
             }
-            Assert.assertEquals(admin.topics().getPartitionedTopicMetadata(topic).partitions, 10);
+            Assert.assertEquals(admin1.topics().getPartitionedTopicMetadata(topic).partitions, 10);
         });
-        log.info("Test geo-replication produce and consume for topic {}.", topic);
 
+        admin1.topics().setReplicationClusters(topic, new ArrayList<>(tenantInfo.getAllowedClusters()));
+
+        log.info("Test geo-replication produce and consume for topic {}.", topic);
         @Cleanup
         PulsarClient client1 = PulsarClient.builder()
                 .serviceUrl(getGeoCluster().getClusters()[0].getPlainTextServiceUrl())
@@ -142,6 +144,15 @@ public class GeoReplicationTest extends PulsarGeoClusterTestBase {
             Message<byte[]> message = c.receive(10, TimeUnit.SECONDS);
             Assert.assertNotNull(message);
         }
-        log.info("Successfully consume message from cluster {} for topic {}.", cluster2Name, topic);
+
+        log.info("Successfully consume message from cluster {} for topic {}.", cluster2, topic);
+
+        @Cleanup
+        PulsarAdmin admin2 = PulsarAdmin.builder()
+                .serviceHttpUrl(getGeoCluster().getClusters()[1].getHttpServiceUrl())
+                .requestTimeout(30, TimeUnit.SECONDS)
+                .build();
+        List<String> partitionedTopicList = admin2.topics().getPartitionedTopicList("public/default");
+        Assert.assertTrue(partitionedTopicList.contains(topic));
     }
 }

@@ -1848,8 +1848,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                     }
                     return brokerService.pulsar().getPulsarResources().getClusterResources()
                             .getClusterAsync(remoteCluster)
-                            .thenApply(clusterData ->
-                                    brokerService.getReplicationClient(remoteCluster, clusterData));
+                            .thenCompose(clusterData -> createTopicForRemoteCluster(remoteCluster, clusterData)
+                                    .thenApply(__ -> brokerService.getReplicationClient(remoteCluster, clusterData)));
                 })
                 .thenAccept(replicationClient -> {
                     if (replicationClient == null) {

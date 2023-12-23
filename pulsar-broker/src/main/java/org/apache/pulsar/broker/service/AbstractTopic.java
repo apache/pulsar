@@ -33,6 +33,7 @@ import java.util.Optional;
 import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.TimeUnit;
@@ -42,6 +43,7 @@ import java.util.concurrent.atomic.LongAdder;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.ToLongFunction;
 import javax.annotation.Nonnull;
+import javax.ws.rs.core.Response.Status;
 import lombok.Getter;
 import org.apache.bookkeeper.mledger.util.StatsBuckets;
 import org.apache.commons.collections4.CollectionUtils;
@@ -61,10 +63,13 @@ import org.apache.pulsar.broker.service.plugin.EntryFilter;
 import org.apache.pulsar.broker.service.schema.SchemaRegistryService;
 import org.apache.pulsar.broker.service.schema.exceptions.IncompatibleSchemaException;
 import org.apache.pulsar.broker.stats.prometheus.metrics.Summary;
+import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.admin.PulsarAdminException.ConflictException;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
+import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.ClusterPolicies.ClusterUrl;
 import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
 import org.apache.pulsar.common.policies.data.EntryFilters;
@@ -1332,5 +1337,41 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
             log.warn("Failed to get migration cluster URL", e);
         }
         return Optional.empty();
+    }
+
+    private CompletableFuture<Void> catchCreateTopicForRemoteCluster(CompletableFuture<Void> createTopicFuture) {
+        return createTopicFuture.exceptionally(ex -> {
+            Throwable throwable = FutureUtil.unwrapCompletionException(ex);
+            if (throwable instanceof ConflictException) {
+                int code = ((ConflictException) throwable).getStatusCode();
+                if (code == Status.CONFLICT.getStatusCode()) {
+                    // topic exists in the remote cluster
+                    return null;
+                }
+            }
+            throw new CompletionException(throwable);
+        });
+    }
+
+    protected CompletableFuture<Void> createTopicForRemoteCluster(String remoteCluster,
+                                                                  Optional<ClusterData> clusterData) {
+        PulsarAdmin admin = brokerService.getClusterPulsarAdmin(remoteCluster, clusterData);
+        TopicName topicName = TopicName.get(topic);
+        if (!topicName.isPartitioned()) {
+            return catchCreateTopicForRemoteCluster(admin.topics().createNonPartitionedTopicAsync(topic));
+        }
+
+        TopicName baseTopicName = TopicName.get(topicName.getPartitionedTopicName());
+        return brokerService.fetchPartitionedTopicMetadataAsync(baseTopicName)
+                .thenCompose(metadata -> {
+                    int partitions = metadata.partitions;
+                    if (partitions == 0) {
+                        return CompletableFuture.completedFuture(null);
+                    }
+
+                    return catchCreateTopicForRemoteCluster(admin
+                            .topics()
+                            .createPartitionedTopicAsync(baseTopicName.toString(), partitions));
+                });
     }
 }
