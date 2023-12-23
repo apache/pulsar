@@ -698,11 +698,12 @@ public class Commands {
         }
     }
 
-    public static ByteBuf newUnsubscribe(long consumerId, long requestId) {
+    public static ByteBuf newUnsubscribe(long consumerId, long requestId, boolean force) {
         BaseCommand cmd = localCmd(Type.UNSUBSCRIBE);
         cmd.setUnsubscribe()
                 .setConsumerId(consumerId)
-                .setRequestId(requestId);
+                .setRequestId(requestId)
+                .setForce(force);
         return serializeWithSize(cmd);
     }
 

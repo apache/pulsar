@@ -25,7 +25,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
@@ -561,13 +560,6 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
     }
 
     @Override
-    public void updateRateLimiter() {
-        if (!initializeDispatchRateLimiterIfNeeded()) {
-            this.dispatchRateLimiter.ifPresent(DispatchRateLimiter::updateDispatchRate);
-        }
-    }
-
-    @Override
     public boolean initializeDispatchRateLimiterIfNeeded() {
         if (!dispatchRateLimiter.isPresent() && DispatchRateLimiter.isDispatchRateEnabled(
                 topic.getSubscriptionDispatchRate(getSubscriptionName()))) {
@@ -576,13 +568,6 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
             return true;
         }
         return false;
-    }
-
-    @Override
-    public CompletableFuture<Void> close() {
-        IS_CLOSED_UPDATER.set(this, TRUE);
-        dispatchRateLimiter.ifPresent(DispatchRateLimiter::close);
-        return disconnectAllConsumers();
     }
 
     @Override

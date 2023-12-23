@@ -36,6 +36,7 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.stats.PrometheusMetricsTest;
@@ -270,9 +271,10 @@ public class TransactionBufferClientTest extends TransactionTestBase {
         CompletableFuture<ClientCnx> completableFuture = new CompletableFuture<>();
         ClientCnx clientCnx = mock(ClientCnx.class);
         completableFuture.complete(clientCnx);
-        when(((PulsarClientImpl)mockClient).getConnection(anyString())).thenReturn(completableFuture);
-        when(((PulsarClientImpl)mockClient).getConnection(anyString(), anyInt())).thenReturn(completableFuture);
-        when(((PulsarClientImpl)mockClient).getConnection(any(), any(), anyInt())).thenReturn(completableFuture);
+        when(mockClient.getConnection(anyString())).thenReturn(completableFuture);
+        when(mockClient.getConnection(anyString(), anyInt())).thenReturn(
+                CompletableFuture.completedFuture(Pair.of(clientCnx, false)));
+        when(mockClient.getConnection(any(), any(), anyInt())).thenReturn(completableFuture);
         ChannelHandlerContext cnx = mock(ChannelHandlerContext.class);
         when(clientCnx.ctx()).thenReturn(cnx);
         Channel channel = mock(Channel.class);
@@ -324,10 +326,9 @@ public class TransactionBufferClientTest extends TransactionTestBase {
         PulsarClientImpl mockClient = mock(PulsarClientImpl.class);
         ConnectionPool connectionPool = mock(ConnectionPool.class);
         when(mockClient.getCnxPool()).thenReturn(connectionPool);
-        CompletableFuture<ClientCnx> completableFuture = new CompletableFuture<>();
         ClientCnx clientCnx = mock(ClientCnx.class);
-        completableFuture.complete(clientCnx);
-        when(((PulsarClientImpl)mockClient).getConnection(anyString(), anyInt())).thenReturn(completableFuture);
+        when(mockClient.getConnection(anyString(), anyInt())).thenReturn(
+                CompletableFuture.completedFuture(Pair.of(clientCnx, false)));
         ChannelHandlerContext cnx = mock(ChannelHandlerContext.class);
         when(clientCnx.ctx()).thenReturn(cnx);
         Channel channel = mock(Channel.class);
