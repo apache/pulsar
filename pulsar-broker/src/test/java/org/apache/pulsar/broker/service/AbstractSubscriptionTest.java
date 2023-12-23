@@ -22,7 +22,13 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
+
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+
+import org.apache.pulsar.common.api.proto.CommandSubscribe.IsolationLevel;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
@@ -53,5 +59,14 @@ public class AbstractSubscriptionTest {
         subscription.bytesOutFromRemovedConsumers.add(1L);
         when(consumer.getBytesOutCounter()).thenReturn(2L);
         assertEquals(subscription.getBytesOutCounter(), 3L);
+    }
+
+    @Test
+    public void testWrapAndFetchIsolationLevelInProperties() {
+        Map<String, String> properties = new HashMap<>(1);
+        AbstractSubscription.wrapIsolationLevelToProperties(properties, IsolationLevel.READ_UNCOMMITTED);
+        assertTrue(properties.containsKey(AbstractSubscription.SUBSCRIPTION_ISOLATION_LEVEL_PROPERTY));
+        assertEquals(Integer.valueOf(properties.get(AbstractSubscription.SUBSCRIPTION_ISOLATION_LEVEL_PROPERTY)),
+                IsolationLevel.READ_UNCOMMITTED.getValue());
     }
 }

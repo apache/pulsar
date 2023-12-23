@@ -79,6 +79,7 @@ import org.apache.pulsar.broker.transaction.pendingack.impl.PendingAckHandleImpl
 import org.apache.pulsar.client.api.Range;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.CommandAck.AckType;
+import org.apache.pulsar.common.api.proto.CommandSubscribe.IsolationLevel;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.api.proto.KeySharedMeta;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
@@ -129,6 +130,7 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
     private volatile ReplicatedSubscriptionSnapshotCache replicatedSubscriptionSnapshotCache;
     private final PendingAckHandle pendingAckHandle;
     private volatile Map<String, String> subscriptionProperties;
+    private final IsolationLevel isolationLevel;
     private volatile CompletableFuture<Void> fenceFuture;
 
     static Map<String, Long> getBaseCursorProperties(boolean isReplicated) {
@@ -162,6 +164,7 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
             this.pendingAckHandle = new PendingAckHandleDisabled();
         }
         IS_FENCED_UPDATER.set(this, FALSE);
+        this.isolationLevel = fetchIsolationLevelFromProperties(subscriptionProperties);
     }
 
     public void updateLastMarkDeleteAdvancedTimestamp() {
@@ -512,6 +515,11 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
         }
 
         return "Null";
+    }
+
+    @Override
+    public IsolationLevel getIsolationLevel() {
+        return isolationLevel;
     }
 
     @Override
@@ -1240,6 +1248,7 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
         subStats.isReplicated = isReplicated();
         subStats.subscriptionProperties = subscriptionProperties;
         subStats.isDurable = cursor.isDurable();
+        subStats.subscriptionIsolationLevel = this.isolationLevel.toString();
         if (getType() == SubType.Key_Shared && dispatcher instanceof PersistentStickyKeyDispatcherMultipleConsumers) {
             PersistentStickyKeyDispatcherMultipleConsumers keySharedDispatcher =
                     (PersistentStickyKeyDispatcherMultipleConsumers) dispatcher;

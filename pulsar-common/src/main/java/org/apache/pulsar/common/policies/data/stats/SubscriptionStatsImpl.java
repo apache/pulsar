@@ -149,6 +149,11 @@ public class SubscriptionStatsImpl implements SubscriptionStats {
 
     public long filterRescheduledMsgCount;
 
+    /**
+     * The subscription isolationLevel as defined by {@link org.apache.pulsar.client.api.SubscriptionIsolationLevel}.
+     */
+    public String subscriptionIsolationLevel;
+
     public SubscriptionStatsImpl() {
         this.consumers = new ArrayList<>();
         this.consumersAfterMarkDeletePosition = new LinkedHashMap<>();
@@ -185,6 +190,7 @@ public class SubscriptionStatsImpl implements SubscriptionStats {
         filterRejectedMsgCount = 0;
         filterRescheduledMsgCount = 0;
         bucketDelayedIndexStats.clear();
+        subscriptionIsolationLevel = null;
     }
 
     // if the stats are added for the 1st time, we will need to make a copy of these stats and add it to the current
@@ -239,6 +245,7 @@ public class SubscriptionStatsImpl implements SubscriptionStats {
         this.filterAcceptedMsgCount += stats.filterAcceptedMsgCount;
         this.filterRejectedMsgCount += stats.filterRejectedMsgCount;
         this.filterRescheduledMsgCount += stats.filterRescheduledMsgCount;
+        this.subscriptionIsolationLevel = stats.subscriptionIsolationLevel;
         stats.bucketDelayedIndexStats.forEach((k, v) -> {
             TopicMetricBean topicMetricBean =
                     this.bucketDelayedIndexStats.computeIfAbsent(k, __ -> new TopicMetricBean());

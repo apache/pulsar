@@ -18,13 +18,36 @@
  */
 package org.apache.pulsar.broker.service;
 
+import org.apache.pulsar.common.api.proto.CommandSubscribe.IsolationLevel;
+
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.atomic.LongAdder;
 import java.util.function.ToLongFunction;
 
 public abstract class AbstractSubscription implements Subscription {
+    protected static final String SUBSCRIPTION_ISOLATION_LEVEL_PROPERTY = "pulsar.subscription.isolation.level";
     protected final LongAdder bytesOutFromRemovedConsumers = new LongAdder();
     protected final LongAdder msgOutFromRemovedConsumer = new LongAdder();
+
+    public static void wrapIsolationLevelToProperties(Map<String, String> properties, IsolationLevel isolationLevel) {
+        if (properties != null) {
+            properties.put(SUBSCRIPTION_ISOLATION_LEVEL_PROPERTY, String.valueOf(isolationLevel.getValue()));
+        }
+    }
+
+    public IsolationLevel fetchIsolationLevelFromProperties(Map<String, String> properties) {
+        if (properties == null) {
+            return IsolationLevel.READ_COMMITTED;
+        }
+
+        if (properties.containsKey(SUBSCRIPTION_ISOLATION_LEVEL_PROPERTY)) {
+            IsolationLevel isolationLevel = IsolationLevel.valueOf(Integer.parseInt(properties.get(SUBSCRIPTION_ISOLATION_LEVEL_PROPERTY)));
+            return isolationLevel != null ? isolationLevel : IsolationLevel.READ_COMMITTED;
+        } else {
+            return IsolationLevel.READ_COMMITTED;
+        }
+    }
 
     public long getMsgOutCounter() {
         return msgOutFromRemovedConsumer.longValue() + sumConsumers(Consumer::getMsgOutCounter);

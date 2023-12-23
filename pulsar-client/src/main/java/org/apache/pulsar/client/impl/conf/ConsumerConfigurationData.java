@@ -49,6 +49,7 @@ import org.apache.pulsar.client.api.RegexSubscriptionMode;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionMode;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.api.SubscriptionIsolationLevel;
 
 @Data
 @NoArgsConstructor
@@ -397,6 +398,14 @@ public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
     private boolean startPaused = false;
 
     private boolean autoScaledReceiverQueueSizeEnabled = false;
+
+    @ApiModelProperty(
+            name = "IsolationLevel",
+            value = "Consumer can specify subscription IsolationLevel.\n" +
+                    "If READ_COMMITTED is selected, the Consumer can only consume all transactional messages which have been committed.\n" +
+                    "If READ_UNCOMMITTED is selected, the Consumer can consume all messages, even transactional messages which have been aborted."
+    )
+    private SubscriptionIsolationLevel subscriptionIsolationLevel = SubscriptionIsolationLevel.READ_COMMITTED;
 
     private List<TopicConsumerConfigurationData> topicConfigurations = new ArrayList<>();
 

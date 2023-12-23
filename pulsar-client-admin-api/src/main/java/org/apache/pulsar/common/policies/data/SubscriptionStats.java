@@ -136,4 +136,7 @@ public interface SubscriptionStats {
     long getFilterRescheduledMsgCount();
 
     long getDelayedMessageIndexSizeInBytes();
+
+    /** The subscription isolationLevel as defined by {@link org.apache.pulsar.client.api.SubscriptionIsolationLevel}. */
+    String getSubscriptionIsolationLevel();
 }
