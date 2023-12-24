@@ -657,7 +657,7 @@ public class DelayedDeliveryTest extends ProducerConsumerBase {
                     .send();
 
             producer.flush();
-            fail("Should have thrown NotAllowedException");
+            fail("Should have thrown NotAllowedException due to exceeding maxDeliveryDelayInMillis");
         } catch (PulsarClientException.NotAllowedException ex) {
             assertEquals(ex.getMessage(), "Exceeds max allowed delivery delay of "
                     + maxDeliveryDelayInMillis + " milliseconds");
