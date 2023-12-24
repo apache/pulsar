@@ -288,6 +288,7 @@ public abstract class BookKeeperClusterTestCase {
 
         for (ServerTester t : servers) {
             t.shutdown();
+            t.stopAutoRecovery();
         }
         servers.clear();
         bookiePorts.removeIf(PortManager::releaseLockedPort);
