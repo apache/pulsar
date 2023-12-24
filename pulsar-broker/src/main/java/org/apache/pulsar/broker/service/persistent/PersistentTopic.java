@@ -3724,6 +3724,10 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         return topicPolicies.getDelayedDeliveryEnabled().get();
     }
 
+    public long getDelayedDeliveryMaxDelayInMillis() {
+        return topicPolicies.getDelayedDeliveryMaxDelayInMillis().get();
+    }
+
     public int getMaxUnackedMessagesOnSubscription() {
         return topicPolicies.getMaxUnackedMessagesOnSubscription().get();
     }

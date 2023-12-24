@@ -263,6 +263,29 @@ public class Producer {
             }
         }
 
+        if (topic.isPersistent()) {
+            PersistentTopic pTopic = (PersistentTopic) topic;
+            if (pTopic.isDelayedDeliveryEnabled()) {
+                long maxDeliveryDelayInMs = pTopic.getDelayedDeliveryMaxDelayInMillis();
+                if (maxDeliveryDelayInMs > 0) {
+                    headersAndPayload.markReaderIndex();
+                    MessageMetadata msgMetadata = Commands.parseMessageMetadata(headersAndPayload);
+                    headersAndPayload.resetReaderIndex();
+                    if (msgMetadata.hasDeliverAtTime()
+                            && msgMetadata.getDeliverAtTime() - msgMetadata.getPublishTime() > maxDeliveryDelayInMs) {
+                        cnx.execute(() -> {
+                            cnx.getCommandSender().sendSendError(producerId, sequenceId,
+                                    ServerError.NotAllowedError,
+                                    String.format("Exceeds max allowed delivery delay of %s milliseconds",
+                                            maxDeliveryDelayInMs));
+                            cnx.completedSendOperation(false, headersAndPayload.readableBytes());
+                        });
+                        return false;
+                    }
+                }
+            }
+        }
+
         startPublishOperation((int) batchSize, headersAndPayload.readableBytes());
         return true;
     }

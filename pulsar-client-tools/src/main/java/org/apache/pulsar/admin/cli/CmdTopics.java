@@ -1813,6 +1813,11 @@ public class CmdTopics extends CmdBase {
                 converter = TimeUnitToMillisConverter.class)
         private Long delayedDeliveryTimeInMills = 1_000L;
 
+        @Parameter(names = { "--maxDelay", "-md" },
+                description = "The max allowed delay for delayed delivery (in milliseconds).",
+                converter = TimeUnitToMillisConverter.class)
+        private Long delayedDeliveryMaxDelayInMillis = 0L;
+
         @Override
         void run() throws PulsarAdminException {
             String topicName = validateTopicName(params);
@@ -1823,6 +1828,7 @@ public class CmdTopics extends CmdBase {
             getTopics().setDelayedDeliveryPolicy(topicName, DelayedDeliveryPolicies.builder()
                     .tickTime(delayedDeliveryTimeInMills)
                     .active(enable)
+                    .maxDeliveryDelayInMillis(delayedDeliveryMaxDelayInMillis)
                     .build());
         }
     }
