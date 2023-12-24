@@ -32,23 +32,32 @@ import org.apache.commons.lang3.tuple.Pair;
 
 /**
  * Contains cursors for a ManagedLedger.
- *
- * <p/>The goal is to always know the slowest consumer and hence decide which is the oldest ledger we need to keep.
- *
- * <p/>This data structure maintains a heap and a map of cursors. The map is used to relate a cursor name with
+ * <p>
+ * The goal is to always know the slowest consumer and hence decide which is the oldest ledger we need to keep.
+ * <p>
+ * This data structure maintains a heap and a map of cursors. The map is used to relate a cursor name with
  * an entry index in the heap. The heap data structure sorts cursors in a binary tree which is represented
  * in a single array. More details about heap implementations:
- * https://en.wikipedia.org/wiki/Heap_(data_structure)#Implementation
- *
- * <p/>The heap is updated and kept sorted when a cursor is updated.
+ * <a href="https://en.wikipedia.org/wiki/Heap_(data_structure)#Implementation">here</a>
+ * <p>
+ * The heap is updated and kept sorted when a cursor is updated.
  *
  */
 public class ManagedCursorContainer implements Iterable<ManagedCursor> {
 
+    /**
+     * This field is incremented everytime the cursor information is updated.
+     */
+    private volatile long version;
+
     @Value
-    public class CursorInfo {
+    public static class CursorInfo {
         ManagedCursor cursor;
         PositionImpl markDeletePosition;
+
+        // Use {@link  DataVersion#compareVersions(long, long)} to compare between two versions,
+        // since it rolls over to 0 once reaching Long.MAX_VALUE
+        long version;
     }
 
     private static class Item {
@@ -63,8 +72,49 @@ public class ManagedCursorContainer implements Iterable<ManagedCursor> {
         }
     }
 
-    public ManagedCursorContainer() {
+    /**
+     * Utility class to manage a data version, which rolls over to 0 when reaching Long.MAX_VALUE.
+     */
+    public static final class DataVersion {
+        private DataVersion() {}
+
+        public static int compareVersions(long v1, long v2) {
+            if (v1 == v2) {
+                return 0;
+            }
+
+            // 0-------v1--------v2--------MAX_LONG
+            if (v2 > v1) {
+                long distance = v2 - v1;
+                long wrapAroundDistance = (Long.MAX_VALUE - v2) + v1;
+                if (distance < wrapAroundDistance) {
+                    return 1;
+                } else {
+                    return -1;
+                }
+
+            // 0-------v2--------v1--------MAX_LONG
+            } else {
+                long distance = v1 - v2;
+                long wrapAroundDistance = (Long.MAX_VALUE - v1) + v2;
+                if (distance < wrapAroundDistance) {
+                    return -1; // v1 is bigger
+                } else {
+                    return 1; // v2 is bigger
+                }
+            }
+        }
+
+        public static long incrementVersion(long existingVersion) {
+            if (existingVersion == Long.MAX_VALUE) {
+                return 0;
+            } else {
+                return existingVersion + 1;
+            }
+        }
     }
+
+    public ManagedCursorContainer() {}
 
     // Used to keep track of slowest cursor.
     private final ArrayList<Item> heap = new ArrayList<>();
@@ -86,6 +136,7 @@ public class ManagedCursorContainer implements Iterable<ManagedCursor> {
      * @param position position of the cursor to use for ordering, pass null if the cursor's position shouldn't be
      *                 tracked for the slowest reader.
      */
+    @SuppressWarnings("NonAtomicOperationOnVolatileField")
     public void add(ManagedCursor cursor, Position position) {
         long stamp = rwLock.writeLock();
         try {
@@ -100,6 +151,7 @@ public class ManagedCursorContainer implements Iterable<ManagedCursor> {
             if (cursor.isDurable()) {
                 durableCursorCount++;
             }
+            version = DataVersion.incrementVersion(version);
         } finally {
             rwLock.unlockWrite(stamp);
         }
@@ -115,6 +167,7 @@ public class ManagedCursorContainer implements Iterable<ManagedCursor> {
         }
     }
 
+    @SuppressWarnings("NonAtomicOperationOnVolatileField")
     public boolean removeCursor(String name) {
         long stamp = rwLock.writeLock();
         try {
@@ -135,6 +188,7 @@ public class ManagedCursorContainer implements Iterable<ManagedCursor> {
                 if (item.cursor.isDurable()) {
                     durableCursorCount--;
                 }
+                version = DataVersion.incrementVersion(version);
                 return true;
             } else {
                 return false;
@@ -156,6 +210,7 @@ public class ManagedCursorContainer implements Iterable<ManagedCursor> {
      * @return a pair of positions, representing the previous slowest reader and the new slowest reader (after the
      *         update).
      */
+    @SuppressWarnings("NonAtomicOperationOnVolatileField")
     public Pair<PositionImpl, PositionImpl> cursorUpdated(ManagedCursor cursor, Position newPosition) {
         requireNonNull(cursor);
 
@@ -168,6 +223,7 @@ public class ManagedCursorContainer implements Iterable<ManagedCursor> {
 
             PositionImpl previousSlowestConsumer = heap.get(0).position;
             item.position = (PositionImpl) newPosition;
+            version = DataVersion.incrementVersion(version);
 
             if (heap.size() == 1) {
                 return Pair.of(previousSlowestConsumer, item.position);
@@ -210,11 +266,19 @@ public class ManagedCursorContainer implements Iterable<ManagedCursor> {
         }
     }
 
+    /**
+     * @return Returns the CursorInfo for the cursor with oldest mark-delete position, or null if there aren't
+     *         any tracked cursors
+     */
     public CursorInfo getCursorWithOldestMarkDeletePosition() {
         long stamp = rwLock.readLock();
         try {
-            Item item = heap.get(0);
-            return heap.isEmpty() ? null : new CursorInfo(item.cursor, item.position);
+            if (heap.isEmpty()) {
+                return null;
+            } else {
+                Item item = heap.get(0);
+                return new CursorInfo(item.cursor, item.position, version);
+            }
         } finally {
             rwLock.unlockRead(stamp);
         }

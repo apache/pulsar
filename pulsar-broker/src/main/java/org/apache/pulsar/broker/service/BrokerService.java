@@ -36,6 +36,7 @@ import io.netty.channel.EventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.handler.ssl.SslContext;
 import io.netty.util.concurrent.DefaultThreadFactory;
+import io.prometheus.client.Histogram;
 import java.io.Closeable;
 import java.io.IOException;
 import java.lang.reflect.Field;
@@ -198,6 +199,12 @@ public class BrokerService implements Closeable {
     private static final long GRACEFUL_SHUTDOWN_QUIET_PERIOD_MAX_MS = 5000L;
     private static final double GRACEFUL_SHUTDOWN_QUIET_PERIOD_RATIO_OF_TOTAL_TIMEOUT = 0.25d;
     private static final double GRACEFUL_SHUTDOWN_TIMEOUT_RATIO_OF_TOTAL_TIMEOUT = 0.5d;
+
+    private static final Histogram backlogQuotaCheckDuration = Histogram.build()
+            .name("pulsar_storage_backlog_quota_check_duration_seconds")
+            .help("The duration of the backlog quota check process.")
+            .buckets(5, 10, 30, 60, 300)
+            .register();
 
     private final PulsarService pulsar;
     private final ManagedLedgerFactory managedLedgerFactory;
@@ -2179,27 +2186,29 @@ public class BrokerService implements Closeable {
     }
 
     public void monitorBacklogQuota() {
-        forEachPersistentTopic(topic -> {
-            if (topic.isSizeBacklogExceeded()) {
-                getBacklogQuotaManager().handleExceededBacklogQuota(topic,
-                        BacklogQuota.BacklogQuotaType.destination_storage, false);
-            } else {
-                topic.checkTimeBacklogExceeded().thenAccept(isExceeded -> {
-                    if (isExceeded) {
-                        getBacklogQuotaManager().handleExceededBacklogQuota(topic,
-                                BacklogQuota.BacklogQuotaType.message_age,
-                                pulsar.getConfiguration().isPreciseTimeBasedBacklogQuotaCheck());
-                    } else {
-                        if (log.isDebugEnabled()) {
-                            log.debug("quota not exceeded for [{}]", topic.getName());
+        backlogQuotaCheckDuration.time(() -> {
+            forEachPersistentTopic(topic -> {
+                if (topic.isSizeBacklogExceeded()) {
+                    getBacklogQuotaManager().handleExceededBacklogQuota(topic,
+                            BacklogQuota.BacklogQuotaType.destination_storage, false);
+                } else {
+                    topic.checkTimeBacklogExceeded().thenAccept(isExceeded -> {
+                        if (isExceeded) {
+                            getBacklogQuotaManager().handleExceededBacklogQuota(topic,
+                                    BacklogQuota.BacklogQuotaType.message_age,
+                                    pulsar.getConfiguration().isPreciseTimeBasedBacklogQuotaCheck());
+                        } else {
+                            if (log.isDebugEnabled()) {
+                                log.debug("quota not exceeded for [{}]", topic.getName());
+                            }
                         }
-                    }
-                }).exceptionally(throwable -> {
-                    log.error("Error when checkTimeBacklogExceeded({}) in monitorBacklogQuota",
-                            topic.getName(), throwable);
-                    return null;
-                });
-            }
+                    }).exceptionally(throwable -> {
+                        log.error("Error when checkTimeBacklogExceeded({}) in monitorBacklogQuota",
+                                topic.getName(), throwable);
+                        return null;
+                    });
+                }
+            });
         });
     }
 

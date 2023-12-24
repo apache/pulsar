@@ -49,6 +49,7 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import java.util.function.BiFunction;
 import java.util.stream.Collectors;
 import javax.annotation.Nonnull;
@@ -266,9 +267,13 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     protected final TransactionBuffer transactionBuffer;
 
     // Record the last time a data message (ie: not an internal Pulsar marker) is published on the topic
+    @Getter
     private volatile long lastDataMessagePublishedTimestamp = 0;
     @Getter
     private final ExecutorService orderedExecutor;
+
+    @Getter
+    private final PersistentTopicMetrics persistentTopicMetrics = new PersistentTopicMetrics();
 
     private static class TopicStatsHelper {
         public double averageMsgSize;
@@ -484,7 +489,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             if (!lock.writeLock().tryLock()) {
                 return CompletableFuture.failedFuture(new SubscriptionConflictUnloadException(String.format("Conflict"
                         + " topic-close, topic-delete, another-subscribe-unload, cannot unload subscription %s now",
-                        topic, subName)));
+                        subName)));
             }
             try {
                 if (isFenced) {
@@ -2387,6 +2392,14 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         stats.lastOffloadFailureTimeStamp = ledger.getLastOffloadedFailureTimestamp();
         Optional<CompactorMXBean> mxBean = getCompactorMXBean();
 
+        stats.backlogQuotaLimitSize = getBacklogQuota(BacklogQuotaType.destination_storage).getLimitSize();
+        stats.backlogQuotaLimitTime = getBacklogQuota(BacklogQuotaType.message_age).getLimitTime();
+
+        TimeBasedBacklogQuotaCheckResult backlogQuotaCheckResult = timeBasedBacklogQuotaCheckResult;
+        stats.oldestBacklogMessageAgeSeconds = TimeUnit.MILLISECONDS.toSeconds(
+                Clock.systemUTC().millis() - backlogQuotaCheckResult.getPositionPublishTimestampInMillis());
+        stats.oldestBacklogMessageSubscriptionName = backlogQuotaCheckResult.getCursorName();
+
         stats.compaction.reset();
         mxBean.flatMap(bean -> bean.getCompactionRecordForTopic(topic)).map(compactionRecord -> {
             stats.compaction.lastCompactionRemovedEventCount = compactionRecord.getLastCompactionRemovedEventCount();
@@ -3158,10 +3171,42 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     private static class TimeBasedBacklogQuotaCheckResult {
         PositionImpl oldestCursorMarkDeletePosition;
         String cursorName;
-        Long positionPublishTimestamp;
+        long positionPublishTimestampInMillis;
+        long dataVersion;
     }
 
     private volatile TimeBasedBacklogQuotaCheckResult timeBasedBacklogQuotaCheckResult;
+    private static final AtomicReferenceFieldUpdater<PersistentTopic, TimeBasedBacklogQuotaCheckResult>
+            TIME_BASED_BACKLOG_QUOTA_CHECK_RESULT_UPDATER = AtomicReferenceFieldUpdater.newUpdater(
+                    PersistentTopic.class,
+                    TimeBasedBacklogQuotaCheckResult.class,
+            "timeBasedBacklogQuotaCheckResult");
+
+    private static final long NOT_AVAILABLE_YET = -1;
+
+    @Override
+    public long getBestEffortOldestUnacknowledgedMessageAgeSeconds() {
+        TimeBasedBacklogQuotaCheckResult result = timeBasedBacklogQuotaCheckResult;
+        if (result == null) {
+            return NOT_AVAILABLE_YET;
+        } else {
+            return TimeUnit.MILLISECONDS.toSeconds(
+                    Clock.systemUTC().millis() - result.getPositionPublishTimestampInMillis());
+        }
+    }
+
+    private void updateResultIfNewer(TimeBasedBacklogQuotaCheckResult updatedResult) {
+        TIME_BASED_BACKLOG_QUOTA_CHECK_RESULT_UPDATER.updateAndGet(this,
+                existingResult -> {
+                    if (ManagedCursorContainer.DataVersion.compareVersions(
+                            updatedResult.getDataVersion(), existingResult.getDataVersion()) > 0) {
+                        return updatedResult;
+                    } else {
+                        return existingResult;
+                    }
+                });
+
+    }
 
     /**
      * @return determine if backlog quota enforcement needs to be done for topic based on time limit
@@ -3188,18 +3233,16 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
             // Same position, but the cursor causing it has changed?
             if (!lastCheckResult.getCursorName().equals(oldestMarkDeleteCursorInfo.getCursor().getName())) {
-                lastCheckResult = new TimeBasedBacklogQuotaCheckResult(
+                final TimeBasedBacklogQuotaCheckResult updatedResult = new TimeBasedBacklogQuotaCheckResult(
                         lastCheckResult.getOldestCursorMarkDeletePosition(),
                         oldestMarkDeleteCursorInfo.getCursor().getName(),
-                        lastCheckResult.getPositionPublishTimestamp());
+                        lastCheckResult.getPositionPublishTimestampInMillis(),
+                        oldestMarkDeleteCursorInfo.getVersion());
 
-                timeBasedBacklogQuotaCheckResult = lastCheckResult;
+                updateResultIfNewer(updatedResult);
             }
 
-            Long entryTimestamp = lastCheckResult.getPositionPublishTimestamp();
-            if (entryTimestamp == null) {
-                return CompletableFuture.completedFuture(false);
-            }
+            long entryTimestamp = lastCheckResult.getPositionPublishTimestampInMillis();
             boolean expired = MessageImpl.isEntryExpired(backlogQuotaLimitInSecond, entryTimestamp);
             if (expired && log.isDebugEnabled()) {
                 log.debug("(Using cache) Time based backlog quota exceeded, oldest entry in cursor {}'s backlog"
@@ -3221,10 +3264,12 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                             try {
                                 long entryTimestamp = Commands.getEntryTimestamp(entry.getDataBuffer());
 
-                                timeBasedBacklogQuotaCheckResult = new TimeBasedBacklogQuotaCheckResult(
-                                        oldestMarkDeleteCursorInfo.getMarkDeletePosition(),
-                                        oldestMarkDeleteCursorInfo.getCursor().getName(),
-                                        entryTimestamp);
+                                updateResultIfNewer(
+                                        new TimeBasedBacklogQuotaCheckResult(
+                                            oldestMarkDeleteCursorInfo.getMarkDeletePosition(),
+                                            oldestMarkDeleteCursorInfo.getCursor().getName(),
+                                            entryTimestamp,
+                                            oldestMarkDeleteCursorInfo.getVersion()));
 
                                 boolean expired = MessageImpl.isEntryExpired(backlogQuotaLimitInSecond, entryTimestamp);
                                 if (expired && log.isDebugEnabled()) {
@@ -3252,12 +3297,16 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         } else {
             try {
                 CheckResult checkResult = estimatedTimeBasedBacklogQuotaCheck(oldestMarkDeletePosition);
-                timeBasedBacklogQuotaCheckResult = new TimeBasedBacklogQuotaCheckResult(
-                        oldestMarkDeleteCursorInfo.getMarkDeletePosition(),
-                        oldestMarkDeleteCursorInfo.getCursor().getName(),
-                        checkResult.getEstimatedOldestUnacknowledgedMessageTimestamp());
+                if (checkResult.getEstimatedOldestUnacknowledgedMessageTimestamp() != null) {
+                    updateResultIfNewer(
+                            new TimeBasedBacklogQuotaCheckResult(
+                                oldestMarkDeleteCursorInfo.getMarkDeletePosition(),
+                                oldestMarkDeleteCursorInfo.getCursor().getName(),
+                                checkResult.getEstimatedOldestUnacknowledgedMessageTimestamp(),
+                                oldestMarkDeleteCursorInfo.getVersion()));
+                }
 
-                return CompletableFuture.completedFuture(checkResult.isShouldTruncateBacklogToMatchQuota());
+                return CompletableFuture.completedFuture(checkResult.isTruncateBacklogToMatchQuota());
             } catch (Exception e) {
                 log.error("[{}][{}] Error reading entry for precise time based backlog check", topicName, e);
                 return CompletableFuture.completedFuture(false);
@@ -3267,9 +3316,10 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
     @Value
     private static class CheckResult {
-        boolean shouldTruncateBacklogToMatchQuota;
+        boolean truncateBacklogToMatchQuota;
         Long estimatedOldestUnacknowledgedMessageTimestamp;
     }
+
     private CheckResult estimatedTimeBasedBacklogQuotaCheck(PositionImpl markDeletePosition)
             throws ExecutionException, InterruptedException {
         int backlogQuotaLimitInSecond = getBacklogQuota(BacklogQuotaType.message_age).getLimitTime();
@@ -3917,10 +3967,6 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
     private CompletableFuture<Void> transactionBufferCleanupAndClose() {
         return transactionBuffer.clearSnapshot().thenCompose(__ -> transactionBuffer.closeAsync());
-    }
-
-    public long getLastDataMessagePublishedTimestamp() {
-        return lastDataMessagePublishedTimestamp;
     }
 
     public Optional<TopicName> getShadowSourceTopic() {
