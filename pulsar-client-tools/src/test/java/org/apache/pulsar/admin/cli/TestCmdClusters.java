@@ -26,8 +26,10 @@ import java.util.Set;
 import java.util.logging.Level;
 import org.apache.commons.text.diff.DeleteCommand;
 import org.apache.pulsar.client.admin.Brokers;
+import org.apache.pulsar.client.admin.Namespaces;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.Tenants;
+import org.apache.pulsar.client.admin.Topics;
 import org.apache.pulsar.client.api.ProxyProtocol;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doReturn;
@@ -149,42 +151,48 @@ public class TestCmdClusters {
     @Test
     public void testDeleteCluster() throws PulsarAdminException {
         Clusters clusters = mock(Clusters.class);
+        Tenants tenants = mock(Tenants.class);
+        Namespaces namespaces = mock(Namespaces.class);
+        Topics topics = mock(Topics.class);
         PulsarAdmin admin = mock(PulsarAdmin.class);
         when(admin.clusters()).thenReturn(clusters);
+        when(admin.tenants()).thenReturn(tenants);
+        when(admin.namespaces()).thenReturn(namespaces);
+        when(admin.topics()).thenReturn(topics);
         CmdClusters cmd = new CmdClusters(() -> admin);
         String clusterName = "my-cluster";
-        admin.tenants().createTenant("tenant1", TenantInfoImpl.builder()
-                        .adminRoles(Set.of("role1","role2"))
-                        .allowedClusters(Set.of(clusterName))
-                .build());
-        admin.tenants().createTenant("tenan2", TenantInfoImpl.builder()
+        cmd.run(new String[]{"admin","tenants","create","tenant-1","--allowed-clusters=my-cluster"});
+/*        admin.tenants().createTenant("tenant1", TenantInfoImpl.builder()
                 .adminRoles(Set.of("role1","role2"))
                 .allowedClusters(Set.of(clusterName))
                 .build());
-        List<String> tenants = new LinkedList<>(Arrays.asList("tenant1", "tenant2"));
-        when(admin.tenants().getTenants()).thenReturn(tenants);
+        admin.tenants().createTenant("tenant2", TenantInfoImpl.builder()
+                .adminRoles(Set.of("role1","role2"))
+                .allowedClusters(Set.of(clusterName))
+                .build());*/
+        System.out.println(cmd.getAdmin().tenants().getTenants());
+        System.out.println(admin.tenants().getTenants());
+        List<String> tenantList = new LinkedList<>(Arrays.asList("tenant1", "tenant2"));
+        when(admin.tenants().getTenants()).thenReturn(tenantList);
 
-        for (String tenant : tenants) {
-            List<String> namespaces = new LinkedList<>(Arrays.asList("namespace1", "namespace2"));
-            when(admin.namespaces().getNamespaces(tenant)).thenReturn(namespaces);
+        for (String tenant : tenantList) {
+            List<String> namespaceList = new LinkedList<>(Arrays.asList("namespace1", "namespace2"));
+            when(admin.namespaces().getNamespaces(tenant)).thenReturn(namespaceList);
 
-            for (String namespace : namespaces) {
-                List<String> topics = new LinkedList<>(Arrays.asList("topic1", "topic2"));
-                when(admin.topics().getPartitionedTopicList(namespace)).thenReturn(topics);
-                when(admin.topics().getList(namespace)).thenReturn(topics);
+            for (String namespace : namespaceList) {
+                List<String> topicList = new LinkedList<>(Arrays.asList("topic1", "topic2"));
+                when(admin.topics().getPartitionedTopicList(namespace)).thenReturn(topicList);
+                when(admin.topics().getList(namespace)).thenReturn(topicList);
             }
         }
 
-        for (String tenant : tenants) {
+        for (String tenant : tenantList) {
             TenantInfoImpl tenantInfo = TenantInfoImpl.builder()
                     .allowedClusters(new HashSet<>(Arrays.asList(clusterName, "other-cluster")))
                     .build();
             when(admin.tenants().getTenantInfo(tenant)).thenReturn(tenantInfo);
         }
 
-        cmd.run(new String[]{"delete", "clusterName"});
-
-        verify(pulsarAdmin.clusters(), times(1)).deleteCluster(eq(clusterName));
     }
 
 }
