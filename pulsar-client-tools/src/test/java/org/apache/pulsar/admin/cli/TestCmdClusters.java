@@ -19,7 +19,15 @@
 package org.apache.pulsar.admin.cli;
 
 import com.google.common.collect.Lists;
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.LinkedList;
+import java.util.Set;
+import java.util.logging.Level;
+import org.apache.commons.text.diff.DeleteCommand;
 import org.apache.pulsar.client.admin.Brokers;
+import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.client.admin.Tenants;
 import org.apache.pulsar.client.api.ProxyProtocol;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doReturn;
@@ -28,6 +36,8 @@ import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.testng.AssertJUnit.assertFalse;
+import static org.testng.AssertJUnit.assertTrue;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.PrintStream;
@@ -35,10 +45,14 @@ import java.nio.file.Files;
 import java.util.List;
 import java.util.Map;
 import org.apache.pulsar.admin.cli.utils.CmdUtils;
+import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.client.admin.Clusters;
 import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
+import org.apache.tools.ant.taskdefs.Delete;
 import org.assertj.core.util.Maps;
 import org.testng.Assert;
 import org.testng.annotations.BeforeMethod;
@@ -52,11 +66,13 @@ public class TestCmdClusters {
 
     private Clusters clusters;
 
+    private Delete deleteCommand;
     @BeforeMethod
     public void setup() throws Exception {
         pulsarAdmin = mock(PulsarAdmin.class);
         clusters = mock(Clusters.class);
         when(pulsarAdmin.clusters()).thenReturn(clusters);
+
 
         cmdClusters = spy(new CmdClusters(() -> pulsarAdmin));
     }
@@ -129,4 +145,46 @@ public class TestCmdClusters {
         cmdClusters.run(new String[]{"get-cluster-migration", "test_cluster"});
         verify(clusters, times(1)).getClusterMigration("test_cluster");
     }
+
+    @Test
+    public void testDeleteCluster() throws PulsarAdminException {
+        Clusters clusters = mock(Clusters.class);
+        PulsarAdmin admin = mock(PulsarAdmin.class);
+        when(admin.clusters()).thenReturn(clusters);
+        CmdClusters cmd = new CmdClusters(() -> admin);
+        String clusterName = "my-cluster";
+        admin.tenants().createTenant("tenant1", TenantInfoImpl.builder()
+                        .adminRoles(Set.of("role1","role2"))
+                        .allowedClusters(Set.of(clusterName))
+                .build());
+        admin.tenants().createTenant("tenan2", TenantInfoImpl.builder()
+                .adminRoles(Set.of("role1","role2"))
+                .allowedClusters(Set.of(clusterName))
+                .build());
+        List<String> tenants = new LinkedList<>(Arrays.asList("tenant1", "tenant2"));
+        when(admin.tenants().getTenants()).thenReturn(tenants);
+
+        for (String tenant : tenants) {
+            List<String> namespaces = new LinkedList<>(Arrays.asList("namespace1", "namespace2"));
+            when(admin.namespaces().getNamespaces(tenant)).thenReturn(namespaces);
+
+            for (String namespace : namespaces) {
+                List<String> topics = new LinkedList<>(Arrays.asList("topic1", "topic2"));
+                when(admin.topics().getPartitionedTopicList(namespace)).thenReturn(topics);
+                when(admin.topics().getList(namespace)).thenReturn(topics);
+            }
+        }
+
+        for (String tenant : tenants) {
+            TenantInfoImpl tenantInfo = TenantInfoImpl.builder()
+                    .allowedClusters(new HashSet<>(Arrays.asList(clusterName, "other-cluster")))
+                    .build();
+            when(admin.tenants().getTenantInfo(tenant)).thenReturn(tenantInfo);
+        }
+
+        cmd.run(new String[]{"delete", "clusterName"});
+
+        verify(pulsarAdmin.clusters(), times(1)).deleteCluster(eq(clusterName));
+    }
+
 }
