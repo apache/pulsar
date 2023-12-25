@@ -69,13 +69,11 @@ public class TestCmdClusters {
 
     private Clusters clusters;
 
-    private Delete deleteCommand;
     @BeforeMethod
     public void setup() throws Exception {
         pulsarAdmin = mock(PulsarAdmin.class);
         clusters = mock(Clusters.class);
         when(pulsarAdmin.clusters()).thenReturn(clusters);
-
 
         cmdClusters = spy(new CmdClusters(() -> pulsarAdmin));
     }
