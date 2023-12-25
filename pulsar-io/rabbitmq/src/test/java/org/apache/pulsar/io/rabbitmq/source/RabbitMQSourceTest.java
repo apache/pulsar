@@ -44,7 +44,7 @@ public class RabbitMQSourceTest {
     }
 
     @Test
-    public void TestOpenAndWriteSink() {
+    public void TestOpenAndWriteSink() throws Exception {
         Map<String, Object> configs = new HashMap<>();
         configs.put("host", "localhost");
         configs.put("port", "5672");
@@ -67,6 +67,7 @@ public class RabbitMQSourceTest {
         // open should success
         // rabbitmq service may need time to initialize
         Awaitility.await().ignoreExceptions().untilAsserted(() -> source.open(configs, null));
+        source.close();
     }
 
 }

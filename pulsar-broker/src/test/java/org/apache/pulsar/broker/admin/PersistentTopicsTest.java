@@ -429,6 +429,7 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         persistentTopics.createNonPartitionedTopic(response, testTenant, testNamespace, testLocalTopicName, true, null);
 
         // 2) Create a subscription
+        response = mock(AsyncResponse.class);
         persistentTopics.createSubscription(response, testTenant, testNamespace, testLocalTopicName, "test", true,
                 new ResetCursorData(MessageId.earliest), false);
         ArgumentCaptor<Response> responseCaptor = ArgumentCaptor.forClass(Response.class);
@@ -539,12 +540,13 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testCreatePartitionedTopic() {
-        AsyncResponse response = mock(AsyncResponse.class);
-        ArgumentCaptor<PartitionedTopicMetadata> responseCaptor =
-                ArgumentCaptor.forClass(PartitionedTopicMetadata.class);
         final String topicName = "standard-partitioned-topic-a";
-        persistentTopics.createPartitionedTopic(response, testTenant, testNamespace, topicName, 2, true);
+        persistentTopics.createPartitionedTopic(mock(AsyncResponse.class), testTenant, testNamespace, topicName, 2,
+                true);
         Awaitility.await().untilAsserted(() -> {
+            ArgumentCaptor<PartitionedTopicMetadata> responseCaptor =
+                    ArgumentCaptor.forClass(PartitionedTopicMetadata.class);
+            AsyncResponse response = mock(AsyncResponse.class);
             persistentTopics.getPartitionedMetadata(response,
                     testTenant, testNamespace, topicName, true, false);
             verify(response, timeout(5000).atLeast(1)).resume(responseCaptor.capture());

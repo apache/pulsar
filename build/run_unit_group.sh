@@ -104,7 +104,7 @@ function test_group_client() {
 }
 
 function test_group_metadata() {
-  mvn_test -pl pulsar-metadata
+  mvn_test -pl pulsar-metadata -DtestReuseFork=false
 }
 
 # prints summaries of failed tests to console
