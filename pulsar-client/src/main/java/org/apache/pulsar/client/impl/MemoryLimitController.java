@@ -47,16 +47,6 @@ public class MemoryLimitController {
 
     public void forceReserveMemory(long size) {
         long newUsage = currentUsage.addAndGet(size);
-        if (size < 0 && newUsage - size > memoryLimit
-                && newUsage <= memoryLimit) {
-            // We just crossed the limit. Now we have more space
-            mutex.lock();
-            try {
-                condition.signalAll();
-            } finally {
-                mutex.unlock();
-            }
-        }
         checkTrigger(newUsage - size, newUsage);
     }
 
