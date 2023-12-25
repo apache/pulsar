@@ -31,6 +31,7 @@ import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.Tenants;
 import org.apache.pulsar.client.admin.Topics;
 import org.apache.pulsar.client.api.ProxyProtocol;
+import static org.mockito.Answers.RETURNS_DEEP_STUBS;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
@@ -149,50 +150,45 @@ public class TestCmdClusters {
     }
 
     @Test
-    public void testDeleteCluster() throws PulsarAdminException {
-        Clusters clusters = mock(Clusters.class);
-        Tenants tenants = mock(Tenants.class);
-        Namespaces namespaces = mock(Namespaces.class);
-        Topics topics = mock(Topics.class);
-        PulsarAdmin admin = mock(PulsarAdmin.class);
-        when(admin.clusters()).thenReturn(clusters);
-        when(admin.tenants()).thenReturn(tenants);
-        when(admin.namespaces()).thenReturn(namespaces);
-        when(admin.topics()).thenReturn(topics);
-        CmdClusters cmd = new CmdClusters(() -> admin);
+    public void testDeleteClusterWithoutAllOption() throws PulsarAdminException {
+
+        // Enable chaining mock calls (eg. admin.tenants().getTenants())
+        pulsarAdmin = mock(PulsarAdmin.class, RETURNS_DEEP_STUBS);
+        clusters = mock(Clusters.class);
+        when(pulsarAdmin.clusters()).thenReturn(clusters);
+        cmdClusters = spy(new CmdClusters(() -> pulsarAdmin));
+
         String clusterName = "my-cluster";
-        cmd.run(new String[]{"admin","tenants","create","tenant-1","--allowed-clusters=my-cluster"});
-/*        admin.tenants().createTenant("tenant1", TenantInfoImpl.builder()
-                .adminRoles(Set.of("role1","role2"))
-                .allowedClusters(Set.of(clusterName))
+        String otherClusterName = "other-cluster";
+        List<String> tenants = Arrays.asList("tenant1", "tenant2");
+        when(pulsarAdmin.tenants().getTenants()).thenReturn(tenants);
+        when(pulsarAdmin.tenants().getTenantInfo("tenant1")).thenReturn(TenantInfoImpl.builder()
+                .adminRoles(Set.of("role1"))
+                .allowedClusters(new HashSet<>(Set.of(clusterName, otherClusterName)))
                 .build());
-        admin.tenants().createTenant("tenant2", TenantInfoImpl.builder()
-                .adminRoles(Set.of("role1","role2"))
-                .allowedClusters(Set.of(clusterName))
-                .build());*/
-        System.out.println(cmd.getAdmin().tenants().getTenants());
-        System.out.println(admin.tenants().getTenants());
-        List<String> tenantList = new LinkedList<>(Arrays.asList("tenant1", "tenant2"));
-        when(admin.tenants().getTenants()).thenReturn(tenantList);
+        when(pulsarAdmin.tenants().getTenantInfo("tenant2")).thenReturn(TenantInfoImpl.builder()
+                .adminRoles(Set.of("role1"))
+                .allowedClusters(new HashSet<>(Set.of(clusterName, otherClusterName)))
+                .build());
 
-        for (String tenant : tenantList) {
-            List<String> namespaceList = new LinkedList<>(Arrays.asList("namespace1", "namespace2"));
-            when(admin.namespaces().getNamespaces(tenant)).thenReturn(namespaceList);
+        // Invoke the delete command
+        cmdClusters.run(new String[]{"delete", clusterName});
 
-            for (String namespace : namespaceList) {
-                List<String> topicList = new LinkedList<>(Arrays.asList("topic1", "topic2"));
-                when(admin.topics().getPartitionedTopicList(namespace)).thenReturn(topicList);
-                when(admin.topics().getList(namespace)).thenReturn(topicList);
-            }
-        }
+        // Verify the cluster was deleted
+        verify(clusters).deleteCluster(clusterName);
 
-        for (String tenant : tenantList) {
-            TenantInfoImpl tenantInfo = TenantInfoImpl.builder()
-                    .allowedClusters(new HashSet<>(Arrays.asList(clusterName, "other-cluster")))
-                    .build();
-            when(admin.tenants().getTenantInfo(tenant)).thenReturn(tenantInfo);
-        }
+        // Verify the cluster was removed from each tenants' set of allowedClusters
+        TenantInfo modifiedTenant1 = TenantInfoImpl.builder()
+                .adminRoles(Set.of("role1"))
+                .allowedClusters(Set.of(otherClusterName))
+                .build();
+        verify(pulsarAdmin.tenants()).updateTenant(eq("tenant1"), eq(modifiedTenant1));
 
+        TenantInfo modifiedTenant2 = TenantInfoImpl.builder()
+                .adminRoles(Set.of("role1"))
+                .allowedClusters(Set.of(otherClusterName))
+                .build();
+        verify(pulsarAdmin.tenants()).updateTenant(eq("tenant2"), eq(modifiedTenant2));
     }
 
 }
