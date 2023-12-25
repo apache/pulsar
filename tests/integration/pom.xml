@@ -184,13 +184,6 @@
     </dependency>
 
     <dependency>
-      <groupId>io.trino</groupId>
-      <artifactId>trino-jdbc</artifactId>
-      <version>${trino.version}</version>
-      <scope>test</scope>
-    </dependency>
-
-    <dependency>
       <groupId>org.awaitility</groupId>
       <artifactId>awaitility</artifactId>
       <scope>test</scope>

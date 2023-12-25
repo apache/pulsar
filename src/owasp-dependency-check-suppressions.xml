@@ -27,11 +27,6 @@
         <cpe>cpe:/a:netty:netty</cpe>
     </suppress>
     <suppress>
-        <notes>Suppress all pulsar-presto-distribution vulnerabilities</notes>
-        <filePath regex="true">.*pulsar-presto-distribution-.*</filePath>
-        <vulnerabilityName regex="true">.*</vulnerabilityName>
-    </suppress>
-    <suppress>
         <notes>Suppress libthrift-0.12.0.jar vulnerabilities</notes>
         <gav>org.apache.thrift:libthrift:0.12.0</gav>
         <vulnerabilityName regex="true">.*</vulnerabilityName>
