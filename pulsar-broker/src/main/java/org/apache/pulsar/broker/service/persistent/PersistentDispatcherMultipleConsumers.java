@@ -115,8 +115,9 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
     protected volatile int totalUnackedMessages = 0;
     /**
      * A signature that relate to the check of "Dispatching has paused on cursor data can fully persist".
-     * Note: do not use this field to confirm whether the delivery should be paused,
-     *      please call {@link #shouldPauseOnAckStatePersist}.
+     * Note:  It is a tool that helps determine whether it should trigger a new reading after acknowledgments to avoid
+     *   too many CPU circles, see {@link #afterAckMessages(Throwable, Object)} for more details. Do not use this
+     *   to confirm whether the delivery should be paused, please call {@link #shouldPauseOnAckStatePersist}.
      */
     private BlockDispatcherSignatureOnCursorDataCanNotFullyPersist blockSignatureOnCursorDataCanNotFullyPersist =
             new BlockDispatcherSignatureOnCursorDataCanNotFullyPersist();
