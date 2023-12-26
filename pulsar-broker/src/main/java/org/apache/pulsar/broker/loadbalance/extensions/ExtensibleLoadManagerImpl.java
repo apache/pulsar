@@ -97,6 +97,7 @@ import org.apache.pulsar.common.naming.ServiceUnitId;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.stats.Metrics;
+import org.apache.pulsar.common.stats.Rate;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.coordination.LeaderElectionState;
 import org.slf4j.Logger;
@@ -181,9 +182,9 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
 
     // Record the ignored send msg count during unloading
     @Getter
-    private final AtomicLong ignoredSendMsgCounter = new AtomicLong();
+    private final Rate ignoredSendMsgRate = new Rate();
     @Getter
-    private final AtomicLong ignoredAckCounter = new AtomicLong();
+    private final Rate ignoredAckRate = new Rate();
 
     // record unload metrics
     private final AtomicReference<List<Metrics>> unloadMetrics = new AtomicReference<>();
@@ -876,10 +877,20 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
         }
 
         metricsCollection.addAll(this.assignCounter.toMetrics(pulsar.getAdvertisedAddress()));
-
         metricsCollection.addAll(this.serviceUnitStateChannel.getMetrics());
+        metricsCollection.addAll(toMetrics(pulsar.getAdvertisedAddress()));
 
         return metricsCollection;
+    }
+
+    private List<Metrics> toMetrics(String advertisedBrokerAddress) {
+        ignoredAckRate.calculateRate();
+        ignoredSendMsgRate.calculateRate();
+        var dimensions = Map.of("broker", advertisedBrokerAddress);
+        var metric = Metrics.create(dimensions);
+        metric.put("brk_lb_ignored_ack_total", ignoredAckRate.getTotalCount());
+        metric.put("brk_lb_ignored_send_total", ignoredSendMsgRate.getTotalCount());
+        return List.of(metric);
     }
 
     private void monitor() {
