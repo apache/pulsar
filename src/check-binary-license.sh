@@ -27,21 +27,13 @@
 # all error fatal
 set -e
 
-# skip checks for Presto licenses if 1. argument is "--no-presto"/"no-pulsar-sql"
-# this is to allow building the server distribution without Pulsar SQL
-NO_PRESTO=0
-if [[ "$1" == "--no-presto" || "$1" == "--no-pulsar-sql" ]]; then
-  NO_PRESTO=1
-  shift
-fi
-
 TARBALL="$1"
 if [ -z $TARBALL ]; then
     echo "Usage: $0 <binary-tarball>"
     exit 1
 fi
 
-JARS=$(tar -tf $TARBALL | grep '\.jar' | grep -v 'trino/' | grep -v '/examples/' | grep -v '/instances/' | grep -v pulsar-client | grep -v pulsar-cli-utils | grep -v pulsar-common | grep -v pulsar-package | grep -v pulsar-websocket | grep -v bouncy-castle-bc | sed 's!.*/!!' | sort)
+JARS=$(tar -tf $TARBALL | grep '\.jar' | grep -v '/examples/' | grep -v '/instances/' | grep -v pulsar-client | grep -v pulsar-cli-utils | grep -v pulsar-common | grep -v pulsar-package | grep -v pulsar-websocket | grep -v bouncy-castle-bc | sed 's!.*/!!' | sort)
 
 LICENSEPATH=$(tar -tf $TARBALL  | awk '/^[^\/]*\/LICENSE/')
 LICENSE=$(tar -O -xf $TARBALL "$LICENSEPATH")
@@ -93,39 +85,6 @@ for J in $NOTICEJARS; do
         EXIT=3
     fi
 done
-
-if [ "$NO_PRESTO" -ne 1 ]; then
-  # check pulsar sql jars
-  JARS=$(tar -tf $TARBALL | grep '\.jar' | grep 'trino/' | grep -v pulsar-client | grep -v bouncy-castle-bc | grep -v pulsar-metadata | grep -v 'managed-ledger' | grep -v  'pulsar-client-admin' | grep -v  'pulsar-client-api' | grep -v 'pulsar-functions-api' | grep -v 'pulsar-presto-connector-original' | grep -v 'pulsar-presto-distribution' | grep -v 'pulsar-common' | grep -v 'pulsar-functions-proto' | grep -v 'pulsar-functions-utils' | grep -v 'pulsar-io-core' | grep -v 'pulsar-transaction-common' | grep -v 'pulsar-package-core' | sed 's!.*/!!' | sort)
-  if [ -n "$JARS" ]; then
-    LICENSEPATH=$(tar -tf $TARBALL  | awk '/^[^\/]*\/trino\/LICENSE/')
-    LICENSE=$(tar -O -xf $TARBALL "$LICENSEPATH")
-    LICENSEJARS=$(echo "$LICENSE" | sed -nE 's!.* (.*\.jar).*!\1!gp')
-
-
-    for J in $JARS; do
-        echo $J | grep -q "org.apache.pulsar"
-        if [ $? == 0 ]; then
-      continue
-        fi
-
-        echo "$LICENSE" | grep -q $J
-        if [ $? != 0 ]; then
-      echo $J unaccounted for in trino/LICENSE
-      EXIT=1
-        fi
-    done
-
-    # Check all jars mentioned in LICENSE are bundled
-    for J in $LICENSEJARS; do
-        echo "$JARS" | grep -q $J
-        if [ $? != 0 ]; then
-      echo $J mentioned in trino/LICENSE, but not bundled
-      EXIT=2
-        fi
-    done
-  fi
-fi
 
 if [ $EXIT != 0 ]; then
     echo

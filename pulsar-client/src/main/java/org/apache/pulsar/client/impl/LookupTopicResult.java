@@ -16,32 +16,20 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.sql.presto.util;
+package org.apache.pulsar.client.impl;
 
-/**
- * Cache size allocator.
- */
-public interface CacheSizeAllocator {
+import java.net.InetSocketAddress;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.Setter;
+import lombok.ToString;
 
-    /**
-     * Get available cache size.
-     *
-     * @return available cache size
-     */
-    long getAvailableCacheSize();
-
-    /**
-     * Cost available cache.
-     *
-     * @param size allocate size
-     */
-    void allocate(long size);
-
-    /**
-     * Release allocated cache size.
-     *
-     * @param size release size
-     */
-    void release(long size);
-
+@Getter
+@Setter
+@AllArgsConstructor
+@ToString
+public class LookupTopicResult {
+    private final InetSocketAddress logicalAddress;
+    private final InetSocketAddress physicalAddress;
+    private final boolean isUseProxy;
 }

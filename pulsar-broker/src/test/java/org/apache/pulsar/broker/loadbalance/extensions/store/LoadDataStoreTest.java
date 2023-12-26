@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.loadbalance.extensions.store;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.fail;
 import static org.testng.AssertJUnit.assertTrue;
 
 import com.google.common.collect.Sets;
@@ -39,6 +40,7 @@ import org.testng.annotations.Test;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ExecutionException;
 
 @Test(groups = "broker")
 public class LoadDataStoreTest extends MockedPulsarServiceBaseTest {
@@ -152,6 +154,34 @@ public class LoadDataStoreTest extends MockedPulsarServiceBaseTest {
         assertNotNull(ex);
         loadDataStore.startTableView();
         Awaitility.await().untilAsserted(() -> assertEquals(loadDataStore.get("1").get(), 2));
+    }
+
+    @Test
+    public void testProducerStop() throws Exception {
+        String topic = TopicDomain.persistent + "://" + NamespaceName.SYSTEM_NAMESPACE + "/" + UUID.randomUUID();
+        LoadDataStore<Integer> loadDataStore =
+                LoadDataStoreFactory.create(pulsar.getClient(), topic, Integer.class);
+        loadDataStore.startProducer();
+        loadDataStore.pushAsync("1", 1).get();
+        loadDataStore.removeAsync("1").get();
+
+        loadDataStore.close();
+
+        try {
+            loadDataStore.pushAsync("2", 2).get();
+            fail();
+        } catch (ExecutionException ex) {
+            assertTrue(ex.getCause() instanceof IllegalStateException);
+        }
+        try {
+            loadDataStore.removeAsync("2").get();
+            fail();
+        } catch (ExecutionException ex) {
+            assertTrue(ex.getCause() instanceof IllegalStateException);
+        }
+        loadDataStore.startProducer();
+        loadDataStore.pushAsync("3", 3).get();
+        loadDataStore.removeAsync("3").get();
     }
 
 }
