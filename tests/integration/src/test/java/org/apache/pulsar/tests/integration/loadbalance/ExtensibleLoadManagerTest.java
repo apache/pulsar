@@ -19,13 +19,16 @@
 package org.apache.pulsar.tests.integration.loadbalance;
 
 import static org.apache.pulsar.tests.integration.containers.PulsarContainer.BROKER_HTTP_PORT;
-import static org.apache.pulsar.tests.integration.topologies.PulsarCluster.ADMIN_SCRIPT;
+import static org.apache.pulsar.tests.integration.suites.PulsarTestSuite.retryStrategically;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
+import com.google.common.collect.Sets;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -40,12 +43,16 @@ import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.common.policies.data.impl.BundlesDataImpl;
-import org.apache.pulsar.common.util.ObjectMapperFactory;
+import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.common.policies.data.AutoFailoverPolicyData;
+import org.apache.pulsar.common.policies.data.AutoFailoverPolicyType;
+import org.apache.pulsar.common.policies.data.BundlesData;
+import org.apache.pulsar.common.policies.data.FailureDomain;
+import org.apache.pulsar.common.policies.data.NamespaceIsolationData;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.tests.TestRetrySupport;
 import org.apache.pulsar.tests.integration.containers.BrokerContainer;
-import org.apache.pulsar.tests.integration.docker.ContainerExecException;
-import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
 import org.apache.pulsar.tests.integration.topologies.PulsarClusterSpec;
 import org.awaitility.Awaitility;
@@ -71,6 +78,9 @@ public class ExtensibleLoadManagerTest extends TestRetrySupport {
             .clusterName(clusterName)
             .numBrokers(NUM_BROKERS).build();
     private PulsarCluster pulsarCluster = null;
+    private List<String> brokerUrls = null;
+    private String hosts;
+    private PulsarAdmin admin;
 
     @BeforeClass(alwaysRun = true)
     public void setup() throws Exception {
@@ -87,16 +97,16 @@ public class ExtensibleLoadManagerTest extends TestRetrySupport {
         spec.brokerEnvs(brokerEnvs);
         pulsarCluster = PulsarCluster.forSpec(spec);
         pulsarCluster.start();
+        brokerUrls = brokerUrls();
 
+        hosts = pulsarCluster.getAllBrokersHttpServiceUrl();
+        admin = PulsarAdmin.builder().serviceHttpUrl(hosts).build();
         // all brokers alive
-        Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(
-                () -> {
-                    List<String> activeBrokers = getActiveBrokers();
-                    assertEquals(activeBrokers.size(), NUM_BROKERS);
-                }
-        );
-        runAdminCommandOnRunningBroker("tenants", "create", DEFAULT_TENANT, "-c", pulsarCluster.getClusterName());
-        createNamespace(DEFAULT_NAMESPACE, "100");
+        assertEquals(admin.brokers().getActiveBrokers(clusterName).size(), NUM_BROKERS);
+
+        admin.tenants().createTenant(DEFAULT_TENANT,
+                new TenantInfoImpl(new HashSet<>(), Set.of(pulsarCluster.getClusterName())));
+        admin.namespaces().createNamespace(DEFAULT_NAMESPACE, 100);
     }
 
     @AfterClass(alwaysRun = true)
@@ -106,46 +116,45 @@ public class ExtensibleLoadManagerTest extends TestRetrySupport {
             pulsarCluster.stop();
             pulsarCluster = null;
         }
+        if (admin != null) {
+            admin.close();
+            admin = null;
+        }
     }
 
     @BeforeMethod(alwaysRun = true)
-    public void startBroker() throws Exception {
+    public void startBroker() {
         if (pulsarCluster != null) {
-            for (int i = 0; i < NUM_BROKERS; i++) {
-                BrokerContainer broker = pulsarCluster.getBroker(i);
-                if (!broker.isRunning()) {
-                    // If have one broker down, restart entire cluster.
-                    log.info("Restart entire cluster.");
-                    this.cleanup();
-                    this.setup();
-                    break;
+            pulsarCluster.getBrokers().forEach(brokerContainer -> {
+                if (!brokerContainer.isRunning()) {
+                    brokerContainer.start();
                 }
-            }
+            });
         }
-        // Make sure all broker are available.
-        Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(
-                () -> {
-                    List<String> activeBrokers = getActiveBrokers();
-                    assertEquals(activeBrokers.size(), NUM_BROKERS);
-                }
-        );
     }
 
     @Test(timeOut = 40 * 1000)
     public void testConcurrentLookups() throws Exception {
         String topicName = "persistent://" + DEFAULT_NAMESPACE + "/testConcurrentLookups";
+        List<PulsarAdmin> admins = new ArrayList<>();
+        int numAdminForBroker = 10;
+        for (String url : brokerUrls) {
+            for (int i = 0; i < numAdminForBroker; i++) {
+                admins.add(PulsarAdmin.builder().serviceHttpUrl(url).build());
+            }
+        }
 
-        pulsarCluster.createPartitionedTopic(topicName, 100);
+        admin.topics().createPartitionedTopic(topicName, 100);
 
-        var executor = Executors.newFixedThreadPool(NUM_BROKERS);
+        var executor = Executors.newFixedThreadPool(admins.size());
 
-        CountDownLatch latch = new CountDownLatch(NUM_BROKERS);
+        CountDownLatch latch = new CountDownLatch(admins.size());
         List<Map<String, String>> result = new CopyOnWriteArrayList<>();
-        for(var broker : pulsarCluster.getBrokers()) {
+        for(var admin : admins) {
             executor.execute(() -> {
                 try {
-                    result.add(lookupPartitionedTopic(broker, topicName));
-                } catch (Exception e) {
+                    result.add(admin.lookups().lookupPartitionedTopic(topicName));
+                } catch (PulsarAdminException e) {
                     log.error("Lookup partitioned topic failed.", e);
                 }
                 latch.countDown();
@@ -153,79 +162,60 @@ public class ExtensibleLoadManagerTest extends TestRetrySupport {
         }
         latch.await();
 
-        assertEquals(result.size(), NUM_BROKERS);
+        assertEquals(result.size(), admins.size());
 
-        for (int i = 1; i < NUM_BROKERS; i++) {
+        for (int i = 1; i < admins.size(); i++) {
             assertEquals(result.get(i - 1), result.get(i));
         }
+        admins.forEach(a -> a.close());
         executor.shutdown();
     }
 
     @Test(timeOut = 30 * 1000)
     public void testTransferAdminApi() throws Exception {
         String topicName = "persistent://" + DEFAULT_NAMESPACE + "/testUnloadAdminApi";
-        createNonPartitionedTopicAndRetry(topicName);
-        String broker = lookupTopic(topicName);
+        admin.topics().createNonPartitionedTopic(topicName);
+        String broker = admin.lookups().lookupTopic(topicName);
 
         int index = extractBrokerIndex(broker);
 
-        String bundleRange = getBundleRange(topicName);
+        String bundleRange = admin.lookups().getBundleRange(topicName);
 
         // Test transfer to current broker.
         try {
-            ContainerExecResult result = runAdminCommandOnRunningBroker("namespaces", "unload", "--bundle", bundleRange, "--destinationBroker", getBrokerUrl(index), DEFAULT_NAMESPACE);
-            assertNotEquals(result.getExitCode(), 0);
-        }catch (ContainerExecException e) {
-            log.info("Transfer to current broker failed with ContainerExecException, could be ok", e);
-            if (!e.getMessage().contains("with error code 1")) {
-                fail("Expected different error code");
-            }
+            admin.namespaces().unloadNamespaceBundle(DEFAULT_NAMESPACE, bundleRange, getBrokerUrl(index));
+            fail();
+        } catch (PulsarAdminException ex) {
+            assertTrue(ex.getMessage().contains("cannot be transfer to same broker"));
         }
 
         int transferToIndex = generateRandomExcludingX(NUM_BROKERS, index);
         assertNotEquals(transferToIndex, index);
         String transferTo = getBrokerUrl(transferToIndex);
-        runAdminCommandOnRunningBroker("namespaces", "unload", "--bundle", bundleRange, "--destinationBroker", transferTo, DEFAULT_NAMESPACE);
+        admin.namespaces().unloadNamespaceBundle(DEFAULT_NAMESPACE, bundleRange, transferTo);
 
-        broker = lookupTopic(topicName);
+        broker = admin.lookups().lookupTopic(topicName);
 
         index = extractBrokerIndex(broker);
         assertEquals(index, transferToIndex);
     }
 
-    @Test
+    @Test(timeOut = 30 * 1000)
     public void testSplitBundleAdminApi() throws Exception {
         String topicName = "persistent://" + DEFAULT_NAMESPACE + "/testSplitBundleAdminApi";
-        createNonPartitionedTopicAndRetry(topicName);
-        String broker = lookupTopic(topicName);
+        admin.topics().createNonPartitionedTopic(topicName);
+        String broker = admin.lookups().lookupTopic(topicName);
         log.info("The topic: {} owned by {}", topicName, broker);
-        ContainerExecResult result = runAdminCommandOnRunningBroker("namespaces", "bundles", DEFAULT_NAMESPACE);
-        assertEquals(result.getExitCode(), 0);
-        String stdout = result.getStdout();
-        BundlesDataImpl bundles = ObjectMapperFactory
-                .getMapper()
-                .getObjectMapper()
-                .readValue(stdout, BundlesDataImpl.class);
-
+        BundlesData bundles = admin.namespaces().getBundles(DEFAULT_NAMESPACE);
         int numBundles = bundles.getNumBundles();
         var bundleRanges = bundles.getBoundaries().stream().map(Long::decode).sorted().toList();
         String firstBundle = bundleRanges.get(0) + "_" + bundleRanges.get(1);
-        result = runAdminCommandOnRunningBroker("namespaces", "split-bundle", DEFAULT_NAMESPACE,
-                "--bundle", firstBundle,
-                "--unload");
-        assertEquals(result.getExitCode(), 0);
+        admin.namespaces().splitNamespaceBundle(DEFAULT_NAMESPACE, firstBundle, true, null);
         long mid = bundleRanges.get(0) + (bundleRanges.get(1) - bundleRanges.get(0)) / 2;
         Awaitility.waitAtMost(10, TimeUnit.SECONDS).pollDelay(100, TimeUnit.MILLISECONDS)
                 .untilAsserted(
                 () -> {
-                    ContainerExecResult res =
-                            runAdminCommandOnRunningBroker("namespaces", "bundles", DEFAULT_NAMESPACE);
-                    assertEquals(res.getExitCode(), 0);
-                    String json = res.getStdout();
-                    BundlesDataImpl bundlesData = ObjectMapperFactory
-                            .getMapper()
-                            .getObjectMapper()
-                            .readValue(json, BundlesDataImpl.class);
+                    BundlesData bundlesData = admin.namespaces().getBundles(DEFAULT_NAMESPACE);
                     assertEquals(bundlesData.getNumBundles(), numBundles + 1);
                     String lowBundle = String.format("0x%08x", bundleRanges.get(0));
                     String midBundle = String.format("0x%08x", mid);
@@ -236,16 +226,13 @@ public class ExtensibleLoadManagerTest extends TestRetrySupport {
                 }
         );
 
+
         // Test split bundle with invalid bundle range.
         try {
-            result = runAdminCommandOnRunningBroker("namespaces", "split-bundle", DEFAULT_NAMESPACE,
-                    "--bundle", "invalid",
-                    "--unload");
-            assertNotEquals(result.getExitCode(), 0);
-            String stderr = result.getStderr();
-            assertTrue(stderr.contains("Invalid bundle range"));
-        } catch (Exception ex) {
-            log.info("Split bundle with invalid bundle range failed with exception, could be ok", ex);
+            admin.namespaces().splitNamespaceBundle(DEFAULT_NAMESPACE, "invalid", true, null);
+            fail();
+        } catch (PulsarAdminException ex) {
+            assertTrue(ex.getMessage().contains("Invalid bundle range"));
         }
     }
 
@@ -253,76 +240,61 @@ public class ExtensibleLoadManagerTest extends TestRetrySupport {
     public void testDeleteNamespace() throws Exception {
         String namespace = DEFAULT_TENANT + "/test-delete-namespace";
         String topicName = "persistent://" + namespace + "/test-delete-namespace-topic";
-        createNamespace(namespace, "10");
-        pulsarCluster.runAdminCommandOnAnyBroker("namespaces", "set-clusters", namespace, "-c", clusterName);
-        ContainerExecResult result = pulsarCluster.runAdminCommandOnAnyBroker("namespaces", "list", DEFAULT_TENANT);
-        assertEquals(result.getExitCode(), 0);
-        assertTrue(result.getStdout().contains(namespace));
-        pulsarCluster.createPartitionedTopic(topicName, 2);
-        String broker = lookupTopic(topicName);
+        admin.namespaces().createNamespace(namespace);
+        admin.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet(clusterName));
+        assertTrue(admin.namespaces().getNamespaces(DEFAULT_TENANT).contains(namespace));
+        admin.topics().createPartitionedTopic(topicName, 2);
+        String broker = admin.lookups().lookupTopic(topicName);
         log.info("The topic: {} owned by: {}", topicName, broker);
-        pulsarCluster.runAdminCommandOnAnyBroker("namespaces", "delete", namespace, "-f");
-        result = pulsarCluster.runAdminCommandOnAnyBroker("namespaces", "list", DEFAULT_TENANT);
-        assertEquals(result.getExitCode(), 0);
-        assertFalse(result.getStdout().contains(namespace));
+        admin.namespaces().deleteNamespace(namespace, true);
+        assertFalse(admin.namespaces().getNamespaces(DEFAULT_TENANT).contains(namespace));
     }
 
-    @Test(timeOut = 120 * 1000)
+    @Test(timeOut = 40 * 1000)
     public void testStopBroker() throws Exception {
         String topicName = "persistent://" + DEFAULT_NAMESPACE + "/test-stop-broker-topic";
 
-        createNonPartitionedTopicAndRetry(topicName);
-        String broker = lookupTopic(topicName);
+        admin.topics().createNonPartitionedTopic(topicName);
+        String broker = admin.lookups().lookupTopic(topicName);
         log.info("The topic: {} owned by: {}", topicName, broker);
 
         int idx = extractBrokerIndex(broker);
         for (BrokerContainer container : pulsarCluster.getBrokers()) {
             String name = container.getHostName();
             if (name.contains(String.valueOf(idx))) {
-                try {
-                    runCommandOnBrokerWithScript(container, ADMIN_SCRIPT, "brokers", "shutdown",
-                            "-m", "10", "-f");
-                } catch (Exception ignore) {
-                    // ignore
-                }
                 container.stop();
             }
         }
 
-        String broker1 = lookupTopic(topicName);
+        String broker1 = admin.lookups().lookupTopic(topicName);
 
         assertNotEquals(broker1, broker);
     }
 
-    @Test(timeOut = 80 * 1000)
-    public void testAntiaffinityPolicy() throws Exception {
+    @Test(timeOut = 40 * 1000)
+    public void testAntiaffinityPolicy() throws PulsarAdminException {
         final String namespaceAntiAffinityGroup = "my-anti-affinity-filter";
         final String antiAffinityEnabledNameSpace = DEFAULT_TENANT + "/my-ns-filter" + nsSuffix;
         final int numPartition = 20;
 
-        List<String> activeBrokers = getActiveBrokers();
+        List<String> activeBrokers = admin.brokers().getActiveBrokers();
 
         assertEquals(activeBrokers.size(), NUM_BROKERS);
 
         for (int i = 0; i < activeBrokers.size(); i++) {
             String namespace = antiAffinityEnabledNameSpace + "-" + i;
-            createNamespace(namespace, "10");
-            runAdminCommandOnRunningBroker("namespaces", "set-anti-affinity-group", namespace, "-g", namespaceAntiAffinityGroup);
-            runAdminCommandOnRunningBroker("clusters", "create-failure-domain", clusterName,
-                    "--domain-name", namespaceAntiAffinityGroup,
-                    "--broker-list", activeBrokers.get(i));
+            admin.namespaces().createNamespace(namespace, 10);
+            admin.namespaces().setNamespaceAntiAffinityGroup(namespace, namespaceAntiAffinityGroup);
+            admin.clusters().createFailureDomain(clusterName, namespaceAntiAffinityGroup, FailureDomain.builder()
+                    .brokers(Set.of(activeBrokers.get(i))).build());
         }
 
-        log.info("Active brokers: {}", activeBrokers);
         Set<String> result = new HashSet<>();
         for (int i = 0; i < activeBrokers.size(); i++) {
             final String topic = "persistent://" + antiAffinityEnabledNameSpace + "-" + i +"/topic";
-            pulsarCluster.createPartitionedTopic(topic, numPartition);
+            admin.topics().createPartitionedTopic(topic, numPartition);
 
-            long startTime = System.currentTimeMillis();
-            log.info("Start lookup partitioned topic: {}, {}", topic, startTime);
-            Map<String, String> topicToBroker = lookupPartitionedTopic(topic);
-            log.info("Finish {} lookup {} ms", topic, System.currentTimeMillis() - startTime);
+            Map<String, String> topicToBroker = admin.lookups().lookupPartitionedTopic(topic);
 
             assertEquals(topicToBroker.size(), numPartition);
 
@@ -336,7 +308,7 @@ public class ExtensibleLoadManagerTest extends TestRetrySupport {
         assertEquals(result.size(), NUM_BROKERS);
     }
 
-    @Test(timeOut = 240 * 1000)
+    @Test(timeOut = 40 * 1000)
     public void testIsolationPolicy() throws Exception {
         final String namespaceIsolationPolicyName = "my-isolation-policy";
         final String isolationEnabledNameSpace = DEFAULT_TENANT + "/my-isolation-policy" + nsSuffix;
@@ -346,81 +318,69 @@ public class ExtensibleLoadManagerTest extends TestRetrySupport {
 
         Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(
                 () -> {
-                    List<String> activeBrokers = getActiveBrokers();
+                    List<String> activeBrokers = admin.brokers().getActiveBrokers();
                     assertEquals(activeBrokers.size(), NUM_BROKERS);
                 }
         );
-        createNamespace(isolationEnabledNameSpace, "10");
+        try {
+            admin.namespaces().createNamespace(isolationEnabledNameSpace);
+        } catch (PulsarAdminException.ConflictException e) {
+            //expected when retried
+        }
 
-        ContainerExecResult result = runAdminCommandOnRunningBroker("ns-isolation-policy", "set",
-                "--auto-failover-policy-type", "min_available",
-                "--auto-failover-policy-params", "min_limit=1,usage_threshold=100",
-                "--primary", getHostName(0),
-                "--secondary", getHostName(1),
-                "--namespaces", isolationEnabledNameSpace,
-                clusterName, namespaceIsolationPolicyName);
-        assertEquals(result.getExitCode(), 0);
+        try {
+            admin.clusters()
+                    .createNamespaceIsolationPolicy(clusterName, namespaceIsolationPolicyName, NamespaceIsolationData
+                            .builder()
+                            .namespaces(List.of(isolationEnabledNameSpace))
+                            .autoFailoverPolicy(AutoFailoverPolicyData.builder()
+                                    .policyType(AutoFailoverPolicyType.min_available)
+                                    .parameters(parameters1)
+                                    .build())
+                            .primary(List.of(getHostName(0)))
+                            .secondary(List.of(getHostName(1)))
+                            .build());
+        } catch (PulsarAdminException.ConflictException e) {
+            //expected when retried
+        }
 
         final String topic = "persistent://" + isolationEnabledNameSpace + "/topic";
-        createNonPartitionedTopicAndRetry(topic);
+        try {
+            admin.topics().createNonPartitionedTopic(topic);
+        } catch (PulsarAdminException.ConflictException e) {
+            //expected when retried
+        }
 
-        Awaitility.await().atMost(30, TimeUnit.SECONDS).ignoreExceptions().untilAsserted(() -> {
-            String broker = lookupTopic(topic);
-            // This isolated topic should be assigned to the primary broker, broker-0
-            assertEquals(extractBrokerIndex(broker), 0);
-        });
+        String broker = admin.lookups().lookupTopic(topic);
 
         for (BrokerContainer container : pulsarCluster.getBrokers()) {
             String name = container.getHostName();
             if (name.contains("0")) {
-                try {
-                    runCommandOnBrokerWithScript(container, ADMIN_SCRIPT, "brokers", "shutdown",
-                            "-m", "10", "-f");
-                } catch (Exception ignore) {
-                    // ignore
-                }
                 container.stop();
             }
         }
 
-        Awaitility.await().atMost(30, TimeUnit.SECONDS).untilAsserted(
-                () -> {
-                    List<String> activeBrokers = getActiveBrokers();
-                    assertEquals(activeBrokers.size(), 2);
-                }
-        );
+        assertEquals(extractBrokerIndex(broker), 0);
 
-        Awaitility.await().atMost(30, TimeUnit.SECONDS).ignoreExceptions().untilAsserted(() -> {
-            String broker = lookupTopic(topic);
-            // This isolated topic should be assigned to the secondary broker, broker-1
-            assertEquals(extractBrokerIndex(broker), 1);
-        });
+        broker = admin.lookups().lookupTopic(topic);
+
+        final String brokerName = broker;
+        retryStrategically((test) -> extractBrokerIndex(brokerName) == 1, 100, 200);
+        assertEquals(extractBrokerIndex(broker), 1);
 
         for (BrokerContainer container : pulsarCluster.getBrokers()) {
             String name = container.getHostName();
             if (name.contains("1")) {
-                try {
-                    runCommandOnBrokerWithScript(container, ADMIN_SCRIPT, "brokers", "shutdown",
-                            "-m", "10", "-f");
-                } catch (Exception ignore) {
-                    // ignore
-                }
                 container.stop();
             }
         }
-
-        Awaitility.await().atMost(30, TimeUnit.SECONDS).untilAsserted(
-                () -> {
-                    List<String> activeBrokers = getActiveBrokers();
-                    assertEquals(activeBrokers.size(), 1);
-                }
-        );
-
         try {
-            lookupTopic(topic);
+            admin.lookups().lookupTopic(topic);
             fail();
         } catch (Exception ex) {
             log.error("Failed to lookup topic: ", ex);
+            assertThat(ex.getMessage()).containsAnyOf("Failed to look up a broker",
+                    "Failed to select the new owner broker for bundle");
         }
     }
 
@@ -453,99 +413,12 @@ public class ExtensibleLoadManagerTest extends TestRetrySupport {
         return randomNumber;
     }
 
-    public ContainerExecResult createNamespace(String nsName, String bundles) throws Exception {
-        return runAdminCommandOnRunningBroker("namespaces", "create", nsName, "-b", bundles, "-c",
-                pulsarCluster.getClusterName());
+    private List<String> brokerUrls() {
+        Collection<BrokerContainer> brokers = pulsarCluster.getBrokers();
+        List<String> brokerUrls = new ArrayList<>(NUM_BROKERS);
+        brokers.forEach(broker -> {
+            brokerUrls.add("http://" + broker.getHost() + ":" + broker.getMappedPort(BROKER_HTTP_PORT));
+        });
+        return brokerUrls;
     }
-
-    private String getBundleRange(String topicName) throws Exception {
-        ContainerExecResult result = runAdminCommandOnRunningBroker("topics", "bundle-range", topicName);
-        if (result.getExitCode() != 0) {
-            log.info(result.getStderr());
-            throw new Exception("Failed to get bundle range: " + topicName);
-        }
-        String stdout = result.getStdout();
-        return stdout.trim();
-    }
-
-    private Map<String, String> lookupPartitionedTopic(String topicName) throws Exception {
-        return lookupPartitionedTopic(getRunningBroker(), topicName);
-    }
-
-    private Map<String, String> lookupPartitionedTopic(BrokerContainer container,
-                                                       String topicName) throws Exception {
-        ContainerExecResult result =
-                runCommandOnBrokerWithScript(container, ADMIN_SCRIPT, "topics", "partitioned-lookup", topicName);
-        if (result.getExitCode() != 0) {
-            log.info(result.getStderr());
-            throw new Exception(result.getStderr());
-        }
-        String stdout = result.getStdout();
-
-        Map<String, String> dataMap = new HashMap<>();
-        String[] lines = stdout.split("\\n");
-        for (String line : lines) {
-            String[] parts = line.split("\\s+");
-            if (parts.length == 2) {
-                dataMap.put(parts[0], parts[1]);
-            }
-        }
-        return dataMap;
-    }
-
-    private String lookupTopic(String topicName) throws Exception {
-        ContainerExecResult result = runAdminCommandOnRunningBroker("topics", "lookup", topicName);
-        if (result.getExitCode() != 0) {
-            log.info(result.getStderr());
-            throw new Exception(result.getStderr());
-        }
-        String stdout = result.getStdout();
-        return stdout.trim();
-    }
-
-    private void createNonPartitionedTopicAndRetry(String topicName) throws Exception {
-        runAdminCommandOnRunningBroker("topics", "create", topicName);
-    }
-
-    private List<String> getActiveBrokers() throws Exception {
-        List<String> brokers = new ArrayList<>();
-        ContainerExecResult result = runAdminCommandOnRunningBroker("brokers", "list", pulsarCluster.getClusterName());
-        String stdout = result.getStdout();
-        String[] lines = stdout.split("\n");
-        for (String line : lines) {
-            brokers.add(line.trim());
-        }
-        brokers.sort(String::compareTo);
-        return brokers;
-    }
-
-    public ContainerExecResult runAdminCommandOnRunningBroker(String...commands) throws Exception {
-        return runCommandOnRunningBrokerWithScript(ADMIN_SCRIPT, commands);
-    }
-
-    private ContainerExecResult runCommandOnRunningBrokerWithScript(String scriptType, String...commands)
-            throws Exception {
-        return runCommandOnBrokerWithScript(getRunningBroker(), scriptType, commands);
-    }
-
-    private ContainerExecResult runCommandOnBrokerWithScript(BrokerContainer container,
-                                                             String scriptType,
-                                                             String...commands)
-            throws Exception {
-        String[] cmds = new String[commands.length + 1];
-        cmds[0] = scriptType;
-        System.arraycopy(commands, 0, cmds, 1, commands.length);
-        return container.execCmd(cmds);
-    }
-
-    private BrokerContainer getRunningBroker() {
-        for (int i = 0; i < NUM_BROKERS; i++) {
-            BrokerContainer broker = pulsarCluster.getBroker(i);
-            if (broker.isRunning()) {
-                return broker;
-            }
-        }
-        throw new IllegalArgumentException("No broker available");
-    }
-
 }
