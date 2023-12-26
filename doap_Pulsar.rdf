@@ -22,7 +22,7 @@
     limitations under the License.
 -->
   <Project rdf:about="https://pulsar.apache.org/">
-    <created>2023-12-23</created>
+    <created>2018-09-19</created>
     <license rdf:resource="https://spdx.org/licenses/Apache-2.0" />
     <name>Apache Pulsar</name>
     <homepage rdf:resource="https://pulsar.apache.org/" />
