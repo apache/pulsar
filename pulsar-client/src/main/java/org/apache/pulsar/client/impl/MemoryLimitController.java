@@ -22,7 +22,9 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 public class MemoryLimitController {
 
     private final long memoryLimit;
@@ -72,7 +74,9 @@ public class MemoryLimitController {
 
     private static void ensureReservedMemoryIsPositive(long reservedMemorySize) {
         if (reservedMemorySize < 0) {
-            String errorMsg = "Try to reserve memory failed, the param reservedMemorySize is a negative value";
+            String errorMsg = String.format("Try to reserve memory failed, the param reservedMemorySize"
+                    + " is a negative value: %s", reservedMemorySize);
+            log.error(errorMsg);
             throw new IllegalArgumentException(errorMsg);
         }
     }
@@ -104,6 +108,12 @@ public class MemoryLimitController {
     }
 
     public void releaseMemory(long size) {
+        if (size < 0) {
+            String errorMsg = String.format("Try to release memory failed, the param releasedMemorySize"
+                    + " is a negative value: %s", size);
+            log.error(errorMsg);
+            throw new IllegalArgumentException(errorMsg);
+        }
         long newUsage = currentUsage.addAndGet(-size);
         if (newUsage + size > memoryLimit
                 && newUsage <= memoryLimit) {

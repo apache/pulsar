@@ -200,7 +200,7 @@ public class MemoryLimitControllerTest {
     }
 
     @Test
-    public void testReserveMemoryFailedDueToNegativeParam() throws Exception {
+    public void testModifyMemoryFailedDueToNegativeParam() throws Exception {
         MemoryLimitController mlc = new MemoryLimitController(100);
 
         try {
@@ -212,14 +212,21 @@ public class MemoryLimitControllerTest {
 
         try {
             mlc.reserveMemory(-1);
-            fail("The test should fail due to calling tryReserveMemory with a negative value.");
+            fail("The test should fail due to calling reserveMemory with a negative value.");
         } catch (IllegalArgumentException e) {
             // Expected ex.
         }
 
         try {
             mlc.forceReserveMemory(-1);
-            fail("The test should fail due to calling tryReserveMemory with a negative value.");
+            fail("The test should fail due to calling forceReserveMemory with a negative value.");
+        } catch (IllegalArgumentException e) {
+            // Expected ex.
+        }
+
+        try {
+            mlc.releaseMemory(-1);
+            fail("The test should fail due to calling releaseMemory with a negative value.");
         } catch (IllegalArgumentException e) {
             // Expected ex.
         }
