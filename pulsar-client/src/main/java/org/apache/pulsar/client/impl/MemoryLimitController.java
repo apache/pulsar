@@ -48,7 +48,7 @@ public class MemoryLimitController {
     }
 
     public void forceReserveMemory(long size) {
-        ensureReservedMemoryIsPositive(size);
+        checkPositive(size);
         if (size == 0) {
             return;
         }
@@ -57,7 +57,7 @@ public class MemoryLimitController {
     }
 
     public boolean tryReserveMemory(long size) {
-        ensureReservedMemoryIsPositive(size);
+        checkPositive(size);
         if (size == 0) {
             return true;
         }
@@ -78,10 +78,10 @@ public class MemoryLimitController {
         }
     }
 
-    private static void ensureReservedMemoryIsPositive(long reservedMemorySize) {
-        if (reservedMemorySize < 0) {
-            String errorMsg = String.format("Try to reserve memory failed, the param reservedMemorySize"
-                    + " is a negative value: %s", reservedMemorySize);
+    private static void checkPositive(long memorySize) {
+        if (memorySize < 0) {
+            String errorMsg = String.format("Try to reserve/release memory failed, the param memorySize"
+                    + " is a negative value: %s", memorySize);
             log.error(errorMsg);
             throw new IllegalArgumentException(errorMsg);
         }
@@ -100,7 +100,7 @@ public class MemoryLimitController {
     }
 
     public void reserveMemory(long size) throws InterruptedException {
-        ensureReservedMemoryIsPositive(size);
+        checkPositive(size);
         if (size == 0) {
             return;
         }
@@ -117,12 +117,7 @@ public class MemoryLimitController {
     }
 
     public void releaseMemory(long size) {
-        if (size < 0) {
-            String errorMsg = String.format("Try to release memory failed, the param releasedMemorySize"
-                    + " is a negative value: %s", size);
-            log.error(errorMsg);
-            throw new IllegalArgumentException(errorMsg);
-        }
+        checkPositive(size);
         if (size == 0) {
             return;
         }
