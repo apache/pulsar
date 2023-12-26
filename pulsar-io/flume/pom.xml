@@ -32,7 +32,7 @@
     <name>Pulsar IO :: Flume</name>
 
     <properties>
-        <avro.version>1.8.2</avro.version>
+        <avro.version>1.11.3</avro.version>
     </properties>
 
     <dependencies>
