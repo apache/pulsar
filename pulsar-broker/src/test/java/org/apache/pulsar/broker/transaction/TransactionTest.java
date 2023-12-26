@@ -159,6 +159,7 @@ import org.mockito.stubbing.Answer;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 /**
@@ -1781,10 +1782,45 @@ public class TransactionTest extends TransactionTestBase {
     }
 
 
-    @Test
-    public void testOnlyReDeliverMessagesAfterTxnAbort() throws Exception {
-        String topic = NAMESPACE1 + "/testOnlyReDeliverMessagesAfterTxnAbort";
-        String subName = "mysub";
+    private PendingAckStore blockAckRequest(String topic, String subName,
+                                            CompletableFuture<PendingAckStore> pendingAckStoreCompletableFuture)
+            throws Exception {
+        // Block the acknowledgment requests in the transaction thread `pulsar-transaction-executor`.
+        PendingAckHandle pendingAckHandle = ((PersistentSubscription) getPulsarServiceList().get(0)
+                .getBrokerService()
+                .getTopic(topic, false)
+                .get().get()
+                .getSubscription(subName)).getPendingAckHandle();
+
+        Field pendingAckStoreFutureField = PendingAckHandleImpl.class.getDeclaredField("pendingAckStoreFuture");
+        pendingAckStoreFutureField.setAccessible(true);
+        CompletableFuture<PendingAckStore> oldPendingAckStoreCompletableFuture =
+                (CompletableFuture<PendingAckStore>) pendingAckStoreFutureField.get(pendingAckHandle);
+        PendingAckStore pendingAckStore = oldPendingAckStoreCompletableFuture.get();
+        pendingAckStoreFutureField.set(pendingAckHandle, pendingAckStoreCompletableFuture);
+        return pendingAckStore;
+    }
+
+    @DataProvider(name = "multiConsumerSubscriptionTypes")
+    private Object[][] multiConsumerSubscriptionTypes() {
+        return new Object[][]{
+                {SubscriptionType.Key_Shared},
+                {SubscriptionType.Shared}
+        };
+    }
+
+    @DataProvider(name = "singleConsumerSubscriptionTypes")
+    private Object[][] singleConsumerSubscriptionTypes() {
+        return new Object[][]{
+                {SubscriptionType.Failover},
+                {SubscriptionType.Exclusive}
+        };
+    }
+
+    @Test(dataProvider = "singleConsumerSubscriptionTypes")
+    public void testOnlyReDeliverMessagesAfterTxnAbortForSingleConsumer(SubscriptionType subType) throws Exception {
+        String topic = NAMESPACE1 + "/testOnlyReDeliverMessagesAfterTxnAbortForSingleConsumer";
+        String subName = "mysub:" + subType;
         int messageCount = 5;
 
         @Cleanup
@@ -1796,7 +1832,7 @@ public class TransactionTest extends TransactionTestBase {
         @Cleanup
         Consumer<Integer> consumer1 = pulsarClient.newConsumer(Schema.INT32)
                 .subscriptionName(subName)
-                .subscriptionType(SubscriptionType.Shared)
+                .subscriptionType(subType)
                 .topic(topic)
                 .subscribe();
 
@@ -1805,8 +1841,69 @@ public class TransactionTest extends TransactionTestBase {
             producer.newMessage().value(i).sendAsync();
         }
 
-        // Create a new Pulsar client to create consumer2, so that the thread should not be blocked when redelivering
-        // messages to consumer2.
+        Transaction transaction = pulsarClient.newTransaction()
+                .withTransactionTimeout(5, TimeUnit.HOURS)
+                .build()
+                .get();
+        // Wait for the transaction's acknowledgment topic to be registered completely.
+        consumer1.acknowledgeAsync(consumer1.receive(5, TimeUnit.SECONDS).getMessageId(), transaction).get();
+
+        // Block the acknowledgment requests
+        CompletableFuture<PendingAckStore> pendingAckStoreCompletableFuture = new CompletableFuture<>();
+        PendingAckStore pendingAckStore = blockAckRequest(topic, subName, pendingAckStoreCompletableFuture);
+
+        // Acknowledge messages with the transaction, and these requests will be blocked.
+        for (int i = 0; i < messageCount - 1; i++) {
+            Message<Integer> message = consumer1.receive(5, TimeUnit.SECONDS);
+            consumer1.acknowledgeAsync(message.getMessageId(), transaction);
+        }
+
+        // Close consumer by disconnect.
+        ((ProducerImpl<?>) producer).getClientCnx().close();
+
+        // Wait for a moment for new consumer connecting.
+        Thread.sleep(1000);
+        // Cancel the block of the acknowledgement requests.
+        pendingAckStoreCompletableFuture.complete(pendingAckStore);
+
+        // Verify: no messages in the pending ack state will be redelivered.
+        Message<Integer> msg1 = consumer1.receive(5, TimeUnit.SECONDS);
+        assertNull(msg1);
+
+        // Verify: The messages should be redelivered after aborting the transaction.
+        transaction.abort().get();
+        for (int i = 0; i < messageCount; i++) {
+            Message<Integer> message = consumer1.receive(5, TimeUnit.SECONDS);
+            assertNotNull(message);
+        }
+    }
+
+    @Test(dataProvider = "multiConsumerSubscriptionTypes")
+    public void testOnlyReDeliverMessagesAfterTxnAbortForMultipleConsumer(SubscriptionType subType) throws Exception {
+        String topic = NAMESPACE1 + "/testOnlyReDeliverMessagesAfterTxnAbortForMultipleConsumer";
+        String subName = "mysub:" + subType.toString();
+        int messageCount = 5;
+
+        @Cleanup
+        Producer<Integer> producer = pulsarClient.newProducer(Schema.INT32)
+                .topic(topic)
+                .enableBatching(true)
+                .create();
+
+        @Cleanup
+        Consumer<Integer> consumer1 = pulsarClient.newConsumer(Schema.INT32)
+                .subscriptionName(subName)
+                .subscriptionType(subType)
+                .topic(topic)
+                .subscribe();
+
+        // Send some batch messages
+        for (int i = 0; i < messageCount; i++) {
+            producer.newMessage().value(i).sendAsync();
+        }
+
+        // Create a new Pulsar client to create consumer2, so that connection of the consumer2 should not be
+        // disconnected with consumer1.
         PulsarClient pulsarClient2 = PulsarClient
                 .builder()
                 .serviceUrl(pulsarServiceList.get(0)
@@ -1816,7 +1913,7 @@ public class TransactionTest extends TransactionTestBase {
         @Cleanup
         Consumer<Integer> consumer2 = pulsarClient2.newConsumer(Schema.INT32)
                 .subscriptionName(subName)
-                .subscriptionType(SubscriptionType.Shared)
+                .subscriptionType(subType)
                 .topic(topic)
                 .subscribe();
 
@@ -1824,24 +1921,12 @@ public class TransactionTest extends TransactionTestBase {
                 .withTransactionTimeout(5, TimeUnit.HOURS)
                 .build()
                 .get();
-        // Wait for the transaction's acknowledgment topic to be registered completely, so that the acknowledgment
-        // requests will not be blocked at the client side.
+        // Wait for the transaction's acknowledgment topic to be registered completely.
         consumer1.acknowledgeAsync(consumer1.receive(5, TimeUnit.SECONDS).getMessageId(), transaction).get();
 
-        // Block the acknowledgment requests in the transaction thread `pulsar-transaction-executor`.
-        PendingAckHandle pendingAckHandle = ((PersistentSubscription) getPulsarServiceList().get(0)
-                .getBrokerService()
-                .getTopic(topic, false)
-                .get().get()
-                .getSubscription(subName)).getPendingAckHandle();
-
+        // Block the acknowledgment requests
         CompletableFuture<PendingAckStore> pendingAckStoreCompletableFuture = new CompletableFuture<>();
-        Field pendingAckStoreFutureField = PendingAckHandleImpl.class.getDeclaredField("pendingAckStoreFuture");
-        pendingAckStoreFutureField.setAccessible(true);
-        CompletableFuture<PendingAckStore> oldPendingAckStoreCompletableFuture =
-                (CompletableFuture<PendingAckStore>) pendingAckStoreFutureField.get(pendingAckHandle);
-        PendingAckStore pendingAckStore = oldPendingAckStoreCompletableFuture.get();
-        pendingAckStoreFutureField.set(pendingAckHandle, pendingAckStoreCompletableFuture);
+        PendingAckStore pendingAckStore = blockAckRequest(topic, subName, pendingAckStoreCompletableFuture);
 
         // Acknowledge messages with the transaction, and these requests will be blocked.
         for (int i = 0; i < messageCount - 1; i++) {
@@ -1849,21 +1934,21 @@ public class TransactionTest extends TransactionTestBase {
             consumer1.acknowledgeAsync(message.getMessageId(), transaction);
         }
 
-        // Close the connection of client1, which will trigger redelivery of messages in the pending acknowledgments before this fix.
+        // Close consumer by disconnect.
         ((ProducerImpl<?>) producer).getClientCnx().close();
 
         // Wait for a moment to ensure messages are redelivered completely.
         Thread.sleep(1000);
         pendingAckStoreCompletableFuture.complete(pendingAckStore);
 
-        // Check whether the consumers receive the redelivered messages.
-        Message<Integer> msg1 = consumer1.receive(10, TimeUnit.SECONDS);
+        // Verify: no messages in the pending ack state will be redelivered.
+        Message<Integer> msg1 = consumer1.receive(5, TimeUnit.SECONDS);
         assertNull(msg1);
 
-        Message<Integer> msg2 = consumer2.receive(10, TimeUnit.SECONDS);
+        Message<Integer> msg2 = consumer2.receive(5, TimeUnit.SECONDS);
         assertNull(msg2);
 
-        // The messages should be redelivered after aborting the transaction.
+        // Verify: The messages should be redelivered after aborting the transaction.
         transaction.abort().get();
         for (int i = 0; i < messageCount; i++) {
             Message<Integer> message = consumer1.receive(5, TimeUnit.SECONDS);
