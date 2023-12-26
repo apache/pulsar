@@ -265,6 +265,11 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
                 log.debug("[{}-{}] Ignoring flow control message since consumer is waiting for cursor to be rewinded",
                         name, consumer);
             }
+        } else if (cursor.isResetCursorInProgress()) {
+            if (log.isDebugEnabled()) {
+                log.debug("[{}-{}] Ignoring flow control message since consumer is waiting for cursor to be reset",
+                        name, consumer);
+            }
         } else {
             if (log.isDebugEnabled()) {
                 log.debug("[{}-{}] Trigger new read after receiving flow control message", name, consumer);

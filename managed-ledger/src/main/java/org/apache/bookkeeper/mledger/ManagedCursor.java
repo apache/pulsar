@@ -862,4 +862,10 @@ public interface ManagedCursor {
      * @return whether this cursor is closed.
      */
     boolean isClosed();
+
+    /**
+     * checks if the cursor is being resetting.
+     * @return
+     */
+    boolean isResetCursorInProgress();
 }

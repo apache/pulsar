@@ -1026,6 +1026,11 @@ public class ManagedCursorImpl implements ManagedCursor {
     }
 
     @Override
+    public boolean isResetCursorInProgress() {
+        return resetCursorInProgress == TRUE;
+    }
+
+    @Override
     public boolean cancelPendingReadRequest() {
         if (log.isDebugEnabled()) {
             log.debug("[{}] [{}] Cancel pending read request", ledger.getName(), name);
