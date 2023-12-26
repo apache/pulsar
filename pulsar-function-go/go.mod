@@ -4,6 +4,7 @@ go 1.21
 
 require (
 	github.com/apache/pulsar-client-go v0.8.1
+	github.com/golang/protobuf v1.5.3
 	github.com/prometheus/client_golang v1.12.2
 	github.com/prometheus/client_model v0.4.0
 	github.com/sirupsen/logrus v1.6.0
