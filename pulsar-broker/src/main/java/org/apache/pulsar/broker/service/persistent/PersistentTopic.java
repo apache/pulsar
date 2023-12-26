@@ -3762,9 +3762,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     private CompletableFuture<Void> updateSubscriptionsDispatcherRateLimiter() {
         List<CompletableFuture<Void>> subscriptionCheckFutures = new ArrayList<>((int) subscriptions.size());
         subscriptions.forEach((subName, sub) -> {
-            List<CompletableFuture<Void>> consumerCheckFutures = new ArrayList<>(sub.getConsumers().size());
-            sub.getConsumers().forEach(consumer -> consumerCheckFutures.add(consumer.checkPermissionsAsync()));
-            subscriptionCheckFutures.add(FutureUtil.waitForAll(consumerCheckFutures).thenRun(() -> {
+            subscriptionCheckFutures.add(CompletableFuture.supplyAsync(() -> {
                 Dispatcher dispatcher = sub.getDispatcher();
                 if (dispatcher != null) {
                     dispatcher.updateRateLimiter();
