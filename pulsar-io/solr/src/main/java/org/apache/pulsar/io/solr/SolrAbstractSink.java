@@ -48,7 +48,7 @@ public abstract class SolrAbstractSink<T> implements Sink<T> {
 
     @Override
     public void open(Map<String, Object> config, SinkContext sinkContext) throws Exception {
-        solrSinkConfig = SolrSinkConfig.load(config);
+        solrSinkConfig = SolrSinkConfig.load(config, sinkContext);
         solrSinkConfig.validate();
 
         enableBasicAuth = !Strings.isNullOrEmpty(solrSinkConfig.getUsername());

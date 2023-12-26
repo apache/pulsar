@@ -111,13 +111,10 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
             "loadbalancer-service-unit-state").toString();
 
     public static final CompressionType MSG_COMPRESSION_TYPE = CompressionType.ZSTD;
-    private static final long MAX_IN_FLIGHT_STATE_WAITING_TIME_IN_MILLIS = 30 * 1000; // 30sec
-
     private static final int OWNERSHIP_CLEAN_UP_MAX_WAIT_TIME_IN_MILLIS = 5000;
     private static final int OWNERSHIP_CLEAN_UP_WAIT_RETRY_DELAY_IN_MILLIS = 100;
     private static final int OWNERSHIP_CLEAN_UP_CONVERGENCE_DELAY_IN_MILLIS = 3000;
     public static final long VERSION_ID_INIT = 1; // initial versionId
-    private static final long OWNERSHIP_MONITOR_DELAY_TIME_IN_SECS = 60;
     public static final long MAX_CLEAN_UP_DELAY_TIME_IN_SECS = 3 * 60; // 3 mins
     private static final long MIN_CLEAN_UP_DELAY_TIME_IN_SECS = 0; // 0 secs to clean immediately
     private static final long MAX_CHANNEL_OWNER_ELECTION_WAITING_TIME_IN_SECS = 10;
@@ -141,7 +138,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
     private long inFlightStateWaitingTimeInMillis;
 
     private long ownershipMonitorDelayTimeInSecs;
-    private long semiTerminalStateWaitingTimeInMillis;
+    private long stateTombstoneDelayTimeInMillis;
     private long maxCleanupDelayTimeInSecs;
     private long minCleanupDelayTimeInSecs;
     // cleanup metrics
@@ -200,18 +197,8 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         Unstable
     }
 
-    public static ServiceUnitStateChannelImpl newInstance(PulsarService pulsar) {
-        return new ServiceUnitStateChannelImpl(pulsar);
-    }
-
-    public ServiceUnitStateChannelImpl(PulsarService pulsar) {
-        this(pulsar, MAX_IN_FLIGHT_STATE_WAITING_TIME_IN_MILLIS, OWNERSHIP_MONITOR_DELAY_TIME_IN_SECS);
-    }
-
     @VisibleForTesting
-    public ServiceUnitStateChannelImpl(PulsarService pulsar,
-                                       long inFlightStateWaitingTimeInMillis,
-                                       long ownershipMonitorDelayTimeInSecs) {
+    public ServiceUnitStateChannelImpl(PulsarService pulsar) {
         this.pulsar = pulsar;
         this.config = pulsar.getConfig();
         this.lookupServiceAddress = pulsar.getLookupServiceAddress();
@@ -219,14 +206,16 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         this.getOwnerRequests = new ConcurrentHashMap<>();
         this.cleanupJobs = new ConcurrentHashMap<>();
         this.stateChangeListeners = new StateChangeListeners();
-        this.semiTerminalStateWaitingTimeInMillis = config.getLoadBalancerServiceUnitStateTombstoneDelayTimeInSeconds()
+        this.stateTombstoneDelayTimeInMillis = config.getLoadBalancerServiceUnitStateTombstoneDelayTimeInSeconds()
                 * 1000;
-        this.inFlightStateWaitingTimeInMillis = inFlightStateWaitingTimeInMillis;
-        this.ownershipMonitorDelayTimeInSecs = ownershipMonitorDelayTimeInSecs;
-        if (semiTerminalStateWaitingTimeInMillis < inFlightStateWaitingTimeInMillis) {
+        this.inFlightStateWaitingTimeInMillis = config.getLoadBalancerInFlightServiceUnitStateWaitingTimeInMillis();
+        this.ownershipMonitorDelayTimeInSecs = config.getLoadBalancerServiceUnitStateMonitorIntervalInSeconds();
+        if (stateTombstoneDelayTimeInMillis < inFlightStateWaitingTimeInMillis) {
             throw new IllegalArgumentException(
-                    "Invalid Config: loadBalancerServiceUnitStateCleanUpDelayTimeInSeconds < "
-                            + (MAX_IN_FLIGHT_STATE_WAITING_TIME_IN_MILLIS / 1000) + " secs");
+                    "Invalid Config: loadBalancerServiceUnitStateTombstoneDelayTimeInSeconds"
+                            + stateTombstoneDelayTimeInMillis / 1000 + " secs"
+                            + "< loadBalancerInFlightServiceUnitStateWaitingTimeInMillis"
+                            + inFlightStateWaitingTimeInMillis + " millis");
         }
         this.maxCleanupDelayTimeInSecs = MAX_CLEAN_UP_DELAY_TIME_IN_SECS;
         this.minCleanupDelayTimeInSecs = MIN_CLEAN_UP_DELAY_TIME_IN_SECS;
@@ -1457,7 +1446,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                 continue;
             }
 
-            if (now - stateData.timestamp() > semiTerminalStateWaitingTimeInMillis) {
+            if (!isActiveState(state) && now - stateData.timestamp() > stateTombstoneDelayTimeInMillis) {
                 log.info("Found semi-terminal states to tombstone"
                         + " serviceUnit:{}, stateData:{}", serviceUnit, stateData);
                 tombstoneAsync(serviceUnit).whenComplete((__, e) -> {

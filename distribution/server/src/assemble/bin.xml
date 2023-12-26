@@ -60,22 +60,6 @@
       <directory>${basedir}/../../pulsar-functions/python-examples</directory>
       <outputDirectory>examples/python-examples</outputDirectory>
     </fileSet>
-    <fileSet>
-      <directory>${basedir}/../../pulsar-sql/presto-distribution/target/pulsar-presto-distribution</directory>
-      <outputDirectory>trino</outputDirectory>
-      <excludes>
-        <exclude>bin</exclude>
-        <exclude>bin/**</exclude>
-      </excludes>
-    </fileSet>
-    <fileSet>
-      <directory>${basedir}/../../pulsar-sql/presto-distribution/target/pulsar-presto-distribution</directory>
-      <outputDirectory>trino</outputDirectory>
-      <includes>
-        <include>bin/**</include>
-      </includes>
-      <fileMode>755</fileMode>
-    </fileSet>
   </fileSets>
   <files>
     <file>

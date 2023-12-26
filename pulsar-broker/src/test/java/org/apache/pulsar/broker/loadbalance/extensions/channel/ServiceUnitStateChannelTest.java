@@ -622,12 +622,12 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         FieldUtils.writeDeclaredField(channel1,
                 "inFlightStateWaitingTimeInMillis", 1 , true);
         FieldUtils.writeDeclaredField(channel1,
-                "semiTerminalStateWaitingTimeInMillis", 1, true);
+                "stateTombstoneDelayTimeInMillis", 1, true);
 
         FieldUtils.writeDeclaredField(channel2,
                 "inFlightStateWaitingTimeInMillis", 1 , true);
         FieldUtils.writeDeclaredField(channel2,
-                "semiTerminalStateWaitingTimeInMillis", 1, true);
+                "stateTombstoneDelayTimeInMillis", 1, true);
 
         ((ServiceUnitStateChannelImpl) channel1).monitorOwnerships(
                 List.of(lookupServiceAddress1, lookupServiceAddress2));
@@ -639,7 +639,7 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         var leader = channel1.isChannelOwnerAsync().get() ? channel1 : channel2;
         validateMonitorCounters(leader,
                 0,
-                3,
+                1,
                 0,
                 0,
                 0,
@@ -654,12 +654,12 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         FieldUtils.writeDeclaredField(channel1,
                 "inFlightStateWaitingTimeInMillis", 30 * 1000, true);
         FieldUtils.writeDeclaredField(channel1,
-                "semiTerminalStateWaitingTimeInMillis", 300 * 1000, true);
+                "stateTombstoneDelayTimeInMillis", 300 * 1000, true);
 
         FieldUtils.writeDeclaredField(channel2,
                 "inFlightStateWaitingTimeInMillis", 30 * 1000, true);
         FieldUtils.writeDeclaredField(channel2,
-                "semiTerminalStateWaitingTimeInMillis", 300 * 1000, true);
+                "stateTombstoneDelayTimeInMillis", 300 * 1000, true);
     }
 
     @Test(priority = 7)
@@ -1066,12 +1066,12 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         FieldUtils.writeDeclaredField(channel1,
                 "inFlightStateWaitingTimeInMillis", 1 , true);
         FieldUtils.writeDeclaredField(channel1,
-                "semiTerminalStateWaitingTimeInMillis", 1, true);
+                "stateTombstoneDelayTimeInMillis", 1, true);
 
         FieldUtils.writeDeclaredField(channel2,
                 "inFlightStateWaitingTimeInMillis", 1 , true);
         FieldUtils.writeDeclaredField(channel2,
-                "semiTerminalStateWaitingTimeInMillis", 1, true);
+                "stateTombstoneDelayTimeInMillis", 1, true);
 
         ((ServiceUnitStateChannelImpl) channel1).monitorOwnerships(
                 List.of(lookupServiceAddress1, lookupServiceAddress2));
@@ -1094,12 +1094,12 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         FieldUtils.writeDeclaredField(channel1,
                 "inFlightStateWaitingTimeInMillis", 30 * 1000, true);
         FieldUtils.writeDeclaredField(channel1,
-                "semiTerminalStateWaitingTimeInMillis", 30 * 1000, true);
+                "stateTombstoneDelayTimeInMillis", 30 * 1000, true);
 
         FieldUtils.writeDeclaredField(channel2,
                 "inFlightStateWaitingTimeInMillis", 300 * 1000, true);
         FieldUtils.writeDeclaredField(channel2,
-                "semiTerminalStateWaitingTimeInMillis", 300 * 1000, true);
+                "stateTombstoneDelayTimeInMillis", 300 * 1000, true);
     }
 
     @Test(priority = 13)
@@ -1396,9 +1396,9 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         // try the monitor and check the monitor moves `Deleted` -> `Init`
 
         FieldUtils.writeDeclaredField(channel1,
-                "semiTerminalStateWaitingTimeInMillis", 1, true);
+                "stateTombstoneDelayTimeInMillis", 1, true);
         FieldUtils.writeDeclaredField(channel2,
-                "semiTerminalStateWaitingTimeInMillis", 1, true);
+                "stateTombstoneDelayTimeInMillis", 1, true);
 
         ((ServiceUnitStateChannelImpl) channel1).monitorOwnerships(
                 List.of(lookupServiceAddress1, lookupServiceAddress2));
@@ -1409,7 +1409,7 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
 
         validateMonitorCounters(leader,
                 0,
-                3,
+                1,
                 1,
                 0,
                 0,
@@ -1422,12 +1422,12 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         FieldUtils.writeDeclaredField(channel1,
                 "inFlightStateWaitingTimeInMillis", 30 * 1000, true);
         FieldUtils.writeDeclaredField(channel1,
-                "semiTerminalStateWaitingTimeInMillis", 300 * 1000, true);
+                "stateTombstoneDelayTimeInMillis", 300 * 1000, true);
 
         FieldUtils.writeDeclaredField(channel2,
                 "inFlightStateWaitingTimeInMillis", 30 * 1000, true);
         FieldUtils.writeDeclaredField(channel2,
-                "semiTerminalStateWaitingTimeInMillis", 300 * 1000, true);
+                "stateTombstoneDelayTimeInMillis", 300 * 1000, true);
     }
 
     @Test(priority = 17)

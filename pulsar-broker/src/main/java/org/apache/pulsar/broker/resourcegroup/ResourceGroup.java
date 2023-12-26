@@ -81,7 +81,8 @@ public class ResourceGroup {
         this.setResourceGroupMonitoringClassFields();
         this.setResourceGroupConfigParameters(rgConfig);
         this.setDefaultResourceUsageTransportHandlers();
-        this.resourceGroupPublishLimiter = new ResourceGroupPublishLimiter(rgConfig, rgs.getPulsar().getExecutor());
+        this.resourceGroupPublishLimiter = new ResourceGroupPublishLimiter(rgConfig, rgs.getPulsar()
+                .getMonotonicSnapshotClock());
         log.info("attaching publish rate limiter {} to {} get {}", this.resourceGroupPublishLimiter, name,
           this.getResourceGroupPublishLimiter());
     }
@@ -96,7 +97,8 @@ public class ResourceGroup {
         this.resourceGroupName = rgName;
         this.setResourceGroupMonitoringClassFields();
         this.setResourceGroupConfigParameters(rgConfig);
-        this.resourceGroupPublishLimiter = new ResourceGroupPublishLimiter(rgConfig, rgs.getPulsar().getExecutor());
+        this.resourceGroupPublishLimiter = new ResourceGroupPublishLimiter(rgConfig, rgs.getPulsar()
+                .getMonotonicSnapshotClock());
         this.ruPublisher = rgPublisher;
         this.ruConsumer = rgConsumer;
     }

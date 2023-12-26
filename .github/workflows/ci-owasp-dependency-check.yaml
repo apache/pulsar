@@ -84,9 +84,6 @@ jobs:
       - name: run OWASP Dependency Check for distribution/server (-DfailBuildOnAnyVulnerability=true)
         run: mvn -B -ntp -Pmain,skip-all,skipDocker,owasp-dependency-check initialize verify -pl distribution/server -DfailBuildOnAnyVulnerability=true
 
-      - name: run OWASP Dependency Check for distribution/offloaders, distribution/io and pulsar-sql/presto-distribution
-        run: mvn -B -ntp -Pmain,skip-all,skipDocker,owasp-dependency-check initialize verify -pl distribution/offloaders,distribution/io,pulsar-sql/presto-distribution
-
       - name: Upload OWASP Dependency Check reports
         uses: actions/upload-artifact@v3
         if: always()
@@ -96,4 +93,3 @@ jobs:
             distribution/server/target/dependency-check-report.html
             distribution/offloaders/target/dependency-check-report.html
             distribution/io/target/dependency-check-report.html
-            pulsar-sql/presto-distribution/target/dependency-check-report.html
