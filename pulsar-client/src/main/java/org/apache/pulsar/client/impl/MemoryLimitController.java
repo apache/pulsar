@@ -46,11 +46,13 @@ public class MemoryLimitController {
     }
 
     public void forceReserveMemory(long size) {
+        ensureReservedMemoryIsPositive(size);
         long newUsage = currentUsage.addAndGet(size);
         checkTrigger(newUsage - size, newUsage);
     }
 
     public boolean tryReserveMemory(long size) {
+        ensureReservedMemoryIsPositive(size);
         while (true) {
             long current = currentUsage.get();
             long newUsage = current + size;
@@ -68,6 +70,13 @@ public class MemoryLimitController {
         }
     }
 
+    private static void ensureReservedMemoryIsPositive(long reservedMemorySize) {
+        if (reservedMemorySize < 0) {
+            String errorMsg = "Try to reserve memory failed, the param reservedMemorySize is a negative value";
+            throw new IllegalArgumentException(errorMsg);
+        }
+    }
+
     private void checkTrigger(long prevUsage, long newUsage) {
         if (newUsage >= triggerThreshold && prevUsage < triggerThreshold && trigger != null) {
             if (triggerRunning.compareAndSet(false, true)) {
@@ -81,6 +90,7 @@ public class MemoryLimitController {
     }
 
     public void reserveMemory(long size) throws InterruptedException {
+        ensureReservedMemoryIsPositive(size);
         if (!tryReserveMemory(size)) {
             mutex.lock();
             try {
