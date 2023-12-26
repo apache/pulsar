@@ -49,12 +49,18 @@ public class MemoryLimitController {
 
     public void forceReserveMemory(long size) {
         ensureReservedMemoryIsPositive(size);
+        if (size == 0) {
+            return;
+        }
         long newUsage = currentUsage.addAndGet(size);
         checkTrigger(newUsage - size, newUsage);
     }
 
     public boolean tryReserveMemory(long size) {
         ensureReservedMemoryIsPositive(size);
+        if (size == 0) {
+            return true;
+        }
         while (true) {
             long current = currentUsage.get();
             long newUsage = current + size;
@@ -95,6 +101,9 @@ public class MemoryLimitController {
 
     public void reserveMemory(long size) throws InterruptedException {
         ensureReservedMemoryIsPositive(size);
+        if (size == 0) {
+            return;
+        }
         if (!tryReserveMemory(size)) {
             mutex.lock();
             try {
@@ -113,6 +122,9 @@ public class MemoryLimitController {
                     + " is a negative value: %s", size);
             log.error(errorMsg);
             throw new IllegalArgumentException(errorMsg);
+        }
+        if (size == 0) {
+            return;
         }
         long newUsage = currentUsage.addAndGet(-size);
         if (newUsage + size > memoryLimit
