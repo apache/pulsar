@@ -127,6 +127,12 @@ public abstract class AbstractDispatcherSingleActiveConsumer extends AbstractBas
                 ? partitionIndex % consumersSize
                 : peekConsumerIndexFromHashRing(makeHashRing(consumersSize));
 
+        if (ACTIVE_CONSUMER_UPDATER.get(this) != null
+                && !ACTIVE_CONSUMER_UPDATER.get(this).getTransactionalAckTasks().isEmpty()) {
+            // Active consumer did not change. Do nothing at this point
+            return false;
+        }
+
         Consumer prevConsumer = ACTIVE_CONSUMER_UPDATER.getAndSet(this, consumers.get(index));
 
         Consumer activeConsumer = ACTIVE_CONSUMER_UPDATER.get(this);
@@ -303,6 +309,7 @@ public abstract class AbstractDispatcherSingleActiveConsumer extends AbstractBas
     }
 
     public boolean isConsumerConnected() {
+        log.info("isConsumerConnected {}", ACTIVE_CONSUMER_UPDATER.get(this) != null);
         return ACTIVE_CONSUMER_UPDATER.get(this) != null;
     }
 
