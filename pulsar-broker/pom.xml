@@ -26,7 +26,7 @@
     <groupId>org.apache.pulsar</groupId>
     <artifactId>pulsar</artifactId>
     <version>3.2.0-SNAPSHOT</version>
-    <relativePath>..</relativePath>
+    <relativePath>../pom.xml</relativePath>
   </parent>
 
   <artifactId>pulsar-broker</artifactId>
@@ -428,6 +428,12 @@
     <dependency>
       <groupId>com.sun.activation</groupId>
       <artifactId>javax.activation</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>io.rest-assured</groupId>
+      <artifactId>rest-assured</artifactId>
+      <scope>test</scope>
     </dependency>
 
     <!-- transaction related dependencies (begin) -->

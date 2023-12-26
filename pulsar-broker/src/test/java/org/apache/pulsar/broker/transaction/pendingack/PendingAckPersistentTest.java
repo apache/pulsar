@@ -49,7 +49,7 @@ import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
-import org.apache.pulsar.broker.stats.PrometheusMetricsTest;
+import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsGenerator;
 import org.apache.pulsar.broker.transaction.TransactionTestBase;
 import org.apache.pulsar.broker.transaction.pendingack.impl.MLPendingAckStore;
@@ -256,28 +256,28 @@ public class PendingAckPersistentTest extends TransactionTestBase {
         ByteArrayOutputStream statsOut = new ByteArrayOutputStream();
         PrometheusMetricsGenerator.generate(pulsarServiceList.get(0), true, false, false, statsOut);
         String metricsStr = statsOut.toString();
-        Multimap<String, PrometheusMetricsTest.Metric> metricsMap = PrometheusMetricsTest.parseMetrics(metricsStr);
+        Multimap<String, PrometheusMetricsClient.Metric> metricsMap = PrometheusMetricsClient.parseMetrics(metricsStr);
 
-        Collection<PrometheusMetricsTest.Metric> abortedCount = metricsMap.get("pulsar_txn_tp_aborted_count_total");
-        Collection<PrometheusMetricsTest.Metric> committedCount = metricsMap.get("pulsar_txn_tp_committed_count_total");
-        Collection<PrometheusMetricsTest.Metric> commitLatency = metricsMap.get("pulsar_txn_tp_commit_latency");
+        Collection<PrometheusMetricsClient.Metric> abortedCount = metricsMap.get("pulsar_txn_tp_aborted_count_total");
+        Collection<PrometheusMetricsClient.Metric> committedCount = metricsMap.get("pulsar_txn_tp_committed_count_total");
+        Collection<PrometheusMetricsClient.Metric> commitLatency = metricsMap.get("pulsar_txn_tp_commit_latency");
         Assert.assertTrue(commitLatency.size() > 0);
 
         int count = 0;
-        for (PrometheusMetricsTest.Metric metric : commitLatency) {
+        for (PrometheusMetricsClient.Metric metric : commitLatency) {
             if (metric.tags.get("topic").endsWith(PENDING_ACK_REPLAY_TOPIC) && metric.value > 0) {
                 count++;
             }
         }
         Assert.assertTrue(count > 0);
 
-        for (PrometheusMetricsTest.Metric metric : abortedCount) {
+        for (PrometheusMetricsClient.Metric metric : abortedCount) {
             if (metric.tags.get("subscription").equals(subName) && metric.tags.get("status").equals("succeed")) {
                 assertTrue(metric.tags.get("topic").endsWith(PENDING_ACK_REPLAY_TOPIC));
                 assertTrue(metric.value > 0);
             }
         }
-        for (PrometheusMetricsTest.Metric metric : committedCount) {
+        for (PrometheusMetricsClient.Metric metric : committedCount) {
             if (metric.tags.get("subscription").equals(subName) && metric.tags.get("status").equals("succeed")) {
                 assertTrue(metric.tags.get("topic").endsWith(PENDING_ACK_REPLAY_TOPIC));
                 assertTrue(metric.value > 0);

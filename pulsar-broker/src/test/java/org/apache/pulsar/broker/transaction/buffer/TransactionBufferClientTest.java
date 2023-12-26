@@ -38,7 +38,7 @@ import java.util.concurrent.ExecutionException;
 
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
-import org.apache.pulsar.broker.stats.PrometheusMetricsTest;
+import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsGenerator;
 import org.apache.pulsar.broker.transaction.TransactionTestBase;
 import org.apache.pulsar.broker.transaction.buffer.impl.TransactionBufferClientImpl;
@@ -228,28 +228,28 @@ public class TransactionBufferClientTest extends TransactionTestBase {
         ByteArrayOutputStream statsOut = new ByteArrayOutputStream();
         PrometheusMetricsGenerator.generate(pulsarServiceList.get(0), true, false, false, statsOut);
         String metricsStr = statsOut.toString();
-        Multimap<String, PrometheusMetricsTest.Metric> metricsMap = PrometheusMetricsTest.parseMetrics(metricsStr);
+        Multimap<String, PrometheusMetricsClient.Metric> metricsMap = PrometheusMetricsClient.parseMetrics(metricsStr);
 
-        Collection<PrometheusMetricsTest.Metric> abortFailed = metricsMap.get("pulsar_txn_tb_client_abort_failed_total");
-        Collection<PrometheusMetricsTest.Metric> commitFailed = metricsMap.get("pulsar_txn_tb_client_commit_failed_total");
-        Collection<PrometheusMetricsTest.Metric> abortLatencyCount =
+        Collection<PrometheusMetricsClient.Metric> abortFailed = metricsMap.get("pulsar_txn_tb_client_abort_failed_total");
+        Collection<PrometheusMetricsClient.Metric> commitFailed = metricsMap.get("pulsar_txn_tb_client_commit_failed_total");
+        Collection<PrometheusMetricsClient.Metric> abortLatencyCount =
                 metricsMap.get("pulsar_txn_tb_client_abort_latency_count");
-        Collection<PrometheusMetricsTest.Metric> commitLatencyCount =
+        Collection<PrometheusMetricsClient.Metric> commitLatencyCount =
                 metricsMap.get("pulsar_txn_tb_client_commit_latency_count");
-        Collection<PrometheusMetricsTest.Metric> pending = metricsMap.get("pulsar_txn_tb_client_pending_requests");
+        Collection<PrometheusMetricsClient.Metric> pending = metricsMap.get("pulsar_txn_tb_client_pending_requests");
 
         assertEquals(abortFailed.stream().mapToDouble(metric -> metric.value).sum(), 0);
         assertEquals(commitFailed.stream().mapToDouble(metric -> metric.value).sum(), 0);
 
         for (int i = 0; i < partitions; i++) {
             String topic = partitionedTopicName.getPartition(i).toString();
-            Optional<PrometheusMetricsTest.Metric> optional = abortLatencyCount.stream()
+            Optional<PrometheusMetricsClient.Metric> optional = abortLatencyCount.stream()
                     .filter(metric -> metric.tags.get("topic").equals(topic)).findFirst();
 
             assertTrue(optional.isPresent());
             assertEquals(optional.get().value, 1D);
 
-            Optional<PrometheusMetricsTest.Metric> optional1 = commitLatencyCount.stream()
+            Optional<PrometheusMetricsClient.Metric> optional1 = commitLatencyCount.stream()
                     .filter(metric -> metric.tags.get("topic").equals(topic)).findFirst();
             assertTrue(optional1.isPresent());
             assertEquals(optional1.get().value, 1D);

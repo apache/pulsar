@@ -45,7 +45,7 @@ import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.service.schema.SchemaRegistry.SchemaAndMetadata;
-import org.apache.pulsar.broker.stats.PrometheusMetricsTest;
+import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsGenerator;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.impl.schema.KeyValueSchemaInfo;
@@ -123,29 +123,29 @@ public class SchemaServiceTest extends MockedPulsarServiceBaseTest {
         PrometheusMetricsGenerator.generate(pulsar, false, false, false, output);
         output.flush();
         String metricsStr = output.toString(StandardCharsets.UTF_8);
-        Multimap<String, PrometheusMetricsTest.Metric> metrics = PrometheusMetricsTest.parseMetrics(metricsStr);
+        Multimap<String, PrometheusMetricsClient.Metric> metrics = PrometheusMetricsClient.parseMetrics(metricsStr);
 
-        Collection<PrometheusMetricsTest.Metric> delMetrics = metrics.get("pulsar_schema_del_ops_failed_total");
+        Collection<PrometheusMetricsClient.Metric> delMetrics = metrics.get("pulsar_schema_del_ops_failed_total");
         Assert.assertEquals(delMetrics.size(), 0);
-        Collection<PrometheusMetricsTest.Metric> getMetrics = metrics.get("pulsar_schema_get_ops_failed_total");
+        Collection<PrometheusMetricsClient.Metric> getMetrics = metrics.get("pulsar_schema_get_ops_failed_total");
         Assert.assertEquals(getMetrics.size(), 0);
-        Collection<PrometheusMetricsTest.Metric> putMetrics = metrics.get("pulsar_schema_put_ops_failed_total");
+        Collection<PrometheusMetricsClient.Metric> putMetrics = metrics.get("pulsar_schema_put_ops_failed_total");
         Assert.assertEquals(putMetrics.size(), 0);
 
-        Collection<PrometheusMetricsTest.Metric> deleteLatency = metrics.get("pulsar_schema_del_ops_latency_count");
-        for (PrometheusMetricsTest.Metric metric : deleteLatency) {
+        Collection<PrometheusMetricsClient.Metric> deleteLatency = metrics.get("pulsar_schema_del_ops_latency_count");
+        for (PrometheusMetricsClient.Metric metric : deleteLatency) {
             Assert.assertEquals(metric.tags.get("namespace"), namespace);
             Assert.assertTrue(metric.value > 0);
         }
 
-        Collection<PrometheusMetricsTest.Metric> getLatency = metrics.get("pulsar_schema_get_ops_latency_count");
-        for (PrometheusMetricsTest.Metric metric : getLatency) {
+        Collection<PrometheusMetricsClient.Metric> getLatency = metrics.get("pulsar_schema_get_ops_latency_count");
+        for (PrometheusMetricsClient.Metric metric : getLatency) {
             Assert.assertEquals(metric.tags.get("namespace"), namespace);
             Assert.assertTrue(metric.value > 0);
         }
 
-        Collection<PrometheusMetricsTest.Metric> putLatency = metrics.get("pulsar_schema_put_ops_latency_count");
-        for (PrometheusMetricsTest.Metric metric : putLatency) {
+        Collection<PrometheusMetricsClient.Metric> putLatency = metrics.get("pulsar_schema_put_ops_latency_count");
+        for (PrometheusMetricsClient.Metric metric : putLatency) {
             Assert.assertEquals(metric.tags.get("namespace"), namespace);
             Assert.assertTrue(metric.value > 0);
         }

@@ -29,6 +29,7 @@ import lombok.Value;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.commons.lang3.tuple.Pair;
+import org.slf4j.LoggerFactory;
 
 /**
  * Contains cursors for a ManagedLedger.
@@ -44,6 +45,8 @@ import org.apache.commons.lang3.tuple.Pair;
  *
  */
 public class ManagedCursorContainer implements Iterable<ManagedCursor> {
+
+    private static final org.slf4j.Logger log = LoggerFactory.getLogger(ManagedCursorContainer.class);
 
     /**
      * This field is incremented everytime the cursor information is updated.
@@ -78,6 +81,17 @@ public class ManagedCursorContainer implements Iterable<ManagedCursor> {
     public static final class DataVersion {
         private DataVersion() {}
 
+        /**
+         * Compares two data versions, which either rolls overs to 0 when reaching Long.MAX_VALUE.
+         * <p>
+         * Use {@link DataVersion#incrementVersion(long)} to increment the versions
+         * <p>
+         * @param v1 First version to compare
+         * @param v2 Second version to compare
+         * @return the value {@code 0} if {@code v1 == v2};
+         *         a value less than {@code 0} if {@code v1 < v2}; and
+         *         a value greater than {@code 0} if {@code v1 > v2}
+         */
         public static int compareVersions(long v1, long v2) {
             if (v1 == v2) {
                 return 0;
@@ -88,9 +102,9 @@ public class ManagedCursorContainer implements Iterable<ManagedCursor> {
                 long distance = v2 - v1;
                 long wrapAroundDistance = (Long.MAX_VALUE - v2) + v1;
                 if (distance < wrapAroundDistance) {
-                    return 1;
-                } else {
                     return -1;
+                } else {
+                    return 1;
                 }
 
             // 0-------v2--------v1--------MAX_LONG
@@ -98,9 +112,9 @@ public class ManagedCursorContainer implements Iterable<ManagedCursor> {
                 long distance = v1 - v2;
                 long wrapAroundDistance = (Long.MAX_VALUE - v1) + v2;
                 if (distance < wrapAroundDistance) {
-                    return -1; // v1 is bigger
+                    return 1; // v1 is bigger
                 } else {
-                    return 1; // v2 is bigger
+                    return -1; // v2 is bigger
                 }
             }
         }
@@ -222,6 +236,7 @@ public class ManagedCursorContainer implements Iterable<ManagedCursor> {
             }
 
             PositionImpl previousSlowestConsumer = heap.get(0).position;
+            log.info("Cursor {} change position from {} to {}", cursor.getName(), item.position, newPosition);
             item.position = (PositionImpl) newPosition;
             version = DataVersion.incrementVersion(version);
 

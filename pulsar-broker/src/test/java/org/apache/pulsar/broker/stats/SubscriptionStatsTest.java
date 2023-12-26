@@ -35,6 +35,7 @@ import org.apache.pulsar.broker.service.EntryFilterSupport;
 import org.apache.pulsar.broker.service.plugin.EntryFilter;
 import org.apache.pulsar.broker.service.plugin.EntryFilterTest;
 import org.apache.pulsar.broker.service.plugin.EntryFilterWithClassLoader;
+import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsGenerator;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
@@ -233,15 +234,15 @@ public class SubscriptionStatsTest extends ProducerConsumerBase {
         ByteArrayOutputStream output = new ByteArrayOutputStream();
         PrometheusMetricsGenerator.generate(pulsar, enableTopicStats, false, false, output);
         String metricsStr = output.toString();
-        Multimap<String, PrometheusMetricsTest.Metric> metrics = PrometheusMetricsTest.parseMetrics(metricsStr);
+        Multimap<String, PrometheusMetricsClient.Metric> metrics = PrometheusMetricsClient.parseMetrics(metricsStr);
 
-        Collection<PrometheusMetricsTest.Metric> throughFilterMetrics =
+        Collection<PrometheusMetricsClient.Metric> throughFilterMetrics =
                 metrics.get("pulsar_subscription_filter_processed_msg_count");
-        Collection<PrometheusMetricsTest.Metric> acceptedMetrics =
+        Collection<PrometheusMetricsClient.Metric> acceptedMetrics =
                 metrics.get("pulsar_subscription_filter_accepted_msg_count");
-        Collection<PrometheusMetricsTest.Metric> rejectedMetrics =
+        Collection<PrometheusMetricsClient.Metric> rejectedMetrics =
                 metrics.get("pulsar_subscription_filter_rejected_msg_count");
-        Collection<PrometheusMetricsTest.Metric> rescheduledMetrics =
+        Collection<PrometheusMetricsClient.Metric> rescheduledMetrics =
                 metrics.get("pulsar_subscription_filter_rescheduled_msg_count");
 
         if (enableTopicStats) {
