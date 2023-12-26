@@ -31,10 +31,6 @@
     <artifactId>pulsar-io-flume</artifactId>
     <name>Pulsar IO :: Flume</name>
 
-    <properties>
-        <avro.version>1.11.3</avro.version>
-    </properties>
-
     <dependencies>
         <dependency>
             <groupId>${project.groupId}</groupId>
