@@ -1261,4 +1261,9 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
     public boolean isPersistent() {
         return false;
     }
+
+    @Override
+    public CompletableFuture<Void> close() {
+        return deleteForcefully();
+    }
 }

@@ -158,6 +158,8 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
     protected volatile boolean transferring = false;
     private volatile List<PublishRateLimiter> activeRateLimiters;
 
+    private volatile TopicCacheCleanupFunction cleanupFunction;
+
     public AbstractTopic(String topic, BrokerService brokerService) {
         this.topic = topic;
         this.brokerService = brokerService;
@@ -1248,6 +1250,23 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
     @Override
     public HierarchyTopicPolicies getHierarchyTopicPolicies() {
         return topicPolicies;
+    }
+
+    @Override
+    public void registerTopicCacheCleanupFunction(TopicCacheCleanupFunction cleanupFunction) {
+        if (this.cleanupFunction != null) {
+            log.warn("Topic {} has already been cached. It should have been removed before re-adding.", topic);
+        }
+        this.cleanupFunction = cleanupFunction;
+    }
+
+    @Override
+    public void cleanupTopicCache(CompletableFuture<Optional<Topic>> topicFuture) {
+        TopicCacheCleanupFunction c = this.cleanupFunction;
+        this.cleanupFunction = null;
+        if (c != null) {
+            c.cleanup(topicFuture);
+        }
     }
 
     public void updateBrokerSubscriptionDispatchRate() {

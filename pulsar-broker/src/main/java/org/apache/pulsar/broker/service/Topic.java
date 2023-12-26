@@ -360,4 +360,18 @@ public interface Topic {
      */
     HierarchyTopicPolicies getHierarchyTopicPolicies();
 
+
+    /**
+     * Closes the topic and releases resources.
+     * @return a future that is completed when the topic is closed
+     */
+    CompletableFuture<Void> close();
+
+    void registerTopicCacheCleanupFunction(TopicCacheCleanupFunction cleanupFunction);
+
+    void cleanupTopicCache(CompletableFuture<Optional<Topic>> topicFuture);
+
+    interface TopicCacheCleanupFunction {
+        void cleanup(CompletableFuture<Optional<Topic>> topicFuture);
+    }
 }

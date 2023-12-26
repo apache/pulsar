@@ -1460,6 +1460,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
     }
 
+    @Override
     public CompletableFuture<Void> close() {
         return close(true, false);
     }
