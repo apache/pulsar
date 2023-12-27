@@ -19,25 +19,7 @@
 
 # build go lang examples first in a separate layer
 
-FROM apachepulsar/pulsar:latest as pulsar-function-go
-
-# Use root for builder
-USER root
-
-RUN rm -rf /var/lib/apt/lists/* && apt-get update
-RUN apt-get install -y procps curl git build-essential
-
-ENV GOLANG_VERSION 1.15.8
-
-RUN export ARCH=$(uname -m | sed -r 's/aarch64/arm64/g' |  awk '!/arm64/{$0="amd64"}1') \
-     && curl -sSL https://golang.org/dl/go$GOLANG_VERSION.linux-$ARCH.tar.gz | tar -C /usr/local -xz
-ENV PATH /usr/local/go/bin:$PATH
-
-RUN mkdir -p /go/src /go/bin && chmod -R 777 /go
-ENV GOROOT /usr/local/go
-ENV GOPATH /go
-ENV PATH /go/bin:$PATH
-ENV GO111MODULE=on
+FROM golang:1.21 as pulsar-function-go
 
 COPY target/pulsar-function-go/ /go/src/github.com/apache/pulsar/pulsar-function-go
 RUN cd /go/src/github.com/apache/pulsar/pulsar-function-go && go install ./...
