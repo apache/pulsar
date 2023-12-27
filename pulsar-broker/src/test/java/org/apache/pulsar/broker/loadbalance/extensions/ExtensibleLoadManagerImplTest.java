@@ -802,12 +802,12 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
         FieldUtils.writeDeclaredField(secondaryLoadManager, "topBundlesLoadDataStore", topBundlesLoadDataStoreSecondarySpy, true);
 
         if (channel1.isChannelOwnerAsync().get(5, TimeUnit.SECONDS)) {
-            primaryLoadManager.playFollower();
-            primaryLoadManager.playFollower();
+            primaryLoadManager.playFollower(); // close 3 times
+            primaryLoadManager.playFollower(); // close 1 time
             secondaryLoadManager.playLeader();
             secondaryLoadManager.playLeader();
-            primaryLoadManager.playLeader();
-            primaryLoadManager.playLeader();
+            primaryLoadManager.playLeader(); // close 3 times and open 3 times
+            primaryLoadManager.playLeader(); // close 1 time and open 1 time,
             secondaryLoadManager.playFollower();
             secondaryLoadManager.playFollower();
         } else {
@@ -822,10 +822,10 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
         }
 
 
-        verify(topBundlesLoadDataStorePrimarySpy, times(3)).startTableView();
-        verify(topBundlesLoadDataStorePrimarySpy, times(3)).closeTableView();
-        verify(topBundlesLoadDataStoreSecondarySpy, times(3)).startTableView();
-        verify(topBundlesLoadDataStoreSecondarySpy, times(3)).closeTableView();
+        verify(topBundlesLoadDataStorePrimarySpy, times(4)).startTableView();
+        verify(topBundlesLoadDataStorePrimarySpy, times(8)).closeTableView();
+        verify(topBundlesLoadDataStoreSecondarySpy, times(4)).startTableView();
+        verify(topBundlesLoadDataStoreSecondarySpy, times(8)).closeTableView();
 
         FieldUtils.writeDeclaredField(primaryLoadManager, "topBundlesLoadDataStore", topBundlesLoadDataStorePrimary, true);
         FieldUtils.writeDeclaredField(secondaryLoadManager, "topBundlesLoadDataStore", topBundlesLoadDataStoreSecondary, true);

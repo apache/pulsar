@@ -38,6 +38,7 @@ import java.util.UUID;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import lombok.extern.slf4j.Slf4j;
@@ -53,6 +54,7 @@ import org.apache.pulsar.tests.TestRetrySupport;
 import org.apache.pulsar.tests.integration.containers.BrokerContainer;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
 import org.apache.pulsar.tests.integration.topologies.PulsarClusterSpec;
+import org.awaitility.Awaitility;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.BeforeMethod;
@@ -309,23 +311,40 @@ public class ExtensibleLoadManagerTest extends TestRetrySupport {
         parameters1.put("min_limit", "1");
         parameters1.put("usage_threshold", "100");
 
-        List<String> activeBrokers = admin.brokers().getActiveBrokers();
+        Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(
+                () -> {
+                    List<String> activeBrokers = admin.brokers().getActiveBrokers();
+                    assertEquals(activeBrokers.size(), NUM_BROKERS);
+                }
+        );
+        try {
+            admin.namespaces().createNamespace(isolationEnabledNameSpace);
+        } catch (PulsarAdminException.ConflictException e) {
+            //expected when retried
+        }
 
-        assertEquals(activeBrokers.size(), NUM_BROKERS);
+        try {
+            admin.clusters()
+                    .createNamespaceIsolationPolicy(clusterName, namespaceIsolationPolicyName, NamespaceIsolationData
+                            .builder()
+                            .namespaces(List.of(isolationEnabledNameSpace))
+                            .autoFailoverPolicy(AutoFailoverPolicyData.builder()
+                                    .policyType(AutoFailoverPolicyType.min_available)
+                                    .parameters(parameters1)
+                                    .build())
+                            .primary(List.of(getHostName(0)))
+                            .secondary(List.of(getHostName(1)))
+                            .build());
+        } catch (PulsarAdminException.ConflictException e) {
+            //expected when retried
+        }
 
-        admin.namespaces().createNamespace(isolationEnabledNameSpace);
-        admin.clusters().createNamespaceIsolationPolicy(clusterName, namespaceIsolationPolicyName, NamespaceIsolationData
-                .builder()
-                .namespaces(List.of(isolationEnabledNameSpace))
-                .autoFailoverPolicy(AutoFailoverPolicyData.builder()
-                        .policyType(AutoFailoverPolicyType.min_available)
-                        .parameters(parameters1)
-                        .build())
-                .primary(List.of(getHostName(0)))
-                .secondary(List.of(getHostName(1)))
-                .build());
         final String topic = "persistent://" + isolationEnabledNameSpace + "/topic";
-        admin.topics().createNonPartitionedTopic(topic);
+        try {
+            admin.topics().createNonPartitionedTopic(topic);
+        } catch (PulsarAdminException.ConflictException e) {
+            //expected when retried
+        }
 
         String broker = admin.lookups().lookupTopic(topic);
 
