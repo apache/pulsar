@@ -75,7 +75,7 @@ jobs:
     runs-on: ubuntu-22.04
     strategy:
       matrix:
-        go-version: [1.15, 1.16, 1.17]
+        go-version: ['1.21']
 
     steps:
       - name: Check out code into the Go module directory
@@ -93,7 +93,7 @@ jobs:
       - name: InstallTool
         run: |
           cd pulsar-function-go
-          wget -O - -q https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh| sh -s v1.18.0
+          wget -O - -q https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh| sh -s v1.55.2
           ./bin/golangci-lint --version
 
       - name: Build
