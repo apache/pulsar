@@ -201,4 +201,93 @@
     <notes>flat_project is not used at all.</notes>
     <cpe>cpe:/a:flat_project:flat</cpe>
   </suppress>
+
+  <suppress>
+    <notes><![CDATA[
+   file name: alluxio-core-common-2.9.3.jar
+   ]]></notes>
+    <cve>CVE-2023-38889</cve>
+  </suppress>
+
+  <suppress>
+    <notes><![CDATA[
+   file name: clickhouse-jdbc-0.4.6-all.jar/META-INF/maven/com.squareup.okio/okio/pom.xml
+   ]]></notes>
+    <cve>CVE-2023-3635</cve>
+  </suppress>
+
+  <suppress>
+    <notes><![CDATA[
+   file name: elasticsearch-java-8.5.2.jar
+   ]]></notes>
+    <cve>CVE-2023-46673</cve>
+    <cve>CVE-2023-46674</cve>
+    <cve>CVE-2023-31419</cve>
+    <cve>CVE-2023-31417</cve>
+    <cve>CVE-2023-31418</cve>
+  </suppress>
+
+  <suppress>
+    <notes><![CDATA[
+   file name: elasticsearch-rest-client-8.5.2.jar
+   ]]></notes>
+    <cve>CVE-2023-46673</cve>
+    <cve>CVE-2023-46674</cve>
+    <cve>CVE-2023-31419</cve>
+    <cve>CVE-2023-31417</cve>
+    <cve>CVE-2023-31418</cve>
+  </suppress>
+
+  <suppress>
+    <notes><![CDATA[
+   file name: grpc-core-1.37.0.jar
+   ]]></notes>
+    <cve>CVE-2023-44487</cve>
+    <cve>CVE-2023-4785</cve>
+    <cve>CVE-2023-33953</cve>
+  </suppress>
+
+  <suppress>
+    <notes><![CDATA[
+   file name: grpc-core-1.55.3.jar
+   ]]></notes>
+    <cve>CVE-2023-44487</cve>
+  </suppress>
+
+  <suppress>
+    <notes><![CDATA[
+   file name: grpc-protobuf-1.37.0.jar
+   ]]></notes>
+    <cve>CVE-2023-44487</cve>
+    <cve>CVE-2023-4785</cve>
+    <cve>CVE-2023-33953</cve>
+  </suppress>
+
+  <suppress>
+    <notes><![CDATA[
+   file name: grpc-protobuf-1.55.3.jar
+   ]]></notes>
+    <cve>CVE-2023-44487</cve>
+  </suppress>
+
+  <suppress>
+    <notes><![CDATA[
+   file name: mysql-connector-java-8.0.30.jar
+   ]]></notes>
+    <cve>CVE-2023-22102</cve>
+  </suppress>
+
+  <suppress>
+    <notes><![CDATA[
+   file name: parsson-1.0.0.jar
+   ]]></notes>
+    <cve>CVE-2023-4043</cve>
+  </suppress>
+
+  <suppress>
+    <notes><![CDATA[
+   file name: solr-solrj-8.11.1.jar
+   ]]></notes>
+    <cve>CVE-2023-44487</cve>
+  </suppress>
 </suppressions>
