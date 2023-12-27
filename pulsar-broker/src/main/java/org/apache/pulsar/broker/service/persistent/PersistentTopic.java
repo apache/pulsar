@@ -1206,7 +1206,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
         if (!isDelayedDeliveryEnabled()
                 || !(brokerService.getDelayedDeliveryTrackerFactory() instanceof BucketDelayedDeliveryTrackerFactory)) {
-            asyncDeleteCursor(persistentSubscription, unsubscribeFuture);
+            asyncDeleteCursorWithCleanCompactionLedger(persistentSubscription, unsubscribeFuture);
             return;
         }
 
@@ -1221,7 +1221,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                     if (ex != null) {
                         unsubscribeFuture.completeExceptionally(ex);
                     } else {
-                        asyncDeleteCursor(persistentSubscription, unsubscribeFuture);
+                        asyncDeleteCursorWithCleanCompactionLedger(persistentSubscription, unsubscribeFuture);
                     }
                 });
             }
@@ -1232,56 +1232,60 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             if (ex != null) {
                 unsubscribeFuture.completeExceptionally(ex);
             } else {
-                asyncDeleteCursor(persistentSubscription, unsubscribeFuture);
+                asyncDeleteCursorWithCleanCompactionLedger(persistentSubscription, unsubscribeFuture);
             }
         });
     }
 
-    private void asyncDeleteCursor(PersistentSubscription subscription,
-                                   CompletableFuture<Void> unsubscribeFuture) {
+    private void asyncDeleteCursorWithCleanCompactionLedger(PersistentSubscription subscription,
+                                                             CompletableFuture<Void> unsubscribeFuture) {
         final String subscriptionName = subscription.getName();
-        final CompletableFuture<Void> cleanCompactedLedgerFuture;
-        if (isCompactionSubscription(subscriptionName) && subscription instanceof PulsarCompactorSubscription) {
-            cleanCompactedLedgerFuture = currentCompaction.exceptionally(ex -> {
-                        log.warn("[{}][{}] Compaction task failed", topic, subscriptionName);
-                        return null;
-            }).thenCompose(__ -> ((PulsarCompactorSubscription) subscription).cleanCompactedLedger());
-        } else {
-            cleanCompactedLedgerFuture = CompletableFuture.completedFuture(null);
+        if ((!isCompactionSubscription(subscriptionName)) || !(subscription instanceof PulsarCompactorSubscription)) {
+            asyncDeleteCursor(subscriptionName, unsubscribeFuture);
+            return;
         }
 
-        cleanCompactedLedgerFuture.whenComplete((__, ex) -> {
-            if (ex != null) {
-                log.error("[{}][{}] Error cleaning compacted ledger", topic, subscriptionName, ex);
-                unsubscribeFuture.completeExceptionally(ex);
-            } else {
-                ledger.asyncDeleteCursor(Codec.encode(subscriptionName), new DeleteCursorCallback() {
-                    @Override
-                    public void deleteCursorComplete(Object ctx) {
-                        if (log.isDebugEnabled()) {
-                            log.debug("[{}][{}] Cursor deleted successfully", topic, subscriptionName);
-                        }
-                        removeSubscription(subscriptionName);
-                        unsubscribeFuture.complete(null);
-                        lastActive = System.nanoTime();
-                    }
-
-                    @Override
-                    public void deleteCursorFailed(ManagedLedgerException exception, Object ctx) {
-                        if (log.isDebugEnabled()) {
-                            log.debug("[{}][{}] Error deleting cursor for subscription",
-                                    topic, subscriptionName, exception);
-                        }
-                        if (exception instanceof ManagedLedgerException.ManagedLedgerNotFoundException) {
-                            unsubscribeFuture.complete(null);
-                            lastActive = System.nanoTime();
-                            return;
-                        }
-                        unsubscribeFuture.completeExceptionally(new PersistenceException(exception));
-                    }
-                }, null);
+        currentCompaction.whenComplete((__, e) -> {
+            if (e != null) {
+                log.warn("[{}][{}] Last compaction task failed", topic, subscriptionName);
             }
+            ((PulsarCompactorSubscription) subscription).cleanCompactedLedger().whenComplete((___, ex) -> {
+                if (ex != null) {
+                    log.error("[{}][{}] Error cleaning compacted ledger", topic, subscriptionName, ex);
+                    unsubscribeFuture.completeExceptionally(ex);
+                } else {
+                    asyncDeleteCursor(subscriptionName, unsubscribeFuture);
+                }
+            });
         });
+    }
+
+    private void asyncDeleteCursor(String subscriptionName, CompletableFuture<Void> unsubscribeFuture) {
+        ledger.asyncDeleteCursor(Codec.encode(subscriptionName), new DeleteCursorCallback() {
+            @Override
+            public void deleteCursorComplete(Object ctx) {
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}][{}] Cursor deleted successfully", topic, subscriptionName);
+                }
+                removeSubscription(subscriptionName);
+                unsubscribeFuture.complete(null);
+                lastActive = System.nanoTime();
+            }
+
+            @Override
+            public void deleteCursorFailed(ManagedLedgerException exception, Object ctx) {
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}][{}] Error deleting cursor for subscription",
+                            topic, subscriptionName, exception);
+                }
+                if (exception instanceof ManagedLedgerException.ManagedLedgerNotFoundException) {
+                    unsubscribeFuture.complete(null);
+                    lastActive = System.nanoTime();
+                    return;
+                }
+                unsubscribeFuture.completeExceptionally(new PersistenceException(exception));
+            }
+        }, null);
     }
 
     void removeSubscription(String subscriptionName) {
