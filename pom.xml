@@ -193,7 +193,7 @@ flexible messaging model and an intuitive client API.</description>
     <elasticsearch-java.version>8.5.2</elasticsearch-java.version>
     <debezium.version>1.9.7.Final</debezium.version>
     <debezium.postgresql.version>42.5.0</debezium.postgresql.version>
-    <debezium.mysql.version>8.0.30</debezium.mysql.version>
+    <debezium.mysql.version>8.1.0</debezium.mysql.version>
     <!-- Override version that brings CVE-2022-3143 with debezium -->
     <wildfly-elytron.version>1.15.16.Final</wildfly-elytron.version>
     <jsonwebtoken.version>0.11.1</jsonwebtoken.version>
