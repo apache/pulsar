@@ -179,7 +179,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
     final Map<EventType, Counters> eventCounters;
     final Map<ServiceUnitState, Counters> handlerCounters;
     final Map<String, CompletableFuture<Long>> updateLatencyMetrics;
-    private final Summary unloadLatencyMs = Summary.build("brk_lb_unload_latency", "-")
+    private static final Summary unloadLatencyMs = Summary.build("brk_lb_unload_latency", "-")
             .quantile(0.0)
             .quantile(0.50)
             .quantile(0.95)

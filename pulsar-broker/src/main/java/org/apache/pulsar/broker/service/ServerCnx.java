@@ -163,7 +163,6 @@ import org.apache.pulsar.common.protocol.PulsarHandler;
 import org.apache.pulsar.common.protocol.schema.SchemaData;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.schema.SchemaType;
-import org.apache.pulsar.common.stats.Rate;
 import org.apache.pulsar.common.topics.TopicList;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.StringInterner;
@@ -1792,14 +1791,14 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         PulsarService pulsar = getBrokerService().pulsar();
         // if the topic is transferring, we ignore send msg.
         if (producer.getTopic().isTransferring()) {
-            Rate ignoredSendMsgRate = ExtensibleLoadManagerImpl.get(pulsar).getIgnoredSendMsgRate();
             long ignoredMsgCount = send.getNumMessages();
-            ignoredSendMsgRate.recordEvent(ignoredMsgCount);
+            var ignoredSendMsgTotalCount = ExtensibleLoadManagerImpl.get(pulsar).getIgnoredSendMsgCount().
+                    addAndGet(ignoredMsgCount);
             if (log.isDebugEnabled()) {
-                log.debug("Ignored send msg from:{}:{} to fenced topic:{} while transferring."
-                                + " Ignored message count:{}.",
-                        remoteAddress, send.getProducerId(), producer.getTopic().getName(),
-                        ignoredSendMsgRate.getTotalCount());
+                log.debug("Ignoring {} messages from:{}:{} to fenced topic:{} while transferring."
+                                + " Total ignored message count: {}.",
+                        ignoredMsgCount, remoteAddress, send.getProducerId(), producer.getTopic().getName(),
+                        ignoredSendMsgTotalCount);
             }
             return;
         }
@@ -1875,12 +1874,12 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             if (subscription.getTopic().isTransferring()) {
                 PulsarService pulsar = getBrokerService().getPulsar();
                 // Message acks are silently ignored during topic transfer.
-                Rate ignoredAckCountRate = ExtensibleLoadManagerImpl.get(pulsar).getIgnoredAckRate();
                 long ignoredAckCount = ack.getMessageIdsCount();
-                ignoredAckCountRate.recordEvent(ignoredAckCount);
+                var ignoredAckTotalCount = ExtensibleLoadManagerImpl.get(pulsar).getIgnoredAckCount().
+                        addAndGet(ignoredAckCount);
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] [{}] Ignoring {} message acks during topic transfer. Total ignored ack count: {}",
-                            subscription, consumerId, ignoredAckCount, ignoredAckCountRate.getTotalCount());
+                            subscription, consumerId, ignoredAckCount, ignoredAckTotalCount);
                 }
                 return;
             }

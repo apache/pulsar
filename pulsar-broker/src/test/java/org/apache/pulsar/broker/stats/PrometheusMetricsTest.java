@@ -797,6 +797,8 @@ public class PrometheusMetricsTest extends BrokerTestBase {
 
         assertTrue(metrics.containsKey("pulsar_lb_bundles_split_total"));
 
+        assertTrue(metrics.containsKey("brk_lb_unload_latency"));
+
         // cleanup.
         mockZooKeeper.delete(mockedBroker, 0);
     }

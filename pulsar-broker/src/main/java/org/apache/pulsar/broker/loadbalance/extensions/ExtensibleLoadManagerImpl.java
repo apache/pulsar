@@ -38,6 +38,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -96,7 +97,6 @@ import org.apache.pulsar.common.naming.ServiceUnitId;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.stats.Metrics;
-import org.apache.pulsar.common.stats.Rate;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.coordination.LeaderElectionState;
 import org.slf4j.Logger;
@@ -181,9 +181,9 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
 
     // Record the ignored send msg count during unloading
     @Getter
-    private final Rate ignoredSendMsgRate = new Rate();
+    private final AtomicLong ignoredSendMsgCount = new AtomicLong();
     @Getter
-    private final Rate ignoredAckRate = new Rate();
+    private final AtomicLong ignoredAckCount = new AtomicLong();
 
     // record unload metrics
     private final AtomicReference<List<Metrics>> unloadMetrics = new AtomicReference<>();
@@ -883,12 +883,10 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
     }
 
     private List<Metrics> toMetrics(String advertisedBrokerAddress) {
-        ignoredAckRate.calculateRate();
-        ignoredSendMsgRate.calculateRate();
-        var dimensions = Map.of("broker", advertisedBrokerAddress);
+        var dimensions = Map.of("broker", advertisedBrokerAddress, "metric", "bundleReleasing");
         var metric = Metrics.create(dimensions);
-        metric.put("brk_lb_ignored_ack_total", ignoredAckRate.getTotalCount());
-        metric.put("brk_lb_ignored_send_total", ignoredSendMsgRate.getTotalCount());
+        metric.put("brk_lb_ignored_ack_total", ignoredAckCount.get());
+        metric.put("brk_lb_ignored_send_total", ignoredSendMsgCount.get());
         return List.of(metric);
     }
 
