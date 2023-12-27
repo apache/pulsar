@@ -2048,13 +2048,8 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
             PersistentTopicInternalStats stats = admin.topics().getInternalStats(topicName);
             Assert.assertEquals(stats.compactedLedger.ledgerId, -1L);
             Assert.assertEquals(stats.compactedLedger.entries, -1L);
-            try {
-                pulsarTestContext.getBookKeeperClient()
-                        .openLedger(compactedLedgerId.getValue(), BookKeeper.DigestType.CRC32C, new byte[]{});
-                Assert.fail("Should fail");
-            } catch (BKException.BKNoSuchLedgerExistsException e) {
-                // ignore it
-            }
+            assertThrows(BKException.BKNoSuchLedgerExistsException.class, () -> pulsarTestContext.getBookKeeperClient()
+                        .openLedger(compactedLedgerId.getValue(), BookKeeper.DigestType.CRC32C, new byte[]{}));
         });
 
         compact(topicName);
@@ -2070,14 +2065,8 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
         producer.close();
         admin.topics().delete(topicName);
 
-        Awaitility.await().untilAsserted(() -> {
-            try {
-                pulsarTestContext.getBookKeeperClient()
-                        .openLedger(compactedLedgerId2.getValue(), BookKeeper.DigestType.CRC32C, new byte[]{});
-                Assert.fail("Should fail");
-            } catch (BKException.BKNoSuchLedgerExistsException e) {
-                // ignore it
-            }
-        });
+        Awaitility.await().untilAsserted(() -> assertThrows(BKException.BKNoSuchLedgerExistsException.class,
+                () -> pulsarTestContext.getBookKeeperClient().openLedger(
+                        compactedLedgerId2.getValue(), BookKeeper.DigestType.CRC32, new byte[]{})));
     }
 }
