@@ -71,6 +71,10 @@
           <groupId>org.apache.kafka</groupId>
           <artifactId>kafka-log4j-appender</artifactId>
         </exclusion>
+        <exclusion>
+          <artifactId>jose4j</artifactId>
+          <groupId>org.bitbucket.b_c</groupId>
+        </exclusion>
       </exclusions>
     </dependency>
 
