@@ -442,6 +442,10 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
                         topicName, subName, newMD, oldMD);
             }
             // Signal the dispatchers to give chance to take extra actions
+            if (dispatcher != null) {
+                dispatcher.afterAckMessages(null, ctx);
+            }
+            // Signal the dispatchers to give chance to take extra actions
             notifyTheMarkDeletePositionMoveForwardIfNeeded(oldMD);
         }
 
@@ -450,6 +454,10 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
             // TODO: cut consumer connection on markDeleteFailed
             if (log.isDebugEnabled()) {
                 log.debug("[{}][{}] Failed to mark delete for position {}: {}", topicName, subName, ctx, exception);
+            }
+            // Signal the dispatchers to give chance to take extra actions
+            if (dispatcher != null) {
+                dispatcher.afterAckMessages(null, ctx);
             }
         }
     };
@@ -471,6 +479,7 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
         @Override
         public void deleteFailed(ManagedLedgerException exception, Object ctx) {
             log.warn("[{}][{}] Failed to delete message at {}: {}", topicName, subName, ctx, exception);
+            // Signal the dispatchers to give chance to take extra actions
             if (dispatcher != null) {
                 dispatcher.afterAckMessages(exception, ctx);
             }
@@ -825,6 +834,7 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
                         }
                         if (dispatcher != null) {
                             dispatcher.cursorIsReset();
+                            dispatcher.afterAckMessages(null, finalPosition);
                         }
                         IS_FENCED_UPDATER.set(PersistentSubscription.this, FALSE);
                         future.complete(null);

@@ -119,8 +119,11 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
      *   too many CPU circles, see {@link #afterAckMessages(Throwable, Object)} for more details. Do not use this
      *   to confirm whether the delivery should be paused, please call {@link #shouldPauseOnAckStatePersist}.
      */
-    private BlockDispatcherSignatureOnCursorDataCanNotFullyPersist blockSignatureOnCursorDataCanNotFullyPersist =
-            new BlockDispatcherSignatureOnCursorDataCanNotFullyPersist();
+    protected static final AtomicIntegerFieldUpdater<PersistentDispatcherMultipleConsumers>
+            BLOCKED_DISPATCHER_ON_CURSOR_DATA_CAN_NOT_FULLY_PERSIST_UPDATER =
+            AtomicIntegerFieldUpdater.newUpdater(PersistentDispatcherMultipleConsumers.class,
+                    "blockedDispatcherOnCursorDataCanNotFullyPersist");
+    private volatile int blockedDispatcherOnCursorDataCanNotFullyPersist = FALSE;
     private volatile int blockedDispatcherOnUnackedMsgs = FALSE;
     protected static final AtomicIntegerFieldUpdater<PersistentDispatcherMultipleConsumers>
             BLOCKED_DISPATCHER_ON_UNACKMSG_UPDATER =
@@ -394,28 +397,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         if (cursor == null) {
             return true;
         }
-
-        /**
-         * Double check for "Cursor data can be fully persistent".
-         * - Clear the marker that represent some acknowledgements were executed.
-         * - Check whether dispatching should be paused due to cursor data is too large to persistent.
-         * - If dispatching should be paused, but some acknowledgements have been executed, re-calculate the result.
-         * - Mark delivery was paused at least once.
-         */
-        // Clear the marker that represent some acknowledgements were executed.
-        blockSignatureOnCursorDataCanNotFullyPersist.clearMakerNewAcknowledged();
-        // Check whether dispatching should be paused due to cursor data is too large to persistent.
-        if (cursor.isCursorDataFullyPersistable()) {
-            return false;
-        }
-        // Mark delivery was paused at least once.
-        blockSignatureOnCursorDataCanNotFullyPersist.markPaused();
-        // At this pause, dispatching should be paused, but some acknowledgements have been executed.
-        // We should re-calculate the result.
-        if (blockSignatureOnCursorDataCanNotFullyPersist.hasNewAcknowledged()) {
-            return shouldPauseOnAckStatePersist(readType);
-        }
-        return true;
+        return blockedDispatcherOnCursorDataCanNotFullyPersist == TRUE;
     }
 
     @Override
@@ -1057,18 +1039,24 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
 
     @Override
     public void afterAckMessages(Throwable exOfDeletion, Object ctxOfDeletion) {
-        /**
-         * - Mark an acknowledgement were executed.
-         * - If there was no previous pause due to cursor data is too large to persist, we don't need to manually
-         *   trigger a new read. This can avoid too many CPU circles.
-         * - Clear the marker that represent delivery was paused at least once in the earlier time.
-         */
-        blockSignatureOnCursorDataCanNotFullyPersist.markNewAcknowledged();
-        if (blockSignatureOnCursorDataCanNotFullyPersist.hasPausedAtLeastOnce()
-                && cursor.isCursorDataFullyPersistable()) {
-            // clear paused count, and trigger a new reading.
-            blockSignatureOnCursorDataCanNotFullyPersist.clearMarkerPaused();
-            readMoreEntriesAsync();
+        if (blockedDispatcherOnCursorDataCanNotFullyPersist == TRUE) {
+            if (cursor.isCursorDataFullyPersistable()) {
+                // If there was no previous pause due to cursor data is too large to persist, we don't need to manually
+                // trigger a new read. This can avoid too many CPU circles.
+                if (BLOCKED_DISPATCHER_ON_CURSOR_DATA_CAN_NOT_FULLY_PERSIST_UPDATER.compareAndSet(this, TRUE, FALSE)) {
+                    readMoreEntriesAsync();
+                } else {
+                    // Retry due to conflict update.
+                    afterAckMessages(exOfDeletion, ctxOfDeletion);
+                }
+            }
+        } else {
+            if (!cursor.isCursorDataFullyPersistable()) {
+                if (BLOCKED_DISPATCHER_ON_CURSOR_DATA_CAN_NOT_FULLY_PERSIST_UPDATER.compareAndSet(this, FALSE, TRUE)) {
+                    // Retry due to conflict update.
+                    afterAckMessages(exOfDeletion, ctxOfDeletion);
+                }
+            }
         }
     }
 
