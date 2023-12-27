@@ -1242,7 +1242,10 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         final String subscriptionName = subscription.getName();
         final CompletableFuture<Void> cleanCompactedLedgerFuture;
         if (isCompactionSubscription(subscriptionName) && subscription instanceof PulsarCompactorSubscription) {
-            cleanCompactedLedgerFuture = ((PulsarCompactorSubscription) subscription).cleanCompactedLedger();
+            cleanCompactedLedgerFuture = currentCompaction.exceptionally(ex -> {
+                        log.warn("[{}][{}] Compaction task failed", topic, subscriptionName);
+                        return null;
+            }).thenCompose(__ -> ((PulsarCompactorSubscription) subscription).cleanCompactedLedger());
         } else {
             cleanCompactedLedgerFuture = CompletableFuture.completedFuture(null);
         }

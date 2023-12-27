@@ -29,6 +29,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.pulsar.common.api.proto.CommandAck.AckType;
 import org.apache.pulsar.compaction.CompactedTopic;
+import org.apache.pulsar.compaction.CompactedTopicContext;
 import org.apache.pulsar.compaction.CompactedTopicImpl;
 import org.apache.pulsar.compaction.Compactor;
 import org.slf4j.Logger;
@@ -109,11 +110,14 @@ public class PulsarCompactorSubscription extends PersistentSubscription {
     }
 
     CompletableFuture<Void> cleanCompactedLedger() {
-        Long compactedLedgerId = cursor.getProperties().get(Compactor.COMPACTED_TOPIC_LEDGER_PROPERTY);
-        if (compactedLedgerId != null) {
-            ((CompactedTopicImpl) compactedTopic).reset();
-            cursor.removeProperty(Compactor.COMPACTED_TOPIC_LEDGER_PROPERTY);
-            return compactedTopic.deleteCompactedLedger(compactedLedgerId);
+        final CompletableFuture<CompactedTopicContext> compactedTopicContextFuture =
+                ((CompactedTopicImpl) compactedTopic).getCompactedTopicContextFuture();
+        if (compactedTopicContextFuture != null) {
+            return compactedTopicContextFuture.thenCompose(context -> {
+                long compactedLedgerId = context.getLedger().getId();
+                ((CompactedTopicImpl) compactedTopic).reset();
+                return compactedTopic.deleteCompactedLedger(compactedLedgerId);
+            });
         } else {
             return CompletableFuture.completedFuture(null);
         }

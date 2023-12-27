@@ -59,6 +59,7 @@ public class RawReaderImpl implements RawReader {
         consumerConfiguration.setReceiverQueueSize(DEFAULT_RECEIVER_QUEUE_SIZE);
         consumerConfiguration.setReadCompacted(true);
         consumerConfiguration.setSubscriptionInitialPosition(SubscriptionInitialPosition.Earliest);
+        consumerConfiguration.setAckReceiptEnabled(true);
 
         consumer = new RawConsumerImpl(client, consumerConfiguration,
                                        consumerFuture);
