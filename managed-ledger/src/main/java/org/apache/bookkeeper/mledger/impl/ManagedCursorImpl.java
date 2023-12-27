@@ -3400,6 +3400,7 @@ public class ManagedCursorImpl implements ManagedCursor {
         return individualDeletedMessages;
     }
 
+    @Override
     public boolean isMessageDeleted(Position position) {
         checkArgument(position instanceof PositionImpl);
         return ((PositionImpl) position).compareTo(markDeletePosition) <= 0

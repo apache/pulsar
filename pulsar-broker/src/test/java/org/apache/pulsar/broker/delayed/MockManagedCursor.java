@@ -415,4 +415,9 @@ public class MockManagedCursor implements ManagedCursor {
     public boolean isClosed() {
         return false;
     }
+
+    @Override
+    public boolean isMessageDeleted(Position position) {
+        return false;
+    }
 }

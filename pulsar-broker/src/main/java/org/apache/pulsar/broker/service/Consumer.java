@@ -1019,6 +1019,10 @@ public class Consumer {
         return pendingAcks;
     }
 
+    public boolean isPendingAck(long ledgerId, long entryId) {
+        return pendingAcks.containsKey(ledgerId, entryId);
+    }
+
     public int getPriorityLevel() {
         return priorityLevel;
     }
