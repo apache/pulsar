@@ -541,6 +541,10 @@ flexible messaging model and an intuitive client API.</description>
             <groupId>com.squareup.okio</groupId>
             <artifactId>okio</artifactId>
           </exclusion>
+          <exclusion>
+            <artifactId>jose4j</artifactId>
+            <groupId>org.bitbucket.b_c</groupId>
+          </exclusion>
         </exclusions>
       </dependency>
 
