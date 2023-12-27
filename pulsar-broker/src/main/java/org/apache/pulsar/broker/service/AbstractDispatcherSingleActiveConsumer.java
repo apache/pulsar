@@ -129,6 +129,10 @@ public abstract class AbstractDispatcherSingleActiveConsumer extends AbstractBas
 
         if (ACTIVE_CONSUMER_UPDATER.get(this) != null
                 && !ACTIVE_CONSUMER_UPDATER.get(this).getTransactionalAckTasks().isEmpty()) {
+            if (hasPriorityConsumer.get()) {
+                // Pick active consumer again by disconnect the current active consumer.
+                ACTIVE_CONSUMER_UPDATER.get(this).disconnect(false);
+            }
             // Active consumer did not change. Do nothing at this point
             return false;
         }
