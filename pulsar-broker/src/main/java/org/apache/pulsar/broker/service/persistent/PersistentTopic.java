@@ -3070,7 +3070,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         isEncryptionRequired = data.encryption_required;
         isAllowAutoUpdateSchema = data.is_allow_auto_update_schema;
 
-        // Update components.
+        // Apply policies for components.
         return FutureUtil.waitForAll(applyUpdatedPolicies(data))
             .thenAccept(__ -> log.info("[{}] namespace-level policies updated successfully", topic))
             .exceptionally(ex -> {
@@ -3772,7 +3772,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         shadowTopics = policies.getShadowTopics();
         checkReplicatedSubscriptionControllerState();
 
-        // Update components.
+        // Apply policies for components.
         FutureUtil.waitForAll(applyUpdatedPolicies(null))
             .thenAccept(__ -> log.info("[{}] topic-level policies updated successfully", topic))
             .exceptionally(e -> {
