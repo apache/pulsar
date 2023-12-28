@@ -42,6 +42,7 @@ import org.apache.bookkeeper.mledger.Position;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.service.persistent.ReplicatedSubscriptionsController;
+import org.apache.pulsar.client.admin.LongRunningProcessStatus;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
@@ -820,6 +821,66 @@ public class ReplicatorSubscriptionTest extends ReplicatorTestBase {
         pulsar1.getConfiguration().setForceDeleteNamespaceAllowed(true);
         admin1.namespaces().deleteNamespace(namespace, true);
         pulsar1.getConfiguration().setForceDeleteNamespaceAllowed(false);
+    }
+
+    @Test
+    public void testReplicatedSubscriptionWithCompaction() throws Exception {
+        final String namespace = BrokerTestUtil.newUniqueName("pulsar/replicatedsubscription");
+        final String topicName = "persistent://" + namespace + "/testReplicatedSubscriptionWithCompaction";
+        final String subName = "sub";
+
+        admin1.namespaces().createNamespace(namespace);
+        admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r1", "r2"));
+        admin1.topics().createNonPartitionedTopic(topicName);
+        admin1.topicPolicies().setCompactionThreshold(topicName, 100 * 1024 * 1024L);
+
+        @Cleanup final PulsarClient client = PulsarClient.builder().serviceUrl(url1.toString())
+                .statsInterval(0, TimeUnit.SECONDS).build();
+
+        Producer<String> producer = client.newProducer(Schema.STRING).topic(topicName).create();
+        producer.newMessage().key("K1").value("V1").send();
+        producer.newMessage().key("K1").value("V2").send();
+        producer.close();
+
+        createReplicatedSubscription(client, topicName, subName, true);
+        Awaitility.await().untilAsserted(() -> {
+            Map<String, Boolean> status = admin1.topics().getReplicatedSubscriptionStatus(topicName, subName);
+            assertTrue(status.get(topicName));
+        });
+
+        Awaitility.await().untilAsserted(() -> {
+            PersistentTopic t1 = (PersistentTopic) pulsar1.getBrokerService()
+                .getTopic(topicName, false).get().get();
+        ReplicatedSubscriptionsController rsc1 = t1.getReplicatedSubscriptionController().get();
+        Assert.assertTrue(rsc1.getLastCompletedSnapshotId().isPresent());
+        assertEquals(t1.getPendingWriteOps().get(), 0L);
+        });
+
+        admin1.topics().triggerCompaction(topicName);
+
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(admin1.topics().compactionStatus(topicName).status,
+                    LongRunningProcessStatus.Status.SUCCESS);
+        });
+
+        @Cleanup
+        Consumer<String> consumer = client.newConsumer(Schema.STRING)
+                .topic(topicName)
+                .subscriptionName("sub2")
+                .subscriptionType(SubscriptionType.Exclusive)
+                .readCompacted(true)
+                .subscribe();
+        List<String> result = new ArrayList<>();
+        while (true) {
+            Message<String> receive = consumer.receive(2, TimeUnit.SECONDS);
+            if (receive == null) {
+                break;
+            }
+
+            result.add(receive.getValue());
+        }
+
+        Assert.assertEquals(result, List.of("V2"));
     }
 
     /**

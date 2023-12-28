@@ -32,6 +32,9 @@ import com.google.gson.JsonParser;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -93,10 +96,12 @@ import org.apache.pulsar.common.util.ObjectMapperFactory;
 @Parameters(commandDescription = "Operations on persistent topics")
 public class CmdTopics extends CmdBase {
     private final CmdTopics.PartitionedLookup partitionedLookup;
+    private final CmdTopics.DeleteCmd deleteCmd;
 
     public CmdTopics(Supplier<PulsarAdmin> admin) {
         super("topics", admin);
         partitionedLookup = new PartitionedLookup();
+        deleteCmd = new DeleteCmd();
         jcommander.addCommand("list", new ListCmd());
         jcommander.addCommand("list-partitioned-topics", new PartitionedTopicListCmd());
         jcommander.addCommand("permissions", new Permissions());
@@ -105,7 +110,7 @@ public class CmdTopics extends CmdBase {
         jcommander.addCommand("lookup", new Lookup());
         jcommander.addCommand("partitioned-lookup", partitionedLookup);
         jcommander.addCommand("bundle-range", new GetBundleRange());
-        jcommander.addCommand("delete", new DeleteCmd());
+        jcommander.addCommand("delete", deleteCmd);
         jcommander.addCommand("truncate", new TruncateCmd());
         jcommander.addCommand("unload", new UnloadCmd());
         jcommander.addCommand("subscriptions", new ListSubscriptions());
@@ -714,9 +719,12 @@ public class CmdTopics extends CmdBase {
             + "And the application is not able to connect to the topic(delete then re-create with same name) again "
             + "if the schema auto uploading is disabled. Besides, users should to use the truncate cmd to clean up "
             + "data of the topic instead of delete cmd if users continue to use this topic later.")
-    private class DeleteCmd extends CliCommand {
-        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
-        private java.util.List<String> params;
+    protected class DeleteCmd extends CliCommand {
+        @Parameter(description = "Provide either a single topic in the format 'persistent://tenant/namespace/topic', "
+                + "or a path to a file containing a list of topics, e.g., 'path://resources/topics.txt'. "
+                + "This parameter is required.",
+                required = true)
+        java.util.List<String> params;
 
         @Parameter(names = { "-f",
                 "--force" }, description = "Close all producer/consumer/replicator and delete topic forcefully")
@@ -726,10 +734,50 @@ public class CmdTopics extends CmdBase {
                 + "but the parameter is invalid and the schema is always deleted", hidden = true)
         private boolean deleteSchema = false;
 
+        @Parameter(names = {"-r", "regex"},
+                description = "Use a regex expression to match multiple topics for deletion.")
+        boolean regex = false;
+
+        @Parameter(names = {"--from-file"}, description = "Read a list of topics from a file for deletion.")
+        boolean readFromFile;
+
+
         @Override
-        void run() throws PulsarAdminException {
-            String topic = validateTopicName(params);
-            getTopics().delete(topic, force);
+        void run() throws PulsarAdminException, IOException {
+            if (readFromFile && regex) {
+                throw new ParameterException("Could not apply regex when read topics from file.");
+            }
+            if (readFromFile) {
+                String path = checkArgument(params);
+                List<String> topicsFromFile = Files.readAllLines(Path.of(path));
+                for (String t : topicsFromFile) {
+                    try {
+                        getTopics().delete(t, force);
+                    } catch (Exception e) {
+                        print("Failed to delete topic: " + t + ". Exception: " + e);
+                    }
+                }
+            } else {
+                String topic = validateTopicName(params);
+                if (regex) {
+                    String namespace = TopicName.get(topic).getNamespace();
+                    List<String> topics = getTopics().getList(namespace);
+                    topics = topics.stream().filter(s -> s.matches(topic)).toList();
+                    for (String t : topics) {
+                        try {
+                            getTopics().delete(t, force);
+                        } catch (Exception e) {
+                            print("Failed to delete topic: " + t + ". Exception: " + e);
+                        }
+                    }
+                } else {
+                    try {
+                        getTopics().delete(topic, force);
+                    } catch (Exception e) {
+                        print("Failed to delete topic: " + topic + ". Exception: " + e);
+                    }
+                }
+            }
         }
     }
 

@@ -1446,7 +1446,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                 continue;
             }
 
-            if (now - stateData.timestamp() > stateTombstoneDelayTimeInMillis) {
+            if (!isActiveState(state) && now - stateData.timestamp() > stateTombstoneDelayTimeInMillis) {
                 log.info("Found semi-terminal states to tombstone"
                         + " serviceUnit:{}, stateData:{}", serviceUnit, stateData);
                 tombstoneAsync(serviceUnit).whenComplete((__, e) -> {

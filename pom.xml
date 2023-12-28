@@ -140,8 +140,8 @@ flexible messaging model and an intuitive client API.</description>
     <snappy.version>1.1.10.5</snappy.version> <!-- ZooKeeper server -->
     <dropwizardmetrics.version>4.1.12.1</dropwizardmetrics.version> <!-- ZooKeeper server -->
     <curator.version>5.1.0</curator.version>
-    <netty.version>4.1.100.Final</netty.version>
-    <netty-iouring.version>0.0.21.Final</netty-iouring.version>
+    <netty.version>4.1.104.Final</netty.version>
+    <netty-iouring.version>0.0.24.Final</netty-iouring.version>
     <jetty.version>9.4.53.v20231009</jetty.version>
     <conscrypt.version>2.5.2</conscrypt.version>
     <jersey.version>2.34</jersey.version>
@@ -154,7 +154,7 @@ flexible messaging model and an intuitive client API.</description>
     <log4j2.version>2.18.0</log4j2.version>
     <bouncycastle.version>1.75</bouncycastle.version>
     <bouncycastle.bcpkix-fips.version>1.0.6</bouncycastle.bcpkix-fips.version>
-    <bouncycastle.bc-fips.version>1.0.2.3</bouncycastle.bc-fips.version>
+    <bouncycastle.bc-fips.version>1.0.2.4</bouncycastle.bc-fips.version>
     <jackson.version>2.14.2</jackson.version>
     <reflections.version>0.10.2</reflections.version>
     <swagger.version>1.6.2</swagger.version>
@@ -173,7 +173,7 @@ flexible messaging model and an intuitive client API.</description>
     <sketches.version>0.8.3</sketches.version>
     <hbc-core.version>2.2.0</hbc-core.version>
     <cassandra.version>3.11.2</cassandra.version>
-    <aerospike-client.version>4.4.20</aerospike-client.version>
+    <aerospike-client.version>4.5.0</aerospike-client.version>
     <kafka-client.version>3.4.0</kafka-client.version>
     <rabbitmq-client.version>5.18.0</rabbitmq-client.version>
     <aws-sdk.version>1.12.262</aws-sdk.version>
@@ -191,7 +191,6 @@ flexible messaging model and an intuitive client API.</description>
     <json-smart.version>2.4.10</json-smart.version>
     <opensearch.version>1.2.4</opensearch.version>
     <elasticsearch-java.version>8.5.2</elasticsearch-java.version>
-    <trino.version>368</trino.version>
     <debezium.version>1.9.7.Final</debezium.version>
     <debezium.postgresql.version>42.5.0</debezium.postgresql.version>
     <debezium.mysql.version>8.0.30</debezium.mysql.version>
@@ -542,6 +541,10 @@ flexible messaging model and an intuitive client API.</description>
           <exclusion>
             <groupId>com.squareup.okio</groupId>
             <artifactId>okio</artifactId>
+          </exclusion>
+          <exclusion>
+            <artifactId>jose4j</artifactId>
+            <groupId>org.bitbucket.b_c</groupId>
           </exclusion>
         </exclusions>
       </dependency>
@@ -1784,7 +1787,6 @@ flexible messaging model and an intuitive client API.</description>
 
             <!-- This is a text property file that contains just a class name -->
             <exclude>**/META-INF/services/com.scurrilous.circe.HashProvider</exclude>
-            <exclude>**/META-INF/services/io.trino.spi.Plugin</exclude>
 
             <!-- Django generated code -->
             <exclude>**/django/stats/migrations/*.py</exclude>
@@ -2222,7 +2224,6 @@ flexible messaging model and an intuitive client API.</description>
         <module>pulsar-testclient</module>
         <module>pulsar-broker-auth-athenz</module>
         <module>pulsar-client-auth-athenz</module>
-        <module>pulsar-sql</module>
         <module>pulsar-broker-auth-oidc</module>
         <module>pulsar-broker-auth-sasl</module>
         <module>pulsar-client-auth-sasl</module>
@@ -2255,6 +2256,8 @@ flexible messaging model and an intuitive client API.</description>
         <module>distribution</module>
         <module>docker</module>
         <module>tests</module>
+
+        <module>microbench</module>
       </modules>
     </profile>
 
@@ -2507,10 +2510,22 @@ flexible messaging model and an intuitive client API.</description>
     </profile>
 
     <profile>
-      <id>pulsar-sql-tests</id>
+      <id>microbench</id>
       <modules>
-        <module>pulsar-sql</module>
+        <module>microbench</module>
       </modules>
+      <properties>
+        <skipSourceReleaseAssembly>true</skipSourceReleaseAssembly>
+        <skipBuildDistribution>true</skipBuildDistribution>
+        <spotbugs.skip>true</spotbugs.skip>
+        <license.skip>true</license.skip>
+        <rat.skip>true</rat.skip>
+        <assembly.skipAssembly>true</assembly.skipAssembly>
+        <narPluginPhase>none</narPluginPhase>
+        <skipDocker>true</skipDocker>
+        <skipTests>true</skipTests>
+        <checkstyle.skip>true</checkstyle.skip>
+      </properties>
     </profile>
   </profiles>
 

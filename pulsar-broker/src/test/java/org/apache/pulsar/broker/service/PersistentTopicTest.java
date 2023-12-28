@@ -211,10 +211,9 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         doReturn(ctx).when(serverCnx).ctx();
         doReturn(CompletableFuture.completedFuture(true)).when(serverCnx).checkConnectionLiveness();
 
-        NamespaceService nsSvc = mock(NamespaceService.class);
+        NamespaceService nsSvc = pulsarTestContext.getPulsarService().getNamespaceService();
         NamespaceBundle bundle = mock(NamespaceBundle.class);
         doReturn(CompletableFuture.completedFuture(bundle)).when(nsSvc).getBundleAsync(any());
-        doReturn(nsSvc).when(pulsarTestContext.getPulsarService()).getNamespaceService();
         doReturn(true).when(nsSvc).isServiceUnitOwned(any());
         doReturn(true).when(nsSvc).isServiceUnitActive(any());
         doReturn(CompletableFuture.completedFuture(true)).when(nsSvc).isServiceUnitActiveAsync(any());

@@ -423,7 +423,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
                 List<CompletableFuture<Void>> futures = new ArrayList<>();
                 replicators.forEach((cluster, replicator) -> futures.add(replicator.disconnect()));
                 producers.values().forEach(producer -> futures.add(producer.disconnect()));
-                subscriptions.forEach((s, sub) -> futures.add(sub.disconnect()));
+                subscriptions.forEach((s, sub) -> futures.add(sub.close(true, Optional.empty())));
                 FutureUtil.waitForAll(futures).thenRun(() -> {
                     closeClientFuture.complete(null);
                 }).exceptionally(ex -> {
@@ -527,16 +527,21 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
         replicators.forEach((cluster, replicator) -> futures.add(replicator.disconnect()));
         if (disconnectClients) {
             futures.add(ExtensibleLoadManagerImpl.getAssignedBrokerLookupData(
-                    brokerService.getPulsar(), topic).thenAccept(lookupData ->
-                    producers.values().forEach(producer -> futures.add(producer.disconnect(lookupData)))
+                brokerService.getPulsar(), topic).thenAccept(lookupData -> {
+                    producers.values().forEach(producer -> futures.add(producer.disconnect(lookupData)));
+                    // Topics unloaded due to the ExtensibleLoadManager undergo closing twice: first with
+                    // disconnectClients = false, second with disconnectClients = true. The check below identifies the
+                    // cases when Topic.close is called outside the scope of the ExtensibleLoadManager. In these
+                    // situations, we must pursue the regular Subscription.close, as Topic.close is invoked just once.
+                    if (isTransferring()) {
+                        subscriptions.forEach((s, sub) -> futures.add(sub.disconnect(lookupData)));
+                    } else {
+                        subscriptions.forEach((s, sub) -> futures.add(sub.close(true, lookupData)));
+                    }
+                }
             ));
-        }
-        if (topicPublishRateLimiter != null) {
-            topicPublishRateLimiter.close();
-        }
-        subscriptions.forEach((s, sub) -> futures.add(sub.disconnect()));
-        if (this.resourceGroupPublishLimiter != null) {
-            this.resourceGroupPublishLimiter.unregisterRateLimitFunction(this.getName());
+        } else {
+            subscriptions.forEach((s, sub) -> futures.add(sub.close(false, Optional.empty())));
         }
 
         if (entryFilters != null) {
