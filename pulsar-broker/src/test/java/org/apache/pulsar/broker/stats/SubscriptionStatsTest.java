@@ -19,6 +19,8 @@
 package org.apache.pulsar.broker.stats;
 
 import static org.apache.pulsar.broker.BrokerTestUtil.spyWithClassAndConstructorArgs;
+import static org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient.Metric;
+import static org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient.parseMetrics;
 import static org.mockito.Mockito.mock;
 import com.google.common.collect.Multimap;
 import java.io.ByteArrayOutputStream;
@@ -35,7 +37,6 @@ import org.apache.pulsar.broker.service.EntryFilterSupport;
 import org.apache.pulsar.broker.service.plugin.EntryFilter;
 import org.apache.pulsar.broker.service.plugin.EntryFilterTest;
 import org.apache.pulsar.broker.service.plugin.EntryFilterWithClassLoader;
-import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsGenerator;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
@@ -85,7 +86,7 @@ public class SubscriptionStatsTest extends ProducerConsumerBase {
     @Test
     public void testConsumersAfterMarkDelete() throws PulsarClientException, PulsarAdminException {
         final String topicName = "persistent://my-property/my-ns/testConsumersAfterMarkDelete-"
-                + UUID.randomUUID().toString();
+                + UUID.randomUUID();
         final String subName = "my-sub";
 
         Consumer<byte[]> consumer1 = pulsarClient.newConsumer()
@@ -234,15 +235,15 @@ public class SubscriptionStatsTest extends ProducerConsumerBase {
         ByteArrayOutputStream output = new ByteArrayOutputStream();
         PrometheusMetricsGenerator.generate(pulsar, enableTopicStats, false, false, output);
         String metricsStr = output.toString();
-        Multimap<String, PrometheusMetricsClient.Metric> metrics = PrometheusMetricsClient.parseMetrics(metricsStr);
+        Multimap<String, Metric> metrics = parseMetrics(metricsStr);
 
-        Collection<PrometheusMetricsClient.Metric> throughFilterMetrics =
+        Collection<Metric> throughFilterMetrics =
                 metrics.get("pulsar_subscription_filter_processed_msg_count");
-        Collection<PrometheusMetricsClient.Metric> acceptedMetrics =
+        Collection<Metric> acceptedMetrics =
                 metrics.get("pulsar_subscription_filter_accepted_msg_count");
-        Collection<PrometheusMetricsClient.Metric> rejectedMetrics =
+        Collection<Metric> rejectedMetrics =
                 metrics.get("pulsar_subscription_filter_rejected_msg_count");
-        Collection<PrometheusMetricsClient.Metric> rescheduledMetrics =
+        Collection<Metric> rescheduledMetrics =
                 metrics.get("pulsar_subscription_filter_rescheduled_msg_count");
 
         if (enableTopicStats) {

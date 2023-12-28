@@ -1,16 +1,20 @@
 package org.apache.pulsar.broker.stats.prometheus;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Fail.fail;
 import static org.testng.Assert.assertTrue;
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Splitter;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Multimap;
 import io.restassured.RestAssured;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import org.apache.commons.lang3.tuple.Pair;
 
 public class PrometheusMetricsClient {
     private final String host;
@@ -38,7 +42,7 @@ public class PrometheusMetricsClient {
         // or
         // pulsar_subscriptions_count{cluster="standalone", namespace="public/default",
         // topic="persistent://public/default/test-2"} 0.0
-        Pattern pattern = Pattern.compile("^(\\w+)\\{([^\\}]+)\\}\\s([+-]?[\\d\\w\\.-]+)$");
+        Pattern pattern = Pattern.compile("^(\\w+)\\{([^}]+)}\\s([+-]?[\\d\\w.-]+)$");
         Pattern tagsPattern = Pattern.compile("(\\w+)=\"([^\"]+)\"(,\\s?)?");
 
         Splitter.on("\n").split(metrics).forEach(line -> {
@@ -100,6 +104,37 @@ public class PrometheusMetricsClient {
                     .stream()
                     .filter(metric -> metric.contains(labelName, labelValue))
                     .toList();
+        }
+
+        @SafeVarargs
+        public final List<Metric> findByNameAndLabels(String metricName, Pair<String, String>... nameValuePairs) {
+            return nameToDataPoints.get(metricName)
+                    .stream()
+                    .filter(metric -> {
+                        for (Pair<String, String> nameValuePair : nameValuePairs) {
+                            String labelName = nameValuePair.getLeft();
+                            String labelValue = nameValuePair.getRight();
+                            if (!metric.contains(labelName, labelValue)) {
+                                return false;
+                            }
+                        }
+                        return true;
+                    })
+                    .toList();
+        }
+
+        @SafeVarargs
+        public final Metric findSingleMetricByNameAndLabels(String metricName, Pair<String, String>... nameValuePairs) {
+            List<Metric> metricByNameAndLabels = findByNameAndLabels(metricName, nameValuePairs);
+            if (metricByNameAndLabels.size() != 1) {
+                fail("Expected to find 1 metric, but found the following: "+metricByNameAndLabels +
+                ". Metrics are = "+nameToDataPoints.get(metricName)+". Labels requested = "+ Arrays.toString(
+                        nameValuePairs));
+            }
+            assertThat(metricByNameAndLabels)
+                    .describedAs(metricByNameAndLabels.toString())
+                    .hasSize(1);
+            return metricByNameAndLabels.get(0);
         }
     }
 }

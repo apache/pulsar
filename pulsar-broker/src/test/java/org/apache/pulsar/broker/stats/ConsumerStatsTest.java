@@ -19,6 +19,8 @@
 package org.apache.pulsar.broker.stats;
 
 import static org.apache.pulsar.broker.BrokerTestUtil.spyWithClassAndConstructorArgs;
+import static org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient.Metric;
+import static org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient.parseMetrics;
 import static org.mockito.Mockito.mock;
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.AssertJUnit.assertEquals;
@@ -50,7 +52,6 @@ import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.service.plugin.EntryFilter;
 import org.apache.pulsar.broker.service.plugin.EntryFilterProducerTest;
 import org.apache.pulsar.broker.service.plugin.EntryFilterWithClassLoader;
-import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsGenerator;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
@@ -337,11 +338,11 @@ public class ConsumerStatsTest extends ProducerConsumerBase {
         PrometheusMetricsGenerator.generate(pulsar, exposeTopicLevelMetrics, true, true, output);
         String metricStr = output.toString(StandardCharsets.UTF_8);
 
-        Multimap<String, PrometheusMetricsClient.Metric> metricsMap = PrometheusMetricsClient.parseMetrics(metricStr);
-        Collection<PrometheusMetricsClient.Metric> ackRateMetric = metricsMap.get("pulsar_consumer_msg_ack_rate");
+        Multimap<String, Metric> metricsMap = parseMetrics(metricStr);
+        Collection<Metric> ackRateMetric = metricsMap.get("pulsar_consumer_msg_ack_rate");
 
         String rateOutMetricName = exposeTopicLevelMetrics ? "pulsar_consumer_msg_rate_out" : "pulsar_rate_out";
-        Collection<PrometheusMetricsClient.Metric> rateOutMetric = metricsMap.get(rateOutMetricName);
+        Collection<Metric> rateOutMetric = metricsMap.get(rateOutMetricName);
         Assert.assertTrue(ackRateMetric.size() > 0);
         Assert.assertTrue(rateOutMetric.size() > 0);
 

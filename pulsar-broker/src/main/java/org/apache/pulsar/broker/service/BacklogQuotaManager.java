@@ -48,8 +48,6 @@ public class BacklogQuotaManager {
     private final BacklogQuotaImpl defaultQuota;
     private final NamespaceResources namespaceResources;
 
-
-
     public BacklogQuotaManager(PulsarService pulsar) {
         double backlogQuotaGB = pulsar.getConfiguration().getBacklogQuotaDefaultLimitGB();
         this.defaultQuota = BacklogQuotaImpl.builder()
@@ -94,28 +92,28 @@ public class BacklogQuotaManager {
                 persistentTopic.getName(), quota.getPolicy());
         switch (quota.getPolicy()) {
             case consumer_backlog_eviction:
-            switch (backlogQuotaType) {
-                case destination_storage:
-                    dropBacklogForSizeLimit(persistentTopic, quota);
-                    topicBacklogQuotaMetrics.recordSizeBasedBacklogEviction();
-                    break;
-                case message_age:
-                    dropBacklogForTimeLimit(persistentTopic, quota, preciseTimeBasedBacklogQuotaCheck);
-                    topicBacklogQuotaMetrics.recordTimeBasedBacklogEviction();
-                    break;
-                default:
-                    break;
-            }
-            break;
-        case producer_exception:
-        case producer_request_hold:
-            if (!advanceSlowestSystemCursor(persistentTopic)) {
-                // The slowest is not a system cursor. Disconnecting producers to put backpressure.
-                disconnectProducers(persistentTopic);
-            }
-            break;
-        default:
-            break;
+                switch (backlogQuotaType) {
+                    case destination_storage:
+                        dropBacklogForSizeLimit(persistentTopic, quota);
+                        topicBacklogQuotaMetrics.recordSizeBasedBacklogEviction();
+                        break;
+                    case message_age:
+                        dropBacklogForTimeLimit(persistentTopic, quota, preciseTimeBasedBacklogQuotaCheck);
+                        topicBacklogQuotaMetrics.recordTimeBasedBacklogEviction();
+                        break;
+                    default:
+                        break;
+                }
+                break;
+            case producer_exception:
+            case producer_request_hold:
+                if (!advanceSlowestSystemCursor(persistentTopic)) {
+                    // The slowest is not a system cursor. Disconnecting producers to put backpressure.
+                    disconnectProducers(persistentTopic);
+                }
+                break;
+            default:
+                break;
         }
     }
 
@@ -200,7 +198,6 @@ public class BacklogQuotaManager {
      * @param quota
      *            Backlog quota set for the topic
      */
-    @SuppressWarnings("checkstyle:LineLength")
     private void dropBacklogForTimeLimit(PersistentTopic persistentTopic, BacklogQuota quota,
                                          boolean preciseTimeBasedBacklogQuotaCheck) {
         // If enabled precise time based backlog quota check, will expire message based on the timeBaseQuota

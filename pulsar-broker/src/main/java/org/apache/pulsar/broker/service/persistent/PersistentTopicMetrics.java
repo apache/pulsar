@@ -9,7 +9,6 @@ public class PersistentTopicMetrics {
     @Getter
     private final BacklogQuotaMetrics backlogQuotaMetrics = new BacklogQuotaMetrics();
 
-
     public static class BacklogQuotaMetrics {
         private final LongAdder timeBasedBacklogQuotaExceededEvictionCount = new LongAdder();
         private final LongAdder sizeBasedBacklogQuotaExceededEvictionCount = new LongAdder();

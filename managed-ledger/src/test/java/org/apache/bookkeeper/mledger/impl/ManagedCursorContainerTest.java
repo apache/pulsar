@@ -456,19 +456,19 @@ public class ManagedCursorContainerTest {
         ManagedCursor cursor1 = new MockManagedCursor(container, "test1", new PositionImpl(5, 5));
         container.add(cursor1, cursor1.getMarkDeletedPosition());
         assertEquals(container.getSlowestReaderPosition(), new PositionImpl(5, 5));
-        assertEqualsCursorAndMarkDelete(container.getCursorWithOldestMarkDeletePosition(),
+        assertEqualsCursorAndPosition(container.getCursorWithOldestPosition(),
                 cursor1, new PositionImpl(5, 5));
 
         ManagedCursor cursor2 = new MockManagedCursor(container, "test2", new PositionImpl(2, 2));
         container.add(cursor2, cursor2.getMarkDeletedPosition());
         assertEquals(container.getSlowestReaderPosition(), new PositionImpl(2, 2));
-        assertEqualsCursorAndMarkDelete(container.getCursorWithOldestMarkDeletePosition(),
+        assertEqualsCursorAndPosition(container.getCursorWithOldestPosition(),
                 cursor2, new PositionImpl(2, 2));
 
         ManagedCursor cursor3 = new MockManagedCursor(container, "test3", new PositionImpl(2, 0));
         container.add(cursor3, cursor3.getMarkDeletedPosition());
         assertEquals(container.getSlowestReaderPosition(), new PositionImpl(2, 0));
-        assertEqualsCursorAndMarkDelete(container.getCursorWithOldestMarkDeletePosition(),
+        assertEqualsCursorAndPosition(container.getCursorWithOldestPosition(),
                 cursor3, new PositionImpl(2, 0));
 
         assertEquals(container.toString(), "[test1=5:5, test2=2:2, test3=2:0]");
@@ -483,7 +483,7 @@ public class ManagedCursorContainerTest {
 
         cursor3.markDelete(new PositionImpl(3, 0));
         assertEquals(container.getSlowestReaderPosition(), new PositionImpl(2, 2));
-        assertEqualsCursorAndMarkDelete(container.getCursorWithOldestMarkDeletePosition(),
+        assertEqualsCursorAndPosition(container.getCursorWithOldestPosition(),
                 cursor2, new PositionImpl(2, 2));
 
         cursor2.markDelete(new PositionImpl(10, 5));
@@ -496,7 +496,7 @@ public class ManagedCursorContainerTest {
         container.removeCursor(cursor5.getName());
         container.removeCursor(cursor1.getName());
         assertEquals(container.getSlowestReaderPosition(), new PositionImpl(4, 0));
-        assertEqualsCursorAndMarkDelete(container.getCursorWithOldestMarkDeletePosition(),
+        assertEqualsCursorAndPosition(container.getCursorWithOldestPosition(),
                 cursor4, new PositionImpl(4, 0));
 
         assertTrue(container.hasDurableCursors());
@@ -533,15 +533,15 @@ public class ManagedCursorContainerTest {
         container.cursorUpdated(cursor2, cursor2.position);
 
         assertEquals(container.getSlowestReaderPosition(), new PositionImpl(5, 5));
-        assertEqualsCursorAndMarkDelete(container.getCursorWithOldestMarkDeletePosition(),
+        assertEqualsCursorAndPosition(container.getCursorWithOldestPosition(),
                 cursor1, new PositionImpl(5, 5));
     }
 
-    private void assertEqualsCursorAndMarkDelete(ManagedCursorContainer.CursorInfo cursorInfo,
-                                                 ManagedCursor expectedCursor,
-                                                 PositionImpl expectedMarkDeletePosition) {
+    private void assertEqualsCursorAndPosition(ManagedCursorContainer.CursorInfo cursorInfo,
+                                               ManagedCursor expectedCursor,
+                                               PositionImpl expectedPosition) {
         assertThat(cursorInfo.getCursor().getName()).isEqualTo(expectedCursor.getName());
-        assertThat(cursorInfo.getMarkDeletePosition()).isEqualTo(expectedMarkDeletePosition);
+        assertThat(cursorInfo.getPosition()).isEqualTo(expectedPosition);
     }
 
     @Test
@@ -777,22 +777,22 @@ public class ManagedCursorContainerTest {
         MockManagedCursor c2 = new MockManagedCursor(container, "test2", new PositionImpl(5, 1));
 
         container.add(c1, c1.getMarkDeletedPosition());
-        long version = container.getCursorWithOldestMarkDeletePosition().getVersion();
+        long version = container.getCursorWithOldestPosition().getVersion();
 
         container.add(c2, c2.getMarkDeletedPosition());
-        long newVersion = container.getCursorWithOldestMarkDeletePosition().getVersion();
+        long newVersion = container.getCursorWithOldestPosition().getVersion();
         // newVersion > version
         assertThat(ManagedCursorContainer.DataVersion.compareVersions(newVersion, version)).isPositive();
         version = newVersion;
 
         container.cursorUpdated(c2, new PositionImpl(5, 8));
-        newVersion = container.getCursorWithOldestMarkDeletePosition().getVersion();
+        newVersion = container.getCursorWithOldestPosition().getVersion();
         // newVersion > version
         assertThat(ManagedCursorContainer.DataVersion.compareVersions(newVersion, version)).isPositive();
         version = newVersion;
 
         container.removeCursor("test2");
-        newVersion = container.getCursorWithOldestMarkDeletePosition().getVersion();
+        newVersion = container.getCursorWithOldestPosition().getVersion();
         // newVersion > version
         assertThat(ManagedCursorContainer.DataVersion.compareVersions(newVersion, version)).isPositive();
     }

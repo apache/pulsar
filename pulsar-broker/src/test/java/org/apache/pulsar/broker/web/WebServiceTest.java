@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.broker.web;
 
+import static org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient.Metric;
+import static org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient.parseMetrics;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
@@ -51,7 +53,6 @@ import lombok.Cleanup;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsGenerator;
 import org.apache.pulsar.broker.testcontext.PulsarTestContext;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -104,31 +105,31 @@ public class WebServiceTest {
         ByteArrayOutputStream statsOut = new ByteArrayOutputStream();
         PrometheusMetricsGenerator.generate(pulsar, false, false, false, statsOut);
         String metricsStr = statsOut.toString();
-        Multimap<String, PrometheusMetricsClient.Metric> metrics = PrometheusMetricsClient.parseMetrics(metricsStr);
+        Multimap<String, Metric> metrics = parseMetrics(metricsStr);
 
-        Collection<PrometheusMetricsClient.Metric> maxThreads = metrics.get("pulsar_web_executor_max_threads");
-        Collection<PrometheusMetricsClient.Metric> minThreads = metrics.get("pulsar_web_executor_min_threads");
-        Collection<PrometheusMetricsClient.Metric> activeThreads = metrics.get("pulsar_web_executor_active_threads");
-        Collection<PrometheusMetricsClient.Metric> idleThreads = metrics.get("pulsar_web_executor_idle_threads");
-        Collection<PrometheusMetricsClient.Metric> currentThreads = metrics.get("pulsar_web_executor_current_threads");
+        Collection<Metric> maxThreads = metrics.get("pulsar_web_executor_max_threads");
+        Collection<Metric> minThreads = metrics.get("pulsar_web_executor_min_threads");
+        Collection<Metric> activeThreads = metrics.get("pulsar_web_executor_active_threads");
+        Collection<Metric> idleThreads = metrics.get("pulsar_web_executor_idle_threads");
+        Collection<Metric> currentThreads = metrics.get("pulsar_web_executor_current_threads");
 
-        for (PrometheusMetricsClient.Metric metric : maxThreads) {
+        for (Metric metric : maxThreads) {
             Assert.assertNotNull(metric.tags.get("cluster"));
             Assert.assertTrue(metric.value > 0);
         }
-        for (PrometheusMetricsClient.Metric metric : minThreads) {
+        for (Metric metric : minThreads) {
             Assert.assertNotNull(metric.tags.get("cluster"));
             Assert.assertTrue(metric.value > 0);
         }
-        for (PrometheusMetricsClient.Metric metric : activeThreads) {
+        for (Metric metric : activeThreads) {
             Assert.assertNotNull(metric.tags.get("cluster"));
             Assert.assertTrue(metric.value >= 0);
         }
-        for (PrometheusMetricsClient.Metric metric : idleThreads) {
+        for (Metric metric : idleThreads) {
             Assert.assertNotNull(metric.tags.get("cluster"));
             Assert.assertTrue(metric.value >= 0);
         }
-        for (PrometheusMetricsClient.Metric metric : currentThreads) {
+        for (Metric metric : currentThreads) {
             Assert.assertNotNull(metric.tags.get("cluster"));
             Assert.assertTrue(metric.value > 0);
         }

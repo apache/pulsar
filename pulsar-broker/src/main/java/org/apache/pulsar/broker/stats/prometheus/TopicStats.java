@@ -122,6 +122,7 @@ class TopicStats {
 
         timeBasedBacklogQuotaExceededEvictionCount = 0;
         sizeBasedBacklogQuotaExceededEvictionCount = 0;
+        backlogAgeSeconds = -1;
     }
 
     @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
@@ -462,7 +463,7 @@ class TopicStats {
         writeTopicMetric(stream, metricName, value, cluster, namespace, topic, splitTopicAndPartitionIndexLabel);
     }
 
-    @SuppressWarnings({"CheckStyle", "SameParameterValue"})
+    @SuppressWarnings("SameParameterValue")
     private static void writeBacklogQuotaMetric(PrometheusMetricStreams stream, String metricName, Number value,
                                                 String cluster, String namespace, String topic,
                                                 boolean splitTopicAndPartitionIndexLabel,

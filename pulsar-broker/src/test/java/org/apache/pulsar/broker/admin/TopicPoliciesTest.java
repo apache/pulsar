@@ -145,7 +145,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         @Cleanup
         Producer<byte[]> producer = pulsarClient.newProducer().topic(testTopic).create();
         HashMap<String, String> properties = new HashMap<>();
-        properties.put("backlogQuotaTypeLabel", "message_age");
+        properties.put("backlogQuotaType", "message_age");
         admin.topics().updateProperties(testTopic, properties);
         admin.topics().delete(topicName.toString(), true);
     }

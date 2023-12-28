@@ -29,7 +29,6 @@ import lombok.Value;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.commons.lang3.tuple.Pair;
-import org.slf4j.LoggerFactory;
 
 /**
  * Contains cursors for a ManagedLedger.
@@ -46,8 +45,6 @@ import org.slf4j.LoggerFactory;
  */
 public class ManagedCursorContainer implements Iterable<ManagedCursor> {
 
-    private static final org.slf4j.Logger log = LoggerFactory.getLogger(ManagedCursorContainer.class);
-
     /**
      * This field is incremented everytime the cursor information is updated.
      */
@@ -56,10 +53,14 @@ public class ManagedCursorContainer implements Iterable<ManagedCursor> {
     @Value
     public static class CursorInfo {
         ManagedCursor cursor;
-        PositionImpl markDeletePosition;
+        PositionImpl position;
 
-        // Use {@link  DataVersion#compareVersions(long, long)} to compare between two versions,
-        // since it rolls over to 0 once reaching Long.MAX_VALUE
+        /**
+         * Cursor info's version.
+         * <p>
+         * Use {@link  DataVersion#compareVersions(long, long)} to compare between two versions,
+         * since it rolls over to 0 once reaching Long.MAX_VALUE
+         */
         long version;
     }
 
@@ -150,7 +151,7 @@ public class ManagedCursorContainer implements Iterable<ManagedCursor> {
      * @param position position of the cursor to use for ordering, pass null if the cursor's position shouldn't be
      *                 tracked for the slowest reader.
      */
-    @SuppressWarnings("NonAtomicOperationOnVolatileField")
+    @SuppressWarnings("NonAtomicOperationOnVolatileField") // We have rw lock for that
     public void add(ManagedCursor cursor, Position position) {
         long stamp = rwLock.writeLock();
         try {
@@ -181,7 +182,7 @@ public class ManagedCursorContainer implements Iterable<ManagedCursor> {
         }
     }
 
-    @SuppressWarnings("NonAtomicOperationOnVolatileField")
+    @SuppressWarnings("NonAtomicOperationOnVolatileField") // we have rw lock for that
     public boolean removeCursor(String name) {
         long stamp = rwLock.writeLock();
         try {
@@ -224,7 +225,7 @@ public class ManagedCursorContainer implements Iterable<ManagedCursor> {
      * @return a pair of positions, representing the previous slowest reader and the new slowest reader (after the
      *         update).
      */
-    @SuppressWarnings("NonAtomicOperationOnVolatileField")
+    @SuppressWarnings("NonAtomicOperationOnVolatileField") // we have rw lock for that
     public Pair<PositionImpl, PositionImpl> cursorUpdated(ManagedCursor cursor, Position newPosition) {
         requireNonNull(cursor);
 
@@ -236,7 +237,6 @@ public class ManagedCursorContainer implements Iterable<ManagedCursor> {
             }
 
             PositionImpl previousSlowestConsumer = heap.get(0).position;
-            log.info("Cursor {} change position from {} to {}", cursor.getName(), item.position, newPosition);
             item.position = (PositionImpl) newPosition;
             version = DataVersion.incrementVersion(version);
 
@@ -282,10 +282,10 @@ public class ManagedCursorContainer implements Iterable<ManagedCursor> {
     }
 
     /**
-     * @return Returns the CursorInfo for the cursor with oldest mark-delete position, or null if there aren't
-     *         any tracked cursors
+     * @return Returns the CursorInfo for the cursor with the oldest position,
+     *         or null if there aren't any tracked cursors
      */
-    public CursorInfo getCursorWithOldestMarkDeletePosition() {
+    public CursorInfo getCursorWithOldestPosition() {
         long stamp = rwLock.readLock();
         try {
             if (heap.isEmpty()) {
