@@ -632,10 +632,13 @@ public class CmdPersistentTopics extends CmdBase {
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
 
-            Message<byte[]> message = getPersistentTopics().getMessageById(persistentTopic, ledgerId, entryId);
+            List<Message<byte[]>> messages = getPersistentTopics().getMessageById(persistentTopic, ledgerId, entryId,
+                    -1);
 
-            ByteBuf date = Unpooled.wrappedBuffer(message.getData());
-            System.out.println(ByteBufUtil.prettyHexDump(date));
+            messages.forEach(message -> {
+                ByteBuf date = Unpooled.wrappedBuffer(message.getData());
+                System.out.println(ByteBufUtil.prettyHexDump(date));
+            });
         }
     }
 

@@ -879,7 +879,7 @@ public class TopicsImpl extends BaseResource implements Topics {
                     @Override
                     public void completed(Response response) {
                         try {
-                            future.complete(getMessagesFromHttpResponse(tn.toString(), response));
+                            future.complete(getMessagesFromHttpResponse(tn.toString(), 0, response));
                         } catch (Exception e) {
                             future.completeExceptionally(getApiException(e));
                         }
@@ -954,7 +954,7 @@ public class TopicsImpl extends BaseResource implements Topics {
                     @Override
                     public void completed(Response response) {
                         try {
-                            List<Message<byte[]>> messages = getMessagesFromHttpResponse(tn.toString(), response);
+                            List<Message<byte[]>> messages = getMessagesFromHttpResponse(tn.toString(), -1, response);
                             if (messages.size() > 0) {
                                 future.complete(messages.get(0));
                             } else {
@@ -986,48 +986,13 @@ public class TopicsImpl extends BaseResource implements Topics {
     }
 
     @Override
+    @Deprecated
     public CompletableFuture<Message<byte[]>> getMessageByIdAsync(String topic, long ledgerId, long entryId) {
-        CompletableFuture<Message<byte[]>> future = new CompletableFuture<>();
-        getRemoteMessageById(topic, ledgerId, entryId).handle((r, ex) -> {
-            if (ex != null) {
-                if (ex instanceof NotFoundException) {
-                    log.warn("Exception '{}' occurred while trying to get message.", ex.getMessage());
-                    future.complete(r);
-                } else {
-                    future.completeExceptionally(ex);
-                }
-                return null;
-            }
-            future.complete(r);
-            return null;
-        });
-        return future;
-    }
-
-    private CompletableFuture<Message<byte[]>> getRemoteMessageById(String topic, long ledgerId, long entryId) {
-        TopicName topicName = validateTopic(topic);
-        WebTarget path = topicPath(topicName, "ledger", Long.toString(ledgerId), "entry", Long.toString(entryId));
-        final CompletableFuture<Message<byte[]>> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<Response>() {
-                    @Override
-                    public void completed(Response response) {
-                        try {
-                            future.complete(getMessagesFromHttpResponse(topicName.toString(), response).get(0));
-                        } catch (Exception e) {
-                            future.completeExceptionally(getApiException(e));
-                        }
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return getMessageByIdAsync(topic, ledgerId, entryId, 0).thenApply((r) -> r.get(0));
     }
 
     @Override
+    @Deprecated
     public Message<byte[]> getMessageById(String topic, long ledgerId, long entryId)
             throws PulsarAdminException {
         return sync(() -> getMessageByIdAsync(topic, ledgerId, entryId));
@@ -1257,7 +1222,8 @@ public class TopicsImpl extends BaseResource implements Topics {
         return TopicName.get(topic);
     }
 
-    private List<Message<byte[]>> getMessagesFromHttpResponse(String topic, Response response) throws Exception {
+    private List<Message<byte[]>> getMessagesFromHttpResponse(String topic, int batchIndex, Response response)
+            throws Exception {
 
         if (response.getStatus() != Status.OK.getStatusCode()) {
             throw getApiException(response);
@@ -1433,7 +1399,8 @@ public class TopicsImpl extends BaseResource implements Topics {
             }
 
             if (!isEncrypted && response.getHeaderString(BATCH_HEADER) != null) {
-                return getIndividualMsgsFromBatch(topic, msgId, data, properties, messageMetadata, brokerEntryMetadata);
+                return getIndividualMsgsFromBatch(topic, msgId, data, properties, messageMetadata, brokerEntryMetadata,
+                        batchIndex);
             }
 
             MessageImpl message = new MessageImpl(topic, msgId, properties,
@@ -1446,12 +1413,20 @@ public class TopicsImpl extends BaseResource implements Topics {
     }
 
     private List<Message<byte[]>> getIndividualMsgsFromBatch(String topic, String msgId, byte[] data,
-                                 Map<String, String> properties, MessageMetadata msgMetadataBuilder,
-                                                             BrokerEntryMetadata brokerEntryMetadata) {
+                                                             Map<String, String> properties,
+                                                             MessageMetadata msgMetadataBuilder,
+                                                             BrokerEntryMetadata brokerEntryMetadata,
+                                                             int batchIndex) {
         List<Message<byte[]>> ret = new ArrayList<>();
         int batchSize = Integer.parseInt(properties.get(BATCH_HEADER));
+        if (batchIndex >= batchSize) {
+            throw new IllegalArgumentException("batchIndex is greater than batchSize");
+        }
         ByteBuf buf = Unpooled.wrappedBuffer(data);
         for (int i = 0; i < batchSize; i++) {
+            if (batchIndex != -1 && batchIndex != i) {
+                continue;
+            }
             String batchMsgId = msgId + ":" + i;
             SingleMessageMetadata singleMessageMetadata = new SingleMessageMetadata();
             try {
@@ -2780,6 +2755,37 @@ public class TopicsImpl extends BaseResource implements Topics {
                 return createPartitionedTopicAsync(shadowTopic, sourceTopicMeta.partitions, shadowProperties);
             }
         });
+    }
+
+    @Override
+    public CompletableFuture<List<Message<byte[]>>> getMessageByIdAsync(String topic, long ledgerId, long entryId,
+                                                                        int batchIndex) {
+        TopicName topicName = validateTopic(topic);
+        WebTarget path = topicPath(topicName, "ledger", Long.toString(ledgerId), "entry", Long.toString(entryId));
+        final CompletableFuture<List<Message<byte[]>>> future = new CompletableFuture<>();
+        asyncGetRequest(path,
+                new InvocationCallback<Response>() {
+                    @Override
+                    public void completed(Response response) {
+                        try {
+                            future.complete(getMessagesFromHttpResponse(topicName.toString(), batchIndex, response));
+                        } catch (Exception e) {
+                            future.completeExceptionally(getApiException(e));
+                        }
+                    }
+
+                    @Override
+                    public void failed(Throwable throwable) {
+                        future.completeExceptionally(getApiException(throwable.getCause()));
+                    }
+                });
+        return future;
+    }
+
+    @Override
+    public List<Message<byte[]>> getMessageById(String topic, long ledgerId, long entryId, int batchIndex)
+            throws PulsarAdminException {
+        return sync(() -> getMessageByIdAsync(topic, ledgerId, entryId, batchIndex));
     }
 
     private static final Logger log = LoggerFactory.getLogger(TopicsImpl.class);

@@ -31,8 +31,12 @@ import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.assertTrue;
 import java.lang.reflect.Field;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -91,6 +95,7 @@ import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.data.TopicStats;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.zookeeper.KeeperException;
 import org.awaitility.Awaitility;
@@ -1379,6 +1384,57 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         } catch (Exception e) {
             Assert.assertNull(message4);
         }
+    }
+
+    @Test
+    public void testGetMessagesById() throws Exception {
+        TenantInfoImpl tenantInfo = new TenantInfoImpl(Set.of("role1", "role2"), Set.of("test"));
+        admin.tenants().createTenant("tenant-xyz", tenantInfo);
+        admin.namespaces().createNamespace("tenant-xyz/ns-abc", Set.of("test"));
+        final String topicName1 = "persistent://tenant-xyz/ns-abc/testGetMessagesById1";
+        final String topicName2 = "persistent://tenant-xyz/ns-abc/testGetMessagesById2";
+        admin.topics().createNonPartitionedTopic(topicName1);
+        admin.topics().createNonPartitionedTopic(topicName2);
+
+        int batchMessagesMaxMessagesPerBatch = 2;
+        @Cleanup
+        Producer<byte[]> producer1 = pulsarClient.newProducer()
+                .topic(topicName1)
+                .batchingMaxMessages(batchMessagesMaxMessagesPerBatch)
+                .batchingMaxPublishDelay(2, TimeUnit.SECONDS)
+                .enableBatching(true)
+                .create();
+
+        int numMessages = 10;
+        List<CompletableFuture<MessageId>> messageIds = new ArrayList<>();
+        for (int i = 0; i < numMessages; i++) {
+            String s = String.valueOf(i);
+            messageIds.add(producer1.newMessage().key(s).value(s.getBytes(StandardCharsets.UTF_8)).sendAsync());
+        }
+        FutureUtil.waitForAll(messageIds).get();
+
+        for (int i = 0; i < numMessages; i++) {
+            MessageIdImpl id = (MessageIdImpl) messageIds.get(i).get();
+            long ledgerId = id.getLedgerId();
+            long entryId = id.getEntryId();
+            List<Message<byte[]>> messagesById = admin.topics().getMessageById(topicName1, ledgerId, entryId, -1);
+            assertNotNull(messagesById);
+            assertEquals(messagesById.size(), batchMessagesMaxMessagesPerBatch);
+            assertTrue(messagesById.stream().allMatch(n -> {
+                MessageIdImpl actualMessageId = (MessageIdImpl) n.getMessageId();
+                return actualMessageId.getLedgerId() == ledgerId && actualMessageId.getEntryId() == entryId;
+            }));
+            for (int batchIndex = 0; batchIndex < batchMessagesMaxMessagesPerBatch; batchIndex++) {
+                messagesById = admin.topics().getMessageById(topicName1, ledgerId, entryId, batchIndex);
+                assertEquals(messagesById.size(), 1);
+                BatchMessageIdImpl actualMessageId = (BatchMessageIdImpl) messagesById.get(0).getMessageId();
+                assertEquals(actualMessageId.getBatchIndex(), batchIndex);
+                assertEquals(actualMessageId.getLedgerId(), ledgerId);
+                assertEquals(actualMessageId.getEntryId(), entryId);
+            }
+        }
+
+        assertThrows(PulsarAdminException.class, () -> admin.topics().getMessageById(topicName2, 2, 1, -1));
     }
 
     @Test

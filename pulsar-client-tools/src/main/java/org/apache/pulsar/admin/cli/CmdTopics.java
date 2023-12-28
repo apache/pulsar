@@ -1351,45 +1351,49 @@ public class CmdTopics extends CmdBase {
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
 
-            MessageImpl message = (MessageImpl) getTopics().getMessageById(persistentTopic, ledgerId, entryId);
-            if (message == null) {
+            List<Message<byte[]>> messages = getTopics()
+                    .getMessageById(persistentTopic, ledgerId, entryId, -1);
+            if (messages == null || messages.size() == 0) {
                 System.out.println("Cannot find any messages based on ledgerId:"
                         + ledgerId + " entryId:" + entryId);
             } else {
-                if (message.getMessageId() instanceof BatchMessageIdImpl) {
-                    BatchMessageIdImpl msgId = (BatchMessageIdImpl) message.getMessageId();
-                    System.out.println("Batch Message ID: " + msgId.getLedgerId() + ":" + msgId.getEntryId() + ":"
-                            + msgId.getBatchIndex());
-                } else {
-                    MessageIdImpl msgId = (MessageIdImpl) message.getMessageId();
-                    System.out.println("Message ID: " + msgId.getLedgerId() + ":" + msgId.getEntryId());
-                }
-
-                System.out.println("Publish time: " + message.getPublishTime());
-                System.out.println("Event time: " + message.getEventTime());
-                System.out.println("Redelivery count: " + message.getRedeliveryCount());
-
-                if (message.getDeliverAtTime() != 0) {
-                    System.out.println("Deliver at time: " + message.getDeliverAtTime());
-                }
-
-                if (message.getBrokerEntryMetadata() != null) {
-                    if (message.getBrokerEntryMetadata().hasBrokerTimestamp()) {
-                        System.out.println("Broker entry metadata timestamp: "
-                                + message.getBrokerEntryMetadata().getBrokerTimestamp());
+                messages.forEach(messageInterface -> {
+                    MessageImpl<byte[]> message = (MessageImpl<byte[]>) messageInterface;
+                    if (message.getMessageId() instanceof BatchMessageIdImpl) {
+                        BatchMessageIdImpl msgId = (BatchMessageIdImpl) message.getMessageId();
+                        System.out.println("Batch Message ID: " + msgId.getLedgerId() + ":" + msgId.getEntryId() + ":"
+                                + msgId.getBatchIndex());
+                    } else {
+                        MessageIdImpl msgId = (MessageIdImpl) message.getMessageId();
+                        System.out.println("Message ID: " + msgId.getLedgerId() + ":" + msgId.getEntryId());
                     }
-                    if (message.getBrokerEntryMetadata().hasIndex()) {
-                        System.out.println("Broker entry metadata index: "
-                                + message.getBrokerEntryMetadata().getIndex());
-                    }
-                }
 
-                if (message.getProperties().size() > 0) {
-                    System.out.println("Properties:");
-                    print(message.getProperties());
-                }
-                ByteBuf date = Unpooled.wrappedBuffer(message.getData());
-                System.out.println(ByteBufUtil.prettyHexDump(date));
+                    System.out.println("Publish time: " + message.getPublishTime());
+                    System.out.println("Event time: " + message.getEventTime());
+                    System.out.println("Redelivery count: " + message.getRedeliveryCount());
+
+                    if (message.getDeliverAtTime() != 0) {
+                        System.out.println("Deliver at time: " + message.getDeliverAtTime());
+                    }
+
+                    if (message.getBrokerEntryMetadata() != null) {
+                        if (message.getBrokerEntryMetadata().hasBrokerTimestamp()) {
+                            System.out.println("Broker entry metadata timestamp: "
+                                    + message.getBrokerEntryMetadata().getBrokerTimestamp());
+                        }
+                        if (message.getBrokerEntryMetadata().hasIndex()) {
+                            System.out.println("Broker entry metadata index: "
+                                    + message.getBrokerEntryMetadata().getIndex());
+                        }
+                    }
+
+                    if (message.getProperties().size() > 0) {
+                        System.out.println("Properties:");
+                        print(message.getProperties());
+                    }
+                    ByteBuf date = Unpooled.wrappedBuffer(message.getData());
+                    System.out.println(ByteBufUtil.prettyHexDump(date));
+                });
             }
         }
     }

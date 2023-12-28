@@ -1679,7 +1679,9 @@ public interface Topics {
      * @return the message indexed by the messageId
      * @throws PulsarAdminException
      *            Unexpected error
+     * @deprecated Use {@link #getMessageById(String, long, long, int)} instead.
      */
+    @Deprecated
     Message<byte[]> getMessageById(String topic, long ledgerId, long entryId) throws PulsarAdminException;
 
     /**
@@ -1691,7 +1693,9 @@ public interface Topics {
      * @param entryId
      *            Entry id
      * @return a future that can be used to track when the message is returned
+     * @deprecated Use {@link #getMessageByIdAsync(String, long, long, int)} instead.
      */
+    @Deprecated
     CompletableFuture<Message<byte[]>> getMessageByIdAsync(String topic, long ledgerId, long entryId);
 
     /**
@@ -4477,4 +4481,29 @@ public interface Topics {
     default CompletableFuture<Void> createShadowTopicAsync(String shadowTopic, String sourceTopic) {
         return createShadowTopicAsync(shadowTopic, sourceTopic, null);
     }
+
+    /**
+     * Get the message by its messageId via a topic subscription asynchronously.
+     *
+     * @param topic      Topic name
+     * @param ledgerId   Ledger id
+     * @param entryId    Entry id
+     * @param batchIndex Batch Index, -1 returns all batch message
+     * @return a future that can be used to track when the message is returned
+     */
+    CompletableFuture<List<Message<byte[]>>> getMessageByIdAsync(String topic, long ledgerId, long entryId,
+                                                                 int batchIndex);
+
+    /**
+     * Get the message by its messageId via a topic subscription.
+     *
+     * @param topic      Topic name
+     * @param ledgerId   Ledger id
+     * @param entryId    Entry id
+     * @param batchIndex Batch Index, -1 returns all batch message
+     * @return the message indexed by the messageId
+     * @throws PulsarAdminException Unexpected error
+     */
+    List<Message<byte[]>> getMessageById(String topic, long ledgerId, long entryId, int batchIndex)
+            throws PulsarAdminException;
 }
