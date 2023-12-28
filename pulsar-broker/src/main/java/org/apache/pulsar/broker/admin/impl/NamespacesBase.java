@@ -279,12 +279,6 @@ public abstract class NamespacesBase extends AdminResource {
                                         return old;
                                     });
                                 }
-                                allUserCreatedTopics.removeIf(t ->
-                                        allPartitionedTopics.contains(TopicName.get(t).getPartitionedTopicName()));
-                                allSystemTopics.removeIf(t ->
-                                        allPartitionedTopics.contains(TopicName.get(t).getPartitionedTopicName()));
-                                topicPolicy.removeIf(t ->
-                                        allPartitionedTopics.contains(TopicName.get(t).getPartitionedTopicName()));
                                 return markDeleteFuture.thenCompose(__ ->
                                                 internalDeleteTopicsAsync(allUserCreatedTopics))
                                         .thenCompose(ignore ->
@@ -474,7 +468,8 @@ public abstract class NamespacesBase extends AdminResource {
                 // clear z-node of local policies
                 .thenCompose(ignore -> getLocalPolicies().deleteLocalPoliciesAsync(namespaceName))
                 // clear /loadbalance/bundle-data
-                .thenCompose(ignore -> namespaceResources().deleteBundleDataAsync(namespaceName));
+                .thenCompose(ignore ->
+                        loadBalanceResources().getBundleDataResources().deleteBundleDataAsync(namespaceName));
 
     }
 
@@ -673,7 +668,9 @@ public abstract class NamespacesBase extends AdminResource {
         return validateNamespacePolicyOperationAsync(namespaceName, PolicyName.REPLICATION, PolicyOperation.WRITE)
                 .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
                 .thenApply(__ -> {
-                    checkNotNull(clusterIds, "ClusterIds should not be null");
+                    if (CollectionUtils.isEmpty(clusterIds)) {
+                        throw new RestException(Status.PRECONDITION_FAILED, "ClusterIds should not be null or empty");
+                    }
                     if (!namespaceName.isGlobal() && !(clusterIds.size() == 1
                             && clusterIds.get(0).equals(pulsar().getConfiguration().getClusterName()))) {
                             throw new RestException(Status.PRECONDITION_FAILED,
@@ -1181,7 +1178,8 @@ public abstract class NamespacesBase extends AdminResource {
 
     protected CompletableFuture<Void> internalSetPublishRateAsync(PublishRate maxPublishMessageRate) {
         log.info("[{}] Set namespace publish-rate {}/{}", clientAppId(), namespaceName, maxPublishMessageRate);
-        return validateSuperUserAccessAsync().thenCompose(__ -> updatePoliciesAsync(namespaceName, policies -> {
+        return validateNamespacePolicyOperationAsync(namespaceName, PolicyName.RATE, PolicyOperation.WRITE)
+                .thenCompose(__ -> updatePoliciesAsync(namespaceName, policies -> {
             policies.publishMaxMessageRate.put(pulsar().getConfiguration().getClusterName(), maxPublishMessageRate);
             log.info("[{}] Successfully updated the publish_max_message_rate for cluster on namespace {}",
                     clientAppId(), namespaceName);
@@ -1210,7 +1208,8 @@ public abstract class NamespacesBase extends AdminResource {
 
     protected CompletableFuture<Void> internalRemovePublishRateAsync() {
         log.info("[{}] Remove namespace publish-rate {}/{}", clientAppId(), namespaceName, topicName);
-        return validateSuperUserAccessAsync().thenCompose(__ -> updatePoliciesAsync(namespaceName, policies -> {
+        return validateNamespacePolicyOperationAsync(namespaceName, PolicyName.RATE, PolicyOperation.WRITE)
+                .thenCompose(__ -> updatePoliciesAsync(namespaceName, policies -> {
             if (policies.publishMaxMessageRate != null) {
                 policies.publishMaxMessageRate.remove(pulsar().getConfiguration().getClusterName());
             }
@@ -1230,7 +1229,8 @@ public abstract class NamespacesBase extends AdminResource {
     @SuppressWarnings("deprecation")
     protected CompletableFuture<Void> internalSetTopicDispatchRateAsync(DispatchRateImpl dispatchRate) {
         log.info("[{}] Set namespace dispatch-rate {}/{}", clientAppId(), namespaceName, dispatchRate);
-        return validateSuperUserAccessAsync().thenCompose(__ -> updatePoliciesAsync(namespaceName, policies -> {
+        return validateNamespacePolicyOperationAsync(namespaceName, PolicyName.RATE, PolicyOperation.WRITE)
+                .thenCompose(__ -> updatePoliciesAsync(namespaceName, policies -> {
             policies.topicDispatchRate.put(pulsar().getConfiguration().getClusterName(), dispatchRate);
             policies.clusterDispatchRate.put(pulsar().getConfiguration().getClusterName(), dispatchRate);
             log.info("[{}] Successfully updated the dispatchRate for cluster on namespace {}", clientAppId(),
@@ -1240,7 +1240,8 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     protected CompletableFuture<Void> internalDeleteTopicDispatchRateAsync() {
-        return validateSuperUserAccessAsync().thenCompose(__ -> updatePoliciesAsync(namespaceName, policies -> {
+        return validateNamespacePolicyOperationAsync(namespaceName, PolicyName.RATE, PolicyOperation.WRITE)
+                .thenCompose(__ -> updatePoliciesAsync(namespaceName, policies -> {
             policies.topicDispatchRate.remove(pulsar().getConfiguration().getClusterName());
             policies.clusterDispatchRate.remove(pulsar().getConfiguration().getClusterName());
             log.info("[{}] Successfully delete the dispatchRate for cluster on namespace {}", clientAppId(),
@@ -1257,7 +1258,7 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     protected CompletableFuture<Void> internalSetSubscriptionDispatchRateAsync(DispatchRateImpl dispatchRate) {
-        return validateSuperUserAccessAsync()
+        return validateNamespacePolicyOperationAsync(namespaceName, PolicyName.RATE, PolicyOperation.WRITE)
                 .thenCompose(__ -> updatePoliciesAsync(namespaceName, policies -> {
                     policies.subscriptionDispatchRate.put(pulsar().getConfiguration().getClusterName(), dispatchRate);
                     log.info("[{}] Successfully updated the subscriptionDispatchRate for cluster on namespace {}",
@@ -1267,7 +1268,7 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     protected CompletableFuture<Void> internalDeleteSubscriptionDispatchRateAsync() {
-        return validateSuperUserAccessAsync()
+        return validateNamespacePolicyOperationAsync(namespaceName, PolicyName.RATE, PolicyOperation.WRITE)
                 .thenCompose(__ -> updatePoliciesAsync(namespaceName, policies -> {
                     policies.subscriptionDispatchRate.remove(pulsar().getConfiguration().getClusterName());
                     log.info("[{}] Successfully delete the subscriptionDispatchRate for cluster on namespace {}",
@@ -1285,7 +1286,8 @@ public abstract class NamespacesBase extends AdminResource {
 
     protected CompletableFuture<Void> internalSetSubscribeRateAsync(SubscribeRate subscribeRate) {
         log.info("[{}] Set namespace subscribe-rate {}/{}", clientAppId(), namespaceName, subscribeRate);
-        return validateSuperUserAccessAsync().thenCompose(__ -> updatePoliciesAsync(namespaceName, policies -> {
+        return validateNamespacePolicyOperationAsync(namespaceName, PolicyName.RATE, PolicyOperation.WRITE)
+                .thenCompose(__ -> updatePoliciesAsync(namespaceName, policies -> {
             policies.clusterSubscribeRate.put(pulsar().getConfiguration().getClusterName(), subscribeRate);
             log.info("[{}] Successfully updated the subscribeRate for cluster on namespace {}", clientAppId(),
                     namespaceName);
@@ -1294,7 +1296,8 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     protected CompletableFuture<Void> internalDeleteSubscribeRateAsync() {
-        return validateSuperUserAccessAsync().thenCompose(__ -> updatePoliciesAsync(namespaceName, policies -> {
+        return validateNamespacePolicyOperationAsync(namespaceName, PolicyName.RATE, PolicyOperation.WRITE)
+                .thenCompose(__ -> updatePoliciesAsync(namespaceName, policies -> {
             policies.clusterSubscribeRate.remove(pulsar().getConfiguration().getClusterName());
             log.info("[{}] Successfully delete the subscribeRate for cluster on namespace {}", clientAppId(),
                     namespaceName);
@@ -1627,7 +1630,7 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     protected void internalSetInactiveTopic(InactiveTopicPolicies inactiveTopicPolicies) {
-        validateSuperUserAccess();
+        validateNamespacePolicyOperation(namespaceName, PolicyName.INACTIVE_TOPIC, PolicyOperation.WRITE);
         validatePoliciesReadOnlyAccess();
         internalSetPolicies("inactive_topic_policies", inactiveTopicPolicies);
     }
@@ -2013,7 +2016,7 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     protected void internalSetMaxSubscriptionsPerTopic(Integer maxSubscriptionsPerTopic){
-        validateSuperUserAccess();
+        validateNamespacePolicyOperationAsync(namespaceName, PolicyName.MAX_SUBSCRIPTIONS, PolicyOperation.WRITE);
         validatePoliciesReadOnlyAccess();
         if (maxSubscriptionsPerTopic != null && maxSubscriptionsPerTopic < 0) {
             throw new RestException(Status.PRECONDITION_FAILED,
@@ -2316,28 +2319,6 @@ public abstract class NamespacesBase extends AdminResource {
         }
     }
 
-    private void validateOffloadPolicies(OffloadPoliciesImpl offloadPolicies) {
-        if (offloadPolicies == null) {
-            log.warn("[{}] Failed to update offload configuration for namespace {}: offloadPolicies is null",
-                    clientAppId(), namespaceName);
-            throw new RestException(Status.PRECONDITION_FAILED,
-                    "The offloadPolicies must be specified for namespace offload.");
-        }
-        if (!offloadPolicies.driverSupported()) {
-            log.warn("[{}] Failed to update offload configuration for namespace {}: "
-                            + "driver is not supported, support value: {}",
-                    clientAppId(), namespaceName, OffloadPoliciesImpl.getSupportedDriverNames());
-            throw new RestException(Status.PRECONDITION_FAILED,
-                    "The driver is not supported, support value: " + OffloadPoliciesImpl.getSupportedDriverNames());
-        }
-        if (!offloadPolicies.bucketValid()) {
-            log.warn("[{}] Failed to update offload configuration for namespace {}: bucket must be specified",
-                    clientAppId(), namespaceName);
-            throw new RestException(Status.PRECONDITION_FAILED,
-                    "The bucket must be specified for namespace offload.");
-        }
-    }
-
    protected void internalRemoveMaxTopicsPerNamespace() {
         validateNamespacePolicyOperation(namespaceName, PolicyName.MAX_TOPICS, PolicyOperation.WRITE);
         internalSetMaxTopicsPerNamespace(null);
@@ -2543,7 +2524,7 @@ public abstract class NamespacesBase extends AdminResource {
      * Notion: don't re-use this logic.
      */
     protected void internalSetReplicatorDispatchRate(AsyncResponse asyncResponse, DispatchRateImpl dispatchRate) {
-        validateSuperUserAccessAsync()
+        validateNamespacePolicyOperationAsync(namespaceName, PolicyName.REPLICATION_RATE, PolicyOperation.WRITE)
                 .thenAccept(__ -> {
                     log.info("[{}] Set namespace replicator dispatch-rate {}/{}",
                             clientAppId(), namespaceName, dispatchRate);
@@ -2588,7 +2569,7 @@ public abstract class NamespacesBase extends AdminResource {
      * Notion: don't re-use this logic.
      */
     protected void internalRemoveReplicatorDispatchRate(AsyncResponse asyncResponse) {
-        validateSuperUserAccessAsync()
+        validateNamespacePolicyOperationAsync(namespaceName, PolicyName.REPLICATION_RATE, PolicyOperation.WRITE)
                 .thenCompose(__ -> namespaceResources().setPoliciesAsync(namespaceName, policies -> {
                     String clusterName = pulsar().getConfiguration().getClusterName();
                     policies.replicatorDispatchRate.remove(clusterName);
@@ -2668,5 +2649,30 @@ public abstract class NamespacesBase extends AdminResource {
                             clientAppId(), namespaceName, ex);
                     return null;
                 });
+    }
+
+    protected void internalEnableMigration(boolean migrated) {
+        validateSuperUserAccess();
+        try {
+            getLocalPolicies().setLocalPolicies(namespaceName, (policies) -> {
+                policies.migrated = migrated;
+                return policies;
+            });
+            log.info("Successfully updated migration on namespace {}", namespaceName);
+        } catch (Exception e) {
+            log.error("Failed to update migration on namespace {}", namespaceName, e);
+            throw new RestException(e);
+        }
+    }
+
+    protected Policies getDefaultPolicesIfNull(Policies policies) {
+        if (policies == null) {
+            policies = new Policies();
+        }
+        int defaultNumberOfBundles = config().getDefaultNumberOfNamespaceBundles();
+        if (policies.bundles == null) {
+            policies.bundles = getBundles(defaultNumberOfBundles);
+        }
+        return policies;
     }
 }

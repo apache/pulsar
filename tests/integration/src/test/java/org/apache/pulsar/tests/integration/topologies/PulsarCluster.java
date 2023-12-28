@@ -38,10 +38,10 @@ import java.util.function.Function;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.IOUtils;
+import org.apache.pulsar.client.impl.auth.AuthenticationTls;
 import org.apache.pulsar.tests.integration.containers.BKContainer;
 import org.apache.pulsar.tests.integration.containers.BrokerContainer;
 import org.apache.pulsar.tests.integration.containers.CSContainer;
-import org.apache.pulsar.tests.integration.containers.PrestoWorkerContainer;
 import org.apache.pulsar.tests.integration.containers.ProxyContainer;
 import org.apache.pulsar.tests.integration.containers.PulsarContainer;
 import org.apache.pulsar.tests.integration.containers.WorkerContainer;
@@ -92,12 +92,8 @@ public class PulsarCluster {
     private final Map<String, BrokerContainer> brokerContainers;
     private final Map<String, WorkerContainer> workerContainers;
     private final ProxyContainer proxyContainer;
-    private PrestoWorkerContainer prestoWorkerContainer;
-    @Getter
-    private Map<String, PrestoWorkerContainer> sqlFollowWorkerContainers;
     private Map<String, GenericContainer<?>> externalServices = Collections.emptyMap();
     private Map<String, Map<String, String>> externalServiceEnvs;
-    private final boolean enablePrestoWorker;
 
     private PulsarCluster(PulsarClusterSpec spec, CSContainer csContainer, boolean sharedCsContainer) {
 
@@ -105,16 +101,6 @@ public class PulsarCluster {
         this.sharedCsContainer = sharedCsContainer;
         this.clusterName = spec.clusterName();
         this.network = csContainer.getNetwork();
-        this.enablePrestoWorker = spec.enablePrestoWorker();
-
-        this.sqlFollowWorkerContainers = Maps.newTreeMap();
-        if (enablePrestoWorker) {
-            prestoWorkerContainer = buildPrestoWorkerContainer(
-                    PrestoWorkerContainer.NAME, true, null, null);
-        } else {
-            prestoWorkerContainer = null;
-        }
-
 
         this.zkContainer = new ZKContainer(clusterName);
         this.zkContainer
@@ -132,14 +118,16 @@ public class PulsarCluster {
         this.brokerContainers = Maps.newTreeMap();
         this.workerContainers = Maps.newTreeMap();
 
-        this.proxyContainer = new ProxyContainer(appendClusterName("pulsar-proxy"), ProxyContainer.NAME)
+        this.proxyContainer = new ProxyContainer(appendClusterName("pulsar-proxy"), ProxyContainer.NAME, spec.enableTls)
                 .withNetwork(network)
                 .withNetworkAliases(appendClusterName("pulsar-proxy"))
                 .withEnv("zkServers", appendClusterName(ZKContainer.NAME))
                 .withEnv("zookeeperServers", appendClusterName(ZKContainer.NAME))
                 .withEnv("configurationStoreServers", CSContainer.NAME + ":" + CS_PORT)
-                .withEnv("clusterName", clusterName)
+                .withEnv("clusterName", clusterName);
                 // enable mTLS
+        if (spec.enableTls) {
+            proxyContainer
                 .withEnv("webServicePortTls", String.valueOf(BROKER_HTTPS_PORT))
                 .withEnv("servicePortTls", String.valueOf(BROKER_PORT_TLS))
                 .withEnv("forwardAuthorizationCredentials", "true")
@@ -147,7 +135,15 @@ public class PulsarCluster {
                 .withEnv("tlsAllowInsecureConnection", "false")
                 .withEnv("tlsCertificateFilePath", "/pulsar/certificate-authority/server-keys/proxy.cert.pem")
                 .withEnv("tlsKeyFilePath", "/pulsar/certificate-authority/server-keys/proxy.key-pk8.pem")
-                .withEnv("tlsTrustCertsFilePath", "/pulsar/certificate-authority/certs/ca.cert.pem");
+                .withEnv("tlsTrustCertsFilePath", "/pulsar/certificate-authority/certs/ca.cert.pem")
+                .withEnv("brokerClientAuthenticationPlugin", AuthenticationTls.class.getName())
+                .withEnv("brokerClientAuthenticationParameters", String.format("tlsCertFile:%s,tlsKeyFile:%s", "/pulsar/certificate-authority/client-keys/admin.cert.pem", "/pulsar/certificate-authority/client-keys/admin.key-pk8.pem"))
+                .withEnv("tlsEnabledWithBroker", "true")
+                .withEnv("brokerClientTrustCertsFilePath", "/pulsar/certificate-authority/certs/ca.cert.pem")
+                .withEnv("brokerClientCertificateFilePath", "/pulsar/certificate-authority/server-keys/proxy.cert.pem")
+                .withEnv("brokerClientKeyFilePath", "/pulsar/certificate-authority/server-keys/proxy.key-pk8.pem");
+
+        }
         if (spec.proxyEnvs != null) {
             spec.proxyEnvs.forEach(this.proxyContainer::withEnv);
         }
@@ -184,7 +180,7 @@ public class PulsarCluster {
         // create brokers
         brokerContainers.putAll(
             runNumContainers("broker", spec.numBrokers(), (name) -> {
-                BrokerContainer brokerContainer = new BrokerContainer(clusterName, appendClusterName(name))
+                BrokerContainer brokerContainer = new BrokerContainer(clusterName, appendClusterName(name), spec.enableTls)
                         .withNetwork(network)
                         .withNetworkAliases(appendClusterName(name))
                         .withEnv("zkServers", appendClusterName(ZKContainer.NAME))
@@ -195,16 +191,19 @@ public class PulsarCluster {
                         .withEnv("loadBalancerOverrideBrokerNicSpeedGbps", "1")
                         // used in s3 tests
                         .withEnv("AWS_ACCESS_KEY_ID", "accesskey").withEnv("AWS_SECRET_KEY", "secretkey")
-                        .withEnv("maxMessageSize", "" + spec.maxMessageSize)
+                        .withEnv("maxMessageSize", "" + spec.maxMessageSize);
+                    if (spec.enableTls) {
                         // enable mTLS
-                        .withEnv("webServicePortTls", String.valueOf(BROKER_HTTPS_PORT))
-                        .withEnv("brokerServicePortTls", String.valueOf(BROKER_PORT_TLS))
-                        .withEnv("authenticateOriginalAuthData", "true")
-                        .withEnv("tlsRequireTrustedClientCertOnConnect", "true")
-                        .withEnv("tlsAllowInsecureConnection", "false")
-                        .withEnv("tlsCertificateFilePath", "/pulsar/certificate-authority/server-keys/broker.cert.pem")
-                        .withEnv("tlsKeyFilePath", "/pulsar/certificate-authority/server-keys/broker.key-pk8.pem")
-                        .withEnv("tlsTrustCertsFilePath", "/pulsar/certificate-authority/certs/ca.cert.pem");
+                        brokerContainer
+                            .withEnv("webServicePortTls", String.valueOf(BROKER_HTTPS_PORT))
+                            .withEnv("brokerServicePortTls", String.valueOf(BROKER_PORT_TLS))
+                            .withEnv("authenticateOriginalAuthData", "true")
+                            .withEnv("tlsAllowInsecureConnection", "false")
+                            .withEnv("tlsRequireTrustedClientCertOnConnect", "true")
+                            .withEnv("tlsTrustCertsFilePath", "/pulsar/certificate-authority/certs/ca.cert.pem")
+                            .withEnv("tlsCertificateFilePath", "/pulsar/certificate-authority/server-keys/broker.cert.pem")
+                            .withEnv("tlsKeyFilePath", "/pulsar/certificate-authority/server-keys/broker.key-pk8.pem");
+                    }
                     if (spec.queryLastMessage) {
                         brokerContainer.withEnv("bookkeeperExplicitLacIntervalInMills", "10");
                         brokerContainer.withEnv("bookkeeperUseV2WireProtocol", "false");
@@ -310,11 +309,6 @@ public class PulsarCluster {
         log.info("\tBinary Service Url : {}", getPlainTextServiceUrl());
         log.info("\tHttp Service Url : {}", getHttpServiceUrl());
 
-        if (enablePrestoWorker) {
-            log.info("Starting Presto Worker");
-            prestoWorkerContainer.start();
-        }
-
         // start external services
         this.externalServices = spec.externalServices;
         this.externalServiceEnvs = spec.externalServiceEnvs;
@@ -368,10 +362,6 @@ public class PulsarCluster {
         return containers;
     }
 
-    public PrestoWorkerContainer getPrestoWorkerContainer() {
-        return prestoWorkerContainer;
-    }
-
     public synchronized void stop() {
         if (PULSAR_CONTAINERS_LEAVE_RUNNING) {
             logIgnoringStopDueToLeaveRunning();
@@ -383,8 +373,6 @@ public class PulsarCluster {
         if (externalServices != null) {
             stopInParallel(externalServices.values());
         }
-
-        stopPrestoWorker();
 
         if (null != proxyContainer) {
             proxyContainer.stop();
@@ -413,90 +401,6 @@ public class PulsarCluster {
         containers.parallelStream()
                 .filter(Objects::nonNull)
                 .forEach(GenericContainer::stop);
-    }
-
-    public void startPrestoWorker() {
-        startPrestoWorker(null, null);
-    }
-
-    public void startPrestoWorker(String offloadDriver, String offloadProperties) {
-        log.info("[startPrestoWorker] offloadDriver: {}, offloadProperties: {}", offloadDriver, offloadProperties);
-        if (null == prestoWorkerContainer) {
-            prestoWorkerContainer = buildPrestoWorkerContainer(
-                    PrestoWorkerContainer.NAME, true, offloadDriver, offloadProperties);
-        }
-        prestoWorkerContainer.start();
-        log.info("[{}] Presto coordinator start finished.", prestoWorkerContainer.getContainerName());
-    }
-
-    public void stopPrestoWorker() {
-        if (PULSAR_CONTAINERS_LEAVE_RUNNING) {
-            logIgnoringStopDueToLeaveRunning();
-            return;
-        }
-        if (sqlFollowWorkerContainers != null && sqlFollowWorkerContainers.size() > 0) {
-            for (PrestoWorkerContainer followWorker : sqlFollowWorkerContainers.values()) {
-                followWorker.stop();
-                log.info("Stopped presto follow worker {}.", followWorker.getContainerName());
-            }
-            sqlFollowWorkerContainers.clear();
-            log.info("Stopped all presto follow workers.");
-        }
-        if (null != prestoWorkerContainer) {
-            prestoWorkerContainer.stop();
-            log.info("Stopped presto coordinator.");
-            prestoWorkerContainer = null;
-        }
-    }
-
-    public void startPrestoFollowWorkers(int numSqlFollowWorkers, String offloadDriver, String offloadProperties) {
-        log.info("start presto follow worker containers.");
-        sqlFollowWorkerContainers.putAll(runNumContainers(
-                "sql-follow-worker",
-                numSqlFollowWorkers,
-                (name) -> {
-                    log.info("build presto follow worker with name {}", name);
-                    return buildPrestoWorkerContainer(name, false, offloadDriver, offloadProperties);
-                }
-        ));
-        // Start workers that have been initialized
-        sqlFollowWorkerContainers.values().parallelStream().forEach(PrestoWorkerContainer::start);
-        log.info("Successfully started {} presto follow worker containers.", sqlFollowWorkerContainers.size());
-    }
-
-    private PrestoWorkerContainer buildPrestoWorkerContainer(String hostName, boolean isCoordinator,
-                                                             String offloadDriver, String offloadProperties) {
-        String resourcePath = isCoordinator ? "presto-coordinator-config.properties"
-                : "presto-follow-worker-config.properties";
-        PrestoWorkerContainer container = new PrestoWorkerContainer(
-                clusterName, hostName)
-                .withNetwork(network)
-                .withNetworkAliases(hostName)
-                .withEnv("clusterName", clusterName)
-                .withEnv("zkServers", ZKContainer.NAME)
-                .withEnv("zookeeperServers", ZKContainer.NAME + ":" + ZKContainer.ZK_PORT)
-                .withEnv("pulsar.metadata-url", "zk:" + ZKContainer.NAME + ":" + ZKContainer.ZK_PORT)
-                .withEnv("pulsar.web-service-url", "http://pulsar-broker-0:8080")
-                .withEnv("SQL_PREFIX_pulsar.max-message-size", "" + spec.maxMessageSize)
-                .withClasspathResourceMapping(
-                        resourcePath, "/pulsar/trino/conf/config.properties", BindMode.READ_WRITE);
-        if (spec.queryLastMessage) {
-            container.withEnv("pulsar.bookkeeper-use-v2-protocol", "false")
-                    .withEnv("pulsar.bookkeeper-explicit-interval", "10");
-        }
-        if (offloadDriver != null && offloadProperties != null) {
-            log.info("[startPrestoWorker] set offload env offloadDriver: {}, offloadProperties: {}",
-                    offloadDriver, offloadProperties);
-            // used to query from tiered storage
-            container.withEnv("SQL_PREFIX_pulsar.managed-ledger-offload-driver", offloadDriver);
-            container.withEnv("SQL_PREFIX_pulsar.offloader-properties", offloadProperties);
-            container.withEnv("SQL_PREFIX_pulsar.offloaders-directory", "/pulsar/offloaders");
-            container.withEnv("AWS_ACCESS_KEY_ID", "accesskey");
-            container.withEnv("AWS_SECRET_KEY", "secretkey");
-        }
-        log.info("[{}] build presto worker container. isCoordinator: {}, resourcePath: {}",
-                container.getContainerName(), isCoordinator, resourcePath);
-        return container;
     }
 
     public synchronized void setupFunctionWorkers(String suffix, FunctionRuntimeType runtimeType, int numFunctionWorkers) {

@@ -18,9 +18,12 @@
  */
 package org.apache.pulsar.admin.cli;
 
+import static org.apache.pulsar.admin.cli.utils.CmdUtils.maxValueCheck;
+import static org.apache.pulsar.admin.cli.utils.CmdUtils.positiveCheck;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParameterException;
 import com.beust.jcommander.Parameters;
+import com.google.common.base.Strings;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
@@ -29,6 +32,13 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.cli.converters.ByteUnitIntegerConverter;
+import org.apache.pulsar.cli.converters.ByteUnitToLongConverter;
+import org.apache.pulsar.cli.converters.TimeUnitToMillisConverter;
+import org.apache.pulsar.cli.converters.TimeUnitToSecondsConverter;
+import org.apache.pulsar.cli.validators.IntegerMaxValueLongValidator;
+import org.apache.pulsar.cli.validators.MinNegativeOneValidator;
+import org.apache.pulsar.cli.validators.NonNegativeValueValidator;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.TopicPolicies;
@@ -47,7 +57,6 @@ import org.apache.pulsar.common.policies.data.PublishRate;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
-import org.apache.pulsar.common.util.RelativeTimeUtil;
 
 @Parameters(commandDescription = "Operations on persistent topics")
 public class CmdTopicPolicies extends CmdBase {
@@ -346,8 +355,10 @@ public class CmdTopicPolicies extends CmdBase {
 
         @Parameter(names = { "-t", "--ttl" },
                 description = "Message TTL for topic in seconds (or minutes, hours, days, weeks eg: 100m, 3h, 2d, 5w), "
-                        + "allowed range from 1 to Integer.MAX_VALUE", required = true)
-        private String messageTTLStr;
+                        + "allowed range from 1 to Integer.MAX_VALUE", required = true,
+                    converter = TimeUnitToSecondsConverter.class,
+                    validateValueWith = {NonNegativeValueValidator.class})
+        private Long messageTTLInSecond;
 
         @Parameter(names = { "--global", "-g" }, description = "Whether to set this policy globally. "
                 + "If set to true, broker returned global topic policies")
@@ -355,20 +366,8 @@ public class CmdTopicPolicies extends CmdBase {
 
         @Override
         void run() throws PulsarAdminException {
-            long messageTTLInSecond;
-            try {
-                messageTTLInSecond = RelativeTimeUtil.parseRelativeTimeInSeconds(messageTTLStr);
-            } catch (IllegalArgumentException e) {
-                throw new ParameterException(e.getMessage());
-            }
-
-            if (messageTTLInSecond < 0 || messageTTLInSecond > Integer.MAX_VALUE) {
-                throw new ParameterException(
-                        String.format("Message TTL cannot be negative or greater than %d seconds", Integer.MAX_VALUE));
-            }
-
             String persistentTopic = validatePersistentTopic(params);
-            getTopicPolicies(isGlobal).setMessageTTL(persistentTopic, (int) messageTTLInSecond);
+            getTopicPolicies(isGlobal).setMessageTTL(persistentTopic, messageTTLInSecond.intValue());
         }
     }
 
@@ -536,14 +535,17 @@ public class CmdTopicPolicies extends CmdBase {
                 + "For example, 100m, 3h, 2d, 5w. "
                 + "If the time unit is not specified, the default unit is seconds. For example, "
                 + "-t 120 sets retention to 2 minutes. "
-                + "0 means no retention and -1 means infinite time retention.", required = true)
-        private String retentionTimeStr;
+                + "0 means no retention and -1 means infinite time retention.", required = true,
+                converter = TimeUnitToSecondsConverter.class,
+                validateValueWith = MinNegativeOneValidator.class)
+        private Long retentionTimeInSec;
 
         @Parameter(names = { "--size", "-s" }, description = "Retention size limit with optional size unit suffix. "
                 + "For example, 4096, 10M, 16G, 3T.  The size unit suffix character can be k/K, m/M, g/G, or t/T.  "
                 + "If the size unit suffix is not specified, the default unit is bytes. "
-                + "0 or less than 1MB means no retention and -1 means infinite size retention", required = true)
-        private String limitStr;
+                + "0 or less than 1MB means no retention and -1 means infinite size retention", required = true,
+                converter = ByteUnitIntegerConverter.class)
+        private Integer sizeLimit;
 
         @Parameter(names = { "--global", "-g" }, description = "Whether to set this policy globally. "
                 + "If set to true, the policy is replicated to other clusters asynchronously, "
@@ -553,22 +555,12 @@ public class CmdTopicPolicies extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
-            long sizeLimit = validateSizeString(limitStr);
-            long retentionTimeInSec = RelativeTimeUtil.parseRelativeTimeInSeconds(retentionTimeStr);
-
-            final int retentionTimeInMin;
-            if (retentionTimeInSec != -1) {
-                retentionTimeInMin = (int) TimeUnit.SECONDS.toMinutes(retentionTimeInSec);
-            } else {
-                retentionTimeInMin = -1;
-            }
-
-            final int retentionSizeInMB;
-            if (sizeLimit != -1) {
-                retentionSizeInMB = (int) (sizeLimit / (1024 * 1024));
-            } else {
-                retentionSizeInMB = -1;
-            }
+            final int retentionTimeInMin = retentionTimeInSec !=  -1
+                    ? (int) TimeUnit.SECONDS.toMinutes(retentionTimeInSec)
+                    : retentionTimeInSec.intValue();
+            final int retentionSizeInMB = sizeLimit != -1
+                    ? (int) (sizeLimit / (1024 * 1024))
+                    : sizeLimit;
             getTopicPolicies(isGlobal).setRetention(persistentTopic,
                     new RetentionPolicies(retentionTimeInMin, retentionSizeInMB));
         }
@@ -716,8 +708,9 @@ public class CmdTopicPolicies extends CmdBase {
 
         @Parameter(names = { "--time", "-t" }, description = "The tick time for when retrying on "
                 + "delayed delivery messages, affecting the accuracy of the delivery time compared to "
-                + "the scheduled time. (eg: 1s, 10s, 1m, 5h, 3d)")
-        private String delayedDeliveryTimeStr = "1s";
+                + "the scheduled time. (eg: 1s, 10s, 1m, 5h, 3d)",
+                converter = TimeUnitToMillisConverter.class)
+        private Long delayedDeliveryTimeInMills = 1000L;
 
         @Parameter(names = { "--global", "-g" }, description = "Whether to set this policy globally. "
                 + "If set to true, the policy will be replicate to other clusters asynchronously")
@@ -726,14 +719,6 @@ public class CmdTopicPolicies extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             String topicName = validateTopicName(params);
-            long delayedDeliveryTimeInMills;
-            try {
-                delayedDeliveryTimeInMills = TimeUnit.SECONDS.toMillis(
-                        RelativeTimeUtil.parseRelativeTimeInSeconds(delayedDeliveryTimeStr));
-            } catch (IllegalArgumentException exception) {
-                throw new ParameterException(exception.getMessage());
-            }
-
             if (enable == disable) {
                 throw new ParameterException("Need to specify either --enable or --disable");
             }
@@ -963,13 +948,16 @@ public class CmdTopicPolicies extends CmdBase {
         @Parameter(description = "persistent://tenant/namespace/topic", required = true)
         private java.util.List<String> params;
 
-        @Parameter(names = { "-l", "--limit" }, description = "Size limit (eg: 10M, 16G)")
-        private String limitStr = null;
+        @Parameter(names = { "-l", "--limit" }, description = "Size limit (eg: 10M, 16G)",
+                converter = ByteUnitToLongConverter.class)
+        private Long limit;
 
         @Parameter(names = { "-lt", "--limitTime" },
                 description = "Time limit in second (or minutes, hours, days, weeks eg: 100m, 3h, 2d, 5w), "
-                        + "non-positive number for disabling time limit.")
-        private String limitTimeStr = null;
+                        + "non-positive number for disabling time limit.",
+                converter = TimeUnitToSecondsConverter.class,
+                validateValueWith = IntegerMaxValueLongValidator.class)
+        private Long limitTimeInSec;
 
         @Parameter(names = { "-p", "--policy" }, description = "Retention policy to enforce when the limit is reached. "
                 + "Valid options are: [producer_request_hold, producer_exception, consumer_backlog_eviction]",
@@ -1009,27 +997,16 @@ public class CmdTopicPolicies extends CmdBase {
 
             if (backlogQuotaType == BacklogQuota.BacklogQuotaType.destination_storage) {
                 // set quota by storage size
-                if (limitStr == null) {
+                if (limit == null) {
                     throw new ParameterException("Quota type of 'destination_storage' needs a size limit");
                 }
-                long limit = validateSizeString(limitStr);
-                builder.limitSize((int) limit);
+                builder.limitSize(limit);
             } else {
                 // set quota by time
-                if (limitTimeStr == null) {
+                if (limitTimeInSec == null) {
                     throw new ParameterException("Quota type of 'message_age' needs a time limit");
                 }
-                long limitTimeInSec;
-                try {
-                    limitTimeInSec = RelativeTimeUtil.parseRelativeTimeInSeconds(limitTimeStr);
-                } catch (IllegalArgumentException e) {
-                    throw new ParameterException(e.getMessage());
-                }
-                if (limitTimeInSec > Integer.MAX_VALUE) {
-                    throw new ParameterException(
-                            String.format("Time limit cannot be greater than %d seconds", Integer.MAX_VALUE));
-                }
-                builder.limitTime((int) limitTimeInSec);
+                builder.limitTime(limitTimeInSec.intValue());
             }
             getTopicPolicies(isGlobal).setBacklogQuota(persistentTopic,
                     builder.build(),
@@ -1271,8 +1248,10 @@ public class CmdTopicPolicies extends CmdBase {
         @Parameter(names = { "--threshold", "-t" },
                 description = "Maximum number of bytes in a topic backlog before compaction is triggered "
                         + "(eg: 10M, 16G, 3T). 0 disables automatic compaction",
-                required = true)
-        private String thresholdStr = "0";
+                required = true,
+                    converter = ByteUnitToLongConverter.class)
+        private Long threshold = 0L;
+
         @Parameter(names = { "--global", "-g" }, description = "Whether to set this policy globally. "
                 + "If set to true, the policy will be replicate to other clusters asynchronously")
         private boolean isGlobal = false;
@@ -1280,7 +1259,6 @@ public class CmdTopicPolicies extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
-            long threshold = validateSizeString(thresholdStr);
             getTopicPolicies(isGlobal).setCompactionThreshold(persistentTopic, threshold);
         }
     }
@@ -1408,8 +1386,10 @@ public class CmdTopicPolicies extends CmdBase {
 
         @Parameter(names = {"--max-inactive-duration", "-t"},
                 description = "Max duration of topic inactivity in seconds, topics that are inactive for longer than "
-                        + "this value will be deleted (eg: 1s, 10s, 1m, 5h, 3d)", required = true)
-        private String deleteInactiveTopicsMaxInactiveDuration;
+                        + "this value will be deleted (eg: 1s, 10s, 1m, 5h, 3d)", required = true,
+                converter = TimeUnitToSecondsConverter.class,
+                validateValueWith = IntegerMaxValueLongValidator.class)
+        private Long maxInactiveDurationInSeconds;
 
         @Parameter(names = { "--delete-mode", "-m" }, description = "Mode of delete inactive topic, Valid options are: "
                 + "[delete_when_no_subscriptions, delete_when_subscriptions_caught_up]", required = true)
@@ -1422,14 +1402,6 @@ public class CmdTopicPolicies extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
-            long maxInactiveDurationInSeconds;
-            try {
-                maxInactiveDurationInSeconds = TimeUnit.SECONDS.toSeconds(
-                        RelativeTimeUtil.parseRelativeTimeInSeconds(deleteInactiveTopicsMaxInactiveDuration));
-            } catch (IllegalArgumentException exception) {
-                throw new ParameterException(exception.getMessage());
-            }
-
             if (enableDeleteWhileInactive == disableDeleteWhileInactive) {
                 throw new ParameterException("Need to specify either enable-delete-while-inactive or "
                         + "disable-delete-while-inactive");
@@ -1442,7 +1414,7 @@ public class CmdTopicPolicies extends CmdBase {
                         + "delete_when_subscriptions_caught_up");
             }
             getTopicPolicies(isGlobal).setInactiveTopicPolicies(persistentTopic, new InactiveTopicPolicies(deleteMode,
-                    (int) maxInactiveDurationInSeconds, enableDeleteWhileInactive));
+                    maxInactiveDurationInSeconds.intValue(), enableDeleteWhileInactive));
         }
     }
 
@@ -1764,24 +1736,24 @@ public class CmdTopicPolicies extends CmdBase {
         @Parameter(names = {"-m", "--maxBlockSizeInBytes"},
                 description = "ManagedLedger offload max block Size in bytes,"
                         + "s3 and google-cloud-storage requires this parameter")
-        private int maxBlockSizeInBytes;
+        private int maxBlockSizeInBytes = OffloadPoliciesImpl.DEFAULT_MAX_BLOCK_SIZE_IN_BYTES;
 
         @Parameter(names = {"-rb", "--readBufferSizeInBytes"},
                 description = "ManagedLedger offload read buffer size in bytes,"
                         + "s3 and google-cloud-storage requires this parameter")
-        private int readBufferSizeInBytes;
+        private int readBufferSizeInBytes = OffloadPoliciesImpl.DEFAULT_READ_BUFFER_SIZE_IN_BYTES;
 
         @Parameter(names = {"-t", "--offloadThresholdInBytes"}
-                , description = "ManagedLedger offload threshold in bytes", required = true)
-        private long offloadThresholdInBytes;
+                , description = "ManagedLedger offload threshold in bytes")
+        private Long offloadThresholdInBytes = OffloadPoliciesImpl.DEFAULT_OFFLOAD_THRESHOLD_IN_BYTES;
 
         @Parameter(names = {"-ts", "--offloadThresholdInSeconds"}
                 , description = "ManagedLedger offload threshold in seconds")
-        private Long offloadThresholdInSeconds;
+        private Long offloadThresholdInSeconds = OffloadPoliciesImpl.DEFAULT_OFFLOAD_THRESHOLD_IN_SECONDS;
 
         @Parameter(names = {"-dl", "--offloadDeletionLagInMillis"}
                 , description = "ManagedLedger offload deletion lag in bytes")
-        private Long offloadDeletionLagInMillis;
+        private Long offloadDeletionLagInMillis = OffloadPoliciesImpl.DEFAULT_OFFLOAD_DELETION_LAG_IN_MILLIS;
 
         @Parameter(
                 names = {"--offloadedReadPriority", "-orp"},
@@ -1798,9 +1770,37 @@ public class CmdTopicPolicies extends CmdBase {
                 + "If set to true, the policy will be replicate to other clusters asynchronously")
         private boolean isGlobal = false;
 
+        public final List<String> driverNames = OffloadPoliciesImpl.DRIVER_NAMES;
+
+        public boolean driverSupported(String driver) {
+            return driverNames.stream().anyMatch(d -> d.equalsIgnoreCase(driver));
+        }
+
+        public boolean isS3Driver(String driver) {
+            if (StringUtils.isEmpty(driver)) {
+                return false;
+            }
+            return driver.equalsIgnoreCase(driverNames.get(0)) || driver.equalsIgnoreCase(driverNames.get(1));
+        }
+
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
+
+            if (!driverSupported(driver)) {
+                throw new ParameterException("The driver " + driver + " is not supported, "
+                        + "(Possible values: " + String.join(",", driverNames) + ").");
+            }
+
+            if (isS3Driver(driver) && Strings.isNullOrEmpty(region) && Strings.isNullOrEmpty(endpoint)) {
+                throw new ParameterException(
+                        "Either s3ManagedLedgerOffloadRegion or s3ManagedLedgerOffloadServiceEndpoint must be set"
+                                + " if s3 offload enabled");
+            }
+            positiveCheck("maxBlockSizeInBytes", maxBlockSizeInBytes);
+            maxValueCheck("maxBlockSizeInBytes", maxBlockSizeInBytes, Integer.MAX_VALUE);
+            positiveCheck("readBufferSizeInBytes", readBufferSizeInBytes);
+            maxValueCheck("readBufferSizeInBytes", readBufferSizeInBytes, Integer.MAX_VALUE);
 
             OffloadedReadPriority offloadedReadPriority = OffloadPoliciesImpl.DEFAULT_OFFLOADED_READ_PRIORITY;
 

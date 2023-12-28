@@ -47,9 +47,9 @@ public class BrokerVersionFilter implements BrokerFilter {
      *
      */
     @Override
-    public CompletableFuture<Map<String, BrokerLookupData>> filter(Map<String, BrokerLookupData> brokers,
-                                                                   ServiceUnitId serviceUnit,
-                                                                   LoadManagerContext context) {
+    public CompletableFuture<Map<String, BrokerLookupData>> filterAsync(Map<String, BrokerLookupData> brokers,
+                                                                        ServiceUnitId serviceUnit,
+                                                                        LoadManagerContext context) {
         ServiceConfiguration conf = context.brokerConfiguration();
         if (!conf.isPreferLaterVersions() || brokers.isEmpty()) {
             return CompletableFuture.completedFuture(brokers);

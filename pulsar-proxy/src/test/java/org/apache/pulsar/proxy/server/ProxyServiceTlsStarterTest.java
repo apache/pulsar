@@ -75,6 +75,7 @@ public class ProxyServiceTlsStarterTest extends MockedPulsarServiceBaseTest {
 
     protected void doInitConf() throws Exception {
         super.doInitConf();
+        this.conf.setBrokerServicePortTls(Optional.of(0));
         this.conf.setTlsCertificateFilePath(PROXY_CERT_FILE_PATH);
         this.conf.setTlsKeyFilePath(PROXY_KEY_FILE_PATH);
     }
@@ -105,7 +106,9 @@ public class ProxyServiceTlsStarterTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testProduceAndConsumeMessageWithWebsocket() throws Exception {
+        @Cleanup("stop")
         HttpClient producerClient = new HttpClient();
+        @Cleanup("stop")
         WebSocketClient producerWebSocketClient = new WebSocketClient(producerClient);
         producerWebSocketClient.start();
         MyWebSocket producerSocket = new MyWebSocket();
@@ -116,7 +119,9 @@ public class ProxyServiceTlsStarterTest extends MockedPulsarServiceBaseTest {
         produceRequest.setContext("context");
         produceRequest.setPayload(Base64.getEncoder().encodeToString("my payload".getBytes()));
 
+        @Cleanup("stop")
         HttpClient consumerClient = new HttpClient();
+        @Cleanup("stop")
         WebSocketClient consumerWebSocketClient = new WebSocketClient(consumerClient);
         consumerWebSocketClient.start();
         MyWebSocket consumerSocket = new MyWebSocket();

@@ -83,20 +83,20 @@ public class BrokerIsolationPoliciesFilterTest {
         BrokerIsolationPoliciesFilter filter = new BrokerIsolationPoliciesFilter(isolationPoliciesHelper);
 
         // a. available-brokers: broker1, broker2, broker3 => result: broker1
-        Map<String, BrokerLookupData> result = filter.filter(new HashMap<>(Map.of(
+        Map<String, BrokerLookupData> result = filter.filterAsync(new HashMap<>(Map.of(
                 "broker1", getLookupData(),
                 "broker2", getLookupData(),
                 "broker3", getLookupData())), namespaceName, getContext()).get();
         assertEquals(result.keySet(), Set.of("broker1"));
 
         // b. available-brokers: broker2, broker3          => result: broker2
-        result = filter.filter(new HashMap<>(Map.of(
+        result = filter.filterAsync(new HashMap<>(Map.of(
                 "broker2", getLookupData(),
                 "broker3", getLookupData())), namespaceName, getContext()).get();
         assertEquals(result.keySet(), Set.of("broker2"));
 
         // c. available-brokers: broker3                   => result: NULL
-        result = filter.filter(new HashMap<>(Map.of(
+        result = filter.filterAsync(new HashMap<>(Map.of(
                 "broker3", getLookupData())), namespaceName, getContext()).get();
         assertTrue(result.isEmpty());
 
@@ -104,20 +104,20 @@ public class BrokerIsolationPoliciesFilterTest {
         setIsolationPolicies(policies, namespaceName, Set.of("broker1"), Set.of("broker2"), Set.of("broker3"), 2);
 
         // a. available-brokers: broker1, broker2, broker3 => result: broker1, broker2
-        result = filter.filter(new HashMap<>(Map.of(
+        result = filter.filterAsync(new HashMap<>(Map.of(
                 "broker1", getLookupData(),
                 "broker2", getLookupData(),
                 "broker3", getLookupData())), namespaceName, getContext()).get();
         assertEquals(result.keySet(), Set.of("broker1", "broker2"));
 
         // b. available-brokers: broker2, broker3          => result: broker2
-        result = filter.filter(new HashMap<>(Map.of(
+        result = filter.filterAsync(new HashMap<>(Map.of(
                 "broker2", getLookupData(),
                 "broker3", getLookupData())), namespaceName, getContext()).get();
         assertEquals(result.keySet(), Set.of("broker2"));
 
         // c. available-brokers: broker3                   => result: NULL
-        result = filter.filter(new HashMap<>(Map.of(
+        result = filter.filterAsync(new HashMap<>(Map.of(
                 "broker3", getLookupData())), namespaceName, getContext()).get();
         assertTrue(result.isEmpty());
     }
@@ -141,14 +141,14 @@ public class BrokerIsolationPoliciesFilterTest {
 
 
 
-        Map<String, BrokerLookupData> result = filter.filter(new HashMap<>(Map.of(
+        Map<String, BrokerLookupData> result = filter.filterAsync(new HashMap<>(Map.of(
                 "broker1", getLookupData(),
                 "broker2", getLookupData(),
                 "broker3", getLookupData())), namespaceBundle, getContext()).get();
         assertEquals(result.keySet(), Set.of("broker1", "broker2", "broker3"));
 
 
-        result = filter.filter(new HashMap<>(Map.of(
+        result = filter.filterAsync(new HashMap<>(Map.of(
                 "broker1", getLookupData(true, false),
                 "broker2", getLookupData(true, false),
                 "broker3", getLookupData())), namespaceBundle, getContext()).get();
@@ -156,13 +156,13 @@ public class BrokerIsolationPoliciesFilterTest {
 
         doReturn(false).when(namespaceBundle).hasNonPersistentTopic();
 
-        result = filter.filter(new HashMap<>(Map.of(
+        result = filter.filterAsync(new HashMap<>(Map.of(
                 "broker1", getLookupData(),
                 "broker2", getLookupData(),
                 "broker3", getLookupData())), namespaceBundle, getContext()).get();
         assertEquals(result.keySet(), Set.of("broker1", "broker2", "broker3"));
 
-        result = filter.filter(new HashMap<>(Map.of(
+        result = filter.filterAsync(new HashMap<>(Map.of(
                 "broker1", getLookupData(false, true),
                 "broker2", getLookupData(),
                 "broker3", getLookupData())), namespaceBundle, getContext()).get();

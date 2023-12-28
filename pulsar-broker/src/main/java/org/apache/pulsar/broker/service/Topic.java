@@ -196,6 +196,9 @@ public interface Topic {
 
     CompletableFuture<Void> close(boolean closeWithoutWaitingClientDisconnect);
 
+    CompletableFuture<Void> close(
+            boolean disconnectClients, boolean closeWithoutWaitingClientDisconnect);
+
     void checkGC();
 
     CompletableFuture<Void> checkClusterMigration();
@@ -216,29 +219,11 @@ public interface Topic {
 
     void checkMessageDeduplicationInfo();
 
-    void checkTopicPublishThrottlingRate();
+    void incrementPublishCount(Producer producer, int numOfMessages, long msgSizeInBytes);
 
-    void incrementPublishCount(int numOfMessages, long msgSizeInBytes);
-
-    void resetTopicPublishCountAndEnableReadIfRequired();
-
-    void resetBrokerPublishCountAndEnableReadIfRequired(boolean doneReset);
-
-    boolean isPublishRateExceeded();
-
-    boolean isTopicPublishRateExceeded(int msgSize, int numMessages);
-
-    boolean isResourceGroupRateLimitingEnabled();
-
-    boolean isResourceGroupPublishRateExceeded(int msgSize, int numMessages);
-
-    boolean isBrokerPublishRateExceeded();
+    boolean shouldProducerMigrate();
 
     boolean isReplicationBacklogExist();
-
-    void disableCnxAutoRead();
-
-    void enableCnxAutoRead();
 
     CompletableFuture<Void> onPoliciesUpdate(Policies data);
 
@@ -271,9 +256,13 @@ public interface Topic {
     TopicStatsImpl getStats(boolean getPreciseBacklog, boolean subscriptionBacklogSize,
                             boolean getEarliestTimeInBacklog);
 
+    TopicStatsImpl getStats(GetStatsOptions getStatsOptions);
+
     CompletableFuture<? extends TopicStatsImpl> asyncGetStats(boolean getPreciseBacklog,
                                                               boolean subscriptionBacklogSize,
                                                               boolean getEarliestTimeInBacklog);
+
+    CompletableFuture<? extends TopicStatsImpl> asyncGetStats(GetStatsOptions getStatsOptions);
 
     CompletableFuture<PersistentTopicInternalStats> getInternalStats(boolean includeLedgerMetadata);
 
@@ -328,6 +317,8 @@ public interface Topic {
     }
 
     boolean isPersistent();
+
+    boolean isTransferring();
 
     /* ------ Transaction related ------ */
 

@@ -19,6 +19,8 @@
 
 FROM ubuntu:22.04
 
+ARG JDK_MAJOR_VERSION=17
+
 # prepare the directory for pulsar related files
 RUN mkdir /pulsar
 
@@ -38,7 +40,7 @@ RUN mkdir -p /etc/apt/keyrings \
      && echo "deb [signed-by=/etc/apt/keyrings/adoptium.asc] https://packages.adoptium.net/artifactory/deb $(awk -F= '/^VERSION_CODENAME/{print$2}' /etc/os-release) main" | tee /etc/apt/sources.list.d/adoptium.list \
      && apt-get update \
      && apt-get -y dist-upgrade \
-     && apt-get -y install temurin-17-jdk
+     && apt-get -y install temurin-${JDK_MAJOR_VERSION:-17}-jdk
 
 # Compile and install gtest & gmock
 RUN cd /usr/src/googletest && \

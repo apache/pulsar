@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.broker.transaction.buffer;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import com.google.common.collect.Multimap;
 import com.google.common.collect.Sets;
@@ -34,6 +36,7 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.stats.PrometheusMetricsTest;
@@ -51,6 +54,7 @@ import org.apache.pulsar.client.api.transaction.TransactionBufferClient;
 import org.apache.pulsar.client.api.transaction.TransactionBufferClientException;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.client.impl.ClientCnx;
+import org.apache.pulsar.client.impl.ConnectionPool;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.common.api.proto.TxnAction;
 import org.apache.pulsar.common.naming.NamespaceName;
@@ -155,11 +159,13 @@ public class TransactionBufferClientTest extends TransactionTestBase {
                 break;
             }
         }
-        pulsarClient = PulsarClient.builder().serviceUrl(pulsarServiceList.get(0).getBrokerServiceUrl())
+        @Cleanup
+        PulsarClient localPulsarClient = PulsarClient.builder()
+                .serviceUrl(pulsarServiceList.get(0).getBrokerServiceUrl())
                 .enableTransaction(true).build();
         @Cleanup
-        Producer<byte[]> producer = pulsarClient.newProducer(Schema.BYTES).topic(topic1).create();
-        Transaction transaction = pulsarClient.newTransaction()
+        Producer<byte[]> producer = localPulsarClient.newProducer(Schema.BYTES).topic(topic1).create();
+        Transaction transaction = localPulsarClient.newTransaction()
                 .withTransactionTimeout(5, TimeUnit.HOURS)
                 .build().get();
         producer.newMessage(transaction).send();
@@ -253,14 +259,22 @@ public class TransactionBufferClientTest extends TransactionTestBase {
         assertEquals(pending.size(), 1);
     }
 
+    /**
+     * This is a flaky test.
+     */
     @Test
     public void testTransactionBufferClientTimeout() throws Exception {
         PulsarService pulsarService = pulsarServiceList.get(0);
-        PulsarClient mockClient = mock(PulsarClientImpl.class);
+        PulsarClientImpl mockClient = mock(PulsarClientImpl.class);
+        ConnectionPool connectionPool = mock(ConnectionPool.class);
+        when(mockClient.getCnxPool()).thenReturn(connectionPool);
         CompletableFuture<ClientCnx> completableFuture = new CompletableFuture<>();
         ClientCnx clientCnx = mock(ClientCnx.class);
         completableFuture.complete(clientCnx);
-        when(((PulsarClientImpl)mockClient).getConnection(anyString())).thenReturn(completableFuture);
+        when(mockClient.getConnection(anyString())).thenReturn(completableFuture);
+        when(mockClient.getConnection(anyString(), anyInt())).thenReturn(
+                CompletableFuture.completedFuture(Pair.of(clientCnx, false)));
+        when(mockClient.getConnection(any(), any(), anyInt())).thenReturn(completableFuture);
         ChannelHandlerContext cnx = mock(ChannelHandlerContext.class);
         when(clientCnx.ctx()).thenReturn(cnx);
         Channel channel = mock(Channel.class);
@@ -287,7 +301,9 @@ public class TransactionBufferClientTest extends TransactionTestBase {
         ConcurrentSkipListMap<Long, Object> outstandingRequests =
                 (ConcurrentSkipListMap<Long, Object>) field.get(transactionBufferHandler);
 
-        assertEquals(outstandingRequests.size(), 1);
+        Awaitility.await().atMost(1, TimeUnit.SECONDS).untilAsserted(() -> {
+            assertEquals(outstandingRequests.size(), 1);
+        });
 
         Awaitility.await().atLeast(2, TimeUnit.SECONDS).until(() -> {
             if (outstandingRequests.size() == 0) {
@@ -307,11 +323,12 @@ public class TransactionBufferClientTest extends TransactionTestBase {
     @Test
     public void testTransactionBufferChannelUnActive() throws PulsarServerException {
         PulsarService pulsarService = pulsarServiceList.get(0);
-        PulsarClient mockClient = mock(PulsarClientImpl.class);
-        CompletableFuture<ClientCnx> completableFuture = new CompletableFuture<>();
+        PulsarClientImpl mockClient = mock(PulsarClientImpl.class);
+        ConnectionPool connectionPool = mock(ConnectionPool.class);
+        when(mockClient.getCnxPool()).thenReturn(connectionPool);
         ClientCnx clientCnx = mock(ClientCnx.class);
-        completableFuture.complete(clientCnx);
-        when(((PulsarClientImpl)mockClient).getConnection(anyString())).thenReturn(completableFuture);
+        when(mockClient.getConnection(anyString(), anyInt())).thenReturn(
+                CompletableFuture.completedFuture(Pair.of(clientCnx, false)));
         ChannelHandlerContext cnx = mock(ChannelHandlerContext.class);
         when(clientCnx.ctx()).thenReturn(cnx);
         Channel channel = mock(Channel.class);

@@ -24,6 +24,7 @@ import com.auth0.jwt.interfaces.DecodedJWT;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.impl.DefaultJwtBuilder;
 import io.jsonwebtoken.security.Keys;
+import java.io.IOException;
 import java.security.KeyPair;
 import java.sql.Date;
 import java.time.Instant;
@@ -35,9 +36,11 @@ import java.util.List;
 import java.util.Properties;
 import java.util.Set;
 import javax.naming.AuthenticationException;
+import lombok.Cleanup;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationDataCommand;
 import org.testng.Assert;
+import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
@@ -83,15 +86,22 @@ public class AuthenticationProviderOpenIDTest {
         basicProvider.initialize(conf);
     }
 
+    @AfterClass
+    public void cleanup() throws IOException {
+        basicProvider.close();
+    }
+
     @Test
-    public void testNullToken() {
+    public void testNullToken() throws IOException {
+        @Cleanup
         AuthenticationProviderOpenID provider = new AuthenticationProviderOpenID();
         Assert.assertThrows(AuthenticationException.class,
                 () -> provider.authenticate(new AuthenticationDataCommand(null)));
     }
 
     @Test
-    public void testThatNullAlgFails() {
+    public void testThatNullAlgFails() throws IOException {
+        @Cleanup
         AuthenticationProviderOpenID provider = new AuthenticationProviderOpenID();
         Assert.assertThrows(AuthenticationException.class,
                 () -> provider.verifyJWT(null, null, null));
@@ -103,10 +113,15 @@ public class AuthenticationProviderOpenIDTest {
         Arrays.stream(supportedAlgorithms()).map(o -> (SignatureAlgorithm) o[0]).toList()
                 .forEach(unsupportedAlgs::remove);
         unsupportedAlgs.forEach(unsupportedAlg -> {
-            AuthenticationProviderOpenID provider = new AuthenticationProviderOpenID();
-            // We don't create a public key because it's irrelevant
-            Assert.assertThrows(AuthenticationException.class,
-                    () -> provider.verifyJWT(null, unsupportedAlg.getValue(), null));
+            try {
+                @Cleanup
+                AuthenticationProviderOpenID provider = new AuthenticationProviderOpenID();
+                // We don't create a public key because it's irrelevant
+                Assert.assertThrows(AuthenticationException.class,
+                        () -> provider.verifyJWT(null, unsupportedAlg.getValue(), null));
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
         });
     }
 
@@ -124,8 +139,9 @@ public class AuthenticationProviderOpenIDTest {
     }
 
     @Test
-    public void testThatSupportedAlgWithMismatchedPublicKeyFromDifferentAlgFamilyFails() {
+    public void testThatSupportedAlgWithMismatchedPublicKeyFromDifferentAlgFamilyFails() throws IOException {
         KeyPair keyPair = Keys.keyPairFor(SignatureAlgorithm.RS256);
+        @Cleanup
         AuthenticationProviderOpenID provider = new AuthenticationProviderOpenID();
         DefaultJwtBuilder defaultJwtBuilder = new DefaultJwtBuilder();
         addValidMandatoryClaims(defaultJwtBuilder, basicProviderAudience);
@@ -137,8 +153,9 @@ public class AuthenticationProviderOpenIDTest {
     }
 
     @Test
-    public void testThatSupportedAlgWithMismatchedPublicKeyFromSameAlgFamilyFails() {
+    public void testThatSupportedAlgWithMismatchedPublicKeyFromSameAlgFamilyFails() throws IOException {
         KeyPair keyPair = Keys.keyPairFor(SignatureAlgorithm.RS256);
+        @Cleanup
         AuthenticationProviderOpenID provider = new AuthenticationProviderOpenID();
         DefaultJwtBuilder defaultJwtBuilder = new DefaultJwtBuilder();
         addValidMandatoryClaims(defaultJwtBuilder, basicProviderAudience);
@@ -192,6 +209,7 @@ public class AuthenticationProviderOpenIDTest {
         KeyPair keyPair = Keys.keyPairFor(SignatureAlgorithm.RS256);
 
         // Set up the provider
+        @Cleanup
         AuthenticationProviderOpenID provider = new AuthenticationProviderOpenID();
         Properties props = new Properties();
         props.setProperty(AuthenticationProviderOpenID.ACCEPTED_TIME_LEEWAY_SECONDS, "10");
@@ -219,7 +237,8 @@ public class AuthenticationProviderOpenIDTest {
     }
 
     @Test
-    public void ensureEmptyIssuersFailsInitialization() {
+    public void ensureEmptyIssuersFailsInitialization() throws IOException {
+        @Cleanup
         AuthenticationProviderOpenID provider = new AuthenticationProviderOpenID();
         Properties props = new Properties();
         props.setProperty(AuthenticationProviderOpenID.ALLOWED_TOKEN_ISSUERS, "");
@@ -229,7 +248,8 @@ public class AuthenticationProviderOpenIDTest {
     }
 
     @Test
-    public void ensureEmptyIssuersFailsInitializationWithDisabledDiscoveryMode() {
+    public void ensureEmptyIssuersFailsInitializationWithDisabledDiscoveryMode() throws IOException {
+        @Cleanup
         AuthenticationProviderOpenID provider = new AuthenticationProviderOpenID();
         Properties props = new Properties();
         props.setProperty(AuthenticationProviderOpenID.ALLOWED_TOKEN_ISSUERS, "");
@@ -241,6 +261,7 @@ public class AuthenticationProviderOpenIDTest {
 
     @Test
     public void ensureEmptyIssuersWithK8sTrustedIssuerEnabledPassesInitialization() throws Exception {
+        @Cleanup
         AuthenticationProviderOpenID provider = new AuthenticationProviderOpenID();
         Properties props = new Properties();
         props.setProperty(AuthenticationProviderOpenID.ALLOWED_AUDIENCES, "my-audience");
@@ -253,6 +274,7 @@ public class AuthenticationProviderOpenIDTest {
 
     @Test
     public void ensureEmptyIssuersWithK8sPublicKeyEnabledPassesInitialization() throws Exception {
+        @Cleanup
         AuthenticationProviderOpenID provider = new AuthenticationProviderOpenID();
         Properties props = new Properties();
         props.setProperty(AuthenticationProviderOpenID.ALLOWED_AUDIENCES, "my-audience");
@@ -264,7 +286,8 @@ public class AuthenticationProviderOpenIDTest {
     }
 
     @Test
-    public void ensureNullIssuersFailsInitialization() {
+    public void ensureNullIssuersFailsInitialization() throws IOException {
+        @Cleanup
         AuthenticationProviderOpenID provider = new AuthenticationProviderOpenID();
         ServiceConfiguration config = new ServiceConfiguration();
         // Make sure this still defaults to null.
@@ -273,7 +296,8 @@ public class AuthenticationProviderOpenIDTest {
     }
 
     @Test
-    public void ensureInsecureIssuerFailsInitialization() {
+    public void ensureInsecureIssuerFailsInitialization() throws IOException {
+        @Cleanup
         AuthenticationProviderOpenID provider = new AuthenticationProviderOpenID();
         Properties props = new Properties();
         props.setProperty(AuthenticationProviderOpenID.ALLOWED_TOKEN_ISSUERS, "https://myissuer.com,http://myissuer.com");
@@ -293,6 +317,7 @@ public class AuthenticationProviderOpenIDTest {
     }
 
     @Test void ensureRoleClaimForStringReturnsRole() throws Exception {
+        @Cleanup
         AuthenticationProviderOpenID provider = new AuthenticationProviderOpenID();
         Properties props = new Properties();
         props.setProperty(AuthenticationProviderOpenID.ALLOWED_TOKEN_ISSUERS, "https://myissuer.com");
@@ -312,6 +337,7 @@ public class AuthenticationProviderOpenIDTest {
     }
 
     @Test void ensureRoleClaimForSingletonListReturnsRole() throws Exception {
+        @Cleanup
         AuthenticationProviderOpenID provider = new AuthenticationProviderOpenID();
         Properties props = new Properties();
         props.setProperty(AuthenticationProviderOpenID.ALLOWED_TOKEN_ISSUERS, "https://myissuer.com");
@@ -333,6 +359,7 @@ public class AuthenticationProviderOpenIDTest {
     }
 
     @Test void ensureRoleClaimForMultiEntryListReturnsFirstRole() throws Exception {
+        @Cleanup
         AuthenticationProviderOpenID provider = new AuthenticationProviderOpenID();
         Properties props = new Properties();
         props.setProperty(AuthenticationProviderOpenID.ALLOWED_TOKEN_ISSUERS, "https://myissuer.com");
@@ -354,6 +381,7 @@ public class AuthenticationProviderOpenIDTest {
     }
 
     @Test void ensureRoleClaimForEmptyListReturnsNull() throws Exception {
+        @Cleanup
         AuthenticationProviderOpenID provider = new AuthenticationProviderOpenID();
         Properties props = new Properties();
         props.setProperty(AuthenticationProviderOpenID.ALLOWED_TOKEN_ISSUERS, "https://myissuer.com");

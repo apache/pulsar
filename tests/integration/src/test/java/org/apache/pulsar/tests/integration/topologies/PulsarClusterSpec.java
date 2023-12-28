@@ -82,14 +82,6 @@ public class PulsarClusterSpec {
     int numFunctionWorkers = 0;
 
     /**
-     * Enable a Presto Worker Node
-     *
-     * @return the flag whether presto worker is enabled
-     */
-    @Default
-    boolean enablePrestoWorker = false;
-
-    /**
      * Allow to query the last message
      */
     @Default
@@ -177,4 +169,10 @@ public class PulsarClusterSpec {
      * Additional ports to expose on bookie containers.
      */
     List<Integer> bookieAdditionalPorts;
+
+    /**
+     * Enable TLS for connection.
+     */
+    @Default
+    boolean enableTls = false;
 }

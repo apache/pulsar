@@ -47,7 +47,7 @@ public class KafkaAbstractSinkTest {
     private static class DummySink extends KafkaAbstractSink<String, byte[]> {
 
         @Override
-        public KeyValue extractKeyValue(Record record) {
+        public KeyValue<String, byte[]> extractKeyValue(Record<byte[]> record) {
             return new KeyValue<>(record.getKey().orElse(null), record.getValue());
         }
     }
@@ -74,7 +74,7 @@ public class KafkaAbstractSinkTest {
 
     @Test
     public void testInvalidConfigWillThrownException() throws Exception {
-        KafkaAbstractSink sink = new DummySink();
+        KafkaAbstractSink<String, byte[]> sink = new DummySink();
         Map<String, Object> config = new HashMap<>();
         SinkContext sc = new SinkContext() {
             @Override
@@ -164,12 +164,12 @@ public class KafkaAbstractSinkTest {
             public CompletableFuture<ByteBuffer> getStateAsync(String key) {
                 return null;
             }
-            
+
             @Override
             public void deleteState(String key) {
-            	
+
             }
-            
+
             @Override
             public CompletableFuture<Void> deleteStateAsync(String key) {
             	return null;
@@ -178,6 +178,11 @@ public class KafkaAbstractSinkTest {
             @Override
             public PulsarClient getPulsarClient() {
                 return null;
+            }
+
+            @Override
+            public void fatal(Throwable t) {
+
             }
         };
         ThrowingRunnable openAndClose = ()->{
@@ -188,12 +193,12 @@ public class KafkaAbstractSinkTest {
                 sink.close();
             }
         };
-        expectThrows(NullPointerException.class, "Kafka topic is not set", openAndClose);
-        config.put("topic", "topic_2");
-        expectThrows(NullPointerException.class, "Kafka bootstrapServers is not set", openAndClose);
+        expectThrows(IllegalArgumentException.class, "bootstrapServers cannot be null", openAndClose);
         config.put("bootstrapServers", "localhost:6667");
-        expectThrows(NullPointerException.class, "Kafka acks mode is not set", openAndClose);
+        expectThrows(IllegalArgumentException.class, "acks cannot be null", openAndClose);
         config.put("acks", "1");
+        expectThrows(IllegalArgumentException.class, "topic cannot be null", openAndClose);
+        config.put("topic", "topic_2");
         config.put("batchSize", "-1");
         expectThrows(IllegalArgumentException.class, "Invalid Kafka Producer batchSize : -1", openAndClose);
         config.put("batchSize", "16384");

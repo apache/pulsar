@@ -81,6 +81,7 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.compaction.Compactor;
+import org.apache.pulsar.compaction.PulsarCompactionServiceFactory;
 import org.apache.zookeeper.CreateMode;
 import org.awaitility.Awaitility;
 import org.mockito.Mockito;
@@ -119,25 +120,12 @@ public class PrometheusMetricsTest extends BrokerTestBase {
 
     @Test
     public void testPublishRateLimitedTimes() throws Exception {
-        checkPublishRateLimitedTimes(true);
-        checkPublishRateLimitedTimes(false);
-    }
-
-    private void checkPublishRateLimitedTimes(boolean preciseRateLimit) throws Exception {
         cleanup();
-        if (preciseRateLimit) {
-            conf.setBrokerPublisherThrottlingTickTimeMillis(10000000);
-            conf.setMaxPublishRatePerTopicInMessages(1);
-            conf.setMaxPublishRatePerTopicInBytes(1);
-            conf.setBrokerPublisherThrottlingMaxMessageRate(100000);
-            conf.setBrokerPublisherThrottlingMaxByteRate(10000000);
-        } else {
-            conf.setBrokerPublisherThrottlingTickTimeMillis(1);
-            conf.setBrokerPublisherThrottlingMaxMessageRate(1);
-            conf.setBrokerPublisherThrottlingMaxByteRate(1);
-        }
+        conf.setMaxPublishRatePerTopicInMessages(1);
+        conf.setMaxPublishRatePerTopicInBytes(1);
+        conf.setBrokerPublisherThrottlingMaxMessageRate(100000);
+        conf.setBrokerPublisherThrottlingMaxByteRate(10000000);
         conf.setStatsUpdateFrequencyInSecs(100000000);
-        conf.setPreciseTopicPublishRateLimiterEnable(preciseRateLimit);
         setup();
         String ns1 = "prop/ns-abc1" + UUID.randomUUID();
         admin.namespaces().createNamespace(ns1, 1);
@@ -179,15 +167,9 @@ public class PrometheusMetricsTest extends BrokerTestBase {
                     assertEquals(item.value, 1);
                     return;
                 } else if (item.tags.get("topic").equals(topicName3)) {
-                    //When using precise rate limiting, we only trigger the rate limiting of the topic,
-                    // so if the topic is not using the same connection, the rate limiting times will be 0
-                    //When using asynchronous rate limiting, we will trigger the broker-level rate limiting,
-                    // and all connections will be limited at this time.
-                    if (preciseRateLimit) {
-                        assertEquals(item.value, 0);
-                    } else {
-                        assertEquals(item.value, 1);
-                    }
+                    // We only trigger the rate limiting of the topic, so if the topic is not using
+                    // the same connection, the rate limiting times will be 0
+                    assertEquals(item.value, 0);
                     return;
                 }
                 fail("should not fail");
@@ -246,14 +228,14 @@ public class PrometheusMetricsTest extends BrokerTestBase {
                 assertEquals(item.value, 3.0);
             }
         });
-        Collection<Metric> topicLoadTimesMetrics = metrics.get("topic_load_times");
-        Collection<Metric> topicLoadTimesCountMetrics = metrics.get("topic_load_times_count");
-        assertEquals(topicLoadTimesMetrics.size(), 6);
-        assertEquals(topicLoadTimesCountMetrics.size(), 1);
         Collection<Metric> pulsarTopicLoadTimesMetrics = metrics.get("pulsar_topic_load_times");
         Collection<Metric> pulsarTopicLoadTimesCountMetrics = metrics.get("pulsar_topic_load_times_count");
         assertEquals(pulsarTopicLoadTimesMetrics.size(), 6);
         assertEquals(pulsarTopicLoadTimesCountMetrics.size(), 1);
+        Collection<Metric> topicLoadTimeP999Metrics = metrics.get("pulsar_topic_load_time_99_9_percentile_ms");
+        Collection<Metric> topicLoadTimeFailedCountMetrics = metrics.get("pulsar_topic_load_failed_count");
+        assertEquals(topicLoadTimeP999Metrics.size(), 1);
+        assertEquals(topicLoadTimeFailedCountMetrics.size(), 1);
     }
 
     @Test
@@ -337,7 +319,7 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         assertEquals(cm.get(1).tags.get("topic"), "persistent://my-property/use/my-ns/my-topic1");
         assertEquals(cm.get(1).tags.get("namespace"), "my-property/use/my-ns");
 
-        cm = (List<Metric>) metrics.get("topic_load_times_count");
+        cm = (List<Metric>) metrics.get("pulsar_topic_load_times_count");
         assertEquals(cm.size(), 1);
         assertEquals(cm.get(0).tags.get("cluster"), "test");
 
@@ -1739,7 +1721,7 @@ public class PrometheusMetricsTest extends BrokerTestBase {
                     .value(data)
                     .send();
         }
-        Compactor compactor = pulsar.getCompactor();
+        Compactor compactor = ((PulsarCompactionServiceFactory)pulsar.getCompactionServiceFactory()).getCompactor();
         compactor.compact(topicName).get();
         statsOut = new ByteArrayOutputStream();
         PrometheusMetricsGenerator.generate(pulsar, true, false, false, statsOut);

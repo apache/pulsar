@@ -46,8 +46,10 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.admin.impl.PersistentTopicsBase;
 import org.apache.pulsar.broker.service.BrokerServiceException;
+import org.apache.pulsar.broker.service.GetStatsOptions;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.SubscriptionType;
@@ -380,6 +382,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiParam(value = "Offload policies for the specified topic") OffloadPoliciesImpl offloadPolicies) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
+            .thenAccept(__ -> validateOffloadPolicies(offloadPolicies))
             .thenCompose(__ -> internalSetOffloadPolicies(offloadPolicies, isGlobal))
             .thenRun(() -> asyncResponse.resume(Response.noContent().build()))
             .exceptionally(ex -> {
@@ -890,8 +893,15 @@ public class PersistentTopics extends PersistentTopicsBase {
         internalGetPartitionedMetadataAsync(authoritative, checkAllowAutoCreation)
                 .thenAccept(asyncResponse::resume)
                 .exceptionally(ex -> {
-                    if (!isRedirectException(ex)) {
-                        log.error("[{}] Failed to get partitioned metadata topic {}", clientAppId(), topicName, ex);
+                    Throwable t = FutureUtil.unwrapCompletionException(ex);
+                    if (!isRedirectException(t)) {
+                        if (AdminResource.isNotFoundException(t)) {
+                            log.error("[{}] Failed to get partitioned metadata topic {}: {}",
+                                    clientAppId(), topicName, ex.getMessage());
+                        } else {
+                            log.error("[{}] Failed to get partitioned metadata topic {}",
+                                    clientAppId(), topicName, t);
+                        }
                     }
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
@@ -1186,9 +1196,16 @@ public class PersistentTopics extends PersistentTopicsBase {
                     + "not to use when there's heavy traffic.")
             @QueryParam("subscriptionBacklogSize") @DefaultValue("true") boolean subscriptionBacklogSize,
             @ApiParam(value = "If return time of the earliest message in backlog")
-            @QueryParam("getEarliestTimeInBacklog") @DefaultValue("false") boolean getEarliestTimeInBacklog) {
+            @QueryParam("getEarliestTimeInBacklog") @DefaultValue("false") boolean getEarliestTimeInBacklog,
+            @ApiParam(value = "If exclude the publishers")
+            @QueryParam("excludePublishers") @DefaultValue("false") boolean excludePublishers,
+            @ApiParam(value = "If exclude the consumers")
+            @QueryParam("excludeConsumers") @DefaultValue("false") boolean excludeConsumers) {
         validateTopicName(tenant, namespace, encodedTopic);
-        internalGetStatsAsync(authoritative, getPreciseBacklog, subscriptionBacklogSize, getEarliestTimeInBacklog)
+        GetStatsOptions getStatsOptions =
+                new GetStatsOptions(getPreciseBacklog, subscriptionBacklogSize, getEarliestTimeInBacklog,
+                        excludePublishers, excludeConsumers);
+        internalGetStatsAsync(authoritative, getStatsOptions)
                 .thenAccept(asyncResponse::resume)
                 .exceptionally(ex -> {
                     // If the exception is not redirect exception we need to log it.
@@ -1288,15 +1305,20 @@ public class PersistentTopics extends PersistentTopicsBase {
                     + "not to use when there's heavy traffic.")
             @QueryParam("subscriptionBacklogSize") @DefaultValue("true") boolean subscriptionBacklogSize,
             @ApiParam(value = "If return the earliest time in backlog")
-            @QueryParam("getEarliestTimeInBacklog") @DefaultValue("false") boolean getEarliestTimeInBacklog) {
+            @QueryParam("getEarliestTimeInBacklog") @DefaultValue("false") boolean getEarliestTimeInBacklog,
+            @ApiParam(value = "If exclude the publishers")
+            @QueryParam("excludePublishers") @DefaultValue("false") boolean excludePublishers,
+            @ApiParam(value = "If exclude the consumers")
+            @QueryParam("excludeConsumers") @DefaultValue("false") boolean excludeConsumers) {
         try {
             validateTopicName(tenant, namespace, encodedTopic);
             if (topicName.isPartitioned()) {
                 throw new RestException(Response.Status.PRECONDITION_FAILED,
                         "Partitioned Topic Name should not contain '-partition-'");
             }
-            internalGetPartitionedStats(asyncResponse, authoritative, perPartition, getPreciseBacklog,
-                    subscriptionBacklogSize, getEarliestTimeInBacklog);
+            GetStatsOptions getStatsOptions = new GetStatsOptions(getPreciseBacklog, subscriptionBacklogSize,
+                    getEarliestTimeInBacklog, excludePublishers, excludeConsumers);
+            internalGetPartitionedStats(asyncResponse, authoritative, perPartition, getStatsOptions);
         } catch (WebApplicationException wae) {
             asyncResponse.resume(wae);
         } catch (Exception e) {
@@ -2217,7 +2239,6 @@ public class PersistentTopics extends PersistentTopicsBase {
     public void removeReplicationClusters(@Suspended final AsyncResponse asyncResponse,
             @PathParam("tenant") String tenant, @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
-            @QueryParam("backlogQuotaType") BacklogQuotaType backlogQuotaType,
             @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);

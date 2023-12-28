@@ -19,15 +19,14 @@
 package org.apache.pulsar.admin.cli;
 
 import com.beust.jcommander.Parameter;
-import com.beust.jcommander.ParameterException;
 import com.beust.jcommander.Parameters;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
+import org.apache.pulsar.cli.converters.TimeUnitToMillisConverter;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.policies.data.TransactionCoordinatorInfo;
-import org.apache.pulsar.common.util.RelativeTimeUtil;
 
 @Parameters(commandDescription = "Operations on transactions")
 public class CmdTransactions extends CmdBase {
@@ -56,9 +55,14 @@ public class CmdTransactions extends CmdBase {
                 description = "Whether to get information about lowWaterMarks stored in transaction buffer.")
         private boolean lowWaterMark;
 
+        @Parameter(names = {"-s", "--segment-stats"},
+                description = "Whether to get segment statistics.")
+        private boolean segmentStats = false;
+
         @Override
         void run() throws Exception {
-            print(getAdmin().transactions().getTransactionBufferStats(topic, lowWaterMark));
+            // Assuming getTransactionBufferStats method signature has been updated to accept the new parameter
+            print(getAdmin().transactions().getTransactionBufferStats(topic, lowWaterMark, segmentStats));
         }
     }
 
@@ -139,22 +143,17 @@ public class CmdTransactions extends CmdBase {
         private Integer coordinatorId;
 
         @Parameter(names = { "-t", "--time" }, description = "The transaction timeout time. "
-                + "(eg: 1s, 10s, 1m, 5h, 3d)", required = true)
-        private String timeoutStr = "1s";
+                + "(eg: 1s, 10s, 1m, 5h, 3d)", required = true,
+                converter = TimeUnitToMillisConverter.class)
+        private Long timeoutInMillis = 1L;
 
         @Override
         void run() throws Exception {
-            long timeout;
-            try {
-                timeout = TimeUnit.SECONDS.toMillis(RelativeTimeUtil.parseRelativeTimeInSeconds(timeoutStr));
-            } catch (IllegalArgumentException exception) {
-                throw new ParameterException(exception.getMessage());
-            }
             if (coordinatorId != null) {
                 print(getAdmin().transactions().getSlowTransactionsByCoordinatorId(coordinatorId,
-                        timeout, TimeUnit.MILLISECONDS));
+                        timeoutInMillis, TimeUnit.MILLISECONDS));
             } else {
-                print(getAdmin().transactions().getSlowTransactions(timeout, TimeUnit.MILLISECONDS));
+                print(getAdmin().transactions().getSlowTransactions(timeoutInMillis, TimeUnit.MILLISECONDS));
             }
         }
     }
@@ -185,6 +184,20 @@ public class CmdTransactions extends CmdBase {
         @Override
         void run() throws Exception {
             print(getAdmin().transactions().getPendingAckInternalStats(topic, subName, metadata));
+        }
+    }
+
+    @Parameters(commandDescription = "Get transaction buffer internal stats")
+    private class GetTransactionBufferInternalStats extends CliCommand {
+        @Parameter(names = {"-t", "--topic"}, description = "Topic name", required = true)
+        private String topic;
+
+        @Parameter(names = { "-m", "--metadata" }, description = "Flag to include ledger metadata")
+        private boolean metadata = false;
+
+        @Override
+        void run() throws Exception {
+            print(getAdmin().transactions().getTransactionBufferInternalStats(topic, metadata));
         }
     }
 
@@ -242,6 +255,7 @@ public class CmdTransactions extends CmdBase {
         super("transactions", admin);
         jcommander.addCommand("coordinator-internal-stats", new GetCoordinatorInternalStats());
         jcommander.addCommand("pending-ack-internal-stats", new GetPendingAckInternalStats());
+        jcommander.addCommand("buffer-snapshot-internal-stats", new GetTransactionBufferInternalStats());
         jcommander.addCommand("coordinator-stats", new GetCoordinatorStats());
         jcommander.addCommand("transaction-buffer-stats", new GetTransactionBufferStats());
         jcommander.addCommand("pending-ack-stats", new GetPendingAckStats());

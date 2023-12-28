@@ -65,6 +65,7 @@ import org.apache.pulsar.broker.service.EntryBatchIndexesAcks;
 import org.apache.pulsar.broker.service.EntryBatchSizes;
 import org.apache.pulsar.broker.service.RedeliveryTracker;
 import org.apache.pulsar.broker.service.StickyKeyConsumerSelector;
+import org.apache.pulsar.broker.service.plugin.EntryFilterProvider;
 import org.apache.pulsar.common.api.proto.KeySharedMeta;
 import org.apache.pulsar.common.api.proto.KeySharedMode;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
@@ -74,6 +75,7 @@ import org.apache.pulsar.common.protocol.Markers;
 import org.awaitility.Awaitility;
 import org.mockito.ArgumentCaptor;
 import org.testng.Assert;
+import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
@@ -103,12 +105,17 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
         doReturn(true).when(configMock).isSubscriptionKeySharedUseConsistentHashing();
         doReturn(1).when(configMock).getSubscriptionKeySharedConsistentHashingReplicaPoints();
         doReturn(true).when(configMock).isDispatcherDispatchMessagesInSubscriptionThread();
+        doReturn(false).when(configMock).isAllowOverrideEntryFilters();
 
         pulsarMock = mock(PulsarService.class);
         doReturn(configMock).when(pulsarMock).getConfiguration();
 
+        EntryFilterProvider mockEntryFilterProvider = mock(EntryFilterProvider.class);
+        when(mockEntryFilterProvider.getBrokerEntryFilters()).thenReturn(Collections.emptyList());
+
         brokerMock = mock(BrokerService.class);
         doReturn(pulsarMock).when(brokerMock).pulsar();
+        when(brokerMock.getEntryFilterProvider()).thenReturn(mockEntryFilterProvider);
 
         HierarchyTopicPolicies topicPolicies = new HierarchyTopicPolicies();
         topicPolicies.getMaxConsumersPerSubscription().updateBrokerValue(0);
@@ -148,14 +155,19 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
         );
 
         subscriptionMock = mock(PersistentSubscription.class);
+        when(subscriptionMock.getTopic()).thenReturn(topicMock);
         persistentDispatcher = new PersistentStickyKeyDispatcherMultipleConsumers(
                 topicMock, cursorMock, subscriptionMock, configMock,
                 new KeySharedMeta().setKeySharedMode(KeySharedMode.AUTO_SPLIT));
     }
 
+    @AfterMethod(alwaysRun = true)
     public void cleanup() {
+        if (persistentDispatcher != null && !persistentDispatcher.isClosed()) {
+            persistentDispatcher.close();
+        }
         if (orderedExecutor != null) {
-            orderedExecutor.shutdown();
+            orderedExecutor.shutdownNow();
             orderedExecutor = null;
         }
     }

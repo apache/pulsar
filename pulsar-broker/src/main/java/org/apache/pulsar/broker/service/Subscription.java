@@ -26,11 +26,12 @@ import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
+import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLookupData;
 import org.apache.pulsar.common.api.proto.CommandAck.AckType;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.api.proto.ReplicatedSubscriptionsSnapshot;
 
-public interface Subscription {
+public interface Subscription extends MessageExpirer {
 
     BrokerInterceptor interceptor();
 
@@ -64,15 +65,17 @@ public interface Subscription {
 
     List<Consumer> getConsumers();
 
-    CompletableFuture<Void> close();
-
     CompletableFuture<Void> delete();
 
     CompletableFuture<Void> deleteForcefully();
 
-    CompletableFuture<Void> disconnect();
+    CompletableFuture<Void> disconnect(Optional<BrokerLookupData> assignedBrokerLookupData);
+
+    CompletableFuture<Void> close(boolean disconnectConsumers, Optional<BrokerLookupData> assignedBrokerLookupData);
 
     CompletableFuture<Void> doUnsubscribe(Consumer consumer);
+
+    CompletableFuture<Void> doUnsubscribe(Consumer consumer, boolean forcefully);
 
     CompletableFuture<Void> clearBacklog();
 
@@ -83,10 +86,6 @@ public interface Subscription {
     CompletableFuture<Void> resetCursor(Position position);
 
     CompletableFuture<Entry> peekNthMessage(int messagePosition);
-
-    boolean expireMessages(int messageTTLInSeconds);
-
-    boolean expireMessages(Position position);
 
     void redeliverUnacknowledgedMessages(Consumer consumer, long consumerEpoch);
 
@@ -105,6 +104,8 @@ public interface Subscription {
     Map<String, String> getSubscriptionProperties();
 
     CompletableFuture<Void> updateSubscriptionProperties(Map<String, String> subscriptionProperties);
+
+    boolean isSubscriptionMigrated();
 
     default void processReplicatedSubscriptionSnapshot(ReplicatedSubscriptionsSnapshot snapshot) {
         // Default is no-op
@@ -134,4 +135,5 @@ public interface Subscription {
     static boolean isIndividualAckMode(SubType subType) {
         return SubType.Shared.equals(subType) || SubType.Key_Shared.equals(subType);
     }
+
 }

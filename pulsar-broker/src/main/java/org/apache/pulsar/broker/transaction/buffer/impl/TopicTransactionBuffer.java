@@ -37,6 +37,7 @@ import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.collections4.map.LinkedMap;
 import org.apache.pulsar.broker.service.BrokerServiceException;
@@ -101,6 +102,8 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
 
     private final AbortedTxnProcessor snapshotAbortedTxnProcessor;
 
+    private final AbortedTxnProcessor.SnapshotType snapshotType;
+
     public TopicTransactionBuffer(PersistentTopic topic) {
         super(State.None);
         this.topic = topic;
@@ -112,8 +115,10 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
         this.maxReadPosition = (PositionImpl) topic.getManagedLedger().getLastConfirmedEntry();
         if (topic.getBrokerService().getPulsar().getConfiguration().isTransactionBufferSegmentedSnapshotEnabled()) {
             snapshotAbortedTxnProcessor = new SnapshotSegmentAbortedTxnProcessorImpl(topic);
+            snapshotType = AbortedTxnProcessor.SnapshotType.Segment;
         } else {
             snapshotAbortedTxnProcessor = new SingleSnapshotAbortedTxnProcessorImpl(topic);
+            snapshotType = AbortedTxnProcessor.SnapshotType.Single;
         }
         this.recover();
     }
@@ -442,8 +447,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
         ongoingTxns.remove(txnID);
         if (!ongoingTxns.isEmpty()) {
             PositionImpl position = ongoingTxns.get(ongoingTxns.firstKey());
-            //max read position is less than first ongoing transaction message position, so entryId -1
-            maxReadPosition = PositionImpl.get(position.getLedgerId(), position.getEntryId() - 1);
+            maxReadPosition = ((ManagedLedgerImpl) topic.getManagedLedger()).getPreviousPosition(position);
         } else {
             maxReadPosition = (PositionImpl) topic.getManagedLedger().getLastConfirmedEntry();
         }
@@ -490,6 +494,11 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
     }
 
     @Override
+    public AbortedTxnProcessor.SnapshotType getSnapshotType() {
+        return snapshotType;
+    }
+
+    @Override
     public PositionImpl getMaxReadPosition() {
         if (checkIfReady() || checkIfNoSnapshot()) {
             return this.maxReadPosition;
@@ -509,9 +518,10 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
     }
 
     @Override
-    public TransactionBufferStats getStats(boolean lowWaterMarks) {
-        TransactionBufferStats transactionBufferStats = new TransactionBufferStats();
-        transactionBufferStats.lastSnapshotTimestamps = this.snapshotAbortedTxnProcessor.getLastSnapshotTimestamps();
+    public TransactionBufferStats getStats(boolean lowWaterMarks, boolean segmentStats) {
+        TransactionBufferStats transactionBufferStats = this.snapshotAbortedTxnProcessor
+                .generateSnapshotStats(segmentStats);
+        transactionBufferStats.snapshotType = snapshotType.toString();
         transactionBufferStats.state = this.getState().name();
         transactionBufferStats.maxReadPosition = this.maxReadPosition.toString();
         if (lowWaterMarks) {
@@ -522,6 +532,11 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
         transactionBufferStats.recoverStartTime = recoverTime.getRecoverStartTime();
         transactionBufferStats.recoverEndTime = recoverTime.getRecoverEndTime();
         return transactionBufferStats;
+    }
+
+    @Override
+    public TransactionBufferStats getStats(boolean lowWaterMarks) {
+        return getStats(lowWaterMarks, false);
     }
 
     @Override

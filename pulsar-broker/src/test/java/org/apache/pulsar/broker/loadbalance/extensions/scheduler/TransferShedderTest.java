@@ -384,7 +384,22 @@ public class TransferShedderTest {
             }
 
             @Override
+            public void start() throws LoadDataStoreException {
+
+            }
+
+            @Override
+            public void init() throws IOException {
+
+            }
+
+            @Override
             public void startTableView() throws LoadDataStoreException {
+
+            }
+
+            @Override
+            public void startProducer() throws LoadDataStoreException {
 
             }
         };
@@ -437,7 +452,22 @@ public class TransferShedderTest {
             }
 
             @Override
+            public void start() throws LoadDataStoreException {
+
+            }
+
+            @Override
+            public void init() throws IOException {
+
+            }
+
+            @Override
             public void startTableView() throws LoadDataStoreException {
+
+            }
+
+            @Override
+            public void startProducer() throws LoadDataStoreException {
 
             }
         };
@@ -764,9 +794,9 @@ public class TransferShedderTest {
             }
 
             @Override
-            public CompletableFuture<Map<String, BrokerLookupData>> filter(Map<String, BrokerLookupData> brokers,
-                                                                           ServiceUnitId serviceUnit,
-                                                                           LoadManagerContext context) {
+            public CompletableFuture<Map<String, BrokerLookupData>> filterAsync(Map<String, BrokerLookupData> brokers,
+                                                                                ServiceUnitId serviceUnit,
+                                                                                LoadManagerContext context) {
                 return FutureUtil.failedFuture(new BrokerFilterException("test"));
             }
         };
