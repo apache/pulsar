@@ -174,7 +174,6 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
                         policies = new Policies();
                     } else {
                         policies = optPolicies.get();
-                        lastUpdatedNamespacePolicies = policies;
                         updateTopicPolicyByNamespacePolicy(policies);
                         isEncryptionRequired = policies.encryption_required;
                         isAllowAutoUpdateSchema = policies.is_allow_auto_update_schema;
@@ -1128,7 +1127,6 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
 
         isEncryptionRequired = data.encryption_required;
         isAllowAutoUpdateSchema = data.is_allow_auto_update_schema;
-        lastUpdatedNamespacePolicies = data;
 
         List<CompletableFuture<Void>> producerCheckFutures = new ArrayList<>(producers.size());
         producers.values().forEach(producer -> producerCheckFutures.add(

@@ -366,8 +366,6 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
                     Policies policies = optPolicies.get();
 
-                    lastUpdatedNamespacePolicies = policies;
-
                     this.updateTopicPolicyByNamespacePolicy(policies);
 
                     initializeDispatchRateLimiterIfNeeded();
@@ -3071,10 +3069,9 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         checkReplicatedSubscriptionControllerState();
         isEncryptionRequired = data.encryption_required;
         isAllowAutoUpdateSchema = data.is_allow_auto_update_schema;
-        lastUpdatedNamespacePolicies = data;
 
         // Update components.
-        return FutureUtil.waitForAll(applyUpdatedPolicies())
+        return FutureUtil.waitForAll(applyUpdatedPolicies(data))
             .thenAccept(__ -> log.info("[{}] namespace-level policies updated successfully", topic))
             .exceptionally(ex -> {
                 log.error("[{}] update namespace polices : {} error", this.getName(), data, ex);
@@ -3082,50 +3079,50 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             });
     }
 
-    private List<CompletableFuture<Void>> applyUpdatedPolicies() {
-        List<CompletableFuture<Void>> updateComponentsFutureList = new ArrayList<>();
+    private List<CompletableFuture<Void>> applyUpdatedPolicies(Policies namespaceLevelPolicies) {
+        List<CompletableFuture<Void>> applyPoliciesFutureList = new ArrayList<>();
 
         // Client permission check.
         subscriptions.forEach((subName, sub) -> {
-            sub.getConsumers().forEach(consumer -> updateComponentsFutureList.add(consumer.checkPermissionsAsync()));
+            sub.getConsumers().forEach(consumer -> applyPoliciesFutureList.add(consumer.checkPermissionsAsync()));
         });
-        producers.values().forEach(producer -> updateComponentsFutureList.add(
+        producers.values().forEach(producer -> applyPoliciesFutureList.add(
                 producer.checkPermissionsAsync().thenRun(producer::checkEncryption)));
         // Check message expiry.
-        updateComponentsFutureList.add(CompletableFuture.runAsync(
+        applyPoliciesFutureList.add(CompletableFuture.runAsync(
                 () -> checkMessageExpiry(), MoreExecutors.directExecutor()));
 
         // Update rate limiters.
-        updateComponentsFutureList.add(CompletableFuture.runAsync(
+        applyPoliciesFutureList.add(CompletableFuture.runAsync(
                 () -> updateDispatchRateLimiter(), MoreExecutors.directExecutor()));
-        updateComponentsFutureList.add(CompletableFuture.runAsync(
+        applyPoliciesFutureList.add(CompletableFuture.runAsync(
                 () -> updateSubscribeRateLimiter(), MoreExecutors.directExecutor()));
-        updateComponentsFutureList.add(CompletableFuture.runAsync(
+        applyPoliciesFutureList.add(CompletableFuture.runAsync(
                 () -> updatePublishRateLimiter(), MoreExecutors.directExecutor()));
-        if (lastUpdatedNamespacePolicies != null) {
-            updateComponentsFutureList.add(CompletableFuture.runAsync(
-                    () -> updateResourceGroupLimiter(lastUpdatedNamespacePolicies), MoreExecutors.directExecutor()));
+        if (namespaceLevelPolicies != null) {
+            applyPoliciesFutureList.add(CompletableFuture.runAsync(
+                    () -> updateResourceGroupLimiter(namespaceLevelPolicies), MoreExecutors.directExecutor()));
         }
-        updateComponentsFutureList.add(CompletableFuture.runAsync(
+        applyPoliciesFutureList.add(CompletableFuture.runAsync(
                 () -> updateSubscriptionsDispatcherRateLimiter(), MoreExecutors.directExecutor()));
-        updateComponentsFutureList.add(CompletableFuture.runAsync(
+        applyPoliciesFutureList.add(CompletableFuture.runAsync(
                 () -> replicators.forEach((name, replicator) -> replicator.updateRateLimiter()),
                 MoreExecutors.directExecutor()));
-        updateComponentsFutureList.add(CompletableFuture.runAsync(
+        applyPoliciesFutureList.add(CompletableFuture.runAsync(
                 () -> shadowReplicators.forEach((name, replicator) -> replicator.updateRateLimiter()),
                 MoreExecutors.directExecutor()));
 
         // Other components.
-        updateComponentsFutureList.add(CompletableFuture.runAsync(
+        applyPoliciesFutureList.add(CompletableFuture.runAsync(
                 () -> checkReplicationAndRetryOnFailure(), MoreExecutors.directExecutor()));
-        updateComponentsFutureList.add(CompletableFuture.runAsync(
+        applyPoliciesFutureList.add(CompletableFuture.runAsync(
                 () -> checkDeduplicationStatus(), MoreExecutors.directExecutor()));
-        updateComponentsFutureList.add(CompletableFuture.runAsync(
+        applyPoliciesFutureList.add(CompletableFuture.runAsync(
                 () -> checkPersistencePolicies(), MoreExecutors.directExecutor()));
-        updateComponentsFutureList.add(CompletableFuture.runAsync(
+        applyPoliciesFutureList.add(CompletableFuture.runAsync(
                 () -> preCreateSubscriptionForCompactionIfNeeded(), MoreExecutors.directExecutor()));
 
-        return updateComponentsFutureList;
+        return applyPoliciesFutureList;
     }
 
     /**
@@ -3776,7 +3773,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         checkReplicatedSubscriptionControllerState();
 
         // Update components.
-        FutureUtil.waitForAll(applyUpdatedPolicies())
+        FutureUtil.waitForAll(applyUpdatedPolicies(null))
             .thenAccept(__ -> log.info("[{}] topic-level policies updated successfully", topic))
             .exceptionally(e -> {
                 Throwable t = FutureUtil.unwrapCompletionException(e);
