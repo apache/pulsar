@@ -158,6 +158,8 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
     protected volatile boolean transferring = false;
     private volatile List<PublishRateLimiter> activeRateLimiters;
 
+    protected Policies lastUpdatedNamespacePolicies;
+
     public AbstractTopic(String topic, BrokerService brokerService) {
         this.topic = topic;
         this.brokerService = brokerService;

@@ -366,6 +366,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
                     Policies policies = optPolicies.get();
 
+                    lastUpdatedNamespacePolicies = policies;
+
                     this.updateTopicPolicyByNamespacePolicy(policies);
 
                     initializeDispatchRateLimiterIfNeeded();
@@ -3069,9 +3071,10 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         checkReplicatedSubscriptionControllerState();
         isEncryptionRequired = data.encryption_required;
         isAllowAutoUpdateSchema = data.is_allow_auto_update_schema;
+        lastUpdatedNamespacePolicies = data;
 
         // Update components.
-        return FutureUtil.waitForAll(updateComponentPolicies(data))
+        return FutureUtil.waitForAll(applyUpdatedPolicies())
             .thenAccept(__ -> log.info("[{}] namespace-level policies updated successfully", topic))
             .exceptionally(ex -> {
                 log.error("[{}] update namespace polices : {} error", this.getName(), data, ex);
@@ -3079,7 +3082,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             });
     }
 
-    private List<CompletableFuture<Void>> updateComponentPolicies(Policies namespacePolicies) {
+    private List<CompletableFuture<Void>> applyUpdatedPolicies() {
         List<CompletableFuture<Void>> updateComponentsFutureList = new ArrayList<>();
 
         // Client permission check.
@@ -3099,9 +3102,9 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 () -> updateSubscribeRateLimiter(), MoreExecutors.directExecutor()));
         updateComponentsFutureList.add(CompletableFuture.runAsync(
                 () -> updatePublishRateLimiter(), MoreExecutors.directExecutor()));
-        if (namespacePolicies != null) {
+        if (lastUpdatedNamespacePolicies != null) {
             updateComponentsFutureList.add(CompletableFuture.runAsync(
-                    () -> updateResourceGroupLimiter(namespacePolicies), MoreExecutors.directExecutor()));
+                    () -> updateResourceGroupLimiter(lastUpdatedNamespacePolicies), MoreExecutors.directExecutor()));
         }
         updateComponentsFutureList.add(CompletableFuture.runAsync(
                 () -> updateSubscriptionsDispatcherRateLimiter(), MoreExecutors.directExecutor()));
@@ -3773,7 +3776,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         checkReplicatedSubscriptionControllerState();
 
         // Update components.
-        FutureUtil.waitForAll(updateComponentPolicies(null))
+        FutureUtil.waitForAll(applyUpdatedPolicies())
             .thenAccept(__ -> log.info("[{}] topic-level policies updated successfully", topic))
             .exceptionally(e -> {
                 Throwable t = FutureUtil.unwrapCompletionException(e);

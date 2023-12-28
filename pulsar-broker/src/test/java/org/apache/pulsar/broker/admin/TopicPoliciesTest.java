@@ -3164,7 +3164,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
-    public void testUpdateRetentionWhenOtherComponentUpdateFail() throws Exception {
+    public void testUpdateRetentionWithPartialFailure() throws Exception {
         String tpName = BrokerTestUtil.newUniqueName("persistent://" + myNamespace + "/tp");
         admin.topics().createNonPartitionedTopic(tpName);
 
