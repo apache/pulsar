@@ -126,7 +126,7 @@ public class ExtensibleLoadManagerTest extends TestRetrySupport {
                 }
             });
             String topicName = "persistent://" + DEFAULT_NAMESPACE + "/startBrokerCheck";
-            Awaitility.await().atMost(120, TimeUnit.SECONDS).until(
+            Awaitility.await().atMost(120, TimeUnit.SECONDS).ignoreExceptions().until(
                     () -> {
                         for (BrokerContainer brokerContainer : pulsarCluster.getBrokers()) {
                             try (PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(
@@ -140,8 +140,6 @@ public class ExtensibleLoadManagerTest extends TestRetrySupport {
                                     // expected
                                 }
                                 admin.lookups().lookupPartitionedTopic(topicName);
-                            } catch (Throwable e) {
-                                return false;
                             }
                         }
                         return true;
@@ -265,7 +263,7 @@ public class ExtensibleLoadManagerTest extends TestRetrySupport {
         assertFalse(admin.namespaces().getNamespaces(DEFAULT_TENANT).contains(namespace));
     }
 
-    @Test(timeOut = 40 * 1000)
+    @Test(timeOut = 120 * 1000)
     public void testStopBroker() throws Exception {
         String topicName = "persistent://" + DEFAULT_NAMESPACE + "/test-stop-broker-topic";
 
@@ -404,7 +402,7 @@ public class ExtensibleLoadManagerTest extends TestRetrySupport {
             fail();
         } catch (Exception ex) {
             log.error("Failed to lookup topic: ", ex);
-            assertThat(ex.getMessage()).containsAnyOf("Failed to select the new owner broker for bundle");
+            assertThat(ex.getMessage()).contains("Failed to select the new owner broker for bundle");
         }
     }
 

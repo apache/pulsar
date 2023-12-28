@@ -495,13 +495,10 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                 ? brokerRegistry.lookupAsync(owner.get()).thenApply(lookupData -> lookupData.flatMap(__ -> owner))
                 : CompletableFuture.completedFuture(Optional.empty());
 
-
         return activeOwner
                 .thenCompose(broker -> broker
                         .map(__ -> activeOwner)
-                        .orElseGet(() -> deferGetOwnerRequest(serviceUnit).thenApply(
-                                ownerAfterDeferred -> ownerAfterDeferred == null ? Optional.empty()
-                                        : Optional.of(ownerAfterDeferred))))
+                        .orElseGet(() -> deferGetOwnerRequest(serviceUnit).thenApply(Optional::ofNullable)))
                 .whenComplete((__, e) -> {
                     if (e != null) {
                         log.error("Failed to get active owner broker. serviceUnit:{}, state:{}, owner:{}",
@@ -1252,8 +1249,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                             + "totalCleanupErrorCnt:{}",
                     serviceUnit, orphanData, totalCleanupErrorCnt.incrementAndGet());
         }
-        var override = getOverrideInactiveBrokerStateData(
-                orphanData, selectedBroker, inactiveBroker);
+        var override = getOverrideInactiveBrokerStateData(orphanData, selectedBroker, inactiveBroker);
         log.info("Overriding ownership serviceUnit:{} from orphanData:{} to overrideData:{}",
                 serviceUnit, orphanData, override);
         publishOverrideEventAsync(serviceUnit, orphanData, override)

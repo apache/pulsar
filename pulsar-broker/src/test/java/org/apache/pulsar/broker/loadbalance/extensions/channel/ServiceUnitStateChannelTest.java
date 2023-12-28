@@ -39,7 +39,7 @@ import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.hamcrest.Matchers.lessThanOrEqualTo;
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertThrows;
-import static org.testng.Assert.fail;
+import static org.testng.Assert.expectThrows;
 import static org.testng.AssertJUnit.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
@@ -1562,8 +1562,7 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test(priority = 19)
-    public void testActiveGetOwner()
-            throws IllegalAccessException, ExecutionException, InterruptedException, TimeoutException {
+    public void testActiveGetOwner() throws Exception {
 
 
         // set the bundle owner is the broker
@@ -1586,26 +1585,18 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
 
         // verify getOwnerAsync times out because the owner is inactive now.
         long start = System.currentTimeMillis();
-        try {
-            channel1.getOwnerAsync(bundle).get();
-            fail();
-        } catch (Exception e) {
-            if (e.getCause() instanceof TimeoutException) {
-                // expected
-            } else {
-                fail();
-            }
-        }
+        var ex = expectThrows(ExecutionException.class, () -> channel1.getOwnerAsync(bundle).get());
+        assertTrue(ex.getCause() instanceof TimeoutException);
         assertTrue(System.currentTimeMillis() - start >= 1000);
 
         // simulate ownership cleanup(no selected owner) by the leader channel
         doReturn(CompletableFuture.completedFuture(Optional.empty()))
                 .when(loadManager).selectAsync(any(), any());
         var leaderChannel = channel1;
-        String leader = channel1.getChannelOwnerAsync().get(2, TimeUnit.SECONDS).get();
+        String leader1 = channel1.getChannelOwnerAsync().get(2, TimeUnit.SECONDS).get();
         String leader2 = channel2.getChannelOwnerAsync().get(2, TimeUnit.SECONDS).get();
-        assertEquals(leader, leader2);
-        if (leader.equals(lookupServiceAddress2)) {
+        assertEquals(leader1, leader2);
+        if (leader1.equals(lookupServiceAddress2)) {
             leaderChannel = channel2;
         }
         leaderChannel.handleMetadataSessionEvent(SessionReestablished);
