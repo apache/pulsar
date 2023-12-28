@@ -84,6 +84,9 @@ jobs:
       - name: run OWASP Dependency Check for distribution/server (-DfailBuildOnAnyVulnerability=true)
         run: mvn -B -ntp -Pmain,skip-all,skipDocker,owasp-dependency-check initialize verify -pl distribution/server -DfailBuildOnAnyVulnerability=true
 
+      - name: run OWASP Dependency Check for distribution/offloaders and distribution/io
+        run: mvn -B -ntp -Pmain,skip-all,skipDocker,owasp-dependency-check initialize verify -pl distribution/offloaders,distribution/io
+
       - name: Upload OWASP Dependency Check reports
         uses: actions/upload-artifact@v3
         if: always()
