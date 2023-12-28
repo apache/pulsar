@@ -2077,7 +2077,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testDeleteCompactedLedgerWithSlowAck() throws Exception {
-        // Disable topic level policies, since block ack thread will block topic level policies deleted
+        // Disable topic level policies, since block ack thread may also block thread of delete topic policies.
         conf.setTopicLevelPoliciesEnabled(false);
         restartBroker();
 

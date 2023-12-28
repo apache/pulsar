@@ -3448,10 +3448,13 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     public synchronized void triggerCompaction()
             throws PulsarServerException, AlreadyRunningException {
         if (currentCompaction.isDone()) {
+            if (!lock.readLock().tryLock()) {
+                log.info("[{}] Topic is closing or deleting, skip triggering compaction -lock", topic);
+                return;
+            }
             try {
-                lock.writeLock().lock();
                 if (isClosingOrDeleting) {
-                    log.info("[{}] Topic is closing or deleting, skip triggering compaction", topic);
+                    log.info("[{}] Topic is closing or deleting, skip triggering compaction -flag", topic);
                     return;
                 }
 
@@ -3461,14 +3464,14 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 } else {
                     currentCompaction = topicCompactionService.compact().thenApply(x -> null);
                 }
-                currentCompaction.whenComplete((ignore, ex) -> {
-                    if (ex != null) {
-                        log.warn("[{}] Compaction failure.", topic, ex);
-                    }
-                });
             } finally {
-                lock.writeLock().unlock();
+                lock.readLock().unlock();
             }
+            currentCompaction.whenComplete((ignore, ex) -> {
+                if (ex != null) {
+                    log.warn("[{}] Compaction failure.", topic, ex);
+                }
+            });
         } else {
             throw new AlreadyRunningException("Compaction already in progress");
         }
