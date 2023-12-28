@@ -230,7 +230,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     protected final MessageDeduplication messageDeduplication;
 
     private static final Long COMPACTION_NEVER_RUN = -0xfebecffeL;
-    private CompletableFuture<Long> currentCompaction = CompletableFuture.completedFuture(COMPACTION_NEVER_RUN);
+    private volatile CompletableFuture<Long> currentCompaction = CompletableFuture.completedFuture(
+            COMPACTION_NEVER_RUN);
     private TopicCompactionService topicCompactionService;
 
     // TODO: Create compaction strategy from topic policy when exposing strategic compaction to users.
@@ -1245,18 +1246,18 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             return;
         }
 
-        currentCompaction.whenComplete((__, e) -> {
+        currentCompaction.handle((__, e) -> {
             if (e != null) {
                 log.warn("[{}][{}] Last compaction task failed", topic, subscriptionName);
             }
-            ((PulsarCompactorSubscription) subscription).cleanCompactedLedger().whenComplete((___, ex) -> {
-                if (ex != null) {
-                    log.error("[{}][{}] Error cleaning compacted ledger", topic, subscriptionName, ex);
-                    unsubscribeFuture.completeExceptionally(ex);
-                } else {
-                    asyncDeleteCursor(subscriptionName, unsubscribeFuture);
-                }
-            });
+            return ((PulsarCompactorSubscription) subscription).cleanCompactedLedger();
+        }).whenComplete((__, ex) -> {
+            if (ex != null) {
+                log.error("[{}][{}] Error cleaning compacted ledger", topic, subscriptionName, ex);
+                unsubscribeFuture.completeExceptionally(ex);
+            } else {
+                asyncDeleteCursor(subscriptionName, unsubscribeFuture);
+            }
         });
     }
 
@@ -1401,11 +1402,13 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 });
 
                 closeClientFuture.thenAccept(__ -> {
+                    log.info("[{}] Close client success", topic);
                     CompletableFuture<Void> deleteTopicAuthenticationFuture = new CompletableFuture<>();
                     brokerService.deleteTopicAuthenticationWithRetry(topic, deleteTopicAuthenticationFuture, 5);
 
                         deleteTopicAuthenticationFuture.thenCompose(ignore -> deleteSchema())
                                 .thenCompose(ignore -> {
+                                    log.info("[{}] Delete topic policies", topic);
                                     if (!SystemTopicNames.isTopicPoliciesSystemTopic(topic)
                                             && brokerService.getPulsar().getConfiguration().isSystemTopicEnabled()) {
                                         return deleteTopicPolicies();
@@ -1420,6 +1423,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                                         unfenceTopicToResume();
                                         deleteFuture.completeExceptionally(ex);
                                     } else {
+                                        log.info("[{}] Topic deleted...", topic);
                                         List<CompletableFuture<Void>> subsDeleteFutures = new ArrayList<>();
                                         subscriptions.forEach((sub, p) -> subsDeleteFutures.add(unsubscribe(sub)));
 
