@@ -47,6 +47,7 @@ import lombok.extern.slf4j.Slf4j;
 import net.jodah.typetools.TypeResolver;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.CompressionType;
+import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.MessageIdAdv;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
@@ -335,6 +336,16 @@ public class FunctionCommon {
         // rolled over way before overflowing the max int range
         long offset = (ledgerId << 28) | entryId;
         return offset;
+    }
+
+    public static final long getSequenceId(Message message) {
+        // Use index added by org.apache.pulsar.common.intercept.AppendIndexMetadataInterceptor if present.
+        // Requires exposingBrokerEntryMetadataToClientEnabled=true on brokers.
+        if (message.getIndex().isPresent()) {
+            return (long) message.getIndex().get();
+        } else {
+            return getSequenceId(message.getMessageId());
+        }
     }
 
     public static final MessageId getMessageId(long sequenceId) {
