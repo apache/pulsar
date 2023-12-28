@@ -1239,7 +1239,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     }
 
     private void asyncDeleteCursorWithCleanCompactionLedger(PersistentSubscription subscription,
-                                                             CompletableFuture<Void> unsubscribeFuture) {
+                                                            CompletableFuture<Void> unsubscribeFuture) {
         final String subscriptionName = subscription.getName();
         if ((!isCompactionSubscription(subscriptionName)) || !(subscription instanceof PulsarCompactorSubscription)) {
             asyncDeleteCursor(subscriptionName, unsubscribeFuture);
@@ -1402,13 +1402,11 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 });
 
                 closeClientFuture.thenAccept(__ -> {
-                    log.info("[{}] Close client success", topic);
                     CompletableFuture<Void> deleteTopicAuthenticationFuture = new CompletableFuture<>();
                     brokerService.deleteTopicAuthenticationWithRetry(topic, deleteTopicAuthenticationFuture, 5);
 
                         deleteTopicAuthenticationFuture.thenCompose(ignore -> deleteSchema())
                                 .thenCompose(ignore -> {
-                                    log.info("[{}] Delete topic policies", topic);
                                     if (!SystemTopicNames.isTopicPoliciesSystemTopic(topic)
                                             && brokerService.getPulsar().getConfiguration().isSystemTopicEnabled()) {
                                         return deleteTopicPolicies();
@@ -1423,7 +1421,6 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                                         unfenceTopicToResume();
                                         deleteFuture.completeExceptionally(ex);
                                     } else {
-                                        log.info("[{}] Topic deleted...", topic);
                                         List<CompletableFuture<Void>> subsDeleteFutures = new ArrayList<>();
                                         subscriptions.forEach((sub, p) -> subsDeleteFutures.add(unsubscribe(sub)));
 
@@ -3449,12 +3446,12 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             throws PulsarServerException, AlreadyRunningException {
         if (currentCompaction.isDone()) {
             if (!lock.readLock().tryLock()) {
-                log.info("[{}] Topic is closing or deleting, skip triggering compaction -lock", topic);
+                log.info("[{}] Conflict topic-close, topic-delete, skip triggering compaction", topic);
                 return;
             }
             try {
                 if (isClosingOrDeleting) {
-                    log.info("[{}] Topic is closing or deleting, skip triggering compaction -flag", topic);
+                    log.info("[{}] Topic is closing or deleting, skip triggering compaction", topic);
                     return;
                 }
 
