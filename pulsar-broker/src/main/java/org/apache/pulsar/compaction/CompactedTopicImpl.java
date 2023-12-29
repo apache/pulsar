@@ -32,6 +32,7 @@ import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import javax.annotation.Nullable;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.LedgerEntry;
@@ -331,6 +332,16 @@ public class CompactedTopicImpl implements CompactedTopic {
 
     public synchronized Optional<Position> getCompactionHorizon() {
         return Optional.ofNullable(this.compactionHorizon);
+    }
+
+    public void reset() {
+        this.compactionHorizon = null;
+        this.compactedTopicContext = null;
+    }
+
+    @Nullable
+    public CompletableFuture<CompactedTopicContext> getCompactedTopicContextFuture() {
+        return compactedTopicContext;
     }
     private static final Logger log = LoggerFactory.getLogger(CompactedTopicImpl.class);
 }
