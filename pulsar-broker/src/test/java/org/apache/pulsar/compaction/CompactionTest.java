@@ -25,6 +25,7 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
+import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.assertTrue;
 import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
@@ -46,21 +47,26 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 import lombok.Cleanup;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.api.OpenBuilder;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerInfo;
 import org.apache.bookkeeper.mledger.Position;
+import org.apache.commons.lang3.mutable.MutableLong;
 import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.service.Topic;
+import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.service.persistent.SystemTopic;
 import org.apache.pulsar.client.admin.LongRunningProcessStatus;
@@ -81,6 +87,7 @@ import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.ConsumerImpl;
+import org.apache.pulsar.common.api.proto.CommandAck;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
@@ -2011,5 +2018,128 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
                 }
             }
         }
+    }
+
+    @Test
+    public void testDeleteCompactedLedger() throws Exception {
+        String topicName = "persistent://my-property/use/my-ns/testDeleteCompactedLedger";
+
+        final String subName = "my-sub";
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .enableBatching(false).topic(topicName).create();
+
+        pulsarClient.newConsumer().topic(topicName).subscriptionName(subName).readCompacted(true).subscribe().close();
+
+        for (int i = 0; i < 10; i++) {
+            producer.newMessage().key(String.valueOf(i % 2)).value(String.valueOf(i)).sendAsync();
+        }
+        producer.flush();
+
+        compact(topicName);
+
+        MutableLong compactedLedgerId = new MutableLong(-1);
+        Awaitility.await().untilAsserted(() -> {
+            PersistentTopicInternalStats stats = admin.topics().getInternalStats(topicName);
+            Assert.assertNotEquals(stats.compactedLedger.ledgerId, -1L);
+            compactedLedgerId.setValue(stats.compactedLedger.ledgerId);
+            Assert.assertEquals(stats.compactedLedger.entries, 2L);
+        });
+
+        // delete compacted ledger
+        admin.topics().deleteSubscription(topicName, "__compaction");
+
+        Awaitility.await().untilAsserted(() -> {
+            PersistentTopicInternalStats stats = admin.topics().getInternalStats(topicName);
+            Assert.assertEquals(stats.compactedLedger.ledgerId, -1L);
+            Assert.assertEquals(stats.compactedLedger.entries, -1L);
+            assertThrows(BKException.BKNoSuchLedgerExistsException.class, () -> pulsarTestContext.getBookKeeperClient()
+                        .openLedger(compactedLedgerId.getValue(), BookKeeper.DigestType.CRC32C, new byte[]{}));
+        });
+
+        compact(topicName);
+
+        MutableLong compactedLedgerId2 = new MutableLong(-1);
+        Awaitility.await().untilAsserted(() -> {
+            PersistentTopicInternalStats stats = admin.topics().getInternalStats(topicName);
+            Assert.assertNotEquals(stats.compactedLedger.ledgerId, -1L);
+            compactedLedgerId2.setValue(stats.compactedLedger.ledgerId);
+            Assert.assertEquals(stats.compactedLedger.entries, 2L);
+        });
+
+        producer.close();
+        admin.topics().delete(topicName);
+
+        Awaitility.await().untilAsserted(() -> assertThrows(BKException.BKNoSuchLedgerExistsException.class,
+                () -> pulsarTestContext.getBookKeeperClient().openLedger(
+                        compactedLedgerId2.getValue(), BookKeeper.DigestType.CRC32, new byte[]{})));
+    }
+
+    @Test
+    public void testDeleteCompactedLedgerWithSlowAck() throws Exception {
+        // Disable topic level policies, since block ack thread may also block thread of delete topic policies.
+        conf.setTopicLevelPoliciesEnabled(false);
+        restartBroker();
+
+        String topicName = "persistent://my-property/use/my-ns/testDeleteCompactedLedgerWithSlowAck";
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .enableBatching(false).topic(topicName).create();
+
+        pulsarClient.newConsumer().topic(topicName).subscriptionType(SubscriptionType.Exclusive)
+                .subscriptionName(Compactor.COMPACTION_SUBSCRIPTION)
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest).readCompacted(true).subscribe()
+                .close();
+
+        for (int i = 0; i < 10; i++) {
+            producer.newMessage().key(String.valueOf(i % 2)).value(String.valueOf(i)).sendAsync();
+        }
+        producer.flush();
+
+        PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName).get();
+        PersistentSubscription subscription = spy(topic.getSubscription(Compactor.COMPACTION_SUBSCRIPTION));
+        topic.getSubscriptions().put(Compactor.COMPACTION_SUBSCRIPTION, subscription);
+
+        AtomicLong compactedLedgerId = new AtomicLong(-1);
+        AtomicBoolean pauseAck = new AtomicBoolean();
+        Mockito.doAnswer(invocationOnMock -> {
+            Map<String, Long> properties = (Map<String, Long>) invocationOnMock.getArguments()[2];
+            log.info("acknowledgeMessage properties: {}", properties);
+            compactedLedgerId.set(properties.get(Compactor.COMPACTED_TOPIC_LEDGER_PROPERTY));
+            pauseAck.set(true);
+            while (pauseAck.get()) {
+                Thread.sleep(200);
+            }
+            return invocationOnMock.callRealMethod();
+        }).when(subscription).acknowledgeMessage(Mockito.any(), Mockito.eq(
+                CommandAck.AckType.Cumulative), Mockito.any());
+
+        admin.topics().triggerCompaction(topicName);
+
+        while (!pauseAck.get()) {
+            Thread.sleep(100);
+        }
+
+        CompletableFuture<Long> currentCompaction =
+                (CompletableFuture<Long>) FieldUtils.readDeclaredField(topic, "currentCompaction", true);
+        CompletableFuture<Long> spyCurrentCompaction = spy(currentCompaction);
+        FieldUtils.writeDeclaredField(topic, "currentCompaction", spyCurrentCompaction, true);
+        currentCompaction.whenComplete((obj, throwable) -> {
+            if (throwable != null) {
+                spyCurrentCompaction.completeExceptionally(throwable);
+            } else {
+                spyCurrentCompaction.complete(obj);
+            }
+        });
+        Mockito.doAnswer(invocationOnMock -> {
+            pauseAck.set(false);
+            return invocationOnMock.callRealMethod();
+        }).when(spyCurrentCompaction).handle(Mockito.any());
+
+        admin.topics().delete(topicName, true);
+
+        Awaitility.await().untilAsserted(() -> assertThrows(BKException.BKNoSuchLedgerExistsException.class,
+                () -> pulsarTestContext.getBookKeeperClient().openLedger(
+                        compactedLedgerId.get(), BookKeeper.DigestType.CRC32, new byte[]{})));
     }
 }
