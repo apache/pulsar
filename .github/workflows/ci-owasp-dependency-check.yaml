@@ -83,6 +83,7 @@ jobs:
 
       - name: run OWASP Dependency Check for distribution/offloaders and distribution/io
         run: mvn -B -ntp -Pmain,skip-all,skipDocker,owasp-dependency-check initialize verify -pl distribution/offloaders,distribution/io
+        if: !cancelled()
 
       - name: Upload OWASP Dependency Check reports
         uses: actions/upload-artifact@v3
