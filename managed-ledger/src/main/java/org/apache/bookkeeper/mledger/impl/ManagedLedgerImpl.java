@@ -2723,20 +2723,9 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             for (LedgerInfo ls : ledgers.values()) {
                 if (isOffloadedNeedsDelete(ls.getOffloadContext(), optionalOffloadPolicies)
                         && !ledgersToDelete.contains(ls)) {
-                    List<Long> hasReadPositionLedger = getHasReadPositionLedgerList();
-                    // BOOKKEEPER_FIRST case:
-                    // if a ledger has read position on it, do not add to
-                    // offloadedLedgersToDelete in current trim to avoid read exception from bk.
-                    // TIERED_STORAGE_FIRST case:
-                    // if isOffloadedNeedsDelete=true,keep add to offloadedLedgersToDelete because current read way
-                    // is tiered-storage, delete ledger from bk won't affect the current process.
-                    if (!hasReadPositionLedger.contains(ls.getLedgerId()) || optionalOffloadPolicies.filter(
-                            policies -> policies.getManagedLedgerOffloadedReadPriority()
-                                    .equals(OffloadedReadPriority.TIERED_STORAGE_FIRST)).isPresent()) {
-                        log.debug("[{}] Ledger {} has been offloaded, bookkeeper ledger needs to be deleted", name,
-                                ls.getLedgerId());
-                        offloadedLedgersToDelete.add(ls);
-                    }
+                    log.debug("[{}] Ledger {} has been offloaded, bookkeeper ledger needs to be deleted", name,
+                            ls.getLedgerId());
+                    offloadedLedgersToDelete.add(ls);
                 }
             }
 
@@ -2764,6 +2753,18 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
             doDeleteLedgers(ledgersToDelete);
 
+            // To prevent data read error,
+            // ledgers that are being read from BookKeeper should not be added to the offloadedLedgersToDelete.
+            // in BOOKKEEPER_FIRST case:
+            // if a ledger has read position on it, remove it from
+            // offloadedLedgersToDelete in current trim to avoid read exception from bk.
+            // in TIERED_STORAGE_FIRST case:
+            // delete ledger from bk won't impact the current process.
+            offloadedLedgersToDelete.removeIf(
+                    ls -> (hasReadPositionOnLedger(ls.getLedgerId()) && optionalOffloadPolicies.filter(
+                            policies -> policies.getManagedLedgerOffloadedReadPriority()
+                                    .equals(OffloadedReadPriority.BOOKKEEPER_FIRST)).isPresent()));
+
             for (LedgerInfo ls : offloadedLedgersToDelete) {
                 LedgerInfo.Builder newInfoBuilder = ls.toBuilder();
                 newInfoBuilder.getOffloadContextBuilder().setBookkeeperDeleted(true);
@@ -2773,6 +2774,17 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                         config.getLedgerOffloader().getOffloadDriverMetadata());
                 OffloadUtils.setOffloadDriverMetadata(newInfoBuilder, driverName, driverMetadata);
                 ledgers.put(ls.getLedgerId(), newInfoBuilder.build());
+                // Avoid data read errors caused by using an incorrect handle.
+                // in BOOKKEEPER_FIRST case:
+                // current ledger handle is from bookkeeper, after ledger mark bookkeeperDeleted,
+                // we should invalidate current handle.
+                // in TIERED_STORAGE_FIRST case:
+                // current ledger handle is from tiered-storage, need not invalidate it.
+                if (optionalOffloadPolicies.filter(
+                        policies -> policies.getManagedLedgerOffloadedReadPriority()
+                                .equals(OffloadedReadPriority.BOOKKEEPER_FIRST)).isPresent()) {
+                    invalidateReadHandle(ls.getLedgerId());
+                }
             }
 
             if (log.isDebugEnabled()) {
@@ -2796,12 +2808,6 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                         log.info("[{}] Deleting offloaded ledger {} from bookkeeper - size: {}", name, ls.getLedgerId(),
                                 ls.getSize());
                         asyncDeleteLedgerFromBookKeeper(ls.getLedgerId());
-                        // in BOOKKEEPER_FIRST read case, we should invalidate the readHandle from bk.
-                        // later, reading this ledger would reacquire readHandle from tiered-storage.
-                        if (config.getLedgerOffloader().getOffloadPolicies().getManagedLedgerOffloadedReadPriority()
-                                == OffloadedReadPriority.BOOKKEEPER_FIRST) {
-                            invalidateReadHandle(ls.getLedgerId());
-                        }
                     }
                     promise.complete(null);
                 }
@@ -4555,12 +4561,13 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         return theSlowestNonDurableReadPosition;
     }
 
-    public List<Long> getHasReadPositionLedgerList() {
-        List<Long> readPositionList = new ArrayList<>();
+    public boolean hasReadPositionOnLedger(long ledgerId) {
         for (ManagedCursor cursor : cursors) {
             PositionImpl readPosition = (PositionImpl) cursor.getReadPosition();
-            readPositionList.add(readPosition.getLedgerId());
+            if (ledgerId == readPosition.getLedgerId()) {
+                return true;
+            }
         }
-        return readPositionList;
+        return false;
     }
 }
