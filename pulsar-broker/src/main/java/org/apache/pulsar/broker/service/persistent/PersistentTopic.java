@@ -213,7 +213,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     protected final MessageDeduplication messageDeduplication;
 
     private static final Long COMPACTION_NEVER_RUN = -0xfebecffeL;
-    private CompletableFuture<Long> currentCompaction = CompletableFuture.completedFuture(COMPACTION_NEVER_RUN);
+    private volatile CompletableFuture<Long> currentCompaction = CompletableFuture.completedFuture(
+            COMPACTION_NEVER_RUN);
     private TopicCompactionService topicCompactionService;
 
     // TODO: Create compaction strategy from topic policy when exposing strategic compaction to users.
@@ -1166,13 +1167,14 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                                                           CompletableFuture<Void> unsubscribeFuture) {
         PersistentSubscription persistentSubscription = subscriptions.get(subscriptionName);
         if (persistentSubscription == null) {
-            log.warn("[{}][{}] Can't find subscription, skip clear delayed message", topic, subscriptionName);
+            log.warn("[{}][{}] Can't find subscription, skip delete cursor", topic, subscriptionName);
             unsubscribeFuture.complete(null);
             return;
         }
+
         if (!isDelayedDeliveryEnabled()
                 || !(brokerService.getDelayedDeliveryTrackerFactory() instanceof BucketDelayedDeliveryTrackerFactory)) {
-            asyncDeleteCursor(subscriptionName, unsubscribeFuture);
+            asyncDeleteCursorWithCleanCompactionLedger(persistentSubscription, unsubscribeFuture);
             return;
         }
 
@@ -1187,7 +1189,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                     if (ex != null) {
                         unsubscribeFuture.completeExceptionally(ex);
                     } else {
-                        asyncDeleteCursor(subscriptionName, unsubscribeFuture);
+                        asyncDeleteCursorWithCleanCompactionLedger(persistentSubscription, unsubscribeFuture);
                     }
                 });
             }
@@ -1196,6 +1198,29 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
         dispatcher.clearDelayedMessages().whenComplete((__, ex) -> {
             if (ex != null) {
+                unsubscribeFuture.completeExceptionally(ex);
+            } else {
+                asyncDeleteCursorWithCleanCompactionLedger(persistentSubscription, unsubscribeFuture);
+            }
+        });
+    }
+
+    private void asyncDeleteCursorWithCleanCompactionLedger(PersistentSubscription subscription,
+                                                            CompletableFuture<Void> unsubscribeFuture) {
+        final String subscriptionName = subscription.getName();
+        if ((!isCompactionSubscription(subscriptionName)) || !(subscription instanceof PulsarCompactorSubscription)) {
+            asyncDeleteCursor(subscriptionName, unsubscribeFuture);
+            return;
+        }
+
+        currentCompaction.handle((__, e) -> {
+            if (e != null) {
+                log.warn("[{}][{}] Last compaction task failed", topic, subscriptionName);
+            }
+            return ((PulsarCompactorSubscription) subscription).cleanCompactedLedger();
+        }).whenComplete((__, ex) -> {
+            if (ex != null) {
+                log.error("[{}][{}] Error cleaning compacted ledger", topic, subscriptionName, ex);
                 unsubscribeFuture.completeExceptionally(ex);
             } else {
                 asyncDeleteCursor(subscriptionName, unsubscribeFuture);
@@ -3187,17 +3212,29 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     public synchronized void triggerCompaction()
             throws PulsarServerException, AlreadyRunningException {
         if (currentCompaction.isDone()) {
+            if (!lock.readLock().tryLock()) {
+                log.info("[{}] Conflict topic-close, topic-delete, skip triggering compaction", topic);
+                return;
+            }
+            try {
+                if (isClosingOrDeleting) {
+                    log.info("[{}] Topic is closing or deleting, skip triggering compaction", topic);
+                    return;
+                }
 
-            if (strategicCompactionMap.containsKey(topic)) {
-                currentCompaction = brokerService.pulsar().getStrategicCompactor()
-                        .compact(topic, strategicCompactionMap.get(topic));
-            } else {
-                currentCompaction = topicCompactionService.compact().thenApply(x -> null);
+                if (strategicCompactionMap.containsKey(topic)) {
+                    currentCompaction = brokerService.pulsar().getStrategicCompactor()
+                            .compact(topic, strategicCompactionMap.get(topic));
+                } else {
+                    currentCompaction = topicCompactionService.compact().thenApply(x -> null);
+                }
+            } finally {
+                lock.readLock().unlock();
             }
             currentCompaction.whenComplete((ignore, ex) -> {
-               if (ex != null){
-                   log.warn("[{}] Compaction failure.", topic, ex);
-               }
+                if (ex != null) {
+                    log.warn("[{}] Compaction failure.", topic, ex);
+                }
             });
         } else {
             throw new AlreadyRunningException("Compaction already in progress");
