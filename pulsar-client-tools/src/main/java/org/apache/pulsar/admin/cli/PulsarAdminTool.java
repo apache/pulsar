@@ -367,6 +367,7 @@ public class PulsarAdminTool {
 
         commandMap.put("packages", CmdPackages.class);
         commandMap.put("transactions", CmdTransactions.class);
+        commandMap.put("environment_variables", CmdEnvironmentVariables.class);
     }
 
     @VisibleForTesting
