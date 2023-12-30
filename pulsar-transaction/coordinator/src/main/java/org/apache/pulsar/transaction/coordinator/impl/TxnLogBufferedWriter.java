@@ -22,6 +22,7 @@ import static org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedger
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.util.Recycler;
+import io.netty.util.ReferenceCountUtil;
 import io.netty.util.Timeout;
 import io.netty.util.Timer;
 import io.netty.util.TimerTask;
@@ -494,7 +495,7 @@ public class TxnLogBufferedWriter<T> {
             this.ctx = null;
             this.addedTime = 0;
             if (this.byteBuf != null){
-                this.byteBuf.release();
+                ReferenceCountUtil.safeRelease(this.byteBuf);
                 this.byteBuf = null;
             }
             this.handle.recycle(this);
@@ -540,7 +541,7 @@ public class TxnLogBufferedWriter<T> {
                 asyncAddArgs.recycle();
             }
             if (byteBuf != null){
-                byteBuf.release();
+                ReferenceCountUtil.safeRelease(byteBuf);
                 byteBuf = null;
             }
             this.asyncAddArgsList.clear();

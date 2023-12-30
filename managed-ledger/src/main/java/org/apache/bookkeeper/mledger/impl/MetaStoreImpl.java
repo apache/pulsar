@@ -22,6 +22,7 @@ import com.google.protobuf.InvalidProtocolBufferException;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.CompositeByteBuf;
 import io.netty.buffer.Unpooled;
+import io.netty.util.ReferenceCountUtil;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -460,7 +461,7 @@ public class MetaStoreImpl implements MetaStore, Consumer<Notification> {
                         + "fall back to parse managedLedgerInfo directly.", e);
                 return ManagedLedgerInfo.parseFrom(data);
             } finally {
-                byteBuf.release();
+                ReferenceCountUtil.safeRelease(byteBuf);
             }
         } else {
             return ManagedLedgerInfo.parseFrom(data);
@@ -482,7 +483,7 @@ public class MetaStoreImpl implements MetaStore, Consumer<Notification> {
                         + "fall back to parse ManagedCursorInfo directly", e);
                 return ManagedCursorInfo.parseFrom(data);
             } finally {
-                byteBuf.release();
+                ReferenceCountUtil.safeRelease(byteBuf);
             }
         } else {
             return ManagedCursorInfo.parseFrom(data);
