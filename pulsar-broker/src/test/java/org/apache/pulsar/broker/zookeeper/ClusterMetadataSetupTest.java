@@ -327,6 +327,33 @@ public class ClusterMetadataSetupTest {
     }
 
     @Test
+    public void testSetupWithBkRackInfo() throws Exception {
+        String zkConnection = "127.0.0.1:" + localZkS.getZookeeperPort();
+        String[] args = {
+                "--cluster", "testReSetupClusterMetadata-cluster",
+                "--zookeeper", zkConnection,
+                "--configuration-store", zkConnection,
+                "--web-service-url", "http://127.0.0.1:8080",
+                "--web-service-url-tls", "https://127.0.0.1:8443",
+                "--broker-service-url", "pulsar://127.0.0.1:6650",
+                "--broker-service-url-tls","pulsar+ssl://127.0.0.1:6651",
+                "--rack-info","address:127.0.0.1:3181,rack:/rack1;address:127.0.0.2:3181,rack:/rack2"
+        };
+
+        PulsarClusterMetadataSetup.main(args);
+
+        try (MetadataStoreExtended localStore = PulsarClusterMetadataSetup
+                .initMetadataStore(zkConnection, 30000)) {
+            // expected exist
+            assertTrue(localStore.exists("/bookies").get());
+            byte[] res = localStore.get("/bookies").join().get().getValue();
+            String result = new String(res);
+            assertEquals(result, "{\"default\":{\"127.0.0.1:3181\":{\"rack\":\"/rack1\"}," +
+                    "\"127.0.0.2:3181\":{\"rack\":\"/rack2\"}}}");
+        }
+    }
+
+    @Test
     public void testInitialNamespaceSetup() throws Exception {
         // missing arguments
         assertEquals(PulsarInitialNamespaceSetup.doMain(new String[]{}), 1);
