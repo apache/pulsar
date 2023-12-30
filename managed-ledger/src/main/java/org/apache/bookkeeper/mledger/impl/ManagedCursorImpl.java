@@ -1402,6 +1402,19 @@ public class ManagedCursorImpl implements ManagedCursor {
     }
 
     @Override
+    public void moveReadPositionForward(Position newPos) {
+        checkArgument(newPos instanceof PositionImpl);
+        final PositionImpl newReadPosition = (PositionImpl) newPos;
+        READ_POSITION_UPDATER.updateAndGet(this, (oldReadPosition) -> {
+            if (oldReadPosition.compareTo(newReadPosition) > 0) {
+                return newReadPosition;
+            } else {
+                return oldReadPosition;
+            }
+        });
+    }
+
+    @Override
     public void resetCursor(Position newPos) throws ManagedLedgerException, InterruptedException {
         class Result {
             ManagedLedgerException exception = null;

@@ -679,6 +679,14 @@ public interface ManagedCursor {
     void asyncResetCursor(Position position, boolean forceReset, AsyncCallbacks.ResetCursorCallback callback);
 
     /**
+     * Move the current read position of the cursor specified position only if it is newer.
+     *
+     * @param position
+     *            position to move the cursor to, as long as the position is after the current read position
+     */
+    void moveReadPositionForward(Position position);
+
+    /**
      * Read the specified set of positions from ManagedLedger.
      *
      * @param positions
