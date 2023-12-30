@@ -19,11 +19,13 @@
 package org.apache.pulsar.client.api;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import io.netty.util.Timeout;
 import io.netty.util.concurrent.DefaultThreadFactory;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
@@ -36,6 +38,8 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.MultiTopicsConsumerImpl;
 import org.apache.pulsar.client.impl.PartitionedProducerImpl;
@@ -608,6 +612,37 @@ public class PartitionedProducerConsumerTest extends ProducerConsumerBase {
         admin.topics().deletePartitionedTopic(topicName.toString());
 
         log.info("-- Exiting {} test --", methodName);
+    }
+
+    @Test
+    public void testRetryOnOtherPartitions() throws PulsarClientException, PulsarAdminException, InterruptedException {
+        log.info("-- Starting {} test --", methodName);
+        PulsarClient pulsarClient = newPulsarClient(lookupUrl.toString(), 0);// Creates new client connection
+        final String topicName = "persistent://my-property/my-ns/my-topic-" + System.currentTimeMillis();
+        final int numPartitions = 10;
+        final int PUBLISH_COUNT = 100;
+        admin.topics().createPartitionedTopic(topicName, numPartitions);
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName("my-partitioned-subscriber").subscribe();
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(topicName)
+                .maxPendingMessages(5)
+                .enableBatching(true)
+                .maxRetryOtherPartitions(5)
+                .batchingMaxPublishDelay(10, TimeUnit.MILLISECONDS)
+                .messageRoutingMode(MessageRoutingMode.RoundRobinPartition).create();
+        PartitionedProducerImpl<byte[]> partitionedProducer = ( PartitionedProducerImpl<byte[]>) producer;
+        partitionedProducer.getProducers().get(2).terminated(partitionedProducer.getProducers().get(2).getClientCnx());
+        partitionedProducer.getProducers().get(3).terminated(partitionedProducer.getProducers().get(3).getClientCnx());
+        partitionedProducer.getProducers().get(4).terminated(partitionedProducer.getProducers().get(4).getClientCnx());
+        assertFalse(partitionedProducer.getProducers().get(2).isConnected());
+        assertFalse(partitionedProducer.getProducers().get(3).isConnected());
+        assertFalse(partitionedProducer.getProducers().get(4).isConnected());
+        assertFalse(producer.isConnected());
+        for (int i = 0; i < PUBLISH_COUNT; i++) {
+            String payLoad = "Test_TEST" + i;
+            producer.send(payLoad.getBytes(StandardCharsets.UTF_8));
+        }
+        assertEquals(consumer.batchReceive().size(), PUBLISH_COUNT);
     }
 
     /**

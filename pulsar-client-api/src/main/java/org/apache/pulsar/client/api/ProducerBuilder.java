@@ -619,4 +619,15 @@ public interface ProducerBuilder<T> extends Cloneable {
      * @return the producer builder instance
      */
     ProducerBuilder<T> enableLazyStartPartitionedProducers(boolean lazyStartPartitionedProducers);
+
+    /**
+     * This config will ensure that If possible PartitionedProducer would attempt to produce message on
+     * another available partitions, If currently picked partition is not available for some reason.
+     * Next available partition will be chosen by the same routing policy as client is configured with.
+     * @param maxRetryOtherPartition
+     *            How many partitions should be tried before bailing out
+     * @return the producer builder instance
+     */
+    ProducerBuilder<T> maxRetryOtherPartitions(int maxRetryOtherPartition);
+
 }
