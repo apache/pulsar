@@ -21,6 +21,7 @@ package org.apache.bookkeeper.mledger.impl;
 import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.Objects.requireNonNull;
 import static org.apache.bookkeeper.mledger.ManagedLedgerException.getManagedLedgerException;
+import static org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.AsyncOperationTimeoutSeconds;
 import static org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.DEFAULT_LEDGER_DELETE_BACKOFF_TIME_SEC;
 import static org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.DEFAULT_LEDGER_DELETE_RETRIES;
 import static org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.createManagedLedgerException;
@@ -2904,9 +2905,15 @@ public class ManagedCursorImpl implements ManagedCursor {
             }
             MarkDeleteEntry mdEntry = lastMarkDeleteEntry;
             // Created the ledger, now write the last position content
-            persistPositionToLedger(newLedgerHandle, mdEntry, new VoidCallback() {
+            AtomicBoolean isCbCompleted = new AtomicBoolean(false);
+            VoidCallback persistPositionCb = new VoidCallback() {
                 @Override
                 public void operationComplete() {
+                    if (!isCbCompleted.compareAndSet(false, true)) {
+                        log.info("[{}] Persist position {} already timed out for cursor {}", ledger.getName(),
+                                mdEntry.newPosition, name);
+                        return;
+                    }
                     if (log.isDebugEnabled()) {
                         log.debug("[{}] Persisted position {} for cursor {}", ledger.getName(),
                                 mdEntry.newPosition, name);
@@ -2916,19 +2923,44 @@ public class ManagedCursorImpl implements ManagedCursor {
 
                 @Override
                 public void operationFailed(ManagedLedgerException exception) {
+                    if (!isCbCompleted.compareAndSet(false, true)) {
+                        log.info("[{}] Persist position {} already timed out for cursor {}", ledger.getName(),
+                                mdEntry.newPosition, name);
+                        return;
+                    }
                     log.warn("[{}] Failed to persist position {} for cursor {}", ledger.getName(),
                             mdEntry.newPosition, name);
 
                     deleteLedgerAsync(newLedgerHandle);
                     callback.operationFailed(exception);
                 }
-            });
+            };
+            // persist position completes the cursor recovery callback. it's important to retry if callabck doesn't
+            // complete else it can create unavailability for cursor read
+            persistPositionToLedgerWithRetry(newLedgerHandle, mdEntry, persistPositionCb, isCbCompleted,
+                    AsyncOperationTimeoutSeconds);
+            persistPositionToLedger(newLedgerHandle, mdEntry, persistPositionCb);
         }).whenComplete((result, e) -> {
             ledger.mbean.endCursorLedgerCreateOp();
             if (e != null) {
                 callback.operationFailed(createManagedLedgerException(e));
             }
         });
+    }
+
+    @VisibleForTesting
+    protected void persistPositionToLedgerWithRetry(LedgerHandle lh, MarkDeleteEntry mdEntry,
+            VoidCallback persistPositionCb, AtomicBoolean isCbCompleted, int timeoutSec) {
+        persistPositionToLedger(lh, mdEntry, persistPositionCb);
+        ledger.getScheduledExecutor().schedule(() -> {
+            if (isCbCompleted.get()) {
+                return;
+            }
+            log.info("[{}] couldn't persist position {} in timeout {} sec for cursor {}, retrying..", ledger.getName(),
+                    mdEntry.newPosition, timeoutSec, name);
+            // keep retrying to recover cursor and enable reads
+            persistPositionToLedgerWithRetry(lh, mdEntry, persistPositionCb, isCbCompleted, timeoutSec);
+        }, timeoutSec, TimeUnit.SECONDS);
     }
 
     private CompletableFuture<LedgerHandle> doCreateNewMetadataLedger() {

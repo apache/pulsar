@@ -23,6 +23,7 @@ import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
@@ -72,6 +73,7 @@ import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.BookKeeper.DigestType;
 import org.apache.bookkeeper.client.LedgerEntry;
+import org.apache.bookkeeper.client.LedgerHandle;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.AddEntryCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteCallback;
@@ -87,8 +89,10 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException.MetaStoreException;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactoryConfig;
 import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl.MarkDeleteEntry;
 import org.apache.bookkeeper.mledger.ScanOutcome;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl.VoidCallback;
+import static org.apache.bookkeeper.mledger.impl.ManagedLedgerTest.retryStrategically;
 import org.apache.bookkeeper.mledger.impl.MetaStore.MetaStoreCallback;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedCursorInfo;
@@ -4482,6 +4486,42 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
         cursor.close();
         ledger.close();
+    }
+
+    @Test(timeOut = 20000)
+    void testRecoverTimedoutCursorRecovery() throws Exception {
+        ManagedLedger ledger = factory.open("testRecoverTimedoutCursorRecovery");
+
+        ManagedCursorImpl c1 = spy((ManagedCursorImpl) ledger.openCursor("c1"));
+        LedgerHandle lh = mock(LedgerHandle.class);
+        MarkDeleteEntry md = c1.new MarkDeleteEntry(new PositionImpl(-1L, -1L), Collections.emptyMap(), null, null);
+        AtomicBoolean cbCompleted = new AtomicBoolean(false);
+        c1.persistPositionToLedgerWithRetry(lh, md, null, cbCompleted, 1);
+
+        retryStrategically((t) -> {
+            try {
+                Mockito.verify(c1, Mockito.atLeast(2)).persistPositionToLedgerWithRetry(any(), any(), any(), any(),
+                        anyInt());
+                return true;
+            } catch (Throwable e) {
+                return false;
+            }
+        }, 5, TimeUnit.SECONDS.toMillis(5));
+        Mockito.verify(c1, Mockito.atLeast(2)).persistPositionToLedgerWithRetry(any(), any(), any(), any(), anyInt());
+        // make sure it should not be retried after callback is completed
+        ManagedCursorImpl c2 = spy((ManagedCursorImpl) ledger.openCursor("c2"));
+        cbCompleted.set(true);
+        c1.persistPositionToLedgerWithRetry(lh, md, null, cbCompleted, 1);
+        retryStrategically((t) -> {
+            try {
+                Mockito.verify(c1, Mockito.atLeast(2)).persistPositionToLedgerWithRetry(any(), any(), any(), any(),
+                        anyInt());
+                return true;
+            } catch (Throwable e) {
+                return false;
+            }
+        }, 5, TimeUnit.SECONDS.toMillis(1));
+        Mockito.verify(c2, Mockito.atMostOnce()).persistPositionToLedgerWithRetry(any(), any(), any(), any(), anyInt());
     }
 
     private static final Logger log = LoggerFactory.getLogger(ManagedCursorTest.class);
