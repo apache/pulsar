@@ -43,7 +43,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Teardown the metadata for a existed Pulsar cluster.
+ * Teardown the metadata after deleting a Pulsar cluster.
  */
 public class PulsarClusterMetadataTeardown {
 
@@ -68,6 +68,13 @@ public class PulsarClusterMetadataTeardown {
 
         @Parameter(names = { "-h", "--help" }, description = "Show this help message")
         private boolean help = false;
+
+        @Parameter(names = { "-cp", "--clean-up-policies" }, description = "Whether to clean up topics policies")
+        private boolean cleanUpPolicies = false;
+
+        @Parameter(names = { "-cf", "--clean-up--function-meta" },
+                description = "Whether to clean up function related metadata")
+        private boolean cleanUpFunctionMeta = false;
 
         @Parameter(names = {"-g", "--generate-docs"}, description = "Generate docs")
         private boolean generateDocs = false;
@@ -127,9 +134,23 @@ public class PulsarClusterMetadataTeardown {
                     MetadataStoreConfig.builder().sessionTimeoutMillis(arguments.zkSessionTimeoutMillis)
                             .metadataStoreName(MetadataStoreConfig.CONFIGURATION_METADATA_STORE).build());
             deleteRecursively(configMetadataStore, "/admin/clusters/" + arguments.cluster).join();
+            cleanUpTopicPoliciesAndFunctionMeta(configMetadataStore, arguments);
+        } else {
+            cleanUpTopicPoliciesAndFunctionMeta(metadataStore, arguments);
         }
 
         log.info("Cluster metadata for '{}' teardown.", arguments.cluster);
+    }
+
+    // clean up all topic policies and function related meta if necessary
+    private static void cleanUpTopicPoliciesAndFunctionMeta(MetadataStore metadataStore, Arguments arguments) {
+        if (arguments.cleanUpPolicies) {
+            deleteRecursively(metadataStore, "/admin").join();
+        }
+
+        if (arguments.cleanUpFunctionMeta) {
+            deleteRecursively(metadataStore, "/pulsar").join();
+        }
     }
 
     private static CompletableFuture<Void> deleteRecursively(MetadataStore metadataStore, String path) {
