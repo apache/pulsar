@@ -32,6 +32,7 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.function.Supplier;
 import lombok.Getter;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.PulsarVersion;
 import org.apache.pulsar.admin.cli.extensions.CommandExecutionContext;
 import org.apache.pulsar.admin.cli.extensions.CustomCommandFactory;
@@ -122,12 +123,11 @@ public class PulsarAdminTool {
         String tlsKeyFilePath = properties.getProperty("tlsKeyFilePath");
         String tlsCertificateFilePath = properties.getProperty("tlsCertificateFilePath");
 
-        boolean tlsAllowInsecureConnection = Boolean.parseBoolean(properties
-                .getProperty("tlsAllowInsecureConnection", "false"));
-
         boolean tlsEnableHostnameVerification = Boolean.parseBoolean(properties
                 .getProperty("tlsEnableHostnameVerification", "false"));
         final String tlsTrustCertsFilePath = properties.getProperty("tlsTrustCertsFilePath");
+        boolean tlsAllowInsecureConnection = Boolean.parseBoolean(properties.getProperty("tlsAllowInsecureConnection",
+                Boolean.toString(StringUtils.isBlank(tlsTrustCertsFilePath))));
 
         return PulsarAdmin.builder().allowTlsInsecureConnection(tlsAllowInsecureConnection)
                 .enableTlsHostnameVerification(tlsEnableHostnameVerification)
