@@ -106,6 +106,10 @@ public class TopicStatsImpl implements TopicStats {
     public long abortedTxnCount;
     public long committedTxnCount;
 
+    public boolean fenced;
+    public long fencedTimestamp;
+    public long pendingAddEntryRequest;
+
     /** List of connected publishers on this topic w/ their stats. */
     @Getter(AccessLevel.NONE)
     @Setter(AccessLevel.NONE)
@@ -221,6 +225,10 @@ public class TopicStatsImpl implements TopicStats {
         this.compaction.reset();
         this.ownerBroker = null;
         this.bucketDelayedIndexStats.clear();
+        this.msgChunkPublished = false;
+        this.fenced = false;
+        this.fencedTimestamp = 0;
+        this.pendingAddEntryRequest = 0;
     }
 
     // if the stats are added for the 1st time, we will need to make a copy of these stats and add it to the current
@@ -250,6 +258,9 @@ public class TopicStatsImpl implements TopicStats {
         this.ongoingTxnCount = stats.ongoingTxnCount;
         this.abortedTxnCount = stats.abortedTxnCount;
         this.committedTxnCount = stats.committedTxnCount;
+        this.fencedTimestamp = Math.max(stats.fencedTimestamp, fencedTimestamp);
+        this.fenced = this.fenced && stats.fenced;
+        this.pendingAddEntryRequest += stats.pendingAddEntryRequest;
 
         stats.bucketDelayedIndexStats.forEach((k, v) -> {
             TopicMetricBean topicMetricBean =
