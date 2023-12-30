@@ -82,7 +82,7 @@ public abstract class PulsarHandler extends PulsarDecoder {
     }
 
     @Override
-    protected final void handlePing(CommandPing ping) {
+    protected void handlePing(CommandPing ping) {
         // Immediately reply success to ping requests
         if (log.isDebugEnabled()) {
             log.debug("[{}] Replying back to ping message", ctx.channel());

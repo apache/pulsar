@@ -86,7 +86,7 @@ public class PulsarTestClient extends PulsarClientImpl {
                 clientCnxSupplierReference);
     }
 
-    private PulsarTestClient(ClientConfigurationData conf, EventLoopGroup eventLoopGroup, ConnectionPool cnxPool,
+    PulsarTestClient(ClientConfigurationData conf, EventLoopGroup eventLoopGroup, ConnectionPool cnxPool,
                              AtomicReference<Supplier<ClientCnx>> clientCnxSupplierReference)
             throws PulsarClientException {
         super(conf, eventLoopGroup, cnxPool);

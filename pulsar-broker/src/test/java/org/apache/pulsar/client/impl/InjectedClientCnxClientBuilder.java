@@ -16,18 +16,24 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.client.api;
+package org.apache.pulsar.client.impl;
 
 import io.netty.channel.EventLoopGroup;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.impl.ClientBuilderImpl;
 import org.apache.pulsar.client.impl.ClientCnx;
 import org.apache.pulsar.client.impl.ConnectionPool;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
+import org.apache.pulsar.client.impl.PulsarTestClient;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.util.ExecutorProvider;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
 
+@Slf4j
 public class InjectedClientCnxClientBuilder {
 
     public static PulsarClientImpl create(final ClientBuilderImpl clientBuilder,
@@ -42,7 +48,7 @@ public class InjectedClientCnxClientBuilder {
         ConnectionPool pool = new ConnectionPool(conf, eventLoopGroup,
                 () -> clientCnxFactory.generate(conf, eventLoopGroup));
 
-        return new PulsarClientImpl(conf, eventLoopGroup, pool);
+        return new PulsarTestClient(conf, eventLoopGroup, pool, new AtomicReference<>());
     }
 
     public interface ClientCnxFactory {

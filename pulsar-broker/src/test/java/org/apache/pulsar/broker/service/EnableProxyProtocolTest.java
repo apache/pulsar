@@ -24,7 +24,7 @@ import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.client.api.ClientBuilder;
-import org.apache.pulsar.client.api.InjectedClientCnxClientBuilder;
+import org.apache.pulsar.client.impl.InjectedClientCnxClientBuilder;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
