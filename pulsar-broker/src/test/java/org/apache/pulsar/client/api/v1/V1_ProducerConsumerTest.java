@@ -2214,7 +2214,7 @@ public class V1_ProducerConsumerTest extends V1_ProducerConsumerBase {
                 .create();
         Producer<byte[]> producer2 = pulsarClient.newProducer()
                 .topic("persistent://my-property/use/my-ns/myrsa-topic1")
-                .addEncryptionKey("client-rsa.pem")
+                .addEncryptionKey("client-pkcs8-rsa.pem")
                 .cryptoKeyReader(new EncKeyReader())
                 .create();
         for (int i = 0; i < totalMsg; i++) {
