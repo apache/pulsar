@@ -2726,8 +2726,16 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         log.info("-- Exiting {} test --", methodName);
     }
 
-    @Test(timeOut = 100000)
-    public void testRSAEncryption() throws Exception {
+    @DataProvider(name = "rsaKeyNames")
+    public Object[][] rsaKeyNames() {
+        return new Object[][]{
+                {"client-rsa.pem"},
+                {"client-pkcs8-rsa.pem"}
+        };
+    }
+
+    @Test(timeOut = 100000, dataProvider = "rsaKeyNames")
+    public void testRSAEncryption(String rsaKeyName) throws Exception {
         log.info("-- Starting {} test --", methodName);
         String topicName = "persistent://my-property/my-ns/myrsa-topic1-"+ System.currentTimeMillis();
 
@@ -2778,17 +2786,11 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
                 .subscribe();
 
         Producer<byte[]> producer = pulsarClient.newProducer().topic("persistent://my-property/my-ns/myrsa-topic1")
-                .addEncryptionKey("client-rsa.pem").cryptoKeyReader(new EncKeyReader()).create();
-        Producer<byte[]> producer2 = pulsarClient.newProducer().topic("persistent://my-property/my-ns/myrsa-topic1")
-                .addEncryptionKey("client-pkcs8-rsa.pem").cryptoKeyReader(new EncKeyReader()).create();
+                .addEncryptionKey(rsaKeyName).cryptoKeyReader(new EncKeyReader()).create();
 
         for (int i = 0; i < totalMsg; i++) {
             String message = "my-message-" + i;
             producer.send(message.getBytes());
-        }
-        for (int i = totalMsg; i < totalMsg * 2; i++) {
-            String message = "my-message-" + i;
-            producer2.send(message.getBytes());
         }
 
         MessageImpl<byte[]> msg;
@@ -2797,7 +2799,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         // should not able to read message using normal message.
         assertNull(msg);
 
-        for (int i = 0; i < totalMsg * 2; i++) {
+        for (int i = 0; i < totalMsg; i++) {
             msg = (MessageImpl<byte[]>) consumer.receive(RECEIVE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
             // verify that encrypted message contains encryption-context
             msg.getEncryptionCtx()
@@ -2858,14 +2860,20 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         final String rsaPrivateKeyFile = "file:./src/test/resources/certificate/private-key.client-rsa.pem";
         final String rsaPublicKeyData = "data:application/x-pem-file;base64,LS0tLS1CRUdJTiBQVUJMSUMgS0VZLS0tLS0KTUlJQklqQU5CZ2txaGtpRzl3MEJBUUVGQUFPQ0FROEFNSUlCQ2dLQ0FRRUF0S1d3Z3FkblRZck9DditqMU1rVApXZlNIMHdDc0haWmNhOXdBVzNxUDR1dWhsQnZuYjEwSmNGZjVaanpQOUJTWEsrdEhtSTh1b04zNjh2RXY2eWhVClJITTR5dVhxekN4enVBd2tRU28zOXJ6WDhQR0M3cWRqQ043TERKM01ucWlCSXJVc1NhRVAxd3JOc0Ixa0krbzkKRVIxZTVPL3VFUEFvdFA5MzNoSFEwSjJoTUVla0hxTDdzQmxKOThoNk5tc2ljRWFVa2FyZGswVE9YcmxrakMrYwpNZDhaYkdTY1BxSTlNMzhibW4zT0x4RlRuMXZ0aHB2blhMdkNtRzRNKzZ4dFl0RCtucGNWUFp3MWkxUjkwZk1zCjdwcFpuUmJ2OEhjL0RGZE9LVlFJZ2FtNkNEZG5OS2dXN2M3SUJNclAwQUVtMzdIVHUwTFNPalAyT0hYbHZ2bFEKR1FJREFRQUIKLS0tLS1FTkQgUFVCTElDIEtFWS0tLS0tCg==";
         final String rsaPrivateKeyData = "data:application/x-pem-file;base64,LS0tLS1CRUdJTiBSU0EgUFJJVkFURSBLRVktLS0tLQpNSUlFb3dJQkFBS0NBUUVBdEtXd2dxZG5UWXJPQ3YrajFNa1RXZlNIMHdDc0haWmNhOXdBVzNxUDR1dWhsQnZuCmIxMEpjRmY1Wmp6UDlCU1hLK3RIbUk4dW9OMzY4dkV2NnloVVJITTR5dVhxekN4enVBd2tRU28zOXJ6WDhQR0MKN3FkakNON0xESjNNbnFpQklyVXNTYUVQMXdyTnNCMWtJK285RVIxZTVPL3VFUEFvdFA5MzNoSFEwSjJoTUVlawpIcUw3c0JsSjk4aDZObXNpY0VhVWthcmRrMFRPWHJsa2pDK2NNZDhaYkdTY1BxSTlNMzhibW4zT0x4RlRuMXZ0Cmhwdm5YTHZDbUc0TSs2eHRZdEQrbnBjVlBadzFpMVI5MGZNczdwcFpuUmJ2OEhjL0RGZE9LVlFJZ2FtNkNEZG4KTktnVzdjN0lCTXJQMEFFbTM3SFR1MExTT2pQMk9IWGx2dmxRR1FJREFRQUJBb0lCQUFhSkZBaTJDN3UzY05yZgpBc3RZOXZWRExvTEl2SEZabGtCa3RqS1pEWW1WSXNSYitoU0NWaXdWVXJXTEw2N1I2K0l2NGVnNERlVE9BeDAwCjhwbmNYS2daVHcyd0liMS9RalIvWS9SamxhQzhsa2RtUldsaTd1ZE1RQ1pWc3lodVNqVzZQajd2cjhZRTR3b2oKRmhOaWp4RUdjZjl3V3JtTUpyemRuVFdRaVhCeW8rZVR2VVE5QlBnUEdyUmpzTVptVGtMeUFWSmZmMkRmeE81YgpJV0ZEWURKY3lZQU1DSU1RdTd2eXMvSTUwb3U2aWxiMUNPNlFNNlo3S3BQZU9vVkZQd3R6Ymg4Y2Y5eE04VU5TCmo2Si9KbWRXaGdJMzRHUzNOQTY4eFRRNlBWN3pqbmhDYytpY2NtM0pLeXpHWHdhQXBBWitFb2NlLzlqNFdLbXUKNUI0emlSMENnWUVBM2wvOU9IYmwxem15VityUnhXT0lqL2kyclR2SHp3Qm5iblBKeXVlbUw1Vk1GZHBHb2RRMwp2d0h2eVFtY0VDUlZSeG1Yb2pRNFF1UFBIczNxcDZ3RUVGUENXeENoTFNUeGxVYzg1U09GSFdVMk85OWpWN3pJCjcrSk9wREsvTXN0c3g5bkhnWGR1SkYrZ2xURnRBM0xIOE9xeWx6dTJhRlBzcHJ3S3VaZjk0UThDZ1lFQXovWngKYWtFRytQRU10UDVZUzI4Y1g1WGZqc0lYL1YyNkZzNi9zSDE2UWpVSUVkZEU1VDRmQ3Vva3hDalNpd1VjV2htbApwSEVKNVM1eHAzVllSZklTVzNqUlczcXN0SUgxdHBaaXBCNitTMHpUdUptTEpiQTNJaVdFZzJydE10N1gxdUp2CkEvYllPcWUwaE9QVHVYdVpkdFZaMG5NVEtrN0dHOE82VmtCSTdGY0NnWUVBa0RmQ21zY0pnczdKYWhsQldIbVgKekg5cHdlbStTUEtqSWMvNE5CNk4rZGdpa3gyUHAwNWhwUC9WaWhVd1lJdWZ2cy9MTm9nVllOUXJ0SGVwVW5yTgoyK1RtYkhiWmdOU3YxTGR4dDgyVWZCN3kwRnV0S3U2bGhtWEh5TmVjaG8zRmk4c2loMFYwYWlTV21ZdUhmckFICkdhaXNrRVpLbzFpaVp2UVhKSXg5TzJNQ2dZQVRCZjByOWhUWU10eXh0YzZIMy9zZGQwMUM5dGhROGdEeTB5alAKMFRxYzBkTVNKcm9EcW1JV2tvS1lldzkvYmhGQTRMVzVUQ25Xa0NBUGJIbU50RzRmZGZiWXdta0gvaGRuQTJ5MApqS2RscGZwOEdYZVVGQUdIR3gxN0ZBM3NxRnZnS1VoMGVXRWdSSFVMN3ZkUU1WRkJnSlM5M283elFNOTRmTGdQCjZjT0I4d0tCZ0ZjR1Y0R2pJMld3OWNpbGxhQzU1NE12b1NqZjhCLyswNGtYekRPaDhpWUlJek85RVVpbDFqaksKSnZ4cDRobkx6VEtXYnV4M01FV3F1ckxrWWFzNkdwS0JqdytpTk9DYXI2WWRxV0dWcU0zUlV4N1BUVWFad2tLeApVZFA2M0lmWTdpWkNJVC9RYnlIUXZJVWUyTWFpVm5IK3VseGRrSzZZNWU3Z3hjYmNrSUg0Ci0tLS0tRU5EIFJTQSBQUklWQVRFIEtFWS0tLS0tCg==";
+        final String pkcs8RsaPublicKeyFile = "file:./src/test/resources/certificate/public-key.client-pkcs8-rsa.pem";
+        final String pkcs8RsaPrivateKeyFile = "file:./src/test/resources/certificate/private-key.client-pkcs8-rsa.pem";
+        final String pkcs8RsaPublicKeyData = rsaPublicKeyData;
+        final String pkcs8RsaPrivateKeyData = "data:application/x-pem-file;base64,LS0tLS1CRUdJTiBQUklWQVRFIEtFWS0tLS0tCk1JSUV2UUlCQURBTkJna3Foa2lHOXcwQkFRRUZBQVNDQktjd2dnU2pBZ0VBQW9JQkFRQzBwYkNDcDJkTmlzNEsKLzZQVXlSTlo5SWZUQUt3ZGxseHIzQUJiZW8vaTY2R1VHK2R2WFFsd1YvbG1QTS8wRkpjcjYwZVlqeTZnM2ZyeQo4Uy9yS0ZSRWN6aks1ZXJNTEhPNERDUkJLamYydk5mdzhZTHVwMk1JM3NzTW5jeWVxSUVpdFN4Sm9RL1hDczJ3CkhXUWo2ajBSSFY3azcrNFE4Q2kwLzNmZUVkRFFuYUV3UjZRZW92dXdHVW4zeUhvMmF5SndScFNScXQyVFJNNWUKdVdTTUw1d3gzeGxzWkp3K29qMHpmeHVhZmM0dkVWT2ZXKzJHbStkY3U4S1liZ3o3ckcxaTBQNmVseFU5bkRXTApWSDNSOHl6dW1sbWRGdS93ZHo4TVYwNHBWQWlCcWJvSU4yYzBxQmJ0enNnRXlzL1FBU2Jmc2RPN1F0STZNL1k0CmRlVysrVkFaQWdNQkFBRUNnZ0VBQm9rVUNMWUx1N2R3MnQ4Q3kxajI5VU11Z3NpOGNWbVdRR1MyTXBrTmlaVWkKeEZ2NkZJSldMQlZTdFlzdnJ0SHI0aS9oNkRnTjVNNERIVFR5bWR4Y3FCbFBEYkFodlg5Q05IOWo5R09Wb0x5VwpSMlpGYVdMdTUweEFKbFd6S0c1S05ibytQdSt2eGdUakNpTVdFMktQRVFaeC8zQmF1WXdtdk4yZE5aQ0pjSEtqCjU1TzlSRDBFK0E4YXRHT3d4bVpPUXZJQlVsOS9ZTi9FN2xzaFlVTmdNbHpKZ0F3SWd4Qzd1L0t6OGpuU2k3cUsKVnZVSTdwQXpwbnNxazk0NmhVVS9DM051SHh4LzNFenhRMUtQb244bVoxYUdBamZnWkxjMERyekZORG85WHZPTwplRUp6Nkp4eWJja3JMTVpmQm9Da0JuNFNoeDcvMlBoWXFhN2tIak9KSFFLQmdRRGVYLzA0ZHVYWE9iSlg2dEhGClk0aVArTGF0TzhmUEFHZHVjOG5LNTZZdmxVd1Yya2FoMURlL0FlL0pDWndRSkZWSEdaZWlORGhDNDg4ZXplcW4KckFRUVU4SmJFS0V0SlBHVlJ6emxJNFVkWlRZNzMyTlh2TWp2NGs2a01yOHl5MnpIMmNlQmQyNGtYNkNWTVcwRApjc2Z3NnJLWE83Wm9VK3ltdkFxNWwvM2hEd0tCZ1FEUDluRnFRUWI0OFF5MC9saExieHhmbGQrT3doZjlYYm9XCnpyK3dmWHBDTlFnUjEwVGxQaDhLNmlURUtOS0xCUnhhR2FXa2NRbmxMbkduZFZoRjhoSmJlTkZiZXF5MGdmVzIKbG1La0hyNUxUTk80bVlzbHNEY2lKWVNEYXUweTN0Zlc0bThEOXRnNnA3U0U0OU81ZTVsMjFWblNjeE1xVHNZYgp3N3BXUUVqc1Z3S0JnUUNRTjhLYXh3bUN6c2xxR1VGWWVaZk1mMm5CNmI1SThxTWh6L2cwSG8zNTJDS1RIWStuClRtR2svOVdLRlRCZ2k1Kyt6OHMyaUJWZzFDdTBkNmxTZXMzYjVPWnNkdG1BMUsvVXQzRzN6WlI4SHZMUVc2MHEKN3FXR1pjZkkxNXlHamNXTHl5S0hSWFJxSkphWmk0ZCtzQWNacUt5UVJrcWpXS0ptOUJja2pIMDdZd0tCZ0JNRgovU3YyRk5neTNMRzF6b2ZmK3gxM1RVTDIyRkR5QVBMVEtNL1JPcHpSMHhJbXVnT3FZaGFTZ3BoN0QzOXVFVURnCnRibE1LZGFRSUE5c2VZMjBiaDkxOXRqQ2FRZitGMmNEYkxTTXAyV2wrbndaZDVRVUFZY2JIWHNVRGV5b1crQXAKU0hSNVlTQkVkUXZ1OTFBeFVVR0FsTDNlanZOQXozaDh1QS9wdzRIekFvR0FWd1pYZ2FNalpiRDF5S1dWb0xubgpneStoS04vd0gvN1RpUmZNTTZIeUpnZ2pNNzBSU0tYV09Nb20vR25pR2N2Tk1wWnU3SGN3UmFxNnN1Umhxem9hCmtvR1BENkkwNEpxdnBoMnBZWldvemRGVEhzOU5ScG5DUXJGUjAvcmNoOWp1SmtJaFA5QnZJZEM4aFI3WXhxSlcKY2Y2NlhGMlFycGpsN3VERnh0eVFnZmc9Ci0tLS0tRU5EIFBSSVZBVEUgS0VZLS0tLS0K";
         final int numMsg = 10;
 
         Map<String, String> privateKeyFileMap = new HashMap<>();
         privateKeyFileMap.put("client-ecdsa.pem", ecdsaPrivateKeyFile);
         privateKeyFileMap.put("client-rsa.pem", rsaPrivateKeyFile);
+        privateKeyFileMap.put("client-pkcs8-rsa.pem", pkcs8RsaPrivateKeyFile);
         Map<String, String> privateKeyDataMap = new HashMap<>();
         privateKeyDataMap.put("client-ecdsa.pem", ecdsaPrivateKeyData);
         privateKeyDataMap.put("client-rsa.pem", rsaPrivateKeyData);
+        privateKeyDataMap.put("client-pkcs8-rsa.pem", pkcs8RsaPrivateKeyData);
 
         Consumer<byte[]> consumer1 = pulsarClient.newConsumer().topic(topic).subscriptionName("sub1")
                 .defaultCryptoKeyReader(ecdsaPrivateKeyFile).subscribe();
@@ -2881,11 +2889,12 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         Producer<byte[]> producer2 = pulsarClient.newProducer().topic(topic).addEncryptionKey("client-ecdsa.pem")
                 .defaultCryptoKeyReader(ecdsaPublicKeyData).create();
 
-        for (int i = 0; i < numMsg; i++) {
-            producer1.send(("my-message-" + i).getBytes());
-        }
-        for (int i = numMsg; i < numMsg * 2; i++) {
-            producer2.send(("my-message-" + i).getBytes());
+        int numProducer = 0;
+        for (Producer<byte[]> producer : Lists.newArrayList(producer1, producer2)) {
+            for (int i = numMsg * numProducer; i < numMsg * (numProducer + 1); i++) {
+                producer.send(("my-message-" + i).getBytes());
+            }
+            numProducer++;
         }
 
         producer1.close();
@@ -2913,21 +2922,27 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
                 .defaultCryptoKeyReader(rsaPublicKeyFile).create();
         Producer<byte[]> producer4 = pulsarClient.newProducer().topic(topic).addEncryptionKey("client-rsa.pem")
                 .defaultCryptoKeyReader(rsaPublicKeyData).create();
+        Producer<byte[]> producer5 = pulsarClient.newProducer().topic(topic).addEncryptionKey("client-pkcs8-rsa.pem")
+                .defaultCryptoKeyReader(pkcs8RsaPublicKeyFile).create();
+        Producer<byte[]> producer6 = pulsarClient.newProducer().topic(topic).addEncryptionKey("client-pkcs8-rsa.pem")
+                .defaultCryptoKeyReader(pkcs8RsaPublicKeyData).create();
 
-        for (int i = numMsg * 2; i < numMsg * 3; i++) {
-            producer3.send(("my-message-" + i).getBytes());
-        }
-        for (int i = numMsg * 3; i < numMsg * 4; i++) {
-            producer4.send(("my-message-" + i).getBytes());
+        for (Producer<byte[]> producer : Lists.newArrayList(producer3, producer4, producer5, producer6)) {
+            for (int i = numMsg * numProducer; i < numMsg * (numProducer + 1); i++) {
+                producer.send(("my-message-" + i).getBytes());
+            }
+            numProducer++;
         }
 
         producer3.close();
         producer4.close();
+        producer5.close();
+        producer6.close();
 
         for (Consumer<byte[]> consumer : Lists.newArrayList(consumer3, consumer4)) {
             MessageImpl<byte[]> msg = null;
 
-            for (int i = 0; i < numMsg * 4; i++) {
+            for (int i = 0; i < numMsg * numProducer; i++) {
                 msg = (MessageImpl<byte[]>) consumer.receive(RECEIVE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
                 // verify that encrypted message contains encryption-context
                 msg.getEncryptionCtx().orElseThrow(
@@ -2943,11 +2958,10 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         consumer4.unsubscribe();
     }
 
-    @Test(timeOut = 100000, groups = "quarantine")
-    public void testRedeliveryOfFailedMessages() throws Exception {
+    @Test(timeOut = 100000, dataProvider = "rsaKeyNames", groups = "quarantine")
+    public void testRedeliveryOfFailedMessages(String rsaKeyName) throws Exception {
         log.info("-- Starting {} test --", methodName);
 
-        final String encryptionKeyName = "client-rsa.pem";
         final String encryptionKeyVersion = "1.0";
         Map<String, String> metadata = new HashMap<>();
         metadata.put("version", encryptionKeyVersion);
@@ -3020,7 +3034,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         String topicName = "persistent://my-property/my-ns/myrsa-topic1";
 
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
-                .addEncryptionKey(encryptionKeyName).compressionType(CompressionType.LZ4)
+                .addEncryptionKey(rsaKeyName).compressionType(CompressionType.LZ4)
                 .enableBatching(false)
                 .cryptoKeyReader(new EncKeyReader()).create();
 
@@ -3088,8 +3102,8 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         log.info("-- Exiting {} test --", methodName);
     }
 
-    @Test(timeOut = 100000)
-    public void testEncryptionFailure() throws Exception {
+    @Test(timeOut = 100000, dataProvider = "rsaKeyNames")
+    public void testEncryptionFailure(String rsaKeyName) throws Exception {
         log.info("-- Starting {} test --", methodName);
 
         class EncKeyReader implements CryptoKeyReader {
@@ -3149,7 +3163,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         @Cleanup
         Producer<byte[]> producer = pulsarClient.newProducer()
             .topic("persistent://my-property/my-ns/myenc-topic1")
-            .addEncryptionKey("client-rsa.pem")
+            .addEncryptionKey(rsaKeyName)
             .cryptoKeyReader(new EncKeyReader())
             .enableBatching(false)
             .messageRoutingMode(MessageRoutingMode.SinglePartition)
@@ -3219,11 +3233,10 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         log.info("-- Exiting {} test --", methodName);
     }
 
-    @Test(timeOut = 100000)
-    public void testEncryptionConsumerWithoutCryptoReader() throws Exception {
+    @Test(timeOut = 100000, dataProvider = "rsaKeyNames")
+    public void testEncryptionConsumerWithoutCryptoReader(String rsaKeyName) throws Exception {
         log.info("-- Starting {} test --", methodName);
 
-        final String encryptionKeyName = "client-rsa.pem";
         final String encryptionKeyVersion = "1.0";
         Map<String, String> metadata = new HashMap<>();
         metadata.put("version", encryptionKeyVersion);
@@ -3267,7 +3280,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
         @Cleanup
         Producer<byte[]> producer = pulsarClient.newProducer().topic("persistent://my-property/my-ns/myrsa-topic1")
-                .addEncryptionKey(encryptionKeyName).compressionType(CompressionType.LZ4)
+                .addEncryptionKey(rsaKeyName).compressionType(CompressionType.LZ4)
                 .cryptoKeyReader(new EncKeyReader()).create();
 
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topicsPattern("persistent://my-property/my-ns/myrsa-topic1")
@@ -3279,7 +3292,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
         TopicMessageImpl<byte[]> msg = (TopicMessageImpl<byte[]>) consumer.receive(RECEIVE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
 
-        String receivedMessage = decryptMessage(msg, encryptionKeyName, new EncKeyReader());
+        String receivedMessage = decryptMessage(msg, rsaKeyName, new EncKeyReader());
         assertEquals(message, receivedMessage);
 
         consumer.close();

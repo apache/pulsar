@@ -289,6 +289,14 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         return topicNames.toArray(new Object[topicNamesProvider().length * topicTypeProvider().length][]);
     }
 
+    @DataProvider(name = "rsaKeyNames")
+    public Object[][] rsaKeyNames() {
+        return new Object[][]{
+            {"client-rsa.pem"},
+            {"client-pkcs8-rsa.pem"}
+        };
+    }
+
     @Test
     public void clusters() throws Exception {
         admin.clusters().createCluster("usw",
@@ -3589,8 +3597,8 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         assertThrows(() -> {admin.topics().truncate(topicName);});
     }
 
-    @Test(timeOut = 20000)
-    public void testPeekEncryptedMessages() throws Exception {
+    @Test(timeOut = 20000, dataProvider = "rsaKeyNames")
+    public void testPeekEncryptedMessages(String keyName) throws Exception {
         final String topicName = "persistent://prop-xyz/ns1/testPeekEncryptedMessages-" + UUID.randomUUID().toString();
         final String subName = "my-sub";
 
@@ -3601,7 +3609,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
                 .topic(topicName)
                 .enableBatching(true)
                 .addEncryptionKey("my-app-key")
-                .defaultCryptoKeyReader("file:./src/test/resources/certificate/public-key.client-rsa.pem")
+                .defaultCryptoKeyReader("file:./src/test/resources/certificate/public-key." + keyName)
                 .create();
 
         for (int i = 0; i < 5; i++) {

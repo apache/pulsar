@@ -102,7 +102,8 @@ public class ProxyPublishConsumeClientSideEncryptionTest extends ProducerConsume
     public Object[][] encryptKeyNames() {
         return new Object[][]{
             {"client-ecdsa.pem"},
-            {"client-rsa.pem"}
+            {"client-rsa.pem"},
+            {"client-pkcs8-rsa.pem"}
         };
     }
 

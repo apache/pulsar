@@ -66,6 +66,7 @@ import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 public class SimpleProducerConsumerTest extends TestRetrySupport {
@@ -115,8 +116,16 @@ public class SimpleProducerConsumerTest extends TestRetrySupport {
         return PulsarClient.builder().serviceUrl(url).statsInterval(intervalInSecs, TimeUnit.SECONDS).build();
     }
 
-    @Test
-    public void testRSAEncryption() throws Exception {
+    @DataProvider(name = "rsaKeyNames")
+    public Object[][] rsaKeyNames() {
+        return new Object[][]{
+                {"client-rsa.pem"},
+                {"client-pkcs8-rsa.pem"}
+        };
+    }
+
+    @Test(dataProvider = "rsaKeyNames")
+    public void testRSAEncryption(String rsaKeyName) throws Exception {
 
         String topicName = "persistent://my-property/my-ns/myrsa-topic1-" + System.currentTimeMillis();
 
@@ -167,17 +176,11 @@ public class SimpleProducerConsumerTest extends TestRetrySupport {
                 .subscribe();
 
         Producer<byte[]> producer = pulsarClient.newProducer().topic("persistent://my-property/my-ns/myrsa-topic1")
-                .addEncryptionKey("client-rsa.pem").cryptoKeyReader(new EncKeyReader()).create();
-        Producer<byte[]> producer2 = pulsarClient.newProducer().topic("persistent://my-property/my-ns/myrsa-topic1")
-                .addEncryptionKey("client-pkcs8-rsa.pem").cryptoKeyReader(new EncKeyReader()).create();
+                .addEncryptionKey(rsaKeyName).cryptoKeyReader(new EncKeyReader()).create();
 
         for (int i = 0; i < totalMsg; i++) {
             String message = "my-message-" + i;
             producer.send(message.getBytes());
-        }
-        for (int i = totalMsg; i < totalMsg * 2; i++) {
-            String message = "my-message-" + i;
-            producer2.send(message.getBytes());
         }
 
         MessageImpl<byte[]> msg = null;
@@ -186,7 +189,7 @@ public class SimpleProducerConsumerTest extends TestRetrySupport {
         // should not able to read message using normal message.
         assertNull(msg);
 
-        for (int i = 0; i < totalMsg * 2; i++) {
+        for (int i = 0; i < totalMsg; i++) {
             msg = (MessageImpl<byte[]>) consumer.receive(5, TimeUnit.SECONDS);
             // verify that encrypted message contains encryption-context
             msg.getEncryptionCtx()
@@ -211,15 +214,14 @@ public class SimpleProducerConsumerTest extends TestRetrySupport {
         assertTrue(messagesReceived.add(receivedMessage), "Received duplicate message " + receivedMessage);
     }
 
-    @Test
-    public void testRedeliveryOfFailedMessages() throws Exception {
+    @Test(dataProvider = "rsaKeyNames")
+    public void testRedeliveryOfFailedMessages(String rsaKeyName) throws Exception {
 
         @Cleanup
         PulsarClient pulsarClient = PulsarClient.builder()
                 .serviceUrl(pulsarContainer.getPlainTextPulsarBrokerUrl())
                 .build();
 
-        final String encryptionKeyName = "client-rsa.pem";
         final String encryptionKeyVersion = "1.0";
         Map<String, String> metadata = new HashMap<>();
         metadata.put("version", encryptionKeyVersion);
@@ -293,7 +295,7 @@ public class SimpleProducerConsumerTest extends TestRetrySupport {
         String topicName = "persistent://my-property/my-ns/myrsa-topic2";
 
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
-                .addEncryptionKey(encryptionKeyName).compressionType(CompressionType.LZ4)
+                .addEncryptionKey(rsaKeyName).compressionType(CompressionType.LZ4)
                 .cryptoKeyReader(new EncKeyReader()).create();
 
         @Cleanup
@@ -354,8 +356,8 @@ public class SimpleProducerConsumerTest extends TestRetrySupport {
         newPulsarClient2.close();
     }
 
-    @Test
-    public void testEncryptionFailure() throws Exception {
+    @Test(dataProvider = "rsaKeyNames")
+    public void testEncryptionFailure(String rsaKeyName) throws Exception {
 
         class EncKeyReader implements CryptoKeyReader {
 
@@ -410,7 +412,7 @@ public class SimpleProducerConsumerTest extends TestRetrySupport {
         // 2. Producer with valid key name
         Producer<byte[]> producer = pulsarClient.newProducer()
                 .topic("persistent://my-property/use/myenc-ns/myenc-topic1")
-                .addEncryptionKey("client-rsa.pem")
+                .addEncryptionKey(rsaKeyName)
                 .cryptoKeyReader(new EncKeyReader())
                 .enableBatching(false)
                 .messageRoutingMode(MessageRoutingMode.SinglePartition)
@@ -478,10 +480,9 @@ public class SimpleProducerConsumerTest extends TestRetrySupport {
         assertNull(msg, "Message received even aftet ConsumerCryptoFailureAction.DISCARD is set.");
     }
 
-    @Test
-    public void testEncryptionConsumerWithoutCryptoReader() throws Exception {
+    @Test(dataProvider = "rsaKeyNames")
+    public void testEncryptionConsumerWithoutCryptoReader(String rsaKeyName) throws Exception {
 
-        final String encryptionKeyName = "client-rsa.pem";
         final String encryptionKeyVersion = "1.0";
         Map<String, String> metadata = new HashMap<>();
         metadata.put("version", encryptionKeyVersion);
@@ -524,7 +525,7 @@ public class SimpleProducerConsumerTest extends TestRetrySupport {
         }
 
         Producer<byte[]> producer = pulsarClient.newProducer().topic("persistent://my-property/my-ns/myrsa-topic3")
-                .addEncryptionKey(encryptionKeyName).compressionType(CompressionType.LZ4)
+                .addEncryptionKey(rsaKeyName).compressionType(CompressionType.LZ4)
                 .cryptoKeyReader(new EncKeyReader()).create();
 
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topicsPattern("persistent://my-property/my-ns/myrsa-topic3")
@@ -536,7 +537,7 @@ public class SimpleProducerConsumerTest extends TestRetrySupport {
 
         TopicMessageImpl<byte[]> msg = (TopicMessageImpl<byte[]>) consumer.receive(5, TimeUnit.SECONDS);
 
-        String receivedMessage = decryptMessage(msg, encryptionKeyName, new EncKeyReader());
+        String receivedMessage = decryptMessage(msg, rsaKeyName, new EncKeyReader());
         assertEquals(message, receivedMessage);
 
         consumer.close();

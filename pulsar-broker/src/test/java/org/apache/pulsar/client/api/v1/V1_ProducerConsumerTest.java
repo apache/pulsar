@@ -2156,8 +2156,16 @@ public class V1_ProducerConsumerTest extends V1_ProducerConsumerBase {
         log.info("-- Exiting {} test --", methodName);
     }
 
-    @Test
-    public void testRSAEncryption() throws Exception {
+    @DataProvider(name = "rsaKeyNames")
+    public Object[][] rsaKeyNames() {
+        return new Object[][]{
+                {"client-rsa.pem"},
+                {"client-pkcs8-rsa.pem"}
+        };
+    }
+
+    @Test(dataProvider = "rsaKeyNames")
+    public void testRSAEncryption(String rsaKeyName) throws Exception {
         log.info("-- Starting {} test --", methodName);
 
         class EncKeyReader implements CryptoKeyReader {
@@ -2209,26 +2217,17 @@ public class V1_ProducerConsumerTest extends V1_ProducerConsumerBase {
 
         Producer<byte[]> producer = pulsarClient.newProducer()
                 .topic("persistent://my-property/use/my-ns/myrsa-topic1")
-                .addEncryptionKey("client-rsa.pem")
-                .cryptoKeyReader(new EncKeyReader())
-                .create();
-        Producer<byte[]> producer2 = pulsarClient.newProducer()
-                .topic("persistent://my-property/use/my-ns/myrsa-topic1")
-                .addEncryptionKey("client-pkcs8-rsa.pem")
+                .addEncryptionKey(rsaKeyName)
                 .cryptoKeyReader(new EncKeyReader())
                 .create();
         for (int i = 0; i < totalMsg; i++) {
             String message = "my-message-" + i;
             producer.send(message.getBytes());
         }
-        for (int i = totalMsg; i < totalMsg * 2; i++) {
-            String message = "my-message-" + i;
-            producer2.send(message.getBytes());
-        }
 
         Message<byte[]> msg = null;
 
-        for (int i = 0; i < totalMsg * 2; i++) {
+        for (int i = 0; i < totalMsg; i++) {
             msg = consumer.receive(5, TimeUnit.SECONDS);
             String receivedMessage = new String(msg.getData());
             log.debug("Received message: [{}]", receivedMessage);
@@ -2241,8 +2240,8 @@ public class V1_ProducerConsumerTest extends V1_ProducerConsumerBase {
         log.info("-- Exiting {} test --", methodName);
     }
 
-    @Test
-    public void testEncryptionFailure() throws Exception {
+    @Test(dataProvider = "rsaKeyNames")
+    public void testEncryptionFailure(String rsaKeyName) throws Exception {
         log.info("-- Starting {} test --", methodName);
 
         class EncKeyReader implements CryptoKeyReader {
@@ -2305,7 +2304,7 @@ public class V1_ProducerConsumerTest extends V1_ProducerConsumerBase {
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
                 .topic("persistent://my-property/use/my-ns/myenc-topic1")
                 .enableBatching(false)
-                .addEncryptionKey("client-rsa.pem")
+                .addEncryptionKey(rsaKeyName)
                 .cryptoKeyReader(new EncKeyReader())
                 .create();
 
