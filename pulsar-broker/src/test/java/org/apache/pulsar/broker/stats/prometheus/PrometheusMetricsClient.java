@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker.stats.prometheus;
 
-import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Fail.fail;
 import static org.testng.Assert.assertTrue;
 import com.google.common.base.MoreObjects;
@@ -149,9 +148,6 @@ public class PrometheusMetricsClient {
                 ". Metrics are = "+nameToDataPoints.get(metricName)+". Labels requested = "+ Arrays.toString(
                         nameValuePairs));
             }
-            assertThat(metricByNameAndLabels)
-                    .describedAs(metricByNameAndLabels.toString())
-                    .hasSize(1);
             return metricByNameAndLabels.get(0);
         }
     }

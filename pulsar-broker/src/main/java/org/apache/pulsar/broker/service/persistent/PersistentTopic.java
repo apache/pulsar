@@ -3233,13 +3233,16 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         TopicName topicName = TopicName.get(getName());
         int backlogQuotaLimitInSecond = getBacklogQuota(BacklogQuotaType.message_age).getLimitTime();
 
+        // If backlog quota by time is not set
+        if (backlogQuotaLimitInSecond <= 0) {
+            return CompletableFuture.completedFuture(false);
+        }
+
         ManagedCursorContainer managedCursorContainer = (ManagedCursorContainer) ledger.getCursors();
         CursorInfo oldestMarkDeleteCursorInfo = managedCursorContainer.getCursorWithOldestPosition();
 
-        // If backlog quota by time is not set, and we have no durable cursor
-        // since `ledger.getCursors()` only managed durable cursors
-        if (backlogQuotaLimitInSecond <= 0
-                || oldestMarkDeleteCursorInfo == null
+        // If we have no durable cursor since `ledger.getCursors()` only managed durable cursors
+        if (oldestMarkDeleteCursorInfo == null
                 || oldestMarkDeleteCursorInfo.getPosition() == null) {
             return CompletableFuture.completedFuture(false);
         }
@@ -3265,7 +3268,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             boolean expired = MessageImpl.isEntryExpired(backlogQuotaLimitInSecond, entryTimestamp);
             if (expired && log.isDebugEnabled()) {
                 log.debug("(Using cache) Time based backlog quota exceeded, oldest entry in cursor {}'s backlog"
-                                + "exceeded quota {}", lastCheckResult.getCursorName(), backlogQuotaLimitInSecond);
+                                + " exceeded quota {}", lastCheckResult.getCursorName(), backlogQuotaLimitInSecond);
             }
 
             return CompletableFuture.completedFuture(expired);
@@ -3293,7 +3296,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                                 boolean expired = MessageImpl.isEntryExpired(backlogQuotaLimitInSecond, entryTimestamp);
                                 if (expired && log.isDebugEnabled()) {
                                     log.debug("Time based backlog quota exceeded, oldest entry in cursor {}'s backlog"
-                                    + "exceeded quota {}", ledger.getSlowestConsumer().getName(),
+                                    + " exceeded quota {}", ledger.getSlowestConsumer().getName(),
                                             backlogQuotaLimitInSecond);
                                 }
                                 future.complete(expired);
@@ -3363,8 +3366,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             long estimateMsgAgeMs = managedLedger.getClock().millis() - positionToCheckLedgerInfo.getTimestamp();
             boolean shouldTruncateBacklog = estimateMsgAgeMs > SECONDS.toMillis(backlogQuotaLimitInSecond);
             if (log.isDebugEnabled()) {
-                log.debug("Time based backlog quota exceeded, quota {}, age of ledger "
-                                + "slowest cursor currently on {}", backlogQuotaLimitInSecond * 1000,
+                log.debug("Time based backlog quota exceeded, quota {}[ms], age of ledger "
+                                + "slowest cursor currently on {}[ms]", backlogQuotaLimitInSecond * 1000,
                         estimateMsgAgeMs);
             }
 

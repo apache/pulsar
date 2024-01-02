@@ -41,8 +41,6 @@ import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicLong;
-import java.util.concurrent.atomic.AtomicReference;
 import lombok.Cleanup;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
@@ -595,11 +593,10 @@ public class BacklogQuotaManagerTest {
 
     private void waitForQuotaCheckToRunTwice() {
         final long initialQuotaCheckCount = getQuotaCheckCount();
-        AtomicLong quotaCheckCount = new AtomicLong();
-        Awaitility.await().pollInterval(1, SECONDS).atMost(TIME_TO_CHECK_BACKLOG_QUOTA*3, SECONDS).until(() -> {
-            quotaCheckCount.set(getQuotaCheckCount());
-            return quotaCheckCount.get() > initialQuotaCheckCount + 1;
-        });
+        Awaitility.await()
+                .pollInterval(1, SECONDS)
+                .atMost(TIME_TO_CHECK_BACKLOG_QUOTA*3, SECONDS)
+                .until(() -> getQuotaCheckCount() > initialQuotaCheckCount + 1);
     }
 
     /**
@@ -608,13 +605,9 @@ public class BacklogQuotaManagerTest {
     private String waitForMarkDeletePositionToChange(String topic,
                                                      String subscriptionName,
                                                      String previousMarkDeletePosition) {
-        AtomicReference<String> markDeletePosition = new AtomicReference<>();
-        Awaitility.await().pollInterval(1, SECONDS).atMost(5, SECONDS).until(() -> {
-            markDeletePosition.set(
-                    admin.topics().getInternalStats(topic).cursors.get(subscriptionName).markDeletePosition);
-            return markDeletePosition.get() != null && !markDeletePosition.get().equals(previousMarkDeletePosition);
-        });
-        return markDeletePosition.get();
+        return Awaitility.await().pollInterval(1, SECONDS).atMost(5, SECONDS).until(
+            () -> admin.topics().getInternalStats(topic).cursors.get(subscriptionName).markDeletePosition,
+            markDeletePosition -> markDeletePosition != null && !markDeletePosition.equals(previousMarkDeletePosition));
     }
 
     private long getQuotaCheckCount() {

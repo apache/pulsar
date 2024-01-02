@@ -85,7 +85,12 @@ public class ManagedCursorContainer implements Iterable<ManagedCursor> {
         /**
          * Compares two data versions, which either rolls overs to 0 when reaching Long.MAX_VALUE.
          * <p>
-         * Use {@link DataVersion#incrementVersion(long)} to increment the versions
+         * Use {@link DataVersion#incrementVersion(long)} to increment the versions. The assumptions
+         * is that metric versios are compared with close time proximity one to another, hence,
+         * they are expected not close to each other in terms of distance, hence we don't
+         * expect the distance ever to exceed Long.MAX_VALUE / 2, otherwise we wouldn't be able
+         * to know which one is a later version in case the furthest rolls over to beyond 0. We
+         * assume the shortest distance between them dictates that.
          * <p>
          * @param v1 First version to compare
          * @param v2 Second version to compare
