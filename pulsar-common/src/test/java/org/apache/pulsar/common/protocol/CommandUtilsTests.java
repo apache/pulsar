@@ -20,6 +20,7 @@ package org.apache.pulsar.common.protocol;
 
 import static org.apache.pulsar.common.protocol.Commands.serializeMetadataAndPayload;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 
 import io.netty.buffer.ByteBuf;
@@ -149,6 +150,19 @@ public class CommandUtilsTests {
         byte [] content = new byte[dataWithBrokerEntryMetadata.readableBytes()];
         dataWithBrokerEntryMetadata.readBytes(content);
         assertTrue(new String(content, StandardCharsets.UTF_8).endsWith(data));
+    }
+
+    @Test
+    public void testAlwaysSetBrokerTimestamp() {
+        int MOCK_BATCH_SIZE = 10;
+        String data = "test-message";
+        ByteBuf byteBuf = PulsarByteBufAllocator.DEFAULT.buffer(data.length(), data.length());
+        byteBuf.writeBytes(data.getBytes(StandardCharsets.UTF_8));
+        ByteBuf dataWithBrokerEntryMetadata =
+                Commands.addBrokerEntryMetadata(byteBuf, new HashSet<>(), MOCK_BATCH_SIZE);
+        BrokerEntryMetadata entryMetadata = Commands.parseBrokerEntryMetadataIfExist(dataWithBrokerEntryMetadata);
+        assertNotNull(entryMetadata);
+        assertTrue(entryMetadata.hasBrokerTimestamp());
     }
 
     @Test

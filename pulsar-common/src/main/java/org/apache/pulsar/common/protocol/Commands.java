@@ -1704,6 +1704,9 @@ public class Commands {
                 interceptor.interceptWithNumberOfMessages(brokerEntryMetadata, numberOfMessages);
             }
         }
+        if (!brokerEntryMetadata.hasBrokerTimestamp()) {
+            brokerEntryMetadata.setBrokerTimestamp(System.currentTimeMillis());
+        }
 
         int brokerMetaSize = brokerEntryMetadata.getSerializedSize();
         ByteBuf brokerMeta =
