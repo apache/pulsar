@@ -345,7 +345,7 @@ jobs:
           fi
 
       - name: Upload Surefire reports
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: ${{ !success() || env.TRACE_TEST_RESOURCE_CLEANUP != 'off' }}
         with:
           name: Unit-${{ matrix.group }}-surefire-reports
@@ -353,7 +353,7 @@ jobs:
           retention-days: 7
 
       - name: Upload possible heap dump, core dump or crash files
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: ${{ always() }}
         with:
           name: Unit-${{ matrix.group }}-dumps
@@ -433,7 +433,7 @@ jobs:
           zip -qr jacoco_test_coverage_report_unittests.zip jacoco_test_coverage_report || true
 
       - name: Upload Jacoco report files to build artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: Jacoco-coverage-report-unittests
           path: target/jacoco_test_coverage_report_unittests.zip
@@ -673,7 +673,7 @@ jobs:
           annotate_only: 'true'
 
       - name: Upload Surefire reports
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: ${{ !success() }}
         with:
           name: Integration-${{ matrix.group }}-surefire-reports
@@ -681,7 +681,7 @@ jobs:
           retention-days: 7
 
       - name: Upload container logs
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: ${{ !success() }}
         continue-on-error: true
         with:
@@ -760,7 +760,7 @@ jobs:
           zip -qr jacoco_test_coverage_report_inttests.zip jacoco_test_coverage_report jacoco_inttest_coverage_report || true
 
       - name: Upload Jacoco report files to build artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: Jacoco-coverage-report-inttests
           path: target/jacoco_test_coverage_report_inttests.zip
@@ -1036,7 +1036,7 @@ jobs:
           annotate_only: 'true'
 
       - name: Upload container logs
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: ${{ !success() }}
         continue-on-error: true
         with:
@@ -1045,7 +1045,7 @@ jobs:
           retention-days: 7
 
       - name: Upload Surefire reports
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: ${{ !success() }}
         with:
           name: System-${{ matrix.name }}-surefire-reports
@@ -1124,7 +1124,7 @@ jobs:
           zip -qr jacoco_test_coverage_report_systests.zip jacoco_test_coverage_report jacoco_inttest_coverage_report || true
 
       - name: Upload Jacoco report files to build artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: Jacoco-coverage-report-systests
           path: target/jacoco_test_coverage_report_systests.zip
@@ -1243,7 +1243,7 @@ jobs:
           annotate_only: 'true'
 
       - name: Upload container logs
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: ${{ !success() }}
         continue-on-error: true
         with:
@@ -1252,7 +1252,7 @@ jobs:
           retention-days: 7
 
       - name: Upload Surefire reports
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: ${{ !success() }}
         with:
           name: System-${{ matrix.name }}-surefire-reports
@@ -1385,7 +1385,7 @@ jobs:
             -pl '!distribution/server,!distribution/io,!distribution/offloaders,!tiered-storage/file-system,!pulsar-io/flume,!pulsar-io/hbase,!pulsar-io/hdfs2,!pulsar-io/hdfs3,!pulsar-io/docs,!pulsar-io/jdbc/openmldb'
 
       - name: Upload report
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: ${{ cancelled() || failure() }}
         continue-on-error: true
         with:

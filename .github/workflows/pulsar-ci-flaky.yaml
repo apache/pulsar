@@ -231,7 +231,7 @@ jobs:
 
       - name: Upload Jacoco report files to build artifacts
         if: ${{ needs.preconditions.outputs.collect_coverage == 'true' }}
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: Jacoco-coverage-report-flaky
           path: target/jacoco_test_coverage_report_flaky.zip
@@ -246,7 +246,7 @@ jobs:
           flags: unittests
 
       - name: Upload Surefire reports
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: ${{ !success() || env.TRACE_TEST_RESOURCE_CLEANUP != 'off' }}
         with:
           name: Unit-BROKER_FLAKY-surefire-reports
@@ -255,7 +255,7 @@ jobs:
           if-no-files-found: ignore
 
       - name: Upload possible heap dump, core dump or crash files
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: ${{ always() }}
         with:
           name: Unit-BROKER_FLAKY-dumps
