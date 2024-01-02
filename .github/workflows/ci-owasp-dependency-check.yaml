@@ -70,14 +70,6 @@ jobs:
             ${{ runner.os }}-m2-dependencies-core-modules-${{ hashFiles('**/pom.xml') }}
             ${{ runner.os }}-m2-dependencies-core-modules-
 
-      - name: Cache OWASP Dependency Check data
-        uses: actions/cache@v3
-        timeout-minutes: 5
-        with:
-          path: ~/.m2/repository/org/owasp/dependency-check-data
-          key: owasp-dependency-check-data
-          enableCrossOsArchive: true
-
       - name: Set up JDK ${{ matrix.jdk || '17' }}
         uses: actions/setup-java@v3
         with:
@@ -86,6 +78,34 @@ jobs:
 
       - name: run install by skip tests
         run: mvn -B -ntp clean install -DskipTests -Dspotbugs.skip=true  -Dlicense.skip=true -Dcheckstyle.skip=true -Drat.skip=true -DskipDocker=true
+
+      - name: OWASP cache key weeknum
+        id: get-weeknum
+        run: |
+          echo "weeknum=$(date -u +"%Y-%U")" >> $GITHUB_OUTPUT
+        shell: bash
+
+      - name: Restore OWASP Dependency Check data
+        id: restore-owasp-dependency-check-data
+        uses: actions/cache/restore@v3
+        timeout-minutes: 5
+        with:
+          path: ~/.m2/repository/org/owasp/dependency-check-data
+          key: owasp-dependency-check-data-${{ steps.get-weeknum.outputs.weeknum }}
+          enableCrossOsArchive: true
+
+      - name: Update OWASP Dependency Check data
+        if: ${{ steps.restore-owasp-dependency-check-data.outputs.cache-hit != 'true' }}
+        run: mvn -B -ntp -Powasp-dependency-check initialize -pl . dependency-check:update-only
+
+      - name: Save OWASP Dependency Check data
+        if: ${{ steps.restore-owasp-dependency-check-data.outputs.cache-hit != 'true' }}
+        uses: actions/cache/save@v3
+        timeout-minutes: 5
+        with:
+          path: ~/.m2/repository/org/owasp/dependency-check-data
+          key: ${{ steps.restore-owasp-dependency-check-data.outputs.cache-primary-key }}
+          enableCrossOsArchive: true
 
       - name: run OWASP Dependency Check for distribution/server (-DfailBuildOnAnyVulnerability=true)
         run: mvn -B -ntp -Pmain,skip-all,skipDocker,owasp-dependency-check initialize verify -pl distribution/server -DfailBuildOnAnyVulnerability=true
