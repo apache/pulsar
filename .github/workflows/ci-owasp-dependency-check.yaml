@@ -81,9 +81,16 @@ jobs:
       - name: run OWASP Dependency Check for distribution/server (-DfailBuildOnAnyVulnerability=true)
         run: mvn -B -ntp -Pmain,skip-all,skipDocker,owasp-dependency-check initialize verify -pl distribution/server -DfailBuildOnAnyVulnerability=true
 
-      - name: run OWASP Dependency Check for distribution/offloaders and distribution/io
-        run: mvn -B -ntp -Pmain,skip-all,skipDocker,owasp-dependency-check initialize verify -pl distribution/offloaders,distribution/io
+      - name: run OWASP Dependency Check for offloaders/tiered-storage and pulsar-io connectors
         if: ${{ !cancelled() }}
+        run: |
+          mvnprojects=$(mvn -B -ntp -Dscan=false initialize \
+            | grep -- "-< .* >-" \
+            | sed -E 's/.*-< (.*) >-.*/\1/' \
+            | grep -E 'pulsar-io-|tiered-storage-|offloader' \
+            | tr '\n' ',' | sed 's/,$/\n/' )
+          set -xe
+          mvn -B -ntp -Pmain,skip-all,skipDocker,owasp-dependency-check initialize verify -pl "${mvnprojects}"
 
       - name: Upload OWASP Dependency Check reports
         uses: actions/upload-artifact@v3
