@@ -1396,6 +1396,8 @@ jobs:
           path: ~/.m2/repository/org/owasp/dependency-check-data
           key: owasp-dependency-check-data-${{ steps.get-weeknum.outputs.weeknum }}
           enableCrossOsArchive: true
+          restore-keys: |
+            owasp-dependency-check-data-
 
       # Projects dependent on flume, hdfs, and hbase currently excluded from the scan.
       - name: trigger dependency check

@@ -94,6 +94,8 @@ jobs:
           path: ~/.m2/repository/org/owasp/dependency-check-data
           key: owasp-dependency-check-data-${{ steps.get-weeknum.outputs.weeknum }}
           enableCrossOsArchive: true
+          restore-keys: |
+            owasp-dependency-check-data-
 
       - name: Update OWASP Dependency Check data
         if: ${{ steps.restore-owasp-dependency-check-data.outputs.cache-hit != 'true' && matrix.branch == 'master' }}
