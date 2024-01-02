@@ -404,7 +404,7 @@ The Apache Software License, Version 2.0
     - websocket-client-9.4.53.v20231009.jar
     - websocket-common-9.4.53.v20231009.jar
  * SnakeYaml -- snakeyaml-2.0.jar
- * Google Error Prone Annotations - error_prone_annotations-2.5.1.jar
+ * Google Error Prone Annotations - error_prone_annotations-2.24.0.jar
  * Javassist -- javassist-3.25.0-GA.jar
   * Apache Avro
     - avro-1.11.3.jar
