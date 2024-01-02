@@ -2754,16 +2754,6 @@ public class BrokerService implements Closeable {
                     // Update policies.
                     PersistentTopic persistentTopic = (PersistentTopic) topic;
                     persistentTopic.updateDispatchPauseOnAckStatePersistentEnabled();
-                    // Trigger new read if subscriptions has been paused before.
-                    if (!pulsar().getConfiguration().isDispatcherPauseOnAckStatePersistentEnabled()) {
-                        persistentTopic.updateDispatchPauseOnAckStatePersistentEnabled();
-                        persistentTopic.getSubscriptions().forEach((sName, subscription) -> {
-                            if (subscription.getDispatcher() == null) {
-                                return;
-                            }
-                            subscription.getDispatcher().afterAckMessages(null, 0);
-                        });
-                    }
                 }
             });
         });
