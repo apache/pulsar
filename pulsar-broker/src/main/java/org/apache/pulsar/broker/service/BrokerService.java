@@ -2605,6 +2605,10 @@ public class BrokerService implements Closeable {
         registerConfigurationListener("dispatchThrottlingRatePerSubscriptionInByte", (dispatchRatePerTopicInByte) -> {
             updateSubscriptionMessageDispatchRate();
         });
+        // add listener to update message-dispatch-rate in byte for subscription
+        registerConfigurationListener("dispatcherPauseOnAckStatePersistentEnabled", (dispatchRatePerTopicInByte) -> {
+            updateDispatchPauseOnAckStatePersistentEnabled();
+        });
 
         // add listener to update message-dispatch-rate in msg for replicator
         registerConfigurationListener("dispatchThrottlingRatePerReplicatorInMsg",
@@ -2738,6 +2742,28 @@ public class BrokerService implements Closeable {
                 if (topic instanceof AbstractTopic) {
                     ((AbstractTopic) topic).updateBrokerDispatchRate();
                     ((AbstractTopic) topic).updateDispatchRateLimiter();
+                }
+            });
+        });
+    }
+
+    private void updateDispatchPauseOnAckStatePersistentEnabled() {
+        this.pulsar().getExecutor().execute(() -> {
+            forEachTopic(topic -> {
+                if (topic instanceof PersistentTopic) {
+                    // Update policies.
+                    PersistentTopic persistentTopic = (PersistentTopic) topic;
+                    persistentTopic.updateDispatchPauseOnAckStatePersistentEnabled();
+                    // Trigger new read if subscriptions has been paused before.
+                    if (!pulsar().getConfiguration().isDispatcherPauseOnAckStatePersistentEnabled()) {
+                        persistentTopic.updateDispatchPauseOnAckStatePersistentEnabled();
+                        persistentTopic.getSubscriptions().forEach((sName, subscription) -> {
+                            if (subscription.getDispatcher() == null) {
+                                return;
+                            }
+                            subscription.getDispatcher().afterAckMessages(null, 0);
+                        });
+                    }
                 }
             });
         });
