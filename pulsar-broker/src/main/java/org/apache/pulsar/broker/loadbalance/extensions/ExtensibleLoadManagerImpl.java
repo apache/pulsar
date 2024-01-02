@@ -363,7 +363,7 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
             this.serviceUnitStateChannel = new ServiceUnitStateChannelImpl(pulsar);
             this.brokerRegistry.start();
             this.splitManager = new SplitManager(splitCounter);
-            this.unloadManager = new UnloadManager(unloadCounter);
+            this.unloadManager = new UnloadManager(pulsar, unloadCounter);
             this.serviceUnitStateChannel.listen(unloadManager);
             this.serviceUnitStateChannel.listen(splitManager);
             this.leaderElectionService.start();

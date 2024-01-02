@@ -84,7 +84,6 @@ import org.apache.pulsar.broker.loadbalance.extensions.models.Unload;
 import org.apache.pulsar.broker.loadbalance.impl.LoadManagerShared;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.service.BrokerServiceException;
-import org.apache.pulsar.broker.stats.prometheus.metrics.Summary;
 import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
@@ -178,16 +177,6 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
     final Map<ServiceUnitState, Counters> ownerLookUpCounters;
     final Map<EventType, Counters> eventCounters;
     final Map<ServiceUnitState, Counters> handlerCounters;
-    final Map<String, CompletableFuture<Long>> updateLatencyMetrics;
-    private static final Summary unloadLatencyMs = Summary.build("brk_lb_unload_latency", "-")
-            .quantile(0.0)
-            .quantile(0.50)
-            .quantile(0.95)
-            .quantile(0.99)
-            .quantile(0.999)
-            .quantile(0.9999)
-            .quantile(1.0)
-            .register();
 
     enum ChannelState {
         Closed(0),
@@ -243,7 +232,6 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         ownerLookUpCounters = Map.copyOf(tmpOwnerLookUpCounters);
         handlerCounters = Map.copyOf(tmpHandlerCounters);
         eventCounters = Map.copyOf(tmpEventCounters);
-        updateLatencyMetrics = new ConcurrentHashMap<>();
         this.channelState = Constructed;
     }
 
@@ -797,11 +785,6 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         } else {
             stateChangeListeners.notify(serviceUnit, data, null);
         }
-
-        var updateLatencyFuture = updateLatencyMetrics.get(serviceUnit);
-        if (updateLatencyFuture != null) {
-            updateLatencyFuture.complete(System.nanoTime());
-        }
     }
 
     private void handleAssignEvent(String serviceUnit, ServiceUnitStateData data) {
@@ -814,17 +797,6 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
     }
 
     private void handleReleaseEvent(String serviceUnit, ServiceUnitStateData data) {
-        long startTimeNs = System.nanoTime();
-        if (isTargetBroker(data.sourceBroker()) || isTargetBroker(data.dstBroker())) {
-            updateLatencyMetrics.computeIfAbsent(serviceUnit, sUnit -> {
-                var future = new CompletableFuture<Long>();
-                future.thenAccept(
-                        endTimeNs -> unloadLatencyMs.observe(endTimeNs - startTimeNs, TimeUnit.NANOSECONDS)).
-                orTimeout(1, TimeUnit.HOURS).
-                whenComplete((unused, throwable) -> updateLatencyMetrics.remove(sUnit, future));
-                return future;
-            });
-        }
         if (isTargetBroker(data.sourceBroker())) {
             ServiceUnitStateData next;
             CompletableFuture<Integer> unloadFuture;

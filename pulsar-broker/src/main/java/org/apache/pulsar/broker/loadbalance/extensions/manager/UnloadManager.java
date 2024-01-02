@@ -21,14 +21,17 @@ package org.apache.pulsar.broker.loadbalance.extensions.manager;
 import static org.apache.pulsar.broker.loadbalance.extensions.models.UnloadDecision.Label.Failure;
 import static org.apache.pulsar.broker.loadbalance.extensions.models.UnloadDecision.Reason.Unknown;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState;
 import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateData;
 import org.apache.pulsar.broker.loadbalance.extensions.models.UnloadCounter;
 import org.apache.pulsar.broker.loadbalance.extensions.models.UnloadDecision;
+import org.apache.pulsar.broker.stats.prometheus.metrics.Summary;
 
 /**
  * Unload manager.
@@ -36,12 +39,56 @@ import org.apache.pulsar.broker.loadbalance.extensions.models.UnloadDecision;
 @Slf4j
 public class UnloadManager implements StateChangeListener {
 
+    private static final long OP_TIMEOUT_NS = TimeUnit.HOURS.toNanos(1);
+
     private final UnloadCounter counter;
     private final Map<String, CompletableFuture<Void>> inFlightUnloadRequest;
+    private final Map<String, CompletableFuture<Void>> updateLatencyMetrics;
+    private final Map<String, CompletableFuture<Void>> assigningLatencyMetrics;
+    private final Map<String, CompletableFuture<Void>> releasingLatencyMetrics;
+    private final String lookupServiceAddress;
 
-    public UnloadManager(UnloadCounter counter) {
+    private static final Summary unloadLatency =
+            Summary.build("brk_lb_unload_latency", "Total latency distribution of unload operations")
+            .quantile(0.0)
+            .quantile(0.50)
+            .quantile(0.95)
+            .quantile(0.99)
+            .quantile(0.999)
+            .quantile(0.9999)
+            .quantile(1.0)
+            .register();
+
+
+    private static final Summary releaseLatency =
+            Summary.build("brk_lb_release_latency", "Time spent in the load balancing RELEASE state")
+            .quantile(0.0)
+            .quantile(0.50)
+            .quantile(0.95)
+            .quantile(0.99)
+            .quantile(0.999)
+            .quantile(0.9999)
+            .quantile(1.0)
+            .register();
+
+    private static final Summary assignLatency =
+            Summary.build("brk_lb_assign_latency", "Time spent in the load balancing ASSIGN state")
+            .quantile(0.0)
+            .quantile(0.50)
+            .quantile(0.95)
+            .quantile(0.99)
+            .quantile(0.999)
+            .quantile(0.9999)
+            .quantile(1.0)
+            .register();
+
+    public UnloadManager(PulsarService pulsar, UnloadCounter counter) {
         this.counter = counter;
         this.inFlightUnloadRequest = new ConcurrentHashMap<>();
+        this.updateLatencyMetrics = new ConcurrentHashMap<>();
+        this.assigningLatencyMetrics = new ConcurrentHashMap<>();
+        this.releasingLatencyMetrics = new ConcurrentHashMap<>();
+        this.lookupServiceAddress = Objects.requireNonNull(pulsar.getLookupServiceAddress());
     }
 
     private void complete(String serviceUnit, Throwable ex) {
@@ -55,6 +102,9 @@ public class UnloadManager implements StateChangeListener {
             }
             return null;
         });
+
+        endLatencyMeasurement(serviceUnit, updateLatencyMetrics);
+        endLatencyMeasurement(serviceUnit, assigningLatencyMetrics);
     }
 
     public CompletableFuture<Void> waitAsync(CompletableFuture<Void> eventPubFuture,
@@ -62,7 +112,6 @@ public class UnloadManager implements StateChangeListener {
                                              UnloadDecision decision,
                                              long timeout,
                                              TimeUnit timeoutUnit) {
-
         return eventPubFuture.thenCompose(__ -> inFlightUnloadRequest.computeIfAbsent(bundle, ignore -> {
             if (log.isDebugEnabled()) {
                 log.debug("Handle unload bundle: {}, timeout: {} {}", bundle, timeout, timeoutUnit);
@@ -95,14 +144,51 @@ public class UnloadManager implements StateChangeListener {
             this.complete(serviceUnit, t);
             return;
         }
+
+        if (log.isDebugEnabled()) {
+            log.debug("Handling {} for service unit {}", data, serviceUnit);
+        }
         ServiceUnitState state = ServiceUnitStateData.state(data);
         switch (state) {
             case Free, Owned -> this.complete(serviceUnit, t);
-            default -> {
-                if (log.isDebugEnabled()) {
-                    log.debug("Handling {} for service unit {}", data, serviceUnit);
-                }
-            }
+            case Releasing -> recordReleaseLatency(serviceUnit, data);
+            case Assigning -> recordAssigningLatency(serviceUnit, data);
+        }
+    }
+
+    private void recordReleaseLatency(String serviceUnit, ServiceUnitStateData data) {
+        if (lookupServiceAddress.equals(data.sourceBroker())) {
+            beginLatencyMeasurement(serviceUnit, updateLatencyMetrics, unloadLatency);
+            beginLatencyMeasurement(serviceUnit, releasingLatencyMetrics, releaseLatency);
+        } else if (lookupServiceAddress.equals(data.dstBroker())) {
+            beginLatencyMeasurement(serviceUnit, updateLatencyMetrics, unloadLatency);
+        }
+    }
+
+    private void recordAssigningLatency(String serviceUnit, ServiceUnitStateData data) {
+        if (lookupServiceAddress.equals(data.sourceBroker())) {
+            endLatencyMeasurement(serviceUnit, releasingLatencyMetrics);
+        } else if (lookupServiceAddress.equals(data.dstBroker())) {
+            beginLatencyMeasurement(serviceUnit, assigningLatencyMetrics, assignLatency);
+        }
+    }
+
+    private void beginLatencyMeasurement(String serviceUnit, Map<String, CompletableFuture<Void>> latencyMap,
+                                         Summary summary) {
+        var startTimeNs = System.nanoTime();
+        latencyMap.computeIfAbsent(serviceUnit, ignore -> {
+            var future = new CompletableFuture<Void>();
+            future.completeOnTimeout(null, OP_TIMEOUT_NS, TimeUnit.NANOSECONDS).
+                    thenAccept(__ -> summary.observe(System.nanoTime() - startTimeNs, TimeUnit.NANOSECONDS)).
+                    whenComplete((__, throwable) -> latencyMap.remove(serviceUnit, future));
+            return future;
+        });
+    }
+
+    private void endLatencyMeasurement(String serviceUnit, Map<String, CompletableFuture<Void>> latencyMap) {
+        var future = latencyMap.get(serviceUnit);
+        if (future != null) {
+            future.complete(null);
         }
     }
 
