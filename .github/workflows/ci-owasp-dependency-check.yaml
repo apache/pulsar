@@ -90,7 +90,7 @@ jobs:
             | grep -E 'pulsar-io-|tiered-storage-|offloader' \
             | tr '\n' ',' | sed 's/,$/\n/' )
           set -xe
-          mvn -B -ntp -Pmain,skip-all,skipDocker,owasp-dependency-check initialize verify -pl "${mvnprojects}"
+          mvn --fail-at-end -B -ntp -Pmain,skip-all,skipDocker,owasp-dependency-check initialize verify -pl "${mvnprojects}"
 
       - name: Upload OWASP Dependency Check reports
         uses: actions/upload-artifact@v3
@@ -98,6 +98,4 @@ jobs:
         with:
           name: owasp-dependency-check-reports-${{ matrix.branch }}
           path: |
-            distribution/server/target/dependency-check-report.html
-            distribution/offloaders/target/dependency-check-report.html
-            distribution/io/target/dependency-check-report.html
+            **/target/dependency-check-report.html
