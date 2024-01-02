@@ -98,11 +98,11 @@ jobs:
             owasp-dependency-check-data-
 
       - name: Update OWASP Dependency Check data
-        if: ${{ steps.restore-owasp-dependency-check-data.outputs.cache-hit != 'true' && matrix.branch == 'master' }}
+        if: ${{ matrix.branch == 'master' && (steps.restore-owasp-dependency-check-data.outputs.cache-hit != 'true' || steps.restore-owasp-dependency-check-data.outputs.cache-matched-key != steps.restore-owasp-dependency-check-data.outputs.cache-primary-key) }}
         run: mvn -B -ntp -Powasp-dependency-check initialize -pl . dependency-check:update-only
 
       - name: Save OWASP Dependency Check data
-        if: ${{ steps.restore-owasp-dependency-check-data.outputs.cache-hit != 'true' && matrix.branch == 'master' }}
+        if: ${{ matrix.branch == 'master' && (steps.restore-owasp-dependency-check-data.outputs.cache-hit != 'true' || steps.restore-owasp-dependency-check-data.outputs.cache-matched-key != steps.restore-owasp-dependency-check-data.outputs.cache-primary-key) }}
         uses: actions/cache/save@v3
         timeout-minutes: 5
         with:
