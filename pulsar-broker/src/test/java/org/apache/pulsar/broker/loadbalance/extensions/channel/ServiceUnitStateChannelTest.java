@@ -39,6 +39,7 @@ import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.hamcrest.Matchers.lessThanOrEqualTo;
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertThrows;
+import static org.testng.Assert.expectThrows;
 import static org.testng.AssertJUnit.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
@@ -1560,6 +1561,80 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         cleanTableViews();
     }
 
+    @Test(priority = 19)
+    public void testActiveGetOwner() throws Exception {
+
+
+        // set the bundle owner is the broker
+        String broker = lookupServiceAddress2;
+        String bundle = "public/owned/0xfffffff0_0xffffffff";
+        overrideTableViews(bundle,
+                new ServiceUnitStateData(Owned, broker, null, 1));
+        var owner = channel1.getOwnerAsync(bundle).get(5, TimeUnit.SECONDS).get();
+        assertEquals(owner, broker);
+
+        // simulate the owner is inactive
+        var spyRegistry = spy(new BrokerRegistryImpl(pulsar));
+        doReturn(CompletableFuture.completedFuture(Optional.empty()))
+                .when(spyRegistry).lookupAsync(eq(broker));
+        FieldUtils.writeDeclaredField(channel1,
+                "brokerRegistry", spyRegistry , true);
+        FieldUtils.writeDeclaredField(channel1,
+                "inFlightStateWaitingTimeInMillis", 1000, true);
+
+
+        // verify getOwnerAsync times out because the owner is inactive now.
+        long start = System.currentTimeMillis();
+        var ex = expectThrows(ExecutionException.class, () -> channel1.getOwnerAsync(bundle).get());
+        assertTrue(ex.getCause() instanceof TimeoutException);
+        assertTrue(System.currentTimeMillis() - start >= 1000);
+
+        // simulate ownership cleanup(no selected owner) by the leader channel
+        doReturn(CompletableFuture.completedFuture(Optional.empty()))
+                .when(loadManager).selectAsync(any(), any());
+        var leaderChannel = channel1;
+        String leader1 = channel1.getChannelOwnerAsync().get(2, TimeUnit.SECONDS).get();
+        String leader2 = channel2.getChannelOwnerAsync().get(2, TimeUnit.SECONDS).get();
+        assertEquals(leader1, leader2);
+        if (leader1.equals(lookupServiceAddress2)) {
+            leaderChannel = channel2;
+        }
+        leaderChannel.handleMetadataSessionEvent(SessionReestablished);
+        FieldUtils.writeDeclaredField(leaderChannel, "lastMetadataSessionEventTimestamp",
+                System.currentTimeMillis() - (MAX_CLEAN_UP_DELAY_TIME_IN_SECS * 1000 + 1000), true);
+        leaderChannel.handleBrokerRegistrationEvent(broker, NotificationType.Deleted);
+
+        // verify the ownership cleanup, and channel's getOwnerAsync returns empty result without timeout
+        FieldUtils.writeDeclaredField(channel1,
+                "inFlightStateWaitingTimeInMillis", 20 * 1000, true);
+        start = System.currentTimeMillis();
+        assertTrue(channel1.getOwnerAsync(bundle).get().isEmpty());
+        assertTrue(System.currentTimeMillis() - start < 20_000);
+
+        // simulate ownership cleanup(lookupServiceAddress1 selected owner) by the leader channel
+        overrideTableViews(bundle,
+                new ServiceUnitStateData(Owned, broker, null, 1));
+        doReturn(CompletableFuture.completedFuture(Optional.of(lookupServiceAddress1)))
+                .when(loadManager).selectAsync(any(), any());
+        leaderChannel.handleMetadataSessionEvent(SessionReestablished);
+        FieldUtils.writeDeclaredField(leaderChannel, "lastMetadataSessionEventTimestamp",
+                System.currentTimeMillis() - (MAX_CLEAN_UP_DELAY_TIME_IN_SECS * 1000 + 1000), true);
+        getCleanupJobs(leaderChannel).clear();
+        leaderChannel.handleBrokerRegistrationEvent(broker, NotificationType.Deleted);
+
+        // verify the ownership cleanup, and channel's getOwnerAsync returns lookupServiceAddress1 without timeout
+        start = System.currentTimeMillis();
+        assertEquals(lookupServiceAddress1, channel1.getOwnerAsync(bundle).get().get());
+        assertTrue(System.currentTimeMillis() - start < 20_000);
+
+        // test clean-up
+        FieldUtils.writeDeclaredField(channel1,
+                "inFlightStateWaitingTimeInMillis", 30 * 1000, true);
+        FieldUtils.writeDeclaredField(channel1,
+                "brokerRegistry", registry , true);
+        cleanTableViews();
+
+    }
 
     private static ConcurrentHashMap<String, CompletableFuture<Optional<String>>> getOwnerRequests(
             ServiceUnitStateChannel channel) throws IllegalAccessException {
