@@ -2605,7 +2605,7 @@ public class BrokerService implements Closeable {
         registerConfigurationListener("dispatchThrottlingRatePerSubscriptionInByte", (dispatchRatePerTopicInByte) -> {
             updateSubscriptionMessageDispatchRate();
         });
-        // add listener to update message-dispatch-rate in byte for subscription
+        // add listener to update "dispatcherPauseOnAckStatePersistentEnabled" in byte for subscription
         registerConfigurationListener("dispatcherPauseOnAckStatePersistentEnabled", (dispatchRatePerTopicInByte) -> {
             updateDispatchPauseOnAckStatePersistentEnabled();
         });
