@@ -1359,9 +1359,12 @@ jobs:
           path: |
             ~/.m2/repository/*/*/*
             !~/.m2/repository/org/apache/pulsar
+            !~/.m2/repository/org/owasp/dependency-check-data
           key: ${{ runner.os }}-m2-dependencies-core-modules-${{ hashFiles('**/pom.xml') }}
+          lookup-only: true
           restore-keys: |
             ${{ runner.os }}-m2-dependencies-core-modules-
+
       - name: Set up JDK ${{ matrix.jdk || env.CI_JDK_MAJOR_VERSION }}
         uses: actions/setup-java@v3
         with:
@@ -1378,6 +1381,24 @@ jobs:
         run: |
           cd $HOME
           $GITHUB_WORKSPACE/build/pulsar_ci_tool.sh restore_tar_from_github_actions_artifacts pulsar-maven-repository-binaries
+
+      - name: OWASP cache key weeknum
+        id: get-weeknum
+        run: |
+          echo "weeknum=$(date -u +"%Y-%U")" >> $GITHUB_OUTPUT
+        shell: bash
+
+      - name: Restore OWASP Dependency Check data
+        id: restore-owasp-dependency-check-data
+        uses: actions/cache/restore@v3
+        timeout-minutes: 5
+        with:
+          path: ~/.m2/repository/org/owasp/dependency-check-data
+          key: owasp-dependency-check-data-${{ steps.get-weeknum.outputs.weeknum }}
+          enableCrossOsArchive: true
+          restore-keys: |
+            owasp-dependency-check-data-
+
       # Projects dependent on flume, hdfs, and hbase currently excluded from the scan.
       - name: trigger dependency check
         run: |
