@@ -1359,9 +1359,19 @@ jobs:
           path: |
             ~/.m2/repository/*/*/*
             !~/.m2/repository/org/apache/pulsar
+            !~/.m2/repository/org/owasp/dependency-check-data
           key: ${{ runner.os }}-m2-dependencies-core-modules-${{ hashFiles('**/pom.xml') }}
           restore-keys: |
             ${{ runner.os }}-m2-dependencies-core-modules-
+
+      - name: Cache OWASP Dependency Check data
+        uses: actions/cache@v3
+        timeout-minutes: 5
+        with:
+          path: ~/.m2/repository/org/owasp/dependency-check-data
+          key: owasp-dependency-check-data
+          enableCrossOsArchive: true
+
       - name: Set up JDK ${{ matrix.jdk || env.CI_JDK_MAJOR_VERSION }}
         uses: actions/setup-java@v3
         with:
