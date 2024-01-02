@@ -123,7 +123,7 @@ jobs:
           mvn --fail-at-end -B -ntp -Pmain,skip-all,skipDocker,owasp-dependency-check initialize verify -DfailOnError=false -pl "${mvnprojects}"
 
       - name: Upload OWASP Dependency Check reports
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: always()
         with:
           name: owasp-dependency-check-reports-${{ matrix.branch }}
