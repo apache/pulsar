@@ -247,6 +247,7 @@ public class SubscriptionPauseOnAckStatPersistTest extends ProducerConsumerBase 
                 .receiverQueueSize(incomingQueueSize).isAckReceiptEnabled(true)
                 .subscriptionType(SubscriptionType.Shared).subscribe();
         ackOddMessagesOnly(c1);
+        verifyAckHolesIsMuchThanLimit(tpName, subscription);
 
         cancelPendingRead(tpName, subscription);
         triggerNewReadMoreEntries(tpName, subscription);
@@ -276,6 +277,13 @@ public class SubscriptionPauseOnAckStatPersistTest extends ProducerConsumerBase 
         admin.topics().delete(tpName, false);
     }
 
+    private void verifyAckHolesIsMuchThanLimit(String tpName, String subscription) {
+        Awaitility.await().untilAsserted(() -> {
+            Assert.assertTrue(MAX_UNACKED_RANGES_TO_PERSIST < admin.topics()
+                    .getInternalStats(tpName).cursors.get(subscription).totalNonContiguousDeletedMessagesRange);
+        });
+    }
+
     @Test(dataProvider = "multiConsumerSubscriptionTypes")
     public void testPauseOnAckStatPersist(SubscriptionType subscriptionType) throws Exception {
         final String tpName = BrokerTestUtil.newUniqueName("persistent://public/default/tp");
@@ -299,6 +307,7 @@ public class SubscriptionPauseOnAckStatPersistTest extends ProducerConsumerBase 
                 .receiverQueueSize(incomingQueueSize).isAckReceiptEnabled(true).subscriptionType(subscriptionType)
                 .subscribe();
         ackOddMessagesOnly(c1);
+        verifyAckHolesIsMuchThanLimit(tpName, subscription);
 
         cancelPendingRead(tpName, subscription);
         triggerNewReadMoreEntries(tpName, subscription);
@@ -344,6 +353,7 @@ public class SubscriptionPauseOnAckStatPersistTest extends ProducerConsumerBase 
                 .receiverQueueSize(incomingQueueSize).isAckReceiptEnabled(true)
                 .subscriptionType(SubscriptionType.Shared).subscribe();
         ackOddMessagesOnly(c1);
+        verifyAckHolesIsMuchThanLimit(tpName, subscription);
 
         cancelPendingRead(tpName, subscription);
         triggerNewReadMoreEntries(tpName, subscription);
@@ -423,6 +433,7 @@ public class SubscriptionPauseOnAckStatPersistTest extends ProducerConsumerBase 
                 .subscriptionType(subscriptionType)
                 .subscribe();
         ackOddMessagesOnly(c1);
+        verifyAckHolesIsMuchThanLimit(tpName, subscription);
 
         cancelPendingRead(tpName, subscription);
         triggerNewReadMoreEntries(tpName, subscription);
@@ -463,6 +474,7 @@ public class SubscriptionPauseOnAckStatPersistTest extends ProducerConsumerBase 
         }
         // Make ack holes.
         ReceivedMessages receivedMessagesC1 = ackOddMessagesOnly(c1);
+        verifyAckHolesIsMuchThanLimit(tpName, subscription);
 
         cancelPendingRead(tpName, subscription);
         triggerNewReadMoreEntries(tpName, subscription);
@@ -519,6 +531,7 @@ public class SubscriptionPauseOnAckStatPersistTest extends ProducerConsumerBase 
         }
         // Make ack holes.
         ReceivedMessages receivedMessagesC1AndC2 = ackOddMessagesOnly(c1, c2);
+        verifyAckHolesIsMuchThanLimit(tpName, subscription);
 
         cancelPendingRead(tpName, subscription);
         triggerNewReadMoreEntries(tpName, subscription);
