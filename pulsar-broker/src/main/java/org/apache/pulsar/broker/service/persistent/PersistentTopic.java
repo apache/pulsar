@@ -3111,7 +3111,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         applyPoliciesFutureList.add(FutureUtil.runWithCurrentThread(() -> checkReplicationAndRetryOnFailure()));
         applyPoliciesFutureList.add(FutureUtil.runWithCurrentThread(() -> checkDeduplicationStatus()));
         applyPoliciesFutureList.add(FutureUtil.runWithCurrentThread(() -> checkPersistencePolicies()));
-        applyPoliciesFutureList.add(FutureUtil.runWithCurrentThread(() -> preCreateSubscriptionForCompactionIfNeeded()));
+        applyPoliciesFutureList.add(FutureUtil.runWithCurrentThread(
+                () -> preCreateSubscriptionForCompactionIfNeeded()));
 
         return applyPoliciesFutureList;
     }
