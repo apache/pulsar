@@ -39,17 +39,13 @@ import org.apache.pulsar.broker.stats.prometheus.metrics.Summary;
 @Slf4j
 public class UnloadManager implements StateChangeListener {
 
-    private static final long OP_TIMEOUT_NS = TimeUnit.HOURS.toNanos(1);
 
     private final UnloadCounter counter;
     private final Map<String, CompletableFuture<Void>> inFlightUnloadRequest;
-    private final Map<String, CompletableFuture<Void>> updateLatencyMetrics;
-    private final Map<String, CompletableFuture<Void>> assigningLatencyMetrics;
-    private final Map<String, CompletableFuture<Void>> releasingLatencyMetrics;
     private final String lookupServiceAddress;
 
     private static final Summary unloadLatency =
-            Summary.build("brk_lb_unload_latency", "Total latency distribution of unload operations")
+            Summary.build("brk_lb_unload_latency", "Total time duration of unload operations")
             .quantile(0.0)
             .quantile(0.50)
             .quantile(0.95)
@@ -82,13 +78,45 @@ public class UnloadManager implements StateChangeListener {
             .quantile(1.0)
             .register();
 
+    private enum LatencyMetric {
+        UNLOAD(unloadLatency), RELEASE(releaseLatency), ASSIGN(assignLatency);
+
+        private static final long OP_TIMEOUT_NS = TimeUnit.HOURS.toNanos(1);
+
+        LatencyMetric(Summary summary) {
+            this.summary = summary;
+        }
+
+        public void beginMeasurement(String serviceUnit) {
+            var startTimeNs = System.nanoTime();
+            futures.computeIfAbsent(serviceUnit, ignore -> {
+                var future = new CompletableFuture<Void>();
+                future.completeOnTimeout(null, OP_TIMEOUT_NS, TimeUnit.NANOSECONDS).
+                        thenAccept(__ -> {
+                            var durationNs = System.nanoTime() - startTimeNs;
+                            log.info("Operation {} for service unit {} took {} ns", LatencyMetric.this, serviceUnit,
+                                    durationNs);
+                            summary.observe(durationNs, TimeUnit.NANOSECONDS);
+                        }).whenComplete((__, throwable) -> futures.remove(serviceUnit, future));
+                return future;
+            });
+        }
+
+        public void endMeasurement(String serviceUnit) {
+            var future = futures.get(serviceUnit);
+            if (future != null) {
+                future.complete(null);
+            }
+        }
+
+        private final Summary summary;
+        private final Map<String, CompletableFuture<Void>> futures = new ConcurrentHashMap<>();
+    }
+
     public UnloadManager(PulsarService pulsar, UnloadCounter counter) {
         this.counter = counter;
-        this.inFlightUnloadRequest = new ConcurrentHashMap<>();
-        this.updateLatencyMetrics = new ConcurrentHashMap<>();
-        this.assigningLatencyMetrics = new ConcurrentHashMap<>();
-        this.releasingLatencyMetrics = new ConcurrentHashMap<>();
-        this.lookupServiceAddress = Objects.requireNonNull(pulsar.getLookupServiceAddress());
+        inFlightUnloadRequest = new ConcurrentHashMap<>();
+        lookupServiceAddress = Objects.requireNonNull(pulsar.getLookupServiceAddress());
     }
 
     private void complete(String serviceUnit, Throwable ex) {
@@ -103,8 +131,8 @@ public class UnloadManager implements StateChangeListener {
             return null;
         });
 
-        endLatencyMeasurement(serviceUnit, updateLatencyMetrics);
-        endLatencyMeasurement(serviceUnit, assigningLatencyMetrics);
+        LatencyMetric.UNLOAD.endMeasurement(serviceUnit);
+        LatencyMetric.ASSIGN.endMeasurement(serviceUnit);
     }
 
     public CompletableFuture<Void> waitAsync(CompletableFuture<Void> eventPubFuture,
@@ -141,7 +169,7 @@ public class UnloadManager implements StateChangeListener {
             if (log.isDebugEnabled()) {
                 log.debug("Handling {} for service unit {} with exception.", data, serviceUnit, t);
             }
-            this.complete(serviceUnit, t);
+            complete(serviceUnit, t);
             return;
         }
 
@@ -150,7 +178,7 @@ public class UnloadManager implements StateChangeListener {
         }
         ServiceUnitState state = ServiceUnitStateData.state(data);
         switch (state) {
-            case Free, Owned -> this.complete(serviceUnit, t);
+            case Free, Owned -> complete(serviceUnit, t);
             case Releasing -> recordReleaseLatency(serviceUnit, data);
             case Assigning -> recordAssigningLatency(serviceUnit, data);
         }
@@ -158,37 +186,18 @@ public class UnloadManager implements StateChangeListener {
 
     private void recordReleaseLatency(String serviceUnit, ServiceUnitStateData data) {
         if (lookupServiceAddress.equals(data.sourceBroker())) {
-            beginLatencyMeasurement(serviceUnit, updateLatencyMetrics, unloadLatency);
-            beginLatencyMeasurement(serviceUnit, releasingLatencyMetrics, releaseLatency);
+            LatencyMetric.RELEASE.beginMeasurement(serviceUnit);
+            LatencyMetric.UNLOAD.beginMeasurement(serviceUnit);
         } else if (lookupServiceAddress.equals(data.dstBroker())) {
-            beginLatencyMeasurement(serviceUnit, updateLatencyMetrics, unloadLatency);
+            LatencyMetric.UNLOAD.beginMeasurement(serviceUnit);
         }
     }
 
-    private void recordAssigningLatency(String serviceUnit, ServiceUnitStateData data) {
+   private void recordAssigningLatency(String serviceUnit, ServiceUnitStateData data) {
         if (lookupServiceAddress.equals(data.sourceBroker())) {
-            endLatencyMeasurement(serviceUnit, releasingLatencyMetrics);
+            LatencyMetric.RELEASE.endMeasurement(serviceUnit);
         } else if (lookupServiceAddress.equals(data.dstBroker())) {
-            beginLatencyMeasurement(serviceUnit, assigningLatencyMetrics, assignLatency);
-        }
-    }
-
-    private void beginLatencyMeasurement(String serviceUnit, Map<String, CompletableFuture<Void>> latencyMap,
-                                         Summary summary) {
-        var startTimeNs = System.nanoTime();
-        latencyMap.computeIfAbsent(serviceUnit, ignore -> {
-            var future = new CompletableFuture<Void>();
-            future.completeOnTimeout(null, OP_TIMEOUT_NS, TimeUnit.NANOSECONDS).
-                    thenAccept(__ -> summary.observe(System.nanoTime() - startTimeNs, TimeUnit.NANOSECONDS)).
-                    whenComplete((__, throwable) -> latencyMap.remove(serviceUnit, future));
-            return future;
-        });
-    }
-
-    private void endLatencyMeasurement(String serviceUnit, Map<String, CompletableFuture<Void>> latencyMap) {
-        var future = latencyMap.get(serviceUnit);
-        if (future != null) {
-            future.complete(null);
+            LatencyMetric.ASSIGN.beginMeasurement(serviceUnit);
         }
     }
 
