@@ -1039,11 +1039,11 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
 
     @Override
     public void afterAckMessages(Throwable exOfDeletion, Object ctxOfDeletion) {
-        boolean paused = blockedDispatcherOnCursorDataCanNotFullyPersist == TRUE;
+        boolean unPaused = blockedDispatcherOnCursorDataCanNotFullyPersist == FALSE;
         // Trigger a new read if needed.
-        boolean shouldPauseNow = checkAndResumeIfPaused();
+        boolean shouldPauseNow = !checkAndResumeIfPaused();
         // Switch stat to "paused" if needed.
-        if (!paused && shouldPauseNow) {
+        if (unPaused && shouldPauseNow) {
             if (!BLOCKED_DISPATCHER_ON_CURSOR_DATA_CAN_NOT_FULLY_PERSIST_UPDATER
                     .compareAndSet(this, FALSE, TRUE)) {
                 // Retry due to conflict update.
@@ -1059,7 +1059,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                 && topic.isDispatcherPauseOnAckStatePersistentEnabled();
         // No need to change.
         if (paused == shouldPauseNow) {
-            return shouldPauseNow;
+            return !shouldPauseNow;
         }
         // Should change to "un-pause".
         if (paused && !shouldPauseNow) {
@@ -1072,7 +1072,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                 checkAndResumeIfPaused();
             }
         }
-        return shouldPauseNow;
+        return !shouldPauseNow;
     }
 
     public boolean isBlockedDispatcherOnUnackedMsgs() {
