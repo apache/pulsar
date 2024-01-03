@@ -178,7 +178,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
                         isEncryptionRequired = policies.encryption_required;
                         isAllowAutoUpdateSchema = policies.is_allow_auto_update_schema;
                     }
-                    updatePublishDispatcher();
+                    updatePublishRateLimiter();
                     updateResourceGroupLimiter(policies);
                     return updateClusterMigrated();
                 });
