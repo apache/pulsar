@@ -84,8 +84,6 @@ public class ModularLoadManagerWrapper implements LoadManager {
         return String.format("http://%s", broker);
     }
 
-
-
     private String getBrokerZnodeName(String broker, String webServiceUrl) {
         String scheme = webServiceUrl.substring(0, webServiceUrl.indexOf("://"));
         return String.format("%s://%s", scheme, broker);
