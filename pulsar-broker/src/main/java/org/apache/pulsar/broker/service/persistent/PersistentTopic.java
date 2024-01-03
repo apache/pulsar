@@ -3774,8 +3774,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     public void updateDispatchPauseOnAckStatePersistentEnabled() {
         super.updateDispatchPauseOnAckStatePersistentEnabled();
         // Trigger new read if subscriptions has been paused before.
-        if (!brokerService.getPulsar().getConfiguration().isDispatcherPauseOnAckStatePersistentEnabled()) {
-            updateDispatchPauseOnAckStatePersistentEnabled();
+        if (!topicPolicies.getDispatcherPauseOnAckStatePersistentEnabled().get()) {
             getSubscriptions().forEach((sName, subscription) -> {
                 if (subscription.getDispatcher() == null) {
                     return;

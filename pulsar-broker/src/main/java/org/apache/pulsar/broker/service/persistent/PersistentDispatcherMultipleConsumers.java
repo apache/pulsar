@@ -1040,11 +1040,26 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
     @Override
     public void afterAckMessages(Throwable exOfDeletion, Object ctxOfDeletion) {
         boolean paused = blockedDispatcherOnCursorDataCanNotFullyPersist == TRUE;
+        // Trigger a new read if needed.
+        boolean shouldPauseNow = checkAndResumeIfPaused();
+        // Switch stat to "paused" if needed.
+        if (!paused && shouldPauseNow) {
+            if (!BLOCKED_DISPATCHER_ON_CURSOR_DATA_CAN_NOT_FULLY_PERSIST_UPDATER
+                    .compareAndSet(this, FALSE, TRUE)) {
+                // Retry due to conflict update.
+                afterAckMessages(exOfDeletion, ctxOfDeletion);
+            }
+        }
+    }
+
+    @Override
+    public boolean checkAndResumeIfPaused() {
+        boolean paused = blockedDispatcherOnCursorDataCanNotFullyPersist == TRUE;
         boolean shouldPauseNow = !cursor.isCursorDataFullyPersistable()
                 && topic.isDispatcherPauseOnAckStatePersistentEnabled();
         // No need to change.
         if (paused == shouldPauseNow) {
-            return;
+            return shouldPauseNow;
         }
         // Should change to "un-pause".
         if (paused && !shouldPauseNow) {
@@ -1054,18 +1069,10 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                 readMoreEntriesAsync();
             } else {
                 // Retry due to conflict update.
-                afterAckMessages(exOfDeletion, ctxOfDeletion);
-            }
-            return;
-        }
-        // Should change to "paused".
-        if (!paused && shouldPauseNow) {
-            if (!BLOCKED_DISPATCHER_ON_CURSOR_DATA_CAN_NOT_FULLY_PERSIST_UPDATER
-                    .compareAndSet(this, FALSE, TRUE)) {
-                // Retry due to conflict update.
-                afterAckMessages(exOfDeletion, ctxOfDeletion);
+                checkAndResumeIfPaused();
             }
         }
+        return shouldPauseNow;
     }
 
     public boolean isBlockedDispatcherOnUnackedMsgs() {
