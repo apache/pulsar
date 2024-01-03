@@ -793,6 +793,8 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                     Owned, data.dstBroker(), data.sourceBroker(), getNextVersionId(data));
             stateChangeListeners.notifyOnCompletion(pubAsync(serviceUnit, next), serviceUnit, data)
                     .whenComplete((__, e) -> log(e, serviceUnit, data, next));
+        } else if (isTargetBroker(data.sourceBroker())) {
+            stateChangeListeners.notify(serviceUnit, data, null);
         }
     }
 
