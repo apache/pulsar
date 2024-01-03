@@ -39,7 +39,6 @@ import org.apache.pulsar.broker.stats.prometheus.metrics.Summary;
 @Slf4j
 public class UnloadManager implements StateChangeListener {
 
-
     private final UnloadCounter counter;
     private final Map<String, CompletableFuture<Void>> inFlightUnloadRequest;
     private final String lookupServiceAddress;
