@@ -3478,7 +3478,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             })).thenCompose(java.util.function.Function.identity());
         } else {
             // check is disabled
-            return CompletableFuture.completedFuture((Boolean) null);
+            return CompletableFuture.completedFuture(true);
         }
     }
 
