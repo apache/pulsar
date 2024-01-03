@@ -3763,7 +3763,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         shadowTopics = policies.getShadowTopics();
         checkReplicatedSubscriptionControllerState();
 
-        // Apply policies for components.
+        // Apply policies for components(not contains the specified policies which only defined in namespace policies).
         FutureUtil.waitForAll(applyUpdatedTopicPolicies())
             .thenAccept(__ -> log.info("[{}] topic-level policies updated successfully", topic))
             .exceptionally(e -> {
