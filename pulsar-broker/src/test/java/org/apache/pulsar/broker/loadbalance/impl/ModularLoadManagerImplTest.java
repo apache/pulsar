@@ -62,6 +62,7 @@ import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.loadbalance.LoadBalancerTestingUtils;
 import org.apache.pulsar.broker.loadbalance.LoadData;
 import org.apache.pulsar.broker.loadbalance.LoadManager;
+import org.apache.pulsar.broker.loadbalance.ResourceUnit;
 import org.apache.pulsar.broker.loadbalance.impl.LoadManagerShared.BrokerTopicLoadingPredicate;
 import org.apache.pulsar.client.admin.Namespaces;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -119,7 +120,11 @@ public class ModularLoadManagerImplTest {
     private PulsarService pulsar3;
 
     private String primaryHost;
+
+    private String primaryTlsHost;
     private String secondaryHost;
+
+    private String secondaryTlsHost;
 
     private NamespaceBundleFactory nsFactory;
 
@@ -166,6 +171,7 @@ public class ModularLoadManagerImplTest {
         config1.setLoadBalancerLoadSheddingStrategy("org.apache.pulsar.broker.loadbalance.impl.OverloadShedder");
         config1.setClusterName("use");
         config1.setWebServicePort(Optional.of(0));
+        config1.setWebServicePortTls(Optional.of(0));
         config1.setMetadataStoreUrl("zk:127.0.0.1:" + bkEnsemble.getZookeeperPort());
 
         config1.setAdvertisedAddress("localhost");
@@ -178,6 +184,7 @@ public class ModularLoadManagerImplTest {
         pulsar1.start();
 
         primaryHost = String.format("%s:%d", "localhost", pulsar1.getListenPortHTTP().get());
+        primaryTlsHost = String.format("%s:%d", "localhost", pulsar1.getListenPortHTTPS().get());
         url1 = new URL(pulsar1.getWebServiceAddress());
         admin1 = PulsarAdmin.builder().serviceHttpUrl(url1.toString()).build();
 
@@ -187,6 +194,7 @@ public class ModularLoadManagerImplTest {
         config2.setLoadBalancerLoadSheddingStrategy("org.apache.pulsar.broker.loadbalance.impl.OverloadShedder");
         config2.setClusterName("use");
         config2.setWebServicePort(Optional.of(0));
+        config2.setWebServicePortTls(Optional.of(0));
         config2.setMetadataStoreUrl("zk:127.0.0.1:" + bkEnsemble.getZookeeperPort());
         config2.setAdvertisedAddress("localhost");
         config2.setBrokerShutdownTimeoutMs(0L);
@@ -202,6 +210,7 @@ public class ModularLoadManagerImplTest {
         config.setLoadBalancerLoadSheddingStrategy("org.apache.pulsar.broker.loadbalance.impl.OverloadShedder");
         config.setClusterName("use");
         config.setWebServicePort(Optional.of(0));
+        config.setWebServicePortTls(Optional.of(0));
         config.setMetadataStoreUrl("zk:127.0.0.1:" + bkEnsemble.getZookeeperPort());
         config.setAdvertisedAddress("localhost");
         config.setBrokerShutdownTimeoutMs(0L);
@@ -212,6 +221,7 @@ public class ModularLoadManagerImplTest {
         pulsar3 = new PulsarService(config);
 
         secondaryHost = String.format("%s:%d", "localhost", pulsar2.getListenPortHTTP().get());
+        secondaryTlsHost = String.format("%s:%d", "localhost", pulsar2.getListenPortHTTPS().get());
         url2 = new URL(pulsar2.getWebServiceAddress());
         admin2 = PulsarAdmin.builder().serviceHttpUrl(url2.toString()).build();
 
@@ -436,9 +446,9 @@ public class ModularLoadManagerImplTest {
         pulsar1.getConfiguration().setLoadBalancerEnabled(true);
         final LoadData loadData = (LoadData) getField(primaryLoadManagerSpy, "loadData");
         final Map<String, BrokerData> brokerDataMap = loadData.getBrokerData();
-        final BrokerData brokerDataSpy1 = spy(brokerDataMap.get(primaryHost));
+        final BrokerData brokerDataSpy1 = spy(brokerDataMap.get(primaryTlsHost));
         when(brokerDataSpy1.getLocalData()).thenReturn(localBrokerData);
-        brokerDataMap.put(primaryHost, brokerDataSpy1);
+        brokerDataMap.put(primaryTlsHost, brokerDataSpy1);
         // Need to update all the bundle data for the shredder to see the spy.
         primaryLoadManagerSpy.handleDataNotification(new Notification(NotificationType.Created, LoadManager.LOADBALANCE_BROKERS_ROOT + "/broker:8080"));
 
@@ -456,7 +466,7 @@ public class ModularLoadManagerImplTest {
         verify(namespacesSpy1, Mockito.times(1))
                 .unloadNamespaceBundle(Mockito.anyString(), Mockito.anyString(), Mockito.anyString());
         assertEquals(bundleReference.get(), mockBundleName(2));
-        assertEquals(selectedBrokerRef.get().get(), secondaryHost);
+        assertEquals(selectedBrokerRef.get().get(), secondaryTlsHost);
 
         primaryLoadManagerSpy.doLoadShedding();
         // Now less expensive bundle will be unloaded (normally other bundle would move off and nothing would be
@@ -464,13 +474,13 @@ public class ModularLoadManagerImplTest {
         verify(namespacesSpy1, Mockito.times(2))
                 .unloadNamespaceBundle(Mockito.anyString(), Mockito.anyString(), Mockito.anyString());
         assertEquals(bundleReference.get(), mockBundleName(1));
-        assertEquals(selectedBrokerRef.get().get(), secondaryHost);
+        assertEquals(selectedBrokerRef.get().get(), secondaryTlsHost);
 
         primaryLoadManagerSpy.doLoadShedding();
         // Now both are in grace period: neither should be unloaded.
         verify(namespacesSpy1, Mockito.times(2))
                 .unloadNamespaceBundle(Mockito.anyString(), Mockito.anyString(), Mockito.anyString());
-        assertEquals(selectedBrokerRef.get().get(), secondaryHost);
+        assertEquals(selectedBrokerRef.get().get(), secondaryTlsHost);
 
         // Test bundle transfer to same broker
 
@@ -483,7 +493,7 @@ public class ModularLoadManagerImplTest {
         loadData.getRecentlyUnloadedBundles().clear();
         primaryLoadManagerSpy.doLoadShedding();
         // The bundle shouldn't be unloaded because the broker is the same.
-        verify(namespacesSpy1, Mockito.times(3))
+        verify(namespacesSpy1, Mockito.times(4))
                 .unloadNamespaceBundle(Mockito.anyString(), Mockito.anyString(), Mockito.anyString());
 
     }
@@ -710,7 +720,7 @@ public class ModularLoadManagerImplTest {
         admin1.namespaces().createNamespace(namespace);
 
         @Cleanup
-        PulsarClient pulsarClient = PulsarClient.builder().serviceUrl(pulsar1.getSafeWebServiceAddress()).build();
+        PulsarClient pulsarClient = PulsarClient.builder().serviceUrl(pulsar1.getWebServiceAddress()).build();
         Producer<byte[]> producer = pulsarClient.newProducer().topic("persistent://" + namespace + "/my-topic1")
                 .create();
         ModularLoadManagerImpl loadManager = (ModularLoadManagerImpl) ((ModularLoadManagerWrapper) pulsar1
@@ -900,6 +910,10 @@ public class ModularLoadManagerImplTest {
         // trigger bundle split
         String topicToFindBundle = topicName + 0;
         NamespaceBundle bundleWillBeSplit = pulsar1.getNamespaceService().getBundle(TopicName.get(topicToFindBundle));
+
+        final Optional<ResourceUnit> leastLoaded = loadManagerWrapper.getLeastLoaded(bundleWillBeSplit);
+        assertFalse(leastLoaded.isEmpty());
+        assertTrue(leastLoaded.get().getResourceId().startsWith("https"));
 
         String bundleDataPath = ModularLoadManagerImpl.BUNDLE_DATA_PATH + "/" + tenant + "/" + namespace;
         CompletableFuture<List<String>> children = bundlesCache.getChildren(bundleDataPath);
