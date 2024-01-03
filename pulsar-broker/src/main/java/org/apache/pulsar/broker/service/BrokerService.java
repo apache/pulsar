@@ -2785,7 +2785,7 @@ public class BrokerService implements Closeable {
             forEachTopic(topic -> {
                 if (topic instanceof AbstractTopic) {
                     ((AbstractTopic) topic).updateBrokerPublishRate();
-                    ((AbstractTopic) topic).updatePublishDispatcher();
+                    ((AbstractTopic) topic).updatePublishRateLimiter();
                 }
             }));
     }
