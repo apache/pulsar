@@ -82,6 +82,9 @@ public class UnloadManager implements StateChangeListener {
 
         private static final long OP_TIMEOUT_NS = TimeUnit.HOURS.toNanos(1);
 
+        private final Summary summary;
+        private final Map<String, CompletableFuture<Void>> futures = new ConcurrentHashMap<>();
+
         LatencyMetric(Summary summary) {
             this.summary = summary;
         }
@@ -107,9 +110,6 @@ public class UnloadManager implements StateChangeListener {
                 future.complete(null);
             }
         }
-
-        private final Summary summary;
-        private final Map<String, CompletableFuture<Void>> futures = new ConcurrentHashMap<>();
     }
 
     public UnloadManager(PulsarService pulsar, UnloadCounter counter) {
@@ -132,6 +132,9 @@ public class UnloadManager implements StateChangeListener {
 
         LatencyMetric.UNLOAD.endMeasurement(serviceUnit);
         LatencyMetric.ASSIGN.endMeasurement(serviceUnit);
+        if (ex != null) {
+            LatencyMetric.RELEASE.endMeasurement(serviceUnit);
+        }
     }
 
     public CompletableFuture<Void> waitAsync(CompletableFuture<Void> eventPubFuture,
