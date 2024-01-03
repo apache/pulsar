@@ -63,6 +63,7 @@ import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.loadbalance.LoadBalancerTestingUtils;
 import org.apache.pulsar.broker.loadbalance.LoadData;
 import org.apache.pulsar.broker.loadbalance.LoadManager;
+import org.apache.pulsar.broker.loadbalance.ResourceUnit;
 import org.apache.pulsar.broker.loadbalance.impl.LoadManagerShared.BrokerTopicLoadingPredicate;
 import org.apache.pulsar.client.admin.Namespaces;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -167,12 +168,14 @@ public class ModularLoadManagerImplTest {
         config1.setLoadBalancerLoadSheddingStrategy("org.apache.pulsar.broker.loadbalance.impl.OverloadShedder");
         config1.setClusterName("use");
         config1.setWebServicePort(Optional.of(0));
+        config1.setWebServicePortTls(Optional.of(0));
         config1.setMetadataStoreUrl("zk:127.0.0.1:" + bkEnsemble.getZookeeperPort());
 
         config1.setAdvertisedAddress("localhost");
         config1.setBrokerShutdownTimeoutMs(0L);
         config1.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
         config1.setBrokerServicePort(Optional.of(0));
+        config1.setBrokerServicePortTls(Optional.of(0));
         pulsar1 = new PulsarService(config1);
         pulsar1.start();
 
@@ -186,11 +189,13 @@ public class ModularLoadManagerImplTest {
         config2.setLoadBalancerLoadSheddingStrategy("org.apache.pulsar.broker.loadbalance.impl.OverloadShedder");
         config2.setClusterName("use");
         config2.setWebServicePort(Optional.of(0));
+        config2.setWebServicePortTls(Optional.of(0));
         config2.setMetadataStoreUrl("zk:127.0.0.1:" + bkEnsemble.getZookeeperPort());
         config2.setAdvertisedAddress("localhost");
         config2.setBrokerShutdownTimeoutMs(0L);
         config2.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
         config2.setBrokerServicePort(Optional.of(0));
+        config2.setBrokerServicePortTls(Optional.of(0));
         pulsar2 = new PulsarService(config2);
         pulsar2.start();
 
@@ -199,11 +204,13 @@ public class ModularLoadManagerImplTest {
         config.setLoadBalancerLoadSheddingStrategy("org.apache.pulsar.broker.loadbalance.impl.OverloadShedder");
         config.setClusterName("use");
         config.setWebServicePort(Optional.of(0));
+        config.setWebServicePortTls(Optional.of(0));
         config.setMetadataStoreUrl("zk:127.0.0.1:" + bkEnsemble.getZookeeperPort());
         config.setAdvertisedAddress("localhost");
         config.setBrokerShutdownTimeoutMs(0L);
         config.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
         config.setBrokerServicePort(Optional.of(0));
+        config.setBrokerServicePortTls(Optional.of(0));
         pulsar3 = new PulsarService(config);
 
         secondaryHost = String.format("%s:%d", "localhost", pulsar2.getListenPortHTTP().get());
@@ -895,6 +902,10 @@ public class ModularLoadManagerImplTest {
         // trigger bundle split
         String topicToFindBundle = topicName + 0;
         NamespaceBundle bundleWillBeSplit = pulsar1.getNamespaceService().getBundle(TopicName.get(topicToFindBundle));
+
+        final Optional<ResourceUnit> leastLoaded = loadManagerWrapper.getLeastLoaded(bundleWillBeSplit);
+        assertFalse(leastLoaded.isEmpty());
+        assertTrue(leastLoaded.get().getResourceId().startsWith("https"));
 
         String bundleDataPath = BUNDLE_DATA_BASE_PATH + "/" + tenant + "/" + namespace;
         CompletableFuture<List<String>> children = bundlesCache.getChildren(bundleDataPath);
