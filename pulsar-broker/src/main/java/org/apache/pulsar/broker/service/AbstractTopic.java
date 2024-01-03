@@ -1286,7 +1286,7 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
     /**
      * update topic publish dispatcher for this topic.
      */
-    public void updatePublishDispatcher() {
+    public void updatePublishRateLimiter() {
         synchronized (topicPublishRateLimiterLock) {
             PublishRate publishRate = topicPolicies.getPublishRate().get();
             if (publishRate.publishThrottlingRateInByte > 0 || publishRate.publishThrottlingRateInMsg > 0) {
