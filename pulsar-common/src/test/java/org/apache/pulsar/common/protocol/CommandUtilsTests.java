@@ -20,6 +20,7 @@ package org.apache.pulsar.common.protocol;
 
 import static org.apache.pulsar.common.protocol.Commands.serializeMetadataAndPayload;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 
@@ -163,6 +164,12 @@ public class CommandUtilsTests {
         BrokerEntryMetadata entryMetadata = Commands.parseBrokerEntryMetadataIfExist(dataWithBrokerEntryMetadata);
         assertNotNull(entryMetadata);
         assertTrue(entryMetadata.hasBrokerTimestamp());
+        long timestamp = entryMetadata.getBrokerTimestamp();
+        // add again, the timestamp should change
+        dataWithBrokerEntryMetadata =
+                Commands.addBrokerEntryMetadata(byteBuf, new HashSet<>(), MOCK_BATCH_SIZE);
+        entryMetadata = Commands.parseBrokerEntryMetadataIfExist(dataWithBrokerEntryMetadata);
+        assertNotEquals(timestamp, entryMetadata.getBrokerTimestamp());
     }
 
     @Test
