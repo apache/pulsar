@@ -3771,8 +3771,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     }
 
     @Override
-    public void updateDispatchPauseOnAckStatePersistentEnabled() {
-        super.updateDispatchPauseOnAckStatePersistentEnabled();
+    public void updateBrokerDispatchPauseOnAckStatePersistentEnabled() {
+        super.updateBrokerDispatchPauseOnAckStatePersistentEnabled();
         // Trigger new read if subscriptions has been paused before.
         if (!topicPolicies.getDispatcherPauseOnAckStatePersistentEnabled().get()) {
             getSubscriptions().forEach((sName, subscription) -> {

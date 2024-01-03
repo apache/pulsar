@@ -2753,7 +2753,7 @@ public class BrokerService implements Closeable {
                 if (topic instanceof PersistentTopic) {
                     // Update policies.
                     PersistentTopic persistentTopic = (PersistentTopic) topic;
-                    persistentTopic.updateDispatchPauseOnAckStatePersistentEnabled();
+                    persistentTopic.updateBrokerDispatchPauseOnAckStatePersistentEnabled();
                 }
             });
         });

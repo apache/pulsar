@@ -1268,7 +1268,7 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
             dispatchRateInBroker(brokerService.pulsar().getConfiguration()));
     }
 
-    public void updateDispatchPauseOnAckStatePersistentEnabled() {
+    public void updateBrokerDispatchPauseOnAckStatePersistentEnabled() {
         topicPolicies.getDispatcherPauseOnAckStatePersistentEnabled().updateBrokerValue(
                 brokerService.pulsar().getConfiguration().isDispatcherPauseOnAckStatePersistentEnabled());
     }
