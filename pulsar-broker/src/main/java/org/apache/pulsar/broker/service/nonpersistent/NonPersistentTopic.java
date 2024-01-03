@@ -169,7 +169,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
                         isAllowAutoUpdateSchema = policies.is_allow_auto_update_schema;
                         schemaValidationEnforced = policies.schema_validation_enforced;
                     }
-                    updatePublishDispatcher();
+                    updatePublishRateLimiter();
                     updateResourceGroupLimiter(policies);
                 });
     }

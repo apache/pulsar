@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.common.util;
 
+import com.google.common.util.concurrent.MoreExecutors;
 import java.time.Duration;
 import java.util.Collection;
 import java.util.List;
@@ -52,6 +53,11 @@ public class FutureUtil {
     @Deprecated
     public static CompletableFuture<Void> waitForAll(List<? extends CompletableFuture<?>> futures) {
         return CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]));
+    }
+
+    public static CompletableFuture<Void> runWithCurrentThread(Runnable runnable) {
+        return CompletableFuture.runAsync(
+                () -> runnable.run(), MoreExecutors.directExecutor());
     }
 
     /**
