@@ -196,8 +196,6 @@ import org.slf4j.LoggerFactory;
 
 public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCallback {
 
-    public static final long NOT_AVAILABLE_YET = -1;
-
     // Managed ledger associated with the topic
     protected final ManagedLedger ledger;
 
@@ -293,7 +291,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     }
 
     @Value
-    private static class CheckResult {
+    private static class EstimateTimeBasedBacklogQuotaCheckResult {
         boolean truncateBacklogToMatchQuota;
         Long estimatedOldestUnacknowledgedMessageTimestamp;
     }
@@ -2451,8 +2449,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
         TimeBasedBacklogQuotaCheckResult backlogQuotaCheckResult = timeBasedBacklogQuotaCheckResult;
         stats.oldestBacklogMessageAgeSeconds = (backlogQuotaCheckResult == null)
-            ? NOT_AVAILABLE_YET
-            : TimeUnit.MILLISECONDS.toSeconds(
+            ? (long) -1
+                : TimeUnit.MILLISECONDS.toSeconds(
                 Clock.systemUTC().millis() - backlogQuotaCheckResult.getPositionPublishTimestampInMillis());
 
         stats.oldestBacklogMessageSubscriptionName = (backlogQuotaCheckResult == null)
@@ -3230,7 +3228,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     public long getBestEffortOldestUnacknowledgedMessageAgeSeconds() {
         TimeBasedBacklogQuotaCheckResult result = timeBasedBacklogQuotaCheckResult;
         if (result == null) {
-            return NOT_AVAILABLE_YET;
+            return -1;
         } else {
             return TimeUnit.MILLISECONDS.toSeconds(
                     Clock.systemUTC().millis() - result.getPositionPublishTimestampInMillis());
@@ -3295,7 +3293,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 log.debug("(Using cache) Time based backlog quota exceeded, oldest entry in cursor {}'s backlog"
                                 + " exceeded quota {}", lastCheckResult.getCursorName(), backlogQuotaLimitInSecond);
             }
-
+            persistentTopicMetrics.getBacklogQuotaMetrics().recordTimeBasedBacklogQuotaCheckReadFromCache();
             return CompletableFuture.completedFuture(expired);
         }
 
@@ -3343,7 +3341,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             return future;
         } else {
             try {
-                CheckResult checkResult = estimatedTimeBasedBacklogQuotaCheck(oldestMarkDeletePosition);
+                EstimateTimeBasedBacklogQuotaCheckResult checkResult = estimatedTimeBasedBacklogQuotaCheck(oldestMarkDeletePosition);
                 if (checkResult.getEstimatedOldestUnacknowledgedMessageTimestamp() != null) {
                     updateResultIfNewer(
                             new TimeBasedBacklogQuotaCheckResult(
@@ -3361,7 +3359,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         }
     }
 
-    private CheckResult estimatedTimeBasedBacklogQuotaCheck(PositionImpl markDeletePosition)
+    private EstimateTimeBasedBacklogQuotaCheckResult estimatedTimeBasedBacklogQuotaCheck(PositionImpl markDeletePosition)
             throws ExecutionException, InterruptedException {
         int backlogQuotaLimitInSecond = getBacklogQuota(BacklogQuotaType.message_age).getLimitTime();
         ManagedLedgerImpl managedLedger = (ManagedLedgerImpl) ledger;
@@ -3369,7 +3367,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         // The ledger timestamp is only known when ledger is closed, hence when the mark-delete
         // is at active ledger (open) we can't estimate it.
         if (managedLedger.getLedgersInfo().lastKey().equals(markDeletePosition.getLedgerId())) {
-            return new CheckResult(false, null);
+            return new EstimateTimeBasedBacklogQuotaCheckResult(false, null);
         }
 
         org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo
@@ -3396,9 +3394,9 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                         estimateMsgAgeMs);
             }
 
-            return new CheckResult(shouldTruncateBacklog, positionToCheckLedgerInfo.getTimestamp());
+            return new EstimateTimeBasedBacklogQuotaCheckResult(shouldTruncateBacklog, positionToCheckLedgerInfo.getTimestamp());
         } else {
-            return new CheckResult(false, null);
+            return new EstimateTimeBasedBacklogQuotaCheckResult(false, null);
         }
     }
 

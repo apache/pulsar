@@ -752,20 +752,20 @@ public class ManagedCursorContainerTest {
         assertThat(ManagedCursorContainer.DataVersion.compareVersions(3L, 3L)).isZero();
 
         long v1 = Long.MAX_VALUE - 1;
-        long v2 = ManagedCursorContainer.DataVersion.incrementVersion(v1);
+        long v2 = ManagedCursorContainer.DataVersion.getNextVersion(v1);
 
         assertThat(ManagedCursorContainer.DataVersion.compareVersions(v1, v2)).isNegative();
 
-        v2 = ManagedCursorContainer.DataVersion.incrementVersion(v2);
+        v2 = ManagedCursorContainer.DataVersion.getNextVersion(v2);
         assertThat(ManagedCursorContainer.DataVersion.compareVersions(v1, v2)).isNegative();
 
-        v1 = ManagedCursorContainer.DataVersion.incrementVersion(v1);
+        v1 = ManagedCursorContainer.DataVersion.getNextVersion(v1);
         assertThat(ManagedCursorContainer.DataVersion.compareVersions(v1, v2)).isNegative();
 
-        v1 = ManagedCursorContainer.DataVersion.incrementVersion(v1);
+        v1 = ManagedCursorContainer.DataVersion.getNextVersion(v1);
         assertThat(ManagedCursorContainer.DataVersion.compareVersions(v1, v2)).isZero();
 
-        v1 = ManagedCursorContainer.DataVersion.incrementVersion(v1);
+        v1 = ManagedCursorContainer.DataVersion.getNextVersion(v1);
         assertThat(ManagedCursorContainer.DataVersion.compareVersions(v1, v2)).isPositive();
     }
 

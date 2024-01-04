@@ -30,6 +30,7 @@ public class PersistentTopicMetrics {
     public static class BacklogQuotaMetrics {
         private final LongAdder timeBasedBacklogQuotaExceededEvictionCount = new LongAdder();
         private final LongAdder sizeBasedBacklogQuotaExceededEvictionCount = new LongAdder();
+        private final LongAdder timeBasedBacklogQuotaCheckReadFromCache = new LongAdder();
 
         public void recordTimeBasedBacklogEviction() {
             timeBasedBacklogQuotaExceededEvictionCount.increment();
@@ -39,12 +40,20 @@ public class PersistentTopicMetrics {
             sizeBasedBacklogQuotaExceededEvictionCount.increment();
         }
 
+        public void recordTimeBasedBacklogQuotaCheckReadFromCache() {
+            timeBasedBacklogQuotaCheckReadFromCache.increment();
+        }
+
         public long getSizeBasedBacklogQuotaExceededEvictionCount() {
             return sizeBasedBacklogQuotaExceededEvictionCount.longValue();
         }
 
         public long getTimeBasedBacklogQuotaExceededEvictionCount() {
             return timeBasedBacklogQuotaExceededEvictionCount.longValue();
+        }
+
+        public long getTimeBasedBacklogQuotaCheckReadFromCache() {
+            return timeBasedBacklogQuotaCheckReadFromCache.longValue();
         }
     }
 }

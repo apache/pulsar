@@ -399,11 +399,9 @@ public class BacklogQuotaManagerTest {
             Producer<byte[]> producer = createProducer(client, topic1);
 
             byte[] content = new byte[1024];
-            List<MessageId> messageIds = new ArrayList<>(numMsgs);
             for (int i = 0; i < numMsgs; i++) {
                 Thread.sleep(1000);
-                MessageId messageId = producer.send(content);
-                messageIds.add(messageId);
+                producer.send(content);
             }
 
             String c1MarkDeletePositionBefore =
@@ -467,6 +465,8 @@ public class BacklogQuotaManagerTest {
             topicStats = getTopicStats(topic1);
             assertThat(topicStats.getOldestBacklogMessageSubscriptionName()).isEqualTo(subName1);
 
+            long cacheUsedCounterBefore = getCacheUsedCounter(topic1);
+
             // Move subscription 1 passed subscription 2
             for (int i = 0; i < 3; i++) {
                 Message<byte[]> message = consumer1.receive();
@@ -478,11 +478,26 @@ public class BacklogQuotaManagerTest {
             waitForMarkDeletePositionToChange(topic1, subName1, c1MarkDeletePositionBefore);
             waitForQuotaCheckToRunTwice();
 
+            // Cache shouldn't be used, since position has changed
+            assertThat(getCacheUsedCounter(topic1)).isEqualTo(cacheUsedCounterBefore);
+
             topicStats = getTopicStats(topic1);
             expectedMessageAgeSeconds = MILLISECONDS.toSeconds(System.currentTimeMillis() - secondOldestMessage.getPublishTime());
             assertThat(topicStats.getOldestBacklogMessageAgeSeconds()).isCloseTo(expectedMessageAgeSeconds, within(1L));
             assertThat(topicStats.getOldestBacklogMessageSubscriptionName()).isEqualTo(subName2);
+
+            cacheUsedCounterBefore = getCacheUsedCounter(topic1);
+
+            waitForQuotaCheckToRunTwice();
+
+            // Cache should be used, since position hasn't changed
+            assertThat(getCacheUsedCounter(topic1)).isGreaterThan(cacheUsedCounterBefore);
         }
+    }
+
+    private long getCacheUsedCounter(String topic1) {
+        return ((PersistentTopic) pulsar.getBrokerService().getTopicReference(topic1).get())
+                .getPersistentTopicMetrics().getBacklogQuotaMetrics().getTimeBasedBacklogQuotaCheckReadFromCache();
     }
 
     @Test

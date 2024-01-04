@@ -26,6 +26,7 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.locks.StampedLock;
 import lombok.Value;
+import lombok.experimental.UtilityClass;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.commons.lang3.tuple.Pair;
@@ -48,7 +49,7 @@ public class ManagedCursorContainer implements Iterable<ManagedCursor> {
     /**
      * This field is incremented everytime the cursor information is updated.
      */
-    private volatile long version;
+    private long version;
 
     @Value
     public static class CursorInfo {
@@ -79,14 +80,14 @@ public class ManagedCursorContainer implements Iterable<ManagedCursor> {
     /**
      * Utility class to manage a data version, which rolls over to 0 when reaching Long.MAX_VALUE.
      */
-    public static final class DataVersion {
-        private DataVersion() {}
+    @UtilityClass
+    public class DataVersion {
 
         /**
          * Compares two data versions, which either rolls overs to 0 when reaching Long.MAX_VALUE.
          * <p>
-         * Use {@link DataVersion#incrementVersion(long)} to increment the versions. The assumptions
-         * is that metric versios are compared with close time proximity one to another, hence,
+         * Use {@link DataVersion#getNextVersion(long)} to increment the versions. The assumptions
+         * are that metric versions are compared with close time proximity one to another, hence,
          * they are expected not close to each other in terms of distance, hence we don't
          * expect the distance ever to exceed Long.MAX_VALUE / 2, otherwise we wouldn't be able
          * to know which one is a later version in case the furthest rolls over to beyond 0. We
@@ -125,7 +126,7 @@ public class ManagedCursorContainer implements Iterable<ManagedCursor> {
             }
         }
 
-        public static long incrementVersion(long existingVersion) {
+        public static long getNextVersion(long existingVersion) {
             if (existingVersion == Long.MAX_VALUE) {
                 return 0;
             } else {
@@ -156,7 +157,6 @@ public class ManagedCursorContainer implements Iterable<ManagedCursor> {
      * @param position position of the cursor to use for ordering, pass null if the cursor's position shouldn't be
      *                 tracked for the slowest reader.
      */
-    @SuppressWarnings("NonAtomicOperationOnVolatileField") // We have rw lock for that
     public void add(ManagedCursor cursor, Position position) {
         long stamp = rwLock.writeLock();
         try {
@@ -171,7 +171,7 @@ public class ManagedCursorContainer implements Iterable<ManagedCursor> {
             if (cursor.isDurable()) {
                 durableCursorCount++;
             }
-            version = DataVersion.incrementVersion(version);
+            version = DataVersion.getNextVersion(version);
         } finally {
             rwLock.unlockWrite(stamp);
         }
@@ -187,7 +187,6 @@ public class ManagedCursorContainer implements Iterable<ManagedCursor> {
         }
     }
 
-    @SuppressWarnings("NonAtomicOperationOnVolatileField") // we have rw lock for that
     public boolean removeCursor(String name) {
         long stamp = rwLock.writeLock();
         try {
@@ -208,7 +207,7 @@ public class ManagedCursorContainer implements Iterable<ManagedCursor> {
                 if (item.cursor.isDurable()) {
                     durableCursorCount--;
                 }
-                version = DataVersion.incrementVersion(version);
+                version = DataVersion.getNextVersion(version);
                 return true;
             } else {
                 return false;
@@ -230,7 +229,6 @@ public class ManagedCursorContainer implements Iterable<ManagedCursor> {
      * @return a pair of positions, representing the previous slowest reader and the new slowest reader (after the
      *         update).
      */
-    @SuppressWarnings("NonAtomicOperationOnVolatileField") // we have rw lock for that
     public Pair<PositionImpl, PositionImpl> cursorUpdated(ManagedCursor cursor, Position newPosition) {
         requireNonNull(cursor);
 
@@ -243,7 +241,7 @@ public class ManagedCursorContainer implements Iterable<ManagedCursor> {
 
             PositionImpl previousSlowestConsumer = heap.get(0).position;
             item.position = (PositionImpl) newPosition;
-            version = DataVersion.incrementVersion(version);
+            version = DataVersion.getNextVersion(version);
 
             if (heap.size() == 1) {
                 return Pair.of(previousSlowestConsumer, item.position);
