@@ -51,7 +51,7 @@ public class UnloadManager implements StateChangeListener {
 
         private static final long OP_TIMEOUT_NS = TimeUnit.HOURS.toNanos(1);
         private static final double QUANTILES[] = {0.0, 0.50, 0.95, 0.99, 0.999, 0.9999, 1.0};
-        private static final String LABEL_NAMES[] = {"broker"};
+        private static final String LABEL_NAMES[] = {"broker", "metric"};
 
         private final Summary.Child summary;
         private final Map<String, CompletableFuture<Void>> futures = new ConcurrentHashMap<>();
@@ -62,7 +62,7 @@ public class UnloadManager implements StateChangeListener {
             for (var quantile: QUANTILES) {
                 builder.quantile(quantile);
             }
-            this.summary = builder.register().labels(lookupServiceAddress);
+            this.summary = builder.register().labels(lookupServiceAddress, "bundleUnloading");
             this.operation = operation;
         }
 
