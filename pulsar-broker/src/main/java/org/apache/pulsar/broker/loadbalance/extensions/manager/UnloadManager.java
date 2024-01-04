@@ -58,7 +58,7 @@ public class UnloadManager implements StateChangeListener {
         private final String operation;
 
         LatencyMetric(String name, String help, String operation) {
-            var builder = Summary.build(name, help).labelNames(LABEL_NAMES);
+            var builder = Summary.build(name, help).unit("ms").labelNames(LABEL_NAMES);
             for (var quantile: QUANTILES) {
                 builder.quantile(quantile);
             }
