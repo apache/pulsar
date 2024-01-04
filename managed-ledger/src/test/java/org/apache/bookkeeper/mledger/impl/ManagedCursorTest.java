@@ -49,8 +49,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.SortedSet;
-import java.util.TreeSet;
 import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
@@ -4505,8 +4503,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
                     return inv.callRealMethod();
                 })
                 .when(ledger)
-                .asyncReadEntry(Mockito.any(ReadHandle.class), Mockito.anyLong(), Mockito.anyLong(),
-                        Mockito.anyBoolean(), Mockito.any(), Mockito.any());
+                .asyncReadEntry(Mockito.any(ReadHandle.class), Mockito.anyLong(), Mockito.anyLong(), Mockito.any(), Mockito.any());
         @Cleanup
         ManagedCursor cursor = ledger.openCursor("c");
 
@@ -4611,8 +4608,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
                     return inv.callRealMethod();
                 })
                 .when(ledger)
-                .asyncReadEntry(Mockito.any(ReadHandle.class), Mockito.anyLong(), Mockito.anyLong(),
-                        Mockito.anyBoolean(), Mockito.any(), Mockito.any());
+                .asyncReadEntry(Mockito.any(ReadHandle.class), Mockito.anyLong(), Mockito.anyLong(), Mockito.any(), Mockito.any());
         @Cleanup
         ManagedCursor cursor = ledger.openCursor("c");
 
@@ -4686,38 +4682,6 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         Position expectReadPosition = maxReadPosition;
         assertTrue(cursorReadPosition.getLedgerId() == expectReadPosition.getLedgerId()
                 && cursorReadPosition.getEntryId() == expectReadPosition.getEntryId());
-    }
-
-
-    @Test
-    @SuppressWarnings("unchecked")
-    public void testRangeSet() {
-        SortedSet<Long> ids = new TreeSet<>();
-        ids.add(1L);
-        ids.add(7L);
-        ids.add(8L);
-        ids.add(9L);
-        ids.add(15L);
-        ids.add(17L);
-        ids.add(19L);
-        ids.add(20L);
-        ids.add(21L);
-
-        Set<Range<Long>> ranges = ManagedLedgerImpl.toRanges(ids);
-        assertEquals(ranges.size(), 5);
-        Object[] rangeArr = ranges.toArray();
-
-        Range<Long> range0 = (Range<Long>) rangeArr[0];
-        Range<Long> range1 = (Range<Long>) rangeArr[1];
-        Range<Long> range2 = (Range<Long>) rangeArr[2];
-        Range<Long> range3 = (Range<Long>) rangeArr[3];
-        Range<Long> range4 = (Range<Long>) rangeArr[4];
-
-        assertTrue(range0.lowerEndpoint() == 1L && range0.upperEndpoint() == 1L);
-        assertTrue(range1.lowerEndpoint() == 7L && range1.upperEndpoint() == 9L);
-        assertTrue(range2.lowerEndpoint() == 15L && range2.upperEndpoint() == 15L);
-        assertTrue(range3.lowerEndpoint() == 17L && range3.upperEndpoint() == 17L);
-        assertTrue(range4.lowerEndpoint() == 19L && range4.upperEndpoint() == 21L);
     }
 
     private static final Logger log = LoggerFactory.getLogger(ManagedCursorTest.class);
