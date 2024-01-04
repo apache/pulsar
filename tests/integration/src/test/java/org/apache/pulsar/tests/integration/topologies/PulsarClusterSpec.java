@@ -82,14 +82,6 @@ public class PulsarClusterSpec {
     int numFunctionWorkers = 0;
 
     /**
-     * Enable a Presto Worker Node
-     *
-     * @return the flag whether presto worker is enabled
-     */
-    @Default
-    boolean enablePrestoWorker = false;
-
-    /**
      * Allow to query the last message
      */
     @Default

@@ -32,7 +32,7 @@
   <groupId>org.apache.pulsar</groupId>
   <artifactId>pulsar</artifactId>
 
-  <version>3.2.0-SNAPSHOT</version>
+  <version>3.3.0-SNAPSHOT</version>
 
   <name>Pulsar</name>
   <description>Pulsar is a distributed pub-sub messaging platform with a very
@@ -92,7 +92,7 @@ flexible messaging model and an intuitive client API.</description>
 
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-    <project.build.outputTimestamp>2023-09-08T03:29:19Z</project.build.outputTimestamp>
+    <project.build.outputTimestamp>2023-12-28T19:33:08Z</project.build.outputTimestamp>
     <redirectTestOutputToFile>true</redirectTestOutputToFile>
 
     <!-- By default build for local Docker platform.
@@ -191,7 +191,6 @@ flexible messaging model and an intuitive client API.</description>
     <json-smart.version>2.4.10</json-smart.version>
     <opensearch.version>1.2.4</opensearch.version>
     <elasticsearch-java.version>8.5.2</elasticsearch-java.version>
-    <trino.version>368</trino.version>
     <debezium.version>1.9.7.Final</debezium.version>
     <debezium.postgresql.version>42.5.0</debezium.postgresql.version>
     <debezium.mysql.version>8.0.30</debezium.mysql.version>
@@ -291,12 +290,11 @@ flexible messaging model and an intuitive client API.</description>
     <jacoco-maven-plugin.version>0.8.11</jacoco-maven-plugin.version>
     <spotbugs-maven-plugin.version>4.7.3.6</spotbugs-maven-plugin.version>
     <spotbugs.version>4.7.3</spotbugs.version>
-    <errorprone.version>2.5.1</errorprone.version>
-    <errorprone.javac.version>9+181-r4173-1</errorprone.javac.version>
-    <errorprone-slf4j.version>0.1.4</errorprone-slf4j.version>
+    <errorprone.version>2.24.0</errorprone.version>
+    <errorprone-slf4j.version>0.1.21</errorprone-slf4j.version>
     <j2objc-annotations.version>1.3</j2objc-annotations.version>
     <lightproto-maven-plugin.version>0.4</lightproto-maven-plugin.version>
-    <dependency-check-maven.version>8.2.1</dependency-check-maven.version>
+    <dependency-check-maven.version>9.0.7</dependency-check-maven.version>
     <roaringbitmap.version>0.9.44</roaringbitmap.version>
     <extra-enforcer-rules.version>1.6.1</extra-enforcer-rules.version>
     <oshi.version>6.4.0</oshi.version>
@@ -541,6 +539,10 @@ flexible messaging model and an intuitive client API.</description>
           <exclusion>
             <groupId>com.squareup.okio</groupId>
             <artifactId>okio</artifactId>
+          </exclusion>
+          <exclusion>
+            <artifactId>jose4j</artifactId>
+            <groupId>org.bitbucket.b_c</groupId>
           </exclusion>
         </exclusions>
       </dependency>
@@ -1776,7 +1778,6 @@ flexible messaging model and an intuitive client API.</description>
 
             <!-- This is a text property file that contains just a class name -->
             <exclude>**/META-INF/services/com.scurrilous.circe.HashProvider</exclude>
-            <exclude>**/META-INF/services/io.trino.spi.Plugin</exclude>
 
             <!-- Django generated code -->
             <exclude>**/django/stats/migrations/*.py</exclude>
@@ -2214,7 +2215,6 @@ flexible messaging model and an intuitive client API.</description>
         <module>pulsar-testclient</module>
         <module>pulsar-broker-auth-athenz</module>
         <module>pulsar-client-auth-athenz</module>
-        <module>pulsar-sql</module>
         <module>pulsar-broker-auth-oidc</module>
         <module>pulsar-broker-auth-sasl</module>
         <module>pulsar-client-auth-sasl</module>
@@ -2340,13 +2340,22 @@ flexible messaging model and an intuitive client API.</description>
               <fork>true</fork>
               <meminitial>128m</meminitial>
               <maxmem>1024m</maxmem>
-              <optimize>false</optimize>
               <compilerArgs combine.children="append">
                 <arg>-XDcompilePolicy=simple</arg>
                 <arg>-Xlint:-options</arg>
                 <!-- configure Error Prone . Disable some checks that crash the compiler or are annoying -->
                 <!-- the following argument must be kept on one line when building with JDK8 -->
                 <arg>-Xplugin:ErrorProne -XepExcludedPaths:.*/target/generated-sources/.* -XepDisableWarningsInGeneratedCode -Xep:UnusedVariable:OFF -Xep:FallThrough:OFF -Xep:OverrideThrowableToString:OFF -Xep:UnusedMethod:OFF -Xep:StringSplitter:OFF -Xep:CanonicalDuration:OFF -Xep:Slf4jDoNotLogMessageOfExceptionExplicitly:WARN -Xep:Slf4jSignOnlyFormat:WARN -Xep:Slf4jFormatShouldBeConst:WARN -Xep:Slf4jLoggerShouldBePrivate:WARN -Xep:Slf4jLoggerShouldBeNonStatic:OFF</arg>
+                <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED</arg>
+                <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED</arg>
+                <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.main=ALL-UNNAMED</arg>
+                <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.model=ALL-UNNAMED</arg>
+                <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.parser=ALL-UNNAMED</arg>
+                <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.processing=ALL-UNNAMED</arg>
+                <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED</arg>
+                <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED</arg>
+                <arg>-J--add-opens=jdk.compiler/com.sun.tools.javac.code=ALL-UNNAMED</arg>
+                <arg>-J--add-opens=jdk.compiler/com.sun.tools.javac.comp=ALL-UNNAMED</arg>
               </compilerArgs>
               <annotationProcessorPaths combine.children="append">
                 <path>
@@ -2497,13 +2506,6 @@ flexible messaging model and an intuitive client API.</description>
       <id>pulsar-io-kafka-connect-tests</id>
       <modules>
         <module>pulsar-io</module>
-      </modules>
-    </profile>
-
-    <profile>
-      <id>pulsar-sql-tests</id>
-      <modules>
-        <module>pulsar-sql</module>
       </modules>
     </profile>
 

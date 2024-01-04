@@ -2227,7 +2227,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
                 @Override
                 public String toString() {
-                    return String.format("ServerCnx [{}] get largest batch index when possible",
+                    return String.format("ServerCnx [%s] get largest batch index when possible",
                             ServerCnx.this.ctx.channel());
                 }
             }, null);

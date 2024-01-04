@@ -42,6 +42,8 @@ import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
+import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
+import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.ConfigHelper;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.namespace.NamespaceService;
@@ -50,6 +52,7 @@ import org.apache.pulsar.broker.service.PublishRateLimiterImpl;
 import org.apache.pulsar.broker.service.SystemTopicBasedTopicPoliciesService;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.DispatchRateLimiter;
+import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.service.persistent.SubscribeRateLimiter;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -83,8 +86,11 @@ import org.apache.pulsar.common.policies.data.SubscribeRate;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.data.TopicPolicies;
 import org.apache.pulsar.common.policies.data.TopicStats;
+import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.assertj.core.api.Assertions;
 import org.awaitility.Awaitility;
+import org.awaitility.reflect.WhiteboxImpl;
+import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -3155,6 +3161,51 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
                     final PersistentTopicInternalStats newLac = admin.topics().getInternalStats(topicPolicyEventsTopic);
                     assertNotEquals(newLac, beforeLac);
                 });
+    }
+
+    @Test
+    public void testUpdateRetentionWithPartialFailure() throws Exception {
+        String tpName = BrokerTestUtil.newUniqueName("persistent://" + myNamespace + "/tp");
+        admin.topics().createNonPartitionedTopic(tpName);
+
+        // Load topic up.
+        admin.topics().getInternalStats(tpName);
+
+        // Inject an error that makes dispatch rate update fail.
+        PersistentTopic persistentTopic =
+                (PersistentTopic) pulsar.getBrokerService().getTopic(tpName, false).join().get();
+        ConcurrentOpenHashMap<String, PersistentSubscription> subscriptions =
+                WhiteboxImpl.getInternalState(persistentTopic, "subscriptions");
+        PersistentSubscription mockedSubscription = Mockito.mock(PersistentSubscription.class);
+        Mockito.when(mockedSubscription.getDispatcher()).thenThrow(new RuntimeException("Mocked error: getDispatcher"));
+        subscriptions.put("mockedSubscription", mockedSubscription);
+
+        // Update namespace-level retention policies.
+        RetentionPolicies retentionPolicies1 = new RetentionPolicies(1, 1);
+        admin.namespaces().setRetentionAsync(myNamespace, retentionPolicies1);
+
+        // Verify: update retention will be success even if other component update throws exception.
+        Awaitility.await().untilAsserted(() -> {
+            ManagedLedgerImpl ML = (ManagedLedgerImpl) persistentTopic.getManagedLedger();
+            assertEquals(ML.getConfig().getRetentionSizeInMB(), 1);
+            assertEquals(ML.getConfig().getRetentionTimeMillis(), 1 * 60 * 1000);
+        });
+
+        // Update topic-level retention policies.
+        RetentionPolicies retentionPolicies2 = new RetentionPolicies(2, 2);
+        admin.topics().setRetentionAsync(tpName, retentionPolicies2);
+
+        // Verify: update retention will be success even if other component update throws exception.
+        Awaitility.await().untilAsserted(() -> {
+            ManagedLedgerImpl ML = (ManagedLedgerImpl) persistentTopic.getManagedLedger();
+            assertEquals(ML.getConfig().getRetentionSizeInMB(), 2);
+            assertEquals(ML.getConfig().getRetentionTimeMillis(), 2 * 60 * 1000);
+        });
+
+        // Cleanup.
+        subscriptions.clear();
+        admin.namespaces().removeRetention(myNamespace);
+        admin.topics().delete(tpName, false);
     }
 
 }

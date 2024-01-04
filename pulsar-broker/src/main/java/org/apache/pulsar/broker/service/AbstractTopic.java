@@ -249,6 +249,8 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
         topicPolicies.getDispatchRate().updateTopicValue(DispatchRateImpl.normalize(data.getDispatchRate()));
         topicPolicies.getSchemaValidationEnforced().updateTopicValue(data.getSchemaValidationEnforced());
         topicPolicies.getEntryFilters().updateTopicValue(data.getEntryFilters());
+        topicPolicies.getDispatcherPauseOnAckStatePersistentEnabled()
+                .updateTopicValue(data.getDispatcherPauseOnAckStatePersistentEnabled());
         this.subscriptionPolicies = data.getSubscriptionPolicies();
 
         updateEntryFilters();
@@ -1227,7 +1229,7 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
     /**
      * update topic publish dispatcher for this topic.
      */
-    public void updatePublishDispatcher() {
+    public void updatePublishRateLimiter() {
         PublishRate publishRate = topicPolicies.getPublishRate().get();
         if (publishRate.publishThrottlingRateInByte > 0 || publishRate.publishThrottlingRateInMsg > 0) {
             log.info("Enabling publish rate limiting {} on topic {}", publishRate, getName());

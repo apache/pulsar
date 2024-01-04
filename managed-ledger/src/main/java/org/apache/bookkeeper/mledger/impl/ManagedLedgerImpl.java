@@ -1265,7 +1265,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
             @Override
             public String toString() {
-                return String.format("ML [{}] get earliest message publish time of pos",
+                return String.format("ML [%s] get earliest message publish time of pos",
                         ManagedLedgerImpl.this.name);
             }
         }, null);
