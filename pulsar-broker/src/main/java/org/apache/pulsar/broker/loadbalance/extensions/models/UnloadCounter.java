@@ -48,6 +48,12 @@ public class UnloadCounter {
     long unloadBrokerCount = 0;
     long unloadBundleCount = 0;
 
+    // Record the ignored send msg count during unloading
+    @Getter
+    private final AtomicLong ignoredSendMsgCount = new AtomicLong();
+    @Getter
+    private final AtomicLong ignoredAckCount = new AtomicLong();
+
     @Getter
     @VisibleForTesting
     final Map<UnloadDecision.Label, Map<UnloadDecision.Reason, AtomicLong>> breakdownCounters;
@@ -117,6 +123,8 @@ public class UnloadCounter {
         var m = Metrics.create(dimensions);
         m.put("brk_lb_unload_broker_total", unloadBrokerCount);
         m.put("brk_lb_unload_bundle_total", unloadBundleCount);
+        m.put("brk_lb_ignored_ack_total", ignoredAckCount.get());
+        m.put("brk_lb_ignored_send_total", ignoredSendMsgCount.get());
         metrics.add(m);
 
         for (var etr : breakdownCounters.entrySet()) {

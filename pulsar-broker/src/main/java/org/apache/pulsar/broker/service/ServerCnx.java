@@ -1792,8 +1792,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         // if the topic is transferring, we ignore send msg.
         if (producer.getTopic().isTransferring()) {
             long ignoredMsgCount = send.getNumMessages();
-            var ignoredSendMsgTotalCount = ExtensibleLoadManagerImpl.get(pulsar).getIgnoredSendMsgCount().
-                    addAndGet(ignoredMsgCount);
+            var ignoredSendMsgTotalCount = ExtensibleLoadManagerImpl.get(pulsar).getUnloadCounter().
+                    getIgnoredSendMsgCount().addAndGet(ignoredMsgCount);
             if (log.isDebugEnabled()) {
                 log.debug("Ignoring {} messages from:{}:{} to fenced topic:{} while transferring."
                                 + " Total ignored message count: {}.",
@@ -1875,8 +1875,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 PulsarService pulsar = getBrokerService().getPulsar();
                 // Message acks are silently ignored during topic transfer.
                 long ignoredAckCount = ack.getMessageIdsCount();
-                var ignoredAckTotalCount = ExtensibleLoadManagerImpl.get(pulsar).getIgnoredAckCount().
-                        addAndGet(ignoredAckCount);
+                var ignoredAckTotalCount = ExtensibleLoadManagerImpl.get(pulsar).getUnloadCounter().
+                        getIgnoredAckCount().addAndGet(ignoredAckCount);
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] [{}] Ignoring {} message acks during topic transfer. Total ignored ack count: {}",
                             subscription, consumerId, ignoredAckCount, ignoredAckTotalCount);
