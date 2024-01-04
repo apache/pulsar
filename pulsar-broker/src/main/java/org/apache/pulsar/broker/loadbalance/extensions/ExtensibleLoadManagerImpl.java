@@ -877,12 +877,12 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
 
         metricsCollection.addAll(this.assignCounter.toMetrics(pulsar.getAdvertisedAddress()));
         metricsCollection.addAll(this.serviceUnitStateChannel.getMetrics());
-        metricsCollection.addAll(toMetrics(pulsar.getAdvertisedAddress()));
+        metricsCollection.addAll(getIgnoredCommandMetrics(pulsar.getAdvertisedAddress()));
 
         return metricsCollection;
     }
 
-    private List<Metrics> toMetrics(String advertisedBrokerAddress) {
+    private List<Metrics> getIgnoredCommandMetrics(String advertisedBrokerAddress) {
         var dimensions = Map.of("broker", advertisedBrokerAddress, "metric", "bundleReleasing");
         var metric = Metrics.create(dimensions);
         metric.put("brk_lb_ignored_ack_total", ignoredAckCount.get());
