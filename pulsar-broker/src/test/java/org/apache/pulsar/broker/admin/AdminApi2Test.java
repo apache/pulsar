@@ -3143,6 +3143,62 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         producer2.close();
     }
 
+    @Test
+    public void testGetTopicsWithPartitions() throws Exception {
+        final String namespace = "prop-xyz/ns1";
+
+        final String persistentTopicName = TopicName
+                .get("persistent", NamespaceName.get(namespace), "get_topics_mode_" + UUID.randomUUID().toString())
+                .toString();
+
+        final String nonPersistentTopicName = TopicName
+                .get("non-persistent", NamespaceName.get(namespace), "get_topics_mode_" + UUID.randomUUID().toString())
+                .toString();
+
+        final String persistentPartitionedTopicName = TopicName
+                .get("persistent", NamespaceName.get(namespace), "get_topics_mode_" + UUID.randomUUID().toString())
+                .toString();
+        admin.topics().createPartitionedTopic(persistentPartitionedTopicName, 4);
+
+        final String nonPersistentPartitionedTopicName = TopicName
+                .get("non-persistent", NamespaceName.get(namespace), "get_topics_mode_" + UUID.randomUUID().toString())
+                .toString();
+        admin.topics().createPartitionedTopic(nonPersistentPartitionedTopicName, 4);
+
+
+        Producer<byte[]> producer1 = pulsarClient.newProducer().topic(persistentTopicName).create();
+        Producer<byte[]> producer2 = pulsarClient.newProducer().topic(nonPersistentTopicName).create();
+        Producer<byte[]> producer3 = pulsarClient.newProducer().topic(persistentPartitionedTopicName).create();
+        Producer<byte[]> producer4 = pulsarClient.newProducer().topic(nonPersistentPartitionedTopicName).create();
+
+        List<String> topics = new ArrayList<>(admin.topics().getList(namespace));
+        assertEquals(topics.size(), 10);
+        assertTrue(topics.contains(persistentTopicName));
+        assertTrue(topics.contains(nonPersistentTopicName));
+
+        topics.clear();
+
+        topics.addAll(admin.topics().getList(namespace, TopicDomain.persistent));
+        assertEquals(topics.size(), 5);
+        assertTrue(topics.contains(persistentTopicName));
+
+        topics.clear();
+
+        topics.addAll(admin.topics().getList(namespace, TopicDomain.non_persistent));
+        assertEquals(topics.size(), 5);
+        assertTrue(topics.contains(nonPersistentTopicName));
+
+        try {
+            admin.topics().getList(namespace, TopicDomain.getEnum("none"));
+            fail("Should failed with invalid get topic mode.");
+        } catch (IllegalArgumentException e) {
+            assertEquals(e.getMessage(), "Invalid topic domain: 'none'");
+        }
+
+        producer1.close();
+        producer2.close();
+    }
+
     @Test(dataProvider = "isV1")
     public void testNonPartitionedTopic(boolean isV1) throws Exception {
         restartClusterAfterTest();

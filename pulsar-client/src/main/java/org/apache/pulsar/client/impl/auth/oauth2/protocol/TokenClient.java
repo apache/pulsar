@@ -78,7 +78,7 @@ public class TokenClient implements ClientCredentialsExchanger {
      */
     String buildClientCredentialsBody(ClientCredentialsExchangeRequest req) {
         Map<String, String> bodyMap = new TreeMap<>();
-        bodyMap.put("grant_type", "client_credentials");
+        bodyMap.put("grant_type", req.getType() != null ? req.getType() : "client_credentials");
         bodyMap.put("client_id", req.getClientId());
         bodyMap.put("client_secret", req.getClientSecret());
         // Only set audience and scope if they are non-empty.
@@ -119,19 +119,19 @@ public class TokenClient implements ClientCredentialsExchanger {
                     .get();
 
             switch (res.getStatusCode()) {
-            case 200:
-                return ObjectMapperFactory.getMapper().reader().readValue(res.getResponseBodyAsBytes(),
-                        TokenResult.class);
+                case 200:
+                    return ObjectMapperFactory.getMapper().reader().readValue(res.getResponseBodyAsBytes(),
+                            TokenResult.class);
 
-            case 400: // Bad request
-            case 401: // Unauthorized
-                throw new TokenExchangeException(
-                        ObjectMapperFactory.getMapper().reader().readValue(res.getResponseBodyAsBytes(),
-                                TokenError.class));
+                case 400: // Bad request
+                case 401: // Unauthorized
+                    throw new TokenExchangeException(
+                            ObjectMapperFactory.getMapper().reader().readValue(res.getResponseBodyAsBytes(),
+                                    TokenError.class));
 
-            default:
-                throw new IOException(
-                        "Failed to perform HTTP request. res: " + res.getStatusCode() + " " + res.getStatusText());
+                default:
+                    throw new IOException(
+                            "Failed to perform HTTP request. res: " + res.getStatusCode() + " " + res.getStatusText());
             }
 
 

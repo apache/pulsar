@@ -42,4 +42,7 @@ public class ClientCredentialsExchangeRequest {
 
     @JsonProperty("scope")
     private String scope;
+
+    @JsonProperty("type")
+    private String type;
 }

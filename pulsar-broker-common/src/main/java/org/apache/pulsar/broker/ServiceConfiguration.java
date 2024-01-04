@@ -1756,6 +1756,27 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private boolean bookkeeperClientEnforceMinNumRacksPerWriteQuorum = false;
     @FieldContext(
         category = CATEGORY_STORAGE_BK,
+        doc = "Enable zone-aware bookie selection policy. \n\nBK will chose bookies from"
+                + " different zones and racks when forming a new bookie ensemble")
+    private boolean bookkeeperClientZoneawarePolicyEnabled = false;
+    @FieldContext(
+        category = CATEGORY_STORAGE_BK,
+        doc = "Enforces zone-aware bookie selection policy to pick bookies from "
+            + "'bookkeeperClientMinNumZonesPerWriteQuorum' racks for  a writeQuorum. \n\n"
+            + "If BK can't find bookie then it would throw BKNotEnoughBookiesException instead of picking random one.")
+    private boolean bookkeeperClientEnforceStrictZoneawarePlacement = false;
+    @FieldContext(
+        category = CATEGORY_STORAGE_BK,
+        doc = "Desired number of zones per write quorum. \n\nBK zone-aware bookie selection policy will try to "
+            + "get bookies from the 'bookkeeperClientDesiredNumZonesPerWriteQuorum' zones for a write quorum.")
+    private int bookkeeperClientDesiredNumZonesPerWriteQuorum = 3;
+    @FieldContext(
+        category = CATEGORY_STORAGE_BK,
+        doc = "Minimum number of zones per write quorum. \n\nBK zone-aware bookie selection policy will try to "
+           + "get bookies from at least 'bookkeeperClientMinNumZonesPerWriteQuorum' zones for a write quorum.")
+    private int bookkeeperClientMinNumZonesPerWriteQuorum = 2;
+    @FieldContext(
+        category = CATEGORY_STORAGE_BK,
         doc = "Enable/disable reordering read sequence on reading entries")
     private boolean bookkeeperClientReorderReadSequenceEnabled = true;
     @FieldContext(
