@@ -708,5 +708,13 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
         private PersistentTopic persistentTopic;
     }
 
+    protected void sleepSeconds(int seconds){
+        try {
+            Thread.currentThread().sleep(1000 * seconds);
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
     private static final Logger log = LoggerFactory.getLogger(MockedPulsarServiceBaseTest.class);
 }
