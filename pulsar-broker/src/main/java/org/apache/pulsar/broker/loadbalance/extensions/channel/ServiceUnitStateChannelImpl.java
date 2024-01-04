@@ -814,6 +814,8 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
             stateChangeListeners.notifyOnCompletion(unloadFuture
                             .thenCompose(__ -> pubAsync(serviceUnit, next)), serviceUnit, data)
                     .whenComplete((__, e) -> log(e, serviceUnit, data, next));
+        } else if (isTargetBroker(data.dstBroker())) {
+            stateChangeListeners.notify(serviceUnit, data, null);
         }
     }
 
