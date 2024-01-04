@@ -105,7 +105,6 @@ public class DataSketchesSummaryLogger {
 
     private static class ThreadLocalAccessor {
         private final Map<LocalData, Boolean> map = new ConcurrentHashMap<>();
-
         private final FastThreadLocal<LocalData> localData = new FastThreadLocal<LocalData>() {
 
             @Override
