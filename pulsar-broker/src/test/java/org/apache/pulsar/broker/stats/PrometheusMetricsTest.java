@@ -62,11 +62,13 @@ import lombok.Cleanup;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.authentication.AuthenticationProviderToken;
 import org.apache.pulsar.broker.authentication.utils.AuthTokenUtils;
 import org.apache.pulsar.broker.loadbalance.extensions.manager.UnloadManager;
+import org.apache.pulsar.broker.loadbalance.extensions.models.UnloadCounter;
 import org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerWrapper;
 import org.apache.pulsar.broker.service.AbstractTopic;
 import org.apache.pulsar.broker.service.BrokerTestBase;
@@ -774,10 +776,13 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         mockZooKeeper.create(mockedBroker, new byte[]{0}, Collections.emptyList(), CreateMode.EPHEMERAL);
 
         pulsar.getBrokerService().updateRates();
-        Awaitility.await().untilAsserted(() -> assertTrue(pulsar.getBrokerService().getBundleStats().size() > 0));
+        Awaitility.await().until(() -> !pulsar.getBrokerService().getBundleStats().isEmpty());
         ModularLoadManagerWrapper loadManager = (ModularLoadManagerWrapper)pulsar.getLoadManager().get();
         loadManager.getLoadManager().updateLocalBrokerData();
-        Mockito.mock(UnloadManager.class); // Force loading of class UnloadManager.
+        // Force registration of UnloadManager load balance stats
+        var pulsarService = Mockito.mock(PulsarService.class);
+        Mockito.when(pulsarService.getLookupServiceAddress()).thenReturn("mockLookupServiceAddress");
+        new UnloadManager(pulsarService, Mockito.mock(UnloadCounter.class));
 
         ByteArrayOutputStream statsOut = new ByteArrayOutputStream();
         PrometheusMetricsGenerator.generate(pulsar, false, false, false, statsOut);
