@@ -169,6 +169,7 @@ public class CommandUtilsTests {
         dataWithBrokerEntryMetadata =
                 Commands.addBrokerEntryMetadata(byteBuf, new HashSet<>(), MOCK_BATCH_SIZE);
         entryMetadata = Commands.parseBrokerEntryMetadataIfExist(dataWithBrokerEntryMetadata);
+        assertNotNull(entryMetadata);
         assertNotEquals(timestamp, entryMetadata.getBrokerTimestamp());
     }
 
