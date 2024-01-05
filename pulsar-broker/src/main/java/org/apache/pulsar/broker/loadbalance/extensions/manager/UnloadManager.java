@@ -44,9 +44,15 @@ public class UnloadManager implements StateChangeListener {
     private final String lookupServiceAddress;
 
     private enum LatencyMetric {
-        UNLOAD(buildHistogram("brk_lb_unload_latency", "Total time duration of unload operations")),
-        ASSIGN(buildHistogram("brk_lb_assign_latency", "Time spent in the load balancing ASSIGN state")),
-        RELEASE(buildHistogram("brk_lb_release_latency", "Time spent in the load balancing RELEASE state"));
+        UNLOAD(buildHistogram(
+            "brk_lb_unload_latency", "Total time duration of unload operations on source brokers"), true, false),
+        ASSIGN(buildHistogram(
+            "brk_lb_assign_latency", "Time spent in the load balancing ASSIGN state on source brokers"), true, false),
+        RELEASE(buildHistogram(
+            "brk_lb_release_latency", "Time spent in the load balancing RELEASE state on source brokers"), true, false),
+        DISCONNECT(buildHistogram(
+            "brk_lb_owned_latency", "Time spent in the load balancing disconnected state on destination brokers"),
+                false, true);
 
         private static Histogram buildHistogram(String name, String help) {
             return Histogram.build(name, help).unit("ms").labelNames("broker", "metric").
@@ -56,23 +62,30 @@ public class UnloadManager implements StateChangeListener {
 
         private final Histogram histogram;
         private final Map<String, CompletableFuture<Void>> futures = new ConcurrentHashMap<>();
+        private final boolean isSourceBrokerMetric;
+        private final boolean isDestinationBrokerMetric;
 
-        LatencyMetric(Histogram histogram) {
+        LatencyMetric(Histogram histogram, boolean isSourceBrokerMetric, boolean isDestinationBrokerMetric) {
             this.histogram = histogram;
+            this.isSourceBrokerMetric = isSourceBrokerMetric;
+            this.isDestinationBrokerMetric = isDestinationBrokerMetric;
         }
 
-        public void beginMeasurement(String serviceUnit, String lookupServiceAddress) {
-            var startTimeNs = System.nanoTime();
-            futures.computeIfAbsent(serviceUnit, ignore -> {
-                var future = new CompletableFuture<Void>();
-                future.completeOnTimeout(null, OP_TIMEOUT_NS, TimeUnit.NANOSECONDS).
-                        thenAccept(__ -> {
-                            var durationMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startTimeNs);
-                            log.info("Operation {} for service unit {} took {} ms", this, serviceUnit, durationMs);
-                            histogram.labels(lookupServiceAddress, "bundleUnloadingLatency").observe(durationMs);
-                        }).whenComplete((__, throwable) -> futures.remove(serviceUnit, future));
-                return future;
-            });
+        public void beginMeasurement(String serviceUnit, String lookupServiceAddress, ServiceUnitStateData data) {
+            if ((isSourceBrokerMetric && lookupServiceAddress.equals(data.sourceBroker()))
+                    || (isDestinationBrokerMetric && lookupServiceAddress.equals(data.dstBroker()))) {
+                var startTimeNs = System.nanoTime();
+                futures.computeIfAbsent(serviceUnit, ignore -> {
+                    var future = new CompletableFuture<Void>();
+                    future.completeOnTimeout(null, OP_TIMEOUT_NS, TimeUnit.NANOSECONDS).
+                            thenAccept(__ -> {
+                                var durationMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startTimeNs);
+                                log.info("Operation {} for service unit {} took {} ms", this, serviceUnit, durationMs);
+                                histogram.labels(lookupServiceAddress, "bundleUnloadingLatency").observe(durationMs);
+                            }).whenComplete((__, throwable) -> futures.remove(serviceUnit, future));
+                    return future;
+                });
+            }
         }
 
         public void endMeasurement(String serviceUnit) {
@@ -90,6 +103,13 @@ public class UnloadManager implements StateChangeListener {
     }
 
     private void complete(String serviceUnit, Throwable ex) {
+        LatencyMetric.UNLOAD.endMeasurement(serviceUnit);
+        LatencyMetric.DISCONNECT.endMeasurement(serviceUnit);
+        if (ex != null) {
+            LatencyMetric.RELEASE.endMeasurement(serviceUnit);
+            LatencyMetric.ASSIGN.endMeasurement(serviceUnit);
+        }
+
         inFlightUnloadRequest.computeIfPresent(serviceUnit, (__, future) -> {
             if (!future.isDone()) {
                 if (ex != null) {
@@ -100,12 +120,6 @@ public class UnloadManager implements StateChangeListener {
             }
             return null;
         });
-
-        LatencyMetric.UNLOAD.endMeasurement(serviceUnit);
-        LatencyMetric.ASSIGN.endMeasurement(serviceUnit);
-        if (ex != null) {
-            LatencyMetric.RELEASE.endMeasurement(serviceUnit);
-        }
     }
 
     public CompletableFuture<Void> waitAsync(CompletableFuture<Void> eventPubFuture,
@@ -137,8 +151,24 @@ public class UnloadManager implements StateChangeListener {
     }
 
     @Override
+    public void beforeEvent(String serviceUnit, ServiceUnitStateData data) {
+        if (log.isDebugEnabled()) {
+            log.debug("Handling arrival of {} for service unit {}", data, serviceUnit);
+        }
+        ServiceUnitState state = ServiceUnitStateData.state(data);
+        switch (state) {
+            case Free, Owned -> LatencyMetric.DISCONNECT.beginMeasurement(serviceUnit, lookupServiceAddress, data);
+            case Releasing -> {
+                LatencyMetric.RELEASE.beginMeasurement(serviceUnit, lookupServiceAddress, data);
+                LatencyMetric.UNLOAD.beginMeasurement(serviceUnit, lookupServiceAddress, data);
+            }
+            case Assigning -> LatencyMetric.ASSIGN.beginMeasurement(serviceUnit, lookupServiceAddress, data);
+        }
+    }
+
+    @Override
     public void handleEvent(String serviceUnit, ServiceUnitStateData data, Throwable t) {
-        if (t != null && inFlightUnloadRequest.containsKey(serviceUnit)) {
+        if (t != null) {
             if (log.isDebugEnabled()) {
                 log.debug("Handling {} for service unit {} with exception.", data, serviceUnit, t);
             }
@@ -152,25 +182,8 @@ public class UnloadManager implements StateChangeListener {
         ServiceUnitState state = ServiceUnitStateData.state(data);
         switch (state) {
             case Free, Owned -> complete(serviceUnit, t);
-            case Releasing -> recordReleaseLatency(serviceUnit, data);
-            case Assigning -> recordAssigningLatency(serviceUnit, data);
-        }
-    }
-
-    private void recordReleaseLatency(String serviceUnit, ServiceUnitStateData data) {
-        if (lookupServiceAddress.equals(data.sourceBroker())) {
-            LatencyMetric.RELEASE.beginMeasurement(serviceUnit, lookupServiceAddress);
-            LatencyMetric.UNLOAD.beginMeasurement(serviceUnit, lookupServiceAddress);
-        } else if (lookupServiceAddress.equals(data.dstBroker())) {
-            LatencyMetric.UNLOAD.beginMeasurement(serviceUnit, lookupServiceAddress);
-        }
-    }
-
-   private void recordAssigningLatency(String serviceUnit, ServiceUnitStateData data) {
-        if (lookupServiceAddress.equals(data.sourceBroker())) {
-            LatencyMetric.RELEASE.endMeasurement(serviceUnit);
-        } else if (lookupServiceAddress.equals(data.dstBroker())) {
-            LatencyMetric.ASSIGN.beginMeasurement(serviceUnit, lookupServiceAddress);
+            case Releasing -> LatencyMetric.RELEASE.endMeasurement(serviceUnit);
+            case Assigning -> LatencyMetric.ASSIGN.endMeasurement(serviceUnit);
         }
     }
 

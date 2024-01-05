@@ -54,6 +54,17 @@ public class StateChangeListeners {
         return future.whenComplete((r, ex) -> notify(serviceUnit, data, ex));
     }
 
+    public void notifyOnArrival(String serviceUnit, ServiceUnitStateData data) {
+        stateChangeListeners.forEach(listener -> {
+            try {
+                listener.beforeEvent(serviceUnit, data);
+            } catch (Throwable ex) {
+                log.error("StateChangeListener: {} exception while notifying arrival event {} for service unit {}",
+                        listener, data, serviceUnit, ex);
+            }
+        });
+    }
+
     public void notify(String serviceUnit, ServiceUnitStateData data, Throwable t) {
         stateChangeListeners.forEach(listener -> {
             try {
