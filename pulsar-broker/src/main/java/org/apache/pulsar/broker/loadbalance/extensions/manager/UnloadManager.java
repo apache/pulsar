@@ -81,7 +81,7 @@ public class UnloadManager implements StateChangeListener {
                             thenAccept(__ -> {
                                 var durationMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startTimeNs);
                                 log.info("Operation {} for service unit {} took {} ms", this, serviceUnit, durationMs);
-                                histogram.labels(lookupServiceAddress, "bundleUnloadingLatency").observe(durationMs);
+                                histogram.labels(lookupServiceAddress, "bundleUnloading").observe(durationMs);
                             }).whenComplete((__, throwable) -> futures.remove(serviceUnit, future));
                     return future;
                 });

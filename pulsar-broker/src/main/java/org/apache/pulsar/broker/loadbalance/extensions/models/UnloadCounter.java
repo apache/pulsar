@@ -114,7 +114,6 @@ public class UnloadCounter {
     }
 
     public List<Metrics> toMetrics(String advertisedBrokerAddress) {
-
         var metrics = new ArrayList<Metrics>();
         var dimensions = new HashMap<String, String>();
 
