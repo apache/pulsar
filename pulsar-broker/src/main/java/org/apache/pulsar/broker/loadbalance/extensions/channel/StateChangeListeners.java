@@ -51,10 +51,12 @@ public class StateChangeListeners {
     public <T> CompletableFuture<T> notifyOnCompletion(CompletableFuture<T> future,
                                                        String serviceUnit,
                                                        ServiceUnitStateData data) {
-        return future.whenComplete((r, ex) -> notify(serviceUnit, data, ex));
+        return notifyOnArrival(serviceUnit, data).
+                thenCombine(future, (unused, t) -> t).
+                whenComplete((r, ex) -> notify(serviceUnit, data, ex));
     }
 
-    public void notifyOnArrival(String serviceUnit, ServiceUnitStateData data) {
+    private CompletableFuture<Void> notifyOnArrival(String serviceUnit, ServiceUnitStateData data) {
         stateChangeListeners.forEach(listener -> {
             try {
                 listener.beforeEvent(serviceUnit, data);
@@ -63,6 +65,7 @@ public class StateChangeListeners {
                         listener, data, serviceUnit, ex);
             }
         });
+        return CompletableFuture.completedFuture(null);
     }
 
     public void notify(String serviceUnit, ServiceUnitStateData data, Throwable t) {

@@ -772,7 +772,6 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
             getOwnerRequest.complete(data.dstBroker());
         }
 
-        stateChangeListeners.notifyOnArrival(serviceUnit, data);
         if (isTargetBroker(data.dstBroker())) {
             pulsar.getNamespaceService()
                     .onNamespaceBundleOwned(LoadManagerShared.getNamespaceBundle(pulsar, serviceUnit));
@@ -790,7 +789,6 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
 
     private void handleAssignEvent(String serviceUnit, ServiceUnitStateData data) {
         if (isTargetBroker(data.dstBroker())) {
-            stateChangeListeners.notifyOnArrival(serviceUnit, data);
             ServiceUnitStateData next = new ServiceUnitStateData(
                     Owned, data.dstBroker(), data.sourceBroker(), getNextVersionId(data));
             stateChangeListeners.notifyOnCompletion(pubAsync(serviceUnit, next), serviceUnit, data)
@@ -800,7 +798,6 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
 
     private void handleReleaseEvent(String serviceUnit, ServiceUnitStateData data) {
         if (isTargetBroker(data.sourceBroker())) {
-            stateChangeListeners.notifyOnArrival(serviceUnit, data);
             ServiceUnitStateData next;
             CompletableFuture<Integer> unloadFuture;
             if (isTransferCommand(data)) {
@@ -831,7 +828,6 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
             getOwnerRequest.complete(null);
         }
 
-        stateChangeListeners.notifyOnArrival(serviceUnit, data);
         if (isTargetBroker(data.sourceBroker())) {
             stateChangeListeners.notifyOnCompletion(
                             data.force() ? closeServiceUnit(serviceUnit, true)
