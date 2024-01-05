@@ -807,6 +807,7 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         assertTrue(metrics.containsKey("brk_lb_unload_latency_ms_bucket"));
         assertTrue(metrics.containsKey("brk_lb_release_latency_ms_bucket"));
         assertTrue(metrics.containsKey("brk_lb_assign_latency_ms_bucket"));
+        assertTrue(metrics.containsKey("brk_lb_disconnect_latency_ms_bucket"));
 
         // cleanup.
         mockZooKeeper.delete(mockedBroker, 0);
