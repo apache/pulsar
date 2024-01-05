@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.loadbalance.extensions.manager;
 
 import static org.apache.pulsar.broker.loadbalance.extensions.models.UnloadDecision.Label.Failure;
 import static org.apache.pulsar.broker.loadbalance.extensions.models.UnloadDecision.Reason.Unknown;
+import com.google.common.annotations.VisibleForTesting;
 import io.prometheus.client.Histogram;
 import java.util.Map;
 import java.util.Objects;
@@ -43,7 +44,8 @@ public class UnloadManager implements StateChangeListener {
     private final Map<String, CompletableFuture<Void>> inFlightUnloadRequest;
     private final String lookupServiceAddress;
 
-    private enum LatencyMetric {
+    @VisibleForTesting
+    public enum LatencyMetric {
         UNLOAD(buildHistogram(
             "brk_lb_unload_latency", "Total time duration of unload operations on source brokers"), true, false),
         ASSIGN(buildHistogram(
