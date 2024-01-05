@@ -144,10 +144,7 @@ public class PatternMultiTopicsConsumerImpl<T> extends MultiTopicsConsumerImpl<T
                 log.warn("[{}] Failed to recheck topics change: {}", topic, ex.getMessage());
                 long delayMs = retryRecheckPatternTaskBackoff.next();
                 Timeout newTask = client.timer().newTimeout(timeout -> {
-                    if (timeout.cancel()) {
-                        return;
-                    }
-                    recheckTopicsChangeRetryIfFailed();
+                    recheckTopicsChangeRetryIfFailed(timeout);
                 }, delayMs, TimeUnit.MILLISECONDS);
                 if (!retryRecheckPatternTask.compareAndSet(retryTask, newTask)) {
                     // Another thread added a new task, so cancel current one.
