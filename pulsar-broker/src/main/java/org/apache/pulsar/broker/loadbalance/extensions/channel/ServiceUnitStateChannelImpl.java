@@ -789,14 +789,12 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
     }
 
     private void handleAssignEvent(String serviceUnit, ServiceUnitStateData data) {
-        stateChangeListeners.notifyOnArrival(serviceUnit, data);
         if (isTargetBroker(data.dstBroker())) {
+            stateChangeListeners.notifyOnArrival(serviceUnit, data);
             ServiceUnitStateData next = new ServiceUnitStateData(
                     Owned, data.dstBroker(), data.sourceBroker(), getNextVersionId(data));
             stateChangeListeners.notifyOnCompletion(pubAsync(serviceUnit, next), serviceUnit, data)
                     .whenComplete((__, e) -> log(e, serviceUnit, data, next));
-        } else if (isTargetBroker(data.sourceBroker())) {
-            stateChangeListeners.notify(serviceUnit, data, null);
         }
     }
 
