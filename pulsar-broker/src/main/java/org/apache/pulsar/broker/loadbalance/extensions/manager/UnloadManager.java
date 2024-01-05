@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.loadbalance.extensions.manager;
 
 import static org.apache.pulsar.broker.loadbalance.extensions.models.UnloadDecision.Label.Failure;
 import static org.apache.pulsar.broker.loadbalance.extensions.models.UnloadDecision.Reason.Unknown;
+import io.prometheus.client.Histogram;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
@@ -31,7 +32,6 @@ import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState;
 import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateData;
 import org.apache.pulsar.broker.loadbalance.extensions.models.UnloadCounter;
 import org.apache.pulsar.broker.loadbalance.extensions.models.UnloadDecision;
-import org.apache.pulsar.broker.stats.prometheus.metrics.Summary;
 
 /**
  * Unload manager.
@@ -50,19 +50,21 @@ public class UnloadManager implements StateChangeListener {
     private class LatencyMetric {
 
         private static final long OP_TIMEOUT_NS = TimeUnit.HOURS.toNanos(1);
-        private static final double QUANTILES[] = {0.0, 0.50, 0.95, 0.99, 0.999, 0.9999, 1.0};
+        private static final double BUCKETS[] = {1.0, 10.0, 100.0, 200.0, 1000.0};
+
         private static final String LABEL_NAMES[] = {"broker", "metric"};
 
-        private final Summary.Child summary;
+        private final Histogram.Child histogram;
         private final Map<String, CompletableFuture<Void>> futures = new ConcurrentHashMap<>();
         private final String operation;
 
         LatencyMetric(String name, String help, String operation) {
-            var builder = Summary.build(name, help).unit("ms").labelNames(LABEL_NAMES);
-            for (var quantile: QUANTILES) {
-                builder.quantile(quantile);
-            }
-            this.summary = builder.register().labels(lookupServiceAddress, "bundleUnloading");
+            histogram = Histogram.build(name, help).
+                    unit("ms").
+                    labelNames(LABEL_NAMES).
+                    buckets(BUCKETS).
+                    register().
+                    labels(lookupServiceAddress, "bundleUnloadingLatency");
             this.operation = operation;
         }
 
@@ -74,7 +76,7 @@ public class UnloadManager implements StateChangeListener {
                         thenAccept(__ -> {
                             var durationNs = System.nanoTime() - startTimeNs;
                             log.info("Operation {} for service unit {} took {} ns", operation, serviceUnit, durationNs);
-                            summary.observe(durationNs, TimeUnit.NANOSECONDS);
+                            histogram.observe(TimeUnit.NANOSECONDS.toMillis(durationNs));
                         }).whenComplete((__, throwable) -> futures.remove(serviceUnit, future));
                 return future;
             });
