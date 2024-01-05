@@ -23,7 +23,10 @@ import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
 import org.apache.pulsar.client.admin.Brokers;
+import org.apache.pulsar.client.admin.Namespaces;
 import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.client.admin.Tenants;
+import org.apache.pulsar.client.admin.Topics;
 import org.apache.pulsar.client.api.ProxyProtocol;
 import static org.mockito.Answers.RETURNS_DEEP_STUBS;
 import static org.mockito.ArgumentMatchers.eq;
@@ -58,6 +61,12 @@ public class TestCmdClusters {
     private CmdClusters cmdClusters;
 
     private Clusters clusters;
+
+    private Tenants tenants;
+
+    private Namespaces namespaces;
+
+    private Topics topics;
 
     @BeforeMethod
     public void setup() throws Exception {
@@ -179,4 +188,63 @@ public class TestCmdClusters {
         verify(pulsarAdmin.tenants()).updateTenant(eq("tenant2"), eq(modifiedTenant2));
     }
 
+    @Test
+    public void testDeleteClusterWithAllOption() throws PulsarAdminException {
+
+        pulsarAdmin = mock(PulsarAdmin.class, RETURNS_DEEP_STUBS);
+        clusters = mock(Clusters.class);
+        tenants = mock(Tenants.class);
+        namespaces = mock(Namespaces.class);
+        topics = mock(Topics.class);
+        when(pulsarAdmin.clusters()).thenReturn(clusters);
+        when(pulsarAdmin.tenants()).thenReturn(tenants);
+        when(pulsarAdmin.namespaces()).thenReturn(namespaces);
+        when(pulsarAdmin.topics()).thenReturn(topics);
+
+        cmdClusters = spy(new CmdClusters(() -> pulsarAdmin));
+
+
+        String clusterName = "my-cluster";
+        String otherClusterName = "other-cluster";
+        List<String> tenantsList = Arrays.asList("tenant1", "tenant2");
+        when(pulsarAdmin.tenants().getTenants()).thenReturn(tenantsList);
+
+
+        // list of namespaces
+        String namespace = "my-namespace";
+        String otherNamespace = "other-namespace";
+        List<String> namespaceList = List.of(namespace, otherNamespace);
+        when(pulsarAdmin.namespaces().getNamespaces("tenant1")).thenReturn(namespaceList);
+
+        // list of partitioned topics under a namespace.
+        String partitionedTopic = "my-partitionedTopic";
+        String otherPartitionedTopic = "other-partitionedTopic";
+        List<String> partitionedTopicList = List.of(partitionedTopic, otherPartitionedTopic);
+        when(pulsarAdmin.topics().getPartitionedTopicList(namespace)).thenReturn(partitionedTopicList);
+
+        // list of topics under a namespace.
+        String topic = "my-topic";
+        String otherTopic = "other-topic";
+        List<String> topicList = List.of(topic, otherTopic);
+        when(pulsarAdmin.topics().getList(namespace)).thenReturn(topicList);
+
+        // Invoke the delete command with --all option
+        cmdClusters.run(new String[]{"delete", "--all", clusterName});
+
+        // Verify the cluster was deleted
+        verify(clusters).deleteCluster(clusterName);
+
+        // Verify the tenants was deleted
+        verify(tenants).deleteTenant("tenant1");
+
+        // Verify the namespace was deleted
+        verify(namespaces).deleteNamespace(namespace, true);
+
+        // Verify the partitioned topics was deleted
+        verify(topics).deletePartitionedTopic(partitionedTopic, true, true);
+
+        // Verify the topic was deleted
+        verify(topics).delete(topic, true, true);
+
+    }
 }

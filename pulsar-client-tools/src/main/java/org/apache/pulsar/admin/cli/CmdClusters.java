@@ -141,7 +141,6 @@ public class CmdClusters extends CmdBase {
                             .build());
                 }
             }
-
             getAdmin().clusters().deleteCluster(cluster);
         }
     }
