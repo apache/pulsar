@@ -37,7 +37,9 @@ import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.GetStatsOptions;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.HierarchyTopicPolicies;
 import org.apache.pulsar.common.policies.data.TopicPolicies;
+import org.awaitility.Awaitility;
 import org.awaitility.reflect.WhiteboxImpl;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
@@ -211,6 +213,77 @@ public class SubscriptionPauseOnAckStatPersistTest extends ProducerConsumerBase 
         }
     }
 
+    @Test
+    public void testBrokerDynamicConfig() throws Exception {
+        final String tpName = BrokerTestUtil.newUniqueName("persistent://public/default/tp");
+        final String subscription = "s1";
+        final int msgSendCount = MAX_UNACKED_RANGES_TO_PERSIST * 4;
+        final int incomingQueueSize = MAX_UNACKED_RANGES_TO_PERSIST * 10;
+
+        // Enable "dispatcherPauseOnAckStatePersistentEnabled".
+        admin.brokers().updateDynamicConfiguration("dispatcherPauseOnAckStatePersistentEnabled", "true");
+        admin.topics().createNonPartitionedTopic(tpName);
+        admin.topics().createSubscription(tpName, subscription, MessageId.earliest);
+
+        PersistentTopic persistentTopic =
+                (PersistentTopic) pulsar.getBrokerService().getTopic(tpName, false).join().get();
+        Awaitility.await().untilAsserted(() -> {
+            Assert.assertTrue(pulsar.getConfig().isDispatcherPauseOnAckStatePersistentEnabled());
+            HierarchyTopicPolicies policies = WhiteboxImpl.getInternalState(persistentTopic, "topicPolicies");
+            Boolean v = policies.getDispatcherPauseOnAckStatePersistentEnabled().get();
+            Assert.assertNotNull(v);
+            Assert.assertTrue(v.booleanValue());
+        });
+
+        // Send double MAX_UNACKED_RANGES_TO_PERSIST messages.
+        Producer<String> p1 = pulsarClient.newProducer(Schema.STRING).topic(tpName).enableBatching(false).create();
+        ArrayList<MessageId> messageIdsSent = new ArrayList<>();
+        for (int i = 0; i < msgSendCount; i++) {
+            MessageIdImpl messageId = (MessageIdImpl) p1.send(Integer.valueOf(i).toString());
+            messageIdsSent.add(messageId);
+        }
+        // Make ack holes.
+        Consumer<String> c1 = pulsarClient.newConsumer(Schema.STRING).topic(tpName).subscriptionName(subscription)
+                .receiverQueueSize(incomingQueueSize).isAckReceiptEnabled(true)
+                .subscriptionType(SubscriptionType.Shared).subscribe();
+        ackOddMessagesOnly(c1);
+        verifyAckHolesIsMuchThanLimit(tpName, subscription);
+
+        cancelPendingRead(tpName, subscription);
+        triggerNewReadMoreEntries(tpName, subscription);
+
+        // Verify: the dispatcher has been paused.
+        final String specifiedMessage = "9876543210";
+        p1.send(specifiedMessage);
+        Message<String> msg1 = c1.receive(2, TimeUnit.SECONDS);
+        Assert.assertNull(msg1, msg1 == null ? "null" : msg1.getValue());
+
+        // Disable "dispatcherPauseOnAckStatePersistentEnabled".
+        admin.brokers().updateDynamicConfiguration("dispatcherPauseOnAckStatePersistentEnabled", "false");
+        Awaitility.await().untilAsserted(() -> {
+            Assert.assertFalse(pulsar.getConfig().isDispatcherPauseOnAckStatePersistentEnabled());
+            HierarchyTopicPolicies policies = WhiteboxImpl.getInternalState(persistentTopic, "topicPolicies");
+            Boolean v = policies.getDispatcherPauseOnAckStatePersistentEnabled().get();
+            Assert.assertTrue(v == null || !v.booleanValue());
+        });
+
+        // Verify the new message can be received.
+        Message<String> msg2 = c1.receive(2, TimeUnit.SECONDS);
+        Assert.assertNotNull(msg2);
+        Assert.assertEquals(msg2.getValue(), specifiedMessage);
+        // cleanup.
+        p1.close();
+        c1.close();
+        admin.topics().delete(tpName, false);
+    }
+
+    private void verifyAckHolesIsMuchThanLimit(String tpName, String subscription) {
+        Awaitility.await().untilAsserted(() -> {
+            Assert.assertTrue(MAX_UNACKED_RANGES_TO_PERSIST < admin.topics()
+                    .getInternalStats(tpName).cursors.get(subscription).totalNonContiguousDeletedMessagesRange);
+        });
+    }
+
     @Test(dataProvider = "multiConsumerSubscriptionTypes")
     public void testPauseOnAckStatPersist(SubscriptionType subscriptionType) throws Exception {
         final String tpName = BrokerTestUtil.newUniqueName("persistent://public/default/tp");
@@ -234,6 +307,7 @@ public class SubscriptionPauseOnAckStatPersistTest extends ProducerConsumerBase 
                 .receiverQueueSize(incomingQueueSize).isAckReceiptEnabled(true).subscriptionType(subscriptionType)
                 .subscribe();
         ackOddMessagesOnly(c1);
+        verifyAckHolesIsMuchThanLimit(tpName, subscription);
 
         cancelPendingRead(tpName, subscription);
         triggerNewReadMoreEntries(tpName, subscription);
@@ -279,6 +353,7 @@ public class SubscriptionPauseOnAckStatPersistTest extends ProducerConsumerBase 
                 .receiverQueueSize(incomingQueueSize).isAckReceiptEnabled(true)
                 .subscriptionType(SubscriptionType.Shared).subscribe();
         ackOddMessagesOnly(c1);
+        verifyAckHolesIsMuchThanLimit(tpName, subscription);
 
         cancelPendingRead(tpName, subscription);
         triggerNewReadMoreEntries(tpName, subscription);
@@ -358,6 +433,7 @@ public class SubscriptionPauseOnAckStatPersistTest extends ProducerConsumerBase 
                 .subscriptionType(subscriptionType)
                 .subscribe();
         ackOddMessagesOnly(c1);
+        verifyAckHolesIsMuchThanLimit(tpName, subscription);
 
         cancelPendingRead(tpName, subscription);
         triggerNewReadMoreEntries(tpName, subscription);
@@ -398,6 +474,7 @@ public class SubscriptionPauseOnAckStatPersistTest extends ProducerConsumerBase 
         }
         // Make ack holes.
         ReceivedMessages receivedMessagesC1 = ackOddMessagesOnly(c1);
+        verifyAckHolesIsMuchThanLimit(tpName, subscription);
 
         cancelPendingRead(tpName, subscription);
         triggerNewReadMoreEntries(tpName, subscription);
@@ -454,6 +531,7 @@ public class SubscriptionPauseOnAckStatPersistTest extends ProducerConsumerBase 
         }
         // Make ack holes.
         ReceivedMessages receivedMessagesC1AndC2 = ackOddMessagesOnly(c1, c2);
+        verifyAckHolesIsMuchThanLimit(tpName, subscription);
 
         cancelPendingRead(tpName, subscription);
         triggerNewReadMoreEntries(tpName, subscription);

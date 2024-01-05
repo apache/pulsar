@@ -397,7 +397,8 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
         topicPolicies.getSchemaValidationEnforced().updateBrokerValue(config.isSchemaValidationEnforced());
         topicPolicies.getEntryFilters().updateBrokerValue(new EntryFilters(String.join(",",
                 config.getEntryFilterNames())));
-
+        topicPolicies.getDispatcherPauseOnAckStatePersistentEnabled()
+                .updateBrokerValue(config.isDispatcherPauseOnAckStatePersistentEnabled());
         updateEntryFilters();
     }
 
@@ -1265,6 +1266,11 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
     public void updateBrokerDispatchRate() {
         topicPolicies.getDispatchRate().updateBrokerValue(
             dispatchRateInBroker(brokerService.pulsar().getConfiguration()));
+    }
+
+    public void updateBrokerDispatchPauseOnAckStatePersistentEnabled() {
+        topicPolicies.getDispatcherPauseOnAckStatePersistentEnabled().updateBrokerValue(
+                brokerService.pulsar().getConfiguration().isDispatcherPauseOnAckStatePersistentEnabled());
     }
 
     public void addFilteredEntriesCount(int filtered) {

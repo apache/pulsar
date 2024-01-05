@@ -3792,6 +3792,20 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     }
 
     @Override
+    public void updateBrokerDispatchPauseOnAckStatePersistentEnabled() {
+        super.updateBrokerDispatchPauseOnAckStatePersistentEnabled();
+        // Trigger new read if subscriptions has been paused before.
+        if (!topicPolicies.getDispatcherPauseOnAckStatePersistentEnabled().get()) {
+            getSubscriptions().forEach((sName, subscription) -> {
+                if (subscription.getDispatcher() == null) {
+                    return;
+                }
+                subscription.getDispatcher().afterAckMessages(null, 0);
+            });
+        }
+    }
+
+    @Override
     public void onUpdate(TopicPolicies policies) {
         if (log.isDebugEnabled()) {
             log.debug("[{}] update topic policy: {}", topic, policies);
