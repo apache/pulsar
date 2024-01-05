@@ -47,12 +47,12 @@ public class UnloadManager implements StateChangeListener {
         UNLOAD(buildHistogram(
             "brk_lb_unload_latency", "Total time duration of unload operations on source brokers"), true, false),
         ASSIGN(buildHistogram(
-            "brk_lb_assign_latency", "Time spent in the load balancing ASSIGN state on source brokers"), true, false),
+            "brk_lb_assign_latency", "Time spent in the load balancing ASSIGN state on destination brokers"), false, true),
         RELEASE(buildHistogram(
             "brk_lb_release_latency", "Time spent in the load balancing RELEASE state on source brokers"), true, false),
         DISCONNECT(buildHistogram(
-            "brk_lb_disconnect_latency", "Time spent in the load balancing disconnected state on destination brokers"),
-                false, true);
+            "brk_lb_disconnect_latency", "Time spent in the load balancing disconnected state on source brokers"),
+                true, false);
 
         private static Histogram buildHistogram(String name, String help) {
             return Histogram.build(name, help).unit("ms").labelNames("broker", "metric").
