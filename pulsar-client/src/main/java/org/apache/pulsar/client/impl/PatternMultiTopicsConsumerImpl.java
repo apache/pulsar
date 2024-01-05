@@ -124,15 +124,16 @@ public class PatternMultiTopicsConsumerImpl<T> extends MultiTopicsConsumerImpl<T
     }
 
     private void recheckTopicsChangeRetryIfFailed(Timeout retryTask) {
-        // This method will be called by A New Call or Timeout scheduled call.
-        final boolean isNew = (retryTask == null);
         // Skip if closed or the task has been cancelled.
         if (getState() == State.Closing || getState() == State.Closed
                 || (retryTask != null && retryTask.isCancelled())) {
             retryRecheckPatternTask.compareAndSet(retryTask, null);
             return;
         }
+        // If the argument "retryTask" is not null, it means this method was called by the timer. Otherwise, it is a
+        // new call.
         // Skip the new check if contains a retry task.
+        final boolean isNew = (retryTask == null);
         Timeout pendingRetryTask = retryRecheckPatternTask.get();
         if (isNew && pendingRetryTask != null) {
             return;
