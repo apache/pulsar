@@ -883,7 +883,7 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
     }
 
     private List<Metrics> getIgnoredCommandMetrics(String advertisedBrokerAddress) {
-        var dimensions = Map.of("broker", advertisedBrokerAddress, "metric", "bundleReleasing");
+        var dimensions = Map.of("broker", advertisedBrokerAddress, "metric", "bundleUnloading");
         var metric = Metrics.create(dimensions);
         metric.put("brk_lb_ignored_ack_total", ignoredAckCount.get());
         metric.put("brk_lb_ignored_send_total", ignoredSendMsgCount.get());
