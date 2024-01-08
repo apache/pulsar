@@ -52,9 +52,17 @@ public class PatternMultiTopicsConsumerImpl<T> extends MultiTopicsConsumerImpl<T
     private final Mode subscriptionMode;
     private final CompletableFuture<TopicListWatcher> watcherFuture = new CompletableFuture<>();
     protected NamespaceName namespaceName;
+
+    /**
+     * There is two task to re-check topic changes, the both tasks will not be take affects at the same time.
+     * 1. {@link #recheckTopicsChangeAfterReconnect}: it will be called after the {@link TopicListWatcher} reconnected
+     *     if you enabled {@link TopicListWatcher}. This backoff used to do a retry if
+     *     {@link #recheckTopicsChangeAfterReconnect} is failed.
+     * 2. {@link #run} A scheduled task to trigger re-check topic changes, it will be used if you disabled
+     *     {@link TopicListWatcher}.
+     */
+    private final Backoff recheckPatternTaskBackoffIfFailed;
     private volatile Timeout recheckPatternTimeout = null;
-    private final Backoff retryRecheckPatternTaskBackoff = new BackoffBuilder().setInitialTime(5, TimeUnit.SECONDS)
-            .setMax(1, TimeUnit.MINUTES).setMandatoryStop(0, TimeUnit.SECONDS).create();
     private volatile String topicsHash;
 
     public PatternMultiTopicsConsumerImpl(Pattern topicsPattern,
@@ -71,6 +79,11 @@ public class PatternMultiTopicsConsumerImpl<T> extends MultiTopicsConsumerImpl<T
         this.topicsPattern = topicsPattern;
         this.topicsHash = topicsHash;
         this.subscriptionMode = subscriptionMode;
+        this.recheckPatternTaskBackoffIfFailed = new BackoffBuilder()
+                .setInitialTime(client.getConfiguration().getInitialBackoffIntervalNanos(), TimeUnit.NANOSECONDS)
+                .setMax(client.getConfiguration().getMaxBackoffIntervalNanos(), TimeUnit.NANOSECONDS)
+                .setMandatoryStop(0, TimeUnit.SECONDS)
+                .create();
 
         if (this.namespaceName == null) {
             this.namespaceName = getNameSpaceFromPattern(topicsPattern);
@@ -100,21 +113,24 @@ public class PatternMultiTopicsConsumerImpl<T> extends MultiTopicsConsumerImpl<T
         return TopicName.get(pattern.pattern()).getNamespaceObject();
     }
 
+    /**
+     * This method will be called after the {@link TopicListWatcher} reconnected after enabled {@link TopicListWatcher}.
+     */
     private void recheckTopicsChangeAfterReconnect() {
         // Skip if closed or the task has been cancelled.
         if (getState() == State.Closing || getState() == State.Closed) {
             return;
         }
         // Do check.
-        asyncRecheckTopicsChange().whenComplete((ignore, ex) -> {
+        recheckTopicsChange().whenComplete((ignore, ex) -> {
             if (ex != null) {
                 log.warn("[{}] Failed to recheck topics change: {}", topic, ex.getMessage());
-                long delayMs = retryRecheckPatternTaskBackoff.next();
+                long delayMs = recheckPatternTaskBackoffIfFailed.next();
                 client.timer().newTimeout(timeout -> {
                     recheckTopicsChangeAfterReconnect();
                 }, delayMs, TimeUnit.MILLISECONDS);
             } else {
-                retryRecheckPatternTaskBackoff.reset();
+                recheckPatternTaskBackoffIfFailed.reset();
             }
         });
     }
@@ -125,7 +141,7 @@ public class PatternMultiTopicsConsumerImpl<T> extends MultiTopicsConsumerImpl<T
         if (timeout.isCancelled()) {
             return;
         }
-        asyncRecheckTopicsChange().exceptionally(ex -> {
+        recheckTopicsChange().exceptionally(ex -> {
             log.warn("[{}] Failed to recheck topics change: {}", topic, ex.getMessage());
             return null;
         }).thenAccept(__ -> {
@@ -136,7 +152,7 @@ public class PatternMultiTopicsConsumerImpl<T> extends MultiTopicsConsumerImpl<T
         });
     }
 
-    private CompletableFuture<Void> asyncRecheckTopicsChange() {
+    private CompletableFuture<Void> recheckTopicsChange() {
         String pattern = topicsPattern.pattern();
         return client.getLookup().getTopicsUnderNamespace(namespaceName, subscriptionMode, pattern, topicsHash)
             .thenCompose(getTopicsResult -> {
