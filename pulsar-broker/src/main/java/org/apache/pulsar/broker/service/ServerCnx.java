@@ -1788,10 +1788,11 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             printSendCommandDebug(send, headersAndPayload);
         }
 
-        PulsarService pulsar = getBrokerService().pulsar();
-        // if the topic is transferring, we ignore send msg.
+        // New messages are silently ignored during topic transfer. Note that the transferring flag is only set when the
+        // Extensible Load Manager is enabled.
         if (producer.getTopic().isTransferring()) {
-            long ignoredMsgCount = send.getNumMessages();
+            var pulsar = getBrokerService().pulsar();
+            var ignoredMsgCount = send.getNumMessages();
             var ignoredSendMsgTotalCount = ExtensibleLoadManagerImpl.get(pulsar).getIgnoredSendMsgCount().
                     addAndGet(ignoredMsgCount);
             if (log.isDebugEnabled()) {
@@ -1871,10 +1872,11 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         if (consumerFuture != null && consumerFuture.isDone() && !consumerFuture.isCompletedExceptionally()) {
             Consumer consumer = consumerFuture.getNow(null);
             Subscription subscription = consumer.getSubscription();
+            // Message acks are silently ignored during topic transfer. Note that the transferring flag is only set when
+            // the Extensible Load Manager is enabled.
             if (subscription.getTopic().isTransferring()) {
-                PulsarService pulsar = getBrokerService().getPulsar();
-                // Message acks are silently ignored during topic transfer.
-                long ignoredAckCount = ack.getMessageIdsCount();
+                var pulsar = getBrokerService().getPulsar();
+                var ignoredAckCount = ack.getMessageIdsCount();
                 var ignoredAckTotalCount = ExtensibleLoadManagerImpl.get(pulsar).getIgnoredAckCount().
                         addAndGet(ignoredAckCount);
                 if (log.isDebugEnabled()) {
