@@ -313,11 +313,14 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
      * Gets the assigned broker for the given topic.
      * @param pulsar PulsarService instance
      * @param topic Topic Name
-     * @return the assigned broker's BrokerLookupData instance. Empty, if not assigned by Extensible LoadManager.
+     * @return the assigned broker's BrokerLookupData instance. Empty, if not assigned by Extensible LoadManager or the
+     *         optimized bundle unload process is disabled.
      */
     public static CompletableFuture<Optional<BrokerLookupData>> getAssignedBrokerLookupData(PulsarService pulsar,
                                                                           String topic) {
-        if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(pulsar.getConfig())) {
+        var config = pulsar.getConfig();
+        if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(config)
+                && config.isLoadBalancerOptimizeBundleUnload()) {
             var topicName = TopicName.get(topic);
             try {
                 return pulsar.getNamespaceService().getBundleAsync(topicName)
