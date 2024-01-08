@@ -160,7 +160,9 @@ public class PatternMultiTopicsConsumerImpl<T> extends MultiTopicsConsumerImpl<T
         return client.getLookup().getTopicsUnderNamespace(namespaceName, subscriptionMode, pattern, topicsHash)
             .thenCompose(getTopicsResult -> {
                 // If "recheckTopicsChange" has been called more than one times, only make the last one take affects.
-                synchronized (recheckPatternEpoch) {
+                // Use "synchronized (recheckPatternTaskBackoff)" instead of
+                // `synchronized(PatternMultiTopicsConsumerImpl.this)` to avoid locking in a wider range.
+                synchronized (recheckPatternTaskBackoff) {
                     if (recheckPatternEpoch.get() > epoch) {
                         return CompletableFuture.completedFuture(null);
                     }
