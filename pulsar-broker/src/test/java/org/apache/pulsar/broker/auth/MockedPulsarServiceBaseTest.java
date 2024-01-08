@@ -710,7 +710,7 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
 
     protected void sleepSeconds(int seconds){
         try {
-            Thread.currentThread().sleep(1000 * seconds);
+            Thread.sleep(1000 * seconds);
         } catch (InterruptedException e) {
             log.warn("This thread has been interrupted", e);
             Thread.currentThread().interrupt();
