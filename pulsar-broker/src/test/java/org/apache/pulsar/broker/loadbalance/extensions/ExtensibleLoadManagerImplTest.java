@@ -654,6 +654,90 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
         }
     }
 
+
+    @Test(timeOut = 30 * 1000, dataProvider = "isPersistentTopicSubscriptionTypeTest")
+    public void testOptimizeUnloadDisable(TopicDomain topicDomain, SubscriptionType subscriptionType) throws Exception {
+        var id = String.format("test-optimize-unload-disable-%s-client-reconnect-%s-%s",
+                topicDomain, subscriptionType, UUID.randomUUID());
+        var topic = String.format("%s://%s/%s", topicDomain, defaultTestNamespace, id);
+        var topicName = TopicName.get(topic);
+
+        pulsar1.getConfig().setLoadBalancerOptimizeBundleUnload(false);
+        pulsar2.getConfig().setLoadBalancerOptimizeBundleUnload(false);
+
+        var consumers = new ArrayList<Consumer<String>>();
+        try {
+            @Cleanup
+            var producer = pulsarClient.newProducer(Schema.STRING).topic(topic).create();
+
+            var consumerCount = subscriptionType == SubscriptionType.Exclusive ? 1 : 3;
+            for (int i = 0; i < consumerCount; i++) {
+                consumers.add(pulsarClient.newConsumer(Schema.STRING).
+                        subscriptionName(id).subscriptionType(subscriptionType).topic(topic).subscribe());
+            }
+            Awaitility.await()
+                    .until(() -> producer.isConnected() && consumers.stream().allMatch(Consumer::isConnected));
+
+            var lookup = spyLookupService(pulsarClient);
+
+            final CountDownLatch cdl = new CountDownLatch(3);
+
+
+
+            NamespaceBundle bundle = getBundleAsync(pulsar1, TopicName.get(topic)).get();
+            var srcBrokerServiceUrl = admin.lookups().lookupTopic(topic);
+            var dstBroker = srcBrokerServiceUrl.equals(pulsar1.getBrokerServiceUrl()) ? pulsar2 : pulsar1;
+
+            CompletableFuture<Void> unloadNamespaceBundle = CompletableFuture.runAsync(() -> {
+                try {
+                    cdl.await();
+                    admin.namespaces().unloadNamespaceBundle(defaultTestNamespace, bundle.getBundleRange(),
+                            dstBroker.getLookupServiceAddress());
+                } catch (InterruptedException | PulsarAdminException e) {
+                    fail();
+                }
+            });
+
+            MutableInt sendCount = new MutableInt();
+            Awaitility.await().atMost(20, TimeUnit.SECONDS).ignoreExceptions().until(() -> {
+                var message = String.format("message-%d", sendCount.getValue());
+
+                boolean messageSent = false;
+                while (true) {
+                    var recvFutures = consumers.stream().
+                            map(consumer -> consumer.receiveAsync().orTimeout(1000, TimeUnit.MILLISECONDS)).
+                            toList();
+
+                    if (!messageSent) {
+                        producer.send(message);
+                        messageSent = true;
+                    }
+
+                    if (topicDomain == TopicDomain.non_persistent) {
+                        // No need to wait for message receipt, we're only trying to stress the consumer lookup pathway.
+                        break;
+                    }
+                    var msg = (Message<String>) FutureUtil.waitForAny(recvFutures, __ -> true).get().get();
+                    if (Objects.equals(msg.getValue(), message)) {
+                        break;
+                    }
+                }
+
+                cdl.countDown();
+                return sendCount.incrementAndGet() == 10;
+            });
+
+            assertTrue(producer.isConnected());
+            assertTrue(consumers.stream().allMatch(Consumer::isConnected));
+            assertTrue(unloadNamespaceBundle.isDone());
+            verify(lookup, times(1 + consumerCount)).getBroker(topicName);
+        } finally {
+            for (var consumer : consumers) {
+                consumer.close();
+            }
+        }
+    }
+
     private LookupService spyLookupService(PulsarClient client) throws IllegalAccessException {
         LookupService svc = (LookupService) FieldUtils.readDeclaredField(client, "lookup", true);
         var lookup = spy(svc);
