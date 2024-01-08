@@ -46,8 +46,6 @@ import java.util.UUID;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.io.core.Sink;
@@ -66,8 +64,6 @@ public class ADXSink implements Sink<byte[]> {
     private final ObjectMapper mapper = com.microsoft.azure.kusto.data.Utils.getObjectMapper();
     private int maxRetryAttempts;
     private long retryBackOffTime;
-//    private PulsarClient pulsarClient;
-//    private Producer dlqProducer;
     private boolean dlqEnabled = false;
 
     @Override
@@ -100,15 +96,6 @@ public class ADXSink implements Sink<byte[]> {
         incomingRecordsList = new ArrayList<>();
         adxSinkExecutor = Executors.newScheduledThreadPool(1);
         adxSinkExecutor.scheduleAtFixedRate(this::sinkData, batchTimeMs, batchTimeMs, TimeUnit.MILLISECONDS);
-
-        //setup dlq
-        /*String serviceUrl = adxconfig.getServiceUrl();
-        String dlqTopic = adxconfig.getDlqTopic();
-        dlqEnabled = (!dlqTopic.equals("")) && (!serviceUrl.equals(""));
-        if (dlqEnabled) {
-            pulsarClient = PulsarClient.builder().serviceUrl(serviceUrl).build();
-            dlqProducer = pulsarClient.newProducer().topic(dlqTopic).create();
-        }*/
     }
 
     @Override
@@ -222,7 +209,6 @@ public class ADXSink implements Sink<byte[]> {
                 throw new InterruptedException();
             } catch (InterruptedException interruptedErr) {
                 if (dlqEnabled) {
-                    //records.forEach(this::sendFailedRecordToDlq);
                     records.forEach(Record::fail);
                 }
                 throw new PulsarClientException.ConnectException(String.format(
@@ -232,21 +218,11 @@ public class ADXSink implements Sink<byte[]> {
             }
         } else {
             if (dlqEnabled) {
-                //records.forEach(this::sendFailedRecordToDlq);
                 records.forEach(Record::fail);
             }
             throw new PulsarClientException.ConnectException(
                     String.format("Retry attempts exhausted, failed to ingest records into KustoDB. Exception: %s",
                             exception.getMessage()));
-        }
-    }
-
-    public void sendFailedRecordToDlq(Record<byte[]> record) {
-        try {
-            LOG.warn("Writing failed records to miscellaneous dead-letter queue topic={}", dlqProducer.getTopic());
-            dlqProducer.send(record);
-        } catch (PulsarClientException e) {
-            throw new RuntimeException(e);
         }
     }
 
@@ -265,13 +241,13 @@ public class ADXSink implements Sink<byte[]> {
         if (mappingRefType == null || mappingRefType.isEmpty()) {
             return null;
         }
-        return switch (mappingRefType) {
-            case "CSV" -> IngestionMapping.IngestionMappingKind.CSV;
-            case "AVRO" -> IngestionMapping.IngestionMappingKind.AVRO;
-            case "JSON" -> IngestionMapping.IngestionMappingKind.JSON;
-            case "PARQUET" -> IngestionMapping.IngestionMappingKind.PARQUET;
-            default -> IngestionMapping.IngestionMappingKind.CSV;
-        };
+        switch (mappingRefType) {
+            case "CSV" : return IngestionMapping.IngestionMappingKind.CSV;
+            case "AVRO" : return IngestionMapping.IngestionMappingKind.AVRO;
+            case "JSON" : return IngestionMapping.IngestionMappingKind.JSON;
+            case "PARQUET" : return IngestionMapping.IngestionMappingKind.PARQUET;
+            default : return IngestionMapping.IngestionMappingKind.CSV;
+        }
     }
 
     private ConnectionStringBuilder getConnectionStringBuilder(ADXSinkConfig adxconfig) {
