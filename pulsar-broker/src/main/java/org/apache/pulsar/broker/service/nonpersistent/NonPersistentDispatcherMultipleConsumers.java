@@ -184,7 +184,7 @@ public class NonPersistentDispatcherMultipleConsumers extends AbstractDispatcher
     }
 
     @Override
-    public void sendMessages(List<Entry> entries) {
+    public synchronized void sendMessages(List<Entry> entries) {
         Consumer consumer = TOTAL_AVAILABLE_PERMITS_UPDATER.get(this) > 0 ? getNextConsumer() : null;
         if (consumer != null) {
             SendMessageInfo sendMessageInfo = SendMessageInfo.getThreadLocal();
