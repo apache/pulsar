@@ -804,7 +804,9 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
             if (isTransferCommand(data)) {
                 next = new ServiceUnitStateData(
                         Assigning, data.dstBroker(), data.sourceBroker(), getNextVersionId(data));
-                unloadFuture = closeServiceUnit(serviceUnit, false);
+                // If the optimized bundle unload is disabled, disconnect the clients at the RELEASE state.
+                unloadFuture = closeServiceUnit(serviceUnit,
+                        !pulsar.getConfiguration().isLoadBalancerOptimizeBundleUnload());
             } else {
                 next = new ServiceUnitStateData(
                         Free, null, data.sourceBroker(), getNextVersionId(data));

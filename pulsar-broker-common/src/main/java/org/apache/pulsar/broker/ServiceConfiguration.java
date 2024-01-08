@@ -2689,6 +2689,15 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private long loadBalancerServiceUnitStateMonitorIntervalInSeconds = 60;
 
+    @FieldContext(
+            category = CATEGORY_LOAD_BALANCER,
+            dynamic = true,
+            doc = "Enables the fast unloading of bundles. Set to true, forwards destination broker information to "
+                    + "consumers and producers during bundle unload, allowing them to quickly reconnect to the broker "
+                    + "without performing an additional topic lookup."
+    )
+    private boolean loadBalancerOptimizeBundleUnload = true;
+
     /**** --- Replication. --- ****/
     @FieldContext(
         category = CATEGORY_REPLICATION,
