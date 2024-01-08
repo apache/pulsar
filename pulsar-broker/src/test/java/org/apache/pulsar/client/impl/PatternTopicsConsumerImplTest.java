@@ -37,14 +37,18 @@ import java.util.stream.IntStream;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.InjectedClientCnxClientBuilder;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
+import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.RegexSubscriptionMode;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.common.api.proto.BaseCommand;
+import org.apache.pulsar.common.api.proto.CommandWatchTopicListSuccess;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.awaitility.Awaitility;
@@ -568,13 +572,28 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
         producer3.close();
     }
 
-    @Test(timeOut = testTimeout)
-    public void testAutoSubscribePatterConsumerFromBrokerWatcher() throws Exception {
-        String key = "AutoSubscribePatternConsumer";
-        String subscriptionName = "my-ex-subscription-" + key;
+    @DataProvider(name= "delayTypesOfWatchingTopics")
+    public Object[][] delayTypesOfWatchingTopics(){
+        return new Object[][]{
+            {true},
+            {false}
+        };
+    }
 
-        Pattern pattern = Pattern.compile("persistent://my-property/my-ns/pattern-topic.*");
-        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+    @Test(timeOut = testTimeout, dataProvider = "delayTypesOfWatchingTopics")
+    public void testAutoSubscribePatterConsumerFromBrokerWatcher(boolean delayWatchingTopics) throws Exception {
+        final String key = "AutoSubscribePatternConsumer";
+        final String subscriptionName = "my-ex-subscription-" + key;
+        final Pattern pattern = Pattern.compile("persistent://my-property/my-ns/pattern-topic.*");
+
+        PulsarClient client = null;
+        if (delayWatchingTopics) {
+            client = createDelayWatchTopicsClient();
+        } else {
+            client = pulsarClient;
+        }
+
+        Consumer<byte[]> consumer = client.newConsumer()
                 .topicsPattern(pattern)
                 // Enable automatic discovery.
                 // See https://github.com/apache/pulsar/pull/20779 and https://github.com/apache/pulsar/pull/21853.
@@ -602,7 +621,33 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
 
         // cleanup.
         consumer.close();
-        admin.topics().deletePartitionedTopic(topicName, false);
+        admin.topics().deletePartitionedTopic(topicName);
+        if (delayWatchingTopics) {
+            client.close();
+        }
+    }
+
+    private PulsarClient createDelayWatchTopicsClient() throws Exception {
+        ClientBuilderImpl clientBuilder = (ClientBuilderImpl) PulsarClient.builder().serviceUrl(lookupUrl.toString());
+        return InjectedClientCnxClientBuilder.create(clientBuilder,
+                (conf, eventLoopGroup) -> new ClientCnx(conf, eventLoopGroup) {
+                    public CompletableFuture<CommandWatchTopicListSuccess> newWatchTopicList(
+                            BaseCommand command, long requestId) {
+                        // Inject 2 seconds delay when sending command New Watch Topics.
+                        CompletableFuture<CommandWatchTopicListSuccess> res = new CompletableFuture<>();
+                        new Thread(() -> {
+                            sleepSeconds(2);
+                            super.newWatchTopicList(command, requestId).whenComplete((v, ex) -> {
+                                if (ex != null) {
+                                    res.completeExceptionally(ex);
+                                } else {
+                                    res.complete(v);
+                                }
+                            });
+                        }).start();
+                        return res;
+                    }
+                });
     }
 
     @DataProvider(name= "regexpConsumerArgs")

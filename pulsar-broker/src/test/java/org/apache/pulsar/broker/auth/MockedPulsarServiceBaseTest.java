@@ -726,5 +726,14 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
         reconnectAllConnections((PulsarClientImpl) pulsarClient);
     }
 
+    protected void sleepSeconds(int seconds){
+        try {
+            Thread.sleep(1000 * seconds);
+        } catch (InterruptedException e) {
+            log.warn("This thread has been interrupted", e);
+            Thread.currentThread().interrupt();
+        }
+    }
+
     private static final Logger log = LoggerFactory.getLogger(MockedPulsarServiceBaseTest.class);
 }

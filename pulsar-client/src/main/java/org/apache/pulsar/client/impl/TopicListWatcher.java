@@ -56,6 +56,8 @@ public class TopicListWatcher extends HandlerState implements ConnectionHandler.
     private final List<Throwable> previousExceptions = new CopyOnWriteArrayList<>();
     private final AtomicReference<ClientCnx> clientCnxUsedForWatcherRegistration = new AtomicReference<>();
 
+    private final Runnable recheckTopicsChangeAfterReconnect;
+
 
     /***
      * @param topicsPattern The regexp for the topic name(not contains partition suffix).
@@ -63,7 +65,8 @@ public class TopicListWatcher extends HandlerState implements ConnectionHandler.
     public TopicListWatcher(PatternMultiTopicsConsumerImpl.TopicsChangedListener topicsChangeListener,
                             PulsarClientImpl client, Pattern topicsPattern, long watcherId,
                             NamespaceName namespace, String topicsHash,
-                            CompletableFuture<TopicListWatcher> watcherFuture) {
+                            CompletableFuture<TopicListWatcher> watcherFuture,
+                            Runnable recheckTopicsChangeAfterReconnect) {
         super(client, topicsPattern.pattern());
         this.topicsChangeListener = topicsChangeListener;
         this.name = "Watcher(" + topicsPattern + ")";
@@ -80,6 +83,7 @@ public class TopicListWatcher extends HandlerState implements ConnectionHandler.
         this.namespace = namespace;
         this.topicsHash = topicsHash;
         this.watcherFuture = watcherFuture;
+        this.recheckTopicsChangeAfterReconnect = recheckTopicsChangeAfterReconnect;
 
         connectionHandler.grabCnx();
     }
@@ -143,6 +147,7 @@ public class TopicListWatcher extends HandlerState implements ConnectionHandler.
                         }
                         this.connectionHandler.resetBackoff();
 
+                        recheckTopicsChangeAfterReconnect.run();
                         watcherFuture.complete(this);
                         future.complete(null);
                     }).exceptionally((e) -> {

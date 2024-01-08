@@ -70,7 +70,7 @@ public class TopicListWatcherTest {
         watcherFuture = new CompletableFuture<>();
         watcher = new TopicListWatcher(listener, client,
                 Pattern.compile(topic), 7,
-                NamespaceName.get("tenant/ns"), null, watcherFuture);
+                NamespaceName.get("tenant/ns"), null, watcherFuture, () -> {});
     }
 
     @Test
