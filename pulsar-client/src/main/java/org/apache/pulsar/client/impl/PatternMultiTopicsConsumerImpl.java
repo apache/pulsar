@@ -31,7 +31,6 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import org.apache.pulsar.client.api.Consumer;
@@ -54,7 +53,6 @@ public class PatternMultiTopicsConsumerImpl<T> extends MultiTopicsConsumerImpl<T
     private final CompletableFuture<TopicListWatcher> watcherFuture = new CompletableFuture<>();
     protected NamespaceName namespaceName;
     private volatile Timeout recheckPatternTimeout = null;
-    private volatile AtomicReference<Timeout> retryRecheckPatternTask = new AtomicReference<>();
     private final Backoff retryRecheckPatternTaskBackoff = new BackoffBuilder().setInitialTime(5, TimeUnit.SECONDS)
             .setMax(1, TimeUnit.MINUTES).setMandatoryStop(0, TimeUnit.SECONDS).create();
     private volatile String topicsHash;
@@ -85,7 +83,7 @@ public class PatternMultiTopicsConsumerImpl<T> extends MultiTopicsConsumerImpl<T
         if (subscriptionMode == Mode.PERSISTENT) {
             long watcherId = client.newTopicListWatcherId();
             new TopicListWatcher(topicsChangeListener, client, topicsPattern, watcherId,
-                namespaceName, topicsHash, watcherFuture, () -> recheckTopicsChangeRetryIfFailed());
+                namespaceName, topicsHash, watcherFuture, () -> recheckTopicsChangeAfterReconnect());
             watcherFuture
                .thenAccept(__ -> recheckPatternTimeout.cancel())
                .exceptionally(ex -> {
@@ -102,6 +100,25 @@ public class PatternMultiTopicsConsumerImpl<T> extends MultiTopicsConsumerImpl<T
         return TopicName.get(pattern.pattern()).getNamespaceObject();
     }
 
+    private void recheckTopicsChangeAfterReconnect() {
+        // Skip if closed or the task has been cancelled.
+        if (getState() == State.Closing || getState() == State.Closed) {
+            return;
+        }
+        // Do check.
+        asyncRecheckTopicsChange().whenComplete((ignore, ex) -> {
+            if (ex != null) {
+                log.warn("[{}] Failed to recheck topics change: {}", topic, ex.getMessage());
+                long delayMs = retryRecheckPatternTaskBackoff.next();
+                client.timer().newTimeout(timeout -> {
+                    recheckTopicsChangeAfterReconnect();
+                }, delayMs, TimeUnit.MILLISECONDS);
+            } else {
+                retryRecheckPatternTaskBackoff.reset();
+            }
+        });
+    }
+
     // TimerTask to recheck topics change, and trigger subscribe/unsubscribe based on the change.
     @Override
     public void run(Timeout timeout) throws Exception {
@@ -116,46 +133,6 @@ public class PatternMultiTopicsConsumerImpl<T> extends MultiTopicsConsumerImpl<T
             this.recheckPatternTimeout = client.timer()
                     .newTimeout(PatternMultiTopicsConsumerImpl.this,
                     Math.max(1, conf.getPatternAutoDiscoveryPeriod()), TimeUnit.SECONDS);
-        });
-    }
-
-    private void recheckTopicsChangeRetryIfFailed() {
-        recheckTopicsChangeRetryIfFailed(null);
-    }
-
-    private void recheckTopicsChangeRetryIfFailed(Timeout retryTask) {
-        // Skip if closed or the task has been cancelled.
-        if (getState() == State.Closing || getState() == State.Closed
-                || (retryTask != null && retryTask.isCancelled())) {
-            retryRecheckPatternTask.compareAndSet(retryTask, null);
-            return;
-        }
-        // If the argument "retryTask" is not null, it means this method was called by the timer. Otherwise, it is a
-        // new call.
-        // Skip the new check if contains a retry task.
-        final boolean isNew = (retryTask == null);
-        Timeout pendingRetryTask = retryRecheckPatternTask.get();
-        if (isNew && pendingRetryTask != null) {
-            return;
-        }
-        // Do check.
-        asyncRecheckTopicsChange().whenComplete((ignore, ex) -> {
-            if (ex != null) {
-                log.warn("[{}] Failed to recheck topics change: {}", topic, ex.getMessage());
-                long delayMs = retryRecheckPatternTaskBackoff.next();
-                Timeout newTask = client.timer().newTimeout(timeout -> {
-                    recheckTopicsChangeRetryIfFailed(timeout);
-                }, delayMs, TimeUnit.MILLISECONDS);
-                if (!retryRecheckPatternTask.compareAndSet(retryTask, newTask)) {
-                    // Another thread added a new task, so cancel current one.
-                    newTask.cancel();
-                }
-            } else {
-                retryRecheckPatternTaskBackoff.reset();
-                if (!isNew) {
-                    retryRecheckPatternTask.compareAndSet(retryTask, null);
-                }
-            }
         });
     }
 
@@ -281,11 +258,6 @@ public class PatternMultiTopicsConsumerImpl<T> extends MultiTopicsConsumerImpl<T
         if (timeout != null) {
             timeout.cancel();
             recheckPatternTimeout = null;
-        }
-        Timeout retryTaskToRecheckTopics = retryRecheckPatternTask.get();
-        if (retryTaskToRecheckTopics != null) {
-            retryTaskToRecheckTopics.cancel();
-            retryRecheckPatternTask.compareAndSet(retryTaskToRecheckTopics, null);
         }
         List<CompletableFuture<?>> closeFutures = new ArrayList<>(2);
         if (watcherFuture.isDone() && !watcherFuture.isCompletedExceptionally()) {
