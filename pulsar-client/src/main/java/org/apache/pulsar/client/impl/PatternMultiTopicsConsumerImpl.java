@@ -61,7 +61,7 @@ public class PatternMultiTopicsConsumerImpl<T> extends MultiTopicsConsumerImpl<T
      * 2. {@link #run} A scheduled task to trigger re-check topic changes, it will be used if you disabled
      *     {@link TopicListWatcher}.
      */
-    private final Backoff recheckPatternTaskBackoffIfFailed;
+    private final Backoff recheckPatternTaskBackoff;
     private volatile Timeout recheckPatternTimeout = null;
     private volatile String topicsHash;
 
@@ -79,7 +79,7 @@ public class PatternMultiTopicsConsumerImpl<T> extends MultiTopicsConsumerImpl<T
         this.topicsPattern = topicsPattern;
         this.topicsHash = topicsHash;
         this.subscriptionMode = subscriptionMode;
-        this.recheckPatternTaskBackoffIfFailed = new BackoffBuilder()
+        this.recheckPatternTaskBackoff = new BackoffBuilder()
                 .setInitialTime(client.getConfiguration().getInitialBackoffIntervalNanos(), TimeUnit.NANOSECONDS)
                 .setMax(client.getConfiguration().getMaxBackoffIntervalNanos(), TimeUnit.NANOSECONDS)
                 .setMandatoryStop(0, TimeUnit.SECONDS)
@@ -125,12 +125,12 @@ public class PatternMultiTopicsConsumerImpl<T> extends MultiTopicsConsumerImpl<T
         recheckTopicsChange().whenComplete((ignore, ex) -> {
             if (ex != null) {
                 log.warn("[{}] Failed to recheck topics change: {}", topic, ex.getMessage());
-                long delayMs = recheckPatternTaskBackoffIfFailed.next();
+                long delayMs = recheckPatternTaskBackoff.next();
                 client.timer().newTimeout(timeout -> {
                     recheckTopicsChangeAfterReconnect();
                 }, delayMs, TimeUnit.MILLISECONDS);
             } else {
-                recheckPatternTaskBackoffIfFailed.reset();
+                recheckPatternTaskBackoff.reset();
             }
         });
     }
