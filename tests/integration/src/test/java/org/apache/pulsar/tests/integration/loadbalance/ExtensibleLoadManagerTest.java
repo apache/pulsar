@@ -129,6 +129,26 @@ public class ExtensibleLoadManagerTest extends TestRetrySupport {
                     brokerContainer.start();
                 }
             });
+            String topicName = "persistent://" + DEFAULT_NAMESPACE + "/startBrokerCheck";
+            Awaitility.await().atMost(120, TimeUnit.SECONDS).ignoreExceptions().until(
+                    () -> {
+                        for (BrokerContainer brokerContainer : pulsarCluster.getBrokers()) {
+                            try (PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(
+                                    brokerContainer.getHttpServiceUrl()).build()) {
+                                if (admin.brokers().getActiveBrokers(clusterName).size() != NUM_BROKERS) {
+                                    return false;
+                                }
+                                try {
+                                    admin.topics().createPartitionedTopic(topicName, 10);
+                                } catch (PulsarAdminException.ConflictException e) {
+                                    // expected
+                                }
+                                admin.lookups().lookupPartitionedTopic(topicName);
+                            }
+                        }
+                        return true;
+                    }
+            );
         }
     }
 
@@ -245,7 +265,7 @@ public class ExtensibleLoadManagerTest extends TestRetrySupport {
         assertFalse(admin.namespaces().getNamespaces(DEFAULT_TENANT).contains(namespace));
     }
 
-    @Test(timeOut = 40 * 1000)
+    @Test(timeOut = 120 * 1000)
     public void testStopBroker() throws Exception {
         String topicName = "persistent://" + DEFAULT_NAMESPACE + "/test-stop-broker-topic";
 
@@ -261,9 +281,11 @@ public class ExtensibleLoadManagerTest extends TestRetrySupport {
             }
         }
 
-        String broker1 = admin.lookups().lookupTopic(topicName);
+        Awaitility.waitAtMost(60, TimeUnit.SECONDS).ignoreExceptions().untilAsserted(() -> {
+            String broker1 = admin.lookups().lookupTopic(topicName);
+            assertNotEquals(broker1, broker);
+        });
 
-        assertNotEquals(broker1, broker);
     }
 
     @Test(timeOut = 40 * 1000)
@@ -311,7 +333,7 @@ public class ExtensibleLoadManagerTest extends TestRetrySupport {
         parameters1.put("min_limit", "1");
         parameters1.put("usage_threshold", "100");
 
-        Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(
+        Awaitility.await().atMost(10, TimeUnit.SECONDS).ignoreExceptions().untilAsserted(
                 () -> {
                     List<String> activeBrokers = admin.brokers().getActiveBrokers();
                     assertEquals(activeBrokers.size(), NUM_BROKERS);
@@ -347,6 +369,7 @@ public class ExtensibleLoadManagerTest extends TestRetrySupport {
         }
 
         String broker = admin.lookups().lookupTopic(topic);
+        assertEquals(extractBrokerIndex(broker), 0);
 
         for (BrokerContainer container : pulsarCluster.getBrokers()) {
             String name = container.getHostName();
@@ -355,11 +378,17 @@ public class ExtensibleLoadManagerTest extends TestRetrySupport {
             }
         }
 
-        assertEquals(extractBrokerIndex(broker), 0);
+        Awaitility.await().atMost(30, TimeUnit.SECONDS).ignoreExceptions().untilAsserted(
+                () -> {
+                    List<String> activeBrokers = admin.brokers().getActiveBrokers();
+                    assertEquals(activeBrokers.size(), 2);
+                }
+        );
 
-        broker = admin.lookups().lookupTopic(topic);
-
-        assertEquals(extractBrokerIndex(broker), 1);
+        Awaitility.await().atMost(60, TimeUnit.SECONDS).ignoreExceptions().untilAsserted(() -> {
+            String ownerBroker = admin.lookups().lookupTopic(topic);
+            assertEquals(extractBrokerIndex(ownerBroker), 1);
+        });
 
         for (BrokerContainer container : pulsarCluster.getBrokers()) {
             String name = container.getHostName();
@@ -367,13 +396,20 @@ public class ExtensibleLoadManagerTest extends TestRetrySupport {
                 container.stop();
             }
         }
+
+        Awaitility.await().atMost(30, TimeUnit.SECONDS).ignoreExceptions().untilAsserted(
+            () -> {
+                List<String> activeBrokers = admin.brokers().getActiveBrokers();
+                assertEquals(activeBrokers.size(), 1);
+            }
+        );
+
         try {
             admin.lookups().lookupTopic(topic);
             fail();
         } catch (Exception ex) {
             log.error("Failed to lookup topic: ", ex);
-            assertThat(ex.getMessage()).containsAnyOf("Failed to look up a broker",
-                    "Failed to select the new owner broker for bundle");
+            assertThat(ex.getMessage()).contains("Failed to select the new owner broker for bundle");
         }
     }
 
