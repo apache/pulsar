@@ -31,6 +31,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import org.apache.pulsar.client.api.Consumer;
@@ -62,6 +63,7 @@ public class PatternMultiTopicsConsumerImpl<T> extends MultiTopicsConsumerImpl<T
      *     {@link TopicListWatcher}.
      */
     private final Backoff recheckPatternTaskBackoff;
+    private final AtomicInteger recheckPatternEpoch = new AtomicInteger();
     private volatile Timeout recheckPatternTimeout = null;
     private volatile String topicsHash;
 
@@ -154,26 +156,32 @@ public class PatternMultiTopicsConsumerImpl<T> extends MultiTopicsConsumerImpl<T
 
     private CompletableFuture<Void> recheckTopicsChange() {
         String pattern = topicsPattern.pattern();
+        final int epoch = recheckPatternEpoch.incrementAndGet();
         return client.getLookup().getTopicsUnderNamespace(namespaceName, subscriptionMode, pattern, topicsHash)
             .thenCompose(getTopicsResult -> {
-
-                if (log.isDebugEnabled()) {
-                    log.debug("Get topics under namespace {}, topics.size: {}, topicsHash: {}, filtered: {}",
-                            namespaceName, getTopicsResult.getTopics().size(), getTopicsResult.getTopicsHash(),
-                            getTopicsResult.isFiltered());
-                    getTopicsResult.getTopics().forEach(topicName ->
-                            log.debug("Get topics under namespace {}, topic: {}", namespaceName, topicName));
-                }
-
-                final List<String> oldTopics = new ArrayList<>(getPartitionedTopics());
-                for (String partition : getPartitions()) {
-                    TopicName topicName = TopicName.get(partition);
-                    if (!topicName.isPartitioned() || !oldTopics.contains(topicName.getPartitionedTopicName())) {
-                        oldTopics.add(partition);
+                // If "recheckTopicsChange" has been called more than one times, only make the last one take affects.
+                synchronized (PatternMultiTopicsConsumerImpl.this) {
+                    if (recheckPatternEpoch.get() > epoch) {
+                        return CompletableFuture.completedFuture(null);
                     }
+                    if (log.isDebugEnabled()) {
+                        log.debug("Get topics under namespace {}, topics.size: {}, topicsHash: {}, filtered: {}",
+                                namespaceName, getTopicsResult.getTopics().size(), getTopicsResult.getTopicsHash(),
+                                getTopicsResult.isFiltered());
+                        getTopicsResult.getTopics().forEach(topicName ->
+                                log.debug("Get topics under namespace {}, topic: {}", namespaceName, topicName));
+                    }
+
+                    final List<String> oldTopics = new ArrayList<>(getPartitionedTopics());
+                    for (String partition : getPartitions()) {
+                        TopicName topicName = TopicName.get(partition);
+                        if (!topicName.isPartitioned() || !oldTopics.contains(topicName.getPartitionedTopicName())) {
+                            oldTopics.add(partition);
+                        }
+                    }
+                    return updateSubscriptions(topicsPattern, this::setTopicsHash, getTopicsResult,
+                            topicsChangeListener, oldTopics);
                 }
-                return updateSubscriptions(topicsPattern, this::setTopicsHash, getTopicsResult,
-                        topicsChangeListener, oldTopics);
             });
     }
 
