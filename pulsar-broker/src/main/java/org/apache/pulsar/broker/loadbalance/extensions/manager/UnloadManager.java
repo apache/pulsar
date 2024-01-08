@@ -28,7 +28,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState;
 import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateData;
 import org.apache.pulsar.broker.loadbalance.extensions.models.UnloadCounter;
@@ -99,10 +98,10 @@ public class UnloadManager implements StateChangeListener {
         }
     }
 
-    public UnloadManager(PulsarService pulsar, UnloadCounter counter) {
+    public UnloadManager(UnloadCounter counter, String lookupServiceAddress) {
         this.counter = counter;
+        this.lookupServiceAddress = Objects.requireNonNull(lookupServiceAddress);
         inFlightUnloadRequest = new ConcurrentHashMap<>();
-        lookupServiceAddress = Objects.requireNonNull(pulsar.getLookupServiceAddress());
     }
 
     private void complete(String serviceUnit, Throwable ex) {
