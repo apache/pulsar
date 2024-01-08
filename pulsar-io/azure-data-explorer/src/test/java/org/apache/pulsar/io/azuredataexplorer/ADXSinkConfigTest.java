@@ -58,7 +58,7 @@ public class ADXSinkConfigTest {
         map.put("appId", "xxxx-xxxx-xxxx-xxxx");
         map.put("appKey", "xxxx-xxxx-xxxx-xxxx");
         map.put("tenantId", "xxxx-xxxx-xxxx-xxxx");
-        //map.put("managedIdentityId", "xxxx-some-id-xxxx OR empty string");
+        map.put("managedIdentityId", "xxxx-some-id-xxxx OR empty string");
         map.put("mappingRefName", "mapping ref name");
         map.put("mappingRefType", "CSV");
         map.put("flushImmediately", false);
