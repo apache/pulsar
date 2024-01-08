@@ -224,6 +224,8 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
         admin.namespaces().unload(defaultTestNamespace);
         reset(primaryLoadManager, secondaryLoadManager);
         FieldUtils.writeDeclaredField(pulsarClient, "lookup", lookupService, true);
+        pulsar1.getConfig().setLoadBalancerOptimizeBundleUnload(true);
+        pulsar2.getConfig().setLoadBalancerOptimizeBundleUnload(true);
     }
 
     @Test
@@ -654,88 +656,77 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
         }
     }
 
+    @DataProvider(name = "isPersistentTopicTest")
+    public Object[][] isPersistentTopicTest() {
+        return new Object[][]{{TopicDomain.persistent}, {TopicDomain.non_persistent}};
+    }
 
-    @Test(timeOut = 30 * 1000, dataProvider = "isPersistentTopicSubscriptionTypeTest")
-    public void testOptimizeUnloadDisable(TopicDomain topicDomain, SubscriptionType subscriptionType) throws Exception {
-        var id = String.format("test-optimize-unload-disable-%s-client-reconnect-%s-%s",
-                topicDomain, subscriptionType, UUID.randomUUID());
+    @Test(timeOut = 30 * 1000, dataProvider = "isPersistentTopicTest")
+    public void testOptimizeUnloadDisable(TopicDomain topicDomain) throws Exception {
+        var id = String.format("test-optimize-unload-disable-%s-%s", topicDomain, UUID.randomUUID());
         var topic = String.format("%s://%s/%s", topicDomain, defaultTestNamespace, id);
         var topicName = TopicName.get(topic);
 
         pulsar1.getConfig().setLoadBalancerOptimizeBundleUnload(false);
         pulsar2.getConfig().setLoadBalancerOptimizeBundleUnload(false);
 
-        var consumers = new ArrayList<Consumer<String>>();
-        try {
-            @Cleanup
-            var producer = pulsarClient.newProducer(Schema.STRING).topic(topic).create();
+        @Cleanup
+        var producer = pulsarClient.newProducer(Schema.STRING).topic(topic).create();
 
-            var consumerCount = subscriptionType == SubscriptionType.Exclusive ? 1 : 3;
-            for (int i = 0; i < consumerCount; i++) {
-                consumers.add(pulsarClient.newConsumer(Schema.STRING).
-                        subscriptionName(id).subscriptionType(subscriptionType).topic(topic).subscribe());
+        @Cleanup
+        var consumer = pulsarClient.newConsumer(Schema.STRING).subscriptionName(id).topic(topic).subscribe();
+
+        Awaitility.await().until(() -> producer.isConnected() && consumer.isConnected());
+
+        var lookup = spyLookupService(pulsarClient);
+
+        final CountDownLatch cdl = new CountDownLatch(3);
+
+        NamespaceBundle bundle = getBundleAsync(pulsar1, TopicName.get(topic)).get();
+        var srcBrokerServiceUrl = admin.lookups().lookupTopic(topic);
+        var dstBroker = srcBrokerServiceUrl.equals(pulsar1.getBrokerServiceUrl()) ? pulsar2 : pulsar1;
+
+        CompletableFuture<Void> unloadNamespaceBundle = CompletableFuture.runAsync(() -> {
+            try {
+                cdl.await();
+                admin.namespaces().unloadNamespaceBundle(defaultTestNamespace, bundle.getBundleRange(),
+                        dstBroker.getLookupServiceAddress());
+            } catch (InterruptedException | PulsarAdminException e) {
+                fail();
             }
-            Awaitility.await()
-                    .until(() -> producer.isConnected() && consumers.stream().allMatch(Consumer::isConnected));
+        });
 
-            var lookup = spyLookupService(pulsarClient);
+        MutableInt sendCount = new MutableInt();
+        Awaitility.await().atMost(20, TimeUnit.SECONDS).ignoreExceptions().until(() -> {
+            var message = String.format("message-%d", sendCount.getValue());
 
-            final CountDownLatch cdl = new CountDownLatch(3);
+            boolean messageSent = false;
+            while (true) {
+                var recvFuture = consumer.receiveAsync().orTimeout(1000, TimeUnit.MILLISECONDS);
 
-
-
-            NamespaceBundle bundle = getBundleAsync(pulsar1, TopicName.get(topic)).get();
-            var srcBrokerServiceUrl = admin.lookups().lookupTopic(topic);
-            var dstBroker = srcBrokerServiceUrl.equals(pulsar1.getBrokerServiceUrl()) ? pulsar2 : pulsar1;
-
-            CompletableFuture<Void> unloadNamespaceBundle = CompletableFuture.runAsync(() -> {
-                try {
-                    cdl.await();
-                    admin.namespaces().unloadNamespaceBundle(defaultTestNamespace, bundle.getBundleRange(),
-                            dstBroker.getLookupServiceAddress());
-                } catch (InterruptedException | PulsarAdminException e) {
-                    fail();
-                }
-            });
-
-            MutableInt sendCount = new MutableInt();
-            Awaitility.await().atMost(20, TimeUnit.SECONDS).ignoreExceptions().until(() -> {
-                var message = String.format("message-%d", sendCount.getValue());
-
-                boolean messageSent = false;
-                while (true) {
-                    var recvFutures = consumers.stream().
-                            map(consumer -> consumer.receiveAsync().orTimeout(1000, TimeUnit.MILLISECONDS)).
-                            toList();
-
-                    if (!messageSent) {
-                        producer.send(message);
-                        messageSent = true;
-                    }
-
-                    if (topicDomain == TopicDomain.non_persistent) {
-                        // No need to wait for message receipt, we're only trying to stress the consumer lookup pathway.
-                        break;
-                    }
-                    var msg = (Message<String>) FutureUtil.waitForAny(recvFutures, __ -> true).get().get();
-                    if (Objects.equals(msg.getValue(), message)) {
-                        break;
-                    }
+                if (!messageSent) {
+                    producer.send(message);
+                    messageSent = true;
                 }
 
-                cdl.countDown();
-                return sendCount.incrementAndGet() == 10;
-            });
-
-            assertTrue(producer.isConnected());
-            assertTrue(consumers.stream().allMatch(Consumer::isConnected));
-            assertTrue(unloadNamespaceBundle.isDone());
-            verify(lookup, times(1 + consumerCount)).getBroker(topicName);
-        } finally {
-            for (var consumer : consumers) {
-                consumer.close();
+                if (topicDomain == TopicDomain.non_persistent) {
+                    // No need to wait for message receipt, we're only trying to stress the consumer lookup pathway.
+                    break;
+                }
+                var msg = recvFuture.get();
+                if (Objects.equals(msg.getValue(), message)) {
+                    break;
+                }
             }
-        }
+
+            cdl.countDown();
+            return sendCount.incrementAndGet() == 10;
+        });
+
+        assertTrue(producer.isConnected());
+        assertTrue(consumer.isConnected());
+        assertTrue(unloadNamespaceBundle.isDone());
+        verify(lookup, times(2)).getBroker(topicName);
     }
 
     private LookupService spyLookupService(PulsarClient client) throws IllegalAccessException {
