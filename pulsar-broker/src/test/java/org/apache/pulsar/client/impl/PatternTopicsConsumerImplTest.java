@@ -674,6 +674,9 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
         // cleanup.
         consumer.close();
         admin.topics().deletePartitionedTopic(topicName);
+        if (delayWatchingTopics) {
+            client.close();
+        }
     }
 
     private PulsarClient createDelayWatchTopicsClient() throws Exception {
