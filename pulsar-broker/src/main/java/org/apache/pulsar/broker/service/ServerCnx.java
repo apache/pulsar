@@ -419,7 +419,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
         // complete possible pending connection check future
         if (connectionCheckInProgress != null && !connectionCheckInProgress.isDone()) {
-            connectionCheckInProgress.complete(false);
+            connectionCheckInProgress.complete(Optional.of(false));
         }
     }
 
@@ -3460,16 +3460,17 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         return clientSourceAddressAndPort;
     }
 
-    CompletableFuture<Boolean> connectionCheckInProgress;
+    CompletableFuture<Optional<Boolean>> connectionCheckInProgress;
 
     @Override
-    public CompletableFuture<Boolean> checkConnectionLiveness() {
+    public CompletableFuture<Optional<Boolean>> checkConnectionLiveness() {
         if (connectionLivenessCheckTimeoutMillis > 0) {
             return NettyFutureUtil.toCompletableFuture(ctx.executor().submit(() -> {
                 if (connectionCheckInProgress != null) {
                     return connectionCheckInProgress;
                 } else {
-                    final CompletableFuture<Boolean> finalConnectionCheckInProgress = new CompletableFuture<>();
+                    final CompletableFuture<Optional<Boolean>> finalConnectionCheckInProgress =
+                            new CompletableFuture<>();
                     connectionCheckInProgress = finalConnectionCheckInProgress;
                     ctx.executor().schedule(() -> {
                         if (finalConnectionCheckInProgress == connectionCheckInProgress
@@ -3484,7 +3485,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             })).thenCompose(java.util.function.Function.identity());
         } else {
             // check is disabled
-            return CompletableFuture.completedFuture((Boolean) null);
+            return CompletableFuture.completedFuture(Optional.empty());
         }
     }
 
@@ -3492,7 +3493,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     protected void messageReceived() {
         super.messageReceived();
         if (connectionCheckInProgress != null && !connectionCheckInProgress.isDone()) {
-            connectionCheckInProgress.complete(true);
+            connectionCheckInProgress.complete(Optional.of(true));
             connectionCheckInProgress = null;
         }
     }
