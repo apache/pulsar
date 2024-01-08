@@ -971,7 +971,7 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
             // available. The producers related the connection that not available are automatically cleaned up.
             if (!Objects.equals(oldProducer.getCnx(), newProducer.getCnx())) {
                 return oldProducer.getCnx().checkConnectionLiveness().thenCompose(previousIsActive -> {
-                    if (previousIsActive) {
+                    if (previousIsActive.isEmpty() || previousIsActive.get()) {
                         return CompletableFuture.failedFuture(new BrokerServiceException.NamingException(
                                 "Producer with name '" + newProducer.getProducerName()
                                         + "' is already connected to topic"));
