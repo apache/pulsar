@@ -24,8 +24,7 @@ import io.opentelemetry.sdk.autoconfigure.AutoConfiguredOpenTelemetrySdk;
 import io.opentelemetry.sdk.autoconfigure.AutoConfiguredOpenTelemetrySdkBuilder;
 import io.opentelemetry.sdk.resources.Resource;
 import java.io.Closeable;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.Collections;
 import java.util.Objects;
 
 public class OpenTelemetryService implements Closeable {
@@ -37,11 +36,8 @@ public class OpenTelemetryService implements Closeable {
     public OpenTelemetryService(String clusterName) {
         Objects.requireNonNull(clusterName);
         AutoConfiguredOpenTelemetrySdkBuilder builder = AutoConfiguredOpenTelemetrySdk.builder();
-        builder.addPropertiesSupplier(() -> {
-            Map<String, String> defaultOverrides = new HashMap<>();
-            defaultOverrides.put("otel.experimental.metrics.cardinality.limit", "10000");
-            return defaultOverrides;
-        });
+        builder.addPropertiesSupplier(
+                () -> Collections.singletonMap("otel.experimental.metrics.cardinality.limit", "10000"));
         builder.addResourceCustomizer(
                 (resource, __) -> resource.merge(Resource.builder().put(CLUSTER_NAME_ATTRIBUTE, clusterName).build()));
         openTelemetrySdk = builder.build().getOpenTelemetrySdk();
