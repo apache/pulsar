@@ -26,14 +26,33 @@ import io.opentelemetry.sdk.metrics.data.AggregationTemporality;
 import io.opentelemetry.sdk.metrics.data.MetricData;
 import io.opentelemetry.sdk.metrics.export.MetricExporter;
 import java.util.Collection;
+import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Consumer;
 
 public class TestMetricProvider implements ConfigurableMetricExporterProvider {
 
+    public static final String METRIC_CONSUMER_CONFIG_KEY = "otel.metric.export.pulsartest.consumer";
+
+    private static final Map<String, Consumer<MetricData>> metricConsumers = new ConcurrentHashMap<>();
+
+    public static String registerMetricConsumer(Consumer<MetricData> consumer) {
+        String uuid = UUID.randomUUID().toString();
+        metricConsumers.put(uuid, consumer);
+        return uuid;
+    }
+
     @Override
     public MetricExporter createExporter(ConfigProperties config) {
+        final String consumerKey = config.getString(METRIC_CONSUMER_CONFIG_KEY);
+        final Consumer<MetricData> consumer = consumerKey != null ? metricConsumers.get(consumerKey) : null;
         return new MetricExporter() {
             @Override
             public CompletableResultCode export(Collection<MetricData> metrics) {
+                if (consumer != null) {
+                    metrics.forEach(consumer);
+                }
                 return CompletableResultCode.ofSuccess();
             }
 
@@ -44,6 +63,7 @@ public class TestMetricProvider implements ConfigurableMetricExporterProvider {
 
             @Override
             public CompletableResultCode shutdown() {
+                metricConsumers.remove(consumerKey);
                 return CompletableResultCode.ofSuccess();
             }
 

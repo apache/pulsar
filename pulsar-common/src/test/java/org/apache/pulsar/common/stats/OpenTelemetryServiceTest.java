@@ -20,20 +20,28 @@ package org.apache.pulsar.common.stats;
 
 import io.opentelemetry.api.metrics.LongCounter;
 import io.opentelemetry.api.metrics.Meter;
-import io.opentelemetry.exporter.logging.LoggingMetricExporter;
+import io.opentelemetry.sdk.metrics.data.MetricData;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Consumer;
 import lombok.Cleanup;
+import org.mockito.Mockito;
 import org.testng.annotations.Test;
 
 public class OpenTelemetryServiceTest {
 
+    public static final Map<String, Consumer<MetricData>> metricConsumers = new ConcurrentHashMap<>();
+
     @Test
     public void testA() throws Exception {
-        Object ignore = LoggingMetricExporter.class;
+        Consumer<MetricData> consumer = (Consumer<MetricData>) Mockito.mock(Consumer.class);
+        String consumerUuid = TestMetricProvider.registerMetricConsumer(consumer);
+
         Map<String, String> extraProperties = new HashMap<>();
         extraProperties.put("otel.metrics.exporter", "test");
-        extraProperties.put("otel.metric.export.interval", "1000");
+        extraProperties.put("otel.metric.export.interval", "100");
+        extraProperties.put(TestMetricProvider.METRIC_CONSUMER_CONFIG_KEY, consumerUuid);
 
         @Cleanup
         OpenTelemetryService ots = new OpenTelemetryService("clusterName", extraProperties);
@@ -42,6 +50,7 @@ public class OpenTelemetryServiceTest {
         LongCounter longCounter = meter.counterBuilder("counter.A").build();
         longCounter.add(1);
 
-        Thread.sleep(10000);
+        Mockito.verify(consumer, Mockito.timeout(1000).atLeastOnce()).
+                accept(Mockito.argThat((MetricData md) -> "counter.A".equals(md.getName())));
     }
 }
