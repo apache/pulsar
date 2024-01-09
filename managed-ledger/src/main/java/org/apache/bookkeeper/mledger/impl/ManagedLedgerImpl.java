@@ -3114,7 +3114,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 .thenCompose(readHandle -> config.getLedgerOffloader().offload(readHandle, uuid, extraMetadata))
                 .thenCompose((ignore) -> {
                         return Retries.run(Backoff.exponentialJittered(TimeUnit.SECONDS.toMillis(1),
-                                                                       TimeUnit.SECONDS.toHours(1)).limit(10),
+                                                                       TimeUnit.HOURS.toMillis(1)).limit(10),
                                            FAIL_ON_CONFLICT,
                                            () -> completeLedgerInfoForOffloaded(ledgerId, uuid),
                                            scheduledExecutor, name)
@@ -3337,7 +3337,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         metadataMap.putAll(offloadDriverMetadata);
         metadataMap.put("ManagedLedgerName", name);
 
-        Retries.run(Backoff.exponentialJittered(TimeUnit.SECONDS.toMillis(1), TimeUnit.SECONDS.toHours(1)).limit(10),
+        Retries.run(Backoff.exponentialJittered(TimeUnit.SECONDS.toMillis(1), TimeUnit.HOURS.toMillis(1)).limit(10),
                 Retries.NonFatalPredicate,
                 () -> config.getLedgerOffloader().deleteOffloaded(ledgerId, uuid, metadataMap),
                 scheduledExecutor, name).whenComplete((ignored, exception) -> {
