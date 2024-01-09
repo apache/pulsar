@@ -2091,9 +2091,7 @@ public class PersistentTopicsBase extends AdminResource {
                     final List<CompletableFuture<Void>> futures =
                             new ArrayList<>((int) topic.getReplicators().size());
                     List<String> subNames =
-                            new ArrayList<>((int) topic.getReplicators().size()
-                                    + (int) topic.getSubscriptions().size());
-                    subNames.addAll(topic.getReplicators().keys());
+                            new ArrayList<>((int) topic.getSubscriptions().size());
                     subNames.addAll(topic.getSubscriptions().keys().stream().filter(
                             subName -> !subName.equals(Compactor.COMPACTION_SUBSCRIPTION)).toList());
                     for (int i = 0; i < subNames.size(); i++) {
