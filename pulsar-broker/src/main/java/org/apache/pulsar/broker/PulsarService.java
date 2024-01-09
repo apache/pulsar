@@ -108,6 +108,7 @@ import org.apache.pulsar.broker.service.TransactionBufferSnapshotServiceFactory;
 import org.apache.pulsar.broker.service.schema.SchemaRegistryService;
 import org.apache.pulsar.broker.service.schema.SchemaStorageFactory;
 import org.apache.pulsar.broker.stats.MetricsGenerator;
+import org.apache.pulsar.broker.stats.PulsarBrokerOpenTelemetry;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusRawMetricsProvider;
 import org.apache.pulsar.broker.stats.prometheus.PulsarPrometheusMetricsServlet;
 import org.apache.pulsar.broker.storage.ManagedLedgerStorage;
@@ -248,6 +249,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     private final Timer brokerClientSharedTimer;
 
     private MetricsGenerator metricsGenerator;
+    private PulsarBrokerOpenTelemetry openTelemetry;
 
     private TransactionMetadataStoreService transactionMetadataStoreService;
     private TransactionBufferProvider transactionBufferProvider;
@@ -890,6 +892,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             }
 
             this.metricsGenerator = new MetricsGenerator(this);
+            this.openTelemetry = new PulsarBrokerOpenTelemetry(this);
 
             // Initialize the message protocol handlers.
             // start the protocol handlers only after the broker is ready,
