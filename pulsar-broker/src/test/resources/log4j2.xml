@@ -28,8 +28,8 @@
     </Console>
   </Appenders>
   <Loggers>
-<!--    <Logger name="org.apache.bookkeeper.mledger.impl.ManagedCursorImpl" level="DEBUG">-->
-<!--       <AppenderRef ref="CONSOLE"/>-->
+<!--    <Logger name="org.apache.pulsar.broker.service.persistent.PersistentTopic" level="DEBUG" additivity="false">-->
+<!--       <AppenderRef ref="CONSOLE" />-->
 <!--    </Logger>-->
 
     <Root level="INFO">

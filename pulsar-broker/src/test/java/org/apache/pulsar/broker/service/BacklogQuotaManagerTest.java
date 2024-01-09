@@ -388,7 +388,7 @@ public class BacklogQuotaManagerTest {
 
             final String subName1 = "c1";
             final String subName2 = "c2";
-            final int numMsgs = 5;
+            final int numMsgs = 4;
 
             Consumer<byte[]> consumer1 = client.newConsumer().topic(topic1).subscriptionName(subName1)
                     .acknowledgmentGroupTime(0, SECONDS)
@@ -400,7 +400,7 @@ public class BacklogQuotaManagerTest {
 
             byte[] content = new byte[1024];
             for (int i = 0; i < numMsgs; i++) {
-                Thread.sleep(1000);
+                Thread.sleep(3000); // Guarantees if we use wrong message in age, to show up in failed test
                 producer.send(content);
             }
 
@@ -436,13 +436,15 @@ public class BacklogQuotaManagerTest {
                     entry("cluster", CLUSTER_NAME),
                     entry("namespace", namespace),
                     entry("topic", topic1));
-            assertThat((long) backlogAgeMetric.value).isCloseTo(expectedMessageAgeSeconds, within(1L));
+            assertThat((long) backlogAgeMetric.value).isCloseTo(expectedMessageAgeSeconds, within(2L));
 
             // Move subscription 2 away from being the oldest mark delete
             //     S2/S1
             //  0   1
+            Message<byte[]> firstOldestMessage = consumer2.receive();
+            consumer2.acknowledge(firstOldestMessage);
+            // We only read and not ack, since we just need its publish-timestamp for later assert
             Message<byte[]> secondOldestMessage = consumer2.receive();
-            consumer2.acknowledge(secondOldestMessage);
 
             // Switch subscription 1 to be where subscription 2 was in terms of oldest mark delete
             //  S1  S2
@@ -460,12 +462,12 @@ public class BacklogQuotaManagerTest {
                     .get(0).value;
 
             expectedMessageAgeSeconds = MILLISECONDS.toSeconds(System.currentTimeMillis() - oldestMessage.getPublishTime());
-            assertThat(actualAge).isCloseTo(expectedMessageAgeSeconds, within(1L));
+            assertThat(actualAge).isCloseTo(expectedMessageAgeSeconds, within(2L));
 
             topicStats = getTopicStats(topic1);
             assertThat(topicStats.getOldestBacklogMessageSubscriptionName()).isEqualTo(subName1);
 
-            long cacheUsedCounterBefore = getCacheUsedCounter(topic1);
+            long entriesReadBefore = getReadEntries(topic1);
 
             // Move subscription 1 passed subscription 2
             for (int i = 0; i < 3; i++) {
@@ -479,25 +481,24 @@ public class BacklogQuotaManagerTest {
             waitForQuotaCheckToRunTwice();
 
             // Cache shouldn't be used, since position has changed
-            assertThat(getCacheUsedCounter(topic1)).isEqualTo(cacheUsedCounterBefore);
+            long readEntries = getReadEntries(topic1);
+            assertThat(readEntries).isGreaterThan(entriesReadBefore);
 
             topicStats = getTopicStats(topic1);
             expectedMessageAgeSeconds = MILLISECONDS.toSeconds(System.currentTimeMillis() - secondOldestMessage.getPublishTime());
-            assertThat(topicStats.getOldestBacklogMessageAgeSeconds()).isCloseTo(expectedMessageAgeSeconds, within(1L));
+            assertThat(topicStats.getOldestBacklogMessageAgeSeconds()).isCloseTo(expectedMessageAgeSeconds, within(2L));
             assertThat(topicStats.getOldestBacklogMessageSubscriptionName()).isEqualTo(subName2);
-
-            cacheUsedCounterBefore = getCacheUsedCounter(topic1);
 
             waitForQuotaCheckToRunTwice();
 
             // Cache should be used, since position hasn't changed
-            assertThat(getCacheUsedCounter(topic1)).isGreaterThan(cacheUsedCounterBefore);
+            assertThat(getReadEntries(topic1)).isEqualTo(readEntries);
         }
     }
 
-    private long getCacheUsedCounter(String topic1) {
+    private long getReadEntries(String topic1) {
         return ((PersistentTopic) pulsar.getBrokerService().getTopicReference(topic1).get())
-                .getPersistentTopicMetrics().getBacklogQuotaMetrics().getTimeBasedBacklogQuotaCheckReadFromCache();
+                .getManagedLedger().getStats().getEntriesReadTotalCount();
     }
 
     @Test
