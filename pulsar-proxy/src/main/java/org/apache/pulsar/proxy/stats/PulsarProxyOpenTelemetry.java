@@ -16,24 +16,24 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.stats;
+package org.apache.pulsar.proxy.stats;
 
 import io.opentelemetry.api.metrics.Meter;
 import java.io.Closeable;
 import lombok.Getter;
-import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.common.stats.OpenTelemetryService;
+import org.apache.pulsar.proxy.server.ProxyService;
 
-public class PulsarBrokerOpenTelemetry implements Closeable {
+public class PulsarProxyOpenTelemetry implements Closeable {
 
     private final OpenTelemetryService openTelemetryService;
 
     @Getter
     private final Meter meter;
 
-    public PulsarBrokerOpenTelemetry(PulsarService pulsar) {
-        openTelemetryService = new OpenTelemetryService(pulsar.getConfig().getClusterName());
-        meter = openTelemetryService.getMeter("pulsar.broker");
+    public PulsarProxyOpenTelemetry(ProxyService proxyService) {
+        openTelemetryService = new OpenTelemetryService(proxyService.getConfiguration().getClusterName());
+        meter = openTelemetryService.getMeter("pulsar.proxy");
     }
 
     @Override

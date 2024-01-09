@@ -69,6 +69,7 @@ import org.apache.pulsar.functions.instance.state.StateManager;
 import org.apache.pulsar.functions.instance.stats.ComponentStatsManager;
 import org.apache.pulsar.functions.instance.stats.FunctionCollectorRegistry;
 import org.apache.pulsar.functions.instance.stats.FunctionStatsManager;
+import org.apache.pulsar.functions.instance.stats.PulsarWorkerOpenTelemetry;
 import org.apache.pulsar.functions.instance.stats.SinkStatsManager;
 import org.apache.pulsar.functions.instance.stats.SourceStatsManager;
 import org.apache.pulsar.functions.proto.Function;
@@ -118,6 +119,7 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
     Map<String, String[]> userMetricsLabels = new HashMap<>();
     private final String[] metricsLabels;
     private final Summary userMetricsSummary;
+    private final PulsarWorkerOpenTelemetry openTelemetry;
 
     private final SubscriptionType subscriptionType;
 
@@ -223,6 +225,7 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
                         .quantile(0.99, 0.01)
                         .quantile(0.999, 0.01)
                         .create());
+        this.openTelemetry = new PulsarWorkerOpenTelemetry(config);
         this.componentType = componentType;
         this.stateManager = stateManager;
         this.defaultStateStore = (DefaultStateStore) stateManager.getStore(
@@ -731,7 +734,7 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
 
     @Override
     public void close() {
-        List<CompletableFuture> futures = new LinkedList<>();
+        List<CompletableFuture<?>> futures = new LinkedList<>();
 
         if (publishProducers != null) {
             for (Producer<?> producer : publishProducers.values()) {
@@ -753,6 +756,10 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
             CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).get();
         } catch (InterruptedException | ExecutionException e) {
             logger.warn("Failed to close producers", e);
+        }
+
+        if (openTelemetry != null) {
+            openTelemetry.close();
         }
     }
 
