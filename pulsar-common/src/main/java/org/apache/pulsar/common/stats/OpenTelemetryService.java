@@ -22,10 +22,15 @@ import io.opentelemetry.api.metrics.Meter;
 import io.opentelemetry.sdk.OpenTelemetrySdk;
 import io.opentelemetry.sdk.autoconfigure.AutoConfiguredOpenTelemetrySdk;
 import io.opentelemetry.sdk.autoconfigure.AutoConfiguredOpenTelemetrySdkBuilder;
+import io.opentelemetry.sdk.autoconfigure.spi.ConfigProperties;
+import io.opentelemetry.sdk.metrics.export.MetricExporter;
+import io.opentelemetry.sdk.metrics.export.PeriodicMetricReader;
 import io.opentelemetry.sdk.resources.Resource;
 import java.io.Closeable;
 import java.util.Collections;
+import java.util.Map;
 import java.util.Objects;
+import java.util.function.BiFunction;
 
 public class OpenTelemetryService implements Closeable {
 
@@ -34,12 +39,23 @@ public class OpenTelemetryService implements Closeable {
     private final OpenTelemetrySdk openTelemetrySdk;
 
     public OpenTelemetryService(String clusterName) {
+        this(clusterName, Collections.emptyMap());
+    }
+
+    public OpenTelemetryService(String clusterName, Map<String, String> extraProperties) {
         Objects.requireNonNull(clusterName);
         AutoConfiguredOpenTelemetrySdkBuilder builder = AutoConfiguredOpenTelemetrySdk.builder();
         builder.addPropertiesSupplier(
                 () -> Collections.singletonMap("otel.experimental.metrics.cardinality.limit", "10000"));
+        builder.addPropertiesSupplier(() -> extraProperties);
         builder.addResourceCustomizer(
                 (resource, __) -> resource.merge(Resource.builder().put(CLUSTER_NAME_ATTRIBUTE, clusterName).build()));
+        builder.addMetricExporterCustomizer(new BiFunction<MetricExporter, ConfigProperties, MetricExporter>() {
+            @Override
+            public MetricExporter apply(MetricExporter metricExporter, ConfigProperties configProperties) {
+                return metricExporter;
+            }
+        });
         openTelemetrySdk = builder.build().getOpenTelemetrySdk();
     }
 
