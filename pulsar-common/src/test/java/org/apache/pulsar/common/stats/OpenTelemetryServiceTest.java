@@ -20,22 +20,44 @@ package org.apache.pulsar.common.stats;
 
 import io.opentelemetry.api.metrics.LongCounter;
 import io.opentelemetry.api.metrics.Meter;
+import io.opentelemetry.sdk.metrics.data.LongPointData;
 import io.opentelemetry.sdk.metrics.data.MetricData;
+import io.opentelemetry.sdk.metrics.data.MetricDataType;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
+import lombok.Builder;
 import lombok.Cleanup;
+import lombok.Singular;
+import org.mockito.ArgumentMatcher;
 import org.mockito.Mockito;
 import org.testng.annotations.Test;
 
 public class OpenTelemetryServiceTest {
 
-    public static final Map<String, Consumer<MetricData>> metricConsumers = new ConcurrentHashMap<>();
+    @Builder
+    public static final class MetricDataArgumentMatcher implements ArgumentMatcher<MetricData> {
+        final String name;
+        final MetricDataType type;
+
+        @Singular
+        final List<LongPointData> longs;
+
+        @Override
+        public boolean matches(MetricData md) {
+            boolean m = longs == null || longs.stream().mapToLong(LongPointData::getValue).allMatch(
+                    value -> md.getLongSumData().getPoints().stream().mapToLong(LongPointData::getValue).anyMatch(
+                            valueA -> value == valueA));
+
+            return (type == null || type.equals(md.getType()))
+                    && (name == null || name.equals(md.getName()));
+        }
+    }
 
     @Test
     public void testA() throws Exception {
-        Consumer<MetricData> consumer = (Consumer<MetricData>) Mockito.mock(Consumer.class);
+        Consumer<MetricData> consumer = Mockito.mock(Consumer.class);
         String consumerUuid = TestMetricProvider.registerMetricConsumer(consumer);
 
         Map<String, String> extraProperties = new HashMap<>();
@@ -50,7 +72,9 @@ public class OpenTelemetryServiceTest {
         LongCounter longCounter = meter.counterBuilder("counter.A").build();
         longCounter.add(1);
 
-        Mockito.verify(consumer, Mockito.timeout(1000).atLeastOnce()).
-                accept(Mockito.argThat((MetricData md) -> "counter.A".equals(md.getName())));
+        ArgumentMatcher<MetricData> matcher =
+                MetricDataArgumentMatcher.builder().name("counter.A").type(MetricDataType.LONG_SUM).build();
+
+        Mockito.verify(consumer, Mockito.timeout(1000).atLeastOnce()).accept(Mockito.argThat(matcher));
     }
 }
