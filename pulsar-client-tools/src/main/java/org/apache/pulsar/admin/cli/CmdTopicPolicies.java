@@ -1938,13 +1938,10 @@ public class CmdTopicPolicies extends CmdBase {
         }
     }
 
-    @Parameters(commandDescription = "Enable autoSubscriptionCreation for a topic")
+    @Parameters(commandDescription = "Enable dispatcherPauseOnAckStatePersistent for a topic")
     private class SetDispatcherPauseOnAckStatePersistent extends CliCommand {
         @Parameter(description = "persistent://tenant/namespace/topic", required = true)
         private java.util.List<String> params;
-
-        @Parameter(names = {"--enable", "-e"}, description = "Enable allowAutoSubscriptionCreation on topic")
-        private boolean enable = false;
 
         @Parameter(names = { "--global", "-g" }, description = "Whether to set this policy globally. "
                 + "If set to true, the policy will be replicate to other clusters asynchronously")
@@ -1957,7 +1954,7 @@ public class CmdTopicPolicies extends CmdBase {
         }
     }
 
-    @Parameters(commandDescription = "Get the autoSubscriptionCreation for a topic")
+    @Parameters(commandDescription = "Get the dispatcherPauseOnAckStatePersistent for a topic")
     private class GetDispatcherPauseOnAckStatePersistent extends CliCommand {
         @Parameter(description = "persistent://tenant/namespace/topic", required = true)
         private java.util.List<String> params;
@@ -1976,7 +1973,7 @@ public class CmdTopicPolicies extends CmdBase {
         }
     }
 
-    @Parameters(commandDescription = "Remove override of autoSubscriptionCreation for a topic")
+    @Parameters(commandDescription = "Remove dispatcherPauseOnAckStatePersistent for a topic")
     private class RemoveDispatcherPauseOnAckStatePersistent extends CliCommand {
         @Parameter(description = "persistent://tenant/namespace/topic", required = true)
         private java.util.List<String> params;

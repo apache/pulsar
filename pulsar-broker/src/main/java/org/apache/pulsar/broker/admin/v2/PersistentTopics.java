@@ -2515,13 +2515,12 @@ public class PersistentTopics extends PersistentTopicsBase {
 
     @POST
     @Path("/{tenant}/{namespace}/{topic}/dispatcherPauseOnAckStatePersistent")
-    @ApiOperation(value = "Set retention configuration for specified topic.")
+    @ApiOperation(value = "Set dispatcher pause on ack state persistent configuration for specified topic.")
     @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace or topic doesn't exist"),
             @ApiResponse(code = 405, message =
                     "Topic level policy is disabled, to enable the topic level policy and retry"),
-            @ApiResponse(code = 409, message = "Concurrent modification"),
-            @ApiResponse(code = 412, message = "Retention Quota must exceed backlog quota")})
+            @ApiResponse(code = 409, message = "Concurrent modification")})
     public void setDispatcherPauseOnAckStatePersistent(@Suspended final AsyncResponse asyncResponse,
             @PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace,
@@ -2545,13 +2544,12 @@ public class PersistentTopics extends PersistentTopicsBase {
 
     @DELETE
     @Path("/{tenant}/{namespace}/{topic}/dispatcherPauseOnAckStatePersistent")
-    @ApiOperation(value = "Remove retention configuration for specified topic.")
+    @ApiOperation(value = "Remove dispatcher pause on ack state persistent configuration for specified topic.")
     @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace or topic doesn't exist"),
             @ApiResponse(code = 405,
                     message = "Topic level policy is disabled, to enable the topic level policy and retry"),
-            @ApiResponse(code = 409, message = "Concurrent modification"),
-            @ApiResponse(code = 412, message = "Retention Quota must exceed backlog quota")})
+            @ApiResponse(code = 409, message = "Concurrent modification")})
     public void removeDispatcherPauseOnAckStatePersistent(@Suspended final AsyncResponse asyncResponse,
             @PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace,
@@ -2575,18 +2573,18 @@ public class PersistentTopics extends PersistentTopicsBase {
 
     @GET
     @Path("/{tenant}/{namespace}/{topic}/dispatcherPauseOnAckStatePersistent")
-    @ApiOperation(value = "Get max unacked messages per consumer config on a topic.", response = Integer.class)
+    @ApiOperation(value = "Get dispatcher pause on ack state persistent config on a topic.", response = Integer.class)
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Tenant or cluster or namespace or topic doesn't exist"),
             @ApiResponse(code = 500, message = "Internal server error"), })
     public void getDispatcherPauseOnAckStatePersistent(@Suspended final AsyncResponse asyncResponse,
-                                                @PathParam("tenant") String tenant,
-                                                @PathParam("namespace") String namespace,
-                                                @PathParam("topic") @Encoded String encodedTopic,
-                                                @QueryParam("applied") @DefaultValue("false") boolean applied,
-                                                @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
-                                                @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
-                                                @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
+                    @PathParam("tenant") String tenant,
+                    @PathParam("namespace") String namespace,
+                    @PathParam("topic") @Encoded String encodedTopic,
+                    @QueryParam("applied") @DefaultValue("false") boolean applied,
+                    @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
+                    @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
+                    @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
                 .thenCompose(__ -> internalGetDispatcherPauseOnAckStatePersistent(applied, isGlobal))
