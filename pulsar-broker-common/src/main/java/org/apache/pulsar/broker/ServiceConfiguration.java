@@ -2692,11 +2692,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
             category = CATEGORY_LOAD_BALANCER,
             dynamic = true,
-            doc = "Enables the fast unloading of bundles. Set to true, forwards destination broker information to "
-                    + "consumers and producers during bundle unload, allowing them to quickly reconnect to the broker "
-                    + "without performing an additional topic lookup."
+            doc = "Enables the multi-phase unloading of bundles. Set to true, forwards destination broker information "
+                    + "to consumers and producers during bundle unload, allowing them to quickly reconnect to the "
+                    + "broker without performing an additional topic lookup."
     )
-    private boolean loadBalancerOptimizeBundleUnload = true;
+    private boolean loadBalancerMultiPhasePhaseBundleUnload = true;
 
     /**** --- Replication. --- ****/
     @FieldContext(
