@@ -218,6 +218,8 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
                     .updateTopicValue(formatSchemaCompatibilityStrategy(data.getSchemaCompatibilityStrategy()));
         }
         topicPolicies.getRetentionPolicies().updateTopicValue(data.getRetentionPolicies());
+        topicPolicies.getDispatcherPauseOnAckStatePersistentEnabled()
+                .updateTopicValue(data.getDispatcherPauseOnAckStatePersistentEnabled());
         topicPolicies.getMaxSubscriptionsPerTopic().updateTopicValue(data.getMaxSubscriptionsPerTopic());
         topicPolicies.getMaxUnackedMessagesOnConsumer().updateTopicValue(data.getMaxUnackedMessagesOnConsumer());
         topicPolicies.getMaxUnackedMessagesOnSubscription()

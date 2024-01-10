@@ -2513,6 +2513,89 @@ public class PersistentTopics extends PersistentTopicsBase {
             });
     }
 
+    @POST
+    @Path("/{tenant}/{namespace}/{topic}/dispatcherPauseOnAckStatePersistent")
+    @ApiOperation(value = "Set retention configuration for specified topic.")
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Namespace or topic doesn't exist"),
+            @ApiResponse(code = 405, message =
+                    "Topic level policy is disabled, to enable the topic level policy and retry"),
+            @ApiResponse(code = 409, message = "Concurrent modification"),
+            @ApiResponse(code = 412, message = "Retention Quota must exceed backlog quota")})
+    public void setDispatcherPauseOnAckStatePersistent(@Suspended final AsyncResponse asyncResponse,
+            @PathParam("tenant") String tenant,
+            @PathParam("namespace") String namespace,
+            @PathParam("topic") @Encoded String encodedTopic,
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
+            @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal) {
+        validateTopicName(tenant, namespace, encodedTopic);
+        preValidation(authoritative)
+            .thenCompose(__ -> internalSetDispatcherPauseOnAckStatePersistent(isGlobal))
+            .thenRun(() -> {
+                log.info("[{}] Successfully enabled dispatcherPauseOnAckStatePersistent: namespace={}, topic={}",
+                    clientAppId(), namespaceName, topicName.getLocalName());
+                asyncResponse.resume(Response.noContent().build());
+            })
+            .exceptionally(ex -> {
+                handleTopicPolicyException("setDispatcherPauseOnAckStatePersistent", ex, asyncResponse);
+                return null;
+            });
+    }
+
+    @DELETE
+    @Path("/{tenant}/{namespace}/{topic}/dispatcherPauseOnAckStatePersistent")
+    @ApiOperation(value = "Remove retention configuration for specified topic.")
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Namespace or topic doesn't exist"),
+            @ApiResponse(code = 405,
+                    message = "Topic level policy is disabled, to enable the topic level policy and retry"),
+            @ApiResponse(code = 409, message = "Concurrent modification"),
+            @ApiResponse(code = 412, message = "Retention Quota must exceed backlog quota")})
+    public void removeDispatcherPauseOnAckStatePersistent(@Suspended final AsyncResponse asyncResponse,
+            @PathParam("tenant") String tenant,
+            @PathParam("namespace") String namespace,
+            @PathParam("topic") @Encoded String encodedTopic,
+            @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
+        validateTopicName(tenant, namespace, encodedTopic);
+        preValidation(authoritative)
+            .thenCompose(__ -> internalRemoveDispatcherPauseOnAckStatePersistent(isGlobal))
+            .thenRun(() -> {
+                log.info("[{}] Successfully remove dispatcherPauseOnAckStatePersistent: namespace={}, topic={}",
+                        clientAppId(), namespaceName, topicName.getLocalName());
+                asyncResponse.resume(Response.noContent().build());
+            })
+            .exceptionally(ex -> {
+                handleTopicPolicyException("removeDispatcherPauseOnAckStatePersistent", ex, asyncResponse);
+                return null;
+            });
+    }
+
+    @GET
+    @Path("/{tenant}/{namespace}/{topic}/dispatcherPauseOnAckStatePersistent")
+    @ApiOperation(value = "Get max unacked messages per consumer config on a topic.", response = Integer.class)
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Tenant or cluster or namespace or topic doesn't exist"),
+            @ApiResponse(code = 500, message = "Internal server error"), })
+    public void getDispatcherPauseOnAckStatePersistent(@Suspended final AsyncResponse asyncResponse,
+                                                @PathParam("tenant") String tenant,
+                                                @PathParam("namespace") String namespace,
+                                                @PathParam("topic") @Encoded String encodedTopic,
+                                                @QueryParam("applied") @DefaultValue("false") boolean applied,
+                                                @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
+                                                @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
+                                                @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
+        validateTopicName(tenant, namespace, encodedTopic);
+        preValidation(authoritative)
+                .thenCompose(__ -> internalGetDispatcherPauseOnAckStatePersistent(applied, isGlobal))
+                .thenApply(asyncResponse::resume).exceptionally(ex -> {
+                    handleTopicPolicyException("getDispatcherPauseOnAckStatePersistent", ex, asyncResponse);
+                    return null;
+                });
+    }
+
     @GET
     @Path("/{tenant}/{namespace}/{topic}/persistence")
     @ApiOperation(
