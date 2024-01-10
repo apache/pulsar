@@ -948,7 +948,22 @@ public class PulsarClientException extends IOException {
     }
 
     // wrap an exception to enriching more info messages.
-    public static Throwable wrap(Throwable t, String msg) {
+    public static Throwable extractPulsarClientEx(Throwable t) {
+        if (t.getCause() == null || t.getCause() == t) {
+            return t;
+        }
+        if (t instanceof PulsarClientException) {
+            return t;
+        }
+        if (t instanceof ExecutionException || t instanceof CompletionException) {
+            return extractPulsarClientEx(t.getCause());
+        }
+        return t;
+    }
+
+    // wrap an exception to enriching more info messages.
+    public static Throwable wrap(Throwable originalThrowable, String msg) {
+        Throwable t = extractPulsarClientEx(originalThrowable);
         msg += "\n" + t.getMessage();
         // wrap an exception with new message info
         if (t instanceof TimeoutException) {

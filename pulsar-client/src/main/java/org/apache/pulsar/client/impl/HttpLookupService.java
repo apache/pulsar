@@ -26,7 +26,9 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Base64;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import org.apache.commons.lang3.StringUtils;
@@ -37,7 +39,7 @@ import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.schema.SchemaInfoUtil;
 import org.apache.pulsar.client.impl.schema.SchemaUtils;
 import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespace.Mode;
-import org.apache.pulsar.common.lookup.GetTopicsResult;
+import org.apache.pulsar.common.lookup.CollatedGetTopicsResult;
 import org.apache.pulsar.common.lookup.data.LookupData;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
@@ -128,9 +130,9 @@ public class HttpLookupService implements LookupService {
     }
 
     @Override
-    public CompletableFuture<GetTopicsResult> getTopicsUnderNamespace(NamespaceName namespace, Mode mode,
+    public CompletableFuture<CollatedGetTopicsResult> getTopicsUnderNamespace(NamespaceName namespace, Mode mode,
                                                                       String topicsPattern, String topicsHash) {
-        CompletableFuture<GetTopicsResult> future = new CompletableFuture<>();
+        CompletableFuture<CollatedGetTopicsResult> future = new CompletableFuture<>();
 
         String format = namespace.isV2()
             ? "admin/v2/namespaces/%s/topics?mode=%s" : "admin/namespaces/%s/destinations?mode=%s";
@@ -138,14 +140,20 @@ public class HttpLookupService implements LookupService {
             .get(String.format(format, namespace, mode.toString()), String[].class)
             .thenAccept(topics -> {
                 List<String> result = new ArrayList<>();
+                final Map<String, List<Integer>> partitionedTopic = new LinkedHashMap<>();
                 // do not keep partition part of topic name
                 Arrays.asList(topics).forEach(topic -> {
-                    String filtered = TopicName.get(topic).getPartitionedTopicName();
+                    TopicName topicName = TopicName.get(topic);
+                    String filtered = topicName.getPartitionedTopicName();
+                    partitionedTopic.computeIfAbsent(filtered, k -> new ArrayList<>());
                     if (!result.contains(filtered)) {
                         result.add(filtered);
                     }
+                    if (topicName.getPartitionIndex() != -1) {
+                        partitionedTopic.get(filtered).add(topicName.getPartitionIndex());
+                    }
                 });
-                future.complete(new GetTopicsResult(result, topicsHash, false, true));
+                future.complete(new CollatedGetTopicsResult(result, topicsHash, false, true, partitionedTopic));
             }).exceptionally(ex -> {
                 Throwable cause = FutureUtil.unwrapCompletionException(ex);
                 log.warn("Failed to getTopicsUnderNamespace namespace {} {}.", namespace, cause.getMessage());

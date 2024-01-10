@@ -28,6 +28,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -75,9 +76,10 @@ public class PatternMultiTopicsConsumerImpl<T> extends MultiTopicsConsumerImpl<T
                                           CompletableFuture<Consumer<T>> subscribeFuture,
                                           Schema<T> schema,
                                           Mode subscriptionMode,
-                                          ConsumerInterceptors<T> interceptors) {
+                                          ConsumerInterceptors<T> interceptors,
+                                          Map<String, List<Integer>> partitions) {
         super(client, conf, executorProvider, subscribeFuture, schema, interceptors,
-                false /* createTopicIfDoesNotExist */);
+                false /* createTopicIfDoesNotExist */, partitions);
         this.topicsPattern = topicsPattern;
         this.topicsHash = topicsHash;
         this.subscriptionMode = subscriptionMode;

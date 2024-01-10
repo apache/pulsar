@@ -22,6 +22,7 @@ import com.google.common.util.concurrent.MoreExecutors;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -59,6 +60,33 @@ public class FutureUtil {
     public static CompletableFuture<Void> runWithCurrentThread(Runnable runnable) {
         return CompletableFuture.runAsync(
                 () -> runnable.run(), MoreExecutors.directExecutor());
+    }
+
+    /**
+     * Return a future that represents the completion of the futures in the provided Collection.
+     * @param futures futures to wait for.
+     * @return a new CompletableFuture that is completed when all of the given CompletableFutures complete.
+     */
+    public static <T> CompletableFuture<List<T>> waitForAllAndCollect(
+            Collection<? extends CompletableFuture<T>> futures) {
+        final int futureCount = futures.size();
+        CompletableFuture<List<T>> finalFuture = new CompletableFuture<>();
+        List<T> list = Collections.synchronizedList(new ArrayList<>());
+        for (CompletableFuture<T> future : futures) {
+            future.whenComplete((v, e) -> {
+                if (e != null) {
+                    if (!finalFuture.isCompletedExceptionally()) {
+                        finalFuture.completeExceptionally(e);
+                    }
+                } else {
+                    list.add(v);
+                    if (list.size() == futureCount) {
+                        finalFuture.complete(list);
+                    }
+                }
+            });
+        }
+        return finalFuture;
     }
 
     public static <T> CompletableFuture<List<T>> waitForAll(Stream<CompletableFuture<List<T>>> futures) {
