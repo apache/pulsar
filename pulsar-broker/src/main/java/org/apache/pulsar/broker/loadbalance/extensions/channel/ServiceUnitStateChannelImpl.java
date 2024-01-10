@@ -780,7 +780,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
             stateChangeListeners.notify(serviceUnit, data, null);
             log(null, serviceUnit, data, null);
         } else if ((data.force() || isTransferCommand(data)) && isTargetBroker(data.sourceBroker())
-                && pulsar.getConfig().isLoadBalancerMultiPhasePhaseBundleUnload()) {
+                && pulsar.getConfig().isLoadBalancerMultiPhaseBundleUnload()) {
             stateChangeListeners.notifyOnCompletion(
                             closeServiceUnit(serviceUnit, true), serviceUnit, data)
                     .whenComplete((__, e) -> log(e, serviceUnit, data, null));
@@ -806,7 +806,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                 next = new ServiceUnitStateData(
                         Assigning, data.dstBroker(), data.sourceBroker(), getNextVersionId(data));
                 // If the optimized bundle unload is disabled, disconnect the clients at time of RELEASE.
-                var disconnectClients = !pulsar.getConfig().isLoadBalancerMultiPhasePhaseBundleUnload();
+                var disconnectClients = !pulsar.getConfig().isLoadBalancerMultiPhaseBundleUnload();
                 unloadFuture = closeServiceUnit(serviceUnit, disconnectClients);
             } else {
                 next = new ServiceUnitStateData(

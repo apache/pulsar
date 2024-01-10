@@ -224,8 +224,8 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
         admin.namespaces().unload(defaultTestNamespace);
         reset(primaryLoadManager, secondaryLoadManager);
         FieldUtils.writeDeclaredField(pulsarClient, "lookup", lookupService, true);
-        pulsar1.getConfig().setLoadBalancerMultiPhasePhaseBundleUnload(true);
-        pulsar2.getConfig().setLoadBalancerMultiPhasePhaseBundleUnload(true);
+        pulsar1.getConfig().setLoadBalancerMultiPhaseBundleUnload(true);
+        pulsar2.getConfig().setLoadBalancerMultiPhaseBundleUnload(true);
     }
 
     @Test
@@ -667,8 +667,8 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
         var topic = String.format("%s://%s/%s", topicDomain, defaultTestNamespace, id);
         var topicName = TopicName.get(topic);
 
-        pulsar1.getConfig().setLoadBalancerMultiPhasePhaseBundleUnload(false);
-        pulsar2.getConfig().setLoadBalancerMultiPhasePhaseBundleUnload(false);
+        pulsar1.getConfig().setLoadBalancerMultiPhaseBundleUnload(false);
+        pulsar2.getConfig().setLoadBalancerMultiPhaseBundleUnload(false);
 
         @Cleanup
         var producer = pulsarClient.newProducer(Schema.STRING).topic(topic).create();

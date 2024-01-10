@@ -320,7 +320,7 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
                                                                           String topic) {
         var config = pulsar.getConfig();
         if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(config)
-                && config.isLoadBalancerMultiPhasePhaseBundleUnload()) {
+                && config.isLoadBalancerMultiPhaseBundleUnload()) {
             var topicName = TopicName.get(topic);
             try {
                 return pulsar.getNamespaceService().getBundleAsync(topicName)

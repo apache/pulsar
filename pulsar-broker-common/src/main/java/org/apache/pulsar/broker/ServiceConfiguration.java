@@ -2695,7 +2695,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
                     + "to consumers and producers during bundle unload, allowing them to quickly reconnect to the "
                     + "broker without performing an additional topic lookup."
     )
-    private boolean loadBalancerMultiPhasePhaseBundleUnload = true;
+    private boolean loadBalancerMultiPhaseBundleUnload = true;
 
     /**** --- Replication. --- ****/
     @FieldContext(
