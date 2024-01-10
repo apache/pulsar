@@ -34,11 +34,11 @@ LOCAL_DEPLOY_DIR=${ROOT_DIR}/target/staging-deploy
 PULSAR_BOM_DIR=${ROOT_DIR}/pulsar-bom
 
 pushd ${ROOT_DIR} > /dev/null
-echo "Performing local publish (${LOCAL_DEPLOY_DIR}) to determine modules for BOM"
+echo "Performing local publish to determine modules for BOM."
 rm -rf ${LOCAL_DEPLOY_DIR}
 ./mvnw deploy -DaltDeploymentRepository=local::default::file:${LOCAL_DEPLOY_DIR} -DskipTests
 ./mvnw deploy -DaltDeploymentRepository=local::default::file:${LOCAL_DEPLOY_DIR} -DskipTests -f tests/pom.xml -pl org.apache.pulsar.tests:tests-parent,org.apache.pulsar.tests:integration
-echo "$(ls ${LOCAL_DEPLOY_DIR}/org/apache/pulsar | wc -l) modules"
+echo "$(ls ${LOCAL_DEPLOY_DIR}/org/apache/pulsar | wc -l) modules locally published to ${LOCAL_DEPLOY_DIR}."
 popd > /dev/null
 
 DEPENDENCY_MGMT_PRE=$(cat <<-END
@@ -64,7 +64,7 @@ ALL_DEPS=""
 NEWLINE=$'\n'
 
 pushd ${LOCAL_DEPLOY_DIR}/org/apache/pulsar/ > /dev/null
-echo "Traversing locally published modules"
+echo "Traversing locally published modules."
 for f in */
 do
   ARTIFACT_ID="${f%/}"
@@ -83,6 +83,5 @@ POM_XML=$(<${PULSAR_BOM_DIR}/pom.xml)
 POM_XML=$(echo "${POM_XML%%<dependencyManagement>*}")
 echo "$POM_XML$DEPENDENCY_MGMT_PRE$NEWLINE$ALL_DEPS$NEWLINE$DEPENDENCY_MGMT_POST" > ${PULSAR_BOM_DIR}/pom.xml
 
-echo "Created BOM ${PULSAR_BOM_DIR}/pom.xml"
-echo ""
-echo "You must manually inspect changes and submit a PR with the changes"
+echo "Created BOM ${PULSAR_BOM_DIR}/pom.xml."
+echo "You must manually inspect changes and submit a PR with the changes."
