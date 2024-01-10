@@ -66,6 +66,8 @@ import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.authentication.AuthenticationProviderToken;
 import org.apache.pulsar.broker.authentication.utils.AuthTokenUtils;
+import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateData;
+import org.apache.pulsar.broker.loadbalance.extensions.manager.UnloadManager;
 import org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerWrapper;
 import org.apache.pulsar.broker.service.AbstractTopic;
 import org.apache.pulsar.broker.service.BrokerTestBase;
@@ -773,9 +775,19 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         mockZooKeeper.create(mockedBroker, new byte[]{0}, Collections.emptyList(), CreateMode.EPHEMERAL);
 
         pulsar.getBrokerService().updateRates();
-        Awaitility.await().untilAsserted(() -> assertTrue(pulsar.getBrokerService().getBundleStats().size() > 0));
+        Awaitility.await().until(() -> !pulsar.getBrokerService().getBundleStats().isEmpty());
         ModularLoadManagerWrapper loadManager = (ModularLoadManagerWrapper)pulsar.getLoadManager().get();
         loadManager.getLoadManager().updateLocalBrokerData();
+        // Force registration of UnloadManager load balance stats
+        for (var latencyMetric : UnloadManager.LatencyMetric.values()) {
+            var serviceUnit = "serviceUnit";
+            var brokerLookupAddress = "lookupAddress";
+            var serviceUnitStateData = Mockito.mock(ServiceUnitStateData.class);
+            Mockito.when(serviceUnitStateData.sourceBroker()).thenReturn(brokerLookupAddress);
+            Mockito.when(serviceUnitStateData.dstBroker()).thenReturn(brokerLookupAddress);
+            latencyMetric.beginMeasurement(serviceUnit, brokerLookupAddress, serviceUnitStateData);
+            latencyMetric.endMeasurement(serviceUnit);
+        }
 
         ByteArrayOutputStream statsOut = new ByteArrayOutputStream();
         PrometheusMetricsGenerator.generate(pulsar, false, false, false, statsOut);
@@ -796,6 +808,11 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         assertTrue(metrics.containsKey("pulsar_lb_bandwidth_out_usage"));
 
         assertTrue(metrics.containsKey("pulsar_lb_bundles_split_total"));
+
+        assertTrue(metrics.containsKey("brk_lb_unload_latency_ms_bucket"));
+        assertTrue(metrics.containsKey("brk_lb_release_latency_ms_bucket"));
+        assertTrue(metrics.containsKey("brk_lb_assign_latency_ms_bucket"));
+        assertTrue(metrics.containsKey("brk_lb_disconnect_latency_ms_bucket"));
 
         // cleanup.
         mockZooKeeper.delete(mockedBroker, 0);

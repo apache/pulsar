@@ -181,7 +181,9 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
 
     // Record the ignored send msg count during unloading
     @Getter
-    private final AtomicLong ignoredSendMsgCounter = new AtomicLong();
+    private final AtomicLong ignoredSendMsgCount = new AtomicLong();
+    @Getter
+    private final AtomicLong ignoredAckCount = new AtomicLong();
 
     // record unload metrics
     private final AtomicReference<List<Metrics>> unloadMetrics = new AtomicReference<>();
@@ -361,7 +363,7 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
             this.serviceUnitStateChannel = new ServiceUnitStateChannelImpl(pulsar);
             this.brokerRegistry.start();
             this.splitManager = new SplitManager(splitCounter);
-            this.unloadManager = new UnloadManager(unloadCounter);
+            this.unloadManager = new UnloadManager(unloadCounter, pulsar.getLookupServiceAddress());
             this.serviceUnitStateChannel.listen(unloadManager);
             this.serviceUnitStateChannel.listen(splitManager);
             this.leaderElectionService.start();
@@ -874,10 +876,18 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
         }
 
         metricsCollection.addAll(this.assignCounter.toMetrics(pulsar.getAdvertisedAddress()));
-
         metricsCollection.addAll(this.serviceUnitStateChannel.getMetrics());
+        metricsCollection.addAll(getIgnoredCommandMetrics(pulsar.getAdvertisedAddress()));
 
         return metricsCollection;
+    }
+
+    private List<Metrics> getIgnoredCommandMetrics(String advertisedBrokerAddress) {
+        var dimensions = Map.of("broker", advertisedBrokerAddress, "metric", "bundleUnloading");
+        var metric = Metrics.create(dimensions);
+        metric.put("brk_lb_ignored_ack_total", ignoredAckCount.get());
+        metric.put("brk_lb_ignored_send_total", ignoredSendMsgCount.get());
+        return List.of(metric);
     }
 
     private void monitor() {
