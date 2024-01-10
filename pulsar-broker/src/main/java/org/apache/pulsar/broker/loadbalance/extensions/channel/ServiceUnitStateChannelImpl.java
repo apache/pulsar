@@ -779,8 +779,9 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
             lastOwnEventHandledAt = System.currentTimeMillis();
             stateChangeListeners.notify(serviceUnit, data, null);
             log(null, serviceUnit, data, null);
-        } else if ((data.force() || isTransferCommand(data)) && isTargetBroker(data.sourceBroker())
-                && pulsar.getConfig().isLoadBalancerMultiPhaseBundleUnload()) {
+        } else if (isTargetBroker(data.sourceBroker())
+                && (data.force() // orphan cleanup
+                || (isTransferCommand(data) && pulsar.getConfig().isLoadBalancerMultiPhaseBundleUnload()))) { // txfer
             stateChangeListeners.notifyOnCompletion(
                             closeServiceUnit(serviceUnit, true), serviceUnit, data)
                     .whenComplete((__, e) -> log(e, serviceUnit, data, null));
