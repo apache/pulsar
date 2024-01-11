@@ -705,18 +705,17 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
                 .receiverQueueSize(4)
                 .subscribe();
 
-        // 1. create topics.
+        // 1. create topic.
         if (partitioned) {
             admin.topics().createPartitionedTopic(topicName, 1);
         } else {
             admin.topics().createNonPartitionedTopic(topicName);
         }
 
-        // 2. verify consumer get methods. There is no need to trigger discovery, because the broker will push the
-        // changes to update(CommandWatchTopicUpdate).
+        // 2. verify consumer can subscribe the topic.
         assertSame(pattern, ((PatternMultiTopicsConsumerImpl<?>) consumer).getPattern());
         Awaitility.await().untilAsserted(() -> {
-            //assertEquals(((PatternMultiTopicsConsumerImpl<?>) consumer).getPartitions().size(), 1);
+            assertEquals(((PatternMultiTopicsConsumerImpl<?>) consumer).getPartitions().size(), 1);
             assertEquals(((PatternMultiTopicsConsumerImpl<?>) consumer).getConsumers().size(), 1);
             if (partitioned) {
                 assertEquals(((PatternMultiTopicsConsumerImpl<?>) consumer).getPartitionedTopics().size(), 1);
