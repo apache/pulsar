@@ -19,7 +19,10 @@
 package org.apache.pulsar.client.api;
 
 import io.netty.channel.EventLoopGroup;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.TimeUnit;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.impl.ClientBuilderImpl;
 import org.apache.pulsar.client.impl.ClientCnx;
 import org.apache.pulsar.client.impl.ConnectionPool;
@@ -42,11 +45,38 @@ public class InjectedClientCnxClientBuilder {
         ConnectionPool pool = new ConnectionPool(conf, eventLoopGroup,
                 () -> clientCnxFactory.generate(conf, eventLoopGroup));
 
-        return new PulsarClientImpl(conf, eventLoopGroup, pool);
+        return new InjectedClientCnxPulsarClientImpl(conf, eventLoopGroup, pool);
     }
 
     public interface ClientCnxFactory {
 
         ClientCnx generate(ClientConfigurationData conf, EventLoopGroup eventLoopGroup);
+    }
+
+    @Slf4j
+    private static class InjectedClientCnxPulsarClientImpl extends PulsarClientImpl {
+
+        public InjectedClientCnxPulsarClientImpl(ClientConfigurationData conf, EventLoopGroup eventLoopGroup,
+                                                 ConnectionPool pool)
+                throws PulsarClientException {
+            super(conf, eventLoopGroup, pool);
+        }
+
+        @Override
+        public CompletableFuture<Void> closeAsync() {
+            return super.closeAsync().handle((v, ex) -> {
+                try {
+                    getCnxPool().close();
+                } catch (Exception e) {
+                    log.warn("Failed to close cnx pool", e);
+                }
+                try {
+                    eventLoopGroup.shutdownGracefully().get(10, TimeUnit.SECONDS);
+                } catch (Exception e) {
+                    log.warn("Failed to shutdown event loop group", e);
+                }
+                return null;
+            });
+        }
     }
 }
