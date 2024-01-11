@@ -36,6 +36,9 @@ public class OpenTelemetryService implements Closeable {
 
     private final OpenTelemetrySdk openTelemetrySdk;
 
+    private static final String MAX_CARDINALITY_LIMIT_KEY = "otel.experimental.metrics.cardinality.limit";
+    public static final int MAX_CARDINALITY_LIMIT = 10000;
+
     @lombok.Builder
     public OpenTelemetryService(
             String clusterName,
@@ -44,7 +47,7 @@ public class OpenTelemetryService implements Closeable {
         Objects.requireNonNull(clusterName);
         AutoConfiguredOpenTelemetrySdkBuilder builder = AutoConfiguredOpenTelemetrySdk.builder();
         builder.addPropertiesSupplier(
-                () -> Collections.singletonMap("otel.experimental.metrics.cardinality.limit", "10000"));
+                () -> Collections.singletonMap(MAX_CARDINALITY_LIMIT_KEY, Integer.toString(MAX_CARDINALITY_LIMIT + 1)));
         builder.addPropertiesSupplier(() -> extraProperties);
         builder.addResourceCustomizer(
                 (resource, __) -> resource.merge(Resource.builder().put(CLUSTER_NAME_ATTRIBUTE, clusterName).build()));
