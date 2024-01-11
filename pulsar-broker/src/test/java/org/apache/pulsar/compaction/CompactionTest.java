@@ -2120,4 +2120,68 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
                 () -> pulsarTestContext.getBookKeeperClient().openLedger(
                         compactedLedgerId.get(), BookKeeper.DigestType.CRC32, new byte[]{})));
     }
+
+    @Test
+    public void testCompactionWithTTL() throws Exception {
+        String topicName = "persistent://my-property/use/my-ns/testCompactionWithTTL";
+        String subName = "sub";
+        pulsarClient.newConsumer(Schema.STRING).topic(topicName).subscriptionName(subName).readCompacted(true)
+                .subscribe().close();
+
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .enableBatching(false).topic(topicName).create();
+
+        producer.newMessage().key("K1").value("V1").send();
+        producer.newMessage().key("K2").value("V2").send();
+
+        admin.topics().triggerCompaction(topicName);
+
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(admin.topics().compactionStatus(topicName).status,
+                    LongRunningProcessStatus.Status.SUCCESS);
+        });
+
+        producer.newMessage().key("K1").value("V3").send();
+        producer.newMessage().key("K2").value("V4").send();
+
+        Thread.sleep(1000);
+
+        // expire messages
+        admin.topics().expireMessagesForAllSubscriptions(topicName, 1);
+
+        // trim the topic
+        admin.topics().unload(topicName);
+
+        Awaitility.await().untilAsserted(() -> {
+            PersistentTopicInternalStats internalStats = admin.topics().getInternalStats(topicName, false);
+            assertEquals(internalStats.numberOfEntries, 4);
+        });
+
+        producer.newMessage().key("K3").value("V5").send();
+
+        admin.topics().triggerCompaction(topicName);
+
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(admin.topics().compactionStatus(topicName).status,
+                    LongRunningProcessStatus.Status.SUCCESS);
+        });
+
+        @Cleanup
+        Consumer<String> consumer =
+                pulsarClient.newConsumer(Schema.STRING).topic(topicName).subscriptionName(subName).readCompacted(true)
+                        .subscribe();
+
+        List<String> result = new ArrayList<>();
+        while (true) {
+            Message<String> receive = consumer.receive(2, TimeUnit.SECONDS);
+            if (receive == null) {
+                break;
+            }
+
+            result.add(receive.getValue());
+        }
+
+        Assert.assertEquals(result, List.of("V3", "V4", "V5"));
+    }
 }
