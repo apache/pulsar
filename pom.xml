@@ -2194,6 +2194,7 @@ flexible messaging model and an intuitive client API.</description>
         <module>managed-ledger</module>
         <module>tiered-storage</module>
         <module>pulsar-common</module>
+        <module>pulsar-bom</module>
         <module>pulsar-broker-common</module>
         <module>pulsar-broker</module>
         <module>pulsar-cli-utils</module>
@@ -2263,6 +2264,7 @@ flexible messaging model and an intuitive client API.</description>
         <module>testmocks</module>
         <module>managed-ledger</module>
         <module>pulsar-common</module>
+        <module>pulsar-bom</module>
         <module>pulsar-broker-common</module>
         <module>pulsar-broker</module>
         <module>pulsar-cli-utils</module>
