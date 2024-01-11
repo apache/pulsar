@@ -28,12 +28,15 @@ import io.opentelemetry.sdk.metrics.data.MetricDataType;
 import io.opentelemetry.sdk.metrics.data.PointData;
 import io.opentelemetry.sdk.metrics.internal.state.MetricStorage;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
 import java.util.function.Consumer;
 import lombok.Builder;
 import lombok.Cleanup;
 import lombok.Singular;
 import org.mockito.ArgumentMatcher;
 import org.mockito.Mockito;
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.stubbing.Answer;
 import org.testng.annotations.Test;
 
 public class OpenTelemetryServiceTest {
@@ -110,6 +113,13 @@ public class OpenTelemetryServiceTest {
         for (int i = 0; i < OpenTelemetryService.MAX_CARDINALITY_LIMIT; i++) {
             longCounter.add(1, Attributes.of(AttributeKey.stringKey("attribute"), "value" + i));
         }
+
+        CountDownLatch cdl = new CountDownLatch(1); // Wait for at least one metric batch to be exported
+        Mockito.doAnswer(invocation -> {
+            cdl.countDown();
+            return null;
+        }).when(consumer).accept(Mockito.any());
+        cdl.await();
         Mockito.verify(consumer, Mockito.never()).accept(Mockito.argThat(matcher));
 
         for (int i = 0; i < OpenTelemetryService.MAX_CARDINALITY_LIMIT + 1; i++) {
