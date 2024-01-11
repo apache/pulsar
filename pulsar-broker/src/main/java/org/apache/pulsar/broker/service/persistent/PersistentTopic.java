@@ -496,7 +496,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         }
     }
 
-    private static boolean isCompactionSubscription(String subscriptionName) {
+    public static boolean isCompactionSubscription(String subscriptionName) {
         return COMPACTION_SUBSCRIPTION.equals(subscriptionName);
     }
 
@@ -1686,11 +1686,11 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     public void checkMessageExpiry() {
         int messageTtlInSeconds = topicPolicies.getMessageTTLInSeconds().get();
         if (messageTtlInSeconds != 0) {
-            subscriptions.forEach((__, sub) -> sub.expireMessages(messageTtlInSeconds));
-            replicators.forEach((__, replicator)
-                    -> ((PersistentReplicator) replicator).expireMessages(messageTtlInSeconds));
-            shadowReplicators.forEach((__, replicator)
-                    -> ((PersistentReplicator) replicator).expireMessages(messageTtlInSeconds));
+            subscriptions.forEach((__, sub) -> {
+                if (!isCompactionSubscription(sub.getName())) {
+                   sub.expireMessages(messageTtlInSeconds);
+                }
+            });
         }
     }
 
