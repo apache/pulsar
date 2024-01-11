@@ -40,25 +40,25 @@ public class ADXSinkE2ETest {
 
     private Client kustoAdminClient = null;
     String database;
+    String cluster;
+    String authorityId;
+    String appId;
+    String appkey;
 
     @BeforeMethod
     public void setUp() throws Exception {
 
-        Objects.requireNonNull(System.getenv("kustoDatabase"), "kustoDatabase not set.");
-        Objects.requireNonNull(System.getenv("kustoCluster"), "kustoCluster not set.");
-        Objects.requireNonNull(System.getenv("kustoAadAuthorityID"), "kustoAadAuthorityID not set.");
-        Objects.requireNonNull(System.getenv("kustoAadAppId"), "kustoAadAppId not set.");
-        Objects.requireNonNull(System.getenv("kustoAadAppSecret"), "kustoAadAppSecret not set.");
-
-        database = System.getenv("kustoDatabase");
-        String cluster = System.getenv("kustoCluster");
-        String authorityId = System.getenv("kustoAadAuthorityID");
-        String appId = System.getenv("kustoAadAppId");
-        String appkey = System.getenv("kustoAadAppSecret");
+        database = Objects.requireNonNull(System.getenv("kustoDatabase"), "kustoDatabase not set.");
+        cluster = Objects.requireNonNull(System.getenv("kustoCluster"), "kustoCluster not set.");
+        authorityId = Objects.requireNonNull(System.getenv("kustoAadAuthorityID"), "kustoAadAuthorityID not set.");
+        appId = Objects.requireNonNull(System.getenv("kustoAadAppId"), "kustoAadAppId not set.");
+        appkey = Objects.requireNonNull(System.getenv("kustoAadAppSecret"), "kustoAadAppSecret not set.");
 
         ConnectionStringBuilder engineKcsb =
                 ConnectionStringBuilder.createWithAadApplicationCredentials(ADXSinkUtils.getQueryEndpoint(cluster),
                         appId, appkey, authorityId);
+
+        System.out.println("---------->>>>> "+ engineKcsb);
         kustoAdminClient = ClientFactory.createClient(engineKcsb);
 
         kustoAdminClient.execute(database, generateAlterIngestionBatchingPolicyCommand(database,
@@ -81,22 +81,20 @@ public class ADXSinkE2ETest {
         }
     }
     @Test
-    public void TestOpenAndWriteSink() throws Exception {
+    public void testOpenAndWriteSink() throws Exception {
 
 
         Map<String, Object> configs = new HashMap<>();
-        configs.put("clusterUrl", System.getenv("kustoCluster"));
-        configs.put("database", System.getenv("kustoDatabase"));
+        configs.put("clusterUrl", cluster);
+        configs.put("database", database);
         configs.put("table", table);
         configs.put("batchTimeMs", 1000);
         configs.put("flushImmediately", true);
-        configs.put("appId", System.getenv("kustoAadAppId"));
-        configs.put("appKey", System.getenv("kustoAadAppSecret"));
-        configs.put("tenantId", System.getenv("kustoAadAuthorityID"));
+        configs.put("appId", appId);
+        configs.put("appKey", appkey);
+        configs.put("tenantId", authorityId);
         configs.put("maxRetryAttempts", 3);
         configs.put("retryBackOffTime", 100);
-        /*configs.put("serviceUrl","pulsar://localhost:3000");
-        configs.put("dlqTopic","something-DLQ");*/
 
         ADXSink sink = new ADXSink();
         sink.open(configs, null);
@@ -112,24 +110,21 @@ public class ADXSinkE2ETest {
         mainTableResult.next();
         int actualRowsCount = mainTableResult.getInt(0);
         Assert.assertEquals(actualRowsCount, writeCount);
-
+        kustoAdminClient.execute(database, ".clear table " + table + "  data");
         sink.close();
     }
 
     @Test
-    public void TestOpenAndWriteSinkWithTimeouts() throws Exception {
-
-
+    public void testOpenAndWriteSinkWithTimeouts() throws Exception {
         Map<String, Object> configs = new HashMap<>();
-        configs.put("clusterUrl", System.getenv("kustoCluster"));
-        configs.put("database", System.getenv("kustoDatabase"));
+        configs.put("clusterUrl", cluster);
+        configs.put("database", database);
         configs.put("table", table);
-        configs.put("batchSize",10);
-        configs.put("batchTimeMs", 5000);
+        configs.put("batchTimeMs", 1000);
         configs.put("flushImmediately", true);
-        configs.put("appId", System.getenv("kustoAadAppId"));
-        configs.put("appKey", System.getenv("kustoAadAppSecret"));
-        configs.put("tenantId", System.getenv("kustoAadAuthorityID"));
+        configs.put("appId", appId);
+        configs.put("appKey", appkey);
+        configs.put("tenantId", authorityId);
 
         ADXSink sink = new ADXSink();
         sink.open(configs, null);

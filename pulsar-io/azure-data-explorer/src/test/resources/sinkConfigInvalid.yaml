@@ -23,11 +23,4 @@
   "table": "tableName",
   "appId": "xxxx-xxxx-xxxx-xxxx",
   "appKey": "xxxx-xxxx-xxxx-xxxx",
-  "tenantId": "xxxx-xxxx-xxxx-xxxx",
-  "managedIdentityId": "xxxx-some-id-xxxx OR empty string",
-  "mappingRefName": "mapping ref name",
-  "mappingRefType":"CSV",
-  "flushImmediately":false,
-  "batchSize":100,
-  "batchTimeMs":10000,
 }

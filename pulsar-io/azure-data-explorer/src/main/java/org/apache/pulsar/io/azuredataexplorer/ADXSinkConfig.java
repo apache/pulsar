@@ -25,6 +25,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.Map;
+import java.util.Objects;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.experimental.Accessors;
@@ -55,7 +56,7 @@ public class ADXSinkConfig implements Serializable {
     private String tenantId;
 
     @FieldDoc(required = false, defaultValue = "", help = "The Managed Identity credential for authentication."
-            + " Set this with clientId in case of User assigned MI.")
+            + " Set this with clientId in case of User assigned MI. and 'system' in case of System assigned managed identity")
     private String managedIdentityId;
 
     @FieldDoc(required = false, defaultValue = "", help = "The mapping reference for ingestion")
@@ -66,10 +67,6 @@ public class ADXSinkConfig implements Serializable {
 
     @FieldDoc(required = false, defaultValue = "false", help = "")
     private boolean flushImmediately = false;
-
-    @FieldDoc(required = false, defaultValue = "false", help = "This defines the ingestion type "
-            + "managed Ingestion or queued Ingestion")
-    private boolean managedIngestion = false;
 
     @FieldDoc(required = false, defaultValue = "100", help = "For batching, this defines the number of "
             + "records to hold for batching, to sink data to adx")
@@ -86,12 +83,6 @@ public class ADXSinkConfig implements Serializable {
             + " before retry for transient errors")
     private long retryBackOffTime = 10;
 
-   /* @FieldDoc(required = false, defaultValue = "", help = "Service URL required for creating pulsar client "
-            + "for DLQ enabled failure retry")
-    private String serviceUrl = "";
-
-    @FieldDoc(required = false, defaultValue = "", help = "DLQ topic for publishing failed messages.")
-    private String dlqTopic = "";*/
 
     public static ADXSinkConfig load(String yamlFile) throws IOException {
         ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
@@ -101,5 +92,14 @@ public class ADXSinkConfig implements Serializable {
     protected static ADXSinkConfig load(Map<String, Object> config) throws JsonProcessingException {
         ObjectMapper mapper = new ObjectMapper();
         return mapper.readValue(mapper.writeValueAsString(config), ADXSinkConfig.class);
+    }
+
+    public void validate() throws Exception {
+        Objects.requireNonNull(clusterUrl, "clusterUrl property not set.");
+        Objects.requireNonNull(database, "database property not set.");
+        Objects.requireNonNull(table, "table property not set.");
+        if (managedIdentityId == null && (appId == null || appKey == null || tenantId == null)){
+            throw new Exception("Auth credentials not valid");
+        }
     }
 }

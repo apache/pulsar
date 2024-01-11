@@ -45,8 +45,23 @@ public class ADXSinkConfigTest {
         assertEquals(config.getMappingRefType(), "CSV");
         assertFalse(config.isFlushImmediately());
         assertEquals(config.getBatchSize(), 100);
-        assertFalse(config.isManagedIngestion());
         assertEquals(config.getBatchTimeMs(), 10000);
+    }
+
+    @Test
+    public final void validateConfigTest() throws Exception {
+        File yamlFile = getFile("sinkConfigValid.yaml");
+        String path = yamlFile.getAbsolutePath();
+        ADXSinkConfig config = ADXSinkConfig.load(path);
+        config.validate();
+    }
+
+    @Test(expectedExceptions = Exception.class)
+    public final void validateInvalidConfigTest() throws Exception {
+        File yamlFile = getFile("sinkConfigInvalid.yaml");
+        String path = yamlFile.getAbsolutePath();
+        ADXSinkConfig config = ADXSinkConfig.load(path);
+        config.validate();
     }
 
     @Test
@@ -62,7 +77,6 @@ public class ADXSinkConfigTest {
         map.put("mappingRefName", "mapping ref name");
         map.put("mappingRefType", "CSV");
         map.put("flushImmediately", false);
-        map.put("managedIngestion", false);
         map.put("batchSize", 100);
         map.put("batchTimeMs", 10000);
 
@@ -79,7 +93,6 @@ public class ADXSinkConfigTest {
         assertEquals(config.getMappingRefType(), "CSV");
         assertFalse(config.isFlushImmediately());
         assertEquals(config.getBatchSize(), 100);
-        assertFalse(config.isManagedIngestion());
         assertEquals(config.getBatchTimeMs(), 10000);
     }
 

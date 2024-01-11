@@ -64,19 +64,19 @@ public class ADXSink implements Sink<byte[]> {
     private final ObjectMapper mapper = com.microsoft.azure.kusto.data.Utils.getObjectMapper();
     private int maxRetryAttempts;
     private long retryBackOffTime;
-    private boolean dlqEnabled = false;
 
     @Override
     public void open(Map<String, Object> config, SinkContext sinkContext) throws Exception {
 
         // Azure data explorer, initializations
         ADXSinkConfig adxconfig = ADXSinkConfig.load(config);
+        adxconfig.validate();
         ConnectionStringBuilder kcsb = getConnectionStringBuilder(adxconfig);
         if (kcsb == null) {
             throw new Exception("Kusto Connection String NULL");
         }
         LOG.debug(String.format("ConnectionString created: %s.", kcsb));
-        ingestClient = adxconfig.isManagedIngestion() ? IngestClientFactory.createManagedStreamingIngestClient(kcsb) :
+        ingestClient = adxconfig.getManagedIdentityId()!=null ? IngestClientFactory.createManagedStreamingIngestClient(kcsb) :
                 IngestClientFactory.createClient(kcsb);
         ingestionProperties = new IngestionProperties(adxconfig.getDatabase(), adxconfig.getTable());
         ingestionProperties.setIngestionMapping(adxconfig.getMappingRefName(),
@@ -208,18 +208,14 @@ public class ADXSink implements Sink<byte[]> {
                 TimeUnit.MILLISECONDS.sleep(sleepTimeMs);
                 throw new InterruptedException();
             } catch (InterruptedException interruptedErr) {
-                if (dlqEnabled) {
-                    records.forEach(Record::fail);
-                }
+                records.forEach(Record::fail);
                 throw new PulsarClientException.ConnectException(String.format(
                         "Retrying ingesting records into KustoDB was interuppted after retryAttempts=%s",
                         retryAttempts + 1)
                 );
             }
         } else {
-            if (dlqEnabled) {
-                records.forEach(Record::fail);
-            }
+            records.forEach(Record::fail);
             throw new PulsarClientException.ConnectException(
                     String.format("Retry attempts exhausted, failed to ingest records into KustoDB. Exception: %s",
                             exception.getMessage()));
@@ -246,8 +242,8 @@ public class ADXSink implements Sink<byte[]> {
             case "AVRO" : return IngestionMapping.IngestionMappingKind.AVRO;
             case "JSON" : return IngestionMapping.IngestionMappingKind.JSON;
             case "PARQUET" : return IngestionMapping.IngestionMappingKind.PARQUET;
-            default : return IngestionMapping.IngestionMappingKind.CSV;
         }
+        return null;
     }
 
     private ConnectionStringBuilder getConnectionStringBuilder(ADXSinkConfig adxconfig) {
