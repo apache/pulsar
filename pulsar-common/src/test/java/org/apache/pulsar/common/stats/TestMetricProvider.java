@@ -33,6 +33,7 @@ import java.util.function.Consumer;
 
 public class TestMetricProvider implements ConfigurableMetricExporterProvider {
 
+    public static final String METRIC_PROVIDER_NAME = "test";
     public static final String METRIC_CONSUMER_CONFIG_KEY = "otel.metric.export.pulsartest.consumer";
 
     private static final Map<String, Consumer<MetricData>> metricConsumers = new ConcurrentHashMap<>();
@@ -76,6 +77,6 @@ public class TestMetricProvider implements ConfigurableMetricExporterProvider {
 
     @Override
     public String getName() {
-        return "test";
+        return METRIC_PROVIDER_NAME;
     }
 }

@@ -32,7 +32,7 @@ public class PulsarBrokerOpenTelemetry implements Closeable {
     private final Meter meter;
 
     public PulsarBrokerOpenTelemetry(PulsarService pulsar) {
-        openTelemetryService = new OpenTelemetryService(pulsar.getConfig().getClusterName());
+        openTelemetryService = OpenTelemetryService.builder().clusterName(pulsar.getConfig().getClusterName()).build();
         meter = openTelemetryService.getMeter("pulsar.broker");
     }
 

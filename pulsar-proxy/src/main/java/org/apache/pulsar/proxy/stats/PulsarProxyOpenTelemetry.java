@@ -32,7 +32,8 @@ public class PulsarProxyOpenTelemetry implements Closeable {
     private final Meter meter;
 
     public PulsarProxyOpenTelemetry(ProxyService proxyService) {
-        openTelemetryService = new OpenTelemetryService(proxyService.getConfiguration().getClusterName());
+        openTelemetryService =
+                OpenTelemetryService.builder().clusterName(proxyService.getConfiguration().getClusterName()).build();
         meter = openTelemetryService.getMeter("pulsar.proxy");
     }
 

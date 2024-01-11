@@ -23,9 +23,7 @@ import io.opentelemetry.api.metrics.Meter;
 import io.opentelemetry.sdk.metrics.data.LongPointData;
 import io.opentelemetry.sdk.metrics.data.MetricData;
 import io.opentelemetry.sdk.metrics.data.MetricDataType;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.function.Consumer;
 import lombok.Builder;
 import lombok.Cleanup;
@@ -40,18 +38,20 @@ public class OpenTelemetryServiceTest {
     public static final class MetricDataArgumentMatcher implements ArgumentMatcher<MetricData> {
         final String name;
         final MetricDataType type;
-
-        @Singular
-        final List<LongPointData> longs;
+        @Singular final List<LongPointData> longs;
 
         @Override
         public boolean matches(MetricData md) {
-            boolean m = longs == null || longs.stream().mapToLong(LongPointData::getValue).allMatch(
+            return (type == null || type.equals(md.getType()))
+                    && (name == null || name.equals(md.getName()))
+                    && matchesLongPointData(md);
+        }
+
+        private boolean matchesLongPointData(MetricData md) {
+            return longs == null
+                    || longs.stream().mapToLong(LongPointData::getValue).allMatch(
                     value -> md.getLongSumData().getPoints().stream().mapToLong(LongPointData::getValue).anyMatch(
                             valueA -> value == valueA));
-
-            return (type == null || type.equals(md.getType()))
-                    && (name == null || name.equals(md.getName()));
         }
     }
 
@@ -60,13 +60,13 @@ public class OpenTelemetryServiceTest {
         Consumer<MetricData> consumer = Mockito.mock(Consumer.class);
         String consumerUuid = TestMetricProvider.registerMetricConsumer(consumer);
 
-        Map<String, String> extraProperties = new HashMap<>();
-        extraProperties.put("otel.metrics.exporter", "test");
-        extraProperties.put("otel.metric.export.interval", "100");
-        extraProperties.put(TestMetricProvider.METRIC_CONSUMER_CONFIG_KEY, consumerUuid);
-
         @Cleanup
-        OpenTelemetryService ots = new OpenTelemetryService("clusterName", extraProperties);
+        OpenTelemetryService ots = OpenTelemetryService.builder().
+                clusterName("clusterName").
+                extraProperty("otel.metric.export.interval", "100").
+                extraProperty("otel.metrics.exporter", TestMetricProvider.METRIC_PROVIDER_NAME).
+                extraProperty(TestMetricProvider.METRIC_CONSUMER_CONFIG_KEY, consumerUuid).
+                build();
 
         Meter meter = ots.getMeter("pulsar.test");
         LongCounter longCounter = meter.counterBuilder("counter.A").build();

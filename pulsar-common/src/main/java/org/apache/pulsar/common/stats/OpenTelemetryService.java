@@ -27,6 +27,8 @@ import java.io.Closeable;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Objects;
+import lombok.Builder;
+import lombok.Singular;
 
 public class OpenTelemetryService implements Closeable {
 
@@ -34,11 +36,11 @@ public class OpenTelemetryService implements Closeable {
 
     private final OpenTelemetrySdk openTelemetrySdk;
 
-    public OpenTelemetryService(String clusterName) {
-        this(clusterName, Collections.emptyMap());
-    }
-
-    public OpenTelemetryService(String clusterName, Map<String, String> extraProperties) {
+    @lombok.Builder
+    public OpenTelemetryService(
+            String clusterName,
+            @Singular Map<String, String> extraProperties,
+            @Singular Map<String, String> extraResources) {
         Objects.requireNonNull(clusterName);
         AutoConfiguredOpenTelemetrySdkBuilder builder = AutoConfiguredOpenTelemetrySdk.builder();
         builder.addPropertiesSupplier(
