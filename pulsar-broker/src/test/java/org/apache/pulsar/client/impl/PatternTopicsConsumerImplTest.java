@@ -35,6 +35,7 @@ import java.util.regex.Pattern;
 import java.util.stream.IntStream;
 
 import io.netty.util.Timeout;
+import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.InjectedClientCnxClientBuilder;
@@ -51,6 +52,7 @@ import org.apache.pulsar.common.api.proto.BaseCommand;
 import org.apache.pulsar.common.api.proto.CommandWatchTopicListSuccess;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
+import org.apache.pulsar.common.topics.TopicList;
 import org.awaitility.Awaitility;
 import org.awaitility.reflect.WhiteboxImpl;
 import org.slf4j.Logger;
@@ -676,6 +678,59 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
         admin.topics().deletePartitionedTopic(topicName);
         if (delayWatchingTopics) {
             client.close();
+        }
+    }
+
+    @DataProvider(name= "partitioned")
+    public Object[][] partitioned(){
+        return new Object[][]{
+                {true},
+                {false}
+        };
+    }
+
+    @Test(timeOut = testTimeout, dataProvider = "partitioned")
+    public void testPreciseRegexpSubscribe(boolean partitioned) throws Exception {
+        final String topicName = BrokerTestUtil.newUniqueName("persistent://public/default/tp");
+        final String subscriptionName = "s1";
+        final Pattern pattern = Pattern.compile(String.format("%s$", topicName));
+
+        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+                .topicsPattern(pattern)
+                // Disable automatic discovery.
+                .patternAutoDiscoveryPeriod(1000)
+                .subscriptionName(subscriptionName)
+                .subscriptionType(SubscriptionType.Shared)
+                .ackTimeout(ackTimeOutMillis, TimeUnit.MILLISECONDS)
+                .receiverQueueSize(4)
+                .subscribe();
+
+        // 1. create topics.
+        if (partitioned) {
+            admin.topics().createPartitionedTopic(topicName, 1);
+        } else {
+            admin.topics().createNonPartitionedTopic(topicName);
+        }
+
+        // 2. verify consumer get methods. There is no need to trigger discovery, because the broker will push the
+        // changes to update(CommandWatchTopicUpdate).
+        assertSame(pattern, ((PatternMultiTopicsConsumerImpl<?>) consumer).getPattern());
+        Awaitility.await().untilAsserted(() -> {
+            //assertEquals(((PatternMultiTopicsConsumerImpl<?>) consumer).getPartitions().size(), 1);
+            assertEquals(((PatternMultiTopicsConsumerImpl<?>) consumer).getConsumers().size(), 1);
+            if (partitioned) {
+                assertEquals(((PatternMultiTopicsConsumerImpl<?>) consumer).getPartitionedTopics().size(), 1);
+            } else {
+                assertEquals(((PatternMultiTopicsConsumerImpl<?>) consumer).getPartitionedTopics().size(), 0);
+            }
+        });
+
+        // cleanup.
+        consumer.close();
+        if (partitioned) {
+            admin.topics().deletePartitionedTopic(topicName);
+        } else {
+            admin.topics().delete(topicName);
         }
     }
 
