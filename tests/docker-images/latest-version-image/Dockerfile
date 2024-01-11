@@ -19,7 +19,7 @@
 
 # build go lang examples first in a separate layer
 
-FROM golang:1.15.8 as pulsar-function-go
+FROM golang:1.21 as pulsar-function-go
 
 COPY target/pulsar-function-go/ /go/src/github.com/apache/pulsar/pulsar-function-go
 RUN cd /go/src/github.com/apache/pulsar/pulsar-function-go && go install ./...
@@ -48,14 +48,12 @@ RUN mkdir -p /var/log/pulsar && mkdir -p /var/run/supervisor/
 
 COPY conf/supervisord.conf /etc/supervisord.conf
 COPY conf/global-zk.conf conf/local-zk.conf conf/bookie.conf conf/broker.conf conf/functions_worker.conf \
-     conf/proxy.conf conf/presto_worker.conf conf/websocket.conf /etc/supervisord/conf.d/
+     conf/proxy.conf conf/websocket.conf /etc/supervisord/conf.d/
 
 COPY scripts/init-cluster.sh scripts/run-global-zk.sh scripts/run-local-zk.sh \
-     scripts/run-bookie.sh scripts/run-broker.sh scripts/run-functions-worker.sh scripts/run-proxy.sh scripts/run-presto-worker.sh \
+     scripts/run-bookie.sh scripts/run-broker.sh scripts/run-functions-worker.sh scripts/run-proxy.sh \
      scripts/run-standalone.sh scripts/run-websocket.sh \
      /pulsar/bin/
-
-COPY conf/presto/jvm.config /pulsar/trino/conf
 
 # copy python test examples
 RUN mkdir -p /pulsar/instances/deps

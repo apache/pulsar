@@ -324,9 +324,11 @@ class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
     protected void updateAndReserveBatchAllocatedSize(int updatedSizeBytes) {
         int delta = updatedSizeBytes - batchAllocatedSizeBytes;
         batchAllocatedSizeBytes = updatedSizeBytes;
-        if (delta != 0) {
-            if (producer != null) {
+        if (producer != null) {
+            if (delta > 0) {
                 producer.client.getMemoryLimitController().forceReserveMemory(delta);
+            } else if (delta < 0) {
+                producer.client.getMemoryLimitController().releaseMemory(-delta);
             }
         }
     }

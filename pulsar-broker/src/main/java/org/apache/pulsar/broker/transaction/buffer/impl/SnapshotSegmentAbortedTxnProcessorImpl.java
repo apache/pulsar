@@ -330,7 +330,7 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
 
                                             @Override
                                             public String toString() {
-                                                return String.format("Transaction buffer [{}] recover from snapshot",
+                                                return String.format("Transaction buffer [%s] recover from snapshot",
                                                         SnapshotSegmentAbortedTxnProcessorImpl.this.topic.getName());
                                             }
                                         }, null);

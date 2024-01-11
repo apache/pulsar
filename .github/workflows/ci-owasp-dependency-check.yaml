@@ -34,20 +34,18 @@ jobs:
       JOB_NAME: Check ${{ matrix.branch }}
       GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
     runs-on: ubuntu-22.04
-    timeout-minutes: 45
+    timeout-minutes: 75
     strategy:
       fail-fast: false
+      max-parallel: 1
       matrix:
         include:
           - branch: master
+          - branch: branch-3.2
           - branch: branch-3.1
           - branch: branch-3.0
           - branch: branch-2.11
           - branch: branch-2.10
-            jdk: 11
-          - branch: branch-2.9
-            jdk: 11
-          - branch: branch-2.8
             jdk: 11
 
     steps:
@@ -66,9 +64,10 @@ jobs:
           path: |
             ~/.m2/repository/*/*/*
             !~/.m2/repository/org/apache/pulsar
-          key: ${{ runner.os }}-m2-dependencies-owasp-${{ hashFiles('**/pom.xml') }}
+            !~/.m2/repository/org/owasp/dependency-check-data
+          key: ${{ runner.os }}-m2-dependencies-all-${{ hashFiles('**/pom.xml') }}
+          lookup-only: true
           restore-keys: |
-            ${{ runner.os }}-m2-dependencies-all-${{ hashFiles('**/pom.xml') }}
             ${{ runner.os }}-m2-dependencies-core-modules-${{ hashFiles('**/pom.xml') }}
             ${{ runner.os }}-m2-dependencies-core-modules-
 
@@ -81,19 +80,55 @@ jobs:
       - name: run install by skip tests
         run: mvn -B -ntp clean install -DskipTests -Dspotbugs.skip=true  -Dlicense.skip=true -Dcheckstyle.skip=true -Drat.skip=true -DskipDocker=true
 
+      - name: OWASP cache key weeknum
+        id: get-weeknum
+        run: |
+          echo "weeknum=$(date -u +"%Y-%U")" >> $GITHUB_OUTPUT
+        shell: bash
+
+      - name: Restore OWASP Dependency Check data
+        id: restore-owasp-dependency-check-data
+        uses: actions/cache/restore@v3
+        timeout-minutes: 5
+        with:
+          path: ~/.m2/repository/org/owasp/dependency-check-data
+          key: owasp-dependency-check-data-${{ steps.get-weeknum.outputs.weeknum }}
+          enableCrossOsArchive: true
+          restore-keys: |
+            owasp-dependency-check-data-
+
+      - name: Update OWASP Dependency Check data
+        id: update-owasp-dependency-check-data
+        if: ${{ matrix.branch == 'master' && (steps.restore-owasp-dependency-check-data.outputs.cache-hit != 'true' || steps.restore-owasp-dependency-check-data.outputs.cache-matched-key != steps.restore-owasp-dependency-check-data.outputs.cache-primary-key) }}
+        run: mvn -B -ntp -Powasp-dependency-check initialize -pl . dependency-check:update-only
+
+      - name: Save OWASP Dependency Check data
+        if: ${{ steps.update-owasp-dependency-check-data.outcome == 'success' }}
+        uses: actions/cache/save@v3
+        timeout-minutes: 5
+        with:
+          path: ~/.m2/repository/org/owasp/dependency-check-data
+          key: ${{ steps.restore-owasp-dependency-check-data.outputs.cache-primary-key }}
+          enableCrossOsArchive: true
+
       - name: run OWASP Dependency Check for distribution/server (-DfailBuildOnAnyVulnerability=true)
         run: mvn -B -ntp -Pmain,skip-all,skipDocker,owasp-dependency-check initialize verify -pl distribution/server -DfailBuildOnAnyVulnerability=true
 
-      - name: run OWASP Dependency Check for distribution/offloaders, distribution/io and pulsar-sql/presto-distribution
-        run: mvn -B -ntp -Pmain,skip-all,skipDocker,owasp-dependency-check initialize verify -pl distribution/offloaders,distribution/io,pulsar-sql/presto-distribution
+      - name: run OWASP Dependency Check for offloaders/tiered-storage and pulsar-io connectors (-DfailOnError=false)
+        if: ${{ !cancelled() }}
+        run: |
+          mvnprojects=$(mvn -B -ntp -Dscan=false initialize \
+            | grep -- "-< .* >-" \
+            | sed -E 's/.*-< (.*) >-.*/\1/' \
+            | grep -E 'pulsar-io-|tiered-storage-|offloader' \
+            | tr '\n' ',' | sed 's/,$/\n/' )
+          set -xe
+          mvn --fail-at-end -B -ntp -Pmain,skip-all,skipDocker,owasp-dependency-check initialize verify -DfailOnError=false -pl "${mvnprojects}"
 
       - name: Upload OWASP Dependency Check reports
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: always()
         with:
           name: owasp-dependency-check-reports-${{ matrix.branch }}
           path: |
-            distribution/server/target/dependency-check-report.html
-            distribution/offloaders/target/dependency-check-report.html
-            distribution/io/target/dependency-check-report.html
-            pulsar-sql/presto-distribution/target/dependency-check-report.html
+            **/target/dependency-check-report.html

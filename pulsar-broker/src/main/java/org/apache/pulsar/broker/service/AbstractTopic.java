@@ -250,6 +250,8 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
         topicPolicies.getDispatchRate().updateTopicValue(DispatchRateImpl.normalize(data.getDispatchRate()));
         topicPolicies.getSchemaValidationEnforced().updateTopicValue(data.getSchemaValidationEnforced());
         topicPolicies.getEntryFilters().updateTopicValue(data.getEntryFilters());
+        topicPolicies.getDispatcherPauseOnAckStatePersistentEnabled()
+                .updateTopicValue(data.getDispatcherPauseOnAckStatePersistentEnabled());
         this.subscriptionPolicies = data.getSubscriptionPolicies();
 
         updateEntryFilters();
@@ -401,7 +403,8 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
         topicPolicies.getSchemaValidationEnforced().updateBrokerValue(config.isSchemaValidationEnforced());
         topicPolicies.getEntryFilters().updateBrokerValue(new EntryFilters(String.join(",",
                 config.getEntryFilterNames())));
-
+        topicPolicies.getDispatcherPauseOnAckStatePersistentEnabled()
+                .updateBrokerValue(config.isDispatcherPauseOnAckStatePersistentEnabled());
         updateEntryFilters();
     }
 
@@ -974,7 +977,7 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
             // available. The producers related the connection that not available are automatically cleaned up.
             if (!Objects.equals(oldProducer.getCnx(), newProducer.getCnx())) {
                 return oldProducer.getCnx().checkConnectionLiveness().thenCompose(previousIsActive -> {
-                    if (previousIsActive) {
+                    if (previousIsActive.isEmpty() || previousIsActive.get()) {
                         return CompletableFuture.failedFuture(new BrokerServiceException.NamingException(
                                 "Producer with name '" + newProducer.getProducerName()
                                         + "' is already connected to topic"));
@@ -1233,7 +1236,7 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
     /**
      * update topic publish dispatcher for this topic.
      */
-    public void updatePublishDispatcher() {
+    public void updatePublishRateLimiter() {
         PublishRate publishRate = topicPolicies.getPublishRate().get();
         if (publishRate.publishThrottlingRateInByte > 0 || publishRate.publishThrottlingRateInMsg > 0) {
             log.info("Enabling publish rate limiting {} on topic {}", publishRate, getName());
@@ -1269,6 +1272,11 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
     public void updateBrokerDispatchRate() {
         topicPolicies.getDispatchRate().updateBrokerValue(
             dispatchRateInBroker(brokerService.pulsar().getConfiguration()));
+    }
+
+    public void updateBrokerDispatchPauseOnAckStatePersistentEnabled() {
+        topicPolicies.getDispatcherPauseOnAckStatePersistentEnabled().updateBrokerValue(
+                brokerService.pulsar().getConfiguration().isDispatcherPauseOnAckStatePersistentEnabled());
     }
 
     public void addFilteredEntriesCount(int filtered) {

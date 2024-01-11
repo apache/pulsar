@@ -224,6 +224,8 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
         admin.namespaces().unload(defaultTestNamespace);
         reset(primaryLoadManager, secondaryLoadManager);
         FieldUtils.writeDeclaredField(pulsarClient, "lookup", lookupService, true);
+        pulsar1.getConfig().setLoadBalancerMultiPhaseBundleUnload(true);
+        pulsar2.getConfig().setLoadBalancerMultiPhaseBundleUnload(true);
     }
 
     @Test
@@ -652,6 +654,79 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
                 consumer.close();
             }
         }
+    }
+
+    @DataProvider(name = "isPersistentTopicTest")
+    public Object[][] isPersistentTopicTest() {
+        return new Object[][]{{TopicDomain.persistent}, {TopicDomain.non_persistent}};
+    }
+
+    @Test(timeOut = 30 * 1000, dataProvider = "isPersistentTopicTest")
+    public void testOptimizeUnloadDisable(TopicDomain topicDomain) throws Exception {
+        var id = String.format("test-optimize-unload-disable-%s-%s", topicDomain, UUID.randomUUID());
+        var topic = String.format("%s://%s/%s", topicDomain, defaultTestNamespace, id);
+        var topicName = TopicName.get(topic);
+
+        pulsar1.getConfig().setLoadBalancerMultiPhaseBundleUnload(false);
+        pulsar2.getConfig().setLoadBalancerMultiPhaseBundleUnload(false);
+
+        @Cleanup
+        var producer = pulsarClient.newProducer(Schema.STRING).topic(topic).create();
+
+        @Cleanup
+        var consumer = pulsarClient.newConsumer(Schema.STRING).subscriptionName(id).topic(topic).subscribe();
+
+        Awaitility.await().until(() -> producer.isConnected() && consumer.isConnected());
+
+        var lookup = spyLookupService(pulsarClient);
+
+        final CountDownLatch cdl = new CountDownLatch(3);
+
+        NamespaceBundle bundle = getBundleAsync(pulsar1, TopicName.get(topic)).get();
+        var srcBrokerServiceUrl = admin.lookups().lookupTopic(topic);
+        var dstBroker = srcBrokerServiceUrl.equals(pulsar1.getBrokerServiceUrl()) ? pulsar2 : pulsar1;
+
+        CompletableFuture<Void> unloadNamespaceBundle = CompletableFuture.runAsync(() -> {
+            try {
+                cdl.await();
+                admin.namespaces().unloadNamespaceBundle(defaultTestNamespace, bundle.getBundleRange(),
+                        dstBroker.getLookupServiceAddress());
+            } catch (InterruptedException | PulsarAdminException e) {
+                fail();
+            }
+        });
+
+        MutableInt sendCount = new MutableInt();
+        Awaitility.await().atMost(20, TimeUnit.SECONDS).ignoreExceptions().until(() -> {
+            var message = String.format("message-%d", sendCount.getValue());
+
+            boolean messageSent = false;
+            while (true) {
+                var recvFuture = consumer.receiveAsync().orTimeout(1000, TimeUnit.MILLISECONDS);
+
+                if (!messageSent) {
+                    producer.send(message);
+                    messageSent = true;
+                }
+
+                if (topicDomain == TopicDomain.non_persistent) {
+                    // No need to wait for message receipt, we're only trying to stress the consumer lookup pathway.
+                    break;
+                }
+                var msg = recvFuture.get();
+                if (Objects.equals(msg.getValue(), message)) {
+                    break;
+                }
+            }
+
+            cdl.countDown();
+            return sendCount.incrementAndGet() == 10;
+        });
+
+        assertTrue(producer.isConnected());
+        assertTrue(consumer.isConnected());
+        assertTrue(unloadNamespaceBundle.isDone());
+        verify(lookup, times(2)).getBroker(topicName);
     }
 
     private LookupService spyLookupService(PulsarClient client) throws IllegalAccessException {
@@ -1241,6 +1316,12 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
             FieldUtils.writeDeclaredField(channel1, "handlerCounters", handlerCounters, true);
         }
 
+        primaryLoadManager.getIgnoredSendMsgCount().incrementAndGet();
+        primaryLoadManager.getIgnoredSendMsgCount().incrementAndGet();
+        primaryLoadManager.getIgnoredAckCount().incrementAndGet();
+        primaryLoadManager.getIgnoredAckCount().incrementAndGet();
+        primaryLoadManager.getIgnoredAckCount().incrementAndGet();
+
         var expected = Set.of(
                 """
                         dimensions=[{broker=localhost, metric=loadBalancing}], metrics=[{brk_lb_bandwidth_in_usage=3.0, brk_lb_bandwidth_out_usage=4.0, brk_lb_cpu_usage=1.0, brk_lb_directMemory_usage=2.0, brk_lb_memory_usage=400.0}]
@@ -1311,8 +1392,9 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
                         dimensions=[{broker=localhost, metric=sunitStateChn, result=Schedule}], metrics=[{brk_sunit_state_chn_inactive_broker_cleanup_ops_total=5}]
                         dimensions=[{broker=localhost, metric=sunitStateChn, result=Success}], metrics=[{brk_sunit_state_chn_inactive_broker_cleanup_ops_total=1}]
                         dimensions=[{broker=localhost, metric=sunitStateChn}], metrics=[{brk_sunit_state_chn_orphan_su_cleanup_ops_total=3, brk_sunit_state_chn_owned_su_total=10, brk_sunit_state_chn_su_tombstone_cleanup_ops_total=2}]
+                        dimensions=[{broker=localhost, metric=bundleUnloading}], metrics=[{brk_lb_ignored_ack_total=3, brk_lb_ignored_send_total=2}]
                         """.split("\n"));
-        var actual = primaryLoadManager.getMetrics().stream().map(m -> m.toString()).collect(Collectors.toSet());
+        var actual = primaryLoadManager.getMetrics().stream().map(Metrics::toString).collect(Collectors.toSet());
         assertEquals(actual, expected);
     }
 

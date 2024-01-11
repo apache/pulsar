@@ -230,7 +230,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     protected final MessageDeduplication messageDeduplication;
 
     private static final Long COMPACTION_NEVER_RUN = -0xfebecffeL;
-    private CompletableFuture<Long> currentCompaction = CompletableFuture.completedFuture(COMPACTION_NEVER_RUN);
+    private volatile CompletableFuture<Long> currentCompaction = CompletableFuture.completedFuture(
+            COMPACTION_NEVER_RUN);
     private TopicCompactionService topicCompactionService;
 
     // TODO: Create compaction strategy from topic policy when exposing strategic compaction to users.
@@ -356,7 +357,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 .thenAcceptAsync(optPolicies -> {
                     if (!optPolicies.isPresent()) {
                         isEncryptionRequired = false;
-                        updatePublishDispatcher();
+                        updatePublishRateLimiter();
                         updateResourceGroupLimiter(new Policies());
                         initializeDispatchRateLimiterIfNeeded();
                         updateSubscribeRateLimiter();
@@ -371,7 +372,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
                     updateSubscribeRateLimiter();
 
-                    updatePublishDispatcher();
+                    updatePublishRateLimiter();
 
                     updateResourceGroupLimiter(policies);
 
@@ -514,7 +515,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         }
     }
 
-    private static boolean isCompactionSubscription(String subscriptionName) {
+    public static boolean isCompactionSubscription(String subscriptionName) {
         return COMPACTION_SUBSCRIPTION.equals(subscriptionName);
     }
 
@@ -1204,13 +1205,14 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                                                           CompletableFuture<Void> unsubscribeFuture) {
         PersistentSubscription persistentSubscription = subscriptions.get(subscriptionName);
         if (persistentSubscription == null) {
-            log.warn("[{}][{}] Can't find subscription, skip clear delayed message", topic, subscriptionName);
+            log.warn("[{}][{}] Can't find subscription, skip delete cursor", topic, subscriptionName);
             unsubscribeFuture.complete(null);
             return;
         }
+
         if (!isDelayedDeliveryEnabled()
                 || !(brokerService.getDelayedDeliveryTrackerFactory() instanceof BucketDelayedDeliveryTrackerFactory)) {
-            asyncDeleteCursor(subscriptionName, unsubscribeFuture);
+            asyncDeleteCursorWithCleanCompactionLedger(persistentSubscription, unsubscribeFuture);
             return;
         }
 
@@ -1225,7 +1227,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                     if (ex != null) {
                         unsubscribeFuture.completeExceptionally(ex);
                     } else {
-                        asyncDeleteCursor(subscriptionName, unsubscribeFuture);
+                        asyncDeleteCursorWithCleanCompactionLedger(persistentSubscription, unsubscribeFuture);
                     }
                 });
             }
@@ -1234,6 +1236,29 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
         dispatcher.clearDelayedMessages().whenComplete((__, ex) -> {
             if (ex != null) {
+                unsubscribeFuture.completeExceptionally(ex);
+            } else {
+                asyncDeleteCursorWithCleanCompactionLedger(persistentSubscription, unsubscribeFuture);
+            }
+        });
+    }
+
+    private void asyncDeleteCursorWithCleanCompactionLedger(PersistentSubscription subscription,
+                                                            CompletableFuture<Void> unsubscribeFuture) {
+        final String subscriptionName = subscription.getName();
+        if ((!isCompactionSubscription(subscriptionName)) || !(subscription instanceof PulsarCompactorSubscription)) {
+            asyncDeleteCursor(subscriptionName, unsubscribeFuture);
+            return;
+        }
+
+        currentCompaction.handle((__, e) -> {
+            if (e != null) {
+                log.warn("[{}][{}] Last compaction task failed", topic, subscriptionName);
+            }
+            return ((PulsarCompactorSubscription) subscription).cleanCompactedLedger();
+        }).whenComplete((__, ex) -> {
+            if (ex != null) {
+                log.error("[{}][{}] Error cleaning compacted ledger", topic, subscriptionName, ex);
                 unsubscribeFuture.completeExceptionally(ex);
             } else {
                 asyncDeleteCursor(subscriptionName, unsubscribeFuture);
@@ -1737,11 +1762,11 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     public void checkMessageExpiry() {
         int messageTtlInSeconds = topicPolicies.getMessageTTLInSeconds().get();
         if (messageTtlInSeconds != 0) {
-            subscriptions.forEach((__, sub) -> sub.expireMessages(messageTtlInSeconds));
-            replicators.forEach((__, replicator)
-                    -> ((PersistentReplicator) replicator).expireMessages(messageTtlInSeconds));
-            shadowReplicators.forEach((__, replicator)
-                    -> ((PersistentReplicator) replicator).expireMessages(messageTtlInSeconds));
+            subscriptions.forEach((__, sub) -> {
+                if (!isCompactionSubscription(sub.getName())) {
+                   sub.expireMessages(messageTtlInSeconds);
+                }
+            });
         }
     }
 
@@ -3069,39 +3094,60 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             return CompletableFuture.completedFuture(null);
         }
 
+        // Update props.
+        // The component "EntryFilters" is update in the method "updateTopicPolicyByNamespacePolicy(data)".
+        //   see more detail: https://github.com/apache/pulsar/pull/19364.
         updateTopicPolicyByNamespacePolicy(data);
         checkReplicatedSubscriptionControllerState();
         isEncryptionRequired = data.encryption_required;
-
         isAllowAutoUpdateSchema = data.is_allow_auto_update_schema;
 
-        updateDispatchRateLimiter();
-
-        updateSubscribeRateLimiter();
-
-        updatePublishDispatcher();
-
-        updateResourceGroupLimiter(data);
-
-        List<CompletableFuture<Void>> producerCheckFutures = new ArrayList<>(producers.size());
-        producers.values().forEach(producer -> producerCheckFutures.add(
-                producer.checkPermissionsAsync().thenRun(producer::checkEncryption)));
-
-        return FutureUtil.waitForAll(producerCheckFutures).thenCompose((__) -> {
-            return updateSubscriptionsDispatcherRateLimiter().thenCompose((___) -> {
-                replicators.forEach((name, replicator) -> replicator.updateRateLimiter());
-                shadowReplicators.forEach((name, replicator) -> replicator.updateRateLimiter());
-                checkMessageExpiry();
-                CompletableFuture<Void> replicationFuture = checkReplicationAndRetryOnFailure();
-                CompletableFuture<Void> dedupFuture = checkDeduplicationStatus();
-                CompletableFuture<Void> persistentPoliciesFuture = checkPersistencePolicies();
-                return CompletableFuture.allOf(replicationFuture, dedupFuture, persistentPoliciesFuture,
-                        preCreateSubscriptionForCompactionIfNeeded());
+        // Apply policies for components.
+        List<CompletableFuture<Void>> applyPolicyTasks = applyUpdatedTopicPolicies();
+        applyPolicyTasks.add(applyUpdatedNamespacePolicies(data));
+        return FutureUtil.waitForAll(applyPolicyTasks)
+            .thenAccept(__ -> log.info("[{}] namespace-level policies updated successfully", topic))
+            .exceptionally(ex -> {
+                log.error("[{}] update namespace polices : {} error", this.getName(), data, ex);
+                throw FutureUtil.wrapToCompletionException(ex);
             });
-        }).exceptionally(ex -> {
-            log.error("[{}] update namespace polices : {} error", this.getName(), data, ex);
-            throw FutureUtil.wrapToCompletionException(ex);
+    }
+
+    private CompletableFuture<Void> applyUpdatedNamespacePolicies(Policies namespaceLevelPolicies) {
+        return FutureUtil.runWithCurrentThread(() -> updateResourceGroupLimiter(namespaceLevelPolicies));
+    }
+
+    private List<CompletableFuture<Void>> applyUpdatedTopicPolicies() {
+        List<CompletableFuture<Void>> applyPoliciesFutureList = new ArrayList<>();
+
+        // Client permission check.
+        subscriptions.forEach((subName, sub) -> {
+            sub.getConsumers().forEach(consumer -> applyPoliciesFutureList.add(consumer.checkPermissionsAsync()));
         });
+        producers.values().forEach(producer -> applyPoliciesFutureList.add(
+                producer.checkPermissionsAsync().thenRun(producer::checkEncryption)));
+        // Check message expiry.
+        applyPoliciesFutureList.add(FutureUtil.runWithCurrentThread(() -> checkMessageExpiry()));
+
+        // Update rate limiters.
+        applyPoliciesFutureList.add(FutureUtil.runWithCurrentThread(() -> updateDispatchRateLimiter()));
+        applyPoliciesFutureList.add(FutureUtil.runWithCurrentThread(() -> updateSubscribeRateLimiter()));
+        applyPoliciesFutureList.add(FutureUtil.runWithCurrentThread(() -> updatePublishRateLimiter()));
+
+        applyPoliciesFutureList.add(FutureUtil.runWithCurrentThread(() -> updateSubscriptionsDispatcherRateLimiter()));
+        applyPoliciesFutureList.add(FutureUtil.runWithCurrentThread(
+                () -> replicators.forEach((name, replicator) -> replicator.updateRateLimiter())));
+        applyPoliciesFutureList.add(FutureUtil.runWithCurrentThread(
+                () -> shadowReplicators.forEach((name, replicator) -> replicator.updateRateLimiter())));
+
+        // Other components.
+        applyPoliciesFutureList.add(FutureUtil.runWithCurrentThread(() -> checkReplicationAndRetryOnFailure()));
+        applyPoliciesFutureList.add(FutureUtil.runWithCurrentThread(() -> checkDeduplicationStatus()));
+        applyPoliciesFutureList.add(FutureUtil.runWithCurrentThread(() -> checkPersistencePolicies()));
+        applyPoliciesFutureList.add(FutureUtil.runWithCurrentThread(
+                () -> preCreateSubscriptionForCompactionIfNeeded()));
+
+        return applyPoliciesFutureList;
     }
 
     /**
@@ -3435,17 +3481,29 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     public synchronized void triggerCompaction()
             throws PulsarServerException, AlreadyRunningException {
         if (currentCompaction.isDone()) {
+            if (!lock.readLock().tryLock()) {
+                log.info("[{}] Conflict topic-close, topic-delete, skip triggering compaction", topic);
+                return;
+            }
+            try {
+                if (isClosingOrDeleting) {
+                    log.info("[{}] Topic is closing or deleting, skip triggering compaction", topic);
+                    return;
+                }
 
-            if (strategicCompactionMap.containsKey(topic)) {
-                currentCompaction = brokerService.pulsar().getStrategicCompactor()
-                        .compact(topic, strategicCompactionMap.get(topic));
-            } else {
-                currentCompaction = topicCompactionService.compact().thenApply(x -> null);
+                if (strategicCompactionMap.containsKey(topic)) {
+                    currentCompaction = brokerService.pulsar().getStrategicCompactor()
+                            .compact(topic, strategicCompactionMap.get(topic));
+                } else {
+                    currentCompaction = topicCompactionService.compact().thenApply(x -> null);
+                }
+            } finally {
+                lock.readLock().unlock();
             }
             currentCompaction.whenComplete((ignore, ex) -> {
-               if (ex != null){
-                   log.warn("[{}] Compaction failure.", topic, ex);
-               }
+                if (ex != null) {
+                    log.warn("[{}] Compaction failure.", topic, ex);
+                }
             });
         } else {
             throw new AlreadyRunningException("Compaction already in progress");
@@ -3748,6 +3806,25 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         return topicPolicies.getMaxUnackedMessagesOnSubscription().get();
     }
 
+    public boolean isDispatcherPauseOnAckStatePersistentEnabled() {
+        Boolean b = topicPolicies.getDispatcherPauseOnAckStatePersistentEnabled().get();
+        return b == null ? false : b.booleanValue();
+    }
+
+    @Override
+    public void updateBrokerDispatchPauseOnAckStatePersistentEnabled() {
+        super.updateBrokerDispatchPauseOnAckStatePersistentEnabled();
+        // Trigger new read if subscriptions has been paused before.
+        if (!topicPolicies.getDispatcherPauseOnAckStatePersistentEnabled().get()) {
+            getSubscriptions().forEach((sName, subscription) -> {
+                if (subscription.getDispatcher() == null) {
+                    return;
+                }
+                subscription.getDispatcher().afterAckMessages(null, 0);
+            });
+        }
+    }
+
     @Override
     public void onUpdate(TopicPolicies policies) {
         if (log.isDebugEnabled()) {
@@ -3756,42 +3833,30 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         if (policies == null) {
             return;
         }
+        // Update props.
+        // The component "EntryFilters" is update in the method "updateTopicPolicy(data)".
+        //   see more detail: https://github.com/apache/pulsar/pull/19364.
         updateTopicPolicy(policies);
         shadowTopics = policies.getShadowTopics();
-        updateDispatchRateLimiter();
         checkReplicatedSubscriptionControllerState();
-        updateSubscriptionsDispatcherRateLimiter().thenRun(() -> {
-            updatePublishDispatcher();
-            updateSubscribeRateLimiter();
-            replicators.forEach((name, replicator) -> replicator.updateRateLimiter());
-            shadowReplicators.forEach((name, replicator) -> replicator.updateRateLimiter());
-            checkMessageExpiry();
-        })
-        .thenCompose(__ -> checkReplicationAndRetryOnFailure())
-        .thenCompose(__ -> checkDeduplicationStatus())
-        .thenCompose(__ -> preCreateSubscriptionForCompactionIfNeeded())
-        .thenCompose(__ -> checkPersistencePolicies())
-        .thenAccept(__ -> log.info("[{}] Policies updated successfully", topic))
-        .exceptionally(e -> {
-            Throwable t = FutureUtil.unwrapCompletionException(e);
-            log.error("[{}] update topic policy error: {}", topic, t.getMessage(), t);
-            return null;
-        });
+
+        // Apply policies for components(not contains the specified policies which only defined in namespace policies).
+        FutureUtil.waitForAll(applyUpdatedTopicPolicies())
+            .thenAccept(__ -> log.info("[{}] topic-level policies updated successfully", topic))
+            .exceptionally(e -> {
+                Throwable t = FutureUtil.unwrapCompletionException(e);
+                log.error("[{}] update topic-level policy error: {}", topic, t.getMessage(), t);
+                return null;
+            });
     }
 
-    private CompletableFuture<Void> updateSubscriptionsDispatcherRateLimiter() {
-        List<CompletableFuture<Void>> subscriptionCheckFutures = new ArrayList<>((int) subscriptions.size());
+    private void updateSubscriptionsDispatcherRateLimiter() {
         subscriptions.forEach((subName, sub) -> {
-            List<CompletableFuture<Void>> consumerCheckFutures = new ArrayList<>(sub.getConsumers().size());
-            sub.getConsumers().forEach(consumer -> consumerCheckFutures.add(consumer.checkPermissionsAsync()));
-            subscriptionCheckFutures.add(FutureUtil.waitForAll(consumerCheckFutures).thenRun(() -> {
-                Dispatcher dispatcher = sub.getDispatcher();
-                if (dispatcher != null) {
-                    dispatcher.updateRateLimiter();
-                }
-            }));
+            Dispatcher dispatcher = sub.getDispatcher();
+            if (dispatcher != null) {
+                dispatcher.updateRateLimiter();
+            }
         });
-        return FutureUtil.waitForAll(subscriptionCheckFutures);
     }
 
     protected CompletableFuture<Void> initTopicPolicy() {

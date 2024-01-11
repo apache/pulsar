@@ -63,6 +63,7 @@ public class TopicPolicies {
     private Long delayedDeliveryTickTimeMillis;
     private Boolean delayedDeliveryEnabled;
     private Long delayedDeliveryMaxDelayInMillis;
+    private Boolean dispatcherPauseOnAckStatePersistentEnabled;;
     private OffloadPoliciesImpl offloadPolicies;
     private InactiveTopicPolicies inactiveTopicPolicies;
     private DispatchRateImpl dispatchRate;
