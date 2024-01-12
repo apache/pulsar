@@ -1835,7 +1835,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 ? PositionImpl.get(send.getMessageId().getLedgerId(), send.getMessageId().getEntryId()) : null;
 
         // Persist the message
-        if (send.hasHighestSequenceId() && send.getSequenceId() <= send.getHighestSequenceId()) {
+        if (send.hasHighestSequenceId()) {
             producer.publishMessage(send.getProducerId(), send.getSequenceId(), send.getHighestSequenceId(),
                     headersAndPayload, send.getNumMessages(), send.isIsChunk(), send.isMarker(), position);
         } else {
