@@ -19,7 +19,6 @@
 package org.apache.pulsar.compaction;
 
 import static org.apache.pulsar.common.protocol.Commands.DEFAULT_CONSUMER_EPOCH;
-
 import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.google.common.annotations.VisibleForTesting;
@@ -53,7 +52,6 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.RawMessage;
 import org.apache.pulsar.client.impl.RawMessageImpl;
 import org.apache.pulsar.common.api.proto.MessageIdData;
-import org.apache.pulsar.common.protocol.Commands;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -323,12 +321,6 @@ public class CompactedTopicImpl implements CompactedTopic {
         });
     }
 
-    public CompletableFuture<Entry> findEntryByPublishTime(long publishTime) {
-        final Predicate<Entry> predicate = entry -> {
-            return Commands.parseMessageMetadata(entry.getDataBuffer()).getPublishTime() >= publishTime;
-        };
-        return findFirstMatchEntry(predicate);
-    }
     CompletableFuture<Entry> findFirstMatchEntry(final Predicate<Entry> predicate) {
         var compactedTopicContextFuture = this.getCompactedTopicContextFuture();
 
@@ -348,10 +340,10 @@ public class CompactedTopicImpl implements CompactedTopic {
         });
     }
     private static void findFirstMatchIndexLoop(final Predicate<Entry> predicate,
-                                           final long start, final long end,
-                                           final CompletableFuture<Long> promise,
-                                           final Long lastMatchIndex,
-                                           final LedgerHandle lh) {
+                                                final long start, final long end,
+                                                final CompletableFuture<Long> promise,
+                                                final Long lastMatchIndex,
+                                                final LedgerHandle lh) {
         if (start > end) {
             promise.complete(lastMatchIndex);
             return;

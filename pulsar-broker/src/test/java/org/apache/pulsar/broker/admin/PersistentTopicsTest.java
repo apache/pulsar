@@ -34,7 +34,6 @@ import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertSame;
 import static org.testng.Assert.assertTrue;
-
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -1470,10 +1469,10 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         admin.tenants().createTenant("tenant-xyz", tenantInfo);
         admin.namespaces().createNamespace("tenant-xyz/ns-abc", Set.of("test"));
         admin.namespaces().setCompactionThreshold("tenant-xyz/ns-abc", 100*1024*1024L);
-        final String topicName = "persistent://tenant-xyz/ns-abc/testGetMessageIdByTimestamp";
+        final String topicName = "persistent://tenant-xyz/ns-abc/testGetMessageIdByTimestampWithCompaction";
         admin.topics().createNonPartitionedTopic(topicName);
 
-        AtomicLong publishTime = new AtomicLong(0);
+        Map<MessageId, Long> publishTimeMap = new ConcurrentHashMap<>();
         @Cleanup
         ProducerBase<byte[]> producer = (ProducerBase<byte[]>) pulsarClient.newProducer().topic(topicName)
                 .enableBatching(false)
@@ -1496,18 +1495,16 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
                     @Override
                     public void onSendAcknowledgement(Producer producer, Message message, MessageId msgId,
                                                       Throwable exception) {
-                        publishTime.set(message.getPublishTime());
+                        publishTimeMap.put(message.getMessageId(), message.getPublishTime());
                     }
                 })
                 .create();
 
-        MessageId id1 = producer.send("test1".getBytes());
-        long publish1 = publishTime.get();
+        MessageId id1 = producer.newMessage().key("K1").value("test1".getBytes()).send();
+        MessageId id2 = producer.newMessage().key("K2").value("test2".getBytes()).send();
 
-        Thread.sleep(10);
-        MessageId id2 = producer.send("test2".getBytes());
-        long publish2 = publishTime.get();
-
+        long publish1 = publishTimeMap.get(id1);
+        long publish2 = publishTimeMap.get(id2);
         Assert.assertTrue(publish1 < publish2);
 
         admin.topics().triggerCompaction(topicName);
