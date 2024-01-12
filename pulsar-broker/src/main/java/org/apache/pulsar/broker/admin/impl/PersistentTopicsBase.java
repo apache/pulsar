@@ -2882,21 +2882,36 @@ public class PersistentTopicsBase extends AdminResource {
                     throw new RestException(Status.METHOD_NOT_ALLOWED,
                         "Get message ID by timestamp on a non-persistent topic is not allowed");
                 }
-                return ((PersistentTopic) topic).getTopicCompactionService().findEntryByPublishTime(timestamp)
-                    .thenCompose(compactedEntry -> {
-                            if (compactedEntry == null) {
-                                return findMessageIdByPublishTime(timestamp,
-                                    ((PersistentTopic) topic).getManagedLedger());
-                            } else {
-                                try {
-                                    return CompletableFuture.completedFuture(
-                                        new MessageIdImpl(compactedEntry.getLedgerId(),
-                                            compactedEntry.getEntryId(), topicName.getPartitionIndex()));
-                                } finally {
-                                    compactedEntry.release();
-                                }
-                            }
-                        });
+                final PersistentTopic persistentTopic = (PersistentTopic) topic;
+
+                return persistentTopic.getTopicCompactionService().readLastCompactedEntry().thenCompose(lastEntry -> {
+                    if (lastEntry == null) {
+                        return findMessageIdByPublishTime(timestamp, persistentTopic.getManagedLedger());
+                    }
+                    MessageMetadata metadata;
+                    Position position = lastEntry.getPosition();
+                    try {
+                        metadata = Commands.parseMessageMetadata(lastEntry.getDataBuffer());
+                    } finally {
+                        lastEntry.release();
+                    }
+                    if (timestamp == metadata.getPublishTime()) {
+                        return CompletableFuture.completedFuture(new MessageIdImpl(position.getLedgerId(),
+                                position.getEntryId(), topicName.getPartitionIndex()));
+                    } else if (timestamp < metadata.getPublishTime()) {
+                        return persistentTopic.getTopicCompactionService().findEntryByPublishTime(timestamp)
+                                .thenApply(compactedEntry -> {
+                                    try {
+                                        return new MessageIdImpl(compactedEntry.getLedgerId(),
+                                                compactedEntry.getEntryId(), topicName.getPartitionIndex());
+                                    } finally {
+                                        compactedEntry.release();
+                                    }
+                                });
+                    } else {
+                        return findMessageIdByPublishTime(timestamp, persistentTopic.getManagedLedger());
+                    }
+                });
             });
     }
 
