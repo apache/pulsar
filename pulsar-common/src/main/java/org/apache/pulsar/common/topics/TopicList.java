@@ -82,7 +82,7 @@ public class TopicList {
         return s1;
     }
 
-    public static String removeTopicDomainSchema(String originalRegexp) {
+    private static String removeTopicDomainSchema(String originalRegexp) {
         if (!originalRegexp.toString().contains(SCHEME_SEPARATOR)) {
             return originalRegexp;
         }
