@@ -88,12 +88,12 @@ import org.apache.pulsar.metadata.api.MetadataCache;
 import org.apache.pulsar.metadata.api.Notification;
 import org.apache.pulsar.metadata.api.NotificationType;
 import org.apache.pulsar.metadata.api.extended.CreateOption;
+import org.apache.pulsar.policies.data.loadbalancer.BrokerData;
+import org.apache.pulsar.policies.data.loadbalancer.BundleData;
 import org.apache.pulsar.policies.data.loadbalancer.LocalBrokerData;
 import org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats;
 import org.apache.pulsar.policies.data.loadbalancer.ResourceUsage;
 import org.apache.pulsar.policies.data.loadbalancer.SystemResourceUsage;
-import org.apache.pulsar.policies.data.loadbalancer.BrokerData;
-import org.apache.pulsar.policies.data.loadbalancer.BundleData;
 import org.apache.pulsar.policies.data.loadbalancer.TimeAverageBrokerData;
 import org.apache.pulsar.policies.data.loadbalancer.TimeAverageMessageData;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
@@ -239,7 +239,7 @@ public class ModularLoadManagerImplTest {
 
         pulsar2.close();
         pulsar1.close();
-        
+
         if (pulsar3.isRunning()) {
             pulsar3.close();
         }
@@ -327,12 +327,12 @@ public class ModularLoadManagerImplTest {
     }
 
 
-    
+
     @Test
     public void testBrokerAffinity() throws Exception {
         // Start broker 3
         pulsar3.start();
-        
+
         final String tenant = "test";
         final String cluster = "test";
         String namespace = tenant + "/" + cluster + "/" + "test";
@@ -341,38 +341,38 @@ public class ModularLoadManagerImplTest {
         admin1.tenants().createTenant(tenant,
                 new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet(cluster)));
         admin1.namespaces().createNamespace(namespace, 16);
-        
+
         String topicLookup = admin1.lookups().lookupTopic(topic);
         String bundleRange = admin1.lookups().getBundleRange(topic);
-        
+
         String brokerServiceUrl = pulsar1.getBrokerServiceUrl();
-        String brokerUrl = pulsar1.getSafeWebServiceAddress();
+        String brokerId = pulsar1.getLookupServiceAddress();
         log.debug("initial broker service url - {}", topicLookup);
         Random rand=new Random();
-        
+
         if (topicLookup.equals(brokerServiceUrl)) {
             int x = rand.nextInt(2);
             if (x == 0) {
-                brokerUrl = pulsar2.getSafeWebServiceAddress();
+                brokerId = pulsar2.getLookupServiceAddress();
                 brokerServiceUrl = pulsar2.getBrokerServiceUrl();
             }
             else {
-                brokerUrl = pulsar3.getSafeWebServiceAddress();
+                brokerId = pulsar3.getLookupServiceAddress();
                 brokerServiceUrl = pulsar3.getBrokerServiceUrl();
             }
         }
-        brokerUrl = brokerUrl.replaceFirst("http[s]?://", "");
-        log.debug("destination broker service url - {}, broker url - {}", brokerServiceUrl, brokerUrl);
-        String leaderServiceUrl = admin1.brokers().getLeaderBroker().getServiceUrl();
-        log.debug("leader serviceUrl - {}, broker1 service url - {}", leaderServiceUrl, pulsar1.getSafeWebServiceAddress());
-        //Make a call to broker which is not a leader
-        if (!leaderServiceUrl.equals(pulsar1.getSafeWebServiceAddress())) {
-            admin1.namespaces().unloadNamespaceBundle(namespace, bundleRange, brokerUrl);
+        log.debug("destination broker service url - {}, broker url - {}", brokerServiceUrl, brokerId);
+        String leaderLookupServiceAddress = admin1.brokers().getLeaderBroker().getLookupServiceAddress();
+        log.debug("leader lookup address - {}, broker1 lookup address - {}", leaderLookupServiceAddress,
+                pulsar1.getLookupServiceAddress());
+        // Make a call to broker which is not a leader
+        if (!leaderLookupServiceAddress.equals(pulsar1.getLookupServiceAddress())) {
+            admin1.namespaces().unloadNamespaceBundle(namespace, bundleRange, brokerId);
         }
         else {
-            admin2.namespaces().unloadNamespaceBundle(namespace, bundleRange, brokerUrl);
+            admin2.namespaces().unloadNamespaceBundle(namespace, bundleRange, brokerId);
         }
-        
+
         sleep(2000);
         String topicLookupAfterUnload = admin1.lookups().lookupTopic(topic);
         log.debug("final broker service url - {}", topicLookupAfterUnload);
@@ -634,12 +634,12 @@ public class ModularLoadManagerImplTest {
         ServiceUnitId serviceUnit = LoadBalancerTestingUtils.makeBundles(nsFactory, tenant, cluster, namespace, 1)[0];
         BrokerTopicLoadingPredicate brokerTopicLoadingPredicate = new BrokerTopicLoadingPredicate() {
             @Override
-            public boolean isEnablePersistentTopics(String brokerUrl) {
+            public boolean isEnablePersistentTopics(String brokerLookupServiceAddress) {
                 return true;
             }
 
             @Override
-            public boolean isEnableNonPersistentTopics(String brokerUrl) {
+            public boolean isEnableNonPersistentTopics(String brokerLookupServiceAddress) {
                 return true;
             }
         };
@@ -911,7 +911,6 @@ public class ModularLoadManagerImplTest {
 
         final Optional<ResourceUnit> leastLoaded = loadManagerWrapper.getLeastLoaded(bundleWillBeSplit);
         assertFalse(leastLoaded.isEmpty());
-        assertTrue(leastLoaded.get().getResourceId().startsWith("https"));
 
         String bundleDataPath = BUNDLE_DATA_BASE_PATH + "/" + tenant + "/" + namespace;
         CompletableFuture<List<String>> children = bundlesCache.getChildren(bundleDataPath);

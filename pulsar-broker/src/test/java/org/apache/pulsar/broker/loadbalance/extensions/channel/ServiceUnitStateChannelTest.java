@@ -1968,7 +1968,7 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
 
 
         var leaderElectionService = new LeaderElectionService(
-                pulsar.getCoordinationService(), pulsar.getSafeWebServiceAddress(),
+                pulsar.getCoordinationService(), pulsar.getLookupServiceAddress(), pulsar.getSafeWebServiceAddress(),
                 state -> {
                     if (state == LeaderElectionState.Leading) {
                         channel.scheduleOwnershipMonitor();

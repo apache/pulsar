@@ -133,7 +133,7 @@ public class LoadBalancerTest {
             brokerNativeBrokerPorts[i] = pulsarServices[i].getBrokerListenPort().get();
 
             brokerUrls[i] = new URL("http://127.0.0.1" + ":" + brokerWebServicePorts[i]);
-            lookupAddresses[i] = pulsarServices[i].getAdvertisedAddress() + ":" + pulsarServices[i].getListenPortHTTP().get();
+            lookupAddresses[i] = pulsarServices[i].getLookupServiceAddress();
             pulsarAdmins[i] = PulsarAdmin.builder().serviceHttpUrl(brokerUrls[i].toString()).build();
         }
 
@@ -401,7 +401,7 @@ public class LoadBalancerTest {
         double expectedMaxVariation = 10.0;
         for (int i = 0; i < BROKER_COUNT; i++) {
             long actualValue = 0;
-            String resourceId = "http://" + lookupAddresses[i];
+            String resourceId = lookupAddresses[i];
             if (namespaceOwner.containsKey(resourceId)) {
                 actualValue = namespaceOwner.get(resourceId);
             }
@@ -681,7 +681,7 @@ public class LoadBalancerTest {
                 }
             }
             // Make sure all brokers see the same leader
-            log.info("Old leader is : {}", oldLeader.getServiceUrl());
+            log.info("Old leader is : {}", oldLeader.getLookupServiceAddress());
             for (PulsarService pulsar : activePulsar) {
                 log.info("Current leader for {} is : {}", pulsar.getWebServiceAddress(), pulsar.getLeaderElectionService().getCurrentLeader());
                 assertEquals(pulsar.getLeaderElectionService().readCurrentLeader().join(), Optional.of(oldLeader));
@@ -691,7 +691,7 @@ public class LoadBalancerTest {
             leaderPulsar.close();
             loopUntilLeaderChangesForAllBroker(followerPulsar, oldLeader);
             LeaderBroker newLeader = followerPulsar.get(0).getLeaderElectionService().readCurrentLeader().join().get();
-            log.info("New leader is : {}", newLeader.getServiceUrl());
+            log.info("New leader is : {}", newLeader.getLookupServiceAddress());
             Assert.assertNotEquals(newLeader, oldLeader);
         }
     }

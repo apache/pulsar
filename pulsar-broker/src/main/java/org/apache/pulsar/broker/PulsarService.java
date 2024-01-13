@@ -275,6 +275,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     private TransactionPendingAckStoreProvider transactionPendingAckStoreProvider;
     private final ExecutorProvider transactionExecutorProvider;
     private final DefaultMonotonicSnapshotClock monotonicSnapshotClock;
+    private String lookupServiceAddress;
 
     public enum State {
         Init, Started, Closing, Closed
@@ -307,6 +308,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         // Validate correctness of configuration
         PulsarConfigurationLoader.isComplete(config);
         TransactionBatchedWriteValidator.validate(config);
+        this.config = config;
 
         // validate `advertisedAddress`, `advertisedListeners`, `internalListenerName`
         this.advertisedListeners = MultipleListenerValidator.validateAndAnalysisAdvertisedListener(config);
@@ -317,7 +319,6 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         // use `internalListenerName` listener as `advertisedAddress`
         this.bindAddress = ServiceConfigurationUtils.getDefaultOrConfiguredAddress(config.getBindAddress());
         this.brokerVersion = PulsarVersion.getVersion();
-        this.config = config;
         this.processTerminator = processTerminator;
         this.loadManagerExecutor = Executors
                 .newSingleThreadScheduledExecutor(new ExecutorProvider.ExtendedThreadFactory("pulsar-load-manager"));
@@ -828,6 +829,12 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             this.brokerServiceUrl = brokerUrl(config);
             this.brokerServiceUrlTls = brokerUrlTls(config);
 
+            // the lookup service address is the address used in the load manager to identify the broker
+            this.lookupServiceAddress =
+                    String.format("%s:%s", advertisedAddress, config.getWebServicePortTls().isPresent()
+                            ? config.getWebServicePortTls().get()
+                            : config.getWebServicePort().orElseThrow());
+
             if (this.compactionServiceFactory == null) {
                 this.compactionServiceFactory = loadCompactionServiceFactory();
             }
@@ -1099,7 +1106,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     }
 
     private void handleDeleteCluster(Notification notification) {
-        if (ClusterResources.pathRepresentsClusterName(notification.getPath())
+        if (isRunning() && ClusterResources.pathRepresentsClusterName(notification.getPath())
                 && notification.getType() == NotificationType.Deleted) {
             final String clusterName = ClusterResources.clusterNameFromPath(notification.getPath());
             getBrokerService().closeAndRemoveReplicationClient(clusterName);
@@ -1137,7 +1144,8 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             LOG.info("The load manager extension is enabled. Skipping PulsarService LeaderElectionService.");
             return;
         }
-        this.leaderElectionService = new LeaderElectionService(coordinationService, getSafeWebServiceAddress(),
+        this.leaderElectionService =
+                new LeaderElectionService(coordinationService, getLookupServiceAddress(), getSafeWebServiceAddress(),
                 state -> {
                     if (state == LeaderElectionState.Leading) {
                         LOG.info("This broker was elected leader");
@@ -1695,9 +1703,10 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     }
 
     public String getLookupServiceAddress() {
-        return String.format("%s:%s", advertisedAddress, config.getWebServicePortTls().isPresent()
-                ? config.getWebServicePortTls().get()
-                : config.getWebServicePort().orElseThrow());
+        if (lookupServiceAddress == null) {
+            throw new IllegalStateException("lookupServiceAddress is not initialized before start has been called");
+        }
+        return lookupServiceAddress;
     }
 
     public synchronized void addPrometheusRawMetricsProvider(PrometheusRawMetricsProvider metricsProvider) {

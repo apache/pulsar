@@ -726,7 +726,8 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         Object leaderBrokerRes = asyncRequests(ctx -> brokers.getLeaderBroker(ctx));
         assertTrue(leaderBrokerRes instanceof BrokerInfo);
         BrokerInfo leaderBroker = (BrokerInfo)leaderBrokerRes;
-        assertEquals(leaderBroker.getServiceUrl(), pulsar.getLeaderElectionService().getCurrentLeader().map(LeaderBroker::getServiceUrl).get());
+        assertEquals(leaderBroker.getLookupServiceAddress(),
+                pulsar.getLeaderElectionService().getCurrentLeader().map(LeaderBroker::getLookupServiceAddress).get());
     }
 
     @Test

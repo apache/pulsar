@@ -141,7 +141,9 @@ public class BrokersBase extends AdminResource {
         validateSuperUserAccessAsync().thenAccept(__ -> {
                     LeaderBroker leaderBroker = pulsar().getLeaderElectionService().getCurrentLeader()
                             .orElseThrow(() -> new RestException(Status.NOT_FOUND, "Couldn't find leader broker"));
-                    BrokerInfo brokerInfo = BrokerInfo.builder().serviceUrl(leaderBroker.getServiceUrl()).build();
+                    BrokerInfo brokerInfo = BrokerInfo.builder()
+                            .serviceUrl(leaderBroker.getServiceUrl())
+                            .lookupServiceAddress(leaderBroker.getLookupServiceAddress()).build();
                     LOG.info("[{}] Successfully to get the information of the leader broker.", clientAppId());
                     asyncResponse.resume(brokerInfo);
                 })

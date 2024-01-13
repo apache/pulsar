@@ -107,10 +107,9 @@ public class LoadManagerShared {
             LOG.debug("Isolation Policies Present for namespace - [{}]", namespace.toString());
         }
         for (final String broker : availableBrokers) {
-            final String brokerUrlString = String.format("http://%s", broker);
             URL brokerUrl;
             try {
-                brokerUrl = new URL(brokerUrlString);
+                brokerUrl = new URL("http://" + broker);
             } catch (MalformedURLException e) {
                 LOG.error("Unable to parse brokerUrl from ResourceUnitId", e);
                 continue;
@@ -142,13 +141,13 @@ public class LoadManagerShared {
             } else {
                 // non-persistent topic can be assigned to only those brokers that enabled for non-persistent topic
                 if (isNonPersistentTopic
-                        && !brokerTopicLoadingPredicate.isEnableNonPersistentTopics(brokerUrlString)) {
+                        && !brokerTopicLoadingPredicate.isEnableNonPersistentTopics(broker)) {
                     if (LOG.isDebugEnabled()) {
                         LOG.debug("Filter broker- [{}] because it doesn't support non-persistent namespace - [{}]",
                                 brokerUrl.getHost(), namespace.toString());
                     }
                 } else if (!isNonPersistentTopic
-                        && !brokerTopicLoadingPredicate.isEnablePersistentTopics(brokerUrlString)) {
+                        && !brokerTopicLoadingPredicate.isEnablePersistentTopics(broker)) {
                     // persistent topic can be assigned to only brokers that enabled for persistent-topic
                     if (LOG.isDebugEnabled()) {
                         LOG.debug("Filter broker- [{}] because broker only supports non-persistent namespace - [{}]",
@@ -200,10 +199,9 @@ public class LoadManagerShared {
                 }
             }
             for (final String broker : availableBrokers) {
-                final String brokerUrlString = String.format("http://%s", broker);
                 URL brokerUrl;
                 try {
-                    brokerUrl = new URL(brokerUrlString);
+                    brokerUrl = new URL("http://" + broker);
                 } catch (MalformedURLException e) {
                     LOG.error("Unable to parse brokerUrl from ResourceUnitId", e);
                     continue;
@@ -235,17 +233,17 @@ public class LoadManagerShared {
                 } else {
                     // non-persistent topic can be assigned to only those brokers that enabled for non-persistent topic
                     if (isNonPersistentTopic
-                            && !brokerTopicLoadingPredicate.isEnableNonPersistentTopics(brokerUrlString)) {
+                            && !brokerTopicLoadingPredicate.isEnableNonPersistentTopics(broker)) {
                         if (LOG.isDebugEnabled()) {
                             LOG.debug("Filter broker- [{}] because it doesn't support non-persistent namespace - [{}]",
-                                    brokerUrl.getHost(), namespace.toString());
+                                    broker, namespace.toString());
                         }
                     } else if (!isNonPersistentTopic
-                            && !brokerTopicLoadingPredicate.isEnablePersistentTopics(brokerUrlString)) {
+                            && !brokerTopicLoadingPredicate.isEnablePersistentTopics(broker)) {
                         // persistent topic can be assigned to only brokers that enabled for persistent-topic
                         if (LOG.isDebugEnabled()) {
                             LOG.debug("Filter broker- [{}] because broker only supports non-persistent "
-                                            + "namespace - [{}]", brokerUrl.getHost(), namespace.toString());
+                                            + "namespace - [{}]", broker, namespace.toString());
                         }
                     } else if (policies.isSharedBroker(brokerUrl.getHost())) {
                         secondaryCache.add(broker);
@@ -762,9 +760,9 @@ public class LoadManagerShared {
     }
 
     public interface BrokerTopicLoadingPredicate {
-        boolean isEnablePersistentTopics(String brokerUrl);
+        boolean isEnablePersistentTopics(String brokerLookupServiceAddress);
 
-        boolean isEnableNonPersistentTopics(String brokerUrl);
+        boolean isEnableNonPersistentTopics(String brokerLookupServiceAddress);
     }
 
     /**

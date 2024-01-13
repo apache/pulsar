@@ -208,15 +208,15 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
         this.bundleBrokerAffinityMap = new ConcurrentHashMap<>();
         this.brokerTopicLoadingPredicate = new BrokerTopicLoadingPredicate() {
             @Override
-            public boolean isEnablePersistentTopics(String brokerUrl) {
-                final BrokerData brokerData = loadData.getBrokerData().get(brokerUrl.replace("http://", ""));
+            public boolean isEnablePersistentTopics(String brokerLookupServiceAddress) {
+                final BrokerData brokerData = loadData.getBrokerData().get(brokerLookupServiceAddress);
                 return brokerData != null && brokerData.getLocalData() != null
                         && brokerData.getLocalData().isPersistentTopicsEnabled();
             }
 
             @Override
-            public boolean isEnableNonPersistentTopics(String brokerUrl) {
-                final BrokerData brokerData = loadData.getBrokerData().get(brokerUrl.replace("http://", ""));
+            public boolean isEnableNonPersistentTopics(String brokerLookupServiceAddress) {
+                final BrokerData brokerData = loadData.getBrokerData().get(brokerLookupServiceAddress);
                 return brokerData != null && brokerData.getLocalData() != null
                         && brokerData.getLocalData().isNonPersistentTopicsEnabled();
             }

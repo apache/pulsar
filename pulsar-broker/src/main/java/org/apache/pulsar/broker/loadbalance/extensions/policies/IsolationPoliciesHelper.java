@@ -42,14 +42,14 @@ public class IsolationPoliciesHelper {
         return LoadManagerShared.applyNamespacePoliciesAsync(serviceUnit, policies,
                 availableBrokers.keySet(), new LoadManagerShared.BrokerTopicLoadingPredicate() {
                     @Override
-                    public boolean isEnablePersistentTopics(String brokerUrl) {
-                        BrokerLookupData lookupData = availableBrokers.get(brokerUrl.replace("http://", ""));
+                    public boolean isEnablePersistentTopics(String brokerLookupServiceAddress) {
+                        BrokerLookupData lookupData = availableBrokers.get(brokerLookupServiceAddress);
                         return lookupData != null && lookupData.persistentTopicsEnabled();
                     }
 
                     @Override
-                    public boolean isEnableNonPersistentTopics(String brokerUrl) {
-                        BrokerLookupData lookupData = availableBrokers.get(brokerUrl.replace("http://", ""));
+                    public boolean isEnableNonPersistentTopics(String brokerLookupServiceAddress) {
+                        BrokerLookupData lookupData = availableBrokers.get(brokerLookupServiceAddress);
                         return lookupData != null && lookupData.nonPersistentTopicsEnabled();
                     }
                 });

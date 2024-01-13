@@ -923,9 +923,9 @@ public abstract class NamespacesBase extends AdminResource {
             return FutureUtil.failedFuture(new RestException(Response.Status.PRECONDITION_FAILED, errorStr));
         }
         LeaderBroker leaderBroker = pulsar().getLeaderElectionService().getCurrentLeader().get();
-        String leaderBrokerUrl = leaderBroker.getServiceUrl();
+        String leaderLookupServiceAddress = leaderBroker.getLookupServiceAddress();
         return pulsar().getNamespaceService()
-                .createLookupResult(leaderBrokerUrl, false, null)
+                .createLookupResult(leaderLookupServiceAddress, false, null)
                 .thenCompose(lookupResult -> {
                     String redirectUrl = isRequestHttps() ? lookupResult.getLookupData().getHttpUrlTls()
                             : lookupResult.getLookupData().getHttpUrl();
@@ -948,7 +948,7 @@ public abstract class NamespacesBase extends AdminResource {
                         return FutureUtil.failedFuture((
                                 new WebApplicationException(Response.temporaryRedirect(redirect).build())));
                     } catch (MalformedURLException exception) {
-                        log.error("The leader broker url is malformed - {}", leaderBrokerUrl);
+                        log.error("The redirect url is malformed - {}", redirectUrl);
                         return FutureUtil.failedFuture(new RestException(exception));
                     }
                 });

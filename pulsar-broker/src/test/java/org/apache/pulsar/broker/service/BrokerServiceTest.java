@@ -1728,8 +1728,8 @@ public class BrokerServiceTest extends BrokerTestBase {
     @Test
     public void testGetLookupServiceAddress() throws Exception {
         cleanup();
-        setup();
         conf.setWebServicePortTls(Optional.of(8081));
+        setup();
         assertEquals(pulsar.getLookupServiceAddress(), "localhost:8081");
         resetState();
     }

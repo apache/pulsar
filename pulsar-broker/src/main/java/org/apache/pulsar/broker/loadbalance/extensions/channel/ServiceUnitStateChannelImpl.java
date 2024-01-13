@@ -430,13 +430,8 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         }
 
         return leaderElectionService.readCurrentLeader().thenApply(leader -> {
-                    //expecting http://broker-xyz:port
-                    // TODO: discard this protocol prefix removal
-                    //  by a util func that returns lookupServiceAddress(serviceUrl)
                     if (leader.isPresent()) {
-                        String broker = leader.get().getServiceUrl();
-                        broker = broker.substring(broker.lastIndexOf('/') + 1);
-                        return Optional.of(broker);
+                        return Optional.of(leader.get().getLookupServiceAddress());
                     } else {
                         return Optional.empty();
                     }

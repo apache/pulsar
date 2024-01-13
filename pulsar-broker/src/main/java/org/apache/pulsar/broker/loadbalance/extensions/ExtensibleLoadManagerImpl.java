@@ -353,7 +353,8 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
         try {
             this.brokerRegistry = new BrokerRegistryImpl(pulsar);
             this.leaderElectionService = new LeaderElectionService(
-                    pulsar.getCoordinationService(), pulsar.getSafeWebServiceAddress(), ELECTION_ROOT,
+                    pulsar.getCoordinationService(), pulsar.getLookupServiceAddress(),
+                    pulsar.getSafeWebServiceAddress(), ELECTION_ROOT,
                     state -> {
                         pulsar.getLoadManagerExecutor().execute(() -> {
                             if (state == LeaderElectionState.Leading) {
