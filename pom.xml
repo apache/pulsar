@@ -241,7 +241,7 @@ flexible messaging model and an intuitive client API.</description>
     <spring.version>5.3.27</spring.version>
     <apache-http-client.version>4.5.13</apache-http-client.version>
     <apache-httpcomponents.version>4.4.15</apache-httpcomponents.version>
-    <jetcd.version>0.7.5</jetcd.version>
+    <jetcd.version>0.7.7</jetcd.version>
     <snakeyaml.version>2.0</snakeyaml.version>
     <ant.version>1.10.12</ant.version>
     <seancfoley.ipaddress.version>5.3.3</seancfoley.ipaddress.version>

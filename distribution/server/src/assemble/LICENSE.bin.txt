@@ -490,10 +490,10 @@ The Apache Software License, Version 2.0
     - com.google.auto.value-auto-value-annotations-1.9.jar
     - com.google.re2j-re2j-1.6.jar
   * Jetcd
-    - io.etcd-jetcd-api-0.7.5.jar
-    - io.etcd-jetcd-common-0.7.5.jar
-    - io.etcd-jetcd-core-0.7.5.jar
-    - io.etcd-jetcd-grpc-0.7.5.jar
+    - io.etcd-jetcd-api-0.7.7.jar
+    - io.etcd-jetcd-common-0.7.7.jar
+    - io.etcd-jetcd-core-0.7.7.jar
+    - io.etcd-jetcd-grpc-0.7.7.jar
   * IPAddress
     - com.github.seancfoley-ipaddress-5.3.3.jar
   * RxJava
