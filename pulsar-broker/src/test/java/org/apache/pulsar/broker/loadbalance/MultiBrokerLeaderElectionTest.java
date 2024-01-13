@@ -91,7 +91,9 @@ public class MultiBrokerLeaderElectionTest extends MultiBrokerTestZKBaseTest {
     @Test
     public void shouldProvideConsistentAnswerToTopicLookups()
             throws PulsarAdminException, ExecutionException, InterruptedException {
-        String topicNameBase = "persistent://public/default/lookuptest" + UUID.randomUUID() + "-";
+        String namespace = "public/ns" + UUID.randomUUID();
+        admin.namespaces().createNamespace(namespace, 256);
+        String topicNameBase = "persistent://" + namespace + "/lookuptest-";
         List<String> topicNames = IntStream.range(0, 500).mapToObj(i -> topicNameBase + i)
                 .collect(Collectors.toList());
         List<PulsarAdmin> allAdmins = getAllAdmins();
