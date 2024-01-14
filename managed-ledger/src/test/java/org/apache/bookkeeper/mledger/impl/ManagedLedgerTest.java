@@ -4118,6 +4118,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         ManagedLedgerConfig config = new ManagedLedgerConfig();
         config.setInactiveLedgerRollOverTime(10, TimeUnit.MILLISECONDS);
         ManagedLedgerImpl ml = (ManagedLedgerImpl) factory.open(mlName, config);
+        ml.addEntry("entry".getBytes(UTF_8));
 
         MutableBoolean isRolledOver = new MutableBoolean(false);
         retryStrategically((test) -> {
