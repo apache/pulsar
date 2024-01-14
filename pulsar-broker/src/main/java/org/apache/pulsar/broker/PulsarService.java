@@ -1703,10 +1703,8 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     }
 
     public String getLookupServiceAddress() {
-        if (lookupServiceAddress == null) {
-            throw new IllegalStateException("lookupServiceAddress is not initialized before start has been called");
-        }
-        return lookupServiceAddress;
+        return Objects.requireNonNull(lookupServiceAddress,
+                "lookupServiceAddress is not initialized before start has been called");
     }
 
     public synchronized void addPrometheusRawMetricsProvider(PrometheusRawMetricsProvider metricsProvider) {

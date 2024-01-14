@@ -102,9 +102,9 @@ public class SLAMonitoringTest {
 
         createTenant(pulsarAdmins[BROKER_COUNT - 1]);
         for (int i = 0; i < BROKER_COUNT; i++) {
-            String topic = String.format("%s/%s/%s", NamespaceService.SLA_NAMESPACE_PROPERTY, "my-cluster",
-                    pulsarServices[i].getLookupServiceAddress());
-            pulsarAdmins[0].namespaces().createNamespace(topic);
+            var namespaceName = NamespaceService.getSLAMonitorNamespace(pulsarServices[i].getLookupServiceAddress(),
+                    pulsarServices[i].getConfig());
+            pulsarAdmins[0].namespaces().createNamespace(namespaceName.toString());
         }
     }
 

@@ -73,6 +73,7 @@ import org.apache.pulsar.PulsarClusterMetadataSetup;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.loadbalance.LeaderBroker;
 import org.apache.pulsar.broker.loadbalance.LeaderElectionService;
 import org.apache.pulsar.broker.loadbalance.extensions.BrokerRegistry;
 import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl;
@@ -429,14 +430,8 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                     new IllegalStateException("Invalid channel state:" + channelState.name()));
         }
 
-        return leaderElectionService.readCurrentLeader().thenApply(leader -> {
-                    if (leader.isPresent()) {
-                        return Optional.of(leader.get().getLookupServiceAddress());
-                    } else {
-                        return Optional.empty();
-                    }
-                }
-        );
+        return leaderElectionService.readCurrentLeader()
+                .thenApply(leader -> leader.map(LeaderBroker::getLookupServiceAddress));
     }
 
     public CompletableFuture<Boolean> isChannelOwnerAsync() {

@@ -82,7 +82,6 @@ public class AdminApiMultiBrokersTest extends MultiBrokerBaseTest {
         log.info("Leader broker is {}", leaderBroker);
         for (PulsarAdmin admin : getAllAdmins()) {
             String lookupServiceAddress = admin.brokers().getLeaderBroker().getLookupServiceAddress();
-            log.info("Pulsar admin get leader broker is {}", lookupServiceAddress);
             assertEquals(leaderBroker.get().getLookupServiceAddress(), lookupServiceAddress);
         }
     }

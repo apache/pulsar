@@ -140,14 +140,12 @@ public class LoadManagerShared {
                 }
             } else {
                 // non-persistent topic can be assigned to only those brokers that enabled for non-persistent topic
-                if (isNonPersistentTopic
-                        && !brokerTopicLoadingPredicate.isEnableNonPersistentTopics(broker)) {
+                if (isNonPersistentTopic && !brokerTopicLoadingPredicate.isEnableNonPersistentTopics(broker)) {
                     if (LOG.isDebugEnabled()) {
                         LOG.debug("Filter broker- [{}] because it doesn't support non-persistent namespace - [{}]",
                                 brokerUrl.getHost(), namespace.toString());
                     }
-                } else if (!isNonPersistentTopic
-                        && !brokerTopicLoadingPredicate.isEnablePersistentTopics(broker)) {
+                } else if (!isNonPersistentTopic && !brokerTopicLoadingPredicate.isEnablePersistentTopics(broker)) {
                     // persistent topic can be assigned to only brokers that enabled for persistent-topic
                     if (LOG.isDebugEnabled()) {
                         LOG.debug("Filter broker- [{}] because broker only supports non-persistent namespace - [{}]",
@@ -232,14 +230,12 @@ public class LoadManagerShared {
                     }
                 } else {
                     // non-persistent topic can be assigned to only those brokers that enabled for non-persistent topic
-                    if (isNonPersistentTopic
-                            && !brokerTopicLoadingPredicate.isEnableNonPersistentTopics(broker)) {
+                    if (isNonPersistentTopic && !brokerTopicLoadingPredicate.isEnableNonPersistentTopics(broker)) {
                         if (LOG.isDebugEnabled()) {
                             LOG.debug("Filter broker- [{}] because it doesn't support non-persistent namespace - [{}]",
                                     broker, namespace.toString());
                         }
-                    } else if (!isNonPersistentTopic
-                            && !brokerTopicLoadingPredicate.isEnablePersistentTopics(broker)) {
+                    } else if (!isNonPersistentTopic && !brokerTopicLoadingPredicate.isEnablePersistentTopics(broker)) {
                         // persistent topic can be assigned to only brokers that enabled for persistent-topic
                         if (LOG.isDebugEnabled()) {
                             LOG.debug("Filter broker- [{}] because broker only supports non-persistent "
