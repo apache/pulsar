@@ -27,6 +27,7 @@ import static org.testng.Assert.fail;
 
 import com.google.common.collect.Lists;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -730,6 +731,59 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
         } else {
             admin.topics().delete(topicName);
         }
+    }
+
+    @Test(timeOut = 240 * 1000, dataProvider = "partitioned")
+    public void testPreciseRegexpSubscribeDisabledTopicWatcher(boolean partitioned) throws Exception {
+        final String topicName = BrokerTestUtil.newUniqueName("persistent://public/default/tp");
+        final String subscriptionName = "s1";
+        final Pattern pattern = Pattern.compile(String.format("%s$", topicName));
+
+        // Close all ServerCnx by close client-side sockets to make the config changes effect.
+        pulsar.getConfig().setEnableBrokerSideSubscriptionPatternEvaluation(false);
+        reconnectAllConnections();
+
+        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+                .topicsPattern(pattern)
+                // Disable brokerSideSubscriptionPatternEvaluation will leading disable topic list watcher.
+                // So set patternAutoDiscoveryPeriod to a little value.
+                .patternAutoDiscoveryPeriod(1)
+                .subscriptionName(subscriptionName)
+                .subscriptionType(SubscriptionType.Shared)
+                .ackTimeout(ackTimeOutMillis, TimeUnit.MILLISECONDS)
+                .receiverQueueSize(4)
+                .subscribe();
+
+        // 1. create topic.
+        if (partitioned) {
+            admin.topics().createPartitionedTopic(topicName, 1);
+        } else {
+            admin.topics().createNonPartitionedTopic(topicName);
+        }
+
+        // 2. verify consumer can subscribe the topic.
+        // Since the minimum value of `patternAutoDiscoveryPeriod` is 60s, we set the test timeout to a triple value.
+        assertSame(pattern, ((PatternMultiTopicsConsumerImpl<?>) consumer).getPattern());
+        Awaitility.await().atMost(Duration.ofMinutes(3)).untilAsserted(() -> {
+            assertEquals(((PatternMultiTopicsConsumerImpl<?>) consumer).getPartitions().size(), 1);
+            assertEquals(((PatternMultiTopicsConsumerImpl<?>) consumer).getConsumers().size(), 1);
+            if (partitioned) {
+                assertEquals(((PatternMultiTopicsConsumerImpl<?>) consumer).getPartitionedTopics().size(), 1);
+            } else {
+                assertEquals(((PatternMultiTopicsConsumerImpl<?>) consumer).getPartitionedTopics().size(), 0);
+            }
+        });
+
+        // cleanup.
+        consumer.close();
+        if (partitioned) {
+            admin.topics().deletePartitionedTopic(topicName);
+        } else {
+            admin.topics().delete(topicName);
+        }
+        // Close all ServerCnx by close client-side sockets to make the config changes effect.
+        pulsar.getConfig().setEnableBrokerSideSubscriptionPatternEvaluation(true);
+        reconnectAllConnections();
     }
 
     private PulsarClient createDelayWatchTopicsClient() throws Exception {
