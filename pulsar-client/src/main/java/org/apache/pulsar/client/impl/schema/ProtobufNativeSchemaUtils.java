@@ -24,6 +24,8 @@ import com.fasterxml.jackson.databind.ObjectReader;
 import com.google.protobuf.Descriptors;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Map;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.SchemaSerializationException;
@@ -152,6 +154,29 @@ public class ProtobufNativeSchemaUtils {
             e.printStackTrace();
             throw new SchemaSerializationException(e);
         }
+    }
+
+    public static Map<String, FileDescriptorProto> getSchemaDependenciesFileDescriptorCache(
+            Descriptors.Descriptor rootDescriptor) {
+        Map<String, FileDescriptorProto> dependenciesFileDescriptorCache = new HashMap<>();
+        serializeFileDescriptor(rootDescriptor.getFile(), dependenciesFileDescriptorCache);
+        return dependenciesFileDescriptorCache;
+    }
+
+    public static void coverAllNestedAndEnumFileDescriptor(FileDescriptorProto fileDescriptorProto,
+                                                           Map<String, List<ProtobufNativeSchema.ProtoBufParsingInfo>>
+                                                                   fileDescriptorCache) {
+        fileDescriptorProto.getMessageTypeList().forEach(descriptorProto -> {
+            List<ProtobufNativeSchema.ProtoBufParsingInfo> protoBufParsingInfoList = new LinkedList<>();
+            descriptorProto.getFieldList().forEach(fieldDescriptorProto -> {
+                protoBufParsingInfoList.add(new ProtobufNativeSchema.ProtoBufParsingInfo(
+                    fieldDescriptorProto.getNumber(), fieldDescriptorProto.getName(),
+                    fieldDescriptorProto.getType().name(), fieldDescriptorProto.getTypeName(),
+                    fieldDescriptorProto.getLabel().name(), null,
+                    fieldDescriptorProto.hasDefaultValue()));
+            });
+            fileDescriptorCache.put(descriptorProto.getName(), protoBufParsingInfoList);
+        });
     }
 
     private static final Logger logger = LoggerFactory.getLogger(ProtobufNativeSchemaUtils.class);
