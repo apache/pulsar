@@ -3518,6 +3518,34 @@ public class PersistentTopicsBase extends AdminResource {
                 });
     }
 
+    protected CompletableFuture<Void> internalSetDispatcherPauseOnAckStatePersistent(boolean isGlobal) {
+        return getTopicPoliciesAsyncWithRetry(topicName, isGlobal)
+            .thenCompose(op -> {
+                TopicPolicies topicPolicies = op.orElseGet(TopicPolicies::new);
+                topicPolicies.setDispatcherPauseOnAckStatePersistentEnabled(true);
+                topicPolicies.setIsGlobal(isGlobal);
+                return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies);
+            });
+    }
+
+    protected CompletableFuture<Void> internalRemoveDispatcherPauseOnAckStatePersistent(boolean isGlobal) {
+        return getTopicPoliciesAsyncWithRetry(topicName, isGlobal)
+            .thenCompose(op -> {
+                if (!op.isPresent()) {
+                    return CompletableFuture.completedFuture(null);
+                }
+                op.get().setDispatcherPauseOnAckStatePersistentEnabled(false);
+                return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, op.get());
+            });
+    }
+
+    protected CompletableFuture<Boolean> internalGetDispatcherPauseOnAckStatePersistent(boolean applied,
+                                                                                        boolean isGlobal) {
+        return getTopicPoliciesAsyncWithRetry(topicName, isGlobal)
+            .thenApply(op -> op.map(TopicPolicies::getDispatcherPauseOnAckStatePersistentEnabled)
+                .orElse(false));
+}
+
     protected CompletableFuture<PersistencePolicies> internalGetPersistence(boolean applied, boolean isGlobal) {
         return getTopicPoliciesAsyncWithRetry(topicName, isGlobal)
             .thenApply(op -> op.map(TopicPolicies::getPersistence)

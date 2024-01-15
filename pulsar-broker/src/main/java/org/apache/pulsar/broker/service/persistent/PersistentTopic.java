@@ -3138,6 +3138,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         applyPoliciesFutureList.add(FutureUtil.runWithCurrentThread(() -> checkPersistencePolicies()));
         applyPoliciesFutureList.add(FutureUtil.runWithCurrentThread(
                 () -> preCreateSubscriptionForCompactionIfNeeded()));
+        applyPoliciesFutureList.add(FutureUtil.runWithCurrentThread(
+                () -> updateBrokerDispatchPauseOnAckStatePersistentEnabled()));
 
         return applyPoliciesFutureList;
     }
@@ -3800,7 +3802,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 if (subscription.getDispatcher() == null) {
                     return;
                 }
-                subscription.getDispatcher().afterAckMessages(null, 0);
+                subscription.getDispatcher().checkAndResumeIfPaused();
             });
         }
     }
