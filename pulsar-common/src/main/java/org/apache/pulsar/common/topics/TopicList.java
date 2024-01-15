@@ -47,14 +47,14 @@ public class TopicList {
     }
     public static List<String> filterTopics(List<String> original, Pattern topicsPattern) {
 
-        final Pattern shortenedTopicsPattern = Pattern.compile(removeTopicDomainSchema(topicsPattern.toString()));
+        final Pattern shortenedTopicsPattern = Pattern.compile(removeTopicDomainScheme(topicsPattern.toString()));
 
         return original.stream()
                 .map(TopicName::get)
                 .filter(topicName -> {
                     String partitionedTopicName = topicName.getPartitionedTopicName();
-                    String removedSchema = SCHEME_SEPARATOR_PATTERN.split(partitionedTopicName)[1];
-                    return shortenedTopicsPattern.matcher(removedSchema).matches();
+                    String removedScheme = SCHEME_SEPARATOR_PATTERN.split(partitionedTopicName)[1];
+                    return shortenedTopicsPattern.matcher(removedScheme).matches();
                 })
                 .map(TopicName::toString)
                 .collect(Collectors.toList());
@@ -82,7 +82,7 @@ public class TopicList {
         return s1;
     }
 
-    private static String removeTopicDomainSchema(String originalRegexp) {
+    private static String removeTopicDomainScheme(String originalRegexp) {
         if (!originalRegexp.toString().contains(SCHEME_SEPARATOR)) {
             return originalRegexp;
         }
