@@ -43,6 +43,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.BitSet;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -68,10 +69,13 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import lombok.Cleanup;
+import org.apache.bookkeeper.client.AsyncCallback.OpenCallback;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.BookKeeper.DigestType;
 import org.apache.bookkeeper.client.LedgerEntry;
+import org.apache.bookkeeper.client.PulsarMockBookKeeper;
+import org.apache.bookkeeper.common.util.OrderedExecutor;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.AddEntryCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteCallback;
@@ -94,6 +98,7 @@ import org.apache.bookkeeper.mledger.proto.MLDataFormats;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedCursorInfo;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.PositionInfo;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
+import org.apache.commons.lang3.mutable.MutableBoolean;
 import org.apache.pulsar.common.api.proto.CommandSubscribe;
 import org.apache.pulsar.common.api.proto.IntRange;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -4482,6 +4487,59 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
         cursor.close();
         ledger.close();
+    }
+
+    @Test
+    void testForceCursorRecovery() throws Exception {
+        ManagedLedgerFactoryConfig managedLedgerFactoryConfig = new ManagedLedgerFactoryConfig();
+        TestPulsarMockBookKeeper bk = new TestPulsarMockBookKeeper(executor);
+        factory = new ManagedLedgerFactoryImpl(metadataStore, bk);
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setLedgerForceRecovery(true);
+        ManagedLedger ledger = factory.open("my_test_ledger", config);
+        ManagedCursorImpl c1 = (ManagedCursorImpl) ledger.openCursor("c1");
+        ledger.addEntry("entry-1".getBytes(Encoding));
+        long invalidLedger = -1L;
+        bk.setErrorCodeMap(invalidLedger, BKException.Code.BookieHandleNotAvailableException);
+        ManagedCursorInfo info = ManagedCursorInfo.newBuilder().setCursorsLedgerId(invalidLedger).build();
+        CountDownLatch latch = new CountDownLatch(1);
+        MutableBoolean recovered = new MutableBoolean(false);
+        VoidCallback callback = new VoidCallback() {
+            @Override
+            public void operationComplete() {
+                recovered.setValue(true);
+                latch.countDown();
+            }
+
+            @Override
+            public void operationFailed(ManagedLedgerException exception) {
+                recovered.setValue(false);
+                latch.countDown();
+            }
+        };
+        c1.recoverFromLedger(info, callback);
+        latch.await();
+        assertTrue(recovered.booleanValue());
+    }
+
+    class TestPulsarMockBookKeeper extends PulsarMockBookKeeper {
+        Map<Long, Integer> ledgerErrors = new HashMap<>();
+
+        public TestPulsarMockBookKeeper(OrderedExecutor orderedExecutor) throws Exception {
+            super(orderedExecutor);
+        }
+
+        public void setErrorCodeMap(long ledgerId, int rc) {
+            ledgerErrors.put(ledgerId, rc);
+        }
+
+        public void asyncOpenLedger(final long lId, final DigestType digestType, final byte[] passwd,
+                final OpenCallback cb, final Object ctx) {
+            if (ledgerErrors.containsKey(lId)) {
+                cb.openComplete(ledgerErrors.get(lId), null, ctx);
+            }
+            super.asyncOpenLedger(lId, digestType, passwd, cb, ctx);
+        }
     }
 
     private static final Logger log = LoggerFactory.getLogger(ManagedCursorTest.class);
