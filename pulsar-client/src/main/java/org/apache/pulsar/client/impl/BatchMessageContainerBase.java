@@ -88,5 +88,5 @@ public interface BatchMessageContainerBase extends BatchMessageContainer {
      *
      * @return the timestamp in nanoseconds or 0L if the batch container is empty
      */
-    long getNanoTimestamp();
+    long getFirstAddedTimestamp();
 }
