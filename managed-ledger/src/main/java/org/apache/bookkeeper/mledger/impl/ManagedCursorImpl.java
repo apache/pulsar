@@ -124,6 +124,9 @@ public class ManagedCursorImpl implements ManagedCursor {
     private final String name;
 
     public static final String CURSOR_INTERNAL_PROPERTY_PREFIX = "#pulsar.internal.";
+    public static final String READ_COMPACTED_CURSOR_PROPERTIES = "__readCompacted";
+
+    private volatile boolean readCompacted = false;
 
     private volatile Map<String, String> cursorProperties;
     private final BookKeeper.DigestType digestType;
@@ -682,7 +685,11 @@ public class ManagedCursorImpl implements ManagedCursor {
                                  LedgerHandle recoveredFromCursorLedger) {
         // if the position was at a ledger that didn't exist (since it will be deleted if it was previously empty),
         // we need to move to the next existing ledger
-        if (!ledger.ledgerExists(position.getLedgerId())) {
+        if (properties.containsKey(READ_COMPACTED_CURSOR_PROPERTIES)) {
+            this.readCompacted = true;
+            log.info("[{}] [{}] Cursor was reading compacted topic", ledger.getName(), name);
+        }
+        if (!ledger.ledgerExists(position.getLedgerId()) && !readCompacted) {
             Long nextExistingLedger = ledger.getNextValidLedger(position.getLedgerId());
             if (nextExistingLedger == null) {
                 log.info("[{}] [{}] Couldn't find next next valid ledger for recovery {}", ledger.getName(), name,
@@ -701,7 +708,7 @@ public class ManagedCursorImpl implements ManagedCursor {
         markDeletePosition = position;
         persistentMarkDeletePosition = position;
         inProgressMarkDeletePersistPosition = null;
-        readPosition = ledger.getNextValidPosition(position);
+        readPosition = readCompacted ? position.getNext() : ledger.getNextValidPosition(position);
         ledger.onCursorReadPositionUpdated(this, readPosition);
         lastMarkDeleteEntry = new MarkDeleteEntry(markDeletePosition, properties, null, null);
         // assign cursor-ledger so, it can be deleted when new ledger will be switched
@@ -2524,7 +2531,8 @@ public class ManagedCursorImpl implements ManagedCursor {
     public void rewind() {
         lock.writeLock().lock();
         try {
-            PositionImpl newReadPosition = ledger.getNextValidPosition(markDeletePosition);
+            PositionImpl newReadPosition =
+                    readCompacted ? markDeletePosition.getNext() : ledger.getNextValidPosition(markDeletePosition);
             PositionImpl oldReadPosition = readPosition;
 
             log.info("[{}-{}] Rewind from {} to {}", ledger.getName(), name, oldReadPosition, newReadPosition);

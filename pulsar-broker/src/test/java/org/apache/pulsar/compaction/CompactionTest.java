@@ -2207,8 +2207,8 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
         Assert.assertEquals(result, List.of("V3", "V4", "V5"));
     }
 
-    @Test(timeOut = 100000)
-    public void testAcknowledge() throws Exception {
+    @Test
+    public void testAcknowledgeWithReconnection() throws Exception {
         final String topicName = "persistent://my-property/use/my-ns/testAcknowledge" + UUID.randomUUID();
         final String subName = "my-sub";
         @Cleanup
@@ -2216,12 +2216,10 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
                 .enableBatching(false).topic(topicName).create();
 
-        pulsarClient.newConsumer().topic(topicName).subscriptionName(subName).readCompacted(true).subscribe().close();
-
-        Map<String, String> expected = new HashMap<>();
+        List<String> expected = new ArrayList<>();
         for (int i = 0; i < 10; i++) {
             producer.newMessage().key(String.valueOf(i)).value(String.valueOf(i)).send();
-            expected.put(String.valueOf(i), String.valueOf(i));
+            expected.add(String.valueOf(i));
         }
         producer.flush();
 
@@ -2232,30 +2230,59 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
                     LongRunningProcessStatus.Status.SUCCESS);
         });
 
+        // trim the topic
+        admin.topics().unload(topicName);
+
+        Awaitility.await().untilAsserted(() -> {
+            PersistentTopicInternalStats internalStats = admin.topics().getInternalStats(topicName, false);
+            assertEquals(internalStats.numberOfEntries, 0);
+        });
+
         ConsumerImpl<String> consumer = (ConsumerImpl<String>) client.newConsumer(Schema.STRING)
                 .topic(topicName).readCompacted(true).receiverQueueSize(1).subscriptionName(subName)
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
                 .isAckReceiptEnabled(true)
                 .subscribe();
 
-        for (int i = 0; i < 10; i++) {
+        List<String> results = new ArrayList<>();
+        for (int i = 0; i < 5; i++) {
             Message<String> message = consumer.receive(3, TimeUnit.SECONDS);
             if (message == null) {
                 break;
             }
 
+            results.add(message.getValue());
             consumer.acknowledge(message);
-            String remove = expected.remove(message.getKey());
-            Assert.assertEquals(remove, message.getValue());
         }
-
-        Awaitility.await().untilAsserted(() ->
-                assertEquals(admin.topics().getStats(topicName, true).getSubscriptions().get(subName).getMsgBacklog(), 0));
 
         // Make consumer reconnect to broker
         admin.topics().unload(topicName);
 
+        for (int i = 0; i < 5; i++) {
+            Message<String> message = consumer.receive(3, TimeUnit.SECONDS);
+            if (message == null) {
+                break;
+            }
+
+            results.add(message.getValue());
+            consumer.acknowledge(message);
+        }
+
+        Assert.assertEquals(results, expected);
+
         Message<String> message = consumer.receive(3, TimeUnit.SECONDS);
         Assert.assertNull(message);
+
+        // Make consumer reconnect to broker
+        admin.topics().unload(topicName);
+
+        producer.newMessage().key("K").value("V").send();
+        Message<String> message2 = consumer.receive(3, TimeUnit.SECONDS);
+        Assert.assertEquals(message2.getValue(), "V");
+        consumer.acknowledge(message2);
+
+        PersistentTopicInternalStats internalStats = admin.topics().getInternalStats(topicName);
+        Assert.assertEquals(internalStats.lastConfirmedEntry, internalStats.cursors.get(subName).markDeletePosition);
 
         consumer.close();
         producer.close();

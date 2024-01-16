@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.service.persistent;
 
 import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.TimeUnit.SECONDS;
+import static org.apache.bookkeeper.mledger.impl.ManagedCursorImpl.READ_COMPACTED_CURSOR_PROPERTIES;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.pulsar.broker.service.persistent.SubscribeRateLimiter.isSubscribeRateEnabled;
 import static org.apache.pulsar.common.naming.SystemTopicNames.isEventSystemTopic;
@@ -945,7 +946,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
             CompletableFuture<? extends Subscription> subscriptionFuture = isDurable ? //
                     getDurableSubscription(subscriptionName, initialPosition, startMessageRollbackDurationSec,
-                            replicatedSubscriptionState, subscriptionProperties)
+                            readCompacted, replicatedSubscriptionState, subscriptionProperties)
                     : getNonDurableSubscription(subscriptionName, startMessageId, initialPosition,
                     startMessageRollbackDurationSec, readCompacted, subscriptionProperties);
 
@@ -1035,7 +1036,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     }
 
     private CompletableFuture<Subscription> getDurableSubscription(String subscriptionName,
-            InitialPosition initialPosition, long startMessageRollbackDurationSec, boolean replicated,
+            InitialPosition initialPosition, long startMessageRollbackDurationSec,
+                                                                   boolean readCompacted, boolean replicated,
                                                                    Map<String, String> subscriptionProperties) {
         CompletableFuture<Subscription> subscriptionFuture = new CompletableFuture<>();
         if (checkMaxSubscriptionsPerTopicExceed(subscriptionName)) {
@@ -1045,6 +1047,10 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         }
 
         Map<String, Long> properties = PersistentSubscription.getBaseCursorProperties(replicated);
+        if (readCompacted) {
+            properties = new HashMap<>(properties);
+            properties.put(READ_COMPACTED_CURSOR_PROPERTIES, 1L);
+        }
 
         ledger.asyncOpenCursor(Codec.encode(subscriptionName), initialPosition, properties, subscriptionProperties,
                 new OpenCursorCallback() {
@@ -1176,7 +1182,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                                                               boolean replicateSubscriptionState,
                                                               Map<String, String> subscriptionProperties) {
         return getDurableSubscription(subscriptionName, initialPosition,
-                0 /*avoid reseting cursor*/, replicateSubscriptionState, subscriptionProperties);
+                0 /*avoid reseting cursor*/, false, replicateSubscriptionState, subscriptionProperties);
     }
 
     /**
