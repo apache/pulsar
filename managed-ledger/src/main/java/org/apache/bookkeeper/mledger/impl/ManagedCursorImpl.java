@@ -2789,29 +2789,22 @@ public class ManagedCursorImpl implements ManagedCursor {
         if (ledgerInfo == null) {
             return;
         }
-        lock.writeLock().lock();
         log.warn("[{}] [{}] Since the ledger [{}] is lost and the autoSkipNonRecoverableData is true, this ledger will"
                 + " be auto acknowledge in subscription", ledger.getName(), name, ledgerId);
-        try {
-            for (int i = 0; i < ledgerInfo.getEntries(); i++) {
-                if (!individualDeletedMessages.contains(ledgerId, i)) {
-                    asyncDelete(PositionImpl.get(ledgerId, i), new AsyncCallbacks.DeleteCallback() {
-                        @Override
-                        public void deleteComplete(Object ctx) {
-                            // ignore.
-                        }
-
-                        @Override
-                        public void deleteFailed(ManagedLedgerException ex, Object ctx) {
-                            // The method internalMarkDelete already handled the failure operation. We only need to
-                            // make sure the memory state is updated.
-                            // If the broker crashed, the non-recoverable ledger will be detected again.
-                        }
-                    }, null);
+        for (int i = 0; i < ledgerInfo.getEntries(); i++) {
+            asyncDelete(PositionImpl.get(ledgerId, i), new AsyncCallbacks.DeleteCallback() {
+                @Override
+                public void deleteComplete(Object ctx) {
+                    // ignore.
                 }
-            }
-        } finally {
-            lock.writeLock().unlock();
+
+                @Override
+                public void deleteFailed(ManagedLedgerException ex, Object ctx) {
+                    // The method internalMarkDelete already handled the failure operation. We only need to
+                    // make sure the memory state is updated.
+                    // If the broker crashed, the non-recoverable ledger will be detected again.
+                }
+            }, null);
         }
     }
 
