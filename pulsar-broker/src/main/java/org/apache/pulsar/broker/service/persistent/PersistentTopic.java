@@ -41,6 +41,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -1049,7 +1050,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
         Map<String, Long> properties = PersistentSubscription.getBaseCursorProperties(replicated);
         if (readCompacted) {
-            properties = new HashMap<>(properties);
+            properties = new TreeMap<>(properties);
             properties.put(READ_COMPACTED_CURSOR_PROPERTIES, 1L);
         }
 
@@ -1077,6 +1078,11 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 if (replicated && !subscription.isReplicated()) {
                     // Flip the subscription state
                     subscription.setReplicated(replicated);
+                }
+                if (readCompacted) {
+                    cursor.putProperty(READ_COMPACTED_CURSOR_PROPERTIES, 1L);
+                } else {
+                    cursor.removeProperty(READ_COMPACTED_CURSOR_PROPERTIES);
                 }
 
                 if (startMessageRollbackDurationSec > 0) {

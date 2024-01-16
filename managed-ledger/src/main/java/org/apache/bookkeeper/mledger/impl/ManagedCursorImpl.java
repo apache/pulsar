@@ -126,8 +126,6 @@ public class ManagedCursorImpl implements ManagedCursor {
     public static final String CURSOR_INTERNAL_PROPERTY_PREFIX = "#pulsar.internal.";
     public static final String READ_COMPACTED_CURSOR_PROPERTIES = "__readCompacted";
 
-    private volatile boolean readCompacted = false;
-
     private volatile Map<String, String> cursorProperties;
     private final BookKeeper.DigestType digestType;
 
@@ -685,9 +683,10 @@ public class ManagedCursorImpl implements ManagedCursor {
                                  LedgerHandle recoveredFromCursorLedger) {
         // if the position was at a ledger that didn't exist (since it will be deleted if it was previously empty),
         // we need to move to the next existing ledger
+        boolean readCompacted = false;
         if (properties.containsKey(READ_COMPACTED_CURSOR_PROPERTIES)) {
-            this.readCompacted = true;
-            log.info("[{}] [{}] Cursor was reading compacted topic", ledger.getName(), name);
+            readCompacted = true;
+            log.info("[{}] Cursor [{}] recovered compacted topic", ledger.getName(), name);
         }
         if (!ledger.ledgerExists(position.getLedgerId()) && !readCompacted) {
             Long nextExistingLedger = ledger.getNextValidLedger(position.getLedgerId());
@@ -2531,8 +2530,8 @@ public class ManagedCursorImpl implements ManagedCursor {
     public void rewind() {
         lock.writeLock().lock();
         try {
-            PositionImpl newReadPosition =
-                    readCompacted ? markDeletePosition.getNext() : ledger.getNextValidPosition(markDeletePosition);
+            PositionImpl newReadPosition = isCursorReadFromCompacted() ? markDeletePosition.getNext() :
+                    ledger.getNextValidPosition(markDeletePosition);
             PositionImpl oldReadPosition = readPosition;
 
             log.info("[{}-{}] Rewind from {} to {}", ledger.getName(), name, oldReadPosition, newReadPosition);
@@ -2542,6 +2541,10 @@ public class ManagedCursorImpl implements ManagedCursor {
         } finally {
             lock.writeLock().unlock();
         }
+    }
+
+    private boolean isCursorReadFromCompacted() {
+        return getProperties().containsKey(READ_COMPACTED_CURSOR_PROPERTIES);
     }
 
     @Override
