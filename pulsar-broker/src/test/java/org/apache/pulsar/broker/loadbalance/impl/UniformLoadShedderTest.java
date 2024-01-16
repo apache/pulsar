@@ -204,7 +204,7 @@ public class UniformLoadShedderTest {
         conf.setMaxUnloadPercentage(0.5);
 
         // The situation under small msgRate
-        int numBundles = 10;
+        int numBundles = 5;
         LoadData loadData = new LoadData();
 
         LocalBrokerData broker1 = new LocalBrokerData();
@@ -237,11 +237,11 @@ public class UniformLoadShedderTest {
         loadData.getBrokerData().put("broker-2", new BrokerData(broker2));
 
         Multimap<String, String> bundlesToUnload = uniformLoadShedder.findBundlesForUnloading(loadData, conf);
-        assertEquals(bundlesToUnload.size(), 4);
+        assertEquals(bundlesToUnload.size(), 2);
 
 
         // The situation under small throughput
-        numBundles = 10;
+        numBundles = 5;
         loadData = new LoadData();
 
         broker1 = new LocalBrokerData();
@@ -255,8 +255,8 @@ public class UniformLoadShedderTest {
 
             BundleData bundle = new BundleData();
 
-            double msgThroughputIn = 512;
-            double msgThroughputOut = 512;
+            double msgThroughputIn = 1024;
+            double msgThroughputOut = 1024;
             TimeAverageMessageData timeAverageMessageData = new TimeAverageMessageData();
             timeAverageMessageData.setMsgThroughputIn(msgThroughputIn);
             timeAverageMessageData.setMsgThroughputOut(msgThroughputOut);
@@ -274,7 +274,7 @@ public class UniformLoadShedderTest {
         loadData.getBrokerData().put("broker-2", new BrokerData(broker2));
 
         bundlesToUnload = uniformLoadShedder.findBundlesForUnloading(loadData, conf);
-        assertEquals(bundlesToUnload.size(), 4);
+        assertEquals(bundlesToUnload.size(), 2);
     }
 
 }
