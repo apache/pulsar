@@ -137,7 +137,7 @@ public class UniformLoadShedder implements LoadSheddingStrategy {
                         brokersData.get(msgRateOverloadedBroker.getValue()).getLocalData();
                 if (overloadedBrokerData.getBundles().size() > 1
                         && (msgRateRequiredFromUnloadedBundles.getValue() >= conf.getMinUnloadMessage())) {
-                    // Sort bundles by throughput, then pick the bundle which can help to reduce load uniformly with
+                    // Sort bundles by msgRate, then pick the bundle which can help to reduce load uniformly with
                     // under-loaded broker
                     loadBundleData.entrySet().stream()
                             .filter(e -> overloadedBrokerData.getBundles().contains(e.getKey()))
