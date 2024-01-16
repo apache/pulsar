@@ -127,6 +127,7 @@ class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
         previousCallback = callback;
         currentBatchSizeBytes += msg.getDataBuffer().readableBytes();
         messages.add(msg);
+        tryUpdateTimestamp();
 
         if (lowestSequenceId == -1L) {
             lowestSequenceId = msg.getSequenceId();
@@ -203,6 +204,7 @@ class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
 
     @Override
     public void clear() {
+        clearTimestamp();
         messages = new ArrayList<>(maxMessagesNum);
         firstCallback = null;
         previousCallback = null;
