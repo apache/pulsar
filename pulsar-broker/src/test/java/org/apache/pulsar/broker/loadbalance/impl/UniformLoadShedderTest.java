@@ -202,6 +202,7 @@ public class UniformLoadShedderTest {
         conf.setMinUnloadMessage(0);
         conf.setMinUnloadMessageThroughput(0);
         conf.setMaxUnloadPercentage(0.5);
+        conf.setMaxUnloadBundleNumPerShedding(-1);
 
         // The situation under small msgRate
         int numBundles = 5;
@@ -241,7 +242,6 @@ public class UniformLoadShedderTest {
 
 
         // The situation under small throughput
-        numBundles = 5;
         loadData = new LoadData();
 
         broker1 = new LocalBrokerData();
