@@ -2190,9 +2190,11 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
         });
 
         @Cleanup
-        Consumer<String> consumer =
-                pulsarClient.newConsumer(Schema.STRING).topic(topicName).subscriptionName(subName).readCompacted(true)
-                        .subscribe();
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING).topic(topicName)
+                .subscriptionName("sub-2")
+                .readCompacted(true)
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                .subscribe();
 
         List<String> result = new ArrayList<>();
         while (true) {
