@@ -911,6 +911,7 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
         admin.transactions().abortTransaction(transaction.getTxnID());
         try {
             pulsar.getTransactionMetadataStoreService().getTxnMeta(transaction.getTxnID()).get();
+            fail();
         } catch (ExecutionException e) {
             assertTrue(e.getCause() instanceof CoordinatorException.TransactionNotFoundException);
         }

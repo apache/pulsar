@@ -409,7 +409,7 @@ public interface Transactions {
     void abortTransaction(TxnID txnID) throws PulsarAdminException;
 
     /**
-     * Asynchronously Abort a transaction.
+     * Asynchronously abort a transaction.
      *
      * @param txnID the txnId
      */
