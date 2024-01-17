@@ -82,7 +82,7 @@ flexible messaging model and an intuitive client API.</description>
     <pulsar.broker.compiler.release>${maven.compiler.target}</pulsar.broker.compiler.release>
     <pulsar.client.compiler.release>8</pulsar.client.compiler.release>
 
-    <pulsar.client.python.version>3.2.0</pulsar.client.python.version>
+    <pulsar.client.python.version>3.4.0</pulsar.client.python.version>
 
     <!--config keys to configure test selection -->
     <include>**/Test*.java,**/*Test.java,**/*Tests.java,**/*TestCase.java</include>
@@ -253,6 +253,7 @@ flexible messaging model and an intuitive client API.</description>
     <!-- test dependencies -->
     <testcontainers.version>1.18.3</testcontainers.version>
     <hamcrest.version>2.2</hamcrest.version>
+    <restassured.version>5.4.0</restassured.version>
 
     <!-- Set docker-java.version to the version of docker-java used in Testcontainers -->
     <docker-java.version>3.3.0</docker-java.version>
@@ -1428,6 +1429,13 @@ flexible messaging model and an intuitive client API.</description>
       </dependency>
 
       <dependency>
+        <groupId>io.rest-assured</groupId>
+        <artifactId>rest-assured</artifactId>
+        <version>${restassured.version}</version>
+        <scope>test</scope>
+      </dependency>
+
+      <dependency>
         <groupId>io.opentelemetry</groupId>
         <artifactId>opentelemetry-bom</artifactId>
         <version>${opentelemetry.version}</version>
@@ -2203,6 +2211,7 @@ flexible messaging model and an intuitive client API.</description>
         <module>managed-ledger</module>
         <module>tiered-storage</module>
         <module>pulsar-common</module>
+        <module>pulsar-bom</module>
         <module>pulsar-broker-common</module>
         <module>pulsar-broker</module>
         <module>pulsar-cli-utils</module>
@@ -2272,6 +2281,7 @@ flexible messaging model and an intuitive client API.</description>
         <module>testmocks</module>
         <module>managed-ledger</module>
         <module>pulsar-common</module>
+        <module>pulsar-bom</module>
         <module>pulsar-broker-common</module>
         <module>pulsar-broker</module>
         <module>pulsar-cli-utils</module>

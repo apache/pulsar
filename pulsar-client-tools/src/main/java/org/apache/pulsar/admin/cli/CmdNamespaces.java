@@ -866,13 +866,19 @@ public class CmdNamespaces extends CmdBase {
         private String bundle;
 
         @Parameter(names = { "--destinationBroker", "-d" },
-                description = "Target brokerWebServiceAddress to which the bundle has to be allocated to")
+                description = "Target brokerWebServiceAddress to which the bundle has to be allocated to. "
+                        + "--destinationBroker cannot be set when --bundle is not specified.")
         private String destinationBroker;
 
         @Override
         void run() throws PulsarAdminException {
             String namespace = validateNamespace(params);
+
+
             if (bundle == null) {
+                if (StringUtils.isNotBlank(destinationBroker)) {
+                    throw new ParameterException("--destinationBroker cannot be set when --bundle is not specified.");
+                }
                 getAdmin().namespaces().unload(namespace);
             } else {
                 getAdmin().namespaces().unloadNamespaceBundle(namespace, bundle, destinationBroker);
