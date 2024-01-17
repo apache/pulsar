@@ -166,7 +166,7 @@ public class BrokersBase extends AdminResource {
                                    @PathParam("clusterName") String cluster,
                                    @PathParam("broker-webserviceurl") String broker) {
         validateSuperUserAccessAsync()
-                .thenAccept(__ -> validateBrokerName(broker))
+                .thenCompose(__ -> maybeRedirectToBroker(broker))
                 .thenCompose(__ -> validateClusterOwnershipAsync(cluster))
                 .thenCompose(__ -> pulsar().getNamespaceService().getOwnedNameSpacesStatusAsync())
                 .thenAccept(asyncResponse::resume)
