@@ -48,7 +48,7 @@ public class UnloadManagerTest {
     @Test
     public void testEventPubFutureHasException() {
         UnloadCounter counter = new UnloadCounter();
-        UnloadManager manager = new UnloadManager(counter, "mockLookupServiceAddress");
+        UnloadManager manager = new UnloadManager(counter, "mockBrokerId");
         var unloadDecision =
                 new UnloadDecision(new Unload("broker-1", "bundle-1"), Success, Admin);
         CompletableFuture<Void> future =
@@ -68,7 +68,7 @@ public class UnloadManagerTest {
     @Test
     public void testTimeout() throws IllegalAccessException {
         UnloadCounter counter = new UnloadCounter();
-        UnloadManager manager = new UnloadManager(counter, "mockLookupServiceAddress");
+        UnloadManager manager = new UnloadManager(counter, "mockBrokerId");
         var unloadDecision =
                 new UnloadDecision(new Unload("broker-1", "bundle-1"), Success, Admin);
         CompletableFuture<Void> future =
@@ -92,7 +92,7 @@ public class UnloadManagerTest {
     @Test
     public void testSuccess() throws IllegalAccessException, ExecutionException, InterruptedException {
         UnloadCounter counter = new UnloadCounter();
-        UnloadManager manager = new UnloadManager(counter, "mockLookupServiceAddress");
+        UnloadManager manager = new UnloadManager(counter, "mockBrokerId");
         var unloadDecision =
                 new UnloadDecision(new Unload("broker-1", "bundle-1"), Success, Admin);
         CompletableFuture<Void> future =
@@ -146,7 +146,7 @@ public class UnloadManagerTest {
     @Test
     public void testFailedStage() throws IllegalAccessException {
         UnloadCounter counter = new UnloadCounter();
-        UnloadManager manager = new UnloadManager(counter, "mockLookupServiceAddress");
+        UnloadManager manager = new UnloadManager(counter, "mockBrokerId");
         var unloadDecision =
                 new UnloadDecision(new Unload("broker-1", "bundle-1"), Success, Admin);
         CompletableFuture<Void> future =
@@ -175,7 +175,7 @@ public class UnloadManagerTest {
     @Test
     public void testClose() throws IllegalAccessException {
         UnloadCounter counter = new UnloadCounter();
-        UnloadManager manager = new UnloadManager(counter, "mockLookupServiceAddress");
+        UnloadManager manager = new UnloadManager(counter, "mockBrokerId");
         var unloadDecision =
                 new UnloadDecision(new Unload("broker-1", "bundle-1"), Success, Admin);
         CompletableFuture<Void> future =

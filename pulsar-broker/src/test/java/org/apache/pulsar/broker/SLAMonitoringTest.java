@@ -102,7 +102,7 @@ public class SLAMonitoringTest {
 
         createTenant(pulsarAdmins[BROKER_COUNT - 1]);
         for (int i = 0; i < BROKER_COUNT; i++) {
-            var namespaceName = NamespaceService.getSLAMonitorNamespace(pulsarServices[i].getLookupServiceAddress(),
+            var namespaceName = NamespaceService.getSLAMonitorNamespace(pulsarServices[i].getBrokerId(),
                     pulsarServices[i].getConfig());
             pulsarAdmins[0].namespaces().createNamespace(namespaceName.toString());
         }
@@ -175,7 +175,7 @@ public class SLAMonitoringTest {
             try {
                 String topic = String.format("persistent://%s/%s/%s/%s",
                         NamespaceService.SLA_NAMESPACE_PROPERTY, "my-cluster",
-                        pulsarServices[i].getLookupServiceAddress(), "my-topic");
+                        pulsarServices[i].getBrokerId(), "my-topic");
                 assertEquals(pulsarAdmins[0].lookups().lookupTopic(topic),
                         "pulsar://" + pulsarServices[i].getAdvertisedAddress() + ":" + brokerNativeBrokerPorts[i]);
             } catch (Exception e) {
@@ -200,7 +200,7 @@ public class SLAMonitoringTest {
         }
 
         String topic = String.format("persistent://%s/%s/%s/%s", NamespaceService.SLA_NAMESPACE_PROPERTY,
-                "my-cluster", pulsarServices[crashIndex].getLookupServiceAddress(),
+                "my-cluster", pulsarServices[crashIndex].getBrokerId(),
                 "my-topic");
 
         log.info("Lookup for namespace {}", topic);

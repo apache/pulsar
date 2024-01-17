@@ -30,12 +30,12 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @NoArgsConstructor
 public class LeaderBroker {
-    private String lookupServiceAddress;
+    private String brokerId;
     private String serviceUrl;
 
-    public String getLookupServiceAddress() {
-        if (lookupServiceAddress != null) {
-            return lookupServiceAddress;
+    public String getBrokerId() {
+        if (brokerId != null) {
+            return brokerId;
         } else {
             // for backward compatibility at runtime with older versions of Pulsar
             return parseHostAndPort(serviceUrl);

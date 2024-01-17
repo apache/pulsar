@@ -116,7 +116,7 @@ public class LeaderElectionServiceTest {
 
         // broker, webService and leaderElectionService is started, and elect is done;
         leaderBrokerReference.set(
-                new LeaderBroker(pulsar.getLookupServiceAddress(), pulsar.getSafeWebServiceAddress()));
+                new LeaderBroker(pulsar.getBrokerId(), pulsar.getSafeWebServiceAddress()));
 
         Producer<byte[]> producer = client.newProducer()
                 .topic("persistent://" + tenant + "/" + namespace + "/1p")

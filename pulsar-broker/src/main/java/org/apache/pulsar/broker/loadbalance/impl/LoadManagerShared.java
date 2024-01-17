@@ -756,9 +756,9 @@ public class LoadManagerShared {
     }
 
     public interface BrokerTopicLoadingPredicate {
-        boolean isEnablePersistentTopics(String brokerLookupServiceAddress);
+        boolean isEnablePersistentTopics(String brokerId);
 
-        boolean isEnableNonPersistentTopics(String brokerLookupServiceAddress);
+        boolean isEnableNonPersistentTopics(String brokerId);
     }
 
     /**

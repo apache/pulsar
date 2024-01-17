@@ -43,7 +43,7 @@ import org.apache.pulsar.policies.data.loadbalancer.LocalBrokerData;
 public class NoopLoadManager implements LoadManager {
 
     private PulsarService pulsar;
-    private String lookupServiceAddress;
+    private String brokerId;
     private ResourceUnit localResourceUnit;
     private LockManager<LocalBrokerData> lockManager;
     private Map<String, String> bundleBrokerAffinityMap;
@@ -57,15 +57,15 @@ public class NoopLoadManager implements LoadManager {
 
     @Override
     public void start() throws PulsarServerException {
-        lookupServiceAddress = pulsar.getLookupServiceAddress();
-        localResourceUnit = new SimpleResourceUnit(lookupServiceAddress, new PulsarResourceDescription());
+        brokerId = pulsar.getBrokerId();
+        localResourceUnit = new SimpleResourceUnit(brokerId, new PulsarResourceDescription());
 
         LocalBrokerData localData = new LocalBrokerData(pulsar.getWebServiceAddress(),
                 pulsar.getWebServiceAddressTls(),
                 pulsar.getBrokerServiceUrl(), pulsar.getBrokerServiceUrlTls(), pulsar.getAdvertisedListeners());
         localData.setProtocols(pulsar.getProtocolDataToAdvertise());
         localData.setLoadManagerClassName(this.pulsar.getConfig().getLoadManagerClassName());
-        String brokerReportPath = LoadManager.LOADBALANCE_BROKERS_ROOT + "/" + lookupServiceAddress;
+        String brokerReportPath = LoadManager.LOADBALANCE_BROKERS_ROOT + "/" + brokerId;
 
         try {
             log.info("Acquiring broker resource lock on {}", brokerReportPath);
@@ -128,12 +128,12 @@ public class NoopLoadManager implements LoadManager {
 
     @Override
     public Set<String> getAvailableBrokers() throws Exception {
-        return Collections.singleton(lookupServiceAddress);
+        return Collections.singleton(brokerId);
     }
 
     @Override
     public CompletableFuture<Set<String>> getAvailableBrokersAsync() {
-        return CompletableFuture.completedFuture(Collections.singleton(lookupServiceAddress));
+        return CompletableFuture.completedFuture(Collections.singleton(brokerId));
     }
 
     @Override

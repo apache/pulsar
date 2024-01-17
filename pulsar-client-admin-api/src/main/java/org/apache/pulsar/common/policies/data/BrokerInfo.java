@@ -25,11 +25,11 @@ import org.apache.pulsar.common.policies.data.impl.BrokerInfoImpl;
  */
 public interface BrokerInfo {
     String getServiceUrl();
-    String getLookupServiceAddress();
+    String getBrokerId();
 
     interface Builder {
         Builder serviceUrl(String serviceUrl);
-        Builder lookupServiceAddress(String lookupServiceAddress);
+        Builder brokerId(String brokerId);
         BrokerInfo build();
     }
 

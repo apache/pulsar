@@ -687,7 +687,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
 
     @Test
     public void testHeartbeatNamespaceMatch() throws Exception {
-        NamespaceName namespaceName = NamespaceService.getHeartbeatNamespace(pulsar.getLookupServiceAddress(), conf);
+        NamespaceName namespaceName = NamespaceService.getHeartbeatNamespace(pulsar.getBrokerId(), conf);
         NamespaceBundle namespaceBundle = pulsar.getNamespaceService().getNamespaceBundleFactory().getFullBundle(namespaceName);
         assertTrue(NamespaceService.isSystemServiceNamespace(
                         NamespaceBundle.getBundleNamespace(namespaceBundle.toString())));
@@ -707,7 +707,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
         Field loadManagerField = NamespaceService.class.getDeclaredField("loadManager");
         loadManagerField.setAccessible(true);
         doReturn(true).when(loadManager).isCentralized();
-        SimpleResourceUnit resourceUnit = new SimpleResourceUnit(pulsar.getLookupServiceAddress(), null);
+        SimpleResourceUnit resourceUnit = new SimpleResourceUnit(pulsar.getBrokerId(), null);
         Optional<ResourceUnit> res = Optional.of(resourceUnit);
         doReturn(res).when(loadManager).getLeastLoaded(any(ServiceUnitId.class));
         loadManagerField.set(pulsar.getNamespaceService(), new AtomicReference<>(loadManager));
@@ -860,10 +860,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
 
     public CompletableFuture<Void> registryBrokerDataChangeNotice() {
         CompletableFuture<Void> completableFuture = new CompletableFuture<>();
-        String lookupServiceAddress = pulsar.getAdvertisedAddress() + ":"
-                + (conf.getWebServicePort().isPresent() ? conf.getWebServicePort().get()
-                : conf.getWebServicePortTls().get());
-        String brokerDataPath = LoadManager.LOADBALANCE_BROKERS_ROOT + "/" + lookupServiceAddress;
+        String brokerDataPath = LoadManager.LOADBALANCE_BROKERS_ROOT + "/" + pulsar.getBrokerId();
         pulsar.getLocalMetadataStore().registerListener(notice -> {
             if (brokerDataPath.equals(notice.getPath())){
                 if (!completableFuture.isDone()) {

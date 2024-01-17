@@ -923,9 +923,9 @@ public abstract class NamespacesBase extends AdminResource {
             return FutureUtil.failedFuture(new RestException(Response.Status.PRECONDITION_FAILED, errorStr));
         }
         LeaderBroker leaderBroker = pulsar().getLeaderElectionService().getCurrentLeader().get();
-        String leaderLookupServiceAddress = leaderBroker.getLookupServiceAddress();
+        String leaderBrokerId = leaderBroker.getBrokerId();
         return pulsar().getNamespaceService()
-                .createLookupResult(leaderLookupServiceAddress, false, null)
+                .createLookupResult(leaderBrokerId, false, null)
                 .thenCompose(lookupResult -> {
                     String redirectUrl = isRequestHttps() ? lookupResult.getLookupData().getHttpUrlTls()
                             : lookupResult.getLookupData().getHttpUrl();

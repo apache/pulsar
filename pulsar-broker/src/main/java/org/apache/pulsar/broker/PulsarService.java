@@ -275,7 +275,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     private TransactionPendingAckStoreProvider transactionPendingAckStoreProvider;
     private final ExecutorProvider transactionExecutorProvider;
     private final DefaultMonotonicSnapshotClock monotonicSnapshotClock;
-    private String lookupServiceAddress;
+    private String brokerId;
 
     public enum State {
         Init, Started, Closing, Closed
@@ -829,8 +829,8 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             this.brokerServiceUrl = brokerUrl(config);
             this.brokerServiceUrlTls = brokerUrlTls(config);
 
-            // the lookup service address is the address used in the load manager to identify the broker
-            this.lookupServiceAddress =
+            // the broker id is used in the load manager to identify the broker
+            this.brokerId =
                     String.format("%s:%s", advertisedAddress, config.getWebServicePortTls().isPresent()
                             ? config.getWebServicePortTls().get()
                             : config.getWebServicePort().orElseThrow());
@@ -1145,7 +1145,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             return;
         }
         this.leaderElectionService =
-                new LeaderElectionService(coordinationService, getLookupServiceAddress(), getSafeWebServiceAddress(),
+                new LeaderElectionService(coordinationService, getBrokerId(), getSafeWebServiceAddress(),
                 state -> {
                     if (state == LeaderElectionState.Leading) {
                         LOG.info("This broker was elected leader");
@@ -1193,7 +1193,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     protected void acquireSLANamespace() {
         try {
             // Namespace not created hence no need to unload it
-            NamespaceName nsName = NamespaceService.getSLAMonitorNamespace(getLookupServiceAddress(), config);
+            NamespaceName nsName = NamespaceService.getSLAMonitorNamespace(getBrokerId(), config);
             if (!this.pulsarResources.getNamespaceResources().namespaceExists(nsName)) {
                 LOG.info("SLA Namespace = {} doesn't exist.", nsName);
                 return;
@@ -1702,9 +1702,9 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         return brokerServiceUrlTls != null ? brokerServiceUrlTls : brokerServiceUrl;
     }
 
-    public String getLookupServiceAddress() {
-        return Objects.requireNonNull(lookupServiceAddress,
-                "lookupServiceAddress is not initialized before start has been called");
+    public String getBrokerId() {
+        return Objects.requireNonNull(brokerId,
+                "brokerId is not initialized before start has been called");
     }
 
     public synchronized void addPrometheusRawMetricsProvider(PrometheusRawMetricsProvider metricsProvider) {

@@ -346,27 +346,27 @@ public class ModularLoadManagerImplTest {
         String bundleRange = admin1.lookups().getBundleRange(topic);
 
         String brokerServiceUrl = pulsar1.getBrokerServiceUrl();
-        String brokerId = pulsar1.getLookupServiceAddress();
+        String brokerId = pulsar1.getBrokerId();
         log.debug("initial broker service url - {}", topicLookup);
         Random rand=new Random();
 
         if (topicLookup.equals(brokerServiceUrl)) {
             int x = rand.nextInt(2);
             if (x == 0) {
-                brokerId = pulsar2.getLookupServiceAddress();
+                brokerId = pulsar2.getBrokerId();
                 brokerServiceUrl = pulsar2.getBrokerServiceUrl();
             }
             else {
-                brokerId = pulsar3.getLookupServiceAddress();
+                brokerId = pulsar3.getBrokerId();
                 brokerServiceUrl = pulsar3.getBrokerServiceUrl();
             }
         }
         log.debug("destination broker service url - {}, broker url - {}", brokerServiceUrl, brokerId);
-        String leaderLookupServiceAddress = admin1.brokers().getLeaderBroker().getLookupServiceAddress();
-        log.debug("leader lookup address - {}, broker1 lookup address - {}", leaderLookupServiceAddress,
-                pulsar1.getLookupServiceAddress());
+        String leaderBrokerId = admin1.brokers().getLeaderBroker().getBrokerId();
+        log.debug("leader lookup address - {}, broker1 lookup address - {}", leaderBrokerId,
+                pulsar1.getBrokerId());
         // Make a call to broker which is not a leader
-        if (!leaderLookupServiceAddress.equals(pulsar1.getLookupServiceAddress())) {
+        if (!leaderBrokerId.equals(pulsar1.getBrokerId())) {
             admin1.namespaces().unloadNamespaceBundle(namespace, bundleRange, brokerId);
         }
         else {
@@ -634,12 +634,12 @@ public class ModularLoadManagerImplTest {
         ServiceUnitId serviceUnit = LoadBalancerTestingUtils.makeBundles(nsFactory, tenant, cluster, namespace, 1)[0];
         BrokerTopicLoadingPredicate brokerTopicLoadingPredicate = new BrokerTopicLoadingPredicate() {
             @Override
-            public boolean isEnablePersistentTopics(String brokerLookupServiceAddress) {
+            public boolean isEnablePersistentTopics(String brokerId) {
                 return true;
             }
 
             @Override
-            public boolean isEnableNonPersistentTopics(String brokerLookupServiceAddress) {
+            public boolean isEnableNonPersistentTopics(String brokerId) {
                 return true;
             }
         };

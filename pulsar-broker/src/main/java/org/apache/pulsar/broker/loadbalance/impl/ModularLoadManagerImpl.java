@@ -208,15 +208,15 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
         this.bundleBrokerAffinityMap = new ConcurrentHashMap<>();
         this.brokerTopicLoadingPredicate = new BrokerTopicLoadingPredicate() {
             @Override
-            public boolean isEnablePersistentTopics(String brokerLookupServiceAddress) {
-                final BrokerData brokerData = loadData.getBrokerData().get(brokerLookupServiceAddress);
+            public boolean isEnablePersistentTopics(String brokerId) {
+                final BrokerData brokerData = loadData.getBrokerData().get(brokerId);
                 return brokerData != null && brokerData.getLocalData() != null
                         && brokerData.getLocalData().isPersistentTopicsEnabled();
             }
 
             @Override
-            public boolean isEnableNonPersistentTopics(String brokerLookupServiceAddress) {
-                final BrokerData brokerData = loadData.getBrokerData().get(brokerLookupServiceAddress);
+            public boolean isEnableNonPersistentTopics(String brokerId) {
+                final BrokerData brokerData = loadData.getBrokerData().get(brokerId);
                 return brokerData != null && brokerData.getLocalData() != null
                         && brokerData.getLocalData().isNonPersistentTopicsEnabled();
             }
@@ -977,14 +977,14 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
             localData.setNonPersistentTopicsEnabled(pulsar.getConfiguration().isEnableNonPersistentTopics());
             localData.setLoadManagerClassName(conf.getLoadManagerClassName());
 
-            String lookupServiceAddress = pulsar.getLookupServiceAddress();
-            brokerZnodePath = LoadManager.LOADBALANCE_BROKERS_ROOT + "/" + lookupServiceAddress;
+            String brokerId = pulsar.getBrokerId();
+            brokerZnodePath = LoadManager.LOADBALANCE_BROKERS_ROOT + "/" + brokerId;
             updateLocalBrokerData();
 
             brokerDataLock = brokersData.acquireLock(brokerZnodePath, localData).join();
             pulsarResources.getLoadBalanceResources()
                     .getBrokerTimeAverageDataResources()
-                    .updateTimeAverageBrokerData(lookupServiceAddress, new TimeAverageBrokerData())
+                    .updateTimeAverageBrokerData(brokerId, new TimeAverageBrokerData())
                     .join();
             updateAll();
         } catch (Exception e) {

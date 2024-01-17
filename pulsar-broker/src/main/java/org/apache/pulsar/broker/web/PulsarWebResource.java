@@ -1207,7 +1207,7 @@ public abstract class PulsarWebResource {
     protected CompletableFuture<Void> maybeRedirectToBroker(String brokerId) {
         // backwards compatibility
         String cleanedBrokerId = brokerId.replaceFirst("http[s]?://", "");
-        if (pulsar.getLookupServiceAddress().equals(cleanedBrokerId)
+        if (pulsar.getBrokerId().equals(cleanedBrokerId)
                 // backwards compatibility
                 || brokerId.equals(pulsar().getWebServiceAddress())
                 || brokerId.equals(pulsar().getWebServiceAddressTls())

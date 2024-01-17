@@ -143,7 +143,7 @@ public class BrokersBase extends AdminResource {
                             .orElseThrow(() -> new RestException(Status.NOT_FOUND, "Couldn't find leader broker"));
                     BrokerInfo brokerInfo = BrokerInfo.builder()
                             .serviceUrl(leaderBroker.getServiceUrl())
-                            .lookupServiceAddress(leaderBroker.getLookupServiceAddress()).build();
+                            .brokerId(leaderBroker.getBrokerId()).build();
                     LOG.info("[{}] Successfully to get the information of the leader broker.", clientAppId());
                     asyncResponse.resume(brokerInfo);
                 })
@@ -398,10 +398,10 @@ public class BrokersBase extends AdminResource {
 
 
     private CompletableFuture<Void> internalRunHealthCheck(TopicVersion topicVersion) {
-        String lookupServiceAddress = pulsar().getLookupServiceAddress();
+        String brokerId = pulsar().getBrokerId();
         NamespaceName namespaceName = (topicVersion == TopicVersion.V2)
-                ? NamespaceService.getHeartbeatNamespaceV2(lookupServiceAddress, pulsar().getConfiguration())
-                : NamespaceService.getHeartbeatNamespace(lookupServiceAddress, pulsar().getConfiguration());
+                ? NamespaceService.getHeartbeatNamespaceV2(brokerId, pulsar().getConfiguration())
+                : NamespaceService.getHeartbeatNamespace(brokerId, pulsar().getConfiguration());
         final String topicName = String.format("persistent://%s/%s", namespaceName, HEALTH_CHECK_TOPIC_SUFFIX);
         LOG.info("[{}] Running healthCheck with topic={}", clientAppId(), topicName);
         final String messageStr = UUID.randomUUID().toString();

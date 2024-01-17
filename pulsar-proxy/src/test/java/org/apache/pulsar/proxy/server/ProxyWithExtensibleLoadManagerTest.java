@@ -142,7 +142,7 @@ public class ProxyWithExtensibleLoadManagerTest extends MultiBrokerBaseTest {
         var srcBrokerUrl = admin.lookups().lookupTopic(topicName.toString());
         return getAllBrokers().stream().
                 filter(pulsarService -> !Objects.equals(srcBrokerUrl, pulsarService.getBrokerServiceUrl())).
-                map(PulsarService::getLookupServiceAddress).
+                map(PulsarService::getBrokerId).
                 findAny().orElseThrow(() -> new Exception("Could not determine destination broker lookup URL"));
     }
 

@@ -35,17 +35,17 @@ public class LeaderElectionService implements AutoCloseable {
     private final LeaderElection<LeaderBroker> leaderElection;
     private final LeaderBroker localValue;
 
-    public LeaderElectionService(CoordinationService cs, String lookupServiceAddress,
+    public LeaderElectionService(CoordinationService cs, String brokerId,
                                  String serviceUrl, Consumer<LeaderElectionState> listener) {
-        this(cs, lookupServiceAddress, serviceUrl, ELECTION_ROOT, listener);
+        this(cs, brokerId, serviceUrl, ELECTION_ROOT, listener);
     }
 
     public LeaderElectionService(CoordinationService cs,
-                                 String lookupServiceAddress,
+                                 String brokerId,
                                  String serviceUrl, String electionRoot,
                                  Consumer<LeaderElectionState> listener) {
         this.leaderElection = cs.getLeaderElection(LeaderBroker.class, electionRoot, listener);
-        this.localValue = new LeaderBroker(lookupServiceAddress, serviceUrl);
+        this.localValue = new LeaderBroker(brokerId, serviceUrl);
     }
 
     public void start() {

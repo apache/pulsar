@@ -249,7 +249,7 @@ public class SimpleLoadManagerImplTest {
         rd.put("bandwidthIn", new ResourceUsage(250 * 1024, 1024 * 1024));
         rd.put("bandwidthOut", new ResourceUsage(550 * 1024, 1024 * 1024));
 
-        ResourceUnit ru1 = new SimpleResourceUnit(pulsar1.getLookupServiceAddress(), rd);
+        ResourceUnit ru1 = new SimpleResourceUnit(pulsar1.getBrokerId(), rd);
         Set<ResourceUnit> rus = new HashSet<>();
         rus.add(ru1);
         LoadRanker lr = new ResourceAvailabilityRanker();
@@ -413,7 +413,7 @@ public class SimpleLoadManagerImplTest {
         final SimpleLoadManagerImpl loadManager = (SimpleLoadManagerImpl) pulsar1.getLoadManager().get();
 
         for (final NamespaceBundle bundle : bundles) {
-            if (loadManager.getLeastLoaded(bundle).get().getResourceId().equals(pulsar1.getLookupServiceAddress())) {
+            if (loadManager.getLeastLoaded(bundle).get().getResourceId().equals(pulsar1.getBrokerId())) {
                 ++numAssignedToPrimary;
             } else {
                 ++numAssignedToSecondary;

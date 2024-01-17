@@ -192,7 +192,7 @@ public class NamespaceService implements AutoCloseable {
                     return findRedirectLookupResultAsync(bundle).thenCompose(optResult -> {
                         if (optResult.isPresent()) {
                             LOG.info("[{}] Redirect lookup request to {} for topic {}",
-                                    pulsar.getLookupServiceAddress(), optResult.get(), topic);
+                                    pulsar.getBrokerId(), optResult.get(), topic);
                             return CompletableFuture.completedFuture(optResult);
                         }
                         if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(config)) {
@@ -298,7 +298,7 @@ public class NamespaceService implements AutoCloseable {
         return findRedirectLookupResultAsync(bundle).thenCompose(optResult -> {
             if (optResult.isPresent()) {
                 LOG.info("[{}] Redirect lookup request to {} for topic {}",
-                        pulsar.getLookupServiceAddress(), optResult.get(), topic);
+                        pulsar.getBrokerId(), optResult.get(), topic);
                 try {
                     LookupData lookupData = optResult.get().getLookupData();
                     final String redirectUrl = options.isRequestHttps()
@@ -338,17 +338,17 @@ public class NamespaceService implements AutoCloseable {
      * @throws PulsarServerException if an unexpected error occurs
      */
     public void registerBootstrapNamespaces() throws PulsarServerException {
-        String lookupServiceAddress = pulsar.getLookupServiceAddress();
+        String brokerId = pulsar.getBrokerId();
         // ensure that we own the heartbeat namespace
-        if (registerNamespace(getHeartbeatNamespace(lookupServiceAddress, config), true)) {
+        if (registerNamespace(getHeartbeatNamespace(brokerId, config), true)) {
             LOG.info("added heartbeat namespace name in local cache: ns={}",
-                    getHeartbeatNamespace(lookupServiceAddress, config));
+                    getHeartbeatNamespace(brokerId, config));
         }
 
         // ensure that we own the heartbeat namespace
-        if (registerNamespace(getHeartbeatNamespaceV2(lookupServiceAddress, config), true)) {
+        if (registerNamespace(getHeartbeatNamespaceV2(brokerId, config), true)) {
             LOG.info("added heartbeat namespace name in local cache: ns={}",
-                    getHeartbeatNamespaceV2(lookupServiceAddress, config));
+                    getHeartbeatNamespaceV2(brokerId, config));
         }
 
         // we may not need strict ownership checking for bootstrap names for now
@@ -540,14 +540,14 @@ public class NamespaceService implements AutoCloseable {
 
                 if (options.isAuthoritative()) {
                     // leader broker already assigned the current broker as owner
-                    candidateBroker = pulsar.getLookupServiceAddress();
+                    candidateBroker = pulsar.getBrokerId();
                 } else {
                     LoadManager loadManager = this.loadManager.get();
                     boolean makeLoadManagerDecisionOnThisBroker = !loadManager.isCentralized() || les.isLeader();
                     if (!makeLoadManagerDecisionOnThisBroker) {
                         // If leader is not active, fallback to pick the least loaded from current broker loadmanager
                         boolean leaderBrokerActive = currentLeader.isPresent()
-                                && isBrokerActive(currentLeader.get().getLookupServiceAddress());
+                                && isBrokerActive(currentLeader.get().getBrokerId());
                         if (!leaderBrokerActive) {
                             makeLoadManagerDecisionOnThisBroker = true;
                             if (currentLeader.isEmpty()) {
@@ -578,7 +578,7 @@ public class NamespaceService implements AutoCloseable {
                         authoritativeRedirect = true;
                     } else {
                         // forward to leader broker to make assignment
-                        candidateBroker = currentLeader.get().getLookupServiceAddress();
+                        candidateBroker = currentLeader.get().getBrokerId();
                     }
                 }
             }
@@ -591,7 +591,7 @@ public class NamespaceService implements AutoCloseable {
         try {
             Objects.requireNonNull(candidateBroker);
 
-            if (candidateBroker.equals(pulsar.getLookupServiceAddress())) {
+            if (candidateBroker.equals(pulsar.getBrokerId())) {
                 // Load manager decided that the local broker should try to become the owner
                 ownershipCache.tryAcquiringOwnership(bundle).thenAccept(ownerInfo -> {
                     if (ownerInfo.isDisabled()) {
@@ -738,7 +738,7 @@ public class NamespaceService implements AutoCloseable {
 
         if (LOG.isDebugEnabled()) {
             LOG.debug("{} : redirecting to the least loaded broker, lookup address={}",
-                    pulsar.getLookupServiceAddress(),
+                    pulsar.getBrokerId(),
                     lookupAddress);
         }
         return Optional.of(lookupAddress);
@@ -1549,7 +1549,7 @@ public class NamespaceService implements AutoCloseable {
     }
 
     public void unloadSLANamespace() throws Exception {
-        NamespaceName namespaceName = getSLAMonitorNamespace(pulsar.getLookupServiceAddress(), config);
+        NamespaceName namespaceName = getSLAMonitorNamespace(pulsar.getBrokerId(), config);
 
         LOG.info("Checking owner for SLA namespace {}", namespaceName);
 
@@ -1632,16 +1632,16 @@ public class NamespaceService implements AutoCloseable {
     }
 
     public boolean registerSLANamespace() throws PulsarServerException {
-        String lookupServiceAddress = pulsar.getLookupServiceAddress();
-        boolean isNameSpaceRegistered = registerNamespace(getSLAMonitorNamespace(lookupServiceAddress, config), false);
+        String brokerId = pulsar.getBrokerId();
+        boolean isNameSpaceRegistered = registerNamespace(getSLAMonitorNamespace(brokerId, config), false);
         if (isNameSpaceRegistered) {
             if (LOG.isDebugEnabled()) {
                 LOG.debug("Added SLA Monitoring namespace name in local cache: ns={}",
-                        getSLAMonitorNamespace(lookupServiceAddress, config));
+                        getSLAMonitorNamespace(brokerId, config));
             }
         } else if (LOG.isDebugEnabled()) {
             LOG.debug("SLA Monitoring not owned by the broker: ns={}",
-                    getSLAMonitorNamespace(lookupServiceAddress, config));
+                    getSLAMonitorNamespace(brokerId, config));
         }
         return isNameSpaceRegistered;
     }

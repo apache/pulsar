@@ -125,7 +125,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
     private final ServiceConfiguration config;
     private final Schema<ServiceUnitStateData> schema;
     private final Map<String, CompletableFuture<String>> getOwnerRequests;
-    private final String lookupServiceAddress;
+    private final String brokerId;
     private final Map<String, CompletableFuture<Void>> cleanupJobs;
     private final StateChangeListeners stateChangeListeners;
     private ExtensibleLoadManagerImpl loadManager;
@@ -201,7 +201,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
     public ServiceUnitStateChannelImpl(PulsarService pulsar) {
         this.pulsar = pulsar;
         this.config = pulsar.getConfig();
-        this.lookupServiceAddress = pulsar.getLookupServiceAddress();
+        this.brokerId = pulsar.getBrokerId();
         this.schema = Schema.JSON(ServiceUnitStateData.class);
         this.getOwnerRequests = new ConcurrentHashMap<>();
         this.cleanupJobs = new ConcurrentHashMap<>();
@@ -249,7 +249,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                             },
                             0, ownershipMonitorDelayTimeInSecs, SECONDS);
             log.info("This leader broker:{} started the ownership monitor.",
-                    lookupServiceAddress);
+                    brokerId);
         }
     }
 
@@ -258,13 +258,13 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
             monitorTask.cancel(false);
             monitorTask = null;
             log.info("This previous leader broker:{} stopped the ownership monitor.",
-                    lookupServiceAddress);
+                    brokerId);
         }
     }
 
     @Override
     public void cleanOwnerships() {
-        doCleanup(lookupServiceAddress);
+        doCleanup(brokerId);
     }
 
     public synchronized void start() throws PulsarServerException {
@@ -431,7 +431,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         }
 
         return leaderElectionService.readCurrentLeader()
-                .thenApply(leader -> leader.map(LeaderBroker::getLookupServiceAddress));
+                .thenApply(leader -> leader.map(LeaderBroker::getBrokerId));
     }
 
     public CompletableFuture<Boolean> isChannelOwnerAsync() {
@@ -473,7 +473,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
     }
 
     public boolean isOwner(String serviceUnit) {
-        return isOwner(serviceUnit, lookupServiceAddress);
+        return isOwner(serviceUnit, brokerId);
     }
 
     private CompletableFuture<Optional<String>> getActiveOwnerAsync(
@@ -661,7 +661,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         long totalHandledRequests = getHandlerTotalCounter(data).incrementAndGet();
         if (debug()) {
             log.info("{} received a handle request for serviceUnit:{}, data:{}. totalHandledRequests:{}",
-                    lookupServiceAddress, serviceUnit, data, totalHandledRequests);
+                    brokerId, serviceUnit, data, totalHandledRequests);
         }
 
         ServiceUnitState state = state(data);
@@ -725,7 +725,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                 long handlerFailureCount = getHandlerFailureCounter(data).get();
                 log.info("{} handled {} event for serviceUnit:{}, cur:{}, next:{}, "
                                 + "totalHandledRequests:{}, totalFailedRequests:{}",
-                        lookupServiceAddress, getLogEventTag(data), serviceUnit,
+                        brokerId, getLogEventTag(data), serviceUnit,
                         data == null ? "" : data,
                         next == null ? "" : next,
                         handlerTotalCount, handlerFailureCount
@@ -736,7 +736,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
             long handlerFailureCount = getHandlerFailureCounter(data).incrementAndGet();
             log.error("{} failed to handle {} event for serviceUnit:{}, cur:{}, next:{}, "
                             + "totalHandledRequests:{}, totalFailedRequests:{}",
-                    lookupServiceAddress, getLogEventTag(data), serviceUnit,
+                    brokerId, getLogEventTag(data), serviceUnit,
                     data == null ? "" : data,
                     next == null ? "" : next,
                     handlerTotalCount, handlerFailureCount,
@@ -879,7 +879,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         if (broker == null) {
             return false;
         }
-        return broker.equals(lookupServiceAddress);
+        return broker.equals(brokerId);
     }
 
     private CompletableFuture<String> deferGetOwnerRequest(String serviceUnit) {
@@ -1285,7 +1285,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                     MILLISECONDS.sleep(OWNERSHIP_CLEAN_UP_WAIT_RETRY_DELAY_IN_MILLIS);
                 } catch (InterruptedException e) {
                     log.warn("Interrupted while delaying the next service unit clean-up. Cleaning broker:{}",
-                            lookupServiceAddress);
+                            brokerId);
                 }
             }
         }

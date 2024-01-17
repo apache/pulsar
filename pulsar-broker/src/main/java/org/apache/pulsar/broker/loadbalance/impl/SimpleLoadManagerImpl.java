@@ -211,15 +211,15 @@ public class SimpleLoadManagerImpl implements LoadManager, Consumer<Notification
                         .build();
         this.brokerTopicLoadingPredicate = new BrokerTopicLoadingPredicate() {
             @Override
-            public boolean isEnablePersistentTopics(String brokerLookupServiceAddress) {
-                ResourceUnit ru = new SimpleResourceUnit(brokerLookupServiceAddress, new PulsarResourceDescription());
+            public boolean isEnablePersistentTopics(String brokerId) {
+                ResourceUnit ru = new SimpleResourceUnit(brokerId, new PulsarResourceDescription());
                 LoadReport loadReport = currentLoadReports.get(ru);
                 return loadReport != null && loadReport.isPersistentTopicsEnabled();
             }
 
             @Override
-            public boolean isEnableNonPersistentTopics(String brokerLookupServiceAddress) {
-                ResourceUnit ru = new SimpleResourceUnit(brokerLookupServiceAddress, new PulsarResourceDescription());
+            public boolean isEnableNonPersistentTopics(String brokerId) {
+                ResourceUnit ru = new SimpleResourceUnit(brokerId, new PulsarResourceDescription());
                 LoadReport loadReport = currentLoadReports.get(ru);
                 return loadReport != null && loadReport.isNonPersistentTopicsEnabled();
             }
@@ -266,8 +266,8 @@ public class SimpleLoadManagerImpl implements LoadManager, Consumer<Notification
     @Override
     public void start() throws PulsarServerException {
         // Register the brokers in metadata store
-        String lookupServiceAddress = pulsar.getLookupServiceAddress();
-        String brokerLockPath = LOADBALANCE_BROKERS_ROOT + "/" + lookupServiceAddress;
+        String brokerId = pulsar.getBrokerId();
+        String brokerLockPath = LOADBALANCE_BROKERS_ROOT + "/" + brokerId;
 
         try {
             LoadReport loadReport = null;
@@ -701,7 +701,7 @@ public class SimpleLoadManagerImpl implements LoadManager, Consumer<Notification
                 }
 
                 // update metrics
-                if (resourceUnit.getResourceId().equals(pulsar.getLookupServiceAddress())) {
+                if (resourceUnit.getResourceId().equals(pulsar.getBrokerId())) {
                     updateLoadBalancingMetrics(pulsar.getAdvertisedAddress(), finalRank, ranking);
                 }
             }
@@ -710,7 +710,7 @@ public class SimpleLoadManagerImpl implements LoadManager, Consumer<Notification
             this.resourceUnitRankings = newResourceUnitRankings;
         } else {
             log.info("Leader broker[{}] No ResourceUnits to rank this run, Using Old Ranking",
-                    pulsar.getLookupServiceAddress());
+                    pulsar.getBrokerId());
         }
     }
 
@@ -1075,7 +1075,7 @@ public class SimpleLoadManagerImpl implements LoadManager, Consumer<Notification
                 loadReport.setProtocols(pulsar.getProtocolDataToAdvertise());
                 loadReport.setNonPersistentTopicsEnabled(pulsar.getConfiguration().isEnableNonPersistentTopics());
                 loadReport.setPersistentTopicsEnabled(pulsar.getConfiguration().isEnablePersistentTopics());
-                loadReport.setName(pulsar.getLookupServiceAddress());
+                loadReport.setName(pulsar.getBrokerId());
                 loadReport.setBrokerVersionString(pulsar.getBrokerVersion());
 
                 SystemResourceUsage systemResourceUsage = this.getSystemResourceUsage();
