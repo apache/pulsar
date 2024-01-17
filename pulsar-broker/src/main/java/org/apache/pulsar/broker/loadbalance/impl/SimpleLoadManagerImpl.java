@@ -653,7 +653,6 @@ public class SimpleLoadManagerImpl implements LoadManager, Consumer<Notification
      */
     private synchronized void doLoadRanking() {
         ResourceUnitRanking.setCpuUsageByMsgRate(this.realtimeCpuLoadFactor);
-        String hostname = pulsar.getAdvertisedAddress();
         String strategy = this.getLoadBalancerPlacementStrategy();
         log.info("doLoadRanking - load balancing strategy: {}", strategy);
         if (!currentLoadReports.isEmpty()) {
@@ -702,8 +701,8 @@ public class SimpleLoadManagerImpl implements LoadManager, Consumer<Notification
                 }
 
                 // update metrics
-                if (resourceUnit.getResourceId().startsWith(hostname + ":")) {
-                    updateLoadBalancingMetrics(hostname, finalRank, ranking);
+                if (resourceUnit.getResourceId().equals(pulsar.getLookupServiceAddress())) {
+                    updateLoadBalancingMetrics(pulsar.getAdvertisedAddress(), finalRank, ranking);
                 }
             }
             updateBrokerToNamespaceToBundle();
