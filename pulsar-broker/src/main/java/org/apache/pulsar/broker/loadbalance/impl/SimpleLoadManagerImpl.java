@@ -1452,7 +1452,6 @@ public class SimpleLoadManagerImpl implements LoadManager, Consumer<Notification
         if (StringUtils.isBlank(broker)) {
             return this.bundleBrokerAffinityMap.remove(bundle);
         }
-        broker = broker.replaceFirst("http[s]?://", "");
         return this.bundleBrokerAffinityMap.put(bundle, broker);
     }
 

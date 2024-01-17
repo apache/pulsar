@@ -984,8 +984,11 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     public CompletableFuture<Void> internalUnloadNamespaceBundleAsync(String bundleRange,
-                                                                      String destinationBroker,
+                                                                      String destinationBrokerParam,
                                                                       boolean authoritative) {
+        String destinationBroker = StringUtils.isBlank(destinationBrokerParam) ? null :
+                // ensure backward compatibility: strip the possible http:// or https:// prefix
+                destinationBrokerParam.replaceFirst("http[s]?://", "");
         return validateSuperUserAccessAsync()
                 .thenCompose(__ -> setNamespaceBundleAffinityAsync(bundleRange, destinationBroker))
                 .thenAccept(__ -> {

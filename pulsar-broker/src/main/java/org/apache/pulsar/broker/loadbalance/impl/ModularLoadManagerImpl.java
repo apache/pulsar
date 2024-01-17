@@ -1212,7 +1212,6 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
         if (StringUtils.isBlank(broker)) {
             return this.bundleBrokerAffinityMap.remove(bundle);
         }
-        broker = broker.replaceFirst("http[s]?://", "");
         return this.bundleBrokerAffinityMap.put(bundle, broker);
     }
 }
