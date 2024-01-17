@@ -1351,6 +1351,10 @@ public class NamespaceService implements AutoCloseable {
     }
 
     public CompletableFuture<Boolean> checkTopicExists(TopicName topic) {
+        if (NamespaceService.isSystemServiceNamespace(topic.getNamespace())) {
+            return CompletableFuture.completedFuture(true);
+        }
+
         CompletableFuture<Boolean> future;
         // If the topic is persistent and the name includes `-partition-`, find the topic from the managed/ledger.
         if (topic.isPersistent() && topic.isPartitioned()) {
@@ -1368,10 +1372,20 @@ public class NamespaceService implements AutoCloseable {
                     .fetchPartitionedTopicMetadataAsync(TopicName.get(topic.getPartitionedTopicName()))
                     .thenCompose(metadata -> {
                         if (metadata.partitions > 0) {
-                            return CompletableFuture.completedFuture(true);
+                            if (topic.isPersistent()) {
+                                // Configuration store and local store are different.
+                                // The metadata exists in the configuration store and the partitions exist
+                                // in the local store.
+                                return pulsar.getPulsarResources().getTopicResources()
+                                        .persistentTopicExists(topic.getPartition(metadata.partitions - 1));
+                            } else {
+                                // The non-persistent topic only have metadata.
+                                return CompletableFuture.completedFuture(true);
+                            }
                         }
 
                         if (topic.isPersistent()) {
+                            // The Topic is a non-partitioned topic.
                             return pulsar.getPulsarResources().getTopicResources().persistentTopicExists(topic);
                         } else {
                             // The non-partitioned non-persistent topic only exist in the broker topics.
