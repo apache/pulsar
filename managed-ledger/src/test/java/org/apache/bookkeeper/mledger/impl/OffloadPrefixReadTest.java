@@ -181,9 +181,9 @@ public class OffloadPrefixReadTest extends MockedBookKeeperTestCase {
         promise.join();
 
         // assert bk ledger is deleted
-        assertEventuallyTrue(() -> !bkc.getLedgers().contains(firstLedger.getLedgerId()));
+        assertEventuallyTrue(() -> bkc.getLedgers().contains(firstLedger.getLedgerId()));
+        Assert.assertFalse(ledger.getLedgersInfoAsList().get(0).getOffloadContext().getBookkeeperDeleted());
         assertEventuallyTrue(() -> !bkc.getLedgers().contains(secondLedger.getLedgerId()));
-        Assert.assertTrue(ledger.getLedgersInfoAsList().get(0).getOffloadContext().getBookkeeperDeleted());
         Assert.assertTrue(ledger.getLedgersInfoAsList().get(1).getOffloadContext().getBookkeeperDeleted());
 
         for (Entry e : cursor.readEntries(10)) {
@@ -196,6 +196,244 @@ public class OffloadPrefixReadTest extends MockedBookKeeperTestCase {
         verify(offloader).readOffloaded(anyLong(), eq(secondLedgerUUID), anyMap());
 
     }
+
+    @Test
+    public void testBookkeeperFirstWhenLedgerTrim() throws Exception {
+        MockLedgerOffloader offloader = spy(MockLedgerOffloader.class);
+        MockClock clock = new MockClock();
+        // set bk first read priority
+        offloader.getOffloadPolicies()
+                .setManagedLedgerOffloadedReadPriority(OffloadedReadPriority.BOOKKEEPER_FIRST);
+        //delete after 2 minutes
+        offloader.getOffloadPolicies()
+                .setManagedLedgerOffloadDeletionLagInMillis(120000L);
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setMaxEntriesPerLedger(10);
+        config.setMinimumRolloverTime(0, TimeUnit.SECONDS);
+        config.setRetentionTime(10, TimeUnit.MINUTES);
+        config.setRetentionSizeInMB(10);
+        config.setLedgerOffloader(offloader);
+        config.setClock(clock);
+
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("offload_read_when_trim_test_ledger", config);
+        for (int i = 0; i < 25; i++) {
+            String content = "entry-" + i;
+            ledger.addEntry(content.getBytes());
+        }
+        assertEquals(ledger.getLedgersInfoAsList().size(), 3);
+
+        ledger.offloadPrefix(ledger.getLastConfirmedEntry());
+
+        assertEquals(ledger.getLedgersInfoAsList().size(), 3);
+        assertEquals(ledger.getLedgersInfoAsList().stream()
+                .filter(e -> e.getOffloadContext().getComplete()).count(), 2);
+
+        LedgerInfo firstLedger = ledger.getLedgersInfoAsList().get(0);
+        Assert.assertTrue(firstLedger.getOffloadContext().getComplete());
+        UUID firstLedgerUUID = new UUID(firstLedger.getOffloadContext().getUidMsb(),
+                firstLedger.getOffloadContext().getUidLsb());
+        PositionImpl startOfFirstLedger = PositionImpl.get(firstLedger.getLedgerId(), -1);
+
+        LedgerInfo secondLedger;
+        secondLedger = ledger.getLedgersInfoAsList().get(1);
+        Assert.assertTrue(secondLedger.getOffloadContext().getComplete());
+        UUID secondLedgerUUID = new UUID(secondLedger.getOffloadContext().getUidMsb(),
+                secondLedger.getOffloadContext().getUidLsb());
+        PositionImpl startOfSecondLedger = PositionImpl.get(secondLedger.getLedgerId(), -1);
+
+        LedgerInfo thirdLedger;
+        thirdLedger = ledger.getLedgersInfoAsList().get(2);
+        Assert.assertFalse(thirdLedger.getOffloadContext().getComplete());
+        PositionImpl startOfThirdLedger = PositionImpl.get(thirdLedger.getLedgerId(), -1);
+
+        ManagedCursor cursor1 = ledger.newNonDurableCursor(startOfFirstLedger);
+        int i = 0;
+        // Cursor1 move to the middle of first ledger.
+        for (Entry e : cursor1.readEntries(5)) {
+            Assert.assertEquals(new String(e.getData()), "entry-" + i++);
+        }
+
+        ManagedCursor cursor2 = ledger.newNonDurableCursor(startOfSecondLedger);
+        int j = 10;
+        // Cursor2 move to third ledger.
+        for (Entry e : cursor2.readEntries(11)) {
+            Assert.assertEquals(new String(e.getData()), "entry-" + j++);
+        }
+
+        ManagedCursor cursor3 = ledger.newNonDurableCursor(startOfThirdLedger);
+        int k = 20;
+        // Cursor3 move to the middle of third ledger.
+        for (Entry e : cursor3.readEntries(5)) {
+            Assert.assertEquals(new String(e.getData()), "entry-" + k++);
+        }
+
+        assertEquals(ledger.ledgerCache.size(), 2);
+
+        assertEventuallyTrue(() -> bkc.getLedgers().contains(firstLedger.getLedgerId()));
+        assertEventuallyTrue(() -> bkc.getLedgers().contains(secondLedger.getLedgerId()));
+        assertEventuallyTrue(() -> bkc.getLedgers().contains(thirdLedger.getLedgerId()));
+        clock.advance(3, TimeUnit.MINUTES);
+        CompletableFuture<Void> promise = new CompletableFuture<>();
+        // trimming, delete offload message from bookkeeper
+        ledger.internalTrimConsumedLedgers(promise);
+        promise.join();
+        // cursor1's read position on first ledger, first ledger need not add to offloadedLedgersToDelete list.
+        assertEventuallyTrue(() -> bkc.getLedgers().contains(firstLedger.getLedgerId()));
+        Assert.assertFalse(ledger.getLedgersInfoAsList().get(0).getOffloadContext().getBookkeeperDeleted());
+
+        // has no cursor's read position on second ledger, it should be deleted.
+        assertEventuallyTrue(() -> !bkc.getLedgers().contains(secondLedger.getLedgerId()));
+        Assert.assertTrue(ledger.getLedgersInfoAsList().get(1).getOffloadContext().getBookkeeperDeleted());
+
+        assertEquals(ledger.ledgerCache.size(), 1);
+        assertEquals(ledger.ledgerCache.get(firstLedger.getLedgerId()).get().getId(), firstLedger.getLedgerId());
+
+
+
+        // cursor1 continue to consume,read first ledger from BK, read second ledger from tiered-storage
+        for (Entry e : cursor1.readEntries(10)) {
+            Assert.assertEquals(new String(e.getData()), "entry-" + i++);
+        }
+        verify(offloader, never())
+                .readOffloaded(anyLong(), eq(firstLedgerUUID), anyMap());
+        verify(offloader, atLeastOnce())
+                .readOffloaded(anyLong(), eq(secondLedgerUUID), anyMap());
+
+        // Delete offload message from bookkeeper
+        ledger.internalTrimConsumedLedgers(promise);
+        promise.join();
+
+        // no read position on first ledger, should delete from BK
+        assertEventuallyTrue(() -> !bkc.getLedgers().contains(firstLedger.getLedgerId()));
+        Assert.assertTrue(ledger.getLedgersInfoAsList().get(0).getOffloadContext().getBookkeeperDeleted());
+
+        assertEquals(ledger.ledgerCache.size(), 1);
+        assertEquals(ledger.ledgerCache.get(secondLedger.getLedgerId()).get().getId(), secondLedger.getLedgerId());
+
+        // Seek to start position of first ledger, for offloaded ledger has deleted from bookkeeper, they should be
+        // read from offloader.
+        cursor1.seek(startOfFirstLedger);
+        int y = 0;
+        for (Entry e : cursor1.readEntries(5)) {
+            Assert.assertEquals(new String(e.getData()), "entry-" + y++);
+        }
+        verify(offloader, atLeastOnce())
+                .readOffloaded(anyLong(), eq(firstLedgerUUID), anyMap());
+    }
+
+
+    @Test
+    public void testTieredStorageFirstWhenLedgerTrim() throws Exception {
+        MockLedgerOffloader offloader = spy(MockLedgerOffloader.class);
+        MockClock clock = new MockClock();
+        // set tiered-storage first read priority
+        offloader.getOffloadPolicies()
+                .setManagedLedgerOffloadedReadPriority(OffloadedReadPriority.TIERED_STORAGE_FIRST);
+        //delete after 2 minutes
+        offloader.getOffloadPolicies()
+                .setManagedLedgerOffloadDeletionLagInMillis(120000L);
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setMaxEntriesPerLedger(10);
+        config.setMinimumRolloverTime(0, TimeUnit.SECONDS);
+        config.setRetentionTime(10, TimeUnit.MINUTES);
+        config.setRetentionSizeInMB(10);
+        config.setLedgerOffloader(offloader);
+        config.setClock(clock);
+
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("offload_read_when_trim_test_ledger", config);
+        for (int i = 0; i < 25; i++) {
+            String content = "entry-" + i;
+            ledger.addEntry(content.getBytes());
+        }
+        assertEquals(ledger.getLedgersInfoAsList().size(), 3);
+
+        ledger.offloadPrefix(ledger.getLastConfirmedEntry());
+
+        assertEquals(ledger.getLedgersInfoAsList().size(), 3);
+        assertEquals(ledger.getLedgersInfoAsList().stream()
+                .filter(e -> e.getOffloadContext().getComplete()).count(), 2);
+
+        LedgerInfo firstLedger = ledger.getLedgersInfoAsList().get(0);
+        Assert.assertTrue(firstLedger.getOffloadContext().getComplete());
+        UUID firstLedgerUUID = new UUID(firstLedger.getOffloadContext().getUidMsb(),
+                firstLedger.getOffloadContext().getUidLsb());
+        PositionImpl startOfFirstLedger = PositionImpl.get(firstLedger.getLedgerId(), -1);
+
+        LedgerInfo secondLedger;
+        secondLedger = ledger.getLedgersInfoAsList().get(1);
+        Assert.assertTrue(secondLedger.getOffloadContext().getComplete());
+        UUID secondLedgerUUID = new UUID(secondLedger.getOffloadContext().getUidMsb(),
+                secondLedger.getOffloadContext().getUidLsb());
+        PositionImpl startOfSecondLedger = PositionImpl.get(secondLedger.getLedgerId(), -1);
+
+        LedgerInfo thirdLedger;
+        thirdLedger = ledger.getLedgersInfoAsList().get(2);
+        Assert.assertFalse(thirdLedger.getOffloadContext().getComplete());
+        PositionImpl startOfThirdLedger = PositionImpl.get(thirdLedger.getLedgerId(), -1);
+
+        ManagedCursor cursor1 = ledger.newNonDurableCursor(PositionImpl.EARLIEST);
+        int i = 0;
+        // Cursor move to the middle of first ledger.
+        for (Entry e : cursor1.readEntries(5)) {
+            Assert.assertEquals(new String(e.getData()), "entry-" + i++);
+        }
+        // Because TieredStorage-First, they should be read from TieredStorage.
+        verify(offloader, atLeastOnce())
+                .readOffloaded(anyLong(), eq(firstLedgerUUID), anyMap());
+
+
+        ManagedCursor cursor2 = ledger.newNonDurableCursor(startOfSecondLedger);
+        int j = 10;
+        // Cursor move to the middle of second ledger.
+        for (Entry e : cursor2.readEntries(5)) {
+            Assert.assertEquals(new String(e.getData()), "entry-" + j++);
+        }
+
+        ManagedCursor cursor3 = ledger.newNonDurableCursor(startOfThirdLedger);
+        int k = 20;
+        // Cursor move to the middle of third ledger.
+        for (Entry e : cursor3.readEntries(5)) {
+            Assert.assertEquals(new String(e.getData()), "entry-" + k++);
+        }
+
+        assertEquals(ledger.ledgerCache.size(), 2);
+
+        assertEventuallyTrue(() -> bkc.getLedgers().contains(firstLedger.getLedgerId()));
+        assertEventuallyTrue(() -> bkc.getLedgers().contains(secondLedger.getLedgerId()));
+        clock.advance(3, TimeUnit.MINUTES);
+        CompletableFuture<Void> promise = new CompletableFuture<>();
+        // trimming, delete offload message from bookkeeper
+        ledger.internalTrimConsumedLedgers(promise);
+        promise.join();
+
+        // TIERED_STORAGE_FIRST, ledger in BookKeeper should be deleted.
+        assertEventuallyTrue(() -> !bkc.getLedgers().contains(firstLedger.getLedgerId()));
+        Assert.assertTrue(ledger.getLedgersInfoAsList().get(0).getOffloadContext().getBookkeeperDeleted());
+
+        assertEventuallyTrue(() -> !bkc.getLedgers().contains(secondLedger.getLedgerId()));
+        Assert.assertTrue(ledger.getLedgersInfoAsList().get(1).getOffloadContext().getBookkeeperDeleted());
+
+        // The ledgerHandle from TieredStorage should not be invalidated in TieredStorage-First case.
+        assertEquals(ledger.ledgerCache.size(), 2);
+        assertEquals(ledger.ledgerCache.get(firstLedger.getLedgerId()).get().getId(), firstLedger.getLedgerId());
+        assertEquals(ledger.ledgerCache.get(secondLedger.getLedgerId()).get().getId(), secondLedger.getLedgerId());
+
+
+        // cursor1 continue to consume,read first ledger and second ledger from tiered-storage
+        for (Entry e : cursor1.readEntries(10)) {
+            Assert.assertEquals(new String(e.getData()), "entry-" + i++);
+        }
+        assertEquals(ledger.ledgerCache.size(), 2);
+
+        ledger.internalTrimConsumedLedgers(promise);
+        promise.join();
+
+        // releaseReadHandleIfNoLongerRead, invalidate first ledger's readHandle
+        assertEquals(ledger.ledgerCache.size(), 1);
+        assertEquals(ledger.ledgerCache.get(secondLedger.getLedgerId()).get().getId(), secondLedger.getLedgerId());
+    }
+
+
 
 
     static class MockLedgerOffloader implements LedgerOffloader {
