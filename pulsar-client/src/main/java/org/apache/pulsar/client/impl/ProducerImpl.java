@@ -279,6 +279,18 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         grabCnx();
     }
 
+    private void executeCallback(Runnable command) {
+        client.getInternalExecutorService().execute(command);
+    }
+
+    private void onProducerCreateFailed(Throwable ex) {
+        executeCallback(() -> producerCreatedFuture.completeExceptionally(ex));
+    }
+
+    private void onProducerCreateSuccess() {
+        executeCallback(() -> producerCreatedFuture.complete(ProducerImpl.this));
+    }
+
     protected void semaphoreRelease(final int releaseCountRequest) {
         if (semaphore.isPresent()) {
             if (!errorState) {
@@ -359,12 +371,16 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 try {
                     if (e != null) {
                         stats.incrementSendFailed();
-                        onSendAcknowledgement(interceptorMessage, null, e);
-                        future.completeExceptionally(e);
+                        executeCallback(() -> {
+                            onSendAcknowledgement(interceptorMessage, null, e);
+                            future.completeExceptionally(e);
+                        });
                     } else {
-                        onSendAcknowledgement(interceptorMessage, interceptorMessage.getMessageId(), null);
-                        future.complete(interceptorMessage.getMessageId());
-                        stats.incrementNumAcksReceived(System.nanoTime() - createdAt);
+                        executeCallback(() -> {
+                            onSendAcknowledgement(interceptorMessage, interceptorMessage.getMessageId(), null);
+                            future.complete(interceptorMessage.getMessageId());
+                            stats.incrementNumAcksReceived(System.nanoTime() - createdAt);
+                        });
                     }
                 } finally {
                     interceptorMessage.getDataBuffer().release();
@@ -379,12 +395,16 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                         msg.getDataBuffer().retain();
                         if (e != null) {
                             stats.incrementSendFailed();
-                            onSendAcknowledgement(msg, null, e);
-                            sendCallback.getFuture().completeExceptionally(e);
+                            executeCallback(() -> {
+                                onSendAcknowledgement(msg, null, e);
+                                sendCallback.getFuture().completeExceptionally(e);
+                            });
                         } else {
-                            onSendAcknowledgement(msg, msg.getMessageId(), null);
-                            sendCallback.getFuture().complete(msg.getMessageId());
-                            stats.incrementNumAcksReceived(System.nanoTime() - createdAt);
+                            executeCallback(() -> {
+                                onSendAcknowledgement(msg, msg.getMessageId(), null);
+                                sendCallback.getFuture().complete(msg.getMessageId());
+                                stats.incrementNumAcksReceived(System.nanoTime() - createdAt);
+                            });
                         }
                         nextMsg = nextCallback.getNextMessage();
                         nextCallback = nextCallback.getNextSendCallback();
@@ -1085,9 +1105,9 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             if (exception == null || !cnx.ctx().channel().isActive()) {
                 // Either we've received the success response for the close producer command from the broker, or the
                 // connection did break in the meantime. In any case, the producer is gone.
-                log.info("[{}] [{}] Closed Producer", topic, producerName);
+                log.info("[{}] [{}] Closed Producer {}", topic, producerName, Thread.currentThread().getName());
                 closeAndClearPendingMessages();
-                closeFuture.complete(null);
+                executeCallback(() -> closeFuture.complete(null));
             } else {
                 closeFuture.completeExceptionally(exception);
             }
@@ -1794,7 +1814,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                             if (ex != null) {
                                 log.error("Failed to close producer on TopicDoesNotExistException.", ex);
                             }
-                            producerCreatedFuture.completeExceptionally(cause);
+                            onProducerCreateFailed(cause);
                         });
                         future.complete(null);
                         return null;
@@ -1824,7 +1844,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                         synchronized (this) {
                             failPendingMessages(cnx(), (PulsarClientException) cause);
                         }
-                        producerCreatedFuture.completeExceptionally(cause);
+                        onProducerCreateFailed(cause);
                         closeProducerTasks();
                         client.cleanupProducer(this);
                     } else if (cause instanceof PulsarClientException.ProducerFencedException) {
@@ -1832,7 +1852,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                         synchronized (this) {
                             failPendingMessages(cnx(), (PulsarClientException) cause);
                         }
-                        producerCreatedFuture.completeExceptionally(cause);
+                        onProducerCreateFailed(cause);
                         closeProducerTasks();
                         client.cleanupProducer(this);
                     } else if (producerCreatedFuture.isDone() || //
@@ -1843,7 +1863,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                         future.completeExceptionally(cause);
                     } else {
                         setState(State.Failed);
-                        producerCreatedFuture.completeExceptionally(cause);
+                        onProducerCreateFailed(cause);
                         closeProducerTasks();
                         client.cleanupProducer(this);
                         Timeout timeout = sendTimeout;
@@ -1912,7 +1932,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                         log.debug("[{}] [{}] No pending messages to resend {}", topic, producerName, messagesToResend);
                     }
                     if (changeToReadyState()) {
-                        producerCreatedFuture.complete(ProducerImpl.this);
+                        onProducerCreateSuccess();
                         scheduleBatchFlushTask(0);
                         return;
                     } else {

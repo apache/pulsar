@@ -395,7 +395,7 @@ public class PulsarClientImpl implements PulsarClient {
             producers.add(producer);
         }).exceptionally(ex -> {
             log.warn("[{}] Failed to get partitioned topic metadata: {}", topic, ex.getMessage());
-            producerCreatedFuture.completeExceptionally(ex);
+            getInternalExecutorService().execute(() -> producerCreatedFuture.completeExceptionally(ex));
             return null;
         });
 
