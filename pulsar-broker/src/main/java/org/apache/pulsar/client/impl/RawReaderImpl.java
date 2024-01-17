@@ -213,9 +213,10 @@ public class RawReaderImpl implements RawReader {
         }
 
         @Override
-        protected void clearIncomingMessages() {
-            super.clearIncomingMessages();
+        protected int clearIncomingMessages() {
+            int clearedIncomingMessages = super.clearIncomingMessages();
             clearIncomingRawMessages();
+            return clearedIncomingMessages;
         }
 
         @Override
