@@ -315,10 +315,16 @@ public class PulsarSink<T> implements Sink<T> {
                 // we must use the destination topic schema
                 schemaToWrite = schema;
             }
+            // use the partitionId, id and instanceId as the producer name to avoid conflicts
+            String producerName = record.getPartitionId().get();
+            if (properties.containsKey("id") && properties.containsKey("instance_id")) {
+                producerName = String.format("%s-%s-%s", record.getPartitionId().get(), properties.get("id"),
+                        properties.get("instance_id"));
+            }
             Producer<T> producer = getProducer(
                     String.format("%s-%s", record.getDestinationTopic().orElse(pulsarSinkConfig.getTopic()),
                             record.getPartitionId().get()),
-                    record.getPartitionId().get(),
+                    producerName,
                     record.getDestinationTopic().orElse(pulsarSinkConfig.getTopic()),
                     schemaToWrite
             );
