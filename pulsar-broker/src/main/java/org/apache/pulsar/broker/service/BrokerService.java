@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.service;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.Objects.requireNonNull;
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static org.apache.bookkeeper.mledger.ManagedLedgerConfig.PROPERTY_SOURCE_TOPIC_KEY;
 import static org.apache.commons.collections4.CollectionUtils.isEmpty;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
@@ -37,6 +38,7 @@ import io.netty.channel.EventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.handler.ssl.SslContext;
 import io.netty.util.concurrent.DefaultThreadFactory;
+import io.prometheus.client.Histogram;
 import java.io.Closeable;
 import java.io.IOException;
 import java.lang.reflect.Field;
@@ -198,6 +200,12 @@ public class BrokerService implements Closeable {
     private static final long GRACEFUL_SHUTDOWN_QUIET_PERIOD_MAX_MS = 5000L;
     private static final double GRACEFUL_SHUTDOWN_QUIET_PERIOD_RATIO_OF_TOTAL_TIMEOUT = 0.25d;
     private static final double GRACEFUL_SHUTDOWN_TIMEOUT_RATIO_OF_TOTAL_TIMEOUT = 0.5d;
+
+    private static final Histogram backlogQuotaCheckDuration = Histogram.build()
+            .name("pulsar_storage_backlog_quota_check_duration_seconds")
+            .help("The duration of the backlog quota check process.")
+            .buckets(5, 10, 30, 60, 300)
+            .register();
 
     private final PulsarService pulsar;
     private final ManagedLedgerFactory managedLedgerFactory;
@@ -838,7 +846,7 @@ public class BrokerService implements Closeable {
         long timeout = (long) (GRACEFUL_SHUTDOWN_TIMEOUT_RATIO_OF_TOTAL_TIMEOUT * brokerShutdownTimeoutMs);
         return NettyFutureUtil.toCompletableFutureVoid(
                 eventLoopGroup.shutdownGracefully(quietPeriod,
-                        timeout, TimeUnit.MILLISECONDS));
+                        timeout, MILLISECONDS));
     }
 
     private CompletableFuture<Void> closeChannel(Channel channel) {
@@ -892,8 +900,8 @@ public class BrokerService implements Closeable {
                                 rateLimiter.acquire(1);
                             }
                             long timeout = pulsar.getConfiguration().getNamespaceBundleUnloadingTimeoutMs();
-                            pulsar.getNamespaceService().unloadNamespaceBundle(su, timeout, TimeUnit.MILLISECONDS,
-                                    closeWithoutWaitingClientDisconnect).get(timeout, TimeUnit.MILLISECONDS);
+                            pulsar.getNamespaceService().unloadNamespaceBundle(su, timeout, MILLISECONDS,
+                                    closeWithoutWaitingClientDisconnect).get(timeout, MILLISECONDS);
                         } catch (Exception e) {
                             log.warn("Failed to unload namespace bundle {}", su, e);
                         }
@@ -2066,6 +2074,7 @@ public class BrokerService implements Closeable {
     }
 
     public void monitorBacklogQuota() {
+        long startTimeMillis = System.currentTimeMillis();
         forEachPersistentTopic(topic -> {
             if (topic.isSizeBacklogExceeded()) {
                 getBacklogQuotaManager().handleExceededBacklogQuota(topic,
@@ -2085,6 +2094,9 @@ public class BrokerService implements Closeable {
                     log.error("Error when checkTimeBacklogExceeded({}) in monitorBacklogQuota",
                             topic.getName(), throwable);
                     return null;
+                }).whenComplete((unused, throwable) -> {
+                    backlogQuotaCheckDuration.observe(
+                            MILLISECONDS.toSeconds(System.currentTimeMillis() - startTimeMillis));
                 });
             }
         });
@@ -2580,7 +2592,7 @@ public class BrokerService implements Closeable {
         //  add listener to notify broker managedLedgerCacheEvictionTimeThresholdMillis dynamic config
         registerConfigurationListener(
                 "managedLedgerCacheEvictionTimeThresholdMillis", (cacheEvictionTimeThresholdMills) -> {
-            managedLedgerFactory.updateCacheEvictionTimeThreshold(TimeUnit.MILLISECONDS
+            managedLedgerFactory.updateCacheEvictionTimeThreshold(MILLISECONDS
                     .toNanos((long) cacheEvictionTimeThresholdMills));
         });
 
@@ -3015,7 +3027,7 @@ public class BrokerService implements Closeable {
             pendingTopic.getTopicFuture()
                     .completeExceptionally((e instanceof RuntimeException && e.getCause() != null) ? e.getCause() : e);
             // schedule to process next pending topic
-            inactivityMonitor.schedule(this::createPendingLoadTopic, 100, TimeUnit.MILLISECONDS);
+            inactivityMonitor.schedule(this::createPendingLoadTopic, 100, MILLISECONDS);
             return null;
         });
     }
