@@ -1468,7 +1468,6 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         TenantInfoImpl tenantInfo = new TenantInfoImpl(Set.of("role1", "role2"), Set.of("test"));
         admin.tenants().createTenant("tenant-xyz", tenantInfo);
         admin.namespaces().createNamespace("tenant-xyz/ns-abc", Set.of("test"));
-        admin.namespaces().setCompactionThreshold("tenant-xyz/ns-abc", 100*1024*1024L);
         final String topicName = "persistent://tenant-xyz/ns-abc/testGetMessageIdByTimestampWithCompaction";
         admin.topics().createNonPartitionedTopic(topicName);
 
