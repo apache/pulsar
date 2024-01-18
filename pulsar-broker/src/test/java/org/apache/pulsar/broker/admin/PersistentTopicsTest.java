@@ -1364,21 +1364,12 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         Message<byte[]> message2 = admin.topics().getMessageById(topicName2, id2.getLedgerId(), id2.getEntryId());
         Assert.assertEquals(message2.getData(), data2.getBytes());
 
-        Message<byte[]> message3 = null;
-        try {
-            message3 = admin.topics().getMessageById(topicName2, id1.getLedgerId(), id1.getEntryId());
-            Assert.fail();
-        } catch (Exception e) {
-            Assert.assertNull(message3);
-        }
-
-        Message<byte[]> message4 = null;
-        try {
-            message4 = admin.topics().getMessageById(topicName1, id2.getLedgerId(), id2.getEntryId());
-            Assert.fail();
-        } catch (Exception e) {
-            Assert.assertNull(message4);
-        }
+        Assert.expectThrows(PulsarAdminException.NotFoundException.class, () -> {
+            admin.topics().getMessageById(topicName2, id1.getLedgerId(), id1.getEntryId());
+        });
+        Assert.expectThrows(PulsarAdminException.NotFoundException.class, () -> {
+            admin.topics().getMessageById(topicName1, id2.getLedgerId(), id2.getEntryId());
+        });
     }
 
     @Test
