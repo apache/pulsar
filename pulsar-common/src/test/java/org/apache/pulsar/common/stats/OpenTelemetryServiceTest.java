@@ -20,9 +20,11 @@ package org.apache.pulsar.common.stats;
 
 import io.opentelemetry.api.common.AttributeKey;
 import io.opentelemetry.api.common.Attributes;
+import io.opentelemetry.api.metrics.DoubleCounter;
 import io.opentelemetry.api.metrics.LongCounter;
 import io.opentelemetry.api.metrics.Meter;
 import io.opentelemetry.sdk.common.InstrumentationScopeInfo;
+import io.opentelemetry.sdk.metrics.data.DoublePointData;
 import io.opentelemetry.sdk.metrics.data.LongPointData;
 import io.opentelemetry.sdk.metrics.data.MetricData;
 import io.opentelemetry.sdk.metrics.data.MetricDataType;
@@ -38,6 +40,8 @@ import lombok.Builder;
 import lombok.Cleanup;
 import lombok.Singular;
 import org.testng.Assert;
+import org.testng.annotations.AfterMethod;
+import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 public class OpenTelemetryServiceTest {
@@ -51,6 +55,7 @@ public class OpenTelemetryServiceTest {
         @Singular final List<Attributes> resourceAttributes;
         @Singular final List<Attributes> dataAttributes;
         @Singular final List<Long> longValues;
+        @Singular final List<Double> doubleValues;
 
         @Override
         public boolean test(MetricData md) {
@@ -61,7 +66,8 @@ public class OpenTelemetryServiceTest {
                 && (resource == null || resource.equals(md.getResource()))
                 && matchesResourceAttributes(md)
                 && (dataAttributes == null || matchesDataAttributes(md))
-                && matchesLongValues(md);
+                && matchesLongValues(md)
+                && matchesDoubleValues(md);
         }
 
         private boolean matchesResourceAttributes(MetricData md) {
@@ -87,32 +93,53 @@ public class OpenTelemetryServiceTest {
                     md.getLongSumData().getPoints().stream().map(LongPointData::getValue).collect(Collectors.toSet());
             return actualData.containsAll(longValues);
         }
+
+        private boolean matchesDoubleValues(MetricData md) {
+            Collection<Double> actualData =
+                md.getDoubleSumData().getPoints().stream().map(DoublePointData::getValue).collect(Collectors.toSet());
+            return actualData.containsAll(doubleValues);
+        }
+    }
+
+    private OpenTelemetryService openTelemetryService;
+    private InMemoryMetricReader reader;
+    private Meter meter;
+
+    @BeforeMethod
+    public void setup() throws Exception {
+        reader = InMemoryMetricReader.create();
+        openTelemetryService = OpenTelemetryService.builder().
+                clusterName("openTelemetryServiceTestCluster").
+                extraMetricReader(reader).
+                build();
+        meter = openTelemetryService.getMeter("openTelemetryServiceTestInstrument");
+    }
+
+    @AfterMethod
+    public void teardown() throws Exception {
+        openTelemetryService.close();
+        reader.close();
+    }
+
+    @Test(expectedExceptions = NullPointerException.class)
+    public void testIsClusterNameRequired() throws Exception {
+        @Cleanup
+        OpenTelemetryService ots = OpenTelemetryService.builder().build();
     }
 
     @Test
-    public void testInMemoryReader() throws Exception {
+    public void testIsClusterNameSet() throws Exception {
         @Cleanup
         InMemoryMetricReader reader = InMemoryMetricReader.create();
 
         @Cleanup
         OpenTelemetryService ots = OpenTelemetryService.builder().
-                clusterName("clusterName").
-                serviceName("testInMemoryReader").
+                clusterName("testCluster").
                 extraMetricReader(reader).
                 build();
 
-        Meter meter = ots.getMeter("pulsar.test");
-        LongCounter longCounter = meter.counterBuilder("counter.inMemory").build();
-        longCounter.add(1, Attributes.of(AttributeKey.stringKey("dummyAttr"), "dummyValue"));
-
         Predicate<MetricData> predicate = MetricDataMatchPredicate.builder().
-                name("counter.inMemory").
-                instrumentationScopeInfo(InstrumentationScopeInfo.create("pulsar.test")).
-                resourceAttribute(Attributes.of(AttributeKey.stringKey("pulsar.cluster"), "clusterName")).
-                resourceAttribute(Attributes.of(AttributeKey.stringKey("service.name"), "testInMemoryReader")).
-                dataAttribute(Attributes.of(AttributeKey.stringKey("dummyAttr"), "dummyValue")).
-                type(MetricDataType.LONG_SUM).
-                longValue(1L).
+                resourceAttribute(Attributes.of(AttributeKey.stringKey("pulsar.cluster"), "testCluster")).
                 build();
 
         Collection<MetricData> metricData = reader.collectAllMetrics();
@@ -120,25 +147,47 @@ public class OpenTelemetryServiceTest {
     }
 
     @Test
-    public void testMetricCardinality() throws Exception {
+    public void testIsServiceNameSet() throws Exception {
         @Cleanup
         InMemoryMetricReader reader = InMemoryMetricReader.create();
 
         @Cleanup
         OpenTelemetryService ots = OpenTelemetryService.builder().
-                clusterName("clusterName").
+                clusterName("testCluster").
+                serviceName("testServiceName").
                 extraMetricReader(reader).
                 build();
 
-        Meter meter = ots.getMeter("pulsar.testMetricCardinality");
-        LongCounter longCounter = meter.counterBuilder("count").build();
+        Predicate<MetricData> predicate = MetricDataMatchPredicate.builder().
+                resourceAttribute(Attributes.of(AttributeKey.stringKey("service.name"), "testServiceName")).
+                build();
+
+        Collection<MetricData> metricData = reader.collectAllMetrics();
+        Assert.assertTrue(metricData.stream().anyMatch(predicate));
+    }
+
+    @Test
+    public void testIsInstrumentationNameSetOnMeter() throws Exception {
+        Meter meter = openTelemetryService.getMeter("testInstrumentationScope");
+        meter.counterBuilder("dummyCounter").build().add(1);
+        MetricDataMatchPredicate predicate = MetricDataMatchPredicate.builder().
+                name("dummyCounter").
+                instrumentationScopeInfo(InstrumentationScopeInfo.create("testInstrumentationScope")).
+                build();
+        Collection<MetricData> metricData = reader.collectAllMetrics();
+        Assert.assertTrue(metricData.stream().anyMatch(predicate));
+    }
+
+    @Test
+    public void testMetricCardinality() throws Exception {
+        LongCounter longCounter = meter.counterBuilder("dummyMetricCardinalityTest").build();
 
         for (int i = 0; i < OpenTelemetryService.MAX_CARDINALITY_LIMIT; i++) {
             longCounter.add(1, Attributes.of(AttributeKey.stringKey("attribute"), "value" + i));
         }
 
         Predicate<MetricData> hasOverflowAttribute = MetricDataMatchPredicate.builder().
-                        name("count").
+                        name("dummyMetricCardinalityTest").
                         dataAttribute(MetricStorage.CARDINALITY_OVERFLOW).
                         build();
 
@@ -151,5 +200,38 @@ public class OpenTelemetryServiceTest {
 
         metricData = reader.collectAllMetrics();
         Assert.assertTrue(metricData.stream().anyMatch(hasOverflowAttribute));
+    }
+
+    @Test
+    public void testLongCounter() throws Exception {
+        LongCounter longCounter = meter.counterBuilder("dummyLongCounter").build();
+        longCounter.add(1, Attributes.of(AttributeKey.stringKey("dummyAttr"), "dummyValue"));
+        longCounter.add(2, Attributes.of(AttributeKey.stringKey("dummyAttr"), "dummyValue"));
+
+        Predicate<MetricData> predicate = MetricDataMatchPredicate.builder().
+                name("dummyLongCounter").
+                dataAttribute(Attributes.of(AttributeKey.stringKey("dummyAttr"), "dummyValue")).
+                type(MetricDataType.LONG_SUM).
+                longValue(3L).
+                build();
+
+        Collection<MetricData> metricData = reader.collectAllMetrics();
+        Assert.assertTrue(metricData.stream().anyMatch(predicate));
+    }
+
+    @Test
+    public void testDoubleCounter() throws Exception {
+        DoubleCounter doubleCounter = meter.counterBuilder("dummyDoubleCounter").ofDoubles().build();
+        doubleCounter.add(3.14, Attributes.of(AttributeKey.stringKey("dummyAttr"), "dummyValue"));
+        doubleCounter.add(2.71, Attributes.of(AttributeKey.stringKey("dummyAttr"), "dummyValue"));
+
+        Predicate<MetricData> predicate = MetricDataMatchPredicate.builder().
+                name("dummyDoubleCounter").
+                dataAttribute(Attributes.of(AttributeKey.stringKey("dummyAttr"), "dummyValue")).
+                doubleValue(5.85).
+                build();
+
+        Collection<MetricData> metricData = reader.collectAllMetrics();
+        Assert.assertTrue(metricData.stream().anyMatch(predicate));
     }
 }
