@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.client.api;
 
-import static com.google.common.base.Preconditions.checkArgument;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.apache.pulsar.common.naming.TopicName.PARTITIONED_TOPIC_SUFFIX;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -52,6 +51,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.util.ArrayList;
+import java.util.BitSet;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -93,6 +93,7 @@ import org.apache.pulsar.broker.service.ServerCnx;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.schema.GenericRecord;
+import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.ClientBuilderImpl;
 import org.apache.pulsar.client.impl.ClientCnx;
 import org.apache.pulsar.client.impl.ConsumerBase;
@@ -107,9 +108,8 @@ import org.apache.pulsar.client.impl.crypto.MessageCryptoBc;
 import org.apache.pulsar.client.impl.schema.writer.AvroWriter;
 import org.apache.pulsar.common.api.EncryptionContext;
 import org.apache.pulsar.common.api.EncryptionContext.EncryptionKey;
-import org.apache.pulsar.common.api.proto.BaseCommand;
+import org.apache.pulsar.common.api.proto.CommandAck;
 import org.apache.pulsar.common.api.proto.CommandSuccess;
-import org.apache.pulsar.common.api.proto.CommandWatchTopicListSuccess;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.api.proto.SingleMessageMetadata;
 import org.apache.pulsar.common.compression.CompressionCodec;
@@ -4697,17 +4697,40 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         admin.topics().delete(topic, false);
     }
 
-    @Test
-    public void testAckWhenReconnecting() throws Exception {
+    @DataProvider(name = "ackArgs")
+    public Object[] ackArgs() {
+        int batchSize = 10;
+        BitSet bitSet = new BitSet(batchSize);
+        bitSet.set(0);
+        return new Object[][]{
+            // no batch.
+            {CommandAck.AckType.Cumulative, new MessageIdImpl(1,1,1)},
+            {CommandAck.AckType.Individual, new MessageIdImpl(1,1,1)},
+            // batch without ackSet.
+            {CommandAck.AckType.Individual, new BatchMessageIdImpl(1,1,1,0)},
+            {CommandAck.AckType.Cumulative, new BatchMessageIdImpl(1,1,1,0)},
+            // batch with ackSe.
+            {CommandAck.AckType.Cumulative, new BatchMessageIdImpl(1,1,1,0, batchSize, bitSet)},
+            {CommandAck.AckType.Individual, new BatchMessageIdImpl(1,1,1,0, batchSize, bitSet)}
+        };
+    }
+
+    @Test(dataProvider = "ackArgs")
+    public void testImmediateAckWhenReconnecting(CommandAck.AckType ackType, MessageId messageId) throws Exception {
         final String topic = BrokerTestUtil.newUniqueName("persistent://my-property/my-ns/tp_");
         final String subscriptionName = "s1";
         PulsarClient delayConnectClient = createDelayReconnectClient();
 
         Consumer<String> consumer = delayConnectClient.newConsumer(Schema.STRING).topic(topic)
+                .acknowledgmentGroupTime(0, TimeUnit.MILLISECONDS)
                 .subscriptionName(subscriptionName).subscribe();
 
         admin.topics().unload(topic);
-        consumer.acknowledge(MessageId.earliest);
+        if (ackType == CommandAck.AckType.Individual) {
+            consumer.acknowledge(messageId);
+        } else {
+            consumer.acknowledgeCumulative(messageId);
+        }
 
         consumer.close();
         admin.topics().delete(topic, false);
@@ -4716,14 +4739,14 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
     private PulsarClient createDelayReconnectClient() throws Exception {
         ClientBuilderImpl clientBuilder = (ClientBuilderImpl) PulsarClient.builder().serviceUrl(lookupUrl.toString());
         return InjectedClientCnxClientBuilder.create(clientBuilder,
-                (conf, eventLoopGroup) -> new ClientCnx(conf, eventLoopGroup) {
-                    @Override
-                    protected void handleSuccess(CommandSuccess success) {
-                        new Thread(() -> {
-                            sleepSeconds(2);
-                            super.handleSuccess(success);
-                        }).start();
-                    }
-                });
+            (conf, eventLoopGroup) -> new ClientCnx(conf, eventLoopGroup) {
+                @Override
+                protected void handleSuccess(CommandSuccess success) {
+                    new Thread(() -> {
+                        sleepSeconds(5);
+                        super.handleSuccess(success);
+                    }).start();
+                }
+            });
     }
 }
