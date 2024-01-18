@@ -44,6 +44,7 @@ import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.Transactions;
 import org.apache.pulsar.client.api.transaction.TxnID;
+import org.apache.pulsar.common.api.proto.TxnAction;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.naming.TopicDomain;
@@ -559,5 +560,14 @@ public abstract class TransactionsBase extends AdminResource {
                     return null;
         });
         return completableFuture;
+    }
+
+    protected CompletableFuture<Void> internalAbortTransaction(boolean authoritative, long mostSigBits,
+                                                               long leastSigBits) {
+        return validateTopicOwnershipAsync(
+                SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN.getPartition((int) mostSigBits), authoritative)
+                .thenCompose(__ -> validateSuperUserAccessAsync())
+                .thenCompose(__ -> pulsar().getTransactionMetadataStoreService()
+                        .endTransaction(new TxnID(mostSigBits, leastSigBits), TxnAction.ABORT_VALUE, false));
     }
 }
