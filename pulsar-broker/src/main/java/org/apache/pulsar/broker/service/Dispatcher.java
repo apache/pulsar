@@ -151,6 +151,16 @@ public interface Dispatcher {
      */
     default void afterAckMessages(Throwable exOfDeletion, Object ctxOfDeletion){}
 
+    /**
+     * Trigger a new "readMoreEntries" if the dispatching has been paused before. This method is only implemented in
+     * {@link org.apache.pulsar.broker.service.persistent.PersistentDispatcherMultipleConsumers} right now, other
+     * implements are not necessary to implement this method.
+     * @return did a resume.
+     */
+    default boolean checkAndResumeIfPaused(){
+        return false;
+    }
+
     default long getFilterProcessedMsgCount() {
         return 0;
     }

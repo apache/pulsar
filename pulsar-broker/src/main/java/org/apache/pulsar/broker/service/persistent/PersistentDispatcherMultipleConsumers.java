@@ -1039,25 +1039,40 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
 
     @Override
     public void afterAckMessages(Throwable exOfDeletion, Object ctxOfDeletion) {
-        if (blockedDispatcherOnCursorDataCanNotFullyPersist == TRUE) {
-            if (cursor.isCursorDataFullyPersistable()) {
-                // If there was no previous pause due to cursor data is too large to persist, we don't need to manually
-                // trigger a new read. This can avoid too many CPU circles.
-                if (BLOCKED_DISPATCHER_ON_CURSOR_DATA_CAN_NOT_FULLY_PERSIST_UPDATER.compareAndSet(this, TRUE, FALSE)) {
-                    readMoreEntriesAsync();
-                } else {
-                    // Retry due to conflict update.
-                    afterAckMessages(exOfDeletion, ctxOfDeletion);
-                }
-            }
-        } else {
-            if (!cursor.isCursorDataFullyPersistable()) {
-                if (BLOCKED_DISPATCHER_ON_CURSOR_DATA_CAN_NOT_FULLY_PERSIST_UPDATER.compareAndSet(this, FALSE, TRUE)) {
-                    // Retry due to conflict update.
-                    afterAckMessages(exOfDeletion, ctxOfDeletion);
-                }
+        boolean unPaused = blockedDispatcherOnCursorDataCanNotFullyPersist == FALSE;
+        // Trigger a new read if needed.
+        boolean shouldPauseNow = !checkAndResumeIfPaused();
+        // Switch stat to "paused" if needed.
+        if (unPaused && shouldPauseNow) {
+            if (!BLOCKED_DISPATCHER_ON_CURSOR_DATA_CAN_NOT_FULLY_PERSIST_UPDATER
+                    .compareAndSet(this, FALSE, TRUE)) {
+                // Retry due to conflict update.
+                afterAckMessages(exOfDeletion, ctxOfDeletion);
             }
         }
+    }
+
+    @Override
+    public boolean checkAndResumeIfPaused() {
+        boolean paused = blockedDispatcherOnCursorDataCanNotFullyPersist == TRUE;
+        boolean shouldPauseNow = !cursor.isCursorDataFullyPersistable()
+                && topic.isDispatcherPauseOnAckStatePersistentEnabled();
+        // No need to change.
+        if (paused == shouldPauseNow) {
+            return !shouldPauseNow;
+        }
+        // Should change to "un-pause".
+        if (paused && !shouldPauseNow) {
+            // If there was no previous pause due to cursor data is too large to persist, we don't need to manually
+            // trigger a new read. This can avoid too many CPU circles.
+            if (BLOCKED_DISPATCHER_ON_CURSOR_DATA_CAN_NOT_FULLY_PERSIST_UPDATER.compareAndSet(this, TRUE, FALSE)) {
+                readMoreEntriesAsync();
+            } else {
+                // Retry due to conflict update.
+                checkAndResumeIfPaused();
+            }
+        }
+        return !shouldPauseNow;
     }
 
     public boolean isBlockedDispatcherOnUnackedMsgs() {
