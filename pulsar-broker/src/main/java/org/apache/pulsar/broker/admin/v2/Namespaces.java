@@ -2781,7 +2781,7 @@ public class Namespaces extends NamespacesBase {
     @Path("/{tenant}/{namespace}/dispatcherPauseOnAckStatePersistent")
     @ApiOperation(value = "Set dispatcher pause on ack state persistent configuration for specified namespace.")
     @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Namespace or topic doesn't exist"),
+            @ApiResponse(code = 404, message = "Tenant or cluster or namespace doesn't exist"),
             @ApiResponse(code = 409, message = "Concurrent modification")})
     public void setDispatcherPauseOnAckStatePersistent(@Suspended final AsyncResponse asyncResponse,
                                                        @PathParam("tenant") String tenant,
@@ -2803,7 +2803,7 @@ public class Namespaces extends NamespacesBase {
     @Path("/{tenant}/{namespace}/dispatcherPauseOnAckStatePersistent")
     @ApiOperation(value = "Remove dispatcher pause on ack state persistent configuration for specified namespace.")
     @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Namespace or topic doesn't exist"),
+            @ApiResponse(code = 404, message = "Tenant or cluster or namespace doesn't exist"),
             @ApiResponse(code = 409, message = "Concurrent modification")})
     public void removeDispatcherPauseOnAckStatePersistent(@Suspended final AsyncResponse asyncResponse,
                                                           @PathParam("tenant") String tenant,
