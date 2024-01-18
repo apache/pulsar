@@ -2259,6 +2259,10 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
             consumer.acknowledge(message);
         }
 
+        Awaitility.await().untilAsserted(() ->
+                assertEquals(admin.topics().getStats(topicName, true).getSubscriptions().get(subName).getMsgBacklog(),
+                        5));
+
         // Make consumer reconnect to broker
         admin.topics().unload(topicName);
 
@@ -2271,6 +2275,10 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
             results.add(message.getValue());
             consumer.acknowledge(message);
         }
+
+        Awaitility.await().untilAsserted(() ->
+                assertEquals(admin.topics().getStats(topicName, true).getSubscriptions().get(subName).getMsgBacklog(),
+                        0));
 
         Assert.assertEquals(results, expected);
 
@@ -2285,8 +2293,11 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
         Assert.assertEquals(message2.getValue(), "V");
         consumer.acknowledge(message2);
 
-        PersistentTopicInternalStats internalStats = admin.topics().getInternalStats(topicName);
-        Assert.assertEquals(internalStats.lastConfirmedEntry, internalStats.cursors.get(subName).markDeletePosition);
+        Awaitility.await().untilAsserted(() -> {
+            PersistentTopicInternalStats internalStats = admin.topics().getInternalStats(topicName);
+            Assert.assertEquals(internalStats.lastConfirmedEntry,
+                    internalStats.cursors.get(subName).markDeletePosition);
+        });
 
         consumer.close();
         producer.close();
