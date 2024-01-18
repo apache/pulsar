@@ -370,9 +370,9 @@ The Apache Software License, Version 2.0
     - netty-incubator-transport-classes-io_uring-0.0.24.Final.jar
     - netty-incubator-transport-native-io_uring-0.0.24.Final-linux-aarch_64.jar
     - netty-incubator-transport-native-io_uring-0.0.24.Final-linux-x86_64.jar
-    - netty-resolver-dns-classes-macos-4.1.104.Final.jar
-    - netty-resolver-dns-native-macos-4.1.104.Final-osx-aarch_64.jar
-    - netty-resolver-dns-native-macos-4.1.104.Final-osx-x86_64.jar
+    - netty-resolver-dns-classes-macos-4.1.105.Final.jar
+    - netty-resolver-dns-native-macos-4.1.105.Final-osx-aarch_64.jar
+    - netty-resolver-dns-native-macos-4.1.105.Final-osx-x86_64.jar
  * Prometheus client
     - simpleclient-0.16.0.jar
     - simpleclient_log4j2-0.16.0.jar
