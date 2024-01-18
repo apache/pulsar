@@ -84,7 +84,6 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException.CursorAlreadyClosedE
 import org.apache.bookkeeper.mledger.ManagedLedgerException.MetaStoreException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.NoMoreEntriesToReadException;
 import org.apache.bookkeeper.mledger.Position;
-import org.apache.bookkeeper.mledger.ReadOnlyCursor;
 import org.apache.bookkeeper.mledger.ScanOutcome;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.PositionBound;
 import org.apache.bookkeeper.mledger.impl.MetaStore.MetaStoreCallback;
@@ -3411,9 +3410,6 @@ public class ManagedCursorImpl implements ManagedCursor {
     }
 
     public boolean isMessageDeleted(Position position) {
-        if (this instanceof ReadOnlyCursor) {
-            return false;
-        }
         checkArgument(position instanceof PositionImpl);
         return ((PositionImpl) position).compareTo(markDeletePosition) <= 0
                 || individualDeletedMessages.contains(position.getLedgerId(), position.getEntryId());
