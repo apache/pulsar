@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.common.stats;
 
+import io.opentelemetry.api.common.AttributeKey;
 import io.opentelemetry.api.metrics.Meter;
 import io.opentelemetry.sdk.OpenTelemetrySdk;
 import io.opentelemetry.sdk.autoconfigure.AutoConfiguredOpenTelemetrySdk;
@@ -26,6 +27,7 @@ import io.opentelemetry.sdk.metrics.export.MetricReader;
 import io.opentelemetry.sdk.metrics.internal.SdkMeterProviderUtil;
 import io.opentelemetry.sdk.metrics.internal.export.CardinalityLimitSelector;
 import io.opentelemetry.sdk.resources.Resource;
+import io.opentelemetry.sdk.resources.ResourceBuilder;
 import java.io.Closeable;
 import java.util.Collections;
 import java.util.List;
@@ -35,18 +37,19 @@ import lombok.Singular;
 
 public class OpenTelemetryService implements Closeable {
 
-    public static final String CLUSTER_NAME_ATTRIBUTE = "pulsar.cluster";
-
-    private final OpenTelemetrySdk openTelemetrySdk;
+    private static final AttributeKey<String> CLUSTER_NAME_ATTRIBUTE = AttributeKey.stringKey("pulsar.cluster");
+    private static final AttributeKey<String> SERVICE_NAME_ATTRIBUTE = AttributeKey.stringKey("service.name");
 
     private static final String MAX_CARDINALITY_LIMIT_KEY = "otel.experimental.metrics.cardinality.limit";
     public static final int MAX_CARDINALITY_LIMIT = 10000;
 
+    private final OpenTelemetrySdk openTelemetrySdk;
+
     @lombok.Builder
     public OpenTelemetryService(
             String clusterName,
+            String serviceName,
             @Singular Map<String, String> extraProperties,
-            @Singular Map<String, String> extraResources,
             @Singular List<MetricReader> extraMetricReaders) {
         Objects.requireNonNull(clusterName);
         AutoConfiguredOpenTelemetrySdkBuilder builder = AutoConfiguredOpenTelemetrySdk.builder();
@@ -54,7 +57,14 @@ public class OpenTelemetryService implements Closeable {
                 () -> Collections.singletonMap(MAX_CARDINALITY_LIMIT_KEY, Integer.toString(MAX_CARDINALITY_LIMIT + 1)));
         builder.addPropertiesSupplier(() -> extraProperties);
         builder.addResourceCustomizer(
-                (resource, __) -> resource.merge(Resource.builder().put(CLUSTER_NAME_ATTRIBUTE, clusterName).build()));
+                (resource, __) -> {
+                    ResourceBuilder resourceBuilder = Resource.builder();
+                    resourceBuilder.put(CLUSTER_NAME_ATTRIBUTE, clusterName);
+                    if (serviceName != null) {
+                        resourceBuilder.put(SERVICE_NAME_ATTRIBUTE, serviceName);
+                    }
+                    return resource.merge(resourceBuilder.build());
+                });
         final CardinalityLimitSelector cardinalityLimitSelector = __ -> MAX_CARDINALITY_LIMIT + 1;
         extraMetricReaders.forEach(metricReader -> builder.addMeterProviderCustomizer((sdkMeterProviderBuilder, __) -> {
             SdkMeterProviderUtil.registerMetricReaderWithCardinalitySelector(
