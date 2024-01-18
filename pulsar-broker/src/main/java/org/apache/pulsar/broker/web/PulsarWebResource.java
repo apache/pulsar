@@ -1209,8 +1209,6 @@ public abstract class PulsarWebResource {
         String cleanedBrokerId = brokerId.replaceFirst("http[s]?://", "");
         if (pulsar.getBrokerId().equals(cleanedBrokerId)
                 // backwards compatibility
-                || brokerId.equals(pulsar().getWebServiceAddress())
-                || brokerId.equals(pulsar().getWebServiceAddressTls())
                 || ("http://" + cleanedBrokerId).equals(pulsar().getWebServiceAddress())
                 || ("https://" + cleanedBrokerId).equals(pulsar().getWebServiceAddressTls())) {
             // no need to redirect, the current broker matches the given broker id
