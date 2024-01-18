@@ -2825,8 +2825,7 @@ public class Namespaces extends NamespacesBase {
     @Path("/{tenant}/{namespace}/dispatcherPauseOnAckStatePersistent")
     @ApiOperation(value = "Get dispatcher pause on ack state persistent config on a namespace.")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Tenant or cluster or namespace doesn't exist"),
-            @ApiResponse(code = 500, message = "Internal server error"), })
+            @ApiResponse(code = 404, message = "Tenant or cluster or namespace doesn't exist") })
     public void getDispatcherPauseOnAckStatePersistent(@Suspended final AsyncResponse asyncResponse,
                                                        @PathParam("tenant") String tenant,
                                                        @PathParam("namespace") String namespace) {
