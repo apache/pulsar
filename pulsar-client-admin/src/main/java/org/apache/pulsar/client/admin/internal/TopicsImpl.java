@@ -1291,7 +1291,7 @@ public class TopicsImpl extends BaseResource implements Topics {
             MultivaluedMap<String, Object> headers = response.getHeaders();
             Object tmp = headers.getFirst(PUBLISH_TIME);
             if (tmp != null) {
-                messageMetadata.setPublishTime(DateFormatter.parse(tmp.toString()));
+                messageMetadata.setPublishTime(Long.parseLong(tmp.toString()));
             }
 
             tmp = headers.getFirst(EVENT_TIME);
