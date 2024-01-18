@@ -2815,8 +2815,11 @@ public class CmdNamespaces extends CmdBase {
 
         jcommander.addCommand("update-migration-state", new UpdateMigrationState());
 
-        jcommander.addCommand("set-dispatcher-pause-on-ack-state-persistent", new SetDispatcherPauseOnAckStatePersistent());
-        jcommander.addCommand("get-dispatcher-pause-on-ack-state-persistent", new GetDispatcherPauseOnAckStatePersistent());
-        jcommander.addCommand("remove-dispatcher-pause-on-ack-state-persistent", new RemoveDispatcherPauseOnAckStatePersistent());
+        jcommander.addCommand("set-dispatcher-pause-on-ack-state-persistent",
+                new SetDispatcherPauseOnAckStatePersistent());
+        jcommander.addCommand("get-dispatcher-pause-on-ack-state-persistent",
+                new GetDispatcherPauseOnAckStatePersistent());
+        jcommander.addCommand("remove-dispatcher-pause-on-ack-state-persistent",
+                new RemoveDispatcherPauseOnAckStatePersistent());
     }
 }
