@@ -302,6 +302,9 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
         topicPolicies.getSchemaValidationEnforced().updateNamespaceValue(namespacePolicies.schema_validation_enforced);
         topicPolicies.getEntryFilters().updateNamespaceValue(namespacePolicies.entryFilters);
 
+        topicPolicies.getDispatcherPauseOnAckStatePersistentEnabled().updateNamespaceValue(
+                namespacePolicies.dispatcherPauseOnAckStatePersistentEnabled);
+
         updateEntryFilters();
     }
 

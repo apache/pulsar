@@ -883,6 +883,15 @@ public class PulsarAdminToolTest {
         namespaces.run(split("remove-deduplication-snapshot-interval myprop/clust/ns1"));
         verify(mockNamespaces).removeDeduplicationSnapshotInterval("myprop/clust/ns1");
 
+        namespaces.run(split("set-dispatcher-pause-on-ack-state-persistent myprop/clust/ns1"));
+        verify(mockNamespaces).setDispatcherPauseOnAckStatePersistent("myprop/clust/ns1");
+
+        namespaces.run(split("get-dispatcher-pause-on-ack-state-persistent myprop/clust/ns1"));
+        verify(mockNamespaces).getDispatcherPauseOnAckStatePersistent("myprop/clust/ns1");
+
+        namespaces.run(split("remove-dispatcher-pause-on-ack-state-persistent myprop/clust/ns1"));
+        verify(mockNamespaces).removeDispatcherPauseOnAckStatePersistent("myprop/clust/ns1");
+
     }
 
     @Test

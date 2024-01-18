@@ -2592,6 +2592,42 @@ public class CmdNamespaces extends CmdBase {
         }
     }
 
+    @Parameters(commandDescription = "Enable dispatcherPauseOnAckStatePersistent for a namespace")
+    private class SetDispatcherPauseOnAckStatePersistent extends CliCommand {
+        @Parameter(description = "tenant/namespace", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+            getAdmin().namespaces().setDispatcherPauseOnAckStatePersistent(namespace);
+        }
+    }
+
+    @Parameters(commandDescription = "Get the dispatcherPauseOnAckStatePersistent for a namespace")
+    private class GetDispatcherPauseOnAckStatePersistent extends CliCommand {
+        @Parameter(description = "tenant/namespace", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+            print(getAdmin().namespaces().getDispatcherPauseOnAckStatePersistent(namespace));
+        }
+    }
+
+    @Parameters(commandDescription = "Remove dispatcherPauseOnAckStatePersistent for a namespace")
+    private class RemoveDispatcherPauseOnAckStatePersistent extends CliCommand {
+        @Parameter(description = "tenant/namespace", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+            getAdmin().namespaces().removeDispatcherPauseOnAckStatePersistent(namespace);
+        }
+    }
+
     public CmdNamespaces(Supplier<PulsarAdmin> admin) {
         super("namespaces", admin);
         jcommander.addCommand("list", new GetNamespacesPerProperty());
@@ -2778,5 +2814,9 @@ public class CmdNamespaces extends CmdBase {
         jcommander.addCommand("remove-entry-filters", new RemoveEntryFiltersPerTopic());
 
         jcommander.addCommand("update-migration-state", new UpdateMigrationState());
+
+        jcommander.addCommand("set-dispatcher-pause-on-ack-state-persistent", new SetDispatcherPauseOnAckStatePersistent());
+        jcommander.addCommand("get-dispatcher-pause-on-ack-state-persistent", new GetDispatcherPauseOnAckStatePersistent());
+        jcommander.addCommand("remove-dispatcher-pause-on-ack-state-persistent", new RemoveDispatcherPauseOnAckStatePersistent());
     }
 }
