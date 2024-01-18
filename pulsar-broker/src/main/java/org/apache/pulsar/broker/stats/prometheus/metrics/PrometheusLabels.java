@@ -16,26 +16,17 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.loadbalance.extensions.manager;
+package org.apache.pulsar.broker.stats.prometheus.metrics;
 
-import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateData;
+import org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType;
 
-public interface StateChangeListener {
+public class PrometheusLabels {
 
-    /**
-     * Called before the state change is handled.
-     *
-     * @param serviceUnit - Service Unit(Namespace bundle).
-     * @param data - Service unit state data.
-     */
-    default void beforeEvent(String serviceUnit, ServiceUnitStateData data) { }
-
-    /**
-     * Called after the service unit state change has been handled.
-     *
-     * @param serviceUnit - Service Unit(Namespace bundle).
-     * @param data - Service unit state data.
-     * @param t - Exception, if present.
-     */
-    void handleEvent(String serviceUnit, ServiceUnitStateData data, Throwable t);
+    public static String backlogQuotaTypeLabel(BacklogQuotaType backlogQuotaType) {
+        if (backlogQuotaType == BacklogQuotaType.message_age) {
+            return "time";
+        } else /* destination_storage */ {
+            return "size";
+        }
+    }
 }
