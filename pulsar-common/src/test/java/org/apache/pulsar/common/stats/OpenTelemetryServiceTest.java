@@ -24,82 +24,19 @@ import io.opentelemetry.api.metrics.DoubleCounter;
 import io.opentelemetry.api.metrics.LongCounter;
 import io.opentelemetry.api.metrics.Meter;
 import io.opentelemetry.sdk.common.InstrumentationScopeInfo;
-import io.opentelemetry.sdk.metrics.data.DoublePointData;
-import io.opentelemetry.sdk.metrics.data.LongPointData;
 import io.opentelemetry.sdk.metrics.data.MetricData;
 import io.opentelemetry.sdk.metrics.data.MetricDataType;
-import io.opentelemetry.sdk.metrics.data.PointData;
 import io.opentelemetry.sdk.metrics.internal.state.MetricStorage;
-import io.opentelemetry.sdk.resources.Resource;
 import io.opentelemetry.sdk.testing.exporter.InMemoryMetricReader;
 import java.util.Collection;
-import java.util.List;
 import java.util.function.Predicate;
-import java.util.stream.Collectors;
-import lombok.Builder;
 import lombok.Cleanup;
-import lombok.Singular;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 public class OpenTelemetryServiceTest {
-
-    @Builder
-    public static final class MetricDataMatcher implements Predicate<MetricData> {
-        final String name;
-        final MetricDataType type;
-        final InstrumentationScopeInfo instrumentationScopeInfo;
-        final Resource resource;
-        @Singular final List<Attributes> resourceAttributes;
-        @Singular final List<Attributes> dataAttributes;
-        @Singular final List<Long> longValues;
-        @Singular final List<Double> doubleValues;
-
-        @Override
-        public boolean test(MetricData md) {
-            return (name == null || name.equals(md.getName()))
-                && (type == null || type.equals(md.getType()))
-                && (instrumentationScopeInfo == null
-                    || instrumentationScopeInfo.equals(md.getInstrumentationScopeInfo()))
-                && (resource == null || resource.equals(md.getResource()))
-                && matchesResourceAttributes(md)
-                && (dataAttributes == null || matchesDataAttributes(md))
-                && matchesLongValues(md)
-                && matchesDoubleValues(md);
-        }
-
-        private boolean matchesResourceAttributes(MetricData md) {
-            Attributes actual = md.getResource().getAttributes();
-            return resourceAttributes.stream().allMatch(expected -> matchesAttributes(actual, expected));
-        }
-
-        private boolean matchesDataAttributes(MetricData md) {
-            Collection<Attributes> actuals =
-                    md.getData().getPoints().stream().map(PointData::getAttributes).collect(Collectors.toSet());
-            return dataAttributes.stream().
-                    allMatch(expected -> actuals.stream().anyMatch(actual -> matchesAttributes(actual, expected)));
-        }
-
-        private boolean matchesAttributes(Attributes actual, Attributes expected) {
-            // Return true iff all attribute pairs in expected are a subset of those in actual. Allows tests to specify
-            // just the attributes they care about, insted of exhaustively having to list all of them.
-            return expected.asMap().entrySet().stream().allMatch(e -> e.getValue().equals(actual.get(e.getKey())));
-        }
-
-        private boolean matchesLongValues(MetricData md) {
-            Collection<Long> actualData =
-                    md.getLongSumData().getPoints().stream().map(LongPointData::getValue).collect(Collectors.toSet());
-            return actualData.containsAll(longValues);
-        }
-
-        private boolean matchesDoubleValues(MetricData md) {
-            Collection<Double> actualData =
-                md.getDoubleSumData().getPoints().stream().map(DoublePointData::getValue).collect(Collectors.toSet());
-            return actualData.containsAll(doubleValues);
-        }
-    }
 
     private OpenTelemetryService openTelemetryService;
     private InMemoryMetricReader reader;
