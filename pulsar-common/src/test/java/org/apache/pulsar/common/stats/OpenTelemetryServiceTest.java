@@ -47,7 +47,7 @@ import org.testng.annotations.Test;
 public class OpenTelemetryServiceTest {
 
     @Builder
-    public static final class MetricDataMatchPredicate implements Predicate<MetricData> {
+    public static final class MetricDataMatcher implements Predicate<MetricData> {
         final String name;
         final MetricDataType type;
         final InstrumentationScopeInfo instrumentationScopeInfo;
@@ -138,7 +138,7 @@ public class OpenTelemetryServiceTest {
                 extraMetricReader(reader).
                 build();
 
-        Predicate<MetricData> predicate = MetricDataMatchPredicate.builder().
+        Predicate<MetricData> predicate = MetricDataMatcher.builder().
                 resourceAttribute(Attributes.of(AttributeKey.stringKey("pulsar.cluster"), "testCluster")).
                 build();
 
@@ -158,7 +158,7 @@ public class OpenTelemetryServiceTest {
                 extraMetricReader(reader).
                 build();
 
-        Predicate<MetricData> predicate = MetricDataMatchPredicate.builder().
+        Predicate<MetricData> predicate = MetricDataMatcher.builder().
                 resourceAttribute(Attributes.of(AttributeKey.stringKey("service.name"), "testServiceName")).
                 build();
 
@@ -170,7 +170,7 @@ public class OpenTelemetryServiceTest {
     public void testIsInstrumentationNameSetOnMeter() throws Exception {
         Meter meter = openTelemetryService.getMeter("testInstrumentationScope");
         meter.counterBuilder("dummyCounter").build().add(1);
-        MetricDataMatchPredicate predicate = MetricDataMatchPredicate.builder().
+        MetricDataMatcher predicate = MetricDataMatcher.builder().
                 name("dummyCounter").
                 instrumentationScopeInfo(InstrumentationScopeInfo.create("testInstrumentationScope")).
                 build();
@@ -186,7 +186,7 @@ public class OpenTelemetryServiceTest {
             longCounter.add(1, Attributes.of(AttributeKey.stringKey("attribute"), "value" + i));
         }
 
-        Predicate<MetricData> hasOverflowAttribute = MetricDataMatchPredicate.builder().
+        Predicate<MetricData> hasOverflowAttribute = MetricDataMatcher.builder().
                         name("dummyMetricCardinalityTest").
                         dataAttribute(MetricStorage.CARDINALITY_OVERFLOW).
                         build();
@@ -208,7 +208,7 @@ public class OpenTelemetryServiceTest {
         longCounter.add(1, Attributes.of(AttributeKey.stringKey("dummyAttr"), "dummyValue"));
         longCounter.add(2, Attributes.of(AttributeKey.stringKey("dummyAttr"), "dummyValue"));
 
-        Predicate<MetricData> predicate = MetricDataMatchPredicate.builder().
+        Predicate<MetricData> predicate = MetricDataMatcher.builder().
                 name("dummyLongCounter").
                 dataAttribute(Attributes.of(AttributeKey.stringKey("dummyAttr"), "dummyValue")).
                 type(MetricDataType.LONG_SUM).
@@ -225,7 +225,7 @@ public class OpenTelemetryServiceTest {
         doubleCounter.add(3.14, Attributes.of(AttributeKey.stringKey("dummyAttr"), "dummyValue"));
         doubleCounter.add(2.71, Attributes.of(AttributeKey.stringKey("dummyAttr"), "dummyValue"));
 
-        Predicate<MetricData> predicate = MetricDataMatchPredicate.builder().
+        Predicate<MetricData> predicate = MetricDataMatcher.builder().
                 name("dummyDoubleCounter").
                 dataAttribute(Attributes.of(AttributeKey.stringKey("dummyAttr"), "dummyValue")).
                 doubleValue(5.85).
