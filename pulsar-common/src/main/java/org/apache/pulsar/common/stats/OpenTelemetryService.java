@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.common.stats;
 
+import com.google.common.annotations.VisibleForTesting;
 import io.opentelemetry.api.common.AttributeKey;
 import io.opentelemetry.api.metrics.Meter;
 import io.opentelemetry.sdk.OpenTelemetrySdk;
@@ -50,7 +51,7 @@ public class OpenTelemetryService implements Closeable {
             String clusterName,
             String serviceName,
             @Singular Map<String, String> extraProperties,
-            @Singular List<MetricReader> extraMetricReaders) {
+            @VisibleForTesting @Singular List<MetricReader> extraMetricReaders) {
         Objects.requireNonNull(clusterName);
         AutoConfiguredOpenTelemetrySdkBuilder builder = AutoConfiguredOpenTelemetrySdk.builder();
         builder.addPropertiesSupplier(
