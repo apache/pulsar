@@ -36,7 +36,6 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.ConcurrentWaitCallbackException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.NoMoreEntriesToReadException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.TooManyRequestsException;
-import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.service.AbstractDispatcherSingleActiveConsumer;
@@ -55,6 +54,7 @@ import org.apache.pulsar.client.impl.Backoff;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.compaction.CompactedTopicUtils;
+import org.apache.pulsar.compaction.Compactor;
 import org.apache.pulsar.compaction.TopicCompactionService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -364,7 +364,7 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
                 havePendingRead = true;
                 if (consumer.readCompacted()) {
                     boolean readFromEarliest = false;
-                    if (!cursor.isDurable() || ((ManagedCursorImpl) cursor).isCompactionCursor()
+                    if (!cursor.isDurable() || cursor.getName().equals(Compactor.COMPACTION_SUBSCRIPTION)
                             || cursor.getMarkDeletedPosition() == null
                             || cursor.getMarkDeletedPosition().getEntryId() == -1L) {
                         readFromEarliest = isFirstRead && MessageId.earliest.equals(consumer.getStartMessageId());

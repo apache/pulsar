@@ -102,7 +102,7 @@ public class CompactedTopicImpl implements CompactedTopic {
                                        ReadEntriesCallback callback, Consumer consumer) {
             PositionImpl cursorPosition;
             boolean readFromEarliest = false;
-            if (!cursor.isDurable() || ((ManagedCursorImpl) cursor).isCompactionCursor()
+            if (!cursor.isDurable() || cursor.getName().equals(Compactor.COMPACTION_SUBSCRIPTION)
                     || cursor.getMarkDeletedPosition() == null
                     || cursor.getMarkDeletedPosition().getEntryId() == -1L) {
                 readFromEarliest = isFirstRead && MessageId.earliest.equals(consumer.getStartMessageId());
