@@ -27,33 +27,31 @@ import io.opentelemetry.sdk.metrics.data.MetricData;
 import io.opentelemetry.sdk.metrics.data.MetricDataType;
 import io.opentelemetry.sdk.metrics.data.PointData;
 import io.opentelemetry.sdk.metrics.internal.state.MetricStorage;
+import io.opentelemetry.sdk.testing.exporter.InMemoryMetricReader;
+import java.util.Collection;
 import java.util.List;
-import java.util.concurrent.CountDownLatch;
-import java.util.function.Consumer;
+import java.util.function.Predicate;
 import lombok.Builder;
 import lombok.Cleanup;
 import lombok.Singular;
-import org.mockito.ArgumentMatcher;
-import org.mockito.Mockito;
-import org.mockito.invocation.InvocationOnMock;
-import org.mockito.stubbing.Answer;
+import org.testng.Assert;
 import org.testng.annotations.Test;
 
 public class OpenTelemetryServiceTest {
 
     @Builder
-    public static final class MetricDataArgumentMatcher implements ArgumentMatcher<MetricData> {
+    public static final class MetricDataMatchPredicate implements Predicate<MetricData> {
         final String name;
         final MetricDataType type;
         final Attributes attributes;
-        @Singular final List<LongPointData> longs;
+        @Singular final List<Long> longValues;
 
         @Override
-        public boolean matches(MetricData md) {
+        public boolean test(MetricData md) {
             return (type == null || type.equals(md.getType()))
                     && (name == null || name.equals(md.getName()))
                     && matchesAttributes(md)
-                    && matchesLongPointData(md);
+                    && matchesLongValues(md);
         }
 
         private boolean matchesAttributes(MetricData md) {
@@ -61,70 +59,67 @@ public class OpenTelemetryServiceTest {
                     || md.getData().getPoints().stream().map(PointData::getAttributes).anyMatch(attributes::equals);
         }
 
-        private boolean matchesLongPointData(MetricData md) {
-            return longs == null
-                    || longs.stream().mapToLong(LongPointData::getValue).allMatch(
+        private boolean matchesLongValues(MetricData md) {
+            return longValues == null || longValues.stream().allMatch(
                     value -> md.getLongSumData().getPoints().stream().mapToLong(LongPointData::getValue).anyMatch(
                             valueA -> value == valueA));
         }
     }
 
     @Test
-    public void testMetricExport() throws Exception {
-        Consumer<MetricData> consumer = Mockito.mock(Consumer.class);
-        String consumerUuid = TestMetricProvider.registerMetricConsumer(consumer);
+    public void testInMemoryReader() throws Exception {
+        @Cleanup
+        InMemoryMetricReader reader = InMemoryMetricReader.create();
 
         @Cleanup
-        OpenTelemetryService ots = OpenTelemetryService.builder().
-                clusterName("clusterName").
-                extraProperty("otel.metric.export.interval", "100").
-                extraProperty("otel.metrics.exporter", TestMetricProvider.METRIC_PROVIDER_NAME).
-                extraProperty(TestMetricProvider.METRIC_CONSUMER_CONFIG_KEY, consumerUuid).
-                build();
+        OpenTelemetryService ots =
+                OpenTelemetryService.builder().clusterName("clusterName").extraMetricReader(reader).build();
 
         Meter meter = ots.getMeter("pulsar.test");
-        LongCounter longCounter = meter.counterBuilder("counter.A").build();
+        LongCounter longCounter = meter.counterBuilder("counter.inMemory").build();
         longCounter.add(1);
 
-        ArgumentMatcher<MetricData> matcher =
-                MetricDataArgumentMatcher.builder().name("counter.A").type(MetricDataType.LONG_SUM).build();
+        Predicate<MetricData> predicate = MetricDataMatchPredicate.builder().
+                name("counter.inMemory").
+                type(MetricDataType.LONG_SUM).
+                longValue(1L).
+                build();
 
-        Mockito.verify(consumer, Mockito.timeout(1000).atLeastOnce()).accept(Mockito.argThat(matcher));
+        Collection<MetricData> metricData = reader.collectAllMetrics();
+        Assert.assertTrue(metricData.stream().anyMatch(predicate));
     }
 
     @Test
     public void testMetricCardinality() throws Exception {
-        Consumer<MetricData> consumer = Mockito.mock(Consumer.class);
-        String consumerUuid = TestMetricProvider.registerMetricConsumer(consumer);
+        @Cleanup
+        InMemoryMetricReader reader = InMemoryMetricReader.create();
 
         @Cleanup
         OpenTelemetryService ots = OpenTelemetryService.builder().
                 clusterName("clusterName").
-                extraProperty("otel.metric.export.interval", "100").
-                extraProperty("otel.metrics.exporter", TestMetricProvider.METRIC_PROVIDER_NAME).
-                extraProperty(TestMetricProvider.METRIC_CONSUMER_CONFIG_KEY, consumerUuid).
+                extraMetricReader(reader).
                 build();
 
         Meter meter = ots.getMeter("pulsar.testMetricCardinality");
         LongCounter longCounter = meter.counterBuilder("count").build();
-        ArgumentMatcher<MetricData> matcher =
-                MetricDataArgumentMatcher.builder().name("count").attributes(MetricStorage.CARDINALITY_OVERFLOW).build();
 
         for (int i = 0; i < OpenTelemetryService.MAX_CARDINALITY_LIMIT; i++) {
             longCounter.add(1, Attributes.of(AttributeKey.stringKey("attribute"), "value" + i));
         }
 
-        CountDownLatch cdl = new CountDownLatch(1); // Wait for at least one metric batch to be exported
-        Mockito.doAnswer(invocation -> {
-            cdl.countDown();
-            return null;
-        }).when(consumer).accept(Mockito.any());
-        cdl.await();
-        Mockito.verify(consumer, Mockito.never()).accept(Mockito.argThat(matcher));
+        Predicate<MetricData> hasOverflowAttribute = MetricDataMatchPredicate.builder().
+                        name("count").
+                        attributes(MetricStorage.CARDINALITY_OVERFLOW).
+                        build();
+
+        Collection<MetricData> metricData = reader.collectAllMetrics();
+        Assert.assertTrue(metricData.stream().noneMatch(hasOverflowAttribute));
 
         for (int i = 0; i < OpenTelemetryService.MAX_CARDINALITY_LIMIT + 1; i++) {
             longCounter.add(1, Attributes.of(AttributeKey.stringKey("attribute"), "value" + i));
         }
-        Mockito.verify(consumer, Mockito.timeout(1000).atLeastOnce()).accept(Mockito.argThat(matcher));
+
+        metricData = reader.collectAllMetrics();
+        Assert.assertTrue(metricData.stream().anyMatch(hasOverflowAttribute));
     }
 }

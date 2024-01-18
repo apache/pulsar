@@ -22,12 +22,15 @@ import io.opentelemetry.api.metrics.Meter;
 import io.opentelemetry.sdk.OpenTelemetrySdk;
 import io.opentelemetry.sdk.autoconfigure.AutoConfiguredOpenTelemetrySdk;
 import io.opentelemetry.sdk.autoconfigure.AutoConfiguredOpenTelemetrySdkBuilder;
+import io.opentelemetry.sdk.metrics.export.MetricReader;
+import io.opentelemetry.sdk.metrics.internal.SdkMeterProviderUtil;
+import io.opentelemetry.sdk.metrics.internal.export.CardinalityLimitSelector;
 import io.opentelemetry.sdk.resources.Resource;
 import java.io.Closeable;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import lombok.Builder;
 import lombok.Singular;
 
 public class OpenTelemetryService implements Closeable {
@@ -43,7 +46,8 @@ public class OpenTelemetryService implements Closeable {
     public OpenTelemetryService(
             String clusterName,
             @Singular Map<String, String> extraProperties,
-            @Singular Map<String, String> extraResources) {
+            @Singular Map<String, String> extraResources,
+            @Singular List<MetricReader> extraMetricReaders) {
         Objects.requireNonNull(clusterName);
         AutoConfiguredOpenTelemetrySdkBuilder builder = AutoConfiguredOpenTelemetrySdk.builder();
         builder.addPropertiesSupplier(
@@ -51,6 +55,12 @@ public class OpenTelemetryService implements Closeable {
         builder.addPropertiesSupplier(() -> extraProperties);
         builder.addResourceCustomizer(
                 (resource, __) -> resource.merge(Resource.builder().put(CLUSTER_NAME_ATTRIBUTE, clusterName).build()));
+        final CardinalityLimitSelector cardinalityLimitSelector = __ -> MAX_CARDINALITY_LIMIT + 1;
+        extraMetricReaders.forEach(metricReader -> builder.addMeterProviderCustomizer((sdkMeterProviderBuilder, __) -> {
+            SdkMeterProviderUtil.registerMetricReaderWithCardinalitySelector(
+                    sdkMeterProviderBuilder, metricReader, cardinalityLimitSelector);
+            return sdkMeterProviderBuilder;
+        }));
         openTelemetrySdk = builder.build().getOpenTelemetrySdk();
     }
 
