@@ -787,6 +787,8 @@ public class ManagedCursorImpl implements ManagedCursor {
         int numOfEntriesToRead = applyMaxSizeCap(numberOfEntriesToRead, maxSizeBytes);
 
         PENDING_READ_OPS_UPDATER.incrementAndGet(this);
+        // Skip deleted entries.
+        skipCondition = skipCondition == null ? this::isMessageDeleted : skipCondition.or(this::isMessageDeleted);
         OpReadEntry op =
                 OpReadEntry.create(this, readPosition, numOfEntriesToRead, callback, ctx, maxPosition, skipCondition);
         ledger.asyncReadEntries(op);
@@ -940,6 +942,8 @@ public class ManagedCursorImpl implements ManagedCursor {
             asyncReadEntriesWithSkip(numberOfEntriesToRead, NO_MAX_SIZE_LIMIT, callback, ctx,
                     maxPosition, skipCondition);
         } else {
+            // Skip deleted entries.
+            skipCondition = skipCondition == null ? this::isMessageDeleted : skipCondition.or(this::isMessageDeleted);
             OpReadEntry op = OpReadEntry.create(this, readPosition, numberOfEntriesToRead, callback,
                     ctx, maxPosition, skipCondition);
 
