@@ -2198,35 +2198,42 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     }
 
     /**
-     * Get the largest batch index of the last valid entry.
+     * Get the metadata of the largest batch index of the last valid entry.
      * some entry need to be filtered, such as marker message.
      * @param entryFuture
      * @param lastPosition
      * @param ml
      */
-    private void readLastValidEntry(CompletableFuture<Entry> entryFuture, PositionImpl lastPosition,
+    private void readLastValidEntry(CompletableFuture<MessageMetadata> entryFuture, PositionImpl lastPosition,
                                     ManagedLedgerImpl ml) {
         ml.asyncReadEntry(lastPosition, new AsyncCallbacks.ReadEntryCallback() {
             @Override
             public void readEntryComplete(Entry entry, Object ctx) {
-                if (isValidEntry(entry)) {
-                    entryFuture.complete(entry);
-                } else {
-                    // check the previous entry
-                    if (lastPosition.getEntryId() > 0) {
-                        readLastValidEntry(entryFuture, PositionImpl.get(lastPosition.getLedgerId(),
-                                lastPosition.getEntryId() - 1), ml);
+                try {
+                    if (isValidEntry(entry)) {
+                        MessageMetadata metadata = Commands.parseMessageMetadata(entry.getDataBuffer());
+                        entryFuture.complete(metadata);
                     } else {
-                        // find out the previous ledger
-                        NavigableMap<Long, MLDataFormats.ManagedLedgerInfo.LedgerInfo> ledgersMap =
-                                ml.getLedgersInfo();
-                        Long previousLedgerId = ledgersMap.lowerKey(lastPosition.getLedgerId());
-                        if (previousLedgerId != null) {
-                            readLastValidEntry(entryFuture, PositionImpl.get(previousLedgerId,
-                                    ledgersMap.get(previousLedgerId).getEntries() - 1), ml);
+                        // check the previous entry
+                        if (lastPosition.getEntryId() > 0) {
+                            readLastValidEntry(entryFuture, PositionImpl.get(lastPosition.getLedgerId(),
+                                    lastPosition.getEntryId() - 1), ml);
                         } else {
-                            entryFuture.completeExceptionally(new ManagedLedgerException("No valid entry found"));
+                            // find out the previous ledger
+                            NavigableMap<Long, MLDataFormats.ManagedLedgerInfo.LedgerInfo> ledgersMap =
+                                    ml.getLedgersInfo();
+                            Long previousLedgerId = ledgersMap.lowerKey(lastPosition.getLedgerId());
+                            if (previousLedgerId != null) {
+                                readLastValidEntry(entryFuture, PositionImpl.get(previousLedgerId,
+                                        ledgersMap.get(previousLedgerId).getEntries() - 1), ml);
+                            } else {
+                                entryFuture.completeExceptionally(new ManagedLedgerException("No valid entry found"));
+                            }
                         }
+                    }
+                } finally {
+                    if (entry != null) {
+                        entry.release();
                     }
                 }
             }
@@ -2275,13 +2282,11 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             }
 
             // For a valid position, we read the entry out and parse the batch size from its metadata.
-            CompletableFuture<Entry> entryFuture = new CompletableFuture<>();
-            readLastValidEntry(entryFuture, lastPosition, ml);
+            CompletableFuture<MessageMetadata> entryMetaDataFuture = new CompletableFuture<>();
+            readLastValidEntry(entryMetaDataFuture, lastPosition, ml);
 
-            CompletableFuture<Integer> batchSizeFuture = entryFuture.thenApply(entry -> {
-                MessageMetadata metadata = Commands.parseMessageMetadata(entry.getDataBuffer());
+            CompletableFuture<Integer> batchSizeFuture = entryMetaDataFuture.thenApply(metadata -> {
                 int batchSize = metadata.getNumMessagesInBatch();
-                entry.release();
                 return metadata.hasNumMessagesInBatch() ? batchSize : -1;
             });
 
