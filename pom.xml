@@ -248,7 +248,8 @@ flexible messaging model and an intuitive client API.</description>
     <disruptor.version>3.4.3</disruptor.version>
     <zstd-jni.version>1.5.2-3</zstd-jni.version>
     <netty-reactive-streams.version>2.0.6</netty-reactive-streams.version>
-    <opentelemetry.version>1.34.0</opentelemetry.version>
+    <opentelemetry.version>1.34.1</opentelemetry.version>
+    <opentelemetry.semconv.version>1.23.1-alpha</opentelemetry.semconv.version>
     <opentelemetry.javaagent.version>1.32.0</opentelemetry.javaagent.version>
 
     <!-- test dependencies -->
@@ -1434,14 +1435,6 @@ flexible messaging model and an intuitive client API.</description>
         <artifactId>rest-assured</artifactId>
         <version>${restassured.version}</version>
         <scope>test</scope>
-      </dependency>
-
-      <dependency>
-        <groupId>io.opentelemetry</groupId>
-        <artifactId>opentelemetry-bom</artifactId>
-        <version>${opentelemetry.version}</version>
-        <type>pom</type>
-        <scope>import</scope>
       </dependency>
     </dependencies>
   </dependencyManagement>

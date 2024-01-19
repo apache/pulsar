@@ -34,6 +34,26 @@
   <name>Pulsar Common</name>
   <description>Common libraries needed by client/broker/tools</description>
 
+  <dependencyManagement>
+    <dependencies>
+      <dependency>
+        <groupId>io.opentelemetry</groupId>
+        <artifactId>opentelemetry-bom</artifactId>
+        <version>${opentelemetry.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
+      <!-- opentelemetry-sdk-extension-autoconfigure uses an alpha API in opentelemetry-api-events -->
+      <dependency>
+        <groupId>io.opentelemetry</groupId>
+        <artifactId>opentelemetry-bom-alpha</artifactId>
+        <version>${opentelemetry.version}-alpha</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
+    </dependencies>
+  </dependencyManagement>
+
   <dependencies>
     <dependency>
       <groupId>${project.groupId}</groupId>
@@ -201,42 +221,49 @@
 	    <artifactId>protobuf-java</artifactId>
     </dependency>
 
+    <!-- OpenTelemetry dependencies -->
     <dependency>
       <groupId>io.opentelemetry</groupId>
       <artifactId>opentelemetry-api</artifactId>
-      <version>${opentelemetry.version}</version>
     </dependency>
-
     <dependency>
       <groupId>io.opentelemetry</groupId>
-      <artifactId>opentelemetry-exporter-otlp</artifactId>
-      <version>${opentelemetry.version}</version>
+      <artifactId>opentelemetry-api-events</artifactId>
     </dependency>
-
     <dependency>
       <groupId>io.opentelemetry</groupId>
-      <artifactId>opentelemetry-exporter-prometheus</artifactId>
-      <version>${opentelemetry.version}-alpha</version>
+      <artifactId>opentelemetry-sdk</artifactId>
     </dependency>
-
-
+    <dependency>
+      <groupId>io.opentelemetry</groupId>
+      <artifactId>opentelemetry-sdk-metrics</artifactId>
+    </dependency>
     <dependency>
       <groupId>io.opentelemetry</groupId>
       <artifactId>opentelemetry-exporter-logging</artifactId>
-      <version>${opentelemetry.version}</version>
-      <scope>test</scope>
     </dependency>
-
+    <dependency>
+      <groupId>io.opentelemetry</groupId>
+      <artifactId>opentelemetry-exporter-otlp</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>io.opentelemetry</groupId>
+      <artifactId>opentelemetry-sdk-extension-autoconfigure</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>io.opentelemetry</groupId>
+      <artifactId>opentelemetry-sdk-extension-autoconfigure-spi</artifactId>
+    </dependency>
+    <dependency>
+      <!-- Not managed by opentelemetry-bom -->
+      <groupId>io.opentelemetry.semconv</groupId>
+      <artifactId>opentelemetry-semconv</artifactId>
+      <version>${opentelemetry.semconv.version}</version>
+    </dependency>
     <dependency>
       <groupId>io.opentelemetry.javaagent</groupId>
       <artifactId>opentelemetry-javaagent</artifactId>
       <version>${opentelemetry.javaagent.version}</version>
-    </dependency>
-
-    <dependency>
-      <groupId>io.opentelemetry</groupId>
-      <artifactId>opentelemetry-sdk-extension-autoconfigure</artifactId>
-      <version>${opentelemetry.version}</version>
     </dependency>
 
     <!-- test -->
