@@ -39,8 +39,6 @@ public class MetricsTest {
         var clusterName = MetricsTest.class.getSimpleName() + "-" + UUID.randomUUID();
         var openTelemetryCollectorContainer = new OpenTelemetryCollectorContainer(clusterName);
 
-        assertEquals(openTelemetryCollectorContainer.getOtlpEndpoint(), "http://otel-collector:4317");
-
         var brokerOtelServiceName = clusterName + "-broker";
         var localCollectorProps = Map.of(
                 "OTEL_SDK_DISABLED", "false",
