@@ -922,9 +922,9 @@ public abstract class NamespacesBase extends AdminResource {
             return FutureUtil.failedFuture(new RestException(Response.Status.PRECONDITION_FAILED, errorStr));
         }
         LeaderBroker leaderBroker = pulsar().getLeaderElectionService().getCurrentLeader().get();
-        String leaderBrokerUrl = leaderBroker.getServiceUrl();
+        String leaderBrokerId = leaderBroker.getBrokerId();
         return pulsar().getNamespaceService()
-                .createLookupResult(leaderBrokerUrl, false, null)
+                .createLookupResult(leaderBrokerId, false, null)
                 .thenCompose(lookupResult -> {
                     String redirectUrl = isRequestHttps() ? lookupResult.getLookupData().getHttpUrlTls()
                             : lookupResult.getLookupData().getHttpUrl();
@@ -947,7 +947,7 @@ public abstract class NamespacesBase extends AdminResource {
                         return FutureUtil.failedFuture((
                                 new WebApplicationException(Response.temporaryRedirect(redirect).build())));
                     } catch (MalformedURLException exception) {
-                        log.error("The leader broker url is malformed - {}", leaderBrokerUrl);
+                        log.error("The redirect url is malformed - {}", redirectUrl);
                         return FutureUtil.failedFuture(new RestException(exception));
                     }
                 });
@@ -983,8 +983,11 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     public CompletableFuture<Void> internalUnloadNamespaceBundleAsync(String bundleRange,
-                                                                      String destinationBroker,
+                                                                      String destinationBrokerParam,
                                                                       boolean authoritative) {
+        String destinationBroker = StringUtils.isBlank(destinationBrokerParam) ? null :
+                // ensure backward compatibility: strip the possible http:// or https:// prefix
+                destinationBrokerParam.replaceFirst("http[s]?://", "");
         return validateSuperUserAccessAsync()
                 .thenCompose(__ -> setNamespaceBundleAffinityAsync(bundleRange, destinationBroker))
                 .thenAccept(__ -> {

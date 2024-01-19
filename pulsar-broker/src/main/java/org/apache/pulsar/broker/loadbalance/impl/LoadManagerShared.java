@@ -21,8 +21,6 @@ package org.apache.pulsar.broker.loadbalance.impl;
 import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.pulsar.common.stats.JvmMetrics.getJvmDirectMemoryUsed;
 import io.netty.util.concurrent.FastThreadLocal;
-import java.net.MalformedURLException;
-import java.net.URL;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -106,59 +104,56 @@ public class LoadManagerShared {
         if (isIsolationPoliciesPresent) {
             LOG.debug("Isolation Policies Present for namespace - [{}]", namespace.toString());
         }
-        for (final String broker : availableBrokers) {
-            final String brokerUrlString = String.format("http://%s", broker);
-            URL brokerUrl;
+        for (final String brokerId : availableBrokers) {
+            String brokerHost;
             try {
-                brokerUrl = new URL(brokerUrlString);
-            } catch (MalformedURLException e) {
-                LOG.error("Unable to parse brokerUrl from ResourceUnitId", e);
+                brokerHost = parseBrokerHost(brokerId);
+            } catch (IllegalArgumentException e) {
+                LOG.error("Unable to parse host from {}", brokerId, e);
                 continue;
             }
             // todo: in future check if the resource unit has resources to take the namespace
             if (isIsolationPoliciesPresent) {
                 // note: serviceUnitID is namespace name and ResourceID is brokerName
-                if (policies.isPrimaryBroker(namespace, brokerUrl.getHost())) {
-                    primariesCache.add(broker);
+                if (policies.isPrimaryBroker(namespace, brokerHost)) {
+                    primariesCache.add(brokerId);
                     if (LOG.isDebugEnabled()) {
                         LOG.debug("Added Primary Broker - [{}] as possible Candidates for"
-                                + " namespace - [{}] with policies", brokerUrl.getHost(), namespace.toString());
+                                + " namespace - [{}] with policies", brokerHost, namespace.toString());
                     }
-                } else if (policies.isSecondaryBroker(namespace, brokerUrl.getHost())) {
-                    secondaryCache.add(broker);
+                } else if (policies.isSecondaryBroker(namespace, brokerHost)) {
+                    secondaryCache.add(brokerId);
                     if (LOG.isDebugEnabled()) {
                         LOG.debug(
                                 "Added Shared Broker - [{}] as possible "
                                         + "Candidates for namespace - [{}] with policies",
-                                brokerUrl.getHost(), namespace.toString());
+                                brokerHost, namespace.toString());
                     }
                 } else {
                     if (LOG.isDebugEnabled()) {
                         LOG.debug("Skipping Broker - [{}] not primary broker and not shared" + " for namespace - [{}] ",
-                                brokerUrl.getHost(), namespace.toString());
+                                brokerHost, namespace.toString());
                     }
 
                 }
             } else {
                 // non-persistent topic can be assigned to only those brokers that enabled for non-persistent topic
-                if (isNonPersistentTopic
-                        && !brokerTopicLoadingPredicate.isEnableNonPersistentTopics(brokerUrlString)) {
+                if (isNonPersistentTopic && !brokerTopicLoadingPredicate.isEnableNonPersistentTopics(brokerId)) {
                     if (LOG.isDebugEnabled()) {
                         LOG.debug("Filter broker- [{}] because it doesn't support non-persistent namespace - [{}]",
-                                brokerUrl.getHost(), namespace.toString());
+                                brokerHost, namespace.toString());
                     }
-                } else if (!isNonPersistentTopic
-                        && !brokerTopicLoadingPredicate.isEnablePersistentTopics(brokerUrlString)) {
+                } else if (!isNonPersistentTopic && !brokerTopicLoadingPredicate.isEnablePersistentTopics(brokerId)) {
                     // persistent topic can be assigned to only brokers that enabled for persistent-topic
                     if (LOG.isDebugEnabled()) {
                         LOG.debug("Filter broker- [{}] because broker only supports non-persistent namespace - [{}]",
-                                brokerUrl.getHost(), namespace.toString());
+                                brokerHost, namespace.toString());
                     }
-                } else if (policies.isSharedBroker(brokerUrl.getHost())) {
-                    secondaryCache.add(broker);
+                } else if (policies.isSharedBroker(brokerHost)) {
+                    secondaryCache.add(brokerId);
                     if (LOG.isDebugEnabled()) {
                         LOG.debug("Added Shared Broker - [{}] as possible Candidates for namespace - [{}]",
-                                brokerUrl.getHost(), namespace.toString());
+                                brokerHost, namespace.toString());
                     }
                 }
             }
@@ -181,6 +176,16 @@ public class LoadManagerShared {
         }
     }
 
+    private static String parseBrokerHost(String brokerId) {
+        // use last index to support ipv6 addresses
+        int lastIdx = brokerId.lastIndexOf(':');
+        if (lastIdx > -1) {
+            return brokerId.substring(0, lastIdx);
+        } else {
+            throw new IllegalArgumentException("Invalid brokerId: " + brokerId);
+        }
+    }
+
     public static CompletableFuture<Set<String>> applyNamespacePoliciesAsync(
             final ServiceUnitId serviceUnit, final SimpleResourceAllocationPolicies policies,
             final Set<String> availableBrokers, final BrokerTopicLoadingPredicate brokerTopicLoadingPredicate) {
@@ -199,59 +204,57 @@ public class LoadManagerShared {
                     LOG.debug("Isolation Policies Present for namespace - [{}]", namespace.toString());
                 }
             }
-            for (final String broker : availableBrokers) {
-                final String brokerUrlString = String.format("http://%s", broker);
-                URL brokerUrl;
+            for (final String brokerId : availableBrokers) {
+                String brokerHost;
                 try {
-                    brokerUrl = new URL(brokerUrlString);
-                } catch (MalformedURLException e) {
-                    LOG.error("Unable to parse brokerUrl from ResourceUnitId", e);
+                    brokerHost = parseBrokerHost(brokerId);
+                } catch (IllegalArgumentException e) {
+                    LOG.error("Unable to parse host from {}", brokerId, e);
                     continue;
                 }
                 // todo: in future check if the resource unit has resources to take the namespace
                 if (isIsolationPoliciesPresent) {
                     // note: serviceUnitID is namespace name and ResourceID is brokerName
-                    if (policies.isPrimaryBroker(namespace, brokerUrl.getHost())) {
-                        primariesCache.add(broker);
+                    if (policies.isPrimaryBroker(namespace, brokerHost)) {
+                        primariesCache.add(brokerId);
                         if (LOG.isDebugEnabled()) {
                             LOG.debug("Added Primary Broker - [{}] as possible Candidates for"
-                                    + " namespace - [{}] with policies", brokerUrl.getHost(), namespace.toString());
+                                    + " namespace - [{}] with policies", brokerHost, namespace.toString());
                         }
-                    } else if (policies.isSecondaryBroker(namespace, brokerUrl.getHost())) {
-                        secondaryCache.add(broker);
+                    } else if (policies.isSecondaryBroker(namespace, brokerHost)) {
+                        secondaryCache.add(brokerId);
                         if (LOG.isDebugEnabled()) {
                             LOG.debug(
                                     "Added Shared Broker - [{}] as possible "
                                             + "Candidates for namespace - [{}] with policies",
-                                    brokerUrl.getHost(), namespace.toString());
+                                    brokerHost, namespace.toString());
                         }
                     } else {
                         if (LOG.isDebugEnabled()) {
                             LOG.debug("Skipping Broker - [{}] not primary broker and not shared"
-                                            + " for namespace - [{}] ", brokerUrl.getHost(), namespace.toString());
+                                            + " for namespace - [{}] ", brokerHost, namespace.toString());
                         }
 
                     }
                 } else {
                     // non-persistent topic can be assigned to only those brokers that enabled for non-persistent topic
-                    if (isNonPersistentTopic
-                            && !brokerTopicLoadingPredicate.isEnableNonPersistentTopics(brokerUrlString)) {
+                    if (isNonPersistentTopic && !brokerTopicLoadingPredicate.isEnableNonPersistentTopics(brokerId)) {
                         if (LOG.isDebugEnabled()) {
                             LOG.debug("Filter broker- [{}] because it doesn't support non-persistent namespace - [{}]",
-                                    brokerUrl.getHost(), namespace.toString());
+                                    brokerId, namespace.toString());
                         }
-                    } else if (!isNonPersistentTopic
-                            && !brokerTopicLoadingPredicate.isEnablePersistentTopics(brokerUrlString)) {
+                    } else if (!isNonPersistentTopic && !brokerTopicLoadingPredicate
+                            .isEnablePersistentTopics(brokerId)) {
                         // persistent topic can be assigned to only brokers that enabled for persistent-topic
                         if (LOG.isDebugEnabled()) {
                             LOG.debug("Filter broker- [{}] because broker only supports non-persistent "
-                                            + "namespace - [{}]", brokerUrl.getHost(), namespace.toString());
+                                            + "namespace - [{}]", brokerId, namespace.toString());
                         }
-                    } else if (policies.isSharedBroker(brokerUrl.getHost())) {
-                        secondaryCache.add(broker);
+                    } else if (policies.isSharedBroker(brokerHost)) {
+                        secondaryCache.add(brokerId);
                         if (LOG.isDebugEnabled()) {
                             LOG.debug("Added Shared Broker - [{}] as possible Candidates for namespace - [{}]",
-                                    brokerUrl.getHost(), namespace.toString());
+                                    brokerHost, namespace.toString());
                         }
                     }
                 }
@@ -762,9 +765,9 @@ public class LoadManagerShared {
     }
 
     public interface BrokerTopicLoadingPredicate {
-        boolean isEnablePersistentTopics(String brokerUrl);
+        boolean isEnablePersistentTopics(String brokerId);
 
-        boolean isEnableNonPersistentTopics(String brokerUrl);
+        boolean isEnableNonPersistentTopics(String brokerId);
     }
 
     /**

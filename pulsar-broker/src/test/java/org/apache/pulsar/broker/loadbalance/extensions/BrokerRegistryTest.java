@@ -75,7 +75,7 @@ public class BrokerRegistryTest {
     private LocalBookkeeperEnsemble bkEnsemble;
 
 
-    // Make sure the load manager don't register itself to `/loadbalance/brokers/{lookupServiceAddress}`
+    // Make sure the load manager don't register itself to `/loadbalance/brokers/{brokerId}`.
     public static class MockLoadManager implements LoadManager {
 
         @Override
@@ -291,7 +291,7 @@ public class BrokerRegistryTest {
         pulsar1.start();
         pulsar2.start();
 
-        doReturn(pulsar1.getLookupServiceAddress()).when(pulsar2).getLookupServiceAddress();
+        doReturn(pulsar1.getBrokerId()).when(pulsar2).getBrokerId();
         BrokerRegistryImpl brokerRegistry1 = createBrokerRegistryImpl(pulsar1);
         BrokerRegistryImpl brokerRegistry2 = createBrokerRegistryImpl(pulsar2);
         brokerRegistry1.start();
