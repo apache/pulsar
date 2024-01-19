@@ -333,10 +333,12 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         } catch (PulsarAdminException e) {
             assertTrue(e instanceof PreconditionFailedException);
         }
+
+        restartBroker();
     }
 
     @Test
-    public void clusterNamespaceIsolationPolicies() throws PulsarAdminException {
+    public void clusterNamespaceIsolationPolicies() throws Exception {
         try {
             // create
             String policyName1 = "policy-1";
@@ -512,6 +514,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
             // Ok
         }
 
+        restartBroker();
     }
 
     @Test
@@ -529,7 +532,8 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         Assert.assertEquals(list2.size(), 1);
 
         BrokerInfo leaderBroker = admin.brokers().getLeaderBroker();
-        Assert.assertEquals(leaderBroker.getServiceUrl(), pulsar.getLeaderElectionService().getCurrentLeader().map(LeaderBroker::getServiceUrl).get());
+        Assert.assertEquals(leaderBroker.getBrokerId(),
+                pulsar.getLeaderElectionService().getCurrentLeader().map(LeaderBroker::getBrokerId).get());
 
         Map<String, NamespaceOwnershipStatus> nsMap = admin.brokers().getOwnedNamespaces("test", list.get(0));
         // since sla-monitor ns is not created nsMap.size() == 1 (for HeartBeat Namespace)
@@ -537,7 +541,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         for (String ns : nsMap.keySet()) {
             NamespaceOwnershipStatus nsStatus = nsMap.get(ns);
             if (ns.equals(
-                    NamespaceService.getHeartbeatNamespace(pulsar.getLookupServiceAddress(), pulsar.getConfiguration())
+                    NamespaceService.getHeartbeatNamespace(pulsar.getBrokerId(), pulsar.getConfiguration())
                             + "/0x00000000_0xffffffff")) {
                 assertEquals(nsStatus.broker_assignment, BrokerAssignment.shared);
                 assertFalse(nsStatus.is_controlled);
@@ -703,6 +707,10 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         Awaitility.await().until(() -> pulsar.getConfiguration().getBrokerShutdownTimeoutMs() == newValue);
         // verify value is updated
         assertEquals(pulsar.getConfiguration().getBrokerShutdownTimeoutMs(), newValue);
+        // reset config
+        pulsar.getConfiguration().setBrokerShutdownTimeoutMs(0L);
+        // restart broker
+        restartBroker();
     }
 
     /**
@@ -801,6 +809,8 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         TenantInfoImpl tenantInfo = new TenantInfoImpl(Set.of("role1", "role2"),
                 Set.of("test", "usw"));
         admin.tenants().updateTenant("prop-xyz", tenantInfo);
+        Awaitility.await().untilAsserted(() ->
+            assertEquals(admin.tenants().getTenantInfo("prop-xyz").getAllowedClusters(), Set.of("test", "usw")));
 
         assertEquals(admin.namespaces().getPolicies("prop-xyz/ns1").bundles, PoliciesUtil.defaultBundle());
 
@@ -3191,6 +3201,9 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         TenantInfoImpl tenantInfo = new TenantInfoImpl(Set.of("role1", "role2"),
                 Set.of("test", "usw"));
         admin.tenants().updateTenant("prop-xyz", tenantInfo);
+        Awaitility.await().untilAsserted(() ->
+                assertEquals(admin.tenants().getTenantInfo("prop-xyz").getAllowedClusters(),
+                        tenantInfo.getAllowedClusters()));
         admin.namespaces().createNamespace("prop-xyz/getBundleNs", 100);
         assertEquals(admin.namespaces().getPolicies("prop-xyz/getBundleNs").bundles.getNumBundles(), 100);
 
@@ -3384,6 +3397,9 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         TenantInfoImpl tenantInfo = new TenantInfoImpl(Set.of("role1", "role2"),
                 Set.of("test", "usw"));
         admin.tenants().updateTenant("prop-xyz", tenantInfo);
+        Awaitility.await().untilAsserted(() ->
+                assertEquals(admin.tenants().getTenantInfo("prop-xyz").getAllowedClusters(),
+                        tenantInfo.getAllowedClusters()));
 
         String ns = BrokerTestUtil.newUniqueName("prop-xyz/ns");
 
