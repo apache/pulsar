@@ -23,6 +23,7 @@ import org.testcontainers.utility.MountableFile;
 public class OpenTelemetryCollectorContainer extends ChaosContainer<OpenTelemetryCollectorContainer> {
 
     private static final String IMAGE_NAME = "otel/opentelemetry-collector-contrib:latest";
+    private static final String NAME = "otel-collector";
 
     private static final int PROMETHEUS_COLLECTOR_PORT = 8888;
     private static final int PROMETHEUS_EXPORTER_PORT = 8889;
@@ -36,7 +37,8 @@ public class OpenTelemetryCollectorContainer extends ChaosContainer<OpenTelemetr
     protected void configure() {
         super.configure();
 
-        this.withCopyFileToContainer(
+        this.withNetworkAliases(NAME)
+            .withCopyFileToContainer(
                 MountableFile.forClasspathResource("containers/otel-collector-config.yaml", 0644),
                 "/etc/otel-collector-config.yaml")
             .withCommand("--config=/etc/otel-collector-config.yaml")

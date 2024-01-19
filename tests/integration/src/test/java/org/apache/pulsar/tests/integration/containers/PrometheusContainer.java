@@ -18,25 +18,26 @@
  */
 package org.apache.pulsar.tests.integration.containers;
 
-import org.testcontainers.images.builder.Transferable;
 import org.testcontainers.utility.MountableFile;
 
 public class PrometheusContainer extends ChaosContainer<PrometheusContainer> {
 
     private static final String IMAGE_NAME = "prom/prometheus:latest";
+    private static final String NAME = "prometheus";
+    private static final int PROMETHEUS_PORT = 9090;
 
     public PrometheusContainer(String clusterName) {
         super(clusterName, IMAGE_NAME);
+    }
 
-        this.withCopyToContainer(
-            MountableFile.forClasspathResource("prometheus.yml"),
-            "/etc/prometheus/prometheus.yml");
+    @Override
+    protected void configure() {
+        super.configure();
 
-        Transferable.of("yolo");
-
-        this.withCopyFileToContainer(
-            MountableFile.forClasspathResource("prometheus.yml"),
-            "/etc/prometheus/prometheus.yml");
-        this.withExposedPorts(9090);
+        this.withNetworkAliases(NAME)
+            .withCopyToContainer(
+                MountableFile.forClasspathResource("containers/prometheus.yml"),
+                "/etc/prometheus/prometheus.yml")
+            .withExposedPorts(PROMETHEUS_PORT);
     }
 }
