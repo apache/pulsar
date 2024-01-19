@@ -188,6 +188,7 @@ public class CompactorTest extends MockedPulsarServiceBaseTest {
     public void testAllCompactedOut() throws Exception {
         String topicName = "persistent://my-property/use/my-ns/testAllCompactedOut";
         // set retain null key to true
+        boolean oldRetainNullKey = pulsar.getConfig().isTopicCompactionRetainNullKey();
         pulsar.getConfig().setTopicCompactionRetainNullKey(true);
         this.restartBroker();
 
@@ -228,6 +229,8 @@ public class CompactorTest extends MockedPulsarServiceBaseTest {
             Message<String> message = reader.readNext(3, TimeUnit.SECONDS);
             Assert.assertNotNull(message);
         }
+        // set retain null key back to false
+        pulsar.getConfig().setTopicCompactionRetainNullKey(oldRetainNullKey);
     }
 
     @Test
