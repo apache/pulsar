@@ -2200,23 +2200,24 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     /**
      * Get the metadata of the largest batch index of the last valid entry.
      * some entry need to be filtered, such as marker message.
-     * @param entryFuture
+     * @param entryMetaDataFuture
      * @param lastPosition
      * @param ml
      */
-    private void readLastValidEntry(CompletableFuture<MessageMetadata> entryFuture, PositionImpl lastPosition,
-                                    ManagedLedgerImpl ml) {
+    private void readLastValidEntryMetaData(CompletableFuture<MessageMetadata> entryMetaDataFuture,
+                                            PositionImpl lastPosition, ManagedLedgerImpl ml) {
         ml.asyncReadEntry(lastPosition, new AsyncCallbacks.ReadEntryCallback() {
             @Override
             public void readEntryComplete(Entry entry, Object ctx) {
                 try {
                     if (isValidEntry(entry)) {
+                        // parse error, need to be fixed.
                         MessageMetadata metadata = Commands.parseMessageMetadata(entry.getDataBuffer());
-                        entryFuture.complete(metadata);
+                        entryMetaDataFuture.complete(metadata);
                     } else {
                         // check the previous entry
                         if (lastPosition.getEntryId() > 0) {
-                            readLastValidEntry(entryFuture, PositionImpl.get(lastPosition.getLedgerId(),
+                            readLastValidEntryMetaData(entryMetaDataFuture, PositionImpl.get(lastPosition.getLedgerId(),
                                     lastPosition.getEntryId() - 1), ml);
                         } else {
                             // find out the previous ledger
@@ -2224,10 +2225,10 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                     ml.getLedgersInfo();
                             Long previousLedgerId = ledgersMap.lowerKey(lastPosition.getLedgerId());
                             if (previousLedgerId != null) {
-                                readLastValidEntry(entryFuture, PositionImpl.get(previousLedgerId,
+                                readLastValidEntryMetaData(entryMetaDataFuture, PositionImpl.get(previousLedgerId,
                                         ledgersMap.get(previousLedgerId).getEntries() - 1), ml);
                             } else {
-                                entryFuture.completeExceptionally(new ManagedLedgerException("No valid entry found"));
+                                entryMetaDataFuture.completeExceptionally(new ManagedLedgerException("No valid entry found"));
                             }
                         }
                     }
@@ -2240,7 +2241,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
             @Override
             public void readEntryFailed(ManagedLedgerException exception, Object ctx) {
-                entryFuture.completeExceptionally(exception);
+                entryMetaDataFuture.completeExceptionally(exception);
             }
 
             @Override
@@ -2283,7 +2284,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
             // For a valid position, we read the entry out and parse the batch size from its metadata.
             CompletableFuture<MessageMetadata> entryMetaDataFuture = new CompletableFuture<>();
-            readLastValidEntry(entryMetaDataFuture, lastPosition, ml);
+            readLastValidEntryMetaData(entryMetaDataFuture, lastPosition, ml);
 
             CompletableFuture<Integer> batchSizeFuture = entryMetaDataFuture.thenApply(metadata -> {
                 int batchSize = metadata.getNumMessagesInBatch();
