@@ -965,21 +965,7 @@ public class TopicsImpl extends BaseResource implements Topics {
 
     @Override
     public CompletableFuture<Message<byte[]>> getMessageByIdAsync(String topic, long ledgerId, long entryId) {
-        CompletableFuture<Message<byte[]>> future = new CompletableFuture<>();
-        getRemoteMessageById(topic, ledgerId, entryId).handle((r, ex) -> {
-            if (ex != null) {
-                if (ex instanceof NotFoundException) {
-                    log.warn("Exception '{}' occurred while trying to get message.", ex.getMessage());
-                    future.complete(r);
-                } else {
-                    future.completeExceptionally(ex);
-                }
-                return null;
-            }
-            future.complete(r);
-            return null;
-        });
-        return future;
+        return getRemoteMessageById(topic, ledgerId, entryId);
     }
 
     private CompletableFuture<Message<byte[]>> getRemoteMessageById(String topic, long ledgerId, long entryId) {
