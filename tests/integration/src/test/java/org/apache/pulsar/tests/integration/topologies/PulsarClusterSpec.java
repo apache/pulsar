@@ -85,7 +85,7 @@ public class PulsarClusterSpec {
      * Specify envs for function workers.
      */
     @Singular
-    Map<String, Map<String, String> functionWorkerEnvs;
+    Map<String, Map<String, String>> functionWorkerEnvs;
 
     /**
      * Allow to query the last message
