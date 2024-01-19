@@ -29,11 +29,11 @@ import io.netty.util.concurrent.Promise;
 import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.LongAdder;
@@ -446,7 +446,7 @@ public class Consumer {
                 .collect(Collectors.toMap(KeyLongValue::getKey, KeyLongValue::getValue));
         }
         if (readCompacted) {
-            properties = new TreeMap<>(properties);
+            properties = new HashMap<>(properties);
             properties.put(READ_COMPACTED_CURSOR_PROPERTIES, 1L);
         }
 

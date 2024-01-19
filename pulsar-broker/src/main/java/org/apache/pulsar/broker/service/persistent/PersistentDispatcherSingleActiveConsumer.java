@@ -363,12 +363,10 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
                 }
                 havePendingRead = true;
                 if (consumer.readCompacted()) {
-                    boolean readFromEarliest = false;
-                    if (!cursor.isDurable() || cursor.getName().equals(Compactor.COMPACTION_SUBSCRIPTION)
+                    boolean readFromEarliest = isFirstRead && MessageId.earliest.equals(consumer.getStartMessageId())
+                            && (!cursor.isDurable() || cursor.getName().equals(Compactor.COMPACTION_SUBSCRIPTION)
                             || cursor.getMarkDeletedPosition() == null
-                            || cursor.getMarkDeletedPosition().getEntryId() == -1L) {
-                        readFromEarliest = isFirstRead && MessageId.earliest.equals(consumer.getStartMessageId());
-                    }
+                            || cursor.getMarkDeletedPosition().getEntryId() == -1L);
                     TopicCompactionService topicCompactionService = topic.getTopicCompactionService();
                     CompactedTopicUtils.asyncReadCompactedEntries(topicCompactionService, cursor, messagesToRead,
                             bytesToRead, topic.getMaxReadPosition(), readFromEarliest, this, true, consumer);
