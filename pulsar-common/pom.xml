@@ -219,11 +219,19 @@
       <version>${opentelemetry.version}-alpha</version>
     </dependency>
 
+
     <dependency>
       <groupId>io.opentelemetry</groupId>
       <artifactId>opentelemetry-exporter-logging</artifactId>
       <version>${opentelemetry.version}</version>
       <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>io.opentelemetry.javaagent</groupId>
+      <artifactId>opentelemetry-javaagent</artifactId>
+      <version>${opentelemetry.javaagent.version}</version>
+      <scope>runtime</scope>
     </dependency>
 
     <dependency>
