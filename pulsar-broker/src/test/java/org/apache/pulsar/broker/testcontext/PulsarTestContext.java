@@ -54,6 +54,7 @@ import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.ServerCnx;
 import org.apache.pulsar.broker.storage.ManagedLedgerStorage;
 import org.apache.pulsar.common.util.GracefulExecutorServicesShutdown;
+import org.apache.pulsar.common.util.PortManager;
 import org.apache.pulsar.compaction.Compactor;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
@@ -153,6 +154,8 @@ public class PulsarTestContext implements AutoCloseable {
 
     private final boolean startable;
 
+    private final boolean preallocatePorts;
+
 
     public ManagedLedgerFactory getManagedLedgerFactory() {
         return managedLedgerClientFactory.getManagedLedgerFactory();
@@ -220,7 +223,9 @@ public class PulsarTestContext implements AutoCloseable {
         protected SpyConfig.Builder spyConfigBuilder = SpyConfig.builder(SpyConfig.SpyType.NONE);
         protected Consumer<PulsarService> pulsarServiceCustomizer;
         protected ServiceConfiguration svcConfig = initializeConfig();
-        protected Consumer<ServiceConfiguration> configOverrideCustomizer = this::defaultOverrideServiceConfiguration;
+        protected Consumer<ServiceConfiguration> configOverrideCustomizer;
+
+        protected boolean configOverrideCalled = false;
         protected Function<BrokerService, BrokerService> brokerServiceCustomizer = Function.identity();
 
         /**
@@ -345,6 +350,7 @@ public class PulsarTestContext implements AutoCloseable {
          */
         public Builder configOverride(Consumer<ServiceConfiguration> configOverrideCustomizer) {
             this.configOverrideCustomizer = configOverrideCustomizer;
+            this.configOverrideCalled = true;
             return this;
         }
 
@@ -521,6 +527,12 @@ public class PulsarTestContext implements AutoCloseable {
             if (super.config == null) {
                 config(svcConfig);
             }
+            handlePreallocatePorts(super.config);
+            if (configOverrideCustomizer != null || !configOverrideCalled) {
+                // call defaultOverrideServiceConfiguration if configOverrideCustomizer
+                // isn't explicitly set to null with `.configOverride(null)` call
+                defaultOverrideServiceConfiguration(super.config);
+            }
             if (configOverrideCustomizer != null) {
                 configOverrideCustomizer.accept(super.config);
             }
@@ -541,6 +553,37 @@ public class PulsarTestContext implements AutoCloseable {
             }
             brokerService(super.pulsarService.getBrokerService());
             return super.build();
+        }
+
+        protected void handlePreallocatePorts(ServiceConfiguration config) {
+            if (super.preallocatePorts) {
+                config.getBrokerServicePort().ifPresent(portNumber -> {
+                    if (portNumber == 0) {
+                        config.setBrokerServicePort(Optional.of(PortManager.nextLockedFreePort()));
+                    }
+                });
+                config.getBrokerServicePortTls().ifPresent(portNumber -> {
+                    if (portNumber == 0) {
+                        config.setBrokerServicePortTls(Optional.of(PortManager.nextLockedFreePort()));
+                    }
+                });
+                config.getWebServicePort().ifPresent(portNumber -> {
+                    if (portNumber == 0) {
+                        config.setWebServicePort(Optional.of(PortManager.nextLockedFreePort()));
+                    }
+                });
+                config.getWebServicePortTls().ifPresent(portNumber -> {
+                    if (portNumber == 0) {
+                        config.setWebServicePortTls(Optional.of(PortManager.nextLockedFreePort()));
+                    }
+                });
+                registerCloseable(() -> {
+                    config.getBrokerServicePort().ifPresent(PortManager::releaseLockedPort);
+                    config.getBrokerServicePortTls().ifPresent(PortManager::releaseLockedPort);
+                    config.getWebServicePort().ifPresent(PortManager::releaseLockedPort);
+                    config.getWebServicePortTls().ifPresent(PortManager::releaseLockedPort);
+                });
+            }
         }
 
         private void initializeCommonPulsarServices(SpyConfig spyConfig) {
