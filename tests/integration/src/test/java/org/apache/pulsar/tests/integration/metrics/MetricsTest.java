@@ -18,13 +18,14 @@
  */
 package org.apache.pulsar.tests.integration.metrics;
 
+import static org.testng.Assert.assertEquals;
 import java.time.Duration;
-import java.time.LocalDateTime;
+import java.util.Map;
 import java.util.UUID;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.tests.integration.containers.OpenTelemetryCollectorContainer;
-import org.apache.pulsar.tests.integration.containers.PrometheusContainer;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
 import org.apache.pulsar.tests.integration.topologies.PulsarClusterSpec;
 import org.awaitility.Awaitility;
@@ -34,25 +35,51 @@ import org.testng.annotations.Test;
 public class MetricsTest {
 
     @Test
-    public void testBrokerMetrics() throws Exception {
+    public void testOpenTelemetryMetrics() throws Exception {
         var clusterName = MetricsTest.class.getSimpleName() + "-" + UUID.randomUUID();
+        var openTelemetryCollectorContainer = new OpenTelemetryCollectorContainer(clusterName);
+
+        assertEquals(openTelemetryCollectorContainer.getOtlpEndpoint(), "http://otel-collector:4317");
+
+        var brokerOtelServiceName = clusterName + "-broker";
+        var localCollectorProps = Map.of(
+                "OTEL_SDK_DISABLED", "false",
+                "OTEL_METRICS_EXPORTER", "otlp",
+                "OTEL_METRIC_EXPORT_INTERVAL", "1000",
+                "OTEL_EXPORTER_OTLP_ENDPOINT", openTelemetryCollectorContainer.getOtlpEndpoint(),
+                "OTEL_SERVICE_NAME", brokerOtelServiceName
+        );
+
+        var proxyOtelServiceName = clusterName + "-proxy";
+        var proxyCollectorProps = Map.of(
+                "OTEL_SDK_DISABLED", "false",
+                "OTEL_METRICS_EXPORTER", "otlp",
+                "OTEL_METRIC_EXPORT_INTERVAL", "1000",
+                "OTEL_EXPORTER_OTLP_ENDPOINT", openTelemetryCollectorContainer.getOtlpEndpoint(),
+                "OTEL_SERVICE_NAME", proxyOtelServiceName
+        );
+
         var spec = PulsarClusterSpec.builder()
                 .clusterName(clusterName)
                 .numBookies(1)
                 .numBrokers(1)
+                .brokerEnvs(localCollectorProps)
                 .numProxies(1)
-                .externalService("otel-collector", new OpenTelemetryCollectorContainer(clusterName))
-                .externalService("prometheus", new PrometheusContainer(clusterName))
+                .proxyEnvs(proxyCollectorProps)
+                .externalService("otel-collector", openTelemetryCollectorContainer)
                 .build();
         @Cleanup("stop")
         var pulsarCluster = PulsarCluster.forSpec(spec);
         pulsarCluster.start();
 
-        var start = LocalDateTime.now();
-        Awaitility.waitAtMost(Duration.ofMinutes(30)).pollInterval(Duration.ofSeconds(30)).until(() -> {
-            var duration = Duration.between(start, LocalDateTime.now());
-            log.info("Time since start: {}", duration);
-            return false;
+        var prometheusClient = openTelemetryCollectorContainer.getMetricsClient();
+
+        Awaitility.waitAtMost(Duration.ofMinutes(5)).pollInterval(Duration.ofSeconds(1)).until(() -> {
+            var metricName = "queueSize_ratio"; // Sent automatically by the OpenTelemetry SDK.
+            var metrics = prometheusClient.getMetrics();
+            var brokerMetrics = metrics.findByNameAndLabels(metricName, Pair.of("job", brokerOtelServiceName));
+            var proxyMetrics = metrics.findByNameAndLabels(metricName, Pair.of("job", proxyOtelServiceName));
+            return !brokerMetrics.isEmpty() && !proxyMetrics.isEmpty();
         });
     }
 }

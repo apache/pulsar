@@ -20,6 +20,7 @@ package org.apache.pulsar.tests.integration.containers;
 
 import java.time.Duration;
 import org.apache.http.HttpStatus;
+import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient;
 import org.testcontainers.containers.wait.strategy.HttpWaitStrategy;
 import org.testcontainers.utility.MountableFile;
 
@@ -28,7 +29,6 @@ public class OpenTelemetryCollectorContainer extends ChaosContainer<OpenTelemetr
     private static final String IMAGE_NAME = "otel/opentelemetry-collector-contrib:latest";
     private static final String NAME = "otel-collector";
 
-    private static final int PROMETHEUS_COLLECTOR_PORT = 8888;
     private static final int PROMETHEUS_EXPORTER_PORT = 8889;
     private static final int OTLP_RECEIVER_PORT = 4317;
     private static final int ZPAGES_PORT = 55679;
@@ -41,12 +41,11 @@ public class OpenTelemetryCollectorContainer extends ChaosContainer<OpenTelemetr
     protected void configure() {
         super.configure();
 
-        this.withNetworkAliases(NAME)
-            .withCopyFileToContainer(
+        this.withCopyFileToContainer(
                 MountableFile.forClasspathResource("containers/otel-collector-config.yaml", 0644),
                 "/etc/otel-collector-config.yaml")
             .withCommand("--config=/etc/otel-collector-config.yaml")
-            .withExposedPorts(OTLP_RECEIVER_PORT, PROMETHEUS_COLLECTOR_PORT, PROMETHEUS_EXPORTER_PORT, ZPAGES_PORT)
+            .withExposedPorts(OTLP_RECEIVER_PORT, PROMETHEUS_EXPORTER_PORT, ZPAGES_PORT)
             .withCreateContainerCmdModifier(createContainerCmd -> {
                 createContainerCmd.withHostName(NAME);
                 createContainerCmd.withName(getContainerName());
@@ -61,5 +60,13 @@ public class OpenTelemetryCollectorContainer extends ChaosContainer<OpenTelemetr
     @Override
     public String getContainerName() {
         return clusterName + "-" + NAME;
+    }
+
+    public PrometheusMetricsClient getMetricsClient() {
+        return new PrometheusMetricsClient(getHost(), getMappedPort(PROMETHEUS_EXPORTER_PORT));
+    }
+
+    public String getOtlpEndpoint() {
+        return String.format("http://%s:%d", NAME, OTLP_RECEIVER_PORT);
     }
 }

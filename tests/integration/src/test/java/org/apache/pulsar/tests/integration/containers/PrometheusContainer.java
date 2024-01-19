@@ -45,6 +45,7 @@ public class PrometheusContainer extends ChaosContainer<PrometheusContainer> {
                     createContainerCmd.withName(getContainerName());
             })
             .waitingFor(new HostPortWaitStrategy());
+        tailContainerLog();
     }
 
     @Override
