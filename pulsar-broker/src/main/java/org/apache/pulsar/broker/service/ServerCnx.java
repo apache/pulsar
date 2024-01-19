@@ -2192,8 +2192,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         }
     }
 
-    private boolean isValidEntry(Entry entry) {
-        MessageMetadata metadata = Commands.parseMessageMetadata(entry.getDataBuffer());
+    private boolean isValidEntry(MessageMetadata metadata) {
         return !metadata.hasMarkerType();
     }
 
@@ -2210,9 +2209,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             @Override
             public void readEntryComplete(Entry entry, Object ctx) {
                 try {
-                    if (isValidEntry(entry)) {
-                        // parse error, need to be fixed.
-                        MessageMetadata metadata = Commands.parseMessageMetadata(entry.getDataBuffer());
+                    MessageMetadata metadata = Commands.parseMessageMetadata(entry.getDataBuffer());
+                    if (isValidEntry(metadata)) {
                         entryMetaDataFuture.complete(metadata);
                     } else {
                         // check the previous entry
