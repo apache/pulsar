@@ -34,6 +34,7 @@ import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import io.netty.buffer.Unpooled;
@@ -1908,4 +1909,49 @@ public class TransactionTest extends TransactionTestBase {
         Assert.assertEquals(result, List.of("V4", "V5", "V6"));
     }
 
+    public void testReaderStuckWithMarkerMsg() throws Exception{
+        final String namespace = "tnx/ns-prechecks";
+        final String topic = "persistent://" + namespace + "/test_transaction_topic" + UUID.randomUUID();
+        admin.namespaces().createNamespace(namespace);
+        admin.topics().createNonPartitionedTopic(topic);
+
+        admin.topicPolicies().setCompactionThreshold(topic, 100 * 1024 * 1024);
+
+        @Cleanup
+        Producer<String> producer = this.pulsarClient.newProducer(Schema.STRING)
+                .topic(topic)
+                .create();
+
+        producer.newMessage().key("K1").value("V1").send();
+
+        Transaction txn = pulsarClient.newTransaction()
+                .withTransactionTimeout(1, TimeUnit.MINUTES).build().get();
+        producer.newMessage(txn).key("K2").value("V2").send();
+        producer.newMessage(txn).key("K3").value("V3").send();
+        txn.commit().get();
+
+        producer.newMessage().key("K1").value("V4").send();
+
+        Transaction txn2 = pulsarClient.newTransaction()
+                .withTransactionTimeout(1, TimeUnit.MINUTES).build().get();
+        producer.newMessage(txn2).key("K2").value("V5").send();
+        producer.newMessage(txn2).key("K3").value("V6").send();
+        txn2.commit().get();
+
+        @Cleanup
+        Reader<String> reader = this.pulsarClient.newReader(Schema.STRING)
+                .topic(topic)
+                .subscriptionName("sub")
+                .startMessageId(MessageId.earliest)
+                .readCompacted(true)
+                .create();
+        List<String> result = new ArrayList<>();
+        while (reader.hasMessageAvailable()) {
+            Message<String> receive = reader.readNext(2, TimeUnit.SECONDS);
+            // we pass the check of hasMessageAvailable, but the readNext is still blocked.
+            assertNotEquals(receive, null);
+            result.add(receive.getValue());
+        }
+        Assert.assertEquals(result, List.of("V4", "V5", "V6"));
+    }
 }
