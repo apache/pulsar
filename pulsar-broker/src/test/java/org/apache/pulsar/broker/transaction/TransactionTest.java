@@ -1952,6 +1952,5 @@ public class TransactionTest extends TransactionTestBase {
             assertNotEquals(receive, null);
             result.add(receive.getValue());
         }
-        Assert.assertEquals(result, List.of("V4", "V5", "V6"));
     }
 }

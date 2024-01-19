@@ -49,6 +49,7 @@ import java.util.Collections;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.NavigableMap;
 import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.Optional;
@@ -68,6 +69,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.bookkeeper.mledger.proto.MLDataFormats;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.pulsar.broker.PulsarService;
@@ -2190,6 +2192,58 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         }
     }
 
+    private boolean isValidEntry(Entry entry) {
+        MessageMetadata metadata = Commands.parseMessageMetadata(entry.getDataBuffer());
+        return !metadata.hasMarkerType();
+    }
+
+    /**
+     * Get the largest batch index of the last valid entry.
+     * some entry need to be filtered, such as marker message.
+     * @param entryFuture
+     * @param lastPosition
+     * @param ml
+     */
+    private void readLastValidEntry(CompletableFuture<Entry> entryFuture, PositionImpl lastPosition,
+                                    ManagedLedgerImpl ml) {
+        ml.asyncReadEntry(lastPosition, new AsyncCallbacks.ReadEntryCallback() {
+            @Override
+            public void readEntryComplete(Entry entry, Object ctx) {
+                if (isValidEntry(entry)) {
+                    entryFuture.complete(entry);
+                } else {
+                    // check the previous entry
+                    if (lastPosition.getEntryId() > 0) {
+                        readLastValidEntry(entryFuture, PositionImpl.get(lastPosition.getLedgerId(),
+                                lastPosition.getEntryId() - 1), ml);
+                    } else {
+                        // find out the previous ledger
+                        NavigableMap<Long, MLDataFormats.ManagedLedgerInfo.LedgerInfo> ledgersMap =
+                                ml.getLedgersInfo();
+                        Long previousLedgerId = ledgersMap.lowerKey(lastPosition.getLedgerId());
+                        if (previousLedgerId != null) {
+                            readLastValidEntry(entryFuture, PositionImpl.get(previousLedgerId,
+                                    ledgersMap.get(previousLedgerId).getEntries() - 1), ml);
+                        } else {
+                            entryFuture.completeExceptionally(new ManagedLedgerException("No valid entry found"));
+                        }
+                    }
+                }
+            }
+
+            @Override
+            public void readEntryFailed(ManagedLedgerException exception, Object ctx) {
+                entryFuture.completeExceptionally(exception);
+            }
+
+            @Override
+            public String toString() {
+                return String.format("ServerCnx [%s] get largest batch index when possible",
+                        ServerCnx.this.ctx.channel());
+            }
+        }, null);
+    }
+
     private void getLargestBatchIndexWhenPossible(
             Topic topic,
             PositionImpl lastPosition,
@@ -2222,23 +2276,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
             // For a valid position, we read the entry out and parse the batch size from its metadata.
             CompletableFuture<Entry> entryFuture = new CompletableFuture<>();
-            ml.asyncReadEntry(lastPosition, new AsyncCallbacks.ReadEntryCallback() {
-                @Override
-                public void readEntryComplete(Entry entry, Object ctx) {
-                    entryFuture.complete(entry);
-                }
-
-                @Override
-                public void readEntryFailed(ManagedLedgerException exception, Object ctx) {
-                    entryFuture.completeExceptionally(exception);
-                }
-
-                @Override
-                public String toString() {
-                    return String.format("ServerCnx [%s] get largest batch index when possible",
-                            ServerCnx.this.ctx.channel());
-                }
-            }, null);
+            readLastValidEntry(entryFuture, lastPosition, ml);
 
             CompletableFuture<Integer> batchSizeFuture = entryFuture.thenApply(entry -> {
                 MessageMetadata metadata = Commands.parseMessageMetadata(entry.getDataBuffer());
