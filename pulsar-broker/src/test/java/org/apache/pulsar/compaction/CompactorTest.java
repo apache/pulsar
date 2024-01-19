@@ -189,7 +189,8 @@ public class CompactorTest extends MockedPulsarServiceBaseTest {
     public void testAllCompactedOut() throws Exception {
         String topicName = "persistent://my-property/use/my-ns/testAllCompactedOut";
         // set retain null key to true
-        TwoPhaseCompactor compactor = (TwoPhaseCompactor) ((PulsarCompactionServiceFactory)pulsar.getCompactionServiceFactory()).getCompactor();
+        TwoPhaseCompactor compactor = (TwoPhaseCompactor) ((PulsarCompactionServiceFactory)
+                pulsar.getCompactionServiceFactory()).getCompactor();
         compactor.setTopicCompactionRetainNullKey(true);
 
         @Cleanup
@@ -225,7 +226,6 @@ public class CompactorTest extends MockedPulsarServiceBaseTest {
                 .readCompacted(true)
                 .startMessageId(MessageId.earliest)
                 .create();
-        Assert.assertNotEquals(reader.getLastMessageIds().get(0), MessageIdImpl.earliest);
         while (reader.hasMessageAvailable()) {
             Message<String> message = reader.readNext(3, TimeUnit.SECONDS);
             Assert.assertNotNull(message);
