@@ -716,6 +716,11 @@ public class CmdTopicPolicies extends CmdBase {
                 + "If set to true, the policy will be replicate to other clusters asynchronously")
         private boolean isGlobal;
 
+        @Parameter(names = { "--maxDelay", "-md" },
+                description = "The max allowed delay for delayed delivery. (eg: 1s, 10s, 1m, 5h, 3d)",
+                converter = TimeUnitToMillisConverter.class)
+        private Long delayedDeliveryMaxDelayInMillis = 0L;
+
         @Override
         void run() throws PulsarAdminException {
             String topicName = validateTopicName(params);
@@ -726,6 +731,7 @@ public class CmdTopicPolicies extends CmdBase {
             getTopicPolicies(isGlobal).setDelayedDeliveryPolicy(topicName, DelayedDeliveryPolicies.builder()
                     .tickTime(delayedDeliveryTimeInMills)
                     .active(enable)
+                    .maxDeliveryDelayInMillis(delayedDeliveryMaxDelayInMillis)
                     .build());
         }
     }

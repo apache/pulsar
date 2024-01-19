@@ -1602,6 +1602,11 @@ public class CmdNamespaces extends CmdBase {
                 converter = TimeUnitToMillisConverter.class)
         private Long delayedDeliveryTimeInMills = 1000L;
 
+        @Parameter(names = { "--maxDelay", "-md" },
+                description = "The max allowed delay for delayed delivery. (eg: 1s, 10s, 1m, 5h, 3d)",
+                converter = TimeUnitToMillisConverter.class)
+        private Long delayedDeliveryMaxDelayInMillis = 0L;
+
         @Override
         void run() throws PulsarAdminException {
             String namespace = validateNamespace(params);
@@ -1612,6 +1617,7 @@ public class CmdNamespaces extends CmdBase {
             getAdmin().namespaces().setDelayedDeliveryMessages(namespace, DelayedDeliveryPolicies.builder()
                     .tickTime(delayedDeliveryTimeInMills)
                     .active(enable)
+                    .maxDeliveryDelayInMillis(delayedDeliveryMaxDelayInMillis)
                     .build());
         }
     }

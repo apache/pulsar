@@ -1814,7 +1814,7 @@ public class CmdTopics extends CmdBase {
         private Long delayedDeliveryTimeInMills = 1_000L;
 
         @Parameter(names = { "--maxDelay", "-md" },
-                description = "The max allowed delay for delayed delivery (in milliseconds).",
+                description = "The max allowed delay for delayed delivery. (eg: 1s, 10s, 1m, 5h, 3d)",
                 converter = TimeUnitToMillisConverter.class)
         private Long delayedDeliveryMaxDelayInMillis = 0L;
 
