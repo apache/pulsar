@@ -94,6 +94,7 @@ public class PulsarCluster {
     private final ProxyContainer proxyContainer;
     private Map<String, GenericContainer<?>> externalServices = Collections.emptyMap();
     private Map<String, Map<String, String>> externalServiceEnvs;
+    private Map<String, Map<String, String>> functionWorkerEnvs;
 
     private PulsarCluster(PulsarClusterSpec spec, CSContainer csContainer, boolean sharedCsContainer) {
 
@@ -326,6 +327,8 @@ public class PulsarCluster {
                 log.info("Successfully started external service {}.", service.getKey());
             });
         }
+
+        this.functionWorkerEnvs = spec.functionWorkerEnvs;
     }
 
     public void startService(String networkAlias,
@@ -435,6 +438,7 @@ public class PulsarCluster {
                 .withEnv("zookeeperServers", ZKContainer.NAME)
                 // bookkeeper tools
                 .withEnv("zkServers", ZKContainer.NAME)
+                .withEnv(functionWorkerEnvs.getOrDefault(suffix, Collections.emptyMap()))
         ));
         this.startWorkers();
     }
