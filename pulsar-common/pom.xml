@@ -231,7 +231,6 @@
       <groupId>io.opentelemetry.javaagent</groupId>
       <artifactId>opentelemetry-javaagent</artifactId>
       <version>${opentelemetry.javaagent.version}</version>
-      <scope>runtime</scope>
     </dependency>
 
     <dependency>
