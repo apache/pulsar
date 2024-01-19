@@ -25,26 +25,19 @@ receivers:
 exporters:
   prometheus:
     endpoint: "0.0.0.0:8889"
-    namespace: promexample
-    const_labels:
-      label1: value1
-  logging:
-    loglevel: debug
 
 processors:
   batch:
 
 extensions:
   health_check:
-  pprof:
-    endpoint: :1888
   zpages:
     endpoint: :55679
 
 service:
-  extensions: [pprof, zpages, health_check]
+  extensions: [zpages, health_check]
   pipelines:
     metrics:
       receivers: [otlp]
       processors: [batch]
-      exporters: [logging, prometheus]
+      exporters: [prometheus]
