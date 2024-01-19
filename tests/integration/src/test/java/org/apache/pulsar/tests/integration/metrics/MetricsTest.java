@@ -37,6 +37,7 @@ public class MetricsTest {
     public void testBrokerMetrics() throws Exception {
         var clusterName = MetricsTest.class.getSimpleName() + UUID.randomUUID();
         var spec = PulsarClusterSpec.builder()
+                .clusterName(clusterName)
                 .numBookies(1)
                 .numBrokers(1)
                 .numProxies(1)
