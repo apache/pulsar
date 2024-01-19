@@ -228,9 +228,6 @@ public class CompactorTest extends MockedPulsarServiceBaseTest {
             Message<String> message = reader.readNext(3, TimeUnit.SECONDS);
             Assert.assertNotNull(message);
         }
-        // set retain null key back to false
-        pulsar.getConfig().setTopicCompactionRetainNullKey(false);
-        this.restartBroker();
     }
 
     @Test
