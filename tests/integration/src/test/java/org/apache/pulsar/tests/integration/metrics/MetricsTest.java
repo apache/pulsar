@@ -35,7 +35,7 @@ public class MetricsTest {
 
     @Test
     public void testBrokerMetrics() throws Exception {
-        var clusterName = MetricsTest.class.getSimpleName() + UUID.randomUUID();
+        var clusterName = MetricsTest.class.getSimpleName() + "-" + UUID.randomUUID();
         var spec = PulsarClusterSpec.builder()
                 .clusterName(clusterName)
                 .numBookies(1)
@@ -49,8 +49,8 @@ public class MetricsTest {
         pulsarCluster.start();
 
         var start = LocalDateTime.now();
-        Awaitility.waitAtMost(Duration.ofMinutes(30)).pollDelay(Duration.ofSeconds(30)).until(() -> {
-            var duration = Duration.between(LocalDateTime.now(), start);
+        Awaitility.waitAtMost(Duration.ofMinutes(30)).pollInterval(Duration.ofSeconds(30)).until(() -> {
+            var duration = Duration.between(start, LocalDateTime.now());
             log.info("Time since start: {}", duration);
             return false;
         });

@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.tests.integration.containers;
 
+import org.testcontainers.containers.wait.strategy.HostPortWaitStrategy;
 import org.testcontainers.utility.MountableFile;
 
 public class PrometheusContainer extends ChaosContainer<PrometheusContainer> {
@@ -38,6 +39,16 @@ public class PrometheusContainer extends ChaosContainer<PrometheusContainer> {
             .withCopyToContainer(
                 MountableFile.forClasspathResource("containers/prometheus.yaml"),
                 "/etc/prometheus/prometheus.yml")
-            .withExposedPorts(PROMETHEUS_PORT);
+            .withExposedPorts(PROMETHEUS_PORT)
+            .withCreateContainerCmdModifier(createContainerCmd -> {
+                    createContainerCmd.withHostName(NAME);
+                    createContainerCmd.withName(getContainerName());
+            })
+            .waitingFor(new HostPortWaitStrategy());
+    }
+
+    @Override
+    public String getContainerName() {
+        return clusterName + "-" + NAME;
     }
 }
