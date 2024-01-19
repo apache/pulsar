@@ -188,9 +188,8 @@ public class CompactorTest extends MockedPulsarServiceBaseTest {
     public void testAllCompactedOut() throws Exception {
         String topicName = "persistent://my-property/use/my-ns/testAllCompactedOut";
         // set retain null key to true
-        TwoPhaseCompactor compactor = (TwoPhaseCompactor) ((PulsarCompactionServiceFactory)
-                pulsar.getCompactionServiceFactory()).getCompactor();
-        compactor.setTopicCompactionRetainNullKey(true);
+        pulsar.getConfig().setTopicCompactionRetainNullKey(true);
+        this.restartBroker();
 
         @Cleanup
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING)

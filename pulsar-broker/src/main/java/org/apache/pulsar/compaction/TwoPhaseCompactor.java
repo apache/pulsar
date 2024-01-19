@@ -63,7 +63,7 @@ public class TwoPhaseCompactor extends Compactor {
     private static final Logger log = LoggerFactory.getLogger(TwoPhaseCompactor.class);
     private static final int MAX_OUTSTANDING = 500;
     private final Duration phaseOneLoopReadTimeout;
-    private boolean topicCompactionRetainNullKey;
+    private final boolean topicCompactionRetainNullKey;
 
     public TwoPhaseCompactor(ServiceConfiguration conf,
                              PulsarClient pulsar,
@@ -466,9 +466,5 @@ public class TwoPhaseCompactor extends Compactor {
 
     public long getPhaseOneLoopReadTimeoutInSeconds() {
         return phaseOneLoopReadTimeout.getSeconds();
-    }
-
-    public void setTopicCompactionRetainNullKey(boolean topicCompactionRetainNullKey) {
-        this.topicCompactionRetainNullKey = topicCompactionRetainNullKey;
     }
 }
