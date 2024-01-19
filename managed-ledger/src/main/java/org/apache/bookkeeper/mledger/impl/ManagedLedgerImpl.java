@@ -329,7 +329,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
     /**
      * This variable is used for testing the tests.
-     * {@link ManagedLedgerTest#testManagedLedgerWithPlacementPolicyInCustomMetadata()}
+     * ManagedLedgerTest#testManagedLedgerWithPlacementPolicyInCustomMetadata()
      */
     @VisibleForTesting
     Map<String, byte[]> createdLedgerCustomMetadata;
@@ -2218,6 +2218,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     }
 
     protected void asyncReadEntry(ReadHandle ledger, PositionImpl position, ReadEntryCallback callback, Object ctx) {
+        mbean.addEntriesRead(1);
         if (config.getReadEntryTimeoutSeconds() > 0) {
             // set readOpCount to uniquely validate if ReadEntryCallbackWrapper is already recycled
             long readOpCount = READ_OP_COUNT_UPDATER.incrementAndGet(this);
@@ -3330,7 +3331,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 .thenCompose(readHandle -> config.getLedgerOffloader().offload(readHandle, uuid, extraMetadata))
                 .thenCompose((ignore) -> {
                         return Retries.run(Backoff.exponentialJittered(TimeUnit.SECONDS.toMillis(1),
-                                                                       TimeUnit.SECONDS.toHours(1)).limit(10),
+                                                                       TimeUnit.HOURS.toMillis(1)).limit(10),
                                            FAIL_ON_CONFLICT,
                                            () -> completeLedgerInfoForOffloaded(ledgerId, uuid),
                                            scheduledExecutor, name)
@@ -4547,7 +4548,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     @Override
     public boolean checkInactiveLedgerAndRollOver() {
         long currentTimeMs = System.currentTimeMillis();
-        if (inactiveLedgerRollOverTimeMs > 0 && currentTimeMs > (lastAddEntryTimeMs + inactiveLedgerRollOverTimeMs)) {
+        if (currentLedgerEntries > 0 && inactiveLedgerRollOverTimeMs > 0 && currentTimeMs > (lastAddEntryTimeMs
+                + inactiveLedgerRollOverTimeMs)) {
             log.info("[{}] Closing inactive ledger, last-add entry {}", name, lastAddEntryTimeMs);
             if (STATE_UPDATER.compareAndSet(this, State.LedgerOpened, State.ClosingLedger)) {
                 LedgerHandle currentLedger = this.currentLedger;

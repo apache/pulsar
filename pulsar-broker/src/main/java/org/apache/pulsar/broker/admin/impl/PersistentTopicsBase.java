@@ -148,6 +148,7 @@ import org.apache.pulsar.common.stats.AnalyzeSubscriptionBacklogResult;
 import org.apache.pulsar.common.util.DateFormatter;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.BitSetRecyclable;
+import org.apache.pulsar.compaction.Compactor;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
 import org.slf4j.Logger;
@@ -2090,10 +2091,9 @@ public class PersistentTopicsBase extends AdminResource {
                     final List<CompletableFuture<Void>> futures =
                             new ArrayList<>((int) topic.getReplicators().size());
                     List<String> subNames =
-                            new ArrayList<>((int) topic.getReplicators().size()
-                                    + (int) topic.getSubscriptions().size());
-                    subNames.addAll(topic.getReplicators().keys());
-                    subNames.addAll(topic.getSubscriptions().keys());
+                            new ArrayList<>((int) topic.getSubscriptions().size());
+                    subNames.addAll(topic.getSubscriptions().keys().stream().filter(
+                            subName -> !subName.equals(Compactor.COMPACTION_SUBSCRIPTION)).toList());
                     for (int i = 0; i < subNames.size(); i++) {
                         try {
                             futures.add(internalExpireMessagesByTimestampForSinglePartitionAsync(partitionMetadata,
@@ -2826,6 +2826,9 @@ public class PersistentTopicsBase extends AdminResource {
                         @Override
                         public void readEntryFailed(ManagedLedgerException exception,
                                                     Object ctx) {
+                            if (exception instanceof ManagedLedgerException.LedgerNotExistException) {
+                                throw new RestException(Status.NOT_FOUND, "Message id not found");
+                            }
                             throw new RestException(exception);
                         }
 
@@ -3517,6 +3520,34 @@ public class PersistentTopicsBase extends AdminResource {
                     return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, op.get());
                 });
     }
+
+    protected CompletableFuture<Void> internalSetDispatcherPauseOnAckStatePersistent(boolean isGlobal) {
+        return getTopicPoliciesAsyncWithRetry(topicName, isGlobal)
+            .thenCompose(op -> {
+                TopicPolicies topicPolicies = op.orElseGet(TopicPolicies::new);
+                topicPolicies.setDispatcherPauseOnAckStatePersistentEnabled(true);
+                topicPolicies.setIsGlobal(isGlobal);
+                return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies);
+            });
+    }
+
+    protected CompletableFuture<Void> internalRemoveDispatcherPauseOnAckStatePersistent(boolean isGlobal) {
+        return getTopicPoliciesAsyncWithRetry(topicName, isGlobal)
+            .thenCompose(op -> {
+                if (!op.isPresent()) {
+                    return CompletableFuture.completedFuture(null);
+                }
+                op.get().setDispatcherPauseOnAckStatePersistentEnabled(false);
+                return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, op.get());
+            });
+    }
+
+    protected CompletableFuture<Boolean> internalGetDispatcherPauseOnAckStatePersistent(boolean applied,
+                                                                                        boolean isGlobal) {
+        return getTopicPoliciesAsyncWithRetry(topicName, isGlobal)
+            .thenApply(op -> op.map(TopicPolicies::getDispatcherPauseOnAckStatePersistentEnabled)
+                .orElse(false));
+}
 
     protected CompletableFuture<PersistencePolicies> internalGetPersistence(boolean applied, boolean isGlobal) {
         return getTopicPoliciesAsyncWithRetry(topicName, isGlobal)
