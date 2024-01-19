@@ -18,10 +18,9 @@
  */
 package org.apache.pulsar.tests.integration.metrics;
 
-import static org.testng.Assert.assertEquals;
-import java.time.Duration;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.tuple.Pair;
@@ -70,11 +69,9 @@ public class MetricsTest {
         var pulsarCluster = PulsarCluster.forSpec(spec);
         pulsarCluster.start();
 
-        var prometheusClient = openTelemetryCollectorContainer.getMetricsClient();
-
-        Awaitility.waitAtMost(Duration.ofMinutes(5)).pollInterval(Duration.ofSeconds(1)).until(() -> {
+        Awaitility.waitAtMost(180, TimeUnit.SECONDS).pollInterval(1, TimeUnit.SECONDS).until(() -> {
             var metricName = "queueSize_ratio"; // Sent automatically by the OpenTelemetry SDK.
-            var metrics = prometheusClient.getMetrics();
+            var metrics = openTelemetryCollectorContainer.getMetricsClient().getMetrics();
             var brokerMetrics = metrics.findByNameAndLabels(metricName, Pair.of("job", brokerOtelServiceName));
             var proxyMetrics = metrics.findByNameAndLabels(metricName, Pair.of("job", proxyOtelServiceName));
             return !brokerMetrics.isEmpty() && !proxyMetrics.isEmpty();
