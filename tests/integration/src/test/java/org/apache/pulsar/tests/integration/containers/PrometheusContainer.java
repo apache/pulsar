@@ -36,7 +36,7 @@ public class PrometheusContainer extends ChaosContainer<PrometheusContainer> {
 
         this.withNetworkAliases(NAME)
             .withCopyToContainer(
-                MountableFile.forClasspathResource("containers/prometheus.yml"),
+                MountableFile.forClasspathResource("containers/prometheus.yaml"),
                 "/etc/prometheus/prometheus.yml")
             .withExposedPorts(PROMETHEUS_PORT);
     }
