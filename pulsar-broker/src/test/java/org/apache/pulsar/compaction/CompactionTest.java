@@ -2254,7 +2254,6 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
             if (message == null) {
                 break;
             }
-
             results.add(message.getValue());
             consumer.acknowledge(message);
         }
@@ -2266,12 +2265,18 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
         // Make consumer reconnect to broker
         admin.topics().unload(topicName);
 
+        // Wait for consumer to reconnect and clear incomingMessages
+        consumer.pause();
+        Awaitility.await().untilAsserted(() -> {
+            Assert.assertEquals(consumer.numMessagesInQueue(), 0);
+        });
+        consumer.resume();
+
         for (int i = 0; i < 5; i++) {
             Message<String> message = consumer.receive(3, TimeUnit.SECONDS);
             if (message == null) {
                 break;
             }
-
             results.add(message.getValue());
             consumer.acknowledge(message);
         }
@@ -2301,5 +2306,62 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
 
         consumer.close();
         producer.close();
+    }
+
+    @Test
+    public void testEarliestSubsAfterRollover() throws Exception {
+        final String topicName = "persistent://my-property/use/my-ns/testEarliestSubsAfterRollover" + UUID.randomUUID();
+        final String subName = "my-sub";
+        @Cleanup
+        PulsarClient client = newPulsarClient(lookupUrl.toString(), 100);
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .enableBatching(false).topic(topicName).create();
+
+        List<String> expected = new ArrayList<>();
+        for (int i = 0; i < 10; i++) {
+            producer.newMessage().key(String.valueOf(i)).value(String.valueOf(i)).send();
+            expected.add(String.valueOf(i));
+        }
+        producer.flush();
+
+        admin.topics().triggerCompaction(topicName);
+
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(admin.topics().compactionStatus(topicName).status,
+                    LongRunningProcessStatus.Status.SUCCESS);
+        });
+
+        // trim the topic
+        admin.topics().unload(topicName);
+
+        Awaitility.await().untilAsserted(() -> {
+            PersistentTopicInternalStats internalStats = admin.topics().getInternalStats(topicName, false);
+            assertEquals(internalStats.numberOfEntries, 0);
+        });
+
+        // Make ml.getFirstPosition() return new ledger first position
+        producer.newMessage().key("K").value("V").send();
+        expected.add("V");
+
+        @Cleanup
+        ConsumerImpl<String> consumer = (ConsumerImpl<String>) client.newConsumer(Schema.STRING)
+                .topic(topicName).readCompacted(true).receiverQueueSize(1).subscriptionName(subName)
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                .isAckReceiptEnabled(true)
+                .subscribe();
+
+        List<String> results = new ArrayList<>();
+        while (true) {
+            Message<String> message = consumer.receive(3, TimeUnit.SECONDS);
+            if (message == null) {
+                break;
+            }
+
+            results.add(message.getValue());
+            consumer.acknowledge(message);
+        }
+
+        Assert.assertEquals(results, expected);
     }
 }
