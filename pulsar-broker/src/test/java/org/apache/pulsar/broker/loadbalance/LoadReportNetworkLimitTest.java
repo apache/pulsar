@@ -42,9 +42,7 @@ public class LoadReportNetworkLimitTest extends MockedPulsarServiceBaseTest {
     @Override
     public void setup() throws Exception {
         super.internalSetup();
-        if (SystemUtils.IS_OS_LINUX) {
-            usableNicCount = LinuxInfoUtils.getUsablePhysicalNICs().size();
-        }
+        usableNicCount = LinuxInfoUtils.getUsablePhysicalNICs().size();
     }
 
     @AfterClass(alwaysRun = true)
