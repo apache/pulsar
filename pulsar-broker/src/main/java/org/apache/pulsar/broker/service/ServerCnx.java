@@ -62,6 +62,8 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import javax.naming.AuthenticationException;
 import javax.net.ssl.SSLSession;
+
+import io.prometheus.client.Gauge;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
@@ -293,6 +295,12 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
     private final ServerCnxThrottleTracker throttleTracker = new ServerCnxThrottleTracker(this);
 
+    private static final Gauge clientIpAndRoleConnections = Gauge.build()
+            .name("pulsar_broker_client_ip_role_connections")
+            .labelNames("ip", "role")
+            .help("The number of client IP and role connections")
+            .register();
+
 
     public ServerCnx(PulsarService pulsar) {
         this(pulsar, null);
@@ -369,6 +377,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     public void channelInactive(ChannelHandlerContext ctx) throws Exception {
         super.channelInactive(ctx);
         connectionController.decreaseConnection(ctx.channel().remoteAddress());
+        clientIpAndRoleConnections.labels(clientSourceAddress(), getAuthRole()).dec();
         isActive = false;
         log.info("Closed connection from {}", remoteAddress);
         if (brokerInterceptor != null) {
@@ -740,6 +749,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             }
             maybeScheduleAuthenticationCredentialsRefresh();
         }
+        clientIpAndRoleConnections.labels(clientSourceAddress(), getAuthRole()).inc();
         writeAndFlush(Commands.newConnected(clientProtoVersion, maxMessageSize, enableSubscriptionPatternEvaluation));
         state = State.Connected;
         service.getPulsarStats().recordConnectionCreateSuccess();
@@ -3411,7 +3421,11 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
     @Override
     public String getAuthRole() {
-        return authRole;
+        if (authRole == null) {
+            return "";
+        } else {
+            return authRole;
+        }
     }
 
     public String getAuthMethod() {
