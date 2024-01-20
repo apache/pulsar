@@ -181,7 +181,7 @@ public class ModularLoadManagerImplTest {
         pulsar1 = new PulsarService(config1);
         pulsar1.start();
 
-        primaryBrokerId = String.format("%s:%d", "localhost", pulsar1.getListenPortHTTPS().get());
+        primaryBrokerId = pulsar1.getBrokerId();
         url1 = new URL(pulsar1.getWebServiceAddress());
         admin1 = PulsarAdmin.builder().serviceHttpUrl(url1.toString()).build();
 
@@ -215,7 +215,7 @@ public class ModularLoadManagerImplTest {
         config.setBrokerServicePortTls(Optional.of(0));
         pulsar3 = new PulsarService(config);
 
-        secondaryBrokerId = String.format("%s:%d", "localhost", pulsar2.getListenPortHTTPS().get());
+        secondaryBrokerId = pulsar2.getBrokerId();
         url2 = new URL(pulsar2.getWebServiceAddress());
         admin2 = PulsarAdmin.builder().serviceHttpUrl(url2.toString()).build();
 
