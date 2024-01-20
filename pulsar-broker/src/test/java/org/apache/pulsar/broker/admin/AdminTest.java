@@ -302,7 +302,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
 
         NamespaceIsolationDataImpl policyData = NamespaceIsolationDataImpl.builder()
                 .namespaces(Collections.singletonList("dummy/colo/ns"))
-                .primary(Collections.singletonList("localhost" + ":" + pulsar.getListenPortHTTP()))
+                .primary(Collections.singletonList(pulsar.getAdvertisedAddress()))
                 .autoFailoverPolicy(AutoFailoverPolicyData.builder()
                         .policyType(AutoFailoverPolicyType.min_available)
                         .parameters(parameters1)

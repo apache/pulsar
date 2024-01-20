@@ -1317,7 +1317,7 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
 
         NamespaceIsolationData nsPolicyData1 = NamespaceIsolationData.builder()
                 .namespaces(Collections.singletonList(namespaceRegex))
-                .primary(Collections.singletonList(brokerName + ":[0-9]*"))
+                .primary(Collections.singletonList(brokerName))
                 .secondary(Collections.singletonList(brokerName + ".*"))
                 .autoFailoverPolicy(AutoFailoverPolicyData.builder()
                         .policyType(AutoFailoverPolicyType.min_available)
