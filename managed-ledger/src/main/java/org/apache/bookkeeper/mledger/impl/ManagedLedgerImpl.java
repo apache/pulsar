@@ -27,8 +27,6 @@ import com.google.common.collect.BoundType;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Queues;
 import com.google.common.collect.Range;
-import com.google.common.collect.RangeSet;
-import com.google.common.collect.TreeRangeSet;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.util.Recycler;
@@ -2131,56 +2129,56 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
     private void asyncReadEntry(ReadHandle ledger, SortedSet<Long> entryIds, OpReadEntry opReadEntry, Object ctx) {
         checkArgument(!entryIds.isEmpty());
-        Set<Range<Long>> ranges = toRanges(entryIds);
+        List<Pair<Long, Long>> ranges = toRanges(entryIds);
         ReadEntriesCallback callback = new BatchReadEntriesCallback(entryIds, opReadEntry);
-        for (Range<Long> range : ranges) {
-            long start = range.lowerEndpoint();
-            long end = range.upperEndpoint();
+        for (Pair<Long, Long> pair : ranges) {
+            long start = pair.getLeft();
+            long end = pair.getRight();
             // TODO: should handle `lastReadCallback` timeout check???
             asyncReadEntry(ledger, start, end, opReadEntry.cursor.isCacheReadEntry(), callback, ctx);
         }
     }
 
-    // Parse entryIds into ranges.
+    // Parse entryIds to ranges.
     @VisibleForTesting
-    public static Set<Range<Long>> toRanges(SortedSet<Long> entryIds) {
-        RangeSet<Long> set = TreeRangeSet.create();
+    public static List<Pair<Long, Long>> toRanges(SortedSet<Long> entryIds) {
+        List<Pair<Long, Long>> ranges = new ArrayList<>();
         long start = entryIds.first();
         long end = start;
         for (long entryId : entryIds) {
             if (entryId - end > 1) {
-                set.add(Range.closed(start, end));
+                ranges.add(Pair.of(start, end));
                 start = entryId;
                 end = start;
             } else {
                 end = entryId;
             }
         }
-        set.add(Range.closed(start, end));
-        return set.asRanges();
+        ranges.add(Pair.of(start, end));
+        return ranges;
     }
 
     @VisibleForTesting
     public static class BatchReadEntriesCallback implements ReadEntriesCallback {
-        private final Set<Long> entryIdSet;
-        private final SortedSet<Entry> entrySet;
+        private final SortedSet<Long> entryIds;
+        private final SortedSet<Entry> entries;
         private final OpReadEntry callback;
         private final AtomicBoolean failed = new AtomicBoolean(false);
 
         @VisibleForTesting
-        public BatchReadEntriesCallback(Set<Long> entryIdSet, OpReadEntry callback) {
-            this.entryIdSet = entryIdSet;
-            this.entrySet = new TreeSet<>(Comparator.comparing(Entry::getEntryId));
+        public BatchReadEntriesCallback(SortedSet<Long> entryIdSet, OpReadEntry callback) {
+            this.entryIds = entryIdSet;
+            this.entries = new TreeSet<>(Comparator.comparing(Entry::getEntryId));
             this.callback = callback;
         }
 
         @Override
         public synchronized void readEntriesComplete(List<Entry> entries0, Object ctx) {
-            entrySet.addAll(entries0);
-            if (entrySet.size() < entryIdSet.size()) {
+            entries.addAll(entries0);
+            if (entries.size() < entryIds.size()) {
                 return;
             }
-            callback.readEntriesComplete(entrySet.stream().toList(), ctx);
+            callback.readEntriesComplete(entries.stream().toList(), ctx);
         }
 
         @Override
@@ -2199,16 +2197,19 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
 
         private List<Entry> filterEntries() {
-            if (entrySet.isEmpty()) {
+            if (entries.isEmpty()) {
                 return Collections.emptyList();
             }
             // Make sure the `readPosition` of `cursor` could be moved correctly.
             List<Entry> entries = new ArrayList<>();
-            for (long entryId : entryIdSet) {
-                Entry entry = entrySet.first();
+            for (long entryId : entryIds) {
+                if (this.entries.isEmpty()) {
+                    break;
+                }
+                Entry entry = this.entries.first();
                 if (entry.getEntryId() == entryId) {
                     entries.add(entry);
-                    entrySet.remove(entry);
+                    this.entries.remove(entry);
                 } else {
                     break;
                 }

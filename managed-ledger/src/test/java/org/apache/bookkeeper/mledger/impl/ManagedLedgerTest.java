@@ -36,6 +36,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertSame;
@@ -64,6 +65,8 @@ import java.util.NavigableMap;
 import java.util.Optional;
 import java.util.Queue;
 import java.util.Set;
+import java.util.SortedSet;
+import java.util.TreeSet;
 import java.util.UUID;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
@@ -4231,5 +4234,99 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         // the ledger deletion shouldn't happen
         verify(ledgerOffloader, times(0))
             .deleteOffloaded(eq(ledgerInfo.getLedgerId()), any(), anyMap());
+    }
+
+    @Test
+    public void testToRanges() {
+        SortedSet<Long> set = new TreeSet<>();
+        set.add(1L);
+        set.add(2L);
+        set.add(4L);
+        set.add(6L);
+        set.add(7L);
+        set.add(8L);
+        set.add(10L);
+
+        List<Pair<Long, Long>> ranges = ManagedLedgerImpl.toRanges(set);
+        assertEquals(ranges.size(), 4);
+
+        Pair<Long, Long> pair0 = ranges.get(0);
+        assertEquals(pair0.getLeft().longValue(), 1L);
+        assertEquals(pair0.getRight().longValue(), 2L);
+
+        Pair<Long, Long> pair1 = ranges.get(1);
+        assertEquals(pair1.getLeft().longValue(), 4L);
+        assertEquals(pair1.getRight().longValue(), 4L);
+
+        Pair<Long, Long> pair2 = ranges.get(2);
+        assertEquals(pair2.getLeft().longValue(), 6L);
+        assertEquals(pair2.getRight().longValue(), 8L);
+
+        Pair<Long, Long> pair3 = ranges.get(3);
+        assertEquals(pair3.getLeft().longValue(), 10L);
+        assertEquals(pair3.getRight().longValue(), 10L);
+    }
+
+
+    @Test
+    public void testBatchReadEntriesCallback() throws Exception {
+        @Cleanup
+        ManagedLedgerImpl ledger =
+                (ManagedLedgerImpl) factory.open("testBatchReadEntriesCallback");
+        @Cleanup
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("test-cursor");
+        for (int i = 0; i < 10; i++) {
+            ledger.addEntry(("dummy-entry-" + i).getBytes(Encoding));
+        }
+
+        CountDownLatch latch = new CountDownLatch(1);
+        AtomicBoolean failed = new AtomicBoolean(false);
+        List<Entry> entries = new ArrayList<>();
+        OpReadEntry opReadEntry = OpReadEntry.create(cursor, cursor.readPosition, 10, new ReadEntriesCallback() {
+            @Override
+            public void readEntriesComplete(List<Entry> entries0, Object ctx) {
+                entries.addAll(entries0);
+                latch.countDown();
+            }
+
+            @Override
+            public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
+                failed.set(true);
+                latch.countDown();
+            }
+        }, null, ledger.lastConfirmedEntry, position -> position.getEntryId() % 2 == 0);
+
+        SortedSet<Long> entryIds = new TreeSet<>();
+        entryIds.add(1L);
+        entryIds.add(3L);
+        entryIds.add(5L);
+        entryIds.add(7L);
+        entryIds.add(9L);
+        ManagedLedgerImpl.BatchReadEntriesCallback callback = new ManagedLedgerImpl.BatchReadEntriesCallback(entryIds, opReadEntry);
+        long ledgerId = ledger.currentLedger.getId();
+
+        callback.readEntriesComplete(List.of(EntryImpl.create(ledgerId, 1,  new byte[1])), null);
+        callback.readEntriesComplete(List.of(EntryImpl.create(ledgerId, 3,  new byte[1])), null);
+        callback.readEntriesComplete(List.of(EntryImpl.create(ledgerId, 5,  new byte[1])), null);
+        callback.readEntriesFailed(new ManagedLedgerException.InvalidCursorPositionException("Invalid cursor position"), null);
+
+        latch.await();
+        // should not fail
+        assertFalse(failed.get());
+        assertEquals(entries.size(), 5);
+
+        // Manually trigger the callback
+        Entry entry1 = entries.get(0);
+        Entry entry3 = entries.get(1);
+        Entry entry5 = entries.get(2);
+        assertEquals(entry1.getData().length, 1);
+        assertEquals(entry3.getData().length, 1);
+        assertEquals(entry5.getData().length, 1);
+
+        // Read from ledger.
+        Entry entry7 = entries.get(3);
+        Entry entry9 = entries.get(4);
+        assertNotEquals(entry7.getData().length, 1);
+        assertNotEquals(entry9.getData().length, 1);
     }
 }
