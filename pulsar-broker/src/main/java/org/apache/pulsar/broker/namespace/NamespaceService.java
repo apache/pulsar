@@ -1351,10 +1351,6 @@ public class NamespaceService implements AutoCloseable {
     }
 
     public CompletableFuture<Boolean> checkTopicExists(TopicName topic) {
-        if (NamespaceService.isSystemServiceNamespace(topic.getNamespace())) {
-            return CompletableFuture.completedFuture(true);
-        }
-
         CompletableFuture<Boolean> future;
         // If the topic is persistent and the name includes `-partition-`, find the topic from the managed/ledger.
         if (topic.isPersistent() && topic.isPartitioned()) {
