@@ -35,7 +35,7 @@ public interface Brokers {
     /**
      * Get the list of active brokers in the local cluster.
      * <p/>
-     * Get the list of active brokers (web service addresses) in the local cluster.
+     * Get the list of active brokers (broker ids) in the local cluster.
      * <p/>
      * Response Example:
      *
@@ -55,7 +55,7 @@ public interface Brokers {
     /**
      * Get the list of active brokers in the local cluster asynchronously.
      * <p/>
-     * Get the list of active brokers (web service addresses) in the local cluster.
+     * Get the list of active brokers (broker ids) in the local cluster.
      * <p/>
      * Response Example:
      *
@@ -70,7 +70,7 @@ public interface Brokers {
     /**
      * Get the list of active brokers in the cluster.
      * <p/>
-     * Get the list of active brokers (web service addresses) in the cluster.
+     * Get the list of active brokers (broker ids) in the cluster.
      * <p/>
      * Response Example:
      *
@@ -94,7 +94,7 @@ public interface Brokers {
     /**
      * Get the list of active brokers in the cluster asynchronously.
      * <p/>
-     * Get the list of active brokers (web service addresses) in the cluster.
+     * Get the list of active brokers (broker ids) in the cluster.
      * <p/>
      * Response Example:
      *

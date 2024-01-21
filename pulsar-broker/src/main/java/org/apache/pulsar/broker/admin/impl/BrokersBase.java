@@ -85,7 +85,7 @@ public class BrokersBase extends AdminResource {
     @GET
     @Path("/{cluster}")
     @ApiOperation(
-        value = "Get the list of active brokers (web service addresses) in the cluster."
+        value = "Get the list of active brokers (broker ids) in the cluster."
                 + "If authorization is not enabled, any cluster name is valid.",
         response = String.class,
         responseContainer = "Set")
@@ -115,7 +115,7 @@ public class BrokersBase extends AdminResource {
 
     @GET
     @ApiOperation(
-            value = "Get the list of active brokers (web service addresses) in the local cluster."
+            value = "Get the list of active brokers (broker ids) in the local cluster."
                     + "If authorization is not enabled",
             response = String.class,
             responseContainer = "Set")
