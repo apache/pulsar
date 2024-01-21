@@ -4709,7 +4709,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
             // batch without ackSet.
             {CommandAck.AckType.Individual, new BatchMessageIdImpl(1,1,1,0)},
             {CommandAck.AckType.Cumulative, new BatchMessageIdImpl(1,1,1,0)},
-            // batch with ackSe.
+            // batch with ackSet.
             {CommandAck.AckType.Cumulative, new BatchMessageIdImpl(1,1,1,0, batchSize, bitSet)},
             {CommandAck.AckType.Individual, new BatchMessageIdImpl(1,1,1,0, batchSize, bitSet)}
         };
@@ -4733,6 +4733,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         }
 
         consumer.close();
+        delayConnectClient.close();
         admin.topics().delete(topic, false);
     }
 

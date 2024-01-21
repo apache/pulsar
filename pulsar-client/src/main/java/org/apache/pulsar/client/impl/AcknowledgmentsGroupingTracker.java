@@ -42,6 +42,4 @@ public interface AcknowledgmentsGroupingTracker extends AutoCloseable {
     void close();
 
     void flushAndClean();
-
-    default void afterConsumerReconnected() {}
 }

@@ -379,11 +379,6 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
         return newImmediateAckAndFlush(consumer.consumerId, msgId, bitSet, ackType, properties, cnx);
     }
 
-    @Override
-    public void afterConsumerReconnected() {
-        flush();
-    }
-
     private CompletableFuture<Void> doImmediateBatchIndexAck(MessageIdAdv msgId, int batchIndex, int batchSize,
                                                              AckType ackType, Map<String, Long> properties) {
         ClientCnx cnx = consumer.getClientCnx();
