@@ -1169,6 +1169,8 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
             } else {
                 return new FunctionState(key, null, buf.array(), number, null);
             }
+        } catch (RestException e) {
+            throw e;
         } catch (Throwable e) {
             log.error("Error while getFunctionState request @ /{}/{}/{}/{}",
                     tenant, namespace, functionName, key, e);

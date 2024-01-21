@@ -170,7 +170,7 @@ public abstract class AbstractDispatcherSingleActiveConsumer extends AbstractBas
             Consumer actConsumer = ACTIVE_CONSUMER_UPDATER.get(this);
             if (actConsumer != null) {
                 return actConsumer.cnx().checkConnectionLiveness().thenCompose(actConsumerStillAlive -> {
-                    if (actConsumerStillAlive == null || actConsumerStillAlive) {
+                    if (actConsumerStillAlive.isEmpty() || actConsumerStillAlive.get()) {
                         return FutureUtil.failedFuture(new ConsumerBusyException("Exclusive consumer is already"
                                 + " connected"));
                     } else {

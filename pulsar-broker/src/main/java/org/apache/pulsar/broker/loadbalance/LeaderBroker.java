@@ -30,5 +30,23 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @NoArgsConstructor
 public class LeaderBroker {
+    private String brokerId;
     private String serviceUrl;
+
+    public String getBrokerId() {
+        if (brokerId != null) {
+            return brokerId;
+        } else {
+            // for backward compatibility at runtime with older versions of Pulsar
+            return parseHostAndPort(serviceUrl);
+        }
+    }
+
+    private static String parseHostAndPort(String serviceUrl) {
+        int uriSeparatorPos = serviceUrl.indexOf("://");
+        if (uriSeparatorPos == -1) {
+            throw new IllegalArgumentException("'" + serviceUrl + "' isn't an URI.");
+        }
+        return serviceUrl.substring(uriSeparatorPos + 3);
+    }
 }
