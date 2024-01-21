@@ -2678,4 +2678,27 @@ public abstract class NamespacesBase extends AdminResource {
         }
         return policies;
     }
+
+    protected CompletableFuture<Void> internalSetDispatcherPauseOnAckStatePersistentAsync(
+            boolean dispatcherPauseOnAckStatePersistentEnabled) {
+        return validateNamespacePolicyOperationAsync(namespaceName,
+                    PolicyName.DISPATCHER_PAUSE_ON_ACK_STATE_PERSISTENT, PolicyOperation.WRITE)
+                .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
+                .thenCompose(__ -> updatePoliciesAsync(namespaceName, policies -> {
+                    policies.dispatcherPauseOnAckStatePersistentEnabled = dispatcherPauseOnAckStatePersistentEnabled;
+                    return policies;
+                }));
+    }
+
+    protected CompletableFuture<Object> internalGetDispatcherPauseOnAckStatePersistentAsync() {
+        return validateNamespacePolicyOperationAsync(namespaceName,
+                    PolicyName.DISPATCHER_PAUSE_ON_ACK_STATE_PERSISTENT, PolicyOperation.READ)
+                .thenCompose(__ -> namespaceResources().getPoliciesAsync(namespaceName))
+                .thenApply(policiesOpt -> {
+                    if (!policiesOpt.isPresent()) {
+                        throw new RestException(Response.Status.NOT_FOUND, "Namespace policies does not exist");
+                    }
+                    return policiesOpt.map(p -> p.dispatcherPauseOnAckStatePersistentEnabled).orElse(false);
+                });
+    }
 }
