@@ -515,8 +515,7 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         assertEquals(topicStats.getSubscriptions().get("my-sub").getMsgDropRate(), 0);
         assertEquals(topicStats.getPublishers().size(), 0);
         assertEquals(topicStats.getMsgDropRate(), 0);
-        assertEquals(topicStats.getOwnerBroker(),
-                pulsar.getAdvertisedAddress() + ":" + pulsar.getConfiguration().getWebServicePort().get());
+        assertEquals(topicStats.getOwnerBroker(), pulsar.getBrokerId());
 
         PersistentTopicInternalStats internalStats = admin.topics().getInternalStats(nonPersistentTopicName, false);
         assertEquals(internalStats.cursors.keySet(), Set.of("my-sub"));
@@ -1309,7 +1308,7 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         String cluster = pulsar.getConfiguration().getClusterName();
         String namespaceRegex = "other/" + cluster + "/other.*";
         String brokerName = pulsar.getAdvertisedAddress();
-        String brokerAddress = brokerName + ":" + pulsar.getConfiguration().getWebServicePort().get();
+        String brokerAddress = pulsar.getBrokerId();
 
         Map<String, String> parameters1 = new HashMap<>();
         parameters1.put("min_limit", "1");
@@ -1317,7 +1316,7 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
 
         NamespaceIsolationData nsPolicyData1 = NamespaceIsolationData.builder()
                 .namespaces(Collections.singletonList(namespaceRegex))
-                .primary(Collections.singletonList(brokerName + ":[0-9]*"))
+                .primary(Collections.singletonList(brokerName))
                 .secondary(Collections.singletonList(brokerName + ".*"))
                 .autoFailoverPolicy(AutoFailoverPolicyData.builder()
                         .policyType(AutoFailoverPolicyType.min_available)

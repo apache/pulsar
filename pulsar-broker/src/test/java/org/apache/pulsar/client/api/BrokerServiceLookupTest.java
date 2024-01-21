@@ -754,7 +754,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
             });
 
             // Unload the NamespacePolicies and AntiAffinity check.
-            String currentBroker = String.format("%s:%d", "localhost", pulsar.getListenPortHTTP().get());
+            String currentBroker = pulsar.getBrokerId();
             assertTrue(loadManager.shouldNamespacePoliciesUnload(namespace,"0x00000000_0xffffffff", currentBroker));
             assertTrue(loadManager.shouldAntiAffinityNamespaceUnload(namespace,"0x00000000_0xffffffff", currentBroker));
 
