@@ -44,7 +44,7 @@ public interface Brokers {
      * * * "prod1-broker3.messaging.use.example.com:8080"]</code>
      * </pre>
      *
-     * @return a list of (host:port)
+     * @return a list of broker ids
      * @throws NotAuthorizedException
      *             You don't have admin permission to get the list of active brokers in the cluster
      * @throws PulsarAdminException
@@ -64,7 +64,7 @@ public interface Brokers {
      * "prod1-broker3.messaging.use.example.com:8080"]</code>
      * </pre>
      *
-     * @return a list of (host:port)
+     * @return a list of broker ids
      */
     CompletableFuture<List<String>> getActiveBrokersAsync();
     /**
@@ -81,7 +81,7 @@ public interface Brokers {
      *
      * @param cluster
      *            Cluster name
-     * @return a list of (host:port)
+     * @return a list of broker ids
      * @throws NotAuthorizedException
      *             You don't have admin permission to get the list of active brokers in the cluster
      * @throws NotFoundException
@@ -105,7 +105,7 @@ public interface Brokers {
      *
      * @param cluster
      *            Cluster name
-     * @return a list of (host:port)
+     * @return a list of broker ids
      */
     CompletableFuture<List<String>> getActiveBrokersAsync(String cluster);
 
@@ -156,11 +156,11 @@ public interface Brokers {
      * </pre>
      *
      * @param cluster
-     * @param brokerUrl
+     * @param brokerId
      * @return
      * @throws PulsarAdminException
      */
-    Map<String, NamespaceOwnershipStatus> getOwnedNamespaces(String cluster, String brokerUrl)
+    Map<String, NamespaceOwnershipStatus> getOwnedNamespaces(String cluster, String brokerId)
             throws PulsarAdminException;
 
     /**
@@ -176,10 +176,10 @@ public interface Brokers {
      * </pre>
      *
      * @param cluster
-     * @param brokerUrl
+     * @param brokerId
      * @return
      */
-    CompletableFuture<Map<String, NamespaceOwnershipStatus>> getOwnedNamespacesAsync(String cluster, String brokerUrl);
+    CompletableFuture<Map<String, NamespaceOwnershipStatus>> getOwnedNamespacesAsync(String cluster, String brokerId);
 
     /**
      * Update a dynamic configuration value into ZooKeeper.

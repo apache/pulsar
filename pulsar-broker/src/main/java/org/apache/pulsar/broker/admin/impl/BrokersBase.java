@@ -155,8 +155,8 @@ public class BrokersBase extends AdminResource {
     }
 
     @GET
-    @Path("/{clusterName}/{broker-webserviceurl}/ownedNamespaces")
-    @ApiOperation(value = "Get the list of namespaces served by the specific broker",
+    @Path("/{clusterName}/{brokerId}/ownedNamespaces")
+    @ApiOperation(value = "Get the list of namespaces served by the specific broker id",
             response = NamespaceOwnershipStatus.class, responseContainer = "Map")
     @ApiResponses(value = {
             @ApiResponse(code = 307, message = "Current broker doesn't serve the cluster"),
@@ -164,9 +164,9 @@ public class BrokersBase extends AdminResource {
             @ApiResponse(code = 404, message = "Cluster doesn't exist") })
     public void getOwnedNamespaces(@Suspended final AsyncResponse asyncResponse,
                                    @PathParam("clusterName") String cluster,
-                                   @PathParam("broker-webserviceurl") String broker) {
+                                   @PathParam("brokerId") String brokerId) {
         validateSuperUserAccessAsync()
-                .thenCompose(__ -> maybeRedirectToBroker(broker))
+                .thenCompose(__ -> maybeRedirectToBroker(brokerId))
                 .thenCompose(__ -> validateClusterOwnershipAsync(cluster))
                 .thenCompose(__ -> pulsar().getNamespaceService().getOwnedNameSpacesStatusAsync())
                 .thenAccept(asyncResponse::resume)
@@ -174,7 +174,7 @@ public class BrokersBase extends AdminResource {
                     // If the exception is not redirect exception we need to log it.
                     if (!isRedirectException(ex)) {
                         LOG.error("[{}] Failed to get the namespace ownership status. cluster={}, broker={}",
-                                clientAppId(), cluster, broker);
+                                clientAppId(), cluster, brokerId);
                     }
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
