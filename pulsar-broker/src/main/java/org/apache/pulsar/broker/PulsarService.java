@@ -822,10 +822,10 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             this.brokerServiceUrlTls = brokerUrlTls(config);
 
             // the broker id is used in the load manager to identify the broker
+            // it should not be used for making connections to the broker
             this.brokerId =
-                    String.format("%s:%s", advertisedAddress, config.getWebServicePortTls().isPresent()
-                            ? config.getWebServicePortTls().get()
-                            : config.getWebServicePort().orElseThrow());
+                    String.format("%s:%s", advertisedAddress, config.getWebServicePort()
+                            .or(config::getWebServicePortTls).orElseThrow());
 
 
             if (null != this.webSocketService) {
@@ -1750,6 +1750,13 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         return brokerServiceUrlTls != null ? brokerServiceUrlTls : brokerServiceUrl;
     }
 
+    /**
+     * Return the broker id. The broker id is used in the load manager to uniquely identify the broker at runtime.
+     * It should not be used for making connections to the broker. The broker id is available after {@link #start()}
+     * has been called.
+     *
+     * @return broker id
+     */
     public String getBrokerId() {
         return Objects.requireNonNull(brokerId,
                 "brokerId is not initialized before start has been called");

@@ -1646,13 +1646,4 @@ public class BrokerServiceTest extends BrokerTestBase {
             fail("Unsubscribe failed");
         }
     }
-
-    @Test
-    public void testGetBrokerId() throws Exception {
-        cleanup();
-        conf.setWebServicePortTls(Optional.of(8081));
-        setup();
-        assertEquals(pulsar.getBrokerId(), "localhost:8081");
-        resetState();
-    }
 }
