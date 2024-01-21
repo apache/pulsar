@@ -59,6 +59,8 @@ import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Function;
 import java.util.function.Predicate;
+import java.util.stream.Collectors;
+import java.util.stream.LongStream;
 import org.apache.bookkeeper.client.AsyncCallback.CloseCallback;
 import org.apache.bookkeeper.client.AsyncCallback.OpenCallback;
 import org.apache.bookkeeper.client.BKException;
@@ -2791,21 +2793,21 @@ public class ManagedCursorImpl implements ManagedCursor {
         }
         log.warn("[{}] [{}] Since the ledger [{}] is lost and the autoSkipNonRecoverableData is true, this ledger will"
                 + " be auto acknowledge in subscription", ledger.getName(), name, ledgerId);
-        for (int i = 0; i < ledgerInfo.getEntries(); i++) {
-            asyncDelete(PositionImpl.get(ledgerId, i), new AsyncCallbacks.DeleteCallback() {
-                @Override
-                public void deleteComplete(Object ctx) {
-                    // ignore.
-                }
+        asyncDelete(LongStream.range(0, ledgerInfo.getEntries())
+                .mapToObj(i -> PositionImpl.get(ledgerId, i)).collect(Collectors.toList()),
+                new AsyncCallbacks.DeleteCallback() {
+            @Override
+            public void deleteComplete(Object ctx) {
+                // ignore.
+            }
 
-                @Override
-                public void deleteFailed(ManagedLedgerException ex, Object ctx) {
-                    // The method internalMarkDelete already handled the failure operation. We only need to
-                    // make sure the memory state is updated.
-                    // If the broker crashed, the non-recoverable ledger will be detected again.
-                }
-            }, null);
-        }
+            @Override
+            public void deleteFailed(ManagedLedgerException ex, Object ctx) {
+                // The method internalMarkDelete already handled the failure operation. We only need to
+                // make sure the memory state is updated.
+                // If the broker crashed, the non-recoverable ledger will be detected again.
+            }
+        }, null);
     }
 
     // //////////////////////////////////////////////////
