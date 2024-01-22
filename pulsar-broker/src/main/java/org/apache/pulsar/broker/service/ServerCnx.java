@@ -2197,14 +2197,15 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     }
 
     /**
-     * Get the metadata of the largest batch index of the last valid entry.
+     * Get the metadata and position of the largest batch index of the last valid entry.
      * some entry need to be filtered, such as marker message.
      * @param entryMetaDataFuture
      * @param lastPosition
      * @param ml
      */
-    private void readLastValidEntryMetaData(CompletableFuture<MessageMetadata> entryMetaDataFuture,
-                                            PositionImpl lastPosition, ManagedLedgerImpl ml) {
+    private void readLastValidEntry(CompletableFuture<MessageMetadata> entryMetaDataFuture,
+                                    CompletableFuture<PositionImpl> lastPositionFuture,
+                                    PositionImpl lastPosition, ManagedLedgerImpl ml) {
         ml.asyncReadEntry(lastPosition, new AsyncCallbacks.ReadEntryCallback() {
             @Override
             public void readEntryComplete(Entry entry, Object ctx) {
@@ -2212,21 +2213,23 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                     MessageMetadata metadata = Commands.parseMessageMetadata(entry.getDataBuffer());
                     if (isValidEntry(metadata)) {
                         entryMetaDataFuture.complete(metadata);
+                        lastPositionFuture.complete(lastPosition);
                     } else {
                         // check the previous entry
                         if (lastPosition.getEntryId() > 0) {
-                            readLastValidEntryMetaData(entryMetaDataFuture, PositionImpl.get(lastPosition.getLedgerId(),
-                                    lastPosition.getEntryId() - 1), ml);
+                            readLastValidEntry(entryMetaDataFuture, lastPositionFuture,
+                                    PositionImpl.get(lastPosition.getLedgerId(), lastPosition.getEntryId() - 1), ml);
                         } else {
                             // find out the previous ledger
                             NavigableMap<Long, MLDataFormats.ManagedLedgerInfo.LedgerInfo> ledgersMap =
                                     ml.getLedgersInfo();
                             Long previousLedgerId = ledgersMap.lowerKey(lastPosition.getLedgerId());
                             if (previousLedgerId != null) {
-                                readLastValidEntryMetaData(entryMetaDataFuture, PositionImpl.get(previousLedgerId,
-                                        ledgersMap.get(previousLedgerId).getEntries() - 1), ml);
+                                readLastValidEntry(entryMetaDataFuture, lastPositionFuture,
+                                        PositionImpl.get(previousLedgerId, ledgersMap.get(previousLedgerId).getEntries() - 1), ml);
                             } else {
                                 entryMetaDataFuture.completeExceptionally(new ManagedLedgerException("No valid entry found"));
+                                lastPositionFuture.completeExceptionally(new ManagedLedgerException("No valid entry found"));
                             }
                         }
                     }
@@ -2282,36 +2285,33 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
             // For a valid position, we read the entry out and parse the batch size from its metadata.
             CompletableFuture<MessageMetadata> entryMetaDataFuture = new CompletableFuture<>();
-            readLastValidEntryMetaData(entryMetaDataFuture, lastPosition, ml);
+            CompletableFuture<PositionImpl> lastPositionFuture = new CompletableFuture<>();
+            readLastValidEntry(entryMetaDataFuture, lastPositionFuture, lastPosition, ml);
 
-            CompletableFuture<Integer> batchSizeFuture = entryMetaDataFuture.thenApply(metadata -> {
-                int batchSize = metadata.getNumMessagesInBatch();
-                return metadata.hasNumMessagesInBatch() ? batchSize : -1;
-            });
-
-            batchSizeFuture.whenComplete((batchSize, e) -> {
-                if (e != null) {
-                    if (e.getCause() instanceof ManagedLedgerException.NonRecoverableLedgerException) {
-                        handleLastMessageIdFromCompactionService(persistentTopic, requestId, partitionIndex,
-                                markDeletePosition);
-                    } else {
-                        writeAndFlush(Commands.newError(
-                                requestId, ServerError.MetadataError,
-                                "Failed to get batch size for entry " + e.getMessage()));
-                    }
-                } else {
-                    int largestBatchIndex = batchSize > 0 ? batchSize - 1 : -1;
-
-                    if (log.isDebugEnabled()) {
-                        log.debug("[{}] [{}][{}] Get LastMessageId {} partitionIndex {}", remoteAddress,
-                                topic.getName(), subscriptionName, lastPosition, partitionIndex);
-                    }
-
-                    writeAndFlush(Commands.newGetLastMessageIdResponse(requestId, lastPosition.getLedgerId(),
-                            lastPosition.getEntryId(), partitionIndex, largestBatchIndex,
-                            markDeletePosition != null ? markDeletePosition.getLedgerId() : -1,
-                            markDeletePosition != null ? markDeletePosition.getEntryId() : -1));
+            entryMetaDataFuture.thenCombine(lastPositionFuture, (metadata, position) -> {
+                int largestBatchIndex = -1;
+                if (metadata.hasNumMessagesInBatch()) {
+                    largestBatchIndex = metadata.getNumMessagesInBatch() - 1;
                 }
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}] [{}][{}] Get LastMessageId {} partitionIndex {}", remoteAddress,
+                            topic.getName(), subscriptionName, lastPosition, partitionIndex);
+                }
+                writeAndFlush(Commands.newGetLastMessageIdResponse(requestId, position.getLedgerId(),
+                        position.getEntryId(), partitionIndex, largestBatchIndex,
+                        markDeletePosition != null ? markDeletePosition.getLedgerId() : -1,
+                        markDeletePosition != null ? markDeletePosition.getEntryId() : -1));
+                return null;
+            }).exceptionally(ex1 -> {
+                if (ex1.getCause() instanceof ManagedLedgerException.NonRecoverableLedgerException) {
+                    handleLastMessageIdFromCompactionService(persistentTopic, requestId, partitionIndex,
+                            markDeletePosition);
+                } else {
+                    writeAndFlush(Commands.newError(
+                            requestId, ServerError.MetadataError,
+                            "Failed to get batch size for entry " + ex1.getMessage()));
+                }
+                return null;
             });
         });
     }
