@@ -1953,4 +1953,64 @@ public class TransactionTest extends TransactionTestBase {
             result.add(receive.getValue());
         }
     }
+
+    @Test
+    public void testReadCommitMarkerStuck() throws Exception{
+        final String namespace = "tnx/ns-commit-marker-stuck";
+        final String topic = "persistent://" + namespace + "/test_transaction_topic" + UUID.randomUUID();
+        admin.namespaces().createNamespace(namespace);
+        admin.topics().createNonPartitionedTopic(topic);
+
+        @Cleanup
+        Producer<String> producer = this.pulsarClient.newProducer(Schema.STRING)
+                .topic(topic)
+                .create();
+
+        Transaction txn = pulsarClient.newTransaction()
+                .withTransactionTimeout(1, TimeUnit.MINUTES).build().get();
+        producer.newMessage(txn).key("K1").value("V1").send();
+        txn.commit().get();
+
+        @Cleanup
+        Reader<String> reader = this.pulsarClient.newReader(Schema.STRING)
+                .topic(topic)
+                .startMessageId(MessageId.earliest)
+                .create();
+        List<String> result = new ArrayList<>();
+        while (reader.hasMessageAvailable()) {
+            Message<String> receive = reader.readNext(2, TimeUnit.SECONDS);
+            assertNotEquals(receive, null);
+            result.add(receive.getValue());
+        }
+    }
+
+    @Test
+    public void testReadAbortMarkerStuck() throws Exception{
+        final String namespace = "tnx/ns-abort-marker-stuck";
+        final String topic = "persistent://" + namespace + "/test_transaction_topic" + UUID.randomUUID();
+        admin.namespaces().createNamespace(namespace);
+        admin.topics().createNonPartitionedTopic(topic);
+
+        @Cleanup
+        Producer<String> producer = this.pulsarClient.newProducer(Schema.STRING)
+                .topic(topic)
+                .create();
+
+        Transaction txn = pulsarClient.newTransaction()
+                .withTransactionTimeout(1, TimeUnit.MINUTES).build().get();
+        producer.newMessage(txn).key("K1").value("V1").send();
+        txn.abort().get();
+
+        @Cleanup
+        Reader<String> reader = this.pulsarClient.newReader(Schema.STRING)
+                .topic(topic)
+                .startMessageId(MessageId.earliest)
+                .create();
+        List<String> result = new ArrayList<>();
+        while (reader.hasMessageAvailable()) {
+            Message<String> receive = reader.readNext(2, TimeUnit.SECONDS);
+            assertNotEquals(receive, null);
+            result.add(receive.getValue());
+        }
+    }
 }
