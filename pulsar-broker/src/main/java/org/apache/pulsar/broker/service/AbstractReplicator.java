@@ -209,7 +209,7 @@ public abstract class AbstractReplicator {
             brokerService.executor().schedule(this::closeProducerAsync, waitTimeMs, TimeUnit.MILLISECONDS);
             return null;
         });
-        return future;
+        return future.handle((__, ex) -> null);
     }
 
 
