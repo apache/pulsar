@@ -49,6 +49,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+import javax.annotation.Nullable;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.client.api.BatchReceivePolicy;
 import org.apache.pulsar.client.api.Consumer;
@@ -101,7 +102,8 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
     private final MultiTopicConsumerStatsRecorderImpl stats;
     private final ConsumerConfigurationData<T> internalConfig;
 
-    private volatile MessageIdAdv startMessageId;
+    private final MessageIdAdv startMessageId;
+    private volatile boolean duringSeek = false;
     private final long startMessageRollbackDurationInSec;
     MultiTopicsConsumerImpl(PulsarClientImpl client, ConsumerConfigurationData<T> conf,
             ExecutorProvider executorProvider, CompletableFuture<Consumer<T>> subscribeFuture, Schema<T> schema,
@@ -235,6 +237,10 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
     }
 
     private void receiveMessageFromConsumer(ConsumerImpl<T> consumer, boolean batchReceive) {
+        if (duringSeek) {
+            log.info("[{}] Pause receiving messages for topic {} due to seek", subscription, consumer.getTopic());
+            return;
+        }
         CompletableFuture<List<Message<T>>> messagesFuture;
         if (batchReceive) {
             messagesFuture = consumer.batchReceiveAsync().thenApply(msgs -> ((MessagesImpl<T>) msgs).getMessageList());
@@ -252,7 +258,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
             }
             // Process the message, add to the queue and trigger listener or async callback
             messages.forEach(msg -> {
-                if (isValidConsumerEpoch((MessageImpl<T>) msg)) {
+                if (isValidConsumerEpoch((MessageImpl<T>) msg) && !duringSeek) {
                     messageReceived(consumer, msg);
                 }
             });
@@ -748,12 +754,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
 
     @Override
     public CompletableFuture<Void> seekAsync(Function<String, Object> function) {
-        List<CompletableFuture<Void>> futures = new ArrayList<>(consumers.size());
-        consumers.values().forEach(consumer -> futures.add(consumer.seekAsync(function)));
-        unAckedMessageTracker.clear();
-        incomingMessages.clear();
-        resetIncomingMessageSize();
-        return FutureUtil.waitForAll(futures);
+        return seekAllAsync(consumer -> consumer.seekAsync(function));
     }
 
     @Override
@@ -775,25 +776,44 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
             );
         }
 
-        final CompletableFuture<Void> seekFuture;
         if (internalConsumer == null) {
-            List<CompletableFuture<Void>> futures = new ArrayList<>(consumers.size());
-            consumers.values().forEach(consumerImpl -> futures.add(consumerImpl.seekAsync(messageId)));
-            seekFuture = FutureUtil.waitForAll(futures);
+            return seekAllAsync(consumer -> consumer.seekAsync(messageId));
         } else {
-            seekFuture = internalConsumer.seekAsync(messageId);
+            beforeSeek();
+            final CompletableFuture<Void> future = new CompletableFuture<>();
+            internalConsumer.seekAsync(messageId).whenComplete((__, e) -> afterSeek(future, e));
+            return future;
         }
-
-        unAckedMessageTracker.clear();
-        clearIncomingMessages();
-        return seekFuture;
     }
 
     @Override
     public CompletableFuture<Void> seekAsync(long timestamp) {
-        List<CompletableFuture<Void>> futures = new ArrayList<>(consumers.size());
-        consumers.values().forEach(consumer -> futures.add(consumer.seekAsync(timestamp)));
-        return FutureUtil.waitForAll(futures);
+        return seekAllAsync(consumer -> consumer.seekAsync(timestamp));
+    }
+
+    private CompletableFuture<Void> seekAllAsync(Function<ConsumerImpl<T>, CompletableFuture<Void>> seekFunc) {
+        beforeSeek();
+        final CompletableFuture<Void> future = new CompletableFuture<>();
+        FutureUtil.waitForAll(consumers.values().stream().map(seekFunc).collect(Collectors.toList()))
+                .whenComplete((__, e) -> afterSeek(future, e));
+        return future;
+    }
+
+    private void beforeSeek() {
+        duringSeek = true;
+        unAckedMessageTracker.clear();
+        clearIncomingMessages();
+    }
+
+    private void afterSeek(CompletableFuture<Void> seekFuture, @Nullable Throwable throwable) {
+        duringSeek = false;
+        log.info("[{}] Resume receiving messages for {} since seek is done", subscription, consumers.keySet());
+        startReceivingMessages(new ArrayList<>(consumers.values()));
+        if (throwable == null) {
+            seekFuture.complete(null);
+        } else {
+            seekFuture.completeExceptionally(throwable);
+        }
     }
 
     @Override
