@@ -25,6 +25,7 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.expectThrows;
 import static org.testng.Assert.fail;
 import com.google.common.base.Utf8;
 import java.util.Base64;
@@ -32,6 +33,7 @@ import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
@@ -144,6 +146,14 @@ public class PulsarStateTest extends PulsarStandaloneTestSuite {
                 assertEquals(functionState.getStringValue(), "val1");
             }
 
+            // query a non-exist key should get a 404 error
+            {
+                PulsarAdminException e = expectThrows(PulsarAdminException.class, () -> {
+                    admin.functions().getFunctionState("public", "default", sourceName, "non-exist");
+                });
+                assertEquals(e.getStatusCode(), 404);
+            }
+
             Awaitility.await().ignoreExceptions().untilAsserted(() -> {
                 FunctionState functionState = admin.functions().getFunctionState("public", "default", sourceName, "now");
                 assertTrue(functionState.getStringValue().matches("val1-.*"));
@@ -184,6 +194,14 @@ public class PulsarStateTest extends PulsarStandaloneTestSuite {
                 FunctionState functionState =
                         admin.functions().getFunctionState("public", "default", sinkName, "initial");
                 assertEquals(functionState.getStringValue(), "val1");
+            }
+
+            // query a non-exist key should get a 404 error
+            {
+                PulsarAdminException e = expectThrows(PulsarAdminException.class, () -> {
+                    admin.functions().getFunctionState("public", "default", sinkName, "non-exist");
+                });
+                assertEquals(e.getStatusCode(), 404);
             }
 
             for (int i = 0; i < numMessages; i++) {

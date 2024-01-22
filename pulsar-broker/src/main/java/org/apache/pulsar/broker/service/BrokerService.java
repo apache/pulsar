@@ -1063,7 +1063,7 @@ public class BrokerService implements Closeable {
     private CompletableFuture<Optional<TopicPolicies>> getTopicPoliciesBypassSystemTopic(@Nonnull TopicName topicName) {
         Objects.requireNonNull(topicName);
         final ServiceConfiguration serviceConfiguration = pulsar.getConfiguration();
-        if (serviceConfiguration.isSystemTopicEnabled() && serviceConfiguration.isTopicLevelPoliciesEnabled()
+        if (serviceConfiguration.isSystemTopicAndTopicLevelPoliciesEnabled()
                 && !NamespaceService.isSystemServiceNamespace(topicName.getNamespace())
                 && !SystemTopicNames.isTopicPoliciesSystemTopic(topicName.toString())) {
             return pulsar.getTopicPoliciesService().getTopicPoliciesAsync(topicName);
@@ -2124,7 +2124,7 @@ public class BrokerService implements Closeable {
                     } else {
                         String msg = String.format("Namespace bundle for topic (%s) not served by this instance:%s. "
                                         + "Please redo the lookup. Request is denied: namespace=%s",
-                                topic, pulsar.getLookupServiceAddress(), topicName.getNamespace());
+                                topic, pulsar.getBrokerId(), topicName.getNamespace());
                         log.warn(msg);
                         return FutureUtil.failedFuture(new ServiceUnitNotReadyException(msg));
                     }
@@ -3458,7 +3458,7 @@ public class BrokerService implements Closeable {
      * @return TopicPolicies, if they exist. Otherwise, the value will not be present.
      */
     public Optional<TopicPolicies> getTopicPolicies(TopicName topicName) {
-        if (!pulsar().getConfig().isTopicLevelPoliciesEnabled()) {
+        if (!pulsar().getConfig().isSystemTopicAndTopicLevelPoliciesEnabled()) {
             return Optional.empty();
         }
         return Optional.ofNullable(pulsar.getTopicPoliciesService()
@@ -3467,7 +3467,7 @@ public class BrokerService implements Closeable {
 
     public CompletableFuture<Void> deleteTopicPolicies(TopicName topicName) {
         final PulsarService pulsarService = pulsar();
-        if (!pulsarService.getConfig().isTopicLevelPoliciesEnabled()) {
+        if (!pulsarService.getConfig().isSystemTopicAndTopicLevelPoliciesEnabled()) {
             return CompletableFuture.completedFuture(null);
         }
         return pulsar.getTopicPoliciesService()
