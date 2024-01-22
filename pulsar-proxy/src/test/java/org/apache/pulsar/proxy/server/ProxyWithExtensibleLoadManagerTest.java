@@ -47,6 +47,7 @@ import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl;
+import org.apache.pulsar.broker.loadbalance.extensions.scheduler.TransferShedder;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -97,6 +98,7 @@ public class ProxyWithExtensibleLoadManagerTest extends MultiBrokerBaseTest {
         config.setLoadBalancerInFlightServiceUnitStateWaitingTimeInMillis(5 * 1000);
         config.setLoadBalancerServiceUnitStateMonitorIntervalInSeconds(1);
         config.setLoadManagerClassName(ExtensibleLoadManagerImpl.class.getName());
+        config.setLoadBalancerLoadSheddingStrategy(TransferShedder.class.getName());
         config.setLoadBalancerSheddingEnabled(false);
         return config;
     }
@@ -140,7 +142,7 @@ public class ProxyWithExtensibleLoadManagerTest extends MultiBrokerBaseTest {
         var srcBrokerUrl = admin.lookups().lookupTopic(topicName.toString());
         return getAllBrokers().stream().
                 filter(pulsarService -> !Objects.equals(srcBrokerUrl, pulsarService.getBrokerServiceUrl())).
-                map(PulsarService::getLookupServiceAddress).
+                map(PulsarService::getBrokerId).
                 findAny().orElseThrow(() -> new Exception("Could not determine destination broker lookup URL"));
     }
 

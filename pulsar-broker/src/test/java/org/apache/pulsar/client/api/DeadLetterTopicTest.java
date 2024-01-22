@@ -140,7 +140,8 @@ public class DeadLetterTopicTest extends ProducerConsumerBase {
     public void testDeadLetterTopicWithProducerName() throws Exception {
         final String topic = "persistent://my-property/my-ns/dead-letter-topic";
         final String subscription = "my-subscription";
-        String deadLetterProducerName = String.format("%s-%s-DLQ", topic, subscription);
+        final String consumerName = "my-consumer";
+        String deadLetterProducerName = String.format("%s-%s-%s-DLQ", topic, subscription, consumerName);
 
         final int maxRedeliveryCount = 1;
 
@@ -149,6 +150,7 @@ public class DeadLetterTopicTest extends ProducerConsumerBase {
         Consumer<byte[]> consumer = pulsarClient.newConsumer(Schema.BYTES)
                 .topic(topic)
                 .subscriptionName(subscription)
+                .consumerName(consumerName)
                 .subscriptionType(SubscriptionType.Shared)
                 .ackTimeout(1, TimeUnit.SECONDS)
                 .deadLetterPolicy(DeadLetterPolicy.builder().maxRedeliverCount(maxRedeliveryCount).build())
@@ -928,6 +930,9 @@ public class DeadLetterTopicTest extends ProducerConsumerBase {
             assertTrue(admin.namespaces().getTopics("my-property/my-ns").contains(deadLetterTopic));
             assertTrue(admin.topics().getSubscriptions(deadLetterTopic).contains(dlqInitialSub));
         });
+
+        // We should assert that all consumers are able to produce messages to DLQ
+        assertEquals(admin.topics().getStats(deadLetterTopic).getPublishers().size(), 2);
 
         Consumer<byte[]> deadLetterConsumer = newPulsarClient.newConsumer(Schema.BYTES)
                 .topic(deadLetterTopic)

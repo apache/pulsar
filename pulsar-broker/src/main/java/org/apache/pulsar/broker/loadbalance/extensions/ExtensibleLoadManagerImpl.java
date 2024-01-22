@@ -181,7 +181,9 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
 
     // Record the ignored send msg count during unloading
     @Getter
-    private final AtomicLong ignoredSendMsgCounter = new AtomicLong();
+    private final AtomicLong ignoredSendMsgCount = new AtomicLong();
+    @Getter
+    private final AtomicLong ignoredAckCount = new AtomicLong();
 
     // record unload metrics
     private final AtomicReference<List<Metrics>> unloadMetrics = new AtomicReference<>();
@@ -313,11 +315,14 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
      * Gets the assigned broker for the given topic.
      * @param pulsar PulsarService instance
      * @param topic Topic Name
-     * @return the assigned broker's BrokerLookupData instance. Empty, if not assigned by Extensible LoadManager.
+     * @return the assigned broker's BrokerLookupData instance. Empty, if not assigned by Extensible LoadManager or the
+     *         optimized bundle unload process is disabled.
      */
     public static CompletableFuture<Optional<BrokerLookupData>> getAssignedBrokerLookupData(PulsarService pulsar,
                                                                           String topic) {
-        if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(pulsar.getConfig())) {
+        var config = pulsar.getConfig();
+        if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(config)
+                && config.isLoadBalancerMultiPhaseBundleUnload()) {
             var topicName = TopicName.get(topic);
             try {
                 return pulsar.getNamespaceService().getBundleAsync(topicName)
@@ -348,7 +353,8 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
         try {
             this.brokerRegistry = new BrokerRegistryImpl(pulsar);
             this.leaderElectionService = new LeaderElectionService(
-                    pulsar.getCoordinationService(), pulsar.getSafeWebServiceAddress(), ELECTION_ROOT,
+                    pulsar.getCoordinationService(), pulsar.getBrokerId(),
+                    pulsar.getSafeWebServiceAddress(), ELECTION_ROOT,
                     state -> {
                         pulsar.getLoadManagerExecutor().execute(() -> {
                             if (state == LeaderElectionState.Leading) {
@@ -361,7 +367,7 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
             this.serviceUnitStateChannel = new ServiceUnitStateChannelImpl(pulsar);
             this.brokerRegistry.start();
             this.splitManager = new SplitManager(splitCounter);
-            this.unloadManager = new UnloadManager(unloadCounter);
+            this.unloadManager = new UnloadManager(unloadCounter, pulsar.getBrokerId());
             this.serviceUnitStateChannel.listen(unloadManager);
             this.serviceUnitStateChannel.listen(splitManager);
             this.leaderElectionService.start();
@@ -790,7 +796,7 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
     @VisibleForTesting
     void playLeader() {
         log.info("This broker:{} is setting the role from {} to {}",
-                pulsar.getLookupServiceAddress(), role, Leader);
+                pulsar.getBrokerId(), role, Leader);
         int retry = 0;
         while (!Thread.currentThread().isInterrupted()) {
             try {
@@ -807,7 +813,7 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
                 break;
             } catch (Throwable e) {
                 log.error("The broker:{} failed to set the role. Retrying {} th ...",
-                        pulsar.getLookupServiceAddress(), ++retry, e);
+                        pulsar.getBrokerId(), ++retry, e);
                 try {
                     Thread.sleep(Math.min(retry * 10, MAX_ROLE_CHANGE_RETRY_DELAY_IN_MILLIS));
                 } catch (InterruptedException ex) {
@@ -818,7 +824,7 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
             }
         }
         role = Leader;
-        log.info("This broker:{} plays the leader now.", pulsar.getLookupServiceAddress());
+        log.info("This broker:{} plays the leader now.", pulsar.getBrokerId());
 
         // flush the load data when the leader is elected.
         brokerLoadDataReporter.reportAsync(true);
@@ -828,7 +834,7 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
     @VisibleForTesting
     void playFollower() {
         log.info("This broker:{} is setting the role from {} to {}",
-                pulsar.getLookupServiceAddress(), role, Follower);
+                pulsar.getBrokerId(), role, Follower);
         int retry = 0;
         while (!Thread.currentThread().isInterrupted()) {
             try {
@@ -841,7 +847,7 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
                 break;
             } catch (Throwable e) {
                 log.error("The broker:{} failed to set the role. Retrying {} th ...",
-                        pulsar.getLookupServiceAddress(), ++retry, e);
+                        pulsar.getBrokerId(), ++retry, e);
                 try {
                     Thread.sleep(Math.min(retry * 10, MAX_ROLE_CHANGE_RETRY_DELAY_IN_MILLIS));
                 } catch (InterruptedException ex) {
@@ -852,7 +858,7 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
             }
         }
         role = Follower;
-        log.info("This broker:{} plays a follower now.", pulsar.getLookupServiceAddress());
+        log.info("This broker:{} plays a follower now.", pulsar.getBrokerId());
 
         // flush the load data when the leader is elected.
         brokerLoadDataReporter.reportAsync(true);
@@ -874,10 +880,18 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
         }
 
         metricsCollection.addAll(this.assignCounter.toMetrics(pulsar.getAdvertisedAddress()));
-
         metricsCollection.addAll(this.serviceUnitStateChannel.getMetrics());
+        metricsCollection.addAll(getIgnoredCommandMetrics(pulsar.getAdvertisedAddress()));
 
         return metricsCollection;
+    }
+
+    private List<Metrics> getIgnoredCommandMetrics(String advertisedBrokerAddress) {
+        var dimensions = Map.of("broker", advertisedBrokerAddress, "metric", "bundleUnloading");
+        var metric = Metrics.create(dimensions);
+        metric.put("brk_lb_ignored_ack_total", ignoredAckCount.get());
+        metric.put("brk_lb_ignored_send_total", ignoredSendMsgCount.get());
+        return List.of(metric);
     }
 
     private void monitor() {

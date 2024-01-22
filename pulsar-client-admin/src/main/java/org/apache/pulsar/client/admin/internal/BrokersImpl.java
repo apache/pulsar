@@ -75,15 +75,15 @@ public class BrokersImpl extends BaseResource implements Brokers {
     }
 
     @Override
-    public Map<String, NamespaceOwnershipStatus> getOwnedNamespaces(String cluster, String brokerUrl)
+    public Map<String, NamespaceOwnershipStatus> getOwnedNamespaces(String cluster, String brokerId)
             throws PulsarAdminException {
-        return sync(() -> getOwnedNamespacesAsync(cluster, brokerUrl));
+        return sync(() -> getOwnedNamespacesAsync(cluster, brokerId));
     }
 
     @Override
     public CompletableFuture<Map<String, NamespaceOwnershipStatus>> getOwnedNamespacesAsync(
-            String cluster, String brokerUrl) {
-        WebTarget path = adminBrokers.path(cluster).path(brokerUrl).path("ownedNamespaces");
+            String cluster, String brokerId) {
+        WebTarget path = adminBrokers.path(cluster).path(brokerId).path("ownedNamespaces");
         return asyncGetRequest(path, new FutureCallback<Map<String, NamespaceOwnershipStatus>>(){});
     }
 
