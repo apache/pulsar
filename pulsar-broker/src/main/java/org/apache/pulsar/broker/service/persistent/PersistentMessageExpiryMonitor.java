@@ -18,20 +18,29 @@
  */
 package org.apache.pulsar.broker.service.persistent;
 
+import java.io.IOException;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.LongAdder;
 import javax.annotation.Nullable;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.FindEntryCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.MarkDeleteCallback;
+import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
+import org.apache.bookkeeper.mledger.ManagedLedger;
+import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.LedgerNotExistException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.NonRecoverableLedgerException;
+import org.apache.bookkeeper.mledger.ManagedLedgerInfo;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.bookkeeper.mledger.proto.MLDataFormats;
 import org.apache.pulsar.broker.service.MessageExpirer;
 import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
@@ -78,10 +87,10 @@ public class PersistentMessageExpiryMonitor implements FindEntryCallback, Messag
         if (expirationCheckInProgressUpdater.compareAndSet(this, FALSE, TRUE)) {
             log.info("[{}][{}] Starting message expiry check, ttl= {} seconds", topicName, subName,
                     messageTTLInSeconds);
-
+            Map<Long, MLDataFormats.ManagedLedgerInfo.LedgerInfo> ledgerIdToInfoCache = new ConcurrentHashMap<>();
             cursor.asyncFindNewestMatching(ManagedCursor.FindPositionConstraint.SearchActiveEntries, entry -> {
                 try {
-                    long entryTimestamp = Commands.getEntryTimestamp(entry.getDataBuffer());
+                    long entryTimestamp = getEntryTimestamp(entry, ledgerIdToInfoCache, cursor);
                     return MessageImpl.isEntryExpired(messageTTLInSeconds, entryTimestamp);
                 } catch (Exception e) {
                     log.error("[{}][{}] Error deserializing message for expiry check", topicName, subName, e);
@@ -98,6 +107,33 @@ public class PersistentMessageExpiryMonitor implements FindEntryCallback, Messag
             }
             return false;
         }
+    }
+
+    private long getEntryTimestamp(Entry entry,
+                                  Map<Long, MLDataFormats.ManagedLedgerInfo.LedgerInfo> ledgerIdToInfoCache,
+                                  ManagedCursor cursor) throws IOException {
+        long entryTimestamp = Commands.getEntryTimestamp(entry.getDataBuffer());
+        ManagedLedger managedLedger = cursor.getManagedLedger();
+        ManagedLedgerConfig config = managedLedger.getConfig();
+        MLDataFormats.ManagedLedgerInfo.LedgerInfo ledgerInfo = ledgerIdToInfoCache.computeIfAbsent(
+                entry.getLedgerId(), (ledgerId) -> {
+                    try {
+                        return managedLedger.getLedgerInfo(ledgerId)
+                                .get(config.getMetadataOperationsTimeoutSeconds(), TimeUnit.SECONDS);
+                    } catch (Exception e) {
+                        return null;
+                    }
+                });
+        if (ledgerInfo == null) {
+            return entryTimestamp;
+        }
+        long maxAvailableTimestamp = ledgerInfo.getTimestamp() + config.getMaximumRolloverTimeMs();
+        if (entryTimestamp > maxAvailableTimestamp) {
+            log.debug("Timestamp {} from {} {}:{} is incorrect, ledger is created at {}, please check client's clock",
+                    entry.getLedgerId(), topicName, entry.getEntryId(), entryTimestamp, ledgerInfo.getTimestamp());
+            return maxAvailableTimestamp;
+        }
+        return entryTimestamp;
     }
 
     @Override
