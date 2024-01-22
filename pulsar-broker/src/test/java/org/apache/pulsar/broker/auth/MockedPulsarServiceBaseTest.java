@@ -22,6 +22,7 @@ import static org.apache.pulsar.broker.BrokerTestUtil.spyWithoutRecordingInvocat
 import static org.testng.Assert.assertEquals;
 import com.google.common.collect.Sets;
 import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.URL;
@@ -55,7 +56,9 @@ import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.impl.ConnectionPool;
 import org.apache.pulsar.client.impl.ProducerImpl;
+import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.auth.AuthenticationDisabled;
 import org.apache.pulsar.client.impl.auth.AuthenticationTls;
 import org.apache.pulsar.common.policies.data.ClusterData;
@@ -715,6 +718,17 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
             log.warn("This thread has been interrupted", e);
             Thread.currentThread().interrupt();
         }
+    }
+
+    public static void reconnectAllConnections(PulsarClientImpl c) throws Exception {
+        ConnectionPool pool = c.getCnxPool();
+        Method closeAllConnections = ConnectionPool.class.getDeclaredMethod("closeAllConnections", new Class[]{});
+        closeAllConnections.setAccessible(true);
+        closeAllConnections.invoke(pool, new Object[]{});
+    }
+
+    public void reconnectAllConnections() throws Exception {
+        reconnectAllConnections((PulsarClientImpl) pulsarClient);
     }
 
     private static final Logger log = LoggerFactory.getLogger(MockedPulsarServiceBaseTest.class);

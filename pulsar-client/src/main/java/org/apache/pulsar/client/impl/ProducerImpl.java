@@ -1983,6 +1983,11 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         return producerName;
     }
 
+    @VisibleForTesting
+    void triggerSendTimer() throws Exception {
+        run(sendTimeout);
+    }
+
     /**
      * Process sendTimeout events.
      */
@@ -2001,7 +2006,8 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             }
 
             OpSendMsg firstMsg = pendingMessages.peek();
-            if (firstMsg == null && (batchMessageContainer == null || batchMessageContainer.isEmpty())) {
+            if (firstMsg == null && (batchMessageContainer == null || batchMessageContainer.isEmpty()
+                    || batchMessageContainer.getFirstAddedTimestamp() == 0L)) {
                 // If there are no pending messages, reset the timeout to the configured value.
                 timeToWaitMs = conf.getSendTimeoutMs();
             } else {
@@ -2011,7 +2017,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 } else {
                     // Because we don't flush batch messages while disconnected, we consider them "createdAt" when
                     // they would have otherwise been flushed.
-                    createdAt = lastBatchSendNanoTime
+                    createdAt = batchMessageContainer.getFirstAddedTimestamp()
                             + TimeUnit.MICROSECONDS.toNanos(conf.getBatchingMaxPublishDelayMicros());
                 }
                 // If there is at least one message, calculate the diff between the message timeout and the elapsed

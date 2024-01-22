@@ -213,27 +213,80 @@ public class SubscriptionPauseOnAckStatPersistTest extends ProducerConsumerBase 
         }
     }
 
-    @Test
-    public void testBrokerDynamicConfig() throws Exception {
+    @DataProvider(name = "typesOfSetDispatcherPauseOnAckStatePersistent")
+    public Object[][] typesOfSetDispatcherPauseOnAckStatePersistent() {
+        return new Object[][]{
+          {TypeOfUpdateTopicConfig.BROKER_CONF},
+          {TypeOfUpdateTopicConfig.NAMESPACE_LEVEL_POLICY},
+          {TypeOfUpdateTopicConfig.TOPIC_LEVEL_POLICY}
+        };
+    }
+
+    public enum TypeOfUpdateTopicConfig {
+        BROKER_CONF,
+        NAMESPACE_LEVEL_POLICY,
+        TOPIC_LEVEL_POLICY;
+    }
+
+    private void enableDispatcherPauseOnAckStatePersistentAndCreateTopic(String tpName, TypeOfUpdateTopicConfig type)
+            throws Exception {
+        if (type == TypeOfUpdateTopicConfig.BROKER_CONF) {
+            admin.brokers().updateDynamicConfiguration("dispatcherPauseOnAckStatePersistentEnabled", "true");
+            admin.topics().createNonPartitionedTopic(tpName);
+        } else if (type == TypeOfUpdateTopicConfig.TOPIC_LEVEL_POLICY) {
+            admin.topics().createNonPartitionedTopic(tpName);
+            admin.topicPolicies().setDispatcherPauseOnAckStatePersistent(tpName).join();
+        } else if (type == TypeOfUpdateTopicConfig.NAMESPACE_LEVEL_POLICY) {
+            admin.topics().createNonPartitionedTopic(tpName);
+            admin.namespaces().setDispatcherPauseOnAckStatePersistent(TopicName.get(tpName).getNamespace());
+        }
+        Awaitility.await().untilAsserted(() -> {
+            PersistentTopic persistentTopic =
+                    (PersistentTopic) pulsar.getBrokerService().getTopic(tpName, false).join().get();
+            HierarchyTopicPolicies policies = WhiteboxImpl.getInternalState(persistentTopic, "topicPolicies");
+            Assert.assertTrue(persistentTopic.isDispatcherPauseOnAckStatePersistentEnabled());
+            if (type == TypeOfUpdateTopicConfig.BROKER_CONF) {
+                Assert.assertTrue(pulsar.getConfig().isDispatcherPauseOnAckStatePersistentEnabled());
+            } else if (type == TypeOfUpdateTopicConfig.TOPIC_LEVEL_POLICY){
+                Assert.assertTrue(policies.getDispatcherPauseOnAckStatePersistentEnabled().getTopicValue());
+                Assert.assertTrue(admin.topicPolicies().getDispatcherPauseOnAckStatePersistent(tpName, false).join());
+            }
+        });
+    }
+
+    private void disableDispatcherPauseOnAckStatePersistent(String tpName, TypeOfUpdateTopicConfig type)
+            throws Exception {
+        if (type == TypeOfUpdateTopicConfig.BROKER_CONF) {
+            admin.brokers().updateDynamicConfiguration("dispatcherPauseOnAckStatePersistentEnabled", "false");
+        } else if (type == TypeOfUpdateTopicConfig.TOPIC_LEVEL_POLICY) {
+            admin.topicPolicies().removeDispatcherPauseOnAckStatePersistent(tpName).join();
+        } else if (type == TypeOfUpdateTopicConfig.NAMESPACE_LEVEL_POLICY) {
+            admin.namespaces().removeDispatcherPauseOnAckStatePersistent(TopicName.get(tpName).getNamespace());
+        }
+        Awaitility.await().untilAsserted(() -> {
+            PersistentTopic persistentTopic =
+                    (PersistentTopic) pulsar.getBrokerService().getTopic(tpName, false).join().get();
+            HierarchyTopicPolicies policies = WhiteboxImpl.getInternalState(persistentTopic, "topicPolicies");
+            Assert.assertFalse(persistentTopic.isDispatcherPauseOnAckStatePersistentEnabled());
+            if (type == TypeOfUpdateTopicConfig.BROKER_CONF) {
+                Assert.assertFalse(pulsar.getConfig().isDispatcherPauseOnAckStatePersistentEnabled());
+            } else if (type == TypeOfUpdateTopicConfig.TOPIC_LEVEL_POLICY){
+                Assert.assertFalse(policies.getDispatcherPauseOnAckStatePersistentEnabled().getTopicValue());
+                Assert.assertFalse(admin.topicPolicies().getDispatcherPauseOnAckStatePersistent(tpName, false).join());
+            }
+        });
+    }
+
+    @Test(dataProvider = "typesOfSetDispatcherPauseOnAckStatePersistent")
+    public void testBrokerDynamicConfig(TypeOfUpdateTopicConfig type) throws Exception {
         final String tpName = BrokerTestUtil.newUniqueName("persistent://public/default/tp");
         final String subscription = "s1";
         final int msgSendCount = MAX_UNACKED_RANGES_TO_PERSIST * 4;
         final int incomingQueueSize = MAX_UNACKED_RANGES_TO_PERSIST * 10;
 
         // Enable "dispatcherPauseOnAckStatePersistentEnabled".
-        admin.brokers().updateDynamicConfiguration("dispatcherPauseOnAckStatePersistentEnabled", "true");
-        admin.topics().createNonPartitionedTopic(tpName);
+        enableDispatcherPauseOnAckStatePersistentAndCreateTopic(tpName, type);
         admin.topics().createSubscription(tpName, subscription, MessageId.earliest);
-
-        PersistentTopic persistentTopic =
-                (PersistentTopic) pulsar.getBrokerService().getTopic(tpName, false).join().get();
-        Awaitility.await().untilAsserted(() -> {
-            Assert.assertTrue(pulsar.getConfig().isDispatcherPauseOnAckStatePersistentEnabled());
-            HierarchyTopicPolicies policies = WhiteboxImpl.getInternalState(persistentTopic, "topicPolicies");
-            Boolean v = policies.getDispatcherPauseOnAckStatePersistentEnabled().get();
-            Assert.assertNotNull(v);
-            Assert.assertTrue(v.booleanValue());
-        });
 
         // Send double MAX_UNACKED_RANGES_TO_PERSIST messages.
         Producer<String> p1 = pulsarClient.newProducer(Schema.STRING).topic(tpName).enableBatching(false).create();
@@ -259,13 +312,7 @@ public class SubscriptionPauseOnAckStatPersistTest extends ProducerConsumerBase 
         Assert.assertNull(msg1, msg1 == null ? "null" : msg1.getValue());
 
         // Disable "dispatcherPauseOnAckStatePersistentEnabled".
-        admin.brokers().updateDynamicConfiguration("dispatcherPauseOnAckStatePersistentEnabled", "false");
-        Awaitility.await().untilAsserted(() -> {
-            Assert.assertFalse(pulsar.getConfig().isDispatcherPauseOnAckStatePersistentEnabled());
-            HierarchyTopicPolicies policies = WhiteboxImpl.getInternalState(persistentTopic, "topicPolicies");
-            Boolean v = policies.getDispatcherPauseOnAckStatePersistentEnabled().get();
-            Assert.assertTrue(v == null || !v.booleanValue());
-        });
+        disableDispatcherPauseOnAckStatePersistent(tpName, type);
 
         // Verify the new message can be received.
         Message<String> msg2 = c1.receive(2, TimeUnit.SECONDS);

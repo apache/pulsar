@@ -85,7 +85,7 @@ public class BrokersBase extends AdminResource {
     @GET
     @Path("/{cluster}")
     @ApiOperation(
-        value = "Get the list of active brokers (web service addresses) in the cluster."
+        value = "Get the list of active brokers (broker ids) in the cluster."
                 + "If authorization is not enabled, any cluster name is valid.",
         response = String.class,
         responseContainer = "Set")
@@ -115,7 +115,7 @@ public class BrokersBase extends AdminResource {
 
     @GET
     @ApiOperation(
-            value = "Get the list of active brokers (web service addresses) in the local cluster."
+            value = "Get the list of active brokers (broker ids) in the local cluster."
                     + "If authorization is not enabled",
             response = String.class,
             responseContainer = "Set")
@@ -141,7 +141,9 @@ public class BrokersBase extends AdminResource {
         validateSuperUserAccessAsync().thenAccept(__ -> {
                     LeaderBroker leaderBroker = pulsar().getLeaderElectionService().getCurrentLeader()
                             .orElseThrow(() -> new RestException(Status.NOT_FOUND, "Couldn't find leader broker"));
-                    BrokerInfo brokerInfo = BrokerInfo.builder().serviceUrl(leaderBroker.getServiceUrl()).build();
+                    BrokerInfo brokerInfo = BrokerInfo.builder()
+                            .serviceUrl(leaderBroker.getServiceUrl())
+                            .brokerId(leaderBroker.getBrokerId()).build();
                     LOG.info("[{}] Successfully to get the information of the leader broker.", clientAppId());
                     asyncResponse.resume(brokerInfo);
                 })
@@ -153,8 +155,8 @@ public class BrokersBase extends AdminResource {
     }
 
     @GET
-    @Path("/{clusterName}/{broker-webserviceurl}/ownedNamespaces")
-    @ApiOperation(value = "Get the list of namespaces served by the specific broker",
+    @Path("/{clusterName}/{brokerId}/ownedNamespaces")
+    @ApiOperation(value = "Get the list of namespaces served by the specific broker id",
             response = NamespaceOwnershipStatus.class, responseContainer = "Map")
     @ApiResponses(value = {
             @ApiResponse(code = 307, message = "Current broker doesn't serve the cluster"),
@@ -162,9 +164,9 @@ public class BrokersBase extends AdminResource {
             @ApiResponse(code = 404, message = "Cluster doesn't exist") })
     public void getOwnedNamespaces(@Suspended final AsyncResponse asyncResponse,
                                    @PathParam("clusterName") String cluster,
-                                   @PathParam("broker-webserviceurl") String broker) {
+                                   @PathParam("brokerId") String brokerId) {
         validateSuperUserAccessAsync()
-                .thenAccept(__ -> validateBrokerName(broker))
+                .thenCompose(__ -> maybeRedirectToBroker(brokerId))
                 .thenCompose(__ -> validateClusterOwnershipAsync(cluster))
                 .thenCompose(__ -> pulsar().getNamespaceService().getOwnedNameSpacesStatusAsync())
                 .thenAccept(asyncResponse::resume)
@@ -172,7 +174,7 @@ public class BrokersBase extends AdminResource {
                     // If the exception is not redirect exception we need to log it.
                     if (!isRedirectException(ex)) {
                         LOG.error("[{}] Failed to get the namespace ownership status. cluster={}, broker={}",
-                                clientAppId(), cluster, broker);
+                                clientAppId(), cluster, brokerId);
                     }
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
@@ -396,10 +398,10 @@ public class BrokersBase extends AdminResource {
 
 
     private CompletableFuture<Void> internalRunHealthCheck(TopicVersion topicVersion) {
-        String lookupServiceAddress = pulsar().getLookupServiceAddress();
+        String brokerId = pulsar().getBrokerId();
         NamespaceName namespaceName = (topicVersion == TopicVersion.V2)
-                ? NamespaceService.getHeartbeatNamespaceV2(lookupServiceAddress, pulsar().getConfiguration())
-                : NamespaceService.getHeartbeatNamespace(lookupServiceAddress, pulsar().getConfiguration());
+                ? NamespaceService.getHeartbeatNamespaceV2(brokerId, pulsar().getConfiguration())
+                : NamespaceService.getHeartbeatNamespace(brokerId, pulsar().getConfiguration());
         final String topicName = String.format("persistent://%s/%s", namespaceName, HEALTH_CHECK_TOPIC_SUFFIX);
         LOG.info("[{}] Running healthCheck with topic={}", clientAppId(), topicName);
         final String messageStr = UUID.randomUUID().toString();
