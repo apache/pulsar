@@ -1303,8 +1303,25 @@ public class PersistentSubscription extends AbstractSubscription {
                     .getRecentlyJoinedConsumers();
             if (recentlyJoinedConsumers != null && recentlyJoinedConsumers.size() > 0) {
                 recentlyJoinedConsumers.forEach((k, v) -> {
-                    subStats.consumersAfterMarkDeletePosition.put(k.consumerName(), v.toString());
+                    // The dispatcher allows same name consumers
+                    final StringBuilder stringBuilder = new StringBuilder();
+                    stringBuilder.append("consumerName=").append(k.consumerName())
+                            .append(", consumerId=").append(k.consumerId());
+                    if (k.cnx() != null) {
+                        stringBuilder.append(", address=").append(k.cnx().clientAddress());
+                    }
+                    subStats.consumersAfterMarkDeletePosition.put(stringBuilder.toString(), v.toString());
                 });
+            }
+            final String lastSentPosition = ((PersistentStickyKeyDispatcherMultipleConsumers) dispatcher)
+                    .getLastSentPosition();
+            if (lastSentPosition != null) {
+                subStats.lastSentPosition = lastSentPosition;
+            }
+            final String individuallySentPositions = ((PersistentStickyKeyDispatcherMultipleConsumers) dispatcher)
+                    .getIndividuallySentPositions();
+            if (individuallySentPositions != null) {
+                subStats.individuallySentPositions = individuallySentPositions;
             }
         }
         subStats.nonContiguousDeletedMessagesRanges = cursor.getTotalNonContiguousDeletedMessagesRange();
