@@ -656,7 +656,7 @@ public class PersistentReplicator extends AbstractReplicator
 
             @Override
             public String toString() {
-                return String.format("Replication [{}] peek Nth message",
+                return String.format("Replication [%s] peek Nth message",
                         PersistentReplicator.this.producer.getProducerName());
             }
         }, null);
