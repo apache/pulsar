@@ -93,6 +93,7 @@ import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.service.schema.SchemaRegistryService;
 import org.apache.pulsar.broker.service.schema.exceptions.IncompatibleSchemaException;
 import org.apache.pulsar.broker.web.RestException;
+import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.client.impl.BatchMessageIdImpl;
@@ -2192,8 +2193,15 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         }
     }
 
-    private boolean isValidEntry(MessageMetadata metadata) {
-        return !metadata.hasMarkerType();
+    private boolean isValidEntry(MessageMetadata metadata, PersistentTopic persistentTopic) {
+        if (metadata.hasMarkerType()) {
+            return false;
+        }
+        if (metadata.hasTxnidMostBits() && metadata.hasTxnidLeastBits() && persistentTopic.isTxnAborted(
+                new TxnID(metadata.getTxnidMostBits(), metadata.getTxnidLeastBits()), null)) {
+            return false;
+        }
+        return true;
     }
 
     /**
@@ -2205,31 +2213,34 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
      */
     private void readLastValidEntry(CompletableFuture<MessageMetadata> entryMetaDataFuture,
                                     CompletableFuture<PositionImpl> lastPositionFuture,
-                                    PositionImpl lastPosition, ManagedLedgerImpl ml) {
+                                    PositionImpl lastPosition, ManagedLedgerImpl ml,
+                                    PersistentTopic persistentTopic) {
         ml.asyncReadEntry(lastPosition, new AsyncCallbacks.ReadEntryCallback() {
             @Override
             public void readEntryComplete(Entry entry, Object ctx) {
                 try {
                     MessageMetadata metadata = Commands.parseMessageMetadata(entry.getDataBuffer());
-                    if (isValidEntry(metadata)) {
+                    if (isValidEntry(metadata, persistentTopic)) {
                         entryMetaDataFuture.complete(metadata);
                         lastPositionFuture.complete(lastPosition);
                     } else {
                         // check the previous entry
                         if (lastPosition.getEntryId() > 0) {
-                            readLastValidEntry(entryMetaDataFuture, lastPositionFuture,
-                                    PositionImpl.get(lastPosition.getLedgerId(), lastPosition.getEntryId() - 1), ml);
+                            readLastValidEntry(entryMetaDataFuture, lastPositionFuture, PositionImpl.get(
+                                    lastPosition.getLedgerId(), lastPosition.getEntryId() - 1), ml, persistentTopic);
                         } else {
                             // find out the previous ledger
                             NavigableMap<Long, MLDataFormats.ManagedLedgerInfo.LedgerInfo> ledgersMap =
                                     ml.getLedgersInfo();
                             Long previousLedgerId = ledgersMap.lowerKey(lastPosition.getLedgerId());
                             if (previousLedgerId != null) {
-                                readLastValidEntry(entryMetaDataFuture, lastPositionFuture,
-                                        PositionImpl.get(previousLedgerId, ledgersMap.get(previousLedgerId).getEntries() - 1), ml);
+                                readLastValidEntry(entryMetaDataFuture, lastPositionFuture, PositionImpl.get(previousLedgerId,
+                                        ledgersMap.get(previousLedgerId).getEntries() - 1), ml, persistentTopic);
                             } else {
-                                entryMetaDataFuture.completeExceptionally(new ManagedLedgerException("No valid entry found"));
-                                lastPositionFuture.completeExceptionally(new ManagedLedgerException("No valid entry found"));
+                                entryMetaDataFuture.completeExceptionally(
+                                        new ManagedLedgerException.NoValidEntryLedgerException("No valid entry found"));
+                                lastPositionFuture.completeExceptionally(
+                                        new ManagedLedgerException.NoValidEntryLedgerException("No valid entry found"));
                             }
                         }
                     }
@@ -2286,7 +2297,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             // For a valid position, we read the entry out and parse the batch size from its metadata.
             CompletableFuture<MessageMetadata> entryMetaDataFuture = new CompletableFuture<>();
             CompletableFuture<PositionImpl> lastPositionFuture = new CompletableFuture<>();
-            readLastValidEntry(entryMetaDataFuture, lastPositionFuture, lastPosition, ml);
+            readLastValidEntry(entryMetaDataFuture, lastPositionFuture, lastPosition, ml, persistentTopic);
 
             entryMetaDataFuture.thenCombine(lastPositionFuture, (metadata, position) -> {
                 int largestBatchIndex = -1;
@@ -2306,6 +2317,13 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 if (ex1.getCause() instanceof ManagedLedgerException.NonRecoverableLedgerException) {
                     handleLastMessageIdFromCompactionService(persistentTopic, requestId, partitionIndex,
                             markDeletePosition);
+                } else if (ex1.getCause() instanceof ManagedLedgerException.NoValidEntryLedgerException) {
+                    // return MessageId.earliest to indicate that there is no valid messages to be read
+                    MessageIdImpl messageId = (MessageIdImpl) MessageId.earliest;
+                    writeAndFlush(Commands.newGetLastMessageIdResponse(requestId, messageId.getLedgerId(),
+                            messageId.getEntryId(), partitionIndex, -1,
+                            markDeletePosition != null ? markDeletePosition.getLedgerId() : -1,
+                            markDeletePosition != null ? markDeletePosition.getEntryId() : -1));
                 } else {
                     writeAndFlush(Commands.newError(
                             requestId, ServerError.MetadataError,

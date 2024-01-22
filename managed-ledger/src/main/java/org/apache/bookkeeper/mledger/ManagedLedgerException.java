@@ -147,6 +147,12 @@ public class ManagedLedgerException extends Exception {
         }
     }
 
+    public static class NoValidEntryLedgerException extends ManagedLedgerException {
+        public NoValidEntryLedgerException(String msg) {
+            super(msg);
+        }
+    }
+
     public static class LedgerNotExistException extends NonRecoverableLedgerException {
         public LedgerNotExistException(String msg) {
             super(msg);
