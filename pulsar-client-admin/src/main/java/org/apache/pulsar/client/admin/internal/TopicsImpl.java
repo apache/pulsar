@@ -977,20 +977,16 @@ public class TopicsImpl extends BaseResource implements Topics {
     }
 
     @Override
-    public CompletableFuture<Message<byte[]>> getMessageByIdAsync(String topic, long ledgerId, long entryId) {
-        return getRemoteMessageById(topic, ledgerId, entryId);
-    }
-
-    private CompletableFuture<Message<byte[]>> getRemoteMessageById(String topic, long ledgerId, long entryId) {
+    public CompletableFuture<List<Message<byte[]>>> getMessagesByIdAsync(String topic, long ledgerId, long entryId) {
         TopicName topicName = validateTopic(topic);
         WebTarget path = topicPath(topicName, "ledger", Long.toString(ledgerId), "entry", Long.toString(entryId));
-        final CompletableFuture<Message<byte[]>> future = new CompletableFuture<>();
+        final CompletableFuture<List<Message<byte[]>>> future = new CompletableFuture<>();
         asyncGetRequest(path,
                 new InvocationCallback<Response>() {
                     @Override
                     public void completed(Response response) {
                         try {
-                            future.complete(getMessagesFromHttpResponse(topicName.toString(), response).get(0));
+                            future.complete(getMessagesFromHttpResponse(topicName.toString(), response));
                         } catch (Exception e) {
                             future.completeExceptionally(getApiException(e));
                         }
@@ -1004,6 +1000,19 @@ public class TopicsImpl extends BaseResource implements Topics {
         return future;
     }
 
+    @Override
+    public List<Message<byte[]>> getMessagesById(String topic, long ledgerId, long entryId)
+            throws PulsarAdminException {
+        return sync(() -> getMessagesByIdAsync(topic, ledgerId, entryId));
+    }
+
+    @Deprecated
+    @Override
+    public CompletableFuture<Message<byte[]>> getMessageByIdAsync(String topic, long ledgerId, long entryId) {
+        return getMessagesByIdAsync(topic, ledgerId, entryId).thenApply(n -> n.get(0));
+    }
+
+    @Deprecated
     @Override
     public Message<byte[]> getMessageById(String topic, long ledgerId, long entryId)
             throws PulsarAdminException {

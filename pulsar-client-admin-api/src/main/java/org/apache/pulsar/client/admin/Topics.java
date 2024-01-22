@@ -1724,7 +1724,9 @@ public interface Topics {
      * @return the message indexed by the messageId
      * @throws PulsarAdminException
      *            Unexpected error
+     * @deprecated Using {@link #getMessagesById(String, long, long)} instead.
      */
+    @Deprecated
     Message<byte[]> getMessageById(String topic, long ledgerId, long entryId) throws PulsarAdminException;
 
     /**
@@ -1736,8 +1738,31 @@ public interface Topics {
      * @param entryId
      *            Entry id
      * @return a future that can be used to track when the message is returned
+     * @deprecated Using {@link #getMessagesByIdAsync(String, long, long)} instead.
      */
+    @Deprecated
     CompletableFuture<Message<byte[]>> getMessageByIdAsync(String topic, long ledgerId, long entryId);
+
+    /**
+     * Get the messages by messageId.
+     *
+     * @param topic    Topic name
+     * @param ledgerId Ledger id
+     * @param entryId  Entry id
+     * @return A set of messages.
+     * @throws PulsarAdminException Unexpected error
+     */
+    List<Message<byte[]>> getMessagesById(String topic, long ledgerId, long entryId) throws PulsarAdminException;
+
+    /**
+     * Get the messages by messageId asynchronously.
+     *
+     * @param topic    Topic name
+     * @param ledgerId Ledger id
+     * @param entryId  Entry id
+     * @return A future that can be used to track when a set of messages is returned.
+     */
+    CompletableFuture<List<Message<byte[]>>> getMessagesByIdAsync(String topic, long ledgerId, long entryId);
 
     /**
      * Get message ID published at or just after this absolute timestamp (in ms).

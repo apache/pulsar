@@ -21,24 +21,35 @@ package org.apache.pulsar.broker.admin;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import org.apache.pulsar.broker.BrokerTestUtil;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.policies.data.stats.NonPersistentTopicStatsImpl;
 import org.apache.pulsar.common.policies.data.stats.TopicStatsImpl;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.awaitility.Awaitility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -201,5 +212,57 @@ public class AdminTopicApiTest extends ProducerConsumerBase {
             assertTrue(stats instanceof TopicStatsImpl);
         }
         assertTrue(stats.getSubscriptions().containsKey(subscriptionName));
+    }
+
+    @Test
+    public void testGetMessagesId() throws PulsarClientException, ExecutionException, InterruptedException {
+        String topic = newTopicName();
+
+        int numMessages = 10;
+        int batchingMaxMessages = numMessages / 2;
+
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(topic)
+                .enableBatching(true)
+                .batchingMaxMessages(batchingMaxMessages)
+                .batchingMaxPublishDelay(60, TimeUnit.SECONDS)
+                .create();
+
+        List<CompletableFuture<MessageId>> futures = new ArrayList<>();
+        for (int i = 0; i < numMessages; i++) {
+            futures.add(producer.sendAsync(("msg-" + i).getBytes(UTF_8)));
+        }
+        FutureUtil.waitForAll(futures).get();
+
+        Map<MessageIdImpl, Integer> messageIdMap = new HashMap<>();
+        futures.forEach(n -> {
+            try {
+                MessageId messageId = n.get();
+                if (messageId instanceof MessageIdImpl impl) {
+                    MessageIdImpl key = new MessageIdImpl(impl.getLedgerId(), impl.getEntryId(), -1);
+                    Integer i = messageIdMap.computeIfAbsent(key, __ -> 0);
+                    messageIdMap.put(key, i + 1);
+                }
+            } catch (InterruptedException | ExecutionException e) {
+                throw new RuntimeException(e);
+            }
+        });
+
+        messageIdMap.forEach((key, value) -> {
+            assertEquals(value, batchingMaxMessages);
+            try {
+                List<Message<byte[]>> messages = admin.topics().getMessagesById(topic,
+                        key.getLedgerId(), key.getEntryId());
+                assertNotNull(messages);
+                assertEquals(messages.size(), batchingMaxMessages);
+            } catch (PulsarAdminException e) {
+                throw new RuntimeException(e);
+            }
+        });
+
+        // The message id doesn't exist.
+        assertThrows(PulsarAdminException.NotFoundException.class, () -> admin.topics()
+                .getMessagesById(topic, 1024, 2048));
     }
 }
