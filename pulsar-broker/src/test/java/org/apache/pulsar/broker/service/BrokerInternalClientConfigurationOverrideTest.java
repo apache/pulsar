@@ -18,7 +18,9 @@
  */
 package org.apache.pulsar.broker.service;
 
+import static org.testng.Assert.assertEquals;
 import org.apache.pulsar.broker.PulsarServerException;
+import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.client.admin.internal.PulsarAdminImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
@@ -112,4 +114,12 @@ public class BrokerInternalClientConfigurationOverrideTest extends BrokerTestBas
         Assert.assertEquals(clientConf.getMemoryLimitBytes(), 100000);
     }
 
+    @Test
+    public void testEnableInterceptor() {
+        assertEquals(conf.getBrokerEntryMetadataInterceptors().iterator().next(),
+                "org.apache.pulsar.common.intercept.AppendBrokerTimestampMetadataInterceptor");
+        ServiceConfiguration configuration = new ServiceConfiguration();
+        assertEquals(configuration.getBrokerEntryMetadataInterceptors().iterator().next(),
+                "org.apache.pulsar.common.intercept.AppendBrokerTimestampMetadataInterceptor");
+    }
 }
