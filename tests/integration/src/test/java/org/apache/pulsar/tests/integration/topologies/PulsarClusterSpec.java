@@ -88,6 +88,13 @@ public class PulsarClusterSpec {
     Map<String, Map<String, String>> functionWorkerEnvs;
 
     /**
+     * Additional ports to expose on function workers.
+     */
+    @Singular
+    Map<String, List<Integer>> functionWorkerAdditionalPorts;
+
+
+    /**
      * Allow to query the last message
      */
     @Default
@@ -175,6 +182,11 @@ public class PulsarClusterSpec {
      * Additional ports to expose on bookie containers.
      */
     List<Integer> bookieAdditionalPorts;
+
+    /**
+     * Additional ports to expose on proxy containers.
+     */
+    List<Integer> proxyAdditionalPorts;
 
     /**
      * Enable TLS for connection.

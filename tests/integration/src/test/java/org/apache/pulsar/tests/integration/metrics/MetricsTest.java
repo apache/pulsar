@@ -18,16 +18,19 @@
  */
 package org.apache.pulsar.tests.integration.metrics;
 
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.tests.integration.containers.OpenTelemetryCollectorContainer;
+import org.apache.pulsar.tests.integration.containers.PulsarContainer;
 import org.apache.pulsar.tests.integration.functions.PulsarFunctionsTest;
 import org.apache.pulsar.tests.integration.functions.utils.CommandGenerator;
 import org.apache.pulsar.tests.integration.topologies.FunctionRuntimeType;
@@ -43,20 +46,20 @@ public class MetricsTest {
     // Test with the included Prometheus exporter as well
     // https://github.com/open-telemetry/opentelemetry-java/blob/main/sdk-extensions/autoconfigure/README.md#prometheus-exporter
     @Test(timeOut = 300_000)
-    public void testOpenTelemetryMetricsPresent() throws Exception {
+    public void testOpenTelemetryMetricsOtlpExport() throws Exception {
         var clusterName = "testOpenTelemetryMetrics-" + UUID.randomUUID();
         var openTelemetryCollectorContainer = new OpenTelemetryCollectorContainer(clusterName);
 
         var brokerOtelServiceName = clusterName + "-broker";
-        var brokerCollectorProps = getCollectorProps(openTelemetryCollectorContainer, brokerOtelServiceName);
+        var brokerCollectorProps = getCollectorProps(brokerOtelServiceName, openTelemetryCollectorContainer);
 
         var proxyOtelServiceName = clusterName + "-proxy";
-        var proxyCollectorProps = getCollectorProps(openTelemetryCollectorContainer, proxyOtelServiceName);
+        var proxyCollectorProps = getCollectorProps(proxyOtelServiceName, openTelemetryCollectorContainer);
 
         var functionWorkerServiceNameSuffix = PulsarTestBase.randomName();
         var functionWorkerOtelServiceName = "function-worker-" + functionWorkerServiceNameSuffix;
         var functionWorkerCollectorProps =
-                getCollectorProps(openTelemetryCollectorContainer, functionWorkerOtelServiceName);
+                getCollectorProps(functionWorkerOtelServiceName, openTelemetryCollectorContainer);
 
         var spec = PulsarClusterSpec.builder()
                 .clusterName(clusterName)
@@ -74,8 +77,8 @@ public class MetricsTest {
         var functionWorkerCommand = getFunctionWorkerCommand(serviceUrl, functionWorkerServiceNameSuffix);
         pulsarCluster.getAnyWorker().execCmdAsync(functionWorkerCommand.split(" "));
 
+        var metricName = "queueSize_ratio"; // Sent automatically by the OpenTelemetry SDK.
         Awaitility.waitAtMost(90, TimeUnit.SECONDS).pollInterval(1, TimeUnit.SECONDS).until(() -> {
-            var metricName = "queueSize_ratio"; // Sent automatically by the OpenTelemetry SDK.
             var metrics = openTelemetryCollectorContainer.getMetricsClient().getMetrics();
             // TODO: Validate cluster name is present once
             // https://github.com/open-telemetry/opentelemetry-java/issues/6108 is solved.
@@ -87,14 +90,89 @@ public class MetricsTest {
         });
     }
 
+    @Test(timeOut = 300_000)
+    public void testOpenTelemetryMetricsPrometheusExport() throws Exception {
+        var prometheusExporterPort = 9464;
+        var clusterName = "testOpenTelemetryMetrics-" + UUID.randomUUID();
+
+        var brokerOtelServiceName = clusterName + "-broker";
+        var brokerCollectorProps = getCollectorProps(brokerOtelServiceName, prometheusExporterPort);
+
+        var proxyOtelServiceName = clusterName + "-proxy";
+        var proxyCollectorProps = getCollectorProps(proxyOtelServiceName, prometheusExporterPort);
+
+        var functionWorkerServiceNameSuffix = PulsarTestBase.randomName();
+        var functionWorkerOtelServiceName = "function-worker-" + functionWorkerServiceNameSuffix;
+        var functionWorkerCollectorProps =
+                getCollectorProps(functionWorkerOtelServiceName, prometheusExporterPort);
+
+        var spec = PulsarClusterSpec.builder()
+                .clusterName(clusterName)
+                .brokerEnvs(brokerCollectorProps)
+                .brokerAdditionalPorts(List.of(prometheusExporterPort))
+                .proxyEnvs(proxyCollectorProps)
+                .proxyAdditionalPorts(List.of(prometheusExporterPort))
+                .functionWorkerEnv(functionWorkerServiceNameSuffix, functionWorkerCollectorProps)
+                .functionWorkerAdditionalPort(functionWorkerServiceNameSuffix, List.of(prometheusExporterPort))
+                .build();
+        @Cleanup("stop")
+        var pulsarCluster = PulsarCluster.forSpec(spec);
+        pulsarCluster.start();
+
+        pulsarCluster.setupFunctionWorkers(functionWorkerServiceNameSuffix, FunctionRuntimeType.PROCESS, 1);
+        var serviceUrl = pulsarCluster.getPlainTextServiceUrl();
+        var functionWorkerCommand = getFunctionWorkerCommand(serviceUrl, functionWorkerServiceNameSuffix);
+        var workerContainer = pulsarCluster.getAnyWorker();
+        workerContainer.execCmdAsync(functionWorkerCommand.split(" "));
+
+        var metricName = "target_info"; // Sent automatically by the OpenTelemetry SDK.
+        Awaitility.waitAtMost(90, TimeUnit.SECONDS).pollInterval(1, TimeUnit.SECONDS).until(() -> {
+            var prometheusClient = createMetricsClient(pulsarCluster.getAnyBroker(), prometheusExporterPort);
+            var metrics = prometheusClient.getMetrics();
+            var expectedMetrics = metrics.findByNameAndLabels(metricName,
+                    Pair.of("pulsar_cluster", clusterName), Pair.of("service_name", brokerOtelServiceName));
+            return !expectedMetrics.isEmpty();
+        });
+
+        Awaitility.waitAtMost(90, TimeUnit.SECONDS).pollInterval(1, TimeUnit.SECONDS).until(() -> {
+            var prometheusClient = createMetricsClient(pulsarCluster.getProxy(), prometheusExporterPort);
+            var metrics = prometheusClient.getMetrics();
+            var expectedMetrics = metrics.findByNameAndLabels(metricName,
+                    Pair.of("pulsar_cluster", clusterName), Pair.of("service_name", proxyOtelServiceName));
+            return !expectedMetrics.isEmpty();
+        });
+
+        Awaitility.waitAtMost(90, TimeUnit.SECONDS).pollInterval(1, TimeUnit.SECONDS).until(() -> {
+            var prometheusClient = createMetricsClient(workerContainer, prometheusExporterPort);
+            var metrics = prometheusClient.getMetrics();
+            var expectedMetrics = metrics.findByNameAndLabels(metricName,
+                    Pair.of("pulsar_cluster", clusterName), Pair.of("service_name", functionWorkerOtelServiceName));
+            return !expectedMetrics.isEmpty();
+        });
+    }
+
+    private static PrometheusMetricsClient createMetricsClient(PulsarContainer container, int port) {
+        return new PrometheusMetricsClient(container.getHost(), container.getMappedPort(port));
+    }
+
     private static Map<String, String> getCollectorProps(
-            OpenTelemetryCollectorContainer openTelemetryCollectorContainer, String functionWorkerOtelServiceName) {
+            String serviceName, OpenTelemetryCollectorContainer openTelemetryCollectorContainer) {
         return Map.of(
                 "OTEL_SDK_DISABLED", "false",
+                "OTEL_SERVICE_NAME", serviceName,
                 "OTEL_METRICS_EXPORTER", "otlp",
-                "OTEL_METRIC_EXPORT_INTERVAL", "1000",
                 "OTEL_EXPORTER_OTLP_ENDPOINT", openTelemetryCollectorContainer.getOtlpEndpoint(),
-                "OTEL_SERVICE_NAME", functionWorkerOtelServiceName
+                "OTEL_METRIC_EXPORT_INTERVAL", "1000"
+        );
+    }
+
+    private static Map<String, String> getCollectorProps(String serviceName, int prometheusExporterPort) {
+        return Map.of(
+                "OTEL_SDK_DISABLED", "false",
+                "OTEL_SERVICE_NAME", serviceName,
+                "OTEL_METRICS_EXPORTER", "prometheus",
+                "OTEL_EXPORTER_PROMETHEUS_PORT", Integer.toString(prometheusExporterPort),
+                "OTEL_METRIC_EXPORT_INTERVAL", "1000"
         );
     }
 

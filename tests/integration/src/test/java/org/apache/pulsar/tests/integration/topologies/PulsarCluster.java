@@ -95,6 +95,7 @@ public class PulsarCluster {
     private Map<String, GenericContainer<?>> externalServices = Collections.emptyMap();
     private Map<String, Map<String, String>> externalServiceEnvs;
     private Map<String, Map<String, String>> functionWorkerEnvs;
+    private Map<String, List<Integer>> functionWorkerAdditionalPorts;
 
     private PulsarCluster(PulsarClusterSpec spec, CSContainer csContainer, boolean sharedCsContainer) {
 
@@ -150,6 +151,9 @@ public class PulsarCluster {
         }
         if (spec.proxyMountFiles != null) {
             spec.proxyMountFiles.forEach(this.proxyContainer::withFileSystemBind);
+        }
+        if (spec.proxyAdditionalPorts != null) {
+            spec.proxyAdditionalPorts.forEach(this.proxyContainer::addExposedPort);
         }
 
         // create bookies
@@ -329,6 +333,7 @@ public class PulsarCluster {
         }
 
         this.functionWorkerEnvs = spec.functionWorkerEnvs;
+        this.functionWorkerAdditionalPorts = spec.functionWorkerAdditionalPorts;
     }
 
     public void startService(String networkAlias,
@@ -439,6 +444,8 @@ public class PulsarCluster {
                 // bookkeeper tools
                 .withEnv("zkServers", ZKContainer.NAME)
                 .withEnv(functionWorkerEnvs.getOrDefault(suffix, Collections.emptyMap()))
+                .withExposedPorts(functionWorkerAdditionalPorts.getOrDefault(suffix, Collections.emptyList())
+                        .toArray(new Integer[0]))
         ));
         this.startWorkers();
     }
