@@ -86,27 +86,6 @@ public class OpenTelemetryServiceTest {
     }
 
     @Test
-    public void testIsServiceNameSet() throws Exception {
-        @Cleanup
-        InMemoryMetricReader reader = InMemoryMetricReader.create();
-
-        @Cleanup
-        OpenTelemetryService ots = OpenTelemetryService.builder().
-                clusterName("testCluster").
-                serviceName("testServiceName").
-                extraMetricReader(reader).
-                extraProperty(OpenTelemetryService.OTEL_SDK_DISABLED, "false").
-                build();
-
-        Predicate<MetricData> predicate = MetricDataMatcher.builder().
-                resourceAttribute(Attributes.of(AttributeKey.stringKey("service.name"), "testServiceName")).
-                build();
-
-        Collection<MetricData> metricData = reader.collectAllMetrics();
-        Assert.assertTrue(metricData.stream().anyMatch(predicate));
-    }
-
-    @Test
     public void testIsInstrumentationNameSetOnMeter() throws Exception {
         Meter meter = openTelemetryService.getMeter("testInstrumentationScope");
         meter.counterBuilder("dummyCounter").build().add(1);
