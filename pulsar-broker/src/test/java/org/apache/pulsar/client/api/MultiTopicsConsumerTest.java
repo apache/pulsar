@@ -386,7 +386,7 @@ public class MultiTopicsConsumerTest extends ProducerConsumerBase {
     }
 
     @Test(timeOut = 30000, dataProvider = "seekByFunction")
-    public void testSeekByTimestamp(boolean seekByFunction) throws Exception {
+    public void testSeekToNewerPosition(boolean seekByFunction) throws Exception {
         final var topic1 = TopicName.get(newTopicName()).toString();
         final var topic2 = TopicName.get(newTopicName()).toString();
         @Cleanup final var producer1 = pulsarClient.newProducer(Schema.STRING).topic(topic1).create();
