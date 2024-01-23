@@ -1798,7 +1798,7 @@ public class TransactionTest extends TransactionTestBase {
 
     @Test
     public void testReadCommittedWithReadCompacted() throws Exception{
-        final String namespace = "tnx/ns-prechecks";
+        final String namespace = "tnx/ns-read-committed-compacted";
         final String topic = "persistent://" + namespace + "/test_transaction_topic";
         admin.namespaces().createNamespace(namespace);
         admin.topics().createNonPartitionedTopic(topic);
@@ -1854,7 +1854,7 @@ public class TransactionTest extends TransactionTestBase {
 
     @Test
     public void testReadCommittedWithCompaction() throws Exception{
-        final String namespace = "tnx/ns-prechecks";
+        final String namespace = "tnx/ns-read-committed-compaction";
         final String topic = "persistent://" + namespace + "/test_transaction_topic" + UUID.randomUUID();
         admin.namespaces().createNamespace(namespace);
         admin.topics().createNonPartitionedTopic(topic);
