@@ -40,38 +40,21 @@ import org.testng.annotations.Test;
 @Slf4j
 public class MetricsTest {
 
-    @Test
-    public void testOpenTelemetryMetrics() throws Exception {
+    @Test(timeOut = 300_000)
+    public void testOpenTelemetryMetricsPresent() throws Exception {
         var clusterName = "testOpenTelemetryMetrics-" + UUID.randomUUID();
         var openTelemetryCollectorContainer = new OpenTelemetryCollectorContainer(clusterName);
 
         var brokerOtelServiceName = clusterName + "-broker";
-        var brokerCollectorProps = Map.of(
-                "OTEL_SDK_DISABLED", "false",
-                "OTEL_METRICS_EXPORTER", "otlp",
-                "OTEL_METRIC_EXPORT_INTERVAL", "1000",
-                "OTEL_EXPORTER_OTLP_ENDPOINT", openTelemetryCollectorContainer.getOtlpEndpoint(),
-                "OTEL_SERVICE_NAME", brokerOtelServiceName
-        );
+        var brokerCollectorProps = getCollectorProps(openTelemetryCollectorContainer, brokerOtelServiceName);
 
         var proxyOtelServiceName = clusterName + "-proxy";
-        var proxyCollectorProps = Map.of(
-                "OTEL_SDK_DISABLED", "false",
-                "OTEL_METRICS_EXPORTER", "otlp",
-                "OTEL_METRIC_EXPORT_INTERVAL", "1000",
-                "OTEL_EXPORTER_OTLP_ENDPOINT", openTelemetryCollectorContainer.getOtlpEndpoint(),
-                "OTEL_SERVICE_NAME", proxyOtelServiceName
-        );
+        var proxyCollectorProps = getCollectorProps(openTelemetryCollectorContainer, proxyOtelServiceName);
 
         var functionWorkerServiceNameSuffix = PulsarTestBase.randomName();
         var functionWorkerOtelServiceName = "function-worker-" + functionWorkerServiceNameSuffix;
-        var functionWorkerCollectorProps = Map.of(
-                "OTEL_SDK_DISABLED", "false",
-                "OTEL_METRICS_EXPORTER", "otlp",
-                "OTEL_METRIC_EXPORT_INTERVAL", "1000",
-                "OTEL_EXPORTER_OTLP_ENDPOINT", openTelemetryCollectorContainer.getOtlpEndpoint(),
-                "OTEL_SERVICE_NAME", functionWorkerOtelServiceName
-        );
+        var functionWorkerCollectorProps =
+                getCollectorProps(openTelemetryCollectorContainer, functionWorkerOtelServiceName);
 
         var spec = PulsarClusterSpec.builder()
                 .clusterName(clusterName)
@@ -83,13 +66,13 @@ public class MetricsTest {
         @Cleanup("stop")
         var pulsarCluster = PulsarCluster.forSpec(spec);
         pulsarCluster.start();
-        pulsarCluster.setupFunctionWorkers(functionWorkerServiceNameSuffix, FunctionRuntimeType.PROCESS, 1);
 
+        pulsarCluster.setupFunctionWorkers(functionWorkerServiceNameSuffix, FunctionRuntimeType.PROCESS, 1);
         var serviceUrl = pulsarCluster.getPlainTextServiceUrl();
         var functionWorkerCommand = getFunctionWorkerCommand(serviceUrl, functionWorkerServiceNameSuffix);
         pulsarCluster.getAnyWorker().execCmdAsync(functionWorkerCommand.split(" "));
 
-        Awaitility.waitAtMost(1800, TimeUnit.SECONDS).pollInterval(1, TimeUnit.SECONDS).until(() -> {
+        Awaitility.waitAtMost(90, TimeUnit.SECONDS).pollInterval(1, TimeUnit.SECONDS).until(() -> {
             var metricName = "queueSize_ratio"; // Sent automatically by the OpenTelemetry SDK.
             var metrics = openTelemetryCollectorContainer.getMetricsClient().getMetrics();
             // TODO: Validate cluster name is present once
@@ -102,7 +85,18 @@ public class MetricsTest {
         });
     }
 
-    private String getFunctionWorkerCommand(String serviceUrl, String suffix) {
+    private static Map<String, String> getCollectorProps(
+            OpenTelemetryCollectorContainer openTelemetryCollectorContainer, String functionWorkerOtelServiceName) {
+        return Map.of(
+                "OTEL_SDK_DISABLED", "false",
+                "OTEL_METRICS_EXPORTER", "otlp",
+                "OTEL_METRIC_EXPORT_INTERVAL", "1000",
+                "OTEL_EXPORTER_OTLP_ENDPOINT", openTelemetryCollectorContainer.getOtlpEndpoint(),
+                "OTEL_SERVICE_NAME", functionWorkerOtelServiceName
+        );
+    }
+
+    private static String getFunctionWorkerCommand(String serviceUrl, String suffix) {
         var namespace = NamespaceName.get("public", "default");
         var sourceTopicName = TopicName.get(TopicDomain.persistent.toString(), namespace, "metricTestSource-" + suffix);
         var sinkTopicName = TopicName.get(TopicDomain.persistent.toString(), namespace, "metricTestSink-" + suffix);
