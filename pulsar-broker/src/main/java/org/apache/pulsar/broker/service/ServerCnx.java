@@ -2234,8 +2234,9 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                     ml.getLedgersInfo();
                             Long previousLedgerId = ledgersMap.lowerKey(lastPosition.getLedgerId());
                             if (previousLedgerId != null) {
-                                readLastValidEntry(entryMetaDataFuture, lastPositionFuture, PositionImpl.get(previousLedgerId,
-                                        ledgersMap.get(previousLedgerId).getEntries() - 1), ml, persistentTopic);
+                                readLastValidEntry(entryMetaDataFuture, lastPositionFuture,
+                                        PositionImpl.get(previousLedgerId, ledgersMap.
+                                                get(previousLedgerId).getEntries() - 1), ml, persistentTopic);
                             } else {
                                 entryMetaDataFuture.completeExceptionally(
                                         new ManagedLedgerException.NoValidEntryLedgerException("No valid entry found"));
