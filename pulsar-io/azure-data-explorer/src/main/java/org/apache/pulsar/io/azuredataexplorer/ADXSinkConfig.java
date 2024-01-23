@@ -56,7 +56,8 @@ public class ADXSinkConfig implements Serializable {
     private String tenantId;
 
     @FieldDoc(required = false, defaultValue = "", help = "The Managed Identity credential for authentication."
-            + " Set this with clientId in case of User assigned MI. and 'system' in case of System assigned managed identity")
+            + " Set this with clientId in case of User assigned MI."
+            + " and 'system' in case of System assigned managed identity")
     private String managedIdentityId;
 
     @FieldDoc(required = false, defaultValue = "", help = "The mapping reference for ingestion")

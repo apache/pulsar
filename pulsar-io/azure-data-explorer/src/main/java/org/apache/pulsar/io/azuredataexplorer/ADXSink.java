@@ -76,7 +76,8 @@ public class ADXSink implements Sink<byte[]> {
             throw new Exception("Kusto Connection String NULL");
         }
         LOG.debug(String.format("ConnectionString created: %s.", kcsb));
-        ingestClient = adxconfig.getManagedIdentityId()!=null ? IngestClientFactory.createManagedStreamingIngestClient(kcsb) :
+        ingestClient = adxconfig.getManagedIdentityId() != null
+                ? IngestClientFactory.createManagedStreamingIngestClient(kcsb) :
                 IngestClientFactory.createClient(kcsb);
         ingestionProperties = new IngestionProperties(adxconfig.getDatabase(), adxconfig.getTable());
         ingestionProperties.setIngestionMapping(adxconfig.getMappingRefName(),
