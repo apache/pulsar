@@ -806,7 +806,20 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         negativeAcksTracker.add(message);
 
         // Ensure the message is not redelivered for ack-timeout, since we did receive an "ack"
-        unAckedMessageTracker.remove(MessageIdAdvUtils.discardBatch(message.getMessageId()));
+        unAckedMessageTracker.remove(discardBatch(message.getMessageId()));
+    }
+
+    static MessageIdImpl discardBatch(MessageId messageId) {
+        if (messageId instanceof ChunkMessageIdImpl) {
+            return (MessageIdImpl) messageId;
+        }
+        MessageIdImpl msgId;
+        if (messageId instanceof TopicMessageIdImpl) {
+           msgId = (MessageIdImpl) ((TopicMessageIdImpl) messageId).getInnerMessageId();
+        } else {
+            msgId = (MessageIdImpl) messageId;
+        }
+        return new MessageIdImpl(msgId.getLedgerId(), msgId.getEntryId(), msgId.getPartitionIndex());
     }
 
     @Override
