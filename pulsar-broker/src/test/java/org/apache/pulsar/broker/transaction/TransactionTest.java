@@ -1934,6 +1934,7 @@ public class TransactionTest extends TransactionTestBase {
         List<String> result = new ArrayList<>();
         while (reader.hasMessageAvailable()) {
             Message<String> receive = reader.readNext(2, TimeUnit.SECONDS);
+            // we pass the hasMessageAvailable check, but the readNext return null or stuck
             assertNotEquals(receive, null);
             result.add(receive.getValue());
         }
@@ -1964,6 +1965,7 @@ public class TransactionTest extends TransactionTestBase {
         List<String> result = new ArrayList<>();
         while (reader.hasMessageAvailable()) {
             Message<String> receive = reader.readNext(2, TimeUnit.SECONDS);
+            // we pass the hasMessageAvailable check, but the readNext return null or stuck
             assertNotEquals(receive, null);
             result.add(receive.getValue());
         }
