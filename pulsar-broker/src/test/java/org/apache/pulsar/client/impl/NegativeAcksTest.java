@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.impl;
 
+import static org.junit.Assert.assertTrue;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNull;
 import java.util.HashSet;
@@ -143,7 +144,7 @@ public class NegativeAcksTest extends ProducerConsumerBase {
             consumer.negativeAcknowledge(msg);
         }
 
-        assertTrue(consumer instanceof ConsumerBase<String>);
+        assertTrue(consumer instanceof ConsumerBase);
         assertEquals(((ConsumerBase<String>) consumer).getUnAckedMessageTracker().size(), 0);
 
         Set<String> receivedMessages = new HashSet<>();
