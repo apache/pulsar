@@ -84,6 +84,8 @@ public class MetricsTest {
         Awaitility.waitAtMost(180, TimeUnit.SECONDS).pollInterval(1, TimeUnit.SECONDS).until(() -> {
             var metricName = "queueSize_ratio"; // Sent automatically by the OpenTelemetry SDK.
             var metrics = openTelemetryCollectorContainer.getMetricsClient().getMetrics();
+            // TODO: Validate cluster name is present once
+            // https://github.com/open-telemetry/opentelemetry-java/issues/6108 is solved.
             var brokerMetrics = metrics.findByNameAndLabels(metricName, Pair.of("job", brokerOtelServiceName));
             var proxyMetrics = metrics.findByNameAndLabels(metricName, Pair.of("job", proxyOtelServiceName));
             var functionWorkerMetrics =
