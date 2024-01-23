@@ -24,7 +24,13 @@ import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.pulsar.common.naming.NamespaceName;
+import org.apache.pulsar.common.naming.TopicDomain;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.tests.integration.containers.OpenTelemetryCollectorContainer;
+import org.apache.pulsar.tests.integration.functions.PulsarFunctionsTest;
+import org.apache.pulsar.tests.integration.functions.utils.CommandGenerator;
+import org.apache.pulsar.tests.integration.topologies.FunctionRuntimeType;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
 import org.apache.pulsar.tests.integration.topologies.PulsarClusterSpec;
 import org.apache.pulsar.tests.integration.topologies.PulsarTestBase;
@@ -58,20 +64,18 @@ public class MetricsTest {
         );
 
         var functionWorkerServiceNameSuffix = PulsarTestBase.randomName();
+        var functionWorkerOtelServiceName = "function-worker-" + functionWorkerServiceNameSuffix;
         var functionWorkerCollectorProps = Map.of(
                 "OTEL_SDK_DISABLED", "false",
                 "OTEL_METRICS_EXPORTER", "otlp",
                 "OTEL_METRIC_EXPORT_INTERVAL", "1000",
                 "OTEL_EXPORTER_OTLP_ENDPOINT", openTelemetryCollectorContainer.getOtlpEndpoint(),
-                "OTEL_SERVICE_NAME", functionWorkerServiceNameSuffix
+                "OTEL_SERVICE_NAME", functionWorkerOtelServiceName
         );
 
         var spec = PulsarClusterSpec.builder()
                 .clusterName(clusterName)
-                .numBookies(1)
-                .numBrokers(1)
                 .brokerEnvs(brokerCollectorProps)
-                .numProxies(1)
                 .proxyEnvs(proxyCollectorProps)
                 .externalService("otel-collector", openTelemetryCollectorContainer)
                 .functionWorkerEnv(functionWorkerServiceNameSuffix, functionWorkerCollectorProps)
@@ -79,9 +83,13 @@ public class MetricsTest {
         @Cleanup("stop")
         var pulsarCluster = PulsarCluster.forSpec(spec);
         pulsarCluster.start();
-        // pulsarCluster.setupFunctionWorkers(functionWorkerServiceNameSuffix, FunctionRuntimeType.PROCESS, 1);
+        pulsarCluster.setupFunctionWorkers(functionWorkerServiceNameSuffix, FunctionRuntimeType.PROCESS, 1);
 
-        Awaitility.waitAtMost(180, TimeUnit.SECONDS).pollInterval(1, TimeUnit.SECONDS).until(() -> {
+        var serviceUrl = pulsarCluster.getPlainTextServiceUrl();
+        var functionWorkerCommand = getFunctionWorkerCommand(serviceUrl, functionWorkerServiceNameSuffix);
+        pulsarCluster.getAnyWorker().execCmdAsync(functionWorkerCommand.split(" "));
+
+        Awaitility.waitAtMost(1800, TimeUnit.SECONDS).pollInterval(1, TimeUnit.SECONDS).until(() -> {
             var metricName = "queueSize_ratio"; // Sent automatically by the OpenTelemetry SDK.
             var metrics = openTelemetryCollectorContainer.getMetricsClient().getMetrics();
             // TODO: Validate cluster name is present once
@@ -89,8 +97,23 @@ public class MetricsTest {
             var brokerMetrics = metrics.findByNameAndLabels(metricName, Pair.of("job", brokerOtelServiceName));
             var proxyMetrics = metrics.findByNameAndLabels(metricName, Pair.of("job", proxyOtelServiceName));
             var functionWorkerMetrics =
-                    metrics.findByNameAndLabels(metricName, Pair.of("job", functionWorkerServiceNameSuffix));
-            return !brokerMetrics.isEmpty() && !proxyMetrics.isEmpty();
+                    metrics.findByNameAndLabels(metricName, Pair.of("job", functionWorkerOtelServiceName));
+            return !brokerMetrics.isEmpty() && !proxyMetrics.isEmpty() && !functionWorkerMetrics.isEmpty();
         });
+    }
+
+    private String getFunctionWorkerCommand(String serviceUrl, String suffix) {
+        var namespace = NamespaceName.get("public", "default");
+        var sourceTopicName = TopicName.get(TopicDomain.persistent.toString(), namespace, "metricTestSource-" + suffix);
+        var sinkTopicName = TopicName.get(TopicDomain.persistent.toString(), namespace, "metricTestSink-" + suffix);
+
+        var commandGenerator = new CommandGenerator();
+        commandGenerator.setAdminUrl(serviceUrl);
+        commandGenerator.setSourceTopic(sourceTopicName.toString());
+        commandGenerator.setSinkTopic(sinkTopicName.toString());
+        commandGenerator.setFunctionName("metricsTestLocalRunTest-" + suffix);
+        commandGenerator.setRuntime(CommandGenerator.Runtime.JAVA);
+        commandGenerator.setFunctionClassName(PulsarFunctionsTest.EXCLAMATION_JAVA_CLASS);
+        return commandGenerator.generateLocalRunCommand(null);
     }
 }
