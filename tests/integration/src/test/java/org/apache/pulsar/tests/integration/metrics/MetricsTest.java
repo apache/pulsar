@@ -40,6 +40,8 @@ import org.testng.annotations.Test;
 @Slf4j
 public class MetricsTest {
 
+    // Test with the included Prometheus exporter as well
+    // https://github.com/open-telemetry/opentelemetry-java/blob/main/sdk-extensions/autoconfigure/README.md#prometheus-exporter
     @Test(timeOut = 300_000)
     public void testOpenTelemetryMetricsPresent() throws Exception {
         var clusterName = "testOpenTelemetryMetrics-" + UUID.randomUUID();
