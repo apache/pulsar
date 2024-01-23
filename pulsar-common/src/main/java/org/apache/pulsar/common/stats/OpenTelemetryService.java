@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.common.stats;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import com.google.common.annotations.VisibleForTesting;
 import io.opentelemetry.api.common.AttributeKey;
 import io.opentelemetry.api.metrics.Meter;
@@ -30,18 +31,20 @@ import io.opentelemetry.sdk.metrics.internal.export.CardinalityLimitSelector;
 import io.opentelemetry.sdk.resources.Resource;
 import io.opentelemetry.sdk.resources.ResourceBuilder;
 import java.io.Closeable;
-import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import lombok.Singular;
+import org.apache.commons.lang3.StringUtils;
 
 public class OpenTelemetryService implements Closeable {
 
     private static final AttributeKey<String> CLUSTER_NAME_ATTRIBUTE = AttributeKey.stringKey("pulsar.cluster");
     private static final AttributeKey<String> SERVICE_NAME_ATTRIBUTE = AttributeKey.stringKey("service.name");
 
+    public static final String OTEL_SDK_DISABLED = "otel.sdk.disabled";
     private static final String MAX_CARDINALITY_LIMIT_KEY = "otel.experimental.metrics.cardinality.limit";
+
     public static final int MAX_CARDINALITY_LIMIT = 10000;
 
     private final OpenTelemetrySdk openTelemetrySdk;
@@ -52,17 +55,20 @@ public class OpenTelemetryService implements Closeable {
             String serviceName,
             @Singular Map<String, String> extraProperties,
             @VisibleForTesting @Singular List<MetricReader> extraMetricReaders) {
-        Objects.requireNonNull(clusterName);
+        checkArgument(StringUtils.isNotEmpty(clusterName), "Cluster name cannot be empty");
         AutoConfiguredOpenTelemetrySdkBuilder builder = AutoConfiguredOpenTelemetrySdk.builder();
-        builder.addPropertiesSupplier(
-                () -> Collections.singletonMap(MAX_CARDINALITY_LIMIT_KEY, Integer.toString(MAX_CARDINALITY_LIMIT + 1)));
+
+        Map<String, String> overrideProperties = new HashMap<>();
+        overrideProperties.put(OTEL_SDK_DISABLED, "true");
+        overrideProperties.put(MAX_CARDINALITY_LIMIT_KEY, Integer.toString(MAX_CARDINALITY_LIMIT + 1));
+        builder.addPropertiesSupplier(() -> overrideProperties);
         builder.addPropertiesSupplier(() -> extraProperties);
+
         builder.addResourceCustomizer(
                 (resource, __) -> {
-                    ResourceBuilder resourceBuilder = Resource.builder();
-                    resourceBuilder.put(CLUSTER_NAME_ATTRIBUTE, clusterName);
+                    ResourceBuilder resourceBuilder = Resource.builder().put(CLUSTER_NAME_ATTRIBUTE, clusterName);
                     if (serviceName != null) {
-                        resourceBuilder.put(SERVICE_NAME_ATTRIBUTE, serviceName);
+                        resourceBuilder = resourceBuilder.put(SERVICE_NAME_ATTRIBUTE, serviceName);
                     }
                     return resource.merge(resourceBuilder.build());
                 });

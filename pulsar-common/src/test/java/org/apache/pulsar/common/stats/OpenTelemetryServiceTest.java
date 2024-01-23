@@ -48,6 +48,7 @@ public class OpenTelemetryServiceTest {
         openTelemetryService = OpenTelemetryService.builder().
                 clusterName("openTelemetryServiceTestCluster").
                 extraMetricReader(reader).
+                extraProperty(OpenTelemetryService.OTEL_SDK_DISABLED, "false").
                 build();
         meter = openTelemetryService.getMeter("openTelemetryServiceTestInstrument");
     }
@@ -58,7 +59,7 @@ public class OpenTelemetryServiceTest {
         reader.close();
     }
 
-    @Test(expectedExceptions = NullPointerException.class)
+    @Test(expectedExceptions = IllegalArgumentException.class)
     public void testIsClusterNameRequired() throws Exception {
         @Cleanup
         OpenTelemetryService ots = OpenTelemetryService.builder().build();
@@ -73,6 +74,7 @@ public class OpenTelemetryServiceTest {
         OpenTelemetryService ots = OpenTelemetryService.builder().
                 clusterName("testCluster").
                 extraMetricReader(reader).
+                extraProperty(OpenTelemetryService.OTEL_SDK_DISABLED, "false").
                 build();
 
         Predicate<MetricData> predicate = MetricDataMatcher.builder().
@@ -93,6 +95,7 @@ public class OpenTelemetryServiceTest {
                 clusterName("testCluster").
                 serviceName("testServiceName").
                 extraMetricReader(reader).
+                extraProperty(OpenTelemetryService.OTEL_SDK_DISABLED, "false").
                 build();
 
         Predicate<MetricData> predicate = MetricDataMatcher.builder().
