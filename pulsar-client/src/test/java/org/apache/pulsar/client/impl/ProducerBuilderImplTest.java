@@ -374,6 +374,14 @@ public class ProducerBuilderImplTest {
         producerBuilderImpl.maxPendingMessagesAcrossPartitions(-1);
     }
 
+    @Test(expectedExceptions = IllegalArgumentException.class, expectedExceptionsMessageRegExp = "Send timeout can't be less than batching max publish delay")
+    public void testProducerBuilderImplWhenSendTimeoutLessThanBatchingMaxPublishDelay() throws PulsarClientException {
+        producerBuilderImpl.enableBatching(true)
+                .topic(TOPIC_NAME)
+                .sendTimeout(1, TimeUnit.MILLISECONDS)
+                .batchingMaxPublishDelay(1, TimeUnit.MILLISECONDS).create();
+    }
+
     @Test
     public void testProducerBuilderImplWhenNumericPropertiesAreValid() {
         producerBuilderImpl.batchingMaxPublishDelay(1, TimeUnit.SECONDS);
