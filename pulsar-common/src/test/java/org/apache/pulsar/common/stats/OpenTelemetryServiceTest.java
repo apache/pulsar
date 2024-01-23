@@ -31,6 +31,7 @@ import io.opentelemetry.sdk.testing.exporter.InMemoryMetricReader;
 import java.util.Collection;
 import java.util.function.Predicate;
 import lombok.Cleanup;
+import org.apache.commons.lang3.StringUtils;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -60,9 +61,15 @@ public class OpenTelemetryServiceTest {
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
-    public void testIsClusterNameRequired() throws Exception {
+    public void testIsClusterNameCannotBeNull() throws Exception {
         @Cleanup
         OpenTelemetryService ots = OpenTelemetryService.builder().build();
+    }
+
+    @Test(expectedExceptions = IllegalArgumentException.class)
+    public void testIsClusterNameCannotBeEmpty() throws Exception {
+        @Cleanup
+        OpenTelemetryService ots = OpenTelemetryService.builder().clusterName(StringUtils.EMPTY).build();
     }
 
     @Test
