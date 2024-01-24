@@ -97,7 +97,7 @@ public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
                 "Batching and chunking of messages can't be enabled together");
         checkArgument(!(conf.isBatchingEnabled() && conf.getBatchingMaxPublishDelayMicros()
                         >= conf.getSendTimeoutMs() * 1000L),
-                "Send timeout can't be less than batching max publish delay");
+                "Send timeout can't be equal to or less than batching max publish delay");
         if (conf.getTopicName() == null) {
             return FutureUtil
                     .failedFuture(new IllegalArgumentException("Topic name must be set on the producer builder"));
