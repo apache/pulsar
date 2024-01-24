@@ -139,7 +139,7 @@ public interface TransactionBuffer {
     CompletableFuture<Void> closeAsync();
 
     /**
-     * check if the txn is aborted.
+     * Check if the txn is aborted.
      * TODO: To avoid broker oom, we will load the aborted txn from snapshot on demand.
      *       So we need the readPosition to check if the txn is loaded.
      * @param txnID {@link TxnID} txnId.
