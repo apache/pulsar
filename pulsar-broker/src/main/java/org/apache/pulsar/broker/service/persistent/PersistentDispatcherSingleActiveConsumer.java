@@ -365,8 +365,7 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
                 if (consumer.readCompacted()) {
                     boolean readFromEarliest = isFirstRead && MessageId.earliest.equals(consumer.getStartMessageId())
                             && (!cursor.isDurable() || cursor.getName().equals(Compactor.COMPACTION_SUBSCRIPTION)
-                            || cursor.getMarkDeletedPosition() == null
-                            || cursor.getMarkDeletedPosition().getEntryId() == -1L);
+                            || hasValidMarkDeletePosition(cursor));
                     TopicCompactionService topicCompactionService = topic.getTopicCompactionService();
                     CompactedTopicUtils.asyncReadCompactedEntries(topicCompactionService, cursor, messagesToRead,
                             bytesToRead, topic.getMaxReadPosition(), readFromEarliest, this, true, consumer);
@@ -382,6 +381,13 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
                 log.debug("[{}-{}] Consumer buffer is full, pause reading", name, consumer);
             }
         }
+    }
+
+    private boolean hasValidMarkDeletePosition(ManagedCursor cursor) {
+        // If `markDeletedPosition.entryID == -1L` then the md-position is an invalid position,
+        // since the initial md-position of the consumer will be set to it.
+        // See ManagedLedgerImpl#asyncOpenCursor and ManagedLedgerImpl#getFirstPosition
+        return cursor.getMarkDeletedPosition() != null && cursor.getMarkDeletedPosition().getEntryId() == -1L;
     }
 
     @Override
