@@ -1602,6 +1602,12 @@ flexible messaging model and an intuitive client API.</description>
         </dependencies>
       </plugin>
 
+      <properties>
+        <harnessArgLine></harnessArgLine>
+      </properties>
+
+      <argLine> ${harnessArgLine} @{argLine} </argLine>
+ 
       <plugin>
         <groupId>org.commonjava.maven.plugins</groupId>
         <artifactId>directory-maven-plugin</artifactId>
