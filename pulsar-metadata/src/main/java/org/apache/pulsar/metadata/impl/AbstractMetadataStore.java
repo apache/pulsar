@@ -177,6 +177,9 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
         return result;
     }
 
+    /**
+     *  @deprecated Use {@link #registerSyncListener(Optional)} instead.
+     */
     @Deprecated
     protected void registerSyncLister(Optional<MetadataEventSynchronizer> synchronizer) {
         this.registerSyncListener(synchronizer);
