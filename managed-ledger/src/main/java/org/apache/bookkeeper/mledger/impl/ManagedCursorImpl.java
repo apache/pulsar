@@ -2512,9 +2512,15 @@ public class ManagedCursorImpl implements ManagedCursor {
 
     @Override
     public void rewind() {
+        rewind(false);
+    }
+
+    @Override
+    public void rewind(boolean readCompacted) {
         lock.writeLock().lock();
         try {
-            PositionImpl newReadPosition = markDeletePosition.getNext();
+            PositionImpl newReadPosition =
+                    readCompacted ? markDeletePosition.getNext() : ledger.getNextValidPosition(markDeletePosition);
             PositionImpl oldReadPosition = readPosition;
 
             log.info("[{}-{}] Rewind from {} to {}", ledger.getName(), name, oldReadPosition, newReadPosition);

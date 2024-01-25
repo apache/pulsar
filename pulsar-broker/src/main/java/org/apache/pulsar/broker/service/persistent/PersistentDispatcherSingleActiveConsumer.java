@@ -108,9 +108,9 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Rewind cursor and read more entries without delay", name);
             }
-            cursor.rewind();
-
             Consumer activeConsumer = ACTIVE_CONSUMER_UPDATER.get(this);
+            cursor.rewind(activeConsumer != null && activeConsumer.readCompacted());
+
             notifyActiveConsumerChanged(activeConsumer);
             readMoreEntries(activeConsumer);
             return;
@@ -128,9 +128,9 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
                 log.debug("[{}] Rewind cursor and read more entries after {} ms delay", name,
                         serviceConfig.getActiveConsumerFailoverDelayTimeMillis());
             }
-            cursor.rewind();
-
             Consumer activeConsumer = ACTIVE_CONSUMER_UPDATER.get(this);
+            cursor.rewind(activeConsumer != null && activeConsumer.readCompacted());
+
             notifyActiveConsumerChanged(activeConsumer);
             readMoreEntries(activeConsumer);
             readOnActiveConsumerTask = null;
@@ -207,7 +207,7 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
                 }
             }
             entries.forEach(Entry::release);
-            cursor.rewind();
+            cursor.rewind(currentConsumer != null ? currentConsumer.readCompacted() : readConsumer.readCompacted());
             if (currentConsumer != null) {
                 notifyActiveConsumerChanged(currentConsumer);
                 readMoreEntries(currentConsumer);
@@ -302,7 +302,7 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
         }
         cursor.cancelPendingReadRequest();
         havePendingRead = false;
-        cursor.rewind();
+        cursor.rewind(consumer.readCompacted());
         if (log.isDebugEnabled()) {
             log.debug("[{}-{}] Cursor rewinded, redelivering unacknowledged messages. ", name, consumer);
         }
