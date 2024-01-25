@@ -193,7 +193,7 @@ public abstract class AbstractReplicator {
             return CompletableFuture.completedFuture(null);
         }
         CompletableFuture<Void> future = producer.closeAsync();
-        future.thenRun(() -> {
+        return future.thenRun(() -> {
             STATE_UPDATER.set(this, State.Stopped);
             this.producer = null;
             // deactivate further read
@@ -208,7 +208,6 @@ public abstract class AbstractReplicator {
             brokerService.executor().schedule(this::closeProducerAsync, waitTimeMs, TimeUnit.MILLISECONDS);
             return null;
         });
-        return future;
     }
 
 
