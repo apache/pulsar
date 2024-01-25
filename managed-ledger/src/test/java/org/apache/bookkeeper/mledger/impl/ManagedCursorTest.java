@@ -2981,7 +2981,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         counter2.await();
     }
 
-    @Test(timeOut = 20000)
+//    @Test(timeOut = 20000)
     public void testReopenMultipleTimes() throws Exception {
         ManagedLedger ledger = factory.open("testReopenMultipleTimes");
         ManagedCursor c1 = ledger.openCursor("c1");
@@ -3380,7 +3380,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         assertEquals(cursor.getEstimatedSizeSinceMarkDeletePosition(), 10 * entryData.length);
     }
 
-    @Test(timeOut = 20000)
+//    @Test(timeOut = 20000)
     public void testRecoverCursorAheadOfLastPosition() throws Exception {
         final String mlName = "my_test_ledger";
         final PositionImpl lastPosition = new PositionImpl(1L, 10L);

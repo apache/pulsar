@@ -19,7 +19,6 @@
 package org.apache.pulsar.broker.service;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static org.apache.bookkeeper.mledger.impl.ManagedCursorImpl.READ_COMPACTED_CURSOR_PROPERTIES;
 import static org.apache.pulsar.common.protocol.Commands.DEFAULT_CONSUMER_EPOCH;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.MoreObjects;
@@ -29,7 +28,6 @@ import io.netty.util.concurrent.Promise;
 import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -444,10 +442,6 @@ public class Consumer {
         if (ack.getPropertiesCount() > 0) {
             properties = ack.getPropertiesList().stream()
                 .collect(Collectors.toMap(KeyLongValue::getKey, KeyLongValue::getValue));
-        }
-        if (readCompacted) {
-            properties = new HashMap<>(properties);
-            properties.put(READ_COMPACTED_CURSOR_PROPERTIES, 1L);
         }
 
         if (ack.getAckType() == AckType.Cumulative) {
