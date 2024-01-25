@@ -1201,7 +1201,7 @@ public abstract class PulsarWebResource {
     protected void validateBrokerName(String broker) {
         String brokerUrl = String.format("http://%s", broker);
         String brokerUrlTls = String.format("https://%s", broker);
-        if (!brokerUrl.equals(pulsar().getWebServiceAddress())
+        if (!brokerUrl.equals(pulsar().getSafeWebServiceAddress())
                 && !brokerUrlTls.equals(pulsar().getWebServiceAddressTls())) {
             String[] parts = broker.split(":");
             checkArgument(parts.length == 2, String.format("Invalid broker url %s", broker));
