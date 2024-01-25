@@ -73,4 +73,23 @@ public interface ByteBufferStateStore extends StateStore {
      */
     CompletableFuture<ByteBuffer> getAsync(String key);
 
+    /**
+     * Retrieve the StateValue for the key.
+     *
+     * @param key name of the key
+     * @return the StateValue.
+     */
+    default StateValue getStateValue(String key) {
+        return new StateValue(get(key), null, null);
+    }
+
+    /**
+     * Retrieve the StateValue for the key, but don't wait for the operation to be completed.
+     *
+     * @param key name of the key
+     * @return the StateValue.
+     */
+    default CompletableFuture<StateValue> getStateValueAsync(String key) {
+        return getAsync(key).thenApply(val -> new StateValue(val, null, null));
+    }
 }
