@@ -206,7 +206,7 @@ public class BKStateStoreImpl implements DefaultStateStore {
         return table.getKv(Unpooled.wrappedBuffer(key.getBytes(UTF_8))).thenApply(
                 data -> {
                     try {
-                        if (data != null && data.value() != null && data.value().readableBytes() > 0) {
+                        if (data != null && data.value() != null && data.value().readableBytes() >= 0) {
                             byte[] result = new byte[data.value().readableBytes()];
                             data.value().readBytes(result);
                             return new StateValue(result, data.version(), data.isNumber());

@@ -91,7 +91,7 @@ public interface ByteBufferStateStore extends StateStore {
      */
     default CompletableFuture<StateValue> getStateValueAsync(String key) {
         return getAsync(key).thenApply(val -> {
-            if (val != null && val.remaining() > 0) {
+            if (val != null && val.remaining() >= 0) {
                 byte[] data = new byte[val.remaining()];
                 val.get(data);
                 return new StateValue(data, null, null);

@@ -1157,7 +1157,7 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
                 throw new RestException(Status.NOT_FOUND, "key '" + key + "' doesn't exist.");
             }
             byte[] data = value.getValue();
-            if (data == null || data.length == 0) {
+            if (data == null) {
                 throw new RestException(Status.NOT_FOUND, "key '" + key + "' doesn't exist.");
             }
 
