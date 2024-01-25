@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.tests.integration.metrics;
 
+import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -103,8 +105,9 @@ public class MetricsTest {
 
         var functionWorkerServiceNameSuffix = PulsarTestBase.randomName();
         var functionWorkerOtelServiceName = "function-worker-" + functionWorkerServiceNameSuffix;
-        var functionWorkerCollectorProps =
-                getCollectorProps(functionWorkerOtelServiceName, prometheusExporterPort);
+        // Locally run Pulsar Functions override cluster name definitions to "local".
+        var functionWorkerCollectorProps = getCollectorProps(functionWorkerOtelServiceName, prometheusExporterPort,
+                        Pair.of("OTEL_RESOURCE_ATTRIBUTES", "pulsar.cluster=" + clusterName));
 
         var spec = PulsarClusterSpec.builder()
                 .clusterName(clusterName)
@@ -166,14 +169,18 @@ public class MetricsTest {
         );
     }
 
-    private static Map<String, String> getCollectorProps(String serviceName, int prometheusExporterPort) {
-        return Map.of(
+    private static Map<String, String> getCollectorProps(String serviceName, int prometheusExporterPort,
+                                                         Pair<String, String> ... extraProps) {
+        var defaultProps = Map.of(
                 "OTEL_SDK_DISABLED", "false",
                 "OTEL_SERVICE_NAME", serviceName,
                 "OTEL_METRICS_EXPORTER", "prometheus",
                 "OTEL_EXPORTER_PROMETHEUS_PORT", Integer.toString(prometheusExporterPort),
                 "OTEL_METRIC_EXPORT_INTERVAL", "1000"
         );
+        var props = new HashMap<>(defaultProps);
+        Arrays.stream(extraProps).forEach(p -> props.put(p.getKey(), p.getValue()));
+        return props;
     }
 
     private static String getFunctionWorkerCommand(String serviceUrl, String suffix) {

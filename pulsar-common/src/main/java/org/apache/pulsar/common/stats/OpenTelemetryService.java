@@ -62,7 +62,12 @@ public class OpenTelemetryService implements Closeable {
         builder.addPropertiesSupplier(() -> extraProperties);
 
         builder.addResourceCustomizer(
-                (resource, __) -> resource.merge(Resource.builder().put(CLUSTER_NAME_ATTRIBUTE, clusterName).build()));
+                (resource, __) -> {
+                    if (resource.getAttribute(CLUSTER_NAME_ATTRIBUTE) != null) {
+                        return resource; // Do not override the attribute if already set.
+                    }
+                    return resource.merge(Resource.builder().put(CLUSTER_NAME_ATTRIBUTE, clusterName).build());
+                });
 
         final CardinalityLimitSelector cardinalityLimitSelector = __ -> MAX_CARDINALITY_LIMIT + 1;
         extraMetricReaders.forEach(metricReader -> builder.addMeterProviderCustomizer((sdkMeterProviderBuilder, __) -> {
