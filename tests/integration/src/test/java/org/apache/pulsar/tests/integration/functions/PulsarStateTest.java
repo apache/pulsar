@@ -481,6 +481,8 @@ public class PulsarStateTest extends PulsarStandaloneTestSuite {
         );
         assertTrue(result.getStdout().contains("\"numberValue\": " + amount));
         assertTrue(result.getStdout().contains("\"version\": " + version));
+        assertFalse(result.getStdout().contains("stringValue"));
+        assertFalse(result.getStdout().contains("byteValue"));
     }
 
     private void putAndQueryState(String functionName, String key, String state, String expect)

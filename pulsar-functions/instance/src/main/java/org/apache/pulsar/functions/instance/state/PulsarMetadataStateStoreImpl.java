@@ -122,7 +122,7 @@ public class PulsarMetadataStateStoreImpl implements DefaultStateStore {
         return store.get(getPath(key))
                 .thenApply(optRes ->
                         optRes.map(x ->
-                            new StateValue(ByteBuffer.wrap(x.getValue()), x.getStat().getVersion(), null))
+                            new StateValue(x.getValue(), x.getStat().getVersion(), null))
                                 .orElse(null));
     }
 

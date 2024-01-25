@@ -206,15 +206,9 @@ public class BKStateStoreImpl implements DefaultStateStore {
         return table.getKv(Unpooled.wrappedBuffer(key.getBytes(UTF_8))).thenApply(
                 data -> {
                     try {
-                        if (data != null && data.value() != null) {
-                            ByteBuffer result = ByteBuffer.allocate(data.value().readableBytes());
+                        if (data != null && data.value() != null && data.value().readableBytes() > 0) {
+                            byte[] result = new byte[data.value().readableBytes()];
                             data.value().readBytes(result);
-                            // Set position to off the buffer to the beginning, since the position after the
-                            // read is going to be end of the buffer
-                            // If we do not rewind to the beginning here, users will have to explicitly do
-                            // this in their function code
-                            // in order to use any of the ByteBuffer operations
-                            result.position(0);
                             return new StateValue(result, data.version(), data.isNumber());
                         }
                         return null;

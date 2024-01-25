@@ -1153,10 +1153,15 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
         try {
             DefaultStateStore store = worker().getStateStoreProvider().getStateStore(tenant, namespace, functionName);
             StateValue value = store.getStateValue(key);
-            if (value == null || value.getValue() == null) {
+            if (value == null) {
                 throw new RestException(Status.NOT_FOUND, "key '" + key + "' doesn't exist.");
             }
-            ByteBuffer buf = value.getValue();
+            byte[] data = value.getValue();
+            if (data == null || data.length == 0) {
+                throw new RestException(Status.NOT_FOUND, "key '" + key + "' doesn't exist.");
+            }
+
+            ByteBuffer buf = ByteBuffer.wrap(data);
 
             Long number = null;
             if (buf.remaining() == Long.BYTES) {
@@ -1166,10 +1171,10 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
                 return new FunctionState(key, null, null, number, value.getVersion());
             }
 
-            if (Utf8.isWellFormed(buf.array())) {
-                return new FunctionState(key, new String(buf.array(), UTF_8), null, number, value.getVersion());
+            if (Utf8.isWellFormed(data)) {
+                return new FunctionState(key, new String(data, UTF_8), null, number, value.getVersion());
             } else {
-                return new FunctionState(key, null, buf.array(), number, value.getVersion());
+                return new FunctionState(key, null, data, number, value.getVersion());
             }
         } catch (RestException e) {
             throw e;

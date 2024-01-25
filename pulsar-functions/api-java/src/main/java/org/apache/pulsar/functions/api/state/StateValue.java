@@ -18,21 +18,19 @@
  */
 package org.apache.pulsar.functions.api.state;
 
-import java.nio.ByteBuffer;
-
 public class StateValue {
-    private final ByteBuffer value;
+    private final byte[] value;
     private final Long version;
     private final Boolean isNumber;
 
-    public StateValue(ByteBuffer value, Long version, Boolean isNumber) {
-        this.value = value == null ? null : ByteBuffer.wrap(value.array());
+    public StateValue(byte[] value, Long version, Boolean isNumber) {
+        this.value = value == null ? null : value.clone();
         this.version = version;
         this.isNumber = isNumber;
     }
 
-    public ByteBuffer getValue() {
-        return value == null ? null : ByteBuffer.wrap(value.array());
+    public byte[] getValue() {
+        return this.value == null ? null : this.value.clone();
     }
 
     public Long getVersion() {

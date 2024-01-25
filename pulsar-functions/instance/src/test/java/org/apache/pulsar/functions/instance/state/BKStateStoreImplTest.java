@@ -126,7 +126,7 @@ public class BKStateStoreImplTest {
         when(mockTable.getKv(any(ByteBuf.class)))
             .thenReturn(FutureUtils.value(returnedKeyValue));
         StateValue result = stateContext.getStateValue("test-key");
-        assertEquals("test-value", new String(result.getValue().array(), UTF_8));
+        assertEquals("test-value", new String(result.getValue(), UTF_8));
         assertEquals(1l, result.getVersion().longValue());
         assertEquals(false, result.getIsNumber().booleanValue());
         verify(mockTable, times(1)).getKv(

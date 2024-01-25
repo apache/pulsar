@@ -80,7 +80,7 @@ public interface ByteBufferStateStore extends StateStore {
      * @return the StateValue.
      */
     default StateValue getStateValue(String key) {
-        return new StateValue(get(key), null, null);
+        return getStateValueAsync(key).join();
     }
 
     /**
@@ -90,6 +90,14 @@ public interface ByteBufferStateStore extends StateStore {
      * @return the StateValue.
      */
     default CompletableFuture<StateValue> getStateValueAsync(String key) {
-        return getAsync(key).thenApply(val -> new StateValue(val, null, null));
+        return getAsync(key).thenApply(val -> {
+            if (val != null && val.remaining() > 0) {
+                byte[] data = new byte[val.remaining()];
+                val.get(data);
+                return new StateValue(data, null, null);
+            } else {
+                return null;
+            }
+        });
     }
 }
