@@ -1875,6 +1875,31 @@ flexible messaging model and an intuitive client API.</description>
             </execution>
         </executions>
       </plugin>
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>properties-maven-plugin</artifactId>
+        <executions>
+          <execution>
+            <phase>initialize</phase>
+            <goals>
+              <goal>set-system-properties</goal>
+            </goals>
+            <configuration>
+              <properties combine.children="append">
+                <!-- for lightproto (protostuff) -->
+                <property>
+                  <name>proto_path</name>
+                  <value>${pulsar.basedir}</value>
+                </property>
+                <property>
+                  <name>proto_search_strategy</name>
+                  <value>2</value>
+                </property>
+              </properties>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
     </plugins>
 
     <pluginManagement>
