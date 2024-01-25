@@ -19,7 +19,10 @@
 package org.apache.pulsar.proxy.server;
 
 
+import org.apache.pulsar.PulsarBrokerStarter;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
+import org.mockito.MockedStatic;
+import org.mockito.Mockito;
 import org.testng.annotations.Test;
 
 import java.beans.Introspector;
@@ -36,6 +39,8 @@ import java.util.List;
 import java.util.Properties;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 
 @Test(groups = "broker")
 public class ProxyConfigurationTest {
@@ -131,6 +136,61 @@ public class ProxyConfigurationTest {
             PulsarConfigurationLoader.convertFrom(proxyConfig);
             assertEquals(proxyConfig.getProperties().getProperty("proxyAdditionalServlets"), "a,b,c");
             assertEquals(proxyConfig.getProxyAdditionalServlets().size(), 3);
+        }
+    }
+
+    @Test
+    public void testBrokerUrlCheck() throws IOException {
+        ProxyConfiguration configuration = new ProxyConfiguration();
+        // brokerServiceURL must start with pulsar://
+        configuration.setBrokerServiceURL("127.0.0.1:6650");
+        try (MockedStatic<PulsarConfigurationLoader> theMock = Mockito.mockStatic(PulsarConfigurationLoader.class)) {
+            theMock.when(PulsarConfigurationLoader.create(Mockito.anyString(), Mockito.any()))
+                    .thenReturn(configuration);
+            try {
+                new ProxyServiceStarter(ProxyServiceStarterTest.ARGS);
+                fail("brokerServiceURL must start with pulsar://");
+            } catch (Exception ex) {
+                assertTrue(ex.getMessage().contains("brokerServiceURL must start with pulsar://"));
+            }
+        }
+        // brokerServiceURLTLS must start with pulsar+ssl://
+        configuration.setBrokerServiceURL("pulsar://127.0.0.1:6650");
+        configuration.setBrokerServiceURLTLS("pulsar://127.0.0.1:6650");
+        try (MockedStatic<PulsarConfigurationLoader> theMock = Mockito.mockStatic(PulsarConfigurationLoader.class)) {
+            theMock.when(PulsarConfigurationLoader.create(Mockito.anyString(), Mockito.any()))
+                    .thenReturn(configuration);
+            try {
+                new ProxyServiceStarter(ProxyServiceStarterTest.ARGS);
+                fail("brokerServiceURLTLS must start with pulsar+ssl://");
+            } catch (Exception ex) {
+                assertTrue(ex.getMessage().contains("brokerServiceURLTLS must start with pulsar+ssl://"));
+            }
+        }
+        // brokerServiceURL did not support multi urls yet.
+        configuration.setBrokerServiceURL("pulsar://127.0.0.1:6650,pulsar://127.0.0.2:6650");
+        try (MockedStatic<PulsarConfigurationLoader> theMock = Mockito.mockStatic(PulsarConfigurationLoader.class)) {
+            theMock.when(PulsarConfigurationLoader.create(Mockito.anyString(), Mockito.any()))
+                    .thenReturn(configuration);
+            try {
+                new ProxyServiceStarter(ProxyServiceStarterTest.ARGS);
+                fail("brokerServiceURL did not support multi urls yet");
+            } catch (Exception ex) {
+                assertTrue(ex.getMessage().contains("did not support multi urls yet"));
+            }
+        }
+        // brokerServiceURLTLS did not support multi urls yet.
+        configuration.setBrokerServiceURL("pulsar://127.0.0.1:6650");
+        configuration.setBrokerServiceURLTLS("pulsar+ssl://127.0.0.1:6650,pulsar+ssl:127.0.0.2:6650");
+        try (MockedStatic<PulsarConfigurationLoader> theMock = Mockito.mockStatic(PulsarConfigurationLoader.class)) {
+            theMock.when(PulsarConfigurationLoader.create(Mockito.anyString(), Mockito.any()))
+                    .thenReturn(configuration);
+            try {
+                new ProxyServiceStarter(ProxyServiceStarterTest.ARGS);
+                fail("brokerServiceURLTLS did not support multi urls yet");
+            } catch (Exception ex) {
+                assertTrue(ex.getMessage().contains("did not support multi urls yet"));
+            }
         }
     }
 

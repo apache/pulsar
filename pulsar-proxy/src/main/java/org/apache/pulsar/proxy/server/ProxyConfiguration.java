@@ -173,12 +173,16 @@ public class ProxyConfiguration implements PulsarConfiguration {
 
     @FieldContext(
         category = CATEGORY_BROKER_DISCOVERY,
-        doc = "The service url points to the broker cluster. URL must have the pulsar:// prefix."
+        doc = "If did not set metadataStoreUrl or configurationMetadataStoreUrl, this url should point to the"
+                + " discovery service provider."
+                + " URL must have the pulsar:// prefix. And does not support multi url yet."
     )
     private String brokerServiceURL;
     @FieldContext(
         category = CATEGORY_BROKER_DISCOVERY,
-        doc = "The tls service url points to the broker cluster. URL must have the pulsar+ssl:// prefix."
+            doc = "If did not set metadataStoreUrl or configurationMetadataStoreUrl, this url should point to the"
+                    + " discovery service provider."
+                + " URL must have the pulsar+ssl:// prefix. And does not support multi url yet."
     )
     private String brokerServiceURLTLS;
 

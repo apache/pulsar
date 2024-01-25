@@ -162,11 +162,17 @@ public class ProxyServiceStarter {
             if (isNotBlank(config.getBrokerServiceURL())) {
                 checkArgument(config.getBrokerServiceURL().startsWith("pulsar://"),
                         "brokerServiceURL must start with pulsar://");
+                checkArgument(!config.getBrokerServiceURL().contains(","),
+                        "brokerServiceURL did not support multi urls yet, it should point to the"
+                                + " discovery service provider.");
             }
 
             if (isNotBlank(config.getBrokerServiceURLTLS())) {
                 checkArgument(config.getBrokerServiceURLTLS().startsWith("pulsar+ssl://"),
                         "brokerServiceURLTLS must start with pulsar+ssl://");
+                checkArgument(!config.getBrokerServiceURLTLS().contains(","),
+                        "brokerServiceURL did not support multi urls yet, it should point to the"
+                                + " discovery service provider.");
             }
 
             if ((isBlank(config.getBrokerServiceURL()) && isBlank(config.getBrokerServiceURLTLS()))
