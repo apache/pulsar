@@ -268,7 +268,7 @@ public class GetLastMessageIdCompactedTest extends ProducerConsumerBase {
     public void testGetLastMessageIdAfterCompactionAndExpire(boolean enabledBatch) throws Exception {
         String topicName = "persistent://public/default/" + BrokerTestUtil.newUniqueName("tp");
         Producer<String> producer = createProducer(enabledBatch, topicName);
-        // produce 3 messages
+        // produce messages
         producer.newMessage().key("k0").value("v0").sendAsync();
         producer.newMessage().key("k0").value("v1").sendAsync();
         producer.flush();
