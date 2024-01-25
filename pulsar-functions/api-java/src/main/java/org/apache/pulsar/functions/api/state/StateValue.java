@@ -18,26 +18,13 @@
  */
 package org.apache.pulsar.functions.api.state;
 
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+
+@Getter
+@AllArgsConstructor
 public class StateValue {
     private final byte[] value;
     private final Long version;
     private final Boolean isNumber;
-
-    public StateValue(byte[] value, Long version, Boolean isNumber) {
-        this.value = value == null ? null : value.clone();
-        this.version = version;
-        this.isNumber = isNumber;
-    }
-
-    public byte[] getValue() {
-        return this.value == null ? null : this.value.clone();
-    }
-
-    public Long getVersion() {
-        return version;
-    }
-
-    public Boolean getIsNumber() {
-        return isNumber;
-    }
 }
