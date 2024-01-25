@@ -30,7 +30,6 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Sets;
 import io.netty.buffer.ByteBuf;
 import io.netty.util.concurrent.FastThreadLocal;
-
 import java.io.IOException;
 import java.time.Clock;
 import java.util.ArrayList;
@@ -3622,7 +3621,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             if (entry == null) {
                 completableFuture.complete(MessageId.earliest);
             } else {
-                try{
+                try {
                     MessageMetadata metadata = Commands.parseMessageMetadata(entry.getDataBuffer());
                     int lastBatchIndexInBatch = calculateTheLastBatchIndexInBatch(metadata, entry.getDataBuffer());
                     if (lastBatchIndexInBatch != -1) {
@@ -3655,7 +3654,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             if (log.isDebugEnabled()) {
                 log.debug("getLastMessageId {}, partitionIndex{}, lastPosition {}", name, partitionIndex, lastPosition);
             }
-            CompletableFuture<Position> compactionHorizonFuture = getTopicCompactionService().getLastCompactedPosition();
+            CompletableFuture<Position> compactionHorizonFuture =
+                    getTopicCompactionService().getLastCompactedPosition();
             compactionHorizonFuture.thenAccept(compactionHorizon -> {
                 if (lastPosition.getEntryId() == -1 || (compactionHorizon != null
                         && lastPosition.compareTo((PositionImpl) compactionHorizon) <= 0)) {
