@@ -334,6 +334,9 @@ public abstract class PersistentReplicator extends AbstractReplicator
                 log.error("[{}] Error producing on remote broker", replicator.replicatorId, exception);
                 // cursor should be rewinded since it was incremented when readMoreEntries
                 replicator.cursor.rewind();
+
+                replicator.cursor.cancelPendingReadRequest();
+                HAVE_PENDING_READ_UPDATER.set(replicator, FALSE);
             } else {
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] Message persisted on remote broker", replicator.replicatorId, exception);
