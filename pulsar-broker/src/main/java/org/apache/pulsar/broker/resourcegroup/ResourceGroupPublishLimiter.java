@@ -133,7 +133,7 @@ public class ResourceGroupPublishLimiter implements PublishRateLimiter, RateLimi
         });
     }
 
-    public synchronized boolean tryAcquire(int numbers, long bytes) {
+    public boolean tryAcquire(int numbers, long bytes) {
         return (publishRateLimiterOnMessage == null || publishRateLimiterOnMessage.tryAcquire(numbers))
                     && (publishRateLimiterOnByte == null || publishRateLimiterOnByte.tryAcquire(bytes));
     }
@@ -156,16 +156,14 @@ public class ResourceGroupPublishLimiter implements PublishRateLimiter, RateLimi
                 updater.run();
             }
         } finally {
-            synchronized (this) {
-                // Close previous limiters to prevent resource leakages.
-                // Delay closing of previous limiters after new ones are in place so that updating the limiter
-                // doesn't cause unavailability.
-                if (previousPublishRateLimiterOnMessage != null) {
-                    previousPublishRateLimiterOnMessage.close();
-                }
-                if (previousPublishRateLimiterOnByte != null) {
-                    previousPublishRateLimiterOnByte.close();
-                }
+            // Close previous limiters to prevent resource leakages.
+            // Delay closing of previous limiters after new ones are in place so that updating the limiter
+            // doesn't cause unavailability.
+            if (previousPublishRateLimiterOnMessage != null) {
+                previousPublishRateLimiterOnMessage.close();
+            }
+            if (previousPublishRateLimiterOnByte != null) {
+                previousPublishRateLimiterOnByte.close();
             }
         }
     }

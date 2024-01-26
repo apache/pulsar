@@ -123,7 +123,7 @@ public class PrecisePublishLimiter implements PublishRateLimiter {
     }
 
     @Override
-    public synchronized boolean tryAcquire(int numbers, long bytes) {
+    public boolean tryAcquire(int numbers, long bytes) {
         RateLimiter currentTopicPublishRateLimiterOnMessage = topicPublishRateLimiterOnMessage;
         RateLimiter currentTopicPublishRateLimiterOnByte = topicPublishRateLimiterOnByte;
         return (currentTopicPublishRateLimiterOnMessage == null
@@ -148,16 +148,14 @@ public class PrecisePublishLimiter implements PublishRateLimiter {
                 updater.run();
             }
         } finally {
-            synchronized (this) {
-                // Close previous limiters to prevent resource leakages.
-                // Delay closing of previous limiters after new ones are in place so that updating the limiter
-                // doesn't cause unavailability.
-                if (previousTopicPublishRateLimiterOnMessage != null) {
-                    previousTopicPublishRateLimiterOnMessage.close();
-                }
-                if (previousTopicPublishRateLimiterOnByte != null) {
-                    previousTopicPublishRateLimiterOnByte.close();
-                }
+            // Close previous limiters to prevent resource leakages.
+            // Delay closing of previous limiters after new ones are in place so that updating the limiter
+            // doesn't cause unavailability.
+            if (previousTopicPublishRateLimiterOnMessage != null) {
+                previousTopicPublishRateLimiterOnMessage.close();
+            }
+            if (previousTopicPublishRateLimiterOnByte != null) {
+                previousTopicPublishRateLimiterOnByte.close();
             }
         }
     }

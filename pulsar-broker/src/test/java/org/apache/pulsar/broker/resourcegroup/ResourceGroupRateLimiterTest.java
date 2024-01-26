@@ -156,6 +156,8 @@ public class ResourceGroupRateLimiterTest extends BrokerTestBase {
 
     @Test
     public void testWithConcurrentUpdate() throws Exception {
+        cleanup();
+        setup();
         createResourceGroup(rgName, testAddRg);
         admin.namespaces().setNamespaceResourceGroup(namespaceName, rgName);
 
