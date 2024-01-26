@@ -560,6 +560,14 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             decrementPendingWriteOpsAndCheck();
             return;
         }
+        if (isExceedMaximumDeliveryDelay(headersAndPayload)) {
+            publishContext.completed(
+                    new NotAllowedException(
+                            String.format("Exceeds max allowed delivery delay of %s milliseconds",
+                                    getDelayedDeliveryMaxDelayInMillis())), -1, -1);
+            decrementPendingWriteOpsAndCheck();
+            return;
+        }
 
         MessageDeduplication.MessageDupStatus status =
                 messageDeduplication.isDuplicate(publishContext, headersAndPayload);
@@ -3876,6 +3884,14 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             decrementPendingWriteOpsAndCheck();
             return;
         }
+        if (isExceedMaximumDeliveryDelay(headersAndPayload)) {
+            publishContext.completed(
+                    new NotAllowedException(
+                            String.format("Exceeds max allowed delivery delay of %s milliseconds",
+                                    getDelayedDeliveryMaxDelayInMillis())), -1, -1);
+            decrementPendingWriteOpsAndCheck();
+            return;
+        }
 
         MessageDeduplication.MessageDupStatus status =
                 messageDeduplication.isDuplicate(publishContext, headersAndPayload);
@@ -3940,6 +3956,10 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
     public boolean isDelayedDeliveryEnabled() {
         return topicPolicies.getDelayedDeliveryEnabled().get();
+    }
+
+    public long getDelayedDeliveryMaxDelayInMillis() {
+        return topicPolicies.getDelayedDeliveryMaxDelayInMillis().get();
     }
 
     public int getMaxUnackedMessagesOnSubscription() {
@@ -4092,5 +4112,19 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
     public Optional<TopicName> getShadowSourceTopic() {
         return Optional.ofNullable(shadowSourceTopic);
+    }
+
+    protected boolean isExceedMaximumDeliveryDelay(ByteBuf headersAndPayload) {
+        if (isDelayedDeliveryEnabled()) {
+            long maxDeliveryDelayInMs = getDelayedDeliveryMaxDelayInMillis();
+            if (maxDeliveryDelayInMs > 0) {
+                headersAndPayload.markReaderIndex();
+                MessageMetadata msgMetadata = Commands.parseMessageMetadata(headersAndPayload);
+                headersAndPayload.resetReaderIndex();
+                return msgMetadata.hasDeliverAtTime()
+                        && msgMetadata.getDeliverAtTime() - msgMetadata.getPublishTime() > maxDeliveryDelayInMs;
+            }
+        }
+        return false;
     }
 }

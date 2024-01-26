@@ -516,6 +516,8 @@ public class PersistentTopicsBase extends AdminResource {
                 topicPolicies.setDelayedDeliveryEnabled(deliveryPolicies == null ? null : deliveryPolicies.isActive());
                 topicPolicies.setDelayedDeliveryTickTimeMillis(
                         deliveryPolicies == null ? null : deliveryPolicies.getTickTime());
+                topicPolicies.setDelayedDeliveryMaxDelayInMillis(
+                        deliveryPolicies == null ? null : deliveryPolicies.getMaxDeliveryDelayInMillis());
                 return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies);
             });
     }
@@ -903,6 +905,7 @@ public class PersistentTopicsBase extends AdminResource {
                     delayedDeliveryPolicies = DelayedDeliveryPolicies.builder()
                             .tickTime(policies.getDelayedDeliveryTickTimeMillis())
                             .active(policies.getDelayedDeliveryEnabled())
+                            .maxDeliveryDelayInMillis(policies.getDelayedDeliveryMaxDelayInMillis())
                             .build();
                 }
                 if (delayedDeliveryPolicies == null && applied) {
@@ -911,6 +914,8 @@ public class PersistentTopicsBase extends AdminResource {
                         delayedDeliveryPolicies = DelayedDeliveryPolicies.builder()
                                 .tickTime(pulsar().getConfiguration().getDelayedDeliveryTickTimeMillis())
                                 .active(pulsar().getConfiguration().isDelayedDeliveryEnabled())
+                                .maxDeliveryDelayInMillis(
+                                        pulsar().getConfiguration().getDelayedDeliveryMaxDelayInMillis())
                                 .build();
                     }
                 }
