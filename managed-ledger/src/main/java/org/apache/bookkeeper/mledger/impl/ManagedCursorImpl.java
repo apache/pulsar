@@ -680,6 +680,16 @@ public class ManagedCursorImpl implements ManagedCursor {
     private void recoveredCursor(PositionImpl position, Map<String, Long> properties,
                                  Map<String, String> cursorProperties,
                                  LedgerHandle recoveredFromCursorLedger) {
+        // if the position was at a ledger that didn't exist (since it will be deleted if it was previously empty),
+        // we need to move to the next existing ledger
+        if (position.getEntryId() == -1L && !ledger.ledgerExists(position.getLedgerId())) {
+            Long nextExistingLedger = ledger.getNextValidLedger(position.getLedgerId());
+            if (nextExistingLedger == null) {
+                log.info("[{}] [{}] Couldn't find next next valid ledger for recovery {}", ledger.getName(), name,
+                        position);
+            }
+            position = nextExistingLedger != null ? PositionImpl.get(nextExistingLedger, -1) : position;
+        }
         if (position.compareTo(ledger.getLastPosition()) > 0) {
             log.warn("[{}] [{}] Current position {} is ahead of last position {}", ledger.getName(), name, position,
                     ledger.getLastPosition());
@@ -691,7 +701,7 @@ public class ManagedCursorImpl implements ManagedCursor {
         markDeletePosition = position;
         persistentMarkDeletePosition = position;
         inProgressMarkDeletePersistPosition = null;
-        readPosition = position.getNext();
+        readPosition = ledger.getNextValidPosition(position);
         ledger.onCursorReadPositionUpdated(this, readPosition);
         lastMarkDeleteEntry = new MarkDeleteEntry(markDeletePosition, properties, null, null);
         // assign cursor-ledger so, it can be deleted when new ledger will be switched

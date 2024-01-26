@@ -2836,7 +2836,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         ledger.close();
     }
 
-//    @Test
+    @Test
     public void testCursorRecoveryForEmptyLedgers() throws Exception {
         ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("testCursorRecoveryForEmptyLedgers");
         ManagedCursor c1 = ledger.openCursor("c1");
