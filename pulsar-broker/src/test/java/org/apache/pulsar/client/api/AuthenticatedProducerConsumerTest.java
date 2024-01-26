@@ -507,8 +507,8 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
     @Test
     public void testCleanupEmptySubscriptionAuthenticationMap() throws Exception {
         Map<String, String> authParams = new HashMap<>();
-        authParams.put("tlsCertFile", TLS_CLIENT_CERT_FILE_PATH);
-        authParams.put("tlsKeyFile", TLS_CLIENT_KEY_FILE_PATH);
+        authParams.put("tlsCertFile", getTlsFileForClient("admin.cert"));
+        authParams.put("tlsKeyFile", getTlsFileForClient("admin.key-pk8"));
         Authentication authTls = new AuthenticationTls();
         authTls.configure(authParams);
         internalSetup(authTls);
