@@ -1877,6 +1877,7 @@ public class TransactionTest extends TransactionTestBase {
                 .topic(topic)
                 .subscriptionName("sub")
                 .subscriptionType(SubscriptionType.Exclusive)
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
                 .readCompacted(true)
                 .subscribe();
         List<String> result = new ArrayList<>();
