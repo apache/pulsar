@@ -84,7 +84,7 @@ public class BrokerRegistryImpl implements BrokerRegistry {
         this.listeners = new ArrayList<>();
         this.brokerId = pulsar.getLookupServiceAddress();
         this.brokerLookupData = new BrokerLookupData(
-                pulsar.getWebServiceAddress(),
+                pulsar.getSafeWebServiceAddress(),
                 pulsar.getWebServiceAddressTls(),
                 pulsar.getBrokerServiceUrl(),
                 pulsar.getBrokerServiceUrlTls(),
