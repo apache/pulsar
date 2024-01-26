@@ -194,6 +194,7 @@ flexible messaging model and an intuitive client API.</description>
     <debezium.version>1.9.7.Final</debezium.version>
     <debezium.postgresql.version>42.5.0</debezium.postgresql.version>
     <debezium.mysql.version>8.0.30</debezium.mysql.version>
+    <wasmtime-java.version>0.19.0</wasmtime-java.version>
     <!-- Override version that brings CVE-2022-3143 with debezium -->
     <wildfly-elytron.version>1.15.16.Final</wildfly-elytron.version>
     <jsonwebtoken.version>0.11.1</jsonwebtoken.version>
@@ -1432,6 +1433,12 @@ flexible messaging model and an intuitive client API.</description>
         <artifactId>rest-assured</artifactId>
         <version>${restassured.version}</version>
         <scope>test</scope>
+      </dependency>
+
+      <dependency>
+        <groupId>io.github.kawamuray.wasmtime</groupId>
+        <artifactId>wasmtime-java</artifactId>
+        <version>${wasmtime-java.version}</version>
       </dependency>
     </dependencies>
   </dependencyManagement>
