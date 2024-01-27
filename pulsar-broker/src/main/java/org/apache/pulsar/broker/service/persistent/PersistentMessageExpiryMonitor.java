@@ -122,6 +122,7 @@ public class PersistentMessageExpiryMonitor implements FindEntryCallback, Messag
             }
             if (expiryLedgerId > -1) {
                 findEntryComplete(PositionImpl.get(managedLedger.getNextValidLedger(expiryLedgerId), 0), null);
+                return true;
             }
         }
         return false;
