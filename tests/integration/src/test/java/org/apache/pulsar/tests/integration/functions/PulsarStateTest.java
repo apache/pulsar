@@ -97,10 +97,10 @@ public class PulsarStateTest extends PulsarStandaloneTestSuite {
         getFunctionStatus(functionName, numMessages);
 
         // get state
-        queryState(functionName, "hello", numMessages);
-        queryState(functionName, "test", numMessages);
+        queryState(functionName, "hello", numMessages, numMessages - 1);
+        queryState(functionName, "test", numMessages, numMessages - 1);
         for (int i = 0; i < numMessages; i++) {
-            queryState(functionName, "message-" + i, 1);
+            queryState(functionName, "message-" + i, 1, 0);
         }
 
         // test put state
@@ -468,7 +468,7 @@ public class PulsarStateTest extends PulsarStandaloneTestSuite {
         assertTrue(result.getStdout().contains("\"numSuccessfullyProcessed\" : " + numMessages));
     }
 
-    private void queryState(String functionName, String key, int amount)
+    private void queryState(String functionName, String key, int amount, long version)
         throws Exception {
         ContainerExecResult result = container.execCmd(
             PulsarCluster.ADMIN_SCRIPT,
@@ -480,6 +480,9 @@ public class PulsarStateTest extends PulsarStandaloneTestSuite {
             "--key", key
         );
         assertTrue(result.getStdout().contains("\"numberValue\": " + amount));
+        assertTrue(result.getStdout().contains("\"version\": " + version));
+        assertFalse(result.getStdout().contains("stringValue"));
+        assertFalse(result.getStdout().contains("byteValue"));
     }
 
     private void putAndQueryState(String functionName, String key, String state, String expect)
