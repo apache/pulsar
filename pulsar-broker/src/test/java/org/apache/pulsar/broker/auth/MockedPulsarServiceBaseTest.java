@@ -670,14 +670,14 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
         }
     }
 
-    public static void reconnectAllConnections(PulsarClientImpl c) throws Exception {
+    private static void reconnectAllConnections(PulsarClientImpl c) throws Exception {
         ConnectionPool pool = c.getCnxPool();
         Method closeAllConnections = ConnectionPool.class.getDeclaredMethod("closeAllConnections", new Class[]{});
         closeAllConnections.setAccessible(true);
         closeAllConnections.invoke(pool, new Object[]{});
     }
 
-    public void reconnectAllConnections() throws Exception {
+    protected void reconnectAllConnections() throws Exception {
         reconnectAllConnections((PulsarClientImpl) pulsarClient);
     }
 
