@@ -707,7 +707,8 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
             message += " - entry=" + entryId;
         }
         boolean recoverable = rc != BKException.Code.NoSuchLedgerExistsException
-                && rc != BKException.Code.NoSuchEntryException;
+                && rc != BKException.Code.NoSuchEntryException
+                && rc != BKException.Code.NoSuchLedgerExistsOnMetadataServerException;
         return new SchemaException(recoverable, message);
     }
 
