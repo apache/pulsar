@@ -458,8 +458,9 @@ public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
         when(mock.getName()).thenReturn("topicname");
         when(mock.getLastPosition()).thenReturn(PositionImpl.EARLIEST);
         PersistentMessageExpiryMonitor monitor = new PersistentMessageExpiryMonitor(mock, c1.getName(), c1, null);
-        Thread.sleep(Math.max(config.getMaximumRolloverTimeMs(), TimeUnit.SECONDS.toMillis(maxTTLSeconds)));
-        assertTrue(monitor.expireMessages(maxTTLSeconds));
+        Thread.sleep(TimeUnit.SECONDS.toMillis(maxTTLSeconds));
+        monitor.expireMessages(maxTTLSeconds);
+        assertEquals(c1.getNumberOfEntriesInBacklog(true), 0);
     }
 
     @Test
