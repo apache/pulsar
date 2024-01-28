@@ -155,7 +155,7 @@ public abstract class PersistentReplicator extends AbstractReplicator
                             + " Closing it. Replicator state: {}",
                     replicatorId, STATE_UPDATER.get(this));
             STATE_UPDATER.set(this, State.Stopping);
-            closeProducerAsync();
+            closeAsync(false);
         }
 
     }
@@ -437,7 +437,7 @@ public abstract class PersistentReplicator extends AbstractReplicator
                             + " already deleted and cursor is already closed {}, ({})",
                     replicatorId, ctx, exception.getMessage(), exception);
             // replicator is already deleted and cursor is already closed so, producer should also be stopped
-            closeProducerAsync();
+            closeAsync(false);
             return;
         } else if (!(exception instanceof TooManyRequestsException)) {
             log.error("[{}] Error reading entries at {}. Retrying to read in {}s. ({})",
@@ -556,7 +556,7 @@ public abstract class PersistentReplicator extends AbstractReplicator
             log.error("[{}] Asynchronous ack failure because replicator is already deleted and cursor is already"
                             + " closed {}, ({})", replicatorId, ctx, exception.getMessage(), exception);
             // replicator is already deleted and cursor is already closed so, producer should also be stopped
-            closeProducerAsync();
+            closeAsync(false);
             return;
         }
         if (ctx instanceof PositionImpl) {
