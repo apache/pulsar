@@ -79,7 +79,7 @@ public class NonPersistentReplicator extends AbstractReplicator implements Repli
                             + " Closing it. Replicator state: {}",
                     replicatorId, STATE_UPDATER.get(this));
             STATE_UPDATER.set(this, State.Stopping);
-            closeProducerAsync();
+            closeAsync(false);
             return;
         }
     }
