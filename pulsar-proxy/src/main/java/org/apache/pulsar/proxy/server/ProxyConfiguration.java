@@ -173,14 +173,14 @@ public class ProxyConfiguration implements PulsarConfiguration {
 
     @FieldContext(
         category = CATEGORY_BROKER_DISCOVERY,
-        doc = "If did not set metadataStoreUrl or configurationMetadataStoreUrl, this url should point to the"
+        doc = "If does not set metadataStoreUrl or configurationMetadataStoreUrl, this url should point to the"
                 + " discovery service provider."
                 + " URL must have the pulsar:// prefix. And does not support multi url yet."
     )
     private String brokerServiceURL;
     @FieldContext(
         category = CATEGORY_BROKER_DISCOVERY,
-            doc = "If did not set metadataStoreUrl or configurationMetadataStoreUrl, this url should point to the"
+            doc = "If does not set metadataStoreUrl or configurationMetadataStoreUrl, this url should point to the"
                     + " discovery service provider."
                 + " URL must have the pulsar+ssl:// prefix. And does not support multi url yet."
     )
