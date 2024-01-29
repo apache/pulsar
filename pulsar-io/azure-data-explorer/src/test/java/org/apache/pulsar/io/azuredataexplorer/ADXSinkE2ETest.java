@@ -48,6 +48,8 @@ public class ADXSinkE2ETest {
     String appKey;
     private final String table = "ADXPulsarTest_" + ThreadLocalRandom.current().nextInt(0, 100);
     private Client kustoAdminClient = null;
+    Map<String, Object> configs;
+
     @BeforeMethod
     public void setUp() throws Exception {
         database = Objects.requireNonNull(System.getenv("kustoDatabase"), "kustoDatabase not set.");
@@ -55,6 +57,18 @@ public class ADXSinkE2ETest {
         authorityId = Objects.requireNonNull(System.getenv("kustoAadAuthorityID"), "kustoAadAuthorityID not set.");
         appId = Objects.requireNonNull(System.getenv("kustoAadAppId"), "kustoAadAppId not set.");
         appKey = Objects.requireNonNull(System.getenv("kustoAadAppSecret"), "kustoAadAppSecret not set.");
+
+        configs = new HashMap<>();
+        configs.put("clusterUrl", cluster);
+        configs.put("database", database);
+        configs.put("table", table);
+        configs.put("batchTimeMs", 1000);
+        configs.put("flushImmediately", true);
+        configs.put("appId", appId);
+        configs.put("appKey", appKey);
+        configs.put("tenantId", authorityId);
+        configs.put("maxRetryAttempts", 3);
+        configs.put("retryBackOffTime", 100);
 
         ConnectionStringBuilder engineKcsb =
                 ConnectionStringBuilder.createWithAadApplicationCredentials(ADXSinkUtils.getQueryEndpoint(cluster),
@@ -84,17 +98,6 @@ public class ADXSinkE2ETest {
 
     @Test
     public void testOpenAndWriteSink() throws Exception {
-        Map<String, Object> configs = new HashMap<>();
-        configs.put("clusterUrl", cluster);
-        configs.put("database", database);
-        configs.put("table", table);
-        configs.put("batchTimeMs", 1000);
-        configs.put("flushImmediately", true);
-        configs.put("appId", appId);
-        configs.put("appKey", appKey);
-        configs.put("tenantId", authorityId);
-        configs.put("maxRetryAttempts", 3);
-        configs.put("retryBackOffTime", 100);
 
         ADXSink sink = new ADXSink();
         sink.open(configs, null);
@@ -110,25 +113,18 @@ public class ADXSinkE2ETest {
         mainTableResult.next();
         int actualRowsCount = mainTableResult.getInt(0);
         Assert.assertEquals(actualRowsCount, writeCount);
+        kustoAdminClient.execute(database, ".clear table " + table + "  data");
         sink.close();
     }
 
     @Test
     public void testOpenAndWriteSinkWithTimeouts() throws Exception {
-        Map<String, Object> configs = new HashMap<>();
-        configs.put("clusterUrl", cluster);
-        configs.put("database", database);
-        configs.put("table", table);
-        configs.put("batchTimeMs", 1000);
-        configs.put("flushImmediately", true);
-        configs.put("appId", appId);
-        configs.put("appKey", appKey);
-        configs.put("tenantId", authorityId);
         ADXSink sink = new ADXSink();
         sink.open(configs, null);
         int writeCount = 9;
+
         for (int i = 0; i < writeCount; i++) {
-            Record<byte[]> record = build("key_" + i, "test data from ADX Pulsar Sink_" + i);
+            Record record = build("key_" + i, "test data from ADX Pulsar Sink_" + i);
             sink.write(record);
         }
         Thread.sleep(40000);
@@ -137,27 +133,33 @@ public class ADXSinkE2ETest {
         mainTableResult.next();
         int actualRowsCount = mainTableResult.getInt(0);
         Assert.assertEquals(actualRowsCount, writeCount);
+
         sink.close();
     }
 
     private Record<byte[]> build(String key, String value) {
-        return new SinkRecord<>(new Record<>() {
+        return new SinkRecord<byte[]>(new Record<>() {
+
             @Override
             public byte[] getValue() {
                 return value.getBytes(StandardCharsets.UTF_8);
             }
+
             @Override
             public Optional<String> getDestinationTopic() {
                 return Optional.of("destination-topic");
             }
+
             @Override
             public Optional<Long> getEventTime() {
                 return Optional.of(System.currentTimeMillis());
             }
+
             @Override
             public Optional<String> getKey() {
                 return Optional.of("key-" + key);
             }
+
             @Override
             public Map<String, String> getProperties() {
                 return new HashMap<>();

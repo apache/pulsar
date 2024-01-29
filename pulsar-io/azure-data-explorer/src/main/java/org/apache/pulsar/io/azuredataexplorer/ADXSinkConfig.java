@@ -21,15 +21,14 @@ package org.apache.pulsar.io.azuredataexplorer;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
-import lombok.Data;
-import lombok.experimental.Accessors;
-import org.apache.pulsar.io.core.annotations.FieldDoc;
-
 import java.io.File;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.Map;
 import java.util.Objects;
+import lombok.Data;
+import lombok.experimental.Accessors;
+import org.apache.pulsar.io.core.annotations.FieldDoc;
 
 
 @Data
@@ -65,8 +64,8 @@ public class ADXSinkConfig implements Serializable {
     @FieldDoc(defaultValue = "CSV", help = "The type of mapping reference provided")
     private String mappingRefType;
 
-    @FieldDoc(defaultValue = "false", help = "Denotes if flush should happen immediately without aggregation. " +
-            "Not recommended to enable flushImmediately for production workloads")
+    @FieldDoc(defaultValue = "false", help = "Denotes if flush should happen immediately without aggregation. "
+            + "Not recommended to enable flushImmediately for production workloads")
     private boolean flushImmediately = false;
 
     @FieldDoc(defaultValue = "100", help = "For batching, this defines the number of "
