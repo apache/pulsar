@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.tests.integration.metrics;
 
+import java.net.URL;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -28,10 +29,12 @@ import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient;
+import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.tests.integration.containers.OpenTelemetryCollectorContainer;
+import org.apache.pulsar.tests.integration.containers.ProxyContainer;
 import org.apache.pulsar.tests.integration.containers.PulsarContainer;
 import org.apache.pulsar.tests.integration.functions.PulsarFunctionsTest;
 import org.apache.pulsar.tests.integration.functions.utils.CommandGenerator;
@@ -74,9 +77,12 @@ public class MetricsTest {
         var pulsarCluster = PulsarCluster.forSpec(spec);
         pulsarCluster.start();
 
+        var useLocalRunner = false;
+
         pulsarCluster.setupFunctionWorkers(functionWorkerServiceNameSuffix, FunctionRuntimeType.PROCESS, 1);
         var serviceUrl = pulsarCluster.getPlainTextServiceUrl();
-        var functionWorkerCommand = getFunctionWorkerCommand(serviceUrl, functionWorkerServiceNameSuffix);
+        var functionWorkerCommand =
+                getFunctionWorkerCommand(pulsarCluster, functionWorkerServiceNameSuffix, useLocalRunner);
         pulsarCluster.getAnyWorker().execCmdAsync(functionWorkerCommand.split(" "));
 
         var metricName = "queueSize_ratio"; // Sent automatically by the OpenTelemetry SDK.
@@ -92,7 +98,7 @@ public class MetricsTest {
         });
     }
 
-    @Test(timeOut = 300_000)
+    @Test(timeOut = 900_000)
     public void testOpenTelemetryMetricsPrometheusExport() throws Exception {
         var prometheusExporterPort = 9464;
         var clusterName = "testOpenTelemetryMetrics-" + UUID.randomUUID();
@@ -106,8 +112,7 @@ public class MetricsTest {
         var functionWorkerServiceNameSuffix = PulsarTestBase.randomName();
         var functionWorkerOtelServiceName = "function-worker-" + functionWorkerServiceNameSuffix;
         // Locally run Pulsar Functions override cluster name definitions to "local".
-        var functionWorkerCollectorProps = getCollectorProps(functionWorkerOtelServiceName, prometheusExporterPort,
-                        Pair.of("OTEL_RESOURCE_ATTRIBUTES", "pulsar.cluster=" + clusterName));
+        var functionWorkerCollectorProps = getCollectorProps(functionWorkerOtelServiceName, prometheusExporterPort);
 
         var spec = PulsarClusterSpec.builder()
                 .clusterName(clusterName)
@@ -122,14 +127,16 @@ public class MetricsTest {
         var pulsarCluster = PulsarCluster.forSpec(spec);
         pulsarCluster.start();
 
+        var useLocalRunner = false;
+
         pulsarCluster.setupFunctionWorkers(functionWorkerServiceNameSuffix, FunctionRuntimeType.PROCESS, 1);
-        var serviceUrl = pulsarCluster.getPlainTextServiceUrl();
-        var functionWorkerCommand = getFunctionWorkerCommand(serviceUrl, functionWorkerServiceNameSuffix);
+        var functionWorkerCommand =
+                getFunctionWorkerCommand(pulsarCluster, functionWorkerServiceNameSuffix, useLocalRunner);
         var workerContainer = pulsarCluster.getAnyWorker();
-        workerContainer.execCmdAsync(functionWorkerCommand.split(" "));
+        workerContainer.execCmdAsync("sh", "-c", functionWorkerCommand);
 
         var metricName = "target_info"; // Sent automatically by the OpenTelemetry SDK.
-        Awaitility.waitAtMost(90, TimeUnit.SECONDS).pollInterval(1, TimeUnit.SECONDS).until(() -> {
+        Awaitility.waitAtMost(90, TimeUnit.SECONDS).ignoreExceptions().pollInterval(1, TimeUnit.SECONDS).until(() -> {
             var prometheusClient = createMetricsClient(pulsarCluster.getAnyBroker(), prometheusExporterPort);
             var metrics = prometheusClient.getMetrics();
             var expectedMetrics = metrics.findByNameAndLabels(metricName,
@@ -137,7 +144,7 @@ public class MetricsTest {
             return !expectedMetrics.isEmpty();
         });
 
-        Awaitility.waitAtMost(90, TimeUnit.SECONDS).pollInterval(1, TimeUnit.SECONDS).until(() -> {
+        Awaitility.waitAtMost(90, TimeUnit.SECONDS).ignoreExceptions().pollInterval(1, TimeUnit.SECONDS).until(() -> {
             var prometheusClient = createMetricsClient(pulsarCluster.getProxy(), prometheusExporterPort);
             var metrics = prometheusClient.getMetrics();
             var expectedMetrics = metrics.findByNameAndLabels(metricName,
@@ -145,7 +152,7 @@ public class MetricsTest {
             return !expectedMetrics.isEmpty();
         });
 
-        Awaitility.waitAtMost(90, TimeUnit.SECONDS).pollInterval(1, TimeUnit.SECONDS).until(() -> {
+        Awaitility.waitAtMost(900, TimeUnit.SECONDS).ignoreExceptions().pollInterval(1, TimeUnit.SECONDS).until(() -> {
             var prometheusClient = createMetricsClient(workerContainer, prometheusExporterPort);
             var metrics = prometheusClient.getMetrics();
             var expectedMetrics = metrics.findByNameAndLabels(metricName,
@@ -183,18 +190,33 @@ public class MetricsTest {
         return props;
     }
 
-    private static String getFunctionWorkerCommand(String serviceUrl, String suffix) {
+    private static String getFunctionWorkerCommand(PulsarCluster pulsarCluster, String suffix, boolean useLocalRunner)
+            throws Exception {
         var namespace = NamespaceName.get("public", "default");
         var sourceTopicName = TopicName.get(TopicDomain.persistent.toString(), namespace, "metricTestSource-" + suffix);
         var sinkTopicName = TopicName.get(TopicDomain.persistent.toString(), namespace, "metricTestSink-" + suffix);
 
+        try (PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(pulsarCluster.getHttpServiceUrl()).build()) {
+            admin.topics().createNonPartitionedTopic(sourceTopicName.toString());
+            admin.topics().createNonPartitionedTopic(sinkTopicName.toString());
+        }
+
+        var serviceUrl = useLocalRunner ?
+                pulsarCluster.getPlainTextServiceUrl() :
+                new URL("http", ProxyContainer.NAME, ProxyContainer.BROKER_HTTP_PORT, "").toString();
+
         var commandGenerator = new CommandGenerator();
-        commandGenerator.setAdminUrl(serviceUrl);
+        if (useLocalRunner) {
+            commandGenerator.setAdminUrl(serviceUrl);
+        }
         commandGenerator.setSourceTopic(sourceTopicName.toString());
         commandGenerator.setSinkTopic(sinkTopicName.toString());
-        commandGenerator.setFunctionName("metricsTestLocalRunTest-" + suffix);
         commandGenerator.setRuntime(CommandGenerator.Runtime.JAVA);
+        commandGenerator.setFunctionName("metricsTestLocalRunTest-" + suffix);
         commandGenerator.setFunctionClassName(PulsarFunctionsTest.EXCLAMATION_JAVA_CLASS);
-        return commandGenerator.generateLocalRunCommand(null);
+        if (useLocalRunner) {
+            return commandGenerator.generateLocalRunCommand(null);
+        }
+        return commandGenerator.generateCreateFunctionCommand();
     }
 }
