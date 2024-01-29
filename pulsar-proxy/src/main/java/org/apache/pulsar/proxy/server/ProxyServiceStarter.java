@@ -162,41 +162,28 @@ public class ProxyServiceStarter {
             if (isNotBlank(config.getBrokerServiceURL())) {
                 checkArgument(config.getBrokerServiceURL().startsWith("pulsar://"),
                         "brokerServiceURL must start with pulsar://");
-                checkArgument(!config.getBrokerServiceURL().contains(","),
-                        "brokerServiceURL does not support multi urls yet, it should point to the"
-                                + " discovery service provider.");
+                ensureUrlNotContainsComma("brokerServiceURL", config.getBrokerServiceURL());
             }
-
             if (isNotBlank(config.getBrokerServiceURLTLS())) {
                 checkArgument(config.getBrokerServiceURLTLS().startsWith("pulsar+ssl://"),
                         "brokerServiceURLTLS must start with pulsar+ssl://");
-                checkArgument(!config.getBrokerServiceURLTLS().contains(","),
-                        "brokerServiceURL does not support multi urls yet, it should point to the"
-                                + " discovery service provider.");
+                ensureUrlNotContainsComma("brokerServiceURLTLS", config.getBrokerServiceURLTLS());
             }
 
             if (isNotBlank(config.getBrokerWebServiceURL())) {
-                checkArgument(!config.getBrokerWebServiceURL().contains(","),
-                        "brokerWebServiceURL does not support multi urls yet, it should point to the"
-                                + " discovery service provider.");
+                ensureUrlNotContainsComma("brokerWebServiceURL", config.getBrokerWebServiceURL());
             }
-
             if (isNotBlank(config.getBrokerWebServiceURLTLS())) {
-                checkArgument(!config.getBrokerWebServiceURLTLS().contains(","),
-                        "brokerWebServiceURLTLS does not support multi urls yet, it should point to the"
-                                + " discovery service provider.");
+                ensureUrlNotContainsComma("brokerWebServiceURLTLS", config.getBrokerWebServiceURLTLS());
             }
 
             if (isNotBlank(config.getFunctionWorkerWebServiceURL())) {
-                checkArgument(!config.getFunctionWorkerWebServiceURL().contains(","),
-                        "functionWorkerWebServiceURLTLS does not support multi urls yet, it should point"
-                                + " to the discovery service provider.");
+                ensureUrlNotContainsComma("functionWorkerWebServiceURLTLS",
+                        config.getFunctionWorkerWebServiceURL());
             }
-
             if (isNotBlank(config.getFunctionWorkerWebServiceURLTLS())) {
-                checkArgument(!config.getFunctionWorkerWebServiceURLTLS().contains(","),
-                        "functionWorkerWebServiceURLTLS does not support multi urls yet, it should point"
-                                + " to the discovery service provider.");
+                ensureUrlNotContainsComma("functionWorkerWebServiceURLTLS",
+                        config.getFunctionWorkerWebServiceURLTLS());
             }
 
             if ((isBlank(config.getBrokerServiceURL()) && isBlank(config.getBrokerServiceURLTLS()))
@@ -215,6 +202,11 @@ public class ProxyServiceStarter {
             log.error("Failed to start pulsar proxy service. error msg " + e.getMessage(), e);
             throw new PulsarServerException(e);
         }
+    }
+
+    private void ensureUrlNotContainsComma(String paramName, String paramValue) {
+        checkArgument(!paramValue.contains(","), paramName + " does not support multi urls yet,"
+                + " it should point to the discovery service provider.");
     }
 
     public static void main(String[] args) throws Exception {
