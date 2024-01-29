@@ -18,20 +18,22 @@
  */
 package org.apache.pulsar.io.azuredataexplorer;
 
+import org.jetbrains.annotations.NotNull;
 import org.testng.annotations.Test;
 
 import java.io.File;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 
 import static org.testng.Assert.*;
 
 public class ADXSinkConfigTest {
     @Test
     public final void loadFromYamlFileTest() throws IOException {
-        File yamlFile = getFile("sinkConfig.yaml");
-        String path = yamlFile.getAbsolutePath();
+        File sinkConfig = readSinkConfig("sinkConfig.yaml");
+        String path = sinkConfig.getAbsolutePath();
         ADXSinkConfig config = ADXSinkConfig.load(path);
         assertNotNull(config);
         assertEquals(config.getClusterUrl(), "https://somecluster.eastus.kusto.windows.net");
@@ -50,7 +52,7 @@ public class ADXSinkConfigTest {
 
     @Test
     public final void validateConfigTest() throws Exception {
-        File yamlFile = getFile("sinkConfigValid.yaml");
+        File yamlFile = readSinkConfig("sinkConfigValid.yaml");
         String path = yamlFile.getAbsolutePath();
         ADXSinkConfig config = ADXSinkConfig.load(path);
         config.validate();
@@ -58,7 +60,7 @@ public class ADXSinkConfigTest {
 
     @Test(expectedExceptions = Exception.class)
     public final void validateInvalidConfigTest() throws Exception {
-        File yamlFile = getFile("sinkConfigInvalid.yaml");
+        File yamlFile = readSinkConfig("sinkConfigInvalid.yaml");
         String path = yamlFile.getAbsolutePath();
         ADXSinkConfig config = ADXSinkConfig.load(path);
         config.validate();
@@ -66,19 +68,7 @@ public class ADXSinkConfigTest {
 
     @Test
     public final void loadFromMapTest() throws IOException {
-        Map<String, Object> map = new HashMap<>();
-        map.put("clusterUrl", "https://somecluster.eastus.kusto.windows.net");
-        map.put("database", "somedb");
-        map.put("table", "tableName");
-        map.put("appId", "xxxx-xxxx-xxxx-xxxx");
-        map.put("appKey", "xxxx-xxxx-xxxx-xxxx");
-        map.put("tenantId", "xxxx-xxxx-xxxx-xxxx");
-        map.put("managedIdentityId", "xxxx-some-id-xxxx OR empty string");
-        map.put("mappingRefName", "mapping ref name");
-        map.put("mappingRefType", "CSV");
-        map.put("flushImmediately", false);
-        map.put("batchSize", 100);
-        map.put("batchTimeMs", 10000);
+        Map<String, Object> map = getConfig();
 
         ADXSinkConfig config = ADXSinkConfig.load(map);
         assertNotNull(config);
@@ -96,8 +86,26 @@ public class ADXSinkConfigTest {
         assertEquals(config.getBatchTimeMs(), 10000);
     }
 
-    private File getFile(String name) {
+    @NotNull
+    private static Map<String, Object> getConfig() {
+        Map<String, Object> map = new HashMap<>();
+        map.put("clusterUrl", "https://somecluster.eastus.kusto.windows.net");
+        map.put("database", "somedb");
+        map.put("table", "tableName");
+        map.put("appId", "xxxx-xxxx-xxxx-xxxx");
+        map.put("appKey", "xxxx-xxxx-xxxx-xxxx");
+        map.put("tenantId", "xxxx-xxxx-xxxx-xxxx");
+        map.put("managedIdentityId", "xxxx-some-id-xxxx OR empty string");
+        map.put("mappingRefName", "mapping ref name");
+        map.put("mappingRefType", "CSV");
+        map.put("flushImmediately", false);
+        map.put("batchSize", 100);
+        map.put("batchTimeMs", 10000);
+        return map;
+    }
+
+    private @NotNull File readSinkConfig(String name) {
         ClassLoader classLoader = getClass().getClassLoader();
-        return new File(classLoader.getResource(name).getFile());
+        return new File(Objects.requireNonNull(classLoader.getResource(name)).getFile());
     }
 }

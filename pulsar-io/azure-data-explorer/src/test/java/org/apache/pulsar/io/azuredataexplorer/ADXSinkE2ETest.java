@@ -23,50 +23,52 @@ import com.microsoft.azure.kusto.data.ClientFactory;
 import com.microsoft.azure.kusto.data.KustoOperationResult;
 import com.microsoft.azure.kusto.data.KustoResultSetTable;
 import com.microsoft.azure.kusto.data.auth.ConnectionStringBuilder;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.functions.instance.SinkRecord;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 import java.nio.charset.StandardCharsets;
-import java.util.*;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.ThreadLocalRandom;
 
+@Slf4j
 public class ADXSinkE2ETest {
 
-    private String table = "ADXPulsarTest_" + ThreadLocalRandom.current().nextInt(0, 100);
-
-    private Client kustoAdminClient = null;
     String database;
     String cluster;
     String authorityId;
     String appId;
-    String appkey;
-
+    String appKey;
+    private final String table = "ADXPulsarTest_" + ThreadLocalRandom.current().nextInt(0, 100);
+    private Client kustoAdminClient = null;
     @BeforeMethod
     public void setUp() throws Exception {
-
         database = Objects.requireNonNull(System.getenv("kustoDatabase"), "kustoDatabase not set.");
         cluster = Objects.requireNonNull(System.getenv("kustoCluster"), "kustoCluster not set.");
         authorityId = Objects.requireNonNull(System.getenv("kustoAadAuthorityID"), "kustoAadAuthorityID not set.");
         appId = Objects.requireNonNull(System.getenv("kustoAadAppId"), "kustoAadAppId not set.");
-        appkey = Objects.requireNonNull(System.getenv("kustoAadAppSecret"), "kustoAadAppSecret not set.");
+        appKey = Objects.requireNonNull(System.getenv("kustoAadAppSecret"), "kustoAadAppSecret not set.");
 
         ConnectionStringBuilder engineKcsb =
                 ConnectionStringBuilder.createWithAadApplicationCredentials(ADXSinkUtils.getQueryEndpoint(cluster),
-                        appId, appkey, authorityId);
-
-        System.out.println("---------->>>>> "+ engineKcsb);
+                        appId, appKey, authorityId);
         kustoAdminClient = ClientFactory.createClient(engineKcsb);
-
-        kustoAdminClient.execute(database, generateAlterIngestionBatchingPolicyCommand(database,
-                "{\"MaximumBatchingTimeSpan\":\"00:00:10\", \"MaximumNumberOfItems\": 500, \"MaximumRawDataSizeMB\": 1024}"));
-
         String createTableCommand = ".create table " + table +
                 " ( key:string , value:string, eventTime:datetime , producerName:string , sequenceId:long ,properties:dynamic )";
+        log.info("Creating test table {} ", table);
         kustoAdminClient.execute(database, createTableCommand);
+        kustoAdminClient.execute(database, generateAlterIngestionBatchingPolicyCommand(database,
+                "{\"MaximumBatchingTimeSpan\":\"00:00:10\", \"MaximumNumberOfItems\": 500, \"MaximumRawDataSizeMB\": 1024}"));
+        log.info("Ingestion policy on table {} altered",table);
     }
 
     private String generateAlterIngestionBatchingPolicyCommand(String entityName, String targetBatchingPolicy) {
@@ -76,14 +78,14 @@ public class ADXSinkE2ETest {
     @AfterMethod(alwaysRun = true)
     public void tearDown() {
         try {
+            log.warn("Dropping test table {} ", table);
             kustoAdminClient.execute(".drop table " + table + " ifexists");
         } catch (Exception ignore) {
         }
     }
+
     @Test
     public void testOpenAndWriteSink() throws Exception {
-
-
         Map<String, Object> configs = new HashMap<>();
         configs.put("clusterUrl", cluster);
         configs.put("database", database);
@@ -91,7 +93,7 @@ public class ADXSinkE2ETest {
         configs.put("batchTimeMs", 1000);
         configs.put("flushImmediately", true);
         configs.put("appId", appId);
-        configs.put("appKey", appkey);
+        configs.put("appKey", appKey);
         configs.put("tenantId", authorityId);
         configs.put("maxRetryAttempts", 3);
         configs.put("retryBackOffTime", 100);
@@ -110,7 +112,6 @@ public class ADXSinkE2ETest {
         mainTableResult.next();
         int actualRowsCount = mainTableResult.getInt(0);
         Assert.assertEquals(actualRowsCount, writeCount);
-        kustoAdminClient.execute(database, ".clear table " + table + "  data");
         sink.close();
     }
 
@@ -123,13 +124,11 @@ public class ADXSinkE2ETest {
         configs.put("batchTimeMs", 1000);
         configs.put("flushImmediately", true);
         configs.put("appId", appId);
-        configs.put("appKey", appkey);
+        configs.put("appKey", appKey);
         configs.put("tenantId", authorityId);
-
         ADXSink sink = new ADXSink();
         sink.open(configs, null);
         int writeCount = 9;
-
         for (int i = 0; i < writeCount; i++) {
             Record<byte[]> record = build("key_" + i, "test data from ADX Pulsar Sink_" + i);
             sink.write(record);
@@ -140,39 +139,31 @@ public class ADXSinkE2ETest {
         mainTableResult.next();
         int actualRowsCount = mainTableResult.getInt(0);
         Assert.assertEquals(actualRowsCount, writeCount);
-
         sink.close();
     }
 
     private Record<byte[]> build(String key, String value) {
-        SinkRecord<byte[]> record = new SinkRecord<>(new Record<>() {
-
+        return new SinkRecord<>(new Record<>() {
             @Override
             public byte[] getValue() {
                 return value.getBytes(StandardCharsets.UTF_8);
             }
-
             @Override
             public Optional<String> getDestinationTopic() {
                 return Optional.of("destination-topic");
             }
-
             @Override
             public Optional<Long> getEventTime() {
                 return Optional.of(System.currentTimeMillis());
             }
-
             @Override
             public Optional<String> getKey() {
                 return Optional.of("key-" + key);
             }
-
             @Override
             public Map<String, String> getProperties() {
                 return new HashMap<String, String>();
             }
         }, value.getBytes(StandardCharsets.UTF_8));
-
-        return record;
     }
 }

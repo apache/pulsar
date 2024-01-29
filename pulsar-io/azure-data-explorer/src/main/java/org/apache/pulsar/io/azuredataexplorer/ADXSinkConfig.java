@@ -21,23 +21,22 @@ package org.apache.pulsar.io.azuredataexplorer;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
+import lombok.Data;
+import lombok.experimental.Accessors;
+import org.apache.pulsar.io.core.annotations.FieldDoc;
+
 import java.io.File;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.Map;
 import java.util.Objects;
-import lombok.Data;
-import lombok.EqualsAndHashCode;
-import lombok.experimental.Accessors;
-import org.apache.pulsar.io.core.annotations.FieldDoc;
 
 
 @Data
-@EqualsAndHashCode(callSuper = false)
 @Accessors(chain = true)
 public class ADXSinkConfig implements Serializable {
 
-    @FieldDoc(required = true, defaultValue = "", help = "The ADX cluser URL")
+    @FieldDoc(required = true, defaultValue = "", help = "The ADX cluster URL")
     private String clusterUrl;
 
     @FieldDoc(required = true, defaultValue = "", help = "The database name to which data need to be ingested")
@@ -46,41 +45,42 @@ public class ADXSinkConfig implements Serializable {
     @FieldDoc(required = true, defaultValue = "", help = "Table name to which pulsar data need to be ingested.")
     private String table;
 
-    @FieldDoc(required = false, defaultValue = "", help = "The AAD app Id for authentication")
+    @FieldDoc(defaultValue = "", help = "The AAD app Id for authentication")
     private String appId;
 
-    @FieldDoc(required = false, defaultValue = "", help = "The AAD app secret for authentication")
+    @FieldDoc(defaultValue = "", help = "The AAD app secret for authentication")
     private String appKey;
 
-    @FieldDoc(required = false, defaultValue = "", help = "The tenent Id for authentication")
+    @FieldDoc(defaultValue = "", help = "The tenant Id for authentication")
     private String tenantId;
 
-    @FieldDoc(required = false, defaultValue = "", help = "The Managed Identity credential for authentication."
+    @FieldDoc(defaultValue = "", help = "The Managed Identity credential for authentication."
             + " Set this with clientId in case of User assigned MI."
             + " and 'system' in case of System assigned managed identity")
     private String managedIdentityId;
 
-    @FieldDoc(required = false, defaultValue = "", help = "The mapping reference for ingestion")
+    @FieldDoc(defaultValue = "", help = "The mapping reference for ingestion")
     private String mappingRefName;
 
-    @FieldDoc(required = false, defaultValue = "CSV", help = "The type of mapping reference provided")
+    @FieldDoc(defaultValue = "CSV", help = "The type of mapping reference provided")
     private String mappingRefType;
 
-    @FieldDoc(required = false, defaultValue = "false", help = "")
+    @FieldDoc(defaultValue = "false", help = "Denotes if flush should happen immediately without aggregation. " +
+            "Not recommended to enable flushImmediately for production workloads")
     private boolean flushImmediately = false;
 
-    @FieldDoc(required = false, defaultValue = "100", help = "For batching, this defines the number of "
+    @FieldDoc(defaultValue = "100", help = "For batching, this defines the number of "
             + "records to hold for batching, to sink data to adx")
     private int batchSize = 100;
 
-    @FieldDoc(required = false, defaultValue = "10000", help = "For batching, this defines the time to hold"
+    @FieldDoc(defaultValue = "10000", help = "For batching, this defines the time to hold"
             + " records before sink to adx")
     private long batchTimeMs = 10000;
 
-    @FieldDoc(required = false, defaultValue = "1", help = "Max retry attempts, In case of transient ingestion error")
+    @FieldDoc(defaultValue = "1", help = "Max retry attempts, In case of transient ingestion errors")
     private int maxRetryAttempts = 1;
 
-    @FieldDoc(required = false, defaultValue = "10", help = "Period of time in milliseconds to backoff"
+    @FieldDoc(defaultValue = "10", help = "Period of time in milliseconds to backoff"
             + " before retry for transient errors")
     private long retryBackOffTime = 10;
 
@@ -99,7 +99,7 @@ public class ADXSinkConfig implements Serializable {
         Objects.requireNonNull(clusterUrl, "clusterUrl property not set.");
         Objects.requireNonNull(database, "database property not set.");
         Objects.requireNonNull(table, "table property not set.");
-        if (managedIdentityId == null && (appId == null || appKey == null || tenantId == null)){
+        if (managedIdentityId == null && (appId == null || appKey == null || tenantId == null)) {
             throw new Exception("Auth credentials not valid");
         }
     }

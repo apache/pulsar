@@ -22,78 +22,77 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.microsoft.azure.kusto.data.StringUtils;
 import com.microsoft.azure.kusto.data.auth.ConnectionStringBuilder;
 import com.microsoft.azure.kusto.data.exceptions.KustoDataExceptionBase;
-import com.microsoft.azure.kusto.ingest.IngestClient;
-import com.microsoft.azure.kusto.ingest.IngestClientFactory;
-import com.microsoft.azure.kusto.ingest.IngestionMapping;
-import com.microsoft.azure.kusto.ingest.IngestionProperties;
-import com.microsoft.azure.kusto.ingest.ManagedStreamingIngestClient;
+import com.microsoft.azure.kusto.ingest.*;
 import com.microsoft.azure.kusto.ingest.exceptions.IngestionClientException;
 import com.microsoft.azure.kusto.ingest.exceptions.IngestionServiceException;
 import com.microsoft.azure.kusto.ingest.result.IngestionResult;
 import com.microsoft.azure.kusto.ingest.result.IngestionStatus;
 import com.microsoft.azure.kusto.ingest.result.TableReportIngestionResult;
 import com.microsoft.azure.kusto.ingest.source.StreamSourceInfo;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.functions.api.Record;
+import org.apache.pulsar.io.core.Sink;
+import org.apache.pulsar.io.core.SinkContext;
+import org.apache.pulsar.io.core.annotations.Connector;
+import org.apache.pulsar.io.core.annotations.IOType;
+
 import java.io.ByteArrayInputStream;
 import java.net.ConnectException;
 import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.functions.api.Record;
-import org.apache.pulsar.io.core.Sink;
-import org.apache.pulsar.io.core.SinkContext;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
+@Connector(
+        name = "adx",
+        type = IOType.SINK,
+        help = "The ADXSink is used for moving messages from Pulsar to ADX.",
+        configClass = ADXSinkConfig.class
+)
+@Slf4j
 public class ADXSink implements Sink<byte[]> {
-
-    private IngestClient ingestClient;
+    private final ObjectMapper mapper = new ObjectMapper();
     IngestionProperties ingestionProperties;
-    private static final Logger LOG = LoggerFactory.getLogger(ADXSink.class);
+    private IngestClient ingestClient;
     private List<Record<byte[]>> incomingRecordsList;
     private int batchSize;
     private ScheduledExecutorService adxSinkExecutor;
-    private final ObjectMapper mapper = com.microsoft.azure.kusto.data.Utils.getObjectMapper();
     private int maxRetryAttempts;
     private long retryBackOffTime;
 
     @Override
     public void open(Map<String, Object> config, SinkContext sinkContext) throws Exception {
-
+        log.info("Open ADX Sink");
         // Azure data explorer, initializations
-        ADXSinkConfig adxconfig = ADXSinkConfig.load(config);
-        adxconfig.validate();
-        ConnectionStringBuilder kcsb = getConnectionStringBuilder(adxconfig);
+        ADXSinkConfig adxConfig = ADXSinkConfig.load(config);
+        adxConfig.validate();
+        ConnectionStringBuilder kcsb = getConnectionStringBuilder(adxConfig);
         if (kcsb == null) {
             throw new Exception("Kusto Connection String NULL");
         }
-        LOG.debug(String.format("ConnectionString created: %s.", kcsb));
-        ingestClient = adxconfig.getManagedIdentityId() != null
+        log.debug("ConnectionString created: {}.", kcsb);
+        ingestClient = adxConfig.getManagedIdentityId() != null
                 ? IngestClientFactory.createManagedStreamingIngestClient(kcsb) :
                 IngestClientFactory.createClient(kcsb);
-        ingestionProperties = new IngestionProperties(adxconfig.getDatabase(), adxconfig.getTable());
-        ingestionProperties.setIngestionMapping(adxconfig.getMappingRefName(),
-                getParseMappingRefType(adxconfig.getMappingRefType()));
+        ingestionProperties = new IngestionProperties(adxConfig.getDatabase(), adxConfig.getTable());
+        ingestionProperties.setIngestionMapping(adxConfig.getMappingRefName(),
+                getParseMappingRefType(adxConfig.getMappingRefType()));
         ingestionProperties.setReportLevel(IngestionProperties.IngestionReportLevel.FAILURES_AND_SUCCESSES);
         ingestionProperties.setReportMethod(IngestionProperties.IngestionReportMethod.TABLE);
-        ingestionProperties.setFlushImmediately(adxconfig.isFlushImmediately());
+        ingestionProperties.setFlushImmediately(adxConfig.isFlushImmediately());
         ingestionProperties.setDataFormat(IngestionProperties.DataFormat.MULTIJSON);
-        LOG.debug("Ingestion Properties:  " + ingestionProperties.toString());
+        log.debug("Ingestion Properties:  {}", ingestionProperties.toString());
 
-        maxRetryAttempts = adxconfig.getMaxRetryAttempts() + 1;
-        retryBackOffTime = adxconfig.getRetryBackOffTime();
+        maxRetryAttempts = adxConfig.getMaxRetryAttempts() + 1;
+        retryBackOffTime = adxConfig.getRetryBackOffTime();
         /*incoming records list will hold incoming messages,
          flushExecutor executes the flushData according to batch time */
-        batchSize = adxconfig.getBatchSize();
-        long batchTimeMs = adxconfig.getBatchTimeMs();
+        batchSize = adxConfig.getBatchSize();
+        long batchTimeMs = adxConfig.getBatchTimeMs();
         incomingRecordsList = new ArrayList<>();
         adxSinkExecutor = Executors.newScheduledThreadPool(1);
         adxSinkExecutor.scheduleAtFixedRate(this::sinkData, batchTimeMs, batchTimeMs, TimeUnit.MILLISECONDS);
@@ -129,7 +128,7 @@ public class ADXSink implements Sink<byte[]> {
                 eventsToSink.add(getADXPulsarEvent(record));
             } catch (Exception ex) {
                 record.fail();
-                LOG.error("Failed to collect the record for ADX cluster.", ex);
+                log.error("Failed to collect the record for ADX cluster.", ex);
             }
         }
         try {
@@ -166,7 +165,7 @@ public class ADXSink implements Sink<byte[]> {
             }
 
         } catch (Exception ex) {
-            LOG.error("Failed to publish the message to ADX cluster.", ex);
+            log.error("Failed to publish the message to ADX cluster", ex);
         }
     }
 
@@ -181,7 +180,7 @@ public class ADXSink implements Sink<byte[]> {
                 String failureStatus = status.getFailureStatus();
                 String details = status.getDetails();
                 UUID ingestionSourceId = status.getIngestionSourceId();
-                LOG.warn("A batch of streaming records has {} ingestion: table:{}, database:{}, operationId: {},"
+                log.warn("A batch of streaming records has {} ingestion: table:{}, database:{}, operationId: {},"
                                 + "ingestionSourceId: {}{}{}.\n"
                                 + "Status is final and therefore ingestion won't be retried and data won't reach dlq",
                         status.getStatus(),
@@ -201,7 +200,7 @@ public class ADXSink implements Sink<byte[]> {
             throws PulsarClientException.ConnectException {
         if (retryAttempts < maxRetryAttempts) {
             long sleepTimeMs = retryBackOffTime;
-            LOG.error(
+            log.error(
                     "Failed to ingest records into Kusto, backing off and retrying ingesting records "
                             + "after {} milliseconds.",
                     sleepTimeMs);
@@ -211,7 +210,7 @@ public class ADXSink implements Sink<byte[]> {
             } catch (InterruptedException interruptedErr) {
                 records.forEach(Record::fail);
                 throw new PulsarClientException.ConnectException(String.format(
-                        "Retrying ingesting records into KustoDB was interuppted after retryAttempts=%s",
+                        "Retrying ingesting records into KustoDB was interrupted after retryAttempts=%s",
                         retryAttempts + 1)
                 );
             }
@@ -226,7 +225,7 @@ public class ADXSink implements Sink<byte[]> {
     private ADXPulsarEvent getADXPulsarEvent(Record<byte[]> record) throws Exception {
         ADXPulsarEvent event = new ADXPulsarEvent();
         record.getEventTime().ifPresent(time -> event.setEventTime(Instant.ofEpochMilli(time)));
-        record.getKey().ifPresent(key -> event.setKey(key));
+        record.getKey().ifPresent(event::setKey);
         record.getMessage().ifPresent(message -> event.setProducerName(message.getProducerName()));
         record.getMessage().ifPresent(message -> event.setSequenceId(message.getSequenceId()));
         event.setValue(new String(record.getValue(), StandardCharsets.UTF_8));
@@ -238,13 +237,13 @@ public class ADXSink implements Sink<byte[]> {
         if (mappingRefType == null || mappingRefType.isEmpty()) {
             return null;
         }
-        switch (mappingRefType) {
-            case "CSV" : return IngestionMapping.IngestionMappingKind.CSV;
-            case "AVRO" : return IngestionMapping.IngestionMappingKind.AVRO;
-            case "JSON" : return IngestionMapping.IngestionMappingKind.JSON;
-            case "PARQUET" : return IngestionMapping.IngestionMappingKind.PARQUET;
-        }
-        return null;
+        return switch (mappingRefType) {
+            case "CSV" -> IngestionMapping.IngestionMappingKind.CSV;
+            case "AVRO" -> IngestionMapping.IngestionMappingKind.AVRO;
+            case "JSON" -> IngestionMapping.IngestionMappingKind.JSON;
+            case "PARQUET" -> IngestionMapping.IngestionMappingKind.PARQUET;
+            default -> null;
+        };
     }
 
     private ConnectionStringBuilder getConnectionStringBuilder(ADXSinkConfig adxconfig) {
@@ -263,6 +262,6 @@ public class ADXSink implements Sink<byte[]> {
     @Override
     public void close() throws Exception {
         ingestClient.close();
-        LOG.info("Kusto ingest client closed.");
+        log.info("Kusto ingest client closed.");
     }
 }
