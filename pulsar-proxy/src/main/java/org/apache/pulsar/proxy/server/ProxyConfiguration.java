@@ -188,24 +188,28 @@ public class ProxyConfiguration implements PulsarConfiguration {
 
     @FieldContext(
         category = CATEGORY_BROKER_DISCOVERY,
-        doc = "The web service url points to the broker cluster"
+        doc = "The web service url points to the discovery service provider of the broker cluster, and does not support"
+                + " multi url yet."
     )
     private String brokerWebServiceURL;
     @FieldContext(
         category = CATEGORY_BROKER_DISCOVERY,
-        doc = "The tls web service url points to the broker cluster"
+        doc = "The tls web service url points to the discovery service provider of the broker cluster, and does not"
+                + " support multi url yet."
     )
     private String brokerWebServiceURLTLS;
 
     @FieldContext(
         category = CATEGORY_BROKER_DISCOVERY,
-        doc = "The web service url points to the function worker cluster."
+        doc = "The web service url points to the discovery service provider of the function worker cluster, and does"
+                + " not support multi url yet."
             + " Only configure it when you setup function workers in a separate cluster"
     )
     private String functionWorkerWebServiceURL;
     @FieldContext(
         category = CATEGORY_BROKER_DISCOVERY,
-        doc = "The tls web service url points to the function worker cluster."
+        doc = "The tls web service url points to the discovery service provider of the function worker cluster, and"
+                + " does not support multi url yet."
             + " Only configure it when you setup function workers in a separate cluster"
     )
     private String functionWorkerWebServiceURLTLS;

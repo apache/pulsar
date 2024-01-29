@@ -175,6 +175,30 @@ public class ProxyServiceStarter {
                                 + " discovery service provider.");
             }
 
+            if (isNotBlank(config.getBrokerWebServiceURL())) {
+                checkArgument(!config.getBrokerWebServiceURL().contains(","),
+                        "brokerWebServiceURL does not support multi urls yet, it should point to the"
+                                + " discovery service provider.");
+            }
+
+            if (isNotBlank(config.getBrokerWebServiceURLTLS())) {
+                checkArgument(!config.getBrokerWebServiceURLTLS().contains(","),
+                        "brokerWebServiceURLTLS does not support multi urls yet, it should point to the"
+                                + " discovery service provider.");
+            }
+
+            if (isNotBlank(config.getFunctionWorkerWebServiceURL())) {
+                checkArgument(!config.getFunctionWorkerWebServiceURL().contains(","),
+                        "functionWorkerWebServiceURLTLS does not support multi urls yet, it should point"
+                                + " to the discovery service provider.");
+            }
+
+            if (isNotBlank(config.getFunctionWorkerWebServiceURLTLS())) {
+                checkArgument(!config.getFunctionWorkerWebServiceURLTLS().contains(","),
+                        "functionWorkerWebServiceURLTLS does not support multi urls yet, it should point"
+                                + " to the discovery service provider.");
+            }
+
             if ((isBlank(config.getBrokerServiceURL()) && isBlank(config.getBrokerServiceURLTLS()))
                     || config.isAuthorizationEnabled()) {
                 checkArgument(!isEmpty(config.getMetadataStoreUrl()), "metadataStoreUrl must be provided");
