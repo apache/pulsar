@@ -41,7 +41,7 @@ public class TopBundleLoadDataReporter implements LoadDataReporter<TopBundlesLoa
 
     private final PulsarService pulsar;
 
-    private final String lookupServiceAddress;
+    private final String brokerId;
 
     private final LoadDataStore<TopBundlesLoadData> bundleLoadDataStore;
 
@@ -53,10 +53,10 @@ public class TopBundleLoadDataReporter implements LoadDataReporter<TopBundlesLoa
     private long tombstoneDelayInMillis;
 
     public TopBundleLoadDataReporter(PulsarService pulsar,
-                                     String lookupServiceAddress,
+                                     String brokerId,
                                      LoadDataStore<TopBundlesLoadData> bundleLoadDataStore) {
         this.pulsar = pulsar;
-        this.lookupServiceAddress = lookupServiceAddress;
+        this.brokerId = brokerId;
         this.bundleLoadDataStore = bundleLoadDataStore;
         this.lastBundleStatsUpdatedAt = 0;
         this.topKBundles = new TopKBundles(pulsar);
@@ -88,7 +88,7 @@ public class TopBundleLoadDataReporter implements LoadDataReporter<TopBundlesLoa
             if (ExtensibleLoadManagerImpl.debug(pulsar.getConfiguration(), log)) {
                 log.info("Reporting TopBundlesLoadData:{}", topKBundles.getLoadData());
             }
-            return this.bundleLoadDataStore.pushAsync(lookupServiceAddress, topKBundles.getLoadData())
+            return this.bundleLoadDataStore.pushAsync(brokerId, topKBundles.getLoadData())
                     .exceptionally(e -> {
                         log.error("Failed to report top-bundles load data.", e);
                         return null;
@@ -106,7 +106,7 @@ public class TopBundleLoadDataReporter implements LoadDataReporter<TopBundlesLoa
         }
         var lastSuccessfulTombstonedAt = lastTombstonedAt;
         lastTombstonedAt = now; // dedup first
-        bundleLoadDataStore.removeAsync(lookupServiceAddress)
+        bundleLoadDataStore.removeAsync(brokerId)
                 .whenComplete((__, e) -> {
                             if (e != null) {
                                 log.error("Failed to clean broker load data.", e);
@@ -129,12 +129,12 @@ public class TopBundleLoadDataReporter implements LoadDataReporter<TopBundlesLoa
         ServiceUnitState state = ServiceUnitStateData.state(data);
         switch (state) {
             case Releasing, Splitting -> {
-                if (StringUtils.equals(data.sourceBroker(), lookupServiceAddress)) {
+                if (StringUtils.equals(data.sourceBroker(), brokerId)) {
                     tombstone();
                 }
             }
             case Owned -> {
-                if (StringUtils.equals(data.dstBroker(), lookupServiceAddress)) {
+                if (StringUtils.equals(data.dstBroker(), brokerId)) {
                     tombstone();
                 }
             }

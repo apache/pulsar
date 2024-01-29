@@ -25,7 +25,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
@@ -55,6 +54,7 @@ import org.apache.pulsar.client.impl.Backoff;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.compaction.CompactedTopicUtils;
+import org.apache.pulsar.compaction.Compactor;
 import org.apache.pulsar.compaction.TopicCompactionService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -108,9 +108,9 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Rewind cursor and read more entries without delay", name);
             }
-            cursor.rewind();
-
             Consumer activeConsumer = ACTIVE_CONSUMER_UPDATER.get(this);
+            cursor.rewind(activeConsumer != null && activeConsumer.readCompacted());
+
             notifyActiveConsumerChanged(activeConsumer);
             readMoreEntries(activeConsumer);
             return;
@@ -128,9 +128,9 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
                 log.debug("[{}] Rewind cursor and read more entries after {} ms delay", name,
                         serviceConfig.getActiveConsumerFailoverDelayTimeMillis());
             }
-            cursor.rewind();
-
             Consumer activeConsumer = ACTIVE_CONSUMER_UPDATER.get(this);
+            cursor.rewind(activeConsumer != null && activeConsumer.readCompacted());
+
             notifyActiveConsumerChanged(activeConsumer);
             readMoreEntries(activeConsumer);
             readOnActiveConsumerTask = null;
@@ -207,7 +207,7 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
                 }
             }
             entries.forEach(Entry::release);
-            cursor.rewind();
+            cursor.rewind(currentConsumer != null ? currentConsumer.readCompacted() : readConsumer.readCompacted());
             if (currentConsumer != null) {
                 notifyActiveConsumerChanged(currentConsumer);
                 readMoreEntries(currentConsumer);
@@ -302,7 +302,7 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
         }
         cursor.cancelPendingReadRequest();
         havePendingRead = false;
-        cursor.rewind();
+        cursor.rewind(consumer.readCompacted());
         if (log.isDebugEnabled()) {
             log.debug("[{}-{}] Cursor rewinded, redelivering unacknowledged messages. ", name, consumer);
         }
@@ -320,13 +320,15 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
         // so skip reading more entries if currently there is no active consumer.
         if (null == consumer) {
             if (log.isDebugEnabled()) {
-                log.debug("[{}] Skipping read for the topic, Due to the current consumer is null", topic.getName());
+                log.debug("[{}] [{}] Skipping read for the topic, Due to the current consumer is null", topic.getName(),
+                        getSubscriptionName());
             }
             return;
         }
         if (havePendingRead) {
             if (log.isDebugEnabled()) {
-                log.debug("[{}] Skipping read for the topic, Due to we have pending read.", topic.getName());
+                log.debug("[{}] [{}] Skipping read for the topic, Due to we have pending read.", topic.getName(),
+                        getSubscriptionName());
             }
             return;
         }
@@ -361,7 +363,9 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
                 }
                 havePendingRead = true;
                 if (consumer.readCompacted()) {
-                    boolean readFromEarliest = isFirstRead && MessageId.earliest.equals(consumer.getStartMessageId());
+                    boolean readFromEarliest = isFirstRead && MessageId.earliest.equals(consumer.getStartMessageId())
+                            && (!cursor.isDurable() || cursor.getName().equals(Compactor.COMPACTION_SUBSCRIPTION)
+                            || hasValidMarkDeletePosition(cursor));
                     TopicCompactionService topicCompactionService = topic.getTopicCompactionService();
                     CompactedTopicUtils.asyncReadCompactedEntries(topicCompactionService, cursor, messagesToRead,
                             bytesToRead, topic.getMaxReadPosition(), readFromEarliest, this, true, consumer);
@@ -377,6 +381,13 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
                 log.debug("[{}-{}] Consumer buffer is full, pause reading", name, consumer);
             }
         }
+    }
+
+    private boolean hasValidMarkDeletePosition(ManagedCursor cursor) {
+        // If `markDeletedPosition.entryID == -1L` then the md-position is an invalid position,
+        // since the initial md-position of the consumer will be set to it.
+        // See ManagedLedgerImpl#asyncOpenCursor and ManagedLedgerImpl#getFirstPosition
+        return cursor.getMarkDeletedPosition() != null && cursor.getMarkDeletedPosition().getEntryId() == -1L;
     }
 
     @Override
@@ -561,13 +572,6 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
     }
 
     @Override
-    public void updateRateLimiter() {
-        if (!initializeDispatchRateLimiterIfNeeded()) {
-            this.dispatchRateLimiter.ifPresent(DispatchRateLimiter::updateDispatchRate);
-        }
-    }
-
-    @Override
     public boolean initializeDispatchRateLimiterIfNeeded() {
         if (!dispatchRateLimiter.isPresent() && DispatchRateLimiter.isDispatchRateEnabled(
                 topic.getSubscriptionDispatchRate(getSubscriptionName()))) {
@@ -576,13 +580,6 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
             return true;
         }
         return false;
-    }
-
-    @Override
-    public CompletableFuture<Void> close() {
-        IS_CLOSED_UPDATER.set(this, TRUE);
-        dispatchRateLimiter.ifPresent(DispatchRateLimiter::close);
-        return disconnectAllConsumers();
     }
 
     @Override

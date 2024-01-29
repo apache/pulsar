@@ -24,7 +24,7 @@
   <parent>
     <groupId>org.apache.pulsar</groupId>
     <artifactId>pulsar-io-debezium</artifactId>
-    <version>3.2.0-SNAPSHOT</version>
+    <version>3.3.0-SNAPSHOT</version>
   </parent>
 
   <artifactId>pulsar-io-debezium-core</artifactId>
@@ -70,6 +70,10 @@
         <exclusion>
           <groupId>org.apache.kafka</groupId>
           <artifactId>kafka-log4j-appender</artifactId>
+        </exclusion>
+        <exclusion>
+          <artifactId>jose4j</artifactId>
+          <groupId>org.bitbucket.b_c</groupId>
         </exclusion>
       </exclusions>
     </dependency>

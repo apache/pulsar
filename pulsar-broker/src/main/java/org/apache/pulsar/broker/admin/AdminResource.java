@@ -395,7 +395,7 @@ public abstract class AdminResource extends PulsarWebResource {
     }
 
     protected void checkTopicLevelPolicyEnable() {
-        if (!config().isTopicLevelPoliciesEnabled()) {
+        if (!config().isSystemTopicAndTopicLevelPoliciesEnabled()) {
             throw new RestException(Status.METHOD_NOT_ALLOWED,
                     "Topic level policies is disabled, to enable the topic level policy and retry.");
         }
@@ -727,7 +727,7 @@ public abstract class AdminResource extends PulsarWebResource {
 
     protected CompletableFuture<SchemaCompatibilityStrategy> getSchemaCompatibilityStrategyAsyncWithoutAuth() {
         CompletableFuture<SchemaCompatibilityStrategy> future = CompletableFuture.completedFuture(null);
-        if (config().isTopicLevelPoliciesEnabled()) {
+        if (config().isSystemTopicAndTopicLevelPoliciesEnabled()) {
             future = getTopicPoliciesAsyncWithRetry(topicName)
                     .thenApply(op -> op.map(TopicPolicies::getSchemaCompatibilityStrategy).orElse(null));
         }
