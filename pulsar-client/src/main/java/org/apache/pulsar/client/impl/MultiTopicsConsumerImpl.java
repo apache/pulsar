@@ -258,8 +258,12 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
             }
             // Process the message, add to the queue and trigger listener or async callback
             messages.forEach(msg -> {
-                if (isValidConsumerEpoch((MessageImpl<T>) msg) && !duringSeek) {
+                final boolean skipDueToSeek = duringSeek;
+                if (isValidConsumerEpoch((MessageImpl<T>) msg) && !skipDueToSeek) {
                     messageReceived(consumer, msg);
+                } else if (skipDueToSeek) {
+                    log.info("[{}] [{}] Skip processing message {} received during seek", topic, subscription,
+                            msg.getMessageId());
                 }
             });
 
@@ -759,7 +763,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
 
     @Override
     public CompletableFuture<Void> seekAsync(MessageId messageId) {
-        final Consumer<T> internalConsumer;
+        final ConsumerImpl<T> internalConsumer;
         if (messageId instanceof TopicMessageId) {
             TopicMessageId topicMessageId = (TopicMessageId) messageId;
             internalConsumer = consumers.get(topicMessageId.getOwnerTopic());
@@ -779,10 +783,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         if (internalConsumer == null) {
             return seekAllAsync(consumer -> consumer.seekAsync(messageId));
         } else {
-            beforeSeek();
-            final CompletableFuture<Void> future = new CompletableFuture<>();
-            internalConsumer.seekAsync(messageId).whenComplete((__, e) -> afterSeek(future, e));
-            return future;
+            return seekAsyncInternal(Collections.singleton(internalConsumer), __ -> __.seekAsync(messageId));
         }
     }
 
@@ -791,12 +792,17 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         return seekAllAsync(consumer -> consumer.seekAsync(timestamp));
     }
 
-    private CompletableFuture<Void> seekAllAsync(Function<ConsumerImpl<T>, CompletableFuture<Void>> seekFunc) {
+    private CompletableFuture<Void> seekAsyncInternal(Collection<ConsumerImpl<T>> consumers,
+                                                      Function<ConsumerImpl<T>, CompletableFuture<Void>> seekFunc) {
         beforeSeek();
         final CompletableFuture<Void> future = new CompletableFuture<>();
-        FutureUtil.waitForAll(consumers.values().stream().map(seekFunc).collect(Collectors.toList()))
+        FutureUtil.waitForAll(consumers.stream().map(seekFunc).collect(Collectors.toList()))
                 .whenComplete((__, e) -> afterSeek(future, e));
         return future;
+    }
+
+    private CompletableFuture<Void> seekAllAsync(Function<ConsumerImpl<T>, CompletableFuture<Void>> seekFunc) {
+        return seekAsyncInternal(consumers.values(), seekFunc);
     }
 
     private void beforeSeek() {
