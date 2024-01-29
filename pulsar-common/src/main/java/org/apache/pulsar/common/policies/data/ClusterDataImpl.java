@@ -113,6 +113,11 @@ public final class ClusterDataImpl implements  ClusterData, Cloneable {
     )
     private boolean tlsAllowInsecureConnection;
     @ApiModelProperty(
+            name = "tlsHostnameVerificationEnabled",
+            value = "Enable TLS hostname verification"
+    )
+    private boolean tlsHostnameVerificationEnabled = true;
+    @ApiModelProperty(
         name = "brokerClientTlsEnabledWithKeyStore",
         value = "Whether internal client use KeyStore type to authenticate with other Pulsar brokers"
     )
@@ -195,6 +200,7 @@ public final class ClusterDataImpl implements  ClusterData, Cloneable {
                 .peerClusterNames(peerClusterNames)
                 .brokerClientTlsEnabled(brokerClientTlsEnabled)
                 .tlsAllowInsecureConnection(tlsAllowInsecureConnection)
+                .tlsHostnameVerificationEnabled(tlsHostnameVerificationEnabled)
                 .brokerClientTlsEnabledWithKeyStore(brokerClientTlsEnabledWithKeyStore)
                 .brokerClientTlsTrustStoreType(brokerClientTlsTrustStoreType)
                 .brokerClientTlsTrustStore(brokerClientTlsTrustStore)
@@ -221,6 +227,7 @@ public final class ClusterDataImpl implements  ClusterData, Cloneable {
         private LinkedHashSet<String> peerClusterNames;
         private boolean brokerClientTlsEnabled = false;
         private boolean tlsAllowInsecureConnection = false;
+        private boolean tlsHostnameVerificationEnabled = true;
         private boolean brokerClientTlsEnabledWithKeyStore = false;
         private String brokerClientTlsTrustStoreType = "JKS";
         private String brokerClientTlsTrustStore;
@@ -288,6 +295,11 @@ public final class ClusterDataImpl implements  ClusterData, Cloneable {
 
         public ClusterDataImplBuilder tlsAllowInsecureConnection(boolean tlsAllowInsecureConnection) {
             this.tlsAllowInsecureConnection = tlsAllowInsecureConnection;
+            return this;
+        }
+
+        public ClusterDataImplBuilder tlsHostnameVerificationEnabled(boolean tlsHostnameVerificationEnabled) {
+            this.tlsHostnameVerificationEnabled = tlsHostnameVerificationEnabled;
             return this;
         }
 
@@ -365,6 +377,7 @@ public final class ClusterDataImpl implements  ClusterData, Cloneable {
                     peerClusterNames,
                     brokerClientTlsEnabled,
                     tlsAllowInsecureConnection,
+                    tlsHostnameVerificationEnabled,
                     brokerClientTlsEnabledWithKeyStore,
                     brokerClientTlsTrustStoreType,
                     brokerClientTlsTrustStore,

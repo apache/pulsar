@@ -346,6 +346,10 @@ public class CmdClusters extends CmdBase {
         @Parameter(names = "--tls-allow-insecure", description = "Allow insecure tls connection", required = false)
         protected Boolean tlsAllowInsecureConnection;
 
+        @Parameter(names = "--hostname-verification-enabled", description = "Enable hostname verification",
+                required = false)
+        protected Boolean tlsHostnameVerificationEnabled;
+
         @Parameter(names = "--tls-enable-keystore",
                 description = "Whether use KeyStore type to authenticate", required = false)
         protected Boolean brokerClientTlsEnabledWithKeyStore;
@@ -436,6 +440,9 @@ public class CmdClusters extends CmdBase {
             }
             if (tlsAllowInsecureConnection != null) {
                 builder.tlsAllowInsecureConnection(tlsAllowInsecureConnection);
+            }
+            if (tlsHostnameVerificationEnabled != null) {
+                builder.tlsHostnameVerificationEnabled(tlsHostnameVerificationEnabled);
             }
             if (brokerClientTlsEnabledWithKeyStore != null) {
                 builder.brokerClientTlsEnabledWithKeyStore(brokerClientTlsEnabledWithKeyStore);

@@ -45,6 +45,8 @@ public interface ClusterData {
 
     boolean isTlsAllowInsecureConnection();
 
+    boolean isTlsHostnameVerificationEnabled();
+
     boolean isBrokerClientTlsEnabledWithKeyStore();
 
     String getBrokerClientTlsTrustStoreType();
@@ -89,6 +91,8 @@ public interface ClusterData {
         Builder brokerClientTlsEnabled(boolean enabled);
 
         Builder tlsAllowInsecureConnection(boolean enabled);
+
+        Builder tlsHostnameVerificationEnabled(boolean enabled);
 
         Builder brokerClientTlsEnabledWithKeyStore(boolean enabled);
 
