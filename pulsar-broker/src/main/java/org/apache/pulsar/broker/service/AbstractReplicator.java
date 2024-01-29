@@ -75,10 +75,10 @@ public abstract class AbstractReplicator {
         Started,
         // The internal producer is trying to stop.
         Stopping,
-        // The replicator is closing.
-        Closing,
+        // The replicator is in terminating.
+        Terminating,
         // The replicator is never used again. Pulsar will create a new Replicator when enable replication again.
-        Closed
+        Terminated
     }
 
     public AbstractReplicator(String localCluster, Topic localTopic, String remoteCluster, String remoteTopicName,
@@ -173,7 +173,7 @@ public abstract class AbstractReplicator {
 
     protected void scheduleCheckTopicActiveAndStartProducer(final long waitTimeMs) {
         brokerService.executor().schedule(() -> {
-            if (state == State.Closed) {
+            if (state == State.Terminated) {
                 return;
             }
             CompletableFuture<Optional<Topic>> topicFuture = brokerService.getTopics().get(localTopicName);
@@ -244,12 +244,12 @@ public abstract class AbstractReplicator {
 
     protected synchronized CompletableFuture<Void> terminateInternal() {
         if (producer == null) {
-            STATE_UPDATER.set(this, State.Closed);
+            STATE_UPDATER.set(this, State.Terminated);
             return CompletableFuture.completedFuture(null);
         }
         CompletableFuture<Void> future = producer.closeAsync();
         return future.thenRun(() -> {
-            STATE_UPDATER.set(this, State.Closed);
+            STATE_UPDATER.set(this, State.Terminated);
             this.producer = null;
             // set the cursor as inactive.
             disableReplicatorRead();
@@ -282,24 +282,24 @@ public abstract class AbstractReplicator {
 
         log.info("[{}] Disconnect replicator at position {} with backlog {}", replicatorId,
                 getReplicatorReadPosition(), getNumberOfEntriesInBacklog());
-        if (!tryChangeStatusToClosing()) {
+        if (!tryChangeStatusToTerminating()) {
             // The replicator has been called "terminate" before, just return success.
             return CompletableFuture.completedFuture(null);
         }
         return terminateInternal();
     }
 
-    protected boolean tryChangeStatusToClosing() {
-        if (STATE_UPDATER.compareAndSet(this, State.Starting, State.Closing)){
+    protected boolean tryChangeStatusToTerminating() {
+        if (STATE_UPDATER.compareAndSet(this, State.Starting, State.Terminating)){
             return true;
         }
-        if (STATE_UPDATER.compareAndSet(this, State.Started, State.Closing)){
+        if (STATE_UPDATER.compareAndSet(this, State.Started, State.Terminating)){
             return true;
         }
-        if (STATE_UPDATER.compareAndSet(this, State.Stopping, State.Closing)){
+        if (STATE_UPDATER.compareAndSet(this, State.Stopping, State.Terminating)){
             return true;
         }
-        if (STATE_UPDATER.compareAndSet(this, State.Stopped, State.Closing)) {
+        if (STATE_UPDATER.compareAndSet(this, State.Stopped, State.Terminating)) {
             return true;
         }
         return false;
