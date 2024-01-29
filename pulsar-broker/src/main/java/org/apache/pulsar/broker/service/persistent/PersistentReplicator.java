@@ -154,8 +154,7 @@ public abstract class PersistentReplicator extends AbstractReplicator
                     "[{}] Replicator was stopped while creating the producer."
                             + " Closing it. Replicator state: {}",
                     replicatorId, STATE_UPDATER.get(this));
-            STATE_UPDATER.set(this, State.Stopping);
-            closeAsync(false);
+            closeProducerAsync();
         }
 
     }
@@ -436,8 +435,8 @@ public abstract class PersistentReplicator extends AbstractReplicator
             log.error("[{}] Error reading entries because replicator is"
                             + " already deleted and cursor is already closed {}, ({})",
                     replicatorId, ctx, exception.getMessage(), exception);
-            // replicator is already deleted and cursor is already closed so, producer should also be stopped
-            closeAsync(false);
+            // replicator is already deleted and cursor is already closed so, producer should also be stopped.
+            closeProducerAsync();
             return;
         } else if (!(exception instanceof TooManyRequestsException)) {
             log.error("[{}] Error reading entries at {}. Retrying to read in {}s. ({})",
@@ -555,8 +554,8 @@ public abstract class PersistentReplicator extends AbstractReplicator
         if (exception instanceof CursorAlreadyClosedException) {
             log.error("[{}] Asynchronous ack failure because replicator is already deleted and cursor is already"
                             + " closed {}, ({})", replicatorId, ctx, exception.getMessage(), exception);
-            // replicator is already deleted and cursor is already closed so, producer should also be stopped
-            closeAsync(false);
+            // replicator is already deleted and cursor is already closed so, producer should also be stopped.
+            closeProducerAsync();
             return;
         }
         if (ctx instanceof PositionImpl) {
@@ -676,15 +675,15 @@ public abstract class PersistentReplicator extends AbstractReplicator
     }
 
     @Override
-    public CompletableFuture<Void> disconnect() {
-        return disconnect(false);
+    public CompletableFuture<Void> terminate() {
+        return terminate(false);
     }
 
     @Override
-    public synchronized CompletableFuture<Void> disconnect(boolean failIfHasBacklog) {
+    public synchronized CompletableFuture<Void> terminate(boolean failIfHasBacklog) {
         final CompletableFuture<Void> future = new CompletableFuture<>();
 
-        super.disconnect(failIfHasBacklog).thenRun(() -> {
+        super.terminate(failIfHasBacklog).thenRun(() -> {
             dispatchRateLimiter.ifPresent(DispatchRateLimiter::close);
             future.complete(null);
         }).exceptionally(ex -> {
