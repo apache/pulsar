@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.tests.integration.metrics;
 
-import java.net.URL;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -34,7 +33,6 @@ import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.tests.integration.containers.OpenTelemetryCollectorContainer;
-import org.apache.pulsar.tests.integration.containers.ProxyContainer;
 import org.apache.pulsar.tests.integration.containers.PulsarContainer;
 import org.apache.pulsar.tests.integration.functions.PulsarFunctionsTest;
 import org.apache.pulsar.tests.integration.functions.utils.CommandGenerator;
@@ -77,13 +75,9 @@ public class MetricsTest {
         var pulsarCluster = PulsarCluster.forSpec(spec);
         pulsarCluster.start();
 
-        var useLocalRunner = false;
-
         pulsarCluster.setupFunctionWorkers(functionWorkerServiceNameSuffix, FunctionRuntimeType.PROCESS, 1);
-        var serviceUrl = pulsarCluster.getPlainTextServiceUrl();
-        var functionWorkerCommand =
-                getFunctionWorkerCommand(pulsarCluster, functionWorkerServiceNameSuffix, useLocalRunner);
-        pulsarCluster.getAnyWorker().execCmdAsync(functionWorkerCommand.split(" "));
+        var functionWorkerCommand = getFunctionWorkerCommand(pulsarCluster, functionWorkerServiceNameSuffix);
+        pulsarCluster.getAnyWorker().execCmdAsync("sh", "-c", functionWorkerCommand);
 
         var metricName = "queueSize_ratio"; // Sent automatically by the OpenTelemetry SDK.
         Awaitility.waitAtMost(90, TimeUnit.SECONDS).pollInterval(1, TimeUnit.SECONDS).until(() -> {
@@ -98,7 +92,7 @@ public class MetricsTest {
         });
     }
 
-    @Test(timeOut = 900_000)
+    @Test(timeOut = 300_000)
     public void testOpenTelemetryMetricsPrometheusExport() throws Exception {
         var prometheusExporterPort = 9464;
         var clusterName = "testOpenTelemetryMetrics-" + UUID.randomUUID();
@@ -111,7 +105,6 @@ public class MetricsTest {
 
         var functionWorkerServiceNameSuffix = PulsarTestBase.randomName();
         var functionWorkerOtelServiceName = "function-worker-" + functionWorkerServiceNameSuffix;
-        // Locally run Pulsar Functions override cluster name definitions to "local".
         var functionWorkerCollectorProps = getCollectorProps(functionWorkerOtelServiceName, prometheusExporterPort);
 
         var spec = PulsarClusterSpec.builder()
@@ -127,11 +120,8 @@ public class MetricsTest {
         var pulsarCluster = PulsarCluster.forSpec(spec);
         pulsarCluster.start();
 
-        var useLocalRunner = false;
-
         pulsarCluster.setupFunctionWorkers(functionWorkerServiceNameSuffix, FunctionRuntimeType.PROCESS, 1);
-        var functionWorkerCommand =
-                getFunctionWorkerCommand(pulsarCluster, functionWorkerServiceNameSuffix, useLocalRunner);
+        var functionWorkerCommand = getFunctionWorkerCommand(pulsarCluster, functionWorkerServiceNameSuffix);
         var workerContainer = pulsarCluster.getAnyWorker();
         workerContainer.execCmdAsync("sh", "-c", functionWorkerCommand);
 
@@ -152,7 +142,7 @@ public class MetricsTest {
             return !expectedMetrics.isEmpty();
         });
 
-        Awaitility.waitAtMost(900, TimeUnit.SECONDS).ignoreExceptions().pollInterval(1, TimeUnit.SECONDS).until(() -> {
+        Awaitility.waitAtMost(90, TimeUnit.SECONDS).ignoreExceptions().pollInterval(1, TimeUnit.SECONDS).until(() -> {
             var prometheusClient = createMetricsClient(workerContainer, prometheusExporterPort);
             var metrics = prometheusClient.getMetrics();
             var expectedMetrics = metrics.findByNameAndLabels(metricName,
@@ -190,7 +180,7 @@ public class MetricsTest {
         return props;
     }
 
-    private static String getFunctionWorkerCommand(PulsarCluster pulsarCluster, String suffix, boolean useLocalRunner)
+    private static String getFunctionWorkerCommand(PulsarCluster pulsarCluster, String suffix)
             throws Exception {
         var namespace = NamespaceName.get("public", "default");
         var sourceTopicName = TopicName.get(TopicDomain.persistent.toString(), namespace, "metricTestSource-" + suffix);
@@ -201,22 +191,12 @@ public class MetricsTest {
             admin.topics().createNonPartitionedTopic(sinkTopicName.toString());
         }
 
-        var serviceUrl = useLocalRunner ?
-                pulsarCluster.getPlainTextServiceUrl() :
-                new URL("http", ProxyContainer.NAME, ProxyContainer.BROKER_HTTP_PORT, "").toString();
-
         var commandGenerator = new CommandGenerator();
-        if (useLocalRunner) {
-            commandGenerator.setAdminUrl(serviceUrl);
-        }
         commandGenerator.setSourceTopic(sourceTopicName.toString());
         commandGenerator.setSinkTopic(sinkTopicName.toString());
         commandGenerator.setRuntime(CommandGenerator.Runtime.JAVA);
         commandGenerator.setFunctionName("metricsTestLocalRunTest-" + suffix);
         commandGenerator.setFunctionClassName(PulsarFunctionsTest.EXCLAMATION_JAVA_CLASS);
-        if (useLocalRunner) {
-            return commandGenerator.generateLocalRunCommand(null);
-        }
         return commandGenerator.generateCreateFunctionCommand();
     }
 }
