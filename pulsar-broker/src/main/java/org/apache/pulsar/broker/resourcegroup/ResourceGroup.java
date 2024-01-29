@@ -325,8 +325,10 @@ public class ResourceGroup {
             retval.bytes = pbus.usedValues.bytes;
             retval.messages = pbus.usedValues.messages;
         } else {
-            log.info("getLocalUsageStatsFromBrokerReports: no usage report found for broker={} and monClass={}",
-                    myBrokerId, monClass);
+            if (log.isDebugEnabled()) {
+                log.debug("getLocalUsageStatsFromBrokerReports: no usage report found for broker={} and monClass={}",
+                        myBrokerId, monClass);
+            }
         }
 
         return retval;

@@ -16,24 +16,15 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.common.policies.data;
+package org.apache.pulsar.functions.api.state;
 
-import org.apache.pulsar.common.policies.data.impl.BrokerInfoImpl;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
 
-/**
- * Broker Information.
- */
-public interface BrokerInfo {
-    String getServiceUrl();
-    String getBrokerId();
-
-    interface Builder {
-        Builder serviceUrl(String serviceUrl);
-        Builder brokerId(String brokerId);
-        BrokerInfo build();
-    }
-
-    static Builder builder() {
-        return BrokerInfoImpl.builder();
-    }
+@Getter
+@AllArgsConstructor
+public class StateValue {
+    private final byte[] value;
+    private final Long version;
+    private final Boolean isNumber;
 }

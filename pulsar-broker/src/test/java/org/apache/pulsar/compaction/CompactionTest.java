@@ -1778,9 +1778,9 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
     @SneakyThrows
     @Test
     public void testHealthCheckTopicNotCompacted() {
-        NamespaceName heartbeatNamespaceV1 = NamespaceService.getHeartbeatNamespace(pulsar.getLookupServiceAddress(), pulsar.getConfiguration());
+        NamespaceName heartbeatNamespaceV1 = NamespaceService.getHeartbeatNamespace(pulsar.getBrokerId(), pulsar.getConfiguration());
         String topicV1 = "persistent://" + heartbeatNamespaceV1.toString() + "/healthcheck";
-        NamespaceName heartbeatNamespaceV2 = NamespaceService.getHeartbeatNamespaceV2(pulsar.getLookupServiceAddress(), pulsar.getConfiguration());
+        NamespaceName heartbeatNamespaceV2 = NamespaceService.getHeartbeatNamespaceV2(pulsar.getBrokerId(), pulsar.getConfiguration());
         String topicV2 = heartbeatNamespaceV2.toString() + "/healthcheck";
         Producer<byte[]> producer1 = pulsarClient.newProducer().topic(topicV1).create();
         Producer<byte[]> producer2 = pulsarClient.newProducer().topic(topicV2).create();
@@ -1875,6 +1875,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
 
         ConsumerImpl<String> consumer = (ConsumerImpl<String>) client.newConsumer(Schema.STRING)
                 .topic(topicName).readCompacted(true).receiverQueueSize(receiveQueueSize).subscriptionName(subName)
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
                 .subscribe();
 
         //Give some time to consume
@@ -1918,6 +1919,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
 
         ConsumerImpl<byte[]> consumer = (ConsumerImpl<byte[]>) client.newConsumer(Schema.BYTES)
                 .topic(topicName).readCompacted(true).receiverQueueSize(receiveQueueSize).subscriptionName(subName)
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
                 .subscribe();
 
         Awaitility.await().untilAsserted(() -> {
@@ -2190,9 +2192,11 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
         });
 
         @Cleanup
-        Consumer<String> consumer =
-                pulsarClient.newConsumer(Schema.STRING).topic(topicName).subscriptionName(subName).readCompacted(true)
-                        .subscribe();
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING).topic(topicName)
+                .subscriptionName("sub-2")
+                .readCompacted(true)
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                .subscribe();
 
         List<String> result = new ArrayList<>();
         while (true) {
@@ -2205,5 +2209,159 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
         }
 
         Assert.assertEquals(result, List.of("V3", "V4", "V5"));
+    }
+
+    @Test
+    public void testAcknowledgeWithReconnection() throws Exception {
+        final String topicName = "persistent://my-property/use/my-ns/testAcknowledge" + UUID.randomUUID();
+        final String subName = "my-sub";
+        @Cleanup
+        PulsarClient client = newPulsarClient(lookupUrl.toString(), 100);
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .enableBatching(false).topic(topicName).create();
+
+        List<String> expected = new ArrayList<>();
+        for (int i = 0; i < 10; i++) {
+            producer.newMessage().key(String.valueOf(i)).value(String.valueOf(i)).send();
+            expected.add(String.valueOf(i));
+        }
+        producer.flush();
+
+        admin.topics().triggerCompaction(topicName);
+
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(admin.topics().compactionStatus(topicName).status,
+                    LongRunningProcessStatus.Status.SUCCESS);
+        });
+
+        // trim the topic
+        admin.topics().unload(topicName);
+
+        Awaitility.await().untilAsserted(() -> {
+            PersistentTopicInternalStats internalStats = admin.topics().getInternalStats(topicName, false);
+            assertEquals(internalStats.numberOfEntries, 0);
+        });
+
+        ConsumerImpl<String> consumer = (ConsumerImpl<String>) client.newConsumer(Schema.STRING)
+                .topic(topicName).readCompacted(true).receiverQueueSize(1).subscriptionName(subName)
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                .isAckReceiptEnabled(true)
+                .subscribe();
+
+        List<String> results = new ArrayList<>();
+        for (int i = 0; i < 5; i++) {
+            Message<String> message = consumer.receive(3, TimeUnit.SECONDS);
+            if (message == null) {
+                break;
+            }
+            results.add(message.getValue());
+            consumer.acknowledge(message);
+        }
+
+        Awaitility.await().untilAsserted(() ->
+                assertEquals(admin.topics().getStats(topicName, true).getSubscriptions().get(subName).getMsgBacklog(),
+                        5));
+
+        // Make consumer reconnect to broker
+        admin.topics().unload(topicName);
+
+        // Wait for consumer to reconnect and clear incomingMessages
+        consumer.pause();
+        Awaitility.await().untilAsserted(() -> {
+            Assert.assertEquals(consumer.numMessagesInQueue(), 0);
+        });
+        consumer.resume();
+
+        for (int i = 0; i < 5; i++) {
+            Message<String> message = consumer.receive(3, TimeUnit.SECONDS);
+            if (message == null) {
+                break;
+            }
+            results.add(message.getValue());
+            consumer.acknowledge(message);
+        }
+
+        Awaitility.await().untilAsserted(() ->
+                assertEquals(admin.topics().getStats(topicName, true).getSubscriptions().get(subName).getMsgBacklog(),
+                        0));
+
+        Assert.assertEquals(results, expected);
+
+        Message<String> message = consumer.receive(3, TimeUnit.SECONDS);
+        Assert.assertNull(message);
+
+        // Make consumer reconnect to broker
+        admin.topics().unload(topicName);
+
+        producer.newMessage().key("K").value("V").send();
+        Message<String> message2 = consumer.receive(3, TimeUnit.SECONDS);
+        Assert.assertEquals(message2.getValue(), "V");
+        consumer.acknowledge(message2);
+
+        Awaitility.await().untilAsserted(() -> {
+            PersistentTopicInternalStats internalStats = admin.topics().getInternalStats(topicName);
+            Assert.assertEquals(internalStats.lastConfirmedEntry,
+                    internalStats.cursors.get(subName).markDeletePosition);
+        });
+
+        consumer.close();
+        producer.close();
+    }
+
+    @Test
+    public void testEarliestSubsAfterRollover() throws Exception {
+        final String topicName = "persistent://my-property/use/my-ns/testEarliestSubsAfterRollover" + UUID.randomUUID();
+        final String subName = "my-sub";
+        @Cleanup
+        PulsarClient client = newPulsarClient(lookupUrl.toString(), 100);
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .enableBatching(false).topic(topicName).create();
+
+        List<String> expected = new ArrayList<>();
+        for (int i = 0; i < 10; i++) {
+            producer.newMessage().key(String.valueOf(i)).value(String.valueOf(i)).send();
+            expected.add(String.valueOf(i));
+        }
+        producer.flush();
+
+        admin.topics().triggerCompaction(topicName);
+
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(admin.topics().compactionStatus(topicName).status,
+                    LongRunningProcessStatus.Status.SUCCESS);
+        });
+
+        // trim the topic
+        admin.topics().unload(topicName);
+
+        Awaitility.await().untilAsserted(() -> {
+            PersistentTopicInternalStats internalStats = admin.topics().getInternalStats(topicName, false);
+            assertEquals(internalStats.numberOfEntries, 0);
+        });
+
+        // Make ml.getFirstPosition() return new ledger first position
+        producer.newMessage().key("K").value("V").send();
+        expected.add("V");
+
+        @Cleanup
+        ConsumerImpl<String> consumer = (ConsumerImpl<String>) client.newConsumer(Schema.STRING)
+                .topic(topicName).readCompacted(true).receiverQueueSize(1).subscriptionName(subName)
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                .isAckReceiptEnabled(true)
+                .subscribe();
+
+        List<String> results = new ArrayList<>();
+        while (true) {
+            Message<String> message = consumer.receive(3, TimeUnit.SECONDS);
+            if (message == null) {
+                break;
+            }
+
+            results.add(message.getValue());
+            consumer.acknowledge(message);
+        }
+
+        Assert.assertEquals(results, expected);
     }
 }

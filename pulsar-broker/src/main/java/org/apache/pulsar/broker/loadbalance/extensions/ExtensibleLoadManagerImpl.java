@@ -353,7 +353,8 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
         try {
             this.brokerRegistry = new BrokerRegistryImpl(pulsar);
             this.leaderElectionService = new LeaderElectionService(
-                    pulsar.getCoordinationService(), pulsar.getSafeWebServiceAddress(), ELECTION_ROOT,
+                    pulsar.getCoordinationService(), pulsar.getBrokerId(),
+                    pulsar.getSafeWebServiceAddress(), ELECTION_ROOT,
                     state -> {
                         pulsar.getLoadManagerExecutor().execute(() -> {
                             if (state == LeaderElectionState.Leading) {
@@ -366,7 +367,7 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
             this.serviceUnitStateChannel = new ServiceUnitStateChannelImpl(pulsar);
             this.brokerRegistry.start();
             this.splitManager = new SplitManager(splitCounter);
-            this.unloadManager = new UnloadManager(unloadCounter, pulsar.getLookupServiceAddress());
+            this.unloadManager = new UnloadManager(unloadCounter, pulsar.getBrokerId());
             this.serviceUnitStateChannel.listen(unloadManager);
             this.serviceUnitStateChannel.listen(splitManager);
             this.leaderElectionService.start();
@@ -795,7 +796,7 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
     @VisibleForTesting
     void playLeader() {
         log.info("This broker:{} is setting the role from {} to {}",
-                pulsar.getLookupServiceAddress(), role, Leader);
+                pulsar.getBrokerId(), role, Leader);
         int retry = 0;
         while (!Thread.currentThread().isInterrupted()) {
             try {
@@ -812,7 +813,7 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
                 break;
             } catch (Throwable e) {
                 log.error("The broker:{} failed to set the role. Retrying {} th ...",
-                        pulsar.getLookupServiceAddress(), ++retry, e);
+                        pulsar.getBrokerId(), ++retry, e);
                 try {
                     Thread.sleep(Math.min(retry * 10, MAX_ROLE_CHANGE_RETRY_DELAY_IN_MILLIS));
                 } catch (InterruptedException ex) {
@@ -823,7 +824,7 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
             }
         }
         role = Leader;
-        log.info("This broker:{} plays the leader now.", pulsar.getLookupServiceAddress());
+        log.info("This broker:{} plays the leader now.", pulsar.getBrokerId());
 
         // flush the load data when the leader is elected.
         brokerLoadDataReporter.reportAsync(true);
@@ -833,7 +834,7 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
     @VisibleForTesting
     void playFollower() {
         log.info("This broker:{} is setting the role from {} to {}",
-                pulsar.getLookupServiceAddress(), role, Follower);
+                pulsar.getBrokerId(), role, Follower);
         int retry = 0;
         while (!Thread.currentThread().isInterrupted()) {
             try {
@@ -846,7 +847,7 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
                 break;
             } catch (Throwable e) {
                 log.error("The broker:{} failed to set the role. Retrying {} th ...",
-                        pulsar.getLookupServiceAddress(), ++retry, e);
+                        pulsar.getBrokerId(), ++retry, e);
                 try {
                     Thread.sleep(Math.min(retry * 10, MAX_ROLE_CHANGE_RETRY_DELAY_IN_MILLIS));
                 } catch (InterruptedException ex) {
@@ -857,7 +858,7 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
             }
         }
         role = Follower;
-        log.info("This broker:{} plays a follower now.", pulsar.getLookupServiceAddress());
+        log.info("This broker:{} plays a follower now.", pulsar.getBrokerId());
 
         // flush the load data when the leader is elected.
         brokerLoadDataReporter.reportAsync(true);

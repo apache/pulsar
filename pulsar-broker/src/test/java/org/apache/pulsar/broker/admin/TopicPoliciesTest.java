@@ -74,6 +74,7 @@ import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
 import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.HierarchyTopicPolicies;
 import org.apache.pulsar.common.policies.data.InactiveTopicDeleteMode;
@@ -3164,6 +3165,31 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
+    public void testDelayedDeliveryPolicy() throws Exception {
+        final String topic = testTopic + UUID.randomUUID();
+        admin.topics().createNonPartitionedTopic(topic);
+
+        boolean isActive = true;
+        long tickTime = 1000;
+        long maxDeliveryDelayInMillis = 5000;
+        DelayedDeliveryPolicies policy = DelayedDeliveryPolicies.builder()
+                .active(isActive)
+                .tickTime(tickTime)
+                .maxDeliveryDelayInMillis(maxDeliveryDelayInMillis)
+                .build();
+
+        admin.topicPolicies().setDelayedDeliveryPolicy(topic, policy);
+        Awaitility.await()
+                .untilAsserted(() -> Assert.assertEquals(admin.topicPolicies().getDelayedDeliveryPolicy(topic), policy));
+
+        admin.topicPolicies().removeDelayedDeliveryPolicy(topic);
+        Awaitility.await()
+                .untilAsserted(() -> Assert.assertNull(admin.topicPolicies().getDelayedDeliveryPolicy(topic)));
+
+        admin.topics().delete(topic, true);
+    }
+    
+    @Test
     public void testUpdateRetentionWithPartialFailure() throws Exception {
         String tpName = BrokerTestUtil.newUniqueName("persistent://" + myNamespace + "/tp");
         admin.topics().createNonPartitionedTopic(tpName);
@@ -3207,5 +3233,4 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         admin.namespaces().removeRetention(myNamespace);
         admin.topics().delete(tpName, false);
     }
-
 }

@@ -74,6 +74,7 @@ import org.apache.pulsar.common.policies.data.FunctionInstanceStatsDataImpl;
 import org.apache.pulsar.common.policies.data.FunctionStatsImpl;
 import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.RestException;
+import org.apache.pulsar.functions.api.state.StateValue;
 import org.apache.pulsar.functions.instance.InstanceUtils;
 import org.apache.pulsar.functions.instance.state.DefaultStateStore;
 import org.apache.pulsar.functions.proto.Function;
@@ -1151,24 +1152,32 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
 
         try {
             DefaultStateStore store = worker().getStateStoreProvider().getStateStore(tenant, namespace, functionName);
-            ByteBuffer buf = store.get(key);
-            if (buf == null) {
+            StateValue value = store.getStateValue(key);
+            if (value == null) {
+                throw new RestException(Status.NOT_FOUND, "key '" + key + "' doesn't exist.");
+            }
+            byte[] data = value.getValue();
+            if (data == null) {
                 throw new RestException(Status.NOT_FOUND, "key '" + key + "' doesn't exist.");
             }
 
-            // try to parse the state as a long
-            // but even if it can be parsed as a long, this number may not be the actual state,
-            // so we will always return a `stringValue` or `bytesValue` with the number value
+            ByteBuffer buf = ByteBuffer.wrap(data);
+
             Long number = null;
             if (buf.remaining() == Long.BYTES) {
                 number = buf.getLong();
             }
-
-            if (Utf8.isWellFormed(buf.array())) {
-                return new FunctionState(key, new String(buf.array(), UTF_8), null, number, null);
-            } else {
-                return new FunctionState(key, null, buf.array(), number, null);
+            if (Boolean.TRUE.equals(value.getIsNumber())) {
+                return new FunctionState(key, null, null, number, value.getVersion());
             }
+
+            if (Utf8.isWellFormed(data)) {
+                return new FunctionState(key, new String(data, UTF_8), null, number, value.getVersion());
+            } else {
+                return new FunctionState(key, null, data, number, value.getVersion());
+            }
+        } catch (RestException e) {
+            throw e;
         } catch (Throwable e) {
             log.error("Error while getFunctionState request @ /{}/{}/{}/{}",
                     tenant, namespace, functionName, key, e);
@@ -1213,7 +1222,7 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
         try {
             DefaultStateStore store = worker().getStateStoreProvider().getStateStore(tenant, namespace, functionName);
             ByteBuffer data;
-            if (StringUtils.isNotEmpty(state.getStringValue())) {
+            if (state.getStringValue() != null) {
                 data = ByteBuffer.wrap(state.getStringValue().getBytes(UTF_8));
             } else if (state.getByteValue() != null) {
                 data = ByteBuffer.wrap(state.getByteValue());

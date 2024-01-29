@@ -342,7 +342,6 @@ services:
       # Requires PF_ prefix for some reason in the code
       PF_pulsarFunctionsCluster: test
       PF_workerId: fnc1
-      PF_pulsarFunctionsCluster: test
       # This setting does not appear to accept more than one host
       PF_configurationStoreServers: zk1:2181
       PF_pulsarServiceUrl: pulsar://proxy1:6650

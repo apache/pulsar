@@ -133,14 +133,14 @@ flexible messaging model and an intuitive client API.</description>
     <!-- apache commons -->
     <commons-compress.version>1.21</commons-compress.version>
 
-    <bookkeeper.version>4.16.3</bookkeeper.version>
+    <bookkeeper.version>4.16.4</bookkeeper.version>
     <zookeeper.version>3.9.1</zookeeper.version>
     <commons-cli.version>1.5.0</commons-cli.version>
     <commons-text.version>1.10.0</commons-text.version>
     <snappy.version>1.1.10.5</snappy.version> <!-- ZooKeeper server -->
     <dropwizardmetrics.version>4.1.12.1</dropwizardmetrics.version> <!-- ZooKeeper server -->
     <curator.version>5.1.0</curator.version>
-    <netty.version>4.1.104.Final</netty.version>
+    <netty.version>4.1.105.Final</netty.version>
     <netty-iouring.version>0.0.24.Final</netty-iouring.version>
     <jetty.version>9.4.53.v20231009</jetty.version>
     <conscrypt.version>2.5.2</conscrypt.version>
@@ -1890,6 +1890,31 @@ flexible messaging model and an intuitive client API.</description>
                 </rules>
               </configuration>
             </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>properties-maven-plugin</artifactId>
+        <executions>
+          <execution>
+            <phase>initialize</phase>
+            <goals>
+              <goal>set-system-properties</goal>
+            </goals>
+            <configuration>
+              <properties combine.children="append">
+                <!-- for lightproto (protostuff) -->
+                <property>
+                  <name>proto_path</name>
+                  <value>${pulsar.basedir}</value>
+                </property>
+                <property>
+                  <name>proto_search_strategy</name>
+                  <value>2</value>
+                </property>
+              </properties>
+            </configuration>
+          </execution>
         </executions>
       </plugin>
     </plugins>

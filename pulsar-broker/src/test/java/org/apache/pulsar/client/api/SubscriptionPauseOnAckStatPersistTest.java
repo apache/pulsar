@@ -217,13 +217,14 @@ public class SubscriptionPauseOnAckStatPersistTest extends ProducerConsumerBase 
     public Object[][] typesOfSetDispatcherPauseOnAckStatePersistent() {
         return new Object[][]{
           {TypeOfUpdateTopicConfig.BROKER_CONF},
-          //{TypeOfUpdateTopicConfig.NAMESPACE_LEVEL_POLICY},
+          {TypeOfUpdateTopicConfig.NAMESPACE_LEVEL_POLICY},
           {TypeOfUpdateTopicConfig.TOPIC_LEVEL_POLICY}
         };
     }
 
     public enum TypeOfUpdateTopicConfig {
         BROKER_CONF,
+        NAMESPACE_LEVEL_POLICY,
         TOPIC_LEVEL_POLICY;
     }
 
@@ -235,6 +236,9 @@ public class SubscriptionPauseOnAckStatPersistTest extends ProducerConsumerBase 
         } else if (type == TypeOfUpdateTopicConfig.TOPIC_LEVEL_POLICY) {
             admin.topics().createNonPartitionedTopic(tpName);
             admin.topicPolicies().setDispatcherPauseOnAckStatePersistent(tpName).join();
+        } else if (type == TypeOfUpdateTopicConfig.NAMESPACE_LEVEL_POLICY) {
+            admin.topics().createNonPartitionedTopic(tpName);
+            admin.namespaces().setDispatcherPauseOnAckStatePersistent(TopicName.get(tpName).getNamespace());
         }
         Awaitility.await().untilAsserted(() -> {
             PersistentTopic persistentTopic =
@@ -256,6 +260,8 @@ public class SubscriptionPauseOnAckStatPersistTest extends ProducerConsumerBase 
             admin.brokers().updateDynamicConfiguration("dispatcherPauseOnAckStatePersistentEnabled", "false");
         } else if (type == TypeOfUpdateTopicConfig.TOPIC_LEVEL_POLICY) {
             admin.topicPolicies().removeDispatcherPauseOnAckStatePersistent(tpName).join();
+        } else if (type == TypeOfUpdateTopicConfig.NAMESPACE_LEVEL_POLICY) {
+            admin.namespaces().removeDispatcherPauseOnAckStatePersistent(TopicName.get(tpName).getNamespace());
         }
         Awaitility.await().untilAsserted(() -> {
             PersistentTopic persistentTopic =
