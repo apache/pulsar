@@ -36,6 +36,7 @@ import org.apache.pulsar.io.core.Sink;
 import org.apache.pulsar.io.core.SinkContext;
 import org.apache.pulsar.io.core.annotations.Connector;
 import org.apache.pulsar.io.core.annotations.IOType;
+import org.jetbrains.annotations.NotNull;
 
 import java.io.ByteArrayInputStream;
 import java.net.ConnectException;
@@ -100,7 +101,7 @@ public class ADXSink implements Sink<byte[]> {
 
     @Override
     public void write(Record<byte[]> record) {
-        int runningSize = 0;
+        int runningSize;
         synchronized (this) {
             incomingRecordsList.add(record);
             runningSize = incomingRecordsList.size();
@@ -111,9 +112,7 @@ public class ADXSink implements Sink<byte[]> {
     }
 
     private void sinkData() {
-
         final List<Record<byte[]>> recordsToSink;
-
         synchronized (this) {
             if (incomingRecordsList.isEmpty()) {
                 return;
@@ -169,7 +168,7 @@ public class ADXSink implements Sink<byte[]> {
         }
     }
 
-    private boolean hasStreamingSucceeded(IngestionStatus status) {
+    private boolean hasStreamingSucceeded(@NotNull IngestionStatus status) {
         switch (status.status) {
             case Succeeded:
             case Queued:
@@ -222,7 +221,7 @@ public class ADXSink implements Sink<byte[]> {
         }
     }
 
-    private ADXPulsarEvent getADXPulsarEvent(Record<byte[]> record) throws Exception {
+    private @NotNull ADXPulsarEvent getADXPulsarEvent(@NotNull Record<byte[]> record) throws Exception {
         ADXPulsarEvent event = new ADXPulsarEvent();
         record.getEventTime().ifPresent(time -> event.setEventTime(Instant.ofEpochMilli(time)));
         record.getKey().ifPresent(event::setKey);
@@ -246,17 +245,17 @@ public class ADXSink implements Sink<byte[]> {
         };
     }
 
-    private ConnectionStringBuilder getConnectionStringBuilder(ADXSinkConfig adxconfig) {
+    private ConnectionStringBuilder getConnectionStringBuilder(@NotNull ADXSinkConfig adxConfig) {
 
-        if (adxconfig.getManagedIdentityId() != null) {
-            if ("system".equalsIgnoreCase(adxconfig.getManagedIdentityId())) {
-                return ConnectionStringBuilder.createWithAadManagedIdentity(adxconfig.getClusterUrl());
+        if (adxConfig.getManagedIdentityId() != null) {
+            if ("system".equalsIgnoreCase(adxConfig.getManagedIdentityId())) {
+                return ConnectionStringBuilder.createWithAadManagedIdentity(adxConfig.getClusterUrl());
             }
-            ConnectionStringBuilder.createWithAadManagedIdentity(adxconfig.getClusterUrl(),
-                    adxconfig.getManagedIdentityId());
+            ConnectionStringBuilder.createWithAadManagedIdentity(adxConfig.getClusterUrl(),
+                    adxConfig.getManagedIdentityId());
         }
-        return ConnectionStringBuilder.createWithAadApplicationCredentials(adxconfig.getClusterUrl(),
-                adxconfig.getAppId(), adxconfig.getAppKey(), adxconfig.getTenantId());
+        return ConnectionStringBuilder.createWithAadApplicationCredentials(adxConfig.getClusterUrl(),
+                adxConfig.getAppId(), adxConfig.getAppKey(), adxConfig.getTenantId());
     }
 
     @Override
