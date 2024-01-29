@@ -75,6 +75,8 @@ public abstract class AbstractReplicator {
         Started,
         // The internal producer is trying to stop.
         Stopping,
+        // The replicator is closing.
+        Closing,
         // The replicator is never used again. Pulsar will create a new Replicator when enable replication again.
         Closed
     }
@@ -216,14 +218,15 @@ public abstract class AbstractReplicator {
         }, brokerService.executor());
     }
 
-    protected synchronized CompletableFuture<Void> closeAsync(boolean onlyCloseProducer) {
+    protected synchronized CompletableFuture<Void> closeProducerAsync() {
         if (producer == null) {
-            updateStatus(onlyCloseProducer);
+            tryChangeStatusToStopped();
             return CompletableFuture.completedFuture(null);
         }
+        tryChangeStatusToStopping();
         CompletableFuture<Void> future = producer.closeAsync();
         return future.thenRun(() -> {
-            updateStatus(onlyCloseProducer);
+            tryChangeStatusToStopped();
             this.producer = null;
             // deactivate further read
             disableReplicatorRead();
@@ -234,27 +237,40 @@ public abstract class AbstractReplicator {
                             + " retrying again in {} s",
                     replicatorId, ex.getMessage(), waitTimeMs / 1000.0);
             // BackOff before retrying
-            brokerService.executor().schedule(() -> closeAsync(onlyCloseProducer),
+            brokerService.executor().schedule(this::closeProducerAsync, waitTimeMs, TimeUnit.MILLISECONDS);
+            return null;
+        });
+    }
+
+    protected synchronized CompletableFuture<Void> terminateInternal() {
+        if (producer == null) {
+            STATE_UPDATER.set(this, State.Closed);
+            return CompletableFuture.completedFuture(null);
+        }
+        CompletableFuture<Void> future = producer.closeAsync();
+        return future.thenRun(() -> {
+            STATE_UPDATER.set(this, State.Closed);
+            this.producer = null;
+            // set the cursor as inactive.
+            disableReplicatorRead();
+        }).exceptionally(ex -> {
+            long waitTimeMs = backOff.next();
+            log.warn(
+                    "[{}] Exception: '{}' occurred while trying to terminate the replicator."
+                            + " retrying again in {} s",
+                    replicatorId, ex.getMessage(), waitTimeMs / 1000.0);
+            // BackOff before retrying
+            brokerService.executor().schedule(() -> terminateInternal(),
                     waitTimeMs, TimeUnit.MILLISECONDS);
             return null;
         });
     }
 
-    protected void updateStatus(boolean onlyCloseProducer) {
-        if (onlyCloseProducer) {
-            // Only close producer.
-            STATE_UPDATER.set(this, State.Stopped);
-        } else {
-            // Close replicator.
-            STATE_UPDATER.set(this, State.Closed);
-        }
+    public CompletableFuture<Void> terminate() {
+        return terminate(false);
     }
 
-    public CompletableFuture<Void> disconnect() {
-        return disconnect(false);
-    }
-
-    public synchronized CompletableFuture<Void> disconnect(boolean failIfHasBacklog) {
+    public synchronized CompletableFuture<Void> terminate(boolean failIfHasBacklog) {
         if (failIfHasBacklog && getNumberOfEntriesInBacklog() > 0) {
             CompletableFuture<Void> disconnectFuture = new CompletableFuture<>();
             disconnectFuture.completeExceptionally(new TopicBusyException("Cannot close a replicator with backlog"));
@@ -264,20 +280,52 @@ public abstract class AbstractReplicator {
             return disconnectFuture;
         }
 
-        if (STATE_UPDATER.get(this) == State.Stopping) {
-            // Do nothing since the all "STATE_UPDATER.set(this, Stopping)" instructions are followed by
-            // closeProducerAsync()
-            // which will at some point change the state to stopped
+        log.info("[{}] Disconnect replicator at position {} with backlog {}", replicatorId,
+                getReplicatorReadPosition(), getNumberOfEntriesInBacklog());
+        if (!tryChangeStatusToClosing()) {
+            // The replicator has been called "terminate" before, just return success.
             return CompletableFuture.completedFuture(null);
         }
+        return terminateInternal();
+    }
 
-        if (STATE_UPDATER.compareAndSet(this, State.Starting, State.Stopping)
-                || STATE_UPDATER.compareAndSet(this, State.Started, State.Stopping)) {
-            log.info("[{}] Disconnect replicator at position {} with backlog {}", replicatorId,
-                    getReplicatorReadPosition(), getNumberOfEntriesInBacklog());
+    protected boolean tryChangeStatusToClosing() {
+        if (STATE_UPDATER.compareAndSet(this, State.Starting, State.Closing)){
+            return true;
         }
+        if (STATE_UPDATER.compareAndSet(this, State.Started, State.Closing)){
+            return true;
+        }
+        if (STATE_UPDATER.compareAndSet(this, State.Stopping, State.Closing)){
+            return true;
+        }
+        if (STATE_UPDATER.compareAndSet(this, State.Stopped, State.Closing)) {
+            return true;
+        }
+        return false;
+    }
 
-        return closeAsync(true);
+    protected boolean tryChangeStatusToStopping() {
+        if (STATE_UPDATER.compareAndSet(this, State.Starting, State.Stopping)){
+            return true;
+        }
+        if (STATE_UPDATER.compareAndSet(this, State.Started, State.Stopping)){
+            return true;
+        }
+        return false;
+    }
+
+    protected boolean tryChangeStatusToStopped() {
+        if (STATE_UPDATER.compareAndSet(this, State.Starting, State.Stopped)){
+            return true;
+        }
+        if (STATE_UPDATER.compareAndSet(this, State.Started, State.Stopped)){
+            return true;
+        }
+        if (STATE_UPDATER.compareAndSet(this, State.Stopping, State.Stopped)){
+            return true;
+        }
+        return false;
     }
 
     public CompletableFuture<Void> remove() {
