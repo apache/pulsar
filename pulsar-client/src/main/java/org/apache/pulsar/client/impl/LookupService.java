@@ -23,7 +23,7 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespace.Mode;
-import org.apache.pulsar.common.lookup.GetTopicsResult;
+import org.apache.pulsar.common.lookup.CollatedGetTopicsResult;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
@@ -103,6 +103,6 @@ public interface LookupService extends AutoCloseable {
      * @param namespace : namespace-name
      * @return
      */
-    CompletableFuture<GetTopicsResult> getTopicsUnderNamespace(NamespaceName namespace, Mode mode,
-                                                               String topicPattern, String topicsHash);
+    CompletableFuture<CollatedGetTopicsResult> getTopicsUnderNamespace(NamespaceName namespace, Mode mode,
+                                                                       String topicPattern, String topicsHash);
 }

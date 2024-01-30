@@ -532,14 +532,15 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
                 .topic(topicName)
                 .subscriptionName("subscriptionName")
                 .subscribe();
-        ((MultiTopicsConsumerImpl) consumer).subscribeAsync("ns-abc/testTopicNameValid", 5).handle((res, exception) -> {
+        ((MultiTopicsConsumerImpl) consumer).subscribeAsync("ns-abc/testTopicNameValid").handle((res, exception) -> {
             assertTrue(exception instanceof PulsarClientException.AlreadyClosedException);
             assertEquals(((PulsarClientException.AlreadyClosedException) exception).getMessage(), "Topic name not valid");
             return null;
         }).get();
-        ((MultiTopicsConsumerImpl) consumer).subscribeAsync(topicName, 3).handle((res, exception) -> {
-            assertTrue(exception instanceof PulsarClientException.AlreadyClosedException);
-            assertEquals(((PulsarClientException.AlreadyClosedException) exception).getMessage(), "Already subscribed to " + topicName);
+        ((MultiTopicsConsumerImpl) consumer).subscribeAsync(topicName).handle((res, exception) -> {
+            Throwable pulsarClientEx = PulsarClientException.extractPulsarClientEx((Throwable) exception);
+            assertTrue(pulsarClientEx instanceof PulsarClientException.ConsumerBusyException);
+            assertTrue(pulsarClientEx.getMessage().contains("is already connected"));
             return null;
         }).get();
     }

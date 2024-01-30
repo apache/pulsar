@@ -593,7 +593,7 @@ public class PulsarClientImpl implements PulsarClient {
                         conf,
                         externalExecutorProvider,
                         consumerSubscribedFuture,
-                        schema, subscriptionMode, interceptors);
+                        schema, subscriptionMode, interceptors, getTopicsResult.getPartitions());
 
                 consumers.add(consumer);
             })

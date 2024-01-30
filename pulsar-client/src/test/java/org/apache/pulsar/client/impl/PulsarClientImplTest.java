@@ -56,7 +56,7 @@ import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.util.ExecutorProvider;
 import org.apache.pulsar.client.util.ScheduledExecutorProvider;
 import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespace;
-import org.apache.pulsar.common.lookup.GetTopicsResult;
+import org.apache.pulsar.common.lookup.CollatedGetTopicsResult;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
@@ -105,7 +105,8 @@ public class PulsarClientImplTest {
                 nullable(String.class),
                 nullable(String.class)))
                 .thenReturn(CompletableFuture.completedFuture(
-                        new GetTopicsResult(Collections.emptyList(), null, false, true)));
+                        new CollatedGetTopicsResult(Collections.emptyList(),
+                                null, false, true, Collections.emptyMap())));
         when(lookup.getPartitionedTopicMetadata(any(TopicName.class)))
                 .thenReturn(CompletableFuture.completedFuture(new PartitionedTopicMetadata()));
         when(lookup.getBroker(any()))

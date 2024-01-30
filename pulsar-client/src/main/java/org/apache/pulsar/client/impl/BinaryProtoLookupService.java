@@ -23,7 +23,9 @@ import io.netty.buffer.ByteBuf;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
@@ -37,7 +39,7 @@ import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespace.Mode;
 import org.apache.pulsar.common.api.proto.CommandLookupTopicResponse;
 import org.apache.pulsar.common.api.proto.CommandLookupTopicResponse.LookupType;
-import org.apache.pulsar.common.lookup.GetTopicsResult;
+import org.apache.pulsar.common.lookup.CollatedGetTopicsResult;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
@@ -301,11 +303,11 @@ public class BinaryProtoLookupService implements LookupService {
     }
 
     @Override
-    public CompletableFuture<GetTopicsResult> getTopicsUnderNamespace(NamespaceName namespace,
+    public CompletableFuture<CollatedGetTopicsResult> getTopicsUnderNamespace(NamespaceName namespace,
                                                                                   Mode mode,
                                                                                   String topicsPattern,
                                                                                   String topicsHash) {
-        CompletableFuture<GetTopicsResult> topicsFuture = new CompletableFuture<>();
+        CompletableFuture<CollatedGetTopicsResult> topicsFuture = new CompletableFuture<>();
 
         AtomicLong opTimeoutMs = new AtomicLong(client.getConfiguration().getOperationTimeoutMs());
         Backoff backoff = new BackoffBuilder()
@@ -322,7 +324,7 @@ public class BinaryProtoLookupService implements LookupService {
                                          NamespaceName namespace,
                                          Backoff backoff,
                                          AtomicLong remainingTime,
-                                         CompletableFuture<GetTopicsResult> getTopicsResultFuture,
+                                         CompletableFuture<CollatedGetTopicsResult> getTopicsResultFuture,
                                          Mode mode,
                                          String topicsPattern,
                                          String topicsHash) {
@@ -340,16 +342,22 @@ public class BinaryProtoLookupService implements LookupService {
                                 namespace, requestId);
                     }
                     // do not keep partition part of topic name
+                    final Map<String, List<Integer>> partitionedTopic = new LinkedHashMap<>();
                     List<String> result = new ArrayList<>();
                     r.getTopics().forEach(topic -> {
-                        String filtered = TopicName.get(topic).getPartitionedTopicName();
+                        TopicName topicName = TopicName.get(topic);
+                        String filtered = topicName.getPartitionedTopicName();
+                        partitionedTopic.computeIfAbsent(filtered, k -> new ArrayList<>());
                         if (!result.contains(filtered)) {
                             result.add(filtered);
                         }
+                        if (topicName.getPartitionIndex() != -1) {
+                            partitionedTopic.get(filtered).add(topicName.getPartitionIndex());
+                        }
                     });
 
-                    getTopicsResultFuture.complete(new GetTopicsResult(result, r.getTopicsHash(),
-                            r.isFiltered(), r.isChanged()));
+                    getTopicsResultFuture.complete(new CollatedGetTopicsResult(result, r.getTopicsHash(),
+                            r.isFiltered(), r.isChanged(), partitionedTopic));
                 }
                 client.getCnxPool().releaseConnection(clientCnx);
             });
