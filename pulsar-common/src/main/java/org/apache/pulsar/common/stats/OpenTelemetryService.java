@@ -25,14 +25,11 @@ import io.opentelemetry.api.metrics.Meter;
 import io.opentelemetry.sdk.OpenTelemetrySdk;
 import io.opentelemetry.sdk.autoconfigure.AutoConfiguredOpenTelemetrySdk;
 import io.opentelemetry.sdk.autoconfigure.AutoConfiguredOpenTelemetrySdkBuilder;
-import io.opentelemetry.sdk.metrics.export.MetricReader;
-import io.opentelemetry.sdk.metrics.internal.SdkMeterProviderUtil;
-import io.opentelemetry.sdk.metrics.internal.export.CardinalityLimitSelector;
 import io.opentelemetry.sdk.resources.Resource;
 import java.io.Closeable;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
+import lombok.Builder;
 import lombok.Singular;
 import org.apache.commons.lang3.StringUtils;
 
@@ -47,36 +44,33 @@ public class OpenTelemetryService implements Closeable {
 
     private final OpenTelemetrySdk openTelemetrySdk;
 
-    @lombok.Builder
-    public OpenTelemetryService(
-            String clusterName,
-            @Singular Map<String, String> extraProperties,
-            @VisibleForTesting @Singular List<MetricReader> extraMetricReaders) {
+    @Builder
+    public OpenTelemetryService(String clusterName,
+                                @Singular Map<String, String> extraProperties,
+                                // Allows customizing the SDK builder; for testing purposes only.
+                                @VisibleForTesting AutoConfiguredOpenTelemetrySdkBuilder sdkBuilder) {
         checkArgument(StringUtils.isNotEmpty(clusterName), "Cluster name cannot be empty");
-        AutoConfiguredOpenTelemetrySdkBuilder builder = AutoConfiguredOpenTelemetrySdk.builder();
+        if (sdkBuilder == null) {
+            sdkBuilder = AutoConfiguredOpenTelemetrySdk.builder();
+        }
 
         Map<String, String> overrideProperties = new HashMap<>();
         overrideProperties.put(OTEL_SDK_DISABLED, "true");
+        // Cardinality limit property is exclusive, so we need to add 1.
         overrideProperties.put(MAX_CARDINALITY_LIMIT_KEY, Integer.toString(MAX_CARDINALITY_LIMIT + 1));
-        builder.addPropertiesSupplier(() -> overrideProperties);
-        builder.addPropertiesSupplier(() -> extraProperties);
+        sdkBuilder.addPropertiesSupplier(() -> overrideProperties);
+        sdkBuilder.addPropertiesSupplier(() -> extraProperties);
 
-        builder.addResourceCustomizer(
+        sdkBuilder.addResourceCustomizer(
                 (resource, __) -> {
                     if (resource.getAttribute(CLUSTER_NAME_ATTRIBUTE) != null) {
-                        return resource; // Do not override the attribute if already set.
+                        // Do not override if already set (via system properties or environment variables).
+                        return resource;
                     }
                     return resource.merge(Resource.builder().put(CLUSTER_NAME_ATTRIBUTE, clusterName).build());
                 });
 
-        final CardinalityLimitSelector cardinalityLimitSelector = __ -> MAX_CARDINALITY_LIMIT + 1;
-        extraMetricReaders.forEach(metricReader -> builder.addMeterProviderCustomizer((sdkMeterProviderBuilder, __) -> {
-            SdkMeterProviderUtil.registerMetricReaderWithCardinalitySelector(
-                    sdkMeterProviderBuilder, metricReader, cardinalityLimitSelector);
-            return sdkMeterProviderBuilder;
-        }));
-
-        openTelemetrySdk = builder.build().getOpenTelemetrySdk();
+        openTelemetrySdk = sdkBuilder.build().getOpenTelemetrySdk();
     }
 
     public Meter getMeter(String instrumentationScopeName) {

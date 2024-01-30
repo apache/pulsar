@@ -23,9 +23,13 @@ import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.metrics.DoubleCounter;
 import io.opentelemetry.api.metrics.LongCounter;
 import io.opentelemetry.api.metrics.Meter;
+import io.opentelemetry.sdk.autoconfigure.AutoConfiguredOpenTelemetrySdk;
+import io.opentelemetry.sdk.autoconfigure.AutoConfiguredOpenTelemetrySdkBuilder;
 import io.opentelemetry.sdk.common.InstrumentationScopeInfo;
 import io.opentelemetry.sdk.metrics.data.MetricData;
 import io.opentelemetry.sdk.metrics.data.MetricDataType;
+import io.opentelemetry.sdk.metrics.export.MetricReader;
+import io.opentelemetry.sdk.metrics.internal.SdkMeterProviderUtil;
 import io.opentelemetry.sdk.metrics.internal.state.MetricStorage;
 import io.opentelemetry.sdk.testing.exporter.InMemoryMetricReader;
 import java.util.Collection;
@@ -47,8 +51,8 @@ public class OpenTelemetryServiceTest {
     public void setup() throws Exception {
         reader = InMemoryMetricReader.create();
         openTelemetryService = OpenTelemetryService.builder().
+                sdkBuilder(getSdkBuilder(reader)).
                 clusterName("openTelemetryServiceTestCluster").
-                extraMetricReader(reader).
                 extraProperty(OpenTelemetryService.OTEL_SDK_DISABLED, "false").
                 build();
         meter = openTelemetryService.getMeter("openTelemetryServiceTestInstrument");
@@ -58,6 +62,18 @@ public class OpenTelemetryServiceTest {
     public void teardown() throws Exception {
         openTelemetryService.close();
         reader.close();
+    }
+
+    // Overrides the default sdkBuilder to include the InMemoryMetricReader for testing purposes.
+    private static AutoConfiguredOpenTelemetrySdkBuilder getSdkBuilder(MetricReader extraReader) {
+        return AutoConfiguredOpenTelemetrySdk.builder().
+                addMeterProviderCustomizer((sdkMeterProviderBuilder, configProperties) -> {
+                    SdkMeterProviderUtil.registerMetricReaderWithCardinalitySelector(
+                            sdkMeterProviderBuilder, extraReader,
+                            // Override the max cardinality limit for this extra reader.
+                            instrumentType -> OpenTelemetryService.MAX_CARDINALITY_LIMIT + 1);
+                    return sdkMeterProviderBuilder;
+                });
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
@@ -79,8 +95,8 @@ public class OpenTelemetryServiceTest {
 
         @Cleanup
         OpenTelemetryService ots = OpenTelemetryService.builder().
+                sdkBuilder(getSdkBuilder(reader)).
                 clusterName("testCluster").
-                extraMetricReader(reader).
                 extraProperty(OpenTelemetryService.OTEL_SDK_DISABLED, "false").
                 build();
 
