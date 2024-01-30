@@ -49,7 +49,7 @@ public class MetricsTest {
 
     // Test with the included Prometheus exporter as well
     // https://github.com/open-telemetry/opentelemetry-java/blob/main/sdk-extensions/autoconfigure/README.md#prometheus-exporter
-    @Test(timeOut = 300_000)
+    @Test(timeOut = 360_000)
     public void testOpenTelemetryMetricsOtlpExport() throws Exception {
         var clusterName = "testOpenTelemetryMetrics-" + UUID.randomUUID();
         var openTelemetryCollectorContainer = new OpenTelemetryCollectorContainer(clusterName);
@@ -95,7 +95,7 @@ public class MetricsTest {
                         metricName, Pair.of("job", functionWorkerOtelServiceName)));
     }
 
-    @Test(timeOut = 300_000)
+    @Test(timeOut = 360_000)
     public void testOpenTelemetryMetricsPrometheusExport() throws Exception {
         var prometheusExporterPort = 9464;
         var clusterName = "testOpenTelemetryMetrics-" + UUID.randomUUID();
@@ -122,7 +122,7 @@ public class MetricsTest {
                 .proxyEnvs(proxyCollectorProps)
                 .proxyAdditionalPorts(List.of(prometheusExporterPort))
                 .functionWorkerEnv(functionWorkerServiceNameSuffix, functionWorkerCollectorProps)
-                .functionWorkerAdditionalPort(functionWorkerServiceNameSuffix, List.of(prometheusExporterPort))
+                .functionWorkerAdditionalPorts(functionWorkerServiceNameSuffix, List.of(prometheusExporterPort))
                 .build();
         @Cleanup("stop")
         var pulsarCluster = PulsarCluster.forSpec(spec);

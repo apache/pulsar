@@ -90,7 +90,7 @@ public class PulsarClusterSpec {
     /**
      * Additional ports to expose on function workers.
      */
-    @Singular
+    @Singular("functionWorkerAdditionalPorts")
     Map<String, List<Integer>> functionWorkerAdditionalPorts;
 
 
