@@ -45,7 +45,7 @@ import org.testng.annotations.Test;
 
 public class ProxyServiceStarterTest extends MockedPulsarServiceBaseTest {
 
-    static final String[] ARGS = new String[]{"-c", "./src/test/resources/proxy.conf"};
+    public static final String[] ARGS = new String[]{"-c", "./src/test/resources/proxy.conf"};
 
     protected ProxyServiceStarter serviceStarter;
     protected String serviceUrl;
