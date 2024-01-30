@@ -35,6 +35,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 import javax.ws.rs.DELETE;
 import javax.ws.rs.DefaultValue;
@@ -82,6 +83,8 @@ public class BrokersBase extends AdminResource {
     // to prevent excessive logging
     private static final long LOG_THREADDUMP_INTERVAL_WHEN_DEADLOCK_DETECTED = 600000L;
     private static final Duration HEALTH_CHECK_READ_TIMEOUT = Duration.ofSeconds(120);
+    private static final TimeoutException HEALTH_CHECK_TIMEOUT_EXCEPTION =
+            FutureUtil.createTimeoutException("Timeout", BrokersBase.class, "healthCheckRecursiveReadNext(...)");
     private volatile long threadDumpLoggedTimestamp;
 
     @GET
@@ -439,9 +442,7 @@ public class BrokersBase extends AdminResource {
                                         .thenCompose(__ -> FutureUtil.addTimeoutHandling(
                                                 healthCheckRecursiveReadNext(reader, messageStr),
                                                 HEALTH_CHECK_READ_TIMEOUT, pulsar().getBrokerService().executor(),
-                                                () -> FutureUtil.createTimeoutException("Timeout", getClass(),
-                                                        "healthCheckRecursiveReadNext(...)")
-                                                ))
+                                                () -> HEALTH_CHECK_TIMEOUT_EXCEPTION))
                                         .whenComplete((__, ex) -> {
                                             closeAndReCheck(producer, reader, topicOptional.get(), subscriptionName)
                                                     .whenComplete((unused, innerEx) -> {
