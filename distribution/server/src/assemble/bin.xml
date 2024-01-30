@@ -125,6 +125,9 @@
         <exclude>org.apache.pulsar:pulsar-functions-api-examples</exclude>
         <!-- prevent adding any distribution .tar.gz files in lib -->
         <exclude>*:tar.gz</exclude>
+        <!-- prevent adding annotation libraries -->
+        <exclude>org.codehaus.mojo:animal-sniffer-annotations</exclude>
+        <exclude>com.google.android:annotations</exclude>
       </excludes>
     </dependencySet>
   </dependencySets>
