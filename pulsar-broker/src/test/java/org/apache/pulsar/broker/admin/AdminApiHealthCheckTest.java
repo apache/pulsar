@@ -286,7 +286,7 @@ public class AdminApiHealthCheckTest extends MockedPulsarServiceBaseTest {
             throw new Exception("Should not reach here");
         } catch (PulsarAdminException e) {
             log.info("Exception caught", e);
-            assertTrue(e.getMessage().contains("TimeoutException"));
+            assertTrue(e.getMessage().contains("LowOverheadTimeoutException"));
         }
         // To ensure we don't have any subscription, the producers and readers are closed.
         Awaitility.await().untilAsserted(() ->
