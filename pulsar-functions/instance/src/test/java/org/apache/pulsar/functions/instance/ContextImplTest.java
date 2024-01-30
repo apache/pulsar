@@ -96,6 +96,7 @@ public class ContextImplTest {
             .setUserConfig("")
             .build();
         config.setFunctionDetails(functionDetails);
+        config.setClusterName("test-cluster");
         logger = mock(Logger.class);
         pulsarAdmin = mock(PulsarAdmin.class);
 
