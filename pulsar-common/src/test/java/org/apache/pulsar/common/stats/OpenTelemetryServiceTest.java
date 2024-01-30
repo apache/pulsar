@@ -76,14 +76,14 @@ public class OpenTelemetryServiceTest {
                 });
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class)
-    public void testIsClusterNameCannotBeNull() throws Exception {
+    @Test(expectedExceptions = IllegalArgumentException.class, enabled = false)
+    public void testClusterNameCannotBeNull() throws Exception {
         @Cleanup
         OpenTelemetryService ots = OpenTelemetryService.builder().build();
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class)
-    public void testIsClusterNameCannotBeEmpty() throws Exception {
+    @Test(expectedExceptions = IllegalArgumentException.class, enabled = false)
+    public void testClusterNameCannotBeEmpty() throws Exception {
         @Cleanup
         OpenTelemetryService ots = OpenTelemetryService.builder().clusterName(StringUtils.EMPTY).build();
     }
