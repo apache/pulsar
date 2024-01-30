@@ -589,6 +589,10 @@ jobs:
           - name: Transaction
             group: TRANSACTION
 
+          - name: Metrics
+            group: METRICS
+            no_coverage: true
+
     steps:
       - name: checkout
         uses: actions/checkout@v4
