@@ -20,7 +20,6 @@ package org.apache.pulsar.tests.integration.containers;
 
 import java.time.Duration;
 import org.apache.http.HttpStatus;
-import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient;
 import org.testcontainers.containers.wait.strategy.HttpWaitStrategy;
 import org.testcontainers.utility.MountableFile;
 
@@ -29,7 +28,7 @@ public class OpenTelemetryCollectorContainer extends ChaosContainer<OpenTelemetr
     private static final String IMAGE_NAME = "otel/opentelemetry-collector-contrib:latest";
     private static final String NAME = "otel-collector";
 
-    private static final int PROMETHEUS_EXPORTER_PORT = 8889;
+    public static final int PROMETHEUS_EXPORTER_PORT = 8889;
     private static final int OTLP_RECEIVER_PORT = 4317;
     private static final int ZPAGES_PORT = 55679;
 
@@ -60,10 +59,6 @@ public class OpenTelemetryCollectorContainer extends ChaosContainer<OpenTelemetr
     @Override
     public String getContainerName() {
         return clusterName + "-" + NAME;
-    }
-
-    public PrometheusMetricsClient getMetricsClient() {
-        return new PrometheusMetricsClient(getHost(), getMappedPort(PROMETHEUS_EXPORTER_PORT));
     }
 
     public String getOtlpEndpoint() {
