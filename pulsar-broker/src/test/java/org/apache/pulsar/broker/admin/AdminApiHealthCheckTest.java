@@ -281,7 +281,6 @@ public class AdminApiHealthCheckTest extends MockedPulsarServiceBaseTest {
         Field field = PulsarService.class.getDeclaredField("client");
         field.setAccessible(true);
         field.set(pulsar, spyClient);
-        // as the timeout for reading healthcheck topic is 120 seconds, we need to wait for at least 120 seconds
         try {
             admin.brokers().healthcheck(TopicVersion.V2);
             throw new Exception("Should not reach here");
