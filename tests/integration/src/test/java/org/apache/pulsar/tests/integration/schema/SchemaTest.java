@@ -31,6 +31,8 @@ import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.schema.SchemaInfo;
+import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.tests.integration.schema.Schemas.Person;
 import org.apache.pulsar.tests.integration.schema.Schemas.PersonConsumeSchema;
 import org.apache.pulsar.tests.integration.schema.Schemas.Student;
@@ -314,6 +316,15 @@ public class SchemaTest extends PulsarTestSuite {
             });
         });
 
+    }
+
+    @Test
+    public void testDeletePartitionedTopicWhenTopicReferenceIsNotReady() throws Exception {
+        final String topic = "persistent://public/default/tp-ref";
+        admin.topics().createPartitionedTopic(topic, 20);
+        admin.schemas().createSchema(topic,
+                SchemaInfo.builder().type(SchemaType.STRING).schema(new byte[0]).build());
+        admin.topics().deletePartitionedTopic(topic, false);
     }
 
 }
