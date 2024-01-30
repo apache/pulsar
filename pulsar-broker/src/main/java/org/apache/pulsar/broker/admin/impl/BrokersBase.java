@@ -26,6 +26,7 @@ import io.swagger.annotations.ApiResponses;
 import java.lang.management.ManagementFactory;
 import java.lang.management.ThreadInfo;
 import java.lang.management.ThreadMXBean;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -80,6 +81,7 @@ public class BrokersBase extends AdminResource {
     // log a full thread dump when a deadlock is detected in healthcheck once every 10 minutes
     // to prevent excessive logging
     private static final long LOG_THREADDUMP_INTERVAL_WHEN_DEADLOCK_DETECTED = 600000L;
+    private static final Duration HEALTH_CHECK_READ_TIMEOUT = Duration.ofSeconds(120);
     private volatile long threadDumpLoggedTimestamp;
 
     @GET
@@ -434,7 +436,12 @@ public class BrokersBase extends AdminResource {
                                     });
                                     throw FutureUtil.wrapToCompletionException(createException);
                                 }).thenCompose(reader -> producer.sendAsync(messageStr)
-                                        .thenCompose(__ -> healthCheckRecursiveReadNext(reader, messageStr))
+                                        .thenCompose(__ -> FutureUtil.addTimeoutHandling(
+                                                healthCheckRecursiveReadNext(reader, messageStr),
+                                                HEALTH_CHECK_READ_TIMEOUT, pulsar().getBrokerService().executor(),
+                                                () -> FutureUtil.createTimeoutException("Timeout", getClass(),
+                                                        "healthCheckRecursiveReadNext(...)")
+                                                ))
                                         .whenComplete((__, ex) -> {
                                             closeAndReCheck(producer, reader, topicOptional.get(), subscriptionName)
                                                     .whenComplete((unused, innerEx) -> {
