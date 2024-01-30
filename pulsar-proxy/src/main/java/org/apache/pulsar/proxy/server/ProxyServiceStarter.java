@@ -161,11 +161,28 @@ public class ProxyServiceStarter {
             if (isNotBlank(config.getBrokerServiceURL())) {
                 checkArgument(config.getBrokerServiceURL().startsWith("pulsar://"),
                         "brokerServiceURL must start with pulsar://");
+                ensureUrlNotContainsComma("brokerServiceURL", config.getBrokerServiceURL());
             }
-
             if (isNotBlank(config.getBrokerServiceURLTLS())) {
                 checkArgument(config.getBrokerServiceURLTLS().startsWith("pulsar+ssl://"),
                         "brokerServiceURLTLS must start with pulsar+ssl://");
+                ensureUrlNotContainsComma("brokerServiceURLTLS", config.getBrokerServiceURLTLS());
+            }
+
+            if (isNotBlank(config.getBrokerWebServiceURL())) {
+                ensureUrlNotContainsComma("brokerWebServiceURL", config.getBrokerWebServiceURL());
+            }
+            if (isNotBlank(config.getBrokerWebServiceURLTLS())) {
+                ensureUrlNotContainsComma("brokerWebServiceURLTLS", config.getBrokerWebServiceURLTLS());
+            }
+
+            if (isNotBlank(config.getFunctionWorkerWebServiceURL())) {
+                ensureUrlNotContainsComma("functionWorkerWebServiceURLTLS",
+                        config.getFunctionWorkerWebServiceURL());
+            }
+            if (isNotBlank(config.getFunctionWorkerWebServiceURLTLS())) {
+                ensureUrlNotContainsComma("functionWorkerWebServiceURLTLS",
+                        config.getFunctionWorkerWebServiceURLTLS());
             }
 
             if ((isBlank(config.getBrokerServiceURL()) && isBlank(config.getBrokerServiceURLTLS()))
@@ -184,6 +201,11 @@ public class ProxyServiceStarter {
             log.error("Failed to start pulsar proxy service. error msg " + e.getMessage(), e);
             throw new PulsarServerException(e);
         }
+    }
+
+    private void ensureUrlNotContainsComma(String paramName, String paramValue) {
+        checkArgument(!paramValue.contains(","), paramName + " does not support multi urls yet,"
+                + " it should point to the discovery service provider.");
     }
 
     public static void main(String[] args) throws Exception {
