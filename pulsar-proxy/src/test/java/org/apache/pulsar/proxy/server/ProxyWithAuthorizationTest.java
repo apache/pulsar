@@ -64,7 +64,7 @@ import org.testng.collections.Maps;
 
 public class ProxyWithAuthorizationTest extends ProducerConsumerBase {
     private static final Logger log = LoggerFactory.getLogger(ProxyWithAuthorizationTest.class);
-    public static final String CLUSTER_NAME = "proxy-authorization";
+    private static final String CLUSTER_NAME = "proxy-authorization";
 
     private final SecretKey SECRET_KEY = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
     private final String CLIENT_TOKEN = AuthTokenUtils.createToken(SECRET_KEY, "Client", Optional.empty());
