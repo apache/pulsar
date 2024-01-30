@@ -129,7 +129,7 @@ public class ADXSinkE2ETest {
         int writeCount = 9;
 
         for (int i = 0; i < writeCount; i++) {
-            Record record = build("key_" + i, "test data from ADX Pulsar Sink_" + i);
+            Record<byte[]> record = build("key_" + i, "test data from ADX Pulsar Sink_" + i);
             sink.write(record);
         }
         Thread.sleep(40000);
