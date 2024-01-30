@@ -128,6 +128,8 @@
         <!-- prevent adding annotation libraries -->
         <exclude>org.codehaus.mojo:animal-sniffer-annotations</exclude>
         <exclude>com.google.android:annotations</exclude>
+        <!-- Needed only in the pulsar-shell distro only -->
+        <exclude>net.java.dev.jna:jna</exclude>
       </excludes>
     </dependencySet>
   </dependencySets>
