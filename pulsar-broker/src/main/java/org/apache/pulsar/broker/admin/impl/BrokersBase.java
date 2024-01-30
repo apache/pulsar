@@ -82,7 +82,10 @@ public class BrokersBase extends AdminResource {
     // log a full thread dump when a deadlock is detected in healthcheck once every 10 minutes
     // to prevent excessive logging
     private static final long LOG_THREADDUMP_INTERVAL_WHEN_DEADLOCK_DETECTED = 600000L;
-    private static final Duration HEALTH_CHECK_READ_TIMEOUT = Duration.ofSeconds(120);
+    // there is a timeout of 60 seconds default in the client(readTimeoutMs), so we need to set the timeout
+    // a bit shorter than 60 seconds to avoid the client timeout exception thrown before the server timeout exception.
+    // or we can't propagate the server timeout exception to the client.
+    private static final Duration HEALTH_CHECK_READ_TIMEOUT = Duration.ofSeconds(58);
     private static final TimeoutException HEALTH_CHECK_TIMEOUT_EXCEPTION =
             FutureUtil.createTimeoutException("Timeout", BrokersBase.class, "healthCheckRecursiveReadNext(...)");
     private volatile long threadDumpLoggedTimestamp;
