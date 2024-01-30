@@ -1025,13 +1025,13 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
 
     private void subscribeTopicPartitions(CompletableFuture<Void> subscribeResult, String topicName, int numPartitions,
             boolean createIfDoesNotExist) {
-        client.preProcessSchemaBeforeSubscribe(client, schema, topicName).whenComplete((schema, cause) -> {
-            if (null == cause) {
-                doSubscribeTopicPartitions(schema, subscribeResult, topicName, numPartitions, createIfDoesNotExist);
-            } else {
-                subscribeResult.completeExceptionally(cause);
-            }
-        });
+        client.preProcessSchemaBeforeSubscribe(client, schema, topicName)
+                .thenAccept(schema -> {
+                    doSubscribeTopicPartitions(schema, subscribeResult, topicName, numPartitions, createIfDoesNotExist);
+                }).exceptionally(cause -> {
+                    subscribeResult.completeExceptionally(cause);
+                    return null;
+                });
     }
 
     private void doSubscribeTopicPartitions(Schema<T> schema,
