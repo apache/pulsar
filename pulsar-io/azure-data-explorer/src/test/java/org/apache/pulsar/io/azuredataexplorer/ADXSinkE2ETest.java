@@ -27,6 +27,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.functions.instance.SinkRecord;
 import org.testng.Assert;
+import org.testng.SkipException;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -34,7 +35,6 @@ import org.testng.annotations.Test;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.ThreadLocalRandom;
 
@@ -48,15 +48,20 @@ public class ADXSinkE2ETest {
     String appKey;
     private final String table = "ADXPulsarTest_" + ThreadLocalRandom.current().nextInt(0, 100);
     private Client kustoAdminClient = null;
+    private boolean environmentVarsAvailable = true;
     Map<String, Object> configs;
 
     @BeforeMethod
     public void setUp() throws Exception {
-        database = Objects.requireNonNull(System.getenv("kustoDatabase"), "kustoDatabase not set.");
-        cluster = Objects.requireNonNull(System.getenv("kustoCluster"), "kustoCluster not set.");
-        authorityId = Objects.requireNonNull(System.getenv("kustoAadAuthorityID"), "kustoAadAuthorityID not set.");
-        appId = Objects.requireNonNull(System.getenv("kustoAadAppId"), "kustoAadAppId not set.");
-        appKey = Objects.requireNonNull(System.getenv("kustoAadAppSecret"), "kustoAadAppSecret not set.");
+        cluster = System.getenv("kustoCluster");
+        database = System.getenv("kustoDatabase");
+        authorityId = System.getenv("kustoAadAuthorityID");
+        appId = System.getenv("kustoAadAppId");
+        appKey = System.getenv("kustoAadAppSecret");
+
+        if(cluster == null){
+            throw new SkipException("Skipping tests because environment vars was not accessible.");
+        }
 
         configs = new HashMap<>();
         configs.put("clusterUrl", cluster);
