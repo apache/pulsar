@@ -23,6 +23,7 @@ import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import java.lang.management.ManagementFactory;
 import java.lang.management.ThreadMXBean;
+import java.lang.reflect.Field;
 import java.time.Duration;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -31,13 +32,21 @@ import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.impl.ProducerBuilderImpl;
+import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.common.naming.TopicVersion;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.compaction.Compactor;
 import org.awaitility.Awaitility;
+import org.mockito.Mockito;
 import org.springframework.util.CollectionUtils;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -236,4 +245,58 @@ public class AdminApiHealthCheckTest extends MockedPulsarServiceBaseTest {
                 ))
         );
     }
+
+    class DummyProducerBuilder<T> extends ProducerBuilderImpl<T> {
+        // This is a dummy producer builder to test the health check timeout
+        // the producer constructed by this builder will not send any message
+        public DummyProducerBuilder(PulsarClientImpl client, Schema schema) {
+            super(client, schema);
+        }
+
+        @Override
+        public CompletableFuture<Producer<T>> createAsync() {
+            CompletableFuture<Producer<T>> future = new CompletableFuture<>();
+            super.createAsync().thenAccept(producer -> {
+                Producer<T> spyProducer = Mockito.spy(producer);
+                Mockito.doReturn(CompletableFuture.completedFuture(MessageId.earliest))
+                        .when(spyProducer).sendAsync(Mockito.any());
+                future.complete(spyProducer);
+            }).exceptionally(ex -> {
+                future.completeExceptionally(ex);
+                return null;
+            });
+            return future;
+        }
+    }
+
+    @Test
+    public void testHealthCheckTimeOut() throws Exception {
+        final String testHealthCheckTopic = String.format("persistent://pulsar/localhost:%s/healthcheck",
+                pulsar.getConfig().getWebServicePort().get());
+        PulsarClient client = pulsar.getClient();
+        PulsarClient spyClient = Mockito.spy(client);
+        Mockito.doReturn(new DummyProducerBuilder<>((PulsarClientImpl) spyClient, Schema.BYTES))
+                .when(spyClient).newProducer(Schema.STRING);
+        // use reflection to replace the client in the broker
+        Field field = PulsarService.class.getDeclaredField("client");
+        field.setAccessible(true);
+        field.set(pulsar, spyClient);
+        try {
+            admin.brokers().healthcheck(TopicVersion.V2);
+            throw new Exception("Should not reach here");
+        } catch (PulsarAdminException e) {
+            log.info("Exception caught", e);
+            assertTrue(e.getMessage().contains("LowOverheadTimeoutException"));
+        }
+        // To ensure we don't have any subscription, the producers and readers are closed.
+        Awaitility.await().untilAsserted(() ->
+                assertTrue(CollectionUtils.isEmpty(admin.topics()
+                        .getSubscriptions(testHealthCheckTopic).stream()
+                        // All system topics are using compaction, even though is not explicitly set in the policies.
+                        .filter(v -> !v.equals(Compactor.COMPACTION_SUBSCRIPTION))
+                        .collect(Collectors.toList())
+                ))
+        );
+    }
+
 }
