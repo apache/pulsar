@@ -2218,7 +2218,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
             if (lastPosition.getEntryId() == -1 || !ml.ledgerExists(lastPosition.getLedgerId())) {
                 // there is no entry in the original topic
-                if (readCompacted) {
+                if (compactionHorizon != null) {
                     // if readCompacted is true, we need to read the last entry from compacted topic
                     handleLastMessageIdFromCompactionService(persistentTopic, requestId, partitionIndex,
                             markDeletePosition);
@@ -2231,8 +2231,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 return;
             }
 
-            if (readCompacted && compactionHorizon != null
-                    && lastPosition.compareTo((PositionImpl) compactionHorizon) <= 0) {
+            if (compactionHorizon != null && lastPosition.compareTo((PositionImpl) compactionHorizon) <= 0) {
                 handleLastMessageIdFromCompactionService(persistentTopic, requestId, partitionIndex,
                         markDeletePosition);
                 return;
