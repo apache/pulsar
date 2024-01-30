@@ -72,6 +72,7 @@ public class ProxyStatsTest extends MockedPulsarServiceBaseTest {
         proxyConfig.setWebServicePort(Optional.of(0));
         proxyConfig.setMetadataStoreUrl(DUMMY_VALUE);
         proxyConfig.setConfigurationMetadataStoreUrl(GLOBAL_DUMMY_VALUE);
+        proxyConfig.setClusterName(configClusterName);
         // enable full parsing feature
         proxyConfig.setProxyLogLevel(Optional.of(2));
 

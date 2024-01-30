@@ -116,6 +116,7 @@ public class ProxyRefreshAuthTest extends ProducerConsumerBase {
         proxyConfig.setServicePort(Optional.of(0));
         proxyConfig.setBrokerProxyAllowedTargetPorts("*");
         proxyConfig.setWebServicePort(Optional.of(0));
+        proxyConfig.setClusterName(configClusterName);
 
         proxyConfig.setBrokerClientAuthenticationPlugin(AuthenticationToken.class.getName());
         proxyConfig.setBrokerClientAuthenticationParameters(

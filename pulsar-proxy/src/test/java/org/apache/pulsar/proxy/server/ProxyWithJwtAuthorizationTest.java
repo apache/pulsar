@@ -119,6 +119,7 @@ public class ProxyWithJwtAuthorizationTest extends ProducerConsumerBase {
         proxyConfig.setServicePort(Optional.of(0));
         proxyConfig.setBrokerProxyAllowedTargetPorts("*");
         proxyConfig.setWebServicePort(Optional.of(0));
+        proxyConfig.setClusterName(configClusterName);
 
         // enable auth&auth and use JWT at proxy
         proxyConfig.setBrokerClientAuthenticationPlugin(AuthenticationToken.class.getName());

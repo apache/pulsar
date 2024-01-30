@@ -109,6 +109,7 @@ public class ProxyForwardAuthDataTest extends ProducerConsumerBase {
         proxyConfig.setBrokerServiceURL(pulsar.getBrokerServiceUrl());
         proxyConfig.setBrokerClientAuthenticationPlugin(BasicAuthentication.class.getName());
         proxyConfig.setBrokerClientAuthenticationParameters(proxyAuthParams);
+        proxyConfig.setClusterName(configClusterName);
 
         Set<String> providers = new HashSet<>();
         providers.add(BasicAuthenticationProvider.class.getName());

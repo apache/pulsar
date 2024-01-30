@@ -242,6 +242,7 @@ public class ProxySaslAuthenticationTest extends ProducerConsumerBase {
 		proxyConfig.setBrokerServiceURL(pulsar.getBrokerServiceUrl());
 		proxyConfig.setSaslJaasClientAllowedIds(".*" + localHostname + ".*");
 		proxyConfig.setSaslJaasServerSectionName("PulsarProxy");
+		proxyConfig.setClusterName(configClusterName);
 
 		// proxy connect to broker
 		proxyConfig.setBrokerClientAuthenticationPlugin(AuthenticationSasl.class.getName());

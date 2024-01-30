@@ -61,6 +61,7 @@ public class ProxyServiceStarterTest extends MockedPulsarServiceBaseTest {
         serviceStarter.getConfig().setServicePort(Optional.of(0));
         serviceStarter.getConfig().setWebSocketServiceEnabled(true);
         serviceStarter.getConfig().setBrokerProxyAllowedTargetPorts("*");
+        serviceStarter.getConfig().setClusterName(DUMMY_VALUE);
         serviceStarter.start();
         serviceUrl = serviceStarter.getProxyService().getServiceUrl();
     }

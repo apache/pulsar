@@ -209,6 +209,7 @@ public class ProxyRolesEnforcementTest extends ProducerConsumerBase {
         proxyConfig.setBrokerProxyAllowedTargetPorts("*");
         proxyConfig.setWebServicePort(Optional.of(0));
         proxyConfig.setBrokerServiceURL(pulsar.getBrokerServiceUrl());
+        proxyConfig.setClusterName(configClusterName);
 
         proxyConfig.setBrokerClientAuthenticationPlugin(BasicAuthentication.class.getName());
         proxyConfig.setBrokerClientAuthenticationParameters(proxyAuthParams);
