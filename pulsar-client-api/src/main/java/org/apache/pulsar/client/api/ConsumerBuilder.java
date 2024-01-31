@@ -512,7 +512,7 @@ public interface ConsumerBuilder<T> extends Cloneable {
      * </pre>
      *
      * <p><b>Failover subscription for partitioned topic</b>
-     * The broker selects the active consumer for a failover subscription for a patitioned topic
+     * The broker selects the active consumer for a failover subscription for a partitioned topic
      * based on consumer's priority-level and lexicographical sorting of consumer name.
      * eg:
      * <pre>
