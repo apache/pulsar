@@ -550,8 +550,6 @@ MIT License
  * Auth0, Inc.
     - com.auth0-java-jwt-4.3.0.jar
     - com.auth0-jwks-rsa-0.22.0.jar
- * Mojo
-    - org.codehaus.mojo-animal-sniffer-annotations-1.21.jar
 Protocol Buffers License
  * Protocol Buffers
    - com.google.protobuf-protobuf-java-3.19.6.jar -- ../licenses/LICENSE-protobuf.txt
