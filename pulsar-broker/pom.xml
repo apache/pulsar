@@ -164,6 +164,12 @@
       <scope>test</scope>
     </dependency>
 
+    <dependency>
+      <groupId>io.streamnative.oxia</groupId>
+      <artifactId>oxia-testcontainers</artifactId>
+      <scope>test</scope>
+    </dependency>
+
     <!-- zookeeper server -->
     <dependency>
        <groupId>io.dropwizard.metrics</groupId>
