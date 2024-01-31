@@ -63,6 +63,18 @@
     </dependency>
 
     <dependency>
+      <groupId>io.streamnative.oxia</groupId>
+      <artifactId>oxia-client</artifactId>
+      <classifier>shaded</classifier>
+    </dependency>
+
+    <dependency>
+      <groupId>io.streamnative.oxia</groupId>
+      <artifactId>oxia-testcontainers</artifactId>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
       <groupId>io.dropwizard.metrics</groupId>
       <artifactId>metrics-core</artifactId>
       <scope>test</scope>

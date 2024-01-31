@@ -465,6 +465,8 @@ The Apache Software License, Version 2.0
     - io.dropwizard.metrics-metrics-jmx-4.1.12.1.jar
   * Prometheus
     - io.prometheus-simpleclient_httpserver-0.16.0.jar
+  * Oxia
+    - io.streamnative.oxia-oxia-client-0.1.0-shaded.jar
   * Java JSON WebTokens
     - io.jsonwebtoken-jjwt-api-0.11.1.jar
     - io.jsonwebtoken-jjwt-impl-0.11.1.jar
