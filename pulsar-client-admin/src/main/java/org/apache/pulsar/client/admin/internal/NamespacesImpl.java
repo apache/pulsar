@@ -1958,4 +1958,28 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
         WebTarget path = namespacePath(ns, "entryFilters");
         return asyncDeleteRequest(path);
     }
+
+    @Override
+    public List<String> getNamespaceAllowedClusters(String namespace) throws PulsarAdminException {
+        return sync(() -> getNamespaceAllowedClustersAsync(namespace));
+    }
+
+    @Override
+    public CompletableFuture<List<String>> getNamespaceAllowedClustersAsync(String namespace) {
+        return asyncGetNamespaceParts(new FutureCallback<List<String>>(){}, namespace, "allowedClusters");
+    }
+
+    @Override
+    public void setNamespaceAllowedClusters(String namespace, Set<String> clusterIds) throws PulsarAdminException {
+        sync(() -> setNamespaceAllowedClustersAsync(namespace, clusterIds));
+    }
+
+    @Override
+    public CompletableFuture<Void> setNamespaceAllowedClustersAsync(String namespace, Set<String> clusterIds) {
+        NamespaceName ns = NamespaceName.get(namespace);
+        WebTarget path = namespacePath(ns, "allowedClusters");
+        return asyncPostRequest(path, Entity.entity(clusterIds, MediaType.APPLICATION_JSON));
+    }
+
+
 }

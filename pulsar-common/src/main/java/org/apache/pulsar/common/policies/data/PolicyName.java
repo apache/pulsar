@@ -51,5 +51,6 @@ public enum PolicyName {
     MAX_TOPICS,
     RESOURCEGROUP,
     ENTRY_FILTERS,
-    SHADOW_TOPIC
+    SHADOW_TOPIC,
+    ALLOW_CLUSTERS
 }

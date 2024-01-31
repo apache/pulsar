@@ -689,9 +689,20 @@ public abstract class NamespacesBase extends AdminResource {
                                                     "Invalid cluster id: " + clusterId);
                                         }
                                         return validatePeerClusterConflictAsync(clusterId, replicationClusterSet)
-                                                .thenCompose(__ ->
-                                                        validateClusterForTenantAsync(
-                                                                namespaceName.getTenant(), clusterId));
+                                                .thenCompose(__ -> getNamespacePoliciesAsync(this.namespaceName)
+                                                        .thenAccept(nsPolicies -> {
+                                                            if (nsPolicies.allowed_clusters.isEmpty()) {
+                                                                validateClusterForTenantAsync(
+                                                                        namespaceName.getTenant(), clusterId);
+                                                            } else if (!nsPolicies.allowed_clusters
+                                                                    .contains(clusterId)) {
+                                                                String msg = String.format("Cluster [%s] is not in the "
+                                                                        + "list of allowed clusters list for namespace "
+                                                                        + "[%s]", clusterId, namespaceName.toString());
+                                                                log.info(msg);
+                                                                throw new RestException(Status.FORBIDDEN, msg);
+                                                            }
+                                                        }));
                                     }).collect(Collectors.toList());
                             return FutureUtil.waitForAll(futures).thenApply(__ -> replicationClusterSet);
                         }))
@@ -2667,4 +2678,65 @@ public abstract class NamespacesBase extends AdminResource {
         }
         return policies;
     }
+
+    protected CompletableFuture<Void> internalSetNamespaceAllowedClusters(List<String> clusterIds) {
+        return validateNamespacePolicyOperationAsync(namespaceName, PolicyName.ALLOW_CLUSTERS, PolicyOperation.WRITE)
+                .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
+                // Allowed clusters in the namespace policy should be included in the allowed clusters in the tenant
+                // policy.
+                .thenCompose(__ -> FutureUtil.waitForAll(clusterIds.stream().map(clusterId ->
+                        validateClusterForTenantAsync(namespaceName.getTenant(), clusterId))
+                        .collect(Collectors.toList())))
+                // Allowed clusters should include all the existed replication clusters and could not contain global
+                // cluster.
+                .thenCompose(__ -> {
+                    checkNotNull(clusterIds, "ClusterIds should not be null");
+                    if (clusterIds.contains("global")) {
+                        throw new RestException(Status.PRECONDITION_FAILED,
+                                "Cannot specify global in the list of allowed clusters");
+                    }
+                    return getNamespacePoliciesAsync(this.namespaceName).thenApply(namespacePolicies -> {
+                        namespacePolicies.replication_clusters.forEach(replicationCluster -> {
+                            if (!clusterIds.contains(replicationCluster)) {
+                                throw new RestException(Status.BAD_REQUEST,
+                                        String.format("Allowed clusters do not contain the replication cluster %s. "
+                                                + "Please remove the replication cluster if the cluster is not allowed "
+                                                + "for this namespace", replicationCluster));
+                            }
+                        });
+                        return Sets.newHashSet(clusterIds);
+                    });
+                })
+                // Verify the allowed clusters are valid and the do not contain the peer clusters.
+                .thenCompose(allowedClusters -> clustersAsync()
+                        .thenCompose(clusters -> {
+                            List<CompletableFuture<Void>> futures =
+                                    allowedClusters.stream().map(clusterId -> {
+                                        if (!clusters.contains(clusterId)) {
+                                            throw new RestException(Status.FORBIDDEN,
+                                                    "Invalid cluster id: " + clusterId);
+                                        }
+                                        return validatePeerClusterConflictAsync(clusterId, allowedClusters);
+                                    }).collect(Collectors.toList());
+                            return FutureUtil.waitForAll(futures).thenApply(__ -> allowedClusters);
+                        }))
+                // Update allowed clusters into policies.
+                .thenCompose(allowedClusterSet -> updatePoliciesAsync(namespaceName, policies -> {
+                    policies.allowed_clusters = allowedClusterSet;
+                    return policies;
+                }));
+    }
+
+    protected CompletableFuture<Set<String>> internalGetNamespaceAllowedClustersAsync() {
+        return validateNamespacePolicyOperationAsync(namespaceName, PolicyName.ALLOW_CLUSTERS, PolicyOperation.READ)
+                .thenAccept(__ -> {
+                    if (!namespaceName.isGlobal()) {
+                        throw new RestException(Status.PRECONDITION_FAILED,
+                                "Cannot get the allowed clusters for a non-global namespace");
+                    }
+                }).thenCompose(__ -> getNamespacePoliciesAsync(namespaceName))
+                .thenApply(policies -> policies.allowed_clusters);
+    }
+
+
 }
