@@ -33,6 +33,7 @@ import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
+import com.google.common.collect.Sets;
 import com.google.common.hash.Hashing;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
@@ -41,6 +42,7 @@ import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -64,6 +66,7 @@ import org.apache.pulsar.broker.lookup.LookupResult;
 import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.client.admin.Namespaces;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.PulsarClient;
@@ -75,8 +78,11 @@ import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.ServiceUnitId;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.BundlesData;
+import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.LocalPolicies;
 import org.apache.pulsar.common.policies.data.Policies;
+import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.metadata.api.GetResult;
@@ -797,6 +803,75 @@ public class NamespaceServiceTest extends BrokerTestBase {
 
         getResult = pulsar.getLocalMetadataStore().get(path).get();
         assertFalse(getResult.isPresent());
+    }
+
+    @Test
+    public void testNewAllowedClusterAdminAPIAndItsImpactOnReplicationClusterAPI() throws Exception {
+        pulsar.getConfiguration().setForceDeleteNamespaceAllowed(true);
+        pulsar.getConfiguration().setForceDeleteTenantAllowed(true);
+        // Setup: Prepare cluster resource, tenant and namespace
+        Set<String> replicationClusters = Set.of("r1", "r2");
+        Set<String> allowedClusters = Set.of("r1", "r2", "r3");
+        Set<String> clusters = Set.of("r1", "r2", "r3", "r4");
+        final String tenant = "my-tenant";
+        final String namespace = tenant + "/testAllowedCluster";
+        admin.tenants().createTenant(tenant,
+                new TenantInfoImpl(Sets.newHashSet("appid1"), Sets.newHashSet("test")));
+        admin.namespaces().createNamespace(namespace);
+        pulsar.getPulsarResources().getTenantResources().updateTenantAsync(tenant, tenantInfo ->
+                TenantInfo.builder().allowedClusters(replicationClusters).build());
+
+        Namespaces namespaces = admin.namespaces();
+        for (String cluster : clusters) {
+            pulsar.getPulsarResources().getClusterResources().createCluster(cluster, ClusterData.builder().build());
+        }
+        // 1. Set replication clusters without allowed clusters at namespace level.
+        namespaces.setNamespaceReplicationClusters(namespace, replicationClusters);
+        // 2. Set allowed clusters.
+        namespaces.setNamespaceAllowedClusters(namespace, allowedClusters);
+        // 3. Get allowed clusters and replication clusters.
+        List<String> allowedClustersResponse = namespaces.getNamespaceAllowedClusters(namespace);
+
+        List<String> replicationClustersResponse = namespaces.getNamespaceReplicationClusters(namespace);
+
+        assertEquals(replicationClustersResponse.size(), replicationClusters.size());
+        assertEquals(allowedClustersResponse.size(), allowedClusters.size());
+        // 4. Fail: Set allowed clusters whose scope is smaller than replication clusters.
+        Set<String> allowedClustersSmallScope = Set.of("r1", "r3");
+        try {
+            namespaces.setNamespaceAllowedClusters(namespace, allowedClustersSmallScope);
+            fail();
+        } catch (PulsarAdminException ignore) {}
+        // 5. Fail: Set replication clusters whose scope is excel the allowed clusters.
+        Set<String> replicationClustersExcel = Set.of("r1", "r4");
+        try {
+            namespaces.setNamespaceReplicationClusters(namespace, replicationClustersExcel);
+            fail();
+            //Todo: The status code in the old implementation is confused.
+        } catch (PulsarAdminException.NotAuthorizedException ignore) {}
+        // 6. Success: Set replication clusters with allowed clusters correctly.
+        namespaces.setNamespaceReplicationClusters(namespace, allowedClustersSmallScope);
+        // 7. Success: Set allowed clusters with replication clusters correctly.
+        namespaces.setNamespaceAllowedClusters(namespace, allowedClustersSmallScope);
+        // 8. Fail: Peer cluster can not be a part of the allowed clusters.
+        LinkedHashSet<String> peerCluster = new LinkedHashSet<>();
+        peerCluster.add("r2");
+        pulsar.getPulsarResources().getClusterResources().deleteCluster("r1");
+        pulsar.getPulsarResources().getClusterResources().createCluster("r1",
+                ClusterData.builder().peerClusterNames(peerCluster).build());
+        try {
+            namespaces.setNamespaceAllowedClusters(namespace, Set.of("r1", "r2", "r3"));
+            fail();
+        } catch (PulsarAdminException.ConflictException ignore) {}
+        // CleanUp: Namespace with replication clusters can not be deleted by force.
+        namespaces.setNamespaceReplicationClusters(namespace, Set.of());
+        admin.namespaces().deleteNamespace(namespace, true);
+        admin.tenants().deleteTenant(tenant, true);
+        for (String cluster : clusters) {
+            pulsar.getPulsarResources().getClusterResources().deleteCluster(cluster);
+        }
+        pulsar.getConfiguration().setForceDeleteNamespaceAllowed(false);
+        pulsar.getConfiguration().setForceDeleteTenantAllowed(false);
     }
 
     /**
