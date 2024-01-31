@@ -18,10 +18,12 @@
  */
 package org.apache.pulsar.broker.service;
 
+import com.google.common.annotations.VisibleForTesting;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
+import lombok.Getter;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarServerException;
@@ -64,9 +66,11 @@ public abstract class AbstractReplicator {
 
     protected static final AtomicReferenceFieldUpdater<AbstractReplicator, State> STATE_UPDATER =
             AtomicReferenceFieldUpdater.newUpdater(AbstractReplicator.class, State.class, "state");
+    @VisibleForTesting
+    @Getter
     private volatile State state = State.Stopped;
 
-    protected enum State {
+    public enum State {
         // The internal producer is stopped.
         Stopped,
         // Trying to create a new internal producer.
@@ -191,7 +195,7 @@ public abstract class AbstractReplicator {
                     return;
                 }
                 // TODO check isClosing or Deleting.
-                Replicator replicator = localTopic.getReplicators().get(replicatorId);
+                Replicator replicator = localTopic.getReplicators().get(remoteCluster);
                 if (replicator != AbstractReplicator.this) {
                     // Current replicator has been closed, and created a new one.
                     return;
