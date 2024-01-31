@@ -47,8 +47,10 @@ import org.testng.annotations.Test;
 @Slf4j
 public class MetricsTest {
 
-    // Test with the included Prometheus exporter as well
-    // https://github.com/open-telemetry/opentelemetry-java/blob/main/sdk-extensions/autoconfigure/README.md#prometheus-exporter
+    /*
+     * Validate that the OpenTelemetry metrics can be exported to a remote OpenTelemetry collector.
+     * https://github.com/open-telemetry/opentelemetry-java/blob/main/sdk-extensions/autoconfigure/README.md#prometheus-exporter
+     */
     @Test(timeOut = 360_000)
     public void testOpenTelemetryMetricsOtlpExport() throws Exception {
         var clusterName = "testOpenTelemetryMetrics-" + UUID.randomUUID();
@@ -95,6 +97,11 @@ public class MetricsTest {
                         metricName, Pair.of("job", functionWorkerOtelServiceName)));
     }
 
+    /*
+     * Validate that the OpenTelemetry metrics can be exported to a local Prometheus endpoint running in the same
+     * process space.
+     * https://github.com/open-telemetry/opentelemetry-java/blob/main/sdk-extensions/autoconfigure/README.md#prometheus-exporter
+     */
     @Test(timeOut = 360_000)
     public void testOpenTelemetryMetricsPrometheusExport() throws Exception {
         var prometheusExporterPort = 9464;
