@@ -153,4 +153,34 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
             admin2.topics().delete(topicName);
         });
     }
+
+    @Test
+    public void testTopicCloseWhenInternalProducerCloseErrorOnce1() throws Exception {
+        final String topicName = BrokerTestUtil.newUniqueName("persistent://" + defaultNamespace + "/tp_");
+        admin1.topics().createNonPartitionedTopic(topicName);
+        // Wait for replicator started.
+        waitReplicatorStarted(topicName);
+        PersistentTopic persistentTopic =
+                (PersistentTopic) pulsar1.getBrokerService().getTopic(topicName, false).join().get();
+        PersistentReplicator replicator =
+                (PersistentReplicator) persistentTopic.getReplicators().values().iterator().next();
+        // Mock an error when calling "replicator.disconnect()"
+        ProducerImpl mockProducer = Mockito.mock(ProducerImpl.class);
+        Mockito.when(mockProducer.closeAsync()).thenReturn(CompletableFuture.failedFuture(new Exception("mocked ex")));
+        ProducerImpl originalProducer = overrideProducerForReplicator(replicator, mockProducer);
+        // Verify: since the "replicator.producer.closeAsync()" will retry after it failed, the topic unload should be
+        // successful.
+        admin1.topics().unload(topicName);
+        // Verify: After "replicator.producer.closeAsync()" retry again, the "replicator.producer" will be closed
+        // successful.
+        overrideProducerForReplicator(replicator, originalProducer);
+        Awaitility.await().untilAsserted(() -> {
+            Assert.assertFalse(replicator.isConnected());
+        });
+        // cleanup.
+        cleanupTopics(() -> {
+            admin1.topics().delete(topicName);
+            admin2.topics().delete(topicName);
+        });
+    }
 }
