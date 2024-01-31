@@ -134,7 +134,6 @@
 
       <excludes>
         <exclude>com.datastax.oss:pulsar-functions-runtime-all</exclude>
-
         <!-- prevent adding pulsar-functions-api-examples in lib -->
         <exclude>com.datastax.oss:pulsar-functions-api-examples</exclude>
         <!-- prevent adding any distribution .tar.gz files in lib -->
