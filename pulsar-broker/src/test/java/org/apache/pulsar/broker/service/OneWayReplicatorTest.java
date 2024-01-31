@@ -308,7 +308,7 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
      * See the description and execution flow: https://github.com/apache/pulsar/pull/21946.
      */
     @Test
-    public void testTopicCloseWhenInternalProducerCloseErrorOnce1() throws Exception {
+    public void testConcurrencyOfUnloadBundleAndRecreateProducer() throws Exception {
         final String topicName = BrokerTestUtil.newUniqueName("persistent://" + defaultNamespace + "/tp_");
         // Inject an error for "replicator.producer" creation.
         // The delay time of next retry to create producer is below:
@@ -344,6 +344,7 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
                 spyCursor(persistentTopic, "pulsar.repl." + pulsar2.getConfig().getClusterName());
         CursorCloseSignal cursorCloseSignal = makeCursorClosingDelay(spyCursor);
 
+        // Unload bundle: call "topic.close(false)".
         // Stuck start new producer, until the state of replicator change to Stopped.
         // The next once of "createProducerSuccessAfterFailTimes" to create producer will be successfully.
         Awaitility.await().pollInterval(Duration.ofMillis(100)).atMost(Duration.ofSeconds(60)).untilAsserted(() -> {
