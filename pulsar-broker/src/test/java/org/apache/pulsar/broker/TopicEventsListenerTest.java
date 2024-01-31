@@ -278,11 +278,19 @@ public class TopicEventsListenerTest extends BrokerTestBase {
 
         } else {
             topicNameToWatch = topicName;
-            admin.topics().createNonPartitionedTopic(topicName);
+            try {
+                admin.topics().createNonPartitionedTopic(topicName);
+            }catch (Exception ex) {
+
+            }
 
             expectedEvents = new String[]{
-                    "LOAD__BEFORE",
-                    "LOAD__FAILURE",
+                    // Before https://github.com/apache/pulsar/pull/21995, Pulsar will skip create topic if the topic
+                    //   was already exists, and the action "check topic exists" will try to load Managed ledger,
+                    //   the check triggers two exrtra events: [LOAD__BEFORE, LOAD__FAILURE].
+                    //   #21995 fixed this wrong behavior, so remove these two events.
+                    // "LOAD__BEFORE",
+                    // "LOAD__FAILURE",
                     "LOAD__BEFORE",
                     "CREATE__BEFORE",
                     "CREATE__SUCCESS",
