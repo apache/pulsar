@@ -299,6 +299,12 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
 
     /**
      * See the description and execution flow: https://github.com/apache/pulsar/pull/21946.
+     * Steps:
+     * - Create topic, but the internal producer of Replicator created failed.
+     * - Unload bundle, the Replicator will be closed, but the internal producer creation retry has not executed yet.
+     * - The internal producer creation retry execute successfully, the "repl.cursor" has not been closed yet.
+     * - The topic is wholly closed.
+     * - Verify: the delayed created internal producer will be closed.
      */
     @Test
     public void testConcurrencyOfUnloadBundleAndRecreateProducer() throws Exception {
