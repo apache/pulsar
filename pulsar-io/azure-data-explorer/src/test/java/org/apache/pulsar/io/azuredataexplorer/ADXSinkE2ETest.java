@@ -48,7 +48,6 @@ public class ADXSinkE2ETest {
     String appKey;
     private final String table = "ADXPulsarTest_" + ThreadLocalRandom.current().nextInt(0, 100);
     private Client kustoAdminClient = null;
-    private boolean environmentVarsAvailable = true;
     Map<String, Object> configs;
 
     @BeforeMethod
