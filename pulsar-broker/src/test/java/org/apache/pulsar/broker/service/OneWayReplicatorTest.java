@@ -186,13 +186,6 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
         String cluster2 = pulsar2.getConfig().getClusterName();
         BrokerService brokerService = pulsar1.getBrokerService();
         // Wait for the internal client created.
-        // the topic "__change_event" will trigger it created.
-//        Awaitility.await().untilAsserted(() -> {
-//            ConcurrentOpenHashMap<String, PulsarClient>
-//                    replicationClients = WhiteboxImpl.getInternalState(brokerService, "replicationClients");
-//            PulsarClientImpl internalClient = (PulsarClientImpl) replicationClients.get(cluster2);
-//            assertNotNull(internalClient);
-//        });
         final String topicNameTriggerInternalClientCreate =
                 BrokerTestUtil.newUniqueName("persistent://" + defaultNamespace + "/tp_");
         admin1.topics().createNonPartitionedTopic(topicNameTriggerInternalClientCreate);
