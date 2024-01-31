@@ -1822,6 +1822,8 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
                                 + "when getting %s package from %s", e.getMessage(),
                         ComponentTypeUtils.toString(componentType), functionPkgUrl));
             }
+        } else if (Utils.hasPackageTypePrefix(existingPackagePath)) {
+            componentPackageFile = getPackageFile(existingPackagePath);
         } else if (uploadedInputStream != null) {
             componentPackageFile = WorkerUtils.dumpToTmpFile(uploadedInputStream);
         } else if (!existingPackagePath.startsWith(Utils.BUILTIN)) {
