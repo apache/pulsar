@@ -1146,6 +1146,11 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
         if (entryFilters != null && entryFilterNames.equals(entryFilters.getLeft())) {
             return;
         }
+        if (topicPolicies.getEntryFilters().getNamespaceValue() == null
+                || topicPolicies.getEntryFilters().getTopicValue() == null) {
+            entryFilters = Pair.of(entryFilterNames, brokerService.getEntryFilterProvider().getBrokerEntryFilters());
+            return;
+        }
         try {
             final List<EntryFilter> filters =
                     brokerService.getEntryFilterProvider().loadEntryFiltersForPolicy(entryFiltersPolicy);
