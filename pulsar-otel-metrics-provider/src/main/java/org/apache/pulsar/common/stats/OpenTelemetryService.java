@@ -35,8 +35,6 @@ import org.apache.commons.lang3.StringUtils;
 
 public class OpenTelemetryService implements Closeable {
 
-    private static final AttributeKey<String> CLUSTER_NAME_ATTRIBUTE = AttributeKey.stringKey("pulsar.cluster");
-
     public static final String OTEL_SDK_DISABLED = "otel.sdk.disabled";
     private static final String OTEL_TRACES_EXPORTER = "otel.traces.exporter";
     private static final String OTEL_LOGS_EXPORTER = "otel.logs.exporter";
@@ -69,11 +67,12 @@ public class OpenTelemetryService implements Closeable {
 
         sdkBuilder.addResourceCustomizer(
                 (resource, __) -> {
-                    if (resource.getAttribute(CLUSTER_NAME_ATTRIBUTE) != null) {
+                    AttributeKey<String> clusterNameAttribute = AttributeKey.stringKey("pulsar.cluster");
+                    if (resource.getAttribute(clusterNameAttribute) != null) {
                         // Do not override if already set (via system properties or environment variables).
                         return resource;
                     }
-                    return resource.merge(Resource.builder().put(CLUSTER_NAME_ATTRIBUTE, clusterName).build());
+                    return resource.merge(Resource.builder().put(clusterNameAttribute, clusterName).build());
                 });
 
         openTelemetrySdk = sdkBuilder.build().getOpenTelemetrySdk();
