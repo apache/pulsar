@@ -882,6 +882,6 @@ public abstract class AdminResource extends PulsarWebResource {
         if (t instanceof WebApplicationException) {
             return false;
         }
-        return ((WebApplicationException) t).getResponse().getStatus() != Response.Status.NOT_FOUND.getStatusCode();
+        return ((WebApplicationException) t).getResponse().getStatus() == Response.Status.NOT_FOUND.getStatusCode();
     }
 }
