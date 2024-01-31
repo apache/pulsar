@@ -322,7 +322,7 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
                 if (createProducerCounter.incrementAndGet() > failTimes) {
                     return orginalProducer;
                 }
-                log.info("===> " + createProducerCounter);
+                log.info("Retry create replicator.producer count: {}", createProducerCounter);
                 // Release producer and fail callback.
                 orginalProducer.closeAsync();
                 throw new RuntimeException("mock error");
@@ -349,25 +349,28 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
         Awaitility.await().pollInterval(Duration.ofMillis(100)).atMost(Duration.ofSeconds(60)).untilAsserted(() -> {
             assertTrue(createProducerCounter.get() >= failTimes);
         });
-        CompletableFuture<Void> topicCloseFuture = admin1.topics().unloadAsync(topicName);
+        CompletableFuture<Void> topicCloseFuture = persistentTopic.close(true);
         Awaitility.await().atMost(Duration.ofSeconds(30)).untilAsserted(() -> {
-            assertTrue(AbstractReplicator.State.Stopped.equals(replicator.getState())
-                    || AbstractReplicator.State.Terminated.equals(replicator.getState()));
+            String state = String.valueOf(replicator.getState());
+            assertTrue(state.equals("Stopped") || state.equals("Terminated"));
         });
 
         // Delay close cursor, until "replicator.producer" create successfully.
         // The next once retry time of create "replicator.producer" will be 3.2s.
         Thread.sleep(4 * 1000);
+        log.info("Replicator.state: {}", replicator.getState());
         cursorCloseSignal.startClose();
         cursorCloseSignal.startCallback();
 
         // Wait for topic close successfully.
         // Verify there is no orphan producer on the remote cluster.
         topicCloseFuture.join();
-        Awaitility.await().untilAsserted(() -> {
+        Awaitility.await().pollInterval(Duration.ofSeconds(1)).untilAsserted(() -> {
+            PersistentTopic persistentTopic2 =
+                    (PersistentTopic) pulsar2.getBrokerService().getTopic(topicName, false).join().get();
+            assertEquals(persistentTopic2.getProducers().size(), 0);
             Assert.assertFalse(replicator.isConnected());
         });
-        assertEquals(admin2.topics().getStats(topicName).getPublishers().size(), 0);
 
         // cleanup.
         cleanupTopics(() -> {
