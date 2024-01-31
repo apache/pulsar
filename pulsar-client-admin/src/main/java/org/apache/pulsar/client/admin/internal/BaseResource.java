@@ -189,11 +189,23 @@ public abstract class BaseResource {
     }
 
     protected <T> CompletableFuture<T> asyncGetRequest(final WebTarget target, Class<? extends T> type) {
-        return asyncGetRequest(target, response -> response.readEntity(type));
+        return asyncGetRequest(target, response -> {
+            if (response != null) {
+                return response.readEntity(type);
+            } else {
+                return null;
+            }
+        });
     }
 
     protected <T> CompletableFuture<T> asyncGetRequest(final WebTarget target, GenericType<T> type) {
-        return asyncGetRequest(target, response -> response.readEntity(type));
+        return asyncGetRequest(target, response -> {
+            if (response != null) {
+                return response.readEntity(type);
+            } else {
+                return null;
+            }
+        });
     }
 
     private <T> CompletableFuture<T> asyncGetRequest(final WebTarget target, Function<Response, T> readResponse) {
@@ -206,7 +218,11 @@ public abstract class BaseResource {
                             future.completeExceptionally(getApiException(response));
                         } else {
                             try {
-                                future.complete(readResponse.apply(response));
+                                if (response.hasEntity()) {
+                                    future.complete(readResponse.apply(response));
+                                } else {
+                                    future.complete(null);
+                                }
                             } catch (Exception e) {
                                 future.completeExceptionally(getApiException(e));
                             }

@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.admin;
 
+import static org.testng.Assert.assertNull;
 import java.io.BufferedReader;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -34,6 +35,7 @@ import javax.ws.rs.core.Response;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.awaitility.Awaitility;
@@ -99,6 +101,12 @@ public class AdminRestTest extends MockedPulsarServiceBaseTest {
             stringBuilder.append(line);
         }
         return stringBuilder.toString();
+    }
+
+    @Test
+    protected void testMapEmptyContentToNull() throws PulsarAdminException {
+        String namespaceResourceGroup = admin.namespaces().getNamespaceResourceGroup(namespaceName);
+        assertNull(namespaceResourceGroup);
     }
 
     @BeforeMethod
