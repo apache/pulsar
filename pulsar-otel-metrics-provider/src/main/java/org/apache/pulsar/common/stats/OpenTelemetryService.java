@@ -39,7 +39,6 @@ public class OpenTelemetryService implements Closeable {
     private static final String OTEL_TRACES_EXPORTER = "otel.traces.exporter";
     private static final String OTEL_LOGS_EXPORTER = "otel.logs.exporter";
     private static final String MAX_CARDINALITY_LIMIT_KEY = "otel.experimental.metrics.cardinality.limit";
-
     public static final int MAX_CARDINALITY_LIMIT = 10000;
 
     private final OpenTelemetrySdk openTelemetrySdk;

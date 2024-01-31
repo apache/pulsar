@@ -33,6 +33,10 @@ import java.util.stream.Collectors;
 import lombok.Builder;
 import lombok.Singular;
 
+/**
+ *  Utility class to match OpenTelemetry metric data based on a set of optional criteria. If a criterion is set, the
+ *  input MetricData must match it in order for the predicate to evaluate true.
+ */
 @Builder
 public class MetricDataMatcher implements Predicate<MetricData> {
     private final String name;
@@ -75,7 +79,7 @@ public class MetricDataMatcher implements Predicate<MetricData> {
 
     private boolean matchesAttributes(Attributes actual, Attributes expected) {
         // Return true iff all attribute pairs in expected are a subset of those in actual. Allows tests to specify
-        // just the attributes they care about, insted of exhaustively having to list all of them.
+        // just the attributes they care about, instead of exhaustively having to list all of them.
         return expected.asMap().entrySet().stream().allMatch(e -> e.getValue().equals(actual.get(e.getKey())));
     }
 
