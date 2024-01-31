@@ -101,7 +101,7 @@ public class AdminProxyHandlerKeystoreTLSTest extends MockedPulsarServiceBaseTes
         proxyConfig.setBrokerClientAuthenticationPlugin(AuthenticationKeyStoreTls.class.getName());
         proxyConfig.setBrokerClientAuthenticationParameters(String.format("keyStoreType:%s,keyStorePath:%s,keyStorePassword:%s",
                 KEYSTORE_TYPE, BROKER_KEYSTORE_FILE_PATH, BROKER_KEYSTORE_PW));
-        proxyConfig.setClusterName(DUMMY_VALUE);
+        proxyConfig.setClusterName(configClusterName);
 
         resource = new PulsarResources(registerCloseable(new ZKMetadataStore(mockZooKeeper)),
                 registerCloseable(new ZKMetadataStore(mockZooKeeperGlobal)));
