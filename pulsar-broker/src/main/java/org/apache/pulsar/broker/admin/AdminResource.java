@@ -877,11 +877,4 @@ public abstract class AdminResource extends PulsarWebResource {
                     "The bucket must be specified for namespace offload.");
         }
     }
-
-    public static boolean isRest404Exception(Throwable t) {
-        if (t instanceof WebApplicationException) {
-            return false;
-        }
-        return ((WebApplicationException) t).getResponse().getStatus() == Response.Status.NOT_FOUND.getStatusCode();
-    }
 }
