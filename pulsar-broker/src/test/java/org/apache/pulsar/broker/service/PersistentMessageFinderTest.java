@@ -443,10 +443,9 @@ public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
     @Test
     public void testIncorrectClientClock() throws Exception {
         final String ledgerAndCursorName = "testIncorrectClientClock";
-        int maxRollOverTimeMs = 1;
         int maxTTLSeconds = 1;
         ManagedLedgerConfig config = new ManagedLedgerConfig();
-        config.setMaximumRolloverTime(maxRollOverTimeMs, TimeUnit.MICROSECONDS);
+        config.setMaxEntriesPerLedger(1);
         ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open(ledgerAndCursorName, config);
         ManagedCursorImpl c1 = (ManagedCursorImpl) ledger.openCursor(ledgerAndCursorName);
         // set client clock to 10 days later
@@ -454,6 +453,7 @@ public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
         for (int i = 0; i < 10; i++) {
             ledger.addEntry(createMessageWrittenToLedger("msg" + i, incorrectPublishTimestamp));
         }
+        assertEquals(ledger.getLedgersInfoAsList().size(), 10);
         PersistentTopic mock = mock(PersistentTopic.class);
         when(mock.getName()).thenReturn("topicname");
         when(mock.getLastPosition()).thenReturn(PositionImpl.EARLIEST);
