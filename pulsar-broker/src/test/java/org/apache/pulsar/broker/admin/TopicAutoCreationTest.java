@@ -149,11 +149,10 @@ public class TopicAutoCreationTest extends ProducerConsumerBase {
                     .sendTimeout(1, TimeUnit.SECONDS)
                     .topic(topic)
                     .create()) {
-            } catch (PulsarClientException.TopicDoesNotExistException expected) {
-                // Since the "policies.deleted" is "true", the value of "isAllowAutoTopicCreationAsync" will be false,
-                // so the "TopicDoesNotExistException" is expected.
+            } catch (PulsarClientException.LookupException expected) {
+                String msg = "Namespace bundle for topic (%s) not served by this instance";
                 log.info("Expected error", expected);
-                assertTrue(expected.getMessage().contains(topic)
+                assertTrue(expected.getMessage().contains(String.format(msg, topic))
                         || expected.getMessage().contains(topicPoliciesServiceInitException));
             }
 
@@ -161,11 +160,10 @@ public class TopicAutoCreationTest extends ProducerConsumerBase {
                     .topic(topic)
                     .subscriptionName("test")
                     .subscribe()) {
-            } catch (PulsarClientException.TopicDoesNotExistException expected) {
-                // Since the "policies.deleted" is "true", the value of "isAllowAutoTopicCreationAsync" will be false,
-                // so the "TopicDoesNotExistException" is expected.
+            } catch (PulsarClientException.LookupException expected) {
+                String msg = "Namespace bundle for topic (%s) not served by this instance";
                 log.info("Expected error", expected);
-                assertTrue(expected.getMessage().contains(topic)
+                assertTrue(expected.getMessage().contains(String.format(msg, topic))
                         || expected.getMessage().contains(topicPoliciesServiceInitException));
             }
 
