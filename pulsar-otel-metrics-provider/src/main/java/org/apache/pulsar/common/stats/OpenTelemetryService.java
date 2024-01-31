@@ -49,7 +49,6 @@ public class OpenTelemetryService implements Closeable {
                                 @Singular Map<String, String> extraProperties,
                                 // Allows customizing the SDK builder; for testing purposes only.
                                 @VisibleForTesting AutoConfiguredOpenTelemetrySdkBuilder sdkBuilder) {
-        assert !StringUtils.isEmpty(clusterName);
         checkArgument(StringUtils.isNotEmpty(clusterName), "Cluster name cannot be empty");
         if (sdkBuilder == null) {
             sdkBuilder = AutoConfiguredOpenTelemetrySdk.builder();
