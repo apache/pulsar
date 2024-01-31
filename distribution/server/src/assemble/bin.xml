@@ -128,9 +128,6 @@
         <exclude>com.google.android:annotations</exclude>
         <!-- Needed only in the pulsar-shell distro only -->
         <exclude>net.java.dev.jna:jna</exclude>
-        <!-- Exclude OpenTelemetry trace and log dependencies until supported. -->
-        <exclude>io.opentelemetry:opentelemetry-sdk-logs</exclude>
-        <exclude>io.opentelemetry:opentelemetry-sdk-trace</exclude>
       </excludes>
     </dependencySet>
   </dependencySets>

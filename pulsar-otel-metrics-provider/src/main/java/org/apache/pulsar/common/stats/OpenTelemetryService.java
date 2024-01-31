@@ -36,8 +36,6 @@ import org.apache.commons.lang3.StringUtils;
 public class OpenTelemetryService implements Closeable {
 
     public static final String OTEL_SDK_DISABLED = "otel.sdk.disabled";
-    private static final String OTEL_TRACES_EXPORTER = "otel.traces.exporter";
-    private static final String OTEL_LOGS_EXPORTER = "otel.logs.exporter";
     private static final String MAX_CARDINALITY_LIMIT_KEY = "otel.experimental.metrics.cardinality.limit";
     public static final int MAX_CARDINALITY_LIMIT = 10000;
 
@@ -55,9 +53,6 @@ public class OpenTelemetryService implements Closeable {
 
         Map<String, String> overrideProperties = new HashMap<>();
         overrideProperties.put(OTEL_SDK_DISABLED, "true");
-        // The logs and traces exporters are not included in the distribution, so we need to disable them.
-        overrideProperties.put(OTEL_LOGS_EXPORTER, "none");
-        overrideProperties.put(OTEL_TRACES_EXPORTER, "none");
         // Cardinality limit property is exclusive, so we need to add 1.
         overrideProperties.put(MAX_CARDINALITY_LIMIT_KEY, Integer.toString(MAX_CARDINALITY_LIMIT + 1));
         sdkBuilder.addPropertiesSupplier(() -> overrideProperties);
