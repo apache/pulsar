@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.admin;
 
+import static org.apache.pulsar.broker.admin.impl.BrokersBase.HEALTH_CHECK_TOPIC_SUFFIX;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
@@ -34,6 +35,7 @@ import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
+import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
@@ -41,6 +43,7 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.ProducerBuilderImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
+import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicVersion;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
@@ -50,6 +53,7 @@ import org.mockito.Mockito;
 import org.springframework.util.CollectionUtils;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker-admin")
@@ -78,14 +82,27 @@ public class AdminApiHealthCheckTest extends MockedPulsarServiceBaseTest {
         super.internalCleanup();
     }
 
-    @Test
-    public void testHealthCheckup() throws Exception {
+    @DataProvider(name = "topicVersion")
+    public static Object[][] topicVersions() {
+        return new Object[][] {
+                { null },
+                { TopicVersion.V1 },
+                { TopicVersion.V2 },
+        };
+    }
+
+    @Test(dataProvider = "topicVersion")
+    public void testHealthCheckup(TopicVersion topicVersion) throws Exception {
         final int times = 30;
         CompletableFuture<Void> future = new CompletableFuture<>();
         pulsar.getExecutor().execute(() -> {
             try {
                 for (int i = 0; i < times; i++) {
-                    admin.brokers().healthcheck();
+                    if (topicVersion == null) {
+                        admin.brokers().healthcheck();
+                    } else {
+                        admin.brokers().healthcheck(topicVersion);
+                    }
                 }
                 future.complete(null);
             }catch (PulsarAdminException e) {
@@ -93,11 +110,18 @@ public class AdminApiHealthCheckTest extends MockedPulsarServiceBaseTest {
             }
         });
         for (int i = 0; i < times; i++) {
-            admin.brokers().healthcheck();
+            if (topicVersion == null) {
+                admin.brokers().healthcheck();
+            } else {
+                admin.brokers().healthcheck(topicVersion);
+            }
         }
         // To ensure we don't have any subscription
-        final String testHealthCheckTopic = String.format("persistent://pulsar/test/localhost:%s/healthcheck",
-                pulsar.getConfig().getWebServicePort().get());
+        String brokerId = pulsar.getBrokerId();
+        NamespaceName namespaceName = (topicVersion == TopicVersion.V2)
+                ? NamespaceService.getHeartbeatNamespaceV2(brokerId, pulsar.getConfiguration())
+                : NamespaceService.getHeartbeatNamespace(brokerId, pulsar.getConfiguration());
+        final String testHealthCheckTopic = String.format("persistent://%s/%s", namespaceName, HEALTH_CHECK_TOPIC_SUFFIX);
         Awaitility.await().untilAsserted(() -> {
             assertFalse(future.isCompletedExceptionally());
         });
@@ -178,72 +202,6 @@ public class AdminApiHealthCheckTest extends MockedPulsarServiceBaseTest {
             // assert that there's no deadlock
             assertNull(threadIds);
         }
-    }
-
-    @Test
-    public void testHealthCheckupV1() throws Exception {
-        final int times = 30;
-        CompletableFuture<Void> future = new CompletableFuture<>();
-        pulsar.getExecutor().execute(() -> {
-            try {
-                for (int i = 0; i < times; i++) {
-                    admin.brokers().healthcheck(TopicVersion.V1);
-                }
-                future.complete(null);
-            }catch (PulsarAdminException e) {
-                future.completeExceptionally(e);
-            }
-        });
-        for (int i = 0; i < times; i++) {
-            admin.brokers().healthcheck(TopicVersion.V1);
-        }
-        final String testHealthCheckTopic = String.format("persistent://pulsar/test/localhost:%s/healthcheck",
-                pulsar.getConfig().getWebServicePort().get());
-        Awaitility.await().untilAsserted(() -> {
-            assertFalse(future.isCompletedExceptionally());
-        });
-        // To ensure we don't have any subscription
-        Awaitility.await().untilAsserted(() ->
-                assertTrue(CollectionUtils.isEmpty(admin.topics()
-                        .getSubscriptions(testHealthCheckTopic).stream()
-                        // All system topics are using compaction, even though is not explicitly set in the policies.
-                        .filter(v -> !v.equals(Compactor.COMPACTION_SUBSCRIPTION))
-                        .collect(Collectors.toList())
-                ))
-        );
-    }
-
-    @Test
-    public void testHealthCheckupV2() throws Exception {
-        final int times = 30;
-        CompletableFuture<Void> future = new CompletableFuture<>();
-        pulsar.getExecutor().execute(() -> {
-            try {
-                for (int i = 0; i < times; i++) {
-                    admin.brokers().healthcheck(TopicVersion.V2);
-                }
-                future.complete(null);
-            }catch (PulsarAdminException e) {
-                future.completeExceptionally(e);
-            }
-        });
-        for (int i = 0; i < times; i++) {
-            admin.brokers().healthcheck(TopicVersion.V2);
-        }
-        final String testHealthCheckTopic = String.format("persistent://pulsar/localhost:%s/healthcheck",
-                pulsar.getConfig().getWebServicePort().get());
-        Awaitility.await().untilAsserted(() -> {
-            assertFalse(future.isCompletedExceptionally());
-        });
-        // To ensure we don't have any subscription
-        Awaitility.await().untilAsserted(() ->
-                assertTrue(CollectionUtils.isEmpty(admin.topics()
-                        .getSubscriptions(testHealthCheckTopic).stream()
-                        // All system topics are using compaction, even though is not explicitly set in the policies.
-                        .filter(v -> !v.equals(Compactor.COMPACTION_SUBSCRIPTION))
-                        .collect(Collectors.toList())
-                ))
-        );
     }
 
     class DummyProducerBuilder<T> extends ProducerBuilderImpl<T> {
