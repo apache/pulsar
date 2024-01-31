@@ -463,6 +463,9 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             }
 
             resetMetricsServlet();
+            if (openTelemetry != null) {
+                openTelemetry.close();
+            }
 
             if (this.compactionServiceFactory != null) {
                 try {
