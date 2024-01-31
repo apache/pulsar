@@ -32,7 +32,6 @@ import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
-import java.util.function.Predicate;
 import javax.annotation.Nullable;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
@@ -322,55 +321,6 @@ public class CompactedTopicImpl implements CompactedTopic {
                     .thenCompose(entries -> entries.size() > 0
                             ? CompletableFuture.completedFuture(entries.get(0))
                             : CompletableFuture.completedFuture(null));
-        });
-    }
-
-    CompletableFuture<Entry> findFirstMatchEntry(final Predicate<Entry> predicate) {
-        var compactedTopicContextFuture = this.getCompactedTopicContextFuture();
-
-        if (compactedTopicContextFuture == null) {
-            return CompletableFuture.completedFuture(null);
-        }
-        return compactedTopicContextFuture.thenCompose(compactedTopicContext -> {
-            LedgerHandle lh = compactedTopicContext.getLedger();
-            CompletableFuture<Long> promise = new CompletableFuture<>();
-            findFirstMatchIndexLoop(predicate, 0L, lh.getLastAddConfirmed(), promise, null, lh);
-            return promise.thenCompose(index -> {
-                if (index == null) {
-                    return CompletableFuture.completedFuture(null);
-                }
-                return readEntries(lh, index, index).thenApply(entries -> entries.get(0));
-            });
-        });
-    }
-    private static void findFirstMatchIndexLoop(final Predicate<Entry> predicate,
-                                                final long start, final long end,
-                                                final CompletableFuture<Long> promise,
-                                                final Long lastMatchIndex,
-                                                final LedgerHandle lh) {
-        if (start > end) {
-            promise.complete(lastMatchIndex);
-            return;
-        }
-
-        long mid = (start + end) / 2;
-        readEntries(lh, mid, mid).thenAccept(entries -> {
-            Entry entry = entries.get(0);
-            final boolean isMatch;
-            try {
-                isMatch = predicate.test(entry);
-            } finally {
-                entry.release();
-            }
-
-            if (isMatch) {
-                findFirstMatchIndexLoop(predicate, start, mid - 1, promise, mid, lh);
-            } else {
-                findFirstMatchIndexLoop(predicate, mid + 1, end, promise, lastMatchIndex, lh);
-            }
-        }).exceptionally(ex -> {
-            promise.completeExceptionally(ex);
-            return null;
         });
     }
 
