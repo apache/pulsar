@@ -119,8 +119,6 @@
       <excludes>
         <exclude>org.apache.pulsar:pulsar-functions-runtime-all</exclude>
 
-        <exclude>org.projectlombok:lombok</exclude>
-
         <!-- prevent adding pulsar-functions-api-examples in lib -->
         <exclude>org.apache.pulsar:pulsar-functions-api-examples</exclude>
         <!-- prevent adding any distribution .tar.gz files in lib -->
