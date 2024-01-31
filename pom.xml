@@ -2270,6 +2270,7 @@ flexible messaging model and an intuitive client API.</description>
         <module>pulsar-broker-auth-sasl</module>
         <module>pulsar-client-auth-sasl</module>
         <module>pulsar-config-validation</module>
+        <module>pulsar-otel-metrics-provider</module>
 
         <module>structured-event-log</module>
 
@@ -2334,6 +2335,7 @@ flexible messaging model and an intuitive client API.</description>
         <module>pulsar-broker-auth-sasl</module>
         <module>pulsar-client-auth-sasl</module>
         <module>pulsar-config-validation</module>
+        <module>pulsar-otel-metrics-provider</module>
 
         <!-- transaction related modules -->
         <module>pulsar-transaction</module>
