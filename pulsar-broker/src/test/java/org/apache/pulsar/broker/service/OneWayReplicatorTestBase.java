@@ -166,7 +166,7 @@ public abstract class OneWayReplicatorTestBase extends TestRetrySupport {
         log.info("--- OneWayReplicatorTestBase::setup completed ---");
     }
 
-    private void setConfigDefaults(ServiceConfiguration config, String clusterName,
+    protected void setConfigDefaults(ServiceConfiguration config, String clusterName,
                                    LocalBookkeeperEnsemble bookkeeperEnsemble, ZookeeperServerTest brokerConfigZk) {
         config.setClusterName(clusterName);
         config.setAdvertisedAddress("localhost");
