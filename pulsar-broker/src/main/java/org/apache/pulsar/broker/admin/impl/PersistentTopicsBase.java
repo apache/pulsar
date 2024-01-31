@@ -2272,7 +2272,7 @@ public class PersistentTopicsBase extends AdminResource {
                         .thenCompose(allowAutoTopicCreation -> getPartitionedTopicMetadataAsync(topicName,
                                 authoritative, allowAutoTopicCreation).thenAccept(partitionMetadata -> {
                             final int numPartitions = partitionMetadata.partitions;
-                            if (numPartitions > 0) {
+                            if (partitionMetadata.partitions > 0 && !isUnexpectedTopicName(partitionMetadata)) {
                                 final CompletableFuture<Void> future = new CompletableFuture<>();
                                 final AtomicInteger count = new AtomicInteger(numPartitions);
                                 final AtomicInteger failureCount = new AtomicInteger(0);
