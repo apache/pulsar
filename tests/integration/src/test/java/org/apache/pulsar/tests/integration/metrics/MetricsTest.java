@@ -25,7 +25,6 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -44,7 +43,6 @@ import org.apache.pulsar.tests.integration.topologies.PulsarTestBase;
 import org.awaitility.Awaitility;
 import org.testng.annotations.Test;
 
-@Slf4j
 public class MetricsTest {
 
     /*
@@ -99,7 +97,7 @@ public class MetricsTest {
 
     /*
      * Validate that the OpenTelemetry metrics can be exported to a local Prometheus endpoint running in the same
-     * process space.
+     * process space as the broker/proxy/function-worker.
      * https://github.com/open-telemetry/opentelemetry-java/blob/main/sdk-extensions/autoconfigure/README.md#prometheus-exporter
      */
     @Test(timeOut = 360_000)
@@ -152,16 +150,14 @@ public class MetricsTest {
                         Pair.of("service_name", functionWorkerOtelServiceName)));
     }
 
-    @SafeVarargs
     private static boolean hasMetrics(ChaosContainer<?> container, int port, String metricName,
-                                      Pair<String, String> ... expectedLabels) throws Exception {
+                                      Pair<String, String> ... expectedLabels) {
         var client = new PrometheusMetricsClient(container.getHost(), container.getMappedPort(port));
         var allMetrics = client.getMetrics();
         var actualMetrics = allMetrics.findByNameAndLabels(metricName, expectedLabels);
         return !actualMetrics.isEmpty();
     }
 
-    @SafeVarargs
     private static Map<String, String> getCollectorProps(String serviceName, String exporter,
                                                          Pair<String, String> ... extraProps) {
         var defaultProps = Map.of(
