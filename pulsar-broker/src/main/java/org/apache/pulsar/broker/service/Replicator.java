@@ -31,7 +31,7 @@ public interface Replicator {
 
     CompletableFuture<Void> terminate();
 
-    CompletableFuture<Void> terminate(boolean b);
+    CompletableFuture<Void> disconnect(boolean failIfHasBacklog);
 
     void updateRates();
 
