@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.websocket;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
@@ -37,6 +38,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import lombok.Cleanup;
+import com.google.common.base.Splitter;
 import lombok.Getter;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.client.api.CompressionType;
@@ -51,6 +54,7 @@ import org.apache.pulsar.client.impl.ProducerBuilderImpl;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.websocket.service.WebSocketProxyConfiguration;
 import org.eclipse.jetty.http.HttpStatus;
 import org.eclipse.jetty.websocket.api.RemoteEndpoint;
@@ -129,7 +133,7 @@ public class AbstractWebSocketHandlerTest {
         webSocketHandler = new WebSocketHandlerImpl(null, httpServletRequest, null);
         topicName = webSocketHandler.getTopic();
         assertEquals(topicName.toString(), "persistent://my-property/my-ns/" + consumerV2Topic);
-        String sub = ConsumerHandler.extractSubscription(httpServletRequest);
+        String sub = extractSubscription(httpServletRequest);
         assertEquals(sub, consumerV2Sub);
 
         when(httpServletRequest.getRequestURI()).thenReturn(readerV2
@@ -137,6 +141,27 @@ public class AbstractWebSocketHandlerTest {
         webSocketHandler = new WebSocketHandlerImpl(null, httpServletRequest, null);
         topicName = webSocketHandler.getTopic();
         assertEquals(topicName.toString(), "persistent://my-property/my-ns/" + readerV2Topic);
+    }
+
+    public String extractSubscription(HttpServletRequest request) {
+        String uri = request.getRequestURI();
+        List<String> parts = Splitter.on("/").splitToList(uri);
+
+        // v1 Format must be like :
+        // /ws/consumer/persistent/my-property/my-cluster/my-ns/my-topic/my-subscription
+
+        // v2 Format must be like :
+        // /ws/v2/consumer/persistent/my-property/my-ns/my-topic/my-subscription
+        checkArgument(parts.size() == 9, "Invalid topic name format");
+        checkArgument(parts.get(1).equals("ws"));
+
+        final boolean isV2Format = parts.get(2).equals("v2");
+        final int domainIndex = isV2Format ? 4 : 3;
+        checkArgument(parts.get(domainIndex).equals("persistent")
+                || parts.get(domainIndex).equals("non-persistent"));
+        checkArgument(parts.get(8).length() > 0, "Empty subscription name");
+
+        return Codec.decode(parts.get(8));
     }
 
     @Test
@@ -388,10 +413,11 @@ public class AbstractWebSocketHandlerTest {
     }
 
     @Test
-    public void testPingFuture() {
+    public void testPingFuture() throws IOException {
         WebSocketProxyConfiguration webSocketProxyConfiguration = new WebSocketProxyConfiguration();
         webSocketProxyConfiguration.setWebSocketPingDurationSeconds(5);
 
+        @Cleanup
         WebSocketService webSocketService = new WebSocketService(webSocketProxyConfiguration);
 
         HttpServletRequest httpServletRequest = mock(HttpServletRequest.class);

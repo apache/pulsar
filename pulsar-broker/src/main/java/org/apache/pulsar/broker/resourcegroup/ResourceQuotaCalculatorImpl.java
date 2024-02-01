@@ -84,8 +84,10 @@ public class ResourceQuotaCalculatorImpl implements ResourceQuotaCalculator {
         float calculatedQuota = max(myUsage + residual * myUsageFraction, 1);
 
         val longCalculatedQuota = (long) calculatedQuota;
-        log.info("computeLocalQuota: myUsage={}, totalUsage={}, myFraction={}; newQuota returned={} [long: {}]",
-                myUsage, totalUsage, myUsageFraction, calculatedQuota, longCalculatedQuota);
+        if (log.isDebugEnabled()) {
+            log.debug("computeLocalQuota: myUsage={}, totalUsage={}, myFraction={}; newQuota returned={} [long: {}]",
+                    myUsage, totalUsage, myUsageFraction, calculatedQuota, longCalculatedQuota);
+        }
 
         return longCalculatedQuota;
     }

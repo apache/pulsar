@@ -49,6 +49,7 @@ import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.api.proto.ReplicatedSubscriptionsSnapshot;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.Markers;
+import org.apache.pulsar.compaction.Compactor;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 @Slf4j
@@ -174,13 +175,15 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
             if (msgMetadata != null && msgMetadata.hasTxnidMostBits()
                     && msgMetadata.hasTxnidLeastBits()) {
                 if (Markers.isTxnMarker(msgMetadata)) {
-                    // because consumer can receive message is smaller than maxReadPosition,
-                    // so this marker is useless for this subscription
-                    individualAcknowledgeMessageIfNeeded(Collections.singletonList(entry.getPosition()),
-                            Collections.emptyMap());
-                    entries.set(i, null);
-                    entry.release();
-                    continue;
+                    if (cursor == null || !cursor.getName().equals(Compactor.COMPACTION_SUBSCRIPTION)) {
+                        // because consumer can receive message is smaller than maxReadPosition,
+                        // so this marker is useless for this subscription
+                        individualAcknowledgeMessageIfNeeded(Collections.singletonList(entry.getPosition()),
+                                Collections.emptyMap());
+                        entries.set(i, null);
+                        entry.release();
+                        continue;
+                    }
                 } else if (((PersistentTopic) subscription.getTopic())
                         .isTxnAborted(new TxnID(msgMetadata.getTxnidMostBits(), msgMetadata.getTxnidLeastBits()),
                                 (PositionImpl) entry.getPosition())) {
@@ -192,19 +195,26 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
                 }
             }
 
-            if (msgMetadata == null || Markers.isServerOnlyMarker(msgMetadata)) {
+            if (msgMetadata == null || (Markers.isServerOnlyMarker(msgMetadata))) {
                 PositionImpl pos = (PositionImpl) entry.getPosition();
                 // Message metadata was corrupted or the messages was a server-only marker
 
                 if (Markers.isReplicatedSubscriptionSnapshotMarker(msgMetadata)) {
+                    final int readerIndex = metadataAndPayload.readerIndex();
                     processReplicatedSubscriptionSnapshot(pos, metadataAndPayload);
+                    metadataAndPayload.readerIndex(readerIndex);
                 }
 
-                entries.set(i, null);
-                entry.release();
-                individualAcknowledgeMessageIfNeeded(Collections.singletonList(pos),
-                        Collections.emptyMap());
-                continue;
+                // Deliver marker to __compaction cursor to avoid compaction task stuck,
+                // and filter out them when doing topic compaction.
+                if (msgMetadata == null || cursor == null
+                        || !cursor.getName().equals(Compactor.COMPACTION_SUBSCRIPTION)) {
+                    entries.set(i, null);
+                    entry.release();
+                    individualAcknowledgeMessageIfNeeded(Collections.singletonList(pos),
+                            Collections.emptyMap());
+                    continue;
+                }
             } else if (trackDelayedDelivery(entry.getLedgerId(), entry.getEntryId(), msgMetadata)) {
                 // The message is marked for delayed delivery. Ignore for now.
                 entries.set(i, null);
@@ -315,10 +325,10 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
                 || (cursor != null && !cursor.isActive())) {
             long permits = dispatchThrottlingOnBatchMessageEnabled ? totalEntries : totalMessagesSent;
             topic.getBrokerDispatchRateLimiter().ifPresent(rateLimiter ->
-                    rateLimiter.tryDispatchPermit(permits, totalBytesSent));
+                    rateLimiter.consumeDispatchQuota(permits, totalBytesSent));
             topic.getDispatchRateLimiter().ifPresent(rateLimter ->
-                    rateLimter.tryDispatchPermit(permits, totalBytesSent));
-            getRateLimiter().ifPresent(rateLimiter -> rateLimiter.tryDispatchPermit(permits, totalBytesSent));
+                    rateLimter.consumeDispatchQuota(permits, totalBytesSent));
+            getRateLimiter().ifPresent(rateLimiter -> rateLimiter.consumeDispatchQuota(permits, totalBytesSent));
         }
     }
 
@@ -356,16 +366,6 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
 
     protected abstract void reScheduleRead();
 
-    protected boolean reachDispatchRateLimit(DispatchRateLimiter dispatchRateLimiter) {
-        if (dispatchRateLimiter.isDispatchRateLimitingEnabled()) {
-            if (!dispatchRateLimiter.hasMessageDispatchPermit()) {
-                reScheduleRead();
-                return true;
-            }
-        }
-        return false;
-    }
-
     protected Pair<Integer, Long> updateMessagesToRead(DispatchRateLimiter dispatchRateLimiter,
                                                        int messagesToRead, long bytesToRead) {
         // update messagesToRead according to available dispatch rate limit.
@@ -376,11 +376,11 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
 
     protected static Pair<Integer, Long> computeReadLimits(int messagesToRead, int availablePermitsOnMsg,
                                                            long bytesToRead, long availablePermitsOnByte) {
-        if (availablePermitsOnMsg > 0) {
+        if (availablePermitsOnMsg >= 0) {
             messagesToRead = Math.min(messagesToRead, availablePermitsOnMsg);
         }
 
-        if (availablePermitsOnByte > 0) {
+        if (availablePermitsOnByte >= 0) {
             bytesToRead = Math.min(bytesToRead, availablePermitsOnByte);
         }
 

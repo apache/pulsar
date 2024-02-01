@@ -79,12 +79,16 @@ public class AdditionalServlets implements AutoCloseable {
             return null;
         }
 
+        String[] additionalServletsList = additionalServlets.split(",");
+        if (additionalServletsList.length == 0) {
+            return null;
+        }
+
         AdditionalServletDefinitions definitions =
                 AdditionalServletUtils.searchForServlets(additionalServletDirectory
                         , narExtractionDirectory);
         ImmutableMap.Builder<String, AdditionalServletWithClassLoader> builder = ImmutableMap.builder();
 
-        String[] additionalServletsList = additionalServlets.split(",");
         for (String servletName : additionalServletsList) {
             AdditionalServletMetadata definition = definitions.servlets().get(servletName);
             if (null == definition) {
@@ -106,7 +110,7 @@ public class AdditionalServlets implements AutoCloseable {
         }
 
         Map<String, AdditionalServletWithClassLoader> servlets = builder.build();
-        if (servlets != null && !servlets.isEmpty()) {
+        if (!servlets.isEmpty()) {
             return new AdditionalServlets(servlets);
         }
 

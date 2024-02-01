@@ -21,7 +21,9 @@ package org.apache.bookkeeper.mledger.impl;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.atLeast;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doNothing;
@@ -55,17 +57,21 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.NavigableMap;
 import java.util.Optional;
+import java.util.Queue;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.FutureTask;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
@@ -90,6 +96,8 @@ import org.apache.bookkeeper.client.PulsarMockLedgerHandle;
 import org.apache.bookkeeper.client.api.LedgerEntries;
 import org.apache.bookkeeper.client.api.LedgerMetadata;
 import org.apache.bookkeeper.client.api.ReadHandle;
+import org.apache.bookkeeper.common.util.BoundedScheduledExecutorService;
+import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.bookkeeper.conf.ClientConfiguration;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.AddEntryCallback;
@@ -124,6 +132,7 @@ import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.Ledge
 import org.apache.bookkeeper.mledger.util.Futures;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
 import org.apache.commons.lang3.exception.ExceptionUtils;
+import org.apache.commons.lang3.mutable.MutableBoolean;
 import org.apache.commons.lang3.mutable.MutableObject;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition;
@@ -135,6 +144,7 @@ import org.apache.pulsar.metadata.api.Stat;
 import org.apache.pulsar.metadata.api.extended.SessionEvent;
 import org.apache.pulsar.metadata.impl.FaultInjectionMetadataStore;
 import org.awaitility.Awaitility;
+import org.awaitility.reflect.WhiteboxImpl;
 import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.DataProvider;
@@ -3086,9 +3096,9 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
 
         latch.await(config.getMetadataOperationsTimeoutSeconds() + 2, TimeUnit.SECONDS);
         assertEquals(response.get(), BKException.Code.TimeoutException);
-        assertTrue(ctxHolder.get() instanceof AtomicBoolean);
-        AtomicBoolean ledgerCreated = (AtomicBoolean) ctxHolder.get();
-        assertFalse(ledgerCreated.get());
+        assertTrue(ctxHolder.get() instanceof CompletableFuture);
+        CompletableFuture ledgerCreateHook = (CompletableFuture) ctxHolder.get();
+        assertTrue(ledgerCreateHook.isCompletedExceptionally());
 
         ledger.close();
     }
@@ -3450,7 +3460,6 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         ManagedLedgerConfig config = new ManagedLedgerConfig();
         config.setRetentionTime(1, TimeUnit.SECONDS);
         config.setMaxEntriesPerLedger(2);
-        config.setMinimumRolloverTime(1, TimeUnit.MILLISECONDS);
         config.setMaximumRolloverTime(500, TimeUnit.MILLISECONDS);
 
         ManagedLedgerImpl ledger = (ManagedLedgerImpl)factory.open("test_managedLedger_rollOver", config);
@@ -3890,6 +3899,30 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
     }
 
     @Test
+    public void testDontRollOverEmptyInactiveLedgers() throws Exception {
+        int inactiveLedgerRollOverTimeMs = 5;
+        ManagedLedgerFactoryConfig factoryConf = new ManagedLedgerFactoryConfig();
+        @Cleanup("shutdown")
+        ManagedLedgerFactory factory = new ManagedLedgerFactoryImpl(metadataStore, bkc);
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setInactiveLedgerRollOverTime(inactiveLedgerRollOverTimeMs, TimeUnit.MILLISECONDS);
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("rollover_inactive", config);
+        ManagedCursor cursor = ledger.openCursor("c1");
+
+        long ledgerId = ledger.currentLedger.getId();
+
+        Thread.sleep(inactiveLedgerRollOverTimeMs * 5);
+        ledger.checkInactiveLedgerAndRollOver();
+
+        Thread.sleep(inactiveLedgerRollOverTimeMs * 5);
+        ledger.checkInactiveLedgerAndRollOver();
+
+        assertEquals(ledger.currentLedger.getId(), ledgerId);
+
+        ledger.close();
+    }
+
+    @Test
     public void testOffloadTaskCancelled() throws Exception {
         @Cleanup("shutdown")
         ManagedLedgerFactory factory = new ManagedLedgerFactoryImpl(metadataStore, bkc);
@@ -4075,5 +4108,128 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
             }
         });
         future.join();
+    }
+
+    @Test
+    public void testNonDurableCursorCreateForInactiveLedger() throws Exception {
+        String mlName = "testLedgerInfoMetaCorrectIfAddEntryTimeOut";
+        BookKeeper spyBookKeeper = spy(bkc);
+        ManagedLedgerFactoryImpl factory = new ManagedLedgerFactoryImpl(metadataStore, spyBookKeeper);
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setInactiveLedgerRollOverTime(10, TimeUnit.MILLISECONDS);
+        ManagedLedgerImpl ml = (ManagedLedgerImpl) factory.open(mlName, config);
+        ml.addEntry("entry".getBytes(UTF_8));
+
+        MutableBoolean isRolledOver = new MutableBoolean(false);
+        retryStrategically((test) -> {
+            if (isRolledOver.booleanValue()) {
+                return true;
+            }
+            isRolledOver.setValue(ml.checkInactiveLedgerAndRollOver());
+            return isRolledOver.booleanValue();
+        }, 5, 1000);
+        assertTrue(isRolledOver.booleanValue());
+
+        Position Position = new PositionImpl(-1L, -1L);
+        assertNotNull(ml.newNonDurableCursor(Position));
+    }
+
+    /***
+     * When a ML tries to create a ledger, it will create a delay task to check if the ledger create request is timeout.
+     * But we should guarantee that the delay task should be canceled after the ledger create request responded.
+     */
+    @Test
+    public void testNoOrphanScheduledTasksAfterCloseML() throws Exception {
+        String mlName = UUID.randomUUID().toString();
+        ManagedLedgerFactoryImpl factory = new ManagedLedgerFactoryImpl(metadataStore, bkc);
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setMetadataOperationsTimeoutSeconds(3600);
+
+        // Calculate pending task count.
+        long pendingTaskCountBefore = calculatePendingTaskCount(factory.getScheduledExecutor());
+        // Trigger create & close ML 1000 times.
+        for (int i = 0; i < 1000; i++) {
+            ManagedLedger ml = factory.open(mlName, config);
+            ml.close();
+        }
+        // Verify there is no orphan scheduled task.
+        long pendingTaskCountAfter = calculatePendingTaskCount(factory.getScheduledExecutor());
+        // Maybe there are other components also appended scheduled tasks, so leave 100 tasks to avoid flaky.
+        assertTrue(pendingTaskCountAfter - pendingTaskCountBefore < 100);
+    }
+
+    /**
+     * Calculate how many pending tasks in {@link OrderedScheduler}
+     */
+    private long calculatePendingTaskCount(OrderedScheduler orderedScheduler) {
+        ExecutorService[] threads = WhiteboxImpl.getInternalState(orderedScheduler, "threads");
+        long taskCounter = 0;
+        for (ExecutorService thread : threads) {
+            BoundedScheduledExecutorService boundedScheduledExecutorService =
+                    WhiteboxImpl.getInternalState(thread, "delegate");
+            BlockingQueue<Runnable> queue =  WhiteboxImpl.getInternalState(boundedScheduledExecutorService, "queue");
+            for (Runnable r : queue) {
+                if (r instanceof FutureTask) {
+                    FutureTask futureTask = (FutureTask) r;
+                    if (!futureTask.isCancelled() && !futureTask.isDone()) {
+                        taskCounter++;
+                    }
+                } else {
+                    taskCounter++;
+                }
+            }
+        }
+        return taskCounter;
+    }
+
+    @Test
+    public void testNoCleanupOffloadLedgerWhenMetadataExceptionHappens() throws Exception {
+        ManagedLedgerConfig config = spy(new ManagedLedgerConfig());
+        ManagedLedgerImpl ml = spy((ManagedLedgerImpl) factory.open("testNoCleanupOffloadLedger", config));
+
+        // mock the ledger offloader
+        LedgerOffloader ledgerOffloader = mock(NullLedgerOffloader.class);
+        when(config.getLedgerOffloader()).thenReturn(ledgerOffloader);
+        when(ledgerOffloader.getOffloadDriverName()).thenReturn("mock");
+
+        // There will have two put call to the metadata store, the first time is prepare the offload.
+        // And the second is the complete the offload. This case is testing when completing the offload,
+        // the metadata store meets an exception.
+        AtomicInteger metadataPutCallCount = new AtomicInteger(0);
+        metadataStore.failConditional(new MetadataStoreException("mock completion error"),
+            (key, value) -> key.equals(FaultInjectionMetadataStore.OperationType.PUT) &&
+                metadataPutCallCount.incrementAndGet() == 2);
+
+        // prepare the arguments for the offloadLoop method
+        CompletableFuture<PositionImpl> future = new CompletableFuture<>();
+        Queue<LedgerInfo> ledgersToOffload = new LinkedList<>();
+        LedgerInfo ledgerInfo = LedgerInfo.getDefaultInstance().toBuilder().setLedgerId(1).setEntries(10).build();
+        ledgersToOffload.add(ledgerInfo);
+        PositionImpl firstUnoffloaded = new PositionImpl(1, 0);
+        Optional<Throwable> firstError = Optional.empty();
+
+        // mock the read handle to make the offload successful
+        CompletableFuture<ReadHandle> readHandle = new CompletableFuture<>();
+        readHandle.complete(mock(ReadHandle.class));
+        when(ml.getLedgerHandle(eq(ledgerInfo.getLedgerId()))).thenReturn(readHandle);
+        when(ledgerOffloader.offload(any(), any(), anyMap())).thenReturn(CompletableFuture.completedFuture(null));
+
+        ml.ledgers.put(ledgerInfo.getLedgerId(), ledgerInfo);
+
+        // do the offload
+        ml.offloadLoop(future, ledgersToOffload, firstUnoffloaded, firstError);
+
+        // waiting for the offload complete
+        try {
+            future.join();
+            fail("The offload should fail");
+        } catch (Exception e) {
+            // the offload should fail
+            assertTrue(e.getCause().getMessage().contains("mock completion error"));
+        }
+
+        // the ledger deletion shouldn't happen
+        verify(ledgerOffloader, times(0))
+            .deleteOffloaded(eq(ledgerInfo.getLedgerId()), any(), anyMap());
     }
 }

@@ -25,7 +25,7 @@
   <parent>
     <groupId>org.apache.pulsar.tests</groupId>
     <artifactId>tests-parent</artifactId>
-    <version>3.2.0-SNAPSHOT</version>
+    <version>3.3.0-SNAPSHOT</version>
   </parent>
 
   <artifactId>integration</artifactId>
@@ -180,13 +180,6 @@
     <dependency>
       <groupId>joda-time</groupId>
       <artifactId>joda-time</artifactId>
-      <scope>test</scope>
-    </dependency>
-
-    <dependency>
-      <groupId>io.trino</groupId>
-      <artifactId>trino-jdbc</artifactId>
-      <version>${trino.version}</version>
       <scope>test</scope>
     </dependency>
 

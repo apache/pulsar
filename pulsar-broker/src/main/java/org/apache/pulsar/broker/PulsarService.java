@@ -91,6 +91,8 @@ import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl
 import org.apache.pulsar.broker.lookup.v1.TopicLookup;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.protocol.ProtocolHandlers;
+import org.apache.pulsar.broker.qos.DefaultMonotonicSnapshotClock;
+import org.apache.pulsar.broker.qos.MonotonicSnapshotClock;
 import org.apache.pulsar.broker.resourcegroup.ResourceGroupService;
 import org.apache.pulsar.broker.resourcegroup.ResourceUsageTopicTransportManager;
 import org.apache.pulsar.broker.resourcegroup.ResourceUsageTransportManager;
@@ -174,6 +176,7 @@ import org.apache.pulsar.policies.data.loadbalancer.AdvertisedListener;
 import org.apache.pulsar.transaction.coordinator.TransactionMetadataStoreProvider;
 import org.apache.pulsar.transaction.coordinator.impl.MLTransactionMetadataStoreProvider;
 import org.apache.pulsar.websocket.WebSocketConsumerServlet;
+import org.apache.pulsar.websocket.WebSocketMultiTopicConsumerServlet;
 import org.apache.pulsar.websocket.WebSocketProducerServlet;
 import org.apache.pulsar.websocket.WebSocketReaderServlet;
 import org.apache.pulsar.websocket.WebSocketService;
@@ -190,6 +193,7 @@ import org.slf4j.LoggerFactory;
 public class PulsarService implements AutoCloseable, ShutdownService {
     private static final Logger LOG = LoggerFactory.getLogger(PulsarService.class);
     private static final double GRACEFUL_SHUTDOWN_TIMEOUT_RATIO_OF_TOTAL_TIMEOUT = 0.5d;
+    private static final int DEFAULT_MONOTONIC_CLOCK_GRANULARITY_MILLIS = 8;
     private final ServiceConfiguration config;
     private NamespaceService nsService = null;
     private ManagedLedgerStorage managedLedgerClientFactory = null;
@@ -270,6 +274,8 @@ public class PulsarService implements AutoCloseable, ShutdownService {
 
     private TransactionPendingAckStoreProvider transactionPendingAckStoreProvider;
     private final ExecutorProvider transactionExecutorProvider;
+    private final DefaultMonotonicSnapshotClock monotonicSnapshotClock;
+    private String brokerId;
 
     public enum State {
         Init, Started, Closing, Closed
@@ -302,6 +308,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         // Validate correctness of configuration
         PulsarConfigurationLoader.isComplete(config);
         TransactionBatchedWriteValidator.validate(config);
+        this.config = config;
 
         // validate `advertisedAddress`, `advertisedListeners`, `internalListenerName`
         this.advertisedListeners = MultipleListenerValidator.validateAndAnalysisAdvertisedListener(config);
@@ -312,7 +319,6 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         // use `internalListenerName` listener as `advertisedAddress`
         this.bindAddress = ServiceConfigurationUtils.getDefaultOrConfiguredAddress(config.getBindAddress());
         this.brokerVersion = PulsarVersion.getVersion();
-        this.config = config;
         this.processTerminator = processTerminator;
         this.loadManagerExecutor = Executors
                 .newSingleThreadScheduledExecutor(new ExecutorProvider.ExtendedThreadFactory("pulsar-load-manager"));
@@ -347,6 +353,9 @@ public class PulsarService implements AutoCloseable, ShutdownService {
 
         // here in the constructor we don't have the offloader scheduler yet
         this.offloaderStats = LedgerOffloaderStats.create(false, false, null, 0);
+
+        this.monotonicSnapshotClock = new DefaultMonotonicSnapshotClock(TimeUnit.MILLISECONDS.toNanos(
+                DEFAULT_MONOTONIC_CLOCK_GRANULARITY_MILLIS), System::nanoTime);
     }
 
     public MetadataStore createConfigurationMetadataStore(PulsarMetadataEventSynchronizer synchronizer)
@@ -595,6 +604,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             brokerClientSharedInternalExecutorProvider.shutdownNow();
             brokerClientSharedScheduledExecutorProvider.shutdownNow();
             brokerClientSharedTimer.stop();
+            monotonicSnapshotClock.close();
 
             asyncCloseFutures.add(EventLoopUtil.shutdownGracefully(ioEventLoopGroup));
 
@@ -639,14 +649,18 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     }
 
     private CompletableFuture<Void> addTimeoutHandling(CompletableFuture<Void> future) {
+        long brokerShutdownTimeoutMs = getConfiguration().getBrokerShutdownTimeoutMs();
+        if (brokerShutdownTimeoutMs <= 0) {
+            return future;
+        }
         ScheduledExecutorService shutdownExecutor = Executors.newSingleThreadScheduledExecutor(
                 new ExecutorProvider.ExtendedThreadFactory(getClass().getSimpleName() + "-shutdown"));
         FutureUtil.addTimeoutHandling(future,
-                Duration.ofMillis(Math.max(1L, getConfiguration().getBrokerShutdownTimeoutMs())),
+                Duration.ofMillis(brokerShutdownTimeoutMs),
                 shutdownExecutor, () -> FutureUtil.createTimeoutException("Timeout in close", getClass(), "close"));
         future.handle((v, t) -> {
-            if (t != null && getConfiguration().getBrokerShutdownTimeoutMs() > 0) {
-                LOG.info("Shutdown timed out after {} ms", getConfiguration().getBrokerShutdownTimeoutMs());
+            if (t instanceof TimeoutException) {
+                LOG.info("Shutdown timed out after {} ms", brokerShutdownTimeoutMs);
                 LOG.info(ThreadDumpUtil.buildThreadDiagnosticString());
             }
             // shutdown the shutdown executor
@@ -815,6 +829,12 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             this.brokerServiceUrl = brokerUrl(config);
             this.brokerServiceUrlTls = brokerUrlTls(config);
 
+            // the broker id is used in the load manager to identify the broker
+            // it should not be used for making connections to the broker
+            this.brokerId =
+                    String.format("%s:%s", advertisedAddress, config.getWebServicePort()
+                            .or(config::getWebServicePortTls).orElseThrow());
+
             if (this.compactionServiceFactory == null) {
                 this.compactionServiceFactory = loadCompactionServiceFactory();
             }
@@ -844,7 +864,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             this.nsService.initialize();
 
             // Start topic level policies service
-            if (config.isTopicLevelPoliciesEnabled() && config.isSystemTopicEnabled()) {
+            if (config.isSystemTopicAndTopicLevelPoliciesEnabled()) {
                 this.topicPoliciesService = new SystemTopicBasedTopicPoliciesService(this);
             }
 
@@ -1077,11 +1097,16 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                     new ServletHolder(readerWebSocketServlet), true, attributeMap);
             webService.addServlet(WebSocketReaderServlet.SERVLET_PATH_V2,
                     new ServletHolder(readerWebSocketServlet), true, attributeMap);
+
+            final WebSocketMultiTopicConsumerServlet multiTopicConsumerWebSocketServlet =
+                    new WebSocketMultiTopicConsumerServlet(webSocketService);
+            webService.addServlet(WebSocketMultiTopicConsumerServlet.SERVLET_PATH,
+                    new ServletHolder(multiTopicConsumerWebSocketServlet), true, attributeMap);
         }
     }
 
     private void handleDeleteCluster(Notification notification) {
-        if (ClusterResources.pathRepresentsClusterName(notification.getPath())
+        if (isRunning() && ClusterResources.pathRepresentsClusterName(notification.getPath())
                 && notification.getType() == NotificationType.Deleted) {
             final String clusterName = ClusterResources.clusterNameFromPath(notification.getPath());
             getBrokerService().closeAndRemoveReplicationClient(clusterName);
@@ -1119,7 +1144,8 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             LOG.info("The load manager extension is enabled. Skipping PulsarService LeaderElectionService.");
             return;
         }
-        this.leaderElectionService = new LeaderElectionService(coordinationService, getSafeWebServiceAddress(),
+        this.leaderElectionService =
+                new LeaderElectionService(coordinationService, getBrokerId(), getSafeWebServiceAddress(),
                 state -> {
                     if (state == LeaderElectionState.Leading) {
                         LOG.info("This broker was elected leader");
@@ -1167,7 +1193,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     protected void acquireSLANamespace() {
         try {
             // Namespace not created hence no need to unload it
-            NamespaceName nsName = NamespaceService.getSLAMonitorNamespace(getLookupServiceAddress(), config);
+            NamespaceName nsName = NamespaceService.getSLAMonitorNamespace(getBrokerId(), config);
             if (!this.pulsarResources.getNamespaceResources().namespaceExists(nsName)) {
                 LOG.info("SLA Namespace = {} doesn't exist.", nsName);
                 return;
@@ -1301,12 +1327,6 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             this.getWorkerConfig().map(WorkerConfig::getStateStorageServiceUrl).orElse(null));
     }
 
-    /**
-     * Get the current pulsar state.
-     */
-    public State getState() {
-        return this.state;
-    }
 
     /**
      * check the current pulsar service is running, including Started and Init state.
@@ -1348,26 +1368,12 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                 + "is not enabled, probably functionsWorkerEnabled is set to false"));
     }
 
-    /**
-     * Get a reference of the current <code>BrokerService</code> instance associated with the current
-     * <code>PulsarService</code> instance.
-     *
-     * @return a reference of the current <code>BrokerService</code> instance.
-     */
-    public BrokerService getBrokerService() {
-        return this.brokerService;
-    }
-
     public BookKeeper getBookKeeperClient() {
         return getManagedLedgerClientFactory().getBookKeeperClient();
     }
 
     public ManagedLedgerFactory getManagedLedgerFactory() {
         return getManagedLedgerClientFactory().getManagedLedgerFactory();
-    }
-
-    public ManagedLedgerStorage getManagedLedgerClientFactory() {
-        return managedLedgerClientFactory;
     }
 
     /**
@@ -1446,22 +1452,6 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         SchemaStorage schemaStorage = factoryInstance.create(this);
         schemaStorage.start();
         return schemaStorage;
-    }
-
-    public ScheduledExecutorService getExecutor() {
-        return executor;
-    }
-
-    public ExecutorProvider getTransactionExecutorProvider() {
-        return transactionExecutorProvider;
-    }
-
-    public ScheduledExecutorService getLoadManagerExecutor() {
-        return loadManagerExecutor;
-    }
-
-    public OrderedExecutor getOrderedExecutor() {
-        return orderedExecutor;
     }
 
     public BookKeeperClientFactory newBookKeeperClientFactory() {
@@ -1645,22 +1635,6 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         return this.adminClient;
     }
 
-    public MetricsGenerator getMetricsGenerator() {
-        return metricsGenerator;
-    }
-
-    public TransactionMetadataStoreService getTransactionMetadataStoreService() {
-        return transactionMetadataStoreService;
-    }
-
-    public TransactionBufferProvider getTransactionBufferProvider() {
-        return transactionBufferProvider;
-    }
-
-    public TransactionBufferClient getTransactionBufferClient() {
-        return transactionBufferClient;
-    }
-
     /**
      * Gets the broker service URL (non-TLS) associated with the internal listener.
      */
@@ -1728,18 +1702,16 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         return brokerServiceUrlTls != null ? brokerServiceUrlTls : brokerServiceUrl;
     }
 
-    public String getLookupServiceAddress() {
-        return String.format("%s:%s", advertisedAddress, config.getWebServicePortTls().isPresent()
-                ? config.getWebServicePortTls().get()
-                : config.getWebServicePort().orElseThrow());
-    }
-
-    public TopicPoliciesService getTopicPoliciesService() {
-        return topicPoliciesService;
-    }
-
-    public ResourceUsageTransportManager getResourceUsageTransportManager() {
-        return resourceUsageTransportManager;
+    /**
+     * Return the broker id. The broker id is used in the load manager to uniquely identify the broker at runtime.
+     * It should not be used for making connections to the broker. The broker id is available after {@link #start()}
+     * has been called.
+     *
+     * @return broker id
+     */
+    public String getBrokerId() {
+        return Objects.requireNonNull(brokerId,
+                "brokerId is not initialized before start has been called");
     }
 
     public synchronized void addPrometheusRawMetricsProvider(PrometheusRawMetricsProvider metricsProvider) {
@@ -1827,12 +1799,8 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         return brokerService.getListenPortTls();
     }
 
-    public MetadataStoreExtended getLocalMetadataStore() {
-        return localMetadataStore;
-    }
-
-    public CoordinationService getCoordinationService() {
-        return coordinationService;
+    public MonotonicSnapshotClock getMonotonicSnapshotClock() {
+        return monotonicSnapshotClock;
     }
 
     public static WorkerConfig initializeWorkerConfigFromBrokerConfig(ServiceConfiguration brokerConfig,

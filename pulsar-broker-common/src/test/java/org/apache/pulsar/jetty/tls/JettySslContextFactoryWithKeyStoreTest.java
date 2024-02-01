@@ -30,6 +30,7 @@ import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLHandshakeException;
 import javax.net.ssl.TrustManagerFactory;
+import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.config.RegistryBuilder;
@@ -62,6 +63,7 @@ public class JettySslContextFactoryWithKeyStoreTest {
 
     @Test
     public void testJettyTlsServerTls() throws Exception {
+        @Cleanup("stop")
         Server server = new Server();
         List<ServerConnector> connectors = new ArrayList<>();
         SslContextFactory.Server factory = JettySslContextFactory.createServerSslContextWithKeystore(null,
@@ -81,16 +83,16 @@ public class JettySslContextFactoryWithKeyStoreTest {
                 new SSLConnectionSocketFactory(getClientSslContext(), new NoopHostnameVerifier()));
         PoolingHttpClientConnectionManager cm = new PoolingHttpClientConnectionManager(registryBuilder.build());
         httpClientBuilder.setConnectionManager(cm);
+        @Cleanup
         CloseableHttpClient httpClient = httpClientBuilder.build();
         HttpGet httpGet = new HttpGet("https://localhost:" + connector.getLocalPort());
         httpClient.execute(httpGet);
-        httpClient.close();
-        server.stop();
     }
 
     @Test(expectedExceptions = SSLHandshakeException.class)
     public void testJettyTlsServerInvalidTlsProtocol() throws Exception {
         Configurator.setRootLevel(Level.INFO);
+        @Cleanup("stop")
         Server server = new Server();
         List<ServerConnector> connectors = new ArrayList<>();
         SslContextFactory.Server factory = JettySslContextFactory.createServerSslContextWithKeystore(null,
@@ -114,15 +116,15 @@ public class JettySslContextFactoryWithKeyStoreTest {
                 new String[]{"TLSv1.2"}, null, new NoopHostnameVerifier()));
         PoolingHttpClientConnectionManager cm = new PoolingHttpClientConnectionManager(registryBuilder.build());
         httpClientBuilder.setConnectionManager(cm);
+        @Cleanup
         CloseableHttpClient httpClient = httpClientBuilder.build();
         HttpGet httpGet = new HttpGet("https://localhost:" + connector.getLocalPort());
         httpClient.execute(httpGet);
-        httpClient.close();
-        server.stop();
     }
 
     @Test(expectedExceptions = SSLHandshakeException.class)
     public void testJettyTlsServerInvalidCipher() throws Exception {
+        @Cleanup("stop")
         Server server = new Server();
         List<ServerConnector> connectors = new ArrayList<>();
         SslContextFactory.Server factory = JettySslContextFactory.createServerSslContextWithKeystore(null,
@@ -151,11 +153,10 @@ public class JettySslContextFactoryWithKeyStoreTest {
                 new NoopHostnameVerifier()));
         PoolingHttpClientConnectionManager cm = new PoolingHttpClientConnectionManager(registryBuilder.build());
         httpClientBuilder.setConnectionManager(cm);
+        @Cleanup
         CloseableHttpClient httpClient = httpClientBuilder.build();
         HttpGet httpGet = new HttpGet("https://localhost:" + connector.getLocalPort());
         httpClient.execute(httpGet);
-        httpClient.close();
-        server.stop();
     }
 
     private static SSLContext getClientSslContext() {

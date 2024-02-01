@@ -516,8 +516,7 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         assertEquals(topicStats.getSubscriptions().get("my-sub").getMsgDropRate(), 0);
         assertEquals(topicStats.getPublishers().size(), 0);
         assertEquals(topicStats.getMsgDropRate(), 0);
-        assertEquals(topicStats.getOwnerBroker(),
-                pulsar.getAdvertisedAddress() + ":" + pulsar.getConfiguration().getWebServicePort().get());
+        assertEquals(topicStats.getOwnerBroker(), pulsar.getBrokerId());
 
         PersistentTopicInternalStats internalStats = admin.topics().getInternalStats(nonPersistentTopicName, false);
         assertEquals(internalStats.cursors.keySet(), Set.of("my-sub"));
@@ -1310,7 +1309,7 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         String cluster = pulsar.getConfiguration().getClusterName();
         String namespaceRegex = "other/" + cluster + "/other.*";
         String brokerName = pulsar.getAdvertisedAddress();
-        String brokerAddress = brokerName + ":" + pulsar.getConfiguration().getWebServicePort().get();
+        String brokerAddress = pulsar.getBrokerId();
 
         Map<String, String> parameters1 = new HashMap<>();
         parameters1.put("min_limit", "1");
@@ -1318,7 +1317,7 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
 
         NamespaceIsolationData nsPolicyData1 = NamespaceIsolationData.builder()
                 .namespaces(Collections.singletonList(namespaceRegex))
-                .primary(Collections.singletonList(brokerName + ":[0-9]*"))
+                .primary(Collections.singletonList(brokerName))
                 .secondary(Collections.singletonList(brokerName + ".*"))
                 .autoFailoverPolicy(AutoFailoverPolicyData.builder()
                         .policyType(AutoFailoverPolicyType.min_available)
@@ -1435,19 +1434,10 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         admin.namespaces().createNamespace(defaultTenant + "/ns2");
         // By default the cluster will configure as configuration file. So the create topic operation
         // will never throw exception except there is no cluster.
-        admin.namespaces().setNamespaceReplicationClusters(defaultTenant + "/ns2", new HashSet<String>());
+        admin.namespaces().setNamespaceReplicationClusters(defaultTenant + "/ns2", Sets.newHashSet(configClusterName));
 
-        try {
-            admin.topics().createPartitionedTopic(persistentPartitionedTopicName, partitions);
-            Assert.fail("should have failed due to Namespace does not have any clusters configured");
-        } catch (PulsarAdminException.PreconditionFailedException ignored) {
-        }
-
-        try {
-            admin.topics().createPartitionedTopic(NonPersistentPartitionedTopicName, partitions);
-            Assert.fail("should have failed due to Namespace does not have any clusters configured");
-        } catch (PulsarAdminException.PreconditionFailedException ignored) {
-        }
+        admin.topics().createPartitionedTopic(persistentPartitionedTopicName, partitions);
+        admin.topics().createPartitionedTopic(NonPersistentPartitionedTopicName, partitions);
     }
 
     @Test
@@ -3193,7 +3183,7 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
             admin.topics().createSubscription(partitionedTopicName + "-partition-" + startPartitions, subName1,
                     MessageId.earliest);
             fail("Unexpected behaviour");
-        } catch (PulsarAdminException.PreconditionFailedException ex) {
+        } catch (PulsarAdminException.ConflictException ex) {
             // OK
         }
 

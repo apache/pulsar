@@ -866,13 +866,19 @@ public class CmdNamespaces extends CmdBase {
         private String bundle;
 
         @Parameter(names = { "--destinationBroker", "-d" },
-                description = "Target brokerWebServiceAddress to which the bundle has to be allocated to")
+                description = "Target brokerWebServiceAddress to which the bundle has to be allocated to. "
+                        + "--destinationBroker cannot be set when --bundle is not specified.")
         private String destinationBroker;
 
         @Override
         void run() throws PulsarAdminException {
             String namespace = validateNamespace(params);
+
+
             if (bundle == null) {
+                if (StringUtils.isNotBlank(destinationBroker)) {
+                    throw new ParameterException("--destinationBroker cannot be set when --bundle is not specified.");
+                }
                 getAdmin().namespaces().unload(namespace);
             } else {
                 getAdmin().namespaces().unloadNamespaceBundle(namespace, bundle, destinationBroker);
@@ -1596,6 +1602,11 @@ public class CmdNamespaces extends CmdBase {
                 converter = TimeUnitToMillisConverter.class)
         private Long delayedDeliveryTimeInMills = 1000L;
 
+        @Parameter(names = { "--maxDelay", "-md" },
+                description = "The max allowed delay for delayed delivery. (eg: 1s, 10s, 1m, 5h, 3d)",
+                converter = TimeUnitToMillisConverter.class)
+        private Long delayedDeliveryMaxDelayInMillis = 0L;
+
         @Override
         void run() throws PulsarAdminException {
             String namespace = validateNamespace(params);
@@ -1606,6 +1617,7 @@ public class CmdNamespaces extends CmdBase {
             getAdmin().namespaces().setDelayedDeliveryMessages(namespace, DelayedDeliveryPolicies.builder()
                     .tickTime(delayedDeliveryTimeInMills)
                     .active(enable)
+                    .maxDeliveryDelayInMillis(delayedDeliveryMaxDelayInMillis)
                     .build());
         }
     }
@@ -2586,6 +2598,42 @@ public class CmdNamespaces extends CmdBase {
         }
     }
 
+    @Parameters(commandDescription = "Enable dispatcherPauseOnAckStatePersistent for a namespace")
+    private class SetDispatcherPauseOnAckStatePersistent extends CliCommand {
+        @Parameter(description = "tenant/namespace", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+            getAdmin().namespaces().setDispatcherPauseOnAckStatePersistent(namespace);
+        }
+    }
+
+    @Parameters(commandDescription = "Get the dispatcherPauseOnAckStatePersistent for a namespace")
+    private class GetDispatcherPauseOnAckStatePersistent extends CliCommand {
+        @Parameter(description = "tenant/namespace", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+            print(getAdmin().namespaces().getDispatcherPauseOnAckStatePersistent(namespace));
+        }
+    }
+
+    @Parameters(commandDescription = "Remove dispatcherPauseOnAckStatePersistent for a namespace")
+    private class RemoveDispatcherPauseOnAckStatePersistent extends CliCommand {
+        @Parameter(description = "tenant/namespace", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+            getAdmin().namespaces().removeDispatcherPauseOnAckStatePersistent(namespace);
+        }
+    }
+
     public CmdNamespaces(Supplier<PulsarAdmin> admin) {
         super("namespaces", admin);
         jcommander.addCommand("list", new GetNamespacesPerProperty());
@@ -2772,5 +2820,12 @@ public class CmdNamespaces extends CmdBase {
         jcommander.addCommand("remove-entry-filters", new RemoveEntryFiltersPerTopic());
 
         jcommander.addCommand("update-migration-state", new UpdateMigrationState());
+
+        jcommander.addCommand("set-dispatcher-pause-on-ack-state-persistent",
+                new SetDispatcherPauseOnAckStatePersistent());
+        jcommander.addCommand("get-dispatcher-pause-on-ack-state-persistent",
+                new GetDispatcherPauseOnAckStatePersistent());
+        jcommander.addCommand("remove-dispatcher-pause-on-ack-state-persistent",
+                new RemoveDispatcherPauseOnAckStatePersistent());
     }
 }

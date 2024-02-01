@@ -45,7 +45,7 @@ import org.testng.annotations.Test;
 
 public class ProxyServiceStarterTest extends MockedPulsarServiceBaseTest {
 
-    static final String[] ARGS = new String[]{"-c", "./src/test/resources/proxy.conf"};
+    public static final String[] ARGS = new String[]{"-c", "./src/test/resources/proxy.conf"};
 
     protected ProxyServiceStarter serviceStarter;
     protected String serviceUrl;
@@ -95,7 +95,9 @@ public class ProxyServiceStarterTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testProduceAndConsumeMessageWithWebsocket() throws Exception {
+        @Cleanup("stop")
         HttpClient producerClient = new HttpClient();
+        @Cleanup("stop")
         WebSocketClient producerWebSocketClient = new WebSocketClient(producerClient);
         producerWebSocketClient.start();
         MyWebSocket producerSocket = new MyWebSocket();
@@ -106,7 +108,9 @@ public class ProxyServiceStarterTest extends MockedPulsarServiceBaseTest {
         produceRequest.setContext("context");
         produceRequest.setPayload(Base64.getEncoder().encodeToString("my payload".getBytes()));
 
+        @Cleanup("stop")
         HttpClient consumerClient = new HttpClient();
+        @Cleanup("stop")
         WebSocketClient consumerWebSocketClient = new WebSocketClient(consumerClient);
         consumerWebSocketClient.start();
         MyWebSocket consumerSocket = new MyWebSocket();

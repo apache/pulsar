@@ -229,6 +229,7 @@ public class ProxyWithAuthorizationTest extends ProducerConsumerBase {
         AuthenticationService authService =
                 new AuthenticationService(PulsarConfigurationLoader.convertFrom(proxyConfig));
         proxyService = Mockito.spy(new ProxyService(proxyConfig, authService));
+        proxyService.setGracefulShutdown(false);
         webServer = new WebServer(proxyConfig, authService);
     }
 
@@ -455,9 +456,11 @@ public class ProxyWithAuthorizationTest extends ProducerConsumerBase {
         proxyConfig.setTlsProtocols(tlsProtocols);
         proxyConfig.setTlsCiphers(tlsCiphers);
 
+        @Cleanup
         ProxyService proxyService = Mockito.spy(new ProxyService(proxyConfig,
                                                         new AuthenticationService(
                                                                 PulsarConfigurationLoader.convertFrom(proxyConfig))));
+        proxyService.setGracefulShutdown(false);
         try {
             proxyService.start();
         } catch (Exception ex) {

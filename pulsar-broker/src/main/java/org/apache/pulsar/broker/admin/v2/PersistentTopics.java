@@ -49,6 +49,7 @@ import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.admin.impl.PersistentTopicsBase;
 import org.apache.pulsar.broker.service.BrokerServiceException;
+import org.apache.pulsar.broker.service.GetStatsOptions;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.SubscriptionType;
@@ -1195,9 +1196,16 @@ public class PersistentTopics extends PersistentTopicsBase {
                     + "not to use when there's heavy traffic.")
             @QueryParam("subscriptionBacklogSize") @DefaultValue("true") boolean subscriptionBacklogSize,
             @ApiParam(value = "If return time of the earliest message in backlog")
-            @QueryParam("getEarliestTimeInBacklog") @DefaultValue("false") boolean getEarliestTimeInBacklog) {
+            @QueryParam("getEarliestTimeInBacklog") @DefaultValue("false") boolean getEarliestTimeInBacklog,
+            @ApiParam(value = "If exclude the publishers")
+            @QueryParam("excludePublishers") @DefaultValue("false") boolean excludePublishers,
+            @ApiParam(value = "If exclude the consumers")
+            @QueryParam("excludeConsumers") @DefaultValue("false") boolean excludeConsumers) {
         validateTopicName(tenant, namespace, encodedTopic);
-        internalGetStatsAsync(authoritative, getPreciseBacklog, subscriptionBacklogSize, getEarliestTimeInBacklog)
+        GetStatsOptions getStatsOptions =
+                new GetStatsOptions(getPreciseBacklog, subscriptionBacklogSize, getEarliestTimeInBacklog,
+                        excludePublishers, excludeConsumers);
+        internalGetStatsAsync(authoritative, getStatsOptions)
                 .thenAccept(asyncResponse::resume)
                 .exceptionally(ex -> {
                     // If the exception is not redirect exception we need to log it.
@@ -1297,15 +1305,20 @@ public class PersistentTopics extends PersistentTopicsBase {
                     + "not to use when there's heavy traffic.")
             @QueryParam("subscriptionBacklogSize") @DefaultValue("true") boolean subscriptionBacklogSize,
             @ApiParam(value = "If return the earliest time in backlog")
-            @QueryParam("getEarliestTimeInBacklog") @DefaultValue("false") boolean getEarliestTimeInBacklog) {
+            @QueryParam("getEarliestTimeInBacklog") @DefaultValue("false") boolean getEarliestTimeInBacklog,
+            @ApiParam(value = "If exclude the publishers")
+            @QueryParam("excludePublishers") @DefaultValue("false") boolean excludePublishers,
+            @ApiParam(value = "If exclude the consumers")
+            @QueryParam("excludeConsumers") @DefaultValue("false") boolean excludeConsumers) {
         try {
             validateTopicName(tenant, namespace, encodedTopic);
             if (topicName.isPartitioned()) {
                 throw new RestException(Response.Status.PRECONDITION_FAILED,
                         "Partitioned Topic Name should not contain '-partition-'");
             }
-            internalGetPartitionedStats(asyncResponse, authoritative, perPartition, getPreciseBacklog,
-                    subscriptionBacklogSize, getEarliestTimeInBacklog);
+            GetStatsOptions getStatsOptions = new GetStatsOptions(getPreciseBacklog, subscriptionBacklogSize,
+                    getEarliestTimeInBacklog, excludePublishers, excludeConsumers);
+            internalGetPartitionedStats(asyncResponse, authoritative, perPartition, getStatsOptions);
         } catch (WebApplicationException wae) {
             asyncResponse.resume(wae);
         } catch (Exception e) {
@@ -2498,6 +2511,87 @@ public class PersistentTopics extends PersistentTopicsBase {
                 handleTopicPolicyException("removeRetention", ex, asyncResponse);
                 return null;
             });
+    }
+
+    @POST
+    @Path("/{tenant}/{namespace}/{topic}/dispatcherPauseOnAckStatePersistent")
+    @ApiOperation(value = "Set dispatcher pause on ack state persistent configuration for specified topic.")
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Namespace or topic doesn't exist"),
+            @ApiResponse(code = 405, message =
+                    "Topic level policy is disabled, to enable the topic level policy and retry"),
+            @ApiResponse(code = 409, message = "Concurrent modification")})
+    public void setDispatcherPauseOnAckStatePersistent(@Suspended final AsyncResponse asyncResponse,
+            @PathParam("tenant") String tenant,
+            @PathParam("namespace") String namespace,
+            @PathParam("topic") @Encoded String encodedTopic,
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
+            @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal) {
+        validateTopicName(tenant, namespace, encodedTopic);
+        preValidation(authoritative)
+            .thenCompose(__ -> internalSetDispatcherPauseOnAckStatePersistent(isGlobal))
+            .thenRun(() -> {
+                log.info("[{}] Successfully enabled dispatcherPauseOnAckStatePersistent: namespace={}, topic={}",
+                    clientAppId(), namespaceName, topicName.getLocalName());
+                asyncResponse.resume(Response.noContent().build());
+            })
+            .exceptionally(ex -> {
+                handleTopicPolicyException("setDispatcherPauseOnAckStatePersistent", ex, asyncResponse);
+                return null;
+            });
+    }
+
+    @DELETE
+    @Path("/{tenant}/{namespace}/{topic}/dispatcherPauseOnAckStatePersistent")
+    @ApiOperation(value = "Remove dispatcher pause on ack state persistent configuration for specified topic.")
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Namespace or topic doesn't exist"),
+            @ApiResponse(code = 405,
+                    message = "Topic level policy is disabled, to enable the topic level policy and retry"),
+            @ApiResponse(code = 409, message = "Concurrent modification")})
+    public void removeDispatcherPauseOnAckStatePersistent(@Suspended final AsyncResponse asyncResponse,
+            @PathParam("tenant") String tenant,
+            @PathParam("namespace") String namespace,
+            @PathParam("topic") @Encoded String encodedTopic,
+            @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
+        validateTopicName(tenant, namespace, encodedTopic);
+        preValidation(authoritative)
+            .thenCompose(__ -> internalRemoveDispatcherPauseOnAckStatePersistent(isGlobal))
+            .thenRun(() -> {
+                log.info("[{}] Successfully remove dispatcherPauseOnAckStatePersistent: namespace={}, topic={}",
+                        clientAppId(), namespaceName, topicName.getLocalName());
+                asyncResponse.resume(Response.noContent().build());
+            })
+            .exceptionally(ex -> {
+                handleTopicPolicyException("removeDispatcherPauseOnAckStatePersistent", ex, asyncResponse);
+                return null;
+            });
+    }
+
+    @GET
+    @Path("/{tenant}/{namespace}/{topic}/dispatcherPauseOnAckStatePersistent")
+    @ApiOperation(value = "Get dispatcher pause on ack state persistent config on a topic.", response = Integer.class)
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Tenant or cluster or namespace or topic doesn't exist"),
+            @ApiResponse(code = 500, message = "Internal server error"), })
+    public void getDispatcherPauseOnAckStatePersistent(@Suspended final AsyncResponse asyncResponse,
+                    @PathParam("tenant") String tenant,
+                    @PathParam("namespace") String namespace,
+                    @PathParam("topic") @Encoded String encodedTopic,
+                    @QueryParam("applied") @DefaultValue("false") boolean applied,
+                    @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
+                    @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
+                    @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
+        validateTopicName(tenant, namespace, encodedTopic);
+        preValidation(authoritative)
+                .thenCompose(__ -> internalGetDispatcherPauseOnAckStatePersistent(applied, isGlobal))
+                .thenApply(asyncResponse::resume).exceptionally(ex -> {
+                    handleTopicPolicyException("getDispatcherPauseOnAckStatePersistent", ex, asyncResponse);
+                    return null;
+                });
     }
 
     @GET

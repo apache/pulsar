@@ -474,6 +474,10 @@ public class MessageDeduplication {
      * Topic will call this method whenever a producer connects.
      */
     public void producerAdded(String producerName) {
+        if (!isEnabled()) {
+            return;
+        }
+
         // Producer is no-longer inactive
         inactiveProducers.remove(producerName);
     }
@@ -482,6 +486,10 @@ public class MessageDeduplication {
      * Topic will call this method whenever a producer disconnects.
      */
     public void producerRemoved(String producerName) {
+        if (!isEnabled()) {
+            return;
+        }
+
         // Producer is no-longer active
         inactiveProducers.put(producerName, System.currentTimeMillis());
     }
@@ -492,6 +500,14 @@ public class MessageDeduplication {
     public synchronized void purgeInactiveProducers() {
         long minimumActiveTimestamp = System.currentTimeMillis() - TimeUnit.MINUTES
                 .toMillis(pulsar.getConfiguration().getBrokerDeduplicationProducerInactivityTimeoutMinutes());
+
+        // if not enabled just clear all inactive producer record.
+        if (!isEnabled()) {
+            if (!inactiveProducers.isEmpty()) {
+                inactiveProducers.clear();
+            }
+            return;
+        }
 
         Iterator<Map.Entry<String, Long>> mapIterator = inactiveProducers.entrySet().iterator();
         boolean hasInactive = false;
@@ -543,6 +559,11 @@ public class MessageDeduplication {
     @VisibleForTesting
     ManagedCursor getManagedCursor() {
         return managedCursor;
+    }
+
+    @VisibleForTesting
+    Map<String, Long> getInactiveProducers() {
+        return inactiveProducers;
     }
 
     private static final Logger log = LoggerFactory.getLogger(MessageDeduplication.class);

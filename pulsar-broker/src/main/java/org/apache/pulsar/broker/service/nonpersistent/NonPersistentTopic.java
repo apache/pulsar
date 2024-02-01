@@ -40,6 +40,7 @@ import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.pulsar.broker.PulsarServerException;
+import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.resources.NamespaceResources;
 import org.apache.pulsar.broker.service.AbstractReplicator;
@@ -55,6 +56,7 @@ import org.apache.pulsar.broker.service.BrokerServiceException.TopicFencedExcept
 import org.apache.pulsar.broker.service.BrokerServiceException.UnsupportedVersionException;
 import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.Dispatcher;
+import org.apache.pulsar.broker.service.GetStatsOptions;
 import org.apache.pulsar.broker.service.Producer;
 import org.apache.pulsar.broker.service.Replicator;
 import org.apache.pulsar.broker.service.StreamingStats;
@@ -86,6 +88,7 @@ import org.apache.pulsar.common.policies.data.stats.NonPersistentSubscriptionSta
 import org.apache.pulsar.common.policies.data.stats.NonPersistentTopicStatsImpl;
 import org.apache.pulsar.common.policies.data.stats.PublisherStatsImpl;
 import org.apache.pulsar.common.policies.data.stats.SubscriptionStatsImpl;
+import org.apache.pulsar.common.policies.data.stats.TopicStatsImpl;
 import org.apache.pulsar.common.protocol.schema.SchemaData;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -165,7 +168,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
                 .getPoliciesAsync(TopicName.get(topic).getNamespaceObject())
                 .thenCompose(optPolicies -> {
                     final Policies policies;
-                    if (!optPolicies.isPresent()) {
+                    if (optPolicies.isEmpty()) {
                         log.warn("[{}] Policies not present and isEncryptionRequired will be set to false", topic);
                         isEncryptionRequired = false;
                         policies = new Policies();
@@ -175,7 +178,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
                         isEncryptionRequired = policies.encryption_required;
                         isAllowAutoUpdateSchema = policies.is_allow_auto_update_schema;
                     }
-                    updatePublishDispatcher();
+                    updatePublishRateLimiter();
                     updateResourceGroupLimiter(policies);
                     return updateClusterMigrated();
                 });
@@ -194,7 +197,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
         subscriptions.forEach((name, subscription) -> {
             ByteBuf duplicateBuffer = data.retainedDuplicate();
             Entry entry = create(0L, 0L, duplicateBuffer);
-            // entry internally retains data so, duplicateBuffer should be release here
+            // entry internally retains data so, duplicateBuffer should be released here
             duplicateBuffer.release();
             if (subscription.getDispatcher() != null) {
                 // Dispatcher needs to call the set method to support entry filter feature.
@@ -419,7 +422,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
                 List<CompletableFuture<Void>> futures = new ArrayList<>();
                 replicators.forEach((cluster, replicator) -> futures.add(replicator.disconnect()));
                 producers.values().forEach(producer -> futures.add(producer.disconnect()));
-                subscriptions.forEach((s, sub) -> futures.add(sub.disconnect()));
+                subscriptions.forEach((s, sub) -> futures.add(sub.close(true, Optional.empty())));
                 FutureUtil.waitForAll(futures).thenRun(() -> {
                     closeClientFuture.complete(null);
                 }).exceptionally(ex -> {
@@ -484,18 +487,29 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
         return deleteFuture;
     }
 
+
+    @Override
+    public CompletableFuture<Void> close(boolean closeWithoutWaitingClientDisconnect) {
+        return close(true, closeWithoutWaitingClientDisconnect);
+    }
+
     /**
      * Close this topic - close all producers and subscriptions associated with this topic.
      *
+     * @param disconnectClients disconnect clients
      * @param closeWithoutWaitingClientDisconnect don't wait for client disconnect and forcefully close managed-ledger
      * @return Completable future indicating completion of close operation
      */
     @Override
-    public CompletableFuture<Void> close(boolean closeWithoutWaitingClientDisconnect) {
+    public CompletableFuture<Void> close(
+            boolean disconnectClients, boolean closeWithoutWaitingClientDisconnect) {
         CompletableFuture<Void> closeFuture = new CompletableFuture<>();
 
         lock.writeLock().lock();
         try {
+            if (!disconnectClients) {
+                transferring = true;
+            }
             if (!isFenced || closeWithoutWaitingClientDisconnect) {
                 isFenced = true;
             } else {
@@ -510,13 +524,23 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
         List<CompletableFuture<Void>> futures = new ArrayList<>();
 
         replicators.forEach((cluster, replicator) -> futures.add(replicator.disconnect()));
-        producers.values().forEach(producer -> futures.add(producer.disconnect()));
-        if (topicPublishRateLimiter != null) {
-            topicPublishRateLimiter.close();
-        }
-        subscriptions.forEach((s, sub) -> futures.add(sub.disconnect()));
-        if (this.resourceGroupPublishLimiter != null) {
-            this.resourceGroupPublishLimiter.unregisterRateLimitFunction(this.getName());
+        if (disconnectClients) {
+            futures.add(ExtensibleLoadManagerImpl.getAssignedBrokerLookupData(
+                brokerService.getPulsar(), topic).thenAccept(lookupData -> {
+                    producers.values().forEach(producer -> futures.add(producer.disconnect(lookupData)));
+                    // Topics unloaded due to the ExtensibleLoadManager undergo closing twice: first with
+                    // disconnectClients = false, second with disconnectClients = true. The check below identifies the
+                    // cases when Topic.close is called outside the scope of the ExtensibleLoadManager. In these
+                    // situations, we must pursue the regular Subscription.close, as Topic.close is invoked just once.
+                    if (isTransferring()) {
+                        subscriptions.forEach((s, sub) -> futures.add(sub.disconnect(lookupData)));
+                    } else {
+                        subscriptions.forEach((s, sub) -> futures.add(sub.close(true, lookupData)));
+                    }
+                }
+            ));
+        } else {
+            subscriptions.forEach((s, sub) -> futures.add(sub.close(false, Optional.empty())));
         }
 
         if (entryFilters != null) {
@@ -538,9 +562,13 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
             // unload topic iterates over topics map and removing from the map with the same thread creates deadlock.
             // so, execute it in different thread
             brokerService.executor().execute(() -> {
-                brokerService.removeTopicFromCache(NonPersistentTopic.this);
-                unregisterTopicPolicyListener();
+
+                if (disconnectClients) {
+                    brokerService.removeTopicFromCache(NonPersistentTopic.this);
+                    unregisterTopicPolicyListener();
+                }
                 closeFuture.complete(null);
+
             });
         }).exceptionally(exception -> {
             log.error("[{}] Error closing topic", topic, exception);
@@ -867,9 +895,26 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
     }
 
     @Override
+    public TopicStatsImpl getStats(GetStatsOptions getStatsOptions) {
+        try {
+            return asyncGetStats(getStatsOptions).get();
+        } catch (InterruptedException | ExecutionException e) {
+            log.error("[{}] Fail to get stats", topic, e);
+            return null;
+        }
+    }
+
+    @Override
     public CompletableFuture<NonPersistentTopicStatsImpl> asyncGetStats(boolean getPreciseBacklog,
                                                                         boolean subscriptionBacklogSize,
                                                                         boolean getEarliestTimeInBacklog) {
+        GetStatsOptions getStatsOptions = new GetStatsOptions(getPreciseBacklog, subscriptionBacklogSize,
+                getEarliestTimeInBacklog, false, false);
+        return (CompletableFuture<NonPersistentTopicStatsImpl>) asyncGetStats(getStatsOptions);
+    }
+
+    @Override
+    public CompletableFuture<? extends TopicStatsImpl> asyncGetStats(GetStatsOptions getStatsOptions) {
         CompletableFuture<NonPersistentTopicStatsImpl> future = new CompletableFuture<>();
         NonPersistentTopicStatsImpl stats = new NonPersistentTopicStatsImpl();
 
@@ -882,7 +927,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
 
             if (producer.isRemote()) {
                 remotePublishersStats.put(producer.getRemoteCluster(), publisherStats);
-            } else {
+            } else if (!getStatsOptions.isExcludePublishers()) {
                 stats.addPublisher(publisherStats);
             }
         });
@@ -895,7 +940,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
         stats.msgOutCounter = msgOutFromRemovedSubscriptions.longValue();
 
         subscriptions.forEach((name, subscription) -> {
-            NonPersistentSubscriptionStatsImpl subStats = subscription.getStats();
+            NonPersistentSubscriptionStatsImpl subStats = subscription.getStats(getStatsOptions);
 
             stats.msgRateOut += subStats.msgRateOut;
             stats.msgThroughputOut += subStats.msgThroughputOut;
@@ -923,7 +968,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
         });
 
         stats.topicEpoch = topicEpoch.orElse(null);
-        stats.ownerBroker = brokerService.pulsar().getLookupServiceAddress();
+        stats.ownerBroker = brokerService.pulsar().getBrokerId();
         future.complete(stats);
         return future;
     }
@@ -1147,7 +1192,8 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
             NonPersistentSubscription sub = subscriptions.remove(subscriptionName);
             if (sub != null) {
                 // preserve accumulative stats form removed subscription
-                SubscriptionStatsImpl stats = sub.getStats();
+                GetStatsOptions getStatsOptions = new GetStatsOptions(false, false, false, false, false);
+                SubscriptionStatsImpl stats = sub.getStats(getStatsOptions);
                 bytesOutFromRemovedSubscriptions.add(stats.bytesOutCounter);
                 msgOutFromRemovedSubscriptions.add(stats.msgOutCounter);
             }
@@ -1214,5 +1260,10 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
     @Override
     public boolean isPersistent() {
         return false;
+    }
+
+    @Override
+    public long getBestEffortOldestUnacknowledgedMessageAgeSeconds() {
+        return -1;
     }
 }

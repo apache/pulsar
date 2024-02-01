@@ -31,6 +31,7 @@ import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import javax.ws.rs.ClientErrorException;
 import javax.ws.rs.core.Response.Status;
+import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.http.HttpResponse;
@@ -431,6 +432,7 @@ public class CreateSubscriptionTest extends ProducerConsumerBase {
         final int numberOfMessages = 5;
         String topic = "persistent://my-property/my-ns/my-topic";
         RequestConfig requestConfig = RequestConfig.custom().setConnectTimeout(30 * 1000).build();
+        @Cleanup
         CloseableHttpClient httpClient = HttpClientBuilder.create().setDefaultRequestConfig(requestConfig).build();
 
         // Produce some messages to pulsar

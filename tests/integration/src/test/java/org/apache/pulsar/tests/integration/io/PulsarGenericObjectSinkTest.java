@@ -35,7 +35,6 @@ import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.KeyValueEncodingType;
 import org.apache.pulsar.tests.integration.docker.ContainerExecException;
 import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
-import org.apache.pulsar.tests.integration.presto.StockProtoMessage;
 import org.apache.pulsar.tests.integration.suites.PulsarStandaloneTestSuite;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
 import org.testng.annotations.Test;
@@ -110,9 +109,7 @@ public class PulsarGenericObjectSinkTest extends PulsarStandaloneTestSuite {
                 new SinkSpec<>("test-kv-sink-input-kv-avro-json-inl-" + randomName(8),
                         Schema.KeyValue(Schema.AVRO(PojoKey.class), Schema.JSON(Pojo.class), KeyValueEncodingType.INLINE), new KeyValue<>(PojoKey.builder().field1("a").build(), Pojo.builder().field1("a").field2(2).build())),
                 new SinkSpec("test-kv-sink-input-kv-avro-json-sep-" + randomName(8),
-                        Schema.KeyValue(Schema.AVRO(PojoKey.class), Schema.JSON(Pojo.class), KeyValueEncodingType.SEPARATED), new KeyValue<>(PojoKey.builder().field1("a").build(), Pojo.builder().field1("a").field2(2).build())),
-                new SinkSpec("test-kv-sink-input-protobuf-native-" + randomName(8),
-                        Schema.PROTOBUF_NATIVE(StockProtoMessage.Stock.class), StockProtoMessage.Stock.newBuilder().setEntryId(1).setSymbol("s").setSharePrice(0.0).build())
+                        Schema.KeyValue(Schema.AVRO(PojoKey.class), Schema.JSON(Pojo.class), KeyValueEncodingType.SEPARATED), new KeyValue<>(PojoKey.builder().field1("a").build(), Pojo.builder().field1("a").field2(2).build()))
         );
 
         final int numRecordsPerTopic = 2;

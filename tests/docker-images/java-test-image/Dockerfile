@@ -33,15 +33,16 @@ RUN chmod a+rx /pulsar/bin/*
 WORKDIR /pulsar
 
 ARG DEBIAN_FRONTEND=noninteractive
-ARG UBUNTU_MIRROR=mirror://mirrors.ubuntu.com/mirrors.txt
+ARG UBUNTU_MIRROR=http://archive.ubuntu.com/ubuntu/
 ARG UBUNTU_SECURITY_MIRROR=http://security.ubuntu.com/ubuntu/
 ARG JDK_MAJOR_VERSION=17
 
-RUN sed -i -e "s|http://archive\.ubuntu\.com/ubuntu/|${UBUNTU_MIRROR:-mirror://mirrors.ubuntu.com/mirrors.txt}|g" \
+RUN sed -i -e "s|http://archive\.ubuntu\.com/ubuntu/|${UBUNTU_MIRROR:-http://archive.ubuntu.com/ubuntu/}|g" \
      -e "s|http://security\.ubuntu\.com/ubuntu/|${UBUNTU_SECURITY_MIRROR:-http://security.ubuntu.com/ubuntu/}|g" /etc/apt/sources.list \
+     && echo 'Acquire::http::Timeout "30";\nAcquire::http::ConnectionAttemptDelayMsec "2000";\nAcquire::https::Timeout "30";\nAcquire::https::ConnectionAttemptDelayMsec "2000";\nAcquire::ftp::Timeout "30";\nAcquire::ftp::ConnectionAttemptDelayMsec "2000";\nAcquire::Retries "15";' > /etc/apt/apt.conf.d/99timeout_and_retries \
      && apt-get update \
      && apt-get -y dist-upgrade \
-     && apt-get -y install wget apt-transport-https
+     && apt-get -y install ca-certificates wget apt-transport-https
 
 # Install Eclipse Temurin Package
 RUN mkdir -p /etc/apt/keyrings \

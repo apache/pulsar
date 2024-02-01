@@ -527,6 +527,7 @@ public class PulsarFunctionPublishTest {
         log.info("dlog url: {}", url);
         URI dlogUri = URI.create(url);
 
+        @Cleanup
         Namespace dlogNamespace = NamespaceBuilder.newBuilder()
                 .conf(dlogConf)
                 .clientId("function-worker-" + workerConfig.getWorkerId())

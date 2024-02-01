@@ -39,6 +39,7 @@ import org.apache.pulsar.broker.web.PulsarWebResource;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
 import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.PolicyName;
 import org.apache.pulsar.common.policies.data.PolicyOperation;
@@ -195,5 +196,44 @@ public class NamespacesV2Test extends MockedPulsarServiceBaseTest {
         dispatchRate = (DispatchRateImpl) asyncRequests(response -> namespaces.getDispatchRate(response,
                 this.testTenant, this.testNamespace));
         assertTrue(Objects.isNull(dispatchRate));
+    }
+
+    @Test
+    public void testOperationDelayedDelivery() throws Exception {
+        boolean isActive = true;
+        long tickTime = 1000;
+        long maxDeliveryDelayInMillis = 5000;
+        // 1. set delayed delivery policy
+        namespaces.setDelayedDeliveryPolicies(this.testTenant, this.testNamespace,
+                DelayedDeliveryPolicies.builder()
+                        .active(isActive)
+                        .tickTime(tickTime)
+                        .maxDeliveryDelayInMillis(maxDeliveryDelayInMillis)
+                        .build());
+
+        // 2. query delayed delivery policy & check
+        DelayedDeliveryPolicies policy =
+                (DelayedDeliveryPolicies) asyncRequests(response -> namespaces.getDelayedDeliveryPolicies(response,
+                        this.testTenant, this.testNamespace));
+        assertEquals(policy.isActive(), isActive);
+        assertEquals(policy.getTickTime(), tickTime);
+        assertEquals(policy.getMaxDeliveryDelayInMillis(), maxDeliveryDelayInMillis);
+
+        // 3. remove & check
+        namespaces.removeDelayedDeliveryPolicies(this.testTenant, this.testNamespace);
+        policy =
+                (DelayedDeliveryPolicies) asyncRequests(response -> namespaces.getDelayedDeliveryPolicies(response,
+                        this.testTenant, this.testNamespace));
+        assertTrue(Objects.isNull(policy));
+
+        // 4. invalid namespace check
+        String invalidNamespace = this.testNamespace + "/";
+        try {
+            namespaces.setDelayedDeliveryPolicies(this.testTenant, invalidNamespace,
+                    DelayedDeliveryPolicies.builder().build());
+            fail("should have failed");
+        } catch (RestException e) {
+            assertEquals(e.getResponse().getStatus(), Response.Status.PRECONDITION_FAILED.getStatusCode());
+        }
     }
 }
