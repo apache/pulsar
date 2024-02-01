@@ -79,7 +79,7 @@ public class MetricsTest {
         var pulsarCluster = PulsarCluster.forSpec(spec);
         pulsarCluster.start();
 
-        setupFunctionWorker(pulsarCluster, functionWorkerServiceNameSuffix);
+        pulsarCluster.setupFunctionWorkers(functionWorkerServiceNameSuffix, FunctionRuntimeType.PROCESS, 1);
 
         // TODO: Validate cluster name is present once
         // https://github.com/open-telemetry/opentelemetry-java/issues/6108 is solved.
@@ -133,7 +133,8 @@ public class MetricsTest {
         var pulsarCluster = PulsarCluster.forSpec(spec);
         pulsarCluster.start();
 
-        var workerContainer = setupFunctionWorker(pulsarCluster, functionWorkerServiceNameSuffix);
+        pulsarCluster.setupFunctionWorkers(functionWorkerServiceNameSuffix, FunctionRuntimeType.PROCESS, 1);
+        var workerContainer = pulsarCluster.getAnyWorker();
 
         var metricName = "target_info"; // Sent automatically by the OpenTelemetry SDK.
         Awaitility.waitAtMost(90, TimeUnit.SECONDS).ignoreExceptions().pollInterval(1, TimeUnit.SECONDS).until(() ->
@@ -169,30 +170,5 @@ public class MetricsTest {
         var props = new HashMap<>(defaultProps);
         Arrays.stream(extraProps).forEach(p -> props.put(p.getKey(), p.getValue()));
         return props;
-    }
-
-    private static WorkerContainer setupFunctionWorker(PulsarCluster pulsarCluster, String suffix) throws Exception {
-        pulsarCluster.setupFunctionWorkers(suffix, FunctionRuntimeType.PROCESS, 1);
-
-        var namespace = NamespaceName.get("public", "default");
-        var sourceTopicName = TopicName.get(TopicDomain.persistent.toString(), namespace, "metricTestSource-" + suffix);
-        var sinkTopicName = TopicName.get(TopicDomain.persistent.toString(), namespace, "metricTestSink-" + suffix);
-
-        try (PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(pulsarCluster.getHttpServiceUrl()).build()) {
-            admin.topics().createNonPartitionedTopic(sourceTopicName.toString());
-            admin.topics().createNonPartitionedTopic(sinkTopicName.toString());
-        }
-
-        var commandGenerator = new CommandGenerator();
-        commandGenerator.setSourceTopic(sourceTopicName.toString());
-        commandGenerator.setSinkTopic(sinkTopicName.toString());
-        commandGenerator.setRuntime(CommandGenerator.Runtime.JAVA);
-        commandGenerator.setFunctionName("metricsTestLocalRunTest-" + suffix);
-        commandGenerator.setFunctionClassName(PulsarFunctionsTest.EXCLAMATION_JAVA_CLASS);
-        var functionWorkerCommand = commandGenerator.generateCreateFunctionCommand();
-
-        var workerContainer = pulsarCluster.getAnyWorker();
-        workerContainer.execCmdAsync("sh", "-c", functionWorkerCommand);
-        return workerContainer;
     }
 }
