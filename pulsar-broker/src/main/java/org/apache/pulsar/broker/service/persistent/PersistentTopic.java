@@ -840,8 +840,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
     private synchronized CompletableFuture<Void> closeReplProducersIfNoBacklog() {
         List<CompletableFuture<Void>> closeFutures = new ArrayList<>();
-        replicators.forEach((region, replicator) -> closeFutures.add(replicator.terminate(true)));
-        shadowReplicators.forEach((__, replicator) -> closeFutures.add(replicator.terminate(true)));
+        replicators.forEach((region, replicator) -> closeFutures.add(replicator.disconnect(true)));
+        shadowReplicators.forEach((__, replicator) -> closeFutures.add(replicator.disconnect(true)));
         return FutureUtil.waitForAll(closeFutures);
     }
 

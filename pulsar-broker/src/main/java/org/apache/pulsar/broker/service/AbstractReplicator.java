@@ -41,7 +41,7 @@ import org.apache.pulsar.common.util.StringInterner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public abstract class AbstractReplicator {
+public abstract class AbstractReplicator implements Replicator {
 
     protected final BrokerService brokerService;
     protected final String localTopicName;
@@ -120,7 +120,7 @@ public abstract class AbstractReplicator {
 
     protected abstract Position getReplicatorReadPosition();
 
-    protected abstract long getNumberOfEntriesInBacklog();
+    public abstract long getNumberOfEntriesInBacklog();
 
     protected abstract void disableReplicatorRead();
 
@@ -222,6 +222,25 @@ public abstract class AbstractReplicator {
         }, brokerService.executor());
     }
 
+    public synchronized CompletableFuture<Void> disconnect(boolean failIfHasBacklog) {
+        if (failIfHasBacklog && getNumberOfEntriesInBacklog() > 0) {
+            CompletableFuture<Void> disconnectFuture = new CompletableFuture<>();
+            disconnectFuture.completeExceptionally(new TopicBusyException("Cannot close a replicator with backlog"));
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] Replicator disconnect failed since topic has backlog", replicatorId);
+            }
+            return disconnectFuture;
+        }
+
+        log.info("[{}] Disconnect replicator at position {} with backlog {}", replicatorId,
+                getReplicatorReadPosition(), getNumberOfEntriesInBacklog());
+        if (!tryChangeStatusToTerminating()) {
+            // The replicator has been called "terminate" before, just return success.
+            return CompletableFuture.completedFuture(null);
+        }
+        return closeProducerAsync();
+    }
+
     protected synchronized CompletableFuture<Void> closeProducerAsync() {
         if (producer == null) {
             tryChangeStatusToStopped();
@@ -246,7 +265,7 @@ public abstract class AbstractReplicator {
         });
     }
 
-    protected synchronized CompletableFuture<Void> terminateInternal() {
+    public synchronized CompletableFuture<Void> terminate() {
         if (producer == null) {
             STATE_UPDATER.set(this, State.Terminated);
             return CompletableFuture.completedFuture(null);
@@ -264,33 +283,10 @@ public abstract class AbstractReplicator {
                             + " retrying again in {} s",
                     replicatorId, ex.getMessage(), waitTimeMs / 1000.0);
             // BackOff before retrying
-            brokerService.executor().schedule(() -> terminateInternal(),
+            brokerService.executor().schedule(() -> terminate(),
                     waitTimeMs, TimeUnit.MILLISECONDS);
             return null;
         });
-    }
-
-    public CompletableFuture<Void> terminate() {
-        return terminate(false);
-    }
-
-    public synchronized CompletableFuture<Void> terminate(boolean failIfHasBacklog) {
-        if (failIfHasBacklog && getNumberOfEntriesInBacklog() > 0) {
-            CompletableFuture<Void> disconnectFuture = new CompletableFuture<>();
-            disconnectFuture.completeExceptionally(new TopicBusyException("Cannot close a replicator with backlog"));
-            if (log.isDebugEnabled()) {
-                log.debug("[{}] Replicator disconnect failed since topic has backlog", replicatorId);
-            }
-            return disconnectFuture;
-        }
-
-        log.info("[{}] Disconnect replicator at position {} with backlog {}", replicatorId,
-                getReplicatorReadPosition(), getNumberOfEntriesInBacklog());
-        if (!tryChangeStatusToTerminating()) {
-            // The replicator has been called "terminate" before, just return success.
-            return CompletableFuture.completedFuture(null);
-        }
-        return terminateInternal();
     }
 
     protected boolean tryChangeStatusToTerminating() {

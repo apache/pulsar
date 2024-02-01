@@ -1799,8 +1799,8 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
                         any(), eq(null)
                 );
 
-        replicator.terminate(false);
-        replicator.terminate(false);
+        replicator.terminate();
+        replicator.terminate();
 
         replicator.startProducer();
 
