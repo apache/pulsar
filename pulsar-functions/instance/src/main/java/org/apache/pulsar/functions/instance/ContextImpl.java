@@ -731,7 +731,7 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
 
     @Override
     public void close() {
-        List<CompletableFuture<?>> futures = new LinkedList<>();
+        List<CompletableFuture> futures = new LinkedList<>();
 
         if (publishProducers != null) {
             for (Producer<?> producer : publishProducers.values()) {
