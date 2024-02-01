@@ -315,18 +315,18 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
         //   If the retry counter is larger than 6, the next creation will be slow enough to close Replicator.
         final AtomicInteger createProducerCounter = new AtomicInteger();
         final int failTimes = 6;
-        injectMockReplicatorProducerBuilder((producerCnf, orginalProducer) -> {
+        injectMockReplicatorProducerBuilder((producerCnf, originalProducer) -> {
             if (topicName.equals(producerCnf.getTopicName())) {
                 // There is a switch to determine create producer successfully or not.
                 if (createProducerCounter.incrementAndGet() > failTimes) {
-                    return orginalProducer;
+                    return originalProducer;
                 }
                 log.info("Retry create replicator.producer count: {}", createProducerCounter);
                 // Release producer and fail callback.
-                orginalProducer.closeAsync();
+                originalProducer.closeAsync();
                 throw new RuntimeException("mock error");
             }
-            return orginalProducer;
+            return originalProducer;
         });
 
         // Create topic.
