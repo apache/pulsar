@@ -16,27 +16,4 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.functions.instance.stats;
-
-import io.opentelemetry.api.metrics.Meter;
-import java.io.Closeable;
-import lombok.Getter;
-import org.apache.pulsar.common.stats.OpenTelemetryService;
-import org.apache.pulsar.functions.instance.InstanceConfig;
-
-public class PulsarWorkerOpenTelemetry implements Closeable {
-
-    private final OpenTelemetryService openTelemetryService;
-
-    @Getter
-    private final Meter meter;
-
-    public PulsarWorkerOpenTelemetry(InstanceConfig instanceConfig) {
-        openTelemetryService = OpenTelemetryService.builder().clusterName(instanceConfig.getClusterName()).build();
-        meter = openTelemetryService.getMeter("pulsar.worker");
-    }
-
-    public void close() {
-        openTelemetryService.close();
-    }
-}
+package org.apache.pulsar.functions.worker.stats;
