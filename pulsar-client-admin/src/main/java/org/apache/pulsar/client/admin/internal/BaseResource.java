@@ -381,6 +381,10 @@ public abstract class BaseResource {
 
         @Override
         public void completed(T value) {
+            if ("".equals(value)) {
+                future.complete(null);
+                return;
+            }
             future.complete(value);
         }
 
