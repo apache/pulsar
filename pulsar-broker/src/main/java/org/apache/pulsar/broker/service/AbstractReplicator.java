@@ -142,7 +142,6 @@ public abstract class AbstractReplicator implements Replicator {
             scheduleCheckTopicActiveAndStartProducer(waitTimeMs);
             return;
         }
-        State state = STATE_UPDATER.get(this);
         if (!STATE_UPDATER.compareAndSet(this, State.Stopped, State.Starting)) {
             if (state == State.Started) {
                 // Already running
@@ -150,7 +149,7 @@ public abstract class AbstractReplicator implements Replicator {
                     log.debug("[{}] Replicator was already running", replicatorId);
                 }
             } else {
-                log.info("[{}] Replicator already being started. Replicator state: {}", replicatorId, state);
+                log.info("[{}] Skip the producer creation since the replicator state is : {}", replicatorId, state);
             }
 
             return;
@@ -177,7 +176,9 @@ public abstract class AbstractReplicator implements Replicator {
 
     protected void scheduleCheckTopicActiveAndStartProducer(final long waitTimeMs) {
         brokerService.executor().schedule(() -> {
-            if (state == State.Terminated) {
+            if (state == State.Terminating || state == State.Terminated) {
+                log.info("[{}] Skip scheduled to start the producer since the replicator state is : {}",
+                        replicatorId, state);
                 return;
             }
             CompletableFuture<Optional<Topic>> topicFuture = brokerService.getTopics().get(localTopicName);
@@ -188,16 +189,19 @@ public abstract class AbstractReplicator implements Replicator {
             topicFuture.thenAccept(optional -> {
                 if (optional.isEmpty()) {
                     // Topic closed.
+                    log.info("[{}] Skip scheduled to start the producer since the topic was closed.", replicatorId);
                     return;
                 }
                 if (optional.get() != localTopic) {
                     // Topic closed and created a new one, current replicator is outdated.
+                    log.info("[{}] Skip scheduled to start the producer since the topic was closed.", replicatorId);
                     return;
                 }
-                // TODO check isClosing or Deleting.
                 Replicator replicator = localTopic.getReplicators().get(remoteCluster);
                 if (replicator != AbstractReplicator.this) {
                     // Current replicator has been closed, and created a new one.
+                    log.info("[{}] Skip scheduled to start the producer since a new replicator has instead current"
+                            + " one.", replicatorId);
                     return;
                 }
                 startProducer();
@@ -223,7 +227,8 @@ public abstract class AbstractReplicator implements Replicator {
     }
 
     public synchronized CompletableFuture<Void> disconnect(boolean failIfHasBacklog) {
-        if (failIfHasBacklog && getNumberOfEntriesInBacklog() > 0) {
+        long backlog = getNumberOfEntriesInBacklog();
+        if (failIfHasBacklog && backlog > 0) {
             CompletableFuture<Void> disconnectFuture = new CompletableFuture<>();
             disconnectFuture.completeExceptionally(new TopicBusyException("Cannot close a replicator with backlog"));
             if (log.isDebugEnabled()) {
@@ -231,62 +236,68 @@ public abstract class AbstractReplicator implements Replicator {
             }
             return disconnectFuture;
         }
-
         log.info("[{}] Disconnect replicator at position {} with backlog {}", replicatorId,
-                getReplicatorReadPosition(), getNumberOfEntriesInBacklog());
-        if (!tryChangeStatusToTerminating()) {
-            // The replicator has been called "terminate" before, just return success.
-            return CompletableFuture.completedFuture(null);
-        }
+                getReplicatorReadPosition(), backlog);
         return closeProducerAsync();
     }
 
-    protected synchronized CompletableFuture<Void> closeProducerAsync() {
-        if (producer == null) {
-            tryChangeStatusToStopped();
-            return CompletableFuture.completedFuture(null);
+    protected CompletableFuture<Void> closeProducerAsync() {
+        if (!tryChangeStatusToStopping()) {
+            log.info("[{}] Skip current termination since other thread is doing close producer or termination,"
+                            + " state : {}", replicatorId, state);
         }
-        tryChangeStatusToStopping();
-        CompletableFuture<Void> future = producer.closeAsync();
-        return future.thenRun(() -> {
-            tryChangeStatusToStopped();
-            this.producer = null;
-            // deactivate further read
-            disableReplicatorRead();
-        }).exceptionally(ex -> {
-            long waitTimeMs = backOff.next();
-            log.warn(
-                    "[{}] Exception: '{}' occurred while trying to close the producer."
-                            + " retrying again in {} s",
-                    replicatorId, ex.getMessage(), waitTimeMs / 1000.0);
-            // BackOff before retrying
-            brokerService.executor().schedule(this::closeProducerAsync, waitTimeMs, TimeUnit.MILLISECONDS);
-            return null;
-        });
+        synchronized (this) {
+            if (producer == null) {
+                tryChangeStatusToStopped();
+                return CompletableFuture.completedFuture(null);
+            }
+            CompletableFuture<Void> future = producer.closeAsync();
+            return future.thenRun(() -> {
+                tryChangeStatusToStopped();
+                this.producer = null;
+                // deactivate further read
+                disableReplicatorRead();
+            }).exceptionally(ex -> {
+                long waitTimeMs = backOff.next();
+                log.warn(
+                        "[{}] Exception: '{}' occurred while trying to close the producer."
+                                + " retrying again in {} s",
+                        replicatorId, ex.getMessage(), waitTimeMs / 1000.0);
+                // BackOff before retrying
+                brokerService.executor().schedule(this::closeProducerAsync, waitTimeMs, TimeUnit.MILLISECONDS);
+                return null;
+            });
+        }
     }
 
-    public synchronized CompletableFuture<Void> terminate() {
-        if (producer == null) {
-            STATE_UPDATER.set(this, State.Terminated);
-            return CompletableFuture.completedFuture(null);
+    public CompletableFuture<Void> terminate() {
+        if (!tryChangeStatusToTerminating()) {
+            log.info("[{}] Skip current termination since other thread is doing termination, state : {}", replicatorId,
+                    state);
         }
-        CompletableFuture<Void> future = producer.closeAsync();
-        return future.thenRun(() -> {
-            STATE_UPDATER.set(this, State.Terminated);
-            this.producer = null;
-            // set the cursor as inactive.
-            disableReplicatorRead();
-        }).exceptionally(ex -> {
-            long waitTimeMs = backOff.next();
-            log.warn(
-                    "[{}] Exception: '{}' occurred while trying to terminate the replicator."
-                            + " retrying again in {} s",
-                    replicatorId, ex.getMessage(), waitTimeMs / 1000.0);
-            // BackOff before retrying
-            brokerService.executor().schedule(() -> terminate(),
-                    waitTimeMs, TimeUnit.MILLISECONDS);
-            return null;
-        });
+        synchronized (this) {
+            if (producer == null) {
+                STATE_UPDATER.set(this, State.Terminated);
+                return CompletableFuture.completedFuture(null);
+            }
+            CompletableFuture<Void> future = producer.closeAsync();
+            return future.thenRun(() -> {
+                STATE_UPDATER.set(this, State.Terminated);
+                this.producer = null;
+                // set the cursor as inactive.
+                disableReplicatorRead();
+            }).exceptionally(ex -> {
+                long waitTimeMs = backOff.next();
+                log.warn(
+                        "[{}] Exception: '{}' occurred while trying to terminate the replicator."
+                                + " retrying again in {} s",
+                        replicatorId, ex.getMessage(), waitTimeMs / 1000.0);
+                // BackOff before retrying
+                brokerService.executor().schedule(() -> terminate(),
+                        waitTimeMs, TimeUnit.MILLISECONDS);
+                return null;
+            });
+        }
     }
 
     protected boolean tryChangeStatusToTerminating() {
