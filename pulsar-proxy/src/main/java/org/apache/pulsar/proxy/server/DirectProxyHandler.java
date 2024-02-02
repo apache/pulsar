@@ -290,7 +290,7 @@ public class DirectProxyHandler {
     };
 
     public void close() {
-        if (outboundChannel != null) {
+        if (outboundChannel != null && outboundChannel.isOpen()) {
             outboundChannel.close();
         }
     }
