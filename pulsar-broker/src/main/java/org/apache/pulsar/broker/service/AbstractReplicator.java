@@ -26,10 +26,14 @@ import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import lombok.Getter;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.tuple.ImmutablePair;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.service.BrokerServiceException.NamingException;
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicBusyException;
+import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.api.MessageRoutingMode;
+import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.Backoff;
@@ -68,21 +72,33 @@ public abstract class AbstractReplicator implements Replicator {
             AtomicReferenceFieldUpdater.newUpdater(AbstractReplicator.class, State.class, "state");
     @VisibleForTesting
     @Getter
-    private volatile State state = State.Stopped;
+    protected volatile State state = State.Stopped;
 
     public enum State {
+        /**
+         * This enum has two mean meanings：Init, Stopped.
+         * Regarding the meaning "Stopped", only {@link PersistentTopic#checkGC} will call {@link #disconnect},
+         *   so this method only be used by {@link PersistentTopic#checkGC} now.
+         * TODO After improving the method {@link #disconnect)}, we should rename "Stopped" to "Init".
+         */
         // The internal producer is stopped.
         Stopped,
         // Trying to create a new internal producer.
         Starting,
         // The internal producer has started, and tries copy data.
         Started,
+        /**
+         * @Deprecated Only {@link PersistentTopic#checkGC} will call {@link #disconnect}, so this method only be
+         *  used by {@link PersistentTopic#checkGC} now.
+         * TODO After improving the method {@link #disconnect)}, this enum should be removed.
+         */
+        @Deprecated
         // The internal producer is trying to stop.
         Stopping,
         // The replicator is in terminating.
         Terminating,
         // The replicator is never used again. Pulsar will create a new Replicator when enable replication again.
-        Terminated
+        Terminated;
     }
 
     public AbstractReplicator(String localCluster, Topic localTopic, String remoteCluster, String remoteTopicName,
@@ -116,7 +132,7 @@ public abstract class AbstractReplicator implements Replicator {
 
     protected abstract String getProducerName();
 
-    protected abstract void readEntries(org.apache.pulsar.client.api.Producer<byte[]> producer);
+    protected abstract void setProducerAndTriggerReadEntries(org.apache.pulsar.client.api.Producer<byte[]> producer);
 
     protected abstract Position getReplicatorReadPosition();
 
@@ -128,50 +144,72 @@ public abstract class AbstractReplicator implements Replicator {
         return remoteCluster;
     }
 
-    // This method needs to be synchronized with disconnects else if there is a disconnect followed by startProducer
-    // the end result can be disconnect.
-    public synchronized void startProducer() {
-        if (STATE_UPDATER.get(this) == State.Stopping) {
-            long waitTimeMs = backOff.next();
-            if (log.isDebugEnabled()) {
-                log.debug(
-                        "[{}] waiting for producer to close before attempting to reconnect, retrying in {} s",
-                        replicatorId, waitTimeMs / 1000.0);
-            }
-            // BackOff before retrying
-            scheduleCheckTopicActiveAndStartProducer(waitTimeMs);
-            return;
-        }
-        if (!STATE_UPDATER.compareAndSet(this, State.Stopped, State.Starting)) {
-            if (state == State.Started) {
-                // Already running
+    public void startProducer() {
+        // Guarantee only one task call "producerBuilder.createAsync()".
+        Pair<Boolean, State> setStartingRes = compareSetAndGetState(State.Stopped, State.Starting);
+        if (setStartingRes.getLeft()) {
+            if (setStartingRes.getRight() == State.Starting) {
+                log.info("[{}] Skip the producer creation since other thread is doing starting, state : {}",
+                        replicatorId, state);
+            } else if (setStartingRes.getRight() == State.Started) {
+                // Since the method "startProducer" will be called even if it is started, only print debug-level log.
                 if (log.isDebugEnabled()) {
-                    log.debug("[{}] Replicator was already running", replicatorId);
+                    log.debug("[{}] Replicator was already running. state: {}", replicatorId, state);
                 }
+            } else if (setStartingRes.getRight() == State.Stopping) {
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}] Rep.producer is closing, delay to retry(wait the producer close success)."
+                            + " state: {}", replicatorId, state);
+                }
+                delayStartProducerAfterStopped();
             } else {
+                /** {@link State.Terminating}, {@link State.Terminated}. **/
                 log.info("[{}] Skip the producer creation since the replicator state is : {}", replicatorId, state);
             }
-
             return;
         }
 
         log.info("[{}] Starting replicator", replicatorId);
         producerBuilder.createAsync().thenAccept(producer -> {
-            readEntries(producer);
+            setProducerAndTriggerReadEntries(producer);
         }).exceptionally(ex -> {
-            if (STATE_UPDATER.compareAndSet(this, State.Starting, State.Stopped)) {
+            Pair<Boolean, State> setStoppedRes = compareSetAndGetState(State.Starting, State.Stopped);
+            if (setStoppedRes.getLeft()) {
                 long waitTimeMs = backOff.next();
                 log.warn("[{}] Failed to create remote producer ({}), retrying in {} s",
                         replicatorId, ex.getMessage(), waitTimeMs / 1000.0);
                 // BackOff before retrying
                 scheduleCheckTopicActiveAndStartProducer(waitTimeMs);
             } else {
-                log.warn("[{}] Failed to create remote producer. Replicator state: {}", replicatorId,
-                        STATE_UPDATER.get(this), ex);
+                if (setStoppedRes.getRight() == State.Terminating
+                        || setStoppedRes.getRight() == State.Terminated) {
+                    log.info("[{}] Skip to create producer, because it has been terminated, state is : {}",
+                            replicatorId, state);
+                } else {
+                    /** {@link  State.Stopped}, {@link  State.Starting}, {@link  State.Started} **/
+                    // Since only one task can call "producerBuilder.createAsync()", this scenario is not expected.
+                    // So print a warn log.
+                    log.warn("[{}] Other thread will try to create the producer again. so skipped current one task."
+                                    + " State is : {}",
+                            replicatorId, state);
+                }
             }
             return null;
         });
+    }
 
+    /***
+     * The producer is stopping, delay to start the producer.
+     * If we start a producer immediately, we will get a conflict producer(same name producer) registered error.
+     */
+    protected void delayStartProducerAfterStopped() {
+        long waitTimeMs = backOff.next();
+        if (log.isDebugEnabled()) {
+            log.debug(
+                    "[{}] waiting for producer to close before attempting to reconnect, retrying in {} s",
+                    replicatorId, waitTimeMs / 1000.0);
+        }
+        scheduleCheckTopicActiveAndStartProducer(waitTimeMs);
     }
 
     protected void scheduleCheckTopicActiveAndStartProducer(final long waitTimeMs) {
@@ -184,30 +222,40 @@ public abstract class AbstractReplicator implements Replicator {
             CompletableFuture<Optional<Topic>> topicFuture = brokerService.getTopics().get(localTopicName);
             if (topicFuture == null) {
                 // Topic closed.
+                log.info("[{}] Skip scheduled to start the producer since the topic was closed successfully."
+                        + " And trigger a terminate.", replicatorId);
+                terminate();
                 return;
             }
             topicFuture.thenAccept(optional -> {
                 if (optional.isEmpty()) {
                     // Topic closed.
-                    log.info("[{}] Skip scheduled to start the producer since the topic was closed.", replicatorId);
+                    log.info("[{}] Skip scheduled to start the producer since the topic was closed. And trigger a"
+                            + " terminate.", replicatorId);
+                    terminate();
                     return;
                 }
                 if (optional.get() != localTopic) {
                     // Topic closed and created a new one, current replicator is outdated.
-                    log.info("[{}] Skip scheduled to start the producer since the topic was closed.", replicatorId);
+                    log.info("[{}] Skip scheduled to start the producer since the topic was closed. And trigger a"
+                            + " terminate.", replicatorId);
+                    terminate();
                     return;
                 }
                 Replicator replicator = localTopic.getReplicators().get(remoteCluster);
                 if (replicator != AbstractReplicator.this) {
                     // Current replicator has been closed, and created a new one.
                     log.info("[{}] Skip scheduled to start the producer since a new replicator has instead current"
-                            + " one.", replicatorId);
+                            + " one. And trigger a terminate.", replicatorId);
+                    terminate();
                     return;
                 }
                 startProducer();
             }).exceptionally(ex -> {
-                log.warn("[{}] [{}] Stop retry to create producer due to unknown error. Replicator state: {}",
+                log.warn("[{}] [{}] Stop retry to create producer due to unknown error(topic create failed), and"
+                                + " trigger a terminate. Replicator state: {}",
                         localTopicName, replicatorId, STATE_UPDATER.get(this), ex);
+                terminate();
                 return null;
             });
         }, waitTimeMs, TimeUnit.MILLISECONDS);
@@ -226,7 +274,13 @@ public abstract class AbstractReplicator implements Replicator {
         }, brokerService.executor());
     }
 
-    public synchronized CompletableFuture<Void> disconnect(boolean failIfHasBacklog) {
+    /**
+     * @Deprecated This method only be used by {@link PersistentTopic#checkGC} now.
+     * TODO "PersistentReplicator.replicateEntries" may get a NullPointerException if this method and a
+     *   "cursor.readComplete" execute concurrently.
+     */
+    @Deprecated
+    public CompletableFuture<Void> disconnect(boolean failIfHasBacklog, boolean closeTheStartingProducer) {
         long backlog = getNumberOfEntriesInBacklog();
         if (failIfHasBacklog && backlog > 0) {
             CompletableFuture<Void> disconnectFuture = new CompletableFuture<>();
@@ -238,66 +292,100 @@ public abstract class AbstractReplicator implements Replicator {
         }
         log.info("[{}] Disconnect replicator at position {} with backlog {}", replicatorId,
                 getReplicatorReadPosition(), backlog);
-        return closeProducerAsync();
+        return closeProducerAsync(closeTheStartingProducer);
     }
 
-    protected CompletableFuture<Void> closeProducerAsync() {
-        if (!tryChangeStatusToStopping()) {
+    /**
+     * @Deprecated This method only be used by {@link PersistentTopic#checkGC} now.
+     * TODO "PersistentReplicator.replicateEntries" may get a NullPointerException if this method and a
+     *   "cursor.readComplete" execute concurrently.
+     */
+    @Deprecated
+    protected CompletableFuture<Void> closeProducerAsync(boolean closeTheStartingProducer) {
+        Pair<Boolean, State> setStoppingRes = compareSetAndGetState(State.Started, State.Stopping);
+        if (!setStoppingRes.getLeft()) {
+            if (setStoppingRes.getRight() == State.Starting) {
+                if (closeTheStartingProducer) {
+                    /**
+                     * Delay retry(wait for the start producer task is finish).
+                     * Note: If the producer always start fail, the start producer task will always retry.
+                     *   Then current task may always retry. But if the state is {@link State.Stopped} next retry will
+                     *   be skipped. The better solution is creating a {@link CompletableFuture} to trace the creation.
+                     */
+                    long waitTimeMs = backOff.next();
+                    brokerService.executor().schedule(() -> closeProducerAsync(true),
+                            waitTimeMs, TimeUnit.MILLISECONDS);
+                } else {
+                    log.info("[{}] Skip current producer closing since the previous producer has been closed,"
+                                    + " and trying start a new one, state : {}",
+                            replicatorId, setStoppingRes.getRight());
+                }
+            } else if (setStoppingRes.getRight() == State.Stopped
+                    || setStoppingRes.getRight() == State.Stopping) {
+                log.info("[{}] Skip current producer closing since other thread did closing, state : {}",
+                        replicatorId, setStoppingRes.getRight());
+            } else if (setStoppingRes.getRight() == State.Terminating
+                    || setStoppingRes.getRight() == State.Terminated) {
+                log.info("[{}] Skip current producer closing since other thread is doing termination, state : {}",
+                        replicatorId, state);
+            }
             log.info("[{}] Skip current termination since other thread is doing close producer or termination,"
                             + " state : {}", replicatorId, state);
+            return CompletableFuture.completedFuture(null);
         }
-        synchronized (this) {
-            if (producer == null) {
-                tryChangeStatusToStopped();
-                return CompletableFuture.completedFuture(null);
-            }
-            CompletableFuture<Void> future = producer.closeAsync();
-            return future.thenRun(() -> {
-                tryChangeStatusToStopped();
+
+        // Close producer and update state.
+        return doCloseProducerAsync(producer, () -> {
+            Pair<Boolean, State> setStoppedRes = compareSetAndGetState(State.Stopping, State.Stopped);
+            if (setStoppedRes.getLeft()) {
                 this.producer = null;
                 // deactivate further read
                 disableReplicatorRead();
-            }).exceptionally(ex -> {
-                long waitTimeMs = backOff.next();
-                log.warn(
-                        "[{}] Exception: '{}' occurred while trying to close the producer."
-                                + " retrying again in {} s",
-                        replicatorId, ex.getMessage(), waitTimeMs / 1000.0);
-                // BackOff before retrying
-                brokerService.executor().schedule(this::closeProducerAsync, waitTimeMs, TimeUnit.MILLISECONDS);
-                return null;
-            });
-        }
+                return;
+            }
+            if (setStoppedRes.getRight() == State.Terminating || setStoppingRes.getRight() == State.Terminated) {
+                log.info("[{}] Skip setting state to stopped because it was terminated, state : {}",
+                        replicatorId, state);
+            } else {
+                // Since only one task can call "doCloseProducerAsync(producer, action)", this scenario is not expected.
+                // So print a warn log.
+                log.warn("[{}] Other task has change the state to stopped. so skipped current one task."
+                                + " State is : {}",
+                        replicatorId, state);
+            }
+        });
+    }
+
+    protected CompletableFuture<Void> doCloseProducerAsync(Producer<byte[]> producer, Runnable actionAfterClosed) {
+        CompletableFuture<Void> future =
+                producer == null ? CompletableFuture.completedFuture(null) : producer.closeAsync();
+        return future.thenRun(() -> {
+            actionAfterClosed.run();
+        }).exceptionally(ex -> {
+            long waitTimeMs = backOff.next();
+            log.warn(
+                    "[{}] Exception: '{}' occurred while trying to close the producer. Replicator state: {}."
+                            + " Retrying again in {} s.",
+                    replicatorId, ex.getMessage(), state, waitTimeMs / 1000.0);
+            // BackOff before retrying
+            brokerService.executor().schedule(() -> doCloseProducerAsync(producer, actionAfterClosed),
+                    waitTimeMs, TimeUnit.MILLISECONDS);
+            return null;
+        });
     }
 
     public CompletableFuture<Void> terminate() {
         if (!tryChangeStatusToTerminating()) {
             log.info("[{}] Skip current termination since other thread is doing termination, state : {}", replicatorId,
                     state);
+            return CompletableFuture.completedFuture(null);
         }
-        synchronized (this) {
-            if (producer == null) {
-                STATE_UPDATER.set(this, State.Terminated);
-                return CompletableFuture.completedFuture(null);
-            }
-            CompletableFuture<Void> future = producer.closeAsync();
-            return future.thenRun(() -> {
-                STATE_UPDATER.set(this, State.Terminated);
-                this.producer = null;
-                // set the cursor as inactive.
-                disableReplicatorRead();
-            }).exceptionally(ex -> {
-                long waitTimeMs = backOff.next();
-                log.warn(
-                        "[{}] Exception: '{}' occurred while trying to terminate the replicator."
-                                + " retrying again in {} s",
-                        replicatorId, ex.getMessage(), waitTimeMs / 1000.0);
-                // BackOff before retrying
-                brokerService.executor().schedule(() -> terminate(),
-                        waitTimeMs, TimeUnit.MILLISECONDS);
-                return null;
-            });
-        }
+        return doCloseProducerAsync(producer, () -> {
+            STATE_UPDATER.set(this, State.Terminated);
+            this.producer = null;
+            // set the cursor as inactive.
+            disableReplicatorRead();
+        });
     }
 
     protected boolean tryChangeStatusToTerminating() {
@@ -311,29 +399,6 @@ public abstract class AbstractReplicator implements Replicator {
             return true;
         }
         if (STATE_UPDATER.compareAndSet(this, State.Stopped, State.Terminating)) {
-            return true;
-        }
-        return false;
-    }
-
-    protected boolean tryChangeStatusToStopping() {
-        if (STATE_UPDATER.compareAndSet(this, State.Starting, State.Stopping)){
-            return true;
-        }
-        if (STATE_UPDATER.compareAndSet(this, State.Started, State.Stopping)){
-            return true;
-        }
-        return false;
-    }
-
-    protected boolean tryChangeStatusToStopped() {
-        if (STATE_UPDATER.compareAndSet(this, State.Starting, State.Stopped)){
-            return true;
-        }
-        if (STATE_UPDATER.compareAndSet(this, State.Started, State.Stopped)){
-            return true;
-        }
-        if (STATE_UPDATER.compareAndSet(this, State.Stopping, State.Stopped)){
             return true;
         }
         return false;
@@ -396,5 +461,19 @@ public abstract class AbstractReplicator implements Replicator {
 
     public State getState() {
         return state;
+    }
+
+    protected ImmutablePair<Boolean, State> compareSetAndGetState(State expect, State update) {
+        State original1 = state;
+        if (STATE_UPDATER.compareAndSet(this, expect, update)) {
+            return ImmutablePair.of(true, expect);
+        }
+        State original2 = state;
+        // Maybe the value changed more than once even if "original1 == original2", but the probability is very small,
+        // so let's ignore this case for prevent using a lock.
+        if (original1 == original2) {
+            return ImmutablePair.of(false, original1);
+        }
+        return compareSetAndGetState(expect, update);
     }
 }

@@ -130,7 +130,7 @@ public class AbstractReplicatorTest {
         }
 
         @Override
-        protected void readEntries(Producer<byte[]> producer) {
+        protected void setProducerAndTriggerReadEntries(Producer<byte[]> producer) {
 
         }
 
