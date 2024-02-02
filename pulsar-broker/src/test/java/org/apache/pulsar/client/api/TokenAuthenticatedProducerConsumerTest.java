@@ -45,6 +45,7 @@ import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
+import org.testng.annotations.Factory;
 import org.testng.annotations.Test;
 
 /**
@@ -58,14 +59,24 @@ public class TokenAuthenticatedProducerConsumerTest extends ProducerConsumerBase
 
     private final String ADMIN_TOKEN;
     private final String TOKEN_PUBLIC_KEY;
+    private final boolean brokerClientAuthEnabled;
 
-    TokenAuthenticatedProducerConsumerTest() throws NoSuchAlgorithmException {
+    @Factory
+    public static Object[] instances() throws NoSuchAlgorithmException {
+        return new Object[] {
+                new TokenAuthenticatedProducerConsumerTest(false),
+                new TokenAuthenticatedProducerConsumerTest(true),
+        };
+    }
+
+    TokenAuthenticatedProducerConsumerTest(boolean brokerClientAuthEnabled) throws NoSuchAlgorithmException {
         KeyPairGenerator kpg = KeyPairGenerator.getInstance("RSA");
         KeyPair kp = kpg.generateKeyPair();
 
         byte[] encodedPublicKey = kp.getPublic().getEncoded();
         TOKEN_PUBLIC_KEY = "data:;base64," + Base64.getEncoder().encodeToString(encodedPublicKey);
         ADMIN_TOKEN = generateToken(kp);
+        this.brokerClientAuthEnabled = brokerClientAuthEnabled;
     }
 
     private String generateToken(KeyPair kp) {
@@ -93,10 +104,13 @@ public class TokenAuthenticatedProducerConsumerTest extends ProducerConsumerBase
         Set<String> providers = new HashSet<>();
         providers.add(AuthenticationProviderToken.class.getName());
         conf.setAuthenticationProviders(providers);
-        conf.setBrokerClientAuthenticationPlugin(AuthenticationToken.class.getName());
-        conf.setBrokerClientAuthenticationParameters("token:" + ADMIN_TOKEN);
+        if (brokerClientAuthEnabled) {
+            conf.setBrokerClientAuthenticationPlugin(AuthenticationToken.class.getName());
+            conf.setBrokerClientAuthenticationParameters("token:" + ADMIN_TOKEN);
+        }
 
-        conf.setClusterName("test");
+        final var clusterName = "test";
+        conf.setClusterName(clusterName);
 
         // Set provider domain name
         Properties properties = new Properties();

@@ -133,6 +133,7 @@ import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminBuilder;
 import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SizeUnit;
 import org.apache.pulsar.client.impl.ClientBuilderImpl;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
@@ -970,6 +971,11 @@ public class BrokerService implements Closeable {
                 final CompletableFuture<Optional<TopicPolicies>> topicPoliciesFuture =
                         getTopicPoliciesBypassSystemTopic(topicName);
                 return topicPoliciesFuture.exceptionally(ex -> {
+                    if (!PulsarClientException.isRetriableError(ex.getCause())) {
+                        // Topic policies are not available, we should not prevent the creation of this topic
+                        log.warn("Failed to get topic policies due to non-retriable error: {}", ex.getMessage());
+                        return Optional.empty();
+                    }
                     final Throwable rc = FutureUtil.unwrapCompletionException(ex);
                     final String errorInfo = String.format("Topic creation encountered an exception by initialize"
                             + " topic policies service. topic_name=%s error_message=%s", topicName, rc.getMessage());
