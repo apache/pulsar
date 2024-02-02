@@ -18,10 +18,13 @@
  */
 package org.apache.pulsar.common.stats;
 
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
 import io.opentelemetry.api.common.AttributeKey;
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.metrics.DoubleCounter;
 import io.opentelemetry.api.metrics.LongCounter;
+import io.opentelemetry.api.metrics.LongCounterBuilder;
 import io.opentelemetry.api.metrics.Meter;
 import io.opentelemetry.sdk.autoconfigure.AutoConfiguredOpenTelemetrySdk;
 import io.opentelemetry.sdk.autoconfigure.AutoConfiguredOpenTelemetrySdkBuilder;
@@ -33,10 +36,11 @@ import io.opentelemetry.sdk.metrics.internal.SdkMeterProviderUtil;
 import io.opentelemetry.sdk.metrics.internal.state.MetricStorage;
 import io.opentelemetry.sdk.testing.exporter.InMemoryMetricReader;
 import java.util.Collection;
+import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Predicate;
 import lombok.Cleanup;
 import org.apache.commons.lang3.StringUtils;
-import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -105,7 +109,7 @@ public class OpenTelemetryServiceTest {
                 build();
 
         Collection<MetricData> metricData = reader.collectAllMetrics();
-        Assert.assertTrue(metricData.stream().anyMatch(predicate));
+        assertTrue(metricData.stream().anyMatch(predicate));
     }
 
     @Test
@@ -117,7 +121,7 @@ public class OpenTelemetryServiceTest {
                 instrumentationScopeInfo(InstrumentationScopeInfo.create("testInstrumentationScope")).
                 build();
         Collection<MetricData> metricData = reader.collectAllMetrics();
-        Assert.assertTrue(metricData.stream().anyMatch(predicate));
+        assertTrue(metricData.stream().anyMatch(predicate));
     }
 
     @Test
@@ -134,14 +138,14 @@ public class OpenTelemetryServiceTest {
                         build();
 
         Collection<MetricData> metricData = reader.collectAllMetrics();
-        Assert.assertTrue(metricData.stream().noneMatch(hasOverflowAttribute));
+        assertTrue(metricData.stream().noneMatch(hasOverflowAttribute));
 
         for (int i = 0; i < OpenTelemetryService.MAX_CARDINALITY_LIMIT + 1; i++) {
             longCounter.add(1, Attributes.of(AttributeKey.stringKey("attribute"), "value" + i));
         }
 
         metricData = reader.collectAllMetrics();
-        Assert.assertTrue(metricData.stream().anyMatch(hasOverflowAttribute));
+        assertTrue(metricData.stream().anyMatch(hasOverflowAttribute));
     }
 
     @Test
@@ -158,7 +162,7 @@ public class OpenTelemetryServiceTest {
                 build();
 
         Collection<MetricData> metricData = reader.collectAllMetrics();
-        Assert.assertTrue(metricData.stream().anyMatch(predicate));
+        assertTrue(metricData.stream().anyMatch(predicate));
     }
 
     @Test
@@ -174,6 +178,40 @@ public class OpenTelemetryServiceTest {
                 build();
 
         Collection<MetricData> metricData = reader.collectAllMetrics();
-        Assert.assertTrue(metricData.stream().anyMatch(predicate));
+        assertTrue(metricData.stream().anyMatch(predicate));
+    }
+
+    @Test
+    public void testServiceIsDisabledByDefault() throws Exception {
+        @Cleanup
+        var metricReader = InMemoryMetricReader.create();
+
+        @Cleanup
+        var ots = OpenTelemetryService.builder().
+                sdkBuilder(getSdkBuilder(metricReader)).
+                clusterName("openTelemetryServiceTestCluster").
+                build();
+        var meter = ots.getMeter("openTelemetryServiceTestInstrument");
+
+        var builders = List.of(
+                meter.counterBuilder("dummyCounterA"),
+                meter.counterBuilder("dummyCounterB").setDescription("desc"),
+                meter.counterBuilder("dummyCounterC").setDescription("desc").setUnit("unit"),
+                meter.counterBuilder("dummyCounterD").setUnit("unit")
+        );
+
+        var callbackCount = new AtomicInteger();
+        // Validate that no matter how the counters are being built, they are all backed by the same underlying object.
+        // This ensures we conserve memory when the SDK is disabled.
+        assertEquals(builders.stream().map(LongCounterBuilder::build).distinct().count(), 1);
+        assertEquals(builders.stream().map(LongCounterBuilder::buildObserver).distinct().count(), 1);
+        assertEquals(builders.stream().map(b -> b.buildWithCallback(__ -> callbackCount.incrementAndGet()))
+                .distinct().count(), 1);
+
+        // Validate that no metrics are being emitted at all.
+        assertTrue(metricReader.collectAllMetrics().isEmpty());
+
+        // Validate that the callback has not being called.
+        assertEquals(callbackCount.get(), 0);
     }
 }
