@@ -1,4 +1,4 @@
-# PIP-335: Supporty Oxia metadata store plugin
+# PIP-335: Support Oxia metadata store plugin
 
 # Motivation
  
