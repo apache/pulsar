@@ -71,6 +71,7 @@ import org.apache.pulsar.broker.loadbalance.ResourceUnit;
 import org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl;
 import org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerWrapper;
 import org.apache.pulsar.broker.loadbalance.impl.SimpleResourceUnit;
+import org.apache.pulsar.broker.namespace.NamespaceEphemeralData;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.namespace.OwnedBundle;
 import org.apache.pulsar.broker.namespace.OwnershipCache;
@@ -1206,6 +1207,44 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
 
         private void makeAcquireBundleLockSuccess() throws Exception {
             mockZooKeeper.unsetAlwaysFail();
+        }
+    }
+
+    @Test(timeOut = 30000)
+    public void testLookupConnectionNotCloseIfFailedToAcquireOwnershipOfBundle() throws Exception {
+        String tpName = BrokerTestUtil.newUniqueName("persistent://public/default/tp");
+        admin.topics().createNonPartitionedTopic(tpName);
+        final var pulsarClientImpl = (PulsarClientImpl) pulsarClient;
+        final var cache = pulsar.getNamespaceService().getOwnershipCache();
+        final var bundle = pulsar.getNamespaceService().getBundle(TopicName.get(tpName));
+        final var value = cache.getOwnerAsync(bundle).get().orElse(null);
+        assertNotNull(value);
+
+        cache.invalidateLocalOwnerCache();
+        final var lock = pulsar.getCoordinationService().getLockManager(NamespaceEphemeralData.class)
+                .acquireLock(ServiceUnitUtils.path(bundle), new NamespaceEphemeralData()).join();
+        lock.updateValue(null);
+        log.info("Updated bundle {} with null", bundle.getBundleRange());
+
+        // wait for the system topic reader to __change_events is closed, otherwise the test will be affected
+        Thread.sleep(500);
+
+        final var future = pulsarClientImpl.getLookup().getBroker(TopicName.get(tpName));
+        final var cnx = pulsarClientImpl.getCnxPool().getConnections().stream().findAny()
+                .map(CompletableFuture::join).orElse(null);
+        assertNotNull(cnx);
+
+        try {
+            future.get();
+            fail();
+        } catch (ExecutionException e) {
+            log.info("getBroker failed with {}: {}", e.getCause().getClass().getName(), e.getMessage());
+            assertTrue(e.getCause() instanceof PulsarClientException.BrokerMetadataException);
+            assertTrue(cnx.ctx().channel().isActive());
+            lock.updateValue(value);
+            lock.release();
+            assertTrue(e.getMessage().contains("Failed to acquire ownership"));
+            pulsarClientImpl.getLookup().getBroker(TopicName.get(tpName)).get();
         }
     }
 }
