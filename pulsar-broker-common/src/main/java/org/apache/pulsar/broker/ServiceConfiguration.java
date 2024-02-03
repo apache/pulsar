@@ -1438,7 +1438,9 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
             category = CATEGORY_SERVER,
-            doc = "List of interceptors for entry metadata.")
+            doc = "List of interceptors for entry metadata, "
+                    + "AppendBrokerTimestampMetadataInterceptor is enabled by default and it can make message "
+                    + "TTL more accurate, but it increase 8 bytes to each message.")
     private Set<String> brokerEntryMetadataInterceptors =
             Sets.newHashSet("org.apache.pulsar.common.intercept.AppendBrokerTimestampMetadataInterceptor");
 
