@@ -147,7 +147,7 @@ public abstract class AbstractReplicator implements Replicator {
     public void startProducer() {
         // Guarantee only one task call "producerBuilder.createAsync()".
         Pair<Boolean, State> setStartingRes = compareSetAndGetState(State.Stopped, State.Starting);
-        if (setStartingRes.getLeft()) {
+        if (!setStartingRes.getLeft()) {
             if (setStartingRes.getRight() == State.Starting) {
                 log.info("[{}] Skip the producer creation since other thread is doing starting, state : {}",
                         replicatorId, state);
