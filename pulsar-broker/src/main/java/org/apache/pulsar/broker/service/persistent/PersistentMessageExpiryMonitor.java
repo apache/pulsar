@@ -110,8 +110,8 @@ public class PersistentMessageExpiryMonitor implements FindEntryCallback, Messag
             ManagedLedgerImpl managedLedger = (ManagedLedgerImpl) managedCursor.getManagedLedger();
             Position deletedPosition = managedCursor.getMarkDeletedPosition();
             SortedMap<Long, MLDataFormats.ManagedLedgerInfo.LedgerInfo> ledgerInfoSortedMap =
-                    managedLedger.getLedgersInfo()
-                            .subMap(deletedPosition.getLedgerId(), managedLedger.getLedgersInfo().lastKey());
+                    managedLedger.getLedgersInfo().subMap(deletedPosition.getLedgerId(), true,
+                            managedLedger.getLedgersInfo().lastKey(), true);
             MLDataFormats.ManagedLedgerInfo.LedgerInfo info = null;
             for (MLDataFormats.ManagedLedgerInfo.LedgerInfo ledgerInfo : ledgerInfoSortedMap.values()) {
                 if (!ledgerInfo.hasTimestamp() || !MessageImpl.isEntryExpired(messageTTLInSeconds,
@@ -122,11 +122,10 @@ public class PersistentMessageExpiryMonitor implements FindEntryCallback, Messag
             }
             if (info != null && info.getLedgerId() > -1) {
                 PositionImpl position = PositionImpl.get(info.getLedgerId(), info.getEntries() - 1);
-                PositionImpl newPosition = managedLedger.getNextValidPosition(position);
-                if (((PositionImpl) managedLedger.getLastConfirmedEntry()).compareTo(newPosition) < 0) {
+                if (((PositionImpl) managedLedger.getLastConfirmedEntry()).compareTo(position) < 0) {
                     findEntryComplete(managedLedger.getLastConfirmedEntry(), null);
                 } else {
-                    findEntryComplete(newPosition, null);
+                    findEntryComplete(position, null);
                 }
                 return true;
             }
