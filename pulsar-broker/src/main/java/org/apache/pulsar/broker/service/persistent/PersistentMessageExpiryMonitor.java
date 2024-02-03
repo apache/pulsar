@@ -81,9 +81,9 @@ public class PersistentMessageExpiryMonitor implements FindEntryCallback, Messag
         if (expirationCheckInProgressUpdater.compareAndSet(this, FALSE, TRUE)) {
             log.info("[{}][{}] Starting message expiry check, ttl= {} seconds", topicName, subName,
                     messageTTLInSeconds);
-            if (checkExpiryByLedgerClosureTime(cursor, messageTTLInSeconds)) {
-                return true;
-            }
+            // First filter the entire Ledger reached TTL based on the Ledger closing time to avoid client clock skew
+            checkExpiryByLedgerClosureTime(cursor, messageTTLInSeconds);
+            // Some part of entries in active Ledger may have reached TTL, so we need to continue searching.
             cursor.asyncFindNewestMatching(ManagedCursor.FindPositionConstraint.SearchActiveEntries, entry -> {
                 try {
                     long entryTimestamp = Commands.getEntryTimestamp(entry.getDataBuffer());
