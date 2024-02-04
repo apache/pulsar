@@ -48,8 +48,11 @@ class OpReadEntry implements ReadEntriesCallback {
 
     Predicate<PositionImpl> skipCondition;
 
+    private boolean moveCursorReadPos;
+
     public static OpReadEntry create(ManagedCursorImpl cursor, PositionImpl readPositionRef, int count,
-            ReadEntriesCallback callback, Object ctx, PositionImpl maxPosition, Predicate<PositionImpl> skipCondition) {
+            ReadEntriesCallback callback, Object ctx, PositionImpl maxPosition, Predicate<PositionImpl> skipCondition,
+                                     boolean moveCursorReadPos) {
         OpReadEntry op = RECYCLER.get();
         op.readPosition = cursor.ledger.startReadOperationOnLedger(readPositionRef);
         op.cursor = cursor;
@@ -63,6 +66,7 @@ class OpReadEntry implements ReadEntriesCallback {
         op.skipCondition = skipCondition;
         op.ctx = ctx;
         op.nextReadPosition = PositionImpl.get(op.readPosition);
+        op.moveCursorReadPos = moveCursorReadPos;
         return op;
     }
 
@@ -92,7 +96,9 @@ class OpReadEntry implements ReadEntriesCallback {
         // if entries have been filtered out then try to skip reading of already deletedMessages in that range
         final Position nexReadPosition = entriesCount != filteredEntries.size()
                 ? cursor.getNextAvailablePosition(lastPosition) : lastPosition.getNext();
-        updateReadPosition(nexReadPosition);
+        if (moveCursorReadPos) {
+            updateReadPosition(nexReadPosition);
+        }
         checkReadCompletion();
     }
 
@@ -161,9 +167,7 @@ class OpReadEntry implements ReadEntriesCallback {
 
     void checkReadCompletion() {
         // op readPosition is smaller or equals maxPosition then can read again
-        if (entries.size() < count && cursor.hasMoreEntries()
-                && maxPosition.compareTo(readPosition) > 0) {
-
+        if (needAccumulateMoreEntries()) {
             // We still have more entries to read from the next ledger, schedule a new async operation
             cursor.ledger.getExecutor().execute(() -> {
                 readPosition = cursor.ledger.startReadOperationOnLedger(nextReadPosition);
@@ -181,6 +185,16 @@ class OpReadEntry implements ReadEntriesCallback {
                 });
             }
         }
+    }
+
+    private boolean needAccumulateMoreEntries() {
+        if (!moveCursorReadPos) {
+            // Just responds the entries of current reads, because "cursor.readPosition" has not moved, so cannot
+            // accumulate more entries.
+            return false;
+        }
+        boolean hasMoreEntries = cursor.hasMoreEntries() && maxPosition.compareTo(readPosition) > 0;
+        return entries.size() < count && hasMoreEntries;
     }
 
     public int getNumberOfEntriesToRead() {
