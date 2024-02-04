@@ -79,7 +79,7 @@ public class TransactionTimeoutTrackerImpl implements TransactionTimeoutTracker,
                 nowTaskTimeoutTime = transactionTimeoutTime;
             }
         }
-        return CompletableFuture.completedFuture(false);
+        return CompletableFuture.completedFuture(true);
     }
 
     @Override
