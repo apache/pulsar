@@ -411,7 +411,8 @@ public class ManagedLedgerConfig {
      *            time unit for retention time
      */
     public ManagedLedgerConfig setRetentionTime(int retentionTime, TimeUnit unit) {
-        this.retentionTimeMs = unit.toMillis(retentionTime);
+        // unit.toMillis(-1) = -60000
+        this.retentionTimeMs = retentionTime != -1 ? unit.toMillis(retentionTime) : -1;
         return this;
     }
 
