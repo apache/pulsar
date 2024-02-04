@@ -106,6 +106,9 @@ public class PersistentMessageExpiryMonitor implements FindEntryCallback, Messag
     }
 
     private boolean checkExpiryByLedgerClosureTime(ManagedCursor cursor, int messageTTLInSeconds) {
+        if (messageTTLInSeconds <= 0) {
+            return false;
+        }
         if (cursor instanceof ManagedCursorImpl managedCursor) {
             ManagedLedgerImpl managedLedger = (ManagedLedgerImpl) managedCursor.getManagedLedger();
             Position deletedPosition = managedCursor.getMarkDeletedPosition();
