@@ -1097,8 +1097,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     @Override
     public ManagedCursor newNonDurableCursor(Position startCursorPosition) throws ManagedLedgerException {
         return newNonDurableCursor(
-            startCursorPosition,
-            "non-durable-cursor-" + UUID.randomUUID());
+            startCursorPosition, randomCursorName("non-durable-cursor-"));
     }
 
     @Override

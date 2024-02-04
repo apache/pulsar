@@ -53,6 +53,7 @@ import org.apache.bookkeeper.mledger.ScanOutcome;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.bookkeeper.mledger.util.Futures;
 import org.apache.commons.collections4.MapUtils;
 import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -530,111 +531,132 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
         return "Null";
     }
 
-    @Override
     public CompletableFuture<AnalyzeBacklogResult> analyzeBacklog(Optional<Position> position) {
-
-        long start = System.currentTimeMillis();
-        if (log.isDebugEnabled()) {
-            log.debug("[{}][{}] Starting to analyze backlog", topicName, subName);
-        }
-
-        AtomicLong entries = new AtomicLong();
-        AtomicLong accepted = new AtomicLong();
-        AtomicLong rejected = new AtomicLong();
-        AtomicLong rescheduled = new AtomicLong();
-        AtomicLong messages = new AtomicLong();
-        AtomicLong acceptedMessages = new AtomicLong();
-        AtomicLong rejectedMessages = new AtomicLong();
-        AtomicLong rescheduledMessages = new AtomicLong();
-
-        Position currentPosition = cursor.getMarkDeletedPosition();
-
-        if (log.isDebugEnabled()) {
-            log.debug("[{}][{}] currentPosition {}",
-                    topicName, subName, currentPosition);
-        }
-        final EntryFilterSupport entryFilterSupport = dispatcher != null
-                ? (EntryFilterSupport) dispatcher : new EntryFilterSupport(this);
-        // we put some hard limits on the scan, in order to prevent denial of services
-        ServiceConfiguration configuration = topic.getBrokerService().getPulsar().getConfiguration();
-        long maxEntries = configuration.getSubscriptionBacklogScanMaxEntries();
-        long timeOutMs = configuration.getSubscriptionBacklogScanMaxTimeMs();
-        int batchSize = configuration.getDispatcherMaxReadBatchSize();
-        AtomicReference<Position> firstPosition = new AtomicReference<>();
-        AtomicReference<Position> lastPosition = new AtomicReference<>();
-        final Predicate<Entry> condition = entry -> {
+        final ManagedLedger managedLedger = topic.getManagedLedger();
+        try {
+            ManagedCursor newNonDurableCursor = managedLedger.newNonDurableCursor(
+                    this.cursor.getMarkDeletedPosition(),
+                    managedLedger.randomCursorName("analyze-backlog"));
+            long start = System.currentTimeMillis();
             if (log.isDebugEnabled()) {
-                log.debug("found {}", entry);
+                log.debug("[{}][{}] Starting to analyze backlog", topicName, subName);
             }
-            Position entryPosition = entry.getPosition();
-            firstPosition.compareAndSet(null, entryPosition);
-            lastPosition.set(entryPosition);
-            ByteBuf metadataAndPayload = entry.getDataBuffer();
-            MessageMetadata messageMetadata = Commands.peekMessageMetadata(metadataAndPayload, "", -1);
-            int numMessages = 1;
-            if (messageMetadata.hasNumMessagesInBatch()) {
-                numMessages = messageMetadata.getNumMessagesInBatch();
-            }
-            EntryFilter.FilterResult filterResult = entryFilterSupport
-                    .runFiltersForEntry(entry, messageMetadata, null);
 
-            if (filterResult == null) {
-                filterResult = EntryFilter.FilterResult.ACCEPT;
-            }
-            switch (filterResult) {
-                case REJECT:
-                    rejected.incrementAndGet();
-                    rejectedMessages.addAndGet(numMessages);
-                    break;
-                case RESCHEDULE:
-                    rescheduled.incrementAndGet();
-                    rescheduledMessages.addAndGet(numMessages);
-                    break;
-                default:
-                    accepted.incrementAndGet();
-                    acceptedMessages.addAndGet(numMessages);
-                    break;
-            }
-            long num = entries.incrementAndGet();
-            messages.addAndGet(numMessages);
+            AtomicLong entries = new AtomicLong();
+            AtomicLong accepted = new AtomicLong();
+            AtomicLong rejected = new AtomicLong();
+            AtomicLong rescheduled = new AtomicLong();
+            AtomicLong messages = new AtomicLong();
+            AtomicLong acceptedMessages = new AtomicLong();
+            AtomicLong rejectedMessages = new AtomicLong();
+            AtomicLong rescheduledMessages = new AtomicLong();
 
-            if (num % 1000 == 0) {
+            Position currentPosition = newNonDurableCursor.getMarkDeletedPosition();
+
+            if (log.isDebugEnabled()) {
+                log.debug("[{}][{}] currentPosition {}",
+                        topicName, subName, currentPosition);
+            }
+            final EntryFilterSupport entryFilterSupport = dispatcher != null
+                    ? (EntryFilterSupport) dispatcher : new EntryFilterSupport(this);
+            // we put some hard limits on the scan, in order to prevent denial of services
+            ServiceConfiguration configuration = topic.getBrokerService().getPulsar().getConfiguration();
+            long maxEntries = configuration.getSubscriptionBacklogScanMaxEntries();
+            long timeOutMs = configuration.getSubscriptionBacklogScanMaxTimeMs();
+            int batchSize = configuration.getDispatcherMaxReadBatchSize();
+            AtomicReference<Position> firstPosition = new AtomicReference<>();
+            AtomicReference<Position> lastPosition = new AtomicReference<>();
+            final Predicate<Entry> condition = entry -> {
+                if (log.isDebugEnabled()) {
+                    log.debug("found {}", entry);
+                }
+                Position entryPosition = entry.getPosition();
+                firstPosition.compareAndSet(null, entryPosition);
+                lastPosition.set(entryPosition);
+                ByteBuf metadataAndPayload = entry.getDataBuffer();
+                MessageMetadata messageMetadata = Commands.peekMessageMetadata(metadataAndPayload, "", -1);
+                int numMessages = 1;
+                if (messageMetadata.hasNumMessagesInBatch()) {
+                    numMessages = messageMetadata.getNumMessagesInBatch();
+                }
+                EntryFilter.FilterResult filterResult = entryFilterSupport
+                        .runFiltersForEntry(entry, messageMetadata, null);
+
+                if (filterResult == null) {
+                    filterResult = EntryFilter.FilterResult.ACCEPT;
+                }
+                switch (filterResult) {
+                    case REJECT:
+                        rejected.incrementAndGet();
+                        rejectedMessages.addAndGet(numMessages);
+                        break;
+                    case RESCHEDULE:
+                        rescheduled.incrementAndGet();
+                        rescheduledMessages.addAndGet(numMessages);
+                        break;
+                    default:
+                        accepted.incrementAndGet();
+                        acceptedMessages.addAndGet(numMessages);
+                        break;
+                }
+                long num = entries.incrementAndGet();
+                messages.addAndGet(numMessages);
+
+                if (num % 1000 == 0) {
+                    long end = System.currentTimeMillis();
+                    log.info(
+                            "[{}][{}] scan running since {} ms - scanned {} entries",
+                            topicName, subName, end - start, num);
+                }
+
+                return true;
+            };
+            CompletableFuture<AnalyzeBacklogResult> res = newNonDurableCursor.scan(
+                    position,
+                    condition,
+                    batchSize,
+                    maxEntries,
+                    timeOutMs
+            ).thenApply((ScanOutcome outcome) -> {
                 long end = System.currentTimeMillis();
+                AnalyzeBacklogResult result = new AnalyzeBacklogResult();
+                result.setFirstPosition(firstPosition.get());
+                result.setLastPosition(lastPosition.get());
+                result.setEntries(entries.get());
+                result.setMessages(messages.get());
+                result.setFilterAcceptedEntries(accepted.get());
+                result.setFilterAcceptedMessages(acceptedMessages.get());
+                result.setFilterRejectedEntries(rejected.get());
+                result.setFilterRejectedMessages(rejectedMessages.get());
+                result.setFilterRescheduledEntries(rescheduled.get());
+                result.setFilterRescheduledMessages(rescheduledMessages.get());
+                // sometimes we abort the execution due to a timeout or
+                // when we reach a maximum number of entries
+                result.setScanOutcome(outcome);
                 log.info(
-                        "[{}][{}] scan running since {} ms - scanned {} entries",
-                        topicName, subName, end - start, num);
-            }
+                        "[{}][{}] scan took {} ms - {}",
+                        topicName, subName, end - start, result);
+                return result;
+            });
+            res.whenComplete((__, ex) -> {
+                Futures.CloseFuture closeFuture = new Futures.CloseFuture();
+                managedLedger.asyncDeleteCursor(newNonDurableCursor.getName(), new AsyncCallbacks.DeleteCursorCallback(){
+                    @Override
+                    public void deleteCursorComplete(Object ctx) {
+                        // Nothing to do.
+                    }
 
-            return true;
-        };
-        return cursor.scan(
-                position,
-                condition,
-                batchSize,
-                maxEntries,
-                timeOutMs
-        ).thenApply((ScanOutcome outcome) -> {
-            long end = System.currentTimeMillis();
-            AnalyzeBacklogResult result = new AnalyzeBacklogResult();
-            result.setFirstPosition(firstPosition.get());
-            result.setLastPosition(lastPosition.get());
-            result.setEntries(entries.get());
-            result.setMessages(messages.get());
-            result.setFilterAcceptedEntries(accepted.get());
-            result.setFilterAcceptedMessages(acceptedMessages.get());
-            result.setFilterRejectedEntries(rejected.get());
-            result.setFilterRejectedMessages(rejectedMessages.get());
-            result.setFilterRescheduledEntries(rescheduled.get());
-            result.setFilterRescheduledMessages(rescheduledMessages.get());
-            // sometimes we abort the execution due to a timeout or
-            // when we reach a maximum number of entries
-            result.setScanOutcome(outcome);
-            log.info(
-                    "[{}][{}] scan took {} ms - {}",
-                    topicName, subName, end - start, result);
-            return result;
-        });
-
+                    @Override
+                    public void deleteCursorFailed(ManagedLedgerException exception, Object ctx) {
+                        log.info("[{}][{}] Delete non-durable cursor[{}] failed when analyze backlog.",
+                                topicName, subName, newNonDurableCursor.getName());
+                    }
+                }, null);
+            });
+            return res;
+        } catch (ManagedLedgerException mle) {
+            return CompletableFuture.failedFuture(mle);
+        }
     }
 
     @Override
