@@ -535,7 +535,7 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
         try {
             ManagedCursor newNonDurableCursor = managedLedger.newNonDurableCursor(
                     this.cursor.getMarkDeletedPosition(),
-                    managedLedger.randomCursorName("analyze-backlog"));
+                    managedLedger.randomCursorName("analyze-backlog-"));
             long start = System.currentTimeMillis();
             if (log.isDebugEnabled()) {
                 log.debug("[{}][{}] Starting to analyze backlog", topicName, subName);
