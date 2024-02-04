@@ -57,10 +57,9 @@ public class TransactionTimeoutTrackerImpl implements TransactionTimeoutTracker,
     }
 
     @Override
-    public CompletableFuture<Boolean> addTransaction(long sequenceId, long timeout) {
+    public void addTransaction(long sequenceId, long timeout) {
         if (timeout < tickTimeMillis) {
             this.transactionMetadataStoreService.endTransactionForTimeout(new TxnID(tcId, sequenceId));
-            return CompletableFuture.completedFuture(false);
         }
         synchronized (this){
             long nowTime = clock.millis();
@@ -79,7 +78,6 @@ public class TransactionTimeoutTrackerImpl implements TransactionTimeoutTracker,
                 nowTaskTimeoutTime = transactionTimeoutTime;
             }
         }
-        return CompletableFuture.completedFuture(true);
     }
 
     @Override
