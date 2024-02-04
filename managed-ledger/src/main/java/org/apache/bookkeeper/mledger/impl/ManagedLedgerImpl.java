@@ -1095,19 +1095,19 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     }
 
     @Override
-    public ManagedCursor newNonDurableCursor(Position startCursorPosition) throws ManagedLedgerException {
+    public ManagedCursor newNonDurableCursor(Position mdPosition) throws ManagedLedgerException {
         return newNonDurableCursor(
-            startCursorPosition, randomCursorName("non-durable-cursor-"));
+            mdPosition, randomCursorName("non-durable-cursor-"));
     }
 
     @Override
-    public ManagedCursor newNonDurableCursor(Position startPosition, String subscriptionName)
+    public ManagedCursor newNonDurableCursor(Position mdPosition, String subscriptionName)
             throws ManagedLedgerException {
-        return newNonDurableCursor(startPosition, subscriptionName, InitialPosition.Latest, false);
+        return newNonDurableCursor(mdPosition, subscriptionName, InitialPosition.Latest, false);
     }
 
     @Override
-    public ManagedCursor newNonDurableCursor(Position startCursorPosition, String cursorName,
+    public ManagedCursor newNonDurableCursor(Position mdPosition, String cursorName,
                                              InitialPosition initialPosition, boolean isReadCompacted)
             throws ManagedLedgerException {
         Objects.requireNonNull(cursorName, "cursor name can't be null");
@@ -1123,7 +1123,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
 
         NonDurableCursorImpl cursor = new NonDurableCursorImpl(bookKeeper, config, this, cursorName,
-                (PositionImpl) startCursorPosition, initialPosition, isReadCompacted);
+                (PositionImpl) mdPosition, initialPosition, isReadCompacted);
         cursor.setActive();
 
         log.info("[{}] Opened new cursor: {}", name, cursor);
