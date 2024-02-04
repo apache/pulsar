@@ -638,18 +638,19 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
                 return result;
             });
             res.whenComplete((__, ex) -> {
-                managedLedger.asyncDeleteCursor(newNonDurableCursor.getName(), new AsyncCallbacks.DeleteCursorCallback(){
-                    @Override
-                    public void deleteCursorComplete(Object ctx) {
-                        // Nothing to do.
-                    }
+                managedLedger.asyncDeleteCursor(newNonDurableCursor.getName(),
+                    new AsyncCallbacks.DeleteCursorCallback(){
+                        @Override
+                        public void deleteCursorComplete(Object ctx) {
+                            // Nothing to do.
+                        }
 
-                    @Override
-                    public void deleteCursorFailed(ManagedLedgerException exception, Object ctx) {
-                        log.info("[{}][{}] Delete non-durable cursor[{}] failed when analyze backlog.",
-                                topicName, subName, newNonDurableCursor.getName());
-                    }
-                }, null);
+                        @Override
+                        public void deleteCursorFailed(ManagedLedgerException exception, Object ctx) {
+                            log.info("[{}][{}] Delete non-durable cursor[{}] failed when analyze backlog.",
+                                    topicName, subName, newNonDurableCursor.getName());
+                        }
+                    }, null);
             });
             return res;
         } catch (ManagedLedgerException mle) {
