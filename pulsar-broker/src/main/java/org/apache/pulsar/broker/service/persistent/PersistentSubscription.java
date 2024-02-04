@@ -53,7 +53,6 @@ import org.apache.bookkeeper.mledger.ScanOutcome;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
-import org.apache.bookkeeper.mledger.util.Futures;
 import org.apache.commons.collections4.MapUtils;
 import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -639,7 +638,6 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
                 return result;
             });
             res.whenComplete((__, ex) -> {
-                Futures.CloseFuture closeFuture = new Futures.CloseFuture();
                 managedLedger.asyncDeleteCursor(newNonDurableCursor.getName(), new AsyncCallbacks.DeleteCursorCallback(){
                     @Override
                     public void deleteCursorComplete(Object ctx) {
