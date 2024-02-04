@@ -36,7 +36,7 @@ public class NonDurableCursorImpl extends ManagedCursorImpl {
     private final boolean readCompacted;
 
     NonDurableCursorImpl(BookKeeper bookkeeper, ManagedLedgerConfig config, ManagedLedgerImpl ledger, String cursorName,
-                         PositionImpl mdPosition, CommandSubscribe.InitialPosition initialPosition,
+                         PositionImpl startCursorPosition, CommandSubscribe.InitialPosition initialPosition,
                          boolean isReadCompacted) {
         super(bookkeeper, config, ledger, cursorName);
         this.readCompacted = isReadCompacted;
@@ -44,7 +44,7 @@ public class NonDurableCursorImpl extends ManagedCursorImpl {
         // Compare with "latest" position marker by using only the ledger id. Since the C++ client is using 48bits to
         // store the entryId, it's not able to pass a Long.max() as entryId. In this case there's no point to require
         // both ledgerId and entryId to be Long.max()
-        if (mdPosition == null || mdPosition.compareTo(ledger.lastConfirmedEntry) > 0) {
+        if (startCursorPosition == null || startCursorPosition.compareTo(ledger.lastConfirmedEntry) > 0) {
             // Start from last entry
             switch (initialPosition) {
                 case Latest:
@@ -54,13 +54,13 @@ public class NonDurableCursorImpl extends ManagedCursorImpl {
                     initializeCursorPosition(ledger.getFirstPositionAndCounter());
                     break;
             }
-        } else if (mdPosition.getLedgerId() == PositionImpl.EARLIEST.getLedgerId()) {
+        } else if (startCursorPosition.getLedgerId() == PositionImpl.EARLIEST.getLedgerId()) {
             // Start from invalid ledger to read from first available entry
             recoverCursor(ledger.getPreviousPosition(ledger.getFirstPosition()));
         } else {
             // Since the cursor is positioning on the mark-delete position, we need to take 1 step back from the desired
             // read-position
-            recoverCursor(mdPosition);
+            recoverCursor(startCursorPosition);
         }
         STATE_UPDATER.set(this, State.Open);
         log.info("[{}] Created non-durable cursor read-position={} mark-delete-position={}", ledger.getName(),
