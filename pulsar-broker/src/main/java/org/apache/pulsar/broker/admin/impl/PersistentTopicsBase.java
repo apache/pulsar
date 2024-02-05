@@ -2829,7 +2829,7 @@ public class PersistentTopicsBase extends AdminResource {
 
                     @Override
                     public String toString() {
-                        return String.format("Topic [{}] get entry batch size",
+                        return String.format("Topic [%s] get entry batch size",
                                 PersistentTopicsBase.this.topicName);
                     }
                 }, null);
@@ -2936,7 +2936,7 @@ public class PersistentTopicsBase extends AdminResource {
 
                         @Override
                         public String toString() {
-                            return String.format("Topic [{}] internal get message by id",
+                            return String.format("Topic [%s] internal get message by id",
                                     PersistentTopicsBase.this.topicName);
                         }
                     }, null);
@@ -3108,7 +3108,7 @@ public class PersistentTopicsBase extends AdminResource {
 
                             @Override
                             public String toString() {
-                                return String.format("Topic [{}] internal examine message async",
+                                return String.format("Topic [%s] internal examine message async",
                                         PersistentTopicsBase.this.topicName);
                             }
                         }, null);
