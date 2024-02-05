@@ -29,6 +29,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.TreeMap;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
@@ -532,10 +533,9 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
 
     public CompletableFuture<AnalyzeBacklogResult> analyzeBacklog(Optional<Position> position) {
         final ManagedLedger managedLedger = topic.getManagedLedger();
-        try {
-            ManagedCursor newNonDurableCursor = managedLedger.newNonDurableCursor(
-                    this.cursor.getMarkDeletedPosition(),
-                    managedLedger.randomCursorName("analyze-backlog-"));
+        CompletableFuture<ManagedCursor> nonDurableCursorFuture = ((ManagedCursorImpl) cursor)
+                .duplicateToNonDurableCursor("analyze-backlog-" + UUID.randomUUID());
+        return nonDurableCursorFuture.thenCompose(newNonDurableCursor -> {
             long start = System.currentTimeMillis();
             if (log.isDebugEnabled()) {
                 log.debug("[{}][{}] Starting to analyze backlog", topicName, subName);
@@ -653,9 +653,7 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
                     }, null);
             });
             return res;
-        } catch (ManagedLedgerException mle) {
-            return CompletableFuture.failedFuture(mle);
-        }
+        });
     }
 
     @Override

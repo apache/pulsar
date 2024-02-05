@@ -21,7 +21,6 @@ package org.apache.bookkeeper.mledger;
 import io.netty.buffer.ByteBuf;
 import java.util.Map;
 import java.util.Optional;
-import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Predicate;
 import org.apache.bookkeeper.common.annotation.InterfaceAudience;
@@ -692,8 +691,4 @@ public interface ManagedLedger {
      * Check if managed ledger should cache backlog reads.
      */
     void checkCursorsToCacheEntries();
-
-    default String randomCursorName(String prefix) {
-        return prefix + UUID.randomUUID();
-    }
 }
