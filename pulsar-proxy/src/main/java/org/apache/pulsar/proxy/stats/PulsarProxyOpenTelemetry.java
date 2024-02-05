@@ -26,6 +26,7 @@ import org.apache.pulsar.proxy.server.ProxyService;
 
 public class PulsarProxyOpenTelemetry implements Closeable {
 
+    private static final String INSTRUMENTATION_SCOPE_NAME = "org.apache.pulsar.proxy";
     private final OpenTelemetryService openTelemetryService;
 
     @Getter
@@ -34,7 +35,7 @@ public class PulsarProxyOpenTelemetry implements Closeable {
     public PulsarProxyOpenTelemetry(ProxyService proxyService) {
         openTelemetryService =
                 OpenTelemetryService.builder().clusterName(proxyService.getConfiguration().getClusterName()).build();
-        meter = openTelemetryService.getMeter("pulsar.proxy");
+        meter = openTelemetryService.getMeter(INSTRUMENTATION_SCOPE_NAME);
     }
 
     @Override

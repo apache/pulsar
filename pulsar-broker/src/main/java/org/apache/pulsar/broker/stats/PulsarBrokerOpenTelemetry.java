@@ -26,6 +26,7 @@ import org.apache.pulsar.common.stats.OpenTelemetryService;
 
 public class PulsarBrokerOpenTelemetry implements Closeable {
 
+    private static final String INSTRUMENTATION_SCOPE_NAME = "org.apache.pulsar.broker";
     private final OpenTelemetryService openTelemetryService;
 
     @Getter
@@ -33,7 +34,7 @@ public class PulsarBrokerOpenTelemetry implements Closeable {
 
     public PulsarBrokerOpenTelemetry(ServiceConfiguration config) {
         openTelemetryService = OpenTelemetryService.builder().clusterName(config.getClusterName()).build();
-        meter = openTelemetryService.getMeter("pulsar.broker");
+        meter = openTelemetryService.getMeter(INSTRUMENTATION_SCOPE_NAME);
     }
 
     @Override

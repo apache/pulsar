@@ -26,6 +26,7 @@ import org.apache.pulsar.functions.worker.WorkerConfig;
 
 public class PulsarWorkerOpenTelemetry implements Closeable {
 
+    private static final String INSTRUMENTATION_SCOPE_NAME = "org.apache.pulsar.function_worker";
     private final OpenTelemetryService openTelemetryService;
 
     @Getter
@@ -34,7 +35,7 @@ public class PulsarWorkerOpenTelemetry implements Closeable {
     public PulsarWorkerOpenTelemetry(WorkerConfig workerConfig) {
         openTelemetryService =
                 OpenTelemetryService.builder().clusterName(workerConfig.getPulsarFunctionsCluster()).build();
-        meter = openTelemetryService.getMeter("pulsar.worker");
+        meter = openTelemetryService.getMeter(INSTRUMENTATION_SCOPE_NAME);
     }
 
     public void close() {
