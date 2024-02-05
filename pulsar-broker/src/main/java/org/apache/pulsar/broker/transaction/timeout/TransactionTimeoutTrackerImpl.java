@@ -59,6 +59,7 @@ public class TransactionTimeoutTrackerImpl implements TransactionTimeoutTracker,
     public void addTransaction(long sequenceId, long timeout) {
         if (timeout < tickTimeMillis) {
             this.transactionMetadataStoreService.endTransactionForTimeout(new TxnID(tcId, sequenceId));
+            return;
         }
         synchronized (this){
             long nowTime = clock.millis();
