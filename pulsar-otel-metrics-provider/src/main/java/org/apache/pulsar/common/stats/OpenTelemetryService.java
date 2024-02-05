@@ -70,7 +70,7 @@ public class OpenTelemetryService implements Closeable {
 
         Map<String, String> overrideProperties = new HashMap<>();
         overrideProperties.put(OTEL_SDK_DISABLED, "true");
-        // Cardinality limit property is exclusive, so we need to add 1.
+        // Cardinality limit includes the overflow attribute set, so we need to add 1.
         overrideProperties.put(MAX_CARDINALITY_LIMIT_KEY, Integer.toString(MAX_CARDINALITY_LIMIT + 1));
         sdkBuilder.addPropertiesSupplier(() -> overrideProperties);
         sdkBuilder.addPropertiesSupplier(() -> extraProperties);
