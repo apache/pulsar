@@ -18,8 +18,8 @@
  */
 package org.apache.pulsar.broker.stats;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static io.prometheus.client.CollectorRegistry.defaultRegistry;
-import static org.apache.curator.shaded.com.google.common.base.Preconditions.checkArgument;
 import io.prometheus.client.Collector;
 import io.prometheus.client.Summary;
 import io.prometheus.client.Summary.Builder;

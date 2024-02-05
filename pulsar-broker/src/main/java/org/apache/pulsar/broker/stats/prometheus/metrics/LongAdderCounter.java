@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.broker.stats.prometheus.metrics;
 
-import static org.apache.curator.shaded.com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkArgument;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.LongAdder;
 import org.apache.bookkeeper.stats.Counter;
