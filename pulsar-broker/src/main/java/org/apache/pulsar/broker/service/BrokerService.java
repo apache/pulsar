@@ -1781,8 +1781,7 @@ public class BrokerService implements Closeable {
             if (retentionPolicies == null) {
                 if (SystemTopicNames.isSystemTopic(topicName)) {
                     if (log.isDebugEnabled()) {
-                        log.debug("{} The retention policies of system topics cannot be overridden by the namespace "
-                                + "or broker policies.", topicName);
+                        log.debug("{} Disable data retention policy for system topic.", topicName);
                     }
                     retentionPolicies = new RetentionPolicies(0, 0);
                 } else {
