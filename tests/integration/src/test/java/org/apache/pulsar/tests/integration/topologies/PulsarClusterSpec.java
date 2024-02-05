@@ -82,19 +82,6 @@ public class PulsarClusterSpec {
     int numFunctionWorkers = 0;
 
     /**
-     * Specify envs for function workers.
-     */
-    @Singular
-    Map<String, Map<String, String>> functionWorkerEnvs;
-
-    /**
-     * Additional ports to expose on function workers.
-     */
-    @Singular("functionWorkerAdditionalPorts")
-    Map<String, List<Integer>> functionWorkerAdditionalPorts;
-
-
-    /**
      * Allow to query the last message
      */
     @Default
@@ -161,6 +148,12 @@ public class PulsarClusterSpec {
     Map<String, String> bookkeeperEnvs;
 
     /**
+     * Specify envs for function workers.
+     */
+    @Singular
+    Map<String, String> functionWorkerEnvs;
+
+    /**
      * Specify mount files.
      */
     Map<String, String> proxyMountFiles;
@@ -187,6 +180,12 @@ public class PulsarClusterSpec {
      * Additional ports to expose on proxy containers.
      */
     List<Integer> proxyAdditionalPorts;
+
+    /**
+     * Additional ports to expose on function workers.
+     */
+    @Singular
+    List<Integer> functionWorkerAdditionalPorts;
 
     /**
      * Enable TLS for connection.

@@ -66,14 +66,13 @@ public class OpenTelemetrySanityTest {
                 .brokerEnvs(brokerCollectorProps)
                 .proxyEnvs(proxyCollectorProps)
                 .externalService("otel-collector", openTelemetryCollectorContainer)
-                .functionWorkerEnv(functionWorkerServiceNameSuffix, functionWorkerCollectorProps)
+                .functionWorkerEnvs(functionWorkerCollectorProps)
                 .build();
         @Cleanup("stop")
         var pulsarCluster = PulsarCluster.forSpec(spec);
         pulsarCluster.start();
 
         pulsarCluster.setupFunctionWorkers(functionWorkerServiceNameSuffix, FunctionRuntimeType.PROCESS, 1);
-
         // TODO: Validate cluster name is present once
         // https://github.com/open-telemetry/opentelemetry-java/issues/6108 is solved.
         var metricName = "queueSize_ratio"; // Sent automatically by the OpenTelemetry SDK.
@@ -119,8 +118,8 @@ public class OpenTelemetrySanityTest {
                 .brokerAdditionalPorts(List.of(prometheusExporterPort))
                 .proxyEnvs(proxyCollectorProps)
                 .proxyAdditionalPorts(List.of(prometheusExporterPort))
-                .functionWorkerEnv(functionWorkerServiceNameSuffix, functionWorkerCollectorProps)
-                .functionWorkerAdditionalPorts(functionWorkerServiceNameSuffix, List.of(prometheusExporterPort))
+                .functionWorkerEnvs(functionWorkerCollectorProps)
+                .functionWorkerAdditionalPorts(List.of(prometheusExporterPort))
                 .build();
         @Cleanup("stop")
         var pulsarCluster = PulsarCluster.forSpec(spec);

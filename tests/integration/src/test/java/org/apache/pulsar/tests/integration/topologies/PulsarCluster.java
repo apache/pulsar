@@ -94,8 +94,8 @@ public class PulsarCluster {
     private final ProxyContainer proxyContainer;
     private Map<String, GenericContainer<?>> externalServices = Collections.emptyMap();
     private Map<String, Map<String, String>> externalServiceEnvs;
-    private Map<String, Map<String, String>> functionWorkerEnvs;
-    private Map<String, List<Integer>> functionWorkerAdditionalPorts;
+    private final Map<String, String> functionWorkerEnvs;
+    private final List<Integer> functionWorkerAdditionalPorts;
 
     private PulsarCluster(PulsarClusterSpec spec, CSContainer csContainer, boolean sharedCsContainer) {
 
@@ -235,6 +235,8 @@ public class PulsarCluster {
             workerContainers.values().forEach(c -> c.withClasspathResourceMapping(key, value, BindMode.READ_WRITE));
         });
 
+        functionWorkerEnvs = spec.functionWorkerEnvs;
+        functionWorkerAdditionalPorts = spec.functionWorkerAdditionalPorts;
     }
 
     public String getPlainTextServiceUrl() {
@@ -331,9 +333,6 @@ public class PulsarCluster {
                 log.info("Successfully started external service {}.", service.getKey());
             });
         }
-
-        this.functionWorkerEnvs = spec.functionWorkerEnvs;
-        this.functionWorkerAdditionalPorts = spec.functionWorkerAdditionalPorts;
     }
 
     public void startService(String networkAlias,
@@ -443,9 +442,8 @@ public class PulsarCluster {
                 .withEnv("zookeeperServers", ZKContainer.NAME)
                 // bookkeeper tools
                 .withEnv("zkServers", ZKContainer.NAME)
-                .withEnv(functionWorkerEnvs.getOrDefault(suffix, Collections.emptyMap()))
-                .withExposedPorts(functionWorkerAdditionalPorts.getOrDefault(suffix, Collections.emptyList())
-                        .toArray(new Integer[0]))
+                .withEnv(functionWorkerEnvs)
+                .withExposedPorts(functionWorkerAdditionalPorts.toArray(new Integer[0]))
         ));
         this.startWorkers();
     }
