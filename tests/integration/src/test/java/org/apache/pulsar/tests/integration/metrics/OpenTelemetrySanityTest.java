@@ -76,15 +76,21 @@ public class OpenTelemetrySanityTest {
         // TODO: Validate cluster name is present once
         // https://github.com/open-telemetry/opentelemetry-java/issues/6108 is solved.
         var metricName = "queueSize_ratio"; // Sent automatically by the OpenTelemetry SDK.
-        Awaitility.waitAtMost(90, TimeUnit.SECONDS).ignoreExceptions().pollInterval(1, TimeUnit.SECONDS).until(() ->
-            hasMetrics(openTelemetryCollectorContainer, OpenTelemetryCollectorContainer.PROMETHEUS_EXPORTER_PORT,
-                    metricName, Pair.of("job", brokerOtelServiceName)));
-        Awaitility.waitAtMost(90, TimeUnit.SECONDS).ignoreExceptions().pollInterval(1, TimeUnit.SECONDS).until(() ->
-                hasMetrics(openTelemetryCollectorContainer, OpenTelemetryCollectorContainer.PROMETHEUS_EXPORTER_PORT,
-                        metricName, Pair.of("job", proxyOtelServiceName)));
-        Awaitility.waitAtMost(90, TimeUnit.SECONDS).ignoreExceptions().pollInterval(1, TimeUnit.SECONDS).until(() ->
-                hasMetrics(openTelemetryCollectorContainer, OpenTelemetryCollectorContainer.PROMETHEUS_EXPORTER_PORT,
-                        metricName, Pair.of("job", functionWorkerOtelServiceName)));
+        Awaitility.waitAtMost(90, TimeUnit.SECONDS).ignoreExceptions().pollInterval(1, TimeUnit.SECONDS).until(() -> {
+            var metrics = getMetricsFromPrometheus(
+                    openTelemetryCollectorContainer, OpenTelemetryCollectorContainer.PROMETHEUS_EXPORTER_PORT);
+            return !metrics.findByNameAndLabels(metricName, "job", brokerOtelServiceName).isEmpty();
+        });
+        Awaitility.waitAtMost(90, TimeUnit.SECONDS).ignoreExceptions().pollInterval(1, TimeUnit.SECONDS).until(() -> {
+            var metrics = getMetricsFromPrometheus(
+                    openTelemetryCollectorContainer, OpenTelemetryCollectorContainer.PROMETHEUS_EXPORTER_PORT);
+            return !metrics.findByNameAndLabels(metricName, "job", proxyOtelServiceName).isEmpty();
+        });
+        Awaitility.waitAtMost(90, TimeUnit.SECONDS).ignoreExceptions().pollInterval(1, TimeUnit.SECONDS).until(() -> {
+            var metrics = getMetricsFromPrometheus(
+                    openTelemetryCollectorContainer, OpenTelemetryCollectorContainer.PROMETHEUS_EXPORTER_PORT);
+            return !metrics.findByNameAndLabels(metricName, "job", functionWorkerOtelServiceName).isEmpty();
+        });
     }
 
     /*
@@ -129,26 +135,29 @@ public class OpenTelemetrySanityTest {
         var workerContainer = pulsarCluster.getAnyWorker();
 
         var metricName = "target_info"; // Sent automatically by the OpenTelemetry SDK.
-        Awaitility.waitAtMost(90, TimeUnit.SECONDS).ignoreExceptions().pollInterval(1, TimeUnit.SECONDS).until(() ->
-                hasMetrics(pulsarCluster.getAnyBroker(), prometheusExporterPort, metricName,
-                        Pair.of("pulsar_cluster", clusterName),
-                        Pair.of("service_name", brokerOtelServiceName)));
-        Awaitility.waitAtMost(90, TimeUnit.SECONDS).ignoreExceptions().pollInterval(1, TimeUnit.SECONDS).until(() ->
-                hasMetrics(pulsarCluster.getProxy(), prometheusExporterPort, metricName,
-                        Pair.of("pulsar_cluster", clusterName),
-                        Pair.of("service_name", proxyOtelServiceName)));
-        Awaitility.waitAtMost(90, TimeUnit.SECONDS).ignoreExceptions().pollInterval(1, TimeUnit.SECONDS).until(() ->
-                hasMetrics(workerContainer, prometheusExporterPort, metricName,
-                        Pair.of("pulsar_cluster", clusterName),
-                        Pair.of("service_name", functionWorkerOtelServiceName)));
+        Awaitility.waitAtMost(90, TimeUnit.SECONDS).ignoreExceptions().pollInterval(1, TimeUnit.SECONDS).until(() -> {
+            var metrics = getMetricsFromPrometheus(pulsarCluster.getAnyBroker(), prometheusExporterPort);
+            return !metrics.findByNameAndLabels(metricName,
+                    Pair.of("pulsar_cluster", clusterName),
+                    Pair.of("service_name", brokerOtelServiceName)).isEmpty();
+        });
+        Awaitility.waitAtMost(90, TimeUnit.SECONDS).ignoreExceptions().pollInterval(1, TimeUnit.SECONDS).until(() -> {
+            var metrics = getMetricsFromPrometheus(pulsarCluster.getProxy(), prometheusExporterPort);
+            return !metrics.findByNameAndLabels(metricName,
+                    Pair.of("pulsar_cluster", clusterName),
+                    Pair.of("service_name", proxyOtelServiceName)).isEmpty();
+        });
+        Awaitility.waitAtMost(90, TimeUnit.SECONDS).ignoreExceptions().pollInterval(1, TimeUnit.SECONDS).until(() -> {
+            var metrics = getMetricsFromPrometheus(workerContainer, prometheusExporterPort);
+            return !metrics.findByNameAndLabels(metricName,
+                    Pair.of("pulsar_cluster", clusterName),
+                    Pair.of("service_name", functionWorkerOtelServiceName)).isEmpty();
+        });
     }
 
-    private static boolean hasMetrics(ChaosContainer<?> container, int port, String metricName,
-                                      Pair<String, String> ... expectedLabels) {
+    private static PrometheusMetricsClient.Metrics getMetricsFromPrometheus(ChaosContainer<?> container, int port) {
         var client = new PrometheusMetricsClient(container.getHost(), container.getMappedPort(port));
-        var allMetrics = client.getMetrics();
-        var actualMetrics = allMetrics.findByNameAndLabels(metricName, expectedLabels);
-        return !actualMetrics.isEmpty();
+        return client.getMetrics();
     }
 
     private static Map<String, String> getCollectorProps(String serviceName, String exporter,
