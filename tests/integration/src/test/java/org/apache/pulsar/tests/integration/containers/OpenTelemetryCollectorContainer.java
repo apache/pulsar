@@ -45,10 +45,6 @@ public class OpenTelemetryCollectorContainer extends ChaosContainer<OpenTelemetr
                 "/etc/otel-collector-config.yaml")
             .withCommand("--config=/etc/otel-collector-config.yaml")
             .withExposedPorts(OTLP_RECEIVER_PORT, PROMETHEUS_EXPORTER_PORT, ZPAGES_PORT)
-            .withCreateContainerCmdModifier(createContainerCmd -> {
-                createContainerCmd.withHostName(NAME);
-                createContainerCmd.withName(getContainerName());
-            })
             .waitingFor(new HttpWaitStrategy()
                     .forPath("/debug/servicez")
                     .forPort(ZPAGES_PORT)
