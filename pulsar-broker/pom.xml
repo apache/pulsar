@@ -145,7 +145,7 @@
 
     <dependency>
       <groupId>${project.groupId}</groupId>
-      <artifactId>pulsar-otel-metrics-provider</artifactId>
+      <artifactId>pulsar-otel-integration</artifactId>
       <version>${project.version}</version>
     </dependency>
 
