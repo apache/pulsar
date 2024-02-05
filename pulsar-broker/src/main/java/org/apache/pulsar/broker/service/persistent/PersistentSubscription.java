@@ -651,7 +651,7 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
 
                     @Override
                     public void deleteCursorFailed(ManagedLedgerException exception, Object ctx) {
-                        log.info("[{}][{}] Delete non-durable cursor[{}] failed when analyze backlog.",
+                        log.warn("[{}][{}] Delete non-durable cursor[{}] failed when analyze backlog.",
                                 topicName, subName, newNonDurableCursor.getName());
                     }
                 }, null);
