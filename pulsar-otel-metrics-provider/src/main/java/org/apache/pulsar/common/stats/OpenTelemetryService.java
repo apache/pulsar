@@ -35,7 +35,7 @@ import org.apache.commons.lang3.StringUtils;
 
 /**
  * Provides a common OpenTelemetry service for Pulsar components to use. Responsible for instantiating the OpenTelemetry
- * SDK with a set of overrode properties. Once initialized, furnishes access to OpenTelemetry meters.
+ * SDK with a set of override properties. Once initialized, furnishes access to OpenTelemetry.
  */
 public class OpenTelemetryService implements Closeable {
 
