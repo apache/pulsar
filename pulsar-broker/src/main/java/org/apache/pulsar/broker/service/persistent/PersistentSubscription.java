@@ -881,7 +881,7 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
 
             @Override
             public String toString() {
-                return String.format("Subscription [{}-{}] async replay entries", PersistentSubscription.this.topicName,
+                return String.format("Subscription [%s-%s] async replay entries", PersistentSubscription.this.topicName,
                         PersistentSubscription.this.subName);
             }
         }, null);

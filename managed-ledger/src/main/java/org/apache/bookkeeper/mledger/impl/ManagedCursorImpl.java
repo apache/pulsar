@@ -826,7 +826,7 @@ public class ManagedCursorImpl implements ManagedCursor {
 
             @Override
             public String toString() {
-                return String.format("Cursor [{}] get Nth entry", ManagedCursorImpl.this);
+                return String.format("Cursor [%s] get Nth entry", ManagedCursorImpl.this);
             }
         }, null);
 
@@ -1548,7 +1548,7 @@ public class ManagedCursorImpl implements ManagedCursor {
 
             @Override
             public String toString() {
-                return String.format("Cursor [{}] async replay entries", ManagedCursorImpl.this);
+                return String.format("Cursor [%s] async replay entries", ManagedCursorImpl.this);
             }
         };
 
