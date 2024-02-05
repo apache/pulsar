@@ -332,10 +332,9 @@ public abstract class PersistentReplicator extends AbstractReplicator
         public void sendComplete(Exception exception) {
             if (exception != null && !(exception instanceof PulsarClientException.InvalidMessageException)) {
                 log.error("[{}] Error producing on remote broker", replicator.replicatorId, exception);
+                replicator.cursor.cancelPendingReadRequest();
                 // cursor should be rewinded since it was incremented when readMoreEntries
                 replicator.cursor.rewind();
-
-                replicator.cursor.cancelPendingReadRequest();
                 HAVE_PENDING_READ_UPDATER.set(replicator, FALSE);
             } else {
                 if (log.isDebugEnabled()) {
