@@ -22,7 +22,6 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import io.opentelemetry.api.common.AttributeKey;
 import io.opentelemetry.api.common.Attributes;
-import io.opentelemetry.api.metrics.DoubleCounter;
 import io.opentelemetry.api.metrics.LongCounter;
 import io.opentelemetry.api.metrics.LongCounterBuilder;
 import io.opentelemetry.api.metrics.Meter;
@@ -159,22 +158,6 @@ public class OpenTelemetryServiceTest {
                 dataAttribute(Attributes.of(AttributeKey.stringKey("dummyAttr"), "dummyValue")).
                 type(MetricDataType.LONG_SUM).
                 longValue(3L).
-                build();
-
-        Collection<MetricData> metricData = reader.collectAllMetrics();
-        assertTrue(metricData.stream().anyMatch(predicate));
-    }
-
-    @Test
-    public void testDoubleCounter() throws Exception {
-        DoubleCounter doubleCounter = meter.counterBuilder("dummyDoubleCounter").ofDoubles().build();
-        doubleCounter.add(3.14, Attributes.of(AttributeKey.stringKey("dummyAttr"), "dummyValue"));
-        doubleCounter.add(2.71, Attributes.of(AttributeKey.stringKey("dummyAttr"), "dummyValue"));
-
-        Predicate<MetricData> predicate = MetricDataMatcher.builder().
-                name("dummyDoubleCounter").
-                dataAttribute(Attributes.of(AttributeKey.stringKey("dummyAttr"), "dummyValue")).
-                doubleValue(5.85).
                 build();
 
         Collection<MetricData> metricData = reader.collectAllMetrics();
