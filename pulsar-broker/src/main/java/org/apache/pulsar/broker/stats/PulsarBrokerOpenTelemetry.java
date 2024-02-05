@@ -21,7 +21,7 @@ package org.apache.pulsar.broker.stats;
 import io.opentelemetry.api.metrics.Meter;
 import java.io.Closeable;
 import lombok.Getter;
-import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.common.stats.OpenTelemetryService;
 
 public class PulsarBrokerOpenTelemetry implements Closeable {
@@ -31,8 +31,8 @@ public class PulsarBrokerOpenTelemetry implements Closeable {
     @Getter
     private final Meter meter;
 
-    public PulsarBrokerOpenTelemetry(PulsarService pulsar) {
-        openTelemetryService = OpenTelemetryService.builder().clusterName(pulsar.getConfig().getClusterName()).build();
+    public PulsarBrokerOpenTelemetry(ServiceConfiguration config) {
+        openTelemetryService = OpenTelemetryService.builder().clusterName(config.getClusterName()).build();
         meter = openTelemetryService.getMeter("pulsar.broker");
     }
 

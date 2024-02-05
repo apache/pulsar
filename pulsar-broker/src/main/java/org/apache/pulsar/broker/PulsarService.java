@@ -902,7 +902,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             }
 
             this.metricsGenerator = new MetricsGenerator(this);
-            this.openTelemetry = new PulsarBrokerOpenTelemetry(this);
+            this.openTelemetry = new PulsarBrokerOpenTelemetry(config);
 
             // Initialize the message protocol handlers.
             // start the protocol handlers only after the broker is ready,
