@@ -329,6 +329,7 @@ public class AutoClusterFailover implements ServiceUrlProvider {
 
         @Override
         public AutoClusterFailoverBuilder checkInterval(long interval, TimeUnit timeUnit) {
+            checkArgument(interval >= 0L, "check interval time must not be negative.");
             this.checkIntervalMs = timeUnit.toMillis(interval);
             return this;
         }
