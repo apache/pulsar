@@ -287,7 +287,7 @@ public class ProxyService implements Closeable {
         }
 
         createMetricsServlet();
-        openTelemetry = new PulsarProxyOpenTelemetry(this);
+        openTelemetry = new PulsarProxyOpenTelemetry(proxyConfig);
 
         // Initialize the message protocol handlers.
         // start the protocol handlers only after the broker is ready,

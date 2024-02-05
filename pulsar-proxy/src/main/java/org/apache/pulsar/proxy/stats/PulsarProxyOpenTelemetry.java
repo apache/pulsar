@@ -22,6 +22,7 @@ import io.opentelemetry.api.metrics.Meter;
 import java.io.Closeable;
 import lombok.Getter;
 import org.apache.pulsar.common.stats.OpenTelemetryService;
+import org.apache.pulsar.proxy.server.ProxyConfiguration;
 import org.apache.pulsar.proxy.server.ProxyService;
 
 public class PulsarProxyOpenTelemetry implements Closeable {
@@ -32,9 +33,8 @@ public class PulsarProxyOpenTelemetry implements Closeable {
     @Getter
     private final Meter meter;
 
-    public PulsarProxyOpenTelemetry(ProxyService proxyService) {
-        openTelemetryService =
-                OpenTelemetryService.builder().clusterName(proxyService.getConfiguration().getClusterName()).build();
+    public PulsarProxyOpenTelemetry(ProxyConfiguration config) {
+        openTelemetryService = OpenTelemetryService.builder().clusterName(config.getClusterName()).build();
         meter = openTelemetryService.getMeter(INSTRUMENTATION_SCOPE_NAME);
     }
 
