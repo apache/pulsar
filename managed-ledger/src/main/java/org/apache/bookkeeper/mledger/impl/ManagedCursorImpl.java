@@ -3626,31 +3626,25 @@ public class ManagedCursorImpl implements ManagedCursor {
     /***
      * Create a non-durable cursor and copy the ack stats.
      */
-    public CompletableFuture<ManagedCursor> duplicateToNonDurableCursor(String nonDurableCursorName) {
-        CompletableFuture<ManagedCursor> res = new CompletableFuture<>();
-        try {
-            NonDurableCursorImpl newNonDurableCursor =
-                    (NonDurableCursorImpl) ledger.newNonDurableCursor(getMarkDeletedPosition(), nonDurableCursorName);
-            if (individualDeletedMessages != null) {
-                this.individualDeletedMessages.forEach(range -> {
-                    newNonDurableCursor.individualDeletedMessages.addOpenClosed(
-                            range.lowerEndpoint().getLedgerId(),
-                            range.lowerEndpoint().getEntryId(),
-                            range.upperEndpoint().getLedgerId(),
-                            range.upperEndpoint().getEntryId());
-                    return true;
-                });
-            }
-            if (batchDeletedIndexes != null) {
-                for (Map.Entry<PositionImpl, BitSetRecyclable> entry : this.batchDeletedIndexes.entrySet()) {
-                    BitSetRecyclable copiedBitSet = BitSetRecyclable.valueOf(entry.getValue());
-                    newNonDurableCursor.batchDeletedIndexes.put(entry.getKey(), copiedBitSet);
-                }
-            }
-            res.complete(newNonDurableCursor);
-        } catch (ManagedLedgerException ex) {
-            res.completeExceptionally(ex);
+    public ManagedCursor duplicateToNonDurableCursor(String nonDurableCursorName) throws ManagedLedgerException {
+        NonDurableCursorImpl newNonDurableCursor =
+                (NonDurableCursorImpl) ledger.newNonDurableCursor(getMarkDeletedPosition(), nonDurableCursorName);
+        if (individualDeletedMessages != null) {
+            this.individualDeletedMessages.forEach(range -> {
+                newNonDurableCursor.individualDeletedMessages.addOpenClosed(
+                        range.lowerEndpoint().getLedgerId(),
+                        range.lowerEndpoint().getEntryId(),
+                        range.upperEndpoint().getLedgerId(),
+                        range.upperEndpoint().getEntryId());
+                return true;
+            });
         }
-        return res;
+        if (batchDeletedIndexes != null) {
+            for (Map.Entry<PositionImpl, BitSetRecyclable> entry : this.batchDeletedIndexes.entrySet()) {
+                BitSetRecyclable copiedBitSet = BitSetRecyclable.valueOf(entry.getValue());
+                newNonDurableCursor.batchDeletedIndexes.put(entry.getKey(), copiedBitSet);
+            }
+        }
+        return newNonDurableCursor;
     }
 }

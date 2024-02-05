@@ -533,127 +533,130 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
 
     public CompletableFuture<AnalyzeBacklogResult> analyzeBacklog(Optional<Position> position) {
         final ManagedLedger managedLedger = topic.getManagedLedger();
-        CompletableFuture<ManagedCursor> nonDurableCursorFuture = ((ManagedCursorImpl) cursor)
-                .duplicateToNonDurableCursor("analyze-backlog-" + UUID.randomUUID());
-        return nonDurableCursorFuture.thenCompose(newNonDurableCursor -> {
-            long start = System.currentTimeMillis();
+        final String newNonDurableCursorName = "analyze-backlog-" + UUID.randomUUID();
+        ManagedCursor newNonDurableCursor;
+        try {
+            newNonDurableCursor = ((ManagedCursorImpl) cursor).duplicateToNonDurableCursor(newNonDurableCursorName);
+        } catch (ManagedLedgerException e) {
+            return CompletableFuture.failedFuture(e);
+        }
+        long start = System.currentTimeMillis();
+        if (log.isDebugEnabled()) {
+            log.debug("[{}][{}] Starting to analyze backlog", topicName, subName);
+        }
+
+        AtomicLong entries = new AtomicLong();
+        AtomicLong accepted = new AtomicLong();
+        AtomicLong rejected = new AtomicLong();
+        AtomicLong rescheduled = new AtomicLong();
+        AtomicLong messages = new AtomicLong();
+        AtomicLong acceptedMessages = new AtomicLong();
+        AtomicLong rejectedMessages = new AtomicLong();
+        AtomicLong rescheduledMessages = new AtomicLong();
+
+        Position currentPosition = newNonDurableCursor.getMarkDeletedPosition();
+
+        if (log.isDebugEnabled()) {
+            log.debug("[{}][{}] currentPosition {}",
+                    topicName, subName, currentPosition);
+        }
+        final EntryFilterSupport entryFilterSupport = dispatcher != null
+                ? (EntryFilterSupport) dispatcher : new EntryFilterSupport(this);
+        // we put some hard limits on the scan, in order to prevent denial of services
+        ServiceConfiguration configuration = topic.getBrokerService().getPulsar().getConfiguration();
+        long maxEntries = configuration.getSubscriptionBacklogScanMaxEntries();
+        long timeOutMs = configuration.getSubscriptionBacklogScanMaxTimeMs();
+        int batchSize = configuration.getDispatcherMaxReadBatchSize();
+        AtomicReference<Position> firstPosition = new AtomicReference<>();
+        AtomicReference<Position> lastPosition = new AtomicReference<>();
+        final Predicate<Entry> condition = entry -> {
             if (log.isDebugEnabled()) {
-                log.debug("[{}][{}] Starting to analyze backlog", topicName, subName);
+                log.debug("found {}", entry);
             }
-
-            AtomicLong entries = new AtomicLong();
-            AtomicLong accepted = new AtomicLong();
-            AtomicLong rejected = new AtomicLong();
-            AtomicLong rescheduled = new AtomicLong();
-            AtomicLong messages = new AtomicLong();
-            AtomicLong acceptedMessages = new AtomicLong();
-            AtomicLong rejectedMessages = new AtomicLong();
-            AtomicLong rescheduledMessages = new AtomicLong();
-
-            Position currentPosition = newNonDurableCursor.getMarkDeletedPosition();
-
-            if (log.isDebugEnabled()) {
-                log.debug("[{}][{}] currentPosition {}",
-                        topicName, subName, currentPosition);
+            Position entryPosition = entry.getPosition();
+            firstPosition.compareAndSet(null, entryPosition);
+            lastPosition.set(entryPosition);
+            ByteBuf metadataAndPayload = entry.getDataBuffer();
+            MessageMetadata messageMetadata = Commands.peekMessageMetadata(metadataAndPayload, "", -1);
+            int numMessages = 1;
+            if (messageMetadata.hasNumMessagesInBatch()) {
+                numMessages = messageMetadata.getNumMessagesInBatch();
             }
-            final EntryFilterSupport entryFilterSupport = dispatcher != null
-                    ? (EntryFilterSupport) dispatcher : new EntryFilterSupport(this);
-            // we put some hard limits on the scan, in order to prevent denial of services
-            ServiceConfiguration configuration = topic.getBrokerService().getPulsar().getConfiguration();
-            long maxEntries = configuration.getSubscriptionBacklogScanMaxEntries();
-            long timeOutMs = configuration.getSubscriptionBacklogScanMaxTimeMs();
-            int batchSize = configuration.getDispatcherMaxReadBatchSize();
-            AtomicReference<Position> firstPosition = new AtomicReference<>();
-            AtomicReference<Position> lastPosition = new AtomicReference<>();
-            final Predicate<Entry> condition = entry -> {
-                if (log.isDebugEnabled()) {
-                    log.debug("found {}", entry);
-                }
-                Position entryPosition = entry.getPosition();
-                firstPosition.compareAndSet(null, entryPosition);
-                lastPosition.set(entryPosition);
-                ByteBuf metadataAndPayload = entry.getDataBuffer();
-                MessageMetadata messageMetadata = Commands.peekMessageMetadata(metadataAndPayload, "", -1);
-                int numMessages = 1;
-                if (messageMetadata.hasNumMessagesInBatch()) {
-                    numMessages = messageMetadata.getNumMessagesInBatch();
-                }
-                EntryFilter.FilterResult filterResult = entryFilterSupport
-                        .runFiltersForEntry(entry, messageMetadata, null);
+            EntryFilter.FilterResult filterResult = entryFilterSupport
+                    .runFiltersForEntry(entry, messageMetadata, null);
 
-                if (filterResult == null) {
-                    filterResult = EntryFilter.FilterResult.ACCEPT;
-                }
-                switch (filterResult) {
-                    case REJECT:
-                        rejected.incrementAndGet();
-                        rejectedMessages.addAndGet(numMessages);
-                        break;
-                    case RESCHEDULE:
-                        rescheduled.incrementAndGet();
-                        rescheduledMessages.addAndGet(numMessages);
-                        break;
-                    default:
-                        accepted.incrementAndGet();
-                        acceptedMessages.addAndGet(numMessages);
-                        break;
-                }
-                long num = entries.incrementAndGet();
-                messages.addAndGet(numMessages);
+            if (filterResult == null) {
+                filterResult = EntryFilter.FilterResult.ACCEPT;
+            }
+            switch (filterResult) {
+                case REJECT:
+                    rejected.incrementAndGet();
+                    rejectedMessages.addAndGet(numMessages);
+                    break;
+                case RESCHEDULE:
+                    rescheduled.incrementAndGet();
+                    rescheduledMessages.addAndGet(numMessages);
+                    break;
+                default:
+                    accepted.incrementAndGet();
+                    acceptedMessages.addAndGet(numMessages);
+                    break;
+            }
+            long num = entries.incrementAndGet();
+            messages.addAndGet(numMessages);
 
-                if (num % 1000 == 0) {
-                    long end = System.currentTimeMillis();
-                    log.info(
-                            "[{}][{}] scan running since {} ms - scanned {} entries",
-                            topicName, subName, end - start, num);
-                }
-
-                return true;
-            };
-            CompletableFuture<AnalyzeBacklogResult> res = newNonDurableCursor.scan(
-                    position,
-                    condition,
-                    batchSize,
-                    maxEntries,
-                    timeOutMs
-            ).thenApply((ScanOutcome outcome) -> {
+            if (num % 1000 == 0) {
                 long end = System.currentTimeMillis();
-                AnalyzeBacklogResult result = new AnalyzeBacklogResult();
-                result.setFirstPosition(firstPosition.get());
-                result.setLastPosition(lastPosition.get());
-                result.setEntries(entries.get());
-                result.setMessages(messages.get());
-                result.setFilterAcceptedEntries(accepted.get());
-                result.setFilterAcceptedMessages(acceptedMessages.get());
-                result.setFilterRejectedEntries(rejected.get());
-                result.setFilterRejectedMessages(rejectedMessages.get());
-                result.setFilterRescheduledEntries(rescheduled.get());
-                result.setFilterRescheduledMessages(rescheduledMessages.get());
-                // sometimes we abort the execution due to a timeout or
-                // when we reach a maximum number of entries
-                result.setScanOutcome(outcome);
                 log.info(
-                        "[{}][{}] scan took {} ms - {}",
-                        topicName, subName, end - start, result);
-                return result;
-            });
-            res.whenComplete((__, ex) -> {
-                managedLedger.asyncDeleteCursor(newNonDurableCursor.getName(),
-                    new AsyncCallbacks.DeleteCursorCallback(){
-                        @Override
-                        public void deleteCursorComplete(Object ctx) {
-                            // Nothing to do.
-                        }
+                        "[{}][{}] scan running since {} ms - scanned {} entries",
+                        topicName, subName, end - start, num);
+            }
 
-                        @Override
-                        public void deleteCursorFailed(ManagedLedgerException exception, Object ctx) {
-                            log.info("[{}][{}] Delete non-durable cursor[{}] failed when analyze backlog.",
-                                    topicName, subName, newNonDurableCursor.getName());
-                        }
-                    }, null);
-            });
-            return res;
+            return true;
+        };
+        CompletableFuture<AnalyzeBacklogResult> res = newNonDurableCursor.scan(
+                position,
+                condition,
+                batchSize,
+                maxEntries,
+                timeOutMs
+        ).thenApply((ScanOutcome outcome) -> {
+            long end = System.currentTimeMillis();
+            AnalyzeBacklogResult result = new AnalyzeBacklogResult();
+            result.setFirstPosition(firstPosition.get());
+            result.setLastPosition(lastPosition.get());
+            result.setEntries(entries.get());
+            result.setMessages(messages.get());
+            result.setFilterAcceptedEntries(accepted.get());
+            result.setFilterAcceptedMessages(acceptedMessages.get());
+            result.setFilterRejectedEntries(rejected.get());
+            result.setFilterRejectedMessages(rejectedMessages.get());
+            result.setFilterRescheduledEntries(rescheduled.get());
+            result.setFilterRescheduledMessages(rescheduledMessages.get());
+            // sometimes we abort the execution due to a timeout or
+            // when we reach a maximum number of entries
+            result.setScanOutcome(outcome);
+            log.info(
+                    "[{}][{}] scan took {} ms - {}",
+                    topicName, subName, end - start, result);
+            return result;
         });
+        res.whenComplete((__, ex) -> {
+            managedLedger.asyncDeleteCursor(newNonDurableCursorName,
+                new AsyncCallbacks.DeleteCursorCallback(){
+                    @Override
+                    public void deleteCursorComplete(Object ctx) {
+                        // Nothing to do.
+                    }
+
+                    @Override
+                    public void deleteCursorFailed(ManagedLedgerException exception, Object ctx) {
+                        log.info("[{}][{}] Delete non-durable cursor[{}] failed when analyze backlog.",
+                                topicName, subName, newNonDurableCursor.getName());
+                    }
+                }, null);
+        });
+        return res;
     }
 
     @Override
