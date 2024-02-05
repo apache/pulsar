@@ -257,8 +257,7 @@ public class CompactionRetentionTest extends MockedPulsarServiceBaseTest {
         ManagedLedgerConfig config = pulsar.getBrokerService()
                 .getManagedLedgerConfig(TopicName.get(topicName)).get();
         Assert.assertEquals(config.getRetentionSizeInMB(), retentionPolicies.getRetentionSizeInMB());
-        Assert.assertEquals(config.getRetentionTimeMillis(), retentionPolicies.getRetentionTimeInMinutes() == -1 ? -1
-                : retentionPolicies.getRetentionTimeInMinutes() * 60000L);
+        Assert.assertEquals(config.getRetentionTimeMillis(),retentionPolicies.getRetentionTimeInMinutes() * 60000L);
     }
 
     private void testCompactionCursorRetention(String topic) throws Exception {
