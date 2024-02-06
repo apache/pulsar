@@ -53,6 +53,13 @@ public class EventsTopicNames {
                 .startsWith(TopicName.TRANSACTION_COORDINATOR_ASSIGN.toString());
     }
 
+    public static boolean isTransactionInternalName(TopicName topicName) {
+        String topic = topicName.toString();
+        return topic.startsWith(TopicName.TRANSACTION_COORDINATOR_ASSIGN.toString())
+                || topic.startsWith(TopicName.TRANSACTION_COORDINATOR_LOG.toString())
+                || topic.endsWith(TopicName.PENDING_ACK_STORE_SUFFIX);
+    }
+
     public static boolean isTopicPoliciesSystemTopic(String topic) {
         if (topic == null) {
             return false;
