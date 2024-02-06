@@ -23,7 +23,6 @@ import java.io.Closeable;
 import lombok.Getter;
 import org.apache.pulsar.common.stats.OpenTelemetryService;
 import org.apache.pulsar.proxy.server.ProxyConfiguration;
-import org.apache.pulsar.proxy.server.ProxyService;
 
 public class PulsarProxyOpenTelemetry implements Closeable {
 
