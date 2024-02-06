@@ -43,18 +43,6 @@ public class OpenTelemetryService implements Closeable {
     public static final AttributeKey<String> CLUSTER_ATTRIBUTE = AttributeKey.stringKey("pulsar.cluster");
     public static final AttributeKey<String> SERVICE_NAME_ATTRIBUTE = AttributeKey.stringKey("service.name");
     public static final AttributeKey<String> SERVICE_VERSION_ATTRIBUTE = AttributeKey.stringKey("service.version");
-    public static final AttributeKey<Long> CONSUMER_ID_ATTRIBUTE = AttributeKey.longKey("pulsar.consumer.id");
-    public static final AttributeKey<String> CONSUMER_NAME_ATTRIBUTE = AttributeKey.stringKey("pulsar.consumer");
-    public static final AttributeKey<String> NAMESPACE_ATTRIBUTE = AttributeKey.stringKey("pulsar.namespace");
-    public static final AttributeKey<Long> PRODUCER_ID_ATTRIBUTE = AttributeKey.longKey("pulsar.producer.id");
-    public static final AttributeKey<String> PRODUCER_NAME_ATTRIBUTE = AttributeKey.stringKey("pulsar.producer");
-    public static final AttributeKey<String> SUBSCRIPTION_ATTRIBUTE = AttributeKey.stringKey("pulsar.subscription");
-    public static final AttributeKey<String> SUBSCRIPTION_TYPE_ATTRIBUTE =
-            AttributeKey.stringKey("pulsar.subscription.type");
-    public static final AttributeKey<String> TENANT_ATTRIBUTE = AttributeKey.stringKey("pulsar.tenant");
-    public static final AttributeKey<String> TOPIC_ATTRIBUTE = AttributeKey.stringKey("pulsar.topic");
-    public static final AttributeKey<String> TOPIC_DOMAIN_ATTRIBUTE = AttributeKey.stringKey("pulsar.topic.domain");
-
     public static final String OTEL_SDK_DISABLED = "otel.sdk.disabled";
     private static final String MAX_CARDINALITY_LIMIT_KEY = "otel.experimental.metrics.cardinality.limit";
     public static final int MAX_CARDINALITY_LIMIT = 10000;
