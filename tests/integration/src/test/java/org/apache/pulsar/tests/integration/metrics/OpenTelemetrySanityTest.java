@@ -52,9 +52,9 @@ public class OpenTelemetrySanityTest {
         var otlpEndpointProp =
                 Pair.of("OTEL_EXPORTER_OTLP_ENDPOINT", openTelemetryCollectorContainer.getOtlpEndpoint());
 
-        var brokerCollectorProps = getCollectorProps(exporter, otlpEndpointProp);
-        var proxyCollectorProps = getCollectorProps(exporter, otlpEndpointProp);
-        var functionWorkerCollectorProps = getCollectorProps(exporter, otlpEndpointProp);
+        var brokerCollectorProps = getOpenTelemetryProps(exporter, otlpEndpointProp);
+        var proxyCollectorProps = getOpenTelemetryProps(exporter, otlpEndpointProp);
+        var functionWorkerCollectorProps = getOpenTelemetryProps(exporter, otlpEndpointProp);
 
         var spec = PulsarClusterSpec.builder()
                 .clusterName(clusterName)
@@ -102,9 +102,9 @@ public class OpenTelemetrySanityTest {
         var prometheusExporterPortProp =
                 Pair.of("OTEL_EXPORTER_PROMETHEUS_PORT", Integer.toString(prometheusExporterPort));
 
-        var brokerCollectorProps = getCollectorProps(exporter, prometheusExporterPortProp);
-        var proxyCollectorProps = getCollectorProps(exporter, prometheusExporterPortProp);
-        var functionWorkerCollectorProps = getCollectorProps(exporter, prometheusExporterPortProp);
+        var brokerCollectorProps = getOpenTelemetryProps(exporter, prometheusExporterPortProp);
+        var proxyCollectorProps = getOpenTelemetryProps(exporter, prometheusExporterPortProp);
+        var functionWorkerCollectorProps = getOpenTelemetryProps(exporter, prometheusExporterPortProp);
 
         var spec = PulsarClusterSpec.builder()
                 .clusterName(clusterName)
@@ -149,7 +149,7 @@ public class OpenTelemetrySanityTest {
         return client.getMetrics();
     }
 
-    private static Map<String, String> getCollectorProps(String exporter, Pair<String, String> ... extraProps) {
+    private static Map<String, String> getOpenTelemetryProps(String exporter, Pair<String, String> ... extraProps) {
         var defaultProps = Map.of(
                 "OTEL_SDK_DISABLED", "false",
                 "OTEL_METRIC_EXPORT_INTERVAL", "1000",
