@@ -4232,4 +4232,19 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         verify(ledgerOffloader, times(0))
             .deleteOffloaded(eq(ledgerInfo.getLedgerId()), any(), anyMap());
     }
+
+    @Test
+    public void testDeleteCurrentLedgerWhenItIsClosed() throws Exception {
+        ManagedLedgerConfig config = spy(new ManagedLedgerConfig());
+        ManagedLedgerImpl ml = spy((ManagedLedgerImpl) factory.open("testDeleteCurrentLedgerWhenItIsClosed", config));
+        assertEquals(ml.ledgers.size(), 1);
+        ml.config.setMaximumRolloverTime(10, TimeUnit.MILLISECONDS);
+        Thread.sleep(10);
+        ml.addEntry(new byte[4]);
+        ml.internalTrimLedgers(false, Futures.NULL_PROMISE);
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(ml.state, ManagedLedgerImpl.State.ClosedLedger);
+            assertEquals(ml.ledgers.size(), 0);
+        });
+    }
 }
