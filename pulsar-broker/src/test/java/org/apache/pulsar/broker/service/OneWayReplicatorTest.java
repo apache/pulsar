@@ -34,10 +34,10 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.ProducerImpl;
 import org.apache.pulsar.common.policies.data.TopicStats;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.junit.Assert;
 import org.awaitility.Awaitility;
 import org.mockito.Mockito;
-import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
@@ -143,7 +143,7 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
                 (PersistentReplicator) persistentTopic.getReplicators().values().iterator().next();
         // Mock an error when calling "replicator.disconnect()"
         ProducerImpl mockProducer = Mockito.mock(ProducerImpl.class);
-        Mockito.when(mockProducer.closeAsync()).thenReturn(CompletableFuture.failedFuture(new Exception("mocked ex")));
+        Mockito.when(mockProducer.closeAsync()).thenReturn(FutureUtil.failedFuture(new Exception("mocked ex")));
         ProducerImpl originalProducer = overrideProducerForReplicator(replicator, mockProducer);
         // Verify: since the "replicator.producer.closeAsync()" will retry after it failed, the topic unload should be
         // successful.
