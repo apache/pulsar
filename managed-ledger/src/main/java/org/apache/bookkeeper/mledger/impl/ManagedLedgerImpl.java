@@ -2667,8 +2667,10 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     ledgers.headMap(slowestReaderLedgerId, false).values().iterator();
             while (ledgerInfoIterator.hasNext()){
                 LedgerInfo ls = ledgerInfoIterator.next();
-                // currentLedger can not be deleted
-                if (ls.getLedgerId() == currentLedger.getId()) {
+                // Current ledger can not be deleted when it is currently being written to.
+                // However, When the manager ledger state is ClosedLedger, the current ledger was closed
+                // and there are no pending operations. So it can be deleted.
+                if (ls.getLedgerId() == currentLedger.getId() && currentState != State.ClosedLedger) {
                     if (log.isDebugEnabled()) {
                         log.debug("[{}] Ledger {} skipped for deletion as it is currently being written to", name,
                                 ls.getLedgerId());
