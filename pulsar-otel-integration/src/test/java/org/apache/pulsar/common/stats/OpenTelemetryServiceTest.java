@@ -36,10 +36,13 @@ import io.opentelemetry.sdk.metrics.internal.state.MetricStorage;
 import io.opentelemetry.sdk.testing.exporter.InMemoryMetricReader;
 import java.util.Collection;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Predicate;
 import lombok.Cleanup;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient;
+import org.awaitility.Awaitility;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -124,27 +127,29 @@ public class OpenTelemetryServiceTest {
     }
 
     @Test
-    public void testMetricCardinality() throws Exception {
-        LongCounter longCounter = meter.counterBuilder("dummyMetricCardinalityTest").build();
-
-        for (int i = 0; i < OpenTelemetryService.MAX_CARDINALITY_LIMIT; i++) {
-            longCounter.add(1, Attributes.of(AttributeKey.stringKey("attribute"), "value" + i));
+    public void testMetricCardinalityIsSet() throws Exception {
+        var prometheusExporterPort = 9464;
+        @Cleanup
+        var ots = OpenTelemetryService.builder().
+                clusterName("openTelemetryServiceCardinalityTestCluster").
+                extraProperty(OpenTelemetryService.OTEL_SDK_DISABLED, "false").
+                extraProperty("otel.metrics.exporter", "prometheus").
+                extraProperty("otel.exporter.prometheus.port", Integer.toString(prometheusExporterPort)).
+                extraProperty("otel.metric.export.interval", "100").
+                build();
+        var meter = ots.getMeter("openTelemetryMetricCardinalityTest");
+        var counter = meter.counterBuilder("dummyCounter").build();
+        for (int i = 0; i < OpenTelemetryService.MAX_CARDINALITY_LIMIT + 100; i++) {
+            counter.add(1, Attributes.of(AttributeKey.stringKey("attribute"), "value" + i));
         }
 
-        Predicate<MetricData> hasOverflowAttribute = MetricDataMatcher.builder().
-                        name("dummyMetricCardinalityTest").
-                        dataAttribute(MetricStorage.CARDINALITY_OVERFLOW).
-                        build();
-
-        Collection<MetricData> metricData = reader.collectAllMetrics();
-        assertTrue(metricData.stream().noneMatch(hasOverflowAttribute));
-
-        for (int i = 0; i < OpenTelemetryService.MAX_CARDINALITY_LIMIT + 1; i++) {
-            longCounter.add(1, Attributes.of(AttributeKey.stringKey("attribute"), "value" + i));
-        }
-
-        metricData = reader.collectAllMetrics();
-        assertTrue(metricData.stream().anyMatch(hasOverflowAttribute));
+        Awaitility.waitAtMost(30, TimeUnit.SECONDS).ignoreExceptions().until(() -> {
+            var client = new PrometheusMetricsClient("localhost", prometheusExporterPort);
+            var allMetrics = client.getMetrics();
+            var actualMetrics = allMetrics.findByNameAndLabels("dummyCounter_total");
+            var overflowMetric = allMetrics.findByNameAndLabels("dummyCounter_total", "otel_metric_overflow", "true");
+            return actualMetrics.size() == OpenTelemetryService.MAX_CARDINALITY_LIMIT + 1 && overflowMetric.size() == 1;
+        });
     }
 
     @Test
