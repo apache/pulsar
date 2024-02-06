@@ -32,7 +32,6 @@ import io.opentelemetry.sdk.metrics.data.MetricData;
 import io.opentelemetry.sdk.metrics.data.MetricDataType;
 import io.opentelemetry.sdk.metrics.export.MetricReader;
 import io.opentelemetry.sdk.metrics.internal.SdkMeterProviderUtil;
-import io.opentelemetry.sdk.metrics.internal.state.MetricStorage;
 import io.opentelemetry.sdk.testing.exporter.InMemoryMetricReader;
 import java.util.Collection;
 import java.util.List;
