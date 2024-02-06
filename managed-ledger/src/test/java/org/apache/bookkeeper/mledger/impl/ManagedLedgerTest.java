@@ -4246,5 +4246,10 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
             assertEquals(ml.state, ManagedLedgerImpl.State.ClosedLedger);
             assertEquals(ml.ledgers.size(), 0);
         });
+        ml.addEntry(new byte[4]);
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(ml.state, ManagedLedgerImpl.State.LedgerOpened);
+            assertEquals(ml.ledgers.size(), 1);
+        });
     }
 }
