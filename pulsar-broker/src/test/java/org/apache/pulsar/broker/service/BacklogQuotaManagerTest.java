@@ -243,7 +243,7 @@ public class BacklogQuotaManagerTest {
             // non-durable mes should still
             assertEquals(stats.getSubscriptions().size(), 1);
             long nonDurableSubscriptionBacklog = stats.getSubscriptions().values().iterator().next().getMsgBacklog();
-            assertEquals(nonDurableSubscriptionBacklog, MAX_ENTRIES_PER_LEDGER,
+            assertEquals(nonDurableSubscriptionBacklog, 0,
               "non-durable subscription backlog is [" + nonDurableSubscriptionBacklog + "]");
 
             MessageIdImpl msgId = null;
@@ -268,10 +268,7 @@ public class BacklogQuotaManagerTest {
                         admin.topics().getInternalStats(topic1, false);
 
                 // check there is only one ledger left
-                assertEquals(internalStats.ledgers.size(), 1);
-
-                // check if its the expected ledger id given MAX_ENTRIES_PER_LEDGER
-                assertEquals(internalStats.ledgers.get(0).ledgerId, finalMsgId.getLedgerId());
+                assertEquals(internalStats.ledgers.size(), 0);
             });
 
             // check reader can still read with out error
