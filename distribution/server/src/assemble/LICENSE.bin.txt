@@ -436,6 +436,7 @@ The Apache Software License, Version 2.0
     - io.grpc-grpc-rls-1.55.3.jar
     - io.grpc-grpc-servlet-1.55.3.jar
     - io.grpc-grpc-servlet-jakarta-1.55.3.jar
+    - io.grpc-grpc-util-1.60.0.jar
   * Perfmark
     - io.perfmark-perfmark-api-0.26.0.jar
   * OpenCensus
@@ -445,6 +446,7 @@ The Apache Software License, Version 2.0
   * Jodah
     - net.jodah-typetools-0.5.0.jar
     - net.jodah-failsafe-2.4.4.jar
+    - dev.failsafe-failsafe-3.3.2.jar
   * Apache Avro
     - org.apache.avro-avro-1.11.3.jar
     - org.apache.avro-avro-protobuf-1.11.3.jar
@@ -478,6 +480,7 @@ The Apache Software License, Version 2.0
     - io.vertx-vertx-web-4.3.8.jar
     - io.vertx-vertx-web-common-4.3.8.jar
     - io.vertx-vertx-grpc-4.3.5.jar
+    - io.vertx-vertx-grpc-4.5.1.jar
   * Apache ZooKeeper
     - org.apache.zookeeper-zookeeper-3.9.1.jar
     - org.apache.zookeeper-zookeeper-jute-3.9.1.jar
@@ -490,10 +493,10 @@ The Apache Software License, Version 2.0
     - com.google.auto.value-auto-value-annotations-1.9.jar
     - com.google.re2j-re2j-1.6.jar
   * Jetcd
-    - io.etcd-jetcd-api-0.7.5.jar
-    - io.etcd-jetcd-common-0.7.5.jar
-    - io.etcd-jetcd-core-0.7.5.jar
-    - io.etcd-jetcd-grpc-0.7.5.jar
+    - io.etcd-jetcd-api-0.7.7.jar
+    - io.etcd-jetcd-common-0.7.7.jar
+    - io.etcd-jetcd-core-0.7.7.jar
+    - io.etcd-jetcd-grpc-0.7.7.jar
   * IPAddress
     - com.github.seancfoley-ipaddress-5.3.3.jar
   * RxJava
