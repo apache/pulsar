@@ -29,6 +29,7 @@ import io.opentelemetry.sdk.resources.Resource;
 import java.io.Closeable;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 import lombok.Builder;
 import lombok.Singular;
 import org.apache.commons.lang3.StringUtils;
@@ -40,6 +41,8 @@ import org.apache.commons.lang3.StringUtils;
 public class OpenTelemetryService implements Closeable {
 
     public static final AttributeKey<String> CLUSTER_ATTRIBUTE = AttributeKey.stringKey("pulsar.cluster");
+    public static final AttributeKey<String> SERVICE_NAME_ATTRIBUTE = AttributeKey.stringKey("service.name");
+    public static final AttributeKey<String> SERVICE_VERSION_ATTRIBUTE = AttributeKey.stringKey("service.version");
     public static final AttributeKey<Long> CONSUMER_ID_ATTRIBUTE = AttributeKey.longKey("pulsar.consumer.id");
     public static final AttributeKey<String> CONSUMER_NAME_ATTRIBUTE = AttributeKey.stringKey("pulsar.consumer");
     public static final AttributeKey<String> NAMESPACE_ATTRIBUTE = AttributeKey.stringKey("pulsar.namespace");
@@ -60,6 +63,8 @@ public class OpenTelemetryService implements Closeable {
 
     @Builder
     public OpenTelemetryService(String clusterName,
+                                String serviceName,
+                                String serviceVersion,
                                 @Singular Map<String, String> extraProperties,
                                 // Allows customizing the SDK builder; for testing purposes only.
                                 @VisibleForTesting AutoConfiguredOpenTelemetrySdkBuilder sdkBuilder) {
@@ -77,11 +82,21 @@ public class OpenTelemetryService implements Closeable {
 
         sdkBuilder.addResourceCustomizer(
                 (resource, __) -> {
-                    if (resource.getAttribute(CLUSTER_ATTRIBUTE) != null) {
-                        // Do not override if already set (via system properties or environment variables).
-                        return resource;
+                    var resourceBuilder = Resource.builder();
+                    // Do not override attributes if already set (via system properties or environment variables).
+                    if (resource.getAttribute(CLUSTER_ATTRIBUTE) == null) {
+                        resourceBuilder.put(CLUSTER_ATTRIBUTE, clusterName);
                     }
-                    return resource.merge(Resource.builder().put(CLUSTER_ATTRIBUTE, clusterName).build());
+                    if (StringUtils.isNotEmpty(serviceName)
+                            && Objects.equals(Resource.getDefault().getAttribute(SERVICE_NAME_ATTRIBUTE),
+                                              resource.getAttribute(SERVICE_NAME_ATTRIBUTE))) {
+                        resourceBuilder.put(SERVICE_NAME_ATTRIBUTE, serviceName);
+                    }
+                    if (StringUtils.isNotEmpty(serviceVersion)
+                            && resource.getAttribute(SERVICE_VERSION_ATTRIBUTE) == null) {
+                        resourceBuilder.put(SERVICE_VERSION_ATTRIBUTE, serviceVersion);
+                    }
+                    return resource.merge(resourceBuilder.build());
                 });
 
         openTelemetrySdk = sdkBuilder.build().getOpenTelemetrySdk();

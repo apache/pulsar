@@ -80,6 +80,17 @@ public class MetricDataMatcher implements Predicate<MetricData> {
     private boolean matchesAttributes(Attributes actual, Attributes expected) {
         // Return true iff all attribute pairs in expected are a subset of those in actual. Allows tests to specify
         // just the attributes they care about, instead of exhaustively having to list all of them.
+        if (true) {
+            for (var entry : expected.asMap().entrySet()) {
+                var key = entry.getKey();
+                var value = entry.getValue();
+                var actualValue = actual.get(key);
+                if (!value.equals(actualValue)) {
+                    return false;
+                }
+            }
+            return true;
+        }
         return expected.asMap().entrySet().stream().allMatch(e -> e.getValue().equals(actual.get(e.getKey())));
     }
 

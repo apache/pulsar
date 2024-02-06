@@ -82,6 +82,12 @@
     </dependency>
     <dependency>
       <groupId>org.apache.pulsar</groupId>
+      <artifactId>pulsar-proxy</artifactId>
+      <version>${project.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.pulsar</groupId>
       <artifactId>managed-ledger</artifactId>
       <version>${project.version}</version>
       <scope>test</scope>
@@ -175,7 +181,6 @@
       <artifactId>elasticsearch</artifactId>
       <scope>test</scope>
     </dependency>
-
 
     <dependency>
       <groupId>com.rabbitmq</groupId>

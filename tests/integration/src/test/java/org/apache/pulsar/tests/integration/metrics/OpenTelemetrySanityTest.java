@@ -26,7 +26,11 @@ import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.pulsar.PulsarVersion;
+import org.apache.pulsar.broker.stats.PulsarBrokerOpenTelemetry;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient;
+import org.apache.pulsar.functions.worker.stats.PulsarWorkerOpenTelemetry;
+import org.apache.pulsar.proxy.stats.PulsarProxyOpenTelemetry;
 import org.apache.pulsar.tests.integration.containers.ChaosContainer;
 import org.apache.pulsar.tests.integration.containers.OpenTelemetryCollectorContainer;
 import org.apache.pulsar.tests.integration.topologies.FunctionRuntimeType;
@@ -38,10 +42,7 @@ import org.testng.annotations.Test;
 
 public class OpenTelemetrySanityTest {
 
-    /*
-     * Validate that the OpenTelemetry metrics can be exported to a remote OpenTelemetry collector.
-     * https://github.com/open-telemetry/opentelemetry-java/blob/main/sdk-extensions/autoconfigure/README.md#prometheus-exporter
-     */
+    // Validate that the OpenTelemetry metrics can be exported to a remote OpenTelemetry collector.
     @Test(timeOut = 360_000)
     public void testOpenTelemetryMetricsOtlpExport() throws Exception {
         var clusterName = "testOpenTelemetryMetrics-" + UUID.randomUUID();
@@ -51,15 +52,9 @@ public class OpenTelemetrySanityTest {
         var otlpEndpointProp =
                 Pair.of("OTEL_EXPORTER_OTLP_ENDPOINT", openTelemetryCollectorContainer.getOtlpEndpoint());
 
-        var brokerOtelServiceName = clusterName + "-broker";
-        var brokerCollectorProps = getCollectorProps(brokerOtelServiceName, exporter, otlpEndpointProp);
-
-        var proxyOtelServiceName = clusterName + "-proxy";
-        var proxyCollectorProps = getCollectorProps(proxyOtelServiceName, exporter, otlpEndpointProp);
-
-        var functionWorkerServiceNameSuffix = PulsarTestBase.randomName();
-        var functionWorkerOtelServiceName = "function-worker-" + functionWorkerServiceNameSuffix;
-        var functionWorkerCollectorProps = getCollectorProps(functionWorkerOtelServiceName, exporter, otlpEndpointProp);
+        var brokerCollectorProps = getCollectorProps(exporter, otlpEndpointProp);
+        var proxyCollectorProps = getCollectorProps(exporter, otlpEndpointProp);
+        var functionWorkerCollectorProps = getCollectorProps(exporter, otlpEndpointProp);
 
         var spec = PulsarClusterSpec.builder()
                 .clusterName(clusterName)
@@ -71,25 +66,25 @@ public class OpenTelemetrySanityTest {
         @Cleanup("stop")
         var pulsarCluster = PulsarCluster.forSpec(spec);
         pulsarCluster.start();
+        pulsarCluster.setupFunctionWorkers(PulsarTestBase.randomName(), FunctionRuntimeType.PROCESS, 1);
 
-        pulsarCluster.setupFunctionWorkers(functionWorkerServiceNameSuffix, FunctionRuntimeType.PROCESS, 1);
-        // TODO: Validate cluster name is present once
+        // TODO: Validate cluster name and service version are present once
         // https://github.com/open-telemetry/opentelemetry-java/issues/6108 is solved.
         var metricName = "queueSize_ratio"; // Sent automatically by the OpenTelemetry SDK.
         Awaitility.waitAtMost(90, TimeUnit.SECONDS).ignoreExceptions().pollInterval(1, TimeUnit.SECONDS).until(() -> {
             var metrics = getMetricsFromPrometheus(
                     openTelemetryCollectorContainer, OpenTelemetryCollectorContainer.PROMETHEUS_EXPORTER_PORT);
-            return !metrics.findByNameAndLabels(metricName, "job", brokerOtelServiceName).isEmpty();
+            return !metrics.findByNameAndLabels(metricName, "job", PulsarBrokerOpenTelemetry.SERVICE_NAME).isEmpty();
         });
         Awaitility.waitAtMost(90, TimeUnit.SECONDS).ignoreExceptions().pollInterval(1, TimeUnit.SECONDS).until(() -> {
             var metrics = getMetricsFromPrometheus(
                     openTelemetryCollectorContainer, OpenTelemetryCollectorContainer.PROMETHEUS_EXPORTER_PORT);
-            return !metrics.findByNameAndLabels(metricName, "job", proxyOtelServiceName).isEmpty();
+            return !metrics.findByNameAndLabels(metricName, "job", PulsarProxyOpenTelemetry.SERVICE_NAME).isEmpty();
         });
         Awaitility.waitAtMost(90, TimeUnit.SECONDS).ignoreExceptions().pollInterval(1, TimeUnit.SECONDS).until(() -> {
             var metrics = getMetricsFromPrometheus(
                     openTelemetryCollectorContainer, OpenTelemetryCollectorContainer.PROMETHEUS_EXPORTER_PORT);
-            return !metrics.findByNameAndLabels(metricName, "job", functionWorkerOtelServiceName).isEmpty();
+            return !metrics.findByNameAndLabels(metricName, "job", PulsarWorkerOpenTelemetry.SERVICE_NAME).isEmpty();
         });
     }
 
@@ -107,16 +102,9 @@ public class OpenTelemetrySanityTest {
         var prometheusExporterPortProp =
                 Pair.of("OTEL_EXPORTER_PROMETHEUS_PORT", Integer.toString(prometheusExporterPort));
 
-        var brokerOtelServiceName = clusterName + "-broker";
-        var brokerCollectorProps = getCollectorProps(brokerOtelServiceName, exporter, prometheusExporterPortProp);
-
-        var proxyOtelServiceName = clusterName + "-proxy";
-        var proxyCollectorProps = getCollectorProps(proxyOtelServiceName, exporter, prometheusExporterPortProp);
-
-        var functionWorkerServiceNameSuffix = PulsarTestBase.randomName();
-        var functionWorkerOtelServiceName = "function-worker-" + functionWorkerServiceNameSuffix;
-        var functionWorkerCollectorProps =
-                getCollectorProps(functionWorkerOtelServiceName, exporter, prometheusExporterPortProp);
+        var brokerCollectorProps = getCollectorProps(exporter, prometheusExporterPortProp);
+        var proxyCollectorProps = getCollectorProps(exporter, prometheusExporterPortProp);
+        var functionWorkerCollectorProps = getCollectorProps(exporter, prometheusExporterPortProp);
 
         var spec = PulsarClusterSpec.builder()
                 .clusterName(clusterName)
@@ -130,28 +118,29 @@ public class OpenTelemetrySanityTest {
         @Cleanup("stop")
         var pulsarCluster = PulsarCluster.forSpec(spec);
         pulsarCluster.start();
-
-        pulsarCluster.setupFunctionWorkers(functionWorkerServiceNameSuffix, FunctionRuntimeType.PROCESS, 1);
-        var workerContainer = pulsarCluster.getAnyWorker();
+        pulsarCluster.setupFunctionWorkers(PulsarTestBase.randomName(), FunctionRuntimeType.PROCESS, 1);
 
         var metricName = "target_info"; // Sent automatically by the OpenTelemetry SDK.
         Awaitility.waitAtMost(90, TimeUnit.SECONDS).ignoreExceptions().pollInterval(1, TimeUnit.SECONDS).until(() -> {
             var metrics = getMetricsFromPrometheus(pulsarCluster.getAnyBroker(), prometheusExporterPort);
             return !metrics.findByNameAndLabels(metricName,
                     Pair.of("pulsar_cluster", clusterName),
-                    Pair.of("service_name", brokerOtelServiceName)).isEmpty();
+                    Pair.of("service_name", PulsarBrokerOpenTelemetry.SERVICE_NAME),
+                    Pair.of("service_version", PulsarVersion.getVersion())).isEmpty();
         });
         Awaitility.waitAtMost(90, TimeUnit.SECONDS).ignoreExceptions().pollInterval(1, TimeUnit.SECONDS).until(() -> {
             var metrics = getMetricsFromPrometheus(pulsarCluster.getProxy(), prometheusExporterPort);
             return !metrics.findByNameAndLabels(metricName,
                     Pair.of("pulsar_cluster", clusterName),
-                    Pair.of("service_name", proxyOtelServiceName)).isEmpty();
+                    Pair.of("service_name", PulsarProxyOpenTelemetry.SERVICE_NAME),
+                    Pair.of("service_version", PulsarVersion.getVersion())).isEmpty();
         });
         Awaitility.waitAtMost(90, TimeUnit.SECONDS).ignoreExceptions().pollInterval(1, TimeUnit.SECONDS).until(() -> {
-            var metrics = getMetricsFromPrometheus(workerContainer, prometheusExporterPort);
+            var metrics = getMetricsFromPrometheus(pulsarCluster.getAnyWorker(), prometheusExporterPort);
             return !metrics.findByNameAndLabels(metricName,
                     Pair.of("pulsar_cluster", clusterName),
-                    Pair.of("service_name", functionWorkerOtelServiceName)).isEmpty();
+                    Pair.of("service_name", PulsarWorkerOpenTelemetry.SERVICE_NAME),
+                    Pair.of("service_version", PulsarVersion.getVersion())).isEmpty();
         });
     }
 
@@ -160,12 +149,10 @@ public class OpenTelemetrySanityTest {
         return client.getMetrics();
     }
 
-    private static Map<String, String> getCollectorProps(String serviceName, String exporter,
-                                                         Pair<String, String> ... extraProps) {
+    private static Map<String, String> getCollectorProps(String exporter, Pair<String, String> ... extraProps) {
         var defaultProps = Map.of(
                 "OTEL_SDK_DISABLED", "false",
                 "OTEL_METRIC_EXPORT_INTERVAL", "1000",
-                "OTEL_SERVICE_NAME", serviceName,
                 "OTEL_METRICS_EXPORTER", exporter
         );
         var props = new HashMap<>(defaultProps);

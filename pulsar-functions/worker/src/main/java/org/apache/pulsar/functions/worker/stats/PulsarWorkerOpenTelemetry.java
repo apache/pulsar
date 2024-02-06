@@ -21,11 +21,13 @@ package org.apache.pulsar.functions.worker.stats;
 import io.opentelemetry.api.metrics.Meter;
 import java.io.Closeable;
 import lombok.Getter;
+import org.apache.pulsar.PulsarVersion;
 import org.apache.pulsar.common.stats.OpenTelemetryService;
 import org.apache.pulsar.functions.worker.WorkerConfig;
 
 public class PulsarWorkerOpenTelemetry implements Closeable {
 
+    public static final String SERVICE_NAME = "pulsar-function-worker";
     private static final String INSTRUMENTATION_SCOPE_NAME = "org.apache.pulsar.function_worker";
     private final OpenTelemetryService openTelemetryService;
 
@@ -33,8 +35,11 @@ public class PulsarWorkerOpenTelemetry implements Closeable {
     private final Meter meter;
 
     public PulsarWorkerOpenTelemetry(WorkerConfig workerConfig) {
-        openTelemetryService =
-                OpenTelemetryService.builder().clusterName(workerConfig.getPulsarFunctionsCluster()).build();
+        openTelemetryService = OpenTelemetryService.builder()
+                .clusterName(workerConfig.getPulsarFunctionsCluster())
+                .serviceName(SERVICE_NAME)
+                .serviceVersion(PulsarVersion.getVersion())
+                .build();
         meter = openTelemetryService.getMeter(INSTRUMENTATION_SCOPE_NAME);
     }
 

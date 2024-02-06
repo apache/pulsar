@@ -114,6 +114,31 @@ public class OpenTelemetryServiceTest {
     }
 
     @Test
+    public void testIsServiceNameAndVersionSet() throws Exception {
+        @Cleanup
+        var reader = InMemoryMetricReader.create();
+
+        @Cleanup
+        var ots = OpenTelemetryService.builder().
+                sdkBuilder(getSdkBuilder(reader)).
+                clusterName("testServiceNameAndVersion").
+                serviceName("openTelemetryServiceTestService").
+                serviceVersion("1.0.0").
+                extraProperty(OpenTelemetryService.OTEL_SDK_DISABLED, "false").
+                build();
+
+        var predicate = MetricDataMatcher.builder().
+                resourceAttribute(Attributes.of(
+                        AttributeKey.stringKey("pulsar.cluster"), "testServiceNameAndVersion",
+                        AttributeKey.stringKey("service.name"), "openTelemetryServiceTestService",
+                        AttributeKey.stringKey("service.version"), "1.0.0")).
+                build();
+
+        var metricData = reader.collectAllMetrics();
+        assertTrue(metricData.stream().anyMatch(predicate));
+    }
+
+    @Test
     public void testIsInstrumentationNameSetOnMeter() throws Exception {
         Meter meter = openTelemetryService.getMeter("testInstrumentationScope");
         meter.counterBuilder("dummyCounter").build().add(1);

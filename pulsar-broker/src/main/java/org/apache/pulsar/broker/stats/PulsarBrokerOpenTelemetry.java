@@ -21,11 +21,13 @@ package org.apache.pulsar.broker.stats;
 import io.opentelemetry.api.metrics.Meter;
 import java.io.Closeable;
 import lombok.Getter;
+import org.apache.pulsar.PulsarVersion;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.common.stats.OpenTelemetryService;
 
 public class PulsarBrokerOpenTelemetry implements Closeable {
 
+    public static final String SERVICE_NAME = "pulsar-broker";
     private static final String INSTRUMENTATION_SCOPE_NAME = "org.apache.pulsar.broker";
     private final OpenTelemetryService openTelemetryService;
 
@@ -33,7 +35,11 @@ public class PulsarBrokerOpenTelemetry implements Closeable {
     private final Meter meter;
 
     public PulsarBrokerOpenTelemetry(ServiceConfiguration config) {
-        openTelemetryService = OpenTelemetryService.builder().clusterName(config.getClusterName()).build();
+        openTelemetryService = OpenTelemetryService.builder()
+                .clusterName(config.getClusterName())
+                .serviceName(SERVICE_NAME)
+                .serviceVersion(PulsarVersion.getVersion())
+                .build();
         meter = openTelemetryService.getMeter(INSTRUMENTATION_SCOPE_NAME);
     }
 
