@@ -1754,10 +1754,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
         maybeOffloadInBackground(NULL_OFFLOAD_PROMISE);
 
-        if (!pendingAddEntries.isEmpty()) {
-            // Need to create a new ledger to write pending entries
-            createLedgerAfterClosed();
-        }
+        createLedgerAfterClosed();
     }
 
     @Override
@@ -2667,10 +2664,9 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     ledgers.headMap(slowestReaderLedgerId, false).values().iterator();
             while (ledgerInfoIterator.hasNext()){
                 LedgerInfo ls = ledgerInfoIterator.next();
-                // Current ledger can not be deleted when it is currently being written to.
-                // However, When the manager ledger state is ClosedLedger, the current ledger was closed
-                // and there are no pending operations. So it can be deleted.
-                if (ls.getLedgerId() == currentLedger.getId() && currentState != State.ClosedLedger) {
+                // If the current ledger is closed, the new ledger will be created later and this current ledger will
+                // be deleted next time.
+                if (ls.getLedgerId() == currentLedger.getId()) {
                     if (log.isDebugEnabled()) {
                         log.debug("[{}] Ledger {} skipped for deletion as it is currently being written to", name,
                                 ls.getLedgerId());
