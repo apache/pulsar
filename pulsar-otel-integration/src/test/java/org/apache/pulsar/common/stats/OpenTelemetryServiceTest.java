@@ -31,14 +31,17 @@ import io.opentelemetry.sdk.metrics.data.MetricData;
 import io.opentelemetry.sdk.metrics.data.MetricDataType;
 import io.opentelemetry.sdk.metrics.export.MetricReader;
 import io.opentelemetry.sdk.testing.exporter.InMemoryMetricReader;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
+import java.util.stream.Collectors;
 import lombok.Cleanup;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient;
 import org.awaitility.Awaitility;
 import org.testng.annotations.AfterMethod;
@@ -55,9 +58,9 @@ public class OpenTelemetryServiceTest {
     public void setup() throws Exception {
         reader = InMemoryMetricReader.create();
         openTelemetryService = OpenTelemetryService.builder().
-                autoConfigurationCustomizer(getAutoConfigurationCustomizer(reader)).
+                autoConfigurationCustomizer(getAutoConfigurationCustomizer(reader,
+                        Pair.of(OpenTelemetryService.OTEL_SDK_DISABLED, "false"))).
                 clusterName("openTelemetryServiceTestCluster").
-                extraProperty(OpenTelemetryService.OTEL_SDK_DISABLED, "false").
                 build();
         meter = openTelemetryService.getMeter("openTelemetryServiceTestInstrument");
     }
@@ -68,10 +71,18 @@ public class OpenTelemetryServiceTest {
         reader.close();
     }
 
-    // Overrides the default sdkBuilder to include the InMemoryMetricReader for testing purposes.
-    private static Consumer<AutoConfigurationCustomizer> getAutoConfigurationCustomizer(MetricReader extraReader) {
-        return autoConfigurationCustomizer -> autoConfigurationCustomizer.addMeterProviderCustomizer(
-                (sdkMeterProviderBuilder, __) -> sdkMeterProviderBuilder.registerMetricReader(extraReader));
+    // Customizes the SDK builder to include the MetricReader and extra properties for testing purposes.
+    private static Consumer<AutoConfigurationCustomizer> getAutoConfigurationCustomizer(MetricReader extraReader,
+                                                                            Pair<String, String>... extraProperties) {
+        return autoConfigurationCustomizer -> {
+            if (extraReader != null) {
+                autoConfigurationCustomizer.addMeterProviderCustomizer(
+                        (sdkMeterProviderBuilder, __) -> sdkMeterProviderBuilder.registerMetricReader(extraReader));
+            }
+            var extraPropertiesMap =
+                    Arrays.stream(extraProperties).collect(Collectors.toMap(Pair::getLeft, Pair::getRight));
+            autoConfigurationCustomizer.addPropertiesSupplier(() -> extraPropertiesMap);
+        };
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
@@ -93,9 +104,9 @@ public class OpenTelemetryServiceTest {
 
         @Cleanup
         OpenTelemetryService ots = OpenTelemetryService.builder().
-                autoConfigurationCustomizer(getAutoConfigurationCustomizer(reader)).
+                autoConfigurationCustomizer(getAutoConfigurationCustomizer(reader,
+                        Pair.of(OpenTelemetryService.OTEL_SDK_DISABLED, "false"))).
                 clusterName("testCluster").
-                extraProperty(OpenTelemetryService.OTEL_SDK_DISABLED, "false").
                 build();
 
         Predicate<MetricData> predicate = MetricDataMatcher.builder().
@@ -113,11 +124,11 @@ public class OpenTelemetryServiceTest {
 
         @Cleanup
         var ots = OpenTelemetryService.builder().
-                autoConfigurationCustomizer(getAutoConfigurationCustomizer(reader)).
+                autoConfigurationCustomizer(getAutoConfigurationCustomizer(reader,
+                        Pair.of(OpenTelemetryService.OTEL_SDK_DISABLED, "false"))).
                 clusterName("testServiceNameAndVersion").
                 serviceName("openTelemetryServiceTestService").
                 serviceVersion("1.0.0").
-                extraProperty(OpenTelemetryService.OTEL_SDK_DISABLED, "false").
                 build();
 
         var predicate = MetricDataMatcher.builder().
@@ -148,11 +159,12 @@ public class OpenTelemetryServiceTest {
         var prometheusExporterPort = 9464;
         @Cleanup
         var ots = OpenTelemetryService.builder().
+                autoConfigurationCustomizer(getAutoConfigurationCustomizer(null,
+                        Pair.of(OpenTelemetryService.OTEL_SDK_DISABLED, "false"),
+                        Pair.of("otel.metrics.exporter", "prometheus"),
+                        Pair.of("otel.exporter.prometheus.port", Integer.toString(prometheusExporterPort)),
+                        Pair.of("otel.metric.export.interval", "100"))).
                 clusterName("openTelemetryServiceCardinalityTestCluster").
-                extraProperty(OpenTelemetryService.OTEL_SDK_DISABLED, "false").
-                extraProperty("otel.metrics.exporter", "prometheus").
-                extraProperty("otel.exporter.prometheus.port", Integer.toString(prometheusExporterPort)).
-                extraProperty("otel.metric.export.interval", "100").
                 build();
         var meter = ots.getMeter("openTelemetryMetricCardinalityTest");
         var counter = meter.counterBuilder("dummyCounter").build();

@@ -33,7 +33,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.function.Consumer;
 import lombok.Builder;
-import lombok.Singular;
 import org.apache.commons.lang3.StringUtils;
 
 /**
@@ -55,21 +54,17 @@ public class OpenTelemetryService implements Closeable {
     public OpenTelemetryService(String clusterName,
                                 String serviceName,
                                 String serviceVersion,
-                                @VisibleForTesting @Singular Map<String, String> extraProperties,
                                 // Allows customizing the SDK builder; for testing purposes only.
                                 @VisibleForTesting Consumer<AutoConfigurationCustomizer> autoConfigurationCustomizer) {
         checkArgument(StringUtils.isNotEmpty(clusterName), "Cluster name cannot be empty");
         AutoConfiguredOpenTelemetrySdkBuilder sdkBuilder = AutoConfiguredOpenTelemetrySdk.builder();
-        if (autoConfigurationCustomizer != null) {
-            autoConfigurationCustomizer.accept(sdkBuilder);
-        }
 
         Map<String, String> overrideProperties = new HashMap<>();
         overrideProperties.put(OTEL_SDK_DISABLED, "true");
         // Cardinality limit includes the overflow attribute set, so we need to add 1.
         overrideProperties.put(MAX_CARDINALITY_LIMIT_KEY, Integer.toString(MAX_CARDINALITY_LIMIT + 1));
         sdkBuilder.addPropertiesSupplier(() -> overrideProperties);
-        sdkBuilder.addPropertiesSupplier(() -> extraProperties);
+        // sdkBuilder.addPropertiesSupplier(() -> extraProperties);
 
         sdkBuilder.addResourceCustomizer(
                 (resource, __) -> {
@@ -89,6 +84,10 @@ public class OpenTelemetryService implements Closeable {
                     }
                     return resource.merge(resourceBuilder.build());
                 });
+
+        if (autoConfigurationCustomizer != null) {
+            autoConfigurationCustomizer.accept(sdkBuilder);
+        }
 
         openTelemetrySdk = sdkBuilder.build().getOpenTelemetrySdk();
     }
