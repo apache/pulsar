@@ -25,7 +25,6 @@ import io.opentelemetry.api.common.AttributeKey;
 import io.opentelemetry.sdk.OpenTelemetrySdk;
 import io.opentelemetry.sdk.autoconfigure.AutoConfiguredOpenTelemetrySdk;
 import io.opentelemetry.sdk.autoconfigure.AutoConfiguredOpenTelemetrySdkBuilder;
-import io.opentelemetry.sdk.autoconfigure.spi.AutoConfigurationCustomizer;
 import io.opentelemetry.sdk.resources.Resource;
 import java.io.Closeable;
 import java.util.HashMap;
@@ -54,7 +53,7 @@ public class OpenTelemetryService implements Closeable {
                                 String serviceName,
                                 String serviceVersion,
                                 // Allows customizing the SDK builder; for testing purposes only.
-                                @VisibleForTesting Consumer<AutoConfigurationCustomizer> autoConfigurationCustomizer) {
+                                @VisibleForTesting Consumer<AutoConfiguredOpenTelemetrySdkBuilder> sdkBuilderConsumer) {
         checkArgument(StringUtils.isNotEmpty(clusterName), "Cluster name cannot be empty");
         AutoConfiguredOpenTelemetrySdkBuilder sdkBuilder = AutoConfiguredOpenTelemetrySdk.builder();
 
@@ -84,8 +83,8 @@ public class OpenTelemetryService implements Closeable {
                     return resource.merge(resourceBuilder.build());
                 });
 
-        if (autoConfigurationCustomizer != null) {
-            autoConfigurationCustomizer.accept(sdkBuilder);
+        if (sdkBuilderConsumer != null) {
+            sdkBuilderConsumer.accept(sdkBuilder);
         }
 
         openTelemetrySdk = sdkBuilder.build().getOpenTelemetrySdk();
