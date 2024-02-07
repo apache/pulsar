@@ -27,7 +27,6 @@ import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.expectThrows;
 import static org.testng.Assert.fail;
 import io.netty.buffer.ByteBuf;
-import java.lang.reflect.Field;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
@@ -48,7 +47,6 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerFencedException;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.Position;
-import org.apache.bookkeeper.mledger.util.CallbackMutex;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.impl.FaultInjectionMetadataStore;
@@ -446,14 +444,10 @@ public class ManagedLedgerErrorsTest extends MockedBookKeeperTestCase {
         ManagedLedger ledger = factory.open("my_test_ledger_trim",
                 new ManagedLedgerConfig()
                         .setMaxEntriesPerLedger(2));
-        Field trimmerMutexField = ManagedLedgerImpl.class.getDeclaredField("trimmerMutex");
-        trimmerMutexField.setAccessible(true);
-        CallbackMutex trimmerMutex = ((CallbackMutex) trimmerMutexField.get(ledger));
-        trimmerMutex.tryLock();
         ledger.addEntry("test".getBytes());
         ledger.addEntry("test".getBytes());
         ledger.addEntry("test".getBytes());
-        trimmerMutex.unlock();
+
         metadataStore.failConditional(new MetadataStoreException.BadVersionException("err"), (op, path) ->
                 path.equals("/managed-ledgers/my_test_ledger_trim")
                         && op == FaultInjectionMetadataStore.OperationType.PUT

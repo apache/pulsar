@@ -268,7 +268,7 @@ public class BacklogQuotaManagerTest {
                         admin.topics().getInternalStats(topic1, false);
 
                 // check there is only one ledger left
-                assertEquals(internalStats.ledgers.size(), 0);
+                assertEquals(internalStats.ledgers.size(), 1);
             });
 
             // check reader can still read with out error
