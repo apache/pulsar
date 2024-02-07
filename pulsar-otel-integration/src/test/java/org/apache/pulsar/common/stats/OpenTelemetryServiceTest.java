@@ -23,7 +23,6 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import io.opentelemetry.api.common.AttributeKey;
 import io.opentelemetry.api.common.Attributes;
-import io.opentelemetry.api.metrics.LongCounter;
 import io.opentelemetry.api.metrics.LongCounterBuilder;
 import io.opentelemetry.api.metrics.Meter;
 import io.opentelemetry.sdk.autoconfigure.AutoConfiguredOpenTelemetrySdkBuilder;
@@ -80,24 +79,24 @@ public class OpenTelemetryServiceTest {
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
-    public void testClusterNameCannotBeNull() throws Exception {
+    public void testClusterNameCannotBeNull() {
         @Cleanup
-        OpenTelemetryService ots = OpenTelemetryService.builder().build();
+        var ots = OpenTelemetryService.builder().build();
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
-    public void testClusterNameCannotBeEmpty() throws Exception {
+    public void testClusterNameCannotBeEmpty() {
         @Cleanup
-        OpenTelemetryService ots = OpenTelemetryService.builder().clusterName(StringUtils.EMPTY).build();
+        var ots = OpenTelemetryService.builder().clusterName(StringUtils.EMPTY).build();
     }
 
     @Test
     public void testIsClusterNameSet() throws Exception {
         @Cleanup
-        InMemoryMetricReader reader = InMemoryMetricReader.create();
+        var reader = InMemoryMetricReader.create();
 
         @Cleanup
-        OpenTelemetryService ots = OpenTelemetryService.builder().
+        var ots = OpenTelemetryService.builder().
                 sdkBuilderConsumer(getSdkBuilderConsumer(reader,
                         Map.of(OpenTelemetryService.OTEL_SDK_DISABLED_KEY, "false"))).
                 clusterName("testCluster").
@@ -132,16 +131,16 @@ public class OpenTelemetryServiceTest {
     }
 
     @Test
-    public void testIsInstrumentationNameSetOnMeter() throws Exception {
-        Meter meter = openTelemetryService.getOpenTelemetry().getMeter("testInstrumentationScope");
+    public void testIsInstrumentationNameSetOnMeter() {
+        var meter = openTelemetryService.getOpenTelemetry().getMeter("testInstrumentationScope");
         meter.counterBuilder("dummyCounter").build().add(1);
         assertThat(reader.collectAllMetrics())
             .anySatisfy(metricData -> assertThat(metricData)
-                    .hasInstrumentationScope(InstrumentationScopeInfo.create("testInstrumentationScope")));
+                .hasInstrumentationScope(InstrumentationScopeInfo.create("testInstrumentationScope")));
     }
 
     @Test
-    public void testMetricCardinalityIsSet() throws Exception {
+    public void testMetricCardinalityIsSet() {
         var prometheusExporterPort = 9464;
         @Cleanup
         var ots = OpenTelemetryService.builder().
@@ -167,17 +166,18 @@ public class OpenTelemetryServiceTest {
     }
 
     @Test
-    public void testLongCounter() throws Exception {
-        LongCounter longCounter = meter.counterBuilder("dummyLongCounter").build();
-        longCounter.add(1, Attributes.of(AttributeKey.stringKey("dummyAttr"), "dummyValue"));
-        longCounter.add(2, Attributes.of(AttributeKey.stringKey("dummyAttr"), "dummyValue"));
+    public void testLongCounter() {
+        var longCounter = meter.counterBuilder("dummyLongCounter").build();
+        var attributes = Attributes.of(AttributeKey.stringKey("dummyAttr"), "dummyValue");
+        longCounter.add(1, attributes);
+        longCounter.add(2, attributes);
 
         assertThat(reader.collectAllMetrics())
             .anySatisfy(metric -> assertThat(metric)
                 .hasName("dummyLongCounter")
                 .hasLongSumSatisfying(sum -> sum
                     .hasPointsSatisfying(point -> point
-                        .hasAttribute(AttributeKey.stringKey("dummyAttr"), "dummyValue")
+                        .hasAttributes(attributes)
                         .hasValue(3))));
     }
 

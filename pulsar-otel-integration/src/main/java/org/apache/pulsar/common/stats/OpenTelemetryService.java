@@ -27,7 +27,6 @@ import io.opentelemetry.sdk.autoconfigure.AutoConfiguredOpenTelemetrySdkBuilder;
 import io.opentelemetry.sdk.resources.Resource;
 import io.opentelemetry.semconv.ResourceAttributes;
 import java.io.Closeable;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.function.Consumer;
@@ -52,14 +51,13 @@ public class OpenTelemetryService implements Closeable {
                                 // Allows customizing the SDK builder; for testing purposes only.
                                 @VisibleForTesting Consumer<AutoConfiguredOpenTelemetrySdkBuilder> sdkBuilderConsumer) {
         checkArgument(StringUtils.isNotBlank(clusterName), "Cluster name cannot be empty");
-        AutoConfiguredOpenTelemetrySdkBuilder sdkBuilder = AutoConfiguredOpenTelemetrySdk.builder();
+        var sdkBuilder = AutoConfiguredOpenTelemetrySdk.builder();
 
-        Map<String, String> overrideProperties = new HashMap<>();
-        overrideProperties.put(OTEL_SDK_DISABLED_KEY, "true");
-        // Cardinality limit includes the overflow attribute set, so we need to add 1.
-        overrideProperties.put(
-                "otel.experimental.metrics.cardinality.limit", Integer.toString(MAX_CARDINALITY_LIMIT + 1));
-        sdkBuilder.addPropertiesSupplier(() -> overrideProperties);
+        sdkBuilder.addPropertiesSupplier(() -> Map.of(
+                OTEL_SDK_DISABLED_KEY, "true",
+                // Cardinality limit includes the overflow attribute set, so we need to add 1.
+                "otel.experimental.metrics.cardinality.limit", Integer.toString(MAX_CARDINALITY_LIMIT + 1)
+        ));
 
         sdkBuilder.addResourceCustomizer(
                 (resource, __) -> {
