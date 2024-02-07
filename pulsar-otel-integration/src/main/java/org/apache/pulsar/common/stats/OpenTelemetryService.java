@@ -20,8 +20,8 @@ package org.apache.pulsar.common.stats;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import com.google.common.annotations.VisibleForTesting;
+import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.api.common.AttributeKey;
-import io.opentelemetry.api.metrics.Meter;
 import io.opentelemetry.sdk.OpenTelemetrySdk;
 import io.opentelemetry.sdk.autoconfigure.AutoConfiguredOpenTelemetrySdk;
 import io.opentelemetry.sdk.autoconfigure.AutoConfiguredOpenTelemetrySdkBuilder;
@@ -64,7 +64,6 @@ public class OpenTelemetryService implements Closeable {
         // Cardinality limit includes the overflow attribute set, so we need to add 1.
         overrideProperties.put(MAX_CARDINALITY_LIMIT_KEY, Integer.toString(MAX_CARDINALITY_LIMIT + 1));
         sdkBuilder.addPropertiesSupplier(() -> overrideProperties);
-        // sdkBuilder.addPropertiesSupplier(() -> extraProperties);
 
         sdkBuilder.addResourceCustomizer(
                 (resource, __) -> {
@@ -92,8 +91,8 @@ public class OpenTelemetryService implements Closeable {
         openTelemetrySdk = sdkBuilder.build().getOpenTelemetrySdk();
     }
 
-    public Meter getMeter(String instrumentationScopeName) {
-        return openTelemetrySdk.getMeter(instrumentationScopeName);
+    public OpenTelemetry getOpenTelemetry() {
+        return openTelemetrySdk;
     }
 
     @Override

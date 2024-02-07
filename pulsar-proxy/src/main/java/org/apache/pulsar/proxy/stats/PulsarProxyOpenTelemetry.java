@@ -40,7 +40,7 @@ public class PulsarProxyOpenTelemetry implements Closeable {
                 .serviceName(SERVICE_NAME)
                 .serviceVersion(PulsarVersion.getVersion())
                 .build();
-        meter = openTelemetryService.getMeter(INSTRUMENTATION_SCOPE_NAME);
+        meter = openTelemetryService.getOpenTelemetry().getMeter(INSTRUMENTATION_SCOPE_NAME);
     }
 
     @Override

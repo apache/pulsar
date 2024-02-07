@@ -62,7 +62,7 @@ public class OpenTelemetryServiceTest {
                         Pair.of(OpenTelemetryService.OTEL_SDK_DISABLED, "false"))).
                 clusterName("openTelemetryServiceTestCluster").
                 build();
-        meter = openTelemetryService.getMeter("openTelemetryServiceTestInstrument");
+        meter = openTelemetryService.getOpenTelemetry().getMeter("openTelemetryServiceTestInstrument");
     }
 
     @AfterMethod
@@ -144,7 +144,7 @@ public class OpenTelemetryServiceTest {
 
     @Test
     public void testIsInstrumentationNameSetOnMeter() throws Exception {
-        Meter meter = openTelemetryService.getMeter("testInstrumentationScope");
+        Meter meter = openTelemetryService.getOpenTelemetry().getMeter("testInstrumentationScope");
         meter.counterBuilder("dummyCounter").build().add(1);
         MetricDataMatcher predicate = MetricDataMatcher.builder().
                 name("dummyCounter").
@@ -166,7 +166,7 @@ public class OpenTelemetryServiceTest {
                         Pair.of("otel.metric.export.interval", "100"))).
                 clusterName("openTelemetryServiceCardinalityTestCluster").
                 build();
-        var meter = ots.getMeter("openTelemetryMetricCardinalityTest");
+        var meter = ots.getOpenTelemetry().getMeter("openTelemetryMetricCardinalityTest");
         var counter = meter.counterBuilder("dummyCounter").build();
         for (int i = 0; i < OpenTelemetryService.MAX_CARDINALITY_LIMIT + 100; i++) {
             counter.add(1, Attributes.of(AttributeKey.stringKey("attribute"), "value" + i));
@@ -208,7 +208,7 @@ public class OpenTelemetryServiceTest {
                 autoConfigurationCustomizer(getAutoConfigurationCustomizer(metricReader)).
                 clusterName("openTelemetryServiceTestCluster").
                 build();
-        var meter = ots.getMeter("openTelemetryServiceTestInstrument");
+        var meter = ots.getOpenTelemetry().getMeter("openTelemetryServiceTestInstrument");
 
         var builders = List.of(
                 meter.counterBuilder("dummyCounterA"),
