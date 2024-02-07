@@ -662,6 +662,10 @@ public class PulsarWorkerService implements WorkerService {
         if (null != stateStoreProvider) {
             stateStoreProvider.close();
         }
+
+        if (null != openTelemetry) {
+            openTelemetry.close();
+        }
     }
 
 }
