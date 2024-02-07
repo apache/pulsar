@@ -59,7 +59,7 @@ public class OpenTelemetryServiceTest {
         reader = InMemoryMetricReader.create();
         openTelemetryService = OpenTelemetryService.builder().
                 autoConfigurationCustomizer(getAutoConfigurationCustomizer(reader,
-                        Pair.of(OpenTelemetryService.OTEL_SDK_DISABLED, "false"))).
+                        Pair.of(OpenTelemetryService.OTEL_SDK_DISABLED_KEY, "false"))).
                 clusterName("openTelemetryServiceTestCluster").
                 build();
         meter = openTelemetryService.getOpenTelemetry().getMeter("openTelemetryServiceTestInstrument");
@@ -105,7 +105,7 @@ public class OpenTelemetryServiceTest {
         @Cleanup
         OpenTelemetryService ots = OpenTelemetryService.builder().
                 autoConfigurationCustomizer(getAutoConfigurationCustomizer(reader,
-                        Pair.of(OpenTelemetryService.OTEL_SDK_DISABLED, "false"))).
+                        Pair.of(OpenTelemetryService.OTEL_SDK_DISABLED_KEY, "false"))).
                 clusterName("testCluster").
                 build();
 
@@ -125,7 +125,7 @@ public class OpenTelemetryServiceTest {
         @Cleanup
         var ots = OpenTelemetryService.builder().
                 autoConfigurationCustomizer(getAutoConfigurationCustomizer(reader,
-                        Pair.of(OpenTelemetryService.OTEL_SDK_DISABLED, "false"))).
+                        Pair.of(OpenTelemetryService.OTEL_SDK_DISABLED_KEY, "false"))).
                 clusterName("testServiceNameAndVersion").
                 serviceName("openTelemetryServiceTestService").
                 serviceVersion("1.0.0").
@@ -160,7 +160,7 @@ public class OpenTelemetryServiceTest {
         @Cleanup
         var ots = OpenTelemetryService.builder().
                 autoConfigurationCustomizer(getAutoConfigurationCustomizer(null,
-                        Pair.of(OpenTelemetryService.OTEL_SDK_DISABLED, "false"),
+                        Pair.of(OpenTelemetryService.OTEL_SDK_DISABLED_KEY, "false"),
                         Pair.of("otel.metrics.exporter", "prometheus"),
                         Pair.of("otel.exporter.prometheus.port", Integer.toString(prometheusExporterPort)),
                         Pair.of("otel.metric.export.interval", "100"))).

@@ -44,9 +44,8 @@ public class OpenTelemetryService implements Closeable {
     public static final AttributeKey<String> CLUSTER_ATTRIBUTE = AttributeKey.stringKey("pulsar.cluster");
     public static final AttributeKey<String> SERVICE_NAME_ATTRIBUTE = AttributeKey.stringKey("service.name");
     public static final AttributeKey<String> SERVICE_VERSION_ATTRIBUTE = AttributeKey.stringKey("service.version");
-    public static final String OTEL_SDK_DISABLED = "otel.sdk.disabled";
-    private static final String MAX_CARDINALITY_LIMIT_KEY = "otel.experimental.metrics.cardinality.limit";
-    public static final int MAX_CARDINALITY_LIMIT = 10000;
+    static final String OTEL_SDK_DISABLED_KEY = "otel.sdk.disabled";
+    static final int MAX_CARDINALITY_LIMIT = 10000;
 
     private final OpenTelemetrySdk openTelemetrySdk;
 
@@ -60,9 +59,10 @@ public class OpenTelemetryService implements Closeable {
         AutoConfiguredOpenTelemetrySdkBuilder sdkBuilder = AutoConfiguredOpenTelemetrySdk.builder();
 
         Map<String, String> overrideProperties = new HashMap<>();
-        overrideProperties.put(OTEL_SDK_DISABLED, "true");
+        overrideProperties.put(OTEL_SDK_DISABLED_KEY, "true");
         // Cardinality limit includes the overflow attribute set, so we need to add 1.
-        overrideProperties.put(MAX_CARDINALITY_LIMIT_KEY, Integer.toString(MAX_CARDINALITY_LIMIT + 1));
+        overrideProperties.put(
+                "otel.experimental.metrics.cardinality.limit", Integer.toString(MAX_CARDINALITY_LIMIT + 1));
         sdkBuilder.addPropertiesSupplier(() -> overrideProperties);
 
         sdkBuilder.addResourceCustomizer(
