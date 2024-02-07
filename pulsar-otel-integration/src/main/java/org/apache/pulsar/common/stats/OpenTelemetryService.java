@@ -26,6 +26,7 @@ import io.opentelemetry.sdk.OpenTelemetrySdk;
 import io.opentelemetry.sdk.autoconfigure.AutoConfiguredOpenTelemetrySdk;
 import io.opentelemetry.sdk.autoconfigure.AutoConfiguredOpenTelemetrySdkBuilder;
 import io.opentelemetry.sdk.resources.Resource;
+import io.opentelemetry.semconv.ResourceAttributes;
 import java.io.Closeable;
 import java.util.HashMap;
 import java.util.Map;
@@ -41,8 +42,6 @@ import org.apache.commons.lang3.StringUtils;
 public class OpenTelemetryService implements Closeable {
 
     public static final AttributeKey<String> CLUSTER_ATTRIBUTE = AttributeKey.stringKey("pulsar.cluster");
-    public static final AttributeKey<String> SERVICE_NAME_ATTRIBUTE = AttributeKey.stringKey("service.name");
-    public static final AttributeKey<String> SERVICE_VERSION_ATTRIBUTE = AttributeKey.stringKey("service.version");
     static final String OTEL_SDK_DISABLED_KEY = "otel.sdk.disabled";
     static final int MAX_CARDINALITY_LIMIT = 10000;
 
@@ -54,7 +53,7 @@ public class OpenTelemetryService implements Closeable {
                                 String serviceVersion,
                                 // Allows customizing the SDK builder; for testing purposes only.
                                 @VisibleForTesting Consumer<AutoConfiguredOpenTelemetrySdkBuilder> sdkBuilderConsumer) {
-        checkArgument(StringUtils.isNotEmpty(clusterName), "Cluster name cannot be empty");
+        checkArgument(StringUtils.isNotBlank(clusterName), "Cluster name cannot be empty");
         AutoConfiguredOpenTelemetrySdkBuilder sdkBuilder = AutoConfiguredOpenTelemetrySdk.builder();
 
         Map<String, String> overrideProperties = new HashMap<>();
@@ -71,14 +70,14 @@ public class OpenTelemetryService implements Closeable {
                     if (resource.getAttribute(CLUSTER_ATTRIBUTE) == null) {
                         resourceBuilder.put(CLUSTER_ATTRIBUTE, clusterName);
                     }
-                    if (StringUtils.isNotEmpty(serviceName)
-                            && Objects.equals(Resource.getDefault().getAttribute(SERVICE_NAME_ATTRIBUTE),
-                                              resource.getAttribute(SERVICE_NAME_ATTRIBUTE))) {
-                        resourceBuilder.put(SERVICE_NAME_ATTRIBUTE, serviceName);
+                    if (StringUtils.isNotBlank(serviceName)
+                            && Objects.equals(Resource.getDefault().getAttribute(ResourceAttributes.SERVICE_NAME),
+                                              resource.getAttribute(ResourceAttributes.SERVICE_NAME))) {
+                        resourceBuilder.put(ResourceAttributes.SERVICE_NAME, serviceName);
                     }
-                    if (StringUtils.isNotEmpty(serviceVersion)
-                            && resource.getAttribute(SERVICE_VERSION_ATTRIBUTE) == null) {
-                        resourceBuilder.put(SERVICE_VERSION_ATTRIBUTE, serviceVersion);
+                    if (StringUtils.isNotBlank(serviceVersion)
+                            && resource.getAttribute(ResourceAttributes.SERVICE_VERSION) == null) {
+                        resourceBuilder.put(ResourceAttributes.SERVICE_VERSION, serviceVersion);
                     }
                     return resource.merge(resourceBuilder.build());
                 });

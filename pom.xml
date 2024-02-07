@@ -250,6 +250,7 @@ flexible messaging model and an intuitive client API.</description>
     <netty-reactive-streams.version>2.0.6</netty-reactive-streams.version>
     <opentelemetry.version>1.34.1</opentelemetry.version>
     <opentelemetry.alpha.version>1.34.1-alpha</opentelemetry.alpha.version>
+    <opentelemetry.semconv.version>1.23.1-alpha</opentelemetry.semconv.version>
 
     <!-- test dependencies -->
     <testcontainers.version>1.18.3</testcontainers.version>
@@ -1449,6 +1450,11 @@ flexible messaging model and an intuitive client API.</description>
         <version>${opentelemetry.alpha.version}</version>
         <type>pom</type>
         <scope>import</scope>
+      </dependency>
+      <dependency>
+        <groupId>io.opentelemetry.semconv</groupId>
+        <artifactId>opentelemetry-semconv</artifactId>
+        <version>${opentelemetry.semconv.version}</version>
       </dependency>
     </dependencies>
   </dependencyManagement>
