@@ -51,7 +51,7 @@ public class OffloadIndexBlockImpl implements OffloadIndexBlock {
     private LedgerMetadata segmentMetadata;
     private long dataObjectLength;
     private long dataHeaderLength;
-    private volatile TreeMap<Long, OffloadIndexEntryImpl> indexEntries;
+    private TreeMap<Long, OffloadIndexEntryImpl> indexEntries;
 
     private final Handle<OffloadIndexBlockImpl> recyclerHandle;
 
@@ -94,10 +94,7 @@ public class OffloadIndexBlockImpl implements OffloadIndexBlock {
         dataObjectLength = -1;
         dataHeaderLength = -1;
         segmentMetadata = null;
-        if (indexEntries != null) {
-            indexEntries.clear();
-            indexEntries = null;
-        }
+        indexEntries = null;
         if (recyclerHandle != null) {
             recyclerHandle.recycle(this);
         }
