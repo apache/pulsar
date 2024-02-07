@@ -158,8 +158,7 @@ public class OpenTelemetryServiceTest {
                 sdkBuilderConsumer(getSdkBuilderConsumer(null,
                         Map.of(OpenTelemetryService.OTEL_SDK_DISABLED_KEY, "false",
                         "otel.metrics.exporter", "prometheus",
-                        "otel.exporter.prometheus.port", Integer.toString(prometheusExporterPort),
-                        "otel.metric.export.interval", "100"))).
+                        "otel.exporter.prometheus.port", Integer.toString(prometheusExporterPort)))).
                 clusterName("openTelemetryServiceCardinalityTestCluster").
                 build();
         var meter = ots.getOpenTelemetry().getMeter("openTelemetryMetricCardinalityTest");
