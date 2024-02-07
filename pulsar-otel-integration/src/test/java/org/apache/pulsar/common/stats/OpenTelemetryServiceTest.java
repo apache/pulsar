@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.common.stats;
 
+import static io.opentelemetry.sdk.testing.assertj.OpenTelemetryAssertions.assertThat;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import io.opentelemetry.api.common.AttributeKey;
@@ -27,17 +28,14 @@ import io.opentelemetry.api.metrics.LongCounterBuilder;
 import io.opentelemetry.api.metrics.Meter;
 import io.opentelemetry.sdk.autoconfigure.AutoConfiguredOpenTelemetrySdkBuilder;
 import io.opentelemetry.sdk.common.InstrumentationScopeInfo;
-import io.opentelemetry.sdk.metrics.data.MetricData;
-import io.opentelemetry.sdk.metrics.data.MetricDataType;
 import io.opentelemetry.sdk.metrics.export.MetricReader;
 import io.opentelemetry.sdk.testing.exporter.InMemoryMetricReader;
-import java.util.Collection;
+import io.opentelemetry.semconv.ResourceAttributes;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
-import java.util.function.Predicate;
 import lombok.Cleanup;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient;
@@ -105,12 +103,10 @@ public class OpenTelemetryServiceTest {
                 clusterName("testCluster").
                 build();
 
-        Predicate<MetricData> predicate = MetricDataMatcher.builder().
-                resourceAttribute(Attributes.of(AttributeKey.stringKey("pulsar.cluster"), "testCluster")).
-                build();
-
-        Collection<MetricData> metricData = reader.collectAllMetrics();
-        assertTrue(metricData.stream().anyMatch(predicate));
+        assertThat(reader.collectAllMetrics())
+            .allSatisfy(metric -> assertThat(metric)
+                .hasResourceSatisfying(
+                    resource -> resource.hasAttribute(OpenTelemetryAttributes.PULSAR_CLUSTER, "testCluster")));
     }
 
     @Test
@@ -127,27 +123,21 @@ public class OpenTelemetryServiceTest {
                 serviceVersion("1.0.0").
                 build();
 
-        var predicate = MetricDataMatcher.builder().
-                resourceAttribute(Attributes.of(
-                        AttributeKey.stringKey("pulsar.cluster"), "testServiceNameAndVersion",
-                        AttributeKey.stringKey("service.name"), "openTelemetryServiceTestService",
-                        AttributeKey.stringKey("service.version"), "1.0.0")).
-                build();
-
-        var metricData = reader.collectAllMetrics();
-        assertTrue(metricData.stream().anyMatch(predicate));
+        assertThat(reader.collectAllMetrics())
+            .allSatisfy(metric -> assertThat(metric)
+                .hasResourceSatisfying(resource -> resource
+                    .hasAttribute(OpenTelemetryAttributes.PULSAR_CLUSTER, "testServiceNameAndVersion")
+                    .hasAttribute(ResourceAttributes.SERVICE_NAME, "openTelemetryServiceTestService")
+                    .hasAttribute(ResourceAttributes.SERVICE_VERSION, "1.0.0")));
     }
 
     @Test
     public void testIsInstrumentationNameSetOnMeter() throws Exception {
         Meter meter = openTelemetryService.getOpenTelemetry().getMeter("testInstrumentationScope");
         meter.counterBuilder("dummyCounter").build().add(1);
-        MetricDataMatcher predicate = MetricDataMatcher.builder().
-                name("dummyCounter").
-                instrumentationScopeInfo(InstrumentationScopeInfo.create("testInstrumentationScope")).
-                build();
-        Collection<MetricData> metricData = reader.collectAllMetrics();
-        assertTrue(metricData.stream().anyMatch(predicate));
+        assertThat(reader.collectAllMetrics())
+            .anySatisfy(metricData -> assertThat(metricData)
+                    .hasInstrumentationScope(InstrumentationScopeInfo.create("testInstrumentationScope")));
     }
 
     @Test
@@ -182,15 +172,13 @@ public class OpenTelemetryServiceTest {
         longCounter.add(1, Attributes.of(AttributeKey.stringKey("dummyAttr"), "dummyValue"));
         longCounter.add(2, Attributes.of(AttributeKey.stringKey("dummyAttr"), "dummyValue"));
 
-        Predicate<MetricData> predicate = MetricDataMatcher.builder().
-                name("dummyLongCounter").
-                dataAttribute(Attributes.of(AttributeKey.stringKey("dummyAttr"), "dummyValue")).
-                type(MetricDataType.LONG_SUM).
-                longValue(3L).
-                build();
-
-        Collection<MetricData> metricData = reader.collectAllMetrics();
-        assertTrue(metricData.stream().anyMatch(predicate));
+        assertThat(reader.collectAllMetrics())
+            .anySatisfy(metric -> assertThat(metric)
+                .hasName("dummyLongCounter")
+                .hasLongSumSatisfying(sum -> sum
+                    .hasPointsSatisfying(point -> point
+                        .hasAttribute(AttributeKey.stringKey("dummyAttr"), "dummyValue")
+                        .hasValue(3))));
     }
 
     @Test
