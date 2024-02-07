@@ -71,7 +71,7 @@ public class OpenTelemetryServiceTest {
 
     // Customizes the SDK builder to include the MetricReader and extra properties for testing purposes.
     private static Consumer<AutoConfiguredOpenTelemetrySdkBuilder> getSdkBuilderConsumer(MetricReader extraReader,
-                                                                                         Map<String, String> extraProperties) {
+                                                                                 Map<String, String> extraProperties) {
         return autoConfigurationCustomizer -> {
             if (extraReader != null) {
                 autoConfigurationCustomizer.addMeterProviderCustomizer(
