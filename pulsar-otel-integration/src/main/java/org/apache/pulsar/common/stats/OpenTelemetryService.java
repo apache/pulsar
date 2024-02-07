@@ -21,7 +21,6 @@ package org.apache.pulsar.common.stats;
 import static com.google.common.base.Preconditions.checkArgument;
 import com.google.common.annotations.VisibleForTesting;
 import io.opentelemetry.api.OpenTelemetry;
-import io.opentelemetry.api.common.AttributeKey;
 import io.opentelemetry.sdk.OpenTelemetrySdk;
 import io.opentelemetry.sdk.autoconfigure.AutoConfiguredOpenTelemetrySdk;
 import io.opentelemetry.sdk.autoconfigure.AutoConfiguredOpenTelemetrySdkBuilder;
@@ -41,7 +40,6 @@ import org.apache.commons.lang3.StringUtils;
  */
 public class OpenTelemetryService implements Closeable {
 
-    public static final AttributeKey<String> CLUSTER_ATTRIBUTE = AttributeKey.stringKey("pulsar.cluster");
     static final String OTEL_SDK_DISABLED_KEY = "otel.sdk.disabled";
     static final int MAX_CARDINALITY_LIMIT = 10000;
 
@@ -67,8 +65,8 @@ public class OpenTelemetryService implements Closeable {
                 (resource, __) -> {
                     var resourceBuilder = Resource.builder();
                     // Do not override attributes if already set (via system properties or environment variables).
-                    if (resource.getAttribute(CLUSTER_ATTRIBUTE) == null) {
-                        resourceBuilder.put(CLUSTER_ATTRIBUTE, clusterName);
+                    if (resource.getAttribute(OpenTelemetryAttributes.PULSAR_CLUSTER) == null) {
+                        resourceBuilder.put(OpenTelemetryAttributes.PULSAR_CLUSTER, clusterName);
                     }
                     if (StringUtils.isNotBlank(serviceName)
                             && Objects.equals(Resource.getDefault().getAttribute(ResourceAttributes.SERVICE_NAME),
