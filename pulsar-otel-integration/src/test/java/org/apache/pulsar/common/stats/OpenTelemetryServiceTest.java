@@ -25,18 +25,17 @@ import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.metrics.LongCounter;
 import io.opentelemetry.api.metrics.LongCounterBuilder;
 import io.opentelemetry.api.metrics.Meter;
-import io.opentelemetry.sdk.autoconfigure.AutoConfiguredOpenTelemetrySdk;
-import io.opentelemetry.sdk.autoconfigure.AutoConfiguredOpenTelemetrySdkBuilder;
+import io.opentelemetry.sdk.autoconfigure.spi.AutoConfigurationCustomizer;
 import io.opentelemetry.sdk.common.InstrumentationScopeInfo;
 import io.opentelemetry.sdk.metrics.data.MetricData;
 import io.opentelemetry.sdk.metrics.data.MetricDataType;
 import io.opentelemetry.sdk.metrics.export.MetricReader;
-import io.opentelemetry.sdk.metrics.internal.SdkMeterProviderUtil;
 import io.opentelemetry.sdk.testing.exporter.InMemoryMetricReader;
 import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Consumer;
 import java.util.function.Predicate;
 import lombok.Cleanup;
 import org.apache.commons.lang3.StringUtils;
@@ -56,7 +55,7 @@ public class OpenTelemetryServiceTest {
     public void setup() throws Exception {
         reader = InMemoryMetricReader.create();
         openTelemetryService = OpenTelemetryService.builder().
-                sdkBuilder(getSdkBuilder(reader)).
+                autoConfigurationCustomizer(getAutoConfigurationCustomizer(reader)).
                 clusterName("openTelemetryServiceTestCluster").
                 extraProperty(OpenTelemetryService.OTEL_SDK_DISABLED, "false").
                 build();
@@ -70,15 +69,9 @@ public class OpenTelemetryServiceTest {
     }
 
     // Overrides the default sdkBuilder to include the InMemoryMetricReader for testing purposes.
-    private static AutoConfiguredOpenTelemetrySdkBuilder getSdkBuilder(MetricReader extraReader) {
-        return AutoConfiguredOpenTelemetrySdk.builder().
-                addMeterProviderCustomizer((sdkMeterProviderBuilder, configProperties) -> {
-                    SdkMeterProviderUtil.registerMetricReaderWithCardinalitySelector(
-                            sdkMeterProviderBuilder, extraReader,
-                            // Override the max cardinality limit for this extra reader.
-                            instrumentType -> OpenTelemetryService.MAX_CARDINALITY_LIMIT + 1);
-                    return sdkMeterProviderBuilder;
-                });
+    private static Consumer<AutoConfigurationCustomizer> getAutoConfigurationCustomizer(MetricReader extraReader) {
+        return autoConfigurationCustomizer -> autoConfigurationCustomizer.addMeterProviderCustomizer(
+                (sdkMeterProviderBuilder, __) -> sdkMeterProviderBuilder.registerMetricReader(extraReader));
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
@@ -100,7 +93,7 @@ public class OpenTelemetryServiceTest {
 
         @Cleanup
         OpenTelemetryService ots = OpenTelemetryService.builder().
-                sdkBuilder(getSdkBuilder(reader)).
+                autoConfigurationCustomizer(getAutoConfigurationCustomizer(reader)).
                 clusterName("testCluster").
                 extraProperty(OpenTelemetryService.OTEL_SDK_DISABLED, "false").
                 build();
@@ -120,7 +113,7 @@ public class OpenTelemetryServiceTest {
 
         @Cleanup
         var ots = OpenTelemetryService.builder().
-                sdkBuilder(getSdkBuilder(reader)).
+                autoConfigurationCustomizer(getAutoConfigurationCustomizer(reader)).
                 clusterName("testServiceNameAndVersion").
                 serviceName("openTelemetryServiceTestService").
                 serviceVersion("1.0.0").
@@ -200,7 +193,7 @@ public class OpenTelemetryServiceTest {
 
         @Cleanup
         var ots = OpenTelemetryService.builder().
-                sdkBuilder(getSdkBuilder(metricReader)).
+                autoConfigurationCustomizer(getAutoConfigurationCustomizer(metricReader)).
                 clusterName("openTelemetryServiceTestCluster").
                 build();
         var meter = ots.getMeter("openTelemetryServiceTestInstrument");

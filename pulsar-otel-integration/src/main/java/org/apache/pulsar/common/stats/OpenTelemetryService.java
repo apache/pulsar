@@ -25,11 +25,13 @@ import io.opentelemetry.api.metrics.Meter;
 import io.opentelemetry.sdk.OpenTelemetrySdk;
 import io.opentelemetry.sdk.autoconfigure.AutoConfiguredOpenTelemetrySdk;
 import io.opentelemetry.sdk.autoconfigure.AutoConfiguredOpenTelemetrySdkBuilder;
+import io.opentelemetry.sdk.autoconfigure.spi.AutoConfigurationCustomizer;
 import io.opentelemetry.sdk.resources.Resource;
 import java.io.Closeable;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.function.Consumer;
 import lombok.Builder;
 import lombok.Singular;
 import org.apache.commons.lang3.StringUtils;
@@ -53,12 +55,13 @@ public class OpenTelemetryService implements Closeable {
     public OpenTelemetryService(String clusterName,
                                 String serviceName,
                                 String serviceVersion,
-                                @Singular Map<String, String> extraProperties,
+                                @VisibleForTesting @Singular Map<String, String> extraProperties,
                                 // Allows customizing the SDK builder; for testing purposes only.
-                                @VisibleForTesting AutoConfiguredOpenTelemetrySdkBuilder sdkBuilder) {
+                                @VisibleForTesting Consumer<AutoConfigurationCustomizer> autoConfigurationCustomizer) {
         checkArgument(StringUtils.isNotEmpty(clusterName), "Cluster name cannot be empty");
-        if (sdkBuilder == null) {
-            sdkBuilder = AutoConfiguredOpenTelemetrySdk.builder();
+        AutoConfiguredOpenTelemetrySdkBuilder sdkBuilder = AutoConfiguredOpenTelemetrySdk.builder();
+        if (autoConfigurationCustomizer != null) {
+            autoConfigurationCustomizer.accept(sdkBuilder);
         }
 
         Map<String, String> overrideProperties = new HashMap<>();
