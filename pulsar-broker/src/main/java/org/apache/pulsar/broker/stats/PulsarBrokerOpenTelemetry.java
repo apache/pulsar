@@ -23,7 +23,7 @@ import java.io.Closeable;
 import lombok.Getter;
 import org.apache.pulsar.PulsarVersion;
 import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.common.stats.OpenTelemetryService;
+import org.apache.pulsar.opentelemetry.OpenTelemetryService;
 
 public class PulsarBrokerOpenTelemetry implements Closeable {
 

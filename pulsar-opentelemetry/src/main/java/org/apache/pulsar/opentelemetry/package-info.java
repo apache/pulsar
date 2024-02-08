@@ -16,10 +16,4 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.common.stats;
-
-import io.opentelemetry.api.common.AttributeKey;
-
-public interface OpenTelemetryAttributes {
-    AttributeKey<String> PULSAR_CLUSTER = AttributeKey.stringKey("pulsar.cluster");
-}
+package org.apache.pulsar.opentelemetry;
