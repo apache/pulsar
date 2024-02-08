@@ -16,4 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+
+/**
+ * Provides a wrapper layer for the OpenTelemetry API to be used in Pulsar.
+ * @since 3.3.0
+ */
 package org.apache.pulsar.opentelemetry;

@@ -20,6 +20,13 @@ package org.apache.pulsar.opentelemetry;
 
 import io.opentelemetry.api.common.AttributeKey;
 
+/**
+ * Common OpenTelemetry attributes to be used by Pulsar components.
+ */
 public interface OpenTelemetryAttributes {
+    /**
+     * The name of the Pulsar cluster. This attribute is automatically added to all signals by
+     * {@link OpenTelemetryService}.
+     */
     AttributeKey<String> PULSAR_CLUSTER = AttributeKey.stringKey("pulsar.cluster");
 }

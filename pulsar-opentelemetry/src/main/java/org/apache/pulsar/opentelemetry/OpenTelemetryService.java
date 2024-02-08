@@ -44,11 +44,23 @@ public class OpenTelemetryService implements Closeable {
 
     private final OpenTelemetrySdk openTelemetrySdk;
 
+    /**
+     * Instantiates the OpenTelemetry SDK. All attributes are overridden by system properties or environment
+     * variables.
+     *
+     * @param clusterName
+     *      The name of the Pulsar cluster. Cannot be null or blank.
+     * @param serviceName
+     *      The name of the service. Optional.
+     * @param serviceVersion
+     *      The version of the service. Optional.
+     * @param sdkBuilderConsumer
+     *      Allows customizing the SDK builder; for testing purposes only.
+     */
     @Builder
     public OpenTelemetryService(String clusterName,
                                 String serviceName,
                                 String serviceVersion,
-                                // Allows customizing the SDK builder; for testing purposes only.
                                 @VisibleForTesting Consumer<AutoConfiguredOpenTelemetrySdkBuilder> sdkBuilderConsumer) {
         checkArgument(StringUtils.isNotBlank(clusterName), "Cluster name cannot be empty");
         var sdkBuilder = AutoConfiguredOpenTelemetrySdk.builder();
