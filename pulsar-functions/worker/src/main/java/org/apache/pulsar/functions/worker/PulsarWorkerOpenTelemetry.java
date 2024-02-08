@@ -16,14 +16,13 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.functions.worker.stats;
+package org.apache.pulsar.functions.worker;
 
 import io.opentelemetry.api.metrics.Meter;
 import java.io.Closeable;
 import lombok.Getter;
 import org.apache.pulsar.PulsarVersion;
 import org.apache.pulsar.opentelemetry.OpenTelemetryService;
-import org.apache.pulsar.functions.worker.WorkerConfig;
 
 public class PulsarWorkerOpenTelemetry implements Closeable {
 
@@ -42,6 +41,7 @@ public class PulsarWorkerOpenTelemetry implements Closeable {
         meter = openTelemetryService.getOpenTelemetry().getMeter("org.apache.pulsar.function_worker");
     }
 
+    @Override
     public void close() {
         openTelemetryService.close();
     }

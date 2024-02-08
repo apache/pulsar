@@ -67,7 +67,6 @@ import org.apache.pulsar.functions.worker.service.api.FunctionsV2;
 import org.apache.pulsar.functions.worker.service.api.Sinks;
 import org.apache.pulsar.functions.worker.service.api.Sources;
 import org.apache.pulsar.functions.worker.service.api.Workers;
-import org.apache.pulsar.functions.worker.stats.PulsarWorkerOpenTelemetry;
 import org.apache.pulsar.metadata.api.MetadataStoreException.AlreadyExistsException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
