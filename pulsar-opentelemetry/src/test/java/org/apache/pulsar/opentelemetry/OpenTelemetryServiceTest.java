@@ -38,8 +38,6 @@ import java.util.function.Consumer;
 import lombok.Cleanup;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient;
-import org.apache.pulsar.opentelemetry.OpenTelemetryAttributes;
-import org.apache.pulsar.opentelemetry.OpenTelemetryService;
 import org.awaitility.Awaitility;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
