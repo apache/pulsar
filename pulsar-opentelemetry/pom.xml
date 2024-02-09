@@ -51,6 +51,10 @@
       <artifactId>opentelemetry-sdk-extension-autoconfigure</artifactId>
     </dependency>
     <dependency>
+      <groupId>io.opentelemetry.instrumentation</groupId>
+      <artifactId>opentelemetry-resources</artifactId>
+    </dependency>
+    <dependency>
       <groupId>io.opentelemetry.semconv</groupId>
       <artifactId>opentelemetry-semconv</artifactId>
     </dependency>

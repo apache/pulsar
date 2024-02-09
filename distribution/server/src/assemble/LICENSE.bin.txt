@@ -527,6 +527,9 @@ The Apache Software License, Version 2.0
     - io.opentelemetry-opentelemetry-sdk-logs-1.34.1.jar
     - io.opentelemetry-opentelemetry-sdk-metrics-1.34.1.jar
     - io.opentelemetry-opentelemetry-sdk-trace-1.34.1.jar
+    - io.opentelemetry.instrumentation-opentelemetry-instrumentation-api-1.32.1.jar
+    - io.opentelemetry.instrumentation-opentelemetry-instrumentation-api-semconv-1.32.1-alpha.jar
+    - io.opentelemetry.instrumentation-opentelemetry-resources-1.32.1-alpha.jar
     - io.opentelemetry.semconv-opentelemetry-semconv-1.23.1-alpha.jar
 
 BSD 3-clause "New" or "Revised" License

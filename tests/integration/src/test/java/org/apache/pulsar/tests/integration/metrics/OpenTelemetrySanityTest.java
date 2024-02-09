@@ -122,25 +122,28 @@ public class OpenTelemetrySanityTest {
 
         var metricName = "target_info"; // Sent automatically by the OpenTelemetry SDK.
         Awaitility.waitAtMost(90, TimeUnit.SECONDS).ignoreExceptions().pollInterval(1, TimeUnit.SECONDS).until(() -> {
-            var metrics = getMetricsFromPrometheus(pulsarCluster.getAnyBroker(), prometheusExporterPort);
+            var metrics = getMetricsFromPrometheus(pulsarCluster.getBroker(0), prometheusExporterPort);
             return !metrics.findByNameAndLabels(metricName,
                     Pair.of("pulsar_cluster", clusterName),
                     Pair.of("service_name", PulsarBrokerOpenTelemetry.SERVICE_NAME),
-                    Pair.of("service_version", PulsarVersion.getVersion())).isEmpty();
+                    Pair.of("service_version", PulsarVersion.getVersion()),
+                    Pair.of("host_name", pulsarCluster.getBroker(0).getHostname())).isEmpty();
         });
         Awaitility.waitAtMost(90, TimeUnit.SECONDS).ignoreExceptions().pollInterval(1, TimeUnit.SECONDS).until(() -> {
             var metrics = getMetricsFromPrometheus(pulsarCluster.getProxy(), prometheusExporterPort);
             return !metrics.findByNameAndLabels(metricName,
                     Pair.of("pulsar_cluster", clusterName),
                     Pair.of("service_name", PulsarProxyOpenTelemetry.SERVICE_NAME),
-                    Pair.of("service_version", PulsarVersion.getVersion())).isEmpty();
+                    Pair.of("service_version", PulsarVersion.getVersion()),
+                    Pair.of("host_name", pulsarCluster.getProxy().getHostname())).isEmpty();
         });
         Awaitility.waitAtMost(90, TimeUnit.SECONDS).ignoreExceptions().pollInterval(1, TimeUnit.SECONDS).until(() -> {
             var metrics = getMetricsFromPrometheus(pulsarCluster.getAnyWorker(), prometheusExporterPort);
             return !metrics.findByNameAndLabels(metricName,
                     Pair.of("pulsar_cluster", clusterName),
                     Pair.of("service_name", PulsarWorkerOpenTelemetry.SERVICE_NAME),
-                    Pair.of("service_version", PulsarVersion.getVersion())).isEmpty();
+                    Pair.of("service_version", PulsarVersion.getVersion()),
+                    Pair.of("host_name", pulsarCluster.getAnyWorker().getHostname())).isEmpty();
         });
     }
 

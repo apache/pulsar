@@ -19,8 +19,7 @@
 package org.apache.pulsar.opentelemetry;
 
 import static io.opentelemetry.sdk.testing.assertj.OpenTelemetryAssertions.assertThat;
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertTrue;
+import static io.opentelemetry.sdk.testing.assertj.OpenTelemetryAssertions.satisfies;
 import io.opentelemetry.api.common.AttributeKey;
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.metrics.LongCounterBuilder;
@@ -33,11 +32,12 @@ import io.opentelemetry.semconv.ResourceAttributes;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import lombok.Cleanup;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient;
+import org.assertj.core.api.AbstractCharSequenceAssert;
 import org.awaitility.Awaitility;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -91,25 +91,7 @@ public class OpenTelemetryServiceTest {
     }
 
     @Test
-    public void testIsClusterNameSet() throws Exception {
-        @Cleanup
-        var reader = InMemoryMetricReader.create();
-
-        @Cleanup
-        var ots = OpenTelemetryService.builder().
-                sdkBuilderConsumer(getSdkBuilderConsumer(reader,
-                        Map.of(OpenTelemetryService.OTEL_SDK_DISABLED_KEY, "false"))).
-                clusterName("testCluster").
-                build();
-
-        assertThat(reader.collectAllMetrics())
-            .allSatisfy(metric -> assertThat(metric)
-                .hasResourceSatisfying(
-                    resource -> resource.hasAttribute(OpenTelemetryAttributes.PULSAR_CLUSTER, "testCluster")));
-    }
-
-    @Test
-    public void testIsServiceNameAndVersionSet() throws Exception {
+    public void testResourceAttributesAreSet() throws Exception {
         @Cleanup
         var reader = InMemoryMetricReader.create();
 
@@ -127,7 +109,8 @@ public class OpenTelemetryServiceTest {
                 .hasResourceSatisfying(resource -> resource
                     .hasAttribute(OpenTelemetryAttributes.PULSAR_CLUSTER, "testServiceNameAndVersion")
                     .hasAttribute(ResourceAttributes.SERVICE_NAME, "openTelemetryServiceTestService")
-                    .hasAttribute(ResourceAttributes.SERVICE_VERSION, "1.0.0")));
+                    .hasAttribute(ResourceAttributes.SERVICE_VERSION, "1.0.0")
+                    .hasAttribute(satisfies(ResourceAttributes.HOST_NAME, AbstractCharSequenceAssert::isNotBlank))));
     }
 
     @Test
@@ -200,18 +183,17 @@ public class OpenTelemetryServiceTest {
                 meter.counterBuilder("dummyCounterD").setUnit("unit")
         );
 
-        var callbackCount = new AtomicInteger();
+        var callback = new AtomicBoolean();
         // Validate that no matter how the counters are being built, they are all backed by the same underlying object.
         // This ensures we conserve memory when the SDK is disabled.
-        assertEquals(builders.stream().map(LongCounterBuilder::build).distinct().count(), 1);
-        assertEquals(builders.stream().map(LongCounterBuilder::buildObserver).distinct().count(), 1);
-        assertEquals(builders.stream().map(b -> b.buildWithCallback(__ -> callbackCount.incrementAndGet()))
-                .distinct().count(), 1);
+        assertThat(builders.stream().map(LongCounterBuilder::build).distinct()).hasSize(1);
+        assertThat(builders.stream().map(LongCounterBuilder::buildObserver).distinct()).hasSize(1);
+        assertThat(builders.stream().map(b -> b.buildWithCallback(__ -> callback.set(true))).distinct()).hasSize(1);
 
         // Validate that no metrics are being emitted at all.
-        assertTrue(metricReader.collectAllMetrics().isEmpty());
+        assertThat(metricReader.collectAllMetrics()).isEmpty();
 
         // Validate that the callback has not being called.
-        assertEquals(callbackCount.get(), 0);
+        assertThat(callback).isFalse();
     }
 }
