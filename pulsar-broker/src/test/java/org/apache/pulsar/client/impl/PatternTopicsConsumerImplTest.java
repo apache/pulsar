@@ -696,11 +696,6 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
             CompletableFuture completableFuture = WhiteboxImpl.getInternalState(consumer, "watcherFuture");
             log.info("isDone: {}, isCompletedExceptionally: {}", completableFuture.isDone(),
                     completableFuture.isCompletedExceptionally());
-            if (completableFuture.isCompletedExceptionally()) {
-                completableFuture.exceptionally(ex -> {
-                   log.error("", ex);return null;
-                });
-            }
             assertTrue(completableFuture.isDone() && !completableFuture.isCompletedExceptionally());
         });
     }
