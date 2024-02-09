@@ -50,7 +50,7 @@ COPY conf/supervisord.conf /etc/supervisord.conf
 COPY conf/global-zk.conf conf/local-zk.conf conf/bookie.conf conf/broker.conf conf/functions_worker.conf \
      conf/proxy.conf conf/websocket.conf /etc/supervisord/conf.d/
 
-COPY scripts/init-cluster.sh scripts/run-global-zk.sh scripts/run-local-zk.sh \
+COPY scripts/run-global-zk.sh scripts/run-local-zk.sh \
      scripts/run-bookie.sh scripts/run-broker.sh scripts/run-functions-worker.sh scripts/run-proxy.sh \
      scripts/run-standalone.sh scripts/run-websocket.sh \
      /pulsar/bin/

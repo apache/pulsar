@@ -192,4 +192,7 @@ public class PulsarClusterSpec {
      */
     @Default
     boolean enableTls = false;
+
+    @Default
+    boolean enableOxia = false;
 }
