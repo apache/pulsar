@@ -50,6 +50,7 @@
           <module>instance</module>
           <module>runtime</module>
           <module>runtime-all</module>
+          <module>wasm</module>
           <module>worker</module>
           <module>secrets</module>
           <module>localrun</module>
@@ -68,6 +69,7 @@
         <module>instance</module>
         <module>runtime</module>
         <module>runtime-all</module>
+        <module>wasm</module>
         <module>worker</module>
         <module>secrets</module>
         <module>localrun</module>

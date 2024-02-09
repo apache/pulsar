@@ -27,13 +27,14 @@
     <version>3.3.0-SNAPSHOT</version>
   </parent>
 
-  <artifactId>pulsar-functions-api-examples</artifactId>
-  <name>Pulsar Functions :: API Examples</name>
+  <artifactId>pulsar-functions-wasm-api</artifactId>
+  <name>Pulsar WASM Functions :: API</name>
 
   <dependencies>
+
     <dependency>
-      <groupId>org.slf4j</groupId>
-      <artifactId>slf4j-api</artifactId>
+      <groupId>io.github.kawamuray.wasmtime</groupId>
+      <artifactId>wasmtime-java</artifactId>
     </dependency>
 
     <dependency>
@@ -41,53 +42,22 @@
       <artifactId>pulsar-functions-api</artifactId>
       <version>${project.version}</version>
     </dependency>
-    <dependency>
-      <groupId>${project.groupId}</groupId>
-      <artifactId>pulsar-functions-wasm-api</artifactId>
-      <version>${project.version}</version>
-    </dependency>
-    <dependency>
-      <groupId>${project.groupId}</groupId>
-      <artifactId>pulsar-client-api</artifactId>
-      <version>${project.version}</version>
-    </dependency>
-    <dependency>
-      <groupId>${project.groupId}</groupId>
-      <artifactId>pulsar-client-admin-api</artifactId>
-      <version>${project.version}</version>
-    </dependency>
+
   </dependencies>
 
   <build>
     <plugins>
       <plugin>
-        <groupId>com.github.spotbugs</groupId>
-        <artifactId>spotbugs-maven-plugin</artifactId>
-        <version>${spotbugs-maven-plugin.version}</version>
-        <configuration>
-          <excludeFilterFile>${basedir}/src/main/resources/findbugsExclude.xml</excludeFilterFile>
-        </configuration>
-        <executions>
-          <execution>
-            <id>check</id>
-            <phase>verify</phase>
-            <goals>
-              <goal>check</goal>
-            </goals>
-          </execution>
-        </executions>
-      </plugin>
-      <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-checkstyle-plugin</artifactId>
         <executions>
-          <execution>
-            <id>checkstyle</id>
-            <phase>verify</phase>
-            <goals>
-              <goal>check</goal>
-            </goals>
-          </execution>
+            <execution>
+                <id>checkstyle</id>
+                <phase>verify</phase>
+                <goals>
+                    <goal>check</goal>
+                </goals>
+            </execution>
         </executions>
       </plugin>
     </plugins>
