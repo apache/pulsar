@@ -24,6 +24,7 @@ import io.opentelemetry.api.common.AttributeKey;
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.metrics.LongCounterBuilder;
 import io.opentelemetry.api.metrics.Meter;
+import io.opentelemetry.instrumentation.resources.JarServiceNameDetector;
 import io.opentelemetry.sdk.autoconfigure.AutoConfiguredOpenTelemetrySdkBuilder;
 import io.opentelemetry.sdk.common.InstrumentationScopeInfo;
 import io.opentelemetry.sdk.metrics.export.MetricReader;
@@ -98,7 +99,8 @@ public class OpenTelemetryServiceTest {
         @Cleanup
         var ots = OpenTelemetryService.builder().
                 sdkBuilderConsumer(getSdkBuilderConsumer(reader,
-                        Map.of(OpenTelemetryService.OTEL_SDK_DISABLED_KEY, "false"))).
+                        Map.of(OpenTelemetryService.OTEL_SDK_DISABLED_KEY, "false",
+                               "otel.java.disabled.resource.providers", JarServiceNameDetector.class.getName()))).
                 clusterName("testServiceNameAndVersion").
                 serviceName("openTelemetryServiceTestService").
                 serviceVersion("1.0.0").
