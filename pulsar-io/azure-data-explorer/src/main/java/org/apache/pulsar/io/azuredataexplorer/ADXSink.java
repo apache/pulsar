@@ -69,6 +69,7 @@ public class ADXSink implements Sink<byte[]> {
     private IngestClient ingestClient;
     private List<Record<byte[]>> incomingRecordsList;
     private int batchSize;
+    private long batchTimeMs;
     private ScheduledExecutorService adxSinkExecutor;
     private int maxRetryAttempts;
     private long retryBackOffTime;
@@ -101,7 +102,7 @@ public class ADXSink implements Sink<byte[]> {
         /*incoming records list will hold incoming messages,
          flushExecutor executes the flushData according to batch time */
         batchSize = adxConfig.getBatchSize();
-        long batchTimeMs = adxConfig.getBatchTimeMs();
+        batchTimeMs = adxConfig.getBatchTimeMs();
         incomingRecordsList = new ArrayList<>();
         adxSinkExecutor = Executors.newScheduledThreadPool(1);
         adxSinkExecutor.scheduleAtFixedRate(this::sinkData, batchTimeMs, batchTimeMs, TimeUnit.MILLISECONDS);
@@ -270,6 +271,14 @@ public class ADXSink implements Sink<byte[]> {
     public void close() throws Exception {
         ingestClient.close();
         adxSinkExecutor.shutdown();
+        try {
+            if (!adxSinkExecutor.awaitTermination(2 * batchTimeMs, TimeUnit.MILLISECONDS)) {
+                adxSinkExecutor.shutdownNow();
+            }
+        } catch (InterruptedException ie) {
+            adxSinkExecutor.shutdownNow();
+            Thread.currentThread().interrupt();
+        }
         log.info("Kusto ingest client closed.");
     }
 }
