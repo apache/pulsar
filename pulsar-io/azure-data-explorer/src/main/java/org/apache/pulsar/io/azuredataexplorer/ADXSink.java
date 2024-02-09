@@ -269,6 +269,7 @@ public class ADXSink implements Sink<byte[]> {
     @Override
     public void close() throws Exception {
         ingestClient.close();
+        adxSinkExecutor.shutdown();
         log.info("Kusto ingest client closed.");
     }
 }
