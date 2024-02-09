@@ -102,6 +102,8 @@ public class PulsarCluster {
     private final ProxyContainer proxyContainer;
     private Map<String, GenericContainer<?>> externalServices = Collections.emptyMap();
     private Map<String, Map<String, String>> externalServiceEnvs;
+    private final Map<String, String> functionWorkerEnvs;
+    private final List<Integer> functionWorkerAdditionalPorts;
 
     private final String metadataStoreUrl;
     private final String configurationMetadataStoreUrl;
@@ -181,6 +183,9 @@ public class PulsarCluster {
         }
         if (spec.proxyMountFiles != null) {
             spec.proxyMountFiles.forEach(this.proxyContainer::withFileSystemBind);
+        }
+        if (spec.proxyAdditionalPorts != null) {
+            spec.proxyAdditionalPorts.forEach(this.proxyContainer::addExposedPort);
         }
 
         // create bookies
@@ -268,6 +273,8 @@ public class PulsarCluster {
             workerContainers.values().forEach(c -> c.withClasspathResourceMapping(key, value, BindMode.READ_WRITE));
         });
 
+        functionWorkerEnvs = spec.functionWorkerEnvs;
+        functionWorkerAdditionalPorts = spec.functionWorkerAdditionalPorts;
     }
 
     public String getPlainTextServiceUrl() {
@@ -475,23 +482,25 @@ public class PulsarCluster {
         String serviceUrl = "pulsar://pulsar-broker-0:" + PulsarContainer.BROKER_PORT;
         String httpServiceUrl = "http://pulsar-broker-0:" + PulsarContainer.BROKER_HTTP_PORT;
         workerContainers.putAll(runNumContainers(
-                "functions-worker-process-" + suffix,
-                numFunctionWorkers,
-                (name) -> new WorkerContainer(clusterName, name)
-                        .withNetwork(network)
-                        .withNetworkAliases(name)
-                        // worker settings
-                        .withEnv("PF_workerId", name)
-                        .withEnv("PF_workerHostname", name)
-                        .withEnv("PF_workerPort", "" + PulsarContainer.BROKER_HTTP_PORT)
-                        .withEnv("PF_pulsarFunctionsCluster", clusterName)
-                        .withEnv("PF_pulsarServiceUrl", serviceUrl)
-                        .withEnv("PF_pulsarWebServiceUrl", httpServiceUrl)
-                        // script
-                        .withEnv("clusterName", clusterName)
-                        .withEnv("zookeeperServers", ZKContainer.NAME)
-                        // bookkeeper tools
-                        .withEnv("zkServers", ZKContainer.NAME)
+            "functions-worker-process-" + suffix,
+            numFunctionWorkers,
+            (name) -> new WorkerContainer(clusterName, name)
+                .withNetwork(network)
+                .withNetworkAliases(name)
+                // worker settings
+                .withEnv("PF_workerId", name)
+                .withEnv("PF_workerHostname", name)
+                .withEnv("PF_workerPort", "" + PulsarContainer.BROKER_HTTP_PORT)
+                .withEnv("PF_pulsarFunctionsCluster", clusterName)
+                .withEnv("PF_pulsarServiceUrl", serviceUrl)
+                .withEnv("PF_pulsarWebServiceUrl", httpServiceUrl)
+                // script
+                .withEnv("clusterName", clusterName)
+                .withEnv("zookeeperServers", ZKContainer.NAME)
+                // bookkeeper tools
+                .withEnv("zkServers", ZKContainer.NAME)
+                .withEnv(functionWorkerEnvs)
+                .withExposedPorts(functionWorkerAdditionalPorts.toArray(new Integer[0]))
         ));
         this.startWorkers();
     }

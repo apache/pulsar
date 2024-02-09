@@ -78,6 +78,7 @@ public class ProxyAdditionalServletTest extends MockedPulsarServiceBaseTest {
         proxyConfig.setConfigurationMetadataStoreUrl(GLOBAL_DUMMY_VALUE);
         // enable full parsing feature
         proxyConfig.setProxyLogLevel(Optional.of(2));
+        proxyConfig.setClusterName(configClusterName);
 
         // this is for nar package test
 //        addServletNar();

@@ -77,6 +77,7 @@ public class ProxyKeyStoreTlsTransportTest extends MockedPulsarServiceBaseTest {
 
         proxyConfig.setMetadataStoreUrl(DUMMY_VALUE);
         proxyConfig.setConfigurationMetadataStoreUrl(GLOBAL_DUMMY_VALUE);
+        proxyConfig.setClusterName(configClusterName);
 
         proxyConfig.setTlsRequireTrustedClientCertOnConnect(false);
 

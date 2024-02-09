@@ -54,8 +54,10 @@ import org.testng.collections.Maps;
 
 public class ProxyWithoutServiceDiscoveryTest extends ProducerConsumerBase {
     private static final Logger log = LoggerFactory.getLogger(ProxyWithoutServiceDiscoveryTest.class);
+    private static final String CLUSTER_NAME = "without-service-discovery";
     private ProxyService proxyService;
     private ProxyConfiguration proxyConfig = new ProxyConfiguration();
+
 
     @BeforeMethod
     @Override
@@ -89,7 +91,7 @@ public class ProxyWithoutServiceDiscoveryTest extends ProducerConsumerBase {
         providers.add(AuthenticationProviderTls.class.getName());
         conf.setAuthenticationProviders(providers);
 
-        conf.setClusterName("without-service-discovery");
+        conf.setClusterName(CLUSTER_NAME);
         conf.setNumExecutorThreadPoolSize(5);
 
         super.init();
@@ -106,6 +108,7 @@ public class ProxyWithoutServiceDiscoveryTest extends ProducerConsumerBase {
         proxyConfig.setWebServicePort(Optional.of(0));
         proxyConfig.setWebServicePortTls(Optional.of(0));
         proxyConfig.setTlsEnabledWithBroker(true);
+        proxyConfig.setClusterName(CLUSTER_NAME);
 
         // enable tls and auth&auth at proxy
         proxyConfig.setTlsCertificateFilePath(PROXY_CERT_FILE_PATH);
