@@ -121,6 +121,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
     private static final long MAX_CHANNEL_OWNER_ELECTION_WAITING_TIME_IN_SECS = 10;
     private static final int MAX_OUTSTANDING_PUB_MESSAGES = 500;
     private static final long MAX_OWNED_BUNDLE_COUNT_DELAY_TIME_IN_MILLIS = 10 * 60 * 1000;
+    private static final long COMPACTION_THRESHOLD = 5 * 1024 * 1024;
     private final PulsarService pulsar;
     private final ServiceConfiguration config;
     private final Schema<ServiceUnitStateData> schema;
@@ -297,6 +298,12 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                     (pulsar.getPulsarResources(), SYSTEM_NAMESPACE, config.getClusterName());
 
             ExtensibleLoadManagerImpl.createSystemTopic(pulsar, TOPIC);
+
+            Long threshold = pulsar.getAdminClient().topicPolicies().getCompactionThreshold(TOPIC);
+            if (threshold == null || COMPACTION_THRESHOLD != threshold) {
+                pulsar.getAdminClient().topicPolicies().setCompactionThreshold(TOPIC, COMPACTION_THRESHOLD);
+                log.info("Set compaction threshold for system topic {}.", TOPIC);
+            }
 
             producer = pulsar.getClient().newProducer(schema)
                     .enableBatching(true)

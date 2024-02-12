@@ -87,7 +87,6 @@ import org.apache.pulsar.broker.loadbalance.extensions.store.LoadDataStore;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.testcontext.PulsarTestContext;
 import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.TypedMessageBuilder;
 import org.apache.pulsar.client.impl.TableViewImpl;
 import org.apache.pulsar.common.policies.data.TopicType;
@@ -336,18 +335,14 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
 
     @Test(priority = 1)
     public void compactionScheduleTest() {
-
         Awaitility.await()
                 .pollInterval(200, TimeUnit.MILLISECONDS)
                 .atMost(5, TimeUnit.SECONDS)
+                .ignoreExceptions()
                 .untilAsserted(() -> { // wait until true
-                    try {
-                        var threshold = admin.topicPolicies()
-                                .getCompactionThreshold(ServiceUnitStateChannelImpl.TOPIC, false).longValue();
-                        assertEquals(5 * 1024 * 1024, threshold);
-                    } catch (Exception e) {
-                        ;
-                    }
+                    var threshold = admin.topicPolicies()
+                            .getCompactionThreshold(ServiceUnitStateChannelImpl.TOPIC, false);
+                    assertEquals(5 * 1024 * 1024, threshold == null ? 0 : threshold.longValue());
                 });
     }
 
@@ -930,8 +925,7 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test(priority = 10)
-    public void conflictAndCompactionTest() throws ExecutionException, InterruptedException, TimeoutException,
-            IllegalAccessException, PulsarClientException, PulsarServerException {
+    public void conflictAndCompactionTest() throws Exception {
         String bundle = String.format("%s/%s", "public/default", "0x0000000a_0xffffffff");
         var owner1 = channel1.getOwnerAsync(bundle);
         var owner2 = channel2.getOwnerAsync(bundle);
@@ -964,6 +958,12 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         Field strategicCompactorField = FieldUtils.getDeclaredField(PulsarService.class, "strategicCompactor", true);
         FieldUtils.writeField(strategicCompactorField, pulsar1, compactor, true);
         FieldUtils.writeField(strategicCompactorField, pulsar2, compactor, true);
+
+        var threshold = admin.topicPolicies()
+                .getCompactionThreshold(ServiceUnitStateChannelImpl.TOPIC, false);
+        admin.topicPolicies()
+                .setCompactionThreshold(ServiceUnitStateChannelImpl.TOPIC, 0);
+
         Awaitility.await()
                 .pollInterval(200, TimeUnit.MILLISECONDS)
                 .atMost(140, TimeUnit.SECONDS)
@@ -984,6 +984,9 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         channel3.close();
         FieldUtils.writeDeclaredField(channel2,
                 "inFlightStateWaitingTimeInMillis", 30 * 1000, true);
+        admin.topicPolicies()
+                .setCompactionThreshold(ServiceUnitStateChannelImpl.TOPIC, threshold);
+
     }
 
     @Test(priority = 11)
