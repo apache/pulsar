@@ -299,10 +299,12 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
 
             ExtensibleLoadManagerImpl.createSystemTopic(pulsar, TOPIC);
 
-            Long threshold = pulsar.getAdminClient().topicPolicies().getCompactionThreshold(TOPIC);
-            if (threshold == null || COMPACTION_THRESHOLD != threshold) {
-                pulsar.getAdminClient().topicPolicies().setCompactionThreshold(TOPIC, COMPACTION_THRESHOLD);
-                log.info("Set compaction threshold for system topic {}.", TOPIC);
+            if (config.isSystemTopicAndTopicLevelPoliciesEnabled()) {
+                Long threshold = pulsar.getAdminClient().topicPolicies().getCompactionThreshold(TOPIC);
+                if (threshold == null || COMPACTION_THRESHOLD != threshold) {
+                    pulsar.getAdminClient().topicPolicies().setCompactionThreshold(TOPIC, COMPACTION_THRESHOLD);
+                    log.info("Set compaction threshold for system topic {}.", TOPIC);
+                }
             }
 
             producer = pulsar.getClient().newProducer(schema)

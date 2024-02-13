@@ -964,28 +964,32 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         admin.topicPolicies()
                 .setCompactionThreshold(ServiceUnitStateChannelImpl.TOPIC, 0);
 
-        Awaitility.await()
-                .pollInterval(200, TimeUnit.MILLISECONDS)
-                .atMost(140, TimeUnit.SECONDS)
-                .untilAsserted(() -> {
-                    channel1.publishAssignEventAsync(bundle, brokerId1);
-                    verify(compactor, times(1))
-                            .compact(eq(ServiceUnitStateChannelImpl.TOPIC), any());
-                });
+        try {
+            Awaitility.await()
+                    .pollInterval(200, TimeUnit.MILLISECONDS)
+                    .atMost(140, TimeUnit.SECONDS)
+                    .untilAsserted(() -> {
+                        channel1.publishAssignEventAsync(bundle, brokerId1);
+                        verify(compactor, times(1))
+                                .compact(eq(ServiceUnitStateChannelImpl.TOPIC), any());
+                    });
 
 
-        var channel3 = createChannel(pulsar);
-        channel3.start();
-        Awaitility.await()
-                .pollInterval(200, TimeUnit.MILLISECONDS)
-                .atMost(5, TimeUnit.SECONDS)
-                .untilAsserted(() -> assertEquals(
-                        channel3.getOwnerAsync(bundle).get(), Optional.of(brokerId1)));
-        channel3.close();
-        FieldUtils.writeDeclaredField(channel2,
-                "inFlightStateWaitingTimeInMillis", 30 * 1000, true);
-        admin.topicPolicies()
-                .setCompactionThreshold(ServiceUnitStateChannelImpl.TOPIC, threshold);
+            var channel3 = createChannel(pulsar);
+            channel3.start();
+            Awaitility.await()
+                    .pollInterval(200, TimeUnit.MILLISECONDS)
+                    .atMost(5, TimeUnit.SECONDS)
+                    .untilAsserted(() -> assertEquals(
+                            channel3.getOwnerAsync(bundle).get(), Optional.of(brokerId1)));
+            channel3.close();
+        } finally {
+            FieldUtils.writeDeclaredField(channel2,
+                    "inFlightStateWaitingTimeInMillis", 30 * 1000, true);
+            admin.topicPolicies()
+                    .setCompactionThreshold(ServiceUnitStateChannelImpl.TOPIC, threshold);
+        }
+
 
     }
 
