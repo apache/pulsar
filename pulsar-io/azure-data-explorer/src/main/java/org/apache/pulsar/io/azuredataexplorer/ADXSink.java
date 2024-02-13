@@ -78,7 +78,7 @@ public class ADXSink implements Sink<byte[]> {
     public void open(Map<String, Object> config, SinkContext sinkContext) throws Exception {
         log.info("Open ADX Sink");
         // Azure data explorer, initializations
-        ADXSinkConfig adxConfig = ADXSinkConfig.load(config);
+        ADXSinkConfig adxConfig = ADXSinkConfig.load(config, sinkContext);
         adxConfig.validate();
         ConnectionStringBuilder kcsb = getConnectionStringBuilder(adxConfig);
         if (kcsb == null) {

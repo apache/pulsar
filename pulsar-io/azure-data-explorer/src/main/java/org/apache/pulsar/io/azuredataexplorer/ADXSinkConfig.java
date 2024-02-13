@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.io.azuredataexplorer;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import java.io.File;
@@ -28,6 +27,8 @@ import java.util.Map;
 import java.util.Objects;
 import lombok.Data;
 import lombok.experimental.Accessors;
+import org.apache.pulsar.io.common.IOConfigUtils;
+import org.apache.pulsar.io.core.SinkContext;
 import org.apache.pulsar.io.core.annotations.FieldDoc;
 
 
@@ -44,10 +45,10 @@ public class ADXSinkConfig implements Serializable {
     @FieldDoc(required = true, defaultValue = "", help = "Table name to which pulsar data need to be ingested.")
     private String table;
 
-    @FieldDoc(defaultValue = "", help = "The AAD app Id for authentication")
+    @FieldDoc(defaultValue = "", help = "The AAD app Id for authentication", sensitive = true)
     private String appId;
 
-    @FieldDoc(defaultValue = "", help = "The AAD app secret for authentication")
+    @FieldDoc(defaultValue = "", help = "The AAD app secret for authentication", sensitive = true)
     private String appKey;
 
     @FieldDoc(defaultValue = "", help = "The tenant Id for authentication")
@@ -61,7 +62,7 @@ public class ADXSinkConfig implements Serializable {
     @FieldDoc(defaultValue = "", help = "The mapping reference for ingestion")
     private String mappingRefName;
 
-    @FieldDoc(defaultValue = "CSV", help = "The type of mapping reference provided")
+    @FieldDoc(defaultValue = "", help = "The type of mapping reference provided")
     private String mappingRefType;
 
     @FieldDoc(defaultValue = "false", help = "Denotes if flush should happen immediately without aggregation. "
@@ -89,9 +90,8 @@ public class ADXSinkConfig implements Serializable {
         return mapper.readValue(new File(yamlFile), ADXSinkConfig.class);
     }
 
-    protected static ADXSinkConfig load(Map<String, Object> config) throws JsonProcessingException {
-        ObjectMapper mapper = new ObjectMapper();
-        return mapper.readValue(mapper.writeValueAsString(config), ADXSinkConfig.class);
+    protected static ADXSinkConfig load(Map<String, Object> config, SinkContext sinkContext) {
+        return IOConfigUtils.loadWithSecrets(config, ADXSinkConfig.class, sinkContext);
     }
 
     public void validate() throws Exception {

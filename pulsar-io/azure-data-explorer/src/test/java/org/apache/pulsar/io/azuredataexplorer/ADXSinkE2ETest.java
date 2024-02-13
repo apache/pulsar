@@ -26,6 +26,8 @@ import com.microsoft.azure.kusto.data.auth.ConnectionStringBuilder;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.functions.instance.SinkRecord;
+import org.apache.pulsar.io.core.SinkContext;
+import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.SkipException;
 import org.testng.annotations.AfterMethod;
@@ -104,7 +106,7 @@ public class ADXSinkE2ETest {
     public void testOpenAndWriteSink() throws Exception {
 
         ADXSink sink = new ADXSink();
-        sink.open(configs, null);
+        sink.open(configs, Mockito.mock(SinkContext.class));
         int writeCount = 50;
 
         for (int i = 0; i < writeCount; i++) {
@@ -124,7 +126,7 @@ public class ADXSinkE2ETest {
     @Test
     public void testOpenAndWriteSinkWithTimeouts() throws Exception {
         ADXSink sink = new ADXSink();
-        sink.open(configs, null);
+        sink.open(configs, Mockito.mock(SinkContext.class));
         int writeCount = 9;
 
         for (int i = 0; i < writeCount; i++) {

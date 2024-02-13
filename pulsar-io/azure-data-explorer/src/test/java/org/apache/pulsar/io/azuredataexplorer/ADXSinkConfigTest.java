@@ -26,6 +26,8 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
+import org.apache.pulsar.io.core.SinkContext;
+import org.mockito.Mockito;
 
 import static org.testng.Assert.*;
 
@@ -69,8 +71,8 @@ public class ADXSinkConfigTest {
     @Test
     public final void loadFromMapTest() throws IOException {
         Map<String, Object> map = getConfig();
-
-        ADXSinkConfig config = ADXSinkConfig.load(map);
+        SinkContext sinkContext = Mockito.mock(SinkContext.class);
+        ADXSinkConfig config = ADXSinkConfig.load(map, sinkContext);
         assertNotNull(config);
         assertEquals(config.getClusterUrl(), "https://somecluster.eastus.kusto.windows.net");
         assertEquals(config.getDatabase(), "somedb");
