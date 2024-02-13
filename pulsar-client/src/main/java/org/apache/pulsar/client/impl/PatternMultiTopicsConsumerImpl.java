@@ -31,6 +31,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import org.apache.pulsar.client.api.Consumer;
@@ -50,8 +51,19 @@ public class PatternMultiTopicsConsumerImpl<T> extends MultiTopicsConsumerImpl<T
     private final Pattern topicsPattern;
     private final TopicsChangedListener topicsChangeListener;
     private final Mode subscriptionMode;
-    private final CompletableFuture<TopicListWatcher> watcherFuture;
+    private final CompletableFuture<TopicListWatcher> watcherFuture = new CompletableFuture<>();
     protected NamespaceName namespaceName;
+
+    /**
+     * There is two task to re-check topic changes, the both tasks will not be take affects at the same time.
+     * 1. {@link #recheckTopicsChangeAfterReconnect}: it will be called after the {@link TopicListWatcher} reconnected
+     *     if you enabled {@link TopicListWatcher}. This backoff used to do a retry if
+     *     {@link #recheckTopicsChangeAfterReconnect} is failed.
+     * 2. {@link #run} A scheduled task to trigger re-check topic changes, it will be used if you disabled
+     *     {@link TopicListWatcher}.
+     */
+    private final Backoff recheckPatternTaskBackoff;
+    private final AtomicInteger recheckPatternEpoch = new AtomicInteger();
     private volatile Timeout recheckPatternTimeout = null;
     private volatile String topicsHash;
 
@@ -69,6 +81,11 @@ public class PatternMultiTopicsConsumerImpl<T> extends MultiTopicsConsumerImpl<T
         this.topicsPattern = topicsPattern;
         this.topicsHash = topicsHash;
         this.subscriptionMode = subscriptionMode;
+        this.recheckPatternTaskBackoff = new BackoffBuilder()
+                .setInitialTime(client.getConfiguration().getInitialBackoffIntervalNanos(), TimeUnit.NANOSECONDS)
+                .setMax(client.getConfiguration().getMaxBackoffIntervalNanos(), TimeUnit.NANOSECONDS)
+                .setMandatoryStop(0, TimeUnit.SECONDS)
+                .create();
 
         if (this.namespaceName == null) {
             this.namespaceName = getNameSpaceFromPattern(topicsPattern);
@@ -78,11 +95,10 @@ public class PatternMultiTopicsConsumerImpl<T> extends MultiTopicsConsumerImpl<T
         this.topicsChangeListener = new PatternTopicsChangedListener();
         this.recheckPatternTimeout = client.timer()
                 .newTimeout(this, Math.max(1, conf.getPatternAutoDiscoveryPeriod()), TimeUnit.SECONDS);
-        this.watcherFuture = new CompletableFuture<>();
         if (subscriptionMode == Mode.PERSISTENT) {
             long watcherId = client.newTopicListWatcherId();
             new TopicListWatcher(topicsChangeListener, client, topicsPattern, watcherId,
-                namespaceName, topicsHash, watcherFuture);
+                namespaceName, topicsHash, watcherFuture, () -> recheckTopicsChangeAfterReconnect());
             watcherFuture
                .thenAccept(__ -> recheckPatternTimeout.cancel())
                .exceptionally(ex -> {
@@ -99,40 +115,75 @@ public class PatternMultiTopicsConsumerImpl<T> extends MultiTopicsConsumerImpl<T
         return TopicName.get(pattern.pattern()).getNamespaceObject();
     }
 
+    /**
+     * This method will be called after the {@link TopicListWatcher} reconnected after enabled {@link TopicListWatcher}.
+     */
+    private void recheckTopicsChangeAfterReconnect() {
+        // Skip if closed or the task has been cancelled.
+        if (getState() == State.Closing || getState() == State.Closed) {
+            return;
+        }
+        // Do check.
+        recheckTopicsChange().whenComplete((ignore, ex) -> {
+            if (ex != null) {
+                log.warn("[{}] Failed to recheck topics change: {}", topic, ex.getMessage());
+                long delayMs = recheckPatternTaskBackoff.next();
+                client.timer().newTimeout(timeout -> {
+                    recheckTopicsChangeAfterReconnect();
+                }, delayMs, TimeUnit.MILLISECONDS);
+            } else {
+                recheckPatternTaskBackoff.reset();
+            }
+        });
+    }
+
     // TimerTask to recheck topics change, and trigger subscribe/unsubscribe based on the change.
     @Override
     public void run(Timeout timeout) throws Exception {
         if (timeout.isCancelled()) {
             return;
         }
-        client.getLookup().getTopicsUnderNamespace(namespaceName, subscriptionMode, topicsPattern.pattern(), topicsHash)
+        recheckTopicsChange().exceptionally(ex -> {
+            log.warn("[{}] Failed to recheck topics change: {}", topic, ex.getMessage());
+            return null;
+        }).thenAccept(__ -> {
+            // schedule the next re-check task
+            this.recheckPatternTimeout = client.timer()
+                    .newTimeout(PatternMultiTopicsConsumerImpl.this,
+                    Math.max(1, conf.getPatternAutoDiscoveryPeriod()), TimeUnit.SECONDS);
+        });
+    }
+
+    private CompletableFuture<Void> recheckTopicsChange() {
+        String pattern = topicsPattern.pattern();
+        final int epoch = recheckPatternEpoch.incrementAndGet();
+        return client.getLookup().getTopicsUnderNamespace(namespaceName, subscriptionMode, pattern, topicsHash)
             .thenCompose(getTopicsResult -> {
-
-                if (log.isDebugEnabled()) {
-                    log.debug("Get topics under namespace {}, topics.size: {}, topicsHash: {}, filtered: {}",
-                            namespaceName, getTopicsResult.getTopics().size(), getTopicsResult.getTopicsHash(),
-                            getTopicsResult.isFiltered());
-                    getTopicsResult.getTopics().forEach(topicName ->
-                            log.debug("Get topics under namespace {}, topic: {}", namespaceName, topicName));
-                }
-
-                final List<String> oldTopics = new ArrayList<>(getPartitionedTopics());
-                for (String partition : getPartitions()) {
-                    TopicName topicName = TopicName.get(partition);
-                    if (!topicName.isPartitioned() || !oldTopics.contains(topicName.getPartitionedTopicName())) {
-                        oldTopics.add(partition);
+                // If "recheckTopicsChange" has been called more than one times, only make the last one take affects.
+                // Use "synchronized (recheckPatternTaskBackoff)" instead of
+                // `synchronized(PatternMultiTopicsConsumerImpl.this)` to avoid locking in a wider range.
+                synchronized (recheckPatternTaskBackoff) {
+                    if (recheckPatternEpoch.get() > epoch) {
+                        return CompletableFuture.completedFuture(null);
                     }
+                    if (log.isDebugEnabled()) {
+                        log.debug("Get topics under namespace {}, topics.size: {}, topicsHash: {}, filtered: {}",
+                                namespaceName, getTopicsResult.getTopics().size(), getTopicsResult.getTopicsHash(),
+                                getTopicsResult.isFiltered());
+                        getTopicsResult.getTopics().forEach(topicName ->
+                                log.debug("Get topics under namespace {}, topic: {}", namespaceName, topicName));
+                    }
+
+                    final List<String> oldTopics = new ArrayList<>(getPartitionedTopics());
+                    for (String partition : getPartitions()) {
+                        TopicName topicName = TopicName.get(partition);
+                        if (!topicName.isPartitioned() || !oldTopics.contains(topicName.getPartitionedTopicName())) {
+                            oldTopics.add(partition);
+                        }
+                    }
+                    return updateSubscriptions(topicsPattern, this::setTopicsHash, getTopicsResult,
+                            topicsChangeListener, oldTopics);
                 }
-                return updateSubscriptions(topicsPattern, this::setTopicsHash, getTopicsResult,
-                        topicsChangeListener, oldTopics);
-            }).exceptionally(ex -> {
-                log.warn("[{}] Failed to recheck topics change: {}", topic, ex.getMessage());
-                return null;
-            }).thenAccept(__ -> {
-                // schedule the next re-check task
-                this.recheckPatternTimeout = client.timer()
-                        .newTimeout(PatternMultiTopicsConsumerImpl.this,
-                        Math.max(1, conf.getPatternAutoDiscoveryPeriod()), TimeUnit.SECONDS);
             });
     }
 

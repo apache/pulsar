@@ -82,14 +82,6 @@ public class PulsarClusterSpec {
     int numFunctionWorkers = 0;
 
     /**
-     * Enable a Presto Worker Node
-     *
-     * @return the flag whether presto worker is enabled
-     */
-    @Default
-    boolean enablePrestoWorker = false;
-
-    /**
      * Allow to query the last message
      */
     @Default
@@ -156,6 +148,12 @@ public class PulsarClusterSpec {
     Map<String, String> bookkeeperEnvs;
 
     /**
+     * Specify envs for function workers.
+     */
+    @Singular
+    Map<String, String> functionWorkerEnvs;
+
+    /**
      * Specify mount files.
      */
     Map<String, String> proxyMountFiles;
@@ -179,8 +177,22 @@ public class PulsarClusterSpec {
     List<Integer> bookieAdditionalPorts;
 
     /**
+     * Additional ports to expose on proxy containers.
+     */
+    List<Integer> proxyAdditionalPorts;
+
+    /**
+     * Additional ports to expose on function workers.
+     */
+    @Singular
+    List<Integer> functionWorkerAdditionalPorts;
+
+    /**
      * Enable TLS for connection.
      */
     @Default
     boolean enableTls = false;
+
+    @Default
+    boolean enableOxia = false;
 }

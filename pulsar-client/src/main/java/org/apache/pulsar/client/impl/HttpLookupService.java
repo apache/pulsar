@@ -30,7 +30,6 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.PulsarClientException.NotFoundException;
 import org.apache.pulsar.client.api.SchemaSerializationException;
@@ -81,7 +80,7 @@ public class HttpLookupService implements LookupService {
      */
     @Override
     @SuppressWarnings("deprecation")
-    public CompletableFuture<Pair<InetSocketAddress, InetSocketAddress>> getBroker(TopicName topicName) {
+    public CompletableFuture<LookupTopicResult> getBroker(TopicName topicName) {
         String basePath = topicName.isV2() ? BasePathV2 : BasePathV1;
         String path = basePath + topicName.getLookupName();
         path = StringUtils.isBlank(listenerName) ? path : path + "?listenerName=" + Codec.encode(listenerName);
@@ -101,7 +100,8 @@ public class HttpLookupService implements LookupService {
                 }
 
                 InetSocketAddress brokerAddress = InetSocketAddress.createUnresolved(uri.getHost(), uri.getPort());
-                return CompletableFuture.completedFuture(Pair.of(brokerAddress, brokerAddress));
+                return CompletableFuture.completedFuture(new LookupTopicResult(brokerAddress, brokerAddress,
+                        false /* HTTP lookups never use the proxy */));
             } catch (Exception e) {
                 // Failed to parse url
                 log.warn("[{}] Lookup Failed due to invalid url {}, {}", topicName, uri, e.getMessage());

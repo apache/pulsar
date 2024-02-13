@@ -923,9 +923,9 @@ public abstract class NamespacesBase extends AdminResource {
             return FutureUtil.failedFuture(new RestException(Response.Status.PRECONDITION_FAILED, errorStr));
         }
         LeaderBroker leaderBroker = pulsar().getLeaderElectionService().getCurrentLeader().get();
-        String leaderBrokerUrl = leaderBroker.getServiceUrl();
+        String leaderBrokerId = leaderBroker.getBrokerId();
         return pulsar().getNamespaceService()
-                .createLookupResult(leaderBrokerUrl, false, null)
+                .createLookupResult(leaderBrokerId, false, null)
                 .thenCompose(lookupResult -> {
                     String redirectUrl = isRequestHttps() ? lookupResult.getLookupData().getHttpUrlTls()
                             : lookupResult.getLookupData().getHttpUrl();
@@ -948,7 +948,7 @@ public abstract class NamespacesBase extends AdminResource {
                         return FutureUtil.failedFuture((
                                 new WebApplicationException(Response.temporaryRedirect(redirect).build())));
                     } catch (MalformedURLException exception) {
-                        log.error("The leader broker url is malformed - {}", leaderBrokerUrl);
+                        log.error("The redirect url is malformed - {}", redirectUrl);
                         return FutureUtil.failedFuture(new RestException(exception));
                     }
                 });
@@ -984,8 +984,11 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     public CompletableFuture<Void> internalUnloadNamespaceBundleAsync(String bundleRange,
-                                                                      String destinationBroker,
+                                                                      String destinationBrokerParam,
                                                                       boolean authoritative) {
+        String destinationBroker = StringUtils.isBlank(destinationBrokerParam) ? null :
+                // ensure backward compatibility: strip the possible http:// or https:// prefix
+                destinationBrokerParam.replaceFirst("http[s]?://", "");
         return validateSuperUserAccessAsync()
                 .thenCompose(__ -> setNamespaceBundleAffinityAsync(bundleRange, destinationBroker))
                 .thenAccept(__ -> {
@@ -2674,5 +2677,28 @@ public abstract class NamespacesBase extends AdminResource {
             policies.bundles = getBundles(defaultNumberOfBundles);
         }
         return policies;
+    }
+
+    protected CompletableFuture<Void> internalSetDispatcherPauseOnAckStatePersistentAsync(
+            boolean dispatcherPauseOnAckStatePersistentEnabled) {
+        return validateNamespacePolicyOperationAsync(namespaceName,
+                    PolicyName.DISPATCHER_PAUSE_ON_ACK_STATE_PERSISTENT, PolicyOperation.WRITE)
+                .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
+                .thenCompose(__ -> updatePoliciesAsync(namespaceName, policies -> {
+                    policies.dispatcherPauseOnAckStatePersistentEnabled = dispatcherPauseOnAckStatePersistentEnabled;
+                    return policies;
+                }));
+    }
+
+    protected CompletableFuture<Object> internalGetDispatcherPauseOnAckStatePersistentAsync() {
+        return validateNamespacePolicyOperationAsync(namespaceName,
+                    PolicyName.DISPATCHER_PAUSE_ON_ACK_STATE_PERSISTENT, PolicyOperation.READ)
+                .thenCompose(__ -> namespaceResources().getPoliciesAsync(namespaceName))
+                .thenApply(policiesOpt -> {
+                    if (!policiesOpt.isPresent()) {
+                        throw new RestException(Response.Status.NOT_FOUND, "Namespace policies does not exist");
+                    }
+                    return policiesOpt.map(p -> p.dispatcherPauseOnAckStatePersistentEnabled).orElse(false);
+                });
     }
 }

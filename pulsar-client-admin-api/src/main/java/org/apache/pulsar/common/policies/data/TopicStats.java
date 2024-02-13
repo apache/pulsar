@@ -64,6 +64,31 @@ public interface TopicStats {
     /** Get the publish time of the earliest message over all the backlogs. */
     long getEarliestMsgPublishTimeInBacklogs();
 
+    /** the size in bytes of the topic backlog quota. */
+    long getBacklogQuotaLimitSize();
+
+    /** the topic backlog age quota, in seconds. */
+    long getBacklogQuotaLimitTime();
+
+    /**
+     * Age of oldest unacknowledged message, as recorded in last backlog quota check interval.
+     * <p>
+     * The age of the oldest unacknowledged (i.e. backlog) message, measured by the time elapsed from its published
+     * time, in seconds. This value is recorded every backlog quota check interval, hence it represents the value
+     * seen in the last check.
+     * </p>
+     */
+    long getOldestBacklogMessageAgeSeconds();
+
+    /**
+     * The subscription name containing oldest unacknowledged message as recorded in last backlog quota check.
+     * <p>
+     * The name of the subscription containing the oldest unacknowledged message. This value is recorded every backlog
+     * quota check interval, hence it represents the value seen in the last check.
+     * </p>
+     */
+    String getOldestBacklogMessageSubscriptionName();
+
     /** Space used to store the offloaded messages for the topic/. */
     long getOffloadedStorageSize();
 

@@ -419,7 +419,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
         // complete possible pending connection check future
         if (connectionCheckInProgress != null && !connectionCheckInProgress.isDone()) {
-            connectionCheckInProgress.complete(false);
+            connectionCheckInProgress.complete(Optional.of(false));
         }
     }
 
@@ -1788,15 +1788,18 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             printSendCommandDebug(send, headersAndPayload);
         }
 
-        PulsarService pulsar = getBrokerService().pulsar();
-        // if the topic is transferring, we ignore send msg.
+        // New messages are silently ignored during topic transfer. Note that the transferring flag is only set when the
+        // Extensible Load Manager is enabled.
         if (producer.getTopic().isTransferring()) {
-            long ignoredMsgCount = ExtensibleLoadManagerImpl.get(pulsar)
-                    .getIgnoredSendMsgCounter().addAndGet(send.getNumMessages());
+            var pulsar = getBrokerService().pulsar();
+            var ignoredMsgCount = send.getNumMessages();
+            var ignoredSendMsgTotalCount = ExtensibleLoadManagerImpl.get(pulsar).getIgnoredSendMsgCount().
+                    addAndGet(ignoredMsgCount);
             if (log.isDebugEnabled()) {
-                log.debug("Ignored send msg from:{}:{} to fenced topic:{} while transferring."
-                                + " Ignored message count:{}.",
-                        remoteAddress, send.getProducerId(), producer.getTopic().getName(), ignoredMsgCount);
+                log.debug("Ignoring {} messages from:{}:{} to fenced topic:{} while transferring."
+                                + " Total ignored message count: {}.",
+                        ignoredMsgCount, remoteAddress, send.getProducerId(), producer.getTopic().getName(),
+                        ignoredSendMsgTotalCount);
             }
             return;
         }
@@ -1869,11 +1872,16 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         if (consumerFuture != null && consumerFuture.isDone() && !consumerFuture.isCompletedExceptionally()) {
             Consumer consumer = consumerFuture.getNow(null);
             Subscription subscription = consumer.getSubscription();
+            // Message acks are silently ignored during topic transfer. Note that the transferring flag is only set when
+            // the Extensible Load Manager is enabled.
             if (subscription.getTopic().isTransferring()) {
-                // Message acks are silently ignored during topic transfer.
+                var pulsar = getBrokerService().getPulsar();
+                var ignoredAckCount = ack.getMessageIdsCount();
+                var ignoredAckTotalCount = ExtensibleLoadManagerImpl.get(pulsar).getIgnoredAckCount().
+                        addAndGet(ignoredAckCount);
                 if (log.isDebugEnabled()) {
-                    log.debug("[{}] [{}] Ignoring message acknowledgment during topic transfer, ack count: {}",
-                            subscription, consumerId, ack.getMessageIdsCount());
+                    log.debug("[{}] [{}] Ignoring {} message acks during topic transfer. Total ignored ack count: {}",
+                            subscription, consumerId, ignoredAckCount, ignoredAckTotalCount);
                 }
                 return;
             }
@@ -1958,7 +1966,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         CompletableFuture<Consumer> consumerFuture = consumers.get(unsubscribe.getConsumerId());
 
         if (consumerFuture != null && consumerFuture.isDone() && !consumerFuture.isCompletedExceptionally()) {
-            consumerFuture.getNow(null).doUnsubscribe(unsubscribe.getRequestId());
+            consumerFuture.getNow(null).doUnsubscribe(unsubscribe.getRequestId(), unsubscribe.isForce());
         } else {
             commandSender.sendErrorResponse(unsubscribe.getRequestId(), ServerError.MetadataError,
                     "Consumer not found");
@@ -2170,7 +2178,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                         (PositionImpl) markDeletePosition,
                         partitionIndex,
                         requestId,
-                        consumer.getSubscription().getName());
+                        consumer.getSubscription().getName(),
+                        consumer.readCompacted());
             }).exceptionally(e -> {
                 writeAndFlush(Commands.newError(getLastMessageId.getRequestId(),
                         ServerError.UnknownError, "Failed to recover Transaction Buffer."));
@@ -2188,15 +2197,17 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             PositionImpl markDeletePosition,
             int partitionIndex,
             long requestId,
-            String subscriptionName) {
+            String subscriptionName,
+            boolean readCompacted) {
 
         PersistentTopic persistentTopic = (PersistentTopic) topic;
         ManagedLedgerImpl ml = (ManagedLedgerImpl) persistentTopic.getManagedLedger();
 
         // If it's not pointing to a valid entry, respond messageId of the current position.
         // If the compaction cursor reach the end of the topic, respond messageId from compacted ledger
-        CompletableFuture<Position> compactionHorizonFuture =
-                persistentTopic.getTopicCompactionService().getLastCompactedPosition();
+        CompletableFuture<Position> compactionHorizonFuture = readCompacted
+                ? persistentTopic.getTopicCompactionService().getLastCompactedPosition() :
+                CompletableFuture.completedFuture(null);
 
         compactionHorizonFuture.whenComplete((compactionHorizon, ex) -> {
             if (ex != null) {
@@ -2205,8 +2216,22 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 return;
             }
 
-            if (lastPosition.getEntryId() == -1 || (compactionHorizon != null
-                    && lastPosition.compareTo((PositionImpl) compactionHorizon) <= 0)) {
+            if (lastPosition.getEntryId() == -1 || !ml.ledgerExists(lastPosition.getLedgerId())) {
+                // there is no entry in the original topic
+                if (compactionHorizon != null) {
+                    // if readCompacted is true, we need to read the last entry from compacted topic
+                    handleLastMessageIdFromCompactionService(persistentTopic, requestId, partitionIndex,
+                            markDeletePosition);
+                } else {
+                    // if readCompacted is false, we need to return MessageId.earliest
+                    writeAndFlush(Commands.newGetLastMessageIdResponse(requestId, -1, -1, partitionIndex, -1,
+                            markDeletePosition != null ? markDeletePosition.getLedgerId() : -1,
+                            markDeletePosition != null ? markDeletePosition.getEntryId() : -1));
+                }
+                return;
+            }
+
+            if (compactionHorizon != null && lastPosition.compareTo((PositionImpl) compactionHorizon) <= 0) {
                 handleLastMessageIdFromCompactionService(persistentTopic, requestId, partitionIndex,
                         markDeletePosition);
                 return;
@@ -2227,7 +2252,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
                 @Override
                 public String toString() {
-                    return String.format("ServerCnx [{}] get largest batch index when possible",
+                    return String.format("ServerCnx [%s] get largest batch index when possible",
                             ServerCnx.this.ctx.channel());
                 }
             }, null);
@@ -2241,7 +2266,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
             batchSizeFuture.whenComplete((batchSize, e) -> {
                 if (e != null) {
-                    if (e.getCause() instanceof ManagedLedgerException.NonRecoverableLedgerException) {
+                    if (e.getCause() instanceof ManagedLedgerException.NonRecoverableLedgerException
+                            && readCompacted) {
                         handleLastMessageIdFromCompactionService(persistentTopic, requestId, partitionIndex,
                                 markDeletePosition);
                     } else {
@@ -3454,16 +3480,17 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         return clientSourceAddressAndPort;
     }
 
-    CompletableFuture<Boolean> connectionCheckInProgress;
+    CompletableFuture<Optional<Boolean>> connectionCheckInProgress;
 
     @Override
-    public CompletableFuture<Boolean> checkConnectionLiveness() {
+    public CompletableFuture<Optional<Boolean>> checkConnectionLiveness() {
         if (connectionLivenessCheckTimeoutMillis > 0) {
             return NettyFutureUtil.toCompletableFuture(ctx.executor().submit(() -> {
                 if (connectionCheckInProgress != null) {
                     return connectionCheckInProgress;
                 } else {
-                    final CompletableFuture<Boolean> finalConnectionCheckInProgress = new CompletableFuture<>();
+                    final CompletableFuture<Optional<Boolean>> finalConnectionCheckInProgress =
+                            new CompletableFuture<>();
                     connectionCheckInProgress = finalConnectionCheckInProgress;
                     ctx.executor().schedule(() -> {
                         if (finalConnectionCheckInProgress == connectionCheckInProgress
@@ -3478,7 +3505,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             })).thenCompose(java.util.function.Function.identity());
         } else {
             // check is disabled
-            return CompletableFuture.completedFuture((Boolean) null);
+            return CompletableFuture.completedFuture(Optional.empty());
         }
     }
 
@@ -3486,7 +3513,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     protected void messageReceived() {
         super.messageReceived();
         if (connectionCheckInProgress != null && !connectionCheckInProgress.isDone()) {
-            connectionCheckInProgress.complete(true);
+            connectionCheckInProgress.complete(Optional.of(true));
             connectionCheckInProgress = null;
         }
     }

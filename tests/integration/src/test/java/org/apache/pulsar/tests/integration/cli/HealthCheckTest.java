@@ -53,7 +53,7 @@ public class HealthCheckTest extends TestRetrySupport {
         .clusterName("HealthCheckTest-" + UUID.randomUUID().toString().substring(0, 8))
         .numProxies(0)
         .numFunctionWorkers(0)
-        .enablePrestoWorker(false).build();
+        .build();
 
     private PulsarCluster pulsarCluster = null;
 

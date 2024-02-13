@@ -517,6 +517,10 @@ public interface ManagedCursor {
      */
     void rewind();
 
+    default void rewind(boolean readCompacted) {
+        rewind();
+    }
+
     /**
      * Move the cursor to a different read position.
      *
@@ -862,4 +866,8 @@ public interface ManagedCursor {
      * @return whether this cursor is closed.
      */
     boolean isClosed();
+
+    default boolean isCursorDataFullyPersistable() {
+        return true;
+    }
 }
