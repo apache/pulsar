@@ -242,8 +242,11 @@ public class BrokerService implements Closeable {
     protected final AtomicReference<Semaphore> lookupRequestSemaphore;
     protected final AtomicReference<Semaphore> topicLoadRequestSemaphore;
 
+    /** @deprecated by {@link #pendingLookupRequestsCounter} */
     private final ObserverGauge pendingLookupRequests;
     private final ObservableLongUpDownCounter pendingLookupRequestsCounter;
+
+    /** @deprecated by {@link #pendingTopicLoadRequestsCounter} */
     private final ObserverGauge pendingTopicLoadRequests;
     private final ObservableLongUpDownCounter pendingTopicLoadRequestsCounter;
 
