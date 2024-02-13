@@ -39,7 +39,7 @@ import org.apache.commons.lang3.StringUtils;
  */
 public class OpenTelemetryService implements Closeable {
 
-    static final String OTEL_SDK_DISABLED_KEY = "otel.sdk.disabled";
+    public static final String OTEL_SDK_DISABLED_KEY = "otel.sdk.disabled";
     static final int MAX_CARDINALITY_LIMIT = 10000;
 
     private final OpenTelemetrySdk openTelemetrySdk;
