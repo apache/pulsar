@@ -21,12 +21,18 @@ package org.apache.pulsar.broker.service;
 import static io.opentelemetry.sdk.testing.assertj.OpenTelemetryAssertions.assertThat;
 import static org.mockito.Mockito.atLeast;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.verify;
+import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import lombok.Cleanup;
+import org.apache.pulsar.broker.BrokerTestUtil;
+import org.apache.pulsar.broker.lookup.LookupResult;
 import org.apache.pulsar.broker.testcontext.PulsarTestContext;
 import org.apache.pulsar.broker.testcontext.SpyConfig;
 import org.apache.pulsar.common.naming.TopicName;
 import org.awaitility.Awaitility;
+import org.mockito.Mockito;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -52,9 +58,9 @@ public class TopicLookupMetricsTest extends BrokerTestBase {
                 builder -> builder.namespaceService(SpyConfig.SpyType.SPY_ALSO_INVOCATIONS));
     }
 
-    @Test(timeOut = 30_000)
+    @Test(timeOut = 30_000, invocationCount = 100)
     public void testPendingLookupRequestsCounter() throws Exception {
-        var topicName = TopicName.get("persistent://prop/ns-abc/newTopic");
+        var topicName = TopicName.get(BrokerTestUtil.newUniqueName("persistent://prop/ns-abc/testTopic"));
         var namespaceService = pulsar.getNamespaceService();
         var metricReader = pulsarTestContext.getOpenTelemetryMetricReader();
 
@@ -78,5 +84,75 @@ public class TopicLookupMetricsTest extends BrokerTestBase {
         var consumer = pulsarClient.newConsumer().topic(topicName.toString()).subscriptionName("mysub").subscribe();
 
         verify(namespaceService, atLeast(1)).getBundleAsync(topicName);
+    }
+
+    @Test(timeOut = 30_000, invocationCount = 100)
+    public void testLookupAnswersCounter() throws Exception {
+        var topicName = TopicName.get(BrokerTestUtil.newUniqueName("persistent://prop/ns-abc/testTopic"));
+        var metricReader = pulsarTestContext.getOpenTelemetryMetricReader();
+
+        assertThat(metricReader.collectAllMetrics())
+            .noneSatisfy(metric -> assertThat(metric).hasName("pulsar.broker.lookup.answer"));
+
+        @Cleanup
+        var consumer = pulsarClient.newConsumer().topic(topicName.toString()).subscriptionName("mysub").subscribe();
+
+        Awaitility.await().untilAsserted(() ->
+            assertThat(metricReader.collectAllMetrics())
+                .anySatisfy(metric -> assertThat(metric)
+                    .hasName("pulsar.broker.lookup.answer")
+                    .hasLongSumSatisfying(sum -> sum.hasPointsSatisfying(point -> point.hasValue(2)))));
+
+        // Also verify latency numbers are being recorded.
+        assertThat(metricReader.collectAllMetrics()).anySatisfy(metric -> assertThat(metric)
+            .hasName("pulsar.broker.lookup.latency")
+            .hasHistogramSatisfying(histogram -> histogram.hasPointsSatisfying(point -> point.hasCount(2))));
+    }
+
+    @Test(timeOut = 30_000)
+    public void testLookupFailureCounter() throws Exception {
+        var topicName = TopicName.get(BrokerTestUtil.newUniqueName("persistent://prop/ns-abc/testTopic"));
+        var namespaceService = pulsar.getNamespaceService();
+        var metricReader = pulsarTestContext.getOpenTelemetryMetricReader();
+
+        assertThat(metricReader.collectAllMetrics())
+            .noneSatisfy(metric -> assertThat(metric).hasName("pulsar.broker.lookup.answer"));
+
+        doAnswer(__ -> CompletableFuture.failedFuture(new Exception())).doCallRealMethod()
+                .when(namespaceService).getBundleAsync(topicName);
+
+        @Cleanup
+        var consumer = pulsarClient.newConsumer().topic(topicName.toString()).subscriptionName("mysub").subscribe();
+
+        Awaitility.await().untilAsserted(() ->
+            assertThat(metricReader.collectAllMetrics())
+                .anySatisfy(metric -> assertThat(metric)
+                    .hasName("pulsar.broker.lookup.failure")
+                    .hasLongSumSatisfying(sum -> sum.hasPointsSatisfying(point -> point.hasValue(1)))));
+    }
+
+    @Test(timeOut = 30_000)
+    public void testLookupRedirectCounter() throws Exception {
+        var topicName = TopicName.get(BrokerTestUtil.newUniqueName("persistent://prop/ns-abc/testTopic"));
+        var namespaceService = pulsar.getNamespaceService();
+        var metricReader = pulsarTestContext.getOpenTelemetryMetricReader();
+
+        assertThat(metricReader.collectAllMetrics())
+            .noneSatisfy(metric -> assertThat(metric).hasName("pulsar.broker.lookup.redirect"));
+
+        var lookupResult = Mockito.mock(LookupResult.class);
+        doReturn(true).when(lookupResult).isRedirect();
+
+        var future = CompletableFuture.completedFuture(Optional.of(lookupResult));
+        doReturn(future).doCallRealMethod().when(namespaceService).findBrokerServiceUrl(Mockito.any(), Mockito.any());
+
+        @Cleanup
+        var consumer = pulsarClient.newConsumer().topic(topicName.toString()).subscriptionName("mysub").subscribe();
+
+        Awaitility.await().untilAsserted(() ->
+            assertThat(metricReader.collectAllMetrics())
+                .anySatisfy(metric -> assertThat(metric)
+                    .hasName("pulsar.broker.lookup.redirect")
+                    .hasLongSumSatisfying(sum -> sum.hasPointsSatisfying(point -> point.hasValue(1)))));
     }
 }

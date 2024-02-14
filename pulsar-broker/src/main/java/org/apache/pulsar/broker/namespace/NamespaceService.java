@@ -24,6 +24,7 @@ import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.pulsar.common.naming.NamespaceName.SYSTEM_NAMESPACE;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.hash.Hashing;
 import io.opentelemetry.api.metrics.LongCounter;
 import io.opentelemetry.api.metrics.LongHistogram;
@@ -458,7 +459,8 @@ public class NamespaceService implements AutoCloseable {
      * @param options the lookup options
      * @return the lookup result
      */
-    private CompletableFuture<Optional<LookupResult>> findBrokerServiceUrl(
+    @VisibleForTesting
+    public CompletableFuture<Optional<LookupResult>> findBrokerServiceUrl(
             NamespaceBundle bundle, LookupOptions options) {
         if (LOG.isDebugEnabled()) {
             LOG.debug("findBrokerServiceUrl: {} - options: {}", bundle, options);
