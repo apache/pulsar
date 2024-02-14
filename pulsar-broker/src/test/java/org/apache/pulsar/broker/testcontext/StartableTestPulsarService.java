@@ -19,11 +19,6 @@
 
 package org.apache.pulsar.broker.testcontext;
 
-import io.opentelemetry.sdk.autoconfigure.AutoConfiguredOpenTelemetrySdkBuilder;
-import io.opentelemetry.sdk.metrics.export.MetricReader;
-import io.opentelemetry.sdk.testing.exporter.InMemoryMetricReader;
-import java.util.Map;
-import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import org.apache.pulsar.broker.BookKeeperClientFactory;
@@ -36,7 +31,6 @@ import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.stats.PulsarBrokerOpenTelemetry;
 import org.apache.pulsar.compaction.CompactionServiceFactory;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
-import org.apache.pulsar.opentelemetry.OpenTelemetryService;
 
 /**
  * This is an internal class used by {@link PulsarTestContext} as the {@link PulsarService} implementation
@@ -44,7 +38,6 @@ import org.apache.pulsar.opentelemetry.OpenTelemetryService;
  */
 class StartableTestPulsarService extends AbstractTestPulsarService {
     private final Function<BrokerService, BrokerService> brokerServiceCustomizer;
-    public final MetricReader openTelemetryMetricReader;
 
     public StartableTestPulsarService(SpyConfig spyConfig, ServiceConfiguration config,
                                       MetadataStoreExtended localMetadataStore,
@@ -52,18 +45,16 @@ class StartableTestPulsarService extends AbstractTestPulsarService {
                                       CompactionServiceFactory compactionServiceFactory,
                                       BrokerInterceptor brokerInterceptor,
                                       BookKeeperClientFactory bookKeeperClientFactory,
-                                      Function<BrokerService, BrokerService> brokerServiceCustomizer) {
+                                      Function<BrokerService, BrokerService> brokerServiceCustomizer,
+                                      PulsarBrokerOpenTelemetry openTelemetry) {
         super(spyConfig, config, localMetadataStore, configurationMetadataStore, compactionServiceFactory,
                 brokerInterceptor, bookKeeperClientFactory);
         this.brokerServiceCustomizer = brokerServiceCustomizer;
-        this.openTelemetry.close();
-        // Replace existing OpenTelemetry wrapper class.
-        openTelemetryMetricReader = InMemoryMetricReader.create();
-        this.openTelemetry = new PulsarBrokerOpenTelemetry(config, builderCustomizer -> {
-            builderCustomizer.addMeterProviderCustomizer(
-                    (meterProviderBuilder, __) -> meterProviderBuilder.registerMetricReader(openTelemetryMetricReader));
-            builderCustomizer.addPropertiesSupplier(() -> Map.of(OpenTelemetryService.OTEL_SDK_DISABLED_KEY, "false"));
-        });
+        if (openTelemetry != null) {
+            // Replace existing OpenTelemetry wrapper class.
+            this.openTelemetry.close();
+            this.openTelemetry = openTelemetry;
+        }
     }
 
     @Override

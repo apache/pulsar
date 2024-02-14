@@ -21,11 +21,13 @@ package org.apache.pulsar.broker.testcontext;
 
 import com.google.common.util.concurrent.MoreExecutors;
 import io.netty.channel.EventLoopGroup;
+import io.opentelemetry.sdk.testing.exporter.InMemoryMetricReader;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -52,6 +54,7 @@ import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.broker.resources.TopicResources;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.ServerCnx;
+import org.apache.pulsar.broker.stats.PulsarBrokerOpenTelemetry;
 import org.apache.pulsar.broker.storage.ManagedLedgerStorage;
 import org.apache.pulsar.common.util.GracefulExecutorServicesShutdown;
 import org.apache.pulsar.common.util.PortManager;
@@ -64,6 +67,7 @@ import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.metadata.impl.MetadataStoreFactoryImpl;
 import org.apache.pulsar.metadata.impl.ZKMetadataStore;
+import org.apache.pulsar.opentelemetry.OpenTelemetryService;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.MockZooKeeper;
 import org.apache.zookeeper.MockZooKeeperSession;
@@ -160,6 +164,8 @@ public class PulsarTestContext implements AutoCloseable {
 
     private final boolean preallocatePorts;
 
+    private final boolean enableOpenTelemetry;
+    private final InMemoryMetricReader openTelemetryMetricReader;
 
     public ManagedLedgerFactory getManagedLedgerFactory() {
         return managedLedgerClientFactory.getManagedLedgerFactory();
@@ -727,11 +733,27 @@ public class PulsarTestContext implements AutoCloseable {
                     .equals(PulsarCompactionServiceFactory.class.getName())) {
                 compactionServiceFactory = new MockPulsarCompactionServiceFactory(spyConfig, builder.compactor);
             }
+            PulsarBrokerOpenTelemetry pulsarBrokerOpenTelemetry;
+            if (builder.enableOpenTelemetry) {
+                var reader = InMemoryMetricReader.create();
+                pulsarBrokerOpenTelemetry = new PulsarBrokerOpenTelemetry(builder.config, builderCustomizer -> {
+                    builderCustomizer.addMeterProviderCustomizer(
+                            (meterProviderBuilder, __) -> meterProviderBuilder.registerMetricReader(reader));
+                    builderCustomizer.addPropertiesSupplier(() -> Map.of(
+                            OpenTelemetryService.OTEL_SDK_DISABLED_KEY, "false",
+                            // Disable any resource providers as they are not needed for these tests.
+                            "otel.java.enabled.resource.providers", "dummy"
+                    ));
+                });
+                openTelemetryMetricReader(reader);
+            } else {
+                pulsarBrokerOpenTelemetry = null;
+            }
             PulsarService pulsarService = spyConfig.getPulsarService()
                     .spy(StartableTestPulsarService.class, spyConfig, builder.config, builder.localMetadataStore,
                             builder.configurationMetadataStore, compactionServiceFactory,
                             builder.brokerInterceptor,
-                            bookKeeperClientFactory, builder.brokerServiceCustomizer);
+                            bookKeeperClientFactory, builder.brokerServiceCustomizer, pulsarBrokerOpenTelemetry);
             if (compactionServiceFactory != null) {
                 compactionServiceFactory.initialize(pulsarService);
             }
