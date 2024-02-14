@@ -21,18 +21,18 @@ package org.apache.pulsar.broker.service;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-
-import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerAssignException;
-import org.apache.pulsar.client.api.Range;
-import org.testng.Assert;
-import org.testng.annotations.Test;
-
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
+import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerAssignException;
+import org.apache.pulsar.client.api.Range;
+import org.testng.Assert;
+import org.testng.annotations.Test;
 
 @Test(groups = "broker")
 public class ConsistentHashingStickyKeyConsumerSelectorTest {
@@ -171,5 +171,49 @@ public class ConsistentHashingStickyKeyConsumerSelectorTest {
             expectedResult.remove(entry.getKey());
         }
         Assert.assertEquals(expectedResult.size(), 0);
+    }
+
+    // reproduces https://github.com/apache/pulsar/issues/22050
+    @Test
+    public void shouldNotCollideWithConsumerNameEndsWithNumber() {
+        ConsistentHashingStickyKeyConsumerSelector selector = new ConsistentHashingStickyKeyConsumerSelector(12);
+        List<String> consumerName = Arrays.asList("consumer1", "consumer11");
+        List<Consumer> consumers = new ArrayList<>();
+        for (String s : consumerName) {
+            Consumer consumer = mock(Consumer.class);
+            when(consumer.consumerName()).thenReturn(s);
+            selector.addConsumer(consumer);
+            consumers.add(consumer);
+        }
+        Map<Range, Consumer> rangeToConsumer = new HashMap<>();
+        for (Map.Entry<Consumer, List<Range>> entry : selector.getConsumerKeyHashRanges().entrySet()) {
+            for (Range range : entry.getValue()) {
+                Consumer previous = rangeToConsumer.put(range, entry.getKey());
+                if (previous != null) {
+                    Assert.fail("Ranges are colliding between " + previous.consumerName() + " and " + entry.getKey()
+                            .consumerName());
+                }
+            }
+        }
+    }
+
+    @Test
+    public void shouldRemoveConsumersFromConsumerKeyHashRanges() {
+        ConsistentHashingStickyKeyConsumerSelector selector = new ConsistentHashingStickyKeyConsumerSelector(12);
+        List<Consumer> consumers = IntStream.range(1, 100).mapToObj(i -> "consumer" + i)
+                .map(consumerName -> {
+                    Consumer consumer = mock(Consumer.class);
+                    when(consumer.consumerName()).thenReturn(consumerName);
+                    return consumer;
+                }).collect(Collectors.toList());
+
+        // when consumers are added
+        consumers.forEach(selector::addConsumer);
+        // then each consumer should have a range
+        Assert.assertEquals(selector.getConsumerKeyHashRanges().size(), consumers.size());
+        // when consumers are removed
+        consumers.forEach(selector::removeConsumer);
+        // then there should be no mapping remaining
+        Assert.assertEquals(selector.getConsumerKeyHashRanges().size(), 0);
     }
 }
