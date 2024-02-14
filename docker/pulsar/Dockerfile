@@ -35,7 +35,7 @@ COPY scripts/* /pulsar/bin/
 # any group id != 0 (for example 10001).
 # The file permissions are preserved when copying files from this builder image to the target image.
 RUN for SUBDIRECTORY in conf data download logs instances/deps; do \
-     [ -d /pulsar/$SUBDIRECTORY ] || mkdir /pulsar/$SUBDIRECTORY; \
+     mkdir -p /pulsar/$SUBDIRECTORY; \
      chmod -R ug+rwx /pulsar/$SUBDIRECTORY; \
      chown -R 10000:0 /pulsar/$SUBDIRECTORY; \
      done
@@ -65,6 +65,19 @@ RUN pip3 install --break-system-packages \
     pulsar-client[all]==${PULSAR_CLIENT_PYTHON_VERSION}
 
 
+###  Create one stage to include JVM distribution
+FROM alpine AS jvm
+
+RUN wget -O /etc/apk/keys/amazoncorretto.rsa.pub https://apk.corretto.aws/amazoncorretto.rsa.pub
+RUN echo "https://apk.corretto.aws" >> /etc/apk/repositories
+RUN apk add --no-cache amazon-corretto-21 binutils
+
+# Use JLink to create a slimmer JDK distribution (see: https://adoptium.net/blog/2021/10/jlink-to-produce-own-runtime/)
+# This still includes all JDK modules, though in the future we could compile a list of required modules
+RUN /usr/lib/jvm/default-jvm/bin/jlink --add-modules ALL-MODULE-PATH --compress zip-9 --no-man-pages --no-header-files --strip-debug --output /opt/jvm
+RUN echo networkaddress.cache.ttl=1 >> /opt/jvm/conf/security/java.security
+
+
 ## Create final stage from Alpine image
 ## and add OpenJDK and Python dependencies (for Pulsar functions)
 FROM alpine:3.19.1
@@ -77,20 +90,8 @@ RUN apk add --no-cache \
             py3-pip \
             ca-certificates
 
-RUN  wget -O /etc/apk/keys/amazoncorretto.rsa.pub https://apk.corretto.aws/amazoncorretto.rsa.pub && \
-    echo "https://apk.corretto.aws" >> /etc/apk/repositories && \
-    apk add --no-cache amazon-corretto-21 binutils && \
-    # Use JLink to create a slimmer JDK distribution (see: https://adoptium.net/blog/2021/10/jlink-to-produce-own-runtime/)
-    # This still includes all JDK modules, though in the future we could compile a list of required modules
-    /usr/lib/jvm/default-jvm/bin/jlink --add-modules ALL-MODULE-PATH --compress zip-9 --no-man-pages --no-header-files --strip-debug --output /opt/corretto-slim && \
-    apk del binutils amazon-corretto-21 && \
-    mkdir -p /usr/lib/jvm/ && \
-    mv /opt/corretto-slim /usr/lib/jvm/java-21-amazon-corretto && \
-    ln -sfn /usr/lib/jvm/java-21-amazon-corretto /usr/lib/jvm/default-jvm
-
-ENV JAVA_HOME=/usr/lib/jvm/default-jvm
-
-RUN echo networkaddress.cache.ttl=1 >> /usr/lib/jvm/default-jvm/conf/security/java.security
+COPY --from=jvm /opt/jvm /opt/jvm
+ENV JAVA_HOME=/opt/jvm
 
 # Copy Python depedencies from the other stage
 COPY --from=python-deps /usr/lib/python3.11/site-packages /usr/lib/python3.11/site-packages
