@@ -25,6 +25,7 @@ package org.apache.bookkeeper.test;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.util.concurrent.CountDownLatch;
 
@@ -54,6 +55,9 @@ public class ZooKeeperUtil {
     private String connectString;
 
     public ZooKeeperUtil() {
+        String loopbackIPAddr = InetAddress.getLoopbackAddress().getHostAddress();
+        zkaddr = new InetSocketAddress(loopbackIPAddr, 0);
+        connectString = loopbackIPAddr + ":" + zooKeeperPort;
     }
 
     public ZooKeeper getZooKeeperClient() {
