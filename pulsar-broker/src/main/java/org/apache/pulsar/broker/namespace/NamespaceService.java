@@ -26,8 +26,8 @@ import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.pulsar.common.naming.NamespaceName.SYSTEM_NAMESPACE;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.hash.Hashing;
+import io.opentelemetry.api.metrics.DoubleHistogram;
 import io.opentelemetry.api.metrics.LongCounter;
-import io.opentelemetry.api.metrics.LongHistogram;
 import io.prometheus.client.Counter;
 import java.net.URI;
 import java.net.URL;
@@ -163,7 +163,7 @@ public class NamespaceService implements AutoCloseable {
             .quantile(0.999)
             .quantile(1.0)
             .register();
-    private final LongHistogram lookupLatencyHistogram;
+    private final DoubleHistogram lookupLatencyHistogram;
 
     /**
      * Default constructor.
@@ -189,17 +189,16 @@ public class NamespaceService implements AutoCloseable {
                 .build();
         this.lookupFailuresCounter = meter
                 .counterBuilder("pulsar.broker.lookup.failure")
-                .setDescription("The number of lookup responses (i.e. not redirected requests)")
+                .setDescription("The number of lookup failures")
                 .build();
         this.lookupAnswersCounter = meter
                 .counterBuilder("pulsar.broker.lookup.answer")
-                .setDescription("The number of lookup failures")
+                .setDescription("The number of lookup responses (i.e. not redirected requests)")
                 .build();
         this.lookupLatencyHistogram = meter
                 .histogramBuilder("pulsar.broker.lookup.latency")
-                .ofLongs()
                 .setDescription("Lookup request latency")
-                .setUnit("ns")
+                .setUnit("s")
                 .build();
     }
 
@@ -231,9 +230,9 @@ public class NamespaceService implements AutoCloseable {
                 });
 
         future.thenAccept(optResult -> {
-            var latency = System.nanoTime() - startTime;
-            lookupLatency.observe(latency, TimeUnit.NANOSECONDS);
-            lookupLatencyHistogram.record(latency);
+            var latencyNs = System.nanoTime() - startTime;
+            lookupLatency.observe(latencyNs, TimeUnit.NANOSECONDS);
+            lookupLatencyHistogram.record(latencyNs / 1_000_000_000.0);
             if (optResult.isPresent()) {
                 if (optResult.get().isRedirect()) {
                     lookupRedirects.inc();

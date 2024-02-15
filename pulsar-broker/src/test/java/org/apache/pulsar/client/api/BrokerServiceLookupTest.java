@@ -269,7 +269,9 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
                         .hasLongSumSatisfying(sum -> sum.hasPointsSatisfying(point -> point.hasValue(1))));
         assertThat(metrics).anySatisfy(metric -> assertThat(metric)
                 .hasName("pulsar.broker.lookup.latency")
-                .hasHistogramSatisfying(histogram -> histogram.hasPointsSatisfying(point -> point.hasCount(2))));
+                .hasHistogramSatisfying(histogram -> histogram.hasPointsSatisfying(point -> point
+                        .hasCount(2)
+                        .hasSumGreaterThan(0.0))));
         assertThat(hasLookupPendingRequestMetric).isTrue();
         assertThat(hasTopicLoadPendingRequestMetric).isTrue();
 
