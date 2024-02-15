@@ -159,7 +159,7 @@ public class TopicLookupMetricsTest extends BrokerTestBase {
         var metricReader = pulsarTestContext.getOpenTelemetryMetricReader();
 
         assertThat(metricReader.collectAllMetrics())
-            .noneSatisfy(metric -> assertThat(metric).hasName("pulsar.broker.lookup.answer"));
+            .noneSatisfy(metric -> assertThat(metric).hasName("pulsar.broker.lookup.failure"));
 
         doAnswer(__ -> CompletableFuture.failedFuture(new Exception())).doCallRealMethod()
                 .when(namespaceService).getBundleAsync(topicName);

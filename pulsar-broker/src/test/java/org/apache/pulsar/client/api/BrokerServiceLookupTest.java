@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.api;
 
+import static io.opentelemetry.sdk.testing.assertj.OpenTelemetryAssertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
@@ -78,6 +79,7 @@ import org.apache.pulsar.broker.namespace.OwnershipCache;
 import org.apache.pulsar.broker.namespace.ServiceUnitUtils;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.testcontext.PulsarTestContext;
+import org.apache.pulsar.broker.testcontext.SpyConfig;
 import org.apache.pulsar.client.impl.BinaryProtoLookupService;
 import org.apache.pulsar.client.impl.ClientCnx;
 import org.apache.pulsar.client.impl.LookupService;
@@ -131,6 +133,13 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         internalCleanup();
     }
 
+    @Override
+    protected void customizeMainPulsarTestContextBuilder(PulsarTestContext.Builder pulsarTestContextBuilder) {
+        pulsarTestContextBuilder.enableOpenTelemetry(true);
+        pulsarTestContextBuilder.spyConfigCustomizer(
+                builder -> builder.namespaceService(SpyConfig.SpyType.SPY_ALSO_INVOCATIONS));
+    }
+
     /**
      * Usecase Multiple Broker => Lookup Redirection test
      *
@@ -178,6 +187,10 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         doReturn(Optional.of(resourceUnit)).when(loadManager2).getLeastLoaded(any(ServiceUnitId.class));
         loadManagerField.set(pulsar.getNamespaceService(), new AtomicReference<>(loadManager1));
 
+        var metricReader = pulsarTestContext.getOpenTelemetryMetricReader();
+        assertThat(metricReader.collectAllMetrics())
+                .noneSatisfy(metric -> assertThat(metric).hasName("pulsar.broker.lookup.redirect"));
+
         /**** started broker-2 ****/
 
         @Cleanup
@@ -204,6 +217,12 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
             String expectedMessage = "my-message-" + i;
             testMessageOrderAndDuplicates(messageSet, receivedMessage, expectedMessage);
         }
+
+        assertThat(metricReader.collectAllMetrics())
+                .anySatisfy(metric -> assertThat(metric)
+                        .hasName("pulsar.broker.lookup.redirect")
+                        .hasLongSumSatisfying(sum -> sum.hasPointsSatisfying(point -> point.hasValue(1))));
+
         // Acknowledge the consumption of all messages at once
         consumer.acknowledgeCumulative(msg);
         consumer.close();
@@ -1125,6 +1144,10 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         assertTrue(lookupService instanceof BinaryProtoLookupService);
         ClientCnx lookupConnection = pulsarClientImpl.getCnxPool().getConnection(lookupService.resolveHost()).join();
 
+        var metricReader = pulsarTestContext.getOpenTelemetryMetricReader();
+        assertThat(metricReader.collectAllMetrics())
+                .noneSatisfy(metric -> assertThat(metric).hasName("pulsar.broker.lookup.failure"));
+
         // Verify the socket will not be closed if the bundle is unloading.
         BundleOfTopic bundleOfTopic = new BundleOfTopic(tpName);
         bundleOfTopic.setBundleIsUnloading();
@@ -1134,6 +1157,11 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         } catch (Exception ex) {
             assertTrue(ex.getMessage().contains("is being unloaded"));
         }
+
+        assertThat(metricReader.collectAllMetrics())
+                .anySatisfy(metric -> assertThat(metric)
+                        .hasName("pulsar.broker.lookup.failure")
+                        .hasLongSumSatisfying(sum -> sum.hasPointsSatisfying(point -> point.hasValue(1))));
         // Do unload topic, trigger producer & consumer reconnection.
         pulsar.getBrokerService().getTopic(tpName, false).join().get().close(true);
         assertTrue(lookupConnection.ctx().channel().isActive());
