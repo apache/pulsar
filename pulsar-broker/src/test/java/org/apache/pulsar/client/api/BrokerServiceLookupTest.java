@@ -20,6 +20,7 @@ package org.apache.pulsar.client.api;
 
 import static io.opentelemetry.sdk.testing.assertj.OpenTelemetryAssertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
@@ -56,6 +57,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 import javax.naming.AuthenticationException;
@@ -187,6 +189,24 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         doReturn(Optional.of(resourceUnit)).when(loadManager2).getLeastLoaded(any(ServiceUnitId.class));
         loadManagerField.set(pulsar.getNamespaceService(), new AtomicReference<>(loadManager1));
 
+        var metricReader = pulsarTestContext.getOpenTelemetryMetricReader();
+        var lookupRequestSemaphoreField = BrokerService.class.getDeclaredField("lookupRequestSemaphore");
+        lookupRequestSemaphoreField.setAccessible(true);
+        var lookupRequestSemaphoreSpy = spy(pulsar.getBrokerService().getLookupRequestSemaphore());
+        var hasLookupPendingRequestMetric = new AtomicBoolean(false);
+        doAnswer(invocation -> {
+            var ret = invocation.callRealMethod();
+            if (Boolean.TRUE.equals(ret)) {
+                assertThat(metricReader.collectAllMetrics())
+                        .anySatisfy(metric -> assertThat(metric)
+                                .hasName("pulsar.broker.lookup.pending.request")
+                                .hasLongSumSatisfying(sum -> sum.hasPointsSatisfying(point -> point.hasValue(1))));
+                hasLookupPendingRequestMetric.set(true);
+            }
+            return ret;
+        }).doCallRealMethod().when(lookupRequestSemaphoreSpy).tryAcquire();
+        lookupRequestSemaphoreField.set(pulsar.getBrokerService(), new AtomicReference<>(lookupRequestSemaphoreSpy));
+
         var metrics = pulsarTestContext.getOpenTelemetryMetricReader().collectAllMetrics();
         assertThat(metrics).noneSatisfy(metric -> assertThat(metric).hasName("pulsar.broker.lookup.answer"));
         assertThat(metrics).noneSatisfy(metric -> assertThat(metric).hasName("pulsar.broker.lookup.redirect"));
@@ -231,6 +251,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         assertThat(metrics).anySatisfy(metric -> assertThat(metric)
                 .hasName("pulsar.broker.lookup.latency")
                 .hasHistogramSatisfying(histogram -> histogram.hasPointsSatisfying(point -> point.hasCount(2))));
+        assertThat(hasLookupPendingRequestMetric).isTrue();
 
         // Acknowledge the consumption of all messages at once
         consumer.acknowledgeCumulative(msg);
