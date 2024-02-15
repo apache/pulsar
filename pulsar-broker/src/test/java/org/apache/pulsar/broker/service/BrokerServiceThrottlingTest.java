@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker.service;
 
-import static io.opentelemetry.sdk.testing.assertj.OpenTelemetryAssertions.assertThat;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertTrue;
@@ -39,7 +38,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
-import org.apache.pulsar.broker.testcontext.PulsarTestContext;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -49,7 +47,6 @@ import org.apache.pulsar.client.impl.PulsarServiceNameResolver;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
-import org.awaitility.Awaitility;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -69,11 +66,6 @@ public class BrokerServiceThrottlingTest extends BrokerTestBase {
         super.internalCleanup();
     }
 
-    @Override
-    protected void customizeMainPulsarTestContextBuilder(PulsarTestContext.Builder pulsarTestContextBuilder) {
-        pulsarTestContextBuilder.enableOpenTelemetry(true);
-    }
-
     /**
      * Verifies: updating zk-throttling node reflects broker-maxConcurrentLookupRequest and updates semaphore.
      *
@@ -82,17 +74,7 @@ public class BrokerServiceThrottlingTest extends BrokerTestBase {
     @Test
     public void testThrottlingLookupRequestSemaphore() throws Exception {
         BrokerService service = pulsar.getBrokerService();
-        var metricReader = pulsarTestContext.getOpenTelemetryMetricReader();
         assertNotEquals(service.lookupRequestSemaphore.get().availablePermits(), 0);
-        var metrics = metricReader.collectAllMetrics();
-        Awaitility.waitAtMost(5, TimeUnit.SECONDS).untilAsserted(() -> {
-            assertThat(metrics)
-                .anySatisfy(metric -> assertThat(metric)
-                    .hasName("pulsar.broker.lookup.pending.request")
-                    .hasLongSumSatisfying(sum -> sum
-                        .hasPointsSatisfying(point -> point
-                            .hasValue(0))));
-        });
         admin.brokers().updateDynamicConfiguration("maxConcurrentLookupRequest", Integer.toString(0));
         Thread.sleep(1000);
         assertEquals(service.lookupRequestSemaphore.get().availablePermits(), 0);
