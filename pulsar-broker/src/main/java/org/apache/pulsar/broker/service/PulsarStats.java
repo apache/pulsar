@@ -183,7 +183,7 @@ public class PulsarStats implements Closeable {
                         topicStatsStream.endObject();
                     });
 
-                    brokerStats.bundleCount += bundles.size();
+                    brokerStats.bundleCount += (int) bundles.size();
                     brokerStats.producerCount += nsStats.producerCount;
                     brokerStats.replicatorCount += nsStats.replicatorCount;
                     brokerStats.subsCount += nsStats.subsCount;
