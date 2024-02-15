@@ -187,11 +187,10 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         doReturn(Optional.of(resourceUnit)).when(loadManager2).getLeastLoaded(any(ServiceUnitId.class));
         loadManagerField.set(pulsar.getNamespaceService(), new AtomicReference<>(loadManager1));
 
-        var metricReader = pulsarTestContext.getOpenTelemetryMetricReader();
-        assertThat(metricReader.collectAllMetrics())
-                .noneSatisfy(metric -> assertThat(metric).hasName("pulsar.broker.lookup.answer"));
-        assertThat(metricReader.collectAllMetrics())
-                .noneSatisfy(metric -> assertThat(metric).hasName("pulsar.broker.lookup.redirect"));
+        var metrics = pulsarTestContext.getOpenTelemetryMetricReader().collectAllMetrics();
+        assertThat(metrics).noneSatisfy(metric -> assertThat(metric).hasName("pulsar.broker.lookup.answer"));
+        assertThat(metrics).noneSatisfy(metric -> assertThat(metric).hasName("pulsar.broker.lookup.redirect"));
+        assertThat(metrics).noneSatisfy(metric -> assertThat(metric).hasName("pulsar.broker.lookup.latency"));
 
         /**** started broker-2 ****/
 
@@ -220,14 +219,18 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
             testMessageOrderAndDuplicates(messageSet, receivedMessage, expectedMessage);
         }
 
-        assertThat(metricReader.collectAllMetrics())
+        metrics = pulsarTestContext.getOpenTelemetryMetricReader().collectAllMetrics();
+        assertThat(metrics)
                 .anySatisfy(metric -> assertThat(metric)
                         .hasName("pulsar.broker.lookup.answer")
                         .hasLongSumSatisfying(sum -> sum.hasPointsSatisfying(point -> point.hasValue(1))));
-        assertThat(metricReader.collectAllMetrics())
+        assertThat(metrics)
                 .anySatisfy(metric -> assertThat(metric)
                         .hasName("pulsar.broker.lookup.redirect")
                         .hasLongSumSatisfying(sum -> sum.hasPointsSatisfying(point -> point.hasValue(1))));
+        assertThat(metrics).anySatisfy(metric -> assertThat(metric)
+                .hasName("pulsar.broker.lookup.latency")
+                .hasHistogramSatisfying(histogram -> histogram.hasPointsSatisfying(point -> point.hasCount(2))));
 
         // Acknowledge the consumption of all messages at once
         consumer.acknowledgeCumulative(msg);
