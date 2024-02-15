@@ -168,7 +168,8 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         conf2.setConfigurationMetadataStoreUrl("zk:localhost:3181");
 
         @Cleanup
-        PulsarTestContext pulsarTestContext2 = createAdditionalPulsarTestContext(conf2);
+        PulsarTestContext pulsarTestContext2 = createAdditionalPulsarTestContext(conf2,
+                builder -> builder.enableOpenTelemetry(true));
         PulsarService pulsar2 = pulsarTestContext2.getPulsarService();
         pulsar.getLoadManager().get().writeLoadReportOnZookeeper();
         pulsar2.getLoadManager().get().writeLoadReportOnZookeeper();
@@ -206,6 +207,24 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
             return ret;
         }).doCallRealMethod().when(lookupRequestSemaphoreSpy).tryAcquire();
         lookupRequestSemaphoreField.set(pulsar.getBrokerService(), new AtomicReference<>(lookupRequestSemaphoreSpy));
+
+        var topicLoadRequestSemaphoreField = BrokerService.class.getDeclaredField("topicLoadRequestSemaphore");
+        topicLoadRequestSemaphoreField.setAccessible(true);
+        var topicLoadRequestSemaphoreSpy = spy(pulsar2.getBrokerService().getTopicLoadRequestSemaphore().get());
+        var hasTopicLoadPendingRequestMetric = new AtomicBoolean(false);
+        doAnswer(invocation -> {
+            var ret = invocation.callRealMethod();
+            if (Boolean.TRUE.equals(ret)) {
+                assertThat(pulsarTestContext2.getOpenTelemetryMetricReader().collectAllMetrics())
+                        .anySatisfy(metric -> assertThat(metric)
+                                .hasName("pulsar.broker.topic.load.pending.request")
+                                .hasLongSumSatisfying(sum -> sum.hasPointsSatisfying(point -> point.hasValue(1))));
+                hasTopicLoadPendingRequestMetric.set(true);
+            }
+            return ret;
+        }).doCallRealMethod().when(topicLoadRequestSemaphoreSpy).tryAcquire();
+        topicLoadRequestSemaphoreField.set(pulsar2.getBrokerService(),
+                new AtomicReference<>(topicLoadRequestSemaphoreSpy));
 
         var metrics = pulsarTestContext.getOpenTelemetryMetricReader().collectAllMetrics();
         assertThat(metrics).noneSatisfy(metric -> assertThat(metric).hasName("pulsar.broker.lookup.answer"));
@@ -252,12 +271,12 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
                 .hasName("pulsar.broker.lookup.latency")
                 .hasHistogramSatisfying(histogram -> histogram.hasPointsSatisfying(point -> point.hasCount(2))));
         assertThat(hasLookupPendingRequestMetric).isTrue();
+        assertThat(hasTopicLoadPendingRequestMetric).isTrue();
 
         // Acknowledge the consumption of all messages at once
         consumer.acknowledgeCumulative(msg);
         consumer.close();
         producer.close();
-
     }
 
     @Test
