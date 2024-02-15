@@ -39,7 +39,6 @@ import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.hamcrest.Matchers.lessThanOrEqualTo;
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertThrows;
-import static org.testng.Assert.expectThrows;
 import static org.testng.AssertJUnit.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
@@ -333,19 +332,6 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         return errorCnt;
     }
 
-    @Test(priority = 1)
-    public void compactionScheduleTest() {
-        Awaitility.await()
-                .pollInterval(200, TimeUnit.MILLISECONDS)
-                .atMost(5, TimeUnit.SECONDS)
-                .ignoreExceptions()
-                .untilAsserted(() -> { // wait until true
-                    var threshold = admin.topicPolicies()
-                            .getCompactionThreshold(ServiceUnitStateChannelImpl.TOPIC, false);
-                    assertEquals(5 * 1024 * 1024, threshold == null ? 0 : threshold.longValue());
-                });
-    }
-
     @Test(priority = 2)
     public void assignmentTest()
             throws ExecutionException, InterruptedException, IllegalAccessException, TimeoutException {
@@ -506,11 +492,13 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         assertEquals(1, getOwnerRequests1.size());
         assertEquals(1, getOwnerRequests2.size());
 
-        // In 10 secs, the getOwnerAsync requests(lookup requests) should time out.
+        // In 10 secs, the getOwnerAsync requests(lookup requests) should return by getAssigned.
+        long start = System.currentTimeMillis();
         Awaitility.await().atMost(10, TimeUnit.SECONDS)
-                .untilAsserted(() -> assertTrue(owner1.isCompletedExceptionally()));
+                .untilAsserted(() -> assertEquals(owner1.get(), unload.destBroker()));
         Awaitility.await().atMost(10, TimeUnit.SECONDS)
-                .untilAsserted(() -> assertTrue(owner2.isCompletedExceptionally()));
+                .untilAsserted(() -> assertEquals(owner2.get(), unload.destBroker()));
+        assertTrue(System.currentTimeMillis() - start >= 1000);
 
         assertEquals(0, getOwnerRequests1.size());
         assertEquals(0, getOwnerRequests2.size());
@@ -960,7 +948,7 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         FieldUtils.writeField(strategicCompactorField, pulsar2, compactor, true);
 
         var threshold = admin.topicPolicies()
-                .getCompactionThreshold(ServiceUnitStateChannelImpl.TOPIC, false);
+                .getCompactionThreshold(ServiceUnitStateChannelImpl.TOPIC);
         admin.topicPolicies()
                 .setCompactionThreshold(ServiceUnitStateChannelImpl.TOPIC, 0);
 
@@ -986,8 +974,10 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         } finally {
             FieldUtils.writeDeclaredField(channel2,
                     "inFlightStateWaitingTimeInMillis", 30 * 1000, true);
-            admin.topicPolicies()
-                    .setCompactionThreshold(ServiceUnitStateChannelImpl.TOPIC, threshold);
+            if (threshold != null) {
+                admin.topicPolicies()
+                        .setCompactionThreshold(ServiceUnitStateChannelImpl.TOPIC, threshold);
+            }
         }
 
 
@@ -1150,11 +1140,13 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         assertFalse(owner1.isDone());
         assertFalse(owner2.isDone());
 
-        // In 10 secs, the getOwnerAsync requests(lookup requests) should time out.
+        // In 10 secs, the getOwnerAsync requests(lookup requests) returns by getAssigned.
+        long start = System.currentTimeMillis();
         Awaitility.await().atMost(10, TimeUnit.SECONDS)
-                .untilAsserted(() -> assertTrue(owner1.isCompletedExceptionally()));
+                .untilAsserted(() -> assertEquals(owner1.get().get(), brokerId2));
         Awaitility.await().atMost(10, TimeUnit.SECONDS)
-                .untilAsserted(() -> assertTrue(owner2.isCompletedExceptionally()));
+                .untilAsserted(() -> assertEquals(owner2.get().get(), brokerId2));
+        assertTrue(System.currentTimeMillis() - start >= 1000);
 
         // recovered, check the monitor update state : Assigned -> Owned
         FieldUtils.writeDeclaredField(channel2, "producer", producer, true);
@@ -1590,10 +1582,11 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
                 "inFlightStateWaitingTimeInMillis", 1000, true);
 
 
-        // verify getOwnerAsync times out because the owner is inactive now.
+        // verify getOwnerAsync returns by getAssigned when the owner is inactive now.
         long start = System.currentTimeMillis();
-        var ex = expectThrows(ExecutionException.class, () -> channel1.getOwnerAsync(bundle).get());
-        assertTrue(ex.getCause() instanceof TimeoutException);
+        var owner2 = channel1.getOwnerAsync(bundle);
+        Awaitility.await().atMost(10, TimeUnit.SECONDS)
+                .untilAsserted(() -> assertEquals(owner2.get().get(), brokerId2));
         assertTrue(System.currentTimeMillis() - start >= 1000);
 
         // simulate ownership cleanup(no selected owner) by the leader channel

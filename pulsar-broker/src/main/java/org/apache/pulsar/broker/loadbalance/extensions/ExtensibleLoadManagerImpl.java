@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.loadbalance.extensions;
 import static java.lang.String.format;
 import static org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl.Role.Follower;
 import static org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl.Role.Leader;
+import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannelImpl.TOPIC;
 import static org.apache.pulsar.broker.loadbalance.extensions.models.SplitDecision.Label.Success;
 import static org.apache.pulsar.broker.loadbalance.extensions.models.SplitDecision.Reason.Admin;
 import static org.apache.pulsar.broker.loadbalance.impl.LoadManagerShared.getNamespaceBundle;
@@ -117,6 +118,8 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
     private static final long MAX_ROLE_CHANGE_RETRY_DELAY_IN_MILLIS = 200;
 
     private static final long MONITOR_INTERVAL_IN_MILLIS = 120_000;
+
+    public static final long COMPACTION_THRESHOLD = 5 * 1024 * 1024;
 
     private static final String ELECTION_ROOT = "/loadbalance/extension/leader";
 
@@ -311,6 +314,19 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
         createSystemTopic(pulsar, TOP_BUNDLES_LOAD_DATA_STORE_TOPIC);
     }
 
+    private static void configureSystemTopics(PulsarService pulsar) throws PulsarServerException, PulsarAdminException {
+        if (pulsar.getConfiguration().isSystemTopicAndTopicLevelPoliciesEnabled()) {
+            Long threshold = pulsar.getAdminClient().topicPolicies().getCompactionThreshold(TOPIC);
+            if (threshold == null || COMPACTION_THRESHOLD != threshold) {
+                pulsar.getAdminClient().topicPolicies().setCompactionThreshold(TOPIC, COMPACTION_THRESHOLD);
+                log.info("Set compaction threshold: {} bytes for system topic {}.", COMPACTION_THRESHOLD, TOPIC);
+            }
+        } else {
+            log.warn("System topic or topic level policies is disabled. "
+                    + "{} compaction threshold follows the broker or namespace policies.", TOPIC);
+        }
+    }
+
     /**
      * Gets the assigned broker for the given topic.
      * @param pulsar PulsarService instance
@@ -496,10 +512,20 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
 
     private CompletableFuture<String> getOrSelectOwnerAsync(ServiceUnitId serviceUnit,
                                                             String bundle) {
-        return serviceUnitStateChannel.getOwnerAsync(bundle).thenCompose(broker -> {
-            // If the bundle not assign yet, select and publish assign event to channel.
-            if (broker.isEmpty()) {
-                return this.selectAsync(serviceUnit).thenCompose(brokerOpt -> {
+        Optional<String> assigned;
+        try {
+            // Quickly check the assigned broker without waiting for the owned state
+            assigned = serviceUnitStateChannel.getAssigned(bundle);
+        } catch (Throwable e) {
+            return CompletableFuture.failedFuture(e);
+        }
+        return assigned.map(broker -> {
+            assignCounter.incrementSkip();
+            // Already assigned, return it.
+            return CompletableFuture.completedFuture(broker);
+        }).orElseGet(() ->
+                // If not assigned yet, select and publish assign event to channel.
+                this.selectAsync(serviceUnit).thenCompose(brokerOpt -> {
                     if (brokerOpt.isPresent()) {
                         assignCounter.incrementSuccess();
                         log.info("Selected new owner broker: {} for bundle: {}.", brokerOpt.get(), bundle);
@@ -507,12 +533,7 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
                     }
                     throw new IllegalStateException(
                             "Failed to select the new owner broker for bundle: " + bundle);
-                });
-            }
-            assignCounter.incrementSkip();
-            // Already assigned, return it.
-            return CompletableFuture.completedFuture(broker.get());
-        });
+                }));
     }
 
     private CompletableFuture<Optional<BrokerLookupData>> getBrokerLookupData(
@@ -575,7 +596,7 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
                     if (ex != null) {
                         assignCounter.incrementFailure();
                     }
-                    lookupRequests.remove(key, newFutureCreated.getValue());
+                    lookupRequests.remove(key);
                 });
             }
         }
@@ -788,7 +809,7 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
     }
 
     public static boolean isInternalTopic(String topic) {
-        return topic.startsWith(ServiceUnitStateChannelImpl.TOPIC)
+        return topic.startsWith(TOPIC)
                 || topic.startsWith(BROKER_LOAD_DATA_STORE_TOPIC)
                 || topic.startsWith(TOP_BUNDLES_LOAD_DATA_STORE_TOPIC);
     }
@@ -810,9 +831,10 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
                 topBundlesLoadDataStore.init();
                 unloadScheduler.start();
                 serviceUnitStateChannel.scheduleOwnershipMonitor();
+                configureSystemTopics(pulsar);
                 break;
             } catch (Throwable e) {
-                log.error("The broker:{} failed to set the role. Retrying {} th ...",
+                log.warn("The broker:{} failed to set the role. Retrying {} th ...",
                         pulsar.getBrokerId(), ++retry, e);
                 try {
                     Thread.sleep(Math.min(retry * 10, MAX_ROLE_CHANGE_RETRY_DELAY_IN_MILLIS));
@@ -846,7 +868,7 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
                 topBundlesLoadDataStore.startProducer();
                 break;
             } catch (Throwable e) {
-                log.error("The broker:{} failed to set the role. Retrying {} th ...",
+                log.warn("The broker:{} failed to set the role. Retrying {} th ...",
                         pulsar.getBrokerId(), ++retry, e);
                 try {
                     Thread.sleep(Math.min(retry * 10, MAX_ROLE_CHANGE_RETRY_DELAY_IN_MILLIS));

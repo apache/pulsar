@@ -121,7 +121,6 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
     private static final long MAX_CHANNEL_OWNER_ELECTION_WAITING_TIME_IN_SECS = 10;
     private static final int MAX_OUTSTANDING_PUB_MESSAGES = 500;
     private static final long MAX_OWNED_BUNDLE_COUNT_DELAY_TIME_IN_MILLIS = 10 * 60 * 1000;
-    private static final long COMPACTION_THRESHOLD = 5 * 1024 * 1024;
     private final PulsarService pulsar;
     private final ServiceConfiguration config;
     private final Schema<ServiceUnitStateData> schema;
@@ -298,14 +297,6 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                     (pulsar.getPulsarResources(), SYSTEM_NAMESPACE, config.getClusterName());
 
             ExtensibleLoadManagerImpl.createSystemTopic(pulsar, TOPIC);
-
-            if (config.isSystemTopicAndTopicLevelPoliciesEnabled()) {
-                Long threshold = pulsar.getAdminClient().topicPolicies().getCompactionThreshold(TOPIC);
-                if (threshold == null || COMPACTION_THRESHOLD != threshold) {
-                    pulsar.getAdminClient().topicPolicies().setCompactionThreshold(TOPIC, COMPACTION_THRESHOLD);
-                    log.info("Set compaction threshold for system topic {}.", TOPIC);
-                }
-            }
 
             producer = pulsar.getClient().newProducer(schema)
                     .enableBatching(true)
@@ -499,8 +490,8 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                         .orElseGet(() -> deferGetOwnerRequest(serviceUnit).thenApply(Optional::ofNullable)))
                 .whenComplete((__, e) -> {
                     if (e != null) {
-                        log.error("Failed to get active owner broker. serviceUnit:{}, state:{}, owner:{}",
-                                serviceUnit, state, owner, e);
+                        log.error("{} failed to get active owner broker. serviceUnit:{}, state:{}, owner:{}",
+                                brokerId, serviceUnit, state, owner, e);
                         ownerLookUpCounters.get(state).getFailure().incrementAndGet();
                     }
                 });
@@ -566,12 +557,15 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                 return Optional.empty();
             }
             case Deleted -> {
-                log.warn("Trying to get the assigned broker from the deleted serviceUnit:{}", serviceUnit);
-                return Optional.empty();
+                String msg = "Failed to get the assigned broker from the deleted serviceUnit:" + serviceUnit;
+                log.warn(msg);
+                throw new IllegalArgumentException(msg);
             }
             default -> {
-                log.warn("Trying to get the assigned broker from unknown state:{} serviceUnit:{}", state, serviceUnit);
-                return Optional.empty();
+                String msg = String.format("Failed get the assigned broker from unknown state:%s serviceUnit:%s", state,
+                        serviceUnit);
+                log.warn(msg);
+                throw new IllegalArgumentException(msg);
             }
         }
     }
@@ -729,7 +723,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
 
     private void log(Throwable e, String serviceUnit, ServiceUnitStateData data, ServiceUnitStateData next) {
         if (e == null) {
-            if (log.isDebugEnabled() || isTransferCommand(data)) {
+            if (debug() || isTransferCommand(data)) {
                 long handlerTotalCount = getHandlerTotalCounter(data).get();
                 long handlerFailureCount = getHandlerFailureCounter(data).get();
                 log.info("{} handled {} event for serviceUnit:{}, cur:{}, next:{}, "
@@ -896,22 +890,28 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         try {
             return getOwnerRequests
                     .computeIfAbsent(serviceUnit, k -> {
-                        CompletableFuture<String> future = new CompletableFuture<>();
+                        CompletableFuture<String> future =
+                                new CompletableFuture<String>().orTimeout(inFlightStateWaitingTimeInMillis,
+                                                TimeUnit.MILLISECONDS)
+                                        .exceptionally(e -> {
+                                            var assigned = getAssigned(serviceUnit);
+                                            log.warn("{} failed to wait for owner for serviceUnit:{}; instead return "
+                                                            + "assigned:{}",
+                                                    brokerId, serviceUnit, assigned, e);
+                                            return assigned.orElse(null);
+                                        });
                         requested.setValue(future);
                         return future;
                     });
         } finally {
             var future = requested.getValue();
             if (future != null) {
-                future.orTimeout(inFlightStateWaitingTimeInMillis + 5 * 1000, TimeUnit.MILLISECONDS)
-                        .whenComplete((v, e) -> {
-                                    if (e != null) {
-                                        getOwnerRequests.remove(serviceUnit, future);
-                                        log.warn("Failed to getOwner for serviceUnit:{}",
-                                                serviceUnit, e);
-                                    }
-                                }
-                        );
+                future.whenComplete((__, e) -> {
+                    getOwnerRequests.remove(serviceUnit, future);
+                    if (e != null) {
+                        log.warn("{} failed to getOwner for serviceUnit:{}", brokerId, serviceUnit, e);
+                    }
+                });
             }
         }
     }
