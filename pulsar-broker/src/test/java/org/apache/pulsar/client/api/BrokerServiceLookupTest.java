@@ -189,6 +189,8 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
 
         var metricReader = pulsarTestContext.getOpenTelemetryMetricReader();
         assertThat(metricReader.collectAllMetrics())
+                .noneSatisfy(metric -> assertThat(metric).hasName("pulsar.broker.lookup.answer"));
+        assertThat(metricReader.collectAllMetrics())
                 .noneSatisfy(metric -> assertThat(metric).hasName("pulsar.broker.lookup.redirect"));
 
         /**** started broker-2 ****/
@@ -218,6 +220,10 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
             testMessageOrderAndDuplicates(messageSet, receivedMessage, expectedMessage);
         }
 
+        assertThat(metricReader.collectAllMetrics())
+                .anySatisfy(metric -> assertThat(metric)
+                        .hasName("pulsar.broker.lookup.answer")
+                        .hasLongSumSatisfying(sum -> sum.hasPointsSatisfying(point -> point.hasValue(1))));
         assertThat(metricReader.collectAllMetrics())
                 .anySatisfy(metric -> assertThat(metric)
                         .hasName("pulsar.broker.lookup.redirect")
