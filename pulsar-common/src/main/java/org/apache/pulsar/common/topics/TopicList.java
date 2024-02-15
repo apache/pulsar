@@ -42,7 +42,7 @@ public class TopicList {
     // get topics that match 'topicsPattern' from original topics list
     // return result should contain only topic names, without partition part
     public static List<String> filterTopics(List<String> original, String regex) {
-        Pattern topicsPattern = Pattern.compile(regex);
+        Pattern topicsPattern = Pattern.compile(Pattern.quote(regex));
         return filterTopics(original, topicsPattern);
     }
     public static List<String> filterTopics(List<String> original, Pattern topicsPattern) {

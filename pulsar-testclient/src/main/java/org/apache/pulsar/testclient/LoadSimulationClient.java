@@ -37,6 +37,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
+import java.util.regex.Pattern;
 import org.apache.pulsar.cli.converters.ByteUnitToLongConverter;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -274,7 +275,7 @@ public class LoadSimulationClient {
             tradeConf.size = inputStream.readInt();
             tradeConf.rate = inputStream.readDouble();
             // See if a topic belongs to this tenant and group using this regex.
-            final String groupRegex = ".*://" + tradeConf.tenant + "/.*/" + tradeConf.group + "-.*/.*";
+            final String groupRegex = Pattern.quote(".*://" + tradeConf.tenant + "/.*/" + tradeConf.group + "-.*/.*");
             for (Map.Entry<String, TradeUnit> entry : topicsToTradeUnits.entrySet()) {
                 final String topic = entry.getKey();
                 final TradeUnit unit = entry.getValue();
@@ -287,7 +288,7 @@ public class LoadSimulationClient {
             // Stop all topics belonging to a group.
             decodeGroupOptions(tradeConf, inputStream);
             // See if a topic belongs to this tenant and group using this regex.
-            final String regex = ".*://" + tradeConf.tenant + "/.*/" + tradeConf.group + "-.*/.*";
+            final String regex = Pattern.quote(".*://" + tradeConf.tenant + "/.*/" + tradeConf.group + "-.*/.*");
             for (Map.Entry<String, TradeUnit> entry : topicsToTradeUnits.entrySet()) {
                 final String topic = entry.getKey();
                 final TradeUnit unit = entry.getValue();
