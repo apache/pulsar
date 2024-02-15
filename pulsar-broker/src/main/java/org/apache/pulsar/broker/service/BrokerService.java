@@ -805,8 +805,8 @@ public class BrokerService implements Closeable {
                                     log.warn("Error in closing authenticationService", e);
                                 }
                                 pulsarStats.close();
-                                pendingLookupRequestsCounter.close();
                                 pendingTopicLoadRequestsCounter.close();
+                                pendingLookupRequestsCounter.close();
                                 try {
                                     delayedDeliveryTrackerFactory.close();
                                 } catch (Exception e) {

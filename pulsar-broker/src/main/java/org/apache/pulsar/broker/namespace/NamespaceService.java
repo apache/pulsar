@@ -24,7 +24,6 @@ import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.pulsar.common.naming.NamespaceName.SYSTEM_NAMESPACE;
-import com.google.common.annotations.VisibleForTesting;
 import com.google.common.hash.Hashing;
 import io.opentelemetry.api.metrics.DoubleHistogram;
 import io.opentelemetry.api.metrics.LongCounter;
@@ -149,14 +148,17 @@ public class NamespaceService implements AutoCloseable {
 
     private final RedirectManager redirectManager;
 
-
+    /** @deprecated by {@link #lookupRedirectsCounter} */
     private static final Counter lookupRedirects = Counter.build("pulsar_broker_lookup_redirects", "-").register();
     private final LongCounter lookupRedirectsCounter;
+    /** @deprecated by {@link #lookupFailuresCounter} */
     private static final Counter lookupFailures = Counter.build("pulsar_broker_lookup_failures", "-").register();
     private final LongCounter lookupFailuresCounter;
+    /** @deprecated by {@link #lookupAnswersCounter} */
     private static final Counter lookupAnswers = Counter.build("pulsar_broker_lookup_answers", "-").register();
     private final LongCounter lookupAnswersCounter;
 
+    /** @deprecated by {@link #lookupLatencyHistogram} */
     private static final Summary lookupLatency = Summary.build("pulsar_broker_lookup", "-")
             .quantile(0.50)
             .quantile(0.99)
@@ -458,8 +460,7 @@ public class NamespaceService implements AutoCloseable {
      * @param options the lookup options
      * @return the lookup result
      */
-    @VisibleForTesting
-    public CompletableFuture<Optional<LookupResult>> findBrokerServiceUrl(
+    private CompletableFuture<Optional<LookupResult>> findBrokerServiceUrl(
             NamespaceBundle bundle, LookupOptions options) {
         if (LOG.isDebugEnabled()) {
             LOG.debug("findBrokerServiceUrl: {} - options: {}", bundle, options);

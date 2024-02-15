@@ -81,7 +81,6 @@ import org.apache.pulsar.broker.namespace.OwnershipCache;
 import org.apache.pulsar.broker.namespace.ServiceUnitUtils;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.testcontext.PulsarTestContext;
-import org.apache.pulsar.broker.testcontext.SpyConfig;
 import org.apache.pulsar.client.impl.BinaryProtoLookupService;
 import org.apache.pulsar.client.impl.ClientCnx;
 import org.apache.pulsar.client.impl.LookupService;
@@ -138,8 +137,6 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
     @Override
     protected void customizeMainPulsarTestContextBuilder(PulsarTestContext.Builder pulsarTestContextBuilder) {
         pulsarTestContextBuilder.enableOpenTelemetry(true);
-        pulsarTestContextBuilder.spyConfigCustomizer(
-                builder -> builder.namespaceService(SpyConfig.SpyType.SPY_ALSO_INVOCATIONS));
     }
 
     /**

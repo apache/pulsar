@@ -249,6 +249,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     private final Timer brokerClientSharedTimer;
 
     private MetricsGenerator metricsGenerator;
+    @VisibleForTesting
     protected PulsarBrokerOpenTelemetry openTelemetry;
 
     private TransactionMetadataStoreService transactionMetadataStoreService;
