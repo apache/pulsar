@@ -473,7 +473,7 @@ The Apache Software License, Version 2.0
     - zookeeper-3.9.1.jar
     - zookeeper-jute-3.9.1.jar
   * Apache Yetus Audience Annotations
-    - audience-annotations-0.13.0.jar
+    - audience-annotations-0.12.0.jar
   * Swagger
     - swagger-annotations-1.6.10.jar
   * Perfmark
