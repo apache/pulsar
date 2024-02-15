@@ -2205,7 +2205,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
         // Start subscription stats
         topicStatsStream.startObject("subscriptions");
-        nsStats.subsCount += (int) (subscriptions.size());
+        nsStats.subsCount += subscriptions.size();
 
         subscriptions.forEach((subscriptionName, subscription) -> {
             double subMsgRateOut = 0;
