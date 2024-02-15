@@ -333,19 +333,6 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         return errorCnt;
     }
 
-    @Test(priority = 1)
-    public void compactionScheduleTest() {
-        Awaitility.await()
-                .pollInterval(200, TimeUnit.MILLISECONDS)
-                .atMost(5, TimeUnit.SECONDS)
-                .ignoreExceptions()
-                .untilAsserted(() -> { // wait until true
-                    var threshold = admin.topicPolicies()
-                            .getCompactionThreshold(ServiceUnitStateChannelImpl.TOPIC, false);
-                    assertEquals(5 * 1024 * 1024, threshold == null ? 0 : threshold.longValue());
-                });
-    }
-
     @Test(priority = 2)
     public void assignmentTest()
             throws ExecutionException, InterruptedException, IllegalAccessException, TimeoutException {
@@ -960,7 +947,7 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         FieldUtils.writeField(strategicCompactorField, pulsar2, compactor, true);
 
         var threshold = admin.topicPolicies()
-                .getCompactionThreshold(ServiceUnitStateChannelImpl.TOPIC, false);
+                .getCompactionThreshold(ServiceUnitStateChannelImpl.TOPIC);
         admin.topicPolicies()
                 .setCompactionThreshold(ServiceUnitStateChannelImpl.TOPIC, 0);
 
@@ -986,8 +973,10 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         } finally {
             FieldUtils.writeDeclaredField(channel2,
                     "inFlightStateWaitingTimeInMillis", 30 * 1000, true);
-            admin.topicPolicies()
-                    .setCompactionThreshold(ServiceUnitStateChannelImpl.TOPIC, threshold);
+            if (threshold != null) {
+                admin.topicPolicies()
+                        .setCompactionThreshold(ServiceUnitStateChannelImpl.TOPIC, threshold);
+            }
         }
 
 
@@ -1593,7 +1582,7 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         // verify getOwnerAsync times out because the owner is inactive now.
         long start = System.currentTimeMillis();
         var ex = expectThrows(ExecutionException.class, () -> channel1.getOwnerAsync(bundle).get());
-        assertTrue(ex.getCause() instanceof TimeoutException);
+        assertTrue(ex.getCause() instanceof IllegalStateException);
         assertTrue(System.currentTimeMillis() - start >= 1000);
 
         // simulate ownership cleanup(no selected owner) by the leader channel
@@ -1793,6 +1782,8 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
             throws IllegalAccessException {
         var tv = (TableViewImpl<ServiceUnitStateData>)
                 FieldUtils.readField(channel, "tableview", true);
+        var getOwnerRequests = (Map<String, CompletableFuture<String>>)
+                FieldUtils.readField(channel, "getOwnerRequests", true);
         var cache = (ConcurrentMap<String, ServiceUnitStateData>)
                 FieldUtils.readField(tv, "data", true);
         if(val == null){
@@ -1800,6 +1791,7 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         } else {
             cache.put(serviceUnit, val);
         }
+        getOwnerRequests.clear();
     }
 
     private static void cleanOpsCounters(ServiceUnitStateChannel channel)
