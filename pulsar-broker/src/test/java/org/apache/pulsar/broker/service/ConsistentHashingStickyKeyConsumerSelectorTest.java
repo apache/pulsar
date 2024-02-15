@@ -154,17 +154,17 @@ public class ConsistentHashingStickyKeyConsumerSelectorTest {
         }
         Map<Consumer, List<Range>> expectedResult = new HashMap<>();
         expectedResult.put(consumers.get(0), Arrays.asList(
-                Range.of(0, 330121749),
-                Range.of(330121750, 618146114),
-                Range.of(1797637922, 1976098885)));
+                Range.of(119056335, 242013991),
+                Range.of(722195657, 1656011842),
+                Range.of(1707482098, 1914695766)));
         expectedResult.put(consumers.get(1), Arrays.asList(
-                Range.of(938427576, 1094135919),
-                Range.of(1138613629, 1342907082),
-                Range.of(1342907083, 1797637921)));
+                Range.of(0, 90164503),
+                Range.of(90164504, 119056334),
+                Range.of(382436668, 722195656)));
         expectedResult.put(consumers.get(2), Arrays.asList(
-                Range.of(618146115, 772640562),
-                Range.of(772640563, 938427575),
-                Range.of(1094135920, 1138613628)));
+                Range.of(242013992, 242377547),
+                Range.of(242377548, 382436667),
+                Range.of(1656011843, 1707482097)));
         for (Map.Entry<Consumer, List<Range>> entry : selector.getConsumerKeyHashRanges().entrySet()) {
             System.out.println(entry.getValue());
             Assert.assertEquals(entry.getValue(), expectedResult.get(entry.getKey()));
