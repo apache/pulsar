@@ -460,7 +460,9 @@ public class PendingAckPersistentTest extends TransactionTestBase {
         Message<byte[]> message2 = consumer.receive(5, TimeUnit.SECONDS);
         consumer.acknowledgeAsync(message2.getMessageId(), transaction2).get();
 
-        Assert.assertEquals(pendingAckLogIndex.size(), 0);
+        Awaitility.await().untilAsserted(() -> {
+            Assert.assertEquals(pendingAckLogIndex.size(), 0);
+        });
         maxIndexLag = (long) field4.get(pendingAckStore);
         Assert.assertEquals(maxIndexLag, 5);
     }
