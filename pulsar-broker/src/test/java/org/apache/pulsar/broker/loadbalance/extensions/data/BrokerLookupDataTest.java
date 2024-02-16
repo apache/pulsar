@@ -56,7 +56,7 @@ public class BrokerLookupDataTest {
         assertEquals("3.0", lookupData.brokerVersion());
 
 
-        LookupResult lookupResult = lookupData.toLookupResult();
+        LookupResult lookupResult = lookupData.toLookupResult(null);
         assertEquals(webServiceUrl, lookupResult.getLookupData().getHttpUrl());
         assertEquals(webServiceUrlTls, lookupResult.getLookupData().getHttpUrlTls());
         assertEquals(pulsarServiceUrl, lookupResult.getLookupData().getBrokerUrl());

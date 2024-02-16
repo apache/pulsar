@@ -64,7 +64,7 @@ public class RedirectManagerTest {
         )).when(redirectManager).getAvailableBrokerLookupDataAsync();
 
         // Should redirect to broker-1, since broker-1 has the latest load manager, even though the class name is null.
-        Optional<LookupResult> lookupResult = redirectManager.findRedirectLookupResultAsync().get();
+        Optional<LookupResult> lookupResult = redirectManager.findRedirectLookupResultAsync(null).get();
         assertTrue(lookupResult.isPresent());
         assertTrue(lookupResult.get().getLookupData().getBrokerUrl().contains("broker-1"));
 
@@ -76,7 +76,7 @@ public class RedirectManagerTest {
                 }}
         )).when(redirectManager).getAvailableBrokerLookupDataAsync();
 
-        lookupResult = redirectManager.findRedirectLookupResultAsync().get();
+        lookupResult = redirectManager.findRedirectLookupResultAsync(null).get();
         assertTrue(lookupResult.isPresent());
         assertTrue(lookupResult.get().getLookupData().getBrokerUrl().contains("broker-1"));
 
@@ -89,7 +89,7 @@ public class RedirectManagerTest {
                 }}
         )).when(redirectManager).getAvailableBrokerLookupDataAsync();
 
-        lookupResult = redirectManager.findRedirectLookupResultAsync().get();
+        lookupResult = redirectManager.findRedirectLookupResultAsync(null).get();
         assertFalse(lookupResult.isPresent());
     }
 

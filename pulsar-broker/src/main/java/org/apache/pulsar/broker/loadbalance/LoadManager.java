@@ -63,7 +63,7 @@ public interface LoadManager {
     Optional<ResourceUnit> getLeastLoaded(ServiceUnitId su) throws Exception;
 
     default CompletableFuture<Optional<LookupResult>> findBrokerServiceUrl(
-            Optional<ServiceUnitId> topic, ServiceUnitId bundle) {
+            Optional<ServiceUnitId> topic, ServiceUnitId bundle, String advertisedListenerName) {
         throw new UnsupportedOperationException();
     }
 
