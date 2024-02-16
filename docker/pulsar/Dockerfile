@@ -76,6 +76,7 @@ RUN apk add --no-cache amazon-corretto-21 binutils
 # This still includes all JDK modules, though in the future we could compile a list of required modules
 RUN /usr/lib/jvm/default-jvm/bin/jlink --add-modules ALL-MODULE-PATH --compress zip-9 --no-man-pages --no-header-files --strip-debug --output /opt/jvm
 RUN echo networkaddress.cache.ttl=1 >> /opt/jvm/conf/security/java.security
+RUN echo networkaddress.cache.negative.ttl=1 >> /opt/jvm/conf/security/java.security
 
 
 ## Create final stage from Alpine image
