@@ -1682,6 +1682,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
 
         MessageIdImpl lastMessageId = (MessageIdImpl) topic.getLastMessageId().get();
         Position lastPosition = PositionImpl.get(lastMessageId.getLedgerId(), lastMessageId.getEntryId());
+        Awaitility.await().untilAsserted(() -> assertNotNull(topic.getReplicators().get("r2")));
         ConcurrentOpenHashMap<String, Replicator> replicators = topic.getReplicators();
         PersistentReplicator replicator = (PersistentReplicator) replicators.get("r2");
 
