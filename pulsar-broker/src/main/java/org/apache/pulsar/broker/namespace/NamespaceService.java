@@ -103,6 +103,7 @@ import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.metadata.api.MetadataCache;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
+import org.apache.pulsar.opentelemetry.annotations.PulsarDeprecatedMetric;
 import org.apache.pulsar.policies.data.loadbalancer.AdvertisedListener;
 import org.apache.pulsar.policies.data.loadbalancer.LocalBrokerData;
 import org.slf4j.Logger;
@@ -148,17 +149,19 @@ public class NamespaceService implements AutoCloseable {
 
     private final RedirectManager redirectManager;
 
-    /** @deprecated by {@link #lookupRedirectsCounter} */
+    @PulsarDeprecatedMetric(newMetricName = "pulsar.broker.lookup.redirect")
     private static final Counter lookupRedirects = Counter.build("pulsar_broker_lookup_redirects", "-").register();
     private final LongCounter lookupRedirectsCounter;
-    /** @deprecated by {@link #lookupFailuresCounter} */
+
+    @PulsarDeprecatedMetric(newMetricName = "pulsar.broker.lookup.failure")
     private static final Counter lookupFailures = Counter.build("pulsar_broker_lookup_failures", "-").register();
     private final LongCounter lookupFailuresCounter;
-    /** @deprecated by {@link #lookupAnswersCounter} */
+
+    @PulsarDeprecatedMetric(newMetricName = "pulsar.broker.lookup.answer")
     private static final Counter lookupAnswers = Counter.build("pulsar_broker_lookup_answers", "-").register();
     private final LongCounter lookupAnswersCounter;
 
-    /** @deprecated by {@link #lookupLatencyHistogram} */
+    @PulsarDeprecatedMetric(newMetricName = "pulsar.broker.lookup.latency")
     private static final Summary lookupLatency = Summary.build("pulsar_broker_lookup", "-")
             .quantile(0.50)
             .quantile(0.99)

@@ -180,6 +180,7 @@ import org.apache.pulsar.compaction.Compactor;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.Notification;
 import org.apache.pulsar.metadata.api.NotificationType;
+import org.apache.pulsar.opentelemetry.annotations.PulsarDeprecatedMetric;
 import org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats;
 import org.apache.pulsar.transaction.coordinator.TransactionMetadataStore;
 import org.slf4j.Logger;
@@ -242,11 +243,11 @@ public class BrokerService implements Closeable {
     protected final AtomicReference<Semaphore> lookupRequestSemaphore;
     protected final AtomicReference<Semaphore> topicLoadRequestSemaphore;
 
-    /** @deprecated by {@link #pendingLookupRequestsCounter} */
+    @PulsarDeprecatedMetric(newMetricName = "pulsar.broker.lookup.pending.request")
     private final ObserverGauge pendingLookupRequests;
     private final ObservableLongUpDownCounter pendingLookupRequestsCounter;
 
-    /** @deprecated by {@link #pendingTopicLoadRequestsCounter} */
+    @PulsarDeprecatedMetric(newMetricName = "pulsar.broker.topic.load.pending.request")
     private final ObserverGauge pendingTopicLoadRequests;
     private final ObservableLongUpDownCounter pendingTopicLoadRequestsCounter;
 
