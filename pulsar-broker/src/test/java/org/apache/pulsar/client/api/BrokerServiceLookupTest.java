@@ -135,8 +135,9 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
     }
 
     @Override
-    protected void customizeMainPulsarTestContextBuilder(PulsarTestContext.Builder pulsarTestContextBuilder) {
-        pulsarTestContextBuilder.enableOpenTelemetry(true);
+    protected void customizeMainPulsarTestContextBuilder(PulsarTestContext.Builder builder) {
+        super.customizeMainPulsarTestContextBuilder(builder);
+        builder.enableOpenTelemetry(true);
     }
 
     /**
@@ -197,8 +198,9 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
             if (Boolean.TRUE.equals(ret)) {
                 assertThat(metricReader.collectAllMetrics())
                         .anySatisfy(metric -> assertThat(metric)
-                                .hasName("pulsar.broker.lookup.pending.request")
-                                .hasLongSumSatisfying(sum -> sum.hasPointsSatisfying(point -> point.hasValue(1))));
+                                .hasName("pulsar.broker.lookup.pending.request.usage")
+                                .hasLongGaugeSatisfying(
+                                        gauge -> gauge.hasPointsSatisfying(point -> point.hasValue(1))));
                 hasLookupPendingRequestMetric.set(true);
             }
             return ret;
@@ -214,8 +216,9 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
             if (Boolean.TRUE.equals(ret)) {
                 assertThat(pulsarTestContext2.getOpenTelemetryMetricReader().collectAllMetrics())
                         .anySatisfy(metric -> assertThat(metric)
-                                .hasName("pulsar.broker.topic.load.pending.request")
-                                .hasLongSumSatisfying(sum -> sum.hasPointsSatisfying(point -> point.hasValue(1))));
+                                .hasName("pulsar.broker.topic.load.pending.request.usage")
+                                .hasLongGaugeSatisfying(
+                                        gauge -> gauge.hasPointsSatisfying(point -> point.hasValue(1))));
                 hasTopicLoadPendingRequestMetric.set(true);
             }
             return ret;
