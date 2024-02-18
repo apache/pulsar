@@ -148,7 +148,10 @@ public class ShadowManagedLedgerImplTest extends MockedBookKeeperTestCase {
 
             newPos = sourceML.addEntry(data); // new ledger rolled.
             newPos = sourceML.addEntry(data);
-            Awaitility.await().untilAsserted(() -> assertEquals(shadowML.ledgers.size(), 5));
+            Awaitility.await().untilAsserted(() -> {
+                assertEquals(shadowML.ledgers.size(), 6);
+                assertEquals(shadowML.currentLedgerEntries, 0);
+            });
             assertEquals(future.get(), fakePos);
             // LCE should be updated.
             log.info("3.Source.LCE={},Shadow.LCE={}", sourceML.lastConfirmedEntry, shadowML.lastConfirmedEntry);
