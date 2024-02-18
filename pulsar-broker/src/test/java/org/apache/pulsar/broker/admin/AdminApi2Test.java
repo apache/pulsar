@@ -3389,4 +3389,33 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         // cleanup.
         admin.namespaces().deleteNamespace(ns);
     }
+
+    @Test
+    private void testAnalyzeSubscriptionBacklogNotCauseStuck() throws Exception {
+        final String topic = BrokerTestUtil.newUniqueName("persistent://" + defaultNamespace + "/tp");
+        final String subscription = "s1";
+        admin.topics().createNonPartitionedTopic(topic);
+        // Send 10 messages.
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING).topic(topic).subscriptionName(subscription)
+                .receiverQueueSize(0).subscribe();
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topic).create();
+        for (int i = 0; i < 10; i++) {
+            producer.send(i + "");
+        }
+
+        // Verify consumer can receive all messages after calling "analyzeSubscriptionBacklog".
+        admin.topics().analyzeSubscriptionBacklog(topic, subscription, Optional.of(MessageIdImpl.earliest));
+        for (int i = 0; i < 10; i++) {
+            Awaitility.await().untilAsserted(() -> {
+                Message m = consumer.receive();
+                assertNotNull(m);
+                consumer.acknowledge(m);
+            });
+        }
+
+        // cleanup.
+        consumer.close();
+        producer.close();
+        admin.topics().delete(topic);
+    }
 }
