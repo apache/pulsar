@@ -105,7 +105,7 @@ public class PersistentTopics extends PersistentTopicsBase {
         internalGetListAsync(Optional.ofNullable(bundle))
             .thenAccept(asyncResponse::resume)
             .exceptionally(ex -> {
-                if (!isRedirectException(ex)) {
+                if (isNot307And404Exception(ex)) {
                     log.error("[{}] Failed to get topic list {}", clientAppId(), namespaceName, ex);
                 }
                 resumeAsyncResponseExceptionally(asyncResponse, ex);
@@ -907,7 +907,7 @@ public class PersistentTopics extends PersistentTopicsBase {
         internalGetPropertiesAsync(authoritative)
                 .thenAccept(asyncResponse::resume)
                 .exceptionally(ex -> {
-                    if (!isRedirectException(ex)) {
+                    if (isNot307And404Exception(ex)) {
                         log.error("[{}] Failed to get topic {} properties", clientAppId(), topicName, ex);
                     }
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
@@ -1704,7 +1704,7 @@ public class PersistentTopics extends PersistentTopicsBase {
                 .thenAccept(asyncResponse::resume)
                 .exceptionally(ex -> {
                     // If the exception is not redirect exception we need to log it.
-                    if (!isRedirectException(ex)) {
+                    if (isNot307And404Exception(ex)) {
                         log.error("[{}] Failed to get message with ledgerId {} entryId {} from {}",
                                 clientAppId(), ledgerId, entryId, topicName, ex);
                     }
@@ -1748,9 +1748,11 @@ public class PersistentTopics extends PersistentTopicsBase {
                     }
                 })
                 .exceptionally(ex -> {
-                    log.error("[{}] Failed to get message ID by timestamp {} from {}",
-                            clientAppId(), timestamp, topicName, ex);
-                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    if (isNot307And404Exception(ex)) {
+                        log.error("[{}] Failed to get message ID by timestamp {} from {}",
+                                clientAppId(), timestamp, topicName, ex);
+                        resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    }
                     return null;
                 });
     }
