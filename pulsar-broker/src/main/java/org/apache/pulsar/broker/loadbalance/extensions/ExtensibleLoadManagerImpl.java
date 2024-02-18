@@ -439,6 +439,8 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
             this.initWaiter.countDown();
             this.started = true;
         } catch (Exception ex) {
+            log.error("Failed to start the extensible load balance and close broker registry {}.",
+                    this.brokerRegistry, ex);
             if (this.brokerRegistry != null) {
                 brokerRegistry.close();
             }
