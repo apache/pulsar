@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.service.persistent;
 
+import com.google.common.annotations.VisibleForTesting;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.SortedMap;
@@ -51,7 +52,6 @@ public class PersistentMessageExpiryMonitor implements FindEntryCallback, Messag
     private final String topicName;
     private final Rate msgExpired;
     private final LongAdder totalMsgExpired;
-    private final boolean autoSkipNonRecoverableData;
     private final PersistentSubscription subscription;
 
     private static final int FALSE = 0;
@@ -71,8 +71,12 @@ public class PersistentMessageExpiryMonitor implements FindEntryCallback, Messag
         this.subscription = subscription;
         this.msgExpired = new Rate();
         this.totalMsgExpired = new LongAdder();
+    }
+
+    @VisibleForTesting
+    public boolean isAutoSkipNonRecoverableData() {
         // check to avoid test failures
-        this.autoSkipNonRecoverableData = this.cursor.getManagedLedger() != null
+        return this.cursor.getManagedLedger() != null
                 && this.cursor.getManagedLedger().getConfig().isAutoSkipNonRecoverableData();
     }
 
@@ -230,7 +234,7 @@ public class PersistentMessageExpiryMonitor implements FindEntryCallback, Messag
         if (log.isDebugEnabled()) {
             log.debug("[{}][{}] Finding expired entry operation failed", topicName, subName, exception);
         }
-        if (autoSkipNonRecoverableData && failedReadPosition.isPresent()
+        if (isAutoSkipNonRecoverableData() && failedReadPosition.isPresent()
                 && (exception instanceof NonRecoverableLedgerException)) {
             log.warn("[{}][{}] read failed from ledger at position:{} : {}", topicName, subName, failedReadPosition,
                     exception.getMessage());
