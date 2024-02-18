@@ -196,11 +196,11 @@ public class ManagedCursorImpl implements ManagedCursor {
         position.ackSet = null;
         return position;
     };
-    private final RangeSetWrapper<PositionImpl> individualDeletedMessages;
+    protected final RangeSetWrapper<PositionImpl> individualDeletedMessages;
 
     // Maintain the deletion status for batch messages
     // (ledgerId, entryId) -> deletion indexes
-    private final ConcurrentSkipListMap<PositionImpl, BitSetRecyclable> batchDeletedIndexes;
+    protected final ConcurrentSkipListMap<PositionImpl, BitSetRecyclable> batchDeletedIndexes;
     private final ReadWriteLock lock = new ReentrantReadWriteLock();
 
     private RateLimiter markDeleteLimiter;
@@ -3587,5 +3587,30 @@ public class ManagedCursorImpl implements ManagedCursor {
 
     public ManagedLedgerConfig getConfig() {
         return config;
+    }
+
+    /***
+     * Create a non-durable cursor and copy the ack stats.
+     */
+    public ManagedCursor duplicateNonDurableCursor(String nonDurableCursorName) throws ManagedLedgerException {
+        NonDurableCursorImpl newNonDurableCursor =
+                (NonDurableCursorImpl) ledger.newNonDurableCursor(getMarkDeletedPosition(), nonDurableCursorName);
+        if (individualDeletedMessages != null) {
+            this.individualDeletedMessages.forEach(range -> {
+                newNonDurableCursor.individualDeletedMessages.addOpenClosed(
+                        range.lowerEndpoint().getLedgerId(),
+                        range.lowerEndpoint().getEntryId(),
+                        range.upperEndpoint().getLedgerId(),
+                        range.upperEndpoint().getEntryId());
+                return true;
+            });
+        }
+        if (batchDeletedIndexes != null) {
+            for (Map.Entry<PositionImpl, BitSetRecyclable> entry : this.batchDeletedIndexes.entrySet()) {
+                BitSetRecyclable copiedBitSet = BitSetRecyclable.valueOf(entry.getValue());
+                newNonDurableCursor.batchDeletedIndexes.put(entry.getKey(), copiedBitSet);
+            }
+        }
+        return newNonDurableCursor;
     }
 }
