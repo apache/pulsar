@@ -1809,7 +1809,6 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     }
 
                     ledgerClosed(lh);
-                    createLedgerAfterClosed();
                 }
             }, null);
         }
@@ -2664,8 +2663,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     ledgers.headMap(slowestReaderLedgerId, false).values().iterator();
             while (ledgerInfoIterator.hasNext()){
                 LedgerInfo ls = ledgerInfoIterator.next();
-                // If the current ledger is closed, the new ledger will be created later and this current ledger will
-                // be deleted next time.
+                // currentLedger can not be deleted
                 if (ls.getLedgerId() == currentLedger.getId()) {
                     if (log.isDebugEnabled()) {
                         log.debug("[{}] Ledger {} skipped for deletion as it is currently being written to", name,
@@ -4478,7 +4476,6 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     }
 
                     ledgerClosed(lh);
-                    createLedgerAfterClosed();
                     // we do not create ledger here, since topic is inactive for a long time.
                 }, null);
                 return true;
