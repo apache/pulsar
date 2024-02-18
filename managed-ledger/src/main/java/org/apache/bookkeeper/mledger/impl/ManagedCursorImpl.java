@@ -3626,7 +3626,7 @@ public class ManagedCursorImpl implements ManagedCursor {
     /***
      * Create a non-durable cursor and copy the ack stats.
      */
-    public ManagedCursor duplicateToNonDurableCursor(String nonDurableCursorName) throws ManagedLedgerException {
+    public ManagedCursor duplicateNonDurableCursor(String nonDurableCursorName) throws ManagedLedgerException {
         NonDurableCursorImpl newNonDurableCursor =
                 (NonDurableCursorImpl) ledger.newNonDurableCursor(getMarkDeletedPosition(), nonDurableCursorName);
         if (individualDeletedMessages != null) {

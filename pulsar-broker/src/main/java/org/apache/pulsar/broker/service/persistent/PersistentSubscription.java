@@ -536,7 +536,7 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
         final String newNonDurableCursorName = "analyze-backlog-" + UUID.randomUUID();
         ManagedCursor newNonDurableCursor;
         try {
-            newNonDurableCursor = ((ManagedCursorImpl) cursor).duplicateToNonDurableCursor(newNonDurableCursorName);
+            newNonDurableCursor = ((ManagedCursorImpl) cursor).duplicateNonDurableCursor(newNonDurableCursorName);
         } catch (ManagedLedgerException e) {
             return CompletableFuture.failedFuture(e);
         }
