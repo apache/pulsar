@@ -30,6 +30,7 @@ import static org.testng.Assert.assertEquals;
 import com.github.tomakehurst.wiremock.WireMockServer;
 import java.io.File;
 import java.util.Collection;
+import java.util.concurrent.CompletableFuture;
 import lombok.Cleanup;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -151,6 +152,14 @@ public class FunctionCommonTest {
                 }, false
             },
             {
+                new Function<String, CompletableFuture<Integer>>() {
+                    @Override
+                    public CompletableFuture<Integer> process(String input, Context context) throws Exception {
+                        return null;
+                    }
+                }, false
+            },
+            {
                 new java.util.function.Function<String, Integer>() {
                     @Override
                     public Integer apply(String s) {
@@ -162,6 +171,14 @@ public class FunctionCommonTest {
                 new java.util.function.Function<String, Record<Integer>>() {
                     @Override
                     public Record<Integer> apply(String s) {
+                        return null;
+                    }
+                }, false
+            },
+            {
+                new java.util.function.Function<String, CompletableFuture<Integer>>() {
+                    @Override
+                    public CompletableFuture<Integer> apply(String s) {
                         return null;
                     }
                 }, false
@@ -183,6 +200,14 @@ public class FunctionCommonTest {
                 }, true
             },
             {
+                new WindowFunction<String, CompletableFuture<Integer>>() {
+                    @Override
+                    public CompletableFuture<Integer> process(Collection<Record<String>> input, WindowContext context) throws Exception {
+                        return null;
+                    }
+                }, true
+            },
+            {
                 new java.util.function.Function<Collection<String>, Integer>() {
                     @Override
                     public Integer apply(Collection<String> strings) {
@@ -194,6 +219,14 @@ public class FunctionCommonTest {
                 new java.util.function.Function<Collection<String>, Record<Integer>>() {
                     @Override
                     public Record<Integer> apply(Collection<String> strings) {
+                        return null;
+                    }
+                }, true
+            },
+            {
+                new java.util.function.Function<Collection<String>, CompletableFuture<Integer>>() {
+                    @Override
+                    public CompletableFuture<Integer> apply(Collection<String> strings) {
                         return null;
                     }
                 }, true

@@ -41,6 +41,7 @@ import java.nio.file.StandardCopyOption;
 import java.util.Collection;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -120,7 +121,7 @@ public class FunctionCommon {
                 typeArgs[0] = (Class<?>) unwrapType(classParent, userClass, 0);
             }
         }
-        if (typeArgs[1].equals(Record.class)) {
+        if (typeArgs[1].equals(Record.class) || typeArgs[1].equals(CompletableFuture.class)) {
             typeArgs[1] = (Class<?>) unwrapType(classParent, userClass, 1);
         }
 
