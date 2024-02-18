@@ -36,6 +36,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertSame;
@@ -4233,23 +4234,44 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
             .deleteOffloaded(eq(ledgerInfo.getLedgerId()), any(), anyMap());
     }
 
-    @Test
-    public void testDeleteCurrentLedgerWhenItIsClosed() throws Exception {
-        ManagedLedgerConfig config = spy(new ManagedLedgerConfig());
-        ManagedLedgerImpl ml = spy((ManagedLedgerImpl) factory.open("testDeleteCurrentLedgerWhenItIsClosed", config));
+
+    @DataProvider(name = "closeLedgerByAddEntry")
+    public Object[][] closeLedgerByAddEntry() {
+        return new Object[][] {{Boolean.TRUE}, {Boolean.FALSE}};
+    }
+
+    @Test(dataProvider = "closeLedgerByAddEntry")
+    public void testDeleteCurrentLedgerWhenItIsClosed(boolean closeLedgerByAddEntry) throws Exception {
+        // Setup: Open a manageLedger with one initial entry.
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setMaxEntriesPerLedger(10);
+        ManagedLedgerImpl ml = spy((ManagedLedgerImpl) factory.open("testDeleteCurrentLedgerWhenItIsClosed",
+                config));
         assertEquals(ml.ledgers.size(), 1);
+        ml.addEntry(new byte[4]);
+        // Act: Trigger the rollover of the current ledger.
+        long currentLedgerID = ml.currentLedger.getId();
         ml.config.setMaximumRolloverTime(10, TimeUnit.MILLISECONDS);
         Thread.sleep(10);
-        ml.addEntry(new byte[4]);
+        if (closeLedgerByAddEntry) {
+            // Detect the current ledger is full before written entry and close the ledger after writing completely.
+            ml.addEntry(new byte[4]);
+        } else {
+            // Detect the current ledger is full by the timed task. (Imitate: the timed task `checkLedgerRollTask` call
+            // `rollCurrentLedgerIfFull` periodically).
+            ml.rollCurrentLedgerIfFull();
+            // the ledger closing in the `rollCurrentLedgerIfFull` is async, so the wait is needed.
+            Awaitility.await().untilAsserted(() -> assertEquals(ml.ledgers.size(), 2));
+        }
+        // Act: Trigger trimming to delete the previous current ledger.
         ml.internalTrimLedgers(false, Futures.NULL_PROMISE);
-        Awaitility.await().untilAsserted(() -> {
-            assertEquals(ml.state, ManagedLedgerImpl.State.ClosedLedger);
-            assertEquals(ml.ledgers.size(), 0);
-        });
-        ml.addEntry(new byte[4]);
+        // Verify: A new ledger will be opened after the current ledger is closed and the previous current ledger can be
+        // deleted.
         Awaitility.await().untilAsserted(() -> {
             assertEquals(ml.state, ManagedLedgerImpl.State.LedgerOpened);
             assertEquals(ml.ledgers.size(), 1);
+            assertNotEquals(currentLedgerID, ml.currentLedger.getId());
+            assertEquals(ml.currentLedgerEntries, 0);
         });
     }
 }
