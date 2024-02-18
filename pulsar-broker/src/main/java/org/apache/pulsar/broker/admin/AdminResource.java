@@ -831,6 +831,10 @@ public abstract class AdminResource extends PulsarWebResource {
                 == Status.NOT_FOUND.getStatusCode();
     }
 
+    protected static boolean isNot307And404Exception(Throwable ex) {
+        return !isRedirectException(ex) && !isNotFoundException(ex);
+    }
+
     protected static String getTopicNotFoundErrorMessage(String topic) {
         return String.format("Topic %s not found", topic);
     }

@@ -117,7 +117,7 @@ public class PersistentTopics extends PersistentTopicsBase {
         internalGetListAsync(Optional.ofNullable(bundle))
             .thenAccept(topicList -> asyncResponse.resume(filterSystemTopic(topicList, includeSystemTopic)))
             .exceptionally(ex -> {
-                if (!isRedirectException(ex)) {
+                if (isNot307And404Exception(ex)) {
                     log.error("[{}] Failed to get topic list {}", clientAppId(), namespaceName, ex);
                 }
                 resumeAsyncResponseExceptionally(asyncResponse, ex);
@@ -148,7 +148,7 @@ public class PersistentTopics extends PersistentTopicsBase {
                 .thenAccept(partitionedTopicList -> asyncResponse.resume(
                         filterSystemTopic(partitionedTopicList, includeSystemTopic)))
                 .exceptionally(ex -> {
-                    if (!isRedirectException(ex)) {
+                    if (isNot307And404Exception(ex)) {
                         log.error("[{}] Failed to get partitioned topic list {}", clientAppId(), namespaceName, ex);
                     }
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
@@ -333,7 +333,7 @@ public class PersistentTopics extends PersistentTopicsBase {
         internalCreateNonPartitionedTopicAsync(authoritative, properties)
                 .thenAccept(__ -> asyncResponse.resume(Response.noContent().build()))
                 .exceptionally(ex -> {
-                    if (!isRedirectException(ex)) {
+                    if (isNot307And404Exception(ex)) {
                         log.error("[{}] Failed to create non-partitioned topic {}", clientAppId(), topicName, ex);
                     }
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
@@ -822,7 +822,7 @@ public class PersistentTopics extends PersistentTopicsBase {
                     asyncResponse.resume(Response.noContent().build());
                 })
                 .exceptionally(ex -> {
-                    if (!isRedirectException(ex)) {
+                    if (isNot307And404Exception(ex)) {
                         log.error("[{}][{}] Failed to update partition to {}",
                                 clientAppId(), topicName, numPartitions, ex);
                     }
@@ -924,7 +924,7 @@ public class PersistentTopics extends PersistentTopicsBase {
         internalGetPropertiesAsync(authoritative)
                 .thenAccept(asyncResponse::resume)
                 .exceptionally(ex -> {
-                    if (!isRedirectException(ex)) {
+                    if (isNot307And404Exception(ex)) {
                         log.error("[{}] Failed to get topic {} properties", clientAppId(), topicName, ex);
                     }
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
@@ -960,7 +960,7 @@ public class PersistentTopics extends PersistentTopicsBase {
         internalUpdatePropertiesAsync(authoritative, properties)
             .thenAccept(__ -> asyncResponse.resume(Response.noContent().build()))
             .exceptionally(ex -> {
-                if (!isRedirectException(ex)) {
+                if (isNot307And404Exception(ex)) {
                     log.error("[{}] Failed to update topic {} properties", clientAppId(), topicName, ex);
                 }
                 resumeAsyncResponseExceptionally(asyncResponse, ex);
@@ -994,7 +994,7 @@ public class PersistentTopics extends PersistentTopicsBase {
         internalRemovePropertiesAsync(authoritative, key)
                 .thenAccept(__ -> asyncResponse.resume(Response.noContent().build()))
                 .exceptionally(ex -> {
-                    if (!isRedirectException(ex)) {
+                    if (isNot307And404Exception(ex)) {
                         log.error("[{}] Failed to remove key {} in properties on topic {}",
                                 clientAppId(), key, topicName, ex);
                     }
@@ -1115,7 +1115,7 @@ public class PersistentTopics extends PersistentTopicsBase {
                     } else if (isManagedLedgerNotFoundException(t)) {
                         ex = new RestException(Response.Status.NOT_FOUND,
                                 getTopicNotFoundErrorMessage(topicName.toString()));
-                    } else if (!isRedirectException(ex)) {
+                    } else if (isNot307And404Exception(ex)) {
                         log.error("[{}] Failed to delete topic {}", clientAppId(), topicName, t);
                     }
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
@@ -1192,7 +1192,7 @@ public class PersistentTopics extends PersistentTopicsBase {
                 .thenAccept(asyncResponse::resume)
                 .exceptionally(ex -> {
                     // If the exception is not redirect exception we need to log it.
-                    if (!isRedirectException(ex)) {
+                    if (isNot307And404Exception(ex)) {
                         log.error("[{}] Failed to get stats for {}", clientAppId(), topicName, ex);
                     }
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
@@ -1226,7 +1226,7 @@ public class PersistentTopics extends PersistentTopicsBase {
         internalGetInternalStatsAsync(authoritative, metadata)
                 .thenAccept(asyncResponse::resume)
                 .exceptionally(ex -> {
-                    if (!isRedirectException(ex)) {
+                    if (isNot307And404Exception(ex)) {
                         log.error("[{}] Failed to get internal stats for topic {}", clientAppId(), topicName, ex);
                     }
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
@@ -1870,7 +1870,7 @@ public class PersistentTopics extends PersistentTopicsBase {
         internalPeekNthMessageAsync(decode(encodedSubName), messagePosition, authoritative)
                 .thenAccept(asyncResponse::resume)
                 .exceptionally(ex -> {
-                    if (!isRedirectException(ex)) {
+                    if (isNot307And404Exception(ex)) {
                         log.error("[{}] Failed to get peek nth message for topic {} subscription {}", clientAppId(),
                                 topicName, decode(encodedSubName), ex);
                     }
@@ -1912,7 +1912,7 @@ public class PersistentTopics extends PersistentTopicsBase {
         internalExamineMessageAsync(initialPosition, messagePosition, authoritative)
                 .thenAccept(asyncResponse::resume)
                 .exceptionally(ex -> {
-                    if (!isRedirectException(ex)) {
+                    if (isNot307And404Exception(ex)) {
                         log.error("[{}] Failed to examine a specific message on the topic {}", clientAppId(), topicName,
                                 ex);
                     }
@@ -1954,7 +1954,7 @@ public class PersistentTopics extends PersistentTopicsBase {
                 .thenAccept(asyncResponse::resume)
                 .exceptionally(ex -> {
                     // If the exception is not redirect exception we need to log it.
-                    if (!isRedirectException(ex)) {
+                    if (isNot307And404Exception(ex)) {
                         log.error("[{}] Failed to get message with ledgerId {} entryId {} from {}",
                                 clientAppId(), ledgerId, entryId, topicName, ex);
                     }
@@ -1998,7 +1998,7 @@ public class PersistentTopics extends PersistentTopicsBase {
                     }
                 })
                 .exceptionally(ex -> {
-                    if (!isRedirectException(ex)) {
+                    if (isNot307And404Exception(ex)) {
                         log.error("[{}] Failed to get message ID by timestamp {} from {}",
                             clientAppId(), timestamp, topicName, ex);
                     }
@@ -2033,7 +2033,7 @@ public class PersistentTopics extends PersistentTopicsBase {
                         log.warn("[{}] Failed to get topic backlog {}: Namespace does not exist", clientAppId(),
                                 namespaceName);
                         ex = new RestException(Response.Status.NOT_FOUND, "Namespace does not exist");
-                    } else if (!isRedirectException(ex)) {
+                    } else if (isNot307And404Exception(ex)) {
                         log.error("[{}] Failed to get estimated backlog for topic {}", clientAppId(), encodedTopic, ex);
                     }
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
@@ -3071,7 +3071,7 @@ public class PersistentTopics extends PersistentTopicsBase {
         internalTerminateAsync(authoritative)
                 .thenAccept(asyncResponse::resume)
                 .exceptionally(ex -> {
-                    if (!isRedirectException(ex)) {
+                    if (isNot307And404Exception(ex)) {
                         log.error("[{}] Failed to terminated topic {}", clientAppId(), topicName, ex);
                     }
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
@@ -3167,7 +3167,7 @@ public class PersistentTopics extends PersistentTopicsBase {
         internalCompactionStatusAsync(authoritative)
                 .thenAccept(asyncResponse::resume)
                 .exceptionally(ex -> {
-                    if (!isRedirectException(ex)) {
+                    if (isNot307And404Exception(ex)) {
                         log.error("[{}] Failed to get the status of a compaction operation for the topic {}",
                                 clientAppId(), topicName, ex);
                     }
@@ -3306,7 +3306,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             validateTopicName(tenant, namespace, encodedTopic);
             internalTrimTopic(asyncResponse, authoritative).exceptionally(ex -> {
                 // If the exception is not redirect exception we need to log it.
-                if (!isRedirectException(ex)) {
+                if (isNot307And404Exception(ex)) {
                     log.error("[{}] Failed to trim topic {}", clientAppId(), topicName, ex);
                 }
                 resumeAsyncResponseExceptionally(asyncResponse, ex);
