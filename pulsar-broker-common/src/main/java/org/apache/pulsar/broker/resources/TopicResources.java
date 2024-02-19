@@ -50,6 +50,9 @@ public class TopicResources {
         store.registerListener(this::handleNotification);
     }
 
+    /***
+     * List persistent topics names under a namespace, the topic name contains the partition suffix.
+     */
     public CompletableFuture<List<String>> listPersistentTopicsAsync(NamespaceName ns) {
         String path = MANAGED_LEDGER_PATH + "/" + ns + "/persistent";
 
