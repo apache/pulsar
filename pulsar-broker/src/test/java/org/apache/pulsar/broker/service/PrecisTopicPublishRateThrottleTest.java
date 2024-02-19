@@ -18,16 +18,25 @@
  */
 package org.apache.pulsar.broker.service;
 
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.BiFunction;
+import java.util.function.Function;
+import lombok.Cleanup;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.common.policies.data.PublishRate;
+import org.apache.pulsar.common.util.RateLimiter;
 import org.awaitility.Awaitility;
+import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
-
 @Test(groups = "broker")
+@Slf4j
 public class PrecisTopicPublishRateThrottleTest extends BrokerTestBase{
 
     @Override
@@ -180,6 +189,66 @@ public class PrecisTopicPublishRateThrottleTest extends BrokerTestBase{
         Assert.assertEquals(limiter.publishMaxMessageRate, rateInMsg);
 
         producer.close();
+        super.internalCleanup();
+    }
+
+    @Test
+    public void testWithConcurrentUpdate() throws Exception {
+        PublishRate publishRate = new PublishRate(-1,10);
+        conf.setPreciseTopicPublishRateLimiterEnable(true);
+        conf.setMaxPendingPublishRequestsPerConnection(1000);
+        super.baseSetup();
+        admin.namespaces().setPublishRate("prop/ns-abc", publishRate);
+        final String topic = "persistent://prop/ns-abc/testWithConcurrentUpdate";
+        @Cleanup
+        org.apache.pulsar.client.api.Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(topic)
+                .producerName("producer-name")
+                .create();
+
+        AbstractTopic topicRef = (AbstractTopic) pulsar.getBrokerService().getTopicReference(topic).get();
+        Assert.assertNotNull(topicRef);
+
+        PublishRateLimiter topicPublishRateLimiter = Mockito.spy(topicRef.getTopicPublishRateLimiter());
+
+        AtomicBoolean blocking = new AtomicBoolean(false);
+        BiFunction<Function<Long, Boolean>, Long, Boolean> blockFunc = (function, acquirePermit) -> {
+            blocking.set(true);
+            while (blocking.get()) {
+                try {
+                    Thread.sleep(100);
+                } catch (InterruptedException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+            return function.apply(acquirePermit);
+        };
+
+        Mockito.doAnswer(invocation -> {
+            log.info("tryAcquire: {}, {}", invocation.getArgument(0), invocation.getArgument(1));
+            RateLimiter publishRateLimiterOnMessage =
+                    (RateLimiter) FieldUtils.readDeclaredField(topicPublishRateLimiter,
+                            "topicPublishRateLimiterOnMessage", true);
+            RateLimiter publishRateLimiterOnByte =
+                    (RateLimiter) FieldUtils.readDeclaredField(topicPublishRateLimiter,
+                            "topicPublishRateLimiterOnByte", true);
+            int numbers = invocation.getArgument(0);
+            long bytes = invocation.getArgument(1);
+            return (publishRateLimiterOnMessage == null || publishRateLimiterOnMessage.tryAcquire(numbers))
+            && (publishRateLimiterOnByte == null || blockFunc.apply(publishRateLimiterOnByte::tryAcquire, bytes));
+        }).when(topicPublishRateLimiter).tryAcquire(Mockito.anyInt(), Mockito.anyLong());
+
+        FieldUtils.writeField(topicRef, "topicPublishRateLimiter", topicPublishRateLimiter, true);
+
+        CompletableFuture<MessageId> sendFuture = producer.sendAsync(new byte[10]);
+
+        Awaitility.await().untilAsserted(() -> Assert.assertTrue(blocking.get()));
+        publishRate.publishThrottlingRateInByte = 20;
+        admin.namespaces().setPublishRate("prop/ns-abc", publishRate);
+        blocking.set(false);
+
+        sendFuture.join();
+
         super.internalCleanup();
     }
 }
