@@ -59,6 +59,9 @@ public class TopicListWatcher extends HandlerState implements ConnectionHandler.
     private final Runnable recheckTopicsChangeAfterReconnect;
 
 
+    /***
+     * @param topicsPattern The regexp for the topic name(not contains partition suffix).
+     */
     public TopicListWatcher(PatternMultiTopicsConsumerImpl.TopicsChangedListener topicsChangeListener,
                             PulsarClientImpl client, Pattern topicsPattern, long watcherId,
                             NamespaceName namespace, String topicsHash,
@@ -142,7 +145,6 @@ public class TopicListWatcher extends HandlerState implements ConnectionHandler.
                                 return;
                             }
                         }
-
                         this.connectionHandler.resetBackoff();
 
                         recheckTopicsChangeAfterReconnect.run();
