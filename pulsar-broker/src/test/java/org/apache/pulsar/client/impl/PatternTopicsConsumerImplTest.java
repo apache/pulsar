@@ -681,16 +681,27 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
         }
     }
 
-    @DataProvider(name= "partitioned")
-    public Object[][] partitioned(){
+    @DataProvider(name= "regexpConsumerArgs")
+    public Object[][] regexpConsumerArgs(){
         return new Object[][]{
-                {true},
-                {false}
+                {true, true},
+                {true, false},
+                {false, true},
+                {false, false}
         };
     }
 
-    @Test(timeOut = testTimeout, dataProvider = "partitioned")
-    public void testPreciseRegexpSubscribe(boolean partitioned) throws Exception {
+    private void waitForTopicListWatcherStarted(Consumer consumer) {
+        Awaitility.await().untilAsserted(() -> {
+            CompletableFuture completableFuture = WhiteboxImpl.getInternalState(consumer, "watcherFuture");
+            log.info("isDone: {}, isCompletedExceptionally: {}", completableFuture.isDone(),
+                    completableFuture.isCompletedExceptionally());
+            assertTrue(completableFuture.isDone() && !completableFuture.isCompletedExceptionally());
+        });
+    }
+
+    @Test(timeOut = testTimeout, dataProvider = "regexpConsumerArgs")
+    public void testPreciseRegexpSubscribe(boolean partitioned, boolean createTopicAfterWatcherStarted) throws Exception {
         final String topicName = BrokerTestUtil.newUniqueName("persistent://public/default/tp");
         final String subscriptionName = "s1";
         final Pattern pattern = Pattern.compile(String.format("%s$", topicName));
@@ -704,6 +715,9 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
                 .ackTimeout(ackTimeOutMillis, TimeUnit.MILLISECONDS)
                 .receiverQueueSize(4)
                 .subscribe();
+        if (createTopicAfterWatcherStarted) {
+            waitForTopicListWatcherStarted(consumer);
+        }
 
         // 1. create topic.
         if (partitioned) {
@@ -731,6 +745,14 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
         } else {
             admin.topics().delete(topicName);
         }
+    }
+
+    @DataProvider(name= "partitioned")
+    public Object[][] partitioned(){
+        return new Object[][]{
+                {true},
+                {true}
+        };
     }
 
     @Test(timeOut = 240 * 1000, dataProvider = "partitioned")

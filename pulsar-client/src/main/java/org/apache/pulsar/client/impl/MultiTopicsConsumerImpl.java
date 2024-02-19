@@ -926,7 +926,10 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         }
     }
 
-    // subscribe one more given topic
+    /***
+     * Subscribe one more given topic.
+     * @param topicName topic name without the partition suffix.
+     */
     public CompletableFuture<Void> subscribeAsync(String topicName, boolean createTopicIfDoesNotExist) {
         TopicName topicNameInstance = getTopicName(topicName);
         if (topicNameInstance == null) {
@@ -1247,7 +1250,10 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         return unsubscribeFuture;
     }
 
-    // Remove a consumer for a topic
+    /***
+     * Remove a consumer for a topic.
+     * @param topicName topic name contains the partition suffix.
+     */
     public CompletableFuture<Void> removeConsumerAsync(String topicName) {
         checkArgument(TopicName.isValid(topicName), "Invalid topic name:" + topicName);
 
