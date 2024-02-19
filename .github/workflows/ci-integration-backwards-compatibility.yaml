@@ -77,9 +77,19 @@ jobs:
       - name: clean disk
         if: ${{ steps.check_changes.outputs.docs_only != 'true' }}
         run: |
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc
-          sudo apt clean
+          echo "::group::Available diskspace"
+          time df -BM / /mnt
+          echo "::endgroup::"
+          sudo swapoff -a
+          sudo rm -rf /swapfile /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
+          echo "::group::Cleaning apt state"
+          time sudo bash -c "apt-get clean; apt-get autoclean; apt-get -y --purge autoremove"
+          time df -BM / /mnt
+          echo "::endgroup::"
           docker rmi $(docker images -q) -f
+          echo "::group::Available diskspace"
+          time df -BM / /mnt
+          echo "::endgroup::"
           df -h
 
       - name: run install by skip tests
