@@ -48,6 +48,7 @@ import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.awaitility.Awaitility;
+import org.awaitility.reflect.WhiteboxImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterMethod;
@@ -68,6 +69,7 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
         isTcpLookup = true;
         // enabled transaction, to test pattern consumers not subscribe to transaction system topic.
         conf.setTransactionCoordinatorEnabled(true);
+        conf.setSubscriptionPatternMaxLength(10000);
         super.internalSetup();
         super.producerBaseSetup();
     }
@@ -574,8 +576,9 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
         Pattern pattern = Pattern.compile("persistent://my-property/my-ns/pattern-topic.*");
         Consumer<byte[]> consumer = pulsarClient.newConsumer()
                 .topicsPattern(pattern)
-                // Disable automatic discovery.
-                .patternAutoDiscoveryPeriod(1000)
+                // Enable automatic discovery.
+                // See https://github.com/apache/pulsar/pull/20779 and https://github.com/apache/pulsar/pull/21853.
+                .patternAutoDiscoveryPeriod(0)
                 .subscriptionName(subscriptionName)
                 .subscriptionType(SubscriptionType.Shared)
                 .ackTimeout(ackTimeOutMillis, TimeUnit.MILLISECONDS)
@@ -597,32 +600,49 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
             assertEquals(((PatternMultiTopicsConsumerImpl<?>) consumer).getPartitionedTopics().size(), 1);
         });
 
+        // cleanup.
         consumer.close();
+        admin.topics().deletePartitionedTopic(topicName, false);
     }
 
-    @DataProvider(name= "partitioned")
-    public Object[][] partitioned(){
+    @DataProvider(name= "regexpConsumerArgs")
+    public Object[][] regexpConsumerArgs(){
         return new Object[][]{
-                {true},
-                {false}
+                //{true, true},
+                {true, false},
+                //{false, true},
+                //{false, false}
         };
     }
 
-    @Test(timeOut = testTimeout, dataProvider = "partitioned")
-    public void testPreciseRegexpSubscribe(boolean partitioned) throws Exception {
+    private void waitForTopicListWatcherStarted(Consumer consumer) {
+        Awaitility.await().untilAsserted(() -> {
+            CompletableFuture completableFuture = WhiteboxImpl.getInternalState(consumer, "watcherFuture");
+            log.info("isDone: {}, isCompletedExceptionally: {}", completableFuture.isDone(),
+                    completableFuture.isCompletedExceptionally());
+            assertTrue(completableFuture.isDone() && !completableFuture.isCompletedExceptionally());
+        });
+    }
+
+    @Test(timeOut = testTimeout, dataProvider = "regexpConsumerArgs")
+    public void testPreciseRegexpSubscribe(boolean partitioned, boolean createTopicAfterWatcherStarted) throws Exception {
         final String topicName = BrokerTestUtil.newUniqueName("persistent://public/default/tp");
         final String subscriptionName = "s1";
         final Pattern pattern = Pattern.compile(String.format("%s$", topicName));
 
         Consumer<byte[]> consumer = pulsarClient.newConsumer()
                 .topicsPattern(pattern)
-                // Disable automatic discovery.
-                .patternAutoDiscoveryPeriod(1000)
+                // Enable automatic discovery.
+                // See https://github.com/apache/pulsar/pull/20779 and https://github.com/apache/pulsar/pull/21853.
+                .patternAutoDiscoveryPeriod(0)
                 .subscriptionName(subscriptionName)
                 .subscriptionType(SubscriptionType.Shared)
                 .ackTimeout(ackTimeOutMillis, TimeUnit.MILLISECONDS)
                 .receiverQueueSize(4)
                 .subscribe();
+        if (createTopicAfterWatcherStarted) {
+            waitForTopicListWatcherStarted(consumer);
+        }
 
         // 1. create topic.
         if (partitioned) {
@@ -650,6 +670,14 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
         } else {
             admin.topics().delete(topicName);
         }
+    }
+
+    @DataProvider(name= "partitioned")
+    public Object[][] partitioned(){
+        return new Object[][]{
+                {true},
+                {true}
+        };
     }
 
     @Test(timeOut = 240 * 1000, dataProvider = "partitioned")
