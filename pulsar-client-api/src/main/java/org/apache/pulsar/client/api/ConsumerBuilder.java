@@ -126,7 +126,7 @@ public interface ConsumerBuilder<T> extends Cloneable {
     ConsumerBuilder<T> topics(List<String> topicNames);
 
     /**
-     * Specify a pattern for topics that this consumer subscribes to.
+     * Specify a pattern for topics(not contains the partition suffix) that this consumer subscribes to.
      *
      * <p>The pattern is applied to subscribe to all topics, within a single namespace, that match the
      * pattern.
@@ -134,13 +134,13 @@ public interface ConsumerBuilder<T> extends Cloneable {
      * <p>The consumer automatically subscribes to topics created after itself.
      *
      * @param topicsPattern
-     *            a regular expression to select a list of topics to subscribe to
+     *            a regular expression to select a list of topics(not contains the partition suffix) to subscribe to
      * @return the consumer builder instance
      */
     ConsumerBuilder<T> topicsPattern(Pattern topicsPattern);
 
     /**
-     * Specify a pattern for topics that this consumer subscribes to.
+     * Specify a pattern for topics(not contains the partition suffix) that this consumer subscribes to.
      *
      * <p>It accepts a regular expression that is compiled into a pattern internally. E.g.,
      * "persistent://public/default/pattern-topic-.*"
@@ -151,7 +151,7 @@ public interface ConsumerBuilder<T> extends Cloneable {
      * <p>The consumer automatically subscribes to topics created after itself.
      *
      * @param topicsPattern
-     *            given regular expression for topics pattern
+     *            given regular expression for topics(not contains the partition suffix) pattern
      * @return the consumer builder instance
      */
     ConsumerBuilder<T> topicsPattern(String topicsPattern);
