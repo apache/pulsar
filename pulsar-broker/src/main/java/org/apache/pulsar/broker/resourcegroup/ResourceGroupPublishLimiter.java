@@ -135,7 +135,7 @@ public class ResourceGroupPublishLimiter implements PublishRateLimiter, RateLimi
 
     public boolean tryAcquire(int numbers, long bytes) {
         return (publishRateLimiterOnMessage == null || publishRateLimiterOnMessage.tryAcquire(numbers))
-            && (publishRateLimiterOnByte == null || publishRateLimiterOnByte.tryAcquire(bytes));
+                    && (publishRateLimiterOnByte == null || publishRateLimiterOnByte.tryAcquire(bytes));
     }
 
     public void registerRateLimitFunction(String name, RateLimitFunction func) {
