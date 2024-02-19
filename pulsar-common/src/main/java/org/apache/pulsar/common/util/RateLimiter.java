@@ -28,6 +28,7 @@ import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import lombok.Builder;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * A Rate Limiter that distributes permits at a configurable rate. Each {@link #acquire()} blocks if necessary until a
@@ -50,6 +51,7 @@ import lombok.Builder;
  * <li><b>Faster: </b>RateLimiter is light-weight and faster than Guava-RateLimiter</li>
  * </ul>
  */
+@Slf4j
 public class RateLimiter implements AutoCloseable{
     private final ScheduledExecutorService executorService;
     private long rateTime;
@@ -175,7 +177,10 @@ public class RateLimiter implements AutoCloseable{
      * @return {@code true} if the permits were acquired, {@code false} otherwise
      */
     public synchronized boolean tryAcquire(long acquirePermit) {
-        checkArgument(!isClosed(), "Rate limiter is already shutdown");
+        if (isClosed()) {
+            log.info("The current rate limiter is already shutdown, acquire permits directly.");
+            return true;
+        }
         // lazy init and start task only once application start using it
         if (renewTask == null) {
             renewTask = createTask();
