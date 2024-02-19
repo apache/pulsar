@@ -21,22 +21,29 @@ package org.apache.pulsar.broker.resourcegroup;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
-
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.BiFunction;
+import java.util.function.Function;
+import lombok.Cleanup;
+import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.naming.NamespaceName;
+import org.apache.pulsar.common.util.RateLimiter;
 import org.awaitility.Awaitility;
+import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
-
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 
 public class ResourceGroupRateLimiterTest extends BrokerTestBase {
 
@@ -146,6 +153,76 @@ public class ResourceGroupRateLimiterTest extends BrokerTestBase {
         testRateLimit();
         testRateLimit();
     }
+
+    @Test
+    public void testWithConcurrentUpdate() throws Exception {
+        cleanup();
+        setup();
+        createResourceGroup(rgName, testAddRg);
+        admin.namespaces().setNamespaceResourceGroup(namespaceName, rgName);
+
+        Awaitility.await().untilAsserted(() ->
+                assertNotNull(pulsar.getResourceGroupServiceManager()
+                        .getNamespaceResourceGroup(NamespaceName.get(namespaceName))));
+
+        Awaitility.await().untilAsserted(() ->
+                assertNotNull(pulsar.getResourceGroupServiceManager()
+                        .resourceGroupGet(rgName).getResourceGroupPublishLimiter()));
+
+        ResourceGroupPublishLimiter resourceGroupPublishLimiter = Mockito.spy(pulsar.getResourceGroupServiceManager()
+                .resourceGroupGet(rgName).getResourceGroupPublishLimiter());
+
+        AtomicBoolean blocking = new AtomicBoolean(false);
+        BiFunction<Function<Long, Boolean>, Long, Boolean> blockFunc = (function, acquirePermit) -> {
+            blocking.set(true);
+            while (blocking.get()) {
+                try {
+                    Thread.sleep(100);
+                } catch (InterruptedException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+            return function.apply(acquirePermit);
+        };
+
+        Mockito.doAnswer(invocation -> {
+            RateLimiter publishRateLimiterOnMessage =
+                    (RateLimiter) FieldUtils.readDeclaredField(resourceGroupPublishLimiter,
+                            "publishRateLimiterOnMessage", true);
+            RateLimiter publishRateLimiterOnByte =
+                    (RateLimiter) FieldUtils.readDeclaredField(resourceGroupPublishLimiter,
+                            "publishRateLimiterOnByte", true);
+            int numbers = invocation.getArgument(0);
+            long bytes = invocation.getArgument(1);
+            return (publishRateLimiterOnMessage == null || publishRateLimiterOnMessage.tryAcquire(numbers))
+            && (publishRateLimiterOnByte == null || blockFunc.apply(publishRateLimiterOnByte::tryAcquire, bytes));
+        }).when(resourceGroupPublishLimiter).tryAcquire(Mockito.anyInt(), Mockito.anyLong());
+
+        ConcurrentHashMap resourceGroupsMap =
+                (ConcurrentHashMap) FieldUtils.readDeclaredField(pulsar.getResourceGroupServiceManager(),
+                        "resourceGroupsMap", true);
+        FieldUtils.writeDeclaredField(resourceGroupsMap.get(rgName), "resourceGroupPublishLimiter",
+                resourceGroupPublishLimiter, true);
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                    .topic(namespaceName + "/test-topic")
+                    .create();
+
+        CompletableFuture<MessageId> sendFuture = producer.sendAsync(new byte[MESSAGE_SIZE]);
+
+        Awaitility.await().untilAsserted(() -> Assert.assertTrue(blocking.get()));
+
+        testAddRg.setPublishRateInBytes(Long.valueOf(MESSAGE_SIZE) + 1);
+        admin.resourcegroups().updateResourceGroup(rgName, testAddRg);
+        blocking.set(false);
+
+        sendFuture.join();
+
+        // Now detach the namespace
+        admin.namespaces().removeNamespaceResourceGroup(namespaceName);
+        deleteResourceGroup(rgName);
+    }
+
 
     private void prepareData() {
         testAddRg.setPublishRateInBytes(Long.valueOf(MESSAGE_SIZE));
