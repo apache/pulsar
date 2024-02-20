@@ -245,13 +245,13 @@ public class BrokerService implements Closeable {
 
     @PulsarDeprecatedMetric(newMetricName = "pulsar.broker.lookup.pending.request.usage")
     private final ObserverGauge pendingLookupRequests;
-    private final ObservableLongGauge pendingLookupRequestsCounter;
-    private final ObservableLongGauge pendingLookupRequestsLimit;
+    private final ObservableLongGauge pendingLookupRequestsGauge;
+    private final ObservableLongGauge pendingLookupRequestsLimitGauge;
 
     @PulsarDeprecatedMetric(newMetricName = "pulsar.broker.topic.load.pending.request.usage")
     private final ObserverGauge pendingTopicLoadRequests;
-    private final ObservableLongGauge pendingTopicLoadRequestsCounter;
-    private final ObservableLongGauge pendingTopicLoadRequestsLimit;
+    private final ObservableLongGauge pendingTopicLoadRequestsGauge;
+    private final ObservableLongGauge pendingTopicLoadRequestsLimitGauge;
 
     private final ScheduledExecutorService inactivityMonitor;
     private final ScheduledExecutorService messageExpiryMonitor;
@@ -413,14 +413,14 @@ public class BrokerService implements Closeable {
         this.pendingLookupRequests = ObserverGauge.build("pulsar_broker_lookup_pending_requests", "-")
                 .supplier(this::getPendingLookupRequest)
                 .register();
-        this.pendingLookupRequestsCounter = pulsar.getOpenTelemetry().getMeter()
+        this.pendingLookupRequestsGauge = pulsar.getOpenTelemetry().getMeter()
                 .gaugeBuilder("pulsar.broker.lookup.pending.request.usage")
                 .ofLongs()
                 .setDescription("The number of pending lookup requests in the broker. "
                         + "When it reaches threshold \"maxConcurrentLookupRequest\" defined in broker.conf, "
                         + "new requests are rejected.")
                 .buildWithCallback(measurement -> measurement.record(getPendingLookupRequest()));
-        this.pendingLookupRequestsLimit = pulsar.getOpenTelemetry().getMeter()
+        this.pendingLookupRequestsLimitGauge = pulsar.getOpenTelemetry().getMeter()
                 .gaugeBuilder("pulsar.broker.lookup.pending.request.limit")
                 .ofLongs()
                 .setDescription("The maximum number of pending lookup requests in the broker. "
@@ -432,14 +432,14 @@ public class BrokerService implements Closeable {
                         "pulsar_broker_topic_load_pending_requests", "-")
                 .supplier(this::getPendingTopicLoadRequests)
                 .register();
-        this.pendingTopicLoadRequestsCounter = pulsar.getOpenTelemetry().getMeter()
+        this.pendingTopicLoadRequestsGauge = pulsar.getOpenTelemetry().getMeter()
                 .gaugeBuilder("pulsar.broker.topic.load.pending.request.usage")
                 .ofLongs()
                 .setDescription("The number of pending topic load operations in the broker. "
                         + "When it reaches threshold \"maxConcurrentTopicLoadRequest\" defined in broker.conf, "
                         + "new requests are rejected.")
                 .buildWithCallback(measurement -> measurement.record(getPendingTopicLoadRequests()));
-        this.pendingTopicLoadRequestsLimit = pulsar.getOpenTelemetry().getMeter()
+        this.pendingTopicLoadRequestsLimitGauge = pulsar.getOpenTelemetry().getMeter()
                 .gaugeBuilder("pulsar.broker.topic.load.pending.request.limit")
                 .ofLongs()
                 .setDescription("The maximum number of pending topic load operations in the broker. "
@@ -823,8 +823,8 @@ public class BrokerService implements Closeable {
                                     log.warn("Error in closing authenticationService", e);
                                 }
                                 pulsarStats.close();
-                                pendingTopicLoadRequestsCounter.close();
-                                pendingLookupRequestsCounter.close();
+                                pendingTopicLoadRequestsGauge.close();
+                                pendingLookupRequestsGauge.close();
                                 try {
                                     delayedDeliveryTrackerFactory.close();
                                 } catch (Exception e) {
