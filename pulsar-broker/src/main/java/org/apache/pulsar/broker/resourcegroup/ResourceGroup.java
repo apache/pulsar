@@ -408,8 +408,8 @@ public class ResourceGroup {
     }
 
     // Visibility for unit testing
-    protected static double getRgUsageReportedCount (String rgName, String monClassName) {
-        return rgLocalUsageReportCount.labels(rgName, monClassName).get();
+    protected static long getRgUsageReportedCount (String rgName, String monClassName) {
+        return (long) rgLocalUsageReportCount.labels(rgName, monClassName).get();
     }
 
     // Visibility for unit testing

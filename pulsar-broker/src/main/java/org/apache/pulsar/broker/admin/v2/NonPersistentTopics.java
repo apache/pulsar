@@ -132,7 +132,7 @@ public class NonPersistentTopics extends PersistentTopics {
                 })
                 .thenAccept(asyncResponse::resume)
                 .exceptionally(ex -> {
-                    if (!isRedirectException(ex)) {
+                    if (!isNot307And404Exception(ex)) {
                         log.error("[{}] Failed to get internal stats for topic {}", clientAppId(), topicName, ex);
                     }
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
@@ -479,7 +479,7 @@ public class NonPersistentTopics extends PersistentTopics {
                             }
                             asyncResponse.resume(topicList);
                         }).exceptionally(ex -> {
-                            if (!isRedirectException(ex)) {
+                            if (!isNot307And404Exception(ex)) {
                                 log.error("[{}] Failed to list topics on namespace bundle {}/{}", clientAppId(),
                                         namespaceName, bundleRange, ex);
                             }
@@ -488,7 +488,7 @@ public class NonPersistentTopics extends PersistentTopics {
                         });
             }
         }).exceptionally(ex -> {
-            if (!isRedirectException(ex)) {
+            if (!isNot307And404Exception(ex)) {
                 log.error("[{}] Failed to list topics on namespace bundle {}/{}", clientAppId(),
                         namespaceName, bundleRange, ex);
             }

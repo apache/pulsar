@@ -1468,6 +1468,9 @@ public class NamespaceService implements AutoCloseable {
         });
     }
 
+    /***
+     * List persistent topics names under a namespace, the topic name contains the partition suffix.
+     */
     public CompletableFuture<List<String>> getListOfPersistentTopics(NamespaceName namespaceName) {
         return pulsar.getPulsarResources().getTopicResources().listPersistentTopicsAsync(namespaceName);
     }

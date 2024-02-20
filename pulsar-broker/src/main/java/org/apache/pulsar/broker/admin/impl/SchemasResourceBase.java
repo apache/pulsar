@@ -238,7 +238,7 @@ public class SchemasResourceBase extends AdminResource {
 
 
     protected boolean shouldPrintErrorLog(Throwable ex) {
-        return !isRedirectException(ex) && !isNotFoundException(ex);
+        return isNot307And404Exception(ex);
     }
 
     private static final Logger log = LoggerFactory.getLogger(SchemasResourceBase.class);
