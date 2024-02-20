@@ -119,6 +119,8 @@ public class NarUnpacker {
                 JarEntry jarEntry = jarEntries.nextElement();
                 String name = jarEntry.getName();
                 File f = new File(workingDirectory, name);
+                if (!f.toPath().normalize().startsWith(workingDirectory.toPath()))
+                    throw new IOException("Bad zip entry");
                 if (jarEntry.isDirectory()) {
                     FileUtils.ensureDirectoryExistAndCanReadAndWrite(f);
                 } else {
