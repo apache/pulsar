@@ -105,9 +105,9 @@ public class PersistentMessageExpiryMonitor implements FindEntryCallback, Messag
         }
     }
 
-    private boolean checkExpiryByLedgerClosureTime(ManagedCursor cursor, int messageTTLInSeconds) {
+    private void checkExpiryByLedgerClosureTime(ManagedCursor cursor, int messageTTLInSeconds) {
         if (messageTTLInSeconds <= 0) {
-            return false;
+            return;
         }
         if (cursor instanceof ManagedCursorImpl managedCursor) {
             ManagedLedgerImpl managedLedger = (ManagedLedgerImpl) managedCursor.getManagedLedger();
@@ -130,10 +130,8 @@ public class PersistentMessageExpiryMonitor implements FindEntryCallback, Messag
                 } else {
                     findEntryComplete(position, null);
                 }
-                return true;
             }
         }
-        return false;
     }
 
     @Override
