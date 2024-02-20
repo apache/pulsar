@@ -54,7 +54,7 @@ public class SubscriptionStatsImpl implements SubscriptionStats {
     public double messageAckRate;
 
     /** Chunked message dispatch rate. */
-    public int chunkedMessageRate;
+    public double chunkedMessageRate;
 
     /** Number of entries in the subscription backlog. */
     public long msgBacklog;
