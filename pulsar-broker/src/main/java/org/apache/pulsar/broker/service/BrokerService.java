@@ -39,6 +39,7 @@ import io.netty.channel.socket.SocketChannel;
 import io.netty.handler.ssl.SslContext;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import io.opentelemetry.api.metrics.ObservableLongGauge;
+import io.opentelemetry.api.metrics.ObservableLongUpDownCounter;
 import io.prometheus.client.Histogram;
 import java.io.Closeable;
 import java.io.IOException;
@@ -245,12 +246,12 @@ public class BrokerService implements Closeable {
 
     @PulsarDeprecatedMetric(newMetricName = "pulsar.broker.lookup.pending.request.usage")
     private final ObserverGauge pendingLookupRequests;
-    private final ObservableLongGauge pendingLookupRequestsGauge;
+    private final ObservableLongUpDownCounter pendingLookupRequestsCounter;
     private final ObservableLongGauge pendingLookupRequestsLimitGauge;
 
     @PulsarDeprecatedMetric(newMetricName = "pulsar.broker.topic.load.pending.request.usage")
     private final ObserverGauge pendingTopicLoadRequests;
-    private final ObservableLongGauge pendingTopicLoadRequestsGauge;
+    private final ObservableLongUpDownCounter pendingTopicLoadRequestsCounter;
     private final ObservableLongGauge pendingTopicLoadRequestsLimitGauge;
 
     private final ScheduledExecutorService inactivityMonitor;
@@ -413,9 +414,8 @@ public class BrokerService implements Closeable {
         this.pendingLookupRequests = ObserverGauge.build("pulsar_broker_lookup_pending_requests", "-")
                 .supplier(this::getPendingLookupRequest)
                 .register();
-        this.pendingLookupRequestsGauge = pulsar.getOpenTelemetry().getMeter()
-                .gaugeBuilder("pulsar.broker.lookup.pending.request.usage")
-                .ofLongs()
+        this.pendingLookupRequestsCounter = pulsar.getOpenTelemetry().getMeter()
+                .upDownCounterBuilder("pulsar.broker.lookup.pending.request.usage")
                 .setDescription("The number of pending lookup requests in the broker. "
                         + "When it reaches threshold \"maxConcurrentLookupRequest\" defined in broker.conf, "
                         + "new requests are rejected.")
@@ -432,9 +432,8 @@ public class BrokerService implements Closeable {
                         "pulsar_broker_topic_load_pending_requests", "-")
                 .supplier(this::getPendingTopicLoadRequests)
                 .register();
-        this.pendingTopicLoadRequestsGauge = pulsar.getOpenTelemetry().getMeter()
-                .gaugeBuilder("pulsar.broker.topic.load.pending.request.usage")
-                .ofLongs()
+        this.pendingTopicLoadRequestsCounter = pulsar.getOpenTelemetry().getMeter()
+                .upDownCounterBuilder("pulsar.broker.topic.load.pending.request.usage")
                 .setDescription("The number of pending topic load operations in the broker. "
                         + "When it reaches threshold \"maxConcurrentTopicLoadRequest\" defined in broker.conf, "
                         + "new requests are rejected.")
@@ -823,8 +822,8 @@ public class BrokerService implements Closeable {
                                     log.warn("Error in closing authenticationService", e);
                                 }
                                 pulsarStats.close();
-                                pendingTopicLoadRequestsGauge.close();
-                                pendingLookupRequestsGauge.close();
+                                pendingTopicLoadRequestsCounter.close();
+                                pendingLookupRequestsCounter.close();
                                 try {
                                     delayedDeliveryTrackerFactory.close();
                                 } catch (Exception e) {
