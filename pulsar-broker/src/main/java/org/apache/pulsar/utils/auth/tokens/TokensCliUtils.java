@@ -276,7 +276,7 @@ public class TokensCliUtils {
             Jwt<?, Claims> jwt = Jwts.parserBuilder()
                     .setSigningKey(validationKey)
                     .build()
-                    .parse(token);
+                    .parseClaimsJwt(token);
 
             System.out.println(jwt.getBody());
         }
