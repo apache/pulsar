@@ -194,6 +194,13 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
             return FutureUtil.failedFuture(new ConsumerBusyException("Subscription reached max consumers limit"));
         }
 
+        if (consumerList.contains(consumer)) {
+            log.warn("[{}] Consumer with the same id is already created:"
+                            + " consumerId={}, consumer={}",
+                    consumer.cnx().clientAddress(), consumer.consumerId(), consumer);
+            throw new ConsumerBusyException("Consumer with the same id is already created!");
+        }
+
         consumerList.add(consumer);
         if (consumerList.size() > 1
                 && consumer.getPriorityLevel() < consumerList.get(consumerList.size() - 2).getPriorityLevel()) {
@@ -214,7 +221,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         // decrement unack-message count for removed consumer
         addUnAckedMessages(-consumer.getUnackedMessages());
         if (consumerSet.removeAll(consumer) == 1) {
-            consumerList.remove(consumer);
+            consumerList.removeIf(consumer::equals);
             log.info("Removed consumer {} with pending {} acks", consumer, consumer.getPendingAcks().size());
             if (consumerList.isEmpty()) {
                 cancelPendingRead();
