@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.web;
 
+import static com.sun.activation.registries.LogSupport.log;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
@@ -57,12 +58,16 @@ public class ExceptionHandler {
                         ByteBuffer.wrap(errorBytes),
                         true);
             } else {
+                // log the stack trace, and send back a non-revealing response.
+                log("InterceptException occurred: " + ex.getMessage(), ex);
                 ((HttpServletResponse) response).sendError(((InterceptException) ex).getErrorCode(),
-                        ex.getMessage());
+                        "An unexpected error occurred");
             }
         } else {
+            // log the stack trace, and send back a non-revealing response.
+            log("Unexpected exception occurred: " + ex.getMessage(), ex);
             ((HttpServletResponse) response).sendError(Response.Status.INTERNAL_SERVER_ERROR.getStatusCode(),
-                    ex.getMessage());
+                    "An unexpected error occurred");
         }
     }
 }
