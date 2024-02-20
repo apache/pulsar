@@ -23,8 +23,10 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.client.api.Producer;
@@ -40,6 +42,8 @@ import org.apache.pulsar.client.api.TableView;
  */
 @Slf4j
 public class TableViewLoadDataStoreImpl<T> implements LoadDataStore<T> {
+
+    private static final long LOAD_DATA_REPORT_UPDATE_MAX_INTERVAL_MULTIPLIER_BEFORE_RESTART = 2;
 
     private volatile TableView<T> tableView;
     private volatile long tableViewLastUpdateTimestamp;
@@ -173,13 +177,27 @@ public class TableViewLoadDataStoreImpl<T> implements LoadDataStore<T> {
     }
 
     private void validateTableView() {
-        if (tableView == null || System.currentTimeMillis() - tableViewLastUpdateTimestamp
-                > ((long) conf.getLoadBalancerReportUpdateMaxIntervalMinutes()) * 60 * 1000 * 2) {
+        String restartReason = null;
+
+        if (tableView == null) {
+            restartReason = "table view is null";
+        } else {
+            long inactiveDuration = System.currentTimeMillis() - tableViewLastUpdateTimestamp;
+            long threshold = TimeUnit.MINUTES.toMillis(conf.getLoadBalancerReportUpdateMaxIntervalMinutes())
+                    * LOAD_DATA_REPORT_UPDATE_MAX_INTERVAL_MULTIPLIER_BEFORE_RESTART;
+            if (inactiveDuration > threshold) {
+                restartReason = String.format("inactiveDuration=%d secs > threshold = %d secs",
+                        TimeUnit.MILLISECONDS.toSeconds(inactiveDuration),
+                        TimeUnit.MILLISECONDS.toSeconds(threshold));
+            }
+        }
+
+        if (StringUtils.isNotBlank(restartReason)) {
             tableViewLastUpdateTimestamp = 0;
             try {
                 closeTableView();
                 startTableView();
-                log.info("Restarted tableview on {}", topic);
+                log.info("Restarted tableview on {}, {}", topic, restartReason);
             } catch (Exception e) {
                 log.error("Failed to restart tableview on {}", topic, e);
                 throw new RuntimeException(e);
