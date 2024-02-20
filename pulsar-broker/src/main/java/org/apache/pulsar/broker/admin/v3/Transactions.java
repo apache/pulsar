@@ -458,7 +458,10 @@ public class Transactions extends TransactionsBase {
                                  @PathParam("leastSigBits") String leastSigBits) {
         try {
             checkTransactionCoordinatorEnabled();
-            internalAbortTransaction(authoritative, Long.parseLong(mostSigBits), Long.parseLong(leastSigBits))
+            // The `mostSigBits` is the partition index of the system topic TRANSACTION_COORDINATOR_ASSIGN,
+            // which is a integer. If the input is a long, there will throw a NumberFormatException instead of
+            // truncating it.
+            internalAbortTransaction(authoritative, Integer.parseInt(mostSigBits), Long.parseLong(leastSigBits))
                     .thenAccept(__ -> asyncResponse.resume(Response.noContent().build()))
                     .exceptionally(ex -> {
                         resumeAsyncResponseExceptionally(asyncResponse, ex);
