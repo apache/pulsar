@@ -37,9 +37,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
-import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
-import java.util.function.Supplier;
 import lombok.Cleanup;
 import org.apache.pulsar.broker.testcontext.PulsarTestContext;
 import org.apache.pulsar.client.api.Consumer;
@@ -82,11 +80,16 @@ public class BrokerServiceThrottlingTest extends BrokerTestBase {
      */
     @Test
     public void testThrottlingLookupRequestSemaphore() throws Exception {
-        throtllingRequestSemaphoresTestHelper(
-                "maxConcurrentLookupRequest",
-                "pulsar.broker.lookup.pending.request.limit",
-                50_000,
-                () -> pulsar.getBrokerService().lookupRequestSemaphore.get());
+        var lookupRequestSemaphore = pulsar.getBrokerService().lookupRequestSemaphore;
+        var configName = "maxConcurrentLookupRequest";
+        var metricName = "pulsar.broker.lookup.pending.request.limit";
+        // Validate that the configuration has not been overridden.
+        assertThat(admin.brokers().getAllDynamicConfigurations()).doesNotContainKey(configName);
+        assertLongGaugeValue(metricName, 50_000);
+        assertThat(lookupRequestSemaphore.get().availablePermits()).isNotEqualTo(0);
+        admin.brokers().updateDynamicConfiguration(configName, Integer.toString(0));
+        waitAtMost(1, TimeUnit.SECONDS).until(() -> lookupRequestSemaphore.get().availablePermits() == 0);
+        assertLongGaugeValue(metricName, 0);
     }
 
     /**
@@ -95,29 +98,24 @@ public class BrokerServiceThrottlingTest extends BrokerTestBase {
      */
     @Test
     public void testThrottlingTopicLoadRequestSemaphore() throws Exception {
-        throtllingRequestSemaphoresTestHelper(
-                "maxConcurrentTopicLoadRequest",
-                "pulsar.broker.topic.load.pending.request.limit",
-                5_000,
-                () -> pulsar.getBrokerService().topicLoadRequestSemaphore.get());
-    }
-
-    private void throtllingRequestSemaphoresTestHelper(String configName, String metricName, int defaultValue,
-                                                       Supplier<Semaphore> semaphoreSupplier) throws Exception {
+        var topicLoadRequestSemaphore = pulsar.getBrokerService().topicLoadRequestSemaphore;
+        var configName = "maxConcurrentTopicLoadRequest";
+        var metricName = "pulsar.broker.topic.load.pending.request.limit";
         // Validate that the configuration has not been overridden.
         assertThat(admin.brokers().getAllDynamicConfigurations()).doesNotContainKey(configName);
+        assertLongGaugeValue(metricName, 5_000);
+        assertThat(topicLoadRequestSemaphore.get().availablePermits()).isNotEqualTo(0);
+        admin.brokers().updateDynamicConfiguration(configName, Integer.toString(0));
+        waitAtMost(1, TimeUnit.SECONDS).until(() -> topicLoadRequestSemaphore.get().availablePermits() == 0);
+        assertLongGaugeValue(metricName, 0);
+    }
+
+    private void assertLongGaugeValue(String metricName, int value) {
         assertThat(pulsarTestContext.getOpenTelemetryMetricReader().collectAllMetrics())
                 .anySatisfy(metric -> assertThat(metric)
                         .hasName(metricName)
                         .hasLongGaugeSatisfying(
-                                gauge -> gauge.hasPointsSatisfying(point -> point.hasValue(defaultValue))));
-        assertThat(semaphoreSupplier.get().availablePermits()).isNotEqualTo(0);
-        admin.brokers().updateDynamicConfiguration(configName, Integer.toString(0));
-        waitAtMost(1, TimeUnit.SECONDS).until(() -> semaphoreSupplier.get().availablePermits() == 0);
-        assertThat(pulsarTestContext.getOpenTelemetryMetricReader().collectAllMetrics())
-                .anySatisfy(metric -> assertThat(metric)
-                        .hasName(metricName)
-                        .hasLongGaugeSatisfying(gauge -> gauge.hasPointsSatisfying(point -> point.hasValue(0))));
+                                gauge -> gauge.hasPointsSatisfying(point -> point.hasValue(value))));
     }
 
     /**
