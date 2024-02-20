@@ -25,8 +25,18 @@ import java.util.concurrent.TimeUnit;
  */
 public class MetricsUtil {
 
+    private static final double NANOS_IN_SECOND = TimeUnit.SECONDS.toNanos(1);
+
+    /**
+     * Convert a duration to seconds. Unlike {@link TimeUnit#toSeconds(long)}, this method preserves fractional
+     * precision.
+     *
+     * @param duration the duration
+     * @param timeUnit the time unit
+     * @return the duration in seconds
+     */
     public static double convertToSeconds(long duration, TimeUnit timeUnit) {
-        return timeUnit.toNanos(duration) / (double) TimeUnit.SECONDS.toNanos(1);
+        return timeUnit.toNanos(duration) / NANOS_IN_SECOND;
     }
 
 }
