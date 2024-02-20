@@ -37,6 +37,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
+import java.util.regex.Pattern;
 import org.apache.pulsar.cli.converters.ByteUnitToLongConverter;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -278,7 +279,7 @@ public class LoadSimulationClient {
             for (Map.Entry<String, TradeUnit> entry : topicsToTradeUnits.entrySet()) {
                 final String topic = entry.getKey();
                 final TradeUnit unit = entry.getValue();
-                if (topic.matches(groupRegex)) {
+                if (topic.matches(Pattern.quote(groupRegex))) {
                     unit.change(tradeConf);
                 }
             }
@@ -291,7 +292,7 @@ public class LoadSimulationClient {
             for (Map.Entry<String, TradeUnit> entry : topicsToTradeUnits.entrySet()) {
                 final String topic = entry.getKey();
                 final TradeUnit unit = entry.getValue();
-                if (topic.matches(regex)) {
+                if (topic.matches(Pattern.quote(regex))) {
                     unit.stop.set(true);
                 }
             }
