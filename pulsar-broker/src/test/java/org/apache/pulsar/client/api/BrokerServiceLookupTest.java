@@ -216,7 +216,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
             if (Boolean.TRUE.equals(ret)) {
                 assertThat(pulsarTestContext2.getOpenTelemetryMetricReader().collectAllMetrics())
                         .anySatisfy(metric -> assertThat(metric)
-                                .hasName("pulsar.broker.topic.load.pending.request.usage")
+                                .hasName("pulsar.broker.topic.load.operation.pending.usage")
                                 .hasLongSumSatisfying(
                                         sum -> sum.hasPointsSatisfying(point -> point.hasValue(1))));
                 hasTopicLoadPendingRequestMetric.set(true);

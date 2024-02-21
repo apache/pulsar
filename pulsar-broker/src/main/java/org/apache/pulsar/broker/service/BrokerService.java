@@ -249,7 +249,7 @@ public class BrokerService implements Closeable {
     private final ObservableLongUpDownCounter pendingLookupRequestsCounter;
     private final ObservableLongGauge pendingLookupRequestsLimitGauge;
 
-    @PulsarDeprecatedMetric(newMetricName = "pulsar.broker.topic.load.pending.request.usage")
+    @PulsarDeprecatedMetric(newMetricName = "pulsar.broker.topic.load.operation.pending.usage")
     private final ObserverGauge pendingTopicLoadRequests;
     private final ObservableLongUpDownCounter pendingTopicLoadRequestsCounter;
     private final ObservableLongGauge pendingTopicLoadRequestsLimitGauge;
@@ -433,13 +433,13 @@ public class BrokerService implements Closeable {
                 .supplier(this::getPendingTopicLoadRequests)
                 .register();
         this.pendingTopicLoadRequestsCounter = pulsar.getOpenTelemetry().getMeter()
-                .upDownCounterBuilder("pulsar.broker.topic.load.pending.request.usage")
+                .upDownCounterBuilder("pulsar.broker.topic.load.operation.pending.usage")
                 .setDescription("The number of pending topic load operations in the broker. "
                         + "When it reaches threshold \"maxConcurrentTopicLoadRequest\" defined in broker.conf, "
                         + "new requests are rejected.")
                 .buildWithCallback(measurement -> measurement.record(getPendingTopicLoadRequests()));
         this.pendingTopicLoadRequestsLimitGauge = pulsar.getOpenTelemetry().getMeter()
-                .gaugeBuilder("pulsar.broker.topic.load.pending.request.limit")
+                .gaugeBuilder("pulsar.broker.topic.load.operation.pending.limit")
                 .ofLongs()
                 .setDescription("The maximum number of pending topic load operations in the broker. "
                         + "Equal to \"maxConcurrentTopicLoadRequest\" defined in broker.conf.")
