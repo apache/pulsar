@@ -740,9 +740,7 @@ public class PulsarTestContext implements AutoCloseable {
                     builderCustomizer.addMeterProviderCustomizer(
                             (meterProviderBuilder, __) -> meterProviderBuilder.registerMetricReader(reader));
                     builderCustomizer.addPropertiesSupplier(
-                            () -> Map.of(OpenTelemetryService.OTEL_SDK_DISABLED_KEY, "false",
-                                    "otel.java.enabled.resource.providers", "dummy"));
-                });
+                            () -> Map.of(OpenTelemetryService.OTEL_SDK_DISABLED_KEY, "false"));
                 openTelemetryMetricReader(reader);
             } else {
                 pulsarBrokerOpenTelemetry = null;
