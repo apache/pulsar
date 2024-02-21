@@ -102,7 +102,7 @@ flexible messaging model and an intuitive client API.</description>
     <narPluginPhase>package</narPluginPhase>
 
     <!-- apache commons -->
-    <commons-compress.version>1.21</commons-compress.version>
+    <commons-compress.version>1.26.0</commons-compress.version>
 
     <bookkeeper.version>4.14.8</bookkeeper.version>
     <zookeeper.version>3.9.1</zookeeper.version>
