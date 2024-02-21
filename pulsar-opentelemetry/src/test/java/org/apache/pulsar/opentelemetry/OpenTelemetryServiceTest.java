@@ -53,11 +53,11 @@ public class OpenTelemetryServiceTest {
     @BeforeMethod
     public void setup() throws Exception {
         reader = InMemoryMetricReader.create();
-        openTelemetryService = OpenTelemetryService.builder().
-                sdkBuilderConsumer(getSdkBuilderConsumer(reader,
-                        Map.of(OpenTelemetryService.OTEL_SDK_DISABLED_KEY, "false"))).
-                clusterName("openTelemetryServiceTestCluster").
-                build();
+        openTelemetryService = OpenTelemetryService.builder()
+                .builderCustomizer(
+                        getBuilderCustomizer(reader, Map.of(OpenTelemetryService.OTEL_SDK_DISABLED_KEY, "false")))
+                .clusterName("openTelemetryServiceTestCluster")
+                .build();
         meter = openTelemetryService.getOpenTelemetry().getMeter("openTelemetryServiceTestInstrument");
     }
 
@@ -68,8 +68,8 @@ public class OpenTelemetryServiceTest {
     }
 
     // Customizes the SDK builder to include the MetricReader and extra properties for testing purposes.
-    private static Consumer<AutoConfiguredOpenTelemetrySdkBuilder> getSdkBuilderConsumer(MetricReader extraReader,
-                                                                                 Map<String, String> extraProperties) {
+    private static Consumer<AutoConfiguredOpenTelemetrySdkBuilder> getBuilderCustomizer(MetricReader extraReader,
+                                                                                Map<String, String> extraProperties) {
         return autoConfigurationCustomizer -> {
             if (extraReader != null) {
                 autoConfigurationCustomizer.addMeterProviderCustomizer(
@@ -97,14 +97,14 @@ public class OpenTelemetryServiceTest {
         var reader = InMemoryMetricReader.create();
 
         @Cleanup
-        var ots = OpenTelemetryService.builder().
-                sdkBuilderConsumer(getSdkBuilderConsumer(reader,
+        var ots = OpenTelemetryService.builder()
+                .builderCustomizer(getBuilderCustomizer(reader,
                         Map.of(OpenTelemetryService.OTEL_SDK_DISABLED_KEY, "false",
-                               "otel.java.disabled.resource.providers", JarServiceNameDetector.class.getName()))).
-                clusterName("testServiceNameAndVersion").
-                serviceName("openTelemetryServiceTestService").
-                serviceVersion("1.0.0").
-                build();
+                               "otel.java.disabled.resource.providers", JarServiceNameDetector.class.getName())))
+                .clusterName("testServiceNameAndVersion")
+                .serviceName("openTelemetryServiceTestService")
+                .serviceVersion("1.0.0")
+                .build();
 
         assertThat(reader.collectAllMetrics())
             .allSatisfy(metric -> assertThat(metric)
@@ -128,13 +128,13 @@ public class OpenTelemetryServiceTest {
     public void testMetricCardinalityIsSet() {
         var prometheusExporterPort = 9464;
         @Cleanup
-        var ots = OpenTelemetryService.builder().
-                sdkBuilderConsumer(getSdkBuilderConsumer(null,
+        var ots = OpenTelemetryService.builder()
+                .builderCustomizer(getBuilderCustomizer(null,
                         Map.of(OpenTelemetryService.OTEL_SDK_DISABLED_KEY, "false",
                         "otel.metrics.exporter", "prometheus",
-                        "otel.exporter.prometheus.port", Integer.toString(prometheusExporterPort)))).
-                clusterName("openTelemetryServiceCardinalityTestCluster").
-                build();
+                        "otel.exporter.prometheus.port", Integer.toString(prometheusExporterPort))))
+                .clusterName("openTelemetryServiceCardinalityTestCluster")
+                .build();
         var meter = ots.getOpenTelemetry().getMeter("openTelemetryMetricCardinalityTest");
         var counter = meter.counterBuilder("dummyCounter").build();
         for (int i = 0; i < OpenTelemetryService.MAX_CARDINALITY_LIMIT + 100; i++) {
@@ -172,10 +172,10 @@ public class OpenTelemetryServiceTest {
         var metricReader = InMemoryMetricReader.create();
 
         @Cleanup
-        var ots = OpenTelemetryService.builder().
-                sdkBuilderConsumer(getSdkBuilderConsumer(metricReader, Map.of())).
-                clusterName("openTelemetryServiceTestCluster").
-                build();
+        var ots = OpenTelemetryService.builder()
+                .builderCustomizer(getBuilderCustomizer(metricReader, Map.of()))
+                .clusterName("openTelemetryServiceTestCluster")
+                .build();
         var meter = ots.getOpenTelemetry().getMeter("openTelemetryServiceTestInstrument");
 
         var builders = List.of(

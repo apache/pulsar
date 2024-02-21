@@ -36,18 +36,13 @@ public class PulsarBrokerOpenTelemetry implements Closeable {
     @Getter
     private final Meter meter;
 
-    public PulsarBrokerOpenTelemetry(ServiceConfiguration config) {
-        this(config, null);
-    }
-
-    @VisibleForTesting
     public PulsarBrokerOpenTelemetry(ServiceConfiguration config,
-                                     Consumer<AutoConfiguredOpenTelemetrySdkBuilder> builderCustomizer) {
+                                 @VisibleForTesting Consumer<AutoConfiguredOpenTelemetrySdkBuilder> builderCustomizer) {
         openTelemetryService = OpenTelemetryService.builder()
                 .clusterName(config.getClusterName())
                 .serviceName(SERVICE_NAME)
                 .serviceVersion(PulsarVersion.getVersion())
-                .sdkBuilderConsumer(builderCustomizer)
+                .builderCustomizer(builderCustomizer)
                 .build();
         meter = openTelemetryService.getOpenTelemetry().getMeter("org.apache.pulsar.broker");
     }

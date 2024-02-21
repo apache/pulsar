@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.testcontext;
 
 import com.google.common.util.concurrent.MoreExecutors;
 import io.netty.channel.EventLoopGroup;
+import io.opentelemetry.sdk.autoconfigure.AutoConfiguredOpenTelemetrySdkBuilder;
 import io.opentelemetry.sdk.testing.exporter.InMemoryMetricReader;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -54,7 +55,6 @@ import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.broker.resources.TopicResources;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.ServerCnx;
-import org.apache.pulsar.broker.stats.PulsarBrokerOpenTelemetry;
 import org.apache.pulsar.broker.storage.ManagedLedgerStorage;
 import org.apache.pulsar.common.util.GracefulExecutorServicesShutdown;
 import org.apache.pulsar.common.util.PortManager;
@@ -733,24 +733,25 @@ public class PulsarTestContext implements AutoCloseable {
                     .equals(PulsarCompactionServiceFactory.class.getName())) {
                 compactionServiceFactory = new MockPulsarCompactionServiceFactory(spyConfig, builder.compactor);
             }
-            PulsarBrokerOpenTelemetry pulsarBrokerOpenTelemetry;
+            Consumer<AutoConfiguredOpenTelemetrySdkBuilder> openTelemetrySdkBuilderCustomizer;
             if (builder.enableOpenTelemetry) {
                 var reader = InMemoryMetricReader.create();
-                pulsarBrokerOpenTelemetry = new PulsarBrokerOpenTelemetry(builder.config, builderCustomizer -> {
-                    builderCustomizer.addMeterProviderCustomizer(
+                openTelemetrySdkBuilderCustomizer = sdkBuilder -> {
+                    sdkBuilder.addMeterProviderCustomizer(
                             (meterProviderBuilder, __) -> meterProviderBuilder.registerMetricReader(reader));
-                    builderCustomizer.addPropertiesSupplier(
+                    sdkBuilder.addPropertiesSupplier(
                             () -> Map.of(OpenTelemetryService.OTEL_SDK_DISABLED_KEY, "false"));
-                });
+                };
                 openTelemetryMetricReader(reader);
             } else {
-                pulsarBrokerOpenTelemetry = null;
+                openTelemetrySdkBuilderCustomizer = null;
             }
             PulsarService pulsarService = spyConfig.getPulsarService()
                     .spy(StartableTestPulsarService.class, spyConfig, builder.config, builder.localMetadataStore,
                             builder.configurationMetadataStore, compactionServiceFactory,
                             builder.brokerInterceptor,
-                            bookKeeperClientFactory, builder.brokerServiceCustomizer, pulsarBrokerOpenTelemetry);
+                            bookKeeperClientFactory, builder.brokerServiceCustomizer,
+                            openTelemetrySdkBuilderCustomizer);
             if (compactionServiceFactory != null) {
                 compactionServiceFactory.initialize(pulsarService);
             }

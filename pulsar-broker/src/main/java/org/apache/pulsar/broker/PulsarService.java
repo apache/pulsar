@@ -30,6 +30,7 @@ import io.netty.channel.socket.SocketChannel;
 import io.netty.util.HashedWheelTimer;
 import io.netty.util.Timer;
 import io.netty.util.concurrent.DefaultThreadFactory;
+import io.opentelemetry.sdk.autoconfigure.AutoConfiguredOpenTelemetrySdkBuilder;
 import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.net.InetSocketAddress;
@@ -249,8 +250,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     private final Timer brokerClientSharedTimer;
 
     private MetricsGenerator metricsGenerator;
-    @VisibleForTesting
-    protected PulsarBrokerOpenTelemetry openTelemetry;
+    private final PulsarBrokerOpenTelemetry openTelemetry;
 
     private TransactionMetadataStoreService transactionMetadataStoreService;
     private TransactionBufferProvider transactionBufferProvider;
@@ -306,6 +306,14 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                          WorkerConfig workerConfig,
                          Optional<WorkerService> functionWorkerService,
                          Consumer<Integer> processTerminator) {
+        this(config, workerConfig,  functionWorkerService, processTerminator, null);
+    }
+
+    public PulsarService(ServiceConfiguration config,
+                         WorkerConfig workerConfig,
+                         Optional<WorkerService> functionWorkerService,
+                         Consumer<Integer> processTerminator,
+                         Consumer<AutoConfiguredOpenTelemetrySdkBuilder> openTelemetrySdkBuilderCustomizer) {
         state = State.Init;
 
         // Validate correctness of configuration
@@ -313,7 +321,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         TransactionBatchedWriteValidator.validate(config);
         this.config = config;
 
-        this.openTelemetry = new PulsarBrokerOpenTelemetry(config);
+        this.openTelemetry = new PulsarBrokerOpenTelemetry(config, openTelemetrySdkBuilderCustomizer);
 
         // validate `advertisedAddress`, `advertisedListeners`, `internalListenerName`
         this.advertisedListeners = MultipleListenerValidator.validateAndAnalysisAdvertisedListener(config);
