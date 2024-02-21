@@ -1192,10 +1192,6 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 return null;
             }
 
-            if (ackBitSet != null && !ackBitSet.get(index)) {
-                return null;
-            }
-
             BatchMessageIdImpl batchMessageIdImpl = new BatchMessageIdImpl(messageId.getLedgerId(),
                     messageId.getEntryId(), getPartitionIndex(), index, numMessages, ackSetInMessageId);
 
@@ -1639,6 +1635,12 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         int skippedMessages = 0;
         try {
             for (int i = 0; i < batchSize; ++i) {
+                if (ackBitSet != null && !ackBitSet.get(i)) {
+                    // If it is not in ackBitSet, it means Broker does not want to deliver it to the client, and did not
+                    // decrease the permits in the broker-side.
+                    // So do not acquire more permits for this message.
+                    continue;
+                }
                 final MessageImpl<T> message = newSingleMessage(i, batchSize, brokerEntryMetadata, msgMetadata,
                         singleMessageMetadata, uncompressedPayload, batchMessage, schema, true,
                         ackBitSet, ackSetInMessageId, redeliveryCount, consumerEpoch);
