@@ -94,6 +94,7 @@ import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.common.util.SecurityUtility;
+import org.apache.pulsar.opentelemetry.OpenTelemetryAttributes;
 import org.apache.pulsar.policies.data.loadbalancer.LocalBrokerData;
 import org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats;
 import org.apache.zookeeper.KeeperException;
@@ -226,10 +227,9 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         topicLoadRequestSemaphoreField.set(pulsar2.getBrokerService(),
                 new AtomicReference<>(topicLoadRequestSemaphoreSpy));
 
-        var metrics = pulsarTestContext.getOpenTelemetryMetricReader().collectAllMetrics();
-        assertThat(metrics).noneSatisfy(metric -> assertThat(metric).hasName("pulsar.broker.lookup.answer"));
-        assertThat(metrics).noneSatisfy(metric -> assertThat(metric).hasName("pulsar.broker.lookup.redirect"));
-        assertThat(metrics).noneSatisfy(metric -> assertThat(metric).hasName("pulsar.broker.lookup.latency"));
+        var metricName = "pulsar.broker.lookup.request.duration";
+        assertThat(pulsarTestContext.getOpenTelemetryMetricReader().collectAllMetrics())
+                .noneSatisfy(metric -> assertThat(metric).hasName("pulsar.broker.lookup.request.duration"));
 
         /**** started broker-2 ****/
 
@@ -258,20 +258,16 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
             testMessageOrderAndDuplicates(messageSet, receivedMessage, expectedMessage);
         }
 
-        metrics = pulsarTestContext.getOpenTelemetryMetricReader().collectAllMetrics();
-        assertThat(metrics)
+        assertThat(pulsarTestContext.getOpenTelemetryMetricReader().collectAllMetrics())
                 .anySatisfy(metric -> assertThat(metric)
-                        .hasName("pulsar.broker.lookup.answer")
-                        .hasLongSumSatisfying(sum -> sum.hasPointsSatisfying(point -> point.hasValue(1))));
-        assertThat(metrics)
-                .anySatisfy(metric -> assertThat(metric)
-                        .hasName("pulsar.broker.lookup.redirect")
-                        .hasLongSumSatisfying(sum -> sum.hasPointsSatisfying(point -> point.hasValue(1))));
-        assertThat(metrics).anySatisfy(metric -> assertThat(metric)
-                .hasName("pulsar.broker.lookup.latency")
-                .hasHistogramSatisfying(histogram -> histogram.hasPointsSatisfying(point -> point
-                        .hasCount(2)
-                        .hasSumGreaterThan(0.0))));
+                        .hasName(metricName)
+                        .hasHistogramSatisfying(histogram -> histogram.hasPointsSatisfying(
+                                point -> point
+                                        .hasAttributes(NamespaceService.PULSAR_LOOKUP_RESPONSE_REDIRECT_ATTRIBUTES)
+                                        .hasCount(1),
+                                point -> point
+                                        .hasAttributes(NamespaceService.PULSAR_LOOKUP_RESPONSE_BROKER_ATTRIBUTES)
+                                        .hasCount(1))));
         assertThat(hasLookupPendingRequestMetric).isTrue();
         assertThat(hasTopicLoadPendingRequestMetric).isTrue();
 
@@ -1195,9 +1191,16 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         assertTrue(lookupService instanceof BinaryProtoLookupService);
         ClientCnx lookupConnection = pulsarClientImpl.getCnxPool().getConnection(lookupService.resolveHost()).join();
 
+        var metricName = "pulsar.broker.lookup.request.duration";
         var metricReader = pulsarTestContext.getOpenTelemetryMetricReader();
         assertThat(metricReader.collectAllMetrics())
-                .noneSatisfy(metric -> assertThat(metric).hasName("pulsar.broker.lookup.failure"));
+                .noneSatisfy(metric -> assertThat(metric)
+                        .hasName(metricName)
+                        .hasHistogramSatisfying(histogram -> histogram.hasPointsSatisfying(
+                                point -> point
+                                        .hasAttributes(OpenTelemetryAttributes.PULSAR_RESPONSE_STATUS_FAILURE),
+                                point -> point
+                                        .hasAttributes(NamespaceService.PULSAR_LOOKUP_RESPONSE_BROKER_ATTRIBUTES))));
 
         // Verify the socket will not be closed if the bundle is unloading.
         BundleOfTopic bundleOfTopic = new BundleOfTopic(tpName);
@@ -1211,8 +1214,13 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
 
         assertThat(metricReader.collectAllMetrics())
                 .anySatisfy(metric -> assertThat(metric)
-                        .hasName("pulsar.broker.lookup.failure")
-                        .hasLongSumSatisfying(sum -> sum.hasPointsSatisfying(point -> point.hasValue(1))));
+                        .hasName(metricName)
+                        .hasHistogramSatisfying(histogram -> histogram.hasPointsSatisfying(
+                                point -> point
+                                        .hasAttributes(OpenTelemetryAttributes.PULSAR_RESPONSE_STATUS_FAILURE)
+                                        .hasCount(1),
+                                point -> point
+                                        .hasAttributes(NamespaceService.PULSAR_LOOKUP_RESPONSE_BROKER_ATTRIBUTES))));
         // Do unload topic, trigger producer & consumer reconnection.
         pulsar.getBrokerService().getTopic(tpName, false).join().get().close(true);
         assertTrue(lookupConnection.ctx().channel().isActive());
