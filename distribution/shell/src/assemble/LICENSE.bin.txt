@@ -342,7 +342,7 @@ The Apache Software License, Version 2.0
     - commons-logging-1.2.jar
     - commons-lang3-3.11.jar
     - commons-text-1.10.0.jar
-    - commons-compress-1.21.jar
+    - commons-compress-1.26.0.jar
  * Netty
     - netty-buffer-4.1.105.Final.jar
     - netty-codec-4.1.105.Final.jar
