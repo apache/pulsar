@@ -437,12 +437,14 @@ public class BrokerService implements Closeable {
                 .setDescription("The number of pending topic load operations in the broker. "
                         + "When it reaches threshold \"maxConcurrentTopicLoadRequest\" defined in broker.conf, "
                         + "new requests are rejected.")
+                .setUnit("{operation}")
                 .buildWithCallback(measurement -> measurement.record(getPendingTopicLoadRequests()));
         this.pendingTopicLoadRequestsLimitGauge = pulsar.getOpenTelemetry().getMeter()
                 .gaugeBuilder("pulsar.broker.topic.load.operation.pending.limit")
                 .ofLongs()
                 .setDescription("The maximum number of pending topic load operations in the broker. "
                         + "Equal to \"maxConcurrentTopicLoadRequest\" defined in broker.conf.")
+                .setUnit("{operation}")
                 .buildWithCallback(
                         measurement -> measurement.record(pulsar.getConfig().getMaxConcurrentTopicLoadRequest()));
 
