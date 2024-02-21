@@ -21,8 +21,11 @@ package org.apache.pulsar.client.impl;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
@@ -43,6 +46,7 @@ import io.netty.util.concurrent.DefaultThreadFactory;
 import java.lang.reflect.Field;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -255,5 +259,22 @@ public class PulsarClientImplTest {
                 .conf(conf)
                 .internalExecutorProvider(executorProvider)
                 .build();
+    }
+
+    @Test
+    public void getProxyConnection() throws PulsarClientException {
+        ClientConfigurationData conf = new ClientConfigurationData();
+        conf.setDnsServerAddresses(DefaultDnsServerAddressStreamProvider.defaultAddressList());
+        conf.setServiceUrl("pulsar://broker-1:6650");
+        initializeEventLoopGroup(conf);
+        @Cleanup
+        PulsarClientImpl client = spy(new PulsarClientImpl(conf, eventLoopGroup));
+        client.getProxyConnection(null,
+                InetSocketAddress.createUnresolved("pulsar://broker-1", 6650), 0);
+        verify(client, times(0)).getLookup(anyString());
+
+        client.getProxyConnection(URI.create("pulsar://new-cluster:6650"),
+                InetSocketAddress.createUnresolved("pulsar://broker-1", 6650), 0);
+        verify(client, times(1)).getLookup("pulsar://new-cluster:6650");
     }
 }

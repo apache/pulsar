@@ -28,6 +28,7 @@ import io.netty.util.HashedWheelTimer;
 import io.netty.util.Timer;
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.net.URI;
 import java.time.Clock;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -990,8 +991,13 @@ public class PulsarClientImpl implements PulsarClient {
         return getConnection(address, address, cnxPool.genRandomKeyToSelectCon());
     }
 
-    public CompletableFuture<ClientCnx> getProxyConnection(final InetSocketAddress logicalAddress,
+    public CompletableFuture<ClientCnx> getProxyConnection(final URI redirectedClusterURI,
+                                                           final InetSocketAddress logicalAddress,
                                                            final int randomKeyForSelectConnection) {
+
+        LookupService lookup =
+                redirectedClusterURI == null ? this.lookup : getLookup(redirectedClusterURI.toString());
+
         if (!(lookup instanceof BinaryProtoLookupService)) {
             return FutureUtil.failedFuture(new PulsarClientException.InvalidServiceURL(
                     "Cannot proxy connection through HTTP service URL", null));

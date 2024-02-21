@@ -234,10 +234,10 @@ public class ProxyWithExtensibleLoadManagerTest extends MultiBrokerBaseTest {
         producerFuture.get();
         consumerFuture.get();
 
-        verify(producerClient, times(1)).getProxyConnection(any(), anyInt());
+        verify(producerClient, times(1)).getProxyConnection(any(), any(), anyInt());
         verify(producerLookupServiceSpy, never()).getBroker(topicName);
 
-        verify(consumerClient, times(1)).getProxyConnection(any(), anyInt());
+        verify(consumerClient, times(1)).getProxyConnection(any(), any(), anyInt());
         verify(consumerLookupServiceSpy, never()).getBroker(topicName);
     }
 
@@ -330,10 +330,10 @@ public class ProxyWithExtensibleLoadManagerTest extends MultiBrokerBaseTest {
         assertEquals(FieldUtils.readDeclaredField(producer.getConnectionHandler(), "useProxy", true), Boolean.FALSE);
         assertEquals(FieldUtils.readDeclaredField(consumer.getConnectionHandler(), "useProxy", true), Boolean.FALSE);
 
-        verify(producerClient, times(1)).getProxyConnection(any(), anyInt());
+        verify(producerClient, times(1)).getProxyConnection(any(), any(), anyInt());
         verify(producerLookupServiceSpy, times(1)).getBroker(topicName);
 
-        verify(consumerClient, times(1)).getProxyConnection(any(), anyInt());
+        verify(consumerClient, times(1)).getProxyConnection(any(), any(), anyInt());
         verify(consumerLookupServiceSpy, times(1)).getBroker(topicName);
     }
 }
