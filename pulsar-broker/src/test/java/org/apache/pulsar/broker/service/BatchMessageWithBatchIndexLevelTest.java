@@ -424,8 +424,6 @@ public class BatchMessageWithBatchIndexLevelTest extends BatchMessageTest {
         final int receiverQueueSize = 500;
         admin.topics().createNonPartitionedTopic(topicName);
         admin.topics().createSubscription(topicName, subName, MessageId.earliest);
-
-        // Send 100 messages.
         ConsumerBuilder<String> consumerBuilder = pulsarClient.newConsumer(Schema.STRING)
                 .topic(topicName)
                 .receiverQueueSize(receiverQueueSize)
@@ -433,6 +431,8 @@ public class BatchMessageWithBatchIndexLevelTest extends BatchMessageTest {
                 .enableBatchIndexAcknowledgment(true)
                 .subscriptionType(SubscriptionType.Shared)
                 .isAckReceiptEnabled(true);
+
+        // Send 100 messages.
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
                 .topic(topicName)
                 .enableBatching(true)
@@ -449,7 +449,7 @@ public class BatchMessageWithBatchIndexLevelTest extends BatchMessageTest {
         Consumer<String> consumer1 = consumerBuilder.consumerName("c1").subscribe();
         Message[] messagesInClientMemory = new Message[2];
         for (int i = 0; i < 2; i++) {
-            Message msg = consumer1.receive(2000, TimeUnit.SECONDS);
+            Message msg = consumer1.receive(2, TimeUnit.SECONDS);
             assertNotNull(msg);
             messagesInClientMemory[i] = msg;
         }
