@@ -47,12 +47,6 @@
     </dependency>
   </dependencies>
 
-  <properties>
-    <UBUNTU_MIRROR>http://archive.ubuntu.com/ubuntu/</UBUNTU_MIRROR>
-    <UBUNTU_SECURITY_MIRROR>http://security.ubuntu.com/ubuntu/</UBUNTU_SECURITY_MIRROR>
-    <IMAGE_JDK_MAJOR_VERSION>17</IMAGE_JDK_MAJOR_VERSION>
-  </properties>
-
   <profiles>
     <profile>
       <id>git-commit-id-no-git</id>
