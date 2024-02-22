@@ -47,11 +47,6 @@
     </dependency>
   </dependencies>
 
-  <properties>
-    <UBUNTU_MIRROR>mirror://mirrors.ubuntu.com/mirrors.txt</UBUNTU_MIRROR>
-    <UBUNTU_SECURITY_MIRROR>http://security.ubuntu.com/ubuntu/</UBUNTU_SECURITY_MIRROR>
-  </properties>
-
   <profiles>
     <profile>
       <id>git-commit-id-no-git</id>
