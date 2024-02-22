@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.service;
 
+import static org.apache.pulsar.client.util.MathUtils.signSafeMod;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -103,7 +104,7 @@ public class HashRangeExclusiveStickyKeyConsumerSelector implements StickyKeyCon
     @Override
     public Consumer select(int hash) {
         if (rangeMap.size() > 0) {
-            int slot = hash % rangeSize;
+            int slot = signSafeMod(hash, rangeSize);
             Map.Entry<Integer, Consumer> ceilingEntry = rangeMap.ceilingEntry(slot);
             Map.Entry<Integer, Consumer> floorEntry = rangeMap.floorEntry(slot);
             Consumer ceilingConsumer = ceilingEntry != null ? ceilingEntry.getValue() : null;

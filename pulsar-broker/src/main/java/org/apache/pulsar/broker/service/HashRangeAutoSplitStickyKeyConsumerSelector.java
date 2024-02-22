@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.service;
 
+import static org.apache.pulsar.client.util.MathUtils.signSafeMod;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -111,7 +112,7 @@ public class HashRangeAutoSplitStickyKeyConsumerSelector implements StickyKeyCon
     @Override
     public Consumer select(int hash) {
         if (!rangeMap.isEmpty()) {
-            int slot = hash % rangeSize;
+            int slot = signSafeMod(hash, rangeSize);
             return rangeMap.ceilingEntry(slot).getValue();
         } else {
             return null;
