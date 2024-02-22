@@ -440,6 +440,7 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
             admin.topics().createNonPartitionedTopic(topicName);
             pulsarClient.newProducer(Schema.STRING).topic(topicName).create().close();
         }
+        @Cleanup("shutdown")
         ExecutorService executorService = Executors.newFixedThreadPool(5);
         for (int i = 1; i <= 5; i ++) {
             int finalI = i;
