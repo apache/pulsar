@@ -64,38 +64,8 @@ import org.apache.pulsar.client.impl.schema.SchemaInfoUtil;
 import org.apache.pulsar.client.impl.transaction.TransactionBufferHandler;
 import org.apache.pulsar.client.util.TimedCompletableFuture;
 import org.apache.pulsar.common.api.AuthData;
-import org.apache.pulsar.common.api.proto.BaseCommand;
-import org.apache.pulsar.common.api.proto.CommandAckResponse;
-import org.apache.pulsar.common.api.proto.CommandActiveConsumerChange;
-import org.apache.pulsar.common.api.proto.CommandAddPartitionToTxnResponse;
-import org.apache.pulsar.common.api.proto.CommandAddSubscriptionToTxnResponse;
-import org.apache.pulsar.common.api.proto.CommandAuthChallenge;
-import org.apache.pulsar.common.api.proto.CommandCloseConsumer;
-import org.apache.pulsar.common.api.proto.CommandCloseProducer;
-import org.apache.pulsar.common.api.proto.CommandConnected;
-import org.apache.pulsar.common.api.proto.CommandEndTxnOnPartitionResponse;
-import org.apache.pulsar.common.api.proto.CommandEndTxnOnSubscriptionResponse;
-import org.apache.pulsar.common.api.proto.CommandEndTxnResponse;
-import org.apache.pulsar.common.api.proto.CommandError;
-import org.apache.pulsar.common.api.proto.CommandGetLastMessageIdResponse;
-import org.apache.pulsar.common.api.proto.CommandGetOrCreateSchemaResponse;
-import org.apache.pulsar.common.api.proto.CommandGetSchemaResponse;
-import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespaceResponse;
-import org.apache.pulsar.common.api.proto.CommandLookupTopicResponse;
-import org.apache.pulsar.common.api.proto.CommandMessage;
-import org.apache.pulsar.common.api.proto.CommandNewTxnResponse;
-import org.apache.pulsar.common.api.proto.CommandPartitionedTopicMetadataResponse;
-import org.apache.pulsar.common.api.proto.CommandProducerSuccess;
-import org.apache.pulsar.common.api.proto.CommandReachedEndOfTopic;
-import org.apache.pulsar.common.api.proto.CommandSendError;
-import org.apache.pulsar.common.api.proto.CommandSendReceipt;
-import org.apache.pulsar.common.api.proto.CommandSuccess;
-import org.apache.pulsar.common.api.proto.CommandTcClientConnectResponse;
-import org.apache.pulsar.common.api.proto.CommandTopicMigrated;
+import org.apache.pulsar.common.api.proto.*;
 import org.apache.pulsar.common.api.proto.CommandTopicMigrated.ResourceType;
-import org.apache.pulsar.common.api.proto.CommandWatchTopicListSuccess;
-import org.apache.pulsar.common.api.proto.CommandWatchTopicUpdate;
-import org.apache.pulsar.common.api.proto.ServerError;
 import org.apache.pulsar.common.lookup.GetTopicsResult;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.PulsarHandler;
@@ -119,6 +89,9 @@ public class ClientCnx extends PulsarHandler {
     protected State state;
 
     private AtomicLong duplicatedResponseCounter = new AtomicLong(0);
+
+    @Getter
+    private static volatile boolean clusterAvailable = true;
 
     @Getter
     private final ConcurrentLongHashMap<TimedCompletableFuture<? extends Object>> pendingRequests =
@@ -364,6 +337,15 @@ public class ClientCnx extends PulsarHandler {
     @VisibleForTesting
     public long getDuplicatedResponseCount() {
         return duplicatedResponseCounter.get();
+    }
+
+    @Override
+    protected void handleHealthCheckResponse(CommandHealthCheckResponse healthCheckResponse) {
+        if (healthCheckResponse.hasAvailable()) {
+            clusterAvailable = healthCheckResponse.isAvailable();
+        } else {
+            clusterAvailable = false;
+        }
     }
 
     @Override

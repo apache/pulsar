@@ -319,6 +319,21 @@ public class ClustersImpl extends BaseResource implements Clusters {
                 .thenApply(failureDomain -> failureDomain);
     }
 
+    @Override
+    public CompletableFuture<Void> updateHealthStatusAsync(String cluster, String status) {
+        WebTarget path = adminClusters.path(cluster).path("updateHealthStatus");
+        Map<String, String> statusMap = new HashMap<>();
+        statusMap.put("status", status);
+        return asyncPostRequest(path, Entity.entity(statusMap, MediaType.APPLICATION_JSON_TYPE));
+    }
+
+    @Override
+    public CompletableFuture<String> getHealthStatusAsync(String cluster) {
+        WebTarget path = adminClusters.path(cluster).path("getHealthStatus");
+        return asyncGetRequest(path,  new FutureCallback<String>() {})
+                .thenApply(status -> status);
+    }
+
     private void setDomain(String cluster, String domainName,
                            FailureDomain domain) throws PulsarAdminException {
         sync(() -> setDomainAsync(cluster, domainName, domain));

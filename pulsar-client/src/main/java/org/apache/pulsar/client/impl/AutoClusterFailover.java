@@ -38,6 +38,7 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.ServiceUrlProvider;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.util.ExecutorProvider;
+import org.apache.pulsar.common.protocol.Commands;
 
 @Slf4j
 @Data
@@ -131,7 +132,13 @@ public class AutoClusterFailover implements ServiceUrlProvider {
             Socket socket = new Socket();
             socket.connect(new InetSocketAddress(endpoint.getHostName(), endpoint.getPort()), TIMEOUT);
             socket.close();
-            return true;
+
+            ClientCnx clientCnx = pulsarClient.getCnxPool()
+                    .getConnection(new InetSocketAddress(endpoint.getHostName(), endpoint.getPort()))
+                    .get();
+            clientCnx.ctx().writeAndFlush(Commands.newHealthCheck()).sync();
+
+            return clientCnx.isClusterAvailable();
         } catch (Exception e) {
             log.warn("Failed to probe available, url: {}", url, e);
             return false;

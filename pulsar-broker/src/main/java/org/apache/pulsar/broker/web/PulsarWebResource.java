@@ -62,6 +62,7 @@ import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLookupData;
 import org.apache.pulsar.broker.namespace.LookupOptions;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.resources.BookieResources;
+import org.apache.pulsar.broker.resources.ClusterHealthStatusResources;
 import org.apache.pulsar.broker.resources.ClusterResources;
 import org.apache.pulsar.broker.resources.DynamicConfigurationResources;
 import org.apache.pulsar.broker.resources.LoadBalanceResources;
@@ -1102,6 +1103,10 @@ public abstract class PulsarWebResource {
 
     protected ClusterResources clusterResources() {
         return pulsar().getPulsarResources().getClusterResources();
+    }
+
+    protected ClusterHealthStatusResources clusterHealthStatusResources() {
+        return pulsar().getPulsarResources().getClusterHealthStatusResources();
     }
 
     protected BookieResources bookieResources() {

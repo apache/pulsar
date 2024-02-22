@@ -809,4 +809,31 @@ public interface Clusters {
      */
     CompletableFuture<FailureDomain> getFailureDomainAsync(String cluster, String domainName);
 
+    /**
+     * Update health status for a cluster.
+     * <p/>
+     *
+     * @param cluster
+     *          Cluster name
+     *
+     * @param status
+     *          health status
+     *
+     * @return
+     *
+     */
+    CompletableFuture<Void> updateHealthStatusAsync(String cluster, String status);
+
+    /**
+     * Get health status for a cluster.
+     * <p/>
+     *
+     * @param cluster
+     *          Cluster name
+     *
+     * @return
+     *
+     */
+    CompletableFuture<String> getHealthStatusAsync(String cluster);
+
 }

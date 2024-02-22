@@ -1017,6 +1017,92 @@ public class ClustersBase extends AdminResource {
                 });
     }
 
+    @POST
+    @Path("/{cluster}/updateHealthStatus}")
+    @ApiOperation(
+            value = "Update cluster health status.",
+            notes = "This operation requires Pulsar superuser privileges."
+    )
+    @ApiResponses(value = {
+            @ApiResponse(code = 403, message = "Don't have admin permission."),
+            @ApiResponse(code = 412, message = "Cluster doesn't exist."),
+            @ApiResponse(code = 500, message = "Internal server error.")
+    })
+    public void updateHealthStatus(
+            @Suspended AsyncResponse asyncResponse,
+            @ApiParam(value = "The cluster name", required = true)
+            @PathParam("cluster") String cluster,
+            @ApiParam(value = "The status info", required = true) Map<String, String> status
+    ) {
+        validateSuperUserAccessAsync()
+                .thenCompose(__ -> validateClusterExistAsync(cluster, PRECONDITION_FAILED))
+                .thenAccept(__ -> {
+                    try {
+                        clusterHealthStatusResources().updateHealthStatus(cluster,
+                                old -> status.getOrDefault("status", ""));
+                        log.info("[{}] Successful update health status for cluster {}", clientAppId(), cluster);
+                        asyncResponse.resume(Response.noContent().build());
+                    } catch (MetadataStoreException e) {
+                        log.error("Update cluster {} health status error", cluster, e);
+                    }
+                })
+                .exceptionally(ex -> {
+                    Throwable realCause = FutureUtil.unwrapCompletionException(ex);
+                    if (realCause instanceof NotFoundException) {
+                        log.warn("[{}] Failed to update health status for cluster. clusters {}  Does not exist",
+                                clientAppId(), cluster);
+                        asyncResponse.resume(new RestException(Status.NOT_FOUND,
+                                "cluster " + cluster + " does not exist"));
+                        return null;
+                    }
+                    log.error("[{}] Failed to update clusters/{}/{}", clientAppId(), cluster, ex);
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
+    }
+
+    @GET
+    @Path("/{cluster}/getHealthStatus}")
+    @ApiOperation(
+            value = "Get cluster health status.",
+            notes = "This operation requires Pulsar superuser privileges."
+    )
+    @ApiResponses(value = {
+            @ApiResponse(code = 403, message = "Don't have admin permission."),
+            @ApiResponse(code = 412, message = "Cluster doesn't exist."),
+            @ApiResponse(code = 500, message = "Internal server error.")
+    })
+    public void getHealthStatus(
+            @Suspended AsyncResponse asyncResponse,
+            @ApiParam(value = "The cluster name", required = true)
+            @PathParam("cluster") String cluster
+    ) {
+        validateSuperUserAccessAsync()
+                .thenCompose(__ -> validateClusterExistAsync(cluster, PRECONDITION_FAILED))
+                .thenAccept(__ -> {
+                    try {
+                        String status = clusterHealthStatusResources().getHealthStatus(cluster).get();
+                        log.info("[{}] Successful get health status for cluster {}", clientAppId(), cluster);
+                        asyncResponse.resume(Response.ok(status));
+                    } catch (MetadataStoreException e) {
+                        log.error("Update cluster {} health status error", cluster, e);
+                    }
+                })
+                .exceptionally(ex -> {
+                    Throwable realCause = FutureUtil.unwrapCompletionException(ex);
+                    if (realCause instanceof NotFoundException) {
+                        log.warn("[{}] Failed to get health status for cluster. clusters {}  Does not exist",
+                                clientAppId(), cluster);
+                        asyncResponse.resume(new RestException(Status.NOT_FOUND,
+                                "cluster " + cluster + " does not exist"));
+                        return null;
+                    }
+                    log.error("[{}] Failed to get clusters/{}/{}", clientAppId(), cluster, ex);
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
+    }
+
     private CompletableFuture<Void> validateBrokerExistsInOtherDomain(final String cluster,
                                                                       final String inputDomainName,
                                                                       final FailureDomainImpl inputDomain) {

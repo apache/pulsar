@@ -53,11 +53,7 @@ import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionStage;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.Semaphore;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import javax.naming.AuthenticationException;
@@ -81,6 +77,7 @@ import org.apache.pulsar.broker.intercept.BrokerInterceptor;
 import org.apache.pulsar.broker.limiter.ConnectionController;
 import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl;
 import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLookupData;
+import org.apache.pulsar.broker.resources.ClusterHealthStatusResources;
 import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerBusyException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServerMetadataException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServiceUnitNotReadyException;
@@ -91,6 +88,7 @@ import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.service.schema.SchemaRegistryService;
 import org.apache.pulsar.broker.service.schema.exceptions.IncompatibleSchemaException;
 import org.apache.pulsar.broker.web.RestException;
+import org.apache.pulsar.client.admin.internal.BaseResource;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.client.impl.BatchMessageIdImpl;
@@ -98,51 +96,10 @@ import org.apache.pulsar.client.impl.ClientCnx;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.schema.SchemaInfoUtil;
 import org.apache.pulsar.common.api.AuthData;
-import org.apache.pulsar.common.api.proto.BaseCommand;
-import org.apache.pulsar.common.api.proto.CommandAck;
-import org.apache.pulsar.common.api.proto.CommandAddPartitionToTxn;
-import org.apache.pulsar.common.api.proto.CommandAddSubscriptionToTxn;
-import org.apache.pulsar.common.api.proto.CommandAuthResponse;
-import org.apache.pulsar.common.api.proto.CommandCloseConsumer;
-import org.apache.pulsar.common.api.proto.CommandCloseProducer;
-import org.apache.pulsar.common.api.proto.CommandConnect;
-import org.apache.pulsar.common.api.proto.CommandConsumerStats;
-import org.apache.pulsar.common.api.proto.CommandEndTxn;
-import org.apache.pulsar.common.api.proto.CommandEndTxnOnPartition;
-import org.apache.pulsar.common.api.proto.CommandEndTxnOnSubscription;
-import org.apache.pulsar.common.api.proto.CommandFlow;
-import org.apache.pulsar.common.api.proto.CommandGetLastMessageId;
-import org.apache.pulsar.common.api.proto.CommandGetOrCreateSchema;
-import org.apache.pulsar.common.api.proto.CommandGetSchema;
-import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespace;
-import org.apache.pulsar.common.api.proto.CommandLookupTopic;
-import org.apache.pulsar.common.api.proto.CommandNewTxn;
-import org.apache.pulsar.common.api.proto.CommandPartitionedTopicMetadata;
-import org.apache.pulsar.common.api.proto.CommandProducer;
-import org.apache.pulsar.common.api.proto.CommandRedeliverUnacknowledgedMessages;
-import org.apache.pulsar.common.api.proto.CommandSeek;
-import org.apache.pulsar.common.api.proto.CommandSend;
-import org.apache.pulsar.common.api.proto.CommandSubscribe;
+import org.apache.pulsar.common.api.proto.*;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
-import org.apache.pulsar.common.api.proto.CommandTcClientConnectRequest;
 import org.apache.pulsar.common.api.proto.CommandTopicMigrated.ResourceType;
-import org.apache.pulsar.common.api.proto.CommandUnsubscribe;
-import org.apache.pulsar.common.api.proto.CommandWatchTopicList;
-import org.apache.pulsar.common.api.proto.CommandWatchTopicListClose;
-import org.apache.pulsar.common.api.proto.CompressionType;
-import org.apache.pulsar.common.api.proto.FeatureFlags;
-import org.apache.pulsar.common.api.proto.KeySharedMeta;
-import org.apache.pulsar.common.api.proto.KeySharedMode;
-import org.apache.pulsar.common.api.proto.KeyValue;
-import org.apache.pulsar.common.api.proto.MessageIdData;
-import org.apache.pulsar.common.api.proto.MessageMetadata;
-import org.apache.pulsar.common.api.proto.ProducerAccessMode;
-import org.apache.pulsar.common.api.proto.ProtocolVersion;
-import org.apache.pulsar.common.api.proto.Schema;
-import org.apache.pulsar.common.api.proto.ServerError;
-import org.apache.pulsar.common.api.proto.SingleMessageMetadata;
-import org.apache.pulsar.common.api.proto.TxnAction;
 import org.apache.pulsar.common.compression.CompressionCodec;
 import org.apache.pulsar.common.compression.CompressionCodecProvider;
 import org.apache.pulsar.common.intercept.InterceptException;
@@ -1111,6 +1068,30 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             doAuthentication(clientData, false, clientProtocolVersion, clientVersion);
         } catch (Exception e) {
             authenticationFailed(e);
+        }
+    }
+
+
+    @Override
+    protected void handleHealthCheck(CommandHealthCheck healthCheck) {
+        checkArgument(state == State.Start);
+
+        String clusterName = this.service.pulsar().getConfig().getClusterName();
+        try {
+            byte[] status = this.service.pulsar().getLocalMetadataStore()
+                    .get(ClusterHealthStatusResources.BASE_PATH + clusterName)
+                    .get(30000, TimeUnit.MILLISECONDS)
+                    .get()
+                    .getValue();
+            if (String.valueOf(status).equalsIgnoreCase(ClusterHealthStatusResources.Status.available.name())) {
+                writeAndFlush(Commands.newHealthCheckResponse(true));
+            } else {
+                writeAndFlush(Commands.newHealthCheckResponse(false));
+            }
+        } catch (Exception e) {
+            log.error("cluster health status check error.", e);
+            writeAndFlush(Commands.newError(-1L, ServerError.UnknownError,
+                    "cluster health status check error."));
         }
     }
 
