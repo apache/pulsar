@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.service;
 
+import static org.apache.pulsar.client.util.MathUtils.signSafeMod;
 import com.google.common.collect.Lists;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -124,7 +125,7 @@ public class ConsistentHashingStickyKeyConsumerSelector implements StickyKeyCons
                 consumerList = hashRing.firstEntry().getValue();
             }
 
-            return consumerList.get(hash % consumerList.size());
+            return consumerList.get(signSafeMod(hash, consumerList.size()));
         } finally {
             rwLock.readLock().unlock();
         }
