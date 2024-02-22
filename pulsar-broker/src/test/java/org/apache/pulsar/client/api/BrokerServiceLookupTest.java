@@ -237,7 +237,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         cdlAfterLookupSemaphoreAcquire.await();
         assertThat(metricReader.collectAllMetrics())
                 .anySatisfy(metric -> assertThat(metric)
-                        .hasName("pulsar.broker.lookup.pending.request.usage")
+                        .hasName("pulsar.broker.topic.lookup.operation.pending.usage")
                         .hasLongSumSatisfying(
                                 sum -> sum.hasPointsSatisfying(point -> point.hasValue(1))));
         cdlLookupSemaphoreVerification.countDown();
