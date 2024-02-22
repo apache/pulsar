@@ -251,8 +251,8 @@ public class BrokerService implements Closeable {
 
     @PulsarDeprecatedMetric(newMetricName = "pulsar.broker.topic.load.operation.pending.usage")
     private final ObserverGauge pendingTopicLoadRequests;
-    private final ObservableLongUpDownCounter pendingTopicLoadRequestsCounter;
-    private final ObservableLongGauge pendingTopicLoadRequestsLimitGauge;
+    private final ObservableLongUpDownCounter pendingTopicLoadOperationsCounter;
+    private final ObservableLongGauge pendingTopicLoadOperationsLimitGauge;
 
     private final ScheduledExecutorService inactivityMonitor;
     private final ScheduledExecutorService messageExpiryMonitor;
@@ -434,14 +434,14 @@ public class BrokerService implements Closeable {
                         "pulsar_broker_topic_load_pending_requests", "-")
                 .supplier(this::getPendingTopicLoadRequests)
                 .register();
-        this.pendingTopicLoadRequestsCounter = pulsar.getOpenTelemetry().getMeter()
+        this.pendingTopicLoadOperationsCounter = pulsar.getOpenTelemetry().getMeter()
                 .upDownCounterBuilder("pulsar.broker.topic.load.operation.pending.usage")
                 .setDescription("The number of pending topic load operations in the broker. "
                         + "When it reaches threshold \"maxConcurrentTopicLoadRequest\" defined in broker.conf, "
                         + "new requests are rejected.")
                 .setUnit("{operation}")
                 .buildWithCallback(measurement -> measurement.record(getPendingTopicLoadRequests()));
-        this.pendingTopicLoadRequestsLimitGauge = pulsar.getOpenTelemetry().getMeter()
+        this.pendingTopicLoadOperationsLimitGauge = pulsar.getOpenTelemetry().getMeter()
                 .gaugeBuilder("pulsar.broker.topic.load.operation.pending.limit")
                 .ofLongs()
                 .setDescription("The maximum number of pending topic load operations in the broker. "
@@ -826,7 +826,7 @@ public class BrokerService implements Closeable {
                                     log.warn("Error in closing authenticationService", e);
                                 }
                                 pulsarStats.close();
-                                pendingTopicLoadRequestsCounter.close();
+                                pendingTopicLoadOperationsCounter.close();
                                 pendingLookupOperationsCounter.close();
                                 try {
                                     delayedDeliveryTrackerFactory.close();
