@@ -33,6 +33,7 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -43,6 +44,7 @@ import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicPoliciesCacheNotInitException;
 import org.apache.pulsar.broker.systopic.SystemTopicClient;
 import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.Backoff;
 import org.apache.pulsar.client.impl.BackoffBuilder;
 import org.apache.pulsar.common.events.PulsarEvent;
@@ -429,5 +431,28 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
         thread2.join();
 
         result.join();
+    }
+
+    @Test
+    public void testWriterCache() throws Exception {
+        for (int i = 1; i <= 5; i ++) {
+            final String topicName = "persistent://" + NAMESPACE1 + "/testWriterCache" + i;
+            admin.topics().createNonPartitionedTopic(topicName);
+            pulsarClient.newProducer(Schema.STRING).topic(topicName).create().close();
+        }
+        ExecutorService executorService = Executors.newFixedThreadPool(5);
+        for (int i = 1; i <= 5; i ++) {
+            int finalI = i;
+            executorService.execute(() -> {
+                final String topicName = "persistent://" + NAMESPACE1 + "/testWriterCache" + finalI;
+                try {
+                    admin.topicPolicies().setMaxConsumers(topicName, 2);
+                } catch (Exception e) {
+                    throw new RuntimeException(e);
+                }
+            });
+        }
+        SystemTopicBasedTopicPoliciesService service = (SystemTopicBasedTopicPoliciesService) pulsar.getTopicPoliciesService();
+        Assert.assertNotNull(service.getWriterCache().synchronous().get(NamespaceName.get(NAMESPACE1)));
     }
 }

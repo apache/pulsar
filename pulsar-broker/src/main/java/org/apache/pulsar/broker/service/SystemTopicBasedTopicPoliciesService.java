@@ -19,6 +19,8 @@
 package org.apache.pulsar.broker.service;
 
 import static java.util.Objects.requireNonNull;
+import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
+import com.github.benmanes.caffeine.cache.Caffeine;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Sets;
 import java.util.HashSet;
@@ -29,6 +31,7 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import javax.annotation.Nonnull;
 import org.apache.commons.lang3.tuple.MutablePair;
@@ -84,10 +87,25 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
     @VisibleForTesting
     final Map<TopicName, List<TopicPolicyListener<TopicPolicies>>> listeners = new ConcurrentHashMap<>();
 
+    private final AsyncLoadingCache<NamespaceName, SystemTopicClient.Writer<PulsarEvent>> writerCache;
+
     public SystemTopicBasedTopicPoliciesService(PulsarService pulsarService) {
         this.pulsarService = pulsarService;
         this.clusterName = pulsarService.getConfiguration().getClusterName();
         this.localCluster = Sets.newHashSet(clusterName);
+        this.writerCache = Caffeine.newBuilder()
+                .expireAfterAccess(5, TimeUnit.MINUTES)
+                .removalListener((namespaceName, writer, cause) -> {
+                    ((SystemTopicClient.Writer) writer).closeAsync().exceptionally(ex -> {
+                        log.error("[{}] Close writer error.", namespaceName, ex);
+                        return null;
+                    });
+                })
+                .buildAsync((namespaceName, executor) -> {
+                    SystemTopicClient<PulsarEvent> systemTopicClient = namespaceEventsSystemTopicFactory
+                            .createTopicPoliciesSystemTopicClient(namespaceName);
+                    return systemTopicClient.newWriterAsync();
+                });
     }
 
     @Override
@@ -123,10 +141,7 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                         return CompletableFuture.failedFuture(e);
                     }
 
-                    SystemTopicClient<PulsarEvent> systemTopicClient = namespaceEventsSystemTopicFactory
-                                    .createTopicPoliciesSystemTopicClient(topicName.getNamespaceObject());
-
-                    return systemTopicClient.newWriterAsync()
+                    return writerCache.get(topicName.getNamespaceObject())
                             .thenCompose(writer -> {
                             PulsarEvent event = getPulsarEvent(topicName, actionType, policies);
                             CompletableFuture<MessageId> writeFuture =
@@ -143,17 +158,7 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                                                 new RuntimeException("Got message id is null."));
                                     }
                                 }
-                            }).thenRun(() ->
-                                        writer.closeAsync().whenComplete((v, cause) -> {
-                                            if (cause != null) {
-                                                log.error("[{}] Close writer error.", topicName, cause);
-                                            } else {
-                                                if (log.isDebugEnabled()) {
-                                                    log.debug("[{}] Close writer success.", topicName);
-                                                }
-                                            }
-                                        })
-                            );
+                            }).thenAccept(__ -> {});
                     });
                 });
     }
@@ -686,6 +691,11 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
     @VisibleForTesting
     protected Map<TopicName, List<TopicPolicyListener<TopicPolicies>>> getListeners() {
         return listeners;
+    }
+
+    @VisibleForTesting
+    protected AsyncLoadingCache<NamespaceName, SystemTopicClient.Writer<PulsarEvent>> getWriterCache() {
+        return writerCache;
     }
 
     private static final Logger log = LoggerFactory.getLogger(SystemTopicBasedTopicPoliciesService.class);
