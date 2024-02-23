@@ -324,7 +324,7 @@ public class Consumer {
                 if (pendingAcks != null) {
                     int batchSize = batchSizes.getBatchSize(i);
                     int stickyKeyHash = getStickyKeyHash(entry);
-                    long[] ackSet = batchIndexesAcks.getAckSet(i);
+                    long[] ackSet = batchIndexesAcks == null ? null : batchIndexesAcks.getAckSet(i);
                     if (ackSet != null) {
                         unackedMessages -= (batchSize - BitSet.valueOf(ackSet).cardinality());
                     }
