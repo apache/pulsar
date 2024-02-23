@@ -63,7 +63,6 @@ public final class ByteBufPair extends AbstractValidatingReferenceCounted {
      */
     public static ByteBufPair get(ByteBuf b1, ByteBuf b2) {
         ByteBufPair buf = getAndCheck(RECYCLER);
-        buf.retain();
         buf.b1 = b1;
         buf.b2 = b2;
         return buf;

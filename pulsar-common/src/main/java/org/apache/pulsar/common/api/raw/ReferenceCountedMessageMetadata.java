@@ -49,7 +49,6 @@ public class ReferenceCountedMessageMetadata extends AbstractValidatingReference
         ReferenceCountedMessageMetadata ref = getAndCheck(RECYCLER);
         ref.parsedBuf = parsedBuf;
         ref.parsedBuf.retain();
-        ref.retain();
         return ref;
     }
 

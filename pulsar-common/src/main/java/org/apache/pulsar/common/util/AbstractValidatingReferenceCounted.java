@@ -39,9 +39,10 @@ public abstract class AbstractValidatingReferenceCounted extends AbstractReferen
 
     public static <T extends AbstractReferenceCounted> T getAndCheck(Recycler<T> recycler) {
         T object = recycler.get();
-        if (object.refCnt() != 0) {
+        if (object.refCnt() != 1) {
             throw new IllegalReferenceCountException(object.getClass().getSimpleName()
-                    + " should be obtained from the recycler with refCnt == 0, instance=" + object);
+                    + " should be obtained from the recycler with refCnt == 1, (refCnt=" + object.refCnt()
+                    + ") instance=" + object);
         }
         return object;
     }
