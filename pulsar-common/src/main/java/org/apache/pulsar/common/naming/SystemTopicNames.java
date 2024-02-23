@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.common.naming;
 
-import static org.apache.pulsar.common.naming.NamespaceName.SYSTEM_NAMESPACE;
 import com.google.common.collect.Sets;
 import java.util.Collections;
 import java.util.Set;
@@ -52,19 +51,12 @@ public class SystemTopicNames {
 
     public static final String PENDING_ACK_STORE_CURSOR_NAME = "__pending_ack_state";
 
-
-    /**
-     * Local topic name for the load balancer service unit state.
-     */
-    public static final String EXTENSIBLE_LOAD_BALANCER_SERVICE_UNIT_STATE = "loadbalancer-service-unit-state";
-
     /**
      * The set of all local topic names declared above.
      */
     public static final Set<String> EVENTS_TOPIC_NAMES =
             Collections.unmodifiableSet(Sets.newHashSet(NAMESPACE_EVENTS_LOCAL_NAME, TRANSACTION_BUFFER_SNAPSHOT,
-                    TRANSACTION_BUFFER_SNAPSHOT_INDEXES, TRANSACTION_BUFFER_SNAPSHOT_SEGMENTS,
-                    EXTENSIBLE_LOAD_BALANCER_SERVICE_UNIT_STATE));
+                    TRANSACTION_BUFFER_SNAPSHOT_INDEXES, TRANSACTION_BUFFER_SNAPSHOT_SEGMENTS));
 
 
     public static final TopicName TRANSACTION_COORDINATOR_ASSIGN = TopicName.get(TopicDomain.persistent.value(),
