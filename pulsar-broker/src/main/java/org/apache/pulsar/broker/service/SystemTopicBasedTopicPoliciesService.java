@@ -140,26 +140,32 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                     } catch (PulsarServerException e) {
                         return CompletableFuture.failedFuture(e);
                     }
-
-                    return writerCaches.get(topicName.getNamespaceObject())
-                            .thenCompose(writer -> {
-                            PulsarEvent event = getPulsarEvent(topicName, actionType, policies);
-                            CompletableFuture<MessageId> writeFuture =
-                                    ActionType.DELETE.equals(actionType) ? writer.deleteAsync(getEventKey(event), event)
-                                            : writer.writeAsync(getEventKey(event), event);
-                            return writeFuture.handle((messageId, e) -> {
-                                if (e != null) {
-                                    return CompletableFuture.failedFuture(e);
+                    CompletableFuture<Void> result = new CompletableFuture<>();
+                    writerCaches.get(topicName.getNamespaceObject())
+                            .whenComplete((writer, cause) -> {
+                                if (cause != null) {
+                                    writerCaches.synchronous().invalidate(topicName.getNamespaceObject());
+                                    result.completeExceptionally(cause);
                                 } else {
-                                    if (messageId != null) {
-                                        return CompletableFuture.completedFuture(null);
-                                    } else {
-                                        return CompletableFuture.failedFuture(
-                                                new RuntimeException("Got message id is null."));
-                                    }
-                                }
-                            }).thenAccept(__ -> {});
+                                    PulsarEvent event = getPulsarEvent(topicName, actionType, policies);
+                                    CompletableFuture<MessageId> writeFuture = ActionType.DELETE.equals(actionType)
+                                                    ? writer.deleteAsync(getEventKey(event), event)
+                                                    : writer.writeAsync(getEventKey(event), event);
+                                    writeFuture.whenComplete((messageId, e) -> {
+                                        if (e != null) {
+                                            result.completeExceptionally(e);
+                                        } else {
+                                            if (messageId != null) {
+                                                result.complete(null);
+                                            } else {
+                                                result.completeExceptionally(
+                                                        new RuntimeException("Got message id is null."));
+                                            }
+                                        }
+                                    });
+                            }
                     });
+                    return result;
                 });
     }
 
