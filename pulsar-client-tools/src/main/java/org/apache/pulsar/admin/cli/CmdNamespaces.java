@@ -1941,7 +1941,8 @@ public class CmdNamespaces extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             String namespace = validateNamespace(params);
-            print(getAdmin().namespaces().getOffloadThreshold(namespace));
+            print("offloadThresholdInBytes: " + getAdmin().namespaces().getOffloadThreshold(namespace));
+            print("offloadThresholdInSeconds: " + getAdmin().namespaces().getOffloadThresholdInSeconds(namespace));
         }
     }
 
@@ -1960,10 +1961,17 @@ public class CmdNamespaces extends CmdBase {
                     converter = ByteUnitToLongConverter.class)
         private Long threshold = -1L;
 
+        @Parameter(names = {"--time", "-t"},
+            description = "Maximum number of seconds stored on the pulsar cluster for a topic"
+                + " before the broker will start offloading to longterm storage (eg: 10m, 5h, 3d, 2w).",
+            converter = TimeUnitToSecondsConverter.class)
+        private Long thresholdInSeconds = -1L;
+
         @Override
         void run() throws PulsarAdminException {
             String namespace = validateNamespace(params);
             getAdmin().namespaces().setOffloadThreshold(namespace, threshold);
+            getAdmin().namespaces().setOffloadThresholdInSeconds(namespace, thresholdInSeconds);
         }
     }
 
