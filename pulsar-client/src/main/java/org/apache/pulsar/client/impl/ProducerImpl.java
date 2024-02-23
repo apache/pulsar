@@ -1376,7 +1376,9 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
         public static ChunkedMessageCtx get(int totalChunks) {
             ChunkedMessageCtx chunkedMessageCtx = getAndCheck(RECYCLER);
-            chunkedMessageCtx.retain(totalChunks - 1);
+            if (totalChunks > 1) {
+                chunkedMessageCtx.retain(totalChunks - 1);
+            }
             return chunkedMessageCtx;
         }
 
