@@ -87,13 +87,13 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
     @VisibleForTesting
     final Map<TopicName, List<TopicPolicyListener<TopicPolicies>>> listeners = new ConcurrentHashMap<>();
 
-    private final AsyncLoadingCache<NamespaceName, SystemTopicClient.Writer<PulsarEvent>> writerCache;
+    private final AsyncLoadingCache<NamespaceName, SystemTopicClient.Writer<PulsarEvent>> writerCaches;
 
     public SystemTopicBasedTopicPoliciesService(PulsarService pulsarService) {
         this.pulsarService = pulsarService;
         this.clusterName = pulsarService.getConfiguration().getClusterName();
         this.localCluster = Sets.newHashSet(clusterName);
-        this.writerCache = Caffeine.newBuilder()
+        this.writerCaches = Caffeine.newBuilder()
                 .expireAfterAccess(5, TimeUnit.MINUTES)
                 .removalListener((namespaceName, writer, cause) -> {
                     ((SystemTopicClient.Writer) writer).closeAsync().exceptionally(ex -> {
@@ -141,7 +141,7 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                         return CompletableFuture.failedFuture(e);
                     }
 
-                    return writerCache.get(topicName.getNamespaceObject())
+                    return writerCaches.get(topicName.getNamespaceObject())
                             .thenCompose(writer -> {
                             PulsarEvent event = getPulsarEvent(topicName, actionType, policies);
                             CompletableFuture<MessageId> writeFuture =
@@ -369,7 +369,7 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
         }
         AtomicInteger bundlesCount = ownedBundlesCountPerNamespace.get(namespace);
         if (bundlesCount == null || bundlesCount.decrementAndGet() <= 0) {
-            cleanCacheAndCloseReader(namespace, true);
+            cleanCacheAndCloseReader(namespace, true, true);
         }
         return CompletableFuture.completedFuture(null);
     }
@@ -445,6 +445,14 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
     }
 
     private void cleanCacheAndCloseReader(@Nonnull NamespaceName namespace, boolean cleanOwnedBundlesCount) {
+        cleanCacheAndCloseReader(namespace, cleanOwnedBundlesCount, false);
+    }
+
+    private void cleanCacheAndCloseReader(@Nonnull NamespaceName namespace, boolean cleanOwnedBundlesCount,
+                                          boolean cleanWriterCache) {
+        if (cleanWriterCache) {
+            writerCaches.synchronous().invalidate(namespace);
+        }
         CompletableFuture<SystemTopicClient.Reader<PulsarEvent>> readerFuture = readerCaches.remove(namespace);
 
         if (cleanOwnedBundlesCount) {
@@ -694,8 +702,8 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
     }
 
     @VisibleForTesting
-    protected AsyncLoadingCache<NamespaceName, SystemTopicClient.Writer<PulsarEvent>> getWriterCache() {
-        return writerCache;
+    protected AsyncLoadingCache<NamespaceName, SystemTopicClient.Writer<PulsarEvent>> getWriterCaches() {
+        return writerCaches;
     }
 
     private static final Logger log = LoggerFactory.getLogger(SystemTopicBasedTopicPoliciesService.class);

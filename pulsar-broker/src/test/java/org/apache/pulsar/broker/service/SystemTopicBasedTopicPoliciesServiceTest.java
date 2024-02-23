@@ -69,6 +69,8 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
     private static final String NAMESPACE2 = "system-topic/namespace-2";
     private static final String NAMESPACE3 = "system-topic/namespace-3";
 
+    private static final String NAMESPACE4 = "system-topic/namespace-4";
+
     private static final TopicName TOPIC1 = TopicName.get("persistent", NamespaceName.get(NAMESPACE1), "topic-1");
     private static final TopicName TOPIC2 = TopicName.get("persistent", NamespaceName.get(NAMESPACE1), "topic-2");
     private static final TopicName TOPIC3 = TopicName.get("persistent", NamespaceName.get(NAMESPACE2), "topic-1");
@@ -435,8 +437,9 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
 
     @Test
     public void testWriterCache() throws Exception {
+        admin.namespaces().createNamespace(NAMESPACE4);
         for (int i = 1; i <= 5; i ++) {
-            final String topicName = "persistent://" + NAMESPACE1 + "/testWriterCache" + i;
+            final String topicName = "persistent://" + NAMESPACE4 + "/testWriterCache" + i;
             admin.topics().createNonPartitionedTopic(topicName);
             pulsarClient.newProducer(Schema.STRING).topic(topicName).create().close();
         }
@@ -445,7 +448,7 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
         for (int i = 1; i <= 5; i ++) {
             int finalI = i;
             executorService.execute(() -> {
-                final String topicName = "persistent://" + NAMESPACE1 + "/testWriterCache" + finalI;
+                final String topicName = "persistent://" + NAMESPACE4 + "/testWriterCache" + finalI;
                 try {
                     admin.topicPolicies().setMaxConsumers(topicName, 2);
                 } catch (Exception e) {
@@ -454,6 +457,12 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
             });
         }
         SystemTopicBasedTopicPoliciesService service = (SystemTopicBasedTopicPoliciesService) pulsar.getTopicPoliciesService();
-        Assert.assertNotNull(service.getWriterCache().synchronous().get(NamespaceName.get(NAMESPACE1)));
+        Assert.assertNotNull(service.getWriterCaches().synchronous().get(NamespaceName.get(NAMESPACE4)));
+        for (int i = 1; i <= 5; i ++) {
+            final String topicName = "persistent://" + NAMESPACE4 + "/testWriterCache" + i;
+            admin.topics().delete(topicName);
+        }
+        admin.namespaces().deleteNamespace(NAMESPACE4);
+        Assert.assertNull(service.getWriterCaches().synchronous().getIfPresent(NamespaceName.get(NAMESPACE4)));
     }
 }
