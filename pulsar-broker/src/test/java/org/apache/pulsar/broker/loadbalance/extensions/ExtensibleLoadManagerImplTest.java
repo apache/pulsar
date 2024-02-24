@@ -167,8 +167,6 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
     private LookupService lookupService;
 
     private static void initConfig(ServiceConfiguration conf){
-        conf.setLoadBalancerInFlightServiceUnitStateWaitingTimeInMillis(5 * 1000);
-        conf.setLoadBalancerServiceUnitStateMonitorIntervalInSeconds(1);
         conf.setForceDeleteNamespaceAllowed(true);
         conf.setAllowAutoTopicCreationType(TopicType.NON_PARTITIONED);
         conf.setAllowAutoTopicCreation(true);
