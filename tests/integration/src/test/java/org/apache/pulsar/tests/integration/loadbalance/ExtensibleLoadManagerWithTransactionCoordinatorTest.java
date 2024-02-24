@@ -18,19 +18,38 @@
  */
 package org.apache.pulsar.tests.integration.loadbalance;
 
+import java.util.Map;
 import java.util.function.Supplier;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.tests.integration.messaging.TopicMessagingBase;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Factory;
 import org.testng.annotations.Test;
 
+@Test(singleThreaded = true)
 public class ExtensibleLoadManagerWithTransactionCoordinatorTest extends TopicMessagingBase {
 
-    public void setupCluster() throws Exception {
-        brokerEnvs.put("loadManagerClassName", "org.apache.pulsar.broker.loadbalance.ExtensibleLoadManagerImpl");
-        brokerEnvs.put("loadBalancerLoadSheddingStrategy",
-                "org.apache.pulsar.broker.loadbalance.extensions.scheduler.TransferShedder");
-        brokerEnvs.put("transactionCoordinatorEnabled", "true");
-        super.setupCluster();
+    @Factory(dataProvider = "BrokerConfigs")
+    public ExtensibleLoadManagerWithTransactionCoordinatorTest(Map<String, String> brokerEnvs) {
+        super();
+        this.brokerEnvs.putAll(brokerEnvs);
+    }
+
+    @DataProvider(name = "BrokerConfigs")
+    public static Object[][] brokerConfigs() {
+        return new Object[][] {
+                {
+                        Map.of("loadManagerClassName", "org.apache.pulsar.broker.loadbalance.ExtensibleLoadManagerImpl",
+                                "loadBalancerLoadSheddingStrategy",
+                                "org.apache.pulsar.broker.loadbalance.extensions.scheduler.TransferShedder"),
+                },
+                {
+                        Map.of("loadManagerClassName", "org.apache.pulsar.broker.loadbalance.ExtensibleLoadManagerImpl",
+                                "loadBalancerLoadSheddingStrategy",
+                                "org.apache.pulsar.broker.loadbalance.extensions.scheduler.TransferShedder",
+                                "transactionCoordinatorEnabled", "true"),
+                },
+        };
     }
 
     @Test(dataProvider = "ServiceUrlAndTopicDomain")
