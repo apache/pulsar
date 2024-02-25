@@ -1150,6 +1150,12 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
             throw new RestException(Status.BAD_REQUEST, e.getMessage());
         }
 
+        FunctionMetaDataManager functionMetaDataManager = worker().getFunctionMetaDataManager();
+        if (!functionMetaDataManager.containsFunction(tenant, namespace, functionName)) {
+            log.warn("getFunctionState does not exist @ /{}/{}/{}", tenant, namespace, functionName);
+            throw new RestException(Status.NOT_FOUND, String.format("'%s' is not found", functionName));
+        }
+
         try {
             DefaultStateStore store = worker().getStateStoreProvider().getStateStore(tenant, namespace, functionName);
             StateValue value = store.getStateValue(key);
@@ -1217,6 +1223,12 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
             log.error("Invalid putFunctionState request @ /{}/{}/{}/{}",
                     tenant, namespace, functionName, key, e);
             throw new RestException(Status.BAD_REQUEST, e.getMessage());
+        }
+
+        FunctionMetaDataManager functionMetaDataManager = worker().getFunctionMetaDataManager();
+        if (!functionMetaDataManager.containsFunction(tenant, namespace, functionName)) {
+            log.warn("putFunctionState does not exist @ /{}/{}/{}", tenant, namespace, functionName);
+            throw new RestException(Status.NOT_FOUND, String.format("'%s' is not found", functionName));
         }
 
         try {

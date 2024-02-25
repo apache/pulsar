@@ -154,6 +154,14 @@ public class PulsarStateTest extends PulsarStandaloneTestSuite {
                 assertEquals(e.getStatusCode(), 404);
             }
 
+            // query a non-exist instance should get a 404 error
+            {
+                PulsarAdminException e = expectThrows(PulsarAdminException.class, () -> {
+                    admin.functions().getFunctionState("public", "default", "non-exist", "non-exist");
+                });
+                assertEquals(e.getStatusCode(), 404);
+            }
+
             Awaitility.await().ignoreExceptions().untilAsserted(() -> {
                 FunctionState functionState = admin.functions().getFunctionState("public", "default", sourceName, "now");
                 assertTrue(functionState.getStringValue().matches("val1-.*"));
@@ -204,6 +212,14 @@ public class PulsarStateTest extends PulsarStandaloneTestSuite {
                 assertEquals(e.getStatusCode(), 404);
             }
 
+            // query a non-exist instance should get a 404 error
+            {
+                PulsarAdminException e = expectThrows(PulsarAdminException.class, () -> {
+                    admin.functions().getFunctionState("public", "default", "non-exist", "non-exist");
+                });
+                assertEquals(e.getStatusCode(), 404);
+            }
+
             for (int i = 0; i < numMessages; i++) {
                 producer.send("foo");
             }
@@ -224,6 +240,20 @@ public class PulsarStateTest extends PulsarStandaloneTestSuite {
         deleteSink(sinkName);
 
         getSinkInfoNotFound(sinkName);
+    }
+
+    @Test(groups = {"python_state", "state", "function", "python_function"})
+    public void testNonExistFunction() throws Exception {
+        String functionName = "non-exist-function-" + randomName(8);
+        try (PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(container.getHttpServiceUrl()).build()) {
+            // query a non-exist instance should get a 404 error
+            {
+                PulsarAdminException e = expectThrows(PulsarAdminException.class, () -> {
+                    admin.functions().getFunctionState("public", "default", functionName, "non-exist");
+                });
+                assertEquals(e.getStatusCode(), 404);
+            }
+        }
     }
 
     @Test(groups = {"java_state", "state", "function", "java_function"})
