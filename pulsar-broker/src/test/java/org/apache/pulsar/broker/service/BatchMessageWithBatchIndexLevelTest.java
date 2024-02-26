@@ -505,4 +505,89 @@ public class BatchMessageWithBatchIndexLevelTest extends BatchMessageTest {
         consumerSet.add(spyServiceConsumer);
         return originalConsumer;
     }
+
+    /***
+     * 1. Send a batch message contains 100 single messages.
+     * 2. Ack 2 messages.
+     * 3. Redeliver the batch message and ack them.
+     * 4. Verify: the permits is correct.
+     */
+    @Test
+    public void testPermitsIfHalfAckBatchMessage() throws Exception {
+        final String topicName = BrokerTestUtil.newUniqueName("persistent://prop/ns-abc/tp");
+        final String subName = "s1";
+        final int receiverQueueSize = 1000;
+        final int ackedMessagesCountInTheFistStep = 2;
+        admin.topics().createNonPartitionedTopic(topicName);
+        admin.topics(). createSubscription(topicName, subName, MessageId.earliest);
+        ConsumerBuilder<String> consumerBuilder = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topicName)
+                .receiverQueueSize(receiverQueueSize)
+                .subscriptionName(subName)
+                .enableBatchIndexAcknowledgment(true)
+                .subscriptionType(SubscriptionType.Shared)
+                .isAckReceiptEnabled(true);
+
+        // Send 100 messages.
+        Producer<String>  producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topicName)
+                .enableBatching(true)
+                .batchingMaxPublishDelay(1, TimeUnit.HOURS)
+                .create();
+        CompletableFuture<MessageId>  lastSent = null;
+        for (int i = 1;  i <=  100;  i++) {
+            lastSent = producer. sendAsync(i + "");
+        }
+        producer.flush();
+        lastSent.join();
+
+        // Ack 2 messages, and trigger a redelivery.
+        Consumer<String>  consumer1 = consumerBuilder.subscribe();
+        for (int i = 0;  i <  ackedMessagesCountInTheFistStep;  i++) {
+            Message msg = consumer1. receive(2, TimeUnit.SECONDS);
+            assertNotNull(msg);
+            consumer1.acknowledge(msg);
+        }
+        consumer1.close();
+
+        // Receive the left 98 messages, and ack them.
+        // Verify the permits is correct.
+        ConsumerImpl<String> consumer2 = (ConsumerImpl<String>) consumerBuilder.subscribe();
+        Awaitility.await().until(() ->  consumer2.isConnected());
+        List<MessageId>  messages = new ArrayList<>();
+        int nextMessageValue = ackedMessagesCountInTheFistStep + 1;
+        while (true) {
+            Message<String> msg = consumer2.receive(2, TimeUnit.SECONDS);
+            if (msg == null) {
+                break;
+            }
+            assertEquals(msg.getValue(), nextMessageValue + "");
+            messages.add(msg.getMessageId());
+            nextMessageValue++;
+        }
+        assertEquals(messages.size(), 98);
+        consumer2.acknowledge(messages);
+
+        org.apache.pulsar.broker.service.Consumer serviceConsumer2 =
+                getTheUniqueServiceConsumer(topicName, subName);
+        Awaitility.await().untilAsserted(() ->  {
+            // After the messages were pop out, the permits in the client memory went to 98.
+            int permitsInClientMemory = consumer2.getAvailablePermits();
+            int permitsInBroker = serviceConsumer2.getAvailablePermits();
+            assertEquals(permitsInClientMemory + permitsInBroker, receiverQueueSize);
+        });
+
+        // cleanup.
+        producer.close();
+        consumer2.close();
+        admin.topics().delete(topicName, false);
+    }
+
+    private org.apache.pulsar.broker.service.Consumer getTheUniqueServiceConsumer(String topic, String sub) {
+        PersistentTopic persistentTopic =
+                (PersistentTopic) pulsar.getBrokerService(). getTopic(topic, false).join().get();
+        PersistentDispatcherMultipleConsumers dispatcher =
+                (PersistentDispatcherMultipleConsumers) persistentTopic.getSubscription(sub).getDispatcher();
+        return dispatcher.getConsumers().iterator().next();
+    }
 }

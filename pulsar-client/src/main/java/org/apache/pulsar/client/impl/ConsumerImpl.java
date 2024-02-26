@@ -1225,7 +1225,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 return null;
             }
 
-            if (ackBitSet != null && !ackBitSet.get(index)) {
+            if (isSingleMessageAcked(ackBitSet, index)) {
                 return null;
             }
 
@@ -1671,7 +1671,14 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                         singleMessageMetadata, uncompressedPayload, batchMessage, schema, true,
                         ackBitSet, acker, redeliveryCount, consumerEpoch);
                 if (message == null) {
-                    skippedMessages++;
+                    // If it is not in ackBitSet, it means Broker does not want to deliver it to the client, and
+                    // did not decrease the permits in the broker-side.
+                    // So do not acquire more permits for this message.
+                    // Why not skip this single message in the first line of for-loop block? We need call
+                    // "newSingleMessage" to move "payload.readerIndex" to a correct value to get the correct data.
+                    if (!isSingleMessageAcked(ackBitSet, i)) {
+                        skippedMessages++;
+                    }
                     continue;
                 }
                 if (possibleToDeadLetter != null) {
