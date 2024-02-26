@@ -37,7 +37,6 @@ import org.apache.pulsar.common.policies.data.TopicStats;
 import org.junit.Assert;
 import org.awaitility.Awaitility;
 import org.mockito.Mockito;
-import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
