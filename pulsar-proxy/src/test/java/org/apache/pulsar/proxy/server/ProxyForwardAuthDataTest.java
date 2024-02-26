@@ -46,6 +46,7 @@ import org.testng.annotations.Test;
 
 public class ProxyForwardAuthDataTest extends ProducerConsumerBase {
     private static final Logger log = LoggerFactory.getLogger(ProxyForwardAuthDataTest.class);
+    private static final String CLUSTER_NAME = "test";
 
     @BeforeMethod
     @Override
@@ -64,7 +65,7 @@ public class ProxyForwardAuthDataTest extends ProducerConsumerBase {
         providers.add(BasicAuthenticationProvider.class.getName());
         conf.setAuthenticationProviders(providers);
 
-        conf.setClusterName("test");
+        conf.setClusterName(CLUSTER_NAME);
         Set<String> proxyRoles = new HashSet<String>();
         proxyRoles.add("proxy");
         conf.setProxyRoles(proxyRoles);
@@ -109,6 +110,7 @@ public class ProxyForwardAuthDataTest extends ProducerConsumerBase {
         proxyConfig.setBrokerServiceURL(pulsar.getBrokerServiceUrl());
         proxyConfig.setBrokerClientAuthenticationPlugin(BasicAuthentication.class.getName());
         proxyConfig.setBrokerClientAuthenticationParameters(proxyAuthParams);
+        proxyConfig.setClusterName(CLUSTER_NAME);
 
         Set<String> providers = new HashSet<>();
         providers.add(BasicAuthenticationProvider.class.getName());

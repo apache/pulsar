@@ -110,7 +110,7 @@
     <dependencySet>
       <outputDirectory>lib</outputDirectory>
       <unpack>false</unpack>
-      <scope>compile</scope>
+      <scope>runtime</scope>
       <useProjectArtifact>false</useProjectArtifact>
       <!-- Include 'groupId' in the dependencies Jar names to better identify
            the provenance of the jar -->
@@ -119,12 +119,15 @@
       <excludes>
         <exclude>org.apache.pulsar:pulsar-functions-runtime-all</exclude>
 
-        <exclude>org.projectlombok:lombok</exclude>
-
         <!-- prevent adding pulsar-functions-api-examples in lib -->
         <exclude>org.apache.pulsar:pulsar-functions-api-examples</exclude>
         <!-- prevent adding any distribution .tar.gz files in lib -->
         <exclude>*:tar.gz</exclude>
+        <!-- prevent adding annotation libraries -->
+        <exclude>org.codehaus.mojo:animal-sniffer-annotations</exclude>
+        <exclude>com.google.android:annotations</exclude>
+        <!-- Needed only in the pulsar-shell distro only -->
+        <exclude>net.java.dev.jna:jna</exclude>
       </excludes>
     </dependencySet>
   </dependencySets>

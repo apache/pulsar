@@ -589,6 +589,9 @@ jobs:
           - name: Transaction
             group: TRANSACTION
 
+          - name: Metrics
+            group: METRICS
+
     steps:
       - name: checkout
         uses: actions/checkout@v4
