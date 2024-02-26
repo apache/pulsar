@@ -213,6 +213,8 @@ public class TransactionBufferClientTest extends TransactionTestBase {
 
     @Test
     public void testTransactionBufferMetrics() throws Exception {
+        this.cleanup();
+        this.setup();
         //Test commit
         for (int i = 0; i < partitions; i++) {
             String topic = partitionedTopicName.getPartition(i).toString();
