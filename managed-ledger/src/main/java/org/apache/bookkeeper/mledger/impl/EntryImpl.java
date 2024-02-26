@@ -58,11 +58,7 @@ public final class EntryImpl extends AbstractCASReferenceCounted implements Entr
 
     private static EntryImpl getEntryFromRecycler() {
         EntryImpl entry = RECYCLER.get();
-        if (entry.refCnt() != 1) {
-            throw new IllegalStateException(
-                    "EntryImpl should be obtained from the recycler with refCnt == 1. refCnt = " + entry.refCnt()
-                            + " instance = " + entry);
-        }
+        entry.resetRefCnt();
         return entry;
     }
 

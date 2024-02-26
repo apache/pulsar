@@ -108,6 +108,10 @@ public abstract class AbstractCASReferenceCounted implements ReferenceCounted {
      */
     protected abstract void deallocate();
 
+    public final void resetRefCnt() {
+        refCntUpdater.set(this, 1);
+    }
+
     /**
      * Validate that the instance hasn't been released before accessing fields.
      * This is a sanity check to ensure that we don't read fields from deallocated objects.

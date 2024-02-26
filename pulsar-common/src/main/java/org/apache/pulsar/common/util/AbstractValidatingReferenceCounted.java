@@ -25,6 +25,7 @@ import io.netty.util.Recycler;
 public abstract class AbstractValidatingReferenceCounted extends AbstractReferenceCounted {
     private static final boolean refCountCheckOnAccess =
             Boolean.parseBoolean(System.getProperty("pulsar.refcount.check.on_access", "true"));
+
     /**
      * Validate that the instance hasn't been released before accessing fields.
      * This is a sanity check to ensure that we don't read fields from deallocated objects.
@@ -37,13 +38,13 @@ public abstract class AbstractValidatingReferenceCounted extends AbstractReferen
         }
     }
 
-    public static <T extends AbstractReferenceCounted> T getAndCheck(Recycler<T> recycler) {
+    public final void resetRefCnt() {
+        setRefCnt(1);
+    }
+
+    public static <T extends AbstractValidatingReferenceCounted> T getAndCheck(Recycler<T> recycler) {
         T object = recycler.get();
-        if (object.refCnt() != 1) {
-            throw new IllegalReferenceCountException(object.getClass().getSimpleName()
-                    + " should be obtained from the recycler with refCnt == 1, (refCnt=" + object.refCnt()
-                    + ") instance=" + object);
-        }
+        object.resetRefCnt();
         return object;
     }
 }
