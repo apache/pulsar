@@ -1240,8 +1240,10 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
                     || state.getByteValue().length == 0)) {
                 data = ByteBuffer.allocate(Long.BYTES);
                 data.putLong(state.getNumberValue());
-            } else {
+            } else if (state.getByteValue() != null) {
                 data = ByteBuffer.wrap(state.getByteValue());
+            } else {
+                throw new IllegalArgumentException("Invalid state value");
             }
             store.put(key, data);
         } catch (Throwable e) {
