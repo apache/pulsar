@@ -129,6 +129,8 @@ flexible messaging model and an intuitive client API.</description>
     <puppycrawl.checkstyle.version>8.37</puppycrawl.checkstyle.version>
     <dockerfile-maven.version>1.4.13</dockerfile-maven.version>
     <typetools.version>0.5.0</typetools.version>
+    <byte-buddy.version>1.14.12</byte-buddy.version>
+    <zt-zip.version>1.17</zt-zip.version>
     <protobuf3.version>3.19.6</protobuf3.version>
     <protoc3.version>${protobuf3.version}</protoc3.version>
     <grpc.version>1.45.1</grpc.version>
@@ -953,6 +955,18 @@ flexible messaging model and an intuitive client API.</description>
         <groupId>net.jodah</groupId>
         <artifactId>typetools</artifactId>
         <version>${typetools.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>net.bytebuddy</groupId>
+        <artifactId>byte-buddy</artifactId>
+        <version>${byte-buddy.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.zeroturnaround</groupId>
+        <artifactId>zt-zip</artifactId>
+        <version>${zt-zip.version}</version>
       </dependency>
 
       <dependency>

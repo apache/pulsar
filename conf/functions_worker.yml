@@ -42,6 +42,16 @@ metadataStoreOperationTimeoutSeconds: 30
 # Metadata store cache expiry time in seconds
 metadataStoreCacheExpirySeconds: 300
 
+# Specifies if the function worker should use classloading for validating submissions for built-in
+# connectors and functions. This is required for validateConnectorConfig to take effect.
+# Default is false.
+enableClassloadingOfBuiltinFiles: false
+
+# Specifies if the function worker should use classloading for validating submissions for external
+# connectors and functions. This is required for validateConnectorConfig to take effect.
+# Default is false.
+enableClassloadingOfExternalFiles: false
+
 ################################
 # Function package management
 ################################
@@ -390,7 +400,10 @@ saslJaasServerRoleTokenSignerSecretPath:
 connectorsDirectory: ./connectors
 functionsDirectory: ./functions
 
-# Should connector config be validated during submission
+# Enables extended validation for connector config with fine-grain annotation based validation
+# during submission. Classloading with either enableClassloadingOfExternalFiles or
+# enableClassloadingOfBuiltinFiles must be enabled on the worker for this to take effect.
+# Default is false.
 validateConnectorConfig: false
 
 # Whether to initialize distributed log metadata by runtime.

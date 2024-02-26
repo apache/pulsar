@@ -19,15 +19,24 @@
 
 package org.apache.pulsar.functions.utils;
 
+import static org.apache.commons.lang3.StringUtils.isEmpty;
+import static org.apache.pulsar.functions.utils.FunctionCommon.convertProcessingGuarantee;
+import static org.apache.pulsar.functions.utils.FunctionCommon.getSourceType;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
+import java.io.IOException;
+import java.lang.reflect.Type;
+import java.util.HashMap;
+import java.util.Map;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
-import net.jodah.typetools.TypeResolver;
+import net.bytebuddy.description.type.TypeDefinition;
+import net.bytebuddy.description.type.TypeDescription;
+import net.bytebuddy.pool.TypePool;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.common.functions.ProducerConfig;
 import org.apache.pulsar.common.functions.Resources;
@@ -36,24 +45,13 @@ import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.common.io.SourceConfig;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.config.validation.ConfigValidation;
 import org.apache.pulsar.functions.api.utils.IdentityFunction;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
-import org.apache.pulsar.functions.utils.io.ConnectorUtils;
 import org.apache.pulsar.io.core.BatchSource;
 import org.apache.pulsar.io.core.Source;
-
-import java.io.IOException;
-import java.lang.reflect.Type;
-import java.util.HashMap;
-import java.util.Map;
-
-import static org.apache.commons.lang3.StringUtils.isEmpty;
-import static org.apache.pulsar.functions.utils.FunctionCommon.convertProcessingGuarantee;
-import static org.apache.pulsar.functions.utils.FunctionCommon.getSourceType;
 
 @Slf4j
 public class SourceConfigUtils {
@@ -70,7 +68,8 @@ public class SourceConfigUtils {
             throws IllegalArgumentException {
         FunctionDetails.Builder functionDetailsBuilder = FunctionDetails.newBuilder();
 
-        boolean isBuiltin = !StringUtils.isEmpty(sourceConfig.getArchive()) && sourceConfig.getArchive().startsWith(org.apache.pulsar.common.functions.Utils.BUILTIN);
+        boolean isBuiltin = !StringUtils.isEmpty(sourceConfig.getArchive()) && sourceConfig.getArchive()
+                .startsWith(org.apache.pulsar.common.functions.Utils.BUILTIN);
 
         if (sourceConfig.getTenant() != null) {
             functionDetailsBuilder.setTenant(sourceConfig.getTenant());
@@ -112,7 +111,8 @@ public class SourceConfigUtils {
 
         // Batch source handling
         if (sourceConfig.getBatchSourceConfig() != null) {
-            configs.put(BatchSourceConfig.BATCHSOURCE_CONFIG_KEY, new Gson().toJson(sourceConfig.getBatchSourceConfig()));
+            configs.put(BatchSourceConfig.BATCHSOURCE_CONFIG_KEY,
+                    new Gson().toJson(sourceConfig.getBatchSourceConfig()));
             configs.put(BatchSourceConfig.BATCHSOURCE_CLASSNAME_KEY, sourceSpecBuilder.getClassName());
             sourceSpecBuilder.setClassName("org.apache.pulsar.functions.source.batch.BatchSourceExecutor");
         }
@@ -196,7 +196,7 @@ public class SourceConfigUtils {
             functionDetailsBuilder.setCustomRuntimeOptions(sourceConfig.getCustomRuntimeOptions());
         }
 
-        return functionDetailsBuilder.build();
+        return FunctionConfigUtils.validateFunctionDetails(functionDetailsBuilder.build());
     }
 
     public static SourceConfig convertFromDetails(FunctionDetails functionDetails) {
@@ -205,7 +205,8 @@ public class SourceConfigUtils {
         sourceConfig.setNamespace(functionDetails.getNamespace());
         sourceConfig.setName(functionDetails.getName());
         sourceConfig.setParallelism(functionDetails.getParallelism());
-        sourceConfig.setProcessingGuarantees(FunctionCommon.convertProcessingGuarantee(functionDetails.getProcessingGuarantees()));
+        sourceConfig.setProcessingGuarantees(
+                FunctionCommon.convertProcessingGuarantee(functionDetails.getProcessingGuarantees()));
         Function.SourceSpec sourceSpec = functionDetails.getSource();
         if (!StringUtils.isEmpty(sourceSpec.getClassName())) {
             sourceConfig.setClassName(sourceSpec.getClassName());
@@ -213,14 +214,15 @@ public class SourceConfigUtils {
         if (!StringUtils.isEmpty(sourceSpec.getBuiltin())) {
             sourceConfig.setArchive("builtin://" + sourceSpec.getBuiltin());
         }
-        Map<String, Object> configMap = extractSourceConfig(sourceSpec, FunctionCommon.getFullyQualifiedName(functionDetails));
+        Map<String, Object> configMap =
+                extractSourceConfig(sourceSpec, FunctionCommon.getFullyQualifiedName(functionDetails));
         if (configMap != null) {
             BatchSourceConfig batchSourceConfig = extractBatchSourceConfig(configMap);
             if (batchSourceConfig != null) {
                 sourceConfig.setBatchSourceConfig(batchSourceConfig);
                 if (configMap.containsKey(BatchSourceConfig.BATCHSOURCE_CLASSNAME_KEY)) {
-                    if (!StringUtils.isEmpty((String)configMap.get(BatchSourceConfig.BATCHSOURCE_CLASSNAME_KEY))) {
-                        sourceConfig.setClassName((String)configMap.get(BatchSourceConfig.BATCHSOURCE_CLASSNAME_KEY));
+                    if (!StringUtils.isEmpty((String) configMap.get(BatchSourceConfig.BATCHSOURCE_CLASSNAME_KEY))) {
+                        sourceConfig.setClassName((String) configMap.get(BatchSourceConfig.BATCHSOURCE_CLASSNAME_KEY));
                     } else {
                         sourceConfig.setClassName(null);
                     }
@@ -232,7 +234,8 @@ public class SourceConfigUtils {
             sourceConfig.setConfigs(configMap);
         }
         if (!isEmpty(functionDetails.getSecretsMap())) {
-            Type type = new TypeToken<Map<String, Object>>() {}.getType();
+            Type type = new TypeToken<Map<String, Object>>() {
+            }.getType();
             Map<String, Object> secretsMap = new Gson().fromJson(functionDetails.getSecretsMap(), type);
             sourceConfig.setSecrets(secretsMap);
         }
@@ -282,7 +285,7 @@ public class SourceConfigUtils {
     }
 
     public static ExtractedSourceDetails validateAndExtractDetails(SourceConfig sourceConfig,
-                                                                   ClassLoader sourceClassLoader,
+                                                                   ValidatableFunctionPackage sourceFunction,
                                                                    boolean validateConnectorConfig) {
         if (isEmpty(sourceConfig.getTenant())) {
             throw new IllegalArgumentException("Source tenant cannot be null");
@@ -310,29 +313,34 @@ public class SourceConfigUtils {
         // if class name in source config is not set, this should be a built-in source
         // thus we should try to find it class name in the NAR service definition
         if (sourceClassName == null) {
-            try {
-                sourceClassName = ConnectorUtils.getIOSourceClass((NarClassLoader) sourceClassLoader);
-            } catch (IOException e) {
-                throw new IllegalArgumentException("Failed to extract source class from archive", e);
+            ConnectorDefinition connectorDefinition = sourceFunction.getFunctionMetaData(ConnectorDefinition.class);
+            if (connectorDefinition == null) {
+                throw new IllegalArgumentException(
+                        "Source package doesn't contain the META-INF/services/pulsar-io.yaml file.");
+            }
+            sourceClassName = connectorDefinition.getSourceClass();
+            if (sourceClassName == null) {
+                throw new IllegalArgumentException("Failed to extract source class from archive");
             }
         }
 
         // check if source implements the correct interfaces
-        Class sourceClass;
+        TypeDescription sourceClass;
         try {
-            sourceClass = sourceClassLoader.loadClass(sourceClassName);
-        } catch (ClassNotFoundException e) {
+            sourceClass = sourceFunction.resolveType(sourceClassName);
+        } catch (TypePool.Resolution.NoSuchTypeException e) {
             throw new IllegalArgumentException(
               String.format("Source class %s not found in class loader", sourceClassName), e);
         }
 
-        if (!Source.class.isAssignableFrom(sourceClass) && !BatchSource.class.isAssignableFrom(sourceClass)) {
+        if (!(sourceClass.asErasure().isAssignableTo(Source.class) || sourceClass.asErasure()
+                .isAssignableTo(BatchSource.class))) {
             throw new IllegalArgumentException(
-              String.format("Source class %s does not implement the correct interface",
-                sourceClass.getName()));
+                    String.format("Source class %s does not implement the correct interface",
+                            sourceClass.getName()));
         }
 
-        if (BatchSource.class.isAssignableFrom(sourceClass)) {
+        if (sourceClass.asErasure().isAssignableTo(BatchSource.class)) {
             if (sourceConfig.getBatchSourceConfig() != null) {
                 validateBatchSourceConfig(sourceConfig.getBatchSourceConfig());
             } else {
@@ -343,35 +351,46 @@ public class SourceConfigUtils {
         }
 
         // extract type from source class
-        Class<?> typeArg = getSourceType(sourceClass);
+        TypeDefinition typeArg;
+
+        try {
+            typeArg = getSourceType(sourceClass);
+        } catch (Exception e) {
+            throw new IllegalArgumentException(
+                    String.format("Failed to resolve type for Source class %s", sourceClassName), e);
+        }
 
         // Only one of serdeClassName or schemaType should be set
-        if (!StringUtils.isEmpty(sourceConfig.getSerdeClassName()) && !StringUtils.isEmpty(sourceConfig.getSchemaType())) {
+        if (!StringUtils.isEmpty(sourceConfig.getSerdeClassName()) && !StringUtils
+                .isEmpty(sourceConfig.getSchemaType())) {
             throw new IllegalArgumentException("Only one of serdeClassName or schemaType should be set");
         }
 
         if (!StringUtils.isEmpty(sourceConfig.getSerdeClassName())) {
-            ValidatorUtils.validateSerde(sourceConfig.getSerdeClassName(), typeArg, sourceClassLoader, false);
+            ValidatorUtils.validateSerde(sourceConfig.getSerdeClassName(), typeArg, sourceFunction.getTypePool(),
+                    false);
         }
         if (!StringUtils.isEmpty(sourceConfig.getSchemaType())) {
-            ValidatorUtils.validateSchema(sourceConfig.getSchemaType(), typeArg, sourceClassLoader, false);
+            ValidatorUtils.validateSchema(sourceConfig.getSchemaType(), typeArg, sourceFunction.getTypePool(),
+                    false);
         }
 
         if (sourceConfig.getProducerConfig() != null && sourceConfig.getProducerConfig().getCryptoConfig() != null) {
-            ValidatorUtils.validateCryptoKeyReader(sourceConfig.getProducerConfig().getCryptoConfig(), sourceClassLoader, true);
+            ValidatorUtils
+                    .validateCryptoKeyReader(sourceConfig.getProducerConfig().getCryptoConfig(),
+                            sourceFunction.getTypePool(), true);
         }
 
-        if (typeArg.equals(TypeResolver.Unknown.class)) {
-            throw new IllegalArgumentException(
-              String.format("Failed to resolve type for Source class %s", sourceClassName));
+        // validate user defined config if enabled and classloading is enabled
+        if (validateConnectorConfig) {
+            if (sourceFunction.isEnableClassloading()) {
+                validateSourceConfig(sourceConfig, sourceFunction);
+            } else {
+                log.warn("Skipping annotation based validation of sink config as classloading is disabled");
+            }
         }
 
-        // validate user defined config if enabled and source is loaded from NAR
-        if (validateConnectorConfig && sourceClassLoader instanceof NarClassLoader) {
-            validateSourceConfig(sourceConfig, (NarClassLoader) sourceClassLoader);
-        }
-
-        return new ExtractedSourceDetails(sourceClassName, typeArg.getName());
+        return new ExtractedSourceDetails(sourceClassName, typeArg.asErasure().getTypeName());
     }
 
     @SneakyThrows
@@ -409,14 +428,16 @@ public class SourceConfigUtils {
         if (newConfig.getSecrets() != null) {
             mergedConfig.setSecrets(newConfig.getSecrets());
         }
-        if (newConfig.getProcessingGuarantees() != null && !newConfig.getProcessingGuarantees().equals(existingConfig.getProcessingGuarantees())) {
+        if (newConfig.getProcessingGuarantees() != null && !newConfig.getProcessingGuarantees()
+                .equals(existingConfig.getProcessingGuarantees())) {
             throw new IllegalArgumentException("Processing Guarantees cannot be altered");
         }
         if (newConfig.getParallelism() != null) {
             mergedConfig.setParallelism(newConfig.getParallelism());
         }
         if (newConfig.getResources() != null) {
-            mergedConfig.setResources(ResourceConfigUtils.merge(existingConfig.getResources(), newConfig.getResources()));
+            mergedConfig
+                    .setResources(ResourceConfigUtils.merge(existingConfig.getResources(), newConfig.getResources()));
         }
         if (!StringUtils.isEmpty(newConfig.getArchive())) {
             mergedConfig.setArchive(newConfig.getArchive());
@@ -434,6 +455,9 @@ public class SourceConfigUtils {
             validateBatchSourceConfigUpdate(existingConfig.getBatchSourceConfig(), newConfig.getBatchSourceConfig());
             mergedConfig.setBatchSourceConfig(newConfig.getBatchSourceConfig());
         }
+        if (newConfig.getProducerConfig() != null) {
+            mergedConfig.setProducerConfig(newConfig.getProducerConfig());
+        }
         return mergedConfig;
     }
 
@@ -446,8 +470,8 @@ public class SourceConfigUtils {
 
     public static Map<String, Object> extractSourceConfig(Function.SourceSpec sourceSpec, String fqfn) {
         if (!StringUtils.isEmpty(sourceSpec.getConfigs())) {
-            TypeReference<HashMap<String, Object>> typeRef
-                    = new TypeReference<HashMap<String, Object>>() {
+            TypeReference<HashMap<String, Object>> typeRef =
+                    new TypeReference<HashMap<String, Object>>() {
             };
             try {
                 return ObjectMapperFactory.getThreadLocal().readValue(sourceSpec.getConfigs(), typeRef);
@@ -507,15 +531,14 @@ public class SourceConfigUtils {
         }
     }
 
-    public static void validateSourceConfig(SourceConfig sourceConfig, NarClassLoader narClassLoader) {
+    public static void validateSourceConfig(SourceConfig sourceConfig, ValidatableFunctionPackage sourceFunction) {
         try {
-            ConnectorDefinition defn = ConnectorUtils.getConnectorDefinition(narClassLoader);
-            if (defn.getSourceConfigClass() != null) {
-                Class configClass = Class.forName(defn.getSourceConfigClass(), true, narClassLoader);
+            ConnectorDefinition defn = sourceFunction.getFunctionMetaData(ConnectorDefinition.class);
+            if (defn != null && defn.getSourceConfigClass() != null) {
+                Class configClass =
+                        Class.forName(defn.getSourceConfigClass(), true, sourceFunction.getClassLoader());
                 validateSourceConfig(sourceConfig, configClass);
             }
-        } catch (IOException e) {
-            throw new IllegalArgumentException("Error validating source config", e);
         } catch (ClassNotFoundException e) {
             throw new IllegalArgumentException("Could not find source config class");
         }
@@ -524,7 +547,8 @@ public class SourceConfigUtils {
 
     public static void validateSourceConfig(SourceConfig sourceConfig, Class configClass) {
         try {
-            Object configObject = ObjectMapperFactory.getThreadLocal().convertValue(sourceConfig.getConfigs(), configClass);
+            Object configObject =
+                    ObjectMapperFactory.getThreadLocal().convertValue(sourceConfig.getConfigs(), configClass);
             if (configObject != null) {
                 ConfigValidation.validateConfig(configObject);
             }

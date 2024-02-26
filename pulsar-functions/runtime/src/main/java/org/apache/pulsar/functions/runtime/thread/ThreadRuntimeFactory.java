@@ -21,6 +21,7 @@ package org.apache.pulsar.functions.runtime.thread;
 
 import com.google.common.base.Preconditions;
 import io.netty.util.internal.PlatformDependent;
+import java.util.Optional;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -28,6 +29,7 @@ import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.common.util.Reflections;
 import org.apache.pulsar.functions.auth.FunctionAuthProvider;
 import org.apache.pulsar.functions.instance.AuthenticationConfig;
 import org.apache.pulsar.functions.instance.InstanceCache;
@@ -39,13 +41,11 @@ import org.apache.pulsar.functions.runtime.RuntimeFactory;
 import org.apache.pulsar.functions.runtime.RuntimeUtils;
 import org.apache.pulsar.functions.secretsprovider.SecretsProvider;
 import org.apache.pulsar.functions.secretsproviderconfigurator.SecretsProviderConfigurator;
-import org.apache.pulsar.common.util.Reflections;
 import org.apache.pulsar.functions.utils.functioncache.FunctionCacheManager;
 import org.apache.pulsar.functions.utils.functioncache.FunctionCacheManagerImpl;
 import org.apache.pulsar.functions.worker.ConnectorsManager;
+import org.apache.pulsar.functions.worker.FunctionsManager;
 import org.apache.pulsar.functions.worker.WorkerConfig;
-
-import java.util.Optional;
 
 /**
  * Thread based function container factory implementation.
@@ -69,6 +69,7 @@ public class ThreadRuntimeFactory implements RuntimeFactory {
     private SecretsProviderConfigurator secretsProviderConfigurator;
     private ClassLoader rootClassLoader;
     private Optional<ConnectorsManager> connectorsManager;
+    private Optional<FunctionsManager> functionsManager;
 
     /**
      * This constructor is used by other runtimes (e.g. ProcessRuntime and KubernetesRuntime) that rely on ThreadRuntime to actually run an instance of the function.
@@ -84,7 +85,8 @@ public class ThreadRuntimeFactory implements RuntimeFactory {
         initialize(threadGroupName, Optional.empty(), pulsarServiceUrl, authConfig,
                 stateStorageImplClass, storageServiceUrl, null, secretsProvider, collectorRegistry,
                 narExtractionDirectory,
-                rootClassLoader, exposePulsarAdminClientEnabled, pulsarWebServiceUrl, Optional.empty(), null);
+                rootClassLoader, exposePulsarAdminClientEnabled, pulsarWebServiceUrl, Optional.empty(),
+                Optional.empty(), null);
     }
 
     public ThreadRuntimeFactory(String threadGroupName, String pulsarServiceUrl,
@@ -97,7 +99,8 @@ public class ThreadRuntimeFactory implements RuntimeFactory {
         initialize(threadGroupName, Optional.empty(), pulsarServiceUrl, authConfig,
                 stateStorageImplClass, storageServiceUrl, null, secretsProvider, collectorRegistry,
                 narExtractionDirectory,
-                rootClassLoader, exposePulsarAdminClientEnabled, pulsarWebServiceUrl, Optional.empty(), fnCache);
+                rootClassLoader, exposePulsarAdminClientEnabled, pulsarWebServiceUrl, Optional.empty(),
+                Optional.empty(), fnCache);
     }
 
     private void initialize(String threadGroupName, Optional<ThreadRuntimeFactoryConfig.MemoryLimit> memoryLimit,
@@ -107,6 +110,7 @@ public class ThreadRuntimeFactory implements RuntimeFactory {
                             FunctionCollectorRegistry collectorRegistry, String narExtractionDirectory,
                             ClassLoader rootClassLoader, boolean exposePulsarAdminClientEnabled,
                             String pulsarWebServiceUrl, Optional<ConnectorsManager> connectorsManager,
+                            Optional<FunctionsManager> functionsManager,
                             FunctionCacheManager fnCache)
             throws PulsarClientException {
 
@@ -130,6 +134,7 @@ public class ThreadRuntimeFactory implements RuntimeFactory {
         this.collectorRegistry = collectorRegistry;
         this.narExtractionDirectory = narExtractionDirectory;
         this.connectorsManager = connectorsManager;
+        this.functionsManager = functionsManager;
     }
 
     private Optional<Long> calculateClientMemoryLimit(Optional<ThreadRuntimeFactoryConfig.MemoryLimit> memoryLimit) {
@@ -173,13 +178,15 @@ public class ThreadRuntimeFactory implements RuntimeFactory {
         ThreadRuntimeFactoryConfig factoryConfig = RuntimeUtils.getRuntimeFunctionConfig(
                 workerConfig.getFunctionRuntimeFactoryConfigs(), ThreadRuntimeFactoryConfig.class);
 
+        FunctionsManager functionsManager = new FunctionsManager(workerConfig);
+
         initialize(factoryConfig.getThreadGroupName(), Optional.ofNullable(factoryConfig.getPulsarClientMemoryLimit()),
                 workerConfig.getPulsarServiceUrl(), authenticationConfig,
                 workerConfig.getStateStorageProviderImplementation(),
                 workerConfig.getStateStorageServiceUrl(), secretsProviderConfigurator, null,
                 null, workerConfig.getNarExtractionDirectory(), null,
                 workerConfig.isExposeAdminClientEnabled(),
-                workerConfig.getPulsarWebServiceUrl(), Optional.of(connectorsManager), null);
+                workerConfig.getPulsarWebServiceUrl(), Optional.of(connectorsManager), Optional.of(functionsManager), null);
     }
 
     @Override
@@ -208,7 +215,8 @@ public class ThreadRuntimeFactory implements RuntimeFactory {
             secretsProvider,
             collectorRegistry,
             narExtractionDirectory,
-            connectorsManager);
+            connectorsManager,
+            functionsManager);
     }
 
     @Override

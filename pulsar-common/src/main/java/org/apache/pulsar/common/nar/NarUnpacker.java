@@ -33,13 +33,14 @@ import java.io.InputStream;
 import java.io.RandomAccessFile;
 import java.nio.channels.FileChannel;
 import java.nio.channels.FileLock;
+import java.nio.file.Path;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Base64;
 import java.util.Enumeration;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.jar.JarEntry;
-import java.util.jar.JarFile;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipFile;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -114,16 +115,22 @@ public class NarUnpacker {
      *             if the NAR could not be unpacked.
      */
     private static void unpack(final File nar, final File workingDirectory) throws IOException {
-        try (JarFile jarFile = new JarFile(nar)) {
-            Enumeration<JarEntry> jarEntries = jarFile.entries();
-            while (jarEntries.hasMoreElements()) {
-                JarEntry jarEntry = jarEntries.nextElement();
-                String name = jarEntry.getName();
-                File f = new File(workingDirectory, name);
-                if (jarEntry.isDirectory()) {
+        Path workingDirectoryPath = workingDirectory.toPath().normalize();
+        try (ZipFile zipFile = new ZipFile(nar)) {
+            Enumeration<? extends ZipEntry> zipEntries = zipFile.entries();
+            while (zipEntries.hasMoreElements()) {
+                ZipEntry zipEntry = zipEntries.nextElement();
+                String name = zipEntry.getName();
+                Path targetFilePath = workingDirectoryPath.resolve(name).normalize();
+                if (!targetFilePath.startsWith(workingDirectoryPath)) {
+                    log.error("Invalid zip file with entry '{}'", name);
+                    throw new IOException("Invalid zip file. Aborting unpacking.");
+                }
+                File f = targetFilePath.toFile();
+                if (zipEntry.isDirectory()) {
                     FileUtils.ensureDirectoryExistAndCanReadAndWrite(f);
                 } else {
-                    makeFile(jarFile.getInputStream(jarEntry), f);
+                    makeFile(zipFile.getInputStream(zipEntry), f);
                 }
             }
         }

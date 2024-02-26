@@ -213,6 +213,21 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
     private boolean zooKeeperAllowReadOnlyOperations;
 
     @FieldContext(
+            doc = "Specifies if the function worker should use classloading for validating submissions for built-in "
+                    + "connectors and functions. This is required for validateConnectorConfig to take effect. "
+                    + "Default is false."
+    )
+    private Boolean enableClassloadingOfBuiltinFiles = false;
+
+    @FieldContext(
+            category = CATEGORY_WORKER,
+            doc = "Specifies if the function worker should use classloading for validating submissions for external "
+                    + "connectors and functions. This is required for validateConnectorConfig to take effect. "
+                    + "Default is false."
+    )
+    private Boolean enableClassloadingOfExternalFiles = false;
+
+    @FieldContext(
         category = CATEGORY_CONNECTORS,
         doc = "The path to the location to locate builtin connectors"
     )
@@ -224,7 +239,10 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
     private String narExtractionDirectory = NarClassLoader.DEFAULT_NAR_EXTRACTION_DIR;
     @FieldContext(
             category = CATEGORY_CONNECTORS,
-            doc = "Should we validate connector config during submission"
+            doc = "Enables extended validation for connector config with fine-grain annotation based validation "
+                    + "during submission. Classloading with either enableClassloadingOfExternalFiles or "
+                    + "enableClassloadingOfBuiltinFiles must be enabled on the worker for this to take effect. "
+                    + "Default is false."
     )
     private Boolean validateConnectorConfig = false;
     @FieldContext(
