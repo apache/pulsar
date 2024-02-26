@@ -659,6 +659,14 @@ public class PulsarWorkerService implements WorkerService {
         if (null != stateStoreProvider) {
             stateStoreProvider.close();
         }
+
+        if (null != functionsManager) {
+            functionsManager.close();
+        }
+
+        if (null != connectorsManager) {
+            connectorsManager.close();
+        }
     }
 
 }
