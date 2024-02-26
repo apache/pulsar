@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.util;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import java.time.Clock;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
@@ -33,6 +34,7 @@ public class ObjectCache<T> implements Supplier<T> {
 
     public ObjectCache(Supplier<T> supplier, long cacheDuration, TimeUnit unit) {
         this(supplier, cacheDuration, unit, Clock.systemUTC());
+        checkArgument(cacheDuration >= 0, "The cache duration must not be negative.");
     }
 
     ObjectCache(Supplier<T> supplier, long cacheDuration, TimeUnit unit, Clock clock) {
