@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.impl;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import com.google.common.annotations.VisibleForTesting;
 import io.netty.buffer.ByteBuf;
 import io.netty.util.Recycler;
@@ -203,6 +204,7 @@ public class TransactionMetaStoreHandler extends HandlerState
     }
 
     public CompletableFuture<TxnID> newTransactionAsync(long timeout, TimeUnit unit) {
+        checkArgument(timeout >= 0, "The timeout must not be negative.");
         if (LOG.isDebugEnabled()) {
             LOG.debug("New transaction with timeout in ms {}", unit.toMillis(timeout));
         }

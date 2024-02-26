@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.stats;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static io.prometheus.client.CollectorRegistry.defaultRegistry;
 import io.prometheus.client.Collector;
 import io.prometheus.client.Summary;
@@ -70,6 +71,7 @@ public class DimensionStats {
     }
 
     public void recordDimensionTimeValue(long latency, TimeUnit unit) {
+        checkArgument(latency >= 0);
         summary.observe(unit.toMillis(latency));
     }
 
