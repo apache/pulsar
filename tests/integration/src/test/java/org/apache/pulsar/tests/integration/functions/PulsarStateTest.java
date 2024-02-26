@@ -28,6 +28,7 @@ import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.expectThrows;
 import static org.testng.Assert.fail;
 import com.google.common.base.Utf8;
+import com.google.gson.Gson;
 import java.util.Base64;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
@@ -112,11 +113,9 @@ public class PulsarStateTest extends PulsarStandaloneTestSuite {
         String expectNumber = "\"numberValue\": 20";
         putAndQueryState(functionName, "test-number", numberState, expectNumber);
 
+        String byteState = "{\"key\":\"test-bytes\",\"byteValue\":\"" + VALUE_BASE64 + "\"}";
         byte[] valueBytes = Base64.getDecoder().decode(VALUE_BASE64);
-        String bytesString = Base64.getEncoder().encodeToString(valueBytes);
-        String byteState = "{\"key\":\"test-bytes\",\"byteValue\":\"" + bytesString + "\"}";
-        String expectBytes = "\"byteValue\": \"" + bytesString + "\"";
-        putAndQueryState(functionName, "test-bytes", byteState, expectBytes);
+        putAndQueryStateByte(functionName, "test-bytes", byteState, valueBytes);
 
         // delete function
         deleteFunction(functionName);
@@ -543,6 +542,33 @@ public class PulsarStateTest extends PulsarStandaloneTestSuite {
                 "--key", key
         );
         assertTrue(result.getStdout().contains(expect));
+    }
+
+    private void putAndQueryStateByte(String functionName, String key, String state, byte[] expect)
+            throws Exception {
+        container.execCmd(
+                PulsarCluster.ADMIN_SCRIPT,
+                "functions",
+                "putstate",
+                "--tenant", "public",
+                "--namespace", "default",
+                "--name", functionName,
+                "--state", state
+        );
+
+        ContainerExecResult result = container.execCmd(
+                PulsarCluster.ADMIN_SCRIPT,
+                "functions",
+                "querystate",
+                "--tenant", "public",
+                "--namespace", "default",
+                "--name", functionName,
+                "--key", key
+        );
+
+        FunctionState byteState = new Gson().fromJson(result.getStdout(), FunctionState.class);
+        assertNull(byteState.getStringValue());
+        assertEquals(byteState.getByteValue(), expect);
     }
 
     private void publishAndConsumeMessages(String inputTopic,
