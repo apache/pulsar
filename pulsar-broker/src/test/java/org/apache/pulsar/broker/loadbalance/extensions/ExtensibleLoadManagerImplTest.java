@@ -118,7 +118,6 @@ import org.apache.pulsar.client.impl.TableViewImpl;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.ServiceUnitId;
-import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.naming.TopicVersion;
@@ -141,6 +140,10 @@ import org.testng.annotations.Test;
 @Test(groups = "broker")
 @SuppressWarnings("unchecked")
 public class ExtensibleLoadManagerImplTest extends ExtensibleLoadManagerImplBaseTest {
+
+    public ExtensibleLoadManagerImplTest() {
+        super("public/test");
+    }
 
     @Test
     public void testAssignInternalTopic() throws Exception {
@@ -1537,23 +1540,4 @@ public class ExtensibleLoadManagerImplTest extends ExtensibleLoadManagerImplBase
 
     }
 
-    private CompletableFuture<NamespaceBundle> getBundleAsync(PulsarService pulsar, TopicName topic) {
-        return pulsar.getNamespaceService().getBundleAsync(topic);
-    }
-
-    private Pair<TopicName, NamespaceBundle> getBundleIsNotOwnByChangeEventTopic(String topicNamePrefix)
-            throws Exception {
-        TopicName changeEventsTopicName =
-                TopicName.get(defaultTestNamespace + "/" + SystemTopicNames.NAMESPACE_EVENTS_LOCAL_NAME);
-        NamespaceBundle changeEventsBundle = getBundleAsync(pulsar1, changeEventsTopicName).get();
-        int i = 0;
-        while(true) {
-            TopicName topicName = TopicName.get(defaultTestNamespace + "/" + topicNamePrefix + "-" + i);
-            NamespaceBundle bundle = getBundleAsync(pulsar1, topicName).get();
-            if (!bundle.equals(changeEventsBundle)) {
-                return Pair.of(topicName, bundle);
-            }
-            i++;
-        }
-    }
 }

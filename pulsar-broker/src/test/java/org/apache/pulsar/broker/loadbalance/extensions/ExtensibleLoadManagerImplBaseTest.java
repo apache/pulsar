@@ -21,7 +21,9 @@ package org.apache.pulsar.broker.loadbalance.extensions;
 import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.spy;
 import com.google.common.collect.Sets;
+import java.util.concurrent.CompletableFuture;
 import org.apache.commons.lang3.reflect.FieldUtils;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
@@ -30,6 +32,9 @@ import org.apache.pulsar.broker.loadbalance.extensions.scheduler.TransferShedder
 import org.apache.pulsar.broker.testcontext.PulsarTestContext;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.impl.LookupService;
+import org.apache.pulsar.common.naming.NamespaceBundle;
+import org.apache.pulsar.common.naming.SystemTopicNames;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.data.TopicType;
@@ -51,11 +56,17 @@ public class ExtensibleLoadManagerImplBaseTest extends MockedPulsarServiceBaseTe
     protected ServiceUnitStateChannelImpl channel1;
     protected ServiceUnitStateChannelImpl channel2;
 
-    protected final String defaultTestNamespace = "public/test";
+    protected final String defaultTestNamespace;
 
     protected LookupService lookupService;
 
-    private static void initConfig(ServiceConfiguration conf) {
+    protected ExtensibleLoadManagerImplBaseTest(String defaultTestNamespace) {
+        this.defaultTestNamespace = defaultTestNamespace;
+    }
+
+    protected ServiceConfiguration initConfig(ServiceConfiguration conf) {
+        // Set the inflight state waiting time and ownership monitor delay time to 5 seconds to avoid
+        // stuck when doing unload.
         conf.setLoadBalancerInFlightServiceUnitStateWaitingTimeInMillis(5 * 1000);
         conf.setLoadBalancerServiceUnitStateMonitorIntervalInSeconds(1);
         conf.setForceDeleteNamespaceAllowed(true);
@@ -66,23 +77,20 @@ public class ExtensibleLoadManagerImplBaseTest extends MockedPulsarServiceBaseTe
         conf.setLoadBalancerSheddingEnabled(false);
         conf.setLoadBalancerDebugModeEnabled(true);
         conf.setTopicLevelPoliciesEnabled(true);
+        return conf;
     }
 
     @BeforeClass
     @Override
     public void setup() throws Exception {
-        // Set the inflight state waiting time and ownership monitor delay time to 5 seconds to avoid
-        // stuck when doing unload.
         initConfig(conf);
         super.internalSetup(conf);
         pulsar1 = pulsar;
-        ServiceConfiguration defaultConf = getDefaultConf();
-        initConfig(defaultConf);
-        additionalPulsarTestContext = createAdditionalPulsarTestContext(defaultConf);
+        var conf2 = initConfig(getDefaultConf());
+        additionalPulsarTestContext = createAdditionalPulsarTestContext(conf2);
         pulsar2 = additionalPulsarTestContext.getPulsarService();
 
         setPrimaryLoadManager();
-
         setSecondaryLoadManager();
 
         admin.clusters().createCluster(this.conf.getClusterName(),
@@ -134,5 +142,25 @@ public class ExtensibleLoadManagerImplBaseTest extends MockedPulsarServiceBaseTe
         FieldUtils.writeField(wrapper, "loadManager", secondaryLoadManager, true);
         channel2 = (ServiceUnitStateChannelImpl)
                 FieldUtils.readField(secondaryLoadManager, "serviceUnitStateChannel", true);
+    }
+
+    protected CompletableFuture<NamespaceBundle> getBundleAsync(PulsarService pulsar, TopicName topic) {
+        return pulsar.getNamespaceService().getBundleAsync(topic);
+    }
+
+    protected Pair<TopicName, NamespaceBundle> getBundleIsNotOwnByChangeEventTopic(String topicNamePrefix)
+            throws Exception {
+        TopicName changeEventsTopicName =
+                TopicName.get(defaultTestNamespace + "/" + SystemTopicNames.NAMESPACE_EVENTS_LOCAL_NAME);
+        NamespaceBundle changeEventsBundle = getBundleAsync(pulsar1, changeEventsTopicName).get();
+        int i = 0;
+        while(true) {
+            TopicName topicName = TopicName.get(defaultTestNamespace + "/" + topicNamePrefix + "-" + i);
+            NamespaceBundle bundle = getBundleAsync(pulsar1, topicName).get();
+            if (!bundle.equals(changeEventsBundle)) {
+                return Pair.of(topicName, bundle);
+            }
+            i++;
+        }
     }
 }
