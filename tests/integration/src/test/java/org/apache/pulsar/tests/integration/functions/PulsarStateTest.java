@@ -124,6 +124,9 @@ public class PulsarStateTest extends PulsarStandaloneTestSuite {
         String byteStrState = "{\"key\":\"test-str-bytes\",\"byteValue\":\"" + bytesStrString + "\"}";
         putAndQueryState(functionName, "test-str-bytes", byteStrState, valueStr);
 
+        String byteStrStateWithEmptyValues = "{\"key\":\"test-str-bytes\",\"byteValue\":\"" + bytesStrString + "\",\"stringValue\":\"\",\"numberValue\":0}";
+        putAndQueryState(functionName, "test-str-bytes", byteStrStateWithEmptyValues, valueStr);
+
         // delete function
         deleteFunction(functionName);
 
