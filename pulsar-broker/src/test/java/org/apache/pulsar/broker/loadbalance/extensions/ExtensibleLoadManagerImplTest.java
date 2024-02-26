@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.broker.loadbalance.extensions;
 
+import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Releasing;
+import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannelTest.overrideTableView;
 import static org.apache.pulsar.broker.loadbalance.extensions.models.SplitDecision.Reason.Admin;
 import static org.apache.pulsar.broker.loadbalance.extensions.models.SplitDecision.Reason.Bandwidth;
 import static org.apache.pulsar.broker.loadbalance.extensions.models.SplitDecision.Reason.MsgRate;
@@ -88,6 +90,7 @@ import org.apache.pulsar.broker.loadbalance.LeaderBroker;
 import org.apache.pulsar.broker.loadbalance.LeaderElectionService;
 import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState;
 import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannelImpl;
+import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateData;
 import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLoadData;
 import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLookupData;
 import org.apache.pulsar.broker.loadbalance.extensions.data.TopBundlesLoadData;
@@ -106,6 +109,7 @@ import org.apache.pulsar.broker.namespace.NamespaceBundleOwnershipListener;
 import org.apache.pulsar.broker.namespace.NamespaceBundleSplitListener;
 import org.apache.pulsar.broker.namespace.NamespaceEphemeralData;
 import org.apache.pulsar.broker.namespace.NamespaceService;
+import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.testcontext.PulsarTestContext;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
@@ -1609,6 +1613,32 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
                             .getCompactionThreshold(ServiceUnitStateChannelImpl.TOPIC, false);
                     AssertJUnit.assertEquals(5 * 1024 * 1024, threshold == null ? 0 : threshold.longValue());
                 });
+    }
+
+    @Test(timeOut = 10 * 1000)
+    public void unloadTimeoutCheckTest()
+            throws Exception {
+        Pair<TopicName, NamespaceBundle> topicAndBundle = getBundleIsNotOwnByChangeEventTopic("unload-timeout");
+        String topic = topicAndBundle.getLeft().toString();
+        var bundle = topicAndBundle.getRight().toString();
+        var releasing = new ServiceUnitStateData(Releasing, pulsar2.getBrokerId(), pulsar1.getBrokerId(), 1);
+        overrideTableView(channel1, bundle, releasing);
+        var topicFuture = pulsar1.getBrokerService().getOrCreateTopic(topic);
+
+
+        try {
+            topicFuture.get(1, TimeUnit.SECONDS);
+        } catch (Exception e) {
+            log.info("getOrCreateTopic failed", e);
+            if (!(e.getCause() instanceof BrokerServiceException.ServiceUnitNotReadyException && e.getMessage()
+                    .contains("Please redo the lookup"))) {
+                fail();
+            }
+        }
+
+        pulsar1.getBrokerService()
+                .unloadServiceUnit(topicAndBundle.getRight(), true, true, 5,
+                        TimeUnit.SECONDS).get(2, TimeUnit.SECONDS);
     }
 
     private static abstract class MockBrokerFilter implements BrokerFilter {

@@ -1836,7 +1836,8 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         overrideTableView(channel2, serviceUnit, val);
     }
 
-    private static void overrideTableView(ServiceUnitStateChannel channel, String serviceUnit, ServiceUnitStateData val)
+    @Test(enabled = false)
+    public static void overrideTableView(ServiceUnitStateChannel channel, String serviceUnit, ServiceUnitStateData val)
             throws IllegalAccessException {
         var tv = (TableViewImpl<ServiceUnitStateData>)
                 FieldUtils.readField(channel, "tableview", true);

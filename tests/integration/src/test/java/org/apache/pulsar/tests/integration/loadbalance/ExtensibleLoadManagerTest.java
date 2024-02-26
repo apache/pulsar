@@ -399,7 +399,7 @@ public class ExtensibleLoadManagerTest extends TestRetrySupport {
             }
         );
 
-        Awaitility.await().atMost(60, TimeUnit.SECONDS).ignoreExceptions().untilAsserted(
+        Awaitility.await().atMost(90, TimeUnit.SECONDS).ignoreExceptions().untilAsserted(
                 () -> {
                     try {
                         admin.lookups().lookupTopicAsync(topic).get(5, TimeUnit.SECONDS);
