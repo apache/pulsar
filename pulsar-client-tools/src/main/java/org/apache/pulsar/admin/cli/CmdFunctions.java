@@ -200,7 +200,7 @@ public class CmdFunctions extends CmdBase {
         @Parameter(names = { "-t", "--function-type" }, description = "The built-in Pulsar Function type")
         protected String functionType;
         @Parameter(names = "--cleanup-subscription", description = "Whether delete the subscription "
-                + "when function is deleted")
+                + "when function is deleted #Java, Python, Go")
         protected Boolean cleanupSubscription;
         @Parameter(names = "--jar", description = "Path to the JAR file for the function "
                 + "(if the function is written in Java). It also supports URL path [http/https/file "
