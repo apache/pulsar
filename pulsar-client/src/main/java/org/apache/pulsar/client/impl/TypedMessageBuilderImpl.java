@@ -212,6 +212,7 @@ public class TypedMessageBuilderImpl<T> implements TypedMessageBuilder<T> {
 
     @Override
     public TypedMessageBuilder<T> deliverAfter(long delay, TimeUnit unit) {
+        checkArgument(delay >= 0, "The delay time must not be negative.");
         return deliverAt(System.currentTimeMillis() + unit.toMillis(delay));
     }
 

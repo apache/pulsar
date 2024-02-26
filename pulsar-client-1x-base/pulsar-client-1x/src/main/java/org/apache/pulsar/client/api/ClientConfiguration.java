@@ -368,6 +368,7 @@ public class ClientConfiguration implements Serializable {
      * @param unit the time unit in which the duration is defined
      */
     public void setConnectionTimeout(int duration, TimeUnit unit) {
+        checkArgument(duration >= 0);
         confData.setConnectionTimeoutMs((int) unit.toMillis(duration));
     }
 

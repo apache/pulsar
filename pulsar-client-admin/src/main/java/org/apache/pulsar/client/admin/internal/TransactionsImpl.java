@@ -168,6 +168,7 @@ public class TransactionsImpl extends BaseResource implements Transactions {
     @Override
     public CompletableFuture<Map<String, TransactionMetadata>> getSlowTransactionsByCoordinatorIdAsync(
             Integer coordinatorId, long timeout, TimeUnit timeUnit) {
+        checkArgument(timeout >= 0);
         WebTarget path = adminV3Transactions.path("slowTransactions");
         path = path.path(timeUnit.toMillis(timeout) + "");
         if (coordinatorId != null) {
