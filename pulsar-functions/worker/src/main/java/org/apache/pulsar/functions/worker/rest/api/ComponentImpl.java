@@ -29,7 +29,6 @@ import static org.apache.pulsar.functions.utils.FunctionCommon.getStateNamespace
 import static org.apache.pulsar.functions.utils.FunctionCommon.getUniquePackageName;
 import static org.apache.pulsar.functions.utils.FunctionCommon.isFunctionCodeBuiltin;
 import static org.apache.pulsar.functions.worker.rest.RestUtils.throwUnavailableException;
-import static org.apache.pulsar.functions.worker.rest.api.FunctionsImpl.downloadPackageFile;
 import com.google.common.base.Utf8;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
@@ -43,6 +42,7 @@ import java.net.URI;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Base64;
 import java.util.Collection;
 import java.util.LinkedList;
@@ -66,6 +66,7 @@ import org.apache.bookkeeper.clients.config.StorageClientSettings;
 import org.apache.bookkeeper.clients.exceptions.NamespaceNotFoundException;
 import org.apache.bookkeeper.clients.exceptions.StreamNotFoundException;
 import org.apache.commons.io.IOUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.authentication.AuthenticationParameters;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -100,6 +101,7 @@ import org.apache.pulsar.functions.utils.ComponentTypeUtils;
 import org.apache.pulsar.functions.utils.FunctionCommon;
 import org.apache.pulsar.functions.utils.FunctionConfigUtils;
 import org.apache.pulsar.functions.utils.FunctionMetaDataUtils;
+import org.apache.pulsar.functions.utils.ValidatableFunctionPackage;
 import org.apache.pulsar.functions.utils.functions.FunctionArchive;
 import org.apache.pulsar.functions.utils.io.Connector;
 import org.apache.pulsar.functions.worker.FunctionMetaDataManager;
@@ -1764,9 +1766,88 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
         }
     }
 
-    protected ClassLoader getClassLoaderFromPackage(String className,
-                                                  File packageFile,
-                                                  String narExtractionDirectory) {
-        return FunctionCommon.getClassLoaderFromPackage(componentType, className, packageFile, narExtractionDirectory);
+    static File downloadPackageFile(PulsarWorkerService worker, String packageName)
+            throws IOException, PulsarAdminException {
+        Path tempDirectory;
+        if (worker.getWorkerConfig().getDownloadDirectory() != null) {
+            tempDirectory = Paths.get(worker.getWorkerConfig().getDownloadDirectory());
+        } else {
+            // use the Nar extraction directory as a temporary directory for downloaded files
+            tempDirectory = Paths.get(worker.getWorkerConfig().getNarExtractionDirectory());
+        }
+        Files.createDirectories(tempDirectory);
+        File file = Files.createTempFile(tempDirectory, "function", ".tmp").toFile();
+        worker.getBrokerAdmin().packages().download(packageName, file.toString());
+        return file;
+    }
+
+    protected File getPackageFile(String functionPkgUrl, String existingPackagePath, InputStream uploadedInputStream)
+            throws IOException, PulsarAdminException {
+        File componentPackageFile = null;
+        if (isNotBlank(functionPkgUrl)) {
+            componentPackageFile = getPackageFile(functionPkgUrl);
+        } else if (existingPackagePath.startsWith(Utils.FILE) || existingPackagePath.startsWith(Utils.HTTP)) {
+            try {
+                componentPackageFile = FunctionCommon.extractFileFromPkgURL(existingPackagePath);
+            } catch (Exception e) {
+                throw new IllegalArgumentException(String.format("Encountered error \"%s\" "
+                                + "when getting %s package from %s", e.getMessage(),
+                        ComponentTypeUtils.toString(componentType), functionPkgUrl));
+            }
+        } else if (Utils.hasPackageTypePrefix(existingPackagePath)) {
+            componentPackageFile = getPackageFile(existingPackagePath);
+        } else if (uploadedInputStream != null) {
+            componentPackageFile = WorkerUtils.dumpToTmpFile(uploadedInputStream);
+        } else if (!existingPackagePath.startsWith(Utils.BUILTIN)) {
+            componentPackageFile = FunctionCommon.createPkgTempFile();
+            componentPackageFile.deleteOnExit();
+            if (worker().getWorkerConfig().isFunctionsWorkerEnablePackageManagement()) {
+                worker().getBrokerAdmin().packages().download(
+                        existingPackagePath,
+                        componentPackageFile.getAbsolutePath());
+            } else {
+                WorkerUtils.downloadFromBookkeeper(worker().getDlogNamespace(),
+                        componentPackageFile, existingPackagePath);
+            }
+        }
+        return componentPackageFile;
+    }
+
+    protected File downloadPackageFile(String packageName) throws IOException, PulsarAdminException {
+        return downloadPackageFile(worker(), packageName);
+    }
+
+    protected File getPackageFile(String functionPkgUrl) throws IOException, PulsarAdminException {
+        if (Utils.hasPackageTypePrefix(functionPkgUrl)) {
+            return downloadPackageFile(functionPkgUrl);
+        } else {
+            if (!Utils.isFunctionPackageUrlSupported(functionPkgUrl)) {
+                throw new IllegalArgumentException("Function Package url is not valid."
+                        + "supported url (http/https/file)");
+            }
+            try {
+                return FunctionCommon.extractFileFromPkgURL(functionPkgUrl);
+            } catch (Exception e) {
+                throw new IllegalArgumentException(String.format("Encountered error \"%s\" "
+                                + "when getting %s package from %s", e.getMessage(),
+                        ComponentTypeUtils.toString(componentType), functionPkgUrl), e);
+            }
+        }
+    }
+
+    protected ValidatableFunctionPackage getBuiltinFunctionPackage(String archive) {
+        if (!StringUtils.isEmpty(archive)) {
+            if (archive.startsWith(org.apache.pulsar.common.functions.Utils.BUILTIN)) {
+                archive = archive.replaceFirst("^builtin://", "");
+
+                FunctionArchive function = worker().getFunctionsManager().getFunction(archive);
+                // check if builtin connector exists
+                if (function == null) {
+                    throw new IllegalArgumentException("Built-in " + componentType + " is not available");
+                }
+                return function.getFunctionPackage();
+            }
+        }
+        return null;
     }
 }

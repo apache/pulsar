@@ -663,6 +663,14 @@ public class PulsarWorkerService implements WorkerService {
         if (statsUpdater != null) {
             statsUpdater.shutdownNow();
         }
+
+        if (null != functionsManager) {
+            functionsManager.close();
+        }
+
+        if (null != connectorsManager) {
+            connectorsManager.close();
+        }
     }
 
 }

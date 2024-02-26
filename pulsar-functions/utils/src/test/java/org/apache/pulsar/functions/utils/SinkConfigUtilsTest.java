@@ -18,27 +18,6 @@
  */
 package org.apache.pulsar.functions.utils;
 
-import com.google.common.collect.Lists;
-import com.google.gson.Gson;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-import lombok.experimental.Accessors;
-import org.apache.pulsar.common.functions.ConsumerConfig;
-import org.apache.pulsar.common.functions.FunctionConfig;
-import org.apache.pulsar.common.functions.Resources;
-import org.apache.pulsar.common.io.SinkConfig;
-import org.apache.pulsar.config.validation.ConfigValidationAnnotations;
-import org.apache.pulsar.functions.api.utils.IdentityFunction;
-import org.apache.pulsar.functions.proto.Function;
-import org.testng.annotations.Test;
-
-import java.io.IOException;
-import java.lang.reflect.Field;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-
 import static org.apache.pulsar.common.functions.FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE;
 import static org.apache.pulsar.common.functions.FunctionConfig.ProcessingGuarantees.ATMOST_ONCE;
 import static org.apache.pulsar.common.functions.FunctionConfig.ProcessingGuarantees.EFFECTIVELY_ONCE;
@@ -47,6 +26,29 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.expectThrows;
+import com.google.common.collect.Lists;
+import com.google.gson.Gson;
+import java.io.IOException;
+import java.lang.reflect.Field;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import lombok.experimental.Accessors;
+import org.apache.pulsar.common.functions.ConsumerConfig;
+import org.apache.pulsar.common.functions.FunctionConfig;
+import org.apache.pulsar.common.functions.Resources;
+import org.apache.pulsar.common.io.ConnectorDefinition;
+import org.apache.pulsar.common.io.SinkConfig;
+import org.apache.pulsar.config.validation.ConfigValidationAnnotations;
+import org.apache.pulsar.functions.api.Record;
+import org.apache.pulsar.functions.proto.Function;
+import org.apache.pulsar.io.core.Sink;
+import org.apache.pulsar.io.core.SinkContext;
+import org.testng.annotations.Test;
 
 /**
  * Unit test of {@link SinkConfigUtilsTest}.
@@ -60,6 +62,27 @@ public class SinkConfigUtilsTest {
         @ConfigValidationAnnotations.NotNull
         private String configParameter;
     }
+
+
+    public static class NopSink implements Sink<Object> {
+
+        @Override
+        public void open(Map<String, Object> config, SinkContext sinkContext) throws Exception {
+
+        }
+
+        @Override
+        public void write(Record<Object> record) throws Exception {
+
+        }
+
+        @Override
+        public void close() throws Exception {
+
+        }
+    }
+
+
 
     @Test
     public void testAutoAckConvertFailed() throws IOException {
@@ -147,7 +170,7 @@ public class SinkConfigUtilsTest {
             SinkConfig sinkConfig = createSinkConfig();
             sinkConfig.setRetainOrdering(testcase);
             Function.FunctionDetails functionDetails = SinkConfigUtils.convert(sinkConfig, new SinkConfigUtils.ExtractedSinkDetails(null, null));
-            assertEquals(functionDetails.getRetainOrdering(), testcase != null ? testcase : false);
+            assertEquals(functionDetails.getRetainOrdering(), testcase != null ? testcase.booleanValue() : false);
             SinkConfig result = SinkConfigUtils.convertFromDetails(functionDetails);
             assertEquals(result.getRetainOrdering(), testcase != null ? testcase : Boolean.valueOf(false));
         }
@@ -160,7 +183,7 @@ public class SinkConfigUtilsTest {
             SinkConfig sinkConfig = createSinkConfig();
             sinkConfig.setRetainKeyOrdering(testcase);
             Function.FunctionDetails functionDetails = SinkConfigUtils.convert(sinkConfig, new SinkConfigUtils.ExtractedSinkDetails(null, null));
-            assertEquals(functionDetails.getRetainKeyOrdering(), testcase != null ? testcase : false);
+            assertEquals(functionDetails.getRetainKeyOrdering(), testcase != null ? testcase.booleanValue() : false);
             SinkConfig result = SinkConfigUtils.convertFromDetails(functionDetails);
             assertEquals(result.getRetainKeyOrdering(), testcase != null ? testcase : Boolean.valueOf(false));
         }
@@ -271,6 +294,24 @@ public class SinkConfigUtilsTest {
         SinkConfig newSinkConfig = createUpdatedSinkConfig("inputSpecs", inputSpecs);
         SinkConfig mergedConfig = SinkConfigUtils.validateUpdate(sinkConfig, newSinkConfig);
         assertEquals(mergedConfig.getInputSpecs().get("test-input"), newSinkConfig.getInputSpecs().get("test-input"));
+
+        // make sure original sinkConfig was not modified
+        assertEquals(sinkConfig.getInputSpecs().get("test-input").getReceiverQueueSize().intValue(), 1000);
+    }
+
+    @Test
+    public void testMergeDifferentInputSpecWithInputsSet() {
+        SinkConfig sinkConfig = createSinkConfig();
+        sinkConfig.getInputSpecs().put("test-input", ConsumerConfig.builder().isRegexPattern(false).receiverQueueSize(1000).build());
+
+        Map<String, ConsumerConfig> inputSpecs = new HashMap<>();
+        ConsumerConfig newConsumerConfig = ConsumerConfig.builder().isRegexPattern(false).serdeClassName("test-serde").receiverQueueSize(58).build();
+        inputSpecs.put("test-input", newConsumerConfig);
+        SinkConfig newSinkConfig = createUpdatedSinkConfig("inputSpecs", inputSpecs);
+        newSinkConfig.setInputs(new ArrayList<>());
+        newSinkConfig.getInputs().add("test-input");
+        SinkConfig mergedConfig = SinkConfigUtils.validateUpdate(sinkConfig, newSinkConfig);
+        assertEquals(mergedConfig.getInputSpecs().get("test-input"), newConsumerConfig);
 
         // make sure original sinkConfig was not modified
         assertEquals(sinkConfig.getInputSpecs().get("test-input").getReceiverQueueSize().intValue(), 1000);
@@ -448,7 +489,7 @@ public class SinkConfigUtilsTest {
         sinkConfig.setNamespace("test-namespace");
         sinkConfig.setName("test-sink");
         sinkConfig.setParallelism(1);
-        sinkConfig.setClassName(IdentityFunction.class.getName());
+        sinkConfig.setClassName(NopSink.class.getName());
         Map<String, ConsumerConfig> inputSpecs = new HashMap<>();
         inputSpecs.put("test-input", ConsumerConfig.builder().isRegexPattern(true).serdeClassName("test-serde").build());
         sinkConfig.setInputSpecs(inputSpecs);
@@ -501,13 +542,13 @@ public class SinkConfigUtilsTest {
         SinkConfig sinkConfig = createSinkConfig();
         sinkConfig.setInputSpecs(null);
         sinkConfig.setTopicsPattern("my-topic-*");
-        SinkConfigUtils.validateAndExtractDetails(sinkConfig, this.getClass().getClassLoader(),
-                true);
+        LoadedFunctionPackage validatableFunction =
+                new LoadedFunctionPackage(this.getClass().getClassLoader(), ConnectorDefinition.class);
+
+        SinkConfigUtils.validateAndExtractDetails(sinkConfig, validatableFunction, true);
         sinkConfig.setTimeoutMs(null);
-        SinkConfigUtils.validateAndExtractDetails(sinkConfig, this.getClass().getClassLoader(),
-                true);
+        SinkConfigUtils.validateAndExtractDetails(sinkConfig, validatableFunction, true);
         sinkConfig.setTimeoutMs(0L);
-        SinkConfigUtils.validateAndExtractDetails(sinkConfig, this.getClass().getClassLoader(),
-                true);
+        SinkConfigUtils.validateAndExtractDetails(sinkConfig, validatableFunction, true);
     }
 }

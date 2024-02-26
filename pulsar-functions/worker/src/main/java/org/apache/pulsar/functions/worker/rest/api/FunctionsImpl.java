@@ -28,9 +28,6 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.Collection;
 import java.util.LinkedList;
 import java.util.List;
@@ -44,12 +41,12 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.authentication.AuthenticationParameters;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.common.functions.FunctionConfig;
+import org.apache.pulsar.common.functions.FunctionDefinition;
 import org.apache.pulsar.common.functions.UpdateOptionsImpl;
 import org.apache.pulsar.common.functions.Utils;
 import org.apache.pulsar.common.functions.WorkerInfo;
 import org.apache.pulsar.common.policies.data.ExceptionInformation;
 import org.apache.pulsar.common.policies.data.FunctionStatus;
-import org.apache.pulsar.common.util.ClassLoaderUtils;
 import org.apache.pulsar.common.util.RestException;
 import org.apache.pulsar.functions.auth.FunctionAuthData;
 import org.apache.pulsar.functions.instance.InstanceUtils;
@@ -58,11 +55,14 @@ import org.apache.pulsar.functions.proto.InstanceCommunication;
 import org.apache.pulsar.functions.utils.ComponentTypeUtils;
 import org.apache.pulsar.functions.utils.FunctionCommon;
 import org.apache.pulsar.functions.utils.FunctionConfigUtils;
+import org.apache.pulsar.functions.utils.FunctionFilePackage;
 import org.apache.pulsar.functions.utils.FunctionMetaDataUtils;
+import org.apache.pulsar.functions.utils.ValidatableFunctionPackage;
 import org.apache.pulsar.functions.utils.functions.FunctionArchive;
 import org.apache.pulsar.functions.worker.FunctionMetaDataManager;
 import org.apache.pulsar.functions.worker.FunctionsManager;
 import org.apache.pulsar.functions.worker.PulsarWorkerService;
+import org.apache.pulsar.functions.worker.WorkerConfig;
 import org.apache.pulsar.functions.worker.WorkerUtils;
 import org.apache.pulsar.functions.worker.service.api.Functions;
 import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
@@ -767,11 +767,12 @@ public class FunctionsImpl extends ComponentImpl implements Functions<PulsarWork
         functionConfig.setTenant(tenant);
         functionConfig.setNamespace(namespace);
         functionConfig.setName(componentName);
+        WorkerConfig workerConfig = worker().getWorkerConfig();
         FunctionConfigUtils.inferMissingArguments(
-                functionConfig, worker().getWorkerConfig().isForwardSourceMessageProperty());
+                functionConfig, workerConfig.isForwardSourceMessageProperty());
 
         String archive = functionConfig.getJar();
-        ClassLoader classLoader = null;
+        ValidatableFunctionPackage functionPackage = null;
         // check if function is builtin and extract classloader
         if (!StringUtils.isEmpty(archive)) {
             if (archive.startsWith(org.apache.pulsar.common.functions.Utils.BUILTIN)) {
@@ -784,55 +785,39 @@ public class FunctionsImpl extends ComponentImpl implements Functions<PulsarWork
                 if (function == null) {
                     throw new IllegalArgumentException(String.format("No Function %s found", archive));
                 }
-                classLoader = function.getClassLoader();
+                functionPackage = function.getFunctionPackage();
             }
         }
-        boolean shouldCloseClassLoader = false;
+        boolean shouldCloseFunctionPackage = false;
         try {
-
             if (functionConfig.getRuntime() == FunctionConfig.Runtime.JAVA) {
                 // if function is not builtin, attempt to extract classloader from package file if it exists
-                if (classLoader == null && componentPackageFile != null) {
-                    classLoader = getClassLoaderFromPackage(functionConfig.getClassName(),
-                            componentPackageFile, worker().getWorkerConfig().getNarExtractionDirectory());
-                    shouldCloseClassLoader = true;
+                if (functionPackage == null && componentPackageFile != null) {
+                    functionPackage =
+                            new FunctionFilePackage(componentPackageFile, workerConfig.getNarExtractionDirectory(),
+                                    workerConfig.getEnableClassloadingOfExternalFiles(), FunctionDefinition.class);
+                    shouldCloseFunctionPackage = true;
                 }
 
-                if (classLoader == null) {
+                if (functionPackage == null) {
                     throw new IllegalArgumentException("Function package is not provided");
                 }
 
                 FunctionConfigUtils.ExtractedFunctionDetails functionDetails = FunctionConfigUtils.validateJavaFunction(
-                        functionConfig, classLoader);
+                        functionConfig, functionPackage);
                 return FunctionConfigUtils.convert(functionConfig, functionDetails);
             } else {
-                classLoader = FunctionConfigUtils.validate(functionConfig, componentPackageFile);
-                shouldCloseClassLoader = true;
-                return FunctionConfigUtils.convert(functionConfig, classLoader);
+                FunctionConfigUtils.validateNonJavaFunction(functionConfig);
+                return FunctionConfigUtils.convert(functionConfig);
             }
         } finally {
-            if (shouldCloseClassLoader) {
-                ClassLoaderUtils.closeClassLoader(classLoader);
+            if (shouldCloseFunctionPackage && functionPackage instanceof AutoCloseable) {
+                try {
+                    ((AutoCloseable) functionPackage).close();
+                } catch (Exception e) {
+                    log.error("Failed to close function file", e);
+                }
             }
         }
-    }
-
-    private File downloadPackageFile(String packageName) throws IOException, PulsarAdminException {
-        return downloadPackageFile(worker(), packageName);
-    }
-
-    static File downloadPackageFile(PulsarWorkerService worker, String packageName)
-            throws IOException, PulsarAdminException {
-        Path tempDirectory;
-        if (worker.getWorkerConfig().getDownloadDirectory() != null) {
-            tempDirectory = Paths.get(worker.getWorkerConfig().getDownloadDirectory());
-        } else {
-            // use the Nar extraction directory as a temporary directory for downloaded files
-            tempDirectory = Paths.get(worker.getWorkerConfig().getNarExtractionDirectory());
-        }
-        Files.createDirectories(tempDirectory);
-        File file = Files.createTempFile(tempDirectory, "function", ".tmp").toFile();
-        worker.getBrokerAdmin().packages().download(packageName, file.toString());
-        return file;
     }
 }

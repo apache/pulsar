@@ -25,7 +25,6 @@ import static org.apache.pulsar.functions.utils.FunctionCommon.isFunctionCodeBui
 import static org.apache.pulsar.functions.worker.rest.RestUtils.throwUnavailableException;
 import com.google.protobuf.ByteString;
 import java.io.File;
-import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
 import java.util.ArrayList;
@@ -47,19 +46,20 @@ import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.common.io.SourceConfig;
 import org.apache.pulsar.common.policies.data.ExceptionInformation;
 import org.apache.pulsar.common.policies.data.SourceStatus;
-import org.apache.pulsar.common.util.ClassLoaderUtils;
 import org.apache.pulsar.common.util.RestException;
 import org.apache.pulsar.functions.auth.FunctionAuthData;
 import org.apache.pulsar.functions.instance.InstanceUtils;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
 import org.apache.pulsar.functions.utils.ComponentTypeUtils;
-import org.apache.pulsar.functions.utils.FunctionCommon;
+import org.apache.pulsar.functions.utils.FunctionFilePackage;
 import org.apache.pulsar.functions.utils.FunctionMetaDataUtils;
 import org.apache.pulsar.functions.utils.SourceConfigUtils;
+import org.apache.pulsar.functions.utils.ValidatableFunctionPackage;
 import org.apache.pulsar.functions.utils.io.Connector;
 import org.apache.pulsar.functions.worker.FunctionMetaDataManager;
 import org.apache.pulsar.functions.worker.PulsarWorkerService;
+import org.apache.pulsar.functions.worker.WorkerConfig;
 import org.apache.pulsar.functions.worker.WorkerUtils;
 import org.apache.pulsar.functions.worker.service.api.Sources;
 import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
@@ -143,21 +143,7 @@ public class SourcesImpl extends ComponentImpl implements Sources<PulsarWorkerSe
             // validate parameters
             try {
                 if (isPkgUrlProvided) {
-                    if (Utils.hasPackageTypePrefix(sourcePkgUrl)) {
-                        componentPackageFile = downloadPackageFile(sourcePkgUrl);
-                    } else {
-                        if (!Utils.isFunctionPackageUrlSupported(sourcePkgUrl)) {
-                            throw new IllegalArgumentException(
-                                    "Function Package url is not valid. supported url (http/https/file)");
-                        }
-                        try {
-                            componentPackageFile = FunctionCommon.extractFileFromPkgURL(sourcePkgUrl);
-                        } catch (Exception e) {
-                            throw new IllegalArgumentException(
-                                    String.format("Encountered error \"%s\" when getting %s package from %s",
-                                            e.getMessage(), ComponentTypeUtils.toString(componentType), sourcePkgUrl));
-                        }
-                    }
+                    componentPackageFile = getPackageFile(sourcePkgUrl);
                     functionDetails = validateUpdateRequestParams(tenant, namespace, sourceName,
                             sourceConfig, componentPackageFile);
                 } else {
@@ -305,71 +291,29 @@ public class SourcesImpl extends ComponentImpl implements Sources<PulsarWorkerSe
             throw new RestException(Response.Status.BAD_REQUEST, e.getMessage());
         }
 
-        if (existingSourceConfig.equals(mergedConfig) && isBlank(sourcePkgUrl) && uploadedInputStream == null) {
+        if (existingSourceConfig.equals(mergedConfig) && isBlank(sourcePkgUrl) && uploadedInputStream == null
+            && (updateOptions == null || !updateOptions.isUpdateAuthData())) {
             log.error("{}/{}/{} Update contains no changes", tenant, namespace, sourceName);
             throw new RestException(Response.Status.BAD_REQUEST, "Update contains no change");
         }
 
-        Function.FunctionDetails functionDetails = null;
+        Function.FunctionDetails functionDetails;
         File componentPackageFile = null;
         try {
 
             // validate parameters
             try {
-                if (isNotBlank(sourcePkgUrl)) {
-                    if (Utils.hasPackageTypePrefix(sourcePkgUrl)) {
-                        componentPackageFile = downloadPackageFile(sourcePkgUrl);
-                    } else {
-                        try {
-                            componentPackageFile = FunctionCommon.extractFileFromPkgURL(sourcePkgUrl);
-                        } catch (Exception e) {
-                            throw new IllegalArgumentException(
-                                    String.format("Encountered error \"%s\" when getting %s package from %s",
-                                            e.getMessage(), ComponentTypeUtils.toString(componentType), sourcePkgUrl));
-                        }
-                    }
-                    functionDetails = validateUpdateRequestParams(tenant, namespace, sourceName,
-                            mergedConfig, componentPackageFile);
-
-                } else if (existingComponent.getPackageLocation().getPackagePath().startsWith(Utils.FILE)
-                        || existingComponent.getPackageLocation().getPackagePath().startsWith(Utils.HTTP)) {
-                    try {
-                        componentPackageFile = FunctionCommon
-                                .extractFileFromPkgURL(existingComponent.getPackageLocation().getPackagePath());
-                    } catch (Exception e) {
-                        throw new IllegalArgumentException(
-                                String.format("Encountered error \"%s\" when getting %s package from %s",
-                                        e.getMessage(), ComponentTypeUtils.toString(componentType), sourcePkgUrl));
-                    }
-                    functionDetails = validateUpdateRequestParams(tenant, namespace, sourceName,
-                            mergedConfig, componentPackageFile);
-                } else if (uploadedInputStream != null) {
-
-                    componentPackageFile = WorkerUtils.dumpToTmpFile(uploadedInputStream);
-                    functionDetails = validateUpdateRequestParams(tenant, namespace, sourceName,
-                            mergedConfig, componentPackageFile);
-
-                } else if (existingComponent.getPackageLocation().getPackagePath().startsWith(Utils.BUILTIN)) {
-                    functionDetails = validateUpdateRequestParams(tenant, namespace, sourceName,
-                            mergedConfig, componentPackageFile);
-                    if (!isFunctionCodeBuiltin(functionDetails)
-                            && (componentPackageFile == null || fileDetail == null)) {
-                        throw new IllegalArgumentException(
-                                ComponentTypeUtils.toString(componentType) + " Package is not provided");
-                    }
-                } else {
-                    componentPackageFile = FunctionCommon.createPkgTempFile();
-                    componentPackageFile.deleteOnExit();
-                    if (worker().getWorkerConfig().isFunctionsWorkerEnablePackageManagement()) {
-                        worker().getBrokerAdmin().packages().download(
-                                existingComponent.getPackageLocation().getPackagePath(),
-                                componentPackageFile.getAbsolutePath());
-                    } else {
-                        WorkerUtils.downloadFromBookkeeper(worker().getDlogNamespace(), componentPackageFile,
-                                existingComponent.getPackageLocation().getPackagePath());
-                    }
-                    functionDetails = validateUpdateRequestParams(tenant, namespace, sourceName,
-                            mergedConfig, componentPackageFile);
+                componentPackageFile = getPackageFile(
+                        sourcePkgUrl,
+                        existingComponent.getPackageLocation().getPackagePath(),
+                        uploadedInputStream);
+                functionDetails = validateUpdateRequestParams(tenant, namespace, sourceName,
+                        mergedConfig, componentPackageFile);
+                if (existingComponent.getPackageLocation().getPackagePath().startsWith(Utils.BUILTIN)
+                        && !isFunctionCodeBuiltin(functionDetails)
+                        && (componentPackageFile == null || fileDetail == null)) {
+                    throw new IllegalArgumentException(ComponentTypeUtils.toString(componentType)
+                            + " Package is not provided");
                 }
             } catch (Exception e) {
                 log.error("Invalid update {} request @ /{}/{}/{}", ComponentTypeUtils.toString(componentType), tenant,
@@ -721,7 +665,7 @@ public class SourcesImpl extends ComponentImpl implements Sources<PulsarWorkerSe
         sourceConfig.setName(sourceName);
         org.apache.pulsar.common.functions.Utils.inferMissingArguments(sourceConfig);
 
-        ClassLoader classLoader = null;
+        ValidatableFunctionPackage connectorFunctionPackage = null;
         // check if source is builtin and extract classloader
         if (!StringUtils.isEmpty(sourceConfig.getArchive())) {
             String archive = sourceConfig.getArchive();
@@ -733,35 +677,38 @@ public class SourcesImpl extends ComponentImpl implements Sources<PulsarWorkerSe
                 if (connector == null) {
                     throw new IllegalArgumentException("Built-in source is not available");
                 }
-                classLoader = connector.getClassLoader();
+                connectorFunctionPackage = connector.getConnectorFunctionPackage();
             }
         }
 
-        boolean shouldCloseClassLoader = false;
+        boolean shouldCloseFunctionPackage = false;
         try {
             // if source is not builtin, attempt to extract classloader from package file if it exists
-            if (classLoader == null && sourcePackageFile != null) {
-                classLoader = getClassLoaderFromPackage(sourceConfig.getClassName(),
-                        sourcePackageFile, worker().getWorkerConfig().getNarExtractionDirectory());
-                shouldCloseClassLoader = true;
+            WorkerConfig workerConfig = worker().getWorkerConfig();
+            if (connectorFunctionPackage == null && sourcePackageFile != null) {
+                connectorFunctionPackage =
+                        new FunctionFilePackage(sourcePackageFile, workerConfig.getNarExtractionDirectory(),
+                                workerConfig.getEnableClassloadingOfExternalFiles(), ConnectorDefinition.class);
+                shouldCloseFunctionPackage = true;
             }
 
-            if (classLoader == null) {
+            if (connectorFunctionPackage == null) {
                 throw new IllegalArgumentException("Source package is not provided");
             }
 
             SourceConfigUtils.ExtractedSourceDetails sourceDetails =
                     SourceConfigUtils.validateAndExtractDetails(
-                            sourceConfig, classLoader, worker().getWorkerConfig().getValidateConnectorConfig());
+                            sourceConfig, connectorFunctionPackage,
+                            workerConfig.getValidateConnectorConfig());
             return SourceConfigUtils.convert(sourceConfig, sourceDetails);
         } finally {
-            if (shouldCloseClassLoader) {
-                ClassLoaderUtils.closeClassLoader(classLoader);
+            if (shouldCloseFunctionPackage && connectorFunctionPackage instanceof AutoCloseable) {
+                try {
+                    ((AutoCloseable) connectorFunctionPackage).close();
+                } catch (Exception e) {
+                    log.error("Failed to connector function file", e);
+                }
             }
         }
-    }
-
-    private File downloadPackageFile(String packageName) throws IOException, PulsarAdminException {
-        return FunctionsImpl.downloadPackageFile(worker(), packageName);
     }
 }

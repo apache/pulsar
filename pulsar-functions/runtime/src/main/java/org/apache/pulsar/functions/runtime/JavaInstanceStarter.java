@@ -38,6 +38,9 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
+import net.bytebuddy.description.type.TypeDefinition;
+import net.bytebuddy.dynamic.ClassFileLocator;
+import net.bytebuddy.pool.TypePool;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.common.functions.WindowConfig;
 import org.apache.pulsar.common.nar.NarClassLoader;
@@ -306,7 +309,8 @@ public class JavaInstanceStarter implements AutoCloseable {
     }
 
     private void inferringMissingTypeClassName(Function.FunctionDetails.Builder functionDetailsBuilder,
-                                               ClassLoader classLoader) throws ClassNotFoundException {
+                                               ClassLoader classLoader) {
+        TypePool typePool = TypePool.Default.of(ClassFileLocator.ForClassLoader.of(classLoader));
         switch (functionDetailsBuilder.getComponentType()) {
             case FUNCTION:
                 if ((functionDetailsBuilder.hasSource()
@@ -325,14 +329,13 @@ public class JavaInstanceStarter implements AutoCloseable {
                                 WindowConfig.class);
                         className = windowConfig.getActualWindowFunctionClassName();
                     }
-
-                    Class<?>[] typeArgs = FunctionCommon.getFunctionTypes(classLoader.loadClass(className),
+                    TypeDefinition[] typeArgs = FunctionCommon.getFunctionTypes(typePool.describe(className).resolve(),
                             isWindowConfigPresent);
                     if (functionDetailsBuilder.hasSource()
                             && functionDetailsBuilder.getSource().getTypeClassName().isEmpty()
                             && typeArgs[0] != null) {
                         Function.SourceSpec.Builder sourceBuilder = functionDetailsBuilder.getSource().toBuilder();
-                        sourceBuilder.setTypeClassName(typeArgs[0].getName());
+                        sourceBuilder.setTypeClassName(typeArgs[0].asErasure().getTypeName());
                         functionDetailsBuilder.setSource(sourceBuilder.build());
                     }
 
@@ -340,7 +343,7 @@ public class JavaInstanceStarter implements AutoCloseable {
                             && functionDetailsBuilder.getSink().getTypeClassName().isEmpty()
                             && typeArgs[1] != null) {
                         Function.SinkSpec.Builder sinkBuilder = functionDetailsBuilder.getSink().toBuilder();
-                        sinkBuilder.setTypeClassName(typeArgs[1].getName());
+                        sinkBuilder.setTypeClassName(typeArgs[1].asErasure().getTypeName());
                         functionDetailsBuilder.setSink(sinkBuilder.build());
                     }
                 }
@@ -349,7 +352,8 @@ public class JavaInstanceStarter implements AutoCloseable {
                 if ((functionDetailsBuilder.hasSink()
                         && functionDetailsBuilder.getSink().getTypeClassName().isEmpty())) {
                     String typeArg =
-                            getSinkType(functionDetailsBuilder.getSink().getClassName(), classLoader).getName();
+                            getSinkType(functionDetailsBuilder.getSink().getClassName(), typePool).asErasure()
+                                    .getTypeName();
 
                     Function.SinkSpec.Builder sinkBuilder =
                             Function.SinkSpec.newBuilder(functionDetailsBuilder.getSink());
@@ -368,7 +372,8 @@ public class JavaInstanceStarter implements AutoCloseable {
                 if ((functionDetailsBuilder.hasSource()
                         && functionDetailsBuilder.getSource().getTypeClassName().isEmpty())) {
                     String typeArg =
-                            getSourceType(functionDetailsBuilder.getSource().getClassName(), classLoader).getName();
+                            getSourceType(functionDetailsBuilder.getSource().getClassName(), typePool).asErasure()
+                                    .getTypeName();
 
                     Function.SourceSpec.Builder sourceBuilder =
                             Function.SourceSpec.newBuilder(functionDetailsBuilder.getSource());

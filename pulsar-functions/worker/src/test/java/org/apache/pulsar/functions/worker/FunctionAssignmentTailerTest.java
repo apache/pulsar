@@ -145,6 +145,9 @@ public class FunctionAssignmentTailerTest {
         // test new assignment add functions
         FunctionRuntimeManager functionRuntimeManager = mock(FunctionRuntimeManager.class);
 
+        // trigger an error to be thrown
+        doThrow(new RuntimeException("test")).when(functionRuntimeManager).processAssignmentMessage(any());
+
         FunctionAssignmentTailer functionAssignmentTailer =
                 spy(new FunctionAssignmentTailer(functionRuntimeManager, readerBuilder, workerConfig, errorNotifier));
 
@@ -156,9 +159,6 @@ public class FunctionAssignmentTailerTest {
         messageList.add(message1);
 
         verify(errorNotifier, times(0)).triggerError(any());
-
-        // trigger an error to be thrown
-        doThrow(new RuntimeException("test")).when(functionRuntimeManager).processAssignmentMessage(any());
 
         messageList.add(message2);
 
