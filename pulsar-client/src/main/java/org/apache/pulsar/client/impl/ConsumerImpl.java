@@ -1192,7 +1192,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 return null;
             }
 
-            if (ackBitSet != null && !ackBitSet.get(index)) {
+            if (isSingleMessageAcked(ackBitSet, index)) {
                 return null;
             }
 
