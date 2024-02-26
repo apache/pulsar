@@ -1234,15 +1234,13 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
         try {
             DefaultStateStore store = worker().getStateStoreProvider().getStateStore(tenant, namespace, functionName);
             ByteBuffer data;
-            if (state.getStringValue() != null) {
+            if (state.getStringValue() != null && StringUtils.isNotEmpty(state.getStringValue())) {
                 data = ByteBuffer.wrap(state.getStringValue().getBytes(UTF_8));
-            } else if (state.getByteValue() != null) {
-                data = ByteBuffer.wrap(state.getByteValue());
-            } else if (state.getNumberValue() != null) {
+            }  else if (state.getNumberValue() != null) {
                 data = ByteBuffer.allocate(Long.BYTES);
                 data.putLong(state.getNumberValue());
             } else {
-                throw new IllegalArgumentException("Invalid state value");
+                data = ByteBuffer.wrap(state.getByteValue());
             }
             store.put(key, data);
         } catch (Throwable e) {
