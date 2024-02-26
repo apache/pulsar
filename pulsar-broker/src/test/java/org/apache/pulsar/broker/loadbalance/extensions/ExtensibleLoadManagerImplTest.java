@@ -1150,7 +1150,6 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
             reset();
             return null;
         }).when(topBundlesLoadDataStorePrimarySpy).closeTableView();
-        FieldUtils.writeDeclaredField(primaryLoadManager, "topBundlesLoadDataStore", topBundlesLoadDataStorePrimarySpy, true);
 
         var topBundlesLoadDataStoreSecondary = (LoadDataStore<TopBundlesLoadData>)
                 FieldUtils.readDeclaredField(secondaryLoadManager, "topBundlesLoadDataStore", true);
@@ -1173,36 +1172,65 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
             reset();
             return null;
         }).when(topBundlesLoadDataStoreSecondarySpy).closeTableView();
-        FieldUtils.writeDeclaredField(secondaryLoadManager, "topBundlesLoadDataStore", topBundlesLoadDataStoreSecondarySpy, true);
 
-        if (channel1.isChannelOwnerAsync().get(5, TimeUnit.SECONDS)) {
-            primaryLoadManager.playFollower(); // close 3 times
-            primaryLoadManager.playFollower(); // close 1 time
-            secondaryLoadManager.playLeader();
-            secondaryLoadManager.playLeader();
-            primaryLoadManager.playLeader(); // close 3 times and open 3 times
-            primaryLoadManager.playLeader(); // close 1 time and open 1 time,
-            secondaryLoadManager.playFollower();
-            secondaryLoadManager.playFollower();
-        } else {
-            primaryLoadManager.playLeader();
-            primaryLoadManager.playLeader();
-            secondaryLoadManager.playFollower();
-            secondaryLoadManager.playFollower();
+        try {
+            FieldUtils.writeDeclaredField(primaryLoadManager, "topBundlesLoadDataStore",
+                    topBundlesLoadDataStorePrimarySpy, true);
+            FieldUtils.writeDeclaredField(secondaryLoadManager, "topBundlesLoadDataStore",
+                    topBundlesLoadDataStoreSecondarySpy, true);
+
+
+            if (channel1.isChannelOwnerAsync().get(5, TimeUnit.SECONDS)) {
+                primaryLoadManager.playLeader();
+                secondaryLoadManager.playFollower();
+                verify(topBundlesLoadDataStorePrimarySpy, times(3)).startTableView();
+                verify(topBundlesLoadDataStorePrimarySpy, times(5)).closeTableView();
+                verify(topBundlesLoadDataStoreSecondarySpy, times(0)).startTableView();
+                verify(topBundlesLoadDataStoreSecondarySpy, times(3)).closeTableView();
+            } else {
+                primaryLoadManager.playFollower();
+                secondaryLoadManager.playLeader();
+                verify(topBundlesLoadDataStoreSecondarySpy, times(3)).startTableView();
+                verify(topBundlesLoadDataStoreSecondarySpy, times(5)).closeTableView();
+                verify(topBundlesLoadDataStorePrimarySpy, times(0)).startTableView();
+                verify(topBundlesLoadDataStorePrimarySpy, times(3)).closeTableView();
+            }
+
             primaryLoadManager.playFollower();
-            primaryLoadManager.playFollower();
+            secondaryLoadManager.playFollower();
+
+            if (channel1.isChannelOwnerAsync().get(5, TimeUnit.SECONDS)) {
+                assertEquals(ExtensibleLoadManagerImpl.Role.Leader,
+                        FieldUtils.readDeclaredField(primaryLoadManager, "role", true));
+                assertEquals(ExtensibleLoadManagerImpl.Role.Follower,
+                        FieldUtils.readDeclaredField(secondaryLoadManager, "role", true));
+            } else {
+                assertEquals(ExtensibleLoadManagerImpl.Role.Follower,
+                        FieldUtils.readDeclaredField(primaryLoadManager, "role", true));
+                assertEquals(ExtensibleLoadManagerImpl.Role.Leader,
+                        FieldUtils.readDeclaredField(secondaryLoadManager, "role", true));
+            }
+
+            primaryLoadManager.playLeader();
             secondaryLoadManager.playLeader();
-            secondaryLoadManager.playLeader();
+
+            if (channel1.isChannelOwnerAsync().get(5, TimeUnit.SECONDS)) {
+                assertEquals(ExtensibleLoadManagerImpl.Role.Leader,
+                        FieldUtils.readDeclaredField(primaryLoadManager, "role", true));
+                assertEquals(ExtensibleLoadManagerImpl.Role.Follower,
+                        FieldUtils.readDeclaredField(secondaryLoadManager, "role", true));
+            } else {
+                assertEquals(ExtensibleLoadManagerImpl.Role.Follower,
+                        FieldUtils.readDeclaredField(primaryLoadManager, "role", true));
+                assertEquals(ExtensibleLoadManagerImpl.Role.Leader,
+                        FieldUtils.readDeclaredField(secondaryLoadManager, "role", true));
+            }
+        } finally {
+            FieldUtils.writeDeclaredField(primaryLoadManager, "topBundlesLoadDataStore",
+                    topBundlesLoadDataStorePrimary, true);
+            FieldUtils.writeDeclaredField(secondaryLoadManager, "topBundlesLoadDataStore",
+                    topBundlesLoadDataStoreSecondary, true);
         }
-
-
-        verify(topBundlesLoadDataStorePrimarySpy, times(4)).startTableView();
-        verify(topBundlesLoadDataStorePrimarySpy, times(8)).closeTableView();
-        verify(topBundlesLoadDataStoreSecondarySpy, times(4)).startTableView();
-        verify(topBundlesLoadDataStoreSecondarySpy, times(8)).closeTableView();
-
-        FieldUtils.writeDeclaredField(primaryLoadManager, "topBundlesLoadDataStore", topBundlesLoadDataStorePrimary, true);
-        FieldUtils.writeDeclaredField(secondaryLoadManager, "topBundlesLoadDataStore", topBundlesLoadDataStoreSecondary, true);
     }
 
     @Test
