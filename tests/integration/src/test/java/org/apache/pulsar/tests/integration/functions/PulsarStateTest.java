@@ -112,6 +112,12 @@ public class PulsarStateTest extends PulsarStandaloneTestSuite {
         String expectNumber = "\"numberValue\": 20";
         putAndQueryState(functionName, "test-number", numberState, expectNumber);
 
+        byte[] valueBytes = Base64.getDecoder().decode(VALUE_BASE64);
+        String bytesString = Base64.getEncoder().encodeToString(valueBytes);
+        String byteState = "{\"key\":\"test-bytes\",\"byteValue\":\"" + bytesString + "\"}";
+        String expectBytes = "\"byteValue\": \"" + bytesString + "\"";
+        putAndQueryState(functionName, "test-bytes", byteState, expectBytes);
+
         // delete function
         deleteFunction(functionName);
 
