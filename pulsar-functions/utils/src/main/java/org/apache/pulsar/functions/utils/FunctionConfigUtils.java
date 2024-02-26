@@ -18,12 +18,11 @@
  */
 package org.apache.pulsar.functions.utils;
 
-import static org.apache.commons.lang.StringUtils.isBlank;
-import static org.apache.commons.lang.StringUtils.isNotBlank;
-import static org.apache.commons.lang.StringUtils.isNotEmpty;
+import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isEmpty;
+import static org.apache.commons.lang3.StringUtils.isNotBlank;
+import static org.apache.commons.lang3.StringUtils.isNotEmpty;
 import static org.apache.pulsar.common.functions.Utils.BUILTIN;
-import static org.apache.pulsar.common.util.ClassLoaderUtils.loadJar;
 import static org.apache.pulsar.functions.utils.FunctionCommon.convertFromCompressionType;
 import static org.apache.pulsar.functions.utils.FunctionCommon.convertFromFunctionDetailsCompressionType;
 import static org.apache.pulsar.functions.utils.FunctionCommon.convertFromFunctionDetailsSubscriptionPosition;
@@ -32,9 +31,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import java.io.File;
-import java.io.IOException;
 import java.lang.reflect.Type;
-import java.net.MalformedURLException;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.LinkedList;
@@ -44,10 +41,13 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang.StringUtils;
+import net.bytebuddy.description.type.TypeDefinition;
+import net.bytebuddy.pool.TypePool;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.common.functions.ConsumerConfig;
 import org.apache.pulsar.common.functions.FunctionConfig;
+import org.apache.pulsar.common.functions.FunctionDefinition;
 import org.apache.pulsar.common.functions.ProducerConfig;
 import org.apache.pulsar.common.functions.Resources;
 import org.apache.pulsar.common.functions.WindowConfig;
@@ -55,7 +55,6 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
-import org.apache.pulsar.functions.utils.functions.FunctionUtils;
 
 @Slf4j
 public class FunctionConfigUtils {
@@ -74,26 +73,21 @@ public class FunctionConfigUtils {
 
     private static final ObjectMapper OBJECT_MAPPER = ObjectMapperFactory.create();
 
-    public static FunctionDetails convert(FunctionConfig functionConfig, ClassLoader classLoader)
-            throws IllegalArgumentException {
+    public static FunctionDetails convert(FunctionConfig functionConfig) {
+        return convert(functionConfig, (ValidatableFunctionPackage) null);
+    }
 
-        if (functionConfig.getRuntime() == FunctionConfig.Runtime.JAVA) {
-            if (classLoader != null) {
-                try {
-                    Class<?>[] typeArgs = FunctionCommon.getFunctionTypes(functionConfig, classLoader);
-                    return convert(
-                            functionConfig,
-                            new ExtractedFunctionDetails(
-                                    functionConfig.getClassName(),
-                                    typeArgs[0].getName(),
-                                    typeArgs[1].getName()));
-                } catch (ClassNotFoundException | NoClassDefFoundError e) {
-                    throw new IllegalArgumentException(
-                            String.format("Function class %s must be in class path", functionConfig.getClassName()), e);
-                }
-            }
+    public static FunctionDetails convert(FunctionConfig functionConfig,
+                                          ValidatableFunctionPackage validatableFunctionPackage)
+            throws IllegalArgumentException {
+        if (functionConfig == null) {
+            throw new IllegalArgumentException("Function config is not provided");
         }
-        return convert(functionConfig, new ExtractedFunctionDetails(functionConfig.getClassName(), null, null));
+        if (functionConfig.getRuntime() == FunctionConfig.Runtime.JAVA && validatableFunctionPackage != null) {
+            return convert(functionConfig, doJavaChecks(functionConfig, validatableFunctionPackage));
+        } else {
+            return convert(functionConfig, new ExtractedFunctionDetails(functionConfig.getClassName(), null, null));
+        }
     }
 
     public static FunctionDetails convert(FunctionConfig functionConfig, ExtractedFunctionDetails extractedDetails)
@@ -593,48 +587,49 @@ public class FunctionConfigUtils {
         }
     }
 
-    public static ExtractedFunctionDetails doJavaChecks(FunctionConfig functionConfig, ClassLoader clsLoader) {
+    public static ExtractedFunctionDetails doJavaChecks(FunctionConfig functionConfig,
+                                                        ValidatableFunctionPackage validatableFunctionPackage) {
 
-        String functionClassName = functionConfig.getClassName();
-        Class functionClass;
+        String functionClassName = StringUtils.trimToNull(functionConfig.getClassName());
+        TypeDefinition functionClass;
         try {
             // if class name in function config is not set, this should be a built-in function
             // thus we should try to find its class name in the NAR service definition
             if (functionClassName == null) {
-                try {
-                    functionClassName = FunctionUtils.getFunctionClass(clsLoader);
-                } catch (IOException e) {
-                    throw new IllegalArgumentException("Failed to extract source class from archive", e);
+                FunctionDefinition functionDefinition =
+                        validatableFunctionPackage.getFunctionMetaData(FunctionDefinition.class);
+                if (functionDefinition == null) {
+                    throw new IllegalArgumentException("Function class name is not provided.");
+                }
+                functionClassName = functionDefinition.getFunctionClass();
+                if (functionClassName == null) {
+                    throw new IllegalArgumentException("Function class name is not provided.");
                 }
             }
-            functionClass = clsLoader.loadClass(functionClassName);
+            functionClass = validatableFunctionPackage.resolveType(functionClassName);
 
-            if (!org.apache.pulsar.functions.api.Function.class.isAssignableFrom(functionClass)
-                    && !java.util.function.Function.class.isAssignableFrom(functionClass)
-                    && !org.apache.pulsar.functions.api.WindowFunction.class.isAssignableFrom(functionClass)) {
+            if (!functionClass.asErasure().isAssignableTo(org.apache.pulsar.functions.api.Function.class)
+                    && !functionClass.asErasure().isAssignableTo(java.util.function.Function.class)
+                    && !functionClass.asErasure()
+                    .isAssignableTo(org.apache.pulsar.functions.api.WindowFunction.class)) {
                 throw new IllegalArgumentException(
                         String.format("Function class %s does not implement the correct interface",
-                                functionClass.getName()));
+                                functionClassName));
             }
-        } catch (ClassNotFoundException | NoClassDefFoundError e) {
+        } catch (TypePool.Resolution.NoSuchTypeException e) {
             throw new IllegalArgumentException(
-                    String.format("Function class %s must be in class path", functionConfig.getClassName()), e);
+                    String.format("Function class %s must be in class path", functionClassName), e);
         }
 
-        Class<?>[] typeArgs;
-        try {
-            typeArgs = FunctionCommon.getFunctionTypes(functionConfig, functionClass);
-        } catch (ClassNotFoundException | NoClassDefFoundError e) {
-            throw new IllegalArgumentException(
-                    String.format("Function class %s must be in class path", functionConfig.getClassName()), e);
-        }
+        TypeDefinition[] typeArgs = FunctionCommon.getFunctionTypes(functionConfig, functionClass);
         // inputs use default schema, so there is no check needed there
 
         // Check if the Input serialization/deserialization class exists in jar or already loaded and that it
         // implements SerDe class
         if (functionConfig.getCustomSerdeInputs() != null) {
             functionConfig.getCustomSerdeInputs().forEach((topicName, inputSerializer) -> {
-                ValidatorUtils.validateSerde(inputSerializer, typeArgs[0], clsLoader, true);
+                ValidatorUtils.validateSerde(inputSerializer, typeArgs[0], validatableFunctionPackage.getTypePool(),
+                        true);
             });
         }
 
@@ -649,8 +644,8 @@ public class FunctionConfigUtils {
                     throw new IllegalArgumentException(
                             String.format("Topic %s has an incorrect schema Info", topicName));
                 }
-                ValidatorUtils.validateSchema(consumerConfig.getSchemaType(), typeArgs[0], clsLoader, true);
-
+                ValidatorUtils.validateSchema(consumerConfig.getSchemaType(), typeArgs[0],
+                        validatableFunctionPackage.getTypePool(), true);
             });
         }
 
@@ -665,13 +660,16 @@ public class FunctionConfigUtils {
                         "Only one of schemaType or serdeClassName should be set in inputSpec");
                 }
                 if (!isEmpty(conf.getSerdeClassName())) {
-                    ValidatorUtils.validateSerde(conf.getSerdeClassName(), typeArgs[0], clsLoader, true);
+                    ValidatorUtils.validateSerde(conf.getSerdeClassName(), typeArgs[0],
+                            validatableFunctionPackage.getTypePool(), true);
                 }
                 if (!isEmpty(conf.getSchemaType())) {
-                    ValidatorUtils.validateSchema(conf.getSchemaType(), typeArgs[0], clsLoader, true);
+                    ValidatorUtils.validateSchema(conf.getSchemaType(), typeArgs[0],
+                            validatableFunctionPackage.getTypePool(), true);
                 }
                 if (conf.getCryptoConfig() != null) {
-                    ValidatorUtils.validateCryptoKeyReader(conf.getCryptoConfig(), clsLoader, false);
+                    ValidatorUtils.validateCryptoKeyReader(conf.getCryptoConfig(),
+                            validatableFunctionPackage.getTypePool(), false);
                 }
             });
         }
@@ -679,8 +677,8 @@ public class FunctionConfigUtils {
         if (Void.class.equals(typeArgs[1])) {
             return new FunctionConfigUtils.ExtractedFunctionDetails(
                     functionClassName,
-                    typeArgs[0].getName(),
-                    typeArgs[1].getName());
+                    typeArgs[0].asErasure().getTypeName(),
+                    typeArgs[1].asErasure().getTypeName());
         }
 
         // One and only one of outputSchemaType and outputSerdeClassName should be set
@@ -690,22 +688,25 @@ public class FunctionConfigUtils {
         }
 
         if (!isEmpty(functionConfig.getOutputSchemaType())) {
-            ValidatorUtils.validateSchema(functionConfig.getOutputSchemaType(), typeArgs[1], clsLoader, false);
+            ValidatorUtils.validateSchema(functionConfig.getOutputSchemaType(), typeArgs[1],
+                    validatableFunctionPackage.getTypePool(), false);
         }
 
         if (!isEmpty(functionConfig.getOutputSerdeClassName())) {
-            ValidatorUtils.validateSerde(functionConfig.getOutputSerdeClassName(), typeArgs[1], clsLoader, false);
+            ValidatorUtils.validateSerde(functionConfig.getOutputSerdeClassName(), typeArgs[1],
+                    validatableFunctionPackage.getTypePool(), false);
         }
 
         if (functionConfig.getProducerConfig() != null
                 && functionConfig.getProducerConfig().getCryptoConfig() != null) {
             ValidatorUtils
-                    .validateCryptoKeyReader(functionConfig.getProducerConfig().getCryptoConfig(), clsLoader, true);
+                    .validateCryptoKeyReader(functionConfig.getProducerConfig().getCryptoConfig(),
+                            validatableFunctionPackage.getTypePool(), true);
         }
         return new FunctionConfigUtils.ExtractedFunctionDetails(
                 functionClassName,
-                typeArgs[0].getName(),
-                typeArgs[1].getName());
+                typeArgs[0].asErasure().getTypeName(),
+                typeArgs[1].asErasure().getTypeName());
     }
 
     private static void doPythonChecks(FunctionConfig functionConfig) {
@@ -912,47 +913,21 @@ public class FunctionConfigUtils {
         return retval;
     }
 
-    public static ClassLoader validate(FunctionConfig functionConfig, File functionPackageFile) {
+    public static void validateNonJavaFunction(FunctionConfig functionConfig) {
         doCommonChecks(functionConfig);
-        if (functionConfig.getRuntime() == FunctionConfig.Runtime.JAVA) {
-            ClassLoader classLoader;
-            if (functionPackageFile != null) {
-                try {
-                    classLoader = loadJar(functionPackageFile);
-                } catch (MalformedURLException e) {
-                    throw new IllegalArgumentException("Corrupted Jar File", e);
-                }
-            } else if (!isEmpty(functionConfig.getJar())) {
-                File jarFile = new File(functionConfig.getJar());
-                if (!jarFile.exists()) {
-                    throw new IllegalArgumentException("Jar file does not exist");
-                }
-                try {
-                    classLoader = loadJar(jarFile);
-                } catch (Exception e) {
-                    throw new IllegalArgumentException("Corrupted Jar File", e);
-                }
-            } else {
-                throw new IllegalArgumentException("Function Package is not provided");
-            }
-
-            doJavaChecks(functionConfig, classLoader);
-            return classLoader;
-        } else if (functionConfig.getRuntime() == FunctionConfig.Runtime.GO) {
+        if (functionConfig.getRuntime() == FunctionConfig.Runtime.GO) {
             doGolangChecks(functionConfig);
-            return null;
         } else if (functionConfig.getRuntime() == FunctionConfig.Runtime.PYTHON) {
             doPythonChecks(functionConfig);
-            return null;
         } else {
             throw new IllegalArgumentException("Function language runtime is either not set or cannot be determined");
         }
     }
 
     public static ExtractedFunctionDetails validateJavaFunction(FunctionConfig functionConfig,
-                                                                ClassLoader classLoader) {
+                                                                ValidatableFunctionPackage validatableFunctionPackage) {
         doCommonChecks(functionConfig);
-        return doJavaChecks(functionConfig, classLoader);
+        return doJavaChecks(functionConfig, validatableFunctionPackage);
     }
 
     public static FunctionConfig validateUpdate(FunctionConfig existingConfig, FunctionConfig newConfig) {

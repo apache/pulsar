@@ -665,6 +665,14 @@ public class PulsarWorkerService implements WorkerService {
         if (null != openTelemetry) {
             openTelemetry.close();
         }
+
+        if (null != functionsManager) {
+            functionsManager.close();
+        }
+
+        if (null != connectorsManager) {
+            connectorsManager.close();
+        }
     }
 
 }
