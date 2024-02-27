@@ -25,7 +25,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-import com.beust.jcommander.ParameterException;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.dataformat.yaml.YAMLMapper;
 import java.io.Closeable;
@@ -282,7 +281,8 @@ public class TestCmdSinks {
         );
     }
 
-    @Test(expectedExceptions = ParameterException.class, expectedExceptionsMessageRegExp = "Sink archive not specfied")
+    @Test(expectedExceptions = CmdBase.ParameterException.class,
+            expectedExceptionsMessageRegExp = "Sink archive not specfied")
     public void testMissingArchive() throws Exception {
         SinkConfig sinkConfig = getSinkConfig();
         sinkConfig.setArchive(null);
@@ -502,7 +502,8 @@ public class TestCmdSinks {
         testCmdSinkConfigFile(testSinkConfig, expectedSinkConfig);
     }
 
-    @Test(expectedExceptions = ParameterException.class, expectedExceptionsMessageRegExp = "Sink archive not specfied")
+    @Test(expectedExceptions = CmdBase.ParameterException.class,
+            expectedExceptionsMessageRegExp = "Sink archive not specfied")
     public void testCmdSinkConfigFileMissingJar() throws Exception {
         SinkConfig testSinkConfig = getSinkConfig();
         testSinkConfig.setArchive(null);
@@ -522,8 +523,8 @@ public class TestCmdSinks {
         testCmdSinkConfigFile(testSinkConfig, expectedSinkConfig);
     }
 
-    @Test(expectedExceptions = ParameterException.class, expectedExceptionsMessageRegExp = "Invalid sink type 'foo' " +
-            "-- Available sinks are: \\[\\]")
+    @Test(expectedExceptions = CmdBase.ParameterException.class,
+            expectedExceptionsMessageRegExp = "Invalid sink type 'foo' -- Available sinks are: \\[\\]")
     public void testCmdSinkConfigFileInvalidSinkType() throws Exception {
         SinkConfig testSinkConfig = getSinkConfig();
         // sinkType is prior than archive

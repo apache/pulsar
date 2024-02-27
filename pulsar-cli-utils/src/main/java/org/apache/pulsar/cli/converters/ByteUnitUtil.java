@@ -26,12 +26,12 @@ import java.util.Set;
 import lombok.experimental.UtilityClass;
 
 @UtilityClass
-class ByteUnitUtil {
+public class ByteUnitUtil {
 
     private static Set<Character> sizeUnit = Collections.unmodifiableSet(
             new HashSet<>(Arrays.asList('k', 'K', 'm', 'M', 'g', 'G', 't', 'T')));
 
-    static long validateSizeString(String byteStr) {
+    public static long validateSizeString(String byteStr) {
         if (byteStr.isEmpty()) {
             throw new IllegalArgumentException("byte string cannot be empty");
         }

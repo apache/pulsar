@@ -18,21 +18,14 @@
  */
 package org.apache.pulsar.client.cli;
 
-import com.beust.jcommander.converters.IParameterSplitter;
-import java.util.LinkedList;
-import java.util.List;
+import java.util.concurrent.Callable;
 
-public class NoSplitter implements IParameterSplitter {
-
-    /*
-     * (non-Javadoc)
-     *
-     * @see com.beust.jcommander.converters.IParameterSplitter#split(java.lang.String)
-     */
+public abstract class AbstractCmd implements Callable<Integer> {
+    // Picocli entrypoint.
     @Override
-    public List<String> split(final String value) {
-        final List<String> result = new LinkedList<>();
-        result.add(value);
-        return result;
+    public Integer call() throws Exception {
+        return run();
     }
+
+    abstract int run() throws Exception;
 }

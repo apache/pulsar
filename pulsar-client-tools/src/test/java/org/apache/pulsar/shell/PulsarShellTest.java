@@ -20,6 +20,7 @@ package org.apache.pulsar.shell;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -36,8 +37,8 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicReference;
 import lombok.SneakyThrows;
-import org.apache.pulsar.admin.cli.PulsarAdminSupplier;
 import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.admin.PulsarAdminBuilder;
 import org.apache.pulsar.client.admin.Topics;
 import org.apache.pulsar.client.cli.CmdProduce;
 import org.jline.reader.EndOfFileException;
@@ -99,9 +100,9 @@ public class PulsarShellTest {
         @Override
         protected AdminShell createAdminShell(Properties properties) throws Exception {
             final AdminShell adminShell = new AdminShell(properties);
-            final PulsarAdminSupplier supplier = mock(PulsarAdminSupplier.class);
-            when(supplier.get()).thenReturn(pulsarAdmin);
-            adminShell.setPulsarAdminSupplier(supplier);
+            PulsarAdminBuilder builder = mock(PulsarAdminBuilder.class);
+            doReturn(pulsarAdmin).when(builder).build();
+            adminShell.getPulsarAdminSupplier().setAdminBuilder(builder);
             return adminShell;
         }
 
@@ -109,9 +110,9 @@ public class PulsarShellTest {
         protected ClientShell createClientShell(Properties properties) {
             final CmdProduce cmdProduce = mock(CmdProduce.class);
             cmdProduceHolder.set(cmdProduce);
-            return new ClientShell(properties) {{
-                this.produceCommand = cmdProduce;
-            }};
+            ClientShell clientShell = new ClientShell(properties);
+            clientShell.replaceProducerCommand(cmdProduce);
+            return clientShell;
         }
 
         @Override
@@ -152,7 +153,7 @@ public class PulsarShellTest {
         final TestPulsarShell testPulsarShell = new TestPulsarShell(new String[]{}, props, pulsarAdmin);
         testPulsarShell.run((a) -> linereader, (a) -> terminal);
         verify(topics).createNonPartitionedTopic(eq("persistent://public/default/my-topic"), any(Map.class));
-        verify(testPulsarShell.cmdProduceHolder.get()).run();
+        verify(testPulsarShell.cmdProduceHolder.get()).call();
         assertEquals((int) testPulsarShell.exitCode, 0);
 
     }
@@ -171,7 +172,7 @@ public class PulsarShellTest {
                 props, pulsarAdmin);
         testPulsarShell.run((a) -> linereader, (a) -> terminal);
         verify(topics).createNonPartitionedTopic(eq("persistent://public/default/my-topic"), any(Map.class));
-        verify(testPulsarShell.cmdProduceHolder.get()).run();
+        verify(testPulsarShell.cmdProduceHolder.get()).call();
     }
 
     @Test

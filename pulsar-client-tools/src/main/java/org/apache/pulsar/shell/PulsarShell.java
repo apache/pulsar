@@ -18,8 +18,6 @@
  */
 package org.apache.pulsar.shell;
 
-import com.beust.jcommander.JCommander;
-import com.beust.jcommander.Parameter;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
@@ -43,20 +41,27 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.text.StringSubstitutor;
 import org.apache.pulsar.shell.config.ConfigStore;
 import org.apache.pulsar.shell.config.FileConfigStore;
-import org.jline.reader.Completer;
+import org.jline.console.SystemRegistry;
+import org.jline.console.impl.SystemRegistryImpl;
 import org.jline.reader.LineReader;
 import org.jline.reader.LineReaderBuilder;
 import org.jline.reader.impl.DefaultParser;
-import org.jline.reader.impl.completer.AggregateCompleter;
 import org.jline.terminal.Terminal;
 import org.jline.terminal.TerminalBuilder;
 import org.jline.utils.AttributedStringBuilder;
 import org.jline.utils.AttributedStyle;
 import org.jline.utils.InfoCmp;
+import picocli.CommandLine;
+import picocli.CommandLine.ArgGroup;
+import picocli.CommandLine.Command;
+import picocli.CommandLine.Option;
+import picocli.CommandLine.ScopeType;
+import picocli.shell.jline3.PicocliCommands;
 
 /**
  * Main Pulsar shell class invokable from the pulsar-shell script.
  */
+@Command(name = "pulsar-shell", mixinStandardHelpOptions = true, scope = ScopeType.INHERIT)
 public class PulsarShell {
 
     private static final String EXIT_MESSAGE = "Goodbye!";
@@ -92,32 +97,26 @@ public class PulsarShell {
         String replace(String str, Map<String, String> vars);
     }
 
-    static final class ShellOptions {
-
-        @Parameter(names = {"-h", "--help"}, help = true, description = "Show this help.")
-        boolean help;
-    }
-
     static final class MainOptions {
 
-        @Parameter(names = {"-c", "--config"}, description = "Client configuration file.")
+        @Option(names = {"-c", "--config"}, description = "Client configuration file.")
         String configFile;
 
-        @Parameter(names = {"-f", "--filename"}, description = "Input filename with a list of commands to be executed."
+        @Option(names = {"-f", "--filename"}, description = "Input filename with a list of commands to be executed."
                 + " Each command must be separated by a newline.")
         String filename;
 
-        @Parameter(names = {"--fail-on-error"}, description = "If true, the shell will be interrupted "
+        @Option(names = {"--fail-on-error"}, description = "If true, the shell will be interrupted "
                 + "if a command throws an exception.")
         boolean failOnError;
 
-        @Parameter(names = {"-"}, description = "Read commands from the standard input.")
+        @Option(names = {"-"}, description = "Read commands from the standard input.")
         boolean readFromStdin;
 
-        @Parameter(names = {"-e", "--execute-command"}, description = "Execute this command and exit.")
+        @Option(names = {"-e", "--execute-command"}, description = "Execute this command and exit.")
         String inlineCommand;
 
-        @Parameter(names = {"-np", "--no-progress"}, description = "Display raw output of the commands without the "
+        @Option(names = {"-np", "--no-progress"}, description = "Display raw output of the commands without the "
                 + "fancy progress visualization.")
         boolean noProgress;
     }
@@ -130,9 +129,11 @@ public class PulsarShell {
     @Getter
     private final ConfigStore configStore;
     private final File pulsarShellDir;
-    private final JCommander mainCommander;
-    private final MainOptions mainOptions;
-    private JCommander shellCommander;
+    private final CommandLine mainCommander;
+
+    @ArgGroup(exclusive = false)
+    private final MainOptions mainOptions = new MainOptions();
+    private CommandLine shellCommander;
     private Function<Map<String, ShellCommandsProvider>, InteractiveLineReader> readerBuilder;
     private InteractiveLineReader reader;
     private final ConfigShell configShell;
@@ -143,15 +144,14 @@ public class PulsarShell {
     }
     public PulsarShell(String args[], Properties props) throws IOException {
         properties = props;
-        mainCommander = new JCommander();
-        mainOptions = new MainOptions();
-        mainCommander.addObject(mainOptions);
+        mainCommander = new CommandLine(this);
+
         try {
-            mainCommander.parse(args);
+            mainCommander.parseArgs(args);
         } catch (Exception e) {
             System.err.println(e.getMessage());
             System.err.println();
-            mainCommander.usage();
+            mainCommander.printVersionHelp(System.out);
             exit(1);
             throw new IllegalArgumentException(e);
         }
@@ -217,6 +217,7 @@ public class PulsarShell {
 
     public void reload(Properties properties) throws Exception {
         this.properties = properties;
+        shellCommander = new CommandLine(this);
         final Map<String, ShellCommandsProvider> providersMap = registerProviders(shellCommander, properties);
         reader = readerBuilder.apply(providersMap);
     }
@@ -235,19 +236,10 @@ public class PulsarShell {
                 })
                 .build();
         run((providersMap) -> {
-            List<Completer> completers = new ArrayList<>();
             String serviceUrl = "";
             String adminUrl = "";
-            final JCommanderCompleter.ShellContext shellContext = new JCommanderCompleter.ShellContext(configStore);
             for (ShellCommandsProvider provider : providersMap.values()) {
                 provider.setupState(properties);
-                final JCommander jCommander = provider.getJCommander();
-                if (jCommander != null) {
-                    jCommander.createDescriptions();
-                    completers.addAll(JCommanderCompleter
-                            .createCompletersForCommand(provider.getName(), jCommander, shellContext));
-                }
-
                 final String providerServiceUrl = provider.getServiceUrl();
                 if (providerServiceUrl != null) {
                     serviceUrl = providerServiceUrl;
@@ -258,12 +250,17 @@ public class PulsarShell {
                 }
             }
 
-            Completer completer = new AggregateCompleter(completers);
+            PicocliCommands picocliCommands = new PicocliCommands(mainCommander);
+            DefaultParser parser = new DefaultParser().eofOnUnclosedQuote(true);
+            SystemRegistry systemRegistry = new SystemRegistryImpl(parser, terminal,
+                    () -> Paths.get(DEFAULT_PULSAR_SHELL_ROOT_DIRECTORY), null);
+            systemRegistry.setCommandRegistries(picocliCommands);
+            systemRegistry.register("help", picocliCommands);
 
             LineReaderBuilder readerBuilder = LineReaderBuilder.builder()
                     .terminal(terminal)
-                    .parser(new DefaultParser().eofOnUnclosedQuote(true))
-                    .completer(completer)
+                    .parser(parser)
+                    .completer(systemRegistry.completer())
                     .variable(LineReader.INDENTATION, 2)
                     .option(LineReader.Option.INSERT_BRACKET, true);
 
@@ -346,9 +343,7 @@ public class PulsarShell {
         /**
          * Options read from the shell session
          */
-        shellCommander = new JCommander();
-        final ShellOptions shellOptions = new ShellOptions();
-        shellCommander.addObject(shellOptions);
+        shellCommander = new CommandLine(this);
 
         final Map<String, ShellCommandsProvider> providersMap = registerProviders(shellCommander, properties);
 
@@ -437,14 +432,14 @@ public class PulsarShell {
                 exit(0);
                 return;
             }
-            if (shellOptions.help) {
-                shellCommander.usage();
+            if (shellCommander.isUsageHelpRequested()) {
+                shellCommander.usage(System.out);
                 continue;
             }
 
             final ShellCommandsProvider pulsarShellCommandsProvider = getProviderFromArgs(shellCommander, words);
             if (pulsarShellCommandsProvider == null) {
-                shellCommander.usage();
+                shellCommander.usage(System.out);
                 continue;
             }
             String[] argv = extractAndConvertArgs(words);
@@ -524,13 +519,13 @@ public class PulsarShell {
         }
     }
 
-    private static ShellCommandsProvider getProviderFromArgs(JCommander mainCommander, List<String> words) {
+    private static ShellCommandsProvider getProviderFromArgs(CommandLine mainCommander, List<String> words) {
         final String providerCmd = words.get(0);
-        final JCommander commander = mainCommander.getCommands().get(providerCmd);
+        final CommandLine commander = mainCommander.getSubcommands().get(providerCmd);
         if (commander == null) {
             return null;
         }
-        return (ShellCommandsProvider) commander.getObjects().get(0);
+        return commander.getCommand();
     }
 
     private static String createPrompt(String hostname) {
@@ -583,7 +578,7 @@ public class PulsarShell {
         return argv;
     }
 
-    private Map<String, ShellCommandsProvider> registerProviders(JCommander commander, Properties properties)
+    private Map<String, ShellCommandsProvider> registerProviders(CommandLine commander, Properties properties)
             throws Exception {
         final Map<String, ShellCommandsProvider> providerMap = new HashMap<>();
         registerProvider(createAdminShell(properties), commander, providerMap);
@@ -601,11 +596,11 @@ public class PulsarShell {
     }
 
     private static void registerProvider(ShellCommandsProvider provider,
-                                         JCommander commander,
+                                         CommandLine commander,
                                          Map<String, ShellCommandsProvider> providerMap) {
 
         final String name = provider.getName();
-        commander.addCommand(name, provider);
+        commander.addSubcommand(name, provider);
         providerMap.put(name, provider);
     }
 

@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.shell;
 
-import com.beust.jcommander.JCommander;
 import java.util.Properties;
 
 /**
@@ -48,25 +47,21 @@ public interface ShellCommandsProvider {
 
     /**
      * Init state before a command is executed.
-     * If the implementing class rely on JCommander, it's suggested to not recycle JCommander
-     * objects because they are meant to single-shot usage.
      * @param properties
      */
     void setupState(Properties properties);
 
     /**
      * Cleanup state after a command is executed.
-     * If the implementing class rely on JCommander, it's suggested to not recycle JCommander
-     * objects because they are meant to single-shot usage.
      * @param properties
      */
     void cleanupState(Properties properties);
 
     /**
-     * Return JCommander instance, if exists.
+     * Return commander instance, if exists.
      * @return
      */
-    JCommander getJCommander();
+    Object getCommander();
 
     /**
      * Run command for the passed args.

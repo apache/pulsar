@@ -56,8 +56,8 @@ public class PulsarClientToolForceBatchNum extends PulsarClientTool{
     }
 
     @Override
-    protected void initJCommander() {
-        super.initJCommander();
+    protected void initCommander() {
+        super.initCommander();
         produceCommand = new CmdProduce() {
             @Override
             public void updateConfig(ClientBuilder newBuilder, Authentication authentication, String serviceURL) {
@@ -68,7 +68,7 @@ public class PulsarClientToolForceBatchNum extends PulsarClientTool{
                 }
             }
         };
-        jcommander.addCommand("produce", produceCommand);
+        addCommand("produce", produceCommand);
     }
 
     private ClientBuilder mockClientBuilder(ClientBuilder newBuilder) throws Exception {

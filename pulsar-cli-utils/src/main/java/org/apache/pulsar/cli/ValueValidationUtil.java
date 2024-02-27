@@ -37,15 +37,32 @@ public class ValueValidationUtil {
         }
     }
 
+    public static void positiveCheck(long value) {
+        if (value <= 0) {
+            throw new ParameterException("The value cannot be less than or equal to <0>!");
+        }
+    }
+
     public static void positiveCheck(String paramName, int value) {
         if (value <= 0) {
             throw new ParameterException(paramName + " cannot be less than or equal to <0>!");
         }
     }
 
+    public static void positiveCheck(int value) {
+        if (value <= 0) {
+            throw new ParameterException("The value cannot be less than or equal to <0>!");
+        }
+    }
+
     public static void emptyCheck(String paramName, String value) {
         if (StringUtils.isEmpty(value)) {
             throw new ParameterException("The value of " + paramName + " can't be empty");
+        }
+    }
+    public static void emptyCheck(String value) {
+        if (StringUtils.isEmpty(value)) {
+            throw new IllegalArgumentException("The value can't be empty");
         }
     }
 

@@ -18,15 +18,14 @@
  */
 package org.apache.pulsar.shell;
 
-import com.beust.jcommander.JCommander;
-import com.beust.jcommander.Parameters;
 import java.util.Properties;
 import org.apache.pulsar.admin.cli.PulsarAdminTool;
+import picocli.CommandLine.Command;
 
 /**
  * Pulsar Admin tool extension for Pulsar shell.
  */
-@Parameters(commandDescription = "Admin console")
+@Command(description = "Admin console")
 public class AdminShell extends PulsarAdminTool implements ShellCommandsProvider {
 
     public AdminShell(Properties properties) throws Exception {
@@ -45,25 +44,23 @@ public class AdminShell extends PulsarAdminTool implements ShellCommandsProvider
 
     @Override
     public String getAdminUrl() {
-        return rootParams.getServiceUrl();
+        return super.getAdminUrl();
     }
 
     @Override
     public void setupState(Properties properties) {
-        getJCommander().setProgramName(getName());
-        setupCommands();
+        setCommandName(getName());
+        setProperties(properties);
     }
 
     @Override
-    public JCommander getJCommander() {
-        return jcommander;
+    public Object getCommander() {
+        return commander;
     }
 
     @Override
     public void cleanupState(Properties properties) {
-        rootParams = new RootParams();
-        initRootParamsFromProperties(properties);
-        initJCommander();
+        // noop
     }
 
 
