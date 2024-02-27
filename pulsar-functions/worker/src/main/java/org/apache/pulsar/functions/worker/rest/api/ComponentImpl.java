@@ -1235,7 +1235,7 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
             DefaultStateStore store = worker().getStateStoreProvider().getStateStore(tenant, namespace, functionName);
             ByteBuffer data;
             if (state.getByteValue() == null || state.getByteValue().length == 0) {
-                if (StringUtils.isNotEmpty(state.getStringValue())) {
+                if (state.getStringValue() != null) {
                     data = ByteBuffer.wrap(state.getStringValue().getBytes(UTF_8));
                 }  else if (state.getNumberValue() != null) {
                     data = ByteBuffer.allocate(Long.BYTES);
