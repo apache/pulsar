@@ -100,6 +100,7 @@ import org.apache.pulsar.functions.utils.ComponentTypeUtils;
 import org.apache.pulsar.functions.utils.FunctionCommon;
 import org.apache.pulsar.functions.utils.FunctionConfigUtils;
 import org.apache.pulsar.functions.utils.FunctionMetaDataUtils;
+import org.apache.pulsar.functions.utils.ValidatableFunctionPackage;
 import org.apache.pulsar.functions.utils.functions.FunctionArchive;
 import org.apache.pulsar.functions.utils.io.Connector;
 import org.apache.pulsar.functions.worker.FunctionMetaDataManager;
@@ -1788,12 +1789,6 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
         }
     }
 
-    protected ClassLoader getClassLoaderFromPackage(String className,
-                                                  File packageFile,
-                                                  String narExtractionDirectory) {
-        return FunctionCommon.getClassLoaderFromPackage(componentType, className, packageFile, narExtractionDirectory);
-    }
-
     static File downloadPackageFile(PulsarWorkerService worker, String packageName)
             throws IOException, PulsarAdminException {
         Path tempDirectory;
@@ -1863,7 +1858,7 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
         }
     }
 
-    protected ClassLoader getBuiltinFunctionClassLoader(String archive) {
+    protected ValidatableFunctionPackage getBuiltinFunctionPackage(String archive) {
         if (!StringUtils.isEmpty(archive)) {
             if (archive.startsWith(org.apache.pulsar.common.functions.Utils.BUILTIN)) {
                 archive = archive.replaceFirst("^builtin://", "");
@@ -1873,7 +1868,7 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
                 if (function == null) {
                     throw new IllegalArgumentException("Built-in " + componentType + " is not available");
                 }
-                return function.getClassLoader();
+                return function.getFunctionPackage();
             }
         }
         return null;
