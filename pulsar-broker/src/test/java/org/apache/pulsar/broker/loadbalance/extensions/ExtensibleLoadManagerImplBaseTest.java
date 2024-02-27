@@ -42,7 +42,7 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.BeforeMethod;
 
-public class ExtensibleLoadManagerImplBaseTest extends MockedPulsarServiceBaseTest {
+public abstract class ExtensibleLoadManagerImplBaseTest extends MockedPulsarServiceBaseTest {
 
     protected PulsarService pulsar1;
     protected PulsarService pulsar2;
@@ -80,9 +80,9 @@ public class ExtensibleLoadManagerImplBaseTest extends MockedPulsarServiceBaseTe
         return conf;
     }
 
-    @BeforeClass
     @Override
-    public void setup() throws Exception {
+    @BeforeClass(alwaysRun = true)
+    protected void setup() throws Exception {
         initConfig(conf);
         super.internalSetup(conf);
         pulsar1 = pulsar;
