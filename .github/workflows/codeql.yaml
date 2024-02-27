@@ -22,9 +22,6 @@ name: "CodeQL"
 on:
   push:
     branches: [ 'master' ]
-  pull_request:
-    # The branches below must be a subset of the branches above
-    branches: [ 'master' ]
   schedule:
     - cron: '27 21 * * 4'
   workflow_dispatch:
@@ -36,8 +33,7 @@ concurrency:
 jobs:
   analyze:
     # only run scheduled analysis in apache/pulsar repository
-    # and only run pull request analysis for pull requests that aren't from forks since otherwise there isn't write access for writing the CodeQL results
-    if: ${{ (github.event_name == 'schedule' && github.repository == 'apache/pulsar') || github.event_name != 'schedule' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.owner.login == github.event.pull_request.base.repo.owner.login) || github.event_name != 'pull_request' }}
+    if: ${{ (github.event_name == 'schedule' && github.repository == 'apache/pulsar') || github.event_name != 'schedule' }}
     name: Analyze
     runs-on: 'ubuntu-latest'
     timeout-minutes: 360

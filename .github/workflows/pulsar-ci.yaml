@@ -1333,6 +1333,71 @@ jobs:
       - name: build package
         run: mvn -B clean package -DskipTests -T 1C -ntp
 
+  codeql:
+    name: Run CodeQL Analysis
+    runs-on: ubuntu-22.04
+    timeout-minutes: 60
+    needs: ['preconditions', 'unit-tests']
+    if: ${{ needs.preconditions.outputs.docs_only != 'true' && (github.event_name == 'pull_request' && github.base_ref == 'master') || (github.event_name != 'pull_request' && github.ref_name == 'master') }}
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+    env:
+      GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
+      CI_JDK_MAJOR_VERSION: ${{ needs.preconditions.outputs.jdk_major_version }}
+      CODEQL_LANGUAGE: java-kotlin
+    steps:
+      - name: checkout
+        uses: actions/checkout@v4
+
+      - name: Tune Runner VM
+        uses: ./.github/actions/tune-runner-vm
+
+      - name: Clean Disk when needed
+        if: ${{ matrix.clean_disk }}
+        uses: ./.github/actions/clean-disk
+
+      - name: Setup ssh access to build runner VM
+        # ssh access is enabled for builds in own forks
+        if: ${{ github.repository != 'apache/pulsar' && github.event_name == 'pull_request' }}
+        uses: ./.github/actions/ssh-access
+        continue-on-error: true
+        with:
+          limit-access-to-actor: true
+
+      - name: Cache local Maven repository
+        uses: actions/cache@v4
+        timeout-minutes: 5
+        with:
+          path: |
+            ~/.m2/repository/*/*/*
+            !~/.m2/repository/org/apache/pulsar
+          key: ${{ runner.os }}-m2-dependencies-all-${{ hashFiles('**/pom.xml') }}
+          restore-keys: |
+            ${{ runner.os }}-m2-dependencies-core-modules-${{ hashFiles('**/pom.xml') }}
+            ${{ runner.os }}-m2-dependencies-core-modules-
+
+      - name: Set up JDK ${{ env.CI_JDK_MAJOR_VERSION }}
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: ${{ env.CI_JDK_MAJOR_VERSION }}
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: ${{ env.CODEQL_LANGUAGE }}
+
+      - name: Build Java code
+        run: |
+          mvn -B -ntp -Pcore-modules,-main install -DskipTests -Dlicense.skip=true -Drat.skip=true -Dcheckstyle.skip=true
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:${{ env.CODEQL_LANGUAGE }}"
+
   owasp-dep-check:
     name: OWASP dependency check
     runs-on: ubuntu-22.04
@@ -1445,6 +1510,7 @@ jobs:
       'integration-tests-upload-coverage',
       'system-tests-upload-coverage',
       'owasp-dep-check'
+      'codeql'
     ]
     steps:
       - name: Check that all required jobs were completed successfully
@@ -1455,6 +1521,7 @@ jobs:
                 && "${{ needs.integration-tests.result }}" == "success" \
                 && "${{ needs.system-tests.result }}" == "success" \
                 && "${{ needs.macos-build.result }}" == "success" \
+                && ( "${{ needs.codeql.result }}" == "success" || "${{ needs.codeql.result }}" == "skipped" ) \
                ) ]]; then
             echo "Required jobs haven't been completed successfully."
             exit 1
