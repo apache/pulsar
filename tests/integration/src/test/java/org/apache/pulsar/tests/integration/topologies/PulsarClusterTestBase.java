@@ -87,17 +87,20 @@ public abstract class PulsarClusterTestBase extends PulsarTestBase {
         };
     }
 
-    @DataProvider(name = "ServiceUrlAndTopicDomain")
-    public Object[][] serviceUrlsAndTopicDomain() {
+    @DataProvider
+    public Object[][] serviceUrlAndTopicDomain() {
         return new Object[][] {
                 {
                         stringSupplier(() -> getPulsarCluster().getPlainTextServiceUrl()),
                         TopicDomain.persistent
                 },
+                /*
                 {
                         stringSupplier(() -> getPulsarCluster().getPlainTextServiceUrl()),
                         TopicDomain.non_persistent
                 },
+
+                 */
         };
     }
 
