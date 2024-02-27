@@ -94,13 +94,10 @@ public abstract class PulsarClusterTestBase extends PulsarTestBase {
                         stringSupplier(() -> getPulsarCluster().getPlainTextServiceUrl()),
                         TopicDomain.persistent
                 },
-                /*
                 {
                         stringSupplier(() -> getPulsarCluster().getPlainTextServiceUrl()),
                         TopicDomain.non_persistent
                 },
-
-                 */
         };
     }
 
