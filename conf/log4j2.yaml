@@ -136,7 +136,6 @@ Configuration:
       additivity: true
       AppenderRef:
         - ref: "${sys:pulsar.log.appender}"
-          level: "${sys:pulsar.log.level}"
         - ref: Prometheus
           level: info
 

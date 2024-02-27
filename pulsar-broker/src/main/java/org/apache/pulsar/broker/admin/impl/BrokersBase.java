@@ -48,6 +48,9 @@ import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.container.Suspended;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
+import org.apache.logging.log4j.Level;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.core.config.Configurator;
 import org.apache.pulsar.PulsarVersion;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService.State;
@@ -580,5 +583,62 @@ public class BrokersBase extends AdminResource {
         pulsar().getBrokerService().unloadNamespaceBundlesGracefully(maxConcurrentUnloadPerSec, forcedTerminateTopic);
         return pulsar().closeAsync();
     }
+
+    /**
+     * dynamically update logger level at runtime.
+     *
+     * @param targetClassName : class name to update
+     * @param targetLevel     : target log level
+     */
+    private CompletableFuture<Void> internalUpdateLoggerLevelAsync(String targetClassName, String targetLevel) {
+        CompletableFuture<Void> loggerLevelFuture = new CompletableFuture<>();
+        try {
+            String className;
+            // if set "ROOT" will take effect to rootLogger
+            if (targetClassName.trim().equalsIgnoreCase("ROOT")) {
+                className = LogManager.ROOT_LOGGER_NAME;
+            } else {
+                className = targetClassName;
+            }
+            Level newLevel;
+            try {
+                newLevel = Level.valueOf(targetLevel);
+                Configurator.setAllLevels(className, newLevel);
+            } catch (IllegalArgumentException | NullPointerException e) {
+                // Unknown Log Level or NULL
+                throw new RestException(Status.PRECONDITION_FAILED, "Invalid logger level.");
+            }
+        } catch (RestException re) {
+            throw re;
+        } catch (Exception ie) {
+            throw new RestException(Status.PRECONDITION_FAILED, "Internal error.");
+        }
+        return CompletableFuture.completedFuture(null);
+    }
+
+    @POST
+    @Path("/logging/{classname}/{level}")
+    @ApiOperation(value =
+      "dynamic update logger level at runtime. This operation requires Pulsar super-user privileges.")
+    @ApiResponses(value = {
+      @ApiResponse(code = 204, message = "class logger level updated successfully"),
+      @ApiResponse(code = 403, message = "You don't have admin permission to update logger level."),
+      @ApiResponse(code = 500, message = "Internal server error")})
+    public void updateLoggerLevelDynamically(@Suspended final AsyncResponse asyncResponse,
+                                             @PathParam("classname") String classname,
+                                             @PathParam("level") String level) {
+        validateSuperUserAccessAsync()
+          .thenCompose(__ -> internalUpdateLoggerLevelAsync(classname, level))
+          .thenAccept(__ -> {
+              LOG.info("[{}] Succeed update class {} to logger level {}", clientAppId(), classname, level);
+              asyncResponse.resume(Response.ok().build());
+          })
+          .exceptionally(ex -> {
+              LOG.error("[{}] Failed update class {} to logger level {}", clientAppId(), classname, level, ex);
+              resumeAsyncResponseExceptionally(asyncResponse, ex);
+              return null;
+          });
+    }
+
 }
 

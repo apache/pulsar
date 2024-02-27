@@ -228,4 +228,15 @@ public class BrokersImpl extends BaseResource implements Brokers {
 
         return asyncGetRequest(path, new FutureCallback<String>(){});
     }
+
+  @Override
+  public void updateLoggerLevel(String classname, String level) throws PulsarAdminException {
+    sync(() -> updateLoggerLevelAsync(classname, level));
+  }
+
+  @Override
+  public CompletableFuture<Void> updateLoggerLevelAsync(String classname, String level) {
+    WebTarget path = adminBrokers.path("logging").path(classname).path(level);
+    return asyncPostRequest(path, Entity.entity("", MediaType.APPLICATION_JSON));
+  }
 }
