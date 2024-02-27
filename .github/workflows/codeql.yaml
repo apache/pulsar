@@ -27,9 +27,15 @@ on:
     branches: [ 'master' ]
   schedule:
     - cron: '27 21 * * 4'
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}
+  cancel-in-progress: true
 
 jobs:
   analyze:
+    if: ${{ (github.event_name != 'schedule' || github.repository != 'apache/pulsar') && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.owner.login == 'apache') }}
     name: Analyze
     runs-on: 'ubuntu-latest'
     timeout-minutes: 360
