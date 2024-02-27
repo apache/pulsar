@@ -213,13 +213,13 @@ public class TransactionStablePositionTest extends TransactionTestBase {
         position = topicTransactionBuffer.getMaxReadPosition();
         assertEquals(position, PositionImpl.EARLIEST);
 
+        // change to None state can recover
+        field.set(topicTransactionBuffer, TopicTransactionBufferState.State.None);
+
         // invoke recover
         Method method = TopicTransactionBuffer.class.getDeclaredMethod("recover");
         method.setAccessible(true);
         method.invoke(topicTransactionBuffer);
-
-        // change to None state can recover
-        field.set(topicTransactionBuffer, TopicTransactionBufferState.State.None);
 
         // recover success again
         checkTopicTransactionBufferState(clientEnableTransaction, topicTransactionBuffer);
@@ -232,13 +232,15 @@ public class TransactionStablePositionTest extends TransactionTestBase {
     private void checkTopicTransactionBufferState(boolean clientEnableTransaction,
                                                   TopicTransactionBuffer topicTransactionBuffer) {
         // recover success
-        Awaitility.await().until(() -> {
+        Awaitility.await().untilAsserted(() -> {
             if (clientEnableTransaction) {
                 // recover success, client enable transaction will change to Ready State
-                return topicTransactionBuffer.getStats(false).state.equals(Ready.name());
+                assertEquals(topicTransactionBuffer.getStats(false).state,
+                        Ready.name());
             } else {
                 // recover success, client disable transaction will change to NoSnapshot State
-                return topicTransactionBuffer.getStats(false).state.equals(NoSnapshot.name());
+                assertEquals(topicTransactionBuffer.getStats(false).state,
+                        NoSnapshot.name());
             }
         });
     }
