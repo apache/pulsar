@@ -89,6 +89,7 @@ import org.apache.pulsar.functions.utils.ComponentTypeUtils;
 import org.apache.pulsar.functions.utils.FunctionCommon;
 import org.apache.pulsar.functions.utils.FunctionConfigUtils;
 import org.apache.pulsar.functions.utils.FunctionMetaDataUtils;
+import org.apache.pulsar.functions.utils.ValidatableFunctionPackage;
 import org.apache.pulsar.functions.utils.functions.FunctionArchive;
 import org.apache.pulsar.functions.utils.io.Connector;
 import org.apache.pulsar.functions.worker.FunctionMetaDataManager;
@@ -1150,6 +1151,12 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
             throw new RestException(Status.BAD_REQUEST, e.getMessage());
         }
 
+        FunctionMetaDataManager functionMetaDataManager = worker().getFunctionMetaDataManager();
+        if (!functionMetaDataManager.containsFunction(tenant, namespace, functionName)) {
+            log.warn("getFunctionState does not exist @ /{}/{}/{}", tenant, namespace, functionName);
+            throw new RestException(Status.NOT_FOUND, String.format("'%s' is not found", functionName));
+        }
+
         try {
             DefaultStateStore store = worker().getStateStoreProvider().getStateStore(tenant, namespace, functionName);
             StateValue value = store.getStateValue(key);
@@ -1219,18 +1226,26 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
             throw new RestException(Status.BAD_REQUEST, e.getMessage());
         }
 
+        FunctionMetaDataManager functionMetaDataManager = worker().getFunctionMetaDataManager();
+        if (!functionMetaDataManager.containsFunction(tenant, namespace, functionName)) {
+            log.warn("putFunctionState does not exist @ /{}/{}/{}", tenant, namespace, functionName);
+            throw new RestException(Status.NOT_FOUND, String.format("'%s' is not found", functionName));
+        }
+
         try {
             DefaultStateStore store = worker().getStateStoreProvider().getStateStore(tenant, namespace, functionName);
             ByteBuffer data;
-            if (state.getStringValue() != null) {
-                data = ByteBuffer.wrap(state.getStringValue().getBytes(UTF_8));
-            } else if (state.getByteValue() != null) {
-                data = ByteBuffer.wrap(state.getByteValue());
-            } else if (state.getNumberValue() != null) {
-                data = ByteBuffer.allocate(Long.BYTES);
-                data.putLong(state.getNumberValue());
+            if (state.getByteValue() == null || state.getByteValue().length == 0) {
+                if (state.getStringValue() != null) {
+                    data = ByteBuffer.wrap(state.getStringValue().getBytes(UTF_8));
+                }  else if (state.getNumberValue() != null) {
+                    data = ByteBuffer.allocate(Long.BYTES);
+                    data.putLong(state.getNumberValue());
+                } else {
+                    throw new IllegalArgumentException("Invalid state value");
+                }
             } else {
-                throw new IllegalArgumentException("Invalid state value");
+                data = ByteBuffer.wrap(state.getByteValue());
             }
             store.put(key, data);
         } catch (Throwable e) {
@@ -1732,12 +1747,6 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
         }
     }
 
-    protected ClassLoader getClassLoaderFromPackage(String className,
-                                                  File packageFile,
-                                                  String narExtractionDirectory) {
-        return FunctionCommon.getClassLoaderFromPackage(componentType, className, packageFile, narExtractionDirectory);
-    }
-
     static File downloadPackageFile(PulsarWorkerService worker, String packageName)
             throws IOException, PulsarAdminException {
         Path tempDirectory;
@@ -1807,7 +1816,7 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
         }
     }
 
-    protected ClassLoader getBuiltinFunctionClassLoader(String archive) {
+    protected ValidatableFunctionPackage getBuiltinFunctionPackage(String archive) {
         if (!StringUtils.isEmpty(archive)) {
             if (archive.startsWith(org.apache.pulsar.common.functions.Utils.BUILTIN)) {
                 archive = archive.replaceFirst("^builtin://", "");
@@ -1817,7 +1826,7 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
                 if (function == null) {
                     throw new IllegalArgumentException("Built-in " + componentType + " is not available");
                 }
-                return function.getClassLoader();
+                return function.getFunctionPackage();
             }
         }
         return null;

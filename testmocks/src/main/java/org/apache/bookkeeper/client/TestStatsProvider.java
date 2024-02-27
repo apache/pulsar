@@ -18,6 +18,7 @@
  */
 package org.apache.bookkeeper.client;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
@@ -65,6 +66,7 @@ public class TestStatsProvider implements StatsProvider {
 
         @Override
         public void addLatency(long eventLatency, TimeUnit unit) {
+            checkArgument(eventLatency >= 0, "The event latency must not be negative.");
             long valueMillis = unit.toMillis(eventLatency);
             updateMax(val.addAndGet(valueMillis));
         }

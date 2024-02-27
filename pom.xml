@@ -84,6 +84,10 @@ flexible messaging model and an intuitive client API.</description>
 
     <pulsar.client.python.version>3.4.0</pulsar.client.python.version>
 
+    <UBUNTU_MIRROR>http://archive.ubuntu.com/ubuntu/</UBUNTU_MIRROR>
+    <UBUNTU_SECURITY_MIRROR>http://security.ubuntu.com/ubuntu/</UBUNTU_SECURITY_MIRROR>
+    <IMAGE_JDK_MAJOR_VERSION>17</IMAGE_JDK_MAJOR_VERSION>
+
     <!--config keys to configure test selection -->
     <include>**/Test*.java,**/*Test.java,**/*Tests.java,**/*TestCase.java</include>
     <exclude/>
@@ -162,6 +166,8 @@ flexible messaging model and an intuitive client API.</description>
     <docker-maven.version>0.43.3</docker-maven.version>
     <docker.verbose>true</docker.verbose>
     <typetools.version>0.5.0</typetools.version>
+    <byte-buddy.version>1.14.12</byte-buddy.version>
+    <zt-zip.version>1.17</zt-zip.version>
     <protobuf3.version>3.19.6</protobuf3.version>
     <protoc3.version>${protobuf3.version}</protoc3.version>
     <grpc.version>1.55.3</grpc.version>
@@ -1060,6 +1066,18 @@ flexible messaging model and an intuitive client API.</description>
         <groupId>net.jodah</groupId>
         <artifactId>typetools</artifactId>
         <version>${typetools.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>net.bytebuddy</groupId>
+        <artifactId>byte-buddy</artifactId>
+        <version>${byte-buddy.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.zeroturnaround</groupId>
+        <artifactId>zt-zip</artifactId>
+        <version>${zt-zip.version}</version>
       </dependency>
 
       <dependency>
@@ -2606,6 +2624,44 @@ flexible messaging model and an intuitive client API.</description>
         <checkstyle.skip>true</checkstyle.skip>
       </properties>
     </profile>
+
+    <profile>
+      <id>ubuntu-mirror-set</id>
+      <activation>
+        <property>
+          <name>env.UBUNTU_MIRROR</name>
+        </property>
+      </activation>
+      <properties>
+        <!-- Override the default value with the environment variable -->
+        <UBUNTU_MIRROR>${env.UBUNTU_MIRROR}</UBUNTU_MIRROR>
+      </properties>
+    </profile>
+    <profile>
+      <id>ubuntu-security-mirror-set</id>
+      <activation>
+        <property>
+          <name>env.UBUNTU_SECURITY_MIRROR</name>
+        </property>
+      </activation>
+      <properties>
+        <!-- Override the default value with the environment variable -->
+        <UBUNTU_SECURITY_MIRROR>${env.UBUNTU_SECURITY_MIRROR}</UBUNTU_SECURITY_MIRROR>
+      </properties>
+    </profile>
+    <profile>
+      <id>jdk-major-version-set</id>
+      <activation>
+        <property>
+          <name>env.IMAGE_JDK_MAJOR_VERSION</name>
+        </property>
+      </activation>
+      <properties>
+        <!-- Override the default value with the environment variable -->
+        <IMAGE_JDK_MAJOR_VERSION>${env.IMAGE_JDK_MAJOR_VERSION}</IMAGE_JDK_MAJOR_VERSION>
+      </properties>
+    </profile>
+
   </profiles>
 
   <repositories>
