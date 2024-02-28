@@ -202,8 +202,9 @@ public class LinuxInfoUtils {
             // wireless NICs don't report speed, ignore them.
             return Integer.parseInt(type) == ARPHRD_ETHER;
         } catch (Exception e) {
-            log.warn("[LinuxInfo] Failed to read {} NIC type, the detail is: {}", nicPath, e.getMessage());
-            // Read type got error.
+            if (log.isDebugEnabled()) {
+                log.debug("[LinuxInfo] Failed to read {} NIC type, the detail is: {}", nicPath, e.getMessage());
+            }
             return false;
         }
     }
