@@ -52,10 +52,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
+import java.util.Random;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.avro.SchemaParseException;
 import org.apache.pulsar.admin.cli.extensions.CustomCommandFactory;
 import org.apache.pulsar.admin.cli.utils.SchemaExtractor;
 import org.apache.pulsar.client.admin.Bookies;
@@ -2486,8 +2488,98 @@ public class PulsarAdminToolTest {
         postSchemaPayload.setSchema(SchemaExtractor.getJsonSchemaInfo(schemaDefinition));
         postSchemaPayload.setProperties(schemaDefinition.getProperties());
         verify(schemas).createSchema("persistent://tn1/ns1/tp1", postSchemaPayload);
+
+        cmdSchemas = new CmdSchemas(() -> admin);
+        // Redirect System.out to a ByteArrayOutputStream
+        ByteArrayOutputStream outContent = new ByteArrayOutputStream();
+        System.setOut(new PrintStream(outContent));
+
+        for (Map.Entry<String, String> schemaEntry : testSchemas.entrySet()) {
+            cmdSchemas.run(split("validate -t " + schemaEntry.getKey() + " -d " + schemaEntry.getValue()));
+            String output = outContent.toString();
+            log.info("output: {}", output);
+            assertTrue(output.contains("It's a validated " + schemaEntry.getKey() + " schema."));
+            cmdSchemas = new CmdSchemas(() -> admin);
+        }
     }
 
+    public final String avroSchema = "{\"type\":\"record\",\"name\":\"Foo\",\"namespace\":\"org.apache.pulsar.client.impl.schema.SchemaTestUtils\",\"fields\":[{\"name\":\"field1\"," +
+            "\"type\":[\"null\",\"string\"],\"default\":null},{\"name\":\"field2\",\"type\":[\"null\",\"string\"],\"default\":null},{\"name\":\"field3\",\"type\":\"int\"},{\"name\":\"field4\",\"type\":[\"" +
+            "null\",{\"type\":\"record\",\"name\":\"Bar\",\"fields\":[{\"name\":\"field1\",\"type\":\"boolean\"}]}],\"default\":null},{\"name\":\"color\",\"type\":[\"null\",{\"type\":\"enum\",\"name\":\"Color\"" +
+            ",\"symbols\":[\"RED\",\"BLUE\"]}],\"default\":null},{\"name\":\"fieldUnableNull\",\"type\":[\"string\",\"null\"],\"default\":\"defaultValue\"}]}";
+
+    public final String jsonSchema
+            = "{\"type\":\"record\",\"name\":\"Foo\",\"namespace\":\"org.apache.pulsar.client.impl.schema.SchemaTestUtils\",\"fields\":[{\"name\":\"field1\",\"type\":[\"null\",\"string\"],\"default\":null},{\"name\"" +
+            ":\"field2\",\"type\":[\"null\",\"string\"],\"default\":null},{\"name\":\"field3\",\"type\":\"int\"},{\"name\":\"field4\",\"type\":[\"null\",{\"type\":\"record\",\"name\":\"Bar\",\"fields\":[{\"name\":\"" +
+            "field1\",\"type\":\"boolean\"}]}],\"default\":null},{\"name\":\"color\",\"type\":[\"null\",{\"type\":\"enum\",\"name\":\"Color\",\"symbols\":[\"RED\",\"BLUE\"]}],\"default\":null},{\"name\":\"fieldUnableNull\"," +
+            "\"type\":\"string\",\"default\":\"defaultValue\"}]}";
+
+    final String protobufNativeSchema = "{\"fileDescriptorSet\":\"CtMDCgpUZXN0LnByb3RvEgVwcm90bxoSRXh0ZXJuYWxUZXN0L"
+            + "nByb3RvImUKClN1Yk1lc3NhZ2USCwoDZm9vGAEgASgJEgsKA2JhchgCIAEoARo9Cg1OZXN0ZWRNZXNzYWdlEgsKA3VybBgBIAEoC"
+            + "RINCgV0aXRsZRgCIAEoCRIQCghzbmlwcGV0cxgDIAMoCSLlAQoLVGVzdE1lc3NhZ2USEwoLc3RyaW5nRmllbGQYASABKAkSEwoLZ"
+            + "G91YmxlRmllbGQYAiABKAESEAoIaW50RmllbGQYBiABKAUSIQoIdGVzdEVudW0YBCABKA4yDy5wcm90by5UZXN0RW51bRImCgtuZ"
+            + "XN0ZWRGaWVsZBgFIAEoCzIRLnByb3RvLlN1Yk1lc3NhZ2USFQoNcmVwZWF0ZWRGaWVsZBgKIAMoCRI4Cg9leHRlcm5hbE1lc3NhZ"
+            + "2UYCyABKAsyHy5wcm90by5leHRlcm5hbC5FeHRlcm5hbE1lc3NhZ2UqJAoIVGVzdEVudW0SCgoGU0hBUkVEEAASDAoIRkFJTE9WR"
+            + "VIQAUItCiVvcmcuYXBhY2hlLnB1bHNhci5jbGllbnQuc2NoZW1hLnByb3RvQgRUZXN0YgZwcm90bzMKoAEKEkV4dGVybmFsVGVzd"
+            + "C5wcm90bxIOcHJvdG8uZXh0ZXJuYWwiOwoPRXh0ZXJuYWxNZXNzYWdlEhMKC3N0cmluZ0ZpZWxkGAEgASgJEhMKC2RvdWJsZUZpZ"
+            + "WxkGAIgASgBQjUKJW9yZy5hcGFjaGUucHVsc2FyLmNsaWVudC5zY2hlbWEucHJvdG9CDEV4dGVybmFsVGVzdGIGcHJvdG8z\","
+            + "\"rootMessageTypeName\":\"proto.TestMessage\",\"rootFileDescriptorName\":\"Test.proto\"}";
+
+    final String protobufSchema = "{\"type\":\"record\",\"name\":\"TestMessage\"," +
+            "\"namespace\":\"org.apache.pulsar.client.schema.proto.Test\"," +
+            "\"fields\":[{\"name\":\"stringField\",\"type\":{\"type\":\"string\"," +
+            "\"avro.java.string\":\"String\"},\"default\":\"\"},{\"name\":\"doubleField\"," +
+            "\"type\":\"double\",\"default\":0.0},{\"name\":\"intField\",\"type\":\"int\"," +
+            "\"default\":0},{\"name\":\"testEnum\",\"type\":{\"type\":\"enum\"," +
+            "\"name\":\"TestEnum\",\"symbols\":[\"SHARED\",\"FAILOVER\"]}," +
+            "\"default\":\"SHARED\"},{\"name\":\"nestedField\"," +
+            "\"type\":[\"null\",{\"type\":\"record\",\"name\":\"SubMessage\"," +
+            "\"fields\":[{\"name\":\"foo\",\"type\":{\"type\":\"string\"," +
+            "\"avro.java.string\":\"String\"},\"default\":\"\"}" +
+            ",{\"name\":\"bar\",\"type\":\"double\",\"default\":0.0}]}]" +
+            ",\"default\":null},{\"name\":\"repeatedField\",\"type\":{\"type\":\"array\"" +
+            ",\"items\":{\"type\":\"string\",\"avro.java.string\":\"String\"}},\"default\":[]}" +
+            ",{\"name\":\"externalMessage\",\"type\":[\"null\",{\"type\":\"record\"" +
+            ",\"name\":\"ExternalMessage\",\"namespace\":\"org.apache.pulsar.client.schema.proto.ExternalTest\"" +
+            ",\"fields\":[{\"name\":\"stringField\",\"type\":{\"type\":\"string\",\"avro.java.string\":\"String\"},"
+            + "\"default\":\"\"},{\"name\":\"doubleField\",\"type\":\"double\",\"default\":0.0}]}],"
+            + "\"default\":null}]}";
+
+    private final Map<String, String> testSchemas = Map.of("avro", avroSchema, "json", jsonSchema, "protobuf",
+            protobufSchema, "protobufNative", protobufNativeSchema);
+
+    @Test
+    public void testValidateSchemaJson() throws Exception {
+        String errorSuffix = "Error";
+        CmdSchemas.validateAvroSchema(avroSchema);
+        CmdSchemas.validateAvroSchema(jsonSchema);
+        CmdSchemas.validateAvroSchema(protobufSchema);
+        CmdSchemas.validateProtobufSchema(protobufNativeSchema);
+
+        try {
+            CmdSchemas.validateAvroSchema(jsonSchema + errorSuffix);
+            fail();
+        } catch (SchemaParseException ignore) {}
+        try {
+            CmdSchemas.validateAvroSchema(avroSchema + errorSuffix);
+            fail();
+        } catch (SchemaParseException ignore) {}
+        try {
+            CmdSchemas.validateAvroSchema(avroSchema + errorSuffix);
+            fail();
+        } catch (SchemaParseException ignore) {}
+        try {
+            CmdSchemas.validateProtobufSchema(randomReplaceCharInProtobufSchema(protobufNativeSchema));
+            fail();
+        } catch (Exception ignore) {}
+    }
+
+    private static String randomReplaceCharInProtobufSchema(String schema) {
+        Random random = new Random();
+        int index = random.nextInt(schema.length());
+        char randomChar = (char) ('a' + random.nextInt(26));
+        return schema.substring(0, index) + randomChar + schema.substring(index + 1);
+    }
     @Test
     public void customCommands() throws Exception {
 

@@ -147,7 +147,16 @@
       <groupId>org.apache.commons</groupId>
       <artifactId>commons-text</artifactId>
     </dependency>
-
+    <!-- Jackson core -->
+    <dependency>
+      <groupId>com.fasterxml.jackson.core</groupId>
+      <artifactId>jackson-databind</artifactId>
+    </dependency>
+    <!-- Protobuf Java -->
+    <dependency>
+      <groupId>com.google.protobuf</groupId>
+      <artifactId>protobuf-java</artifactId>
+    </dependency>
   </dependencies>
 
   <build>

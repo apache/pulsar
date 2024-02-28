@@ -21,16 +21,22 @@ package org.apache.pulsar.admin.cli;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParameterException;
 import com.beust.jcommander.Parameters;
+import com.google.protobuf.Descriptors;
+import com.google.protobuf.DynamicMessage;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.net.URL;
 import java.net.URLClassLoader;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.function.Supplier;
+import org.apache.avro.Schema;
+import org.apache.avro.SchemaParseException;
 import org.apache.pulsar.admin.cli.utils.SchemaExtractor;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
+import org.apache.pulsar.client.impl.schema.ProtobufNativeSchemaUtils;
 import org.apache.pulsar.common.protocol.schema.PostSchemaPayload;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 
@@ -45,6 +51,7 @@ public class CmdSchemas extends CmdBase {
         jcommander.addCommand("upload", new UploadSchema());
         jcommander.addCommand("extract", new ExtractSchema());
         jcommander.addCommand("compatibility", new TestCompatibility());
+        jcommander.addCommand("validate", new ValidateSchema());
     }
 
     @Parameters(commandDescription = "Get the schema for a topic")
@@ -121,6 +128,67 @@ public class CmdSchemas extends CmdBase {
             PostSchemaPayload input = MAPPER.readValue(schemaFile, PostSchemaPayload.class);
             getAdmin().schemas().createSchema(topic, input);
         }
+    }
+
+    /**
+     * Command for validating the input schema string.
+     */
+    @Parameters(commandDescription = "Validate the input schema string is validated")
+    private static class ValidateSchema extends CliCommand {
+        @Parameter(names = { "-d", "--data" }, description = "schema data", required = true)
+        private String schemaData;
+
+        @Parameter(names = { "-t", "--type" }, description = "schema type", required = true)
+        private String type;
+
+        /**
+         * Runs the validation command.
+         */
+        @Override
+        void run() throws Exception {
+            try {
+                switch (type) {
+                    case "avro":
+                    case "json":
+                    case "protobuf":
+                        validateAvroSchema(schemaData);
+                        break;
+                    case "protobufNative":
+                        validateProtobufSchema(schemaData);
+                        break;
+                    default:
+                        System.err.println("Unsupported schema type: " + type + ". "
+                                + "Only support checking the schema form for avro, json, protobuf, protobufNative");
+                        break;
+                }
+                print("It's a validated " + type + " schema.");
+            } catch (Exception e) {
+                print("Failed to validate schema: " + e.getMessage());
+            }
+        }
+    }
+
+    /**
+     * Validates an Avro schema provided as a JSON string.
+     *
+     * @param jsonSchema the Avro schema as a JSON string
+     * @throws SchemaParseException if the schema is invalid
+     */
+    public static void validateAvroSchema(String jsonSchema) throws SchemaParseException {
+        Schema.Parser parser = new Schema.Parser();
+        parser.parse(jsonSchema);
+    }
+
+    /**
+     * Validates a Protobuf schema provided as a JSON string.
+     *
+     * @param jsonSchema the Protobuf schema as a JSON string
+     * @throws Exception if the schema is invalid
+     */
+    public static void validateProtobufSchema(String jsonSchema) throws Exception {
+        byte[] schema = jsonSchema.getBytes(StandardCharsets.UTF_8);
+        Descriptors.Descriptor descriptor = ProtobufNativeSchemaUtils.deserialize(schema);
+        DynamicMessage.newBuilder(descriptor).build();
     }
 
     @Parameters(commandDescription = "Provide the schema via a topic")
