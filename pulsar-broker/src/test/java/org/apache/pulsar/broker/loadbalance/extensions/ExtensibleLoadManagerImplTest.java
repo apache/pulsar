@@ -84,7 +84,6 @@ import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.loadbalance.BrokerFilterException;
 import org.apache.pulsar.broker.loadbalance.LeaderBroker;
 import org.apache.pulsar.broker.loadbalance.LeaderElectionService;
@@ -110,7 +109,6 @@ import org.apache.pulsar.broker.namespace.NamespaceBundleSplitListener;
 import org.apache.pulsar.broker.namespace.NamespaceEphemeralData;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.service.BrokerServiceException;
-import org.apache.pulsar.broker.testcontext.PulsarTestContext;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
@@ -124,25 +122,18 @@ import org.apache.pulsar.client.impl.TableViewImpl;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.ServiceUnitId;
-import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.naming.TopicVersion;
 import org.apache.pulsar.common.policies.data.BrokerAssignment;
 import org.apache.pulsar.common.policies.data.BundlesData;
-import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.NamespaceOwnershipStatus;
-import org.apache.pulsar.common.policies.data.TenantInfoImpl;
-import org.apache.pulsar.common.policies.data.TopicType;
 import org.apache.pulsar.common.stats.Metrics;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.policies.data.loadbalancer.ResourceUsage;
 import org.apache.pulsar.policies.data.loadbalancer.SystemResourceUsage;
 import org.awaitility.Awaitility;
 import org.testng.AssertJUnit;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
-import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
@@ -152,81 +143,10 @@ import org.testng.annotations.Test;
 @Slf4j
 @Test(groups = "broker")
 @SuppressWarnings("unchecked")
-public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
+public class ExtensibleLoadManagerImplTest extends ExtensibleLoadManagerImplBaseTest {
 
-    private PulsarService pulsar1;
-    private PulsarService pulsar2;
-
-    private PulsarTestContext additionalPulsarTestContext;
-
-    private ExtensibleLoadManagerImpl primaryLoadManager;
-
-    private ExtensibleLoadManagerImpl secondaryLoadManager;
-
-    private ServiceUnitStateChannelImpl channel1;
-    private ServiceUnitStateChannelImpl channel2;
-
-    private final String defaultTestNamespace = "public/test";
-
-    private LookupService lookupService;
-
-    private static void initConfig(ServiceConfiguration conf){
-        conf.setForceDeleteNamespaceAllowed(true);
-        conf.setAllowAutoTopicCreationType(TopicType.NON_PARTITIONED);
-        conf.setAllowAutoTopicCreation(true);
-        conf.setLoadManagerClassName(ExtensibleLoadManagerImpl.class.getName());
-        conf.setLoadBalancerLoadSheddingStrategy(TransferShedder.class.getName());
-        conf.setLoadBalancerSheddingEnabled(false);
-        conf.setLoadBalancerDebugModeEnabled(true);
-        conf.setTopicLevelPoliciesEnabled(true);
-    }
-
-    @BeforeClass
-    @Override
-    public void setup() throws Exception {
-        // Set the inflight state waiting time and ownership monitor delay time to 5 seconds to avoid
-        // stuck when doing unload.
-        initConfig(conf);
-        super.internalSetup(conf);
-        pulsar1 = pulsar;
-        ServiceConfiguration defaultConf = getDefaultConf();
-        initConfig(defaultConf);
-        additionalPulsarTestContext = createAdditionalPulsarTestContext(defaultConf);
-        pulsar2 = additionalPulsarTestContext.getPulsarService();
-
-        setPrimaryLoadManager();
-
-        setSecondaryLoadManager();
-
-        admin.clusters().createCluster(this.conf.getClusterName(),
-                ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
-        admin.tenants().createTenant("public",
-                new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"),
-                        Sets.newHashSet(this.conf.getClusterName())));
-        admin.namespaces().createNamespace("public/default");
-        admin.namespaces().setNamespaceReplicationClusters("public/default",
-                Sets.newHashSet(this.conf.getClusterName()));
-
-        admin.namespaces().createNamespace(defaultTestNamespace, 128);
-        admin.namespaces().setNamespaceReplicationClusters(defaultTestNamespace,
-                Sets.newHashSet(this.conf.getClusterName()));
-        lookupService = (LookupService) FieldUtils.readDeclaredField(pulsarClient, "lookup", true);
-    }
-
-    @Override
-    @AfterClass(alwaysRun = true)
-    protected void cleanup() throws Exception {
-        this.additionalPulsarTestContext.close();
-        super.internalCleanup();
-    }
-
-    @BeforeMethod(alwaysRun = true)
-    protected void initializeState() throws PulsarAdminException, IllegalAccessException {
-        admin.namespaces().unload(defaultTestNamespace);
-        reset(primaryLoadManager, secondaryLoadManager);
-        FieldUtils.writeDeclaredField(pulsarClient, "lookup", lookupService, true);
-        pulsar1.getConfig().setLoadBalancerMultiPhaseBundleUnload(true);
-        pulsar2.getConfig().setLoadBalancerMultiPhaseBundleUnload(true);
+    public ExtensibleLoadManagerImplTest() {
+        super("public/test");
     }
 
     @Test
@@ -1678,43 +1598,4 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
 
     }
 
-    private void setPrimaryLoadManager() throws IllegalAccessException {
-        ExtensibleLoadManagerWrapper wrapper =
-                (ExtensibleLoadManagerWrapper) pulsar1.getLoadManager().get();
-        primaryLoadManager = spy((ExtensibleLoadManagerImpl)
-                FieldUtils.readField(wrapper, "loadManager", true));
-        FieldUtils.writeField(wrapper, "loadManager", primaryLoadManager, true);
-        channel1 = (ServiceUnitStateChannelImpl)
-                FieldUtils.readField(primaryLoadManager, "serviceUnitStateChannel", true);
-    }
-
-    private void setSecondaryLoadManager() throws IllegalAccessException {
-        ExtensibleLoadManagerWrapper wrapper =
-                (ExtensibleLoadManagerWrapper) pulsar2.getLoadManager().get();
-        secondaryLoadManager = spy((ExtensibleLoadManagerImpl)
-                FieldUtils.readField(wrapper, "loadManager", true));
-        FieldUtils.writeField(wrapper, "loadManager", secondaryLoadManager, true);
-        channel2 = (ServiceUnitStateChannelImpl)
-                FieldUtils.readField(secondaryLoadManager, "serviceUnitStateChannel", true);
-    }
-
-    private CompletableFuture<NamespaceBundle> getBundleAsync(PulsarService pulsar, TopicName topic) {
-        return pulsar.getNamespaceService().getBundleAsync(topic);
-    }
-
-    private Pair<TopicName, NamespaceBundle> getBundleIsNotOwnByChangeEventTopic(String topicNamePrefix)
-            throws Exception {
-        TopicName changeEventsTopicName =
-                TopicName.get(defaultTestNamespace + "/" + SystemTopicNames.NAMESPACE_EVENTS_LOCAL_NAME);
-        NamespaceBundle changeEventsBundle = getBundleAsync(pulsar1, changeEventsTopicName).get();
-        int i = 0;
-        while(true) {
-            TopicName topicName = TopicName.get(defaultTestNamespace + "/" + topicNamePrefix + "-" + i);
-            NamespaceBundle bundle = getBundleAsync(pulsar1, topicName).get();
-            if (!bundle.equals(changeEventsBundle)) {
-                return Pair.of(topicName, bundle);
-            }
-            i++;
-        }
-    }
 }
