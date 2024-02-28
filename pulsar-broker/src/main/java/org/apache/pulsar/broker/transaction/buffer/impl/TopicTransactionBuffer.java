@@ -170,13 +170,15 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                         if (msgMetadata != null && msgMetadata.hasTxnidMostBits() && msgMetadata.hasTxnidLeastBits()) {
                             TxnID txnID = new TxnID(msgMetadata.getTxnidMostBits(), msgMetadata.getTxnidLeastBits());
                             PositionImpl position = PositionImpl.get(entry.getLedgerId(), entry.getEntryId());
-                            if (Markers.isTxnMarker(msgMetadata)) {
-                                if (Markers.isTxnAbortMarker(msgMetadata)) {
-                                    snapshotAbortedTxnProcessor.putAbortedTxnAndPosition(txnID, position);
+                            synchronized (TopicTransactionBuffer.this) {
+                                if (Markers.isTxnMarker(msgMetadata)) {
+                                    if (Markers.isTxnAbortMarker(msgMetadata)) {
+                                        snapshotAbortedTxnProcessor.putAbortedTxnAndPosition(txnID, position);
+                                    }
+                                    updateMaxReadPosition(txnID);
+                                } else {
+                                    handleTransactionMessage(txnID, position);
                                 }
-                                updateMaxReadPosition(txnID);
-                            } else {
-                                handleTransactionMessage(txnID, position);
                             }
                         }
                     }
@@ -362,10 +364,10 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                             updateMaxReadPosition(txnID);
                             snapshotAbortedTxnProcessor.trimExpiredAbortedTxns();
                             takeSnapshotByChangeTimes();
+                            handleLowWaterMark(txnID, lowWaterMark);
                         }
                         txnAbortedCounter.increment();
                         completableFuture.complete(null);
-                        handleLowWaterMark(txnID, lowWaterMark);
                     }
 
                     @Override
@@ -511,8 +513,10 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
     public TransactionInBufferStats getTransactionInBufferStats(TxnID txnID) {
         TransactionInBufferStats transactionInBufferStats = new TransactionInBufferStats();
         transactionInBufferStats.aborted = isTxnAborted(txnID, null);
-        if (ongoingTxns.containsKey(txnID)) {
-            transactionInBufferStats.startPosition = ongoingTxns.get(txnID).toString();
+        synchronized (this) {
+            if (ongoingTxns.containsKey(txnID)) {
+                transactionInBufferStats.startPosition = ongoingTxns.get(txnID).toString();
+            }
         }
         return transactionInBufferStats;
     }
