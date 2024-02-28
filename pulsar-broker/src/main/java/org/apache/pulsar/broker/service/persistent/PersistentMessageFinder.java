@@ -25,6 +25,9 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
+import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.bookkeeper.mledger.proto.MLDataFormats;
 import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.Codec;
@@ -60,7 +63,22 @@ public class PersistentMessageFinder implements AsyncCallbacks.FindEntryCallback
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Starting message position find at timestamp {}", subName, timestamp);
             }
+            ManagedLedgerImpl ledger = (ManagedLedgerImpl) cursor.getManagedLedger();
+            MLDataFormats.ManagedLedgerInfo.LedgerInfo info0 = null;
+            for (MLDataFormats.ManagedLedgerInfo.LedgerInfo info : ledger.getLedgersInfo().values()) {
+                if (info.hasTimestamp() && info.getTimestamp() < timestamp) {
+                    info0 = info;
+                } else {
+                    break;
+                }
+            }
 
+            Position start = null;
+            Position end = null;
+            if (info0 != null) {
+                start = PositionImpl.get(info0.getLedgerId(), 0);
+                end = PositionImpl.get(info0.getLedgerId(), info0.getEntries() - 1);
+            }
             cursor.asyncFindNewestMatching(ManagedCursor.FindPositionConstraint.SearchAllAvailableEntries, entry -> {
                 try {
                     long entryTimestamp = Commands.getEntryTimestamp(entry.getDataBuffer());
@@ -71,7 +89,7 @@ public class PersistentMessageFinder implements AsyncCallbacks.FindEntryCallback
                     entry.release();
                 }
                 return false;
-            }, this, callback, true);
+            }, start, end, this, callback, true);
         } else {
             if (log.isDebugEnabled()) {
                 log.debug("[{}][{}] Ignore message position find scheduled task, last find is still running", topicName,

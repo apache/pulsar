@@ -1206,23 +1206,61 @@ public class ManagedCursorImpl implements ManagedCursor {
     @Override
     public void asyncFindNewestMatching(FindPositionConstraint constraint, Predicate<Entry> condition,
             FindEntryCallback callback, Object ctx, boolean isFindFromLedger) {
+        asyncFindNewestMatching(constraint, condition, null, null, callback, ctx, isFindFromLedger);
+    }
+
+    @Override
+    public void asyncFindNewestMatching(FindPositionConstraint constraint, Predicate<Entry> condition,
+                                        Position start, Position end, FindEntryCallback callback,
+                                        Object ctx, boolean isFindFromLedger) {
         OpFindNewest op;
-        PositionImpl startPosition = null;
-        long max = 0;
+        PositionImpl startPosition;
+        long max;
         switch (constraint) {
-        case SearchAllAvailableEntries:
-            startPosition = (PositionImpl) getFirstPosition();
-            max = ledger.getNumberOfEntries() - 1;
-            break;
-        case SearchActiveEntries:
-            startPosition = ledger.getNextValidPosition(markDeletePosition);
-            max = getNumberOfEntriesInStorage();
-            break;
-        default:
-            callback.findEntryFailed(new ManagedLedgerException("Unknown position constraint"), Optional.empty(), ctx);
-            return;
+            case SearchAllAvailableEntries -> {
+                if (start instanceof PositionImpl start0 && end instanceof PositionImpl end0) {
+                    startPosition = start0;
+                    max = startPosition.compareTo(end0) <= 0 ? 0 : ledger.getNumberOfEntries(Range.openClosed(start0, end0));
+                } else if (start instanceof PositionImpl start0) {
+                    startPosition = start0;
+                    max = startPosition.compareTo(ledger.lastConfirmedEntry) <= 0 ? 0
+                            : ledger.getNumberOfEntries(Range.openClosed(start0, ledger.lastConfirmedEntry));
+                } else if (end instanceof PositionImpl end0) {
+                    startPosition = (PositionImpl) getFirstPosition();
+                    max = startPosition.compareTo(end0) <= 0 ? 0
+                            : ledger.getNumberOfEntries(Range.openClosed(startPosition, end0));
+                } else {
+                    startPosition = (PositionImpl) getFirstPosition();
+                    max = ledger.getNumberOfEntries() - 1;
+                }
+            }
+            case SearchActiveEntries -> {
+                if (start instanceof PositionImpl start0 && end instanceof PositionImpl end0) {
+                    startPosition = start0.compareTo(markDeletePosition) <= 0
+                            ? ledger.getNextValidPosition(markDeletePosition) : start0;
+                    max = startPosition.compareTo(end0) <= 0 ? 0
+                            : ledger.getNumberOfEntries(Range.closed(startPosition, end0));
+                } else if (start instanceof PositionImpl start0) {
+                    startPosition = start0.compareTo(markDeletePosition) <= 0
+                            ? ledger.getNextValidPosition(markDeletePosition) : start0;
+                    max = startPosition.compareTo(ledger.lastConfirmedEntry) <= 0 ? 0
+                            : ledger.getNumberOfEntries(Range.closed(start0, ledger.lastConfirmedEntry));
+                } else if (end instanceof PositionImpl end0) {
+                    startPosition = ledger.getNextValidPosition(markDeletePosition);
+                    max = startPosition.compareTo(end0) <= 0 ? 0
+                            : ledger.getNumberOfEntries(Range.closed(startPosition, end0));
+                } else {
+                    startPosition = ledger.getNextValidPosition(markDeletePosition);
+                    max = getNumberOfEntriesInStorage();
+                }
+            }
+            default -> {
+                callback.findEntryFailed(new ManagedLedgerException("Unknown position constraint"), Optional.empty(), ctx);
+                return;
+            }
         }
-        if (startPosition == null) {
+
+        if (startPosition == null || max == 0) {
             callback.findEntryFailed(new ManagedLedgerException("Couldn't find start position"),
                     Optional.empty(), ctx);
             return;

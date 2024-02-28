@@ -2016,7 +2016,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                         "Error when resetting subscription: " + ex.getCause().getMessage());
                 return null;
             });
-        } else if (consumerCreated && seek.hasMessagePublishTime()){
+        } else if (consumerCreated && seek.hasMessagePublishTime()) {
             Consumer consumer = consumerFuture.getNow(null);
             Subscription subscription = consumer.getSubscription();
             long timestamp = seek.getMessagePublishTime();
