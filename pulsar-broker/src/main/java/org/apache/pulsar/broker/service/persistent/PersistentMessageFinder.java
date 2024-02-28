@@ -67,11 +67,13 @@ public class PersistentMessageFinder implements AsyncCallbacks.FindEntryCallback
             MLDataFormats.ManagedLedgerInfo.LedgerInfo info0 = null;
             MLDataFormats.ManagedLedgerInfo.LedgerInfo info1 = null;
             for (MLDataFormats.ManagedLedgerInfo.LedgerInfo info : ledger.getLedgersInfo().values()) {
-                if (info.hasTimestamp() && info.getTimestamp() < timestamp) {
-                    info0 = info;
-                } else if (info.hasTimestamp() && info.getTimestamp() > timestamp) {
-                    info1 = info;
-                    break;
+                if (info.hasTimestamp() && info.getTimestamp() > 0) {
+                    if (info.getTimestamp() <= timestamp) {
+                        info0 = info;
+                    } else {
+                        info1 = info;
+                        break;
+                    }
                 }
             }
 

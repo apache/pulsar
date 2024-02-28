@@ -1220,16 +1220,16 @@ public class ManagedCursorImpl implements ManagedCursor {
             case SearchAllAvailableEntries -> {
                 if (start instanceof PositionImpl start0 && end instanceof PositionImpl end0) {
                     startPosition = start0;
-                    max = startPosition.compareTo(end0) <= 0 ? 0
-                            : ledger.getNumberOfEntries(Range.openClosed(start0, end0));
+                    max = startPosition.compareTo(end0) > 0 ? 0
+                            : ledger.getNumberOfEntries(Range.closed(start0, end0));
                 } else if (start instanceof PositionImpl start0) {
                     startPosition = start0;
                     max = startPosition.compareTo(ledger.lastConfirmedEntry) > 0 ? 0
-                            : ledger.getNumberOfEntries(Range.openClosed(start0, ledger.lastConfirmedEntry));
+                            : ledger.getNumberOfEntries(Range.closed(start0, ledger.lastConfirmedEntry));
                 } else if (end instanceof PositionImpl end0) {
                     startPosition = (PositionImpl) getFirstPosition();
-                    max = startPosition.compareTo(end0) <= 0 ? 0
-                            : ledger.getNumberOfEntries(Range.openClosed(startPosition, end0));
+                    max = startPosition.compareTo(end0) > 0 ? 0
+                            : ledger.getNumberOfEntries(Range.closed(startPosition, end0));
                 } else {
                     startPosition = (PositionImpl) getFirstPosition();
                     max = ledger.getNumberOfEntries() - 1;
@@ -1239,16 +1239,16 @@ public class ManagedCursorImpl implements ManagedCursor {
                 if (start instanceof PositionImpl start0 && end instanceof PositionImpl end0) {
                     startPosition = start0.compareTo(markDeletePosition) <= 0
                             ? ledger.getNextValidPosition(markDeletePosition) : start0;
-                    max = startPosition.compareTo(end0) <= 0 ? 0
+                    max = startPosition.compareTo(end0) > 0 ? 0
                             : ledger.getNumberOfEntries(Range.closed(startPosition, end0));
                 } else if (start instanceof PositionImpl start0) {
                     startPosition = start0.compareTo(markDeletePosition) <= 0
                             ? ledger.getNextValidPosition(markDeletePosition) : start0;
-                    max = startPosition.compareTo(ledger.lastConfirmedEntry) <= 0 ? 0
+                    max = startPosition.compareTo(ledger.lastConfirmedEntry) > 0 ? 0
                             : ledger.getNumberOfEntries(Range.closed(start0, ledger.lastConfirmedEntry));
                 } else if (end instanceof PositionImpl end0) {
                     startPosition = ledger.getNextValidPosition(markDeletePosition);
-                    max = startPosition.compareTo(end0) <= 0 ? 0
+                    max = startPosition.compareTo(end0) > 0 ? 0
                             : ledger.getNumberOfEntries(Range.closed(startPosition, end0));
                 } else {
                     startPosition = ledger.getNextValidPosition(markDeletePosition);
