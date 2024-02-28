@@ -475,7 +475,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
     }
 
     @Override
-    public boolean isTxnAborted(TxnID txnID, PositionImpl readPosition) {
+    public synchronized boolean isTxnAborted(TxnID txnID, PositionImpl readPosition) {
         return snapshotAbortedTxnProcessor.checkAbortedTransaction(txnID);
     }
 
