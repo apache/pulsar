@@ -364,10 +364,10 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                             updateMaxReadPosition(txnID);
                             snapshotAbortedTxnProcessor.trimExpiredAbortedTxns();
                             takeSnapshotByChangeTimes();
+                            txnAbortedCounter.increment();
+                            completableFuture.complete(null);
                             handleLowWaterMark(txnID, lowWaterMark);
                         }
-                        txnAbortedCounter.increment();
-                        completableFuture.complete(null);
                     }
 
                     @Override
