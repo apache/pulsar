@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.broker.loadbalance.extensions;
 
+import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Releasing;
+import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannelTest.overrideTableView;
 import static org.apache.pulsar.broker.loadbalance.extensions.models.SplitDecision.Reason.Admin;
 import static org.apache.pulsar.broker.loadbalance.extensions.models.SplitDecision.Reason.Bandwidth;
 import static org.apache.pulsar.broker.loadbalance.extensions.models.SplitDecision.Reason.MsgRate;
@@ -87,6 +89,7 @@ import org.apache.pulsar.broker.loadbalance.LeaderBroker;
 import org.apache.pulsar.broker.loadbalance.LeaderElectionService;
 import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState;
 import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannelImpl;
+import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateData;
 import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLoadData;
 import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLookupData;
 import org.apache.pulsar.broker.loadbalance.extensions.data.TopBundlesLoadData;
@@ -105,6 +108,7 @@ import org.apache.pulsar.broker.namespace.NamespaceBundleOwnershipListener;
 import org.apache.pulsar.broker.namespace.NamespaceBundleSplitListener;
 import org.apache.pulsar.broker.namespace.NamespaceEphemeralData;
 import org.apache.pulsar.broker.namespace.NamespaceService;
+import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
@@ -1066,7 +1070,6 @@ public class ExtensibleLoadManagerImplTest extends ExtensibleLoadManagerImplBase
             reset();
             return null;
         }).when(topBundlesLoadDataStorePrimarySpy).closeTableView();
-        FieldUtils.writeDeclaredField(primaryLoadManager, "topBundlesLoadDataStore", topBundlesLoadDataStorePrimarySpy, true);
 
         var topBundlesLoadDataStoreSecondary = (LoadDataStore<TopBundlesLoadData>)
                 FieldUtils.readDeclaredField(secondaryLoadManager, "topBundlesLoadDataStore", true);
@@ -1089,36 +1092,65 @@ public class ExtensibleLoadManagerImplTest extends ExtensibleLoadManagerImplBase
             reset();
             return null;
         }).when(topBundlesLoadDataStoreSecondarySpy).closeTableView();
-        FieldUtils.writeDeclaredField(secondaryLoadManager, "topBundlesLoadDataStore", topBundlesLoadDataStoreSecondarySpy, true);
 
-        if (channel1.isChannelOwnerAsync().get(5, TimeUnit.SECONDS)) {
-            primaryLoadManager.playFollower(); // close 3 times
-            primaryLoadManager.playFollower(); // close 1 time
-            secondaryLoadManager.playLeader();
-            secondaryLoadManager.playLeader();
-            primaryLoadManager.playLeader(); // close 3 times and open 3 times
-            primaryLoadManager.playLeader(); // close 1 time and open 1 time,
-            secondaryLoadManager.playFollower();
-            secondaryLoadManager.playFollower();
-        } else {
-            primaryLoadManager.playLeader();
-            primaryLoadManager.playLeader();
-            secondaryLoadManager.playFollower();
-            secondaryLoadManager.playFollower();
+        try {
+            FieldUtils.writeDeclaredField(primaryLoadManager, "topBundlesLoadDataStore",
+                    topBundlesLoadDataStorePrimarySpy, true);
+            FieldUtils.writeDeclaredField(secondaryLoadManager, "topBundlesLoadDataStore",
+                    topBundlesLoadDataStoreSecondarySpy, true);
+
+
+            if (channel1.isChannelOwnerAsync().get(5, TimeUnit.SECONDS)) {
+                primaryLoadManager.playLeader();
+                secondaryLoadManager.playFollower();
+                verify(topBundlesLoadDataStorePrimarySpy, times(3)).startTableView();
+                verify(topBundlesLoadDataStorePrimarySpy, times(5)).closeTableView();
+                verify(topBundlesLoadDataStoreSecondarySpy, times(0)).startTableView();
+                verify(topBundlesLoadDataStoreSecondarySpy, times(3)).closeTableView();
+            } else {
+                primaryLoadManager.playFollower();
+                secondaryLoadManager.playLeader();
+                verify(topBundlesLoadDataStoreSecondarySpy, times(3)).startTableView();
+                verify(topBundlesLoadDataStoreSecondarySpy, times(5)).closeTableView();
+                verify(topBundlesLoadDataStorePrimarySpy, times(0)).startTableView();
+                verify(topBundlesLoadDataStorePrimarySpy, times(3)).closeTableView();
+            }
+
             primaryLoadManager.playFollower();
-            primaryLoadManager.playFollower();
+            secondaryLoadManager.playFollower();
+
+            if (channel1.isChannelOwnerAsync().get(5, TimeUnit.SECONDS)) {
+                assertEquals(ExtensibleLoadManagerImpl.Role.Leader,
+                        FieldUtils.readDeclaredField(primaryLoadManager, "role", true));
+                assertEquals(ExtensibleLoadManagerImpl.Role.Follower,
+                        FieldUtils.readDeclaredField(secondaryLoadManager, "role", true));
+            } else {
+                assertEquals(ExtensibleLoadManagerImpl.Role.Follower,
+                        FieldUtils.readDeclaredField(primaryLoadManager, "role", true));
+                assertEquals(ExtensibleLoadManagerImpl.Role.Leader,
+                        FieldUtils.readDeclaredField(secondaryLoadManager, "role", true));
+            }
+
+            primaryLoadManager.playLeader();
             secondaryLoadManager.playLeader();
-            secondaryLoadManager.playLeader();
+
+            if (channel1.isChannelOwnerAsync().get(5, TimeUnit.SECONDS)) {
+                assertEquals(ExtensibleLoadManagerImpl.Role.Leader,
+                        FieldUtils.readDeclaredField(primaryLoadManager, "role", true));
+                assertEquals(ExtensibleLoadManagerImpl.Role.Follower,
+                        FieldUtils.readDeclaredField(secondaryLoadManager, "role", true));
+            } else {
+                assertEquals(ExtensibleLoadManagerImpl.Role.Follower,
+                        FieldUtils.readDeclaredField(primaryLoadManager, "role", true));
+                assertEquals(ExtensibleLoadManagerImpl.Role.Leader,
+                        FieldUtils.readDeclaredField(secondaryLoadManager, "role", true));
+            }
+        } finally {
+            FieldUtils.writeDeclaredField(primaryLoadManager, "topBundlesLoadDataStore",
+                    topBundlesLoadDataStorePrimary, true);
+            FieldUtils.writeDeclaredField(secondaryLoadManager, "topBundlesLoadDataStore",
+                    topBundlesLoadDataStoreSecondary, true);
         }
-
-
-        verify(topBundlesLoadDataStorePrimarySpy, times(4)).startTableView();
-        verify(topBundlesLoadDataStorePrimarySpy, times(8)).closeTableView();
-        verify(topBundlesLoadDataStoreSecondarySpy, times(4)).startTableView();
-        verify(topBundlesLoadDataStoreSecondarySpy, times(8)).closeTableView();
-
-        FieldUtils.writeDeclaredField(primaryLoadManager, "topBundlesLoadDataStore", topBundlesLoadDataStorePrimary, true);
-        FieldUtils.writeDeclaredField(secondaryLoadManager, "topBundlesLoadDataStore", topBundlesLoadDataStoreSecondary, true);
     }
 
     @Test
@@ -1529,6 +1561,32 @@ public class ExtensibleLoadManagerImplTest extends ExtensibleLoadManagerImplBase
                             .getCompactionThreshold(ServiceUnitStateChannelImpl.TOPIC, false);
                     AssertJUnit.assertEquals(5 * 1024 * 1024, threshold == null ? 0 : threshold.longValue());
                 });
+    }
+
+    @Test(timeOut = 10 * 1000)
+    public void unloadTimeoutCheckTest()
+            throws Exception {
+        Pair<TopicName, NamespaceBundle> topicAndBundle = getBundleIsNotOwnByChangeEventTopic("unload-timeout");
+        String topic = topicAndBundle.getLeft().toString();
+        var bundle = topicAndBundle.getRight().toString();
+        var releasing = new ServiceUnitStateData(Releasing, pulsar2.getBrokerId(), pulsar1.getBrokerId(), 1);
+        overrideTableView(channel1, bundle, releasing);
+        var topicFuture = pulsar1.getBrokerService().getOrCreateTopic(topic);
+
+
+        try {
+            topicFuture.get(1, TimeUnit.SECONDS);
+        } catch (Exception e) {
+            log.info("getOrCreateTopic failed", e);
+            if (!(e.getCause() instanceof BrokerServiceException.ServiceUnitNotReadyException && e.getMessage()
+                    .contains("Please redo the lookup"))) {
+                fail();
+            }
+        }
+
+        pulsar1.getBrokerService()
+                .unloadServiceUnit(topicAndBundle.getRight(), true, true, 5,
+                        TimeUnit.SECONDS).get(2, TimeUnit.SECONDS);
     }
 
     private static abstract class MockBrokerFilter implements BrokerFilter {
