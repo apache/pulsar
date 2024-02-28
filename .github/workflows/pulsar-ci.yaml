@@ -81,7 +81,7 @@ jobs:
       need_owasp: ${{ steps.changes.outputs.need_owasp }}
       collect_coverage: ${{ steps.check_coverage.outputs.collect_coverage }}
       jdk_major_version: ${{ steps.jdk_major_version.outputs.jdk_major_version }}
-
+      java_non_tests: ${{ steps.changes.outputs.java_non_tests }}
     steps:
       - name: Cancel scheduled jobs in forks by default
         if: ${{ github.repository != 'apache/pulsar' && github.event_name == 'schedule' }}
@@ -1338,7 +1338,7 @@ jobs:
     runs-on: ubuntu-22.04
     timeout-minutes: 60
     needs: ['preconditions', 'unit-tests']
-    if: ${{ needs.preconditions.outputs.docs_only != 'true' && ((github.event_name == 'pull_request' && github.base_ref == 'master') || (github.event_name != 'pull_request' && github.ref_name == 'master')) }}
+    if: ${{ (needs.preconditions.outputs.java_non_tests == 'true' || github.event_name != 'pull_request') && ((github.event_name == 'pull_request' && github.base_ref == 'master') || (github.event_name != 'pull_request' && github.ref_name == 'master')) }}
     permissions:
       actions: read
       contents: read
