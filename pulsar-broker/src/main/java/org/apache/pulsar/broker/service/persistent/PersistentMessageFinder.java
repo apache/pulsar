@@ -65,10 +65,12 @@ public class PersistentMessageFinder implements AsyncCallbacks.FindEntryCallback
             }
             ManagedLedgerImpl ledger = (ManagedLedgerImpl) cursor.getManagedLedger();
             MLDataFormats.ManagedLedgerInfo.LedgerInfo info0 = null;
+            MLDataFormats.ManagedLedgerInfo.LedgerInfo info1 = null;
             for (MLDataFormats.ManagedLedgerInfo.LedgerInfo info : ledger.getLedgersInfo().values()) {
                 if (info.hasTimestamp() && info.getTimestamp() < timestamp) {
                     info0 = info;
-                } else {
+                } else if (info.hasTimestamp() && info.getTimestamp() > timestamp) {
+                    info1 = info;
                     break;
                 }
             }
@@ -77,7 +79,9 @@ public class PersistentMessageFinder implements AsyncCallbacks.FindEntryCallback
             Position end = null;
             if (info0 != null) {
                 start = PositionImpl.get(info0.getLedgerId(), 0);
-                end = PositionImpl.get(info0.getLedgerId(), info0.getEntries() - 1);
+            }
+            if (info1 != null) {
+                end = PositionImpl.get(info1.getLedgerId(), 0);
             }
             cursor.asyncFindNewestMatching(ManagedCursor.FindPositionConstraint.SearchAllAvailableEntries, entry -> {
                 try {
