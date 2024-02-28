@@ -21,9 +21,13 @@ package org.apache.pulsar.security.tls.ec;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
+import java.nio.charset.StandardCharsets;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.UUID;
 import lombok.Cleanup;
 import lombok.SneakyThrows;
-import org.apache.pulsar.security.tls.MockedPulsarStandalone;
+import org.apache.pulsar.security.MockedPulsarStandalone;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
@@ -35,10 +39,6 @@ import org.apache.pulsar.client.impl.auth.AuthenticationKeyStoreTls;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
-import java.nio.charset.StandardCharsets;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.UUID;
 
 
 @Test
