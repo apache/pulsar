@@ -18,6 +18,7 @@
  */
 package org.apache.bookkeeper.mledger.offload.jcloud.impl;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import io.netty.buffer.ByteBuf;
@@ -30,6 +31,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.api.LastConfirmedAndEntry;
 import org.apache.bookkeeper.client.api.LedgerEntries;
@@ -67,13 +69,14 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle, OffloadedLedge
             .newBuilder()
             .expireAfterAccess(CACHE_TTL_SECONDS, TimeUnit.SECONDS)
             .build();
+    private final AtomicReference<CompletableFuture<Void>> closeFuture = new AtomicReference<>();
 
     enum State {
         Opened,
         Closed
     }
 
-    private State state = null;
+    private volatile State state = null;
 
     private long lastAccessTimestamp = System.currentTimeMillis();
 
@@ -99,18 +102,22 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle, OffloadedLedge
 
     @Override
     public CompletableFuture<Void> closeAsync() {
-        CompletableFuture<Void> promise = new CompletableFuture<>();
+        if (closeFuture.get() != null || !closeFuture.compareAndSet(null, new CompletableFuture<>())) {
+            return closeFuture.get();
+        }
+
+        CompletableFuture<Void> promise = closeFuture.get();
         executor.execute(() -> {
-                try {
-                    index.close();
-                    inputStream.close();
-                    entryOffsets.invalidateAll();
-                    state = State.Closed;
-                    promise.complete(null);
-                } catch (IOException t) {
-                    promise.completeExceptionally(t);
-                }
-            });
+            try {
+                index.close();
+                inputStream.close();
+                entryOffsets.invalidateAll();
+                state = State.Closed;
+                promise.complete(null);
+            } catch (IOException t) {
+                promise.completeExceptionally(t);
+            }
+        });
         return promise;
     }
 
@@ -303,6 +310,7 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle, OffloadedLedge
     }
 
     // for testing
+    @VisibleForTesting
     State getState() {
         return this.state;
     }
