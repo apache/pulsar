@@ -484,19 +484,17 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         var owner1 = channel1.getOwnerAsync(bundle);
         var owner2 = channel2.getOwnerAsync(bundle);
 
-        assertFalse(owner1.isDone());
+        assertTrue(owner1.isDone());
+        assertEquals(brokerId2, owner1.get().get());
         assertFalse(owner2.isDone());
 
-        assertEquals(1, getOwnerRequests1.size());
+        assertEquals(0, getOwnerRequests1.size());
         assertEquals(1, getOwnerRequests2.size());
 
         // In 10 secs, the getOwnerAsync requests(lookup requests) should time out.
         Awaitility.await().atMost(10, TimeUnit.SECONDS)
-                .untilAsserted(() -> assertTrue(owner1.isCompletedExceptionally()));
-        Awaitility.await().atMost(10, TimeUnit.SECONDS)
                 .untilAsserted(() -> assertTrue(owner2.isCompletedExceptionally()));
 
-        assertEquals(0, getOwnerRequests1.size());
         assertEquals(0, getOwnerRequests2.size());
 
         // recovered, check the monitor update state : Assigned -> Owned
@@ -1133,12 +1131,10 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         var owner1 = channel1.getOwnerAsync(bundle);
         var owner2 = channel2.getOwnerAsync(bundle);
 
-        assertFalse(owner1.isDone());
+        assertTrue(owner1.isDone());
         assertFalse(owner2.isDone());
 
         // In 10 secs, the getOwnerAsync requests(lookup requests) should time out.
-        Awaitility.await().atMost(10, TimeUnit.SECONDS)
-                .untilAsserted(() -> assertTrue(owner1.isCompletedExceptionally()));
         Awaitility.await().atMost(10, TimeUnit.SECONDS)
                 .untilAsserted(() -> assertTrue(owner2.isCompletedExceptionally()));
 
@@ -1315,6 +1311,68 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
 
         overrideTableView(channel1, bundle, null);
         assertFalse(channel1.isOwner(bundle));
+    }
+
+    @Test(priority = 15)
+    public void testGetOwnerAsync() throws Exception {
+
+        overrideTableView(channel1, bundle, new ServiceUnitStateData(Owned, brokerId1, 1));
+        var owner = channel1.getOwnerAsync(bundle);
+        assertTrue(owner.isDone());
+        assertEquals(brokerId1, owner.get().get());
+
+        overrideTableView(channel1, bundle, new ServiceUnitStateData(Owned, brokerId2, 1));
+        owner = channel1.getOwnerAsync(bundle);
+        assertTrue(owner.isDone());
+        assertEquals(brokerId2, owner.get().get());
+
+        overrideTableView(channel1, bundle, new ServiceUnitStateData(Assigning, brokerId1, 1));
+        owner = channel1.getOwnerAsync(bundle);
+        assertTrue(!owner.isDone());
+
+        overrideTableView(channel1, bundle, new ServiceUnitStateData(Assigning, brokerId2, 1));
+        owner = channel1.getOwnerAsync(bundle);
+        assertTrue(owner.isDone());
+        assertEquals(brokerId2, owner.get().get());
+
+        overrideTableView(channel1, bundle, new ServiceUnitStateData(Releasing, brokerId1, 1));
+        owner = channel1.getOwnerAsync(bundle);
+        assertTrue(!owner.isDone());
+
+        overrideTableView(channel1, bundle, new ServiceUnitStateData(Releasing, brokerId2, 1));
+        owner = channel1.getOwnerAsync(bundle);
+        assertTrue(owner.isDone());
+        assertEquals(brokerId2, owner.get().get());
+
+        overrideTableView(channel1, bundle, new ServiceUnitStateData(Releasing, null, brokerId1, 1));
+        owner = channel1.getOwnerAsync(bundle);
+        assertTrue(owner.isDone());
+        assertEquals(Optional.empty(), owner.get());
+
+        overrideTableView(channel1, bundle, new ServiceUnitStateData(Splitting, null, brokerId1, 1));
+        owner = channel1.getOwnerAsync(bundle);
+        assertTrue(owner.isDone());
+        assertEquals(brokerId1, owner.get().get());
+
+        overrideTableView(channel1, bundle, new ServiceUnitStateData(Splitting, null, brokerId2, 1));
+        owner = channel1.getOwnerAsync(bundle);
+        assertTrue(owner.isDone());
+        assertEquals(brokerId2, owner.get().get());
+
+        overrideTableView(channel1, bundle, new ServiceUnitStateData(Free, null, brokerId1, 1));
+        owner = channel1.getOwnerAsync(bundle);
+        assertTrue(owner.isDone());
+        assertEquals(Optional.empty(), owner.get());
+
+        overrideTableView(channel1, bundle, new ServiceUnitStateData(Deleted, null, brokerId1, 1));
+        owner = channel1.getOwnerAsync(bundle);
+        assertTrue(owner.isDone());
+        assertTrue(owner.isCompletedExceptionally());
+
+        overrideTableView(channel1, bundle, null);
+        owner = channel1.getOwnerAsync(bundle);
+        assertTrue(owner.isDone());
+        assertEquals(Optional.empty(), owner.get());
     }
 
     @Test(priority = 16)
@@ -1775,7 +1833,8 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         overrideTableView(channel2, serviceUnit, val);
     }
 
-    private static void overrideTableView(ServiceUnitStateChannel channel, String serviceUnit, ServiceUnitStateData val)
+    @Test(enabled = false)
+    public static void overrideTableView(ServiceUnitStateChannel channel, String serviceUnit, ServiceUnitStateData val)
             throws IllegalAccessException {
         var tv = (TableViewImpl<ServiceUnitStateData>)
                 FieldUtils.readField(channel, "tableview", true);

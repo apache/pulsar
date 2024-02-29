@@ -533,7 +533,16 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                 return getActiveOwnerAsync(serviceUnit, state, Optional.of(data.sourceBroker()));
             }
             case Assigning, Releasing -> {
-                return getActiveOwnerAsync(serviceUnit, state, Optional.empty());
+                if (isTargetBroker(data.dstBroker())) {
+                    return getActiveOwnerAsync(serviceUnit, state, Optional.of(data.dstBroker()));
+                }
+                // If this broker is not the dst broker, return the dst broker as the owner(or empty).
+                // Clients need to connect(redirect) to the dst broker anyway
+                // and wait for the dst broker to receive `Owned`.
+                // This is also required to return getOwnerAsync on the src broker immediately during unloading.
+                // Otherwise, topic creation(getOwnerAsync) could block unloading bundles,
+                // if the topic creation(getOwnerAsync) happens during unloading on the src broker.
+                return CompletableFuture.completedFuture(Optional.ofNullable(data.dstBroker()));
             }
             case Init, Free -> {
                 return CompletableFuture.completedFuture(Optional.empty());
