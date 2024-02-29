@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.api;
 
+import io.opentelemetry.api.OpenTelemetry;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.net.InetAddress;
@@ -44,6 +45,7 @@ import org.apache.pulsar.client.impl.HttpLookupService;
 import org.apache.pulsar.client.impl.LookupService;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
+import org.apache.pulsar.client.impl.metrics.InstrumentProvider;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfo;
@@ -137,7 +139,7 @@ public class PulsarMultiListenersWithInternalListenerNameTest extends MockedPuls
         conf.setMaxLookupRedirects(10);
 
         @Cleanup
-        LookupService lookupService = useHttp ? new HttpLookupService(conf, eventExecutors) :
+        LookupService lookupService = useHttp ? new HttpLookupService(new InstrumentProvider(new ClientConfigurationData()), conf, eventExecutors) :
                 new BinaryProtoLookupService((PulsarClientImpl) this.pulsarClient,
                 lookupUrl.toString(), "internal", false, this.executorService);
         TopicName topicName = TopicName.get("persistent://public/default/test");
@@ -172,7 +174,7 @@ public class PulsarMultiListenersWithInternalListenerNameTest extends MockedPuls
         conf.setMaxLookupRedirects(10);
 
         @Cleanup
-        HttpLookupService lookupService = new HttpLookupService(conf, eventExecutors);
+        HttpLookupService lookupService = new HttpLookupService(new InstrumentProvider(new ClientConfigurationData()), conf, eventExecutors);
         NamespaceService namespaceService = pulsar.getNamespaceService();
 
         LookupResult lookupResult = new LookupResult(pulsar.getWebServiceAddress(), null,

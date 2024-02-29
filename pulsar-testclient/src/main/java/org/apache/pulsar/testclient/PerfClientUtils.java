@@ -19,6 +19,7 @@
 package org.apache.pulsar.testclient;
 
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
+import io.opentelemetry.sdk.autoconfigure.AutoConfiguredOpenTelemetrySdk;
 import java.lang.management.ManagementFactory;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
@@ -28,6 +29,7 @@ import org.apache.commons.io.FileUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminBuilder;
 import org.apache.pulsar.client.api.ClientBuilder;
+import org.apache.pulsar.client.api.MetricsCardinality;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SizeUnit;
@@ -76,7 +78,10 @@ public class PerfClientUtils {
                 .listenerThreads(arguments.listenerThreads)
                 .tlsTrustCertsFilePath(arguments.tlsTrustCertsFilePath)
                 .maxLookupRequests(arguments.maxLookupRequest)
-                .proxyServiceUrl(arguments.proxyServiceURL, arguments.proxyProtocol);
+                .proxyServiceUrl(arguments.proxyServiceURL, arguments.proxyProtocol)
+                .openTelemetry(AutoConfiguredOpenTelemetrySdk.builder()
+                        .build().getOpenTelemetrySdk())
+                .openTelemetryMetricsCardinality(MetricsCardinality.Topic);
 
         if (isNotBlank(arguments.authPluginClassName)) {
             clientBuilder.authentication(arguments.authPluginClassName, arguments.authParams);

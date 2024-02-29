@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.api;
 
+import io.opentelemetry.api.OpenTelemetry;
 import java.io.Serializable;
 import java.net.InetSocketAddress;
 import java.time.Clock;
@@ -451,7 +452,7 @@ public interface ClientBuilder extends Serializable, Cloneable {
     ClientBuilder memoryLimit(long memoryLimit, SizeUnit unit);
 
     /**
-     * Set the interval between each stat info <i>(default: 60 seconds)</i> Stats will be activated with positive
+     * Set the interval between each stat info <i>(default: disabled)</i> Stats will be activated with positive
      * statsInterval It should be set to at least 1 second.
      *
      * @param statsInterval
@@ -459,7 +460,10 @@ public interface ClientBuilder extends Serializable, Cloneable {
      * @param unit
      *            time unit for {@code statsInterval}
      * @return the client builder instance
+     * 
+     * @deprecated @see {@link #openTelemetry(OpenTelemetry)}
      */
+    @Deprecated
     ClientBuilder statsInterval(long statsInterval, TimeUnit unit);
 
     /**
@@ -553,6 +557,10 @@ public interface ClientBuilder extends Serializable, Cloneable {
      * @return the client builder instance
      */
     ClientBuilder enableBusyWait(boolean enableBusyWait);
+
+    ClientBuilder openTelemetry(io.opentelemetry.api.OpenTelemetry openTelemetry);
+
+    ClientBuilder openTelemetryMetricsCardinality(MetricsCardinality metricsCardinality);
 
     /**
      * The clock used by the pulsar client.

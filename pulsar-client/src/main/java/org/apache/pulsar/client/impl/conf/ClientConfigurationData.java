@@ -20,6 +20,7 @@ package org.apache.pulsar.client.impl.conf;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import io.opentelemetry.api.OpenTelemetry;
 import io.swagger.annotations.ApiModelProperty;
 import java.io.Serializable;
 import java.net.InetSocketAddress;
@@ -37,6 +38,7 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.apache.pulsar.client.api.Authentication;
+import org.apache.pulsar.client.api.MetricsCardinality;
 import org.apache.pulsar.client.api.ProxyProtocol;
 import org.apache.pulsar.client.api.ServiceUrlProvider;
 import org.apache.pulsar.client.impl.auth.AuthenticationDisabled;
@@ -107,7 +109,7 @@ public class ClientConfigurationData implements Serializable, Cloneable {
             name = "statsIntervalSeconds",
             value = "Interval to print client stats (in seconds)."
     )
-    private long statsIntervalSeconds = 60;
+    private long statsIntervalSeconds = 0;
 
     @ApiModelProperty(
             name = "numIoThreads",
@@ -394,6 +396,11 @@ public class ClientConfigurationData implements Serializable, Cloneable {
             value = "The extra description of the client version. The length cannot exceed 64."
     )
     private String description;
+
+
+    private transient OpenTelemetry openTelemetry;
+
+    private MetricsCardinality openTelemetryMetricsCardinality = MetricsCardinality.Topic;
 
     /**
      * Gets the authentication settings for the client.

@@ -40,6 +40,7 @@ import io.netty.util.ReferenceCounted;
 import io.netty.util.Timeout;
 import io.netty.util.TimerTask;
 import io.netty.util.concurrent.ScheduledFuture;
+import io.opentelemetry.api.common.Attributes;
 import java.io.IOException;
 import java.net.URI;
 import java.nio.ByteBuffer;
@@ -76,6 +77,11 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.transaction.Transaction;
 import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
 import org.apache.pulsar.client.impl.crypto.MessageCryptoBc;
+import org.apache.pulsar.client.impl.metrics.Counter;
+import org.apache.pulsar.client.impl.metrics.InstrumentProvider;
+import org.apache.pulsar.client.impl.metrics.LatencyHistogram;
+import org.apache.pulsar.client.impl.metrics.Unit;
+import org.apache.pulsar.client.impl.metrics.UpDownCounter;
 import org.apache.pulsar.client.impl.schema.JSONSchema;
 import org.apache.pulsar.client.impl.transaction.TransactionImpl;
 import org.apache.pulsar.client.util.MathUtils;
@@ -170,6 +176,15 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     private final List<Throwable> previousExceptions = new CopyOnWriteArrayList<Throwable>();
 
     private boolean errorState;
+
+    private final LatencyHistogram latencyHistogram;
+    private final LatencyHistogram rpcLatencyHistogram;
+    private final Counter publishedBytesCounter;
+    private final UpDownCounter pendingMessagesCounter;
+    private final UpDownCounter pendingBytesCounter;
+
+    private final Counter producersOpenedCounter;
+    private final Counter producersClosedCounter;
 
     public ProducerImpl(PulsarClientImpl client, String topic, ProducerConfigurationData conf,
                         CompletableFuture<Producer<T>> producerCreatedFuture, int partitionIndex, Schema<T> schema,
@@ -268,6 +283,23 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             metadata = Collections.unmodifiableMap(new HashMap<>(conf.getProperties()));
         }
 
+        InstrumentProvider ip = client.instrumentProvider();
+        Attributes attrs = ip.getAttributes(topic);
+        latencyHistogram = ip.newLatencyHistogram("pulsar.client.producer.latency",
+                "Publish latency experienced by the application, includes client batching time", attrs);
+        rpcLatencyHistogram = ip.newLatencyHistogram("pulsar.client.producer.rpc.latency",
+                "Publish RPC latency experienced internally by the client when sending data to receiving an ack", attrs);
+        publishedBytesCounter = ip.newCounter("pulsar.client.producer.published",
+                Unit.Bytes, "Bytes published", attrs);
+        pendingMessagesCounter = ip.newUpDownCounter("pulsar.client.producer.pending.messages.count", Unit.Messages,
+                "Pending messages for this producer", attrs);
+        pendingBytesCounter = ip.newUpDownCounter("pulsar.client.producer.pending.count", Unit.Bytes,
+                "Pending bytes for this producer", attrs);
+        producersOpenedCounter = ip.newCounter("pulsar.client.session.opened", Unit.Sessions,
+                "Counter of sessions opened", attrs.toBuilder().put("type", "producer").build());
+        producersClosedCounter = ip.newCounter("pulsar.client.session.closed", Unit.Sessions,
+                "Counter of sessions closed", attrs.toBuilder().put("type", "producer").build());
+
         this.connectionHandler = new ConnectionHandler(this,
             new BackoffBuilder()
                 .setInitialTime(client.getConfiguration().getInitialBackoffIntervalNanos(), TimeUnit.NANOSECONDS)
@@ -277,6 +309,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             this);
 
         grabCnx();
+        producersOpenedCounter.increment();
     }
 
     protected void semaphoreRelease(final int releaseCountRequest) {
@@ -334,6 +367,11 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         if (interceptors != null) {
             interceptorMessage.getProperties();
         }
+
+        int msgSize = interceptorMessage.getDataBuffer().readableBytes();
+        pendingMessagesCounter.increment();
+        pendingBytesCounter.add(msgSize);
+
         sendAsync(interceptorMessage, new SendCallback() {
             SendCallback nextCallback = null;
             MessageImpl<?> nextMsg = null;
@@ -356,15 +394,22 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
             @Override
             public void sendComplete(Exception e) {
+                long latencyNanos = System.nanoTime() - createdAt;
+                pendingMessagesCounter.decrement();
+                pendingBytesCounter.subtract(msgSize);
+
                 try {
                     if (e != null) {
+                        latencyHistogram.recordFailure(latencyNanos);
                         stats.incrementSendFailed();
                         onSendAcknowledgement(interceptorMessage, null, e);
                         future.completeExceptionally(e);
                     } else {
+                        latencyHistogram.recordSuccess(latencyNanos);
+                        publishedBytesCounter.add(msgSize);
                         onSendAcknowledgement(interceptorMessage, interceptorMessage.getMessageId(), null);
                         future.complete(interceptorMessage.getMessageId());
-                        stats.incrementNumAcksReceived(System.nanoTime() - createdAt);
+                        stats.incrementNumAcksReceived(latencyNanos);
                     }
                 } finally {
                     interceptorMessage.getDataBuffer().release();
@@ -694,9 +739,9 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             if (msg.getSchemaState() == MessageImpl.SchemaState.Ready) {
                 ByteBufPair cmd = sendMessage(producerId, sequenceId, numMessages, messageId, msgMetadata,
                         encryptedPayload);
-                op = OpSendMsg.create(msg, cmd, sequenceId, callback);
+                op = OpSendMsg.create(this, msg, cmd, sequenceId, callback);
             } else {
-                op = OpSendMsg.create(msg, null, sequenceId, callback);
+                op = OpSendMsg.create(this, msg, null, sequenceId, callback);
                 final MessageMetadata finalMsgMetadata = msgMetadata;
                 op.rePopulate = () -> {
                     if (msgMetadata.hasChunkId()) {
@@ -1067,6 +1112,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             return CompletableFuture.completedFuture(null);
         }
 
+        producersClosedCounter.increment();
         closeProducerTasks();
 
         ClientCnx cnx = cnx();
@@ -1399,6 +1445,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     }
 
     protected static final class OpSendMsg {
+        ProducerImpl<?> producer;
         MessageImpl<?> msg;
         List<MessageImpl<?>> msgs;
         ByteBufPair cmd;
@@ -1418,6 +1465,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         int chunkId = -1;
 
         void initialize() {
+            producer = null;
             msg = null;
             msgs = null;
             cmd = null;
@@ -1437,9 +1485,10 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             chunkedMessageCtx = null;
         }
 
-        static OpSendMsg create(MessageImpl<?> msg, ByteBufPair cmd, long sequenceId, SendCallback callback) {
+        static OpSendMsg create(ProducerImpl<?> producer, MessageImpl<?> msg, ByteBufPair cmd, long sequenceId, SendCallback callback) {
             OpSendMsg op = RECYCLER.get();
             op.initialize();
+            op.producer = producer;
             op.msg = msg;
             op.cmd = cmd;
             op.callback = callback;
@@ -1449,10 +1498,11 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             return op;
         }
 
-        static OpSendMsg create(List<MessageImpl<?>> msgs, ByteBufPair cmd, long sequenceId, SendCallback callback,
+        static OpSendMsg create(ProducerImpl<?> producer, List<MessageImpl<?>> msgs, ByteBufPair cmd, long sequenceId, SendCallback callback,
                                 int batchAllocatedSize) {
             OpSendMsg op = RECYCLER.get();
             op.initialize();
+            op.producer = producer;
             op.msgs = msgs;
             op.cmd = cmd;
             op.callback = callback;
@@ -1466,10 +1516,11 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             return op;
         }
 
-        static OpSendMsg create(List<MessageImpl<?>> msgs, ByteBufPair cmd, long lowestSequenceId,
+        static OpSendMsg create(ProducerImpl<?> producer, List<MessageImpl<?>> msgs, ByteBufPair cmd, long lowestSequenceId,
                                 long highestSequenceId,  SendCallback callback, int batchAllocatedSize) {
             OpSendMsg op = RECYCLER.get();
             op.initialize();
+            op.producer = producer;
             op.msgs = msgs;
             op.cmd = cmd;
             op.callback = callback;
@@ -1494,28 +1545,36 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
         void sendComplete(final Exception e) {
             SendCallback callback = this.callback;
+
+            long now = System.nanoTime();
             if (null != callback) {
                 Exception finalEx = e;
                 if (finalEx instanceof TimeoutException) {
                     TimeoutException te = (TimeoutException) e;
                     long sequenceId = te.getSequenceId();
-                    long ns = System.nanoTime();
+
                     //firstSentAt and lastSentAt maybe -1, it means that the message didn't flush to channel.
                     String errMsg = String.format(
                         "%s : createdAt %s seconds ago, firstSentAt %s seconds ago, lastSentAt %s seconds ago, "
                                 + "retryCount %s",
                         te.getMessage(),
-                        RelativeTimeUtil.nsToSeconds(ns - this.createdAt),
+                        RelativeTimeUtil.nsToSeconds(now - this.createdAt),
                         RelativeTimeUtil.nsToSeconds(this.firstSentAt <= 0
                                 ? this.firstSentAt
-                                : ns - this.firstSentAt),
+                                : now - this.firstSentAt),
                         RelativeTimeUtil.nsToSeconds(this.lastSentAt <= 0
                                 ? this.lastSentAt
-                                : ns - this.lastSentAt),
+                                : now - this.lastSentAt),
                         retryCount
                     );
 
                     finalEx = new TimeoutException(errMsg, sequenceId);
+                }
+
+                if (e == null) {
+                    producer.rpcLatencyHistogram.recordSuccess(now - this.lastSentAt);
+                } else {
+                    producer.rpcLatencyHistogram.recordFailure(now - this.lastSentAt);
                 }
 
                 callback.sendComplete(finalEx);

@@ -70,7 +70,7 @@ public class AcknowledgementsGroupingTrackerTest {
         doReturn(client).when(consumer).getClient();
         doReturn(cnx).when(consumer).getClientCnx();
         doReturn(new ConsumerStatsRecorderImpl()).when(consumer).getStats();
-        doReturn(new UnAckedMessageTracker().UNACKED_MESSAGE_TRACKER_DISABLED)
+        doReturn(UnAckedMessageTracker.UNACKED_MESSAGE_TRACKER_DISABLED)
                 .when(consumer).getUnAckedMessageTracker();
         ChannelHandlerContext ctx = mock(ChannelHandlerContext.class);
         when(cnx.ctx()).thenReturn(ctx);
