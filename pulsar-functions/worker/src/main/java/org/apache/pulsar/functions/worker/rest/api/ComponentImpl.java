@@ -482,7 +482,7 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
             try {
                 worker().getStateStoreProvider().cleanUp(tenant, namespace, componentName);
             } catch (Throwable e) {
-                log.error("failed to clean up the state store for {}/{}/{}", tenant, namespace, componentName);
+                log.error("failed to clean up the state store for {}/{}/{}", tenant, namespace, componentName, e);
             }
         }
     }
@@ -1055,7 +1055,7 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
         try {
             worker().getBrokerAdmin().topics().getSubscriptions(inputTopicToWrite);
         } catch (PulsarAdminException e) {
-            log.error("Function in trigger function is not ready @ /{}/{}/{}", tenant, namespace, functionName);
+            log.error("Function in trigger function is not ready @ /{}/{}/{}", tenant, namespace, functionName, e);
             throw new RestException(Status.BAD_REQUEST, "Function in trigger function is not ready");
         }
         String outputTopic = functionMetaData.getFunctionDetails().getSink().getTopic();
