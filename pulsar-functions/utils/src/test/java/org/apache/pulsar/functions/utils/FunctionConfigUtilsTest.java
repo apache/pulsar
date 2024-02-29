@@ -18,29 +18,6 @@
  */
 package org.apache.pulsar.functions.utils;
 
-import com.google.gson.Gson;
-
-import org.apache.pulsar.client.api.CompressionType;
-import org.apache.pulsar.client.api.SubscriptionInitialPosition;
-import com.google.protobuf.InvalidProtocolBufferException;
-import com.google.protobuf.util.JsonFormat;
-import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.client.impl.schema.JSONSchema;
-import org.apache.pulsar.common.functions.ConsumerConfig;
-import org.apache.pulsar.common.functions.FunctionConfig;
-import org.apache.pulsar.common.functions.ProducerConfig;
-import org.apache.pulsar.common.functions.Resources;
-import org.apache.pulsar.common.functions.WindowConfig;
-import org.apache.pulsar.common.util.Reflections;
-import org.apache.pulsar.functions.api.utils.IdentityFunction;
-import org.apache.pulsar.functions.proto.Function;
-import org.apache.pulsar.functions.proto.Function.FunctionDetails;
-import org.testng.annotations.Test;
-
-import java.lang.reflect.Field;
-import java.util.HashMap;
-import java.util.Map;
-
 import static org.apache.pulsar.common.functions.FunctionConfig.ProcessingGuarantees.EFFECTIVELY_ONCE;
 import static org.apache.pulsar.common.functions.FunctionConfig.Runtime.PYTHON;
 import static org.testng.Assert.assertEquals;
@@ -48,12 +25,47 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.assertTrue;
+import com.google.gson.Gson;
+import com.google.protobuf.InvalidProtocolBufferException;
+import com.google.protobuf.util.JsonFormat;
+import java.lang.reflect.Field;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.Map;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.client.api.CompressionType;
+import org.apache.pulsar.client.api.SubscriptionInitialPosition;
+import org.apache.pulsar.client.impl.schema.JSONSchema;
+import org.apache.pulsar.common.functions.ConsumerConfig;
+import org.apache.pulsar.common.functions.FunctionConfig;
+import org.apache.pulsar.common.functions.ProducerConfig;
+import org.apache.pulsar.common.functions.Resources;
+import org.apache.pulsar.common.functions.WindowConfig;
+import org.apache.pulsar.common.util.Reflections;
+import org.apache.pulsar.functions.api.Record;
+import org.apache.pulsar.functions.api.WindowContext;
+import org.apache.pulsar.functions.api.WindowFunction;
+import org.apache.pulsar.functions.api.utils.IdentityFunction;
+import org.apache.pulsar.functions.proto.Function;
+import org.apache.pulsar.functions.proto.Function.FunctionDetails;
+import org.testng.annotations.Test;
 
 /**
  * Unit test of {@link Reflections}.
  */
 @Slf4j
 public class FunctionConfigUtilsTest {
+    public static class WordCountWindowFunction implements WindowFunction<String, Void> {
+        @Override
+        public Void process(Collection<Record<String>> inputs, WindowContext context) throws Exception {
+            for (Record<String> input : inputs) {
+                Arrays.asList(input.getValue().split("\\.")).forEach(word -> context.incrCounter(word, 1));
+            }
+            return null;
+        }
+    }
+
 
     @Test
     public void testAutoAckConvertFailed() {
@@ -63,7 +75,7 @@ public class FunctionConfigUtilsTest {
         functionConfig.setProcessingGuarantees(FunctionConfig.ProcessingGuarantees.ATMOST_ONCE);
 
         assertThrows(IllegalArgumentException.class, () -> {
-            FunctionConfigUtils.convert(functionConfig, (ClassLoader) null);            
+            FunctionConfigUtils.convert(functionConfig);
         });
     }
 
@@ -99,7 +111,7 @@ public class FunctionConfigUtilsTest {
         producerConfig.setBatchBuilder("DEFAULT");
         producerConfig.setCompressionType(CompressionType.ZLIB);
         functionConfig.setProducerConfig(producerConfig);
-        Function.FunctionDetails functionDetails = FunctionConfigUtils.convert(functionConfig, (ClassLoader) null);
+        Function.FunctionDetails functionDetails = FunctionConfigUtils.convert(functionConfig);
         FunctionConfig convertedConfig = FunctionConfigUtils.convertFromDetails(functionDetails);
 
         // add default resources
@@ -119,7 +131,7 @@ public class FunctionConfigUtilsTest {
         functionConfig.setNamespace("test-namespace");
         functionConfig.setName("test-function");
         functionConfig.setParallelism(1);
-        functionConfig.setClassName(IdentityFunction.class.getName());
+        functionConfig.setClassName(WordCountWindowFunction.class.getName());
         Map<String, ConsumerConfig> inputSpecs = new HashMap<>();
         inputSpecs.put("test-input", ConsumerConfig.builder().isRegexPattern(true).serdeClassName("test-serde").build());
         functionConfig.setInputSpecs(inputSpecs);
@@ -141,7 +153,7 @@ public class FunctionConfigUtilsTest {
         producerConfig.setBatchBuilder("KEY_BASED");
         producerConfig.setCompressionType(CompressionType.SNAPPY);
         functionConfig.setProducerConfig(producerConfig);
-        Function.FunctionDetails functionDetails = FunctionConfigUtils.convert(functionConfig, (ClassLoader) null);
+        Function.FunctionDetails functionDetails = FunctionConfigUtils.convert(functionConfig);
         FunctionConfig convertedConfig = FunctionConfigUtils.convertFromDetails(functionDetails);
 
         // WindowsFunction guarantees convert to FunctionGuarantees.
@@ -163,7 +175,7 @@ public class FunctionConfigUtilsTest {
         FunctionConfig functionConfig = createFunctionConfig();
         functionConfig.setBatchBuilder("KEY_BASED");
 
-        Function.FunctionDetails functionDetails = FunctionConfigUtils.convert(functionConfig, (ClassLoader) null);
+        Function.FunctionDetails functionDetails = FunctionConfigUtils.convert(functionConfig);
         assertEquals(functionDetails.getSink().getProducerSpec().getBatchBuilder(), "KEY_BASED");
 
         FunctionConfig convertedConfig = FunctionConfigUtils.convertFromDetails(functionDetails);
@@ -519,7 +531,6 @@ public class FunctionConfigUtilsTest {
         functionConfig.setUserConfig(new HashMap<>());
         functionConfig.setAutoAck(true);
         functionConfig.setTimeoutMs(2000L);
-        functionConfig.setWindowConfig(new WindowConfig().setWindowLengthCount(10));
         functionConfig.setCleanupSubscription(true);
         functionConfig.setRuntimeFlags("-Dfoo=bar");
         return functionConfig;
@@ -553,7 +564,7 @@ public class FunctionConfigUtilsTest {
         config.setForwardSourceMessageProperty(true);
         FunctionConfigUtils.inferMissingArguments(config, false);
         assertNull(config.getForwardSourceMessageProperty());
-        FunctionDetails details = FunctionConfigUtils.convert(config, FunctionConfigUtilsTest.class.getClassLoader());
+        FunctionDetails details = FunctionConfigUtils.convert(config);
         assertFalse(details.getSink().getForwardSourceMessageProperty());
         String detailsJson = "'" + JsonFormat.printer().omittingInsignificantWhitespace().print(details) + "'";
         log.info("Function details : {}", detailsJson);
@@ -640,7 +651,7 @@ public class FunctionConfigUtilsTest {
     @Test
     public void testPoolMessages() {
         FunctionConfig functionConfig = createFunctionConfig();
-        Function.FunctionDetails functionDetails = FunctionConfigUtils.convert(functionConfig, (ClassLoader) null);
+        Function.FunctionDetails functionDetails = FunctionConfigUtils.convert(functionConfig);
         assertFalse(functionDetails.getSource().getInputSpecsMap().get("test-input").getPoolMessages());
         FunctionConfig convertedConfig = FunctionConfigUtils.convertFromDetails(functionDetails);
         assertFalse(convertedConfig.getInputSpecs().get("test-input").isPoolMessages());
@@ -650,7 +661,7 @@ public class FunctionConfigUtilsTest {
                 .poolMessages(true).build());
         functionConfig.setInputSpecs(inputSpecs);
 
-        functionDetails = FunctionConfigUtils.convert(functionConfig, (ClassLoader) null);
+        functionDetails = FunctionConfigUtils.convert(functionConfig);
         assertTrue(functionDetails.getSource().getInputSpecsMap().get("test-input").getPoolMessages());
 
         convertedConfig = FunctionConfigUtils.convertFromDetails(functionDetails);

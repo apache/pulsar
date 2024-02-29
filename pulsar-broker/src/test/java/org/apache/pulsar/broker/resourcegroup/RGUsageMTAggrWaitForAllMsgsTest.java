@@ -682,17 +682,11 @@ public class RGUsageMTAggrWaitForAllMsgsTest extends ProducerConsumerBase {
             for (ResourceGroupMonitoringClass mc : ResourceGroupMonitoringClass.values()) {
                 String mcName = mc.name();
                 int mcIndex = mc.ordinal();
-                double quotaBytes = ResourceGroupService.getRgQuotaByteCount(rgName, mcName);
-                totalQuotaBytes[mcIndex] += quotaBytes;
-                double quotaMesgs = ResourceGroupService.getRgQuotaMessageCount(rgName, mcName);
-                totalQuotaMessages[mcIndex] += quotaMesgs;
-                double usedBytes = ResourceGroupService.getRgLocalUsageByteCount(rgName, mcName);
-                totalUsedBytes[mcIndex] += usedBytes;
-                double usedMesgs = ResourceGroupService.getRgLocalUsageMessageCount(rgName, mcName);
-                totalUsedMessages[mcIndex] += usedMesgs;
-
-                double usageReportedCount = ResourceGroup.getRgUsageReportedCount(rgName, mcName);
-                totalUsageReportCounts[mcIndex] += usageReportedCount;
+                totalQuotaBytes[mcIndex] += ResourceGroupService.getRgQuotaByteCount(rgName, mcName);
+                totalQuotaMessages[mcIndex] += ResourceGroupService.getRgQuotaMessageCount(rgName, mcName);
+                totalUsedBytes[mcIndex] += ResourceGroupService.getRgLocalUsageByteCount(rgName, mcName);
+                totalUsedMessages[mcIndex] += ResourceGroupService.getRgLocalUsageMessageCount(rgName, mcName);
+                totalUsageReportCounts[mcIndex] += ResourceGroup.getRgUsageReportedCount(rgName, mcName);
             }
 
             totalTenantRegisters += ResourceGroupService.getRgTenantRegistersCount(rgName);

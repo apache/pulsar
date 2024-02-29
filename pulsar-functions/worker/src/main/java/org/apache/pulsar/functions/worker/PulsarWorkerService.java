@@ -108,6 +108,7 @@ public class PulsarWorkerService implements WorkerService {
     private PulsarAdmin brokerAdmin;
     private PulsarAdmin functionAdmin;
     private MetricsGenerator metricsGenerator;
+    private PulsarWorkerOpenTelemetry openTelemetry;
     @VisibleForTesting
     private URI dlogUri;
     private LeaderService leaderService;
@@ -188,6 +189,7 @@ public class PulsarWorkerService implements WorkerService {
         this.statsUpdater = Executors
             .newSingleThreadScheduledExecutor(new DefaultThreadFactory("worker-stats-updater"));
         this.metricsGenerator = new MetricsGenerator(this.statsUpdater, workerConfig);
+        this.openTelemetry = new PulsarWorkerOpenTelemetry(workerConfig);
         this.workerConfig = workerConfig;
         this.dlogUri = dlogUri;
         this.workerStatsManager = new WorkerStatsManager(workerConfig, runAsStandalone);
@@ -222,7 +224,7 @@ public class PulsarWorkerService implements WorkerService {
                 log.warn("Retry to connect to Pulsar service at {}", workerConfig.getPulsarWebServiceUrl());
                 if (retries >= maxRetries) {
                     log.error("Failed to connect to Pulsar service at {} after {} attempts",
-                            workerConfig.getPulsarFunctionsNamespace(), maxRetries);
+                            workerConfig.getPulsarFunctionsNamespace(), maxRetries, e);
                     throw e;
                 }
                 retries++;
@@ -658,6 +660,18 @@ public class PulsarWorkerService implements WorkerService {
 
         if (null != stateStoreProvider) {
             stateStoreProvider.close();
+        }
+
+        if (null != openTelemetry) {
+            openTelemetry.close();
+        }
+
+        if (null != functionsManager) {
+            functionsManager.close();
+        }
+
+        if (null != connectorsManager) {
+            connectorsManager.close();
         }
     }
 

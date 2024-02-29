@@ -22,6 +22,7 @@ package org.apache.pulsar.broker.service;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLookupData;
 import org.apache.pulsar.broker.service.persistent.DispatchRateLimiter;
@@ -141,6 +142,24 @@ public interface Dispatcher {
         return false;
     }
 
+    /**
+     * A callback hook after acknowledge messages.
+     * @param exOfDeletion the ex of {@link org.apache.bookkeeper.mledger.ManagedCursor#asyncDelete},
+     *              {@link ManagedCursor#asyncClearBacklog} or {@link ManagedCursor#asyncSkipEntries)}.
+     * @param ctxOfDeletion the param ctx of calling {@link org.apache.bookkeeper.mledger.ManagedCursor#asyncDelete},
+     *              {@link ManagedCursor#asyncClearBacklog} or {@link ManagedCursor#asyncSkipEntries)}.
+     */
+    default void afterAckMessages(Throwable exOfDeletion, Object ctxOfDeletion){}
+
+    /**
+     * Trigger a new "readMoreEntries" if the dispatching has been paused before. This method is only implemented in
+     * {@link org.apache.pulsar.broker.service.persistent.PersistentDispatcherMultipleConsumers} right now, other
+     * implements are not necessary to implement this method.
+     * @return did a resume.
+     */
+    default boolean checkAndResumeIfPaused(){
+        return false;
+    }
 
     default long getFilterProcessedMsgCount() {
         return 0;

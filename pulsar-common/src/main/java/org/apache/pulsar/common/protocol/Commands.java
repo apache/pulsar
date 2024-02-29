@@ -1585,6 +1585,9 @@ public class Commands {
         return cmd;
     }
 
+    /***
+     * @param topics topic names which are matching, the topic name contains the partition suffix.
+     */
     public static BaseCommand newWatchTopicListSuccess(long requestId, long watcherId, String topicsHash,
                                                        List<String> topics) {
         BaseCommand cmd = localCmd(Type.WATCH_TOPIC_LIST_SUCCESS);
@@ -1600,6 +1603,10 @@ public class Commands {
         return cmd;
     }
 
+    /**
+     * @param deletedTopics topic names deleted(contains the partition suffix).
+     * @param newTopics topics names added(contains the partition suffix).
+     */
     public static BaseCommand newWatchTopicUpdate(long watcherId,
                                               List<String> newTopics, List<String> deletedTopics, String topicsHash) {
         BaseCommand cmd = localCmd(Type.WATCH_TOPIC_UPDATE);

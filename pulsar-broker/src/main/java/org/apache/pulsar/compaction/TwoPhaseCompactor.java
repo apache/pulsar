@@ -45,6 +45,7 @@ import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.RawBatchConverter;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.protocol.Commands;
+import org.apache.pulsar.common.protocol.Markers;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -130,7 +131,10 @@ public class TwoPhaseCompactor extends Compactor {
                 boolean replaceMessage = false;
                 mxBean.addCompactionReadOp(reader.getTopic(), m.getHeadersAndPayload().readableBytes());
                 MessageMetadata metadata = Commands.parseMessageMetadata(m.getHeadersAndPayload());
-                if (RawBatchConverter.isReadableBatch(metadata)) {
+                if (Markers.isServerOnlyMarker(metadata)) {
+                    mxBean.addCompactionRemovedEvent(reader.getTopic());
+                    deletedMessage = true;
+                } else if (RawBatchConverter.isReadableBatch(metadata)) {
                     try {
                         int numMessagesInBatch = metadata.getNumMessagesInBatch();
                         int deleteCnt = 0;
@@ -262,7 +266,10 @@ public class TwoPhaseCompactor extends Compactor {
                 MessageId id = m.getMessageId();
                 Optional<RawMessage> messageToAdd = Optional.empty();
                 mxBean.addCompactionReadOp(reader.getTopic(), m.getHeadersAndPayload().readableBytes());
-                if (RawBatchConverter.isReadableBatch(m)) {
+                MessageMetadata metadata = Commands.parseMessageMetadata(m.getHeadersAndPayload());
+                if (Markers.isServerOnlyMarker(metadata)) {
+                    messageToAdd = Optional.empty();
+                } else if (RawBatchConverter.isReadableBatch(metadata)) {
                     try {
                         messageToAdd = rebatchMessage(reader.getTopic(),
                                 m, (key, subid) -> subid.equals(latestForKey.get(key)), topicCompactionRetainNullKey);

@@ -168,7 +168,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
                 .getPoliciesAsync(TopicName.get(topic).getNamespaceObject())
                 .thenCompose(optPolicies -> {
                     final Policies policies;
-                    if (!optPolicies.isPresent()) {
+                    if (optPolicies.isEmpty()) {
                         log.warn("[{}] Policies not present and isEncryptionRequired will be set to false", topic);
                         isEncryptionRequired = false;
                         policies = new Policies();
@@ -178,7 +178,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
                         isEncryptionRequired = policies.encryption_required;
                         isAllowAutoUpdateSchema = policies.is_allow_auto_update_schema;
                     }
-                    updatePublishDispatcher();
+                    updatePublishRateLimiter();
                     updateResourceGroupLimiter(policies);
                     return updateClusterMigrated();
                 });
@@ -197,7 +197,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
         subscriptions.forEach((name, subscription) -> {
             ByteBuf duplicateBuffer = data.retainedDuplicate();
             Entry entry = create(0L, 0L, duplicateBuffer);
-            // entry internally retains data so, duplicateBuffer should be release here
+            // entry internally retains data so, duplicateBuffer should be released here
             duplicateBuffer.release();
             if (subscription.getDispatcher() != null) {
                 // Dispatcher needs to call the set method to support entry filter feature.
@@ -968,7 +968,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
         });
 
         stats.topicEpoch = topicEpoch.orElse(null);
-        stats.ownerBroker = brokerService.pulsar().getLookupServiceAddress();
+        stats.ownerBroker = brokerService.pulsar().getBrokerId();
         future.complete(stats);
         return future;
     }
@@ -1260,5 +1260,10 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
     @Override
     public boolean isPersistent() {
         return false;
+    }
+
+    @Override
+    public long getBestEffortOldestUnacknowledgedMessageAgeSeconds() {
+        return -1;
     }
 }

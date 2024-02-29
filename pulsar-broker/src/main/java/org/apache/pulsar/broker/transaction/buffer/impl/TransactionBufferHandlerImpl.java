@@ -31,6 +31,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.AtomicLong;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.namespace.NamespaceEphemeralData;
@@ -300,7 +301,7 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler {
     }
 
     public CompletableFuture<ClientCnx> getClientCnxWithLookup(String topic) {
-        return pulsarClient.getConnection(topic, randomKeyForSelectConnection);
+        return pulsarClient.getConnection(topic, randomKeyForSelectConnection).thenApply(Pair::getLeft);
     }
 
     public CompletableFuture<ClientCnx> getClientCnx(String topic) {

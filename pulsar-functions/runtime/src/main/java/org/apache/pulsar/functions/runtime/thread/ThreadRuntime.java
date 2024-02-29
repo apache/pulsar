@@ -124,17 +124,17 @@ public class ThreadRuntime implements Runtime {
             if (componentType == Function.FunctionDetails.ComponentType.FUNCTION && functionsManager.isPresent()) {
                 return functionsManager.get()
                         .getFunction(instanceConfig.getFunctionDetails().getBuiltin())
-                        .getClassLoader();
+                        .getFunctionPackage().getClassLoader();
             }
             if (componentType == Function.FunctionDetails.ComponentType.SOURCE && connectorsManager.isPresent()) {
                 return connectorsManager.get()
                         .getConnector(instanceConfig.getFunctionDetails().getSource().getBuiltin())
-                        .getClassLoader();
+                        .getConnectorFunctionPackage().getClassLoader();
             }
             if (componentType == Function.FunctionDetails.ComponentType.SINK && connectorsManager.isPresent()) {
                 return connectorsManager.get()
                         .getConnector(instanceConfig.getFunctionDetails().getSink().getBuiltin())
-                        .getClassLoader();
+                        .getConnectorFunctionPackage().getClassLoader();
             }
         }
         return loadJars(jarFile, instanceConfig, functionId, instanceConfig.getFunctionDetails().getName(),
