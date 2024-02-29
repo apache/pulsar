@@ -48,6 +48,8 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Pattern;
 import lombok.Cleanup;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -255,5 +257,31 @@ public class PulsarClientImplTest {
                 .conf(conf)
                 .internalExecutorProvider(executorProvider)
                 .build();
+    }
+
+    @Test
+    public void testChangeExternalExecutorThreadsName() throws PulsarClientException, InterruptedException {
+        ClientConfigurationData conf = new ClientConfigurationData();
+        conf.setServiceUrl("pulsar://localhost:6650");
+        conf.setExternalListenerThreadName("renamedExecutor");
+        conf.setNumListenerThreads(1);
+
+        PulsarClientImpl client = PulsarClientImpl.builder()
+                .conf(conf)
+                .build();
+
+        final String[] getName = {""};
+        class TestRenameExternalExecutor implements Runnable{
+            String getName = "";
+            @Override
+            public void run() {
+                getName = Thread.currentThread().getName();
+            }
+        }
+        TestRenameExternalExecutor testRenameExternalExecutor = new TestRenameExternalExecutor();
+        client.externalExecutorProvider().getExecutor().execute(testRenameExternalExecutor);
+        client.externalExecutorProvider().getExecutor().awaitTermination(1000, TimeUnit.MICROSECONDS);
+        assertTrue(testRenameExternalExecutor.getName.startsWith("renamedExecutor"), testRenameExternalExecutor.getName);
+
     }
 }

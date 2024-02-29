@@ -199,7 +199,7 @@ public class PulsarClientImpl implements PulsarClient {
                     connectionPool != null ? connectionPool : new ConnectionPool(conf, this.eventLoopGroup);
             this.cnxPool = connectionPoolReference;
             this.externalExecutorProvider = externalExecutorProvider != null ? externalExecutorProvider :
-                    new ExecutorProvider(conf.getNumListenerThreads(), "pulsar-external-listener");
+                    new ExecutorProvider(conf.getNumListenerThreads(), conf.getExternalListenerThreadName());
             this.internalExecutorProvider = internalExecutorProvider != null ? internalExecutorProvider :
                     new ExecutorProvider(conf.getNumIoThreads(), "pulsar-client-internal");
             this.scheduledExecutorProvider = scheduledExecutorProvider != null ? scheduledExecutorProvider :

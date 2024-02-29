@@ -267,6 +267,20 @@ public interface ClientBuilder extends Serializable, Cloneable {
     ClientBuilder listenerThreads(int numListenerThreads);
 
     /**
+     * Sets the name for the message listener thread executor.
+     *
+     * <p>The application receives messages consumer through message listener thread,
+     * This option aim to overide the default thread name "pulsar-external-listener".
+     *
+     * @param externalListenerThreadName
+     *            thread name executor
+     * @return the consumer builder instance
+     */
+    ClientBuilder externalListenerThreadName(String externalListenerThreadName);
+
+
+
+    /**
      * Sets the max number of connection that the client library will open to a single broker.
      *
      * <p>By default, the connection pool will use a single connection for all the producers and consumers.

@@ -106,6 +106,14 @@ public class ClientBuilderImpl implements ClientBuilder {
     }
 
     @Override
+    public ClientBuilder externalListenerThreadName(String externalListenerThreadName) {
+        checkArgument(StringUtils.isNotBlank(externalListenerThreadName),
+                "Param externalListenerThreadName must not be blank.");
+        conf.setExternalListenerThreadName(externalListenerThreadName);
+        return this;
+    }
+
+    @Override
     public ClientBuilder connectionMaxIdleSeconds(int connectionMaxIdleSeconds) {
         checkArgument(connectionMaxIdleSeconds < 0
                         || connectionMaxIdleSeconds >= ConnectionPool.IDLE_DETECTION_INTERVAL_SECONDS_MIN,

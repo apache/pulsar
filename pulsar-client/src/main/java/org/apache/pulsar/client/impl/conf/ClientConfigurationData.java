@@ -116,6 +116,12 @@ public class ClientConfigurationData implements Serializable, Cloneable {
     private int numIoThreads = Runtime.getRuntime().availableProcessors();
 
     @ApiModelProperty(
+            name = "externalListenerThreadName",
+            value = "External Listener Pool Consumer name"
+    )
+    private String externalListenerThreadName = "pulsar-external-listener";
+
+    @ApiModelProperty(
             name = "numListenerThreads",
             value = "Number of consumer listener threads."
     )
