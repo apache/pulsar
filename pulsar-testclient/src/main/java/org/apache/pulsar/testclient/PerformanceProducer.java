@@ -513,7 +513,6 @@ public class PerformanceProducer {
 
 
             ClientBuilder clientBuilder = PerfClientUtils.createClientBuilderFromArguments(arguments)
-                    .memoryLimit(arguments.memoryLimit, SizeUnit.BYTES)
                     .enableTransaction(arguments.isEnableTransaction);
 
             client = clientBuilder.build();

@@ -224,7 +224,6 @@ public class PerformanceTransaction {
         }
 
         ClientBuilder clientBuilder = PerfClientUtils.createClientBuilderFromArguments(arguments)
-                .memoryLimit(arguments.memoryLimit, SizeUnit.BYTES)
                         .enableTransaction(!arguments.isDisableTransaction);
 
         try (PulsarClient client = clientBuilder.build()) {

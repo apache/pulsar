@@ -230,7 +230,6 @@ public class PerformanceConsumer {
         long testEndTime = startTime + (long) (arguments.testTime * 1e9);
 
         ClientBuilder clientBuilder = PerfClientUtils.createClientBuilderFromArguments(arguments)
-                .memoryLimit(arguments.memoryLimit, SizeUnit.BYTES)
                 .enableTransaction(arguments.isEnableTransaction);
 
         PulsarClient pulsarClient = clientBuilder.build();

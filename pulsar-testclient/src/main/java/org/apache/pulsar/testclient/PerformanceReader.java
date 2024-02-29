@@ -141,7 +141,6 @@ public class PerformanceReader {
         };
 
         ClientBuilder clientBuilder = PerfClientUtils.createClientBuilderFromArguments(arguments)
-                .memoryLimit(arguments.memoryLimit, SizeUnit.BYTES)
                 .enableTls(arguments.useTls);
 
         PulsarClient pulsarClient = clientBuilder.build();
