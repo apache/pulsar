@@ -657,7 +657,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
     public void testKeyLessMessagesPassThrough(boolean retainNullKey) throws Exception {
         conf.setTopicCompactionRetainNullKey(retainNullKey);
         restartBroker();
-        FieldUtils.writeDeclaredField(compactor, "topicCompactionRemainNullKey", retainNullKey, true);
+        FieldUtils.writeDeclaredField(compactor, "topicCompactionRetainNullKey", retainNullKey, true);
 
         String topic = "persistent://my-property/use/my-ns/my-topic1";
 
