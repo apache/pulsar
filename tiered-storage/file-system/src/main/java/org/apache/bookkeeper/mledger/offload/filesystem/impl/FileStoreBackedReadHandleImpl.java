@@ -43,7 +43,6 @@ import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.MapFile;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.common.util.FutureUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -105,7 +104,7 @@ public class FileStoreBackedReadHandleImpl implements ReadHandle {
         CompletableFuture<Void> promise = new CompletableFuture<>();
 
         if (!closeFuture.compareAndSet(null, promise)) {
-            return FutureUtil.completeAfter(closeFuture.get(), promise);
+            return closeFuture.get();
         }
 
         executor.execute(() -> {

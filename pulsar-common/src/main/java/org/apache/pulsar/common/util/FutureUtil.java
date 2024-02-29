@@ -347,29 +347,4 @@ public class FutureUtil {
                     return null;
                 });
     }
-
-    /**
-     * Apply source's result to target.
-     *
-     * @param source
-     * @param target
-     * @return
-     * @param <T>
-     */
-    public static <T> @Nonnull CompletableFuture<T> completeAfter(@Nonnull CompletableFuture<T> source,
-                                                                  @Nonnull CompletableFuture<T> target) {
-        if (source == target) {
-            return target;
-        }
-
-        source.whenComplete((v, t) -> {
-            if (t == null) {
-                target.complete(v);
-            } else {
-                target.completeExceptionally(t);
-            }
-        });
-
-        return target;
-    }
 }

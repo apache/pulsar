@@ -48,7 +48,6 @@ import org.apache.bookkeeper.mledger.offload.jcloud.OffloadIndexBlockV2Builder;
 import org.apache.bookkeeper.mledger.offload.jcloud.impl.DataBlockUtils.VersionCheck;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.common.util.FutureUtil;
 import org.jclouds.blobstore.BlobStore;
 import org.jclouds.blobstore.domain.Blob;
 import org.slf4j.Logger;
@@ -129,7 +128,7 @@ public class BlobStoreBackedReadHandleImplV2 implements ReadHandle {
         CompletableFuture<Void> promise = new CompletableFuture<>();
 
         if (!closeFuture.compareAndSet(null, promise)) {
-            return FutureUtil.completeAfter(closeFuture.get(), promise);
+            return closeFuture.get();
         }
 
         executor.execute(() -> {
