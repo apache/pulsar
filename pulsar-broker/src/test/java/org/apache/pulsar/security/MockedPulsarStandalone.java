@@ -86,7 +86,7 @@ public abstract class MockedPulsarStandalone implements AutoCloseable {
 
 
     @SneakyThrows
-    protected void loadTokenAuthentication() {
+    protected void configureTokenAuthentication() {
         serviceConfiguration.setAuthenticationEnabled(true);
         serviceConfiguration.setAuthenticationProviders(Set.of(AuthenticationProviderToken.class.getName()));
         // internal client
@@ -107,7 +107,7 @@ public abstract class MockedPulsarStandalone implements AutoCloseable {
 
 
 
-    protected void loadDefaultAuthorization() {
+    protected void configureDefaultAuthorization() {
         serviceConfiguration.setAuthorizationEnabled(true);
         serviceConfiguration.setAuthorizationProvider(PulsarAuthorizationProvider.class.getName());
         serviceConfiguration.setSuperUserRoles(Set.of(SUPER_USER_SUBJECT, BROKER_INTERNAL_CLIENT_SUBJECT));

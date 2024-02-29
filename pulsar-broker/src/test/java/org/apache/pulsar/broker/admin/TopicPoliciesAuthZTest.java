@@ -51,8 +51,8 @@ public final class TopicPoliciesAuthZTest extends MockedPulsarStandalone {
     @SneakyThrows
     @BeforeClass
     public void before() {
-        loadTokenAuthentication();
-        loadDefaultAuthorization();
+        configureTokenAuthentication();
+        configureDefaultAuthorization();
         start();
         this.superUserAdmin =PulsarAdmin.builder()
                 .serviceHttpUrl(getPulsarService().getWebServiceAddress())
