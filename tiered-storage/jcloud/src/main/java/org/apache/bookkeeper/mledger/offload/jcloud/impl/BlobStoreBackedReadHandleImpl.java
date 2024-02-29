@@ -101,20 +101,23 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle {
     @Override
     public CompletableFuture<Void> closeAsync() {
         CompletableFuture<Void> promise = new CompletableFuture<>();
-        if (closeFuture.compareAndSet(null, promise)) {
-            executor.execute(() -> {
-                try {
-                    index.close();
-                    inputStream.close();
-                    entryOffsets.invalidateAll();
-                    state = State.Closed;
-                    promise.complete(null);
-                } catch (IOException t) {
-                    promise.completeExceptionally(t);
-                }
-            });
+
+        if (!closeFuture.compareAndSet(null, promise)) {
+            return FutureUtil.apply(closeFuture.get(), promise);
         }
-        return FutureUtil.apply(closeFuture.get(), promise);
+
+        executor.execute(() -> {
+            try {
+                index.close();
+                inputStream.close();
+                entryOffsets.invalidateAll();
+                state = State.Closed;
+                promise.complete(null);
+            } catch (IOException t) {
+                promise.completeExceptionally(t);
+            }
+        });
+        return promise;
     }
 
     @Override
