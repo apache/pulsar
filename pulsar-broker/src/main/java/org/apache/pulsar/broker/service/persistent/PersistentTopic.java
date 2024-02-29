@@ -2968,7 +2968,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
             replCloseFuture.thenCompose(v -> delete(deleteMode == InactiveTopicDeleteMode.delete_when_no_subscriptions,
                 deleteMode == InactiveTopicDeleteMode.delete_when_subscriptions_caught_up, false))
-                    .thenApply((res) -> tryToDeletePartitionedMetadata())
+                    .thenCompose((res) -> tryToDeletePartitionedMetadata())
                     .thenRun(() -> log.info("[{}] Topic deleted successfully due to inactivity", topic))
                     .exceptionally(e -> {
                         if (e.getCause() instanceof TopicBusyException) {
@@ -2976,6 +2976,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                             if (log.isDebugEnabled()) {
                                 log.debug("[{}] Did not delete busy topic: {}", topic, e.getCause().getMessage());
                             }
+                        } else if (e.getCause() instanceof UnsupportedOperationException) {
+                            log.info("[{}] Skip to delete partitioned topic: {}", topic, e.getCause().getMessage());
                         } else {
                             log.warn("[{}] Inactive topic deletion failed", topic, e);
                         }
@@ -3020,7 +3022,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                                                         .filter(topicExist -> topicExist)
                                                         .findAny();
                                                 if (anyExistPartition.isPresent()) {
-                                                    log.error("[{}] Delete topic metadata failed because"
+                                                    log.info("[{}] Delete topic metadata failed because"
                                                             + " another partition exist.", topicName);
                                                     throw new UnsupportedOperationException(
                                                             String.format("Another partition exists for [%s].",
