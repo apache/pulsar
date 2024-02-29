@@ -1262,7 +1262,11 @@ public class ManagedCursorImpl implements ManagedCursor {
             }
         }
 
-        if (startPosition == null || max == 0) {
+        if (max == 0) {
+            callback.findEntryComplete(null, ctx);
+            return;
+        }
+        if (startPosition == null) {
             callback.findEntryFailed(new ManagedLedgerException("Couldn't find start position"),
                     Optional.empty(), ctx);
             return;
