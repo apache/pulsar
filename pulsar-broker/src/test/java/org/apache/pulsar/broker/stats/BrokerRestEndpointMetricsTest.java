@@ -25,6 +25,7 @@ import java.util.Collection;
 import java.util.Set;
 import java.util.UUID;
 import org.apache.pulsar.broker.service.BrokerTestBase;
+import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsGenerator;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.testng.Assert;
@@ -71,21 +72,21 @@ public class BrokerRestEndpointMetricsTest extends BrokerTestBase {
         PrometheusMetricsGenerator.generate(pulsar, false, false, false, false, output);
 
         String metricsStr = output.toString(StandardCharsets.UTF_8);
-        Multimap<String, PrometheusMetricsTest.Metric> metricsMap = PrometheusMetricsTest.parseMetrics(metricsStr);
+        Multimap<String, PrometheusMetricsClient.Metric> metricsMap = PrometheusMetricsClient.parseMetrics(metricsStr);
 
-        Collection<PrometheusMetricsTest.Metric> latency = metricsMap.get("pulsar_broker_rest_endpoint_latency_ms_sum");
-        Collection<PrometheusMetricsTest.Metric> failed = metricsMap.get("pulsar_broker_rest_endpoint_failed_total");
+        Collection<PrometheusMetricsClient.Metric> latency = metricsMap.get("pulsar_broker_rest_endpoint_latency_ms_sum");
+        Collection<PrometheusMetricsClient.Metric> failed = metricsMap.get("pulsar_broker_rest_endpoint_failed_total");
 
         Assert.assertTrue(latency.size() > 0);
         Assert.assertTrue(failed.size() > 0);
 
-        for (PrometheusMetricsTest.Metric m : latency) {
+        for (PrometheusMetricsClient.Metric m : latency) {
             Assert.assertNotNull(m.tags.get("cluster"));
             Assert.assertNotNull(m.tags.get("path"));
             Assert.assertNotNull(m.tags.get("method"));
         }
 
-        for (PrometheusMetricsTest.Metric m : failed) {
+        for (PrometheusMetricsClient.Metric m : failed) {
             Assert.assertNotNull(m.tags.get("cluster"));
             Assert.assertNotNull(m.tags.get("path"));
             Assert.assertNotNull(m.tags.get("method"));
