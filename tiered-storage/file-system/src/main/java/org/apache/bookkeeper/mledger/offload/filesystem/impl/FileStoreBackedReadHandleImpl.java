@@ -101,12 +101,11 @@ public class FileStoreBackedReadHandleImpl implements ReadHandle {
 
     @Override
     public CompletableFuture<Void> closeAsync() {
-        CompletableFuture<Void> promise = new CompletableFuture<>();
-
-        if (!closeFuture.compareAndSet(null, promise)) {
+        if (closeFuture.get() != null || !closeFuture.compareAndSet(null, new CompletableFuture<>())) {
             return closeFuture.get();
         }
 
+        CompletableFuture<Void> promise = closeFuture.get();
         executor.execute(() -> {
             try {
                 reader.close();
