@@ -356,12 +356,18 @@ public class PulsarCommandSenderImpl implements PulsarCommandSender {
         writeAndFlush(outBuf);
     }
 
+    /***
+     * @param topics topic names which are matching, the topic name contains the partition suffix.
+     */
     @Override
     public void sendWatchTopicListSuccess(long requestId, long watcherId, String topicsHash, List<String> topics) {
         BaseCommand command = Commands.newWatchTopicListSuccess(requestId, watcherId, topicsHash, topics);
         interceptAndWriteCommand(command);
     }
 
+    /***
+     * {@inheritDoc}
+     */
     @Override
     public void sendWatchTopicListUpdate(long watcherId,
                                          List<String> newTopics, List<String> deletedTopics, String topicsHash) {

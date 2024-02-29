@@ -29,6 +29,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.TreeMap;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
@@ -57,6 +58,7 @@ import org.apache.commons.collections4.MapUtils;
 import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
+import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl;
 import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLookupData;
 import org.apache.pulsar.broker.service.AbstractSubscription;
 import org.apache.pulsar.broker.service.AnalyzeBacklogResult;
@@ -156,7 +158,8 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
         this.subscriptionProperties = MapUtils.isEmpty(subscriptionProperties)
                 ? Collections.emptyMap() : Collections.unmodifiableMap(subscriptionProperties);
         if (topic.getBrokerService().getPulsar().getConfig().isTransactionCoordinatorEnabled()
-                && !isEventSystemTopic(TopicName.get(topicName))) {
+                && !isEventSystemTopic(TopicName.get(topicName))
+                && !ExtensibleLoadManagerImpl.isInternalTopic(topicName)) {
             this.pendingAckHandle = new PendingAckHandleImpl(this);
         } else {
             this.pendingAckHandle = new PendingAckHandleDisabled();
@@ -442,6 +445,10 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
                         topicName, subName, newMD, oldMD);
             }
             // Signal the dispatchers to give chance to take extra actions
+            if (dispatcher != null) {
+                dispatcher.afterAckMessages(null, ctx);
+            }
+            // Signal the dispatchers to give chance to take extra actions
             notifyTheMarkDeletePositionMoveForwardIfNeeded(oldMD);
         }
 
@@ -451,22 +458,34 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
             if (log.isDebugEnabled()) {
                 log.debug("[{}][{}] Failed to mark delete for position {}: {}", topicName, subName, ctx, exception);
             }
+            // Signal the dispatchers to give chance to take extra actions
+            if (dispatcher != null) {
+                dispatcher.afterAckMessages(null, ctx);
+            }
         }
     };
 
     private final DeleteCallback deleteCallback = new DeleteCallback() {
         @Override
-        public void deleteComplete(Object position) {
+        public void deleteComplete(Object context) {
             if (log.isDebugEnabled()) {
-                log.debug("[{}][{}] Deleted message at {}", topicName, subName, position);
+                // The value of the param "context" is a position.
+                log.debug("[{}][{}] Deleted message at {}", topicName, subName, context);
             }
             // Signal the dispatchers to give chance to take extra actions
-            notifyTheMarkDeletePositionMoveForwardIfNeeded((PositionImpl) position);
+            if (dispatcher != null) {
+                dispatcher.afterAckMessages(null, context);
+            }
+            notifyTheMarkDeletePositionMoveForwardIfNeeded((PositionImpl) context);
         }
 
         @Override
         public void deleteFailed(ManagedLedgerException exception, Object ctx) {
             log.warn("[{}][{}] Failed to delete message at {}: {}", topicName, subName, ctx, exception);
+            // Signal the dispatchers to give chance to take extra actions
+            if (dispatcher != null) {
+                dispatcher.afterAckMessages(exception, ctx);
+            }
         }
     };
 
@@ -514,9 +533,15 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
         return "Null";
     }
 
-    @Override
     public CompletableFuture<AnalyzeBacklogResult> analyzeBacklog(Optional<Position> position) {
-
+        final ManagedLedger managedLedger = topic.getManagedLedger();
+        final String newNonDurableCursorName = "analyze-backlog-" + UUID.randomUUID();
+        ManagedCursor newNonDurableCursor;
+        try {
+            newNonDurableCursor = ((ManagedCursorImpl) cursor).duplicateNonDurableCursor(newNonDurableCursorName);
+        } catch (ManagedLedgerException e) {
+            return CompletableFuture.failedFuture(e);
+        }
         long start = System.currentTimeMillis();
         if (log.isDebugEnabled()) {
             log.debug("[{}][{}] Starting to analyze backlog", topicName, subName);
@@ -531,7 +556,7 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
         AtomicLong rejectedMessages = new AtomicLong();
         AtomicLong rescheduledMessages = new AtomicLong();
 
-        Position currentPosition = cursor.getMarkDeletedPosition();
+        Position currentPosition = newNonDurableCursor.getMarkDeletedPosition();
 
         if (log.isDebugEnabled()) {
             log.debug("[{}][{}] currentPosition {}",
@@ -591,7 +616,7 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
 
             return true;
         };
-        return cursor.scan(
+        CompletableFuture<AnalyzeBacklogResult> res = newNonDurableCursor.scan(
                 position,
                 condition,
                 batchSize,
@@ -618,7 +643,22 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
                     topicName, subName, end - start, result);
             return result;
         });
+        res.whenComplete((__, ex) -> {
+            managedLedger.asyncDeleteCursor(newNonDurableCursorName,
+                new AsyncCallbacks.DeleteCursorCallback(){
+                    @Override
+                    public void deleteCursorComplete(Object ctx) {
+                        // Nothing to do.
+                    }
 
+                    @Override
+                    public void deleteCursorFailed(ManagedLedgerException exception, Object ctx) {
+                        log.warn("[{}][{}] Delete non-durable cursor[{}] failed when analyze backlog.",
+                                topicName, subName, newNonDurableCursor.getName());
+                    }
+                }, null);
+        });
+        return res;
     }
 
     @Override
@@ -645,6 +685,7 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
                             future.complete(null);
                         }
                     });
+                    dispatcher.afterAckMessages(null, ctx);
                 } else {
                     future.complete(null);
                 }
@@ -654,6 +695,9 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
             public void clearBacklogFailed(ManagedLedgerException exception, Object ctx) {
                 log.error("[{}][{}] Failed to clear backlog", topicName, subName, exception);
                 future.completeExceptionally(exception);
+                if (dispatcher != null) {
+                    dispatcher.afterAckMessages(exception, ctx);
+                }
             }
         }, null);
 
@@ -677,6 +721,9 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
                                     numMessagesToSkip, cursor.getNumberOfEntriesInBacklog(false));
                         }
                         future.complete(null);
+                        if (dispatcher != null) {
+                            dispatcher.afterAckMessages(null, ctx);
+                        }
                     }
 
                     @Override
@@ -684,6 +731,9 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
                         log.error("[{}][{}] Failed to skip {} messages", topicName, subName, numMessagesToSkip,
                                 exception);
                         future.completeExceptionally(exception);
+                        if (dispatcher != null) {
+                            dispatcher.afterAckMessages(exception, ctx);
+                        }
                     }
                 }, null);
 
@@ -808,6 +858,7 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
                         }
                         if (dispatcher != null) {
                             dispatcher.cursorIsReset();
+                            dispatcher.afterAckMessages(null, finalPosition);
                         }
                         IS_FENCED_UPDATER.set(PersistentSubscription.this, FALSE);
                         future.complete(null);
@@ -860,7 +911,7 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
 
             @Override
             public String toString() {
-                return String.format("Subscription [{}-{}] async replay entries", PersistentSubscription.this.topicName,
+                return String.format("Subscription [%s-%s] async replay entries", PersistentSubscription.this.topicName,
                         PersistentSubscription.this.subName);
             }
         }, null);

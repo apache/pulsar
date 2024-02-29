@@ -79,6 +79,7 @@ public class ProxyStuckConnectionTest extends MockedPulsarServiceBaseTest {
         proxyConfig.setServicePort(Optional.ofNullable(0));
         proxyConfig.setBrokerProxyAllowedTargetPorts("*");
         proxyConfig.setBrokerServiceURL(pulsar.getBrokerServiceUrl());
+        proxyConfig.setClusterName(configClusterName);
 
         startProxyService();
         // use the same port for subsequent restarts

@@ -23,12 +23,10 @@ import io.netty.channel.ChannelHandlerContext;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import org.apache.pulsar.broker.BrokerTestUtil;
-import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.InjectedClientCnxClientBuilder;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
-import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.ClientBuilderImpl;
 import org.apache.pulsar.client.impl.ClientCnx;
@@ -49,15 +47,6 @@ public class EnableProxyProtocolTest extends BrokerTestBase  {
     protected void setup() throws Exception {
         conf.setHaProxyProtocolEnabled(true);
         super.baseSetup();
-    }
-
-    protected PulsarClient newPulsarClient(String url, int intervalInSecs) throws PulsarClientException {
-        ClientBuilder clientBuilder =
-                PulsarClient.builder()
-                        .serviceUrl(url)
-                        .statsInterval(intervalInSecs, TimeUnit.SECONDS);
-        customizeNewPulsarClientBuilder(clientBuilder);
-        return createNewPulsarClient(clientBuilder);
     }
 
     @AfterClass(alwaysRun = true)
@@ -108,6 +97,7 @@ public class EnableProxyProtocolTest extends BrokerTestBase  {
 
         // Create a client that injected the protocol implementation.
         ClientBuilderImpl clientBuilder = (ClientBuilderImpl) PulsarClient.builder().serviceUrl(lookupUrl.toString());
+        @Cleanup
         PulsarClientImpl protocolClient = InjectedClientCnxClientBuilder.create(clientBuilder,
                 (conf, eventLoopGroup) -> new ClientCnx(conf, eventLoopGroup) {
                     public void channelActive(ChannelHandlerContext ctx) throws Exception {
@@ -132,6 +122,7 @@ public class EnableProxyProtocolTest extends BrokerTestBase  {
 
         // Create a client that injected the protocol implementation.
         ClientBuilderImpl clientBuilder = (ClientBuilderImpl) PulsarClient.builder().serviceUrl(lookupUrl.toString());
+        @Cleanup
         PulsarClientImpl protocolClient = InjectedClientCnxClientBuilder.create(clientBuilder,
                 (conf, eventLoopGroup) -> new ClientCnx(conf, eventLoopGroup) {
                     public void channelActive(ChannelHandlerContext ctx) throws Exception {

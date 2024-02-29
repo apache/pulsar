@@ -47,6 +47,8 @@ public class ConnectionHandler {
     private final AtomicBoolean duringConnect = new AtomicBoolean(false);
     protected final int randomKeyForSelectConnection;
 
+    private volatile Boolean useProxy;
+
     interface Connection {
 
         /**
@@ -93,11 +95,14 @@ public class ConnectionHandler {
 
         try {
             CompletableFuture<ClientCnx> cnxFuture;
-            if (hostURI.isPresent()) {
-                InetSocketAddress address = InetSocketAddress.createUnresolved(
-                        hostURI.get().getHost(),
-                        hostURI.get().getPort());
-                cnxFuture = state.client.getConnection(address, address, randomKeyForSelectConnection);
+            if (hostURI.isPresent() && useProxy != null) {
+                URI uri = hostURI.get();
+                InetSocketAddress address = InetSocketAddress.createUnresolved(uri.getHost(), uri.getPort());
+                if (useProxy) {
+                    cnxFuture = state.client.getProxyConnection(address, randomKeyForSelectConnection);
+                } else {
+                    cnxFuture = state.client.getConnection(address, address, randomKeyForSelectConnection);
+                }
             } else if (state.redirectedClusterURI != null) {
                 if (state.topic == null) {
                     InetSocketAddress address = InetSocketAddress.createUnresolved(state.redirectedClusterURI.getHost(),
@@ -112,7 +117,11 @@ public class ConnectionHandler {
             } else if (state.topic == null) {
                 cnxFuture = state.client.getConnectionToServiceUrl();
             } else {
-                cnxFuture = state.client.getConnection(state.topic, randomKeyForSelectConnection);
+                cnxFuture = state.client.getConnection(state.topic, randomKeyForSelectConnection).thenApply(
+                        connectionResult -> {
+                            useProxy = connectionResult.getRight();
+                            return connectionResult.getLeft();
+                        });
             }
             cnxFuture.thenCompose(cnx -> connection.connectionOpened(cnx))
                     .thenAccept(__ -> duringConnect.set(false))
