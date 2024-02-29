@@ -492,21 +492,28 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
             String serviceUnit,
             ServiceUnitState state,
             Optional<String> owner) {
-        CompletableFuture<Optional<String>> activeOwner = owner.isPresent()
-                ? brokerRegistry.lookupAsync(owner.get()).thenApply(lookupData -> lookupData.flatMap(__ -> owner))
-                : CompletableFuture.completedFuture(Optional.empty());
+        return deferGetOwnerRequest(serviceUnit)
+                .thenCompose(newOwner -> {
+                    if (newOwner == null) {
+                        return CompletableFuture.completedFuture(null);
+                    }
 
-        return activeOwner
-                .thenCompose(broker -> broker
-                        .map(__ -> activeOwner)
-                        .orElseGet(() -> deferGetOwnerRequest(serviceUnit).thenApply(Optional::ofNullable)))
-                .whenComplete((__, e) -> {
+                    return brokerRegistry.lookupAsync(newOwner)
+                            .thenApply(lookupData -> {
+                                if (lookupData.isPresent()) {
+                                    return newOwner;
+                                } else {
+                                    throw new IllegalStateException(
+                                            "The new owner " + newOwner + " is inactive.");
+                                }
+                            });
+                }).whenComplete((__, e) -> {
                     if (e != null) {
-                        log.error("Failed to get active owner broker. serviceUnit:{}, state:{}, owner:{}",
-                                serviceUnit, state, owner, e);
+                        log.error("{} failed to get active owner broker. serviceUnit:{}, state:{}, owner:{}",
+                                brokerId, serviceUnit, state, owner, e);
                         ownerLookUpCounters.get(state).getFailure().incrementAndGet();
                     }
-                });
+                }).thenApply(Optional::ofNullable);
     }
 
     public CompletableFuture<Optional<String>> getOwnerAsync(String serviceUnit) {
@@ -540,6 +547,25 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                 String errorMsg = String.format("Failed to process service unit state data: %s when get owner.", data);
                 log.error(errorMsg);
                 return CompletableFuture.failedFuture(new IllegalStateException(errorMsg));
+            }
+        }
+    }
+
+    private Optional<String> getOwner(String serviceUnit) {
+        ServiceUnitStateData data = tableview.get(serviceUnit);
+        ServiceUnitState state = state(data);
+        switch (state) {
+            case Owned -> {
+                return Optional.of(data.dstBroker());
+            }
+            case Splitting -> {
+                return Optional.of(data.sourceBroker());
+            }
+            case Init, Free -> {
+                return Optional.empty();
+            }
+            default -> {
+                return null;
             }
         }
     }
@@ -697,7 +723,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
 
     private void log(Throwable e, String serviceUnit, ServiceUnitStateData data, ServiceUnitStateData next) {
         if (e == null) {
-            if (log.isDebugEnabled() || isTransferCommand(data)) {
+            if (debug() || isTransferCommand(data)) {
                 long handlerTotalCount = getHandlerTotalCounter(data).get();
                 long handlerFailureCount = getHandlerFailureCounter(data).get();
                 log.info("{} handled {} event for serviceUnit:{}, cur:{}, next:{}, "
@@ -736,6 +762,9 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
     private void handleOwnEvent(String serviceUnit, ServiceUnitStateData data) {
         var getOwnerRequest = getOwnerRequests.remove(serviceUnit);
         if (getOwnerRequest != null) {
+            if (debug()) {
+                log.info("Returned owner request for serviceUnit:{}", serviceUnit);
+            }
             getOwnerRequest.complete(data.dstBroker());
         }
         stateChangeListeners.notify(serviceUnit, data, null);
@@ -848,26 +877,52 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
     }
 
     private CompletableFuture<String> deferGetOwnerRequest(String serviceUnit) {
+
         var requested = new MutableObject<CompletableFuture<String>>();
         try {
             return getOwnerRequests
                     .computeIfAbsent(serviceUnit, k -> {
-                        CompletableFuture<String> future = new CompletableFuture<>();
+                        var ownerBefore = getOwner(serviceUnit);
+                        if (ownerBefore != null && ownerBefore.isPresent()) {
+                            // Here, we do a quick active check first with the computeIfAbsent lock
+                            brokerRegistry.lookupAsync(ownerBefore.get()).getNow(Optional.empty())
+                                    .ifPresent(__ -> requested.setValue(
+                                            CompletableFuture.completedFuture(ownerBefore.get())));
+
+                            if (requested.getValue() != null) {
+                                return requested.getValue();
+                            }
+                        }
+
+
+                        CompletableFuture<String> future =
+                                new CompletableFuture<String>().orTimeout(inFlightStateWaitingTimeInMillis,
+                                                TimeUnit.MILLISECONDS)
+                                        .exceptionally(e -> {
+                                            var ownerAfter = getOwner(serviceUnit);
+                                            log.warn("{} failed to wait for owner for serviceUnit:{}; Trying to "
+                                                            + "return the current owner:{}",
+                                                    brokerId, serviceUnit, ownerAfter, e);
+                                            if (ownerAfter == null) {
+                                                throw new IllegalStateException(e);
+                                            }
+                                            return ownerAfter.orElse(null);
+                                        });
+                        if (debug()) {
+                            log.info("{} is waiting for owner for serviceUnit:{}", brokerId, serviceUnit);
+                        }
                         requested.setValue(future);
                         return future;
                     });
         } finally {
             var future = requested.getValue();
             if (future != null) {
-                future.orTimeout(inFlightStateWaitingTimeInMillis + 5 * 1000, TimeUnit.MILLISECONDS)
-                        .whenComplete((v, e) -> {
-                                    if (e != null) {
-                                        getOwnerRequests.remove(serviceUnit, future);
-                                        log.warn("Failed to getOwner for serviceUnit:{}",
-                                                serviceUnit, e);
-                                    }
-                                }
-                        );
+                future.whenComplete((__, e) -> {
+                    getOwnerRequests.remove(serviceUnit);
+                    if (e != null) {
+                        log.warn("{} failed to getOwner for serviceUnit:{}", brokerId, serviceUnit, e);
+                    }
+                });
             }
         }
     }
