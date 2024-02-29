@@ -16,25 +16,36 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.security.tls;
+package org.apache.pulsar.security;
 
 import static org.apache.pulsar.utils.ResourceUtils.getAbsolutePath;
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.SignatureAlgorithm;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Sets;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Properties;
+import java.util.Set;
+import javax.crypto.SecretKey;
 import lombok.Getter;
 import lombok.SneakyThrows;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationProviderTls;
+import org.apache.pulsar.broker.authentication.AuthenticationProviderToken;
+import org.apache.pulsar.broker.authentication.utils.AuthTokenUtils;
+import org.apache.pulsar.broker.authorization.PulsarAuthorizationProvider;
 import org.apache.pulsar.broker.testcontext.PulsarTestContext;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.impl.auth.AuthenticationKeyStoreTls;
 import org.apache.pulsar.client.impl.auth.AuthenticationTls;
+import org.apache.pulsar.client.impl.auth.AuthenticationToken;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
+
 
 
 public abstract class MockedPulsarStandalone implements AutoCloseable {
@@ -59,6 +70,50 @@ public abstract class MockedPulsarStandalone implements AutoCloseable {
         serviceConfiguration.setNumExecutorThreadPoolSize(5);
         serviceConfiguration.setExposeBundlesMetricsInPrometheus(true);
     }
+
+
+    protected static final SecretKey SECRET_KEY = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
+
+    private static final String BROKER_INTERNAL_CLIENT_SUBJECT = "broker_internal";
+    private static final String BROKER_INTERNAL_CLIENT_TOKEN = Jwts.builder()
+            .claim("sub", BROKER_INTERNAL_CLIENT_SUBJECT).signWith(SECRET_KEY).compact();
+    protected static final String SUPER_USER_SUBJECT = "super-user";
+    protected static final String SUPER_USER_TOKEN = Jwts.builder()
+            .claim("sub", SUPER_USER_SUBJECT).signWith(SECRET_KEY).compact();
+    protected static final String NOBODY_SUBJECT =  "nobody";
+    protected static final String NOBODY_TOKEN = Jwts.builder()
+            .claim("sub", NOBODY_SUBJECT).signWith(SECRET_KEY).compact();
+
+
+    @SneakyThrows
+    protected void configureTokenAuthentication() {
+        serviceConfiguration.setAuthenticationEnabled(true);
+        serviceConfiguration.setAuthenticationProviders(Set.of(AuthenticationProviderToken.class.getName()));
+        // internal client
+        serviceConfiguration.setBrokerClientAuthenticationPlugin(AuthenticationToken.class.getName());
+        final Map<String, String> brokerClientAuthParams = new HashMap<>();
+        brokerClientAuthParams.put("token", BROKER_INTERNAL_CLIENT_TOKEN);
+        final String brokerClientAuthParamStr = MAPPER.writeValueAsString(brokerClientAuthParams);
+        serviceConfiguration.setBrokerClientAuthenticationParameters(brokerClientAuthParamStr);
+
+        Properties properties = serviceConfiguration.getProperties();
+        if (properties == null) {
+            properties = new Properties();
+            serviceConfiguration.setProperties(properties);
+        }
+        properties.put("tokenSecretKey", AuthTokenUtils.encodeKeyBase64(SECRET_KEY));
+
+    }
+
+
+
+    protected void configureDefaultAuthorization() {
+        serviceConfiguration.setAuthorizationEnabled(true);
+        serviceConfiguration.setAuthorizationProvider(PulsarAuthorizationProvider.class.getName());
+        serviceConfiguration.setSuperUserRoles(Set.of(SUPER_USER_SUBJECT, BROKER_INTERNAL_CLIENT_SUBJECT));
+    }
+
+
 
     @SneakyThrows
     protected void loadECTlsCertificateWithFile() {
@@ -176,4 +231,7 @@ public abstract class MockedPulsarStandalone implements AutoCloseable {
     protected static final String TLS_EC_KS_TRUSTED_STORE =
             getAbsolutePath("certificate-authority/ec/jks/ca.truststore.jks");
     protected static final String TLS_EC_KS_TRUSTED_STORE_PASS = "rootpw";
+
+
+    private static final ObjectMapper MAPPER = ObjectMapperFactory.getMapper().getObjectMapper();
 }
