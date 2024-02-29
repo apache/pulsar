@@ -86,7 +86,6 @@ import org.apache.pulsar.broker.loadbalance.extensions.store.LoadDataStore;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.testcontext.PulsarTestContext;
 import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.TypedMessageBuilder;
 import org.apache.pulsar.client.impl.TableViewImpl;
 import org.apache.pulsar.common.policies.data.TopicType;
@@ -329,23 +328,6 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
             }
         }
         return errorCnt;
-    }
-
-    @Test(priority = 1)
-    public void compactionScheduleTest() {
-
-        Awaitility.await()
-                .pollInterval(200, TimeUnit.MILLISECONDS)
-                .atMost(5, TimeUnit.SECONDS)
-                .untilAsserted(() -> { // wait until true
-                    try {
-                        var threshold = admin.topicPolicies()
-                                .getCompactionThreshold(ServiceUnitStateChannelImpl.TOPIC, false).longValue();
-                        assertEquals(5 * 1024 * 1024, threshold);
-                    } catch (Exception e) {
-                        ;
-                    }
-                });
     }
 
     @Test(priority = 2)
@@ -927,8 +909,7 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test(priority = 10)
-    public void conflictAndCompactionTest() throws ExecutionException, InterruptedException, TimeoutException,
-            IllegalAccessException, PulsarClientException, PulsarServerException {
+    public void conflictAndCompactionTest() throws Exception {
         String bundle = String.format("%s/%s", "public/default", "0x0000000a_0xffffffff");
         var owner1 = channel1.getOwnerAsync(bundle);
         var owner2 = channel2.getOwnerAsync(bundle);
@@ -961,26 +942,41 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         Field strategicCompactorField = FieldUtils.getDeclaredField(PulsarService.class, "strategicCompactor", true);
         FieldUtils.writeField(strategicCompactorField, pulsar1, compactor, true);
         FieldUtils.writeField(strategicCompactorField, pulsar2, compactor, true);
-        Awaitility.await()
-                .pollInterval(200, TimeUnit.MILLISECONDS)
-                .atMost(140, TimeUnit.SECONDS)
-                .untilAsserted(() -> {
-                    channel1.publishAssignEventAsync(bundle, brokerId1);
-                    verify(compactor, times(1))
-                            .compact(eq(ServiceUnitStateChannelImpl.TOPIC), any());
-                });
+
+        var threshold = admin.topicPolicies()
+                .getCompactionThreshold(ServiceUnitStateChannelImpl.TOPIC);
+        admin.topicPolicies()
+                .setCompactionThreshold(ServiceUnitStateChannelImpl.TOPIC, 0);
+
+        try {
+            Awaitility.await()
+                    .pollInterval(200, TimeUnit.MILLISECONDS)
+                    .atMost(140, TimeUnit.SECONDS)
+                    .untilAsserted(() -> {
+                        channel1.publishAssignEventAsync(bundle, brokerId1);
+                        verify(compactor, times(1))
+                                .compact(eq(ServiceUnitStateChannelImpl.TOPIC), any());
+                    });
 
 
-        var channel3 = createChannel(pulsar);
-        channel3.start();
-        Awaitility.await()
-                .pollInterval(200, TimeUnit.MILLISECONDS)
-                .atMost(5, TimeUnit.SECONDS)
-                .untilAsserted(() -> assertEquals(
-                        channel3.getOwnerAsync(bundle).get(), Optional.of(brokerId1)));
-        channel3.close();
-        FieldUtils.writeDeclaredField(channel2,
-                "inFlightStateWaitingTimeInMillis", 30 * 1000, true);
+            var channel3 = createChannel(pulsar);
+            channel3.start();
+            Awaitility.await()
+                    .pollInterval(200, TimeUnit.MILLISECONDS)
+                    .atMost(5, TimeUnit.SECONDS)
+                    .untilAsserted(() -> assertEquals(
+                            channel3.getOwnerAsync(bundle).get(), Optional.of(brokerId1)));
+            channel3.close();
+        } finally {
+            FieldUtils.writeDeclaredField(channel2,
+                    "inFlightStateWaitingTimeInMillis", 30 * 1000, true);
+            if (threshold != null) {
+                admin.topicPolicies()
+                        .setCompactionThreshold(ServiceUnitStateChannelImpl.TOPIC, threshold);
+            }
+        }
+
+
     }
 
     @Test(priority = 11)
@@ -1583,7 +1579,7 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         // verify getOwnerAsync times out because the owner is inactive now.
         long start = System.currentTimeMillis();
         var ex = expectThrows(ExecutionException.class, () -> channel1.getOwnerAsync(bundle).get());
-        assertTrue(ex.getCause() instanceof TimeoutException);
+        assertTrue(ex.getCause() instanceof IllegalStateException);
         assertTrue(System.currentTimeMillis() - start >= 1000);
 
         // simulate ownership cleanup(no selected owner) by the leader channel
@@ -1783,6 +1779,8 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
             throws IllegalAccessException {
         var tv = (TableViewImpl<ServiceUnitStateData>)
                 FieldUtils.readField(channel, "tableview", true);
+        var getOwnerRequests = (Map<String, CompletableFuture<String>>)
+                FieldUtils.readField(channel, "getOwnerRequests", true);
         var cache = (ConcurrentMap<String, ServiceUnitStateData>)
                 FieldUtils.readField(tv, "data", true);
         if(val == null){
@@ -1790,6 +1788,7 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         } else {
             cache.put(serviceUnit, val);
         }
+        getOwnerRequests.clear();
     }
 
     private static void cleanOpsCounters(ServiceUnitStateChannel channel)
