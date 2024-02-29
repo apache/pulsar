@@ -348,20 +348,28 @@ public class FutureUtil {
                 });
     }
 
-    public static <T> @Nonnull CompletableFuture<T> apply(@Nonnull CompletableFuture<T> s,
-                                                          @Nonnull CompletableFuture<T> d) {
-        if (s == d) {
-            return d;
+    /**
+     * Apply source's result to target.
+     *
+     * @param source
+     * @param target
+     * @return
+     * @param <T>
+     */
+    public static <T> @Nonnull CompletableFuture<T> completeAfter(@Nonnull CompletableFuture<T> source,
+                                                                  @Nonnull CompletableFuture<T> target) {
+        if (source == target) {
+            return target;
         }
 
-        s.whenComplete((v, t) -> {
+        source.whenComplete((v, t) -> {
             if (t == null) {
-                d.complete(v);
+                target.complete(v);
             } else {
-                d.completeExceptionally(t);
+                target.completeExceptionally(t);
             }
         });
 
-        return d;
+        return target;
     }
 }

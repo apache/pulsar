@@ -103,7 +103,7 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle {
         CompletableFuture<Void> promise = new CompletableFuture<>();
 
         if (!closeFuture.compareAndSet(null, promise)) {
-            return FutureUtil.apply(closeFuture.get(), promise);
+            return FutureUtil.completeAfter(closeFuture.get(), promise);
         }
 
         executor.execute(() -> {
