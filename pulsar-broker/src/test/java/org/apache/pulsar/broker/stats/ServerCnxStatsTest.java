@@ -26,6 +26,7 @@ import io.netty.buffer.ByteBufUtil;
 import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.ServerCnx;
+import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsGenerator;
 
 import org.apache.pulsar.client.api.Consumer;
@@ -114,11 +115,11 @@ public class ServerCnxStatsTest extends BrokerTestBase {
 
             ByteArrayOutputStream output = new ByteArrayOutputStream();
             PrometheusMetricsGenerator.generate(pulsar, false, false, false, false, output);
-            Multimap<String, PrometheusMetricsTest.Metric> metricsMap = PrometheusMetricsTest.parseMetrics(output.toString());
-            Collection<PrometheusMetricsTest.Metric> cmdExecutionFailed = metricsMap.get("pulsar_broker_command_execution_failed" + "_total");
-            Collection<PrometheusMetricsTest.Metric> cmdExecutionLatency = metricsMap.get("pulsar_broker_command_execution_latency_ms" + "_sum");
+            Multimap<String, PrometheusMetricsClient.Metric> metricsMap = PrometheusMetricsClient.parseMetrics(output.toString());
+            Collection<PrometheusMetricsClient.Metric> cmdExecutionFailed = metricsMap.get("pulsar_broker_command_execution_failed" + "_total");
+            Collection<PrometheusMetricsClient.Metric> cmdExecutionLatency = metricsMap.get("pulsar_broker_command_execution_latency_ms" + "_sum");
 
-            for (PrometheusMetricsTest.Metric m : cmdExecutionFailed) {
+            for (PrometheusMetricsClient.Metric m : cmdExecutionFailed) {
                 String cluster = m.tags.get("cluster");
                 Assert.assertNotNull(cluster);
                 Assert.assertEquals(cluster, "test");
@@ -129,7 +130,7 @@ public class ServerCnxStatsTest extends BrokerTestBase {
                 }
             }
 
-            for (PrometheusMetricsTest.Metric m : cmdExecutionLatency) {
+            for (PrometheusMetricsClient.Metric m : cmdExecutionLatency) {
                 String cluster = m.tags.get("cluster");
                 Assert.assertNotNull(cluster);
                 Assert.assertEquals(cluster, "test");
