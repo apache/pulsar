@@ -85,11 +85,11 @@ public class BrokerServiceThrottlingTest extends BrokerTestBase {
         var metricName = "pulsar.broker.topic.lookup.operation.pending.limit";
         // Validate that the configuration has not been overridden.
         assertThat(admin.brokers().getAllDynamicConfigurations()).doesNotContainKey(configName);
-        assertLongGaugeValue(metricName, 50_000);
+        assertLongSumValue(metricName, 50_000);
         assertThat(lookupRequestSemaphore.get().availablePermits()).isNotEqualTo(0);
         admin.brokers().updateDynamicConfiguration(configName, Integer.toString(0));
         waitAtMost(1, TimeUnit.SECONDS).until(() -> lookupRequestSemaphore.get().availablePermits() == 0);
-        assertLongGaugeValue(metricName, 0);
+        assertLongSumValue(metricName, 0);
     }
 
     /**
@@ -103,19 +103,19 @@ public class BrokerServiceThrottlingTest extends BrokerTestBase {
         var metricName = "pulsar.broker.topic.load.operation.pending.limit";
         // Validate that the configuration has not been overridden.
         assertThat(admin.brokers().getAllDynamicConfigurations()).doesNotContainKey(configName);
-        assertLongGaugeValue(metricName, 5_000);
+        assertLongSumValue(metricName, 5_000);
         assertThat(topicLoadRequestSemaphore.get().availablePermits()).isNotEqualTo(0);
         admin.brokers().updateDynamicConfiguration(configName, Integer.toString(0));
         waitAtMost(1, TimeUnit.SECONDS).until(() -> topicLoadRequestSemaphore.get().availablePermits() == 0);
-        assertLongGaugeValue(metricName, 0);
+        assertLongSumValue(metricName, 0);
     }
 
-    private void assertLongGaugeValue(String metricName, int value) {
+    private void assertLongSumValue(String metricName, int value) {
         assertThat(pulsarTestContext.getOpenTelemetryMetricReader().collectAllMetrics())
                 .anySatisfy(metric -> assertThat(metric)
                         .hasName(metricName)
-                        .hasLongGaugeSatisfying(
-                                gauge -> gauge.hasPointsSatisfying(point -> point.hasValue(value))));
+                        .hasLongSumSatisfying(
+                                sum -> sum.hasPointsSatisfying(point -> point.hasValue(value))));
     }
 
     /**

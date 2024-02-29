@@ -38,7 +38,6 @@ import io.netty.channel.EventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.handler.ssl.SslContext;
 import io.netty.util.concurrent.DefaultThreadFactory;
-import io.opentelemetry.api.metrics.ObservableLongGauge;
 import io.opentelemetry.api.metrics.ObservableLongUpDownCounter;
 import io.prometheus.client.Histogram;
 import java.io.Closeable;
@@ -247,12 +246,12 @@ public class BrokerService implements Closeable {
     @PulsarDeprecatedMetric(newMetricName = "pulsar.broker.topic.lookup.operation.pending.usage")
     private final ObserverGauge pendingLookupRequests;
     private final ObservableLongUpDownCounter pendingLookupOperationsCounter;
-    private final ObservableLongGauge pendingLookupOperationsLimitGauge;
+    private final ObservableLongUpDownCounter pendingLookupOperationsLimitCounter;
 
     @PulsarDeprecatedMetric(newMetricName = "pulsar.broker.topic.load.operation.pending.usage")
     private final ObserverGauge pendingTopicLoadRequests;
     private final ObservableLongUpDownCounter pendingTopicLoadOperationsCounter;
-    private final ObservableLongGauge pendingTopicLoadOperationsLimitGauge;
+    private final ObservableLongUpDownCounter pendingTopicLoadOperationsLimitCounter;
 
     private final ScheduledExecutorService inactivityMonitor;
     private final ScheduledExecutorService messageExpiryMonitor;
@@ -421,9 +420,8 @@ public class BrokerService implements Closeable {
                         + "new requests are rejected.")
                 .setUnit("{operation}")
                 .buildWithCallback(measurement -> measurement.record(getPendingLookupRequest()));
-        this.pendingLookupOperationsLimitGauge = pulsar.getOpenTelemetry().getMeter()
-                .gaugeBuilder("pulsar.broker.topic.lookup.operation.pending.limit")
-                .ofLongs()
+        this.pendingLookupOperationsLimitCounter = pulsar.getOpenTelemetry().getMeter()
+                .upDownCounterBuilder("pulsar.broker.topic.lookup.operation.pending.limit")
                 .setDescription("The maximum number of pending lookup operations in the broker. "
                         + "Equal to \"maxConcurrentLookupRequest\" defined in broker.conf.")
                 .setUnit("{operation}")
@@ -441,9 +439,8 @@ public class BrokerService implements Closeable {
                         + "new requests are rejected.")
                 .setUnit("{operation}")
                 .buildWithCallback(measurement -> measurement.record(getPendingTopicLoadRequests()));
-        this.pendingTopicLoadOperationsLimitGauge = pulsar.getOpenTelemetry().getMeter()
-                .gaugeBuilder("pulsar.broker.topic.load.operation.pending.limit")
-                .ofLongs()
+        this.pendingTopicLoadOperationsLimitCounter = pulsar.getOpenTelemetry().getMeter()
+                .upDownCounterBuilder("pulsar.broker.topic.load.operation.pending.limit")
                 .setDescription("The maximum number of pending topic load operations in the broker. "
                         + "Equal to \"maxConcurrentTopicLoadRequest\" defined in broker.conf.")
                 .setUnit("{operation}")
