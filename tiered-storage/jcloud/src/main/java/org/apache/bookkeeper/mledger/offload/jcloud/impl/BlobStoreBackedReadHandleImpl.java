@@ -18,6 +18,7 @@
  */
 package org.apache.bookkeeper.mledger.offload.jcloud.impl;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import io.netty.buffer.ByteBuf;
@@ -30,6 +31,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.api.LastConfirmedAndEntry;
 import org.apache.bookkeeper.client.api.LedgerEntries;
@@ -46,6 +48,7 @@ import org.apache.bookkeeper.mledger.offload.jcloud.OffloadIndexBlockBuilder;
 import org.apache.bookkeeper.mledger.offload.jcloud.impl.DataBlockUtils.VersionCheck;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.jclouds.blobstore.BlobStore;
 import org.jclouds.blobstore.domain.Blob;
 import org.slf4j.Logger;
@@ -66,13 +69,14 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle {
             .newBuilder()
             .expireAfterAccess(CACHE_TTL_SECONDS, TimeUnit.SECONDS)
             .build();
+    private final AtomicReference<CompletableFuture<Void>> closeFuture = new AtomicReference<>();
 
     enum State {
         Opened,
         Closed
     }
 
-    private State state = null;
+    private volatile State state = null;
 
     private BlobStoreBackedReadHandleImpl(long ledgerId, OffloadIndexBlock index,
                                           BackedInputStream inputStream, ExecutorService executor) {
@@ -97,7 +101,8 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle {
     @Override
     public CompletableFuture<Void> closeAsync() {
         CompletableFuture<Void> promise = new CompletableFuture<>();
-        executor.execute(() -> {
+        if (closeFuture.compareAndSet(null, promise)) {
+            executor.execute(() -> {
                 try {
                     index.close();
                     inputStream.close();
@@ -108,7 +113,8 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle {
                     promise.completeExceptionally(t);
                 }
             });
-        return promise;
+        }
+        return FutureUtil.apply(closeFuture.get(), promise);
     }
 
     @Override
@@ -298,6 +304,7 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle {
     }
 
     // for testing
+    @VisibleForTesting
     State getState() {
         return this.state;
     }

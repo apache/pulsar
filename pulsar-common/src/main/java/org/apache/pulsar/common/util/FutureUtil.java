@@ -347,4 +347,21 @@ public class FutureUtil {
                     return null;
                 });
     }
+
+    public static <T> @Nonnull CompletableFuture<T> apply(@Nonnull CompletableFuture<T> s,
+                                                          @Nonnull CompletableFuture<T> d) {
+        if (s == d) {
+            return d;
+        }
+
+        s.whenComplete((v, t) -> {
+            if (t == null) {
+                d.complete(v);
+            } else {
+                d.completeExceptionally(t);
+            }
+        });
+
+        return d;
+    }
 }
