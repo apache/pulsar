@@ -113,6 +113,17 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
             AtomicIntegerFieldUpdater.newUpdater(PersistentDispatcherMultipleConsumers.class,
                     "totalUnackedMessages");
     protected volatile int totalUnackedMessages = 0;
+    /**
+     * A signature that relate to the check of "Dispatching has paused on cursor data can fully persist".
+     * Note:  It is a tool that helps determine whether it should trigger a new reading after acknowledgments to avoid
+     *   too many CPU circles, see {@link #afterAckMessages(Throwable, Object)} for more details. Do not use this
+     *   to confirm whether the delivery should be paused, please call {@link #shouldPauseOnAckStatePersist}.
+     */
+    protected static final AtomicIntegerFieldUpdater<PersistentDispatcherMultipleConsumers>
+            BLOCKED_DISPATCHER_ON_CURSOR_DATA_CAN_NOT_FULLY_PERSIST_UPDATER =
+            AtomicIntegerFieldUpdater.newUpdater(PersistentDispatcherMultipleConsumers.class,
+                    "blockedDispatcherOnCursorDataCanNotFullyPersist");
+    private volatile int blockedDispatcherOnCursorDataCanNotFullyPersist = FALSE;
     private volatile int blockedDispatcherOnUnackedMsgs = FALSE;
     protected static final AtomicIntegerFieldUpdater<PersistentDispatcherMultipleConsumers>
             BLOCKED_DISPATCHER_ON_UNACKMSG_UPDATER =
@@ -122,6 +133,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
     private AtomicBoolean isRescheduleReadInProgress = new AtomicBoolean(false);
     protected final ExecutorService dispatchMessagesThread;
     private final SharedConsumerAssignor assignor;
+
 
     protected enum ReadType {
         Normal, Replay
@@ -271,9 +283,17 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         if (isSendInProgress()) {
             // we cannot read more entries while sending the previous batch
             // otherwise we could re-read the same entries and send duplicates
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] [{}] Skipping read for the topic, Due to sending in-progress.",
+                        topic.getName(), getSubscriptionName());
+            }
             return;
         }
         if (shouldPauseDeliveryForDelayTracker()) {
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] [{}] Skipping read for the topic, Due to pause delivery for delay tracker.",
+                        topic.getName(), getSubscriptionName());
+            }
             return;
         }
         if (topic.isTransferring()) {
@@ -322,6 +342,13 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                             totalUnackedMessages, topic.getMaxUnackedMessagesOnSubscription());
                 }
             } else if (!havePendingRead) {
+                if (shouldPauseOnAckStatePersist(ReadType.Normal)) {
+                    if (log.isDebugEnabled()) {
+                        log.debug("[{}] [{}] Skipping read for the topic, Due to blocked on ack state persistent.",
+                                topic.getName(), getSubscriptionName());
+                    }
+                    return;
+                }
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] Schedule read of {} messages for {} consumers", name, messagesToRead,
                             consumerList.size());
@@ -357,6 +384,20 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                 log.debug("[{}] Consumer buffer is full, pause reading", name);
             }
         }
+    }
+
+    private boolean shouldPauseOnAckStatePersist(ReadType readType) {
+        // Allows new consumers to consume redelivered messages caused by the just-closed consumer.
+        if (readType != ReadType.Normal) {
+            return false;
+        }
+        if (!((PersistentTopic) subscription.getTopic()).isDispatcherPauseOnAckStatePersistentEnabled()) {
+            return false;
+        }
+        if (cursor == null) {
+            return true;
+        }
+        return blockedDispatcherOnCursorDataCanNotFullyPersist == TRUE;
     }
 
     @Override
@@ -994,6 +1035,44 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         }
         // increment broker-level count
         topic.getBrokerService().addUnAckedMessages(this, numberOfMessages);
+    }
+
+    @Override
+    public void afterAckMessages(Throwable exOfDeletion, Object ctxOfDeletion) {
+        boolean unPaused = blockedDispatcherOnCursorDataCanNotFullyPersist == FALSE;
+        // Trigger a new read if needed.
+        boolean shouldPauseNow = !checkAndResumeIfPaused();
+        // Switch stat to "paused" if needed.
+        if (unPaused && shouldPauseNow) {
+            if (!BLOCKED_DISPATCHER_ON_CURSOR_DATA_CAN_NOT_FULLY_PERSIST_UPDATER
+                    .compareAndSet(this, FALSE, TRUE)) {
+                // Retry due to conflict update.
+                afterAckMessages(exOfDeletion, ctxOfDeletion);
+            }
+        }
+    }
+
+    @Override
+    public boolean checkAndResumeIfPaused() {
+        boolean paused = blockedDispatcherOnCursorDataCanNotFullyPersist == TRUE;
+        boolean shouldPauseNow = !cursor.isCursorDataFullyPersistable()
+                && topic.isDispatcherPauseOnAckStatePersistentEnabled();
+        // No need to change.
+        if (paused == shouldPauseNow) {
+            return !shouldPauseNow;
+        }
+        // Should change to "un-pause".
+        if (paused && !shouldPauseNow) {
+            // If there was no previous pause due to cursor data is too large to persist, we don't need to manually
+            // trigger a new read. This can avoid too many CPU circles.
+            if (BLOCKED_DISPATCHER_ON_CURSOR_DATA_CAN_NOT_FULLY_PERSIST_UPDATER.compareAndSet(this, TRUE, FALSE)) {
+                readMoreEntriesAsync();
+            } else {
+                // Retry due to conflict update.
+                checkAndResumeIfPaused();
+            }
+        }
+        return !shouldPauseNow;
     }
 
     public boolean isBlockedDispatcherOnUnackedMsgs() {

@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.service;
 
 import static org.apache.pulsar.broker.BrokerTestUtil.spyWithClassAndConstructorArgs;
 import static org.apache.pulsar.broker.BrokerTestUtil.spyWithClassAndConstructorArgsRecordingInvocations;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -1844,14 +1845,14 @@ public class ServerCnxTest {
         ByteBuf clientCommand1 = Commands.newProducer(successTopicName, 1 /* producer id */, 1 /* request id */,
                 producerName, Collections.emptyMap(), false);
         channel.writeInbound(clientCommand1);
-        assertTrue(getResponse() instanceof CommandProducerSuccess);
+        assertThat(getResponse()).isInstanceOf(CommandProducerSuccess.class);
 
         // Call disconnect method on producer to trigger activity similar to unloading
         Producer producer = serverCnx.getProducers().get(1).get();
         assertNotNull(producer);
         producer.disconnect();
         channel.runPendingTasks();
-        assertTrue(getResponse() instanceof CommandCloseProducer);
+        assertThat(getResponse()).isInstanceOf(CommandCloseProducer.class);
 
         // Send message and expect no response
         sendMessage();

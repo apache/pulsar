@@ -18,6 +18,7 @@
  */
 package org.apache.bookkeeper.client;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import com.google.common.collect.Lists;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -364,6 +365,7 @@ public class PulsarMockBookKeeper extends BookKeeper {
     }
 
     public synchronized void addEntryDelay(long delay, TimeUnit unit) {
+        checkArgument(delay >= 0, "The delay time must not be negative.");
         addEntryDelaysMillis.add(unit.toMillis(delay));
     }
 

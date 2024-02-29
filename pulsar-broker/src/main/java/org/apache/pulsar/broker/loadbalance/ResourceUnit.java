@@ -23,8 +23,6 @@ package org.apache.pulsar.broker.loadbalance;
  */
 public interface ResourceUnit extends Comparable<ResourceUnit> {
 
-    String PROPERTY_KEY_BROKER_ZNODE_NAME = "__advertised_addr";
-
     String getResourceId();
 
     ResourceDescription getAvailableResource();

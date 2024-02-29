@@ -53,6 +53,7 @@ public abstract class AbstractBatchMessageContainer implements BatchMessageConta
     // allocate a new buffer that can hold the entire batch without needing costly reallocations
     protected int maxBatchSize = INITIAL_BATCH_BUFFER_SIZE;
     protected int maxMessagesNum = INITIAL_MESSAGES_NUM;
+    private volatile long firstAddedTimestamp = 0L;
 
     @Override
     public boolean haveEnoughSpace(MessageImpl<?> msg) {
@@ -126,5 +127,20 @@ public abstract class AbstractBatchMessageContainer implements BatchMessageConta
         }
         return currentTxnidMostBits == msg.getMessageBuilder().getTxnidMostBits()
                 && currentTxnidLeastBits == msg.getMessageBuilder().getTxnidLeastBits();
+    }
+
+    @Override
+    public long getFirstAddedTimestamp() {
+        return firstAddedTimestamp;
+    }
+
+    protected void tryUpdateTimestamp() {
+        if (numMessagesInBatch == 1) {
+            firstAddedTimestamp = System.nanoTime();
+        }
+    }
+
+    protected void clearTimestamp() {
+        firstAddedTimestamp = 0L;
     }
 }

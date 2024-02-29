@@ -18,6 +18,7 @@
  */
 package org.apache.bookkeeper.mledger.impl;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.LongAdder;
 import org.apache.bookkeeper.mledger.ManagedCursor;
@@ -41,6 +42,7 @@ public class ManagedLedgerMBeanImpl implements ManagedLedgerMXBean {
     private final Rate readEntriesOpsFailed = new Rate();
     private final Rate readEntriesOpsCacheMisses = new Rate();
     private final Rate markDeleteOps = new Rate();
+    private final Rate entriesRead = new Rate();
 
     private final LongAdder dataLedgerOpenOp = new LongAdder();
     private final LongAdder dataLedgerCloseOp = new LongAdder();
@@ -63,6 +65,7 @@ public class ManagedLedgerMBeanImpl implements ManagedLedgerMXBean {
     }
 
     public void refreshStats(long period, TimeUnit unit) {
+        checkArgument(period >= 0);
         double seconds = unit.toMillis(period) / 1000.0;
         if (seconds <= 0.0) {
             // skip refreshing stats
@@ -80,6 +83,7 @@ public class ManagedLedgerMBeanImpl implements ManagedLedgerMXBean {
         ledgerAddEntryLatencyStatsUsec.refresh();
         ledgerSwitchLatencyStatsUsec.refresh();
         entryStats.refresh();
+        entriesRead.calculateRate(seconds);
     }
 
     public void addAddEntrySample(long size) {
@@ -118,6 +122,10 @@ public class ManagedLedgerMBeanImpl implements ManagedLedgerMXBean {
 
     public void addReadEntriesSample(int count, long totalSize) {
         readEntriesOps.recordMultipleEvents(count, totalSize);
+    }
+
+    public void addEntriesRead(int count) {
+        entriesRead.recordEvent(count);
     }
 
     public void startDataLedgerOpenOp() {
@@ -187,6 +195,11 @@ public class ManagedLedgerMBeanImpl implements ManagedLedgerMXBean {
     @Override
     public String getName() {
         return managedLedger.getName();
+    }
+
+    @Override
+    public long getEntriesReadTotalCount() {
+        return entriesRead.getTotalCount();
     }
 
     @Override
@@ -333,5 +346,4 @@ public class ManagedLedgerMBeanImpl implements ManagedLedgerMXBean {
         result.cursorLedgerDeleteOp = cursorLedgerDeleteOp.longValue();
         return result;
     }
-
 }

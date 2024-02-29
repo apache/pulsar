@@ -49,6 +49,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import lombok.Builder;
 import lombok.Getter;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerBuilder;
@@ -946,10 +947,12 @@ public class PulsarClientImpl implements PulsarClient {
         conf.setTlsTrustStorePassword(tlsTrustStorePassword);
     }
 
-    public CompletableFuture<ClientCnx> getConnection(final String topic, int randomKeyForSelectConnection) {
-        TopicName topicName = TopicName.get(topic);
-        return lookup.getBroker(topicName)
-                .thenCompose(pair -> getConnection(pair.getLeft(), pair.getRight(), randomKeyForSelectConnection));
+    public CompletableFuture<Pair<ClientCnx, Boolean>> getConnection(String topic, int randomKeyForSelectConnection) {
+        CompletableFuture<LookupTopicResult> lookupTopicResult = lookup.getBroker(TopicName.get(topic));
+        CompletableFuture<Boolean> isUseProxy = lookupTopicResult.thenApply(LookupTopicResult::isUseProxy);
+        return lookupTopicResult.thenCompose(lookupResult -> getConnection(lookupResult.getLogicalAddress(),
+                        lookupResult.getPhysicalAddress(), randomKeyForSelectConnection)).
+                thenCombine(isUseProxy, Pair::of);
     }
 
     /**
@@ -957,15 +960,14 @@ public class PulsarClientImpl implements PulsarClient {
      */
     @VisibleForTesting
     public CompletableFuture<ClientCnx> getConnection(final String topic) {
-        TopicName topicName = TopicName.get(topic);
-        return lookup.getBroker(topicName)
-                .thenCompose(pair -> getConnection(pair.getLeft(), pair.getRight(), cnxPool.genRandomKeyToSelectCon()));
+        return getConnection(topic, cnxPool.genRandomKeyToSelectCon()).thenApply(Pair::getLeft);
     }
 
     public CompletableFuture<ClientCnx> getConnection(final String topic, final String url) {
         TopicName topicName = TopicName.get(topic);
         return getLookup(url).getBroker(topicName)
-                .thenCompose(pair -> getConnection(pair.getLeft(), pair.getRight(), cnxPool.genRandomKeyToSelectCon()));
+                .thenCompose(lookupResult -> getConnection(lookupResult.getLogicalAddress(),
+                        lookupResult.getPhysicalAddress(), cnxPool.genRandomKeyToSelectCon()));
     }
 
     public LookupService getLookup(String serviceUrl) {
@@ -986,6 +988,15 @@ public class PulsarClientImpl implements PulsarClient {
         }
         InetSocketAddress address = lookup.resolveHost();
         return getConnection(address, address, cnxPool.genRandomKeyToSelectCon());
+    }
+
+    public CompletableFuture<ClientCnx> getProxyConnection(final InetSocketAddress logicalAddress,
+                                                           final int randomKeyForSelectConnection) {
+        if (!(lookup instanceof BinaryProtoLookupService)) {
+            return FutureUtil.failedFuture(new PulsarClientException.InvalidServiceURL(
+                    "Cannot proxy connection through HTTP service URL", null));
+        }
+        return getConnection(logicalAddress, lookup.resolveHost(), randomKeyForSelectConnection);
     }
 
     public CompletableFuture<ClientCnx> getConnection(final InetSocketAddress logicalAddress,

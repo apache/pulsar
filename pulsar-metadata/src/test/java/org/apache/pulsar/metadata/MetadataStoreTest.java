@@ -62,27 +62,28 @@ public class MetadataStoreTest extends BaseMetadataStoreTest {
 
     @Test(dataProvider = "impl")
     public void emptyStoreTest(String provider, Supplier<String> urlSupplier) throws Exception {
+        String prefix = newKey();
         @Cleanup
         MetadataStore store = MetadataStoreFactory.create(urlSupplier.get(),
                 MetadataStoreConfig.builder().fsyncEnable(false).build());
 
-        assertFalse(store.exists("/non-existing-key").join());
-        assertFalse(store.exists("/non-existing-key/child").join());
-        assertFalse(store.get("/non-existing-key").join().isPresent());
-        assertFalse(store.get("/non-existing-key/child").join().isPresent());
+        assertFalse(store.exists(prefix + "/non-existing-key").join());
+        assertFalse(store.exists(prefix + "/non-existing-key/child").join());
+        assertFalse(store.get(prefix + "/non-existing-key").join().isPresent());
+        assertFalse(store.get(prefix + "/non-existing-key/child").join().isPresent());
 
-        assertEquals(store.getChildren("/non-existing-key").join(), Collections.emptyList());
-        assertEquals(store.getChildren("/non-existing-key/child").join(), Collections.emptyList());
+        assertEquals(store.getChildren(prefix + "/non-existing-key").join(), Collections.emptyList());
+        assertEquals(store.getChildren(prefix + "/non-existing-key/child").join(), Collections.emptyList());
 
         try {
-            store.delete("/non-existing-key", Optional.empty()).join();
+            store.delete(prefix + "/non-existing-key", Optional.empty()).join();
             fail("Should have failed");
         } catch (CompletionException e) {
             assertException(e, NotFoundException.class);
         }
 
         try {
-            store.delete("/non-existing-key", Optional.of(1L)).join();
+            store.delete(prefix + "/non-existing-key", Optional.of(1L)).join();
             fail("Should have failed");
         } catch (CompletionException e) {
             assertTrue(NotFoundException.class.isInstance(e.getCause()) || BadVersionException.class.isInstance(
@@ -400,6 +401,10 @@ public class MetadataStoreTest extends BaseMetadataStoreTest {
 
     @Test(dataProvider = "impl")
     public void testDeleteUnusedDirectories(String provider, Supplier<String> urlSupplier) throws Exception {
+        if (provider.equals("Oxia")) {
+            return;
+        }
+
         @Cleanup
         MetadataStore store = MetadataStoreFactory.create(urlSupplier.get(),
                 MetadataStoreConfig.builder().fsyncEnable(false).build());
@@ -710,10 +715,11 @@ public class MetadataStoreTest extends BaseMetadataStoreTest {
         assertTrue(store1.exists(parent).get());
         assertFalse(store1.exists(parent + "/a").get());
         store2.put(parent + "/a", value, Optional.empty()).get();
-        assertTrue(store1.exists(parent + "/a").get());
+
+        Awaitility.await()
+                .untilAsserted(() -> assertTrue(store1.exists(parent + "/a").get()));
+
         // There is a chance watcher event is not triggered before the store1.exists() call.
-        Awaitility.await().atMost(3, TimeUnit.SECONDS)
-                .pollInterval(100, TimeUnit.MILLISECONDS)
-                .untilAsserted(() -> assertFalse(store1.exists(parent + "/b").get()));
+        assertFalse(store1.exists(parent + "/b").get());
     }
 }

@@ -19,6 +19,8 @@
 package org.apache.pulsar.broker.service;
 
 import static java.util.Objects.requireNonNull;
+import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
+import com.github.benmanes.caffeine.cache.Caffeine;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Sets;
 import java.util.HashSet;
@@ -29,6 +31,7 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import javax.annotation.Nonnull;
 import org.apache.commons.lang3.tuple.MutablePair;
@@ -84,10 +87,25 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
     @VisibleForTesting
     final Map<TopicName, List<TopicPolicyListener<TopicPolicies>>> listeners = new ConcurrentHashMap<>();
 
+    private final AsyncLoadingCache<NamespaceName, SystemTopicClient.Writer<PulsarEvent>> writerCaches;
+
     public SystemTopicBasedTopicPoliciesService(PulsarService pulsarService) {
         this.pulsarService = pulsarService;
         this.clusterName = pulsarService.getConfiguration().getClusterName();
         this.localCluster = Sets.newHashSet(clusterName);
+        this.writerCaches = Caffeine.newBuilder()
+                .expireAfterAccess(5, TimeUnit.MINUTES)
+                .removalListener((namespaceName, writer, cause) -> {
+                    ((SystemTopicClient.Writer) writer).closeAsync().exceptionally(ex -> {
+                        log.error("[{}] Close writer error.", namespaceName, ex);
+                        return null;
+                    });
+                })
+                .buildAsync((namespaceName, executor) -> {
+                    SystemTopicClient<PulsarEvent> systemTopicClient = namespaceEventsSystemTopicFactory
+                            .createTopicPoliciesSystemTopicClient(namespaceName);
+                    return systemTopicClient.newWriterAsync();
+                });
     }
 
     @Override
@@ -122,39 +140,32 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                     } catch (PulsarServerException e) {
                         return CompletableFuture.failedFuture(e);
                     }
-
-                    SystemTopicClient<PulsarEvent> systemTopicClient = namespaceEventsSystemTopicFactory
-                                    .createTopicPoliciesSystemTopicClient(topicName.getNamespaceObject());
-
-                    return systemTopicClient.newWriterAsync()
-                            .thenCompose(writer -> {
-                            PulsarEvent event = getPulsarEvent(topicName, actionType, policies);
-                            CompletableFuture<MessageId> writeFuture =
-                                    ActionType.DELETE.equals(actionType) ? writer.deleteAsync(getEventKey(event), event)
-                                            : writer.writeAsync(getEventKey(event), event);
-                            return writeFuture.handle((messageId, e) -> {
-                                if (e != null) {
-                                    return CompletableFuture.failedFuture(e);
+                    CompletableFuture<Void> result = new CompletableFuture<>();
+                    writerCaches.get(topicName.getNamespaceObject())
+                            .whenComplete((writer, cause) -> {
+                                if (cause != null) {
+                                    writerCaches.synchronous().invalidate(topicName.getNamespaceObject());
+                                    result.completeExceptionally(cause);
                                 } else {
-                                    if (messageId != null) {
-                                        return CompletableFuture.completedFuture(null);
-                                    } else {
-                                        return CompletableFuture.failedFuture(
-                                                new RuntimeException("Got message id is null."));
-                                    }
-                                }
-                            }).thenRun(() ->
-                                        writer.closeAsync().whenComplete((v, cause) -> {
-                                            if (cause != null) {
-                                                log.error("[{}] Close writer error.", topicName, cause);
+                                    PulsarEvent event = getPulsarEvent(topicName, actionType, policies);
+                                    CompletableFuture<MessageId> writeFuture = ActionType.DELETE.equals(actionType)
+                                                    ? writer.deleteAsync(getEventKey(event), event)
+                                                    : writer.writeAsync(getEventKey(event), event);
+                                    writeFuture.whenComplete((messageId, e) -> {
+                                        if (e != null) {
+                                            result.completeExceptionally(e);
+                                        } else {
+                                            if (messageId != null) {
+                                                result.complete(null);
                                             } else {
-                                                if (log.isDebugEnabled()) {
-                                                    log.debug("[{}] Close writer success.", topicName);
-                                                }
+                                                result.completeExceptionally(
+                                                        new RuntimeException("Got message id is null."));
                                             }
-                                        })
-                            );
+                                        }
+                                    });
+                            }
                     });
+                    return result;
                 });
     }
 
@@ -364,7 +375,7 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
         }
         AtomicInteger bundlesCount = ownedBundlesCountPerNamespace.get(namespace);
         if (bundlesCount == null || bundlesCount.decrementAndGet() <= 0) {
-            cleanCacheAndCloseReader(namespace, true);
+            cleanCacheAndCloseReader(namespace, true, true);
         }
         return CompletableFuture.completedFuture(null);
     }
@@ -440,6 +451,14 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
     }
 
     private void cleanCacheAndCloseReader(@Nonnull NamespaceName namespace, boolean cleanOwnedBundlesCount) {
+        cleanCacheAndCloseReader(namespace, cleanOwnedBundlesCount, false);
+    }
+
+    private void cleanCacheAndCloseReader(@Nonnull NamespaceName namespace, boolean cleanOwnedBundlesCount,
+                                          boolean cleanWriterCache) {
+        if (cleanWriterCache) {
+            writerCaches.synchronous().invalidate(namespace);
+        }
         CompletableFuture<SystemTopicClient.Reader<PulsarEvent>> readerFuture = readerCaches.remove(namespace);
 
         if (cleanOwnedBundlesCount) {
@@ -686,6 +705,11 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
     @VisibleForTesting
     protected Map<TopicName, List<TopicPolicyListener<TopicPolicies>>> getListeners() {
         return listeners;
+    }
+
+    @VisibleForTesting
+    protected AsyncLoadingCache<NamespaceName, SystemTopicClient.Writer<PulsarEvent>> getWriterCaches() {
+        return writerCaches;
     }
 
     private static final Logger log = LoggerFactory.getLogger(SystemTopicBasedTopicPoliciesService.class);

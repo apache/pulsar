@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.impl.transaction;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
@@ -45,6 +46,7 @@ public class TransactionBuilderImpl implements TransactionBuilder {
 
     @Override
     public TransactionBuilder withTransactionTimeout(long txnTimeout, TimeUnit timeoutUnit) {
+        checkArgument(txnTimeout >= 0, "The txn timeout must not be negative.");
         this.txnTimeout = txnTimeout;
         this.timeUnit = timeoutUnit;
         return this;
