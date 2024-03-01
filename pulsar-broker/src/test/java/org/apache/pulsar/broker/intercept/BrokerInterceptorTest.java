@@ -18,13 +18,14 @@
  */
 package org.apache.pulsar.broker.intercept;
 
+import static org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient.parseMetrics;
+import static org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient.Metric;
 import static org.mockito.ArgumentMatchers.same;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
-import com.google.common.collect.Multimap;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.HashMap;
@@ -34,6 +35,8 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+
+import com.google.common.collect.Multimap;
 import lombok.Cleanup;
 import okhttp3.Call;
 import okhttp3.Callback;
@@ -241,15 +244,13 @@ public class BrokerInterceptorTest extends ProducerConsumerBase {
 
     @Test
     public void testAddCustomizedMetrics() throws IOException {
-        BrokerInterceptor listener = pulsar.getBrokerInterceptor();
-        Assert.assertTrue(listener instanceof CounterBrokerInterceptor);
-        assertEquals(((CounterBrokerInterceptor) listener).getMetricsCount(), 0);
+        CounterBrokerInterceptor interceptor = getCounterBrokerInterceptor();
+        assertEquals(interceptor.getMetricsCount(), 0);
 
         ByteArrayOutputStream statsOut1 = new ByteArrayOutputStream();
         PrometheusMetricsGenerator.generate(pulsar, true, false, false, false, statsOut1, null);
-        assertEquals(((CounterBrokerInterceptor) listener).getMetricsCount(), 1);
-        Multimap<String, PrometheusMetricsTest.Metric> metrics =
-                PrometheusMetricsTest.parseMetrics(statsOut1.toString());
+        assertEquals(interceptor.getMetricsCount(), 1);
+        Multimap<String, Metric> metrics = parseMetrics(statsOut1.toString());
         assertTrue(metrics.containsKey("test_metric"));
         metrics.get("test_metric").forEach(item -> {
             assertEquals(item.tags.get("cluster"), pulsar.getConfiguration().getClusterName());
