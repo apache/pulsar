@@ -58,8 +58,6 @@ public abstract class ExtensibleLoadManagerImplBaseTest extends MockedPulsarServ
 
     protected final String defaultTestNamespace;
 
-    protected LookupService lookupService;
-
     protected ExtensibleLoadManagerImplBaseTest(String defaultTestNamespace) {
         this.defaultTestNamespace = defaultTestNamespace;
     }
@@ -101,7 +99,6 @@ public abstract class ExtensibleLoadManagerImplBaseTest extends MockedPulsarServ
         admin.namespaces().createNamespace(defaultTestNamespace, 128);
         admin.namespaces().setNamespaceReplicationClusters(defaultTestNamespace,
                 Sets.newHashSet(this.conf.getClusterName()));
-        lookupService = (LookupService) FieldUtils.readDeclaredField(pulsarClient, "lookup", true);
     }
 
     @Override
@@ -115,7 +112,6 @@ public abstract class ExtensibleLoadManagerImplBaseTest extends MockedPulsarServ
     protected void initializeState() throws PulsarAdminException, IllegalAccessException {
         admin.namespaces().unload(defaultTestNamespace);
         reset(primaryLoadManager, secondaryLoadManager);
-        FieldUtils.writeDeclaredField(pulsarClient, "lookup", lookupService, true);
     }
 
     protected void setPrimaryLoadManager() throws IllegalAccessException {
@@ -148,7 +144,7 @@ public abstract class ExtensibleLoadManagerImplBaseTest extends MockedPulsarServ
                 TopicName.get(defaultTestNamespace + "/" + SystemTopicNames.NAMESPACE_EVENTS_LOCAL_NAME);
         NamespaceBundle changeEventsBundle = getBundleAsync(pulsar1, changeEventsTopicName).get();
         int i = 0;
-        while(true) {
+        while (true) {
             TopicName topicName = TopicName.get(defaultTestNamespace + "/" + topicNamePrefix + "-" + i);
             NamespaceBundle bundle = getBundleAsync(pulsar1, topicName).get();
             if (!bundle.equals(changeEventsBundle)) {
