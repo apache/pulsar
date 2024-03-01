@@ -345,6 +345,22 @@ public class PulsarClientException extends IOException {
     }
 
     /**
+     *  Not found subscription that cannot be created.
+     */
+    public static class SubscriptionNotFoundException extends PulsarClientException {
+        /**
+         * Constructs an {@code SubscriptionNotFoundException} with the specified detail message.
+         *
+         * @param msg
+         *        The detail message (which is saved for later retrieval
+         *        by the {@link #getMessage()} method)
+         */
+        public SubscriptionNotFoundException(String msg) {
+            super(msg);
+        }
+    }
+
+    /**
      * Lookup exception thrown by Pulsar client.
      */
     public static class LookupException extends PulsarClientException {
@@ -1163,6 +1179,7 @@ public class PulsarClientException extends IOException {
                 || t instanceof NotFoundException
                 || t instanceof IncompatibleSchemaException
                 || t instanceof TopicDoesNotExistException
+                || t instanceof SubscriptionNotFoundException
                 || t instanceof UnsupportedAuthenticationException
                 || t instanceof InvalidMessageException
                 || t instanceof InvalidTopicNameException
