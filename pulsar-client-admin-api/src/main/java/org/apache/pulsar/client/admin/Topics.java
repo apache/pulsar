@@ -1139,23 +1139,26 @@ public interface Topics {
     default TopicStats getStats(String topic, boolean getPreciseBacklog, boolean subscriptionBacklogSize,
                         boolean getEarliestTimeInBacklog) throws PulsarAdminException {
         GetStatsOptions getStatsOptions =
-                new GetStatsOptions(getPreciseBacklog, subscriptionBacklogSize, getEarliestTimeInBacklog);
+                new GetStatsOptions(getPreciseBacklog, subscriptionBacklogSize, getEarliestTimeInBacklog, false, false);
         return getStats(topic, getStatsOptions);
     }
 
     default TopicStats getStats(String topic, boolean getPreciseBacklog,
                         boolean subscriptionBacklogSize) throws PulsarAdminException {
-        GetStatsOptions getStatsOptions = new GetStatsOptions(getPreciseBacklog, subscriptionBacklogSize, false);
+        GetStatsOptions getStatsOptions = new GetStatsOptions(getPreciseBacklog, subscriptionBacklogSize, false,
+                false, false);
         return getStats(topic, getStatsOptions);
     }
 
     default TopicStats getStats(String topic, boolean getPreciseBacklog) throws PulsarAdminException {
-        GetStatsOptions getStatsOptions = new GetStatsOptions(getPreciseBacklog, false, false);
+        GetStatsOptions getStatsOptions = new GetStatsOptions(getPreciseBacklog, false, false,
+                false, false);
         return getStats(topic, getStatsOptions);
     }
 
     default TopicStats getStats(String topic) throws PulsarAdminException {
-        return getStats(topic, new GetStatsOptions(false, false, false));
+        return getStats(topic, new GetStatsOptions(false, false, false,
+                false, false));
     }
 
     /**
@@ -1175,6 +1178,8 @@ public interface Topics {
      */
     CompletableFuture<TopicStats> getStatsAsync(String topic, boolean getPreciseBacklog,
                                                 boolean subscriptionBacklogSize, boolean getEarliestTimeInBacklog);
+
+    CompletableFuture<TopicStats> getStatsAsync(String topic, GetStatsOptions getStatsOptions);
 
     default CompletableFuture<TopicStats> getStatsAsync(String topic) {
         return getStatsAsync(topic, false, false, false);
@@ -1346,6 +1351,9 @@ public interface Topics {
                                               boolean subscriptionBacklogSize, boolean getEarliestTimeInBacklog)
             throws PulsarAdminException;
 
+    PartitionedTopicStats getPartitionedStats(String topic, boolean perPartition, GetStatsOptions getStatsOptions)
+            throws PulsarAdminException;
+
     default PartitionedTopicStats getPartitionedStats(String topic, boolean perPartition) throws PulsarAdminException {
         return getPartitionedStats(topic, perPartition, false, false, false);
     }
@@ -1368,6 +1376,9 @@ public interface Topics {
     CompletableFuture<PartitionedTopicStats> getPartitionedStatsAsync(
             String topic, boolean perPartition, boolean getPreciseBacklog, boolean subscriptionBacklogSize,
             boolean getEarliestTimeInBacklog);
+
+    CompletableFuture<PartitionedTopicStats> getPartitionedStatsAsync(
+            String topic, boolean perPartition, GetStatsOptions getStatsOptions);
 
     default CompletableFuture<PartitionedTopicStats> getPartitionedStatsAsync(String topic, boolean perPartition) {
         return getPartitionedStatsAsync(topic, perPartition, false, false, false);
@@ -1668,7 +1679,9 @@ public interface Topics {
      * @return the message indexed by the messageId
      * @throws PulsarAdminException
      *            Unexpected error
+     * @deprecated Using {@link #getMessagesById(String, long, long)} instead.
      */
+    @Deprecated
     Message<byte[]> getMessageById(String topic, long ledgerId, long entryId) throws PulsarAdminException;
 
     /**
@@ -1680,8 +1693,31 @@ public interface Topics {
      * @param entryId
      *            Entry id
      * @return a future that can be used to track when the message is returned
+     * @deprecated Using {@link #getMessagesByIdAsync(String, long, long)} instead.
      */
+    @Deprecated
     CompletableFuture<Message<byte[]>> getMessageByIdAsync(String topic, long ledgerId, long entryId);
+
+    /**
+     * Get the messages by messageId.
+     *
+     * @param topic    Topic name
+     * @param ledgerId Ledger id
+     * @param entryId  Entry id
+     * @return A set of messages.
+     * @throws PulsarAdminException Unexpected error
+     */
+    List<Message<byte[]>> getMessagesById(String topic, long ledgerId, long entryId) throws PulsarAdminException;
+
+    /**
+     * Get the messages by messageId asynchronously.
+     *
+     * @param topic    Topic name
+     * @param ledgerId Ledger id
+     * @param entryId  Entry id
+     * @return A future that can be used to track when a set of messages is returned.
+     */
+    CompletableFuture<List<Message<byte[]>>> getMessagesByIdAsync(String topic, long ledgerId, long entryId);
 
     /**
      * Get message ID published at or just after this absolute timestamp (in ms).

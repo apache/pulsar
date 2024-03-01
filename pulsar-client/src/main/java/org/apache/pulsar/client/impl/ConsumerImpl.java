@@ -21,6 +21,7 @@ package org.apache.pulsar.client.impl;
 import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.pulsar.common.protocol.Commands.DEFAULT_CONSUMER_EPOCH;
 import static org.apache.pulsar.common.protocol.Commands.hasChecksum;
+import static org.apache.pulsar.common.protocol.Commands.serializeWithSize;
 import static org.apache.pulsar.common.util.Runnables.catchingAndLoggingThrowables;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ComparisonChain;
@@ -32,9 +33,12 @@ import io.netty.util.Recycler;
 import io.netty.util.Recycler.Handle;
 import io.netty.util.ReferenceCountUtil;
 import io.netty.util.Timeout;
+import io.netty.util.concurrent.FastThreadLocal;
 import java.io.IOException;
+import java.net.URI;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.BitSet;
 import java.util.Collections;
 import java.util.HashMap;
@@ -66,6 +70,7 @@ import java.util.stream.Collectors;
 import lombok.AccessLevel;
 import lombok.Getter;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.tuple.Triple;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerCryptoFailureAction;
 import org.apache.pulsar.client.api.DeadLetterPolicy;
@@ -93,7 +98,9 @@ import org.apache.pulsar.client.util.RetryMessageUtil;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.api.EncryptionContext;
 import org.apache.pulsar.common.api.EncryptionContext.EncryptionKey;
+import org.apache.pulsar.common.api.proto.BaseCommand;
 import org.apache.pulsar.common.api.proto.BrokerEntryMetadata;
+import org.apache.pulsar.common.api.proto.CommandAck;
 import org.apache.pulsar.common.api.proto.CommandAck.AckType;
 import org.apache.pulsar.common.api.proto.CommandAck.ValidationError;
 import org.apache.pulsar.common.api.proto.CommandMessage;
@@ -116,6 +123,7 @@ import org.apache.pulsar.common.util.ExceptionHandler;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.SafeCollectionUtils;
 import org.apache.pulsar.common.util.collections.BitSetRecyclable;
+import org.apache.pulsar.common.util.collections.ConcurrentBitSetRecyclable;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.common.util.collections.GrowableArrayBlockingQueue;
 import org.slf4j.Logger;
@@ -396,7 +404,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     }
 
     @Override
-    public CompletableFuture<Void> unsubscribeAsync() {
+    public CompletableFuture<Void> unsubscribeAsync(boolean force) {
         if (getState() == State.Closing || getState() == State.Closed) {
             return FutureUtil
                     .failedFuture(new PulsarClientException.AlreadyClosedException("Consumer was already closed"));
@@ -405,7 +413,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         if (isConnected()) {
             setState(State.Closing);
             long requestId = client.newRequestId();
-            ByteBuf unsubscribe = Commands.newUnsubscribe(consumerId, requestId);
+            ByteBuf unsubscribe = Commands.newUnsubscribe(consumerId, requestId, force);
             ClientCnx cnx = cnx();
             cnx.sendRequestWithId(unsubscribe, requestId).thenRun(() -> {
                 closeConsumerTasks();
@@ -420,12 +428,12 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 unsubscribeFuture.completeExceptionally(
                     PulsarClientException.wrap(e.getCause(),
                         String.format("Failed to unsubscribe the subscription %s of topic %s",
-                            topicName.toString(), subscription)));
+                                subscription, topicName.toString())));
                 return null;
             });
         } else {
             unsubscribeFuture.completeExceptionally(
-                new PulsarClientException(
+                new PulsarClientException.NotConnectedException(
                     String.format("The client is not connected to the broker when unsubscribing the "
                             + "subscription %s of the topic %s", subscription, topicName.toString())));
         }
@@ -616,6 +624,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                             .enableChunking(true)
                             .blockIfQueueFull(false)
                             .create();
+                    stats.setRetryLetterProducerStats(retryLetterProducer.getStats());
                 }
             } catch (Exception e) {
                 log.error("Create retry letter producer exception with topic: {}",
@@ -718,6 +727,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         //Compatible with the old version, will be deleted in the future
         propertiesMap.putIfAbsent(RetryMessageUtil.SYSTEM_PROPERTY_ORIGIN_MESSAGE_ID, originMessageIdStr);
         propertiesMap.putIfAbsent(RetryMessageUtil.PROPERTY_ORIGIN_MESSAGE_ID, originMessageIdStr);
+        propertiesMap.putIfAbsent(RetryMessageUtil.SYSTEM_PROPERTY_REAL_SUBSCRIPTION, subscription);
         return propertiesMap;
     }
 
@@ -879,7 +889,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                     // in case it was indeed created, otherwise it might prevent new create consumer operation,
                     // since we are not necessarily closing the connection.
                     long closeRequestId = client.newRequestId();
-                    ByteBuf cmd = Commands.newCloseConsumer(consumerId, closeRequestId);
+                    ByteBuf cmd = Commands.newCloseConsumer(consumerId, closeRequestId, null, null);
                     cnx.sendRequestWithId(cmd, closeRequestId);
                 }
 
@@ -1048,7 +1058,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         if (null == cnx) {
             cleanupAtClose(closeFuture, null);
         } else {
-            ByteBuf cmd = Commands.newCloseConsumer(consumerId, requestId);
+            ByteBuf cmd = Commands.newCloseConsumer(consumerId, requestId, null, null);
             cnx.sendRequestWithId(cmd, requestId).handle((v, exception) -> {
                 final ChannelHandlerContext ctx = cnx.ctx();
                 boolean ignoreException = ctx == null || !ctx.channel().isActive();
@@ -1182,7 +1192,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 return null;
             }
 
-            if (ackBitSet != null && !ackBitSet.get(index)) {
+            if (isSingleMessageAcked(ackBitSet, index)) {
                 return null;
             }
 
@@ -1420,7 +1430,9 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
     private ByteBuf processMessageChunk(ByteBuf compressedPayload, MessageMetadata msgMetadata, MessageIdImpl msgId,
             MessageIdData messageId, ClientCnx cnx) {
-
+        if (msgMetadata.getChunkId() != (msgMetadata.getNumChunksFromMsg() - 1)) {
+            increaseAvailablePermits(cnx);
+        }
         // Lazy task scheduling to expire incomplete chunk message
         if (expireTimeOfIncompleteChunkedMessageMillis > 0 && expireChunkMessageTaskScheduled.compareAndSet(false,
                 true)) {
@@ -1436,6 +1448,37 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
         if (msgMetadata.getChunkId() == 0) {
             if (chunkedMsgCtx != null) {
+                // Handle ack hole case when receive duplicated chunks.
+                // There are two situation that receives chunks with the same sequence ID and chunk ID.
+                // Situation 1 - Message redeliver:
+                // For example:
+                //     Chunk-1 sequence ID: 0, chunk ID: 0, msgID: 1:1
+                //     Chunk-2 sequence ID: 0, chunk ID: 1, msgID: 1:2
+                //     Chunk-3 sequence ID: 0, chunk ID: 0, msgID: 1:1
+                //     Chunk-4 sequence ID: 0, chunk ID: 1, msgID: 1:2
+                //     Chunk-5 sequence ID: 0, chunk ID: 2, msgID: 1:3
+                // In this case, chunk-3 and chunk-4 have the same msgID with chunk-1 and chunk-2.
+                // This may be caused by message redeliver, we can't ack any chunk in this case here.
+                // Situation 2 - Corrupted chunk message
+                // For example:
+                //     Chunk-1 sequence ID: 0, chunk ID: 0, msgID: 1:1
+                //     Chunk-2 sequence ID: 0, chunk ID: 1, msgID: 1:2
+                //     Chunk-3 sequence ID: 0, chunk ID: 0, msgID: 1:3
+                //     Chunk-4 sequence ID: 0, chunk ID: 1, msgID: 1:4
+                //     Chunk-5 sequence ID: 0, chunk ID: 2, msgID: 1:5
+                // In this case, all the chunks with different msgIDs and are persistent in the topic.
+                // But Chunk-1 and Chunk-2 belong to a corrupted chunk message that must be skipped since
+                // they will not be delivered to end users. So we should ack them here to avoid ack hole.
+                boolean isCorruptedChunkMessageDetected = Arrays.stream(chunkedMsgCtx.chunkedMessageIds)
+                        .noneMatch(messageId1 -> messageId1 != null && messageId1.ledgerId == messageId.getLedgerId()
+                                && messageId1.entryId == messageId.getEntryId());
+                if (isCorruptedChunkMessageDetected) {
+                    Arrays.stream(chunkedMsgCtx.chunkedMessageIds).forEach(messageId1 -> {
+                        if (messageId1 != null) {
+                            doAcknowledge(messageId1, AckType.Individual, Collections.emptyMap(), null);
+                        }
+                    });
+                }
                 // The first chunk of a new chunked-message received before receiving other chunks of previous
                 // chunked-message
                 // so, remove previous chunked-message from map and release buffer
@@ -1460,10 +1503,36 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         // discard message if chunk is out-of-order
         if (chunkedMsgCtx == null || chunkedMsgCtx.chunkedMsgBuffer == null
                 || msgMetadata.getChunkId() != (chunkedMsgCtx.lastChunkedMessageId + 1)) {
+            // Filter and ack duplicated chunks instead of discard ctx.
+            // For example:
+            //     Chunk-1 sequence ID: 0, chunk ID: 0, msgID: 1:1
+            //     Chunk-2 sequence ID: 0, chunk ID: 1, msgID: 1:2
+            //     Chunk-3 sequence ID: 0, chunk ID: 2, msgID: 1:3
+            //     Chunk-4 sequence ID: 0, chunk ID: 1, msgID: 1:4
+            //     Chunk-5 sequence ID: 0, chunk ID: 2, msgID: 1:5
+            //     Chunk-6 sequence ID: 0, chunk ID: 3, msgID: 1:6
+            // We should filter and ack chunk-4 and chunk-5.
+            if (chunkedMsgCtx != null && msgMetadata.getChunkId() <= chunkedMsgCtx.lastChunkedMessageId) {
+                log.warn("[{}] Receive a duplicated chunk message with messageId [{}], last-chunk-Id [{}], "
+                                + "chunkId [{}], sequenceId [{}]",
+                        msgMetadata.getProducerName(), msgId, chunkedMsgCtx.lastChunkedMessageId,
+                        msgMetadata.getChunkId(), msgMetadata.getSequenceId());
+                compressedPayload.release();
+                // Just like the above logic of receiving the first chunk again. We only ack this chunk in the message
+                // duplication case.
+                boolean isDuplicatedChunk = Arrays.stream(chunkedMsgCtx.chunkedMessageIds)
+                        .noneMatch(messageId1 -> messageId1 != null && messageId1.ledgerId == messageId.getLedgerId()
+                                && messageId1.entryId == messageId.getEntryId());
+                if (isDuplicatedChunk) {
+                    doAcknowledge(msgId, AckType.Individual, Collections.emptyMap(), null);
+                }
+                return null;
+            }
             // means we lost the first chunk: should never happen
-            log.info("[{}] [{}] Received unexpected chunk messageId {}, last-chunk-id = {}, chunkId = {}", topic,
-                    subscription, msgId,
-                    (chunkedMsgCtx != null ? chunkedMsgCtx.lastChunkedMessageId : null), msgMetadata.getChunkId());
+            log.info("[{}] [{}] Received unexpected chunk messageId {}, last-chunk-id = {}, chunkId = {}, uuid = {}",
+                    topic, subscription, msgId,
+                    (chunkedMsgCtx != null ? chunkedMsgCtx.lastChunkedMessageId : null), msgMetadata.getChunkId(),
+                    msgMetadata.getUuid());
             if (chunkedMsgCtx != null) {
                 if (chunkedMsgCtx.chunkedMsgBuffer != null) {
                     ReferenceCountUtil.safeRelease(chunkedMsgCtx.chunkedMsgBuffer);
@@ -1472,7 +1541,6 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             }
             chunkedMessagesMap.remove(msgMetadata.getUuid());
             compressedPayload.release();
-            increaseAvailablePermits(cnx);
             if (expireTimeOfIncompleteChunkedMessageMillis > 0
                     && System.currentTimeMillis() > (msgMetadata.getPublishTime()
                             + expireTimeOfIncompleteChunkedMessageMillis)) {
@@ -1491,7 +1559,6 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         // if final chunk is not received yet then release payload and return
         if (msgMetadata.getChunkId() != (msgMetadata.getNumChunksFromMsg() - 1)) {
             compressedPayload.release();
-            increaseAvailablePermits(cnx);
             return null;
         }
 
@@ -1576,7 +1643,14 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                         singleMessageMetadata, uncompressedPayload, batchMessage, schema, true,
                         ackBitSet, ackSetInMessageId, redeliveryCount, consumerEpoch);
                 if (message == null) {
-                    skippedMessages++;
+                    // If it is not in ackBitSet, it means Broker does not want to deliver it to the client, and
+                    // did not decrease the permits in the broker-side.
+                    // So do not acquire more permits for this message.
+                    // Why not skip this single message in the first line of for-loop block? We need call
+                    // "newSingleMessage" to move "payload.readerIndex" to a correct value to get the correct data.
+                    if (!isSingleMessageAcked(ackBitSet, i)) {
+                        skippedMessages++;
+                    }
                     continue;
                 }
                 if (possibleToDeadLetter != null) {
@@ -2105,10 +2179,15 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                             ((ProducerBuilderImpl<byte[]>) client.newProducer(Schema.AUTO_PRODUCE_BYTES(schema)))
                                     .initialSubscriptionName(this.deadLetterPolicy.getInitialSubscriptionName())
                                     .topic(this.deadLetterPolicy.getDeadLetterTopic())
+                                    .producerName(String.format("%s-%s-%s-DLQ", this.topicName, this.subscription,
+                                            this.consumerName))
                                     .blockIfQueueFull(false)
                                     .enableBatching(false)
                                     .enableChunking(true)
                                     .createAsync();
+                    deadLetterProducer.thenAccept(dlqProducer -> {
+                        stats.setDeadLetterProducerStats(dlqProducer.getStats());
+                    });
                 }
             } finally {
                 createProducerLock.writeLock().unlock();
@@ -2276,6 +2355,10 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
     public CompletableFuture<Boolean> hasMessageAvailableAsync() {
         final CompletableFuture<Boolean> booleanFuture = new CompletableFuture<>();
+
+        if (incomingMessages != null && !incomingMessages.isEmpty()) {
+            return CompletableFuture.completedFuture(true);
+        }
 
         // we haven't read yet. use startMessageId for comparison
         if (lastDequeuedMessageId == MessageId.earliest) {
@@ -2476,9 +2559,9 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 return;
             }
 
+            log.warn("[{}] [{}] Could not get connection while getLastMessageId -- Will try again in {} ms",
+                    topic, getHandlerName(), nextDelay);
             ((ScheduledExecutorService) client.getScheduledExecutorProvider().getExecutor()).schedule(() -> {
-                log.warn("[{}] [{}] Could not get connection while getLastMessageId -- Will try again in {} ms",
-                        topic, getHandlerName(), nextDelay);
                 remainingTime.addAndGet(-nextDelay);
                 internalGetLastMessageIdAsync(backoff, remainingTime, future);
             }, nextDelay, TimeUnit.MILLISECONDS);
@@ -2595,8 +2678,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         this.connectionHandler.resetBackoff();
     }
 
-    void connectionClosed(ClientCnx cnx) {
-        this.connectionHandler.connectionClosed(cnx);
+    void connectionClosed(ClientCnx cnx, Optional<Long> initialConnectionDelayMs, Optional<URI> hostUrl) {
+        this.connectionHandler.connectionClosed(cnx, initialConnectionDelayMs, hostUrl);
     }
 
     public ClientCnx getClientCnx() {
@@ -2732,7 +2815,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         final MessageIdAdv messageIdAdv = (MessageIdAdv) messageId;
         final long ledgerId = messageIdAdv.getLedgerId();
         final long entryId = messageIdAdv.getEntryId();
-        final ByteBuf cmd;
+        final List<ByteBuf> cmdList;
         if (MessageIdAdvUtils.isBatch(messageIdAdv)) {
             BitSetRecyclable bitSetRecyclable = BitSetRecyclable.create();
             bitSetRecyclable.set(0, messageIdAdv.getBatchSize());
@@ -2742,12 +2825,37 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             } else {
                 bitSetRecyclable.clear(messageIdAdv.getBatchIndex());
             }
-            cmd = Commands.newAck(consumerId, ledgerId, entryId, bitSetRecyclable, ackType, validationError, properties,
-                    txnID.getLeastSigBits(), txnID.getMostSigBits(), requestId, messageIdAdv.getBatchSize());
+            cmdList = Collections.singletonList(Commands.newAck(consumerId, ledgerId, entryId, bitSetRecyclable,
+                    ackType, validationError, properties, txnID.getLeastSigBits(), txnID.getMostSigBits(), requestId,
+                    messageIdAdv.getBatchSize()));
             bitSetRecyclable.recycle();
         } else {
-            cmd = Commands.newAck(consumerId, ledgerId, entryId, null, ackType, validationError, properties,
-                    txnID.getLeastSigBits(), txnID.getMostSigBits(), requestId);
+            MessageIdImpl[] chunkMsgIds = this.unAckedChunkedMessageIdSequenceMap.remove(messageIdAdv);
+            // cumulative ack chunk by the last messageId
+            if (chunkMsgIds == null || ackType == AckType.Cumulative) {
+                cmdList = Collections.singletonList(Commands.newAck(consumerId, ledgerId, entryId, null, ackType,
+                        validationError, properties, txnID.getLeastSigBits(), txnID.getMostSigBits(), requestId));
+            } else {
+                if (Commands.peerSupportsMultiMessageAcknowledgment(
+                        getClientCnx().getRemoteEndpointProtocolVersion())) {
+                    List<Triple<Long, Long, ConcurrentBitSetRecyclable>> entriesToAck =
+                            new ArrayList<>(chunkMsgIds.length);
+                    for (MessageIdImpl cMsgId : chunkMsgIds) {
+                        if (cMsgId != null && chunkMsgIds.length > 1) {
+                            entriesToAck.add(Triple.of(cMsgId.getLedgerId(), cMsgId.getEntryId(), null));
+                        }
+                    }
+                    cmdList = Collections.singletonList(
+                            newMultiTransactionMessageAck(consumerId, txnID, entriesToAck, requestId));
+                } else {
+                    cmdList = new ArrayList<>();
+                    for (MessageIdImpl cMsgId : chunkMsgIds) {
+                        cmdList.add(Commands.newAck(consumerId, cMsgId.ledgerId, cMsgId.entryId, null, ackType,
+                                validationError, properties,
+                                txnID.getLeastSigBits(), txnID.getMostSigBits(), requestId));
+                    }
+                }
+            }
         }
 
         if (ackType == AckType.Cumulative) {
@@ -2761,8 +2869,55 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                     .ConnectException("Failed to ack message [" + messageId + "] "
                     + "for transaction [" + txnID + "] due to consumer connect fail, consumer state: " + getState()));
         } else {
-            return cnx.newAckForReceipt(cmd, requestId);
+            List<CompletableFuture<Void>> completableFutures = new LinkedList<>();
+            cmdList.forEach(cmd -> completableFutures.add(cnx.newAckForReceipt(cmd, requestId)));
+            return FutureUtil.waitForAll(completableFutures);
         }
+    }
+
+    private ByteBuf newMultiTransactionMessageAck(long consumerId, TxnID txnID,
+                                                  List<Triple<Long, Long, ConcurrentBitSetRecyclable>> entries,
+                                                  long requestID) {
+        BaseCommand cmd = newMultiMessageAckCommon(entries);
+        cmd.getAck()
+                .setConsumerId(consumerId)
+                .setAckType(AckType.Individual)
+                .setTxnidLeastBits(txnID.getLeastSigBits())
+                .setTxnidMostBits(txnID.getMostSigBits())
+                .setRequestId(requestID);
+        return serializeWithSize(cmd);
+    }
+
+    private static final FastThreadLocal<BaseCommand> LOCAL_BASE_COMMAND = new FastThreadLocal<BaseCommand>() {
+        @Override
+        protected BaseCommand initialValue() throws Exception {
+            return new BaseCommand();
+        }
+    };
+
+    private static BaseCommand newMultiMessageAckCommon(List<Triple<Long, Long, ConcurrentBitSetRecyclable>> entries) {
+        BaseCommand cmd = LOCAL_BASE_COMMAND.get()
+                .clear()
+                .setType(BaseCommand.Type.ACK);
+        CommandAck ack = cmd.setAck();
+        int entriesCount = entries.size();
+        for (int i = 0; i < entriesCount; i++) {
+            long ledgerId = entries.get(i).getLeft();
+            long entryId = entries.get(i).getMiddle();
+            ConcurrentBitSetRecyclable bitSet = entries.get(i).getRight();
+            MessageIdData msgId = ack.addMessageId()
+                    .setLedgerId(ledgerId)
+                    .setEntryId(entryId);
+            if (bitSet != null) {
+                long[] ackSet = bitSet.toLongArray();
+                for (int j = 0; j < ackSet.length; j++) {
+                    msgId.addAckSet(ackSet[j]);
+                }
+                bitSet.recycle();
+            }
+        }
+
+        return cmd;
     }
 
     private CompletableFuture<Void> doTransactionAcknowledgeForResponse(List<MessageId> messageIds, AckType ackType,

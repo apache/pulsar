@@ -136,7 +136,7 @@ public class OwnedBundle {
         return pulsar.getNamespaceService().getOwnershipCache()
                 .updateBundleState(this.bundle, false)
                 .thenCompose(v -> pulsar.getBrokerService().unloadServiceUnit(
-                        bundle, closeWithoutWaitingClientDisconnect, timeout, timeoutUnit))
+                        bundle, true, closeWithoutWaitingClientDisconnect, timeout, timeoutUnit))
                 .handle((numUnloadedTopics, ex) -> {
                     if (ex != null) {
                         // ignore topic-close failure to unload bundle

@@ -19,7 +19,6 @@
 package org.apache.pulsar.client.impl;
 
 import io.netty.channel.EventLoopGroup;
-import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.nio.ByteBuffer;
@@ -31,7 +30,6 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.PulsarClientException.NotFoundException;
 import org.apache.pulsar.client.api.SchemaSerializationException;
@@ -82,7 +80,7 @@ public class HttpLookupService implements LookupService {
      */
     @Override
     @SuppressWarnings("deprecation")
-    public CompletableFuture<Pair<InetSocketAddress, InetSocketAddress>> getBroker(TopicName topicName) {
+    public CompletableFuture<LookupTopicResult> getBroker(TopicName topicName) {
         String basePath = topicName.isV2() ? BasePathV2 : BasePathV1;
         String path = basePath + topicName.getLookupName();
         path = StringUtils.isBlank(listenerName) ? path : path + "?listenerName=" + Codec.encode(listenerName);
@@ -102,7 +100,8 @@ public class HttpLookupService implements LookupService {
                 }
 
                 InetSocketAddress brokerAddress = InetSocketAddress.createUnresolved(uri.getHost(), uri.getPort());
-                return CompletableFuture.completedFuture(Pair.of(brokerAddress, brokerAddress));
+                return CompletableFuture.completedFuture(new LookupTopicResult(brokerAddress, brokerAddress,
+                        false /* HTTP lookups never use the proxy */));
             } catch (Exception e) {
                 // Failed to parse url
                 log.warn("[{}] Lookup Failed due to invalid url {}, {}", topicName, uri, e.getMessage());
@@ -178,18 +177,14 @@ public class HttpLookupService implements LookupService {
         }
         httpClient.get(path, GetSchemaResponse.class).thenAccept(response -> {
             if (response.getType() == SchemaType.KEY_VALUE) {
-                try {
-                    SchemaData data = SchemaData
-                            .builder()
-                            .data(SchemaUtils.convertKeyValueDataStringToSchemaInfoSchema(
-                                    response.getData().getBytes(StandardCharsets.UTF_8)))
-                            .type(response.getType())
-                            .props(response.getProperties())
-                            .build();
-                    future.complete(Optional.of(SchemaInfoUtil.newSchemaInfo(schemaName, data)));
-                } catch (IOException err) {
-                    future.completeExceptionally(err);
-                }
+                SchemaData data = SchemaData
+                        .builder()
+                        .data(SchemaUtils.convertKeyValueDataStringToSchemaInfoSchema(
+                                response.getData().getBytes(StandardCharsets.UTF_8)))
+                        .type(response.getType())
+                        .props(response.getProperties())
+                        .build();
+                future.complete(Optional.of(SchemaInfoUtil.newSchemaInfo(schemaName, data)));
             } else {
                 future.complete(Optional.of(SchemaInfoUtil.newSchemaInfo(schemaName, response)));
             }

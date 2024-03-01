@@ -168,6 +168,7 @@ public class TransactionsImpl extends BaseResource implements Transactions {
     @Override
     public CompletableFuture<Map<String, TransactionMetadata>> getSlowTransactionsByCoordinatorIdAsync(
             Integer coordinatorId, long timeout, TimeUnit timeUnit) {
+        checkArgument(timeout >= 0);
         WebTarget path = adminV3Transactions.path("slowTransactions");
         path = path.path(timeUnit.toMillis(timeout) + "");
         if (coordinatorId != null) {
@@ -282,5 +283,18 @@ public class TransactionsImpl extends BaseResource implements Transactions {
                                                                   Long entryId, Integer batchIndex)
             throws PulsarAdminException {
         return sync(() -> getPositionStatsInPendingAckAsync(topic, subName, ledgerId, entryId, batchIndex));
+    }
+
+    @Override
+    public CompletableFuture<Void> abortTransactionAsync(TxnID txnID)  {
+        WebTarget path = adminV3Transactions.path("abortTransaction");
+        path = path.path(String.valueOf(txnID.getMostSigBits()));
+        path = path.path(String.valueOf(txnID.getLeastSigBits()));
+        return asyncPostRequest(path, Entity.entity("", MediaType.APPLICATION_JSON));
+    }
+
+    @Override
+    public void abortTransaction(TxnID txnID) throws PulsarAdminException {
+        sync(() -> abortTransactionAsync(txnID));
     }
 }

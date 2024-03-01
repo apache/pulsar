@@ -49,6 +49,7 @@ import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.admin.impl.PersistentTopicsBase;
 import org.apache.pulsar.broker.service.BrokerServiceException;
+import org.apache.pulsar.broker.service.GetStatsOptions;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.SubscriptionType;
@@ -118,7 +119,7 @@ public class PersistentTopics extends PersistentTopicsBase {
         internalGetListAsync(Optional.ofNullable(bundle))
             .thenAccept(topicList -> asyncResponse.resume(filterSystemTopic(topicList, includeSystemTopic)))
             .exceptionally(ex -> {
-                if (!isRedirectException(ex)) {
+                if (isNot307And404Exception(ex)) {
                     log.error("[{}] Failed to get topic list {}", clientAppId(), namespaceName, ex);
                 }
                 resumeAsyncResponseExceptionally(asyncResponse, ex);
@@ -149,7 +150,7 @@ public class PersistentTopics extends PersistentTopicsBase {
                 .thenAccept(partitionedTopicList -> asyncResponse.resume(
                         filterSystemTopic(partitionedTopicList, includeSystemTopic)))
                 .exceptionally(ex -> {
-                    if (!isRedirectException(ex)) {
+                    if (isNot307And404Exception(ex)) {
                         log.error("[{}] Failed to get partitioned topic list {}", clientAppId(), namespaceName, ex);
                     }
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
@@ -334,7 +335,7 @@ public class PersistentTopics extends PersistentTopicsBase {
         internalCreateNonPartitionedTopicAsync(authoritative, properties)
                 .thenAccept(__ -> asyncResponse.resume(Response.noContent().build()))
                 .exceptionally(ex -> {
-                    if (!isRedirectException(ex)) {
+                    if (isNot307And404Exception(ex)) {
                         log.error("[{}] Failed to create non-partitioned topic {}", clientAppId(), topicName, ex);
                     }
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
@@ -824,7 +825,7 @@ public class PersistentTopics extends PersistentTopicsBase {
                     asyncResponse.resume(Response.noContent().build());
                 })
                 .exceptionally(ex -> {
-                    if (!isRedirectException(ex)) {
+                    if (isNot307And404Exception(ex)) {
                         log.error("[{}][{}] Failed to update partition to {}",
                                 clientAppId(), topicName, numPartitions, ex);
                     }
@@ -933,7 +934,7 @@ public class PersistentTopics extends PersistentTopicsBase {
         internalGetPropertiesAsync(authoritative)
                 .thenAccept(asyncResponse::resume)
                 .exceptionally(ex -> {
-                    if (!isRedirectException(ex)) {
+                    if (isNot307And404Exception(ex)) {
                         log.error("[{}] Failed to get topic {} properties", clientAppId(), topicName, ex);
                     }
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
@@ -969,7 +970,7 @@ public class PersistentTopics extends PersistentTopicsBase {
         internalUpdatePropertiesAsync(authoritative, properties)
             .thenAccept(__ -> asyncResponse.resume(Response.noContent().build()))
             .exceptionally(ex -> {
-                if (!isRedirectException(ex)) {
+                if (isNot307And404Exception(ex)) {
                     log.error("[{}] Failed to update topic {} properties", clientAppId(), topicName, ex);
                 }
                 resumeAsyncResponseExceptionally(asyncResponse, ex);
@@ -1003,7 +1004,7 @@ public class PersistentTopics extends PersistentTopicsBase {
         internalRemovePropertiesAsync(authoritative, key)
                 .thenAccept(__ -> asyncResponse.resume(Response.noContent().build()))
                 .exceptionally(ex -> {
-                    if (!isRedirectException(ex)) {
+                    if (isNot307And404Exception(ex)) {
                         log.error("[{}] Failed to remove key {} in properties on topic {}",
                                 clientAppId(), key, topicName, ex);
                     }
@@ -1124,7 +1125,7 @@ public class PersistentTopics extends PersistentTopicsBase {
                     } else if (isManagedLedgerNotFoundException(t)) {
                         ex = new RestException(Response.Status.NOT_FOUND,
                                 getTopicNotFoundErrorMessage(topicName.toString()));
-                    } else if (!isRedirectException(ex)) {
+                    } else if (isNot307And404Exception(ex)) {
                         log.error("[{}] Failed to delete topic {}", clientAppId(), topicName, t);
                     }
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
@@ -1195,13 +1196,20 @@ public class PersistentTopics extends PersistentTopicsBase {
                     + "not to use when there's heavy traffic.")
             @QueryParam("subscriptionBacklogSize") @DefaultValue("true") boolean subscriptionBacklogSize,
             @ApiParam(value = "If return time of the earliest message in backlog")
-            @QueryParam("getEarliestTimeInBacklog") @DefaultValue("false") boolean getEarliestTimeInBacklog) {
+            @QueryParam("getEarliestTimeInBacklog") @DefaultValue("false") boolean getEarliestTimeInBacklog,
+            @ApiParam(value = "If exclude the publishers")
+            @QueryParam("excludePublishers") @DefaultValue("false") boolean excludePublishers,
+            @ApiParam(value = "If exclude the consumers")
+            @QueryParam("excludeConsumers") @DefaultValue("false") boolean excludeConsumers) {
         validateTopicName(tenant, namespace, encodedTopic);
-        internalGetStatsAsync(authoritative, getPreciseBacklog, subscriptionBacklogSize, getEarliestTimeInBacklog)
+        GetStatsOptions getStatsOptions =
+                new GetStatsOptions(getPreciseBacklog, subscriptionBacklogSize, getEarliestTimeInBacklog,
+                        excludePublishers, excludeConsumers);
+        internalGetStatsAsync(authoritative, getStatsOptions)
                 .thenAccept(asyncResponse::resume)
                 .exceptionally(ex -> {
                     // If the exception is not redirect exception we need to log it.
-                    if (!isRedirectException(ex)) {
+                    if (isNot307And404Exception(ex)) {
                         log.error("[{}] Failed to get stats for {}", clientAppId(), topicName, ex);
                     }
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
@@ -1235,7 +1243,7 @@ public class PersistentTopics extends PersistentTopicsBase {
         internalGetInternalStatsAsync(authoritative, metadata)
                 .thenAccept(asyncResponse::resume)
                 .exceptionally(ex -> {
-                    if (!isRedirectException(ex)) {
+                    if (isNot307And404Exception(ex)) {
                         log.error("[{}] Failed to get internal stats for topic {}", clientAppId(), topicName, ex);
                     }
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
@@ -1297,15 +1305,20 @@ public class PersistentTopics extends PersistentTopicsBase {
                     + "not to use when there's heavy traffic.")
             @QueryParam("subscriptionBacklogSize") @DefaultValue("true") boolean subscriptionBacklogSize,
             @ApiParam(value = "If return the earliest time in backlog")
-            @QueryParam("getEarliestTimeInBacklog") @DefaultValue("false") boolean getEarliestTimeInBacklog) {
+            @QueryParam("getEarliestTimeInBacklog") @DefaultValue("false") boolean getEarliestTimeInBacklog,
+            @ApiParam(value = "If exclude the publishers")
+            @QueryParam("excludePublishers") @DefaultValue("false") boolean excludePublishers,
+            @ApiParam(value = "If exclude the consumers")
+            @QueryParam("excludeConsumers") @DefaultValue("false") boolean excludeConsumers) {
         try {
             validateTopicName(tenant, namespace, encodedTopic);
             if (topicName.isPartitioned()) {
                 throw new RestException(Response.Status.PRECONDITION_FAILED,
                         "Partitioned Topic Name should not contain '-partition-'");
             }
-            internalGetPartitionedStats(asyncResponse, authoritative, perPartition, getPreciseBacklog,
-                    subscriptionBacklogSize, getEarliestTimeInBacklog);
+            GetStatsOptions getStatsOptions = new GetStatsOptions(getPreciseBacklog, subscriptionBacklogSize,
+                    getEarliestTimeInBacklog, excludePublishers, excludeConsumers);
+            internalGetPartitionedStats(asyncResponse, authoritative, perPartition, getStatsOptions);
         } catch (WebApplicationException wae) {
             asyncResponse.resume(wae);
         } catch (Exception e) {
@@ -1879,7 +1892,7 @@ public class PersistentTopics extends PersistentTopicsBase {
         internalPeekNthMessageAsync(decode(encodedSubName), messagePosition, authoritative)
                 .thenAccept(asyncResponse::resume)
                 .exceptionally(ex -> {
-                    if (!isRedirectException(ex)) {
+                    if (isNot307And404Exception(ex)) {
                         log.error("[{}] Failed to get peek nth message for topic {} subscription {}", clientAppId(),
                                 topicName, decode(encodedSubName), ex);
                     }
@@ -1921,7 +1934,7 @@ public class PersistentTopics extends PersistentTopicsBase {
         internalExamineMessageAsync(initialPosition, messagePosition, authoritative)
                 .thenAccept(asyncResponse::resume)
                 .exceptionally(ex -> {
-                    if (!isRedirectException(ex)) {
+                    if (isNot307And404Exception(ex)) {
                         log.error("[{}] Failed to examine a specific message on the topic {}", clientAppId(), topicName,
                                 ex);
                     }
@@ -1963,7 +1976,7 @@ public class PersistentTopics extends PersistentTopicsBase {
                 .thenAccept(asyncResponse::resume)
                 .exceptionally(ex -> {
                     // If the exception is not redirect exception we need to log it.
-                    if (!isRedirectException(ex)) {
+                    if (isNot307And404Exception(ex)) {
                         log.error("[{}] Failed to get message with ledgerId {} entryId {} from {}",
                                 clientAppId(), ledgerId, entryId, topicName, ex);
                     }
@@ -2007,7 +2020,7 @@ public class PersistentTopics extends PersistentTopicsBase {
                     }
                 })
                 .exceptionally(ex -> {
-                    if (!isRedirectException(ex)) {
+                    if (isNot307And404Exception(ex)) {
                         log.error("[{}] Failed to get message ID by timestamp {} from {}",
                             clientAppId(), timestamp, topicName, ex);
                     }
@@ -2042,7 +2055,7 @@ public class PersistentTopics extends PersistentTopicsBase {
                         log.warn("[{}] Failed to get topic backlog {}: Namespace does not exist", clientAppId(),
                                 namespaceName);
                         ex = new RestException(Response.Status.NOT_FOUND, "Namespace does not exist");
-                    } else if (!isRedirectException(ex)) {
+                    } else if (isNot307And404Exception(ex)) {
                         log.error("[{}] Failed to get estimated backlog for topic {}", clientAppId(), encodedTopic, ex);
                     }
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
@@ -2226,7 +2239,6 @@ public class PersistentTopics extends PersistentTopicsBase {
     public void removeReplicationClusters(@Suspended final AsyncResponse asyncResponse,
             @PathParam("tenant") String tenant, @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
-            @QueryParam("backlogQuotaType") BacklogQuotaType backlogQuotaType,
             @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
@@ -2499,6 +2511,87 @@ public class PersistentTopics extends PersistentTopicsBase {
                 handleTopicPolicyException("removeRetention", ex, asyncResponse);
                 return null;
             });
+    }
+
+    @POST
+    @Path("/{tenant}/{namespace}/{topic}/dispatcherPauseOnAckStatePersistent")
+    @ApiOperation(value = "Set dispatcher pause on ack state persistent configuration for specified topic.")
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Namespace or topic doesn't exist"),
+            @ApiResponse(code = 405, message =
+                    "Topic level policy is disabled, to enable the topic level policy and retry"),
+            @ApiResponse(code = 409, message = "Concurrent modification")})
+    public void setDispatcherPauseOnAckStatePersistent(@Suspended final AsyncResponse asyncResponse,
+            @PathParam("tenant") String tenant,
+            @PathParam("namespace") String namespace,
+            @PathParam("topic") @Encoded String encodedTopic,
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
+            @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal) {
+        validateTopicName(tenant, namespace, encodedTopic);
+        preValidation(authoritative)
+            .thenCompose(__ -> internalSetDispatcherPauseOnAckStatePersistent(isGlobal))
+            .thenRun(() -> {
+                log.info("[{}] Successfully enabled dispatcherPauseOnAckStatePersistent: namespace={}, topic={}",
+                    clientAppId(), namespaceName, topicName.getLocalName());
+                asyncResponse.resume(Response.noContent().build());
+            })
+            .exceptionally(ex -> {
+                handleTopicPolicyException("setDispatcherPauseOnAckStatePersistent", ex, asyncResponse);
+                return null;
+            });
+    }
+
+    @DELETE
+    @Path("/{tenant}/{namespace}/{topic}/dispatcherPauseOnAckStatePersistent")
+    @ApiOperation(value = "Remove dispatcher pause on ack state persistent configuration for specified topic.")
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Namespace or topic doesn't exist"),
+            @ApiResponse(code = 405,
+                    message = "Topic level policy is disabled, to enable the topic level policy and retry"),
+            @ApiResponse(code = 409, message = "Concurrent modification")})
+    public void removeDispatcherPauseOnAckStatePersistent(@Suspended final AsyncResponse asyncResponse,
+            @PathParam("tenant") String tenant,
+            @PathParam("namespace") String namespace,
+            @PathParam("topic") @Encoded String encodedTopic,
+            @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
+        validateTopicName(tenant, namespace, encodedTopic);
+        preValidation(authoritative)
+            .thenCompose(__ -> internalRemoveDispatcherPauseOnAckStatePersistent(isGlobal))
+            .thenRun(() -> {
+                log.info("[{}] Successfully remove dispatcherPauseOnAckStatePersistent: namespace={}, topic={}",
+                        clientAppId(), namespaceName, topicName.getLocalName());
+                asyncResponse.resume(Response.noContent().build());
+            })
+            .exceptionally(ex -> {
+                handleTopicPolicyException("removeDispatcherPauseOnAckStatePersistent", ex, asyncResponse);
+                return null;
+            });
+    }
+
+    @GET
+    @Path("/{tenant}/{namespace}/{topic}/dispatcherPauseOnAckStatePersistent")
+    @ApiOperation(value = "Get dispatcher pause on ack state persistent config on a topic.", response = Integer.class)
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Tenant or cluster or namespace or topic doesn't exist"),
+            @ApiResponse(code = 500, message = "Internal server error"), })
+    public void getDispatcherPauseOnAckStatePersistent(@Suspended final AsyncResponse asyncResponse,
+                    @PathParam("tenant") String tenant,
+                    @PathParam("namespace") String namespace,
+                    @PathParam("topic") @Encoded String encodedTopic,
+                    @QueryParam("applied") @DefaultValue("false") boolean applied,
+                    @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
+                    @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
+                    @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
+        validateTopicName(tenant, namespace, encodedTopic);
+        preValidation(authoritative)
+                .thenCompose(__ -> internalGetDispatcherPauseOnAckStatePersistent(applied, isGlobal))
+                .thenApply(asyncResponse::resume).exceptionally(ex -> {
+                    handleTopicPolicyException("getDispatcherPauseOnAckStatePersistent", ex, asyncResponse);
+                    return null;
+                });
     }
 
     @GET
@@ -3080,7 +3173,7 @@ public class PersistentTopics extends PersistentTopicsBase {
         internalTerminateAsync(authoritative)
                 .thenAccept(asyncResponse::resume)
                 .exceptionally(ex -> {
-                    if (!isRedirectException(ex)) {
+                    if (isNot307And404Exception(ex)) {
                         log.error("[{}] Failed to terminated topic {}", clientAppId(), topicName, ex);
                     }
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
@@ -3176,7 +3269,7 @@ public class PersistentTopics extends PersistentTopicsBase {
         internalCompactionStatusAsync(authoritative)
                 .thenAccept(asyncResponse::resume)
                 .exceptionally(ex -> {
-                    if (!isRedirectException(ex)) {
+                    if (isNot307And404Exception(ex)) {
                         log.error("[{}] Failed to get the status of a compaction operation for the topic {}",
                                 clientAppId(), topicName, ex);
                     }
@@ -3315,7 +3408,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             validateTopicName(tenant, namespace, encodedTopic);
             internalTrimTopic(asyncResponse, authoritative).exceptionally(ex -> {
                 // If the exception is not redirect exception we need to log it.
-                if (!isRedirectException(ex)) {
+                if (isNot307And404Exception(ex)) {
                     log.error("[{}] Failed to trim topic {}", clientAppId(), topicName, ex);
                 }
                 resumeAsyncResponseExceptionally(asyncResponse, ex);

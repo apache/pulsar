@@ -64,6 +64,7 @@ import org.apache.pulsar.common.api.proto.CommandAck.AckType;
 import org.apache.pulsar.common.api.proto.CommandSubscribe;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.common.util.collections.BitSetRecyclable;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.common.util.collections.GrowableArrayBlockingQueue;
 import org.slf4j.Logger;
@@ -448,6 +449,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
 
     @Override
     public void reconsumeLater(Message<?> message, long delayTime, TimeUnit unit) throws PulsarClientException {
+        checkArgument(delayTime >= 0, "The delay time must not be negative.");
         reconsumeLater(message, null, delayTime, unit);
     }
 
@@ -562,6 +564,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     @Override
     public CompletableFuture<Void> reconsumeLaterAsync(
             Message<?> message, Map<String, String> customProperties, long delayTime, TimeUnit unit) {
+        checkArgument(delayTime >= 0, "The delay time must not be negative.");
         if (!conf.isRetryEnable()) {
             return FutureUtil.failedFuture(new PulsarClientException(RECONSUME_LATER_ERROR_MSG));
         }
@@ -598,12 +601,14 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
 
     @Override
     public CompletableFuture<Void> reconsumeLaterCumulativeAsync(Message<?> message, long delayTime, TimeUnit unit) {
+        checkArgument(delayTime >= 0, "The delay time must not be negative.");
         return reconsumeLaterCumulativeAsync(message, null, delayTime, unit);
     }
 
     @Override
     public CompletableFuture<Void> reconsumeLaterCumulativeAsync(
             Message<?> message, Map<String, String> customProperties, long delayTime, TimeUnit unit) {
+        checkArgument(delayTime >= 0, "The delay time must not be negative.");
         if (!conf.isRetryEnable()) {
             return FutureUtil.failedFuture(new PulsarClientException(RECONSUME_LATER_ERROR_MSG));
         }
@@ -711,8 +716,13 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
 
     @Override
     public void unsubscribe() throws PulsarClientException {
+        unsubscribe(false);
+    }
+
+    @Override
+    public void unsubscribe(boolean force) throws PulsarClientException {
         try {
-            unsubscribeAsync().get();
+            unsubscribeAsync(force).get();
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw PulsarClientException.unwrap(e);
@@ -722,7 +732,12 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     }
 
     @Override
-    public abstract CompletableFuture<Void> unsubscribeAsync();
+    public CompletableFuture<Void> unsubscribeAsync() {
+        return unsubscribeAsync(false);
+    }
+
+    @Override
+    public abstract CompletableFuture<Void> unsubscribeAsync(boolean force);
 
     @Override
     public void close() throws PulsarClientException {
@@ -1264,6 +1279,10 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
             return false;
         }
         return true;
+    }
+
+    protected boolean isSingleMessageAcked(BitSetRecyclable ackBitSet, int batchIndex) {
+        return ackBitSet != null && !ackBitSet.get(batchIndex);
     }
 
     public boolean hasBatchReceiveTimeout() {

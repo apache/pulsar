@@ -22,6 +22,9 @@
 <gradleEnterprise
         xmlns="https://www.gradle.com/gradle-enterprise-maven" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
         xsi:schemaLocation="https://www.gradle.com/gradle-enterprise-maven https://www.gradle.com/schema/gradle-enterprise-maven.xsd">
+  <!-- Enable Gradle Enterprise extension when GRADLE_ENTERPRISE_ACCESS_KEY is set and the build isn't
+       a pull request from a branch or forked repository with a name that indicates it's a work in progress. -->
+  <enabled>#{env['GRADLE_ENTERPRISE_ACCESS_KEY']?.trim() > '' and !(env['GITHUB_HEAD_REF']?.matches('(?i).*(experiment|wip|private).*') or env['GITHUB_REPOSITORY']?.matches('(?i).*(experiment|wip|private).*'))}</enabled>
   <server>
     <url>https://ge.apache.org</url>
     <allowUntrusted>false</allowUntrusted>

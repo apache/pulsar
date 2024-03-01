@@ -22,7 +22,6 @@ import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParameterException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
-import com.google.common.collect.Sets;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -76,46 +75,6 @@ public abstract class CliCommand {
             throw new ParameterException("Need to provide a non-persistent topic name");
         }
         return topicName.toString();
-    }
-
-    static void validateLatencySampleRate(int sampleRate) {
-        if (sampleRate < 0) {
-            throw new ParameterException(
-                    "Latency sample rate should be positive and non-zero (found " + sampleRate + ")");
-        }
-    }
-
-    static long validateSizeString(String s) {
-        char last = s.charAt(s.length() - 1);
-        String subStr = s.substring(0, s.length() - 1);
-        long size;
-        try {
-            size = SIZE_UNIT.contains(last) ? Long.parseLong(subStr) : Long.parseLong(s);
-        } catch (IllegalArgumentException e) {
-            throw new ParameterException(
-                    String.format("Invalid size '%s'. Valid formats are: %s",
-                            s, "(4096, 100K, 10M, 16G, 2T)"));
-        }
-        switch (last) {
-        case 'k':
-        case 'K':
-            return size * 1024;
-
-        case 'm':
-        case 'M':
-            return size * 1024 * 1024;
-
-        case 'g':
-        case 'G':
-            return size * 1024 * 1024 * 1024;
-
-        case 't':
-        case 'T':
-            return size * 1024 * 1024 * 1024 * 1024;
-
-        default:
-            return size;
-        }
     }
 
     static MessageId validateMessageIdString(String resetMessageIdStr) throws PulsarAdminException {
@@ -230,7 +189,6 @@ public abstract class CliCommand {
 
     private static final ObjectMapper MAPPER = ObjectMapperFactory.create();
     private static final ObjectWriter WRITER = MAPPER.writerWithDefaultPrettyPrinter();
-    private static final Set<Character> SIZE_UNIT = Sets.newHashSet('k', 'K', 'm', 'M', 'g', 'G', 't', 'T');
 
     abstract void run() throws Exception;
 }

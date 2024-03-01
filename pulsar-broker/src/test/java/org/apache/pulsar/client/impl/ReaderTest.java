@@ -44,6 +44,7 @@ import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.MessageIdAdv;
 import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerBuilder;
@@ -52,6 +53,7 @@ import org.apache.pulsar.client.api.Range;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.ReaderBuilder;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.TopicMessageId;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats;
@@ -137,6 +139,56 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
         Assert.assertTrue(reader.hasMessageAvailable());
         Assert.assertTrue(keys.remove(reader.readNext().getKey()));
         Assert.assertFalse(reader.hasMessageAvailable());
+    }
+
+    @Test
+    public void testReaderGetLastMessageIds() throws Exception {
+        String topic1 = "persistent://my-property/my-ns/testReaderGetLastMessageIds-1";
+        String topic2 = "persistent://my-property/my-ns/testReaderGetLastMessageIds-2";
+        List<String> topicList = new ArrayList<>();
+        topicList.add(topic1);
+        topicList.add(topic2);
+        @Cleanup
+        Reader<byte[]> reader1 = pulsarClient.newReader()
+                .topic(topic1)
+                .startMessageId(MessageId.earliest)
+                .readerName(subscription)
+                .create();
+        @Cleanup
+        Reader<byte[]> reader2 = pulsarClient.newReader()
+                .topics(topicList)
+                .startMessageId(MessageId.earliest)
+                .readerName(subscription)
+                .create();
+
+        Producer<byte[]> producer1 = pulsarClient.newProducer()
+                .topic(topic1)
+                .create();
+        Producer<byte[]> producer2 = pulsarClient.newProducer()
+                .topic(topic2)
+                .create();
+        MessageIdImpl messageId1 = (MessageIdImpl) producer1.newMessage().send();
+        MessageIdImpl messageId2 = (MessageIdImpl) producer2.newMessage().send();
+        reader1.readNext();
+        reader2.readNext();
+        reader2.readNext();
+        List<TopicMessageId> topicMessageIds1 =  reader1.getLastMessageIds();
+        assertEquals(topicMessageIds1.size(), 1);
+        assertEquals(topicMessageIds1.get(0).getOwnerTopic(), topic1);
+        assertEquals(((MessageIdAdv)topicMessageIds1.get(0)).getEntryId(), messageId1.getEntryId());
+        assertEquals(((MessageIdAdv)topicMessageIds1.get(0)).getLedgerId(), messageId1.getLedgerId());
+
+        List<TopicMessageId> topicMessageIds2 = reader2.getLastMessageIds();
+        assertEquals(topicMessageIds2.size(), 2);
+        for (TopicMessageId topicMessageId: topicMessageIds2) {
+            if (topicMessageId.getOwnerTopic().equals(topic1)) {
+                assertEquals(((MessageIdAdv)topicMessageId).getEntryId(), messageId1.getEntryId());
+                assertEquals(((MessageIdAdv)topicMessageId).getLedgerId(), messageId1.getLedgerId());
+            } else {
+                assertEquals(((MessageIdAdv)topicMessageId).getEntryId(), messageId2.getEntryId());
+                assertEquals(((MessageIdAdv)topicMessageId).getLedgerId(), messageId2.getLedgerId());
+            }
+        }
     }
 
     @Test
@@ -733,4 +785,32 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
         admin.topics().deletePartitionedTopic(partitionedTopic);
     }
 
+    @Test
+    public void testReaderReconnectedFromNextEntry() throws Exception {
+        final String topic = "persistent://my-property/my-ns/testReaderReconnectedFromNextEntry";
+        Reader<String> reader = pulsarClient.newReader(Schema.STRING).topic(topic).receiverQueueSize(1)
+                .startMessageId(MessageId.earliest).create();
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topic).create();
+
+        // Send 3 and consume 1.
+        producer.send("1");
+        producer.send("2");
+        producer.send("3");
+        Message<String> msg1 = reader.readNext(2, TimeUnit.SECONDS);
+        assertEquals(msg1.getValue(), "1");
+
+        // Trigger reader reconnect.
+        admin.topics().unload(topic);
+
+        // For non-durable we are going to restart from the next entry.
+        Message<String> msg2 = reader.readNext(2, TimeUnit.SECONDS);
+        assertEquals(msg2.getValue(), "2");
+        Message<String> msg3 = reader.readNext(2, TimeUnit.SECONDS);
+        assertEquals(msg3.getValue(), "3");
+
+        // cleanup.
+        reader.close();
+        producer.close();
+        admin.topics().delete(topic, false);
+    }
 }

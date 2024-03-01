@@ -78,14 +78,16 @@ public class ProxyAdditionalServletTest extends MockedPulsarServiceBaseTest {
         proxyConfig.setConfigurationMetadataStoreUrl(GLOBAL_DUMMY_VALUE);
         // enable full parsing feature
         proxyConfig.setProxyLogLevel(Optional.of(2));
+        proxyConfig.setClusterName(configClusterName);
 
         // this is for nar package test
 //        addServletNar();
 
         proxyService = Mockito.spy(new ProxyService(proxyConfig,
                 new AuthenticationService(PulsarConfigurationLoader.convertFrom(proxyConfig))));
-        doReturn(new ZKMetadataStore(mockZooKeeper)).when(proxyService).createLocalMetadataStore();
-        doReturn(new ZKMetadataStore(mockZooKeeperGlobal)).when(proxyService).createConfigurationMetadataStore();
+        doReturn(registerCloseable(new ZKMetadataStore(mockZooKeeper))).when(proxyService).createLocalMetadataStore();
+        doReturn(registerCloseable(new ZKMetadataStore(mockZooKeeperGlobal))).when(proxyService)
+                .createConfigurationMetadataStore();
 
         Optional<Integer> proxyLogLevel = Optional.of(2);
         assertEquals(proxyLogLevel, proxyService.getConfiguration().getProxyLogLevel());
@@ -177,6 +179,7 @@ public class ProxyAdditionalServletTest extends MockedPulsarServiceBaseTest {
         internalCleanup();
 
         proxyService.close();
+        proxyWebServer.stop();
     }
 
     @Test

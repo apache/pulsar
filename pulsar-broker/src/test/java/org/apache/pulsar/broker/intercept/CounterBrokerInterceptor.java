@@ -31,6 +31,7 @@ import javax.servlet.ServletResponse;
 import javax.servlet.http.HttpServletRequest;
 import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.http.HttpStatus;
@@ -63,10 +64,13 @@ public class CounterBrokerInterceptor implements BrokerInterceptor {
     private final AtomicInteger messageDispatchCount = new AtomicInteger();
     private final AtomicInteger messageAckCount = new AtomicInteger();
     private final AtomicInteger handleAckCount = new AtomicInteger();
+    @Getter
+    private final AtomicInteger handleNackCount = new AtomicInteger();
     private final AtomicInteger txnCount = new AtomicInteger();
     private final AtomicInteger committedTxnCount = new AtomicInteger();
     private final AtomicInteger abortedTxnCount = new AtomicInteger();
     private final AtomicInteger metricsCount = new AtomicInteger();
+    public static final String NAME = "COUNTER-BROKER-INTERCEPTOR";
 
     public void reset() {
         beforeSendCount.set(0);
@@ -81,6 +85,7 @@ public class CounterBrokerInterceptor implements BrokerInterceptor {
         txnCount.set(0);
         committedTxnCount.set(0);
         abortedTxnCount.set(0);
+        handleNackCount.set(0);
     }
 
     private final List<ResponseEvent> responseList = new CopyOnWriteArrayList<>();
@@ -210,6 +215,9 @@ public class CounterBrokerInterceptor implements BrokerInterceptor {
         }
         if (command.getType().equals(BaseCommand.Type.ACK)) {
             handleAckCount.incrementAndGet();
+        }
+        if(command.getType().equals(BaseCommand.Type.REDELIVER_UNACKNOWLEDGED_MESSAGES)) {
+            handleNackCount.incrementAndGet();
         }
         count.incrementAndGet();
     }

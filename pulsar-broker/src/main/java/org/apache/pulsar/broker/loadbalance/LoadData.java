@@ -64,7 +64,7 @@ public class LoadData {
 
     public Map<String, BundleData> getBundleDataForLoadShedding() {
         return bundleData.entrySet().stream()
-                .filter(e -> !NamespaceService.filterNamespaceForShedding(
+                .filter(e -> !NamespaceService.isSLAOrHeartbeatNamespace(
                         NamespaceBundle.getBundleNamespace(e.getKey())))
                 .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
     }

@@ -21,6 +21,7 @@ package org.apache.pulsar.client.impl;
 import static com.google.common.base.Preconditions.checkArgument;
 import java.net.InetSocketAddress;
 import java.time.Clock;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
@@ -36,6 +37,7 @@ import org.apache.pulsar.client.api.ServiceUrlProvider;
 import org.apache.pulsar.client.api.SizeUnit;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.conf.ConfigurationDataUtils;
+import org.apache.pulsar.common.tls.InetAddressUtils;
 
 public class ClientBuilderImpl implements ClientBuilder {
     ClientConfigurationData conf;
@@ -166,6 +168,7 @@ public class ClientBuilderImpl implements ClientBuilder {
 
     @Override
     public ClientBuilder lookupTimeout(int lookupTimeout, TimeUnit unit) {
+        checkArgument(lookupTimeout >= 0, "lookupTimeout must not be negative");
         conf.setLookupTimeoutMs(unit.toMillis(lookupTimeout));
         return this;
     }
@@ -331,6 +334,7 @@ public class ClientBuilderImpl implements ClientBuilder {
 
     @Override
     public ClientBuilder connectionTimeout(int duration, TimeUnit unit) {
+        checkArgument(duration >= 0, "connectionTimeout needs to be >= 0");
         conf.setConnectionTimeoutMs((int) unit.toMillis(duration));
         return this;
     }
@@ -390,6 +394,17 @@ public class ClientBuilderImpl implements ClientBuilder {
         checkArgument(port >= 0 && port <= 65535, "DnsLookBindPort need to be within the range of 0 and 65535");
         conf.setDnsLookupBindAddress(address);
         conf.setDnsLookupBindPort(port);
+        return this;
+    }
+
+    @Override
+    public ClientBuilder dnsServerAddresses(List<InetSocketAddress> addresses) {
+        for (InetSocketAddress address : addresses) {
+            String ip = address.getHostString();
+            checkArgument(InetAddressUtils.isIPv4Address(ip) || InetAddressUtils.isIPv6Address(ip),
+                    "DnsServerAddresses need to be valid IPv4 or IPv6 addresses");
+        }
+        conf.setDnsServerAddresses(addresses);
         return this;
     }
 

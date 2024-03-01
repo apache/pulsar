@@ -54,6 +54,7 @@ import java.util.Optional;
 import java.util.Properties;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.admin.cli.extensions.CustomCommandFactory;
 import org.apache.pulsar.admin.cli.utils.SchemaExtractor;
@@ -467,6 +468,11 @@ public class PulsarAdminToolTest {
         namespaces.run(split("remove-replicator-dispatch-rate myprop/clust/ns1"));
         verify(mockNamespaces).removeReplicatorDispatchRate("myprop/clust/ns1");
 
+
+        assertFalse(namespaces.run(split("unload myprop/clust/ns1 -d broker")));
+        verify(mockNamespaces, times(0)).unload("myprop/clust/ns1");
+
+        namespaces = new CmdNamespaces(() -> admin);
         namespaces.run(split("unload myprop/clust/ns1"));
         verify(mockNamespaces).unload("myprop/clust/ns1");
 
@@ -482,6 +488,10 @@ public class PulsarAdminToolTest {
 
         namespaces.run(split("unload myprop/clust/ns1 -b 0x80000000_0xffffffff"));
         verify(mockNamespaces).unloadNamespaceBundle("myprop/clust/ns1", "0x80000000_0xffffffff", null);
+
+        namespaces = new CmdNamespaces(() -> admin);
+        namespaces.run(split("unload myprop/clust/ns1 -b 0x80000000_0xffffffff -d broker"));
+        verify(mockNamespaces).unloadNamespaceBundle("myprop/clust/ns1", "0x80000000_0xffffffff", "broker");
 
         namespaces.run(split("split-bundle myprop/clust/ns1 -b 0x00000000_0xffffffff"));
         verify(mockNamespaces).splitNamespaceBundle("myprop/clust/ns1", "0x00000000_0xffffffff", false, null);
@@ -670,9 +680,9 @@ public class PulsarAdminToolTest {
         namespaces.run(split("remove-retention myprop/clust/ns1"));
         verify(mockNamespaces).removeRetention("myprop/clust/ns1");
 
-        namespaces.run(split("set-delayed-delivery myprop/clust/ns1 -e -t 1s"));
+        namespaces.run(split("set-delayed-delivery myprop/clust/ns1 -e -t 1s -md 5s"));
         verify(mockNamespaces).setDelayedDeliveryMessages("myprop/clust/ns1",
-                DelayedDeliveryPolicies.builder().tickTime(1000).active(true).build());
+                DelayedDeliveryPolicies.builder().tickTime(1000).active(true).maxDeliveryDelayInMillis(5000).build());
 
         namespaces.run(split("get-delayed-delivery myprop/clust/ns1"));
         verify(mockNamespaces).getDelayedDelivery("myprop/clust/ns1");
@@ -872,6 +882,15 @@ public class PulsarAdminToolTest {
         verify(mockNamespaces).getDeduplicationSnapshotInterval("myprop/clust/ns1");
         namespaces.run(split("remove-deduplication-snapshot-interval myprop/clust/ns1"));
         verify(mockNamespaces).removeDeduplicationSnapshotInterval("myprop/clust/ns1");
+
+        namespaces.run(split("set-dispatcher-pause-on-ack-state-persistent myprop/clust/ns1"));
+        verify(mockNamespaces).setDispatcherPauseOnAckStatePersistent("myprop/clust/ns1");
+
+        namespaces.run(split("get-dispatcher-pause-on-ack-state-persistent myprop/clust/ns1"));
+        verify(mockNamespaces).getDispatcherPauseOnAckStatePersistent("myprop/clust/ns1");
+
+        namespaces.run(split("remove-dispatcher-pause-on-ack-state-persistent myprop/clust/ns1"));
+        verify(mockNamespaces).removeDispatcherPauseOnAckStatePersistent("myprop/clust/ns1");
 
     }
 
@@ -1191,9 +1210,9 @@ public class PulsarAdminToolTest {
 
         cmdTopics.run(split("get-delayed-delivery persistent://myprop/clust/ns1/ds1"));
         verify(mockTopicsPolicies).getDelayedDeliveryPolicy("persistent://myprop/clust/ns1/ds1", false);
-        cmdTopics.run(split("set-delayed-delivery persistent://myprop/clust/ns1/ds1 -t 10s --enable"));
+        cmdTopics.run(split("set-delayed-delivery persistent://myprop/clust/ns1/ds1 -t 10s --enable --maxDelay 5s"));
         verify(mockTopicsPolicies).setDelayedDeliveryPolicy("persistent://myprop/clust/ns1/ds1",
-                DelayedDeliveryPolicies.builder().tickTime(10000).active(true).build());
+                DelayedDeliveryPolicies.builder().tickTime(10000).active(true).maxDeliveryDelayInMillis(5000).build());
         cmdTopics.run(split("remove-delayed-delivery persistent://myprop/clust/ns1/ds1"));
         verify(mockTopicsPolicies).removeDelayedDeliveryPolicy("persistent://myprop/clust/ns1/ds1") ;
 
@@ -1358,9 +1377,9 @@ public class PulsarAdminToolTest {
 
         cmdTopics.run(split("get-delayed-delivery persistent://myprop/clust/ns1/ds1 -g"));
         verify(mockGlobalTopicsPolicies).getDelayedDeliveryPolicy("persistent://myprop/clust/ns1/ds1", false);
-        cmdTopics.run(split("set-delayed-delivery persistent://myprop/clust/ns1/ds1 -t 10s --enable -g"));
+        cmdTopics.run(split("set-delayed-delivery persistent://myprop/clust/ns1/ds1 -t 10s --enable -md 5s -g"));
         verify(mockGlobalTopicsPolicies).setDelayedDeliveryPolicy("persistent://myprop/clust/ns1/ds1",
-                DelayedDeliveryPolicies.builder().tickTime(10000).active(true).build());
+                DelayedDeliveryPolicies.builder().tickTime(10000).active(true).maxDeliveryDelayInMillis(5000).build());
         cmdTopics.run(split("remove-delayed-delivery persistent://myprop/clust/ns1/ds1 -g"));
         verify(mockGlobalTopicsPolicies).removeDelayedDeliveryPolicy("persistent://myprop/clust/ns1/ds1") ;
 
@@ -1787,9 +1806,9 @@ public class PulsarAdminToolTest {
 
         cmdTopics.run(split("get-delayed-delivery persistent://myprop/clust/ns1/ds1"));
         verify(mockTopics).getDelayedDeliveryPolicy("persistent://myprop/clust/ns1/ds1", false);
-        cmdTopics.run(split("set-delayed-delivery persistent://myprop/clust/ns1/ds1 -t 10s --enable"));
+        cmdTopics.run(split("set-delayed-delivery persistent://myprop/clust/ns1/ds1 -t 10s -md 5s --enable"));
         verify(mockTopics).setDelayedDeliveryPolicy("persistent://myprop/clust/ns1/ds1",
-                DelayedDeliveryPolicies.builder().tickTime(10000).active(true).build());
+                DelayedDeliveryPolicies.builder().tickTime(10000).active(true).maxDeliveryDelayInMillis(5000).build());
         cmdTopics.run(split("remove-delayed-delivery persistent://myprop/clust/ns1/ds1"));
         verify(mockTopics).removeDelayedDeliveryPolicy("persistent://myprop/clust/ns1/ds1") ;
 
@@ -2254,7 +2273,9 @@ public class PulsarAdminToolTest {
             //Ok
         }
 
-        ClientConfigurationData conf =  ((PulsarAdminImpl)tool.getPulsarAdminSupplier().get()).getClientConfigData();
+        @Cleanup
+        PulsarAdminImpl pulsarAdmin = (PulsarAdminImpl) tool.getPulsarAdminSupplier().get();
+        ClientConfigurationData conf =  pulsarAdmin.getClientConfigData();
 
         assertEquals(1000, conf.getRequestTimeoutMs());
     }
@@ -2264,7 +2285,6 @@ public class PulsarAdminToolTest {
         Properties properties = new Properties();
         properties.put("webServiceUrl", "http://localhost:2181");
         PulsarAdminTool tool = new PulsarAdminTool(properties);
-
         assertFalse(tool.run("sources create --source-config-file doesnotexist.yaml".split(" ")));
     }
 
@@ -2298,8 +2318,9 @@ public class PulsarAdminToolTest {
         }
 
         // validate Authentication-tls has been configured
-        ClientConfigurationData conf = ((PulsarAdminImpl)tool.getPulsarAdminSupplier().get())
-                .getClientConfigData();
+        @Cleanup
+        PulsarAdminImpl pulsarAdmin = (PulsarAdminImpl) tool.getPulsarAdminSupplier().get();
+        ClientConfigurationData conf =  pulsarAdmin.getClientConfigData();
         AuthenticationTls atuh = (AuthenticationTls) conf.getAuthentication();
         assertEquals(atuh.getCertFilePath(), certFilePath);
         assertEquals(atuh.getKeyFilePath(), keyFilePath);
@@ -2312,8 +2333,9 @@ public class PulsarAdminToolTest {
             // Ok
         }
 
-        conf = conf = ((PulsarAdminImpl)tool.getPulsarAdminSupplier().get())
-                .getClientConfigData();
+        @Cleanup
+        PulsarAdminImpl pulsarAdmin2 = (PulsarAdminImpl) tool.getPulsarAdminSupplier().get();
+        conf =  pulsarAdmin2.getClientConfigData();
         atuh = (AuthenticationTls) conf.getAuthentication();
         assertEquals(atuh.getCertFilePath(), certFilePath);
         assertEquals(atuh.getKeyFilePath(), keyFilePath);
@@ -2402,6 +2424,10 @@ public class PulsarAdminToolTest {
         cmdTransactions = new CmdTransactions(() -> admin);
         cmdTransactions.run(split("coordinators-list"));
         verify(transactions).listTransactionCoordinators();
+
+        cmdTransactions = new CmdTransactions(() -> admin);
+        cmdTransactions.run(split("abort-transaction -m 1 -l 2"));
+        verify(transactions).abortTransaction(new TxnID(1, 2));
     }
 
     @Test

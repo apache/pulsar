@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.broker.web;
 
+import static org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient.Metric;
+import static org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient.parseMetrics;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
@@ -51,7 +53,6 @@ import lombok.Cleanup;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.broker.stats.PrometheusMetricsTest;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsGenerator;
 import org.apache.pulsar.broker.testcontext.PulsarTestContext;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -104,31 +105,31 @@ public class WebServiceTest {
         ByteArrayOutputStream statsOut = new ByteArrayOutputStream();
         PrometheusMetricsGenerator.generate(pulsar, false, false, false, statsOut);
         String metricsStr = statsOut.toString();
-        Multimap<String, PrometheusMetricsTest.Metric> metrics = PrometheusMetricsTest.parseMetrics(metricsStr);
+        Multimap<String, Metric> metrics = parseMetrics(metricsStr);
 
-        Collection<PrometheusMetricsTest.Metric> maxThreads = metrics.get("pulsar_web_executor_max_threads");
-        Collection<PrometheusMetricsTest.Metric> minThreads = metrics.get("pulsar_web_executor_min_threads");
-        Collection<PrometheusMetricsTest.Metric> activeThreads = metrics.get("pulsar_web_executor_active_threads");
-        Collection<PrometheusMetricsTest.Metric> idleThreads = metrics.get("pulsar_web_executor_idle_threads");
-        Collection<PrometheusMetricsTest.Metric> currentThreads = metrics.get("pulsar_web_executor_current_threads");
+        Collection<Metric> maxThreads = metrics.get("pulsar_web_executor_max_threads");
+        Collection<Metric> minThreads = metrics.get("pulsar_web_executor_min_threads");
+        Collection<Metric> activeThreads = metrics.get("pulsar_web_executor_active_threads");
+        Collection<Metric> idleThreads = metrics.get("pulsar_web_executor_idle_threads");
+        Collection<Metric> currentThreads = metrics.get("pulsar_web_executor_current_threads");
 
-        for (PrometheusMetricsTest.Metric metric : maxThreads) {
+        for (Metric metric : maxThreads) {
             Assert.assertNotNull(metric.tags.get("cluster"));
             Assert.assertTrue(metric.value > 0);
         }
-        for (PrometheusMetricsTest.Metric metric : minThreads) {
+        for (Metric metric : minThreads) {
             Assert.assertNotNull(metric.tags.get("cluster"));
             Assert.assertTrue(metric.value > 0);
         }
-        for (PrometheusMetricsTest.Metric metric : activeThreads) {
+        for (Metric metric : activeThreads) {
             Assert.assertNotNull(metric.tags.get("cluster"));
             Assert.assertTrue(metric.value >= 0);
         }
-        for (PrometheusMetricsTest.Metric metric : idleThreads) {
+        for (Metric metric : idleThreads) {
             Assert.assertNotNull(metric.tags.get("cluster"));
             Assert.assertTrue(metric.value >= 0);
         }
-        for (PrometheusMetricsTest.Metric metric : currentThreads) {
+        for (Metric metric : currentThreads) {
             Assert.assertNotNull(metric.tags.get("cluster"));
             Assert.assertTrue(metric.value > 0);
         }
@@ -451,7 +452,7 @@ public class WebServiceTest {
                 + "/lookup/v2/destination/persistent/my-property/local/my-namespace/my-topic";
         BROKER_LOOKUP_URL_TLS = BROKER_URL_BASE_TLS
                 + "/lookup/v2/destination/persistent/my-property/local/my-namespace/my-topic";
-
+        @Cleanup
         PulsarAdmin pulsarAdmin = adminBuilder.serviceHttpUrl(serviceUrl).build();
 
         try {
@@ -459,8 +460,6 @@ public class WebServiceTest {
                     ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
         } catch (ConflictException ce) {
             // This is OK.
-        } finally {
-            pulsarAdmin.close();
         }
     }
 
