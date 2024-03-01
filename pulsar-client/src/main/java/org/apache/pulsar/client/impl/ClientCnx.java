@@ -1336,6 +1336,8 @@ public class ClientCnx extends PulsarHandler {
             return new PulsarClientException.IncompatibleSchemaException(errorMsg);
         case TopicNotFound:
             return new PulsarClientException.TopicDoesNotExistException(errorMsg);
+        case SubscriptionNotFound:
+            return new PulsarClientException.SubscriptionNotFoundException(errorMsg);
         case ConsumerAssignError:
             return new PulsarClientException.ConsumerAssignException(errorMsg);
         case NotAllowedError:

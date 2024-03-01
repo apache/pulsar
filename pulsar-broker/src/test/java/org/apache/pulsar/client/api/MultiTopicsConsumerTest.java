@@ -371,4 +371,36 @@ public class MultiTopicsConsumerTest extends ProducerConsumerBase {
         assertTrue(consumer instanceof MultiTopicsConsumerImpl);
         assertTrue(consumer.isConnected());
     }
+
+    @Test(timeOut = 30000)
+    public void testSubscriptionNotFound() throws PulsarAdminException, PulsarClientException {
+        final var topic1 = newTopicName();
+        final var topic2 = newTopicName();
+
+        pulsar.getConfiguration().setAllowAutoSubscriptionCreation(false);
+
+        try {
+            final var singleTopicConsumer = pulsarClient.newConsumer()
+                    .topic(topic1)
+                    .subscriptionName("sub-1")
+                    .isAckReceiptEnabled(true)
+                    .subscribe();
+            assertTrue(singleTopicConsumer instanceof ConsumerImpl);
+        } catch (Throwable t) {
+            assertTrue(t.getCause().getCause() instanceof PulsarClientException.SubscriptionNotFoundException);
+        }
+
+        try {
+            final var multiTopicsConsumer = pulsarClient.newConsumer()
+                    .topics(List.of(topic1, topic2))
+                    .subscriptionName("sub-2")
+                    .isAckReceiptEnabled(true)
+                    .subscribe();
+            assertTrue(multiTopicsConsumer instanceof MultiTopicsConsumerImpl);
+        } catch (Throwable t) {
+            assertTrue(t.getCause().getCause() instanceof PulsarClientException.SubscriptionNotFoundException);
+        }
+
+        pulsar.getConfiguration().setAllowAutoSubscriptionCreation(true);
+    }
 }
