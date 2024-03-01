@@ -1983,16 +1983,16 @@ public class CmdNamespaces extends CmdBase {
 
         @Parameter(names = {"--time", "-t"},
             description = "Maximum number of seconds stored on the pulsar cluster for a topic"
-                + " before the broker will start offloading to longterm storage (eg: 10m, 5h, 3d, 2w).",
-            converter = TimeUnitToSecondsConverter.class)
-        private Long thresholdInSeconds = -1L;
+                + " before the broker will start offloading to longterm storage (eg: 10m, 5h, 3d, 2w).")
+        private String thresholdInSeconds = "-1";
 
         @Override
         void run() throws PulsarAdminException {
             String namespace = validateNamespace(params);
             long threshold = validateSizeString(thresholdStr);
+            long timeInSeconds = RelativeTimeUtil.parseRelativeTimeInSeconds(thresholdInSeconds);
             getAdmin().namespaces().setOffloadThreshold(namespace, threshold);
-            getAdmin().namespaces().setOffloadThresholdInSeconds(namespace, thresholdInSeconds);
+            getAdmin().namespaces().setOffloadThresholdInSeconds(namespace, timeInSeconds);
         }
     }
 
