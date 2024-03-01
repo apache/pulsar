@@ -116,8 +116,6 @@ public abstract class ExtensibleLoadManagerImplBaseTest extends MockedPulsarServ
         admin.namespaces().unload(defaultTestNamespace);
         reset(primaryLoadManager, secondaryLoadManager);
         FieldUtils.writeDeclaredField(pulsarClient, "lookup", lookupService, true);
-        pulsar1.getConfig().setLoadBalancerMultiPhaseBundleUnload(true);
-        pulsar2.getConfig().setLoadBalancerMultiPhaseBundleUnload(true);
     }
 
     protected void setPrimaryLoadManager() throws IllegalAccessException {
