@@ -210,7 +210,7 @@ public class LinuxInfoUtils {
             return Integer.parseInt(readTrimStringFromFile(nicTypePath)) == ARPHRD_ETHER;
         } catch (Exception ex) {
             if (log.isDebugEnabled()) {
-                log.debug("Failed to read nic type. nic_path={}", nicPath, ex);
+                log.debug("Failed to read NIC type. nic_path={}", nicPath, ex);
             }
             return false;
         }
