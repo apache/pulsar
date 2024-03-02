@@ -199,7 +199,7 @@ public class LinuxInfoUtils {
             }
             // Check the type to make sure it's ethernet (type "1")
             final Path nicTypePath = nicPath.resolve("type");
-            if(!Files.exists(nicTypePath)) {
+            if (!Files.exists(nicTypePath)) {
                 if (log.isDebugEnabled()) {
                     log.debug("Failed to read NIC type, the expected linux type file does not exist."
                               + " nic_type_path={}", nicTypePath);
