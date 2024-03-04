@@ -19,12 +19,12 @@
 package org.apache.pulsar.broker.admin;
 
 import static org.awaitility.Awaitility.await;
+import com.google.common.collect.Sets;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
-import java.util.Set;
 import java.util.UUID;
 import javax.crypto.SecretKey;
 import lombok.Cleanup;
@@ -75,9 +75,11 @@ public final class TopicPoliciesAuthZTest extends MockedPulsarServiceBaseTest {
     protected void setup() throws Exception {
         conf.setAuthorizationEnabled(true);
         conf.setAuthorizationProvider(PulsarAuthorizationProvider.class.getName());
-        conf.setSuperUserRoles(Set.of(SUPER_USER_SUBJECT, BROKER_INTERNAL_CLIENT_SUBJECT));
+        conf.setSuperUserRoles(Sets.newHashSet(SUPER_USER_SUBJECT, BROKER_INTERNAL_CLIENT_SUBJECT));
         conf.setAuthenticationEnabled(true);
-        conf.setAuthenticationProviders(Set.of(AuthenticationProviderToken.class.getName()));
+        conf.setSystemTopicEnabled(true);
+        conf.setTopicLevelPoliciesEnabled(true);
+        conf.setAuthenticationProviders(Sets.newHashSet(AuthenticationProviderToken.class.getName()));
         // internal client
         conf.setBrokerClientAuthenticationPlugin(AuthenticationToken.class.getName());
         final Map<String, String> brokerClientAuthParams = new HashMap<>();
@@ -192,7 +194,7 @@ public final class TopicPoliciesAuthZTest extends MockedPulsarServiceBaseTest {
         // test sub user with permissions
         for (AuthAction action : AuthAction.values()) {
             superUserAdmin.namespaces().grantPermissionOnNamespace("public/default",
-                    subject, Set.of(action));
+                    subject, Sets.newHashSet(action));
             try {
                 subAdmin.topicPolicies().getRetention(topic);
                 Assert.fail("unexpected behaviour");
