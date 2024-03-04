@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/sh
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -18,18 +18,4 @@
 # under the License.
 #
 
-set -e -x
-
-ARCH=$(uname -m)
-if [ "$ARCH" == "x86_64" ]
-then
-  cd /tmp
-  echo 'https://storage.sev.monster/alpine/edge/testing' | tee -a /etc/apk/repositories
-  wget https://storage.sev.monster/alpine/edge/testing/x86_64/sevmonster-keys-1-r0.apk
-  apk add --no-cache --allow-untrusted ./sevmonster-keys-1-r0.apk
-  apk update
-  apk add gcompat libuuid
-  rm /lib/ld-linux-x86-64.so.2
-  apk add --no-cache --force-overwrite glibc glibc-bin
-  rm *.apk
-fi
+/usr/glibc-compat/sbin/ldconfig

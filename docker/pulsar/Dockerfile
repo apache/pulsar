@@ -79,6 +79,8 @@ RUN echo networkaddress.cache.ttl=1 >> /opt/jvm/conf/security/java.security
 RUN echo networkaddress.cache.negative.ttl=1 >> /opt/jvm/conf/security/java.security
 
 
+FROM merlimat/glibc-base:2.38 as glibc
+
 ## Create final stage from Alpine image
 ## and add OpenJDK and Python dependencies (for Pulsar functions)
 FROM alpine:3.19.1
@@ -91,6 +93,10 @@ RUN apk add --no-cache \
             py3-pip \
             ca-certificates
 
+# Install GLibc compatibility library
+COPY --from=glibc /root/packages /root/packages
+RUN apk add --allow-untrusted  --force-overwrite /root/packages/$(uname -m)/glibc-${GLIBC_VERSION}-r0.apk /root/packages/$(uname -m)/glibc-bin-${GLIBC_VERSION}-r0.apk
+
 COPY --from=jvm /opt/jvm /opt/jvm
 ENV JAVA_HOME=/opt/jvm
 
@@ -100,10 +106,6 @@ COPY --from=python-deps /usr/lib/python3.11/site-packages /usr/lib/python3.11/si
 ENV PULSAR_ROOT_LOGGER=INFO,CONSOLE
 
 COPY --from=pulsar /pulsar /pulsar
-
-## Netty TC native and Kinesis producer library are based on a C/C++ binary linked with Glibc
-## Install compatibility library
-RUN /pulsar/bin/install-glibc-compat.sh
 
 WORKDIR /pulsar
 ENV PATH=$PATH:$JAVA_HOME/bin:/pulsar/bin
