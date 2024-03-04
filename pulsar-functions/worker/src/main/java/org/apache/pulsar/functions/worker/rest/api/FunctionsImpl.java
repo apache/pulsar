@@ -144,7 +144,7 @@ public class FunctionsImpl extends ComponentImpl implements Functions<PulsarWork
             // validate parameters
             try {
                 if (isNotBlank(functionPkgUrl)) {
-                    componentPackageFile = getPackageFile(functionPkgUrl);
+                    componentPackageFile = getPackageFile(componentType, functionPkgUrl);
                     functionDetails = validateUpdateRequestParams(tenant, namespace, functionName,
                             functionConfig, componentPackageFile);
                 } else {
@@ -305,6 +305,7 @@ public class FunctionsImpl extends ComponentImpl implements Functions<PulsarWork
             // validate parameters
             try {
                 componentPackageFile = getPackageFile(
+                        componentType,
                         functionPkgUrl,
                         existingComponent.getPackageLocation().getPackagePath(),
                         uploadedInputStream);
