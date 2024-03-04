@@ -28,6 +28,7 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.AutoSubscriptionCreationOverride;
+import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.AfterMethod;
@@ -159,15 +160,19 @@ public class BrokerServiceAutoSubscriptionCreationTest extends BrokerTestBase {
             throws PulsarAdminException, PulsarClientException {
         pulsar.getConfiguration().setAllowAutoTopicCreation(false);
         pulsar.getConfiguration().setAllowAutoSubscriptionCreation(true);
-        admin.brokers().updateDynamicConfiguration("allowAutoSubscriptionCreation", "false");
+        String allowAutoSubscriptionCreation = "allowAutoSubscriptionCreation";
+        admin.brokers().updateDynamicConfiguration(allowAutoSubscriptionCreation, "false");
         String topicString = "persistent://prop/ns-abc/non-partitioned-topic" + UUID.randomUUID();
         String subscriptionName = "non-partitioned-topic-sub";
         admin.topics().createNonPartitionedTopic(topicString);
         Assert.assertThrows(PulsarClientException.class,
                 ()-> pulsarClient.newConsumer().topic(topicString).subscriptionName(subscriptionName).subscribe());
-        admin.brokers().updateDynamicConfiguration("allowAutoSubscriptionCreation", "true");
-        pulsarClient.newConsumer().topic(topicString).subscriptionName(subscriptionName).subscribe();
-        assertTrue(admin.topics().getSubscriptions(topicString).contains(subscriptionName));
+        admin.brokers().updateDynamicConfiguration(allowAutoSubscriptionCreation, "true");
+        Awaitility.await().untilAsserted(() -> {
+            Assert.assertEquals(admin.brokers().getAllDynamicConfigurations().get(allowAutoSubscriptionCreation), "true");
+            pulsarClient.newConsumer().topic(topicString).subscriptionName(subscriptionName).subscribe();
+            assertTrue(admin.topics().getSubscriptions(topicString).contains(subscriptionName));
+        });
     }
 
 }
