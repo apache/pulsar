@@ -398,7 +398,15 @@ saslJaasServerRoleTokenSignerSecretPath:
 ########################
 
 connectorsDirectory: ./connectors
+# Whether to enable referencing connectors directory files by file url in connector (sink/source) creation
+enableReferencingConnectorDirectoryFiles: true
+# Regex patterns for enabling creation of connectors by referencing packages in matching http/https urls
+additionalEnabledConnectorUrlPatterns: []
 functionsDirectory: ./functions
+# Whether to enable referencing functions directory files by file url in functions creation
+enableReferencingFunctionsDirectoryFiles: true
+# Regex patterns for enabling creation of functions by referencing packages in matching http/https urls
+additionalEnabledFunctionsUrlPatterns: []
 
 # Enables extended validation for connector config with fine-grain annotation based validation
 # during submission. Classloading with either enableClassloadingOfExternalFiles or

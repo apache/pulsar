@@ -1301,11 +1301,17 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
     private StreamingOutput getStreamingOutput(String pkgPath, FunctionDetails.ComponentType componentType) {
         return output -> {
             if (pkgPath.startsWith(Utils.HTTP)) {
+                if (!worker().getPackageUrlValidator().isValidPackageUrl(componentType, pkgPath)) {
+                    throw new IllegalArgumentException("Invalid package url: " + pkgPath);
+                }
                 URL url = URI.create(pkgPath).toURL();
                 try (InputStream inputStream = url.openStream()) {
                     IOUtils.copy(inputStream, output);
                 }
             } else if (pkgPath.startsWith(Utils.FILE)) {
+                if (!worker().getPackageUrlValidator().isValidPackageUrl(componentType, pkgPath)) {
+                    throw new IllegalArgumentException("Invalid package url: " + pkgPath);
+                }
                 URI url = URI.create(pkgPath);
                 File file = new File(url.getPath());
                 Files.copy(file.toPath(), output);
@@ -1715,12 +1721,17 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
         return file;
     }
 
-    protected File getPackageFile(String functionPkgUrl, String existingPackagePath, InputStream uploadedInputStream)
+    protected File getPackageFile(FunctionDetails.ComponentType componentType, String functionPkgUrl,
+                                  String existingPackagePath, InputStream uploadedInputStream)
             throws IOException, PulsarAdminException {
         File componentPackageFile = null;
         if (isNotBlank(functionPkgUrl)) {
-            componentPackageFile = getPackageFile(functionPkgUrl);
+            componentPackageFile = getPackageFile(componentType, functionPkgUrl);
         } else if (existingPackagePath.startsWith(Utils.FILE) || existingPackagePath.startsWith(Utils.HTTP)) {
+            if (!worker().getPackageUrlValidator().isValidPackageUrl(componentType, functionPkgUrl)) {
+                throw new IllegalArgumentException("Function Package url is not valid."
+                        + "supported url (http/https/file)");
+            }
             try {
                 componentPackageFile = FunctionCommon.extractFileFromPkgURL(existingPackagePath);
             } catch (Exception e) {
@@ -1729,7 +1740,7 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
                         ComponentTypeUtils.toString(componentType), functionPkgUrl));
             }
         } else if (Utils.hasPackageTypePrefix(existingPackagePath)) {
-            componentPackageFile = getPackageFile(existingPackagePath);
+            componentPackageFile = getPackageFile(componentType, existingPackagePath);
         } else if (uploadedInputStream != null) {
             componentPackageFile = WorkerUtils.dumpToTmpFile(uploadedInputStream);
         } else if (!existingPackagePath.startsWith(Utils.BUILTIN)) {
@@ -1741,15 +1752,12 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
         return componentPackageFile;
     }
 
-    protected File downloadPackageFile(String packageName) throws IOException, PulsarAdminException {
-        return downloadPackageFile(worker(), packageName);
-    }
-
-    protected File getPackageFile(String functionPkgUrl) throws IOException, PulsarAdminException {
+    protected File getPackageFile(FunctionDetails.ComponentType componentType, String functionPkgUrl)
+            throws IOException, PulsarAdminException {
         if (Utils.hasPackageTypePrefix(functionPkgUrl)) {
-            return downloadPackageFile(functionPkgUrl);
+            return downloadPackageFile(worker(), functionPkgUrl);
         } else {
-            if (!Utils.isFunctionPackageUrlSupported(functionPkgUrl)) {
+            if (!worker().getPackageUrlValidator().isValidPackageUrl(componentType, functionPkgUrl)) {
                 throw new IllegalArgumentException("Function Package url is not valid."
                         + "supported url (http/https/file)");
             }

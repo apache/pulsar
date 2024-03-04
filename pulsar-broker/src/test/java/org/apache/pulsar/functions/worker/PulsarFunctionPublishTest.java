@@ -25,13 +25,13 @@ import static org.apache.pulsar.functions.worker.PulsarFunctionLocalRunTest.getP
 import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotEquals;
-
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import java.io.File;
 import java.lang.reflect.Method;
 import java.net.URI;
 import java.net.URL;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -259,6 +259,10 @@ public class PulsarFunctionPublishTest {
 
         workerConfig.setAuthenticationEnabled(true);
         workerConfig.setAuthorizationEnabled(true);
+
+        List<String> urlPatterns = Arrays.asList(getPulsarApiExamplesJar().getParentFile().toURI() + ".*");
+        workerConfig.setAdditionalEnabledConnectorUrlPatterns(urlPatterns);
+        workerConfig.setAdditionalEnabledFunctionsUrlPatterns(urlPatterns);
 
         PulsarWorkerService workerService = new PulsarWorkerService();
         workerService.init(workerConfig, null, false);

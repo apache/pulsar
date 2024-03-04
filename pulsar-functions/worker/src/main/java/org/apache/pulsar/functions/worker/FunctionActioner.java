@@ -29,7 +29,22 @@ import static org.apache.pulsar.functions.utils.FunctionCommon.getSourceType;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.io.MoreFiles;
 import com.google.common.io.RecursiveDeleteOption;
-
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.net.URISyntaxException;
+import java.net.URL;
+import java.nio.file.FileAlreadyExistsException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.UUID;
+import java.util.function.Consumer;
+import java.util.function.Supplier;
+import java.util.stream.Collectors;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -57,23 +72,6 @@ import org.apache.pulsar.functions.utils.SourceConfigUtils;
 import org.apache.pulsar.functions.utils.ValidatableFunctionPackage;
 import org.apache.pulsar.functions.utils.io.Connector;
 
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.net.URL;
-import java.nio.file.FileAlreadyExistsException;
-import java.nio.file.Files;
-import java.nio.file.Paths;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.UUID;
-import java.util.function.Consumer;
-import java.util.function.Supplier;
-import java.util.stream.Collectors;
-
 @Data
 @Slf4j
 public class FunctionActioner {
@@ -84,17 +82,21 @@ public class FunctionActioner {
     private final ConnectorsManager connectorsManager;
     private final FunctionsManager functionsManager;
     private final PulsarAdmin pulsarAdmin;
+    private final PackageUrlValidator packageUrlValidator;
 
     public FunctionActioner(WorkerConfig workerConfig,
                             RuntimeFactory runtimeFactory,
                             Namespace dlogNamespace,
-                            ConnectorsManager connectorsManager,FunctionsManager functionsManager,PulsarAdmin pulsarAdmin) {
+                            ConnectorsManager connectorsManager,
+                            FunctionsManager functionsManager, PulsarAdmin pulsarAdmin,
+                            PackageUrlValidator packageUrlValidator) {
         this.workerConfig = workerConfig;
         this.runtimeFactory = runtimeFactory;
         this.dlogNamespace = dlogNamespace;
         this.connectorsManager = connectorsManager;
         this.functionsManager = functionsManager;
         this.pulsarAdmin = pulsarAdmin;
+        this.packageUrlValidator = packageUrlValidator;
     }
 
 
@@ -109,29 +111,13 @@ public class FunctionActioner {
 
             String packageFile;
 
-            String pkgLocation = functionMetaData.getPackageLocation().getPackagePath();
-            boolean isPkgUrlProvided = isFunctionPackageUrlSupported(pkgLocation);
+            Function.PackageLocationMetaData pkgLocation = functionMetaData.getPackageLocation();
 
             if (runtimeFactory.externallyManaged()) {
-                packageFile = pkgLocation;
+                packageFile = pkgLocation.getPackagePath();
             } else {
-                if (isPkgUrlProvided && pkgLocation.startsWith(FILE)) {
-                    URL url = new URL(pkgLocation);
-                    File pkgFile = new File(url.toURI());
-                    packageFile = pkgFile.getAbsolutePath();
-                } else if (FunctionCommon.isFunctionCodeBuiltin(functionDetails)) {
-                    File pkgFile = getBuiltinArchive(FunctionDetails.newBuilder(functionMetaData.getFunctionDetails()));
-                    packageFile = pkgFile.getAbsolutePath();
-                } else {
-                    File pkgDir = new File(workerConfig.getDownloadDirectory(),
-                            getDownloadPackagePath(functionMetaData, instanceId));
-                    pkgDir.mkdirs();
-                    File pkgFile = new File(
-                            pkgDir,
-                            new File(getDownloadFileName(functionMetaData.getFunctionDetails(), functionMetaData.getPackageLocation())).getName());
-                    downloadFile(pkgFile, isPkgUrlProvided, functionMetaData, instanceId);
-                    packageFile = pkgFile.getAbsolutePath();
-                }
+                packageFile = getPackageFile(functionMetaData, functionDetails, instanceId, pkgLocation,
+                        InstanceUtils.calculateSubjectType(functionDetails));
             }
 
             // Setup for batch sources if necessary
@@ -150,11 +136,45 @@ public class FunctionActioner {
         }
     }
 
+    private String getPackageFile(FunctionMetaData functionMetaData, FunctionDetails functionDetails, int instanceId,
+                                  Function.PackageLocationMetaData pkgLocation,
+                                  FunctionDetails.ComponentType componentType)
+            throws URISyntaxException, IOException, ClassNotFoundException, PulsarAdminException {
+        String packagePath = pkgLocation.getPackagePath();
+        boolean isPkgUrlProvided = isFunctionPackageUrlSupported(packagePath);
+        String packageFile;
+        if (isPkgUrlProvided && packagePath.startsWith(FILE)) {
+            if (!packageUrlValidator.isValidPackageUrl(componentType, packagePath)) {
+                throw new IllegalArgumentException("Package URL " + packagePath + " is not valid");
+            }
+            URL url = new URL(packagePath);
+            File pkgFile = new File(url.toURI());
+            packageFile = pkgFile.getAbsolutePath();
+        } else if (FunctionCommon.isFunctionCodeBuiltin(functionDetails, componentType)) {
+            File pkgFile = getBuiltinArchive(
+                    componentType,
+                    FunctionDetails.newBuilder(functionMetaData.getFunctionDetails()));
+            packageFile = pkgFile.getAbsolutePath();
+        } else {
+            File pkgDir = new File(workerConfig.getDownloadDirectory(),
+                    getDownloadPackagePath(functionMetaData, instanceId));
+            pkgDir.mkdirs();
+            File pkgFile = new File(
+                    pkgDir,
+                    new File(getDownloadFileName(functionMetaData.getFunctionDetails(),
+                            pkgLocation)).getName());
+            downloadFile(pkgFile, isPkgUrlProvided, functionMetaData, instanceId, pkgLocation, componentType);
+            packageFile = pkgFile.getAbsolutePath();
+        }
+        return packageFile;
+    }
+
     RuntimeSpawner getRuntimeSpawner(Function.Instance instance, String packageFile) {
         FunctionMetaData functionMetaData = instance.getFunctionMetaData();
         int instanceId = instance.getInstanceId();
 
-        FunctionDetails.Builder functionDetailsBuilder = FunctionDetails.newBuilder(functionMetaData.getFunctionDetails());
+        FunctionDetails.Builder functionDetailsBuilder = FunctionDetails
+                .newBuilder(functionMetaData.getFunctionDetails());
 
         // check to make sure functionAuthenticationSpec has any data and authentication is enabled.
         // If not set to null, since for protobuf,
@@ -197,14 +217,15 @@ public class FunctionActioner {
     }
 
     private void downloadFile(File pkgFile, boolean isPkgUrlProvided, FunctionMetaData functionMetaData,
-                              int instanceId) throws FileNotFoundException, IOException, PulsarAdminException {
+                              int instanceId, Function.PackageLocationMetaData pkgLocation,
+                              FunctionDetails.ComponentType componentType)
+            throws IOException, PulsarAdminException {
 
         FunctionDetails details = functionMetaData.getFunctionDetails();
         File pkgDir = pkgFile.getParentFile();
 
         if (pkgFile.exists()) {
-            log.warn("Function package exists already {} deleting it",
-                    pkgFile);
+            log.warn("Function package exists already {} deleting it", pkgFile);
             pkgFile.delete();
         }
 
@@ -212,16 +233,19 @@ public class FunctionActioner {
         do {
             tempPkgFile = new File(
                     pkgDir,
-                    pkgFile.getName() + "." + instanceId + "." + UUID.randomUUID().toString());
+                    pkgFile.getName() + "." + instanceId + "." + UUID.randomUUID());
         } while (tempPkgFile.exists() || !tempPkgFile.createNewFile());
-        String pkgLocationPath = functionMetaData.getPackageLocation().getPackagePath();
+        String pkgLocationPath = pkgLocation.getPackagePath();
         boolean downloadFromHttp = isPkgUrlProvided && pkgLocationPath.startsWith(HTTP);
         boolean downloadFromPackageManagementService = isPkgUrlProvided && hasPackageTypePrefix(pkgLocationPath);
         log.info("{}/{}/{} Function package file {} will be downloaded from {}", tempPkgFile, details.getTenant(),
                 details.getNamespace(), details.getName(),
-                downloadFromHttp ? pkgLocationPath : functionMetaData.getPackageLocation());
+                downloadFromHttp ? pkgLocationPath : pkgLocation);
 
-        if(downloadFromHttp) {
+        if (downloadFromHttp) {
+            if (!packageUrlValidator.isValidPackageUrl(componentType, pkgLocationPath)) {
+                throw new IllegalArgumentException("Package URL " + pkgLocationPath + " is not valid");
+            }
             FunctionCommon.downloadFromHttpUrl(pkgLocationPath, tempPkgFile);
         } else if (downloadFromPackageManagementService) {
             getPulsarAdmin().packages().download(pkgLocationPath, tempPkgFile.getPath());
@@ -248,13 +272,13 @@ public class FunctionActioner {
             } catch (FileAlreadyExistsException faee) {
                 // file already exists
                 log.warn("Function package has been downloaded from {} and saved at {}",
-                        functionMetaData.getPackageLocation(), pkgFile);
+                        pkgLocation, pkgFile);
             }
         } finally {
             tempPkgFile.delete();
         }
 
-        if(details.getRuntime() == Function.FunctionDetails.Runtime.GO && !pkgFile.canExecute()) {
+        if (details.getRuntime() == Function.FunctionDetails.Runtime.GO && !pkgFile.canExecute()) {
             pkgFile.setExecutable(true);
             log.info("Golang function package file {} is set to executable", pkgFile);
         }
@@ -296,7 +320,7 @@ public class FunctionActioner {
     public void terminateFunction(FunctionRuntimeInfo functionRuntimeInfo) {
         FunctionDetails details = functionRuntimeInfo.getFunctionInstance().getFunctionMetaData().getFunctionDetails();
         String fqfn = FunctionCommon.getFullyQualifiedName(details);
-        log.info("{}-{} Terminating function...", fqfn,functionRuntimeInfo.getFunctionInstance().getInstanceId());
+        log.info("{}-{} Terminating function...", fqfn, functionRuntimeInfo.getFunctionInstance().getInstanceId());
 
         if (functionRuntimeInfo.getRuntimeSpawner() != null) {
             functionRuntimeInfo.getRuntimeSpawner().close();
@@ -306,13 +330,15 @@ public class FunctionActioner {
                 functionRuntimeInfo.getRuntimeSpawner()
                         .getRuntimeFactory().getAuthProvider().ifPresent(functionAuthProvider -> {
                             try {
-                                log.info("{}-{} Cleaning up authentication data for function...", fqfn,functionRuntimeInfo.getFunctionInstance().getInstanceId());
+                                log.info("{}-{} Cleaning up authentication data for function...", fqfn,
+                                        functionRuntimeInfo.getFunctionInstance().getInstanceId());
                                 functionAuthProvider
                                         .cleanUpAuthData(
                                                 details,
                                                 Optional.ofNullable(getFunctionAuthData(
                                                         Optional.ofNullable(
-                                                                functionRuntimeInfo.getRuntimeSpawner().getInstanceConfig().getFunctionAuthenticationSpec()))));
+                                                        functionRuntimeInfo.getRuntimeSpawner().getInstanceConfig()
+                                                                .getFunctionAuthenticationSpec()))));
 
                             } catch (Exception e) {
                                 log.error("Failed to cleanup auth data for function: {}", fqfn, e);
@@ -334,11 +360,15 @@ public class FunctionActioner {
                     Function.ConsumerSpec consumerSpec = stringConsumerSpecEntry.getValue();
                     String topic = stringConsumerSpecEntry.getKey();
 
-                    String subscriptionName = isBlank(functionRuntimeInfo.getFunctionInstance().getFunctionMetaData().getFunctionDetails().getSource().getSubscriptionName())
-                            ? InstanceUtils.getDefaultSubscriptionName(functionRuntimeInfo.getFunctionInstance().getFunctionMetaData().getFunctionDetails())
-                            : functionRuntimeInfo.getFunctionInstance().getFunctionMetaData().getFunctionDetails().getSource().getSubscriptionName();
+                    String subscriptionName = isBlank(functionRuntimeInfo.getFunctionInstance()
+                            .getFunctionMetaData().getFunctionDetails().getSource().getSubscriptionName())
+                            ? InstanceUtils.getDefaultSubscriptionName(functionRuntimeInfo
+                            .getFunctionInstance().getFunctionMetaData().getFunctionDetails())
+                            : functionRuntimeInfo.getFunctionInstance().getFunctionMetaData()
+                            .getFunctionDetails().getSource().getSubscriptionName();
 
-                    deleteSubscription(topic, consumerSpec, subscriptionName, String.format("Cleaning up subscriptions for function %s", fqfn));
+                    deleteSubscription(topic, consumerSpec, subscriptionName,
+                            String.format("Cleaning up subscriptions for function %s", fqfn));
                 }
             });
         }
@@ -347,7 +377,8 @@ public class FunctionActioner {
         cleanupBatchSource(details);
     }
 
-    private void deleteSubscription(String topic, Function.ConsumerSpec consumerSpec, String subscriptionName, String msg) {
+    private void deleteSubscription(String topic, Function.ConsumerSpec consumerSpec,
+                                    String subscriptionName, String msg) {
         try {
             Actions.newBuilder()
                     .addAction(
@@ -479,8 +510,9 @@ public class FunctionActioner {
                 File.separatorChar);
     }
 
-    private File getBuiltinArchive(FunctionDetails.Builder functionDetails) throws IOException, ClassNotFoundException {
-        if (functionDetails.hasSource()) {
+    private File getBuiltinArchive(FunctionDetails.ComponentType componentType, FunctionDetails.Builder functionDetails)
+            throws IOException, ClassNotFoundException {
+        if (componentType == FunctionDetails.ComponentType.SOURCE && functionDetails.hasSource()) {
             SourceSpec sourceSpec = functionDetails.getSource();
             if (!StringUtils.isEmpty(sourceSpec.getBuiltin())) {
                 Connector connector = connectorsManager.getConnector(sourceSpec.getBuiltin());
@@ -495,7 +527,7 @@ public class FunctionActioner {
             }
         }
 
-        if (functionDetails.hasSink()) {
+        if (componentType == FunctionDetails.ComponentType.SINK && functionDetails.hasSink()) {
             SinkSpec sinkSpec = functionDetails.getSink();
             if (!StringUtils.isEmpty(sinkSpec.getBuiltin())) {
                 Connector connector = connectorsManager.getConnector(sinkSpec.getBuiltin());
@@ -511,7 +543,8 @@ public class FunctionActioner {
             }
         }
 
-        if (!StringUtils.isEmpty(functionDetails.getBuiltin())) {
+        if (componentType == FunctionDetails.ComponentType.FUNCTION
+                && !StringUtils.isEmpty(functionDetails.getBuiltin())) {
             return functionsManager.getFunctionArchive(functionDetails.getBuiltin()).toFile();
         }
 
@@ -550,21 +583,21 @@ public class FunctionActioner {
         }
     }
 
-    private static String getDownloadFileName(FunctionDetails FunctionDetails,
+    private static String getDownloadFileName(FunctionDetails functionDetails,
                                              Function.PackageLocationMetaData packageLocation) {
         if (!org.apache.commons.lang.StringUtils.isEmpty(packageLocation.getOriginalFileName())) {
             return packageLocation.getOriginalFileName();
         }
-        String[] hierarchy = FunctionDetails.getClassName().split("\\.");
+        String[] hierarchy = functionDetails.getClassName().split("\\.");
         String fileName;
         if (hierarchy.length <= 0) {
-            fileName = FunctionDetails.getClassName();
+            fileName = functionDetails.getClassName();
         } else if (hierarchy.length == 1) {
             fileName =  hierarchy[0];
         } else {
             fileName = hierarchy[hierarchy.length - 2];
         }
-        switch (FunctionDetails.getRuntime()) {
+        switch (functionDetails.getRuntime()) {
             case JAVA:
                 return fileName + ".jar";
             case PYTHON:
@@ -572,7 +605,7 @@ public class FunctionActioner {
             case GO:
                 return fileName + ".go";
             default:
-                throw new RuntimeException("Unknown runtime " + FunctionDetails.getRuntime());
+                throw new RuntimeException("Unknown runtime " + functionDetails.getRuntime());
         }
     }
 
@@ -590,13 +623,15 @@ public class FunctionActioner {
                 Actions.newBuilder()
                   .addAction(
                     Actions.Action.builder()
-                      .actionName(String.format("Creating intermediate topic %s with subscription %s for Batch Source %s",
+                      .actionName(String.format("Creating intermediate topic"
+                                      + "%s with subscription %s for Batch Source %s",
                         intermediateTopicName, intermediateTopicSubscription, fqfn))
                       .numRetries(10)
                       .sleepBetweenInvocationsMs(1000)
                       .supplier(() -> {
                           try {
-                              pulsarAdmin.topics().createSubscription(intermediateTopicName, intermediateTopicSubscription, MessageId.latest);
+                              pulsarAdmin.topics().createSubscription(intermediateTopicName,
+                                      intermediateTopicSubscription, MessageId.latest);
                               return Actions.ActionResult.builder()
                                 .success(true)
                                 .build();
@@ -624,7 +659,8 @@ public class FunctionActioner {
     private void cleanupBatchSource(Function.FunctionDetails functionDetails) {
         if (isBatchSource(functionDetails)) {
             // clean up intermediate topic
-            String intermediateTopicName = SourceConfigUtils.computeBatchSourceIntermediateTopicName(functionDetails.getTenant(),
+            String intermediateTopicName = SourceConfigUtils
+                    .computeBatchSourceIntermediateTopicName(functionDetails.getTenant(),
               functionDetails.getNamespace(), functionDetails.getName()).toString();
             String intermediateTopicSubscription = SourceConfigUtils.computeBatchSourceInstanceSubscriptionName(
               functionDetails.getTenant(), functionDetails.getNamespace(), functionDetails.getName());

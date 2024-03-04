@@ -26,9 +26,11 @@ import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -71,6 +73,7 @@ public class PulsarFunctionTlsTest {
     protected PulsarService[] pulsarServices = new PulsarService[BROKER_COUNT];
     protected PulsarService leaderPulsar;
     protected PulsarAdmin leaderAdmin;
+    protected WorkerService[] fnWorkerServices = new WorkerService[BROKER_COUNT];
     protected String testCluster = "my-cluster";
     protected String testTenant = "my-tenant";
     protected String testNamespace = testTenant + "/my-ns";
@@ -136,12 +139,18 @@ public class PulsarFunctionTlsTest {
             workerConfig.setBrokerClientAuthenticationEnabled(true);
             workerConfig.setTlsEnabled(true);
             workerConfig.setUseTls(true);
-            WorkerService fnWorkerService = WorkerServiceLoader.load(workerConfig);
+            File packagePath = new File(
+                    PulsarSink.class.getProtectionDomain().getCodeSource().getLocation().getPath()).getParentFile();
+            List<String> urlPatterns =
+                    Arrays.asList(packagePath.toURI() + ".*");
+            workerConfig.setAdditionalEnabledConnectorUrlPatterns(urlPatterns);
+            workerConfig.setAdditionalEnabledFunctionsUrlPatterns(urlPatterns);
+            fnWorkerServices[i] = WorkerServiceLoader.load(workerConfig);
 
             configurations[i] = config;
 
             pulsarServices[i] = new PulsarService(
-                config, workerConfig, Optional.of(fnWorkerService), code -> {});
+                config, workerConfig, Optional.of(fnWorkerServices[i]), code -> {});
             pulsarServices[i].start();
 
             // Sleep until pulsarServices[0] becomes leader, this way we can spy namespace bundle assignment easily.
@@ -179,6 +188,9 @@ public class PulsarFunctionTlsTest {
             for (int i = 0; i < BROKER_COUNT; i++) {
                 if (pulsarAdmins[i] != null) {
                     pulsarAdmins[i].close();
+                }
+                if (fnWorkerServices[i] != null) {
+                    fnWorkerServices[i].stop();
                 }
                 if (pulsarServices[i] != null) {
                     pulsarServices[i].close();

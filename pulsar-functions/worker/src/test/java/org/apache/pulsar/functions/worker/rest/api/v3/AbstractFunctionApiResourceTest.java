@@ -59,7 +59,6 @@ import org.testng.Assert;
 import org.testng.annotations.Test;
 
 public abstract class AbstractFunctionApiResourceTest extends AbstractFunctionsResourceTest {
-
     @Test
     public void testListFunctionsSuccess() {
         mockInstanceUtils();

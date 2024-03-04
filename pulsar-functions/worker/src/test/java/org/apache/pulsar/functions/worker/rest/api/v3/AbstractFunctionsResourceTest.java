@@ -28,10 +28,12 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
+import java.lang.reflect.Method;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
@@ -63,6 +65,7 @@ import org.apache.pulsar.functions.worker.FunctionMetaDataManager;
 import org.apache.pulsar.functions.worker.FunctionRuntimeManager;
 import org.apache.pulsar.functions.worker.FunctionsManager;
 import org.apache.pulsar.functions.worker.LeaderService;
+import org.apache.pulsar.functions.worker.PackageUrlValidator;
 import org.apache.pulsar.functions.worker.PulsarWorkerService;
 import org.apache.pulsar.functions.worker.WorkerConfig;
 import org.apache.pulsar.functions.worker.WorkerUtils;
@@ -141,7 +144,7 @@ public abstract class AbstractFunctionsResourceTest {
     }
 
     @BeforeMethod
-    public final void setup() throws Exception {
+    public final void setup(Method method) throws Exception {
         this.mockedManager = mock(FunctionMetaDataManager.class);
         this.mockedFunctionRunTimeManager = mock(FunctionRuntimeManager.class);
         this.mockedRuntimeFactory = mock(RuntimeFactory.class);
@@ -181,19 +184,30 @@ public abstract class AbstractFunctionsResourceTest {
         }).when(mockedPackages).download(any(), any());
 
         // worker config
+        List<String> urlPatterns =
+                Arrays.asList("http://localhost.*", "file:.*", "https://repo1.maven.org/maven2/org/apache/pulsar/.*");
         WorkerConfig workerConfig = new WorkerConfig()
                 .setWorkerId("test")
                 .setWorkerPort(8080)
                 .setFunctionMetadataTopicName("pulsar/functions")
                 .setNumFunctionPackageReplicas(3)
-                .setPulsarServiceUrl("pulsar://localhost:6650/");
+                .setPulsarServiceUrl("pulsar://localhost:6650/")
+                .setAdditionalEnabledFunctionsUrlPatterns(urlPatterns)
+                .setAdditionalEnabledConnectorUrlPatterns(urlPatterns);
+        customizeWorkerConfig(workerConfig, method);
         tempDirectory = PulsarFunctionTestTemporaryDirectory.create(getClass().getSimpleName());
         tempDirectory.useTemporaryDirectoriesForWorkerConfig(workerConfig);
         when(mockedWorkerService.getWorkerConfig()).thenReturn(workerConfig);
         when(mockedWorkerService.getFunctionsManager()).thenReturn(functionsManager);
         when(mockedWorkerService.getConnectorsManager()).thenReturn(connectorsManager);
+        PackageUrlValidator packageUrlValidator = new PackageUrlValidator(workerConfig);
+        when(mockedWorkerService.getPackageUrlValidator()).thenReturn(packageUrlValidator);
 
         doSetup();
+    }
+
+    protected void customizeWorkerConfig(WorkerConfig workerConfig, Method method) {
+
     }
 
     protected File getDefaultNarFile() {

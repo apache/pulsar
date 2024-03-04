@@ -1380,17 +1380,15 @@ public class SinkApiV3ResourceTest extends AbstractFunctionsResourceTest {
         SinkConfig sinkConfig = createDefaultSinkConfig();
         sinkConfig.setArchive("builtin://cassandra");
 
-        try (FileInputStream inputStream = new FileInputStream(getPulsarIOCassandraNar())) {
-            resource.registerSink(
-                    tenant,
-                    namespace,
-                    sink,
-                    inputStream,
-                    mockedFormData,
-                    null,
-                    sinkConfig,
-                    null);
-        }
+        resource.registerSink(
+                tenant,
+                namespace,
+                sink,
+                null,
+                mockedFormData,
+                null,
+                sinkConfig,
+                null);
     }
 
     /*
@@ -1420,21 +1418,19 @@ public class SinkApiV3ResourceTest extends AbstractFunctionsResourceTest {
         SinkConfig sinkConfig = createDefaultSinkConfig();
         sinkConfig.setArchive("builtin://cassandra");
 
-        try (FileInputStream inputStream = new FileInputStream(getPulsarIOCassandraNar())) {
-            try {
-                resource.registerSink(
-                        tenant,
-                        namespace,
-                        sink,
-                        inputStream,
-                        mockedFormData,
-                        null,
-                        sinkConfig,
-                        null);
-                Assert.fail();
-            } catch (RuntimeException e) {
-                Assert.assertEquals(e.getMessage(), injectedErrMsg);
-            }
+        try {
+            resource.registerSink(
+                    tenant,
+                    namespace,
+                    sink,
+                    null,
+                    mockedFormData,
+                    null,
+                    sinkConfig,
+                    null);
+            Assert.fail();
+        } catch (RuntimeException e) {
+            Assert.assertEquals(e.getMessage(), injectedErrMsg);
         }
     }
 
