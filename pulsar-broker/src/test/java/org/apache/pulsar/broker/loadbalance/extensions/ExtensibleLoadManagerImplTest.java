@@ -367,7 +367,7 @@ public class ExtensibleLoadManagerImplTest extends ExtensibleLoadManagerImplBase
     public void testSplitBundleWithSpecificPositionAdminAPI() throws Exception {
         String namespace = defaultTestNamespace;
         String topic = "persistent://" + namespace + "/test-split-with-specific-position";
-        admin.topics().createPartitionedTopic(topic, 10);
+        admin.topics().createPartitionedTopic(topic, 1024);
         BundlesData bundles = admin.namespaces().getBundles(namespace);
         int numBundles = bundles.getNumBundles();
 
