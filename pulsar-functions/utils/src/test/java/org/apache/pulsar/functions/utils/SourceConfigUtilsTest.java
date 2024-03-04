@@ -308,8 +308,8 @@ public class SourceConfigUtilsTest {
                 new Gson().toJson(mergedConfig)
         );
     }
-    @Test
 
+    @Test
     public void testMergeDifferentLogTopic() {
         SourceConfig sourceConfig = createSourceConfig();
         SourceConfig newSourceConfig = createUpdatedSourceConfig("logTopic", "Different");
