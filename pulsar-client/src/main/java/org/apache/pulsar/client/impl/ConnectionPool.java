@@ -157,11 +157,12 @@ public class ConnectionPool implements AutoCloseable {
             }, idleDetectionIntervalSeconds, idleDetectionIntervalSeconds, TimeUnit.SECONDS);
         }
 
-        connectionsTcpFailureCounter = instrumentProvider.newCounter("pulsar.client.connections.failed", Unit.None,
-                "Counter of failed connections", Attributes.builder().put("type", "tcp-failed").build());
+        connectionsTcpFailureCounter =
+                instrumentProvider.newCounter("pulsar.client.connections.failed", Unit.Connections,
+                        "The number of failed connection attempts", Attributes.builder().put("pulsar.failure.type", "tcp-failed").build());
         connectionsHandshakeFailureCounter = instrumentProvider.newCounter("pulsar.client.connections.failed",
-                Unit.None, "Counter of failed connections",
-                Attributes.builder().put("type", "handshake").build());
+                Unit.Connections, "The number of failed connection attempts",
+                Attributes.builder().put("pulsar.failure.type", "handshake").build());
     }
 
     private static AddressResolver<InetSocketAddress> createAddressResolver(ClientConfigurationData conf,

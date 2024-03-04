@@ -397,7 +397,6 @@ public class ClientConfigurationData implements Serializable, Cloneable {
     )
     private String description;
 
-
     private transient OpenTelemetry openTelemetry;
 
     private MetricsCardinality openTelemetryMetricsCardinality = MetricsCardinality.Topic;

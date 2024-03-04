@@ -1,9 +1,11 @@
 package org.apache.pulsar.client.impl.metrics;
 
+import io.opentelemetry.api.GlobalOpenTelemetry;
 import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.common.AttributesBuilder;
 import io.opentelemetry.api.metrics.Meter;
+import org.apache.pulsar.PulsarVersion;
 import org.apache.pulsar.client.api.MetricsCardinality;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.common.naming.TopicName;
@@ -14,7 +16,17 @@ public class InstrumentProvider {
     private final MetricsCardinality metricsCardinality;
 
     public InstrumentProvider(ClientConfigurationData conf) {
-        this.meter = conf.getOpenTelemetry().getMeter("org.apache.pulsar.client");
+        OpenTelemetry otel = conf.getOpenTelemetry();
+        if (otel == null) {
+            // By default, metrics are disabled, unless the OTel java agent is configured.
+            // This allows to enable metrics without any code change.
+            otel = GlobalOpenTelemetry.get();
+        }
+
+        this.meter = otel.getMeterProvider()
+                .meterBuilder("org.apache.pulsar.client")
+                .setInstrumentationVersion(PulsarVersion.getVersion())
+                .build();
         this.metricsCardinality = conf.getOpenTelemetryMetricsCardinality();
     }
 
@@ -29,17 +41,17 @@ public class InstrumentProvider {
         switch (metricsCardinality) {
             case Partition:
                 if (tn.isPartitioned()) {
-                    ab.put("partition", tn.getPartitionIndex());
+                    ab.put("pulsar.partition", tn.getPartitionIndex());
                 }
                 // fallthrough
             case Topic:
-                ab.put("topic", tn.getPartitionedTopicName());
+                ab.put("pulsar.topic", tn.getPartitionedTopicName());
                 // fallthrough
             case Namespace:
-                ab.put("namespace", tn.getNamespace());
+                ab.put("pulsar.namespace", tn.getNamespace());
                 // fallthrough
             case Tenant:
-                ab.put("tenant", tn.getTenant());
+                ab.put("pulsar.tenant", tn.getTenant());
         }
 
         return ab.build();

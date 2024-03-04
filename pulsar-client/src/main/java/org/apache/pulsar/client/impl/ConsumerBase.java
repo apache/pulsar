@@ -1228,10 +1228,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
 
     protected void clearIncomingMessages() {
         // release messages if they are pooled messages
-        incomingMessages.forEach(msg -> {
-
-            msg.release();
-        });
+        incomingMessages.forEach(Message::release);
         incomingMessages.clear();
         resetIncomingMessageSize();
     }

@@ -124,7 +124,7 @@ public class UnAckedMessageTracker implements Closeable {
 
         InstrumentProvider ip = client.instrumentProvider();
         Attributes attrs = ip.getAttributes(consumerBase.getTopic());
-        consumerAckTimeoutsCounter = ip.newCounter("pulsar.client.consumer.ack.timeout", Unit.Messages,
+        consumerAckTimeoutsCounter = ip.newCounter("pulsar.client.consumer.message.ack.timeout", Unit.Messages,
                 "Number of ack timeouts events", attrs);
 
         if (conf.getAckTimeoutRedeliveryBackoff() == null) {

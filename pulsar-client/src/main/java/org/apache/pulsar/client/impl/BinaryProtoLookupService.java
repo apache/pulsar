@@ -93,20 +93,20 @@ public class BinaryProtoLookupService implements LookupService {
         this.listenerName = listenerName;
         updateServiceUrl(serviceUrl);
 
-        Attributes attrs = Attributes.of(AttributeKey.stringKey("transport-type"), "binary");
+        Attributes attrs = Attributes.of(AttributeKey.stringKey("pulsar.lookup.transport-type"), "binary");
 
         histoGetBroker = client.instrumentProvider().newLatencyHistogram("pulsar.client.lookup",
-                "Lookup operations",
-                attrs.toBuilder().put("type", "topic").build());
+                "Duration of lookup operations",
+                attrs.toBuilder().put("pulsar.lookup.type", "topic").build());
         histoGetTopicMetadata = client.instrumentProvider().newLatencyHistogram("pulsar.client.lookup",
-                "Lookup operations",
-                attrs.toBuilder().put("type", "metadata").build());
+                "Duration of lookup operations",
+                attrs.toBuilder().put("pulsar.lookup.type", "metadata").build());
         histoGetSchema = client.instrumentProvider().newLatencyHistogram("pulsar.client.lookup",
-                "Lookup operations",
-                attrs.toBuilder().put("type", "schema").build());
+                "Duration of lookup operations",
+                attrs.toBuilder().put("pulsar.lookup.type", "schema").build());
         histoListTopics = client.instrumentProvider().newLatencyHistogram("pulsar.client.lookup",
-                "Lookup operations",
-                attrs.toBuilder().put("type", "list-topics").build());
+                "Duration of lookup operations",
+                attrs.toBuilder().put("pulsar.lookup.type", "list-topics").build());
     }
 
     @Override
@@ -160,9 +160,9 @@ public class BinaryProtoLookupService implements LookupService {
                         getPartitionedTopicMetadata(serviceNameResolver.resolveHost(), topicName);
                 newFutureCreated.setValue(newFuture);
                 newFuture.thenRun(() -> {
-                    histoGetBroker.recordSuccess(System.nanoTime() - startTime);
+                    histoGetTopicMetadata.recordSuccess(System.nanoTime() - startTime);
                 }).exceptionally(x -> {
-                    histoGetBroker.recordFailure(System.nanoTime() - startTime);
+                    histoGetTopicMetadata.recordFailure(System.nanoTime() - startTime);
                     return null;
                 });
                 return newFuture;

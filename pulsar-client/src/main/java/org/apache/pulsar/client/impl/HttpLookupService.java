@@ -75,20 +75,20 @@ public class HttpLookupService implements LookupService {
         this.useTls = conf.isUseTls();
         this.listenerName = conf.getListenerName();
 
-        Attributes attrs = Attributes.of(AttributeKey.stringKey("transport-type"), "binary");
+        Attributes attrs = Attributes.of(AttributeKey.stringKey("pulsar.lookup.transport-type"), "binary");
 
         histoGetBroker = instrumentProvider.newLatencyHistogram("pulsar.client.lookup",
-                "Lookup operations",
-                attrs.toBuilder().put("type", "topic").build());
+                "Duration of lookup operations",
+                attrs.toBuilder().put("pulsar.lookup.type", "topic").build());
         histoGetTopicMetadata = instrumentProvider.newLatencyHistogram("pulsar.client.lookup",
-                "Lookup operations",
-                attrs.toBuilder().put("type", "metadata").build());
+                "Duration of lookup operations",
+                attrs.toBuilder().put("pulsar.lookup.type", "metadata").build());
         histoGetSchema = instrumentProvider.newLatencyHistogram("pulsar.client.lookup",
-                "Lookup operations",
-                attrs.toBuilder().put("type", "schema").build());
+                "Duration of lookup operations",
+                attrs.toBuilder().put("pulsar.lookup.type", "schema").build());
         histoListTopics = instrumentProvider.newLatencyHistogram("pulsar.client.lookup",
-                "Lookup operations",
-                attrs.toBuilder().put("type", "list-topics").build());
+                "Duration of lookup operations",
+                attrs.toBuilder().put("pulsar.lookup.type", "list-topics").build());
     }
 
     @Override

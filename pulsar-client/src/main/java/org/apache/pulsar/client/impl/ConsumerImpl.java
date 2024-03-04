@@ -408,19 +408,19 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 "Counter of sessions opened", attrs.toBuilder().put("type", "consumer").build());
         consumersClosedCounter = ip.newCounter("pulsar.client.session.closed", Unit.Sessions,
                 "Counter of sessions closed", attrs.toBuilder().put("type", "consumer").build());
-        messagesReceivedCounter = ip.newCounter("pulsar.client.received", Unit.Messages,
-                "Number of messages received", attrs);
-        bytesReceivedCounter = ip.newCounter("pulsar.client.received", Unit.Bytes,
-                "Bytes received", attrs);
-        messagesPrefetchedGauge = ip.newUpDownCounter("pulsar.client.consumer.preteched.messages", Unit.Messages,
+        messagesReceivedCounter = ip.newCounter("pulsar.client.received.count", Unit.Messages,
+                "The number of messages explicitly received by the consumer application", attrs);
+        bytesReceivedCounter = ip.newCounter("pulsar.client.received.size", Unit.Bytes,
+                "The number of bytes explicitly received by the consumer application", attrs);
+        messagesPrefetchedGauge = ip.newUpDownCounter("pulsar.client.consumer.prefetched.count", Unit.Messages,
                 "Number of messages currently sitting in the consumer pre-fetch queue", attrs);
-        bytesPrefetchedGauge = ip.newUpDownCounter("pulsar.client.consumer.preteched", Unit.Bytes,
+        bytesPrefetchedGauge = ip.newUpDownCounter("pulsar.client.consumer.prefetched.size", Unit.Bytes,
                 "Total number of bytes currently sitting in the consumer pre-fetch queue", attrs);
 
-        consumerAcksCounter = ip.newCounter("pulsar.client.consumer.ack", Unit.Messages,
-                "Number of ack operations", attrs);
-        consumerNacksCounter = ip.newCounter("pulsar.client.consumer.nack", Unit.Messages,
-                "Number of negative ack operations", attrs);
+        consumerAcksCounter = ip.newCounter("pulsar.client.consumer.message.ack", Unit.Messages,
+                "The number of acknowledged messages", attrs);
+        consumerNacksCounter = ip.newCounter("pulsar.client.consumer.message.nack", Unit.Messages,
+                "The number of negatively acknowledged messages", attrs);
         consumerDlqMessagesCounter = ip.newCounter("pulsar.client.consumer.dlq", Unit.Messages,
                 "Number of messages sent to DLQ", attrs);
         grabCnx();

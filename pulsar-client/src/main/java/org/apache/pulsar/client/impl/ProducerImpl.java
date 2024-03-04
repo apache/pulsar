@@ -285,15 +285,15 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
         InstrumentProvider ip = client.instrumentProvider();
         Attributes attrs = ip.getAttributes(topic);
-        latencyHistogram = ip.newLatencyHistogram("pulsar.client.producer.latency",
+        latencyHistogram = ip.newLatencyHistogram("pulsar.client.producer.message.send.duration",
                 "Publish latency experienced by the application, includes client batching time", attrs);
-        rpcLatencyHistogram = ip.newLatencyHistogram("pulsar.client.producer.rpc.latency",
+        rpcLatencyHistogram = ip.newLatencyHistogram("pulsar.client.producer.rpc.send.duration",
                 "Publish RPC latency experienced internally by the client when sending data to receiving an ack", attrs);
-        publishedBytesCounter = ip.newCounter("pulsar.client.producer.published",
+        publishedBytesCounter = ip.newCounter("pulsar.client.producer.message.send.size",
                 Unit.Bytes, "Bytes published", attrs);
-        pendingMessagesCounter = ip.newUpDownCounter("pulsar.client.producer.pending.messages.count", Unit.Messages,
+        pendingMessagesCounter = ip.newUpDownCounter("pulsar.client.producer.message.pending.count", Unit.Messages,
                 "Pending messages for this producer", attrs);
-        pendingBytesCounter = ip.newUpDownCounter("pulsar.client.producer.pending.count", Unit.Bytes,
+        pendingBytesCounter = ip.newUpDownCounter("pulsar.client.producer.message.pending.size", Unit.Bytes,
                 "Pending bytes for this producer", attrs);
         producersOpenedCounter = ip.newCounter("pulsar.client.session.opened", Unit.Sessions,
                 "Counter of sessions opened", attrs.toBuilder().put("type", "producer").build());
