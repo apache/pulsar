@@ -81,6 +81,9 @@ public class SourceConfigUtils {
         if (sourceConfig.getName() != null) {
             functionDetailsBuilder.setName(sourceConfig.getName());
         }
+        if (sourceConfig.getLogTopic() != null) {
+            functionDetailsBuilder.setLogTopic(sourceConfig.getLogTopic());
+        }
         functionDetailsBuilder.setRuntime(FunctionDetails.Runtime.JAVA);
         if (sourceConfig.getParallelism() != null) {
             functionDetailsBuilder.setParallelism(sourceConfig.getParallelism());
@@ -274,6 +277,9 @@ public class SourceConfigUtils {
             producerConfig.setCompressionType(convertFromFunctionDetailsCompressionType(spec.getCompressionType()));
             sourceConfig.setProducerConfig(producerConfig);
         }
+        if (!isEmpty(functionDetails.getLogTopic())) {
+            sourceConfig.setLogTopic(functionDetails.getLogTopic());
+        }
         if (functionDetails.hasResources()) {
             Resources resources = new Resources();
             resources.setCpu(functionDetails.getResources().getCpu());
@@ -307,6 +313,12 @@ public class SourceConfigUtils {
         }
         if (!isEmpty(sourceConfig.getTopicName()) && !TopicName.isValid(sourceConfig.getTopicName())) {
             throw new IllegalArgumentException("Topic name is invalid");
+        }
+        if (!isEmpty(sourceConfig.getLogTopic())) {
+            if (!TopicName.isValid(sourceConfig.getLogTopic())) {
+                throw new IllegalArgumentException(
+                        String.format("LogTopic topic %s is invalid", sourceConfig.getLogTopic()));
+            }
         }
         if (sourceConfig.getParallelism() != null && sourceConfig.getParallelism() <= 0) {
             throw new IllegalArgumentException("Source parallelism must be a positive number");
@@ -433,6 +445,9 @@ public class SourceConfigUtils {
         }
         if (newConfig.getSecrets() != null) {
             mergedConfig.setSecrets(newConfig.getSecrets());
+        }
+        if (!StringUtils.isEmpty(newConfig.getLogTopic())) {
+            mergedConfig.setLogTopic(newConfig.getLogTopic());
         }
         if (newConfig.getProcessingGuarantees() != null && !newConfig.getProcessingGuarantees()
                 .equals(existingConfig.getProcessingGuarantees())) {

@@ -308,6 +308,22 @@ public class SourceConfigUtilsTest {
                 new Gson().toJson(mergedConfig)
         );
     }
+    @Test
+
+    public void testMergeDifferentLogTopic() {
+        SourceConfig sourceConfig = createSourceConfig();
+        SourceConfig newSourceConfig = createUpdatedSourceConfig("logTopic", "Different");
+        SourceConfig mergedConfig = SourceConfigUtils.validateUpdate(sourceConfig, newSourceConfig);
+        assertEquals(
+                mergedConfig.getLogTopic(),
+                "Different"
+        );
+        mergedConfig.setLogTopic(sourceConfig.getLogTopic());
+        assertEquals(
+                new Gson().toJson(sourceConfig),
+                new Gson().toJson(mergedConfig)
+        );
+    }
 
     @Test
     public void testValidateConfig() {
@@ -399,6 +415,7 @@ public class SourceConfigUtilsTest {
         sourceConfig.setProducerConfig(producerConfig);
 
         sourceConfig.setConfigs(configs);
+        sourceConfig.setLogTopic("log-topic");
         return sourceConfig;
     }
 
