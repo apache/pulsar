@@ -119,7 +119,8 @@ public class PulsarWorkerService implements WorkerService {
     private Sinks<PulsarWorkerService> sinks;
     private Sources<PulsarWorkerService> sources;
     private Workers<PulsarWorkerService> workers;
-
+    @Getter
+    private PackageUrlValidator packageUrlValidator;
     private final PulsarClientCreator clientCreator;
 
     public PulsarWorkerService() {
@@ -201,6 +202,7 @@ public class PulsarWorkerService implements WorkerService {
         this.sinks = new SinksImpl(() -> PulsarWorkerService.this);
         this.sources = new SourcesImpl(() -> PulsarWorkerService.this);
         this.workers = new WorkerImpl(() -> PulsarWorkerService.this);
+        this.packageUrlValidator = new PackageUrlValidator(workerConfig);
     }
 
     @Override

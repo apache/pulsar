@@ -30,6 +30,7 @@ import static org.mockito.Mockito.verify;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNull;
 import static org.testng.AssertJUnit.fail;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import org.apache.distributedlog.api.namespace.Namespace;
@@ -77,8 +78,8 @@ public class FunctionActionerTest {
 
         @SuppressWarnings("resource")
         FunctionActioner actioner = new FunctionActioner(workerConfig, factory, dlogNamespace,
-                new ConnectorsManager(workerConfig), new FunctionsManager(workerConfig), mock(PulsarAdmin.class));
-        Runtime runtime = mock(Runtime.class);
+                new ConnectorsManager(workerConfig), new FunctionsManager(workerConfig), mock(PulsarAdmin.class),
+                mock(PackageUrlValidator.class));
         Function.FunctionMetaData function1 = Function.FunctionMetaData.newBuilder()
                 .setFunctionDetails(Function.FunctionDetails.newBuilder().setTenant("test-tenant")
                         .setNamespace("test-namespace").setName("func-1"))
@@ -110,6 +111,8 @@ public class FunctionActionerTest {
         workerConfig.setPulsarServiceUrl("pulsar://localhost:6650");
         workerConfig.setStateStorageServiceUrl("foo");
         workerConfig.setFunctionAssignmentTopicName("assignments");
+        workerConfig.setAdditionalEnabledFunctionsUrlPatterns(List.of("file:///user/.*", "http://invalid/.*"));
+        workerConfig.setAdditionalEnabledConnectorUrlPatterns(List.of("file:///user/.*", "http://invalid/.*"));
         String downloadDir = this.getClass().getProtectionDomain().getCodeSource().getLocation().getPath();
         workerConfig.setDownloadDirectory(downloadDir);
 
@@ -123,42 +126,42 @@ public class FunctionActionerTest {
 
         @SuppressWarnings("resource")
         FunctionActioner actioner = new FunctionActioner(workerConfig, factory, dlogNamespace,
-                new ConnectorsManager(workerConfig), new FunctionsManager(workerConfig), mock(PulsarAdmin.class));
+                new ConnectorsManager(workerConfig), new FunctionsManager(workerConfig), mock(PulsarAdmin.class),
+                new PackageUrlValidator(workerConfig));
 
         // (1) test with file url. functionActioner should be able to consider file-url and it should be able to call
         // RuntimeSpawner
-        String pkgPathLocation = FILE + ":/user/my-file.jar";
-        Function.FunctionMetaData function1 = Function.FunctionMetaData.newBuilder()
-                .setFunctionDetails(Function.FunctionDetails.newBuilder().setTenant("test-tenant")
-                        .setNamespace("test-namespace").setName("func-1"))
-                .setPackageLocation(PackageLocationMetaData.newBuilder().setPackagePath(pkgPathLocation).build())
-                .build();
-        Function.Instance instance = Function.Instance.newBuilder().setFunctionMetaData(function1).setInstanceId(0)
-                .build();
-        FunctionRuntimeInfo functionRuntimeInfo = mock(FunctionRuntimeInfo.class);
-        doReturn(instance).when(functionRuntimeInfo).getFunctionInstance();
-
-        actioner.startFunction(functionRuntimeInfo);
+        String pkgPathLocation = FILE + ":///user/my-file.jar";
+        startFunction(actioner, pkgPathLocation);
         verify(runtime, times(1)).start();
 
         // (2) test with http-url, downloading file from http should fail with UnknownHostException due to invalid url
-        pkgPathLocation = "http://invalid/my-file.jar";
-        function1 = Function.FunctionMetaData.newBuilder()
-                .setFunctionDetails(Function.FunctionDetails.newBuilder().setTenant("test-tenant")
-                        .setNamespace("test-namespace").setName("func-1"))
-                .setPackageLocation(PackageLocationMetaData.newBuilder().setPackagePath(pkgPathLocation).build())
-                .build();
-        instance = Function.Instance.newBuilder().setFunctionMetaData(function1).setInstanceId(0).build();
-        functionRuntimeInfo = mock(FunctionRuntimeInfo.class);
-        doReturn(instance).when(functionRuntimeInfo).getFunctionInstance();
-        doThrow(new IllegalStateException("StartupException")).when(functionRuntimeInfo).setStartupException(any());
+        String invalidPkgPathLocation = "http://invalid/my-file.jar";
 
         try {
-            actioner.startFunction(functionRuntimeInfo);
+            startFunction(actioner, invalidPkgPathLocation);
             fail();
         } catch (IllegalStateException ex) {
             assertEquals(ex.getMessage(), "StartupException");
         }
+    }
+
+    private void startFunction(FunctionActioner actioner, String pkgPathLocation) {
+        PackageLocationMetaData packageLocation = PackageLocationMetaData.newBuilder()
+                .setPackagePath(pkgPathLocation)
+                .build();
+        Function.FunctionMetaData function = Function.FunctionMetaData.newBuilder()
+                .setFunctionDetails(Function.FunctionDetails.newBuilder().setTenant("test-tenant")
+                        .setNamespace("test-namespace").setName("func-1"))
+                .setPackageLocation(packageLocation)
+                .build();
+        Function.Instance instance = Function.Instance.newBuilder().setFunctionMetaData(function).setInstanceId(0)
+                .build();
+        FunctionRuntimeInfo functionRuntimeInfo = mock(FunctionRuntimeInfo.class);
+        doReturn(instance).when(functionRuntimeInfo).getFunctionInstance();
+        doThrow(new IllegalStateException("StartupException")).when(functionRuntimeInfo).setStartupException(any());
+
+        actioner.startFunction(functionRuntimeInfo);
     }
 
     @Test
@@ -185,7 +188,8 @@ public class FunctionActionerTest {
 
         @SuppressWarnings("resource")
         FunctionActioner actioner = new FunctionActioner(workerConfig, factory, dlogNamespace,
-                new ConnectorsManager(workerConfig), new FunctionsManager(workerConfig), mock(PulsarAdmin.class));
+                new ConnectorsManager(workerConfig), new FunctionsManager(workerConfig), mock(PulsarAdmin.class),
+                mock(PackageUrlValidator.class));
 
 
         String pkgPathLocation = "http://invalid/my-file.jar";
@@ -248,22 +252,13 @@ public class FunctionActionerTest {
 
         @SuppressWarnings("resource")
         FunctionActioner actioner = new FunctionActioner(workerConfig, factory, dlogNamespace,
-                new ConnectorsManager(workerConfig), new FunctionsManager(workerConfig), pulsarAdmin);
+                new ConnectorsManager(workerConfig), new FunctionsManager(workerConfig), pulsarAdmin,
+                mock(PackageUrlValidator.class));
 
         // (1) test with file url. functionActioner should be able to consider file-url and it should be able to call
         // RuntimeSpawner
         String pkgPathLocation = "function://public/default/test-function@latest";
-        Function.FunctionMetaData function1 = Function.FunctionMetaData.newBuilder()
-                .setFunctionDetails(Function.FunctionDetails.newBuilder().setTenant("test-tenant")
-                        .setNamespace("test-namespace").setName("func-1"))
-                .setPackageLocation(PackageLocationMetaData.newBuilder().setPackagePath(pkgPathLocation).build())
-                .build();
-        Function.Instance instance = Function.Instance.newBuilder().setFunctionMetaData(function1).setInstanceId(0)
-                .build();
-        FunctionRuntimeInfo functionRuntimeInfo = mock(FunctionRuntimeInfo.class);
-        doReturn(instance).when(functionRuntimeInfo).getFunctionInstance();
-
-        actioner.startFunction(functionRuntimeInfo);
+        startFunction(actioner, pkgPathLocation);
         verify(runtime, times(1)).start();
     }
 

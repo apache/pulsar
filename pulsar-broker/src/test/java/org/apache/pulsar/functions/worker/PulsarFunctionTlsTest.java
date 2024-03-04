@@ -20,8 +20,8 @@ package org.apache.pulsar.functions.worker;
 
 import static org.apache.pulsar.common.util.PortManager.nextLockedFreePort;
 import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertTrue;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Sets;
@@ -32,6 +32,7 @@ import java.io.UncheckedIOException;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -144,6 +145,12 @@ public class PulsarFunctionTlsTest {
             workerConfig.setBrokerClientAuthenticationEnabled(true);
             workerConfig.setTlsEnabled(true);
             workerConfig.setUseTls(true);
+            File packagePath = new File(
+                    PulsarSink.class.getProtectionDomain().getCodeSource().getLocation().getPath()).getParentFile();
+            List<String> urlPatterns =
+                    List.of(packagePath.toURI() + ".*");
+            workerConfig.setAdditionalEnabledConnectorUrlPatterns(urlPatterns);
+            workerConfig.setAdditionalEnabledFunctionsUrlPatterns(urlPatterns);
             fnWorkerServices[i] = WorkerServiceLoader.load(workerConfig);
 
             configurations[i] = config;

@@ -721,7 +721,7 @@ public class FunctionRuntimeManagerTest {
 
         FunctionActioner functionActioner = spy(new FunctionActioner(
                 workerConfig,
-                kubernetesRuntimeFactory, null, null, null, null));
+                kubernetesRuntimeFactory, null, null, null, null, workerService.getPackageUrlValidator()));
 
         try (final MockedStatic<RuntimeFactory> runtimeFactoryMockedStatic = Mockito
                 .mockStatic(RuntimeFactory.class);) {
