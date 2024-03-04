@@ -98,7 +98,7 @@ public abstract class ExtensibleLoadManagerImplBaseTest extends MockedPulsarServ
         admin.namespaces().setNamespaceReplicationClusters("public/default",
                 Sets.newHashSet(this.conf.getClusterName()));
 
-        admin.namespaces().createNamespace(defaultTestNamespace);
+        admin.namespaces().createNamespace(defaultTestNamespace, 128);
         admin.namespaces().setNamespaceReplicationClusters(defaultTestNamespace,
                 Sets.newHashSet(this.conf.getClusterName()));
         lookupService = (LookupService) FieldUtils.readDeclaredField(pulsarClient, "lookup", true);
