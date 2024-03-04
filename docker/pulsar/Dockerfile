@@ -96,7 +96,7 @@ RUN apk add --no-cache \
 
 # Install GLibc compatibility library
 COPY --from=glibc /root/packages /root/packages
-RUN apk add --allow-untrusted  --force-overwrite /root/packages/$(uname -m)/glibc-${GLIBC_VERSION}-r0.apk /root/packages/$(uname -m)/glibc-bin-${GLIBC_VERSION}-r0.apk
+RUN apk add --allow-untrusted  --force-overwrite /root/packages/$(uname -m)/glibc-2.38-r0.apk /root/packages/$(uname -m)/glibc-bin-2.38-r0.apk
 
 COPY --from=jvm /opt/jvm /opt/jvm
 ENV JAVA_HOME=/opt/jvm
