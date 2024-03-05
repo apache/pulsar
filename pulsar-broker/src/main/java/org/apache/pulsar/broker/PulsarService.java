@@ -751,6 +751,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                         config.getDefaultRetentionTimeInMinutes() * 60));
             }
 
+            this.openTelemetry = new PulsarBrokerOpenTelemetry(config);
             localMetadataSynchronizer = StringUtils.isNotBlank(config.getMetadataSyncEventTopic())
                     ? new PulsarMetadataEventSynchronizer(this, config.getMetadataSyncEventTopic())
                     : null;
@@ -902,7 +903,6 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             }
 
             this.metricsGenerator = new MetricsGenerator(this);
-            this.openTelemetry = new PulsarBrokerOpenTelemetry(config);
 
             // Initialize the message protocol handlers.
             // start the protocol handlers only after the broker is ready,

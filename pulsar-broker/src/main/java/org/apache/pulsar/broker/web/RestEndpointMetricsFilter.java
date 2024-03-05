@@ -21,24 +21,32 @@ package org.apache.pulsar.broker.web;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
-import io.prometheus.client.Counter;
-import io.prometheus.client.Histogram;
+import io.opentelemetry.api.common.AttributeKey;
+import io.opentelemetry.api.common.Attributes;
+import io.opentelemetry.api.metrics.DoubleHistogram;
+import io.opentelemetry.api.metrics.LongCounter;
+import io.opentelemetry.api.metrics.Meter;
 import java.io.IOException;
+import java.time.Duration;
+import java.util.List;
 import java.util.Stack;
+import javax.validation.constraints.NotNull;
 import javax.ws.rs.container.ContainerRequestContext;
 import javax.ws.rs.container.ContainerRequestFilter;
 import javax.ws.rs.container.ContainerResponseContext;
 import javax.ws.rs.container.ContainerResponseFilter;
 import javax.ws.rs.core.Response;
+import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.broker.stats.PulsarBrokerOpenTelemetry;
 import org.glassfish.jersey.server.internal.routing.UriRoutingContext;
 import org.glassfish.jersey.server.model.Resource;
 import org.glassfish.jersey.server.model.ResourceMethod;
-import org.jetbrains.annotations.NotNull;
 
 public class RestEndpointMetricsFilter implements ContainerResponseFilter, ContainerRequestFilter {
-    private static final LoadingCache<ResourceMethod, String> CACHE = CacheBuilder
+    private final LoadingCache<ResourceMethod, String> CACHE = CacheBuilder
             .newBuilder()
             .maximumSize(100)
+            .expireAfterAccess(Duration.ofMinutes(1))
             .build(new CacheLoader<>() {
                 @Override
                 public @NotNull String load(@NotNull ResourceMethod method) throws Exception {
@@ -46,18 +54,35 @@ public class RestEndpointMetricsFilter implements ContainerResponseFilter, Conta
                 }
             });
 
-    private static final Histogram LATENCY = Histogram
-            .build("pulsar_broker_rest_endpoint_latency", "-")
-            .unit("ms")
-            .labelNames("path", "method")
-            .buckets(10D, 20D, 50D, 100D, 200D, 500D, 1000D, 2000D)
-            .register();
-    private static final Counter FAILED = Counter
-            .build("pulsar_broker_rest_endpoint_failed", "-")
-            .labelNames("path", "method", "code")
-            .register();
-
     private static final String REQUEST_START_TIME = "requestStartTime";
+    private static final AttributeKey<String> PATH = AttributeKey.stringKey("path");
+    private static final AttributeKey<String> METHOD = AttributeKey.stringKey("method");
+    private static final AttributeKey<String> CODE = AttributeKey.stringKey("code");
+
+    private final DoubleHistogram latency;
+    private final LongCounter failed;
+
+    private RestEndpointMetricsFilter(PulsarService pulsar) {
+        PulsarBrokerOpenTelemetry telemetry = pulsar.getOpenTelemetry();
+        Meter meter = telemetry.getMeter();
+        latency = meter.histogramBuilder("pulsar_broker_rest_endpoint_latency")
+                .setDescription("-")
+                .setUnit("ms")
+                .setExplicitBucketBoundariesAdvice(List.of(10D, 20D, 50D, 100D, 200D, 500D, 1000D, 2000D))
+                .build();
+        failed = meter.counterBuilder("pulsar_broker_rest_endpoint_failed")
+                .setDescription("-")
+                .build();
+    }
+
+    private static volatile RestEndpointMetricsFilter INSTANCE;
+
+    public static synchronized RestEndpointMetricsFilter create(PulsarService pulsar) {
+            if (INSTANCE == null) {
+                INSTANCE = new RestEndpointMetricsFilter(pulsar);
+            }
+            return INSTANCE;
+    }
 
     @Override
     public void filter(ContainerRequestContext req, ContainerResponseContext resp) throws IOException {
@@ -72,12 +97,15 @@ public class RestEndpointMetricsFilter implements ContainerResponseFilter, Conta
 
         String method = req.getMethod();
         Response.StatusType status = resp.getStatusInfo();
-        if (status.getStatusCode() < Response.Status.BAD_REQUEST.getStatusCode()) {
-            long start = req.getProperty(REQUEST_START_TIME) == null
-                    ? System.currentTimeMillis() : (long) req.getProperty(REQUEST_START_TIME);
-            LATENCY.labels(path, method).observe(System.currentTimeMillis() - start);
-        } else {
-            FAILED.labels(path, method, String.valueOf(status.getStatusCode())).inc();
+        // record failure
+        if (status.getStatusCode() >= Response.Status.BAD_REQUEST.getStatusCode()) {
+            recordFailure(path, method, status.getStatusCode());
+            return;
+        }
+        // record success
+        Object o = req.getProperty(REQUEST_START_TIME);
+        if (o instanceof Long start) {
+            recordSuccess(path, method, System.currentTimeMillis() - start);
         }
     }
 
@@ -85,6 +113,17 @@ public class RestEndpointMetricsFilter implements ContainerResponseFilter, Conta
     public void filter(ContainerRequestContext req) throws IOException {
         // Set the request start time into properties.
         req.setProperty(REQUEST_START_TIME, System.currentTimeMillis());
+    }
+
+
+    private void recordSuccess(String path, String method, long duration) {
+        Attributes attributes = Attributes.of(PATH, path, METHOD, method);
+        latency.record(duration, attributes);
+    }
+
+    private void recordFailure(String path, String method, int code) {
+        Attributes attributes = Attributes.of(PATH, path, METHOD, method, CODE, String.valueOf(code));
+        failed.add(1, attributes);
     }
 
     private static String getRestPath(ResourceMethod method) {
