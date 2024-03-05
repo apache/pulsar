@@ -83,6 +83,7 @@ COPY target/plugins/ /pulsar/examples/
 COPY --from=pulsar-all /pulsar/offloaders /pulsar/offloaders
 
 # Include only the connectors needed by integration tests
+COPY --from=pulsar-all /pulsar/connectors/pulsar-io-cassandra-*.nar /pulsar/connectors/
 COPY --from=pulsar-all /pulsar/connectors/pulsar-io-debezium-*.nar /pulsar/connectors/
 COPY --from=pulsar-all /pulsar/connectors/pulsar-io-elastic-*.nar /pulsar/connectors/
 COPY --from=pulsar-all /pulsar/connectors/pulsar-io-jdbc-postgres-*.nar /pulsar/connectors/
