@@ -233,8 +233,7 @@ public class ConnectionPool implements AutoCloseable {
             return createConnection(new Key(logicalAddress, physicalAddress, -1));
         }
         Key key = new Key(logicalAddress, physicalAddress, randomKey);
-        CompletableFuture<ClientCnx> completableFuture = pool
-                .computeIfAbsent(key, k -> createConnection(key));
+        CompletableFuture<ClientCnx> completableFuture = pool.computeIfAbsent(key, k -> createConnection(key));
         if (completableFuture.isCompletedExceptionally()) {
             // we cannot cache a failed connection, so we remove it from the pool
             // there is a race condition in which
@@ -248,8 +247,7 @@ public class ConnectionPool implements AutoCloseable {
             // If connection already release, create a new one.
             if (clientCnx.getIdleState().isReleased()) {
                 pool.remove(key, completableFuture);
-                return pool
-                        .computeIfAbsent(key, k -> createConnection(key));
+                return pool.computeIfAbsent(key, k -> createConnection(key));
             }
             // Try use exists connection.
             if (clientCnx.getIdleState().tryMarkUsingAndClearIdleTime()) {
@@ -257,8 +255,7 @@ public class ConnectionPool implements AutoCloseable {
             } else {
                 // If connection already release, create a new one.
                 pool.remove(key, completableFuture);
-                return pool
-                        .computeIfAbsent(key, k -> createConnection(key));
+                return pool.computeIfAbsent(key, k -> createConnection(key));
             }
         });
     }
