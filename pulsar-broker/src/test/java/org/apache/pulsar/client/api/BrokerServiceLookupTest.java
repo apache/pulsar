@@ -19,6 +19,7 @@
 package org.apache.pulsar.client.api;
 
 import static io.opentelemetry.sdk.testing.assertj.OpenTelemetryAssertions.assertThat;
+import static org.apache.pulsar.broker.namespace.NamespaceService.LOOKUP_REQUEST_DURATION_METRIC_NAME;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
@@ -223,9 +224,8 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         topicLoadRequestSemaphoreField.set(pulsar2.getBrokerService(),
                 new AtomicReference<>(topicLoadRequestSemaphoreSpy));
 
-        var metricName = "pulsar.broker.lookup.request.duration";
         assertThat(pulsarTestContext.getOpenTelemetryMetricReader().collectAllMetrics())
-                .noneSatisfy(metric -> assertThat(metric).hasName("pulsar.broker.lookup.request.duration"));
+                .noneSatisfy(metric -> assertThat(metric).hasName(LOOKUP_REQUEST_DURATION_METRIC_NAME));
 
         /**** started broker-2 ****/
         @Cleanup
@@ -274,7 +274,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         var metrics = metricReader.collectAllMetrics();
         assertThat(metrics)
                 .anySatisfy(metric -> assertThat(metric)
-                        .hasName(metricName)
+                        .hasName(LOOKUP_REQUEST_DURATION_METRIC_NAME)
                         .hasHistogramSatisfying(histogram -> histogram.hasPointsSatisfying(
                                 point -> point
                                         .hasAttributes(NamespaceService.PULSAR_LOOKUP_RESPONSE_REDIRECT_ATTRIBUTES)
@@ -1201,11 +1201,10 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         assertTrue(lookupService instanceof BinaryProtoLookupService);
         ClientCnx lookupConnection = pulsarClientImpl.getCnxPool().getConnection(lookupService.resolveHost()).join();
 
-        var metricName = "pulsar.broker.lookup.request.duration";
         var metricReader = pulsarTestContext.getOpenTelemetryMetricReader();
         assertThat(metricReader.collectAllMetrics())
                 .noneSatisfy(metric -> assertThat(metric)
-                        .hasName(metricName)
+                        .hasName(LOOKUP_REQUEST_DURATION_METRIC_NAME)
                         .hasHistogramSatisfying(histogram -> histogram.hasPointsSatisfying(
                                 point -> point
                                         .hasAttributes(OpenTelemetryAttributes.PULSAR_RESPONSE_STATUS_FAILURE),
@@ -1224,7 +1223,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
 
         assertThat(metricReader.collectAllMetrics())
                 .anySatisfy(metric -> assertThat(metric)
-                        .hasName(metricName)
+                        .hasName(LOOKUP_REQUEST_DURATION_METRIC_NAME)
                         .hasHistogramSatisfying(histogram -> histogram.hasPointsSatisfying(
                                 point -> point
                                         .hasAttributes(OpenTelemetryAttributes.PULSAR_RESPONSE_STATUS_FAILURE)

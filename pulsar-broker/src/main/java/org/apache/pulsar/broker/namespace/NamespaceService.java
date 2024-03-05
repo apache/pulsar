@@ -153,16 +153,17 @@ public class NamespaceService implements AutoCloseable {
 
     private final RedirectManager redirectManager;
 
-    @PulsarDeprecatedMetric(newMetricName = "pulsar.broker.lookup.request.duration")
+
+    @PulsarDeprecatedMetric(newMetricName = LOOKUP_REQUEST_DURATION_METRIC_NAME)
     private static final Counter lookupRedirects = Counter.build("pulsar_broker_lookup_redirects", "-").register();
 
-    @PulsarDeprecatedMetric(newMetricName = "pulsar.broker.lookup.request.duration")
+    @PulsarDeprecatedMetric(newMetricName = LOOKUP_REQUEST_DURATION_METRIC_NAME)
     private static final Counter lookupFailures = Counter.build("pulsar_broker_lookup_failures", "-").register();
 
-    @PulsarDeprecatedMetric(newMetricName = "pulsar.broker.lookup.request.duration")
+    @PulsarDeprecatedMetric(newMetricName = LOOKUP_REQUEST_DURATION_METRIC_NAME)
     private static final Counter lookupAnswers = Counter.build("pulsar_broker_lookup_answers", "-").register();
 
-    @PulsarDeprecatedMetric(newMetricName = "pulsar.broker.lookup.request.duration")
+    @PulsarDeprecatedMetric(newMetricName = LOOKUP_REQUEST_DURATION_METRIC_NAME)
     private static final Summary lookupLatency = Summary.build("pulsar_broker_lookup", "-")
             .quantile(0.50)
             .quantile(0.99)
@@ -170,6 +171,10 @@ public class NamespaceService implements AutoCloseable {
             .quantile(1.0)
             .register();
     private final DoubleHistogram lookupLatencyHistogram;
+
+    @VisibleForTesting
+    public static final String LOOKUP_REQUEST_DURATION_METRIC_NAME = "pulsar.broker.request.topic.lookup.duration";
+
     private static final AttributeKey<String> PULSAR_LOOKUP_RESPONSE_TYPE =
             AttributeKey.stringKey("pulsar.lookup.response.type");
     @VisibleForTesting
@@ -201,7 +206,7 @@ public class NamespaceService implements AutoCloseable {
         this.redirectManager = new RedirectManager(pulsar);
 
         this.lookupLatencyHistogram = pulsar.getOpenTelemetry().getMeter()
-                .histogramBuilder("pulsar.broker.lookup.request.duration")
+                .histogramBuilder(LOOKUP_REQUEST_DURATION_METRIC_NAME)
                 .setDescription("Lookup request duration")
                 .setUnit("s")
                 .build();
