@@ -560,8 +560,6 @@ public interface ClientBuilder extends Serializable, Cloneable {
 
     ClientBuilder openTelemetry(io.opentelemetry.api.OpenTelemetry openTelemetry);
 
-    ClientBuilder openTelemetryMetricsCardinality(MetricsCardinality metricsCardinality);
-
     /**
      * The clock used by the pulsar client.
      *

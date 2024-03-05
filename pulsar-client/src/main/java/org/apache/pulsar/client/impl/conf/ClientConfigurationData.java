@@ -38,7 +38,6 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.apache.pulsar.client.api.Authentication;
-import org.apache.pulsar.client.api.MetricsCardinality;
 import org.apache.pulsar.client.api.ProxyProtocol;
 import org.apache.pulsar.client.api.ServiceUrlProvider;
 import org.apache.pulsar.client.impl.auth.AuthenticationDisabled;
@@ -398,8 +397,6 @@ public class ClientConfigurationData implements Serializable, Cloneable {
     private String description;
 
     private transient OpenTelemetry openTelemetry;
-
-    private MetricsCardinality openTelemetryMetricsCardinality = MetricsCardinality.Topic;
 
     /**
      * Gets the authentication settings for the client.

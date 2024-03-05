@@ -96,16 +96,16 @@ public class BinaryProtoLookupService implements LookupService {
         Attributes attrs = Attributes.of(AttributeKey.stringKey("pulsar.lookup.transport-type"), "binary");
 
         histoGetBroker = client.instrumentProvider().newLatencyHistogram("pulsar.client.lookup",
-                "Duration of lookup operations",
+                "Duration of lookup operations", null,
                 attrs.toBuilder().put("pulsar.lookup.type", "topic").build());
         histoGetTopicMetadata = client.instrumentProvider().newLatencyHistogram("pulsar.client.lookup",
-                "Duration of lookup operations",
+                "Duration of lookup operations", null,
                 attrs.toBuilder().put("pulsar.lookup.type", "metadata").build());
         histoGetSchema = client.instrumentProvider().newLatencyHistogram("pulsar.client.lookup",
-                "Duration of lookup operations",
+                "Duration of lookup operations", null,
                 attrs.toBuilder().put("pulsar.lookup.type", "schema").build());
         histoListTopics = client.instrumentProvider().newLatencyHistogram("pulsar.client.lookup",
-                "Duration of lookup operations",
+                "Duration of lookup operations", null,
                 attrs.toBuilder().put("pulsar.lookup.type", "list-topics").build());
     }
 

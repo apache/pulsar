@@ -123,9 +123,8 @@ public class UnAckedMessageTracker implements Closeable {
         this.writeLock = readWriteLock.writeLock();
 
         InstrumentProvider ip = client.instrumentProvider();
-        Attributes attrs = ip.getAttributes(consumerBase.getTopic());
         consumerAckTimeoutsCounter = ip.newCounter("pulsar.client.consumer.message.ack.timeout", Unit.Messages,
-                "Number of ack timeouts events", attrs);
+                "Number of ack timeouts events", consumerBase.getTopic(), Attributes.empty());
 
         if (conf.getAckTimeoutRedeliveryBackoff() == null) {
             this.messageIdPartitionMap = new HashMap<>();

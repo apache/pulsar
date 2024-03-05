@@ -159,9 +159,10 @@ public class ConnectionPool implements AutoCloseable {
 
         connectionsTcpFailureCounter =
                 instrumentProvider.newCounter("pulsar.client.connections.failed", Unit.Connections,
-                        "The number of failed connection attempts", Attributes.builder().put("pulsar.failure.type", "tcp-failed").build());
+                        "The number of failed connection attempts", null,
+                        Attributes.builder().put("pulsar.failure.type", "tcp-failed").build());
         connectionsHandshakeFailureCounter = instrumentProvider.newCounter("pulsar.client.connections.failed",
-                Unit.Connections, "The number of failed connection attempts",
+                Unit.Connections, "The number of failed connection attempts", null,
                 Attributes.builder().put("pulsar.failure.type", "handshake").build());
     }
 

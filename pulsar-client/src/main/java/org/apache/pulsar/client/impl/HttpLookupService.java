@@ -79,16 +79,16 @@ public class HttpLookupService implements LookupService {
 
         histoGetBroker = instrumentProvider.newLatencyHistogram("pulsar.client.lookup",
                 "Duration of lookup operations",
-                attrs.toBuilder().put("pulsar.lookup.type", "topic").build());
+                null, attrs.toBuilder().put("pulsar.lookup.type", "topic").build());
         histoGetTopicMetadata = instrumentProvider.newLatencyHistogram("pulsar.client.lookup",
                 "Duration of lookup operations",
-                attrs.toBuilder().put("pulsar.lookup.type", "metadata").build());
+                null, attrs.toBuilder().put("pulsar.lookup.type", "metadata").build());
         histoGetSchema = instrumentProvider.newLatencyHistogram("pulsar.client.lookup",
                 "Duration of lookup operations",
-                attrs.toBuilder().put("pulsar.lookup.type", "schema").build());
+                null, attrs.toBuilder().put("pulsar.lookup.type", "schema").build());
         histoListTopics = instrumentProvider.newLatencyHistogram("pulsar.client.lookup",
                 "Duration of lookup operations",
-                attrs.toBuilder().put("pulsar.lookup.type", "list-topics").build());
+                null, attrs.toBuilder().put("pulsar.lookup.type", "list-topics").build());
     }
 
     @Override

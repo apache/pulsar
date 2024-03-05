@@ -29,7 +29,6 @@ import org.apache.commons.io.FileUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminBuilder;
 import org.apache.pulsar.client.api.ClientBuilder;
-import org.apache.pulsar.client.api.MetricsCardinality;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SizeUnit;
@@ -80,8 +79,7 @@ public class PerfClientUtils {
                 .maxLookupRequests(arguments.maxLookupRequest)
                 .proxyServiceUrl(arguments.proxyServiceURL, arguments.proxyProtocol)
                 .openTelemetry(AutoConfiguredOpenTelemetrySdk.builder()
-                        .build().getOpenTelemetrySdk())
-                .openTelemetryMetricsCardinality(MetricsCardinality.Topic);
+                        .build().getOpenTelemetrySdk());
 
         if (isNotBlank(arguments.authPluginClassName)) {
             clientBuilder.authentication(arguments.authPluginClassName, arguments.authParams);
