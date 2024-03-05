@@ -153,6 +153,21 @@ public class NamespaceService implements AutoCloseable {
 
     private final RedirectManager redirectManager;
 
+    @VisibleForTesting
+    public static final String LOOKUP_REQUEST_DURATION_METRIC_NAME = "pulsar.broker.request.topic.lookup.duration";
+
+    private static final AttributeKey<String> PULSAR_LOOKUP_RESPONSE_TYPE =
+            AttributeKey.stringKey("pulsar.lookup.response.type");
+    @VisibleForTesting
+    public static final Attributes PULSAR_LOOKUP_RESPONSE_BROKER_ATTRIBUTES = Attributes.builder()
+            .putAll(OpenTelemetryAttributes.PULSAR_RESPONSE_STATUS_SUCCESS)
+            .put(PULSAR_LOOKUP_RESPONSE_TYPE, "broker")
+            .build();
+    @VisibleForTesting
+    public static final Attributes PULSAR_LOOKUP_RESPONSE_REDIRECT_ATTRIBUTES = Attributes.builder()
+            .putAll(OpenTelemetryAttributes.PULSAR_RESPONSE_STATUS_SUCCESS)
+            .put(PULSAR_LOOKUP_RESPONSE_TYPE, "redirect")
+            .build();
 
     @PulsarDeprecatedMetric(newMetricName = LOOKUP_REQUEST_DURATION_METRIC_NAME)
     private static final Counter lookupRedirects = Counter.build("pulsar_broker_lookup_redirects", "-").register();
@@ -171,22 +186,6 @@ public class NamespaceService implements AutoCloseable {
             .quantile(1.0)
             .register();
     private final DoubleHistogram lookupLatencyHistogram;
-
-    @VisibleForTesting
-    public static final String LOOKUP_REQUEST_DURATION_METRIC_NAME = "pulsar.broker.request.topic.lookup.duration";
-
-    private static final AttributeKey<String> PULSAR_LOOKUP_RESPONSE_TYPE =
-            AttributeKey.stringKey("pulsar.lookup.response.type");
-    @VisibleForTesting
-    public static final Attributes PULSAR_LOOKUP_RESPONSE_BROKER_ATTRIBUTES = Attributes.builder()
-            .putAll(OpenTelemetryAttributes.PULSAR_RESPONSE_STATUS_SUCCESS)
-            .put(PULSAR_LOOKUP_RESPONSE_TYPE, "broker")
-            .build();
-    @VisibleForTesting
-    public static final Attributes PULSAR_LOOKUP_RESPONSE_REDIRECT_ATTRIBUTES = Attributes.builder()
-            .putAll(OpenTelemetryAttributes.PULSAR_RESPONSE_STATUS_SUCCESS)
-            .put(PULSAR_LOOKUP_RESPONSE_TYPE, "redirect")
-            .build();
 
     /**
      * Default constructor.
