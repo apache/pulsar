@@ -19,7 +19,6 @@
 package org.apache.pulsar.opentelemetry;
 
 import io.opentelemetry.api.common.AttributeKey;
-import io.opentelemetry.api.common.Attributes;
 
 /**
  * Common OpenTelemetry attributes to be used by Pulsar components.
@@ -30,8 +29,4 @@ public interface OpenTelemetryAttributes {
      * {@link OpenTelemetryService}.
      */
     AttributeKey<String> PULSAR_CLUSTER = AttributeKey.stringKey("pulsar.cluster");
-
-    AttributeKey<String> PULSAR_RESPONSE_STATUS = AttributeKey.stringKey("pulsar.response.status");
-    Attributes PULSAR_RESPONSE_STATUS_SUCCESS = Attributes.of(PULSAR_RESPONSE_STATUS, "success");
-    Attributes PULSAR_RESPONSE_STATUS_FAILURE = Attributes.of(PULSAR_RESPONSE_STATUS, "failure");
 }

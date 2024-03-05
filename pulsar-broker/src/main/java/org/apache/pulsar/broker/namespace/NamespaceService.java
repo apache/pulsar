@@ -105,7 +105,6 @@ import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.metadata.api.MetadataCache;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
-import org.apache.pulsar.opentelemetry.OpenTelemetryAttributes;
 import org.apache.pulsar.opentelemetry.annotations.PulsarDeprecatedMetric;
 import org.apache.pulsar.policies.data.loadbalancer.AdvertisedListener;
 import org.apache.pulsar.policies.data.loadbalancer.LocalBrokerData;
@@ -157,12 +156,13 @@ public class NamespaceService implements AutoCloseable {
     private static final AttributeKey<String> PULSAR_LOOKUP_RESPONSE_TYPE =
             AttributeKey.stringKey("pulsar.lookup.response.type");
     public static final Attributes PULSAR_LOOKUP_RESPONSE_BROKER_ATTRIBUTES = Attributes.builder()
-            .putAll(OpenTelemetryAttributes.PULSAR_RESPONSE_STATUS_SUCCESS)
             .put(PULSAR_LOOKUP_RESPONSE_TYPE, "broker")
             .build();
     public static final Attributes PULSAR_LOOKUP_RESPONSE_REDIRECT_ATTRIBUTES = Attributes.builder()
-            .putAll(OpenTelemetryAttributes.PULSAR_RESPONSE_STATUS_SUCCESS)
             .put(PULSAR_LOOKUP_RESPONSE_TYPE, "redirect")
+            .build();
+    public static final Attributes PULSAR_LOOKUP_RESPONSE_FAILURE_ATTRIBUTES = Attributes.builder()
+            .put(PULSAR_LOOKUP_RESPONSE_TYPE, "failure")
             .build();
 
     @PulsarDeprecatedMetric(newMetricName = LOOKUP_REQUEST_DURATION_METRIC_NAME)
@@ -249,11 +249,11 @@ public class NamespaceService implements AutoCloseable {
                     }
                 } else {
                     // No lookup result, default to reporting as failure.
-                    attributes = OpenTelemetryAttributes.PULSAR_RESPONSE_STATUS_FAILURE;
+                    attributes = PULSAR_LOOKUP_RESPONSE_FAILURE_ATTRIBUTES;
                 }
             } else {
                 lookupFailures.inc();
-                attributes = OpenTelemetryAttributes.PULSAR_RESPONSE_STATUS_FAILURE;
+                attributes = PULSAR_LOOKUP_RESPONSE_FAILURE_ATTRIBUTES;
             }
             lookupLatencyHistogram.record(MetricsUtil.convertToSeconds(latencyNs, TimeUnit.NANOSECONDS), attributes);
         });

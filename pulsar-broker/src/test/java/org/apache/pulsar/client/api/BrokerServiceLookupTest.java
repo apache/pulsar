@@ -95,7 +95,6 @@ import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.common.util.SecurityUtility;
-import org.apache.pulsar.opentelemetry.OpenTelemetryAttributes;
 import org.apache.pulsar.policies.data.loadbalancer.LocalBrokerData;
 import org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats;
 import org.apache.zookeeper.KeeperException;
@@ -1207,7 +1206,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
                         .hasName(LOOKUP_REQUEST_DURATION_METRIC_NAME)
                         .hasHistogramSatisfying(histogram -> histogram.hasPointsSatisfying(
                                 point -> point
-                                        .hasAttributes(OpenTelemetryAttributes.PULSAR_RESPONSE_STATUS_FAILURE),
+                                        .hasAttributes(NamespaceService.PULSAR_LOOKUP_RESPONSE_FAILURE_ATTRIBUTES),
                                 point -> point
                                         .hasAttributes(NamespaceService.PULSAR_LOOKUP_RESPONSE_BROKER_ATTRIBUTES))));
 
@@ -1226,7 +1225,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
                         .hasName(LOOKUP_REQUEST_DURATION_METRIC_NAME)
                         .hasHistogramSatisfying(histogram -> histogram.hasPointsSatisfying(
                                 point -> point
-                                        .hasAttributes(OpenTelemetryAttributes.PULSAR_RESPONSE_STATUS_FAILURE)
+                                        .hasAttributes(NamespaceService.PULSAR_LOOKUP_RESPONSE_FAILURE_ATTRIBUTES)
                                         .hasCount(1),
                                 point -> point
                                         .hasAttributes(NamespaceService.PULSAR_LOOKUP_RESPONSE_BROKER_ATTRIBUTES))));
