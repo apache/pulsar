@@ -92,6 +92,7 @@ RUN apk add --no-cache \
             bash \
             python3 \
             py3-pip \
+            gcompat \
             ca-certificates
 
 # Install GLibc compatibility library
