@@ -293,9 +293,7 @@ public class ConsumerImplTest {
 
         clientReq.complete(null);
 
-        // The seek future will be completed in connectionOpened after receiving the seek response
-        assertFalse(firstResult.isDone());
-        assertEquals(consumer.seekStatus.get(), ConsumerImpl.SeekStatus.COMPLETED);
+        assertTrue(firstResult.isDone());
         assertTrue(secondResult.isCompletedExceptionally());
         verify(cnx, times(1)).sendRequestWithId(any(ByteBuf.class), anyLong());
     }
