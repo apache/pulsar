@@ -43,7 +43,7 @@ import org.glassfish.jersey.server.model.Resource;
 import org.glassfish.jersey.server.model.ResourceMethod;
 
 public class RestEndpointMetricsFilter implements ContainerResponseFilter, ContainerRequestFilter {
-    private final LoadingCache<ResourceMethod, String> CACHE = CacheBuilder
+    private final LoadingCache<ResourceMethod, String> cache = CacheBuilder
             .newBuilder()
             .maximumSize(100)
             .expireAfterAccess(Duration.ofMinutes(1))
@@ -75,13 +75,13 @@ public class RestEndpointMetricsFilter implements ContainerResponseFilter, Conta
                 .build();
     }
 
-    private static volatile RestEndpointMetricsFilter INSTANCE;
+    private static volatile RestEndpointMetricsFilter instance;
 
     public static synchronized RestEndpointMetricsFilter create(PulsarService pulsar) {
-            if (INSTANCE == null) {
-                INSTANCE = new RestEndpointMetricsFilter(pulsar);
+            if (instance == null) {
+                instance = new RestEndpointMetricsFilter(pulsar);
             }
-            return INSTANCE;
+            return instance;
     }
 
     @Override
@@ -90,7 +90,7 @@ public class RestEndpointMetricsFilter implements ContainerResponseFilter, Conta
         try {
             UriRoutingContext info = (UriRoutingContext) req.getUriInfo();
             ResourceMethod rm = info.getMatchedResourceMethod();
-            path = CACHE.get(rm);
+            path = cache.get(rm);
         } catch (Throwable ex) {
             path = "UNKNOWN";
         }
