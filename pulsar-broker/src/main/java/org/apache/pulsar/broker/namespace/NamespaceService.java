@@ -153,16 +153,16 @@ public class NamespaceService implements AutoCloseable {
 
     public static final String LOOKUP_REQUEST_DURATION_METRIC_NAME = "pulsar.broker.request.topic.lookup.duration";
 
-    private static final AttributeKey<String> PULSAR_LOOKUP_RESPONSE_TYPE =
-            AttributeKey.stringKey("pulsar.lookup.response.type");
+    private static final AttributeKey<String> PULSAR_LOOKUP_RESPONSE_ATTRIBUTE =
+            AttributeKey.stringKey("pulsar.lookup.response");
     public static final Attributes PULSAR_LOOKUP_RESPONSE_BROKER_ATTRIBUTES = Attributes.builder()
-            .put(PULSAR_LOOKUP_RESPONSE_TYPE, "broker")
+            .put(PULSAR_LOOKUP_RESPONSE_ATTRIBUTE, "broker")
             .build();
     public static final Attributes PULSAR_LOOKUP_RESPONSE_REDIRECT_ATTRIBUTES = Attributes.builder()
-            .put(PULSAR_LOOKUP_RESPONSE_TYPE, "redirect")
+            .put(PULSAR_LOOKUP_RESPONSE_ATTRIBUTE, "redirect")
             .build();
     public static final Attributes PULSAR_LOOKUP_RESPONSE_FAILURE_ATTRIBUTES = Attributes.builder()
-            .put(PULSAR_LOOKUP_RESPONSE_TYPE, "failure")
+            .put(PULSAR_LOOKUP_RESPONSE_ATTRIBUTE, "failure")
             .build();
 
     @PulsarDeprecatedMetric(newMetricName = LOOKUP_REQUEST_DURATION_METRIC_NAME)
@@ -202,7 +202,7 @@ public class NamespaceService implements AutoCloseable {
 
         this.lookupLatencyHistogram = pulsar.getOpenTelemetry().getMeter()
                 .histogramBuilder(LOOKUP_REQUEST_DURATION_METRIC_NAME)
-                .setDescription("Lookup request duration")
+                .setDescription("The duration of topic lookup requests (either binary or HTTP)")
                 .setUnit("s")
                 .build();
     }
