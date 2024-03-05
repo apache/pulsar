@@ -826,8 +826,13 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
         log.info("This broker:{} is setting the role from {} to {}",
                 pulsar.getBrokerId(), role, Leader);
         int retry = 0;
+        boolean becameFollower = false;
         while (!Thread.currentThread().isInterrupted()) {
             try {
+                if (!serviceUnitStateChannel.isChannelOwner()) {
+                    becameFollower = true;
+                    break;
+                }
                 initWaiter.await();
                 // Confirm the system topics have been created or create them if they do not exist.
                 // If the leader has changed, the new leader need to reset
@@ -851,6 +856,13 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
                 }
             }
         }
+
+        if (becameFollower) {
+            log.warn("The broker:{} became follower while initializing leader role.", pulsar.getBrokerId());
+            playFollower();
+            return;
+        }
+
         role = Leader;
         log.info("This broker:{} plays the leader now.", pulsar.getBrokerId());
 
@@ -864,8 +876,13 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
         log.info("This broker:{} is setting the role from {} to {}",
                 pulsar.getBrokerId(), role, Follower);
         int retry = 0;
+        boolean becameLeader = false;
         while (!Thread.currentThread().isInterrupted()) {
             try {
+                if (serviceUnitStateChannel.isChannelOwner()) {
+                    becameLeader = true;
+                    break;
+                }
                 initWaiter.await();
                 unloadScheduler.close();
                 serviceUnitStateChannel.cancelOwnershipMonitor();
@@ -885,6 +902,13 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
                 }
             }
         }
+
+        if (becameLeader) {
+            log.warn("This broker:{} became leader while initializing follower role.", pulsar.getBrokerId());
+            playLeader();
+            return;
+        }
+
         role = Follower;
         log.info("This broker:{} plays a follower now.", pulsar.getBrokerId());
 
