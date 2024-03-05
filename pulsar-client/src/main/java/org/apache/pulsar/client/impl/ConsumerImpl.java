@@ -2286,16 +2286,19 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 lastDequeuedMessageId = MessageId.earliest;
 
                 clearIncomingMessages();
+                CompletableFuture<Void> future = null;
                 synchronized (this) {
                     if (cnx() == null) {
                         // It's during reconnection, complete the seek future after connection is established
                         seekStatus.set(SeekStatus.COMPLETED);
                     } else {
-                        final CompletableFuture<Void> future = seekFuture;
+                        future = seekFuture;
                         startMessageId = seekMessageId;
                         seekStatus.set(SeekStatus.NOT_STARTED);
-                        future.complete(null);
                     }
+                }
+                if (future != null) {
+                    future.complete(null);
                 }
             }).exceptionally(e -> {
                 seekMessageId = originSeekMessageId;
