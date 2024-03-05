@@ -244,11 +244,6 @@ public class ClientCnx extends PulsarHandler {
         }
     }
 
-
-    public ClientCnx(ClientConfigurationData conf, EventLoopGroup eventLoopGroup) {
-        this(new InstrumentProvider(conf), conf, eventLoopGroup, Commands.getCurrentProtocolVersion());
-    }
-
     public ClientCnx(InstrumentProvider instrumentProvider,
                      ClientConfigurationData conf, EventLoopGroup eventLoopGroup) {
         this(instrumentProvider, conf, eventLoopGroup, Commands.getCurrentProtocolVersion());

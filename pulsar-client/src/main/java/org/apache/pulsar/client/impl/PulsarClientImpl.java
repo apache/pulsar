@@ -182,7 +182,7 @@ public class PulsarClientImpl implements PulsarClient {
                              ExecutorProvider internalExecutorProvider,
                              ScheduledExecutorProvider scheduledExecutorProvider) throws PulsarClientException {
 
-        this.instrumentProvider = new InstrumentProvider(conf);
+        this.instrumentProvider = new InstrumentProvider(conf.getOpenTelemetry());
 
         EventLoopGroup eventLoopGroupReference = null;
         ConnectionPool connectionPoolReference = null;

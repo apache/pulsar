@@ -35,6 +35,7 @@ import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
+import org.apache.pulsar.client.impl.metrics.InstrumentProvider;
 import org.apache.pulsar.common.api.proto.CommandCloseProducer;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
 import org.awaitility.Awaitility;
@@ -234,7 +235,7 @@ public class ConnectionPoolTest extends MockedPulsarServiceBaseTest {
         };
 
         ConnectionPool pool = spyWithClassAndConstructorArgs(ConnectionPool.class, conf, eventLoop,
-                (Supplier<ClientCnx>) () -> new ClientCnx(conf, eventLoop), Optional.of(resolver));
+                (Supplier<ClientCnx>) () -> new ClientCnx(InstrumentProvider.NOOP, conf, eventLoop), Optional.of(resolver));
 
 
         ClientCnx cnx = pool.getConnection(

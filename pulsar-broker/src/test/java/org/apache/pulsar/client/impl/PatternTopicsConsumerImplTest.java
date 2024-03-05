@@ -49,6 +49,7 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.RegexSubscriptionMode;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.impl.metrics.InstrumentProvider;
 import org.apache.pulsar.common.api.proto.BaseCommand;
 import org.apache.pulsar.common.api.proto.CommandWatchTopicListSuccess;
 import org.apache.pulsar.common.naming.NamespaceName;
@@ -811,7 +812,7 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
     private PulsarClient createDelayWatchTopicsClient() throws Exception {
         ClientBuilderImpl clientBuilder = (ClientBuilderImpl) PulsarClient.builder().serviceUrl(lookupUrl.toString());
         return InjectedClientCnxClientBuilder.create(clientBuilder,
-            (conf, eventLoopGroup) -> new ClientCnx(conf, eventLoopGroup) {
+            (conf, eventLoopGroup) -> new ClientCnx(InstrumentProvider.NOOP, conf, eventLoopGroup) {
                 public CompletableFuture<CommandWatchTopicListSuccess> newWatchTopicList(
                         BaseCommand command, long requestId) {
                     // Inject 2 seconds delay when sending command New Watch Topics.

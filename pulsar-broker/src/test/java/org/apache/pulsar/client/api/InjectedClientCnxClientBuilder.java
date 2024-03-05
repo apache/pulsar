@@ -28,6 +28,7 @@ import org.apache.pulsar.client.impl.ClientCnx;
 import org.apache.pulsar.client.impl.ConnectionPool;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
+import org.apache.pulsar.client.impl.metrics.InstrumentProvider;
 import org.apache.pulsar.client.util.ExecutorProvider;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
 
@@ -42,7 +43,7 @@ public class InjectedClientCnxClientBuilder {
                 EventLoopUtil.newEventLoopGroup(conf.getNumIoThreads(), conf.isEnableBusyWait(), threadFactory);
 
         // Inject into ClientCnx.
-        ConnectionPool pool = new ConnectionPool(conf, eventLoopGroup,
+        ConnectionPool pool = new ConnectionPool(InstrumentProvider.NOOP, conf, eventLoopGroup,
                 () -> clientCnxFactory.generate(conf, eventLoopGroup));
 
         return new InjectedClientCnxPulsarClientImpl(conf, eventLoopGroup, pool);

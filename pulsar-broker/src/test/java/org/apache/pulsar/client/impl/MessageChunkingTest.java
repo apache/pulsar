@@ -56,6 +56,7 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SizeUnit;
 import org.apache.pulsar.client.impl.MessageImpl.SchemaState;
 import org.apache.pulsar.client.impl.ProducerImpl.OpSendMsg;
+import org.apache.pulsar.client.impl.metrics.LatencyHistogram;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.policies.data.PublisherStats;
 import org.apache.pulsar.common.protocol.ByteBufPair;
@@ -499,7 +500,7 @@ public class MessageChunkingTest extends ProducerConsumerBase {
         ByteBufPair cmd = Commands.newSend(producerId, 1, 1, ChecksumType.Crc32c, msgMetadata, payload);
         MessageImpl msgImpl = ((MessageImpl<byte[]>) msg.getMessage());
         msgImpl.setSchemaState(SchemaState.Ready);
-        OpSendMsg op = OpSendMsg.create(msgImpl, cmd, 1, null);
+        OpSendMsg op = OpSendMsg.create(LatencyHistogram.NOOP, msgImpl, cmd, 1, null);
         producer.processOpSendMsg(op);
 
         retryStrategically((test) -> {

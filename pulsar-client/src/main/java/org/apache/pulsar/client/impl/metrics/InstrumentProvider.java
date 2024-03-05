@@ -29,16 +29,16 @@ import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 
 public class InstrumentProvider {
 
+    public static final InstrumentProvider NOOP = new InstrumentProvider(OpenTelemetry.noop());
+
     private final Meter meter;
 
-    public InstrumentProvider(ClientConfigurationData conf) {
-        OpenTelemetry otel = conf.getOpenTelemetry();
+    public InstrumentProvider(OpenTelemetry otel) {
         if (otel == null) {
             // By default, metrics are disabled, unless the OTel java agent is configured.
             // This allows to enable metrics without any code change.
             otel = GlobalOpenTelemetry.get();
         }
-
         this.meter = otel.getMeterProvider()
                 .meterBuilder("org.apache.pulsar.client")
                 .setInstrumentationVersion(PulsarVersion.getVersion())
