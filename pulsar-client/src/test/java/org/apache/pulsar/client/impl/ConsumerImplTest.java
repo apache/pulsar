@@ -29,6 +29,8 @@ import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import io.netty.buffer.ByteBuf;
 import java.util.concurrent.CompletableFuture;
@@ -283,6 +285,7 @@ public class ConsumerImplTest {
 
         consumer.setClientCnx(cnx);
         consumer.setState(HandlerState.State.Ready);
+        consumer.seekStatus.set(ConsumerImpl.SeekStatus.NOT_STARTED);
 
         // when
         CompletableFuture<Void> firstResult = consumer.seekAsync(1L);
@@ -290,8 +293,9 @@ public class ConsumerImplTest {
 
         clientReq.complete(null);
 
-        // then
-        assertTrue(firstResult.isDone());
+        // The seek future will be completed in connectionOpened after receiving the seek response
+        assertFalse(firstResult.isDone());
+        assertEquals(consumer.seekStatus.get(), ConsumerImpl.SeekStatus.COMPLETED);
         assertTrue(secondResult.isCompletedExceptionally());
         verify(cnx, times(1)).sendRequestWithId(any(ByteBuf.class), anyLong());
     }
