@@ -40,7 +40,6 @@ import io.netty.util.ReferenceCounted;
 import io.netty.util.Timeout;
 import io.netty.util.TimerTask;
 import io.netty.util.concurrent.ScheduledFuture;
-import io.opentelemetry.api.common.AttributeKey;
 import io.opentelemetry.api.common.Attributes;
 import java.io.IOException;
 import java.net.URI;
@@ -179,7 +178,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     private boolean errorState;
 
     private final LatencyHistogram latencyHistogram;
-    private final LatencyHistogram rpcLatencyHistogram;
+    final LatencyHistogram rpcLatencyHistogram;
     private final Counter publishedBytesCounter;
     private final UpDownCounter pendingMessagesCounter;
     private final UpDownCounter pendingBytesCounter;
@@ -745,9 +744,9 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             if (msg.getSchemaState() == MessageImpl.SchemaState.Ready) {
                 ByteBufPair cmd = sendMessage(producerId, sequenceId, numMessages, messageId, msgMetadata,
                         encryptedPayload);
-                op = OpSendMsg.create(this, msg, cmd, sequenceId, callback);
+                op = OpSendMsg.create(rpcLatencyHistogram, msg, cmd, sequenceId, callback);
             } else {
-                op = OpSendMsg.create(this, msg, null, sequenceId, callback);
+                op = OpSendMsg.create(rpcLatencyHistogram, msg, null, sequenceId, callback);
                 final MessageMetadata finalMsgMetadata = msgMetadata;
                 op.rePopulate = () -> {
                     if (msgMetadata.hasChunkId()) {
@@ -1455,7 +1454,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     }
 
     protected static final class OpSendMsg {
-        ProducerImpl<?> producer;
+        LatencyHistogram rpcLatencyHistogram;
         MessageImpl<?> msg;
         List<MessageImpl<?>> msgs;
         ByteBufPair cmd;
@@ -1475,7 +1474,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         int chunkId = -1;
 
         void initialize() {
-            producer = null;
+            rpcLatencyHistogram = null;
             msg = null;
             msgs = null;
             cmd = null;
@@ -1495,11 +1494,11 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             chunkedMessageCtx = null;
         }
 
-        static OpSendMsg create(ProducerImpl<?> producer, MessageImpl<?> msg, ByteBufPair cmd, long sequenceId,
+        static OpSendMsg create(LatencyHistogram rpcLatencyHistogram, MessageImpl<?> msg, ByteBufPair cmd, long sequenceId,
                                 SendCallback callback) {
             OpSendMsg op = RECYCLER.get();
             op.initialize();
-            op.producer = producer;
+            op.rpcLatencyHistogram = rpcLatencyHistogram;
             op.msg = msg;
             op.cmd = cmd;
             op.callback = callback;
@@ -1509,12 +1508,12 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             return op;
         }
 
-        static OpSendMsg create(ProducerImpl<?> producer, List<MessageImpl<?>> msgs, ByteBufPair cmd, long sequenceId,
+        static OpSendMsg create(LatencyHistogram rpcLatencyHistogram, List<MessageImpl<?>> msgs, ByteBufPair cmd, long sequenceId,
                                 SendCallback callback,
                                 int batchAllocatedSize) {
             OpSendMsg op = RECYCLER.get();
             op.initialize();
-            op.producer = producer;
+            op.rpcLatencyHistogram = rpcLatencyHistogram;
             op.msgs = msgs;
             op.cmd = cmd;
             op.callback = callback;
@@ -1528,12 +1527,12 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             return op;
         }
 
-        static OpSendMsg create(ProducerImpl<?> producer, List<MessageImpl<?>> msgs, ByteBufPair cmd,
+        static OpSendMsg create(LatencyHistogram rpcLatencyHistogram, List<MessageImpl<?>> msgs, ByteBufPair cmd,
                                 long lowestSequenceId,
                                 long highestSequenceId, SendCallback callback, int batchAllocatedSize) {
             OpSendMsg op = RECYCLER.get();
             op.initialize();
-            op.producer = producer;
+            op.rpcLatencyHistogram = rpcLatencyHistogram;
             op.msgs = msgs;
             op.cmd = cmd;
             op.callback = callback;
@@ -1585,9 +1584,9 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 }
 
                 if (e == null) {
-                    producer.rpcLatencyHistogram.recordSuccess(now - this.lastSentAt);
+                    rpcLatencyHistogram.recordSuccess(now - this.lastSentAt);
                 } else {
-                    producer.rpcLatencyHistogram.recordFailure(now - this.lastSentAt);
+                    rpcLatencyHistogram.recordFailure(now - this.lastSentAt);
                 }
 
                 callback.sendComplete(finalEx);

@@ -32,11 +32,19 @@ import java.util.concurrent.TimeUnit;
 
 public class LatencyHistogram {
 
+    // Used for tests
+    public final static LatencyHistogram NOOP = new LatencyHistogram(null, null, null, null, null) {
+        public void recordSuccess(long latencyNanos) {
+        }
+
+        public void recordFailure(long latencyNanos) {
+        }
+    };
+
     private static final List<Double> latencyHistogramBuckets =
             Lists.newArrayList(.0005, .001, .0025, .005, .01, .025, .05, .1, .25, .5, 1.0, 2.5, 5.0, 10.0, 30.0, 60.0);
 
     private static final double NANOS = TimeUnit.SECONDS.toNanos(1);
-
 
     private final Attributes successAttributes;
 
