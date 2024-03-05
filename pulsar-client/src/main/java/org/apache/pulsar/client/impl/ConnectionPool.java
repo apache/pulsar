@@ -209,10 +209,6 @@ public class ConnectionPool implements AutoCloseable {
             }
         });
     }
-
-    private Key getKey(InetSocketAddress logicalAddress, InetSocketAddress physicalAddress, final int randomKey) {
-        return new Key(logicalAddress, physicalAddress, randomKey);
-    }
             /**
      * Get a connection from the pool.
      * <p>
@@ -234,9 +230,9 @@ public class ConnectionPool implements AutoCloseable {
             InetSocketAddress physicalAddress, final int randomKey) {
         if (maxConnectionsPerHosts == 0) {
             // Disable pooling
-            return createConnection(getKey(logicalAddress, physicalAddress, -1));
+            return createConnection(new Key(logicalAddress, physicalAddress, -1));
         }
-        Key key = getKey(logicalAddress, physicalAddress, randomKey);
+        Key key = new Key(logicalAddress, physicalAddress, randomKey);
         CompletableFuture<ClientCnx> completableFuture = pool
                 .computeIfAbsent(key, k -> createConnection(key));
         if (completableFuture.isCompletedExceptionally()) {
