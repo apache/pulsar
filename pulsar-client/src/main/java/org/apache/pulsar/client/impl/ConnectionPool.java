@@ -43,13 +43,15 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Random;
 import java.util.Set;
-import java.util.StringJoiner;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
+import lombok.AllArgsConstructor;
+import lombok.EqualsAndHashCode;
+import lombok.Value;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.PulsarClientException.InvalidServiceURL;
@@ -65,7 +67,7 @@ public class ConnectionPool implements AutoCloseable {
 
     public static final int IDLE_DETECTION_INTERVAL_SECONDS_MIN = 60;
 
-    protected final ConcurrentMap<String, CompletableFuture<ClientCnx>> pool;
+    protected final ConcurrentMap<Key, CompletableFuture<ClientCnx>> pool;
 
     private final Bootstrap bootstrap;
     private final PulsarChannelInitializer channelInitializerHandler;
@@ -87,6 +89,14 @@ public class ConnectionPool implements AutoCloseable {
     private boolean autoReleaseIdleConnectionsEnabled;
     /** Async release useless connections task. **/
     private ScheduledFuture asyncReleaseUselessConnectionsTask;
+
+
+    @Value
+    private static class Key {
+        private final InetSocketAddress logicalAddress;
+        private final InetSocketAddress physicalAddress;
+        private final int randomKey;
+    }
 
     public ConnectionPool(ClientConfigurationData conf, EventLoopGroup eventLoopGroup) throws PulsarClientException {
         this(conf, eventLoopGroup, () -> new ClientCnx(conf, eventLoopGroup));
@@ -202,13 +212,8 @@ public class ConnectionPool implements AutoCloseable {
         });
     }
 
-    private String getKey(InetSocketAddress logicalAddress,
-                          InetSocketAddress physicalAddress, final int randomKey) {
-        StringJoiner sj = new StringJoiner("#");
-        sj.add(logicalAddress.toString());
-        sj.add(physicalAddress.toString());
-        sj.add(String.valueOf(randomKey));
-        return sj.toString();
+    private Key getKey(InetSocketAddress logicalAddress, InetSocketAddress physicalAddress, final int randomKey) {
+        return new Key(logicalAddress, physicalAddress, randomKey);
     }
             /**
      * Get a connection from the pool.
@@ -233,7 +238,7 @@ public class ConnectionPool implements AutoCloseable {
             // Disable pooling
             return createConnection(logicalAddress, physicalAddress, -1);
         }
-        String key = getKey(logicalAddress, physicalAddress, randomKey);
+        Key key = getKey(logicalAddress, physicalAddress, randomKey);
         CompletableFuture<ClientCnx> completableFuture = pool
                 .computeIfAbsent(key, k -> createConnection(logicalAddress, physicalAddress, randomKey));
         if (completableFuture.isCompletedExceptionally()) {
@@ -449,7 +454,7 @@ public class ConnectionPool implements AutoCloseable {
     private void cleanupConnection(InetSocketAddress logicalAddress,
                                    InetSocketAddress physicalAddress, int connectionKey,
                                    CompletableFuture<ClientCnx> connectionFuture) {
-        String key = getKey(logicalAddress, physicalAddress, connectionKey);
+        Key key = getKey(logicalAddress, physicalAddress, connectionKey);
         pool.remove(key, connectionFuture);
     }
 
@@ -465,7 +470,7 @@ public class ConnectionPool implements AutoCloseable {
             return;
         }
         List<Runnable> releaseIdleConnectionTaskList = new ArrayList<>();
-        for (Map.Entry<String,  CompletableFuture<ClientCnx>> entry :
+        for (Map.Entry<Key,  CompletableFuture<ClientCnx>> entry :
                 pool.entrySet()){
                 CompletableFuture<ClientCnx> future = entry.getValue();
                 // Ensure connection has been connected.
