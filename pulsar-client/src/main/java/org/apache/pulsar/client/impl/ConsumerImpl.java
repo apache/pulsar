@@ -791,7 +791,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 topic, subscription, cnx.ctx().channel(), consumerId);
 
         long requestId = client.newRequestId();
-        if (!SeekStatus.NOT_STARTED.equals(seekStatus.get())) {
+        if (seekStatus.get() != SeekStatus.NOT_STARTED) {
             acknowledgmentsGroupingTracker.flushAndClean();
         }
 
