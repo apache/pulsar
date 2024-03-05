@@ -243,12 +243,16 @@ public class BrokerService implements Closeable {
     protected final AtomicReference<Semaphore> lookupRequestSemaphore;
     protected final AtomicReference<Semaphore> topicLoadRequestSemaphore;
 
-    @PulsarDeprecatedMetric(newMetricName = "pulsar.broker.request.topic.lookup.concurrent.usage")
+    public static final String TOPIC_LOOKUP_USAGE_METRIC_NAME = "pulsar.broker.request.topic.lookup.concurrent.usage";
+    public static final String TOPIC_LOOKUP_LIMIT_METRIC_NAME = "pulsar.broker.request.topic.lookup.concurrent.limit";
+    @PulsarDeprecatedMetric(newMetricName = TOPIC_LOOKUP_USAGE_METRIC_NAME)
     private final ObserverGauge pendingLookupRequests;
     private final ObservableLongUpDownCounter pendingLookupOperationsCounter;
     private final ObservableLongUpDownCounter pendingLookupOperationsLimitCounter;
 
-    @PulsarDeprecatedMetric(newMetricName = "pulsar.broker.topic.load.concurrent.usage")
+    public static final String TOPIC_LOAD_USAGE_METRIC_NAME = "pulsar.broker.topic.load.concurrent.usage";
+    public static final String TOPIC_LOAD_LIMIT_METRIC_NAME = "pulsar.broker.topic.load.concurrent.limit";
+    @PulsarDeprecatedMetric(newMetricName = TOPIC_LOAD_USAGE_METRIC_NAME)
     private final ObserverGauge pendingTopicLoadRequests;
     private final ObservableLongUpDownCounter pendingTopicLoadOperationsCounter;
     private final ObservableLongUpDownCounter pendingTopicLoadOperationsLimitCounter;
@@ -414,14 +418,14 @@ public class BrokerService implements Closeable {
                 .supplier(this::getPendingLookupRequest)
                 .register();
         this.pendingLookupOperationsCounter = pulsar.getOpenTelemetry().getMeter()
-                .upDownCounterBuilder("pulsar.broker.request.topic.lookup.concurrent.usage")
+                .upDownCounterBuilder(TOPIC_LOOKUP_USAGE_METRIC_NAME)
                 .setDescription("The number of pending lookup operations in the broker. "
                         + "When it reaches threshold \"maxConcurrentLookupRequest\" defined in broker.conf, "
                         + "new requests are rejected.")
                 .setUnit("{operation}")
                 .buildWithCallback(measurement -> measurement.record(getPendingLookupRequest()));
         this.pendingLookupOperationsLimitCounter = pulsar.getOpenTelemetry().getMeter()
-                .upDownCounterBuilder("pulsar.broker.request.topic.lookup.concurrent.limit")
+                .upDownCounterBuilder(TOPIC_LOOKUP_LIMIT_METRIC_NAME)
                 .setDescription("The maximum number of pending lookup operations in the broker. "
                         + "Equal to \"maxConcurrentLookupRequest\" defined in broker.conf.")
                 .setUnit("{operation}")
@@ -433,14 +437,14 @@ public class BrokerService implements Closeable {
                 .supplier(this::getPendingTopicLoadRequests)
                 .register();
         this.pendingTopicLoadOperationsCounter = pulsar.getOpenTelemetry().getMeter()
-                .upDownCounterBuilder("pulsar.broker.topic.load.concurrent.usage")
+                .upDownCounterBuilder(TOPIC_LOAD_USAGE_METRIC_NAME)
                 .setDescription("The number of pending topic load operations in the broker. "
                         + "When it reaches threshold \"maxConcurrentTopicLoadRequest\" defined in broker.conf, "
                         + "new requests are rejected.")
                 .setUnit("{operation}")
                 .buildWithCallback(measurement -> measurement.record(getPendingTopicLoadRequests()));
         this.pendingTopicLoadOperationsLimitCounter = pulsar.getOpenTelemetry().getMeter()
-                .upDownCounterBuilder("pulsar.broker.topic.load.concurrent.limit")
+                .upDownCounterBuilder(TOPIC_LOAD_LIMIT_METRIC_NAME)
                 .setDescription("The maximum number of pending topic load operations in the broker. "
                         + "Equal to \"maxConcurrentTopicLoadRequest\" defined in broker.conf.")
                 .setUnit("{operation}")

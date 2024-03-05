@@ -24,7 +24,6 @@ import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.pulsar.common.naming.NamespaceName.SYSTEM_NAMESPACE;
-import com.google.common.annotations.VisibleForTesting;
 import com.google.common.hash.Hashing;
 import io.opentelemetry.api.common.AttributeKey;
 import io.opentelemetry.api.common.Attributes;
@@ -153,17 +152,14 @@ public class NamespaceService implements AutoCloseable {
 
     private final RedirectManager redirectManager;
 
-    @VisibleForTesting
     public static final String LOOKUP_REQUEST_DURATION_METRIC_NAME = "pulsar.broker.request.topic.lookup.duration";
 
     private static final AttributeKey<String> PULSAR_LOOKUP_RESPONSE_TYPE =
             AttributeKey.stringKey("pulsar.lookup.response.type");
-    @VisibleForTesting
     public static final Attributes PULSAR_LOOKUP_RESPONSE_BROKER_ATTRIBUTES = Attributes.builder()
             .putAll(OpenTelemetryAttributes.PULSAR_RESPONSE_STATUS_SUCCESS)
             .put(PULSAR_LOOKUP_RESPONSE_TYPE, "broker")
             .build();
-    @VisibleForTesting
     public static final Attributes PULSAR_LOOKUP_RESPONSE_REDIRECT_ATTRIBUTES = Attributes.builder()
             .putAll(OpenTelemetryAttributes.PULSAR_RESPONSE_STATUS_SUCCESS)
             .put(PULSAR_LOOKUP_RESPONSE_TYPE, "redirect")

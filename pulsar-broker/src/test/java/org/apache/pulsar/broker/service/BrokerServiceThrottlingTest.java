@@ -82,7 +82,7 @@ public class BrokerServiceThrottlingTest extends BrokerTestBase {
     public void testThrottlingLookupRequestSemaphore() throws Exception {
         var lookupRequestSemaphore = pulsar.getBrokerService().lookupRequestSemaphore;
         var configName = "maxConcurrentLookupRequest";
-        var metricName = "pulsar.broker.topic.lookup.operation.pending.limit";
+        var metricName = BrokerService.TOPIC_LOOKUP_LIMIT_METRIC_NAME;
         // Validate that the configuration has not been overridden.
         assertThat(admin.brokers().getAllDynamicConfigurations()).doesNotContainKey(configName);
         assertLongSumValue(metricName, 50_000);
@@ -100,7 +100,7 @@ public class BrokerServiceThrottlingTest extends BrokerTestBase {
     public void testThrottlingTopicLoadRequestSemaphore() throws Exception {
         var topicLoadRequestSemaphore = pulsar.getBrokerService().topicLoadRequestSemaphore;
         var configName = "maxConcurrentTopicLoadRequest";
-        var metricName = "pulsar.broker.topic.load.operation.pending.limit";
+        var metricName = BrokerService.TOPIC_LOAD_LIMIT_METRIC_NAME;
         // Validate that the configuration has not been overridden.
         assertThat(admin.brokers().getAllDynamicConfigurations()).doesNotContainKey(configName);
         assertLongSumValue(metricName, 5_000);
