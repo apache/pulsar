@@ -93,9 +93,9 @@ public class ConnectionPool implements AutoCloseable {
 
     @Value
     private static class Key {
-        private final InetSocketAddress logicalAddress;
-        private final InetSocketAddress physicalAddress;
-        private final int randomKey;
+        InetSocketAddress logicalAddress;
+        InetSocketAddress physicalAddress;
+        int randomKey;
     }
 
     public ConnectionPool(ClientConfigurationData conf, EventLoopGroup eventLoopGroup) throws PulsarClientException {
