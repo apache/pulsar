@@ -2220,7 +2220,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiParam(value = "List of replication clusters", required = true) List<String> clusterIds) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
-                .thenCompose(__ -> internalSetReplicationClusters(clusterIds))
+                .thenCompose(__ -> internalSetReplicationClusters(clusterIds, authoritative))
                 .thenRun(() -> asyncResponse.resume(Response.noContent().build()))
                 .exceptionally(ex -> {
                     handleTopicPolicyException("setReplicationClusters", ex, asyncResponse);

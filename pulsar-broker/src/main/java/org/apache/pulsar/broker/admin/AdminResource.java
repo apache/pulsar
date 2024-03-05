@@ -626,17 +626,7 @@ public abstract class AdminResource extends PulsarWebResource {
                 .thenAccept(clusters -> {
                     for (String cluster : clusters) {
                         if (!cluster.equals(pulsar().getConfiguration().getClusterName())) {
-                            // this call happens in the background without async composition. completion is logged.
-                            pulsar().getPulsarResources().getClusterResources()
-                                    .getClusterAsync(cluster)
-                                    .thenCompose(clusterDataOp ->
-                                            ((TopicsImpl) pulsar().getBrokerService()
-                                                    .getClusterPulsarAdmin(cluster,
-                                                            clusterDataOp).topics())
-                                                    .createPartitionedTopicAsync(
-                                                            topicName.getPartitionedTopicName(),
-                                                            numPartitions,
-                                                            true, null))
+                            internalCreatePartitionedTopicForRemoteCluster(cluster, numPartitions)
                                     .whenComplete((__, ex) -> {
                                         if (ex != null) {
                                             log.error(
@@ -653,6 +643,16 @@ public abstract class AdminResource extends PulsarWebResource {
                     }
                 });
     }
+
+    protected CompletableFuture<Void> internalCreatePartitionedTopicForRemoteCluster(String cluster,
+                                                                                     int numPartitions) {
+        return pulsar().getPulsarResources().getClusterResources()
+                .getClusterAsync(cluster)
+                .thenCompose(clusterDataOp -> ((TopicsImpl) pulsar().getBrokerService()
+                        .getClusterPulsarAdmin(cluster, clusterDataOp).topics())
+                        .createPartitionedTopicAsync(topicName.getPartitionedTopicName(), numPartitions, true, null));
+    }
+
 
     /**
      * Check the exists topics contains the given topic.
