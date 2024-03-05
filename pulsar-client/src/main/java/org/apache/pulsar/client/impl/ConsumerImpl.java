@@ -953,14 +953,15 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         CompletableFuture<Void> seekFuture = this.seekFuture;
         MessageIdAdv seekMessageId = this.seekMessageId;
 
-        if (updateStartMessageId && seekStatus.get() != SeekStatus.NOT_STARTED) {
-            startMessageId = seekMessageId;
-        }
-        if (seekStatus.compareAndSet(SeekStatus.COMPLETED, SeekStatus.NOT_STARTED)) {
-            internalPinnedExecutor.execute(() -> seekFuture.complete(null));
+        if (seekStatus.get() != SeekStatus.NOT_STARTED) {
+            if (updateStartMessageId) {
+                startMessageId = seekMessageId;
+            }
+            if (seekStatus.compareAndSet(SeekStatus.COMPLETED, SeekStatus.NOT_STARTED)) {
+                internalPinnedExecutor.execute(() -> seekFuture.complete(null));
+            }
             return;
-        }
-        if (subscriptionMode == SubscriptionMode.Durable) {
+        } else if (subscriptionMode == SubscriptionMode.Durable) {
             return;
         }
 
