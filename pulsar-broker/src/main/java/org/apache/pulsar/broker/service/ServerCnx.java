@@ -2122,7 +2122,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         }
 
         if (compactionHorizon != null && compactionHorizon.isPresent()
-                        && lastPosition.compareTo((PositionImpl) compactionHorizon.get()) <= 0)) {
+                        && lastPosition.compareTo((PositionImpl) compactionHorizon.get()) <= 0) {
             handleLastMessageIdFromCompactedLedger(persistentTopic, requestId, partitionIndex,
                     markDeletePosition);
             return;
