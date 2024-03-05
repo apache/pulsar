@@ -836,5 +836,8 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
         reader.seek(MessageId.latest);
         // lastMessageIdInBroker is the last message ID, while startMessageId is still earliest
         assertFalse(reader.hasMessageAvailable());
+
+        producer.send("msg");
+        assertTrue(reader.hasMessageAvailable());
     }
 }

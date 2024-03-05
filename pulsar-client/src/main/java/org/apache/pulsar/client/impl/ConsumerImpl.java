@@ -2289,7 +2289,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 clearIncomingMessages();
                 CompletableFuture<Void> future = null;
                 synchronized (this) {
-                    if (cnx() == null) {
+                    if (!hasParentConsumer && cnx() == null) {
                         // It's during reconnection, complete the seek future after connection is established
                         seekStatus.set(SeekStatus.COMPLETED);
                     } else {
