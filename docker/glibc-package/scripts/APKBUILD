@@ -28,7 +28,7 @@ source="glibc-bin.tar.gz
 ld.so.conf"
 subpackages="${pkgname}-bin ${pkgname}-dev"
 triggers="glibc-bin.trigger=/lib:/usr/lib:/usr/glibc-compat/lib"
-depends="gcompat libuuid"
+depends="libuuid libgcc"
 
 package() {
   mkdir -p $pkgdir/lib $pkgdir/usr/glibc-compat/lib/locale $pkgdir/usr/glibc-compat/lib64 $pkgdir/etc $pkgdir/usr/glibc-compat/etc/
@@ -36,13 +36,16 @@ package() {
   cp $srcdir/ld.so.conf $pkgdir/usr/glibc-compat/etc/ld.so.conf
   cd $pkgdir/usr/glibc-compat
   rm -rf etc/rpc bin sbin lib/gconv lib/getconf lib/audit share var include
-  ln -s /usr/glibc-compat/lib/ld-linux-$(uname -m).so.1 $pkgdir/lib
-  ln -s /usr/glibc-compat/lib/ld-linux-$(uname -m).so.1 $pkgdir/usr/glibc-compat/lib64
+
+  FILENAME=$(ls $pkgdir/usr/glibc-compat/lib/ld-linux-*.so.*)
+  LIBNAME=$(basename $FILENAME)
+  ln -s  /usr/glibc-compat/lib/$LIBNAME $pkgdir/lib/$LIBNAME
+  ln -s /usr/glibc-compat/lib/$LIBNAME $pkgdir/usr/glibc-compat/lib64/$LIBNAME
   ln -s /usr/glibc-compat/etc/ld.so.cache $pkgdir/etc/ld.so.cache
 }
 
 bin() {
-  depends="$pkgname bash libc6-compat libgcc"
+  depends="$pkgname"
   mkdir -p $subpkgdir/usr/glibc-compat
   cp -a $srcdir/usr/glibc-compat/bin $subpkgdir/usr/glibc-compat
   cp -a $srcdir/usr/glibc-compat/sbin $subpkgdir/usr/glibc-compat
