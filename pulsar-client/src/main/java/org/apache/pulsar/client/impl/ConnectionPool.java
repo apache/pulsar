@@ -470,8 +470,7 @@ public class ConnectionPool implements AutoCloseable {
             return;
         }
         List<Runnable> releaseIdleConnectionTaskList = new ArrayList<>();
-        for (Map.Entry<Key,  CompletableFuture<ClientCnx>> entry :
-                pool.entrySet()){
+        for (Map.Entry<Key,  CompletableFuture<ClientCnx>> entry : pool.entrySet()) {
                 CompletableFuture<ClientCnx> future = entry.getValue();
                 // Ensure connection has been connected.
                 if (!future.isDone()) {
