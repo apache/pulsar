@@ -49,8 +49,6 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
-import lombok.AllArgsConstructor;
-import lombok.EqualsAndHashCode;
 import lombok.Value;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -236,49 +234,47 @@ public class ConnectionPool implements AutoCloseable {
             InetSocketAddress physicalAddress, final int randomKey) {
         if (maxConnectionsPerHosts == 0) {
             // Disable pooling
-            return createConnection(logicalAddress, physicalAddress, -1);
+            return createConnection(getKey(logicalAddress, physicalAddress, -1));
         }
         Key key = getKey(logicalAddress, physicalAddress, randomKey);
         CompletableFuture<ClientCnx> completableFuture = pool
-                .computeIfAbsent(key, k -> createConnection(logicalAddress, physicalAddress, randomKey));
+                .computeIfAbsent(key, k -> createConnection(key));
         if (completableFuture.isCompletedExceptionally()) {
             // we cannot cache a failed connection, so we remove it from the pool
             // there is a race condition in which
             // cleanupConnection is called before caching this result
             // and so the clean up fails
-            cleanupConnection(logicalAddress, physicalAddress, randomKey, completableFuture);
+            pool.remove(key, completableFuture);
             return completableFuture;
         }
 
         return completableFuture.thenCompose(clientCnx -> {
             // If connection already release, create a new one.
             if (clientCnx.getIdleState().isReleased()) {
-                cleanupConnection(logicalAddress, physicalAddress, randomKey, completableFuture);
+                pool.remove(key, completableFuture);
                 return pool
-                        .computeIfAbsent(key, k -> createConnection(logicalAddress, physicalAddress, randomKey));
+                        .computeIfAbsent(key, k -> createConnection(key));
             }
             // Try use exists connection.
             if (clientCnx.getIdleState().tryMarkUsingAndClearIdleTime()) {
                 return CompletableFuture.completedFuture(clientCnx);
             } else {
                 // If connection already release, create a new one.
-                cleanupConnection(logicalAddress, physicalAddress, randomKey, completableFuture);
+                pool.remove(key, completableFuture);
                 return pool
-                        .computeIfAbsent(key, k -> createConnection(logicalAddress, physicalAddress, randomKey));
+                        .computeIfAbsent(key, k -> createConnection(key));
             }
         });
     }
 
-    private CompletableFuture<ClientCnx> createConnection(InetSocketAddress logicalAddress,
-            InetSocketAddress physicalAddress, int connectionKey) {
+    private CompletableFuture<ClientCnx> createConnection(Key key) {
         if (log.isDebugEnabled()) {
-            log.debug("Connection for {} not found in cache", logicalAddress);
+            log.debug("Connection for {} not found in cache", key.logicalAddress);
         }
 
         final CompletableFuture<ClientCnx> cnxFuture = new CompletableFuture<>();
-
         // Trigger async connect to broker
-        createConnection(logicalAddress, physicalAddress).thenAccept(channel -> {
+        createConnection(key.logicalAddress, key.physicalAddress).thenAccept(channel -> {
             log.info("[{}] Connected to server", channel);
 
             channel.closeFuture().addListener(v -> {
@@ -286,7 +282,7 @@ public class ConnectionPool implements AutoCloseable {
                 if (log.isDebugEnabled()) {
                     log.debug("Removing closed connection from pool: {}", v);
                 }
-                cleanupConnection(logicalAddress, physicalAddress, connectionKey, cnxFuture);
+                pool.remove(key, cnxFuture);
             });
 
             // We are connected to broker, but need to wait until the connect/connected handshake is
@@ -312,14 +308,14 @@ public class ConnectionPool implements AutoCloseable {
                 // CompletableFuture is cached into the "pool" map,
                 // it is not enough to clean it here, we need to clean it
                 // in the "pool" map when the CompletableFuture is cached
-                cleanupConnection(logicalAddress, physicalAddress, connectionKey, cnxFuture);
+                pool.remove(key, cnxFuture);
                 cnx.ctx().close();
                 return null;
             });
         }).exceptionally(exception -> {
             eventLoopGroup.execute(() -> {
-                log.warn("Failed to open connection to {} : {}", physicalAddress, exception.getMessage());
-                cleanupConnection(logicalAddress, physicalAddress, connectionKey, cnxFuture);
+                log.warn("Failed to open connection to {} : {}", key.physicalAddress, exception.getMessage());
+                pool.remove(key, cnxFuture);
                 cnxFuture.completeExceptionally(new PulsarClientException(exception));
             });
             return null;
@@ -449,13 +445,6 @@ public class ConnectionPool implements AutoCloseable {
         if (asyncReleaseUselessConnectionsTask != null && !asyncReleaseUselessConnectionsTask.isCancelled()) {
             asyncReleaseUselessConnectionsTask.cancel(false);
         }
-    }
-
-    private void cleanupConnection(InetSocketAddress logicalAddress,
-                                   InetSocketAddress physicalAddress, int connectionKey,
-                                   CompletableFuture<ClientCnx> connectionFuture) {
-        Key key = getKey(logicalAddress, physicalAddress, connectionKey);
-        pool.remove(key, connectionFuture);
     }
 
     @VisibleForTesting
