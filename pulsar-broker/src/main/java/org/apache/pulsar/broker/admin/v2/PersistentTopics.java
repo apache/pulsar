@@ -3114,7 +3114,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
-        validateTopicPolicyOperationAsync(topicName, PolicyName.MESSAGE_SIZE, PolicyOperation.READ)
+        validateAdminAccessForTenantAsync(topicName.getTenant())
             .thenCompose(__ -> preValidation(authoritative))
             .thenCompose(__ -> internalGetMaxMessageSize(isGlobal))
             .thenAccept(policies -> {
@@ -3144,7 +3144,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
             @ApiParam(value = "The max message size of the topic") int maxMessageSize) {
         validateTopicName(tenant, namespace, encodedTopic);
-        validateTopicPolicyOperationAsync(topicName, PolicyName.MESSAGE_SIZE, PolicyOperation.WRITE)
+        validateAdminAccessForTenantAsync(topicName.getTenant())
             .thenCompose(__ -> preValidation(authoritative))
             .thenCompose(__ -> internalSetMaxMessageSize(maxMessageSize, isGlobal))
             .thenRun(() -> {
@@ -3179,7 +3179,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
-        validateTopicPolicyOperationAsync(topicName, PolicyName.MESSAGE_SIZE, PolicyOperation.WRITE)
+        validateAdminAccessForTenantAsync(topicName.getTenant())
             .thenCompose(__ -> preValidation(authoritative))
             .thenCompose(__ -> internalSetMaxMessageSize(null, isGlobal))
             .thenRun(() -> {
