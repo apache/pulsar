@@ -38,6 +38,7 @@ import io.netty.channel.EventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.handler.ssl.SslContext;
 import io.netty.util.concurrent.DefaultThreadFactory;
+import io.opentelemetry.api.metrics.ObservableLongUpDownCounter;
 import io.prometheus.client.Histogram;
 import java.io.Closeable;
 import java.io.IOException;
@@ -179,6 +180,7 @@ import org.apache.pulsar.compaction.Compactor;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.Notification;
 import org.apache.pulsar.metadata.api.NotificationType;
+import org.apache.pulsar.opentelemetry.annotations.PulsarDeprecatedMetric;
 import org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats;
 import org.apache.pulsar.transaction.coordinator.TransactionMetadataStore;
 import org.slf4j.Logger;
@@ -241,8 +243,19 @@ public class BrokerService implements Closeable {
     protected final AtomicReference<Semaphore> lookupRequestSemaphore;
     protected final AtomicReference<Semaphore> topicLoadRequestSemaphore;
 
+    public static final String TOPIC_LOOKUP_USAGE_METRIC_NAME = "pulsar.broker.request.topic.lookup.concurrent.usage";
+    public static final String TOPIC_LOOKUP_LIMIT_METRIC_NAME = "pulsar.broker.request.topic.lookup.concurrent.limit";
+    @PulsarDeprecatedMetric(newMetricName = TOPIC_LOOKUP_USAGE_METRIC_NAME)
     private final ObserverGauge pendingLookupRequests;
+    private final ObservableLongUpDownCounter pendingLookupOperationsCounter;
+    private final ObservableLongUpDownCounter pendingLookupOperationsLimitCounter;
+
+    public static final String TOPIC_LOAD_USAGE_METRIC_NAME = "pulsar.broker.topic.load.concurrent.usage";
+    public static final String TOPIC_LOAD_LIMIT_METRIC_NAME = "pulsar.broker.topic.load.concurrent.limit";
+    @PulsarDeprecatedMetric(newMetricName = TOPIC_LOAD_USAGE_METRIC_NAME)
     private final ObserverGauge pendingTopicLoadRequests;
+    private final ObservableLongUpDownCounter pendingTopicLoadOperationsCounter;
+    private final ObservableLongUpDownCounter pendingTopicLoadOperationsLimitCounter;
 
     private final ScheduledExecutorService inactivityMonitor;
     private final ScheduledExecutorService messageExpiryMonitor;
@@ -346,7 +359,6 @@ public class BrokerService implements Closeable {
         pulsar.getLocalMetadataStore().registerListener(this::handleMetadataChanges);
         pulsar.getConfigurationMetadataStore().registerListener(this::handleMetadataChanges);
 
-
         this.inactivityMonitor = OrderedScheduler.newSchedulerBuilder()
                 .name("pulsar-inactivity-monitor")
                 .numThreads(1)
@@ -374,9 +386,9 @@ public class BrokerService implements Closeable {
         this.topicFactory = createPersistentTopicFactory();
         // update dynamic configuration and register-listener
         updateConfigurationAndRegisterListeners();
-        this.lookupRequestSemaphore = new AtomicReference<Semaphore>(
+        this.lookupRequestSemaphore = new AtomicReference<>(
                 new Semaphore(pulsar.getConfiguration().getMaxConcurrentLookupRequest(), false));
-        this.topicLoadRequestSemaphore = new AtomicReference<Semaphore>(
+        this.topicLoadRequestSemaphore = new AtomicReference<>(
                 new Semaphore(pulsar.getConfiguration().getMaxConcurrentTopicLoadRequest(), false));
         if (pulsar.getConfiguration().getMaxUnackedMessagesPerBroker() > 0
                 && pulsar.getConfiguration().getMaxUnackedMessagesPerSubscriptionOnBrokerBlocked() > 0.0) {
@@ -403,15 +415,41 @@ public class BrokerService implements Closeable {
         this.defaultServerBootstrap = defaultServerBootstrap();
 
         this.pendingLookupRequests = ObserverGauge.build("pulsar_broker_lookup_pending_requests", "-")
-                .supplier(() -> pulsar.getConfig().getMaxConcurrentLookupRequest()
-                        - lookupRequestSemaphore.get().availablePermits())
+                .supplier(this::getPendingLookupRequest)
                 .register();
+        this.pendingLookupOperationsCounter = pulsar.getOpenTelemetry().getMeter()
+                .upDownCounterBuilder(TOPIC_LOOKUP_USAGE_METRIC_NAME)
+                .setDescription("The number of pending lookup operations in the broker. "
+                        + "When it reaches threshold \"maxConcurrentLookupRequest\" defined in broker.conf, "
+                        + "new requests are rejected.")
+                .setUnit("{operation}")
+                .buildWithCallback(measurement -> measurement.record(getPendingLookupRequest()));
+        this.pendingLookupOperationsLimitCounter = pulsar.getOpenTelemetry().getMeter()
+                .upDownCounterBuilder(TOPIC_LOOKUP_LIMIT_METRIC_NAME)
+                .setDescription("The maximum number of pending lookup operations in the broker. "
+                        + "Equal to \"maxConcurrentLookupRequest\" defined in broker.conf.")
+                .setUnit("{operation}")
+                .buildWithCallback(
+                        measurement -> measurement.record(pulsar.getConfig().getMaxConcurrentLookupRequest()));
 
         this.pendingTopicLoadRequests = ObserverGauge.build(
-                "pulsar_broker_topic_load_pending_requests", "-")
-                .supplier(() -> pulsar.getConfig().getMaxConcurrentTopicLoadRequest()
-                        - topicLoadRequestSemaphore.get().availablePermits())
+                        "pulsar_broker_topic_load_pending_requests", "-")
+                .supplier(this::getPendingTopicLoadRequests)
                 .register();
+        this.pendingTopicLoadOperationsCounter = pulsar.getOpenTelemetry().getMeter()
+                .upDownCounterBuilder(TOPIC_LOAD_USAGE_METRIC_NAME)
+                .setDescription("The number of pending topic load operations in the broker. "
+                        + "When it reaches threshold \"maxConcurrentTopicLoadRequest\" defined in broker.conf, "
+                        + "new requests are rejected.")
+                .setUnit("{operation}")
+                .buildWithCallback(measurement -> measurement.record(getPendingTopicLoadRequests()));
+        this.pendingTopicLoadOperationsLimitCounter = pulsar.getOpenTelemetry().getMeter()
+                .upDownCounterBuilder(TOPIC_LOAD_LIMIT_METRIC_NAME)
+                .setDescription("The maximum number of pending topic load operations in the broker. "
+                        + "Equal to \"maxConcurrentTopicLoadRequest\" defined in broker.conf.")
+                .setUnit("{operation}")
+                .buildWithCallback(
+                        measurement -> measurement.record(pulsar.getConfig().getMaxConcurrentTopicLoadRequest()));
 
         this.brokerEntryMetadataInterceptors = BrokerEntryMetadataUtils
                 .loadBrokerEntryMetadataInterceptors(pulsar.getConfiguration().getBrokerEntryMetadataInterceptors(),
@@ -421,6 +459,15 @@ public class BrokerService implements Closeable {
                         .getBrokerEntryPayloadProcessors(), BrokerService.class.getClassLoader());
 
         this.bundlesQuotas = new BundlesQuotas(pulsar);
+    }
+
+    private int getPendingLookupRequest() {
+        return pulsar.getConfig().getMaxConcurrentLookupRequest() - lookupRequestSemaphore.get().availablePermits();
+    }
+
+    private int getPendingTopicLoadRequests() {
+        return pulsar.getConfig().getMaxConcurrentTopicLoadRequest()
+                - topicLoadRequestSemaphore.get().availablePermits();
     }
 
     public void addTopicEventListener(TopicEventsListener... listeners) {
@@ -780,6 +827,8 @@ public class BrokerService implements Closeable {
                                     log.warn("Error in closing authenticationService", e);
                                 }
                                 pulsarStats.close();
+                                pendingTopicLoadOperationsCounter.close();
+                                pendingLookupOperationsCounter.close();
                                 try {
                                     delayedDeliveryTrackerFactory.close();
                                 } catch (Exception e) {

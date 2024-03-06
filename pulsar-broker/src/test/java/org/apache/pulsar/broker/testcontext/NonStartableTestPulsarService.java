@@ -69,7 +69,7 @@ class NonStartableTestPulsarService extends AbstractTestPulsarService {
                                          ManagedLedgerStorage managedLedgerClientFactory,
                                          Function<BrokerService, BrokerService> brokerServiceCustomizer) {
         super(spyConfig, config, localMetadataStore, configurationMetadataStore, compactionServiceFactory,
-                brokerInterceptor, bookKeeperClientFactory);
+                brokerInterceptor, bookKeeperClientFactory, null);
         setPulsarResources(pulsarResources);
         setManagedLedgerClientFactory(managedLedgerClientFactory);
         try {
