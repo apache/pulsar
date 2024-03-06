@@ -420,8 +420,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 "The number of acknowledged messages", topic, Attributes.empty());
         consumerNacksCounter = ip.newCounter("pulsar.client.consumer.message.nack", Unit.Messages,
                 "The number of negatively acknowledged messages", topic, Attributes.empty());
-        consumerDlqMessagesCounter = ip.newCounter("pulsar.client.consumer.dlq", Unit.Messages,
-                "Number of messages sent to DLQ", topic, Attributes.empty());
+        consumerDlqMessagesCounter = ip.newCounter("pulsar.client.consumer.message.dlq", Unit.Messages,
+                "The number of messages sent to DLQ", topic, Attributes.empty());
         grabCnx();
 
         consumersOpenedCounter.increment();

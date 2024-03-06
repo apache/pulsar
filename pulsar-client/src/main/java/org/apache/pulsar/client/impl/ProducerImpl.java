@@ -291,15 +291,15 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 "Publish RPC latency experienced internally by the client when sending data to receiving an ack", topic,
                 Attributes.empty());
         publishedBytesCounter = ip.newCounter("pulsar.client.producer.message.send.size",
-                Unit.Bytes, "Bytes published", topic, Attributes.empty());
+                Unit.Bytes, "The number of bytes published", topic, Attributes.empty());
         pendingMessagesCounter = ip.newUpDownCounter("pulsar.client.producer.message.pending.count", Unit.Messages,
                 "Pending messages for this producer", topic, Attributes.empty());
         pendingBytesCounter = ip.newUpDownCounter("pulsar.client.producer.message.pending.size", Unit.Bytes,
                 "Pending bytes for this producer", topic, Attributes.empty());
         producersOpenedCounter = ip.newCounter("pulsar.client.producer.opened", Unit.Sessions,
-                "Counter of producer sessions opened", topic, Attributes.empty());
+                "The number of producer sessions opened", topic, Attributes.empty());
         producersClosedCounter = ip.newCounter("pulsar.client.producer.closed", Unit.Sessions,
-                "Counter of producer sessions closed", topic, Attributes.empty());
+                "The number of producer sessions closed", topic, Attributes.empty());
 
         this.connectionHandler = new ConnectionHandler(this,
                 new BackoffBuilder()
@@ -2145,6 +2145,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                     log.warn("[{}] [{}] Got exception while completing the callback for msg {}:", topic, producerName,
                             op.sequenceId, t);
                 }
+
                 client.getMemoryLimitController().releaseMemory(op.uncompressedSize);
                 ReferenceCountUtil.safeRelease(op.cmd);
                 op.recycle();

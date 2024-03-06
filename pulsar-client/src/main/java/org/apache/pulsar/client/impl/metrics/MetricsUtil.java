@@ -47,7 +47,7 @@ public class MetricsUtil {
     static Attributes getTopicAttributes(String topic, Attributes baseAttributes) {
         TopicName tn = TopicName.get(topic);
 
-        AttributesBuilder ab = Attributes.builder();
+        AttributesBuilder ab = baseAttributes.toBuilder();
         if (tn.isPartitioned()) {
             ab.put("pulsar.partition", tn.getPartitionIndex());
         }

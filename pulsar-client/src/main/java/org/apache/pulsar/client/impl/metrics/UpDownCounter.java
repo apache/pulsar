@@ -6,6 +6,7 @@ import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.metrics.LongUpDownCounter;
 import io.opentelemetry.api.metrics.LongUpDownCounterBuilder;
 import io.opentelemetry.api.metrics.Meter;
+import io.opentelemetry.extension.incubator.metrics.ExtendedLongCounterBuilder;
 import io.opentelemetry.extension.incubator.metrics.ExtendedLongUpDownCounterBuilder;
 
 public class UpDownCounter {
@@ -19,8 +20,10 @@ public class UpDownCounter {
                 .setUnit(unit.toString());
 
         if (topic != null) {
-            ExtendedLongUpDownCounterBuilder eb = (ExtendedLongUpDownCounterBuilder) builder;
-            eb.setAttributesAdvice(getDefaultAggregationLabels(attributes));
+            if (builder instanceof ExtendedLongUpDownCounterBuilder) {
+                ExtendedLongUpDownCounterBuilder eb = (ExtendedLongUpDownCounterBuilder) builder;
+                eb.setAttributesAdvice(getDefaultAggregationLabels(attributes));
+            }
 
             attributes = getTopicAttributes(topic, attributes);
         }
@@ -37,11 +40,11 @@ public class UpDownCounter {
         add(-1);
     }
 
-    public void add(int delta) {
+    public void add(long delta) {
         counter.add(delta, attributes);
     }
 
-    public void subtract(int diff) {
+    public void subtract(long diff) {
         add(-diff);
     }
 }

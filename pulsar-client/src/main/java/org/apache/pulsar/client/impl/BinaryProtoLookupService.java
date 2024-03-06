@@ -159,12 +159,6 @@ public class BinaryProtoLookupService implements LookupService {
                 CompletableFuture<PartitionedTopicMetadata> newFuture =
                         getPartitionedTopicMetadata(serviceNameResolver.resolveHost(), topicName);
                 newFutureCreated.setValue(newFuture);
-                newFuture.thenRun(() -> {
-                    histoGetTopicMetadata.recordSuccess(System.nanoTime() - startTime);
-                }).exceptionally(x -> {
-                    histoGetTopicMetadata.recordFailure(System.nanoTime() - startTime);
-                    return null;
-                });
                 return newFuture;
             });
         } finally {

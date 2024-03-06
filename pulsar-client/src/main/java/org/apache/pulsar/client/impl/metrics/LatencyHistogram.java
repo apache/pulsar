@@ -26,6 +26,7 @@ import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.metrics.DoubleHistogram;
 import io.opentelemetry.api.metrics.DoubleHistogramBuilder;
 import io.opentelemetry.api.metrics.Meter;
+import io.opentelemetry.api.metrics.MeterBuilder;
 import io.opentelemetry.extension.incubator.metrics.ExtendedDoubleHistogramBuilder;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -33,7 +34,7 @@ import java.util.concurrent.TimeUnit;
 public class LatencyHistogram {
 
     // Used for tests
-    public final static LatencyHistogram NOOP = new LatencyHistogram(null, null, null, null, null) {
+    public final static LatencyHistogram NOOP = new LatencyHistogram() {
         public void recordSuccess(long latencyNanos) {
         }
 
@@ -51,6 +52,12 @@ public class LatencyHistogram {
     private final Attributes failedAttributes;
     private final DoubleHistogram histogram;
 
+    private LatencyHistogram() {
+        successAttributes = null;
+        failedAttributes = null;
+        histogram = null;
+    }
+
     LatencyHistogram(Meter meter, String name, String description, String topic, Attributes attributes) {
         DoubleHistogramBuilder builder = meter.histogramBuilder(name)
                 .setDescription(description)
@@ -58,8 +65,11 @@ public class LatencyHistogram {
                 .setExplicitBucketBoundariesAdvice(latencyHistogramBuckets);
 
         if (topic != null) {
-            ExtendedDoubleHistogramBuilder eb = (ExtendedDoubleHistogramBuilder) builder;
-            eb.setAttributesAdvice(getDefaultAggregationLabels(attributes.toBuilder().put("success", true).build()));
+            if (builder instanceof ExtendedDoubleHistogramBuilder) {
+                ExtendedDoubleHistogramBuilder eb = (ExtendedDoubleHistogramBuilder) builder;
+                eb.setAttributesAdvice(
+                        getDefaultAggregationLabels(attributes.toBuilder().put("success", true).build()));
+            }
             attributes = getTopicAttributes(topic, attributes);
         }
 

@@ -36,8 +36,10 @@ public class Counter {
                 .setUnit(unit.toString());
 
         if (topic != null) {
-            ExtendedLongCounterBuilder eb = (ExtendedLongCounterBuilder) builder;
-            eb.setAttributesAdvice(getDefaultAggregationLabels(attributes));
+            if (builder instanceof ExtendedLongCounterBuilder) {
+                ExtendedLongCounterBuilder eb = (ExtendedLongCounterBuilder) builder;
+                eb.setAttributesAdvice(getDefaultAggregationLabels(attributes));
+            }
 
             attributes = getTopicAttributes(topic, attributes);
         }
