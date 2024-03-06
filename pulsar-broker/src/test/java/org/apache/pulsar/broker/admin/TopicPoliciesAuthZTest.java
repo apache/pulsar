@@ -27,6 +27,8 @@ import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.impl.auth.AuthenticationToken;
 import org.apache.pulsar.common.policies.data.AuthAction;
+import org.apache.pulsar.common.policies.data.OffloadPolicies;
+import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.security.MockedPulsarStandalone;
@@ -164,6 +166,111 @@ public final class TopicPoliciesAuthZTest extends MockedPulsarStandalone {
 
             try {
                 subAdmin.topicPolicies().removeRetention(topic);
+                Assert.fail("unexpected behaviour");
+            } catch (PulsarAdminException ex) {
+                Assert.assertTrue(ex instanceof PulsarAdminException.NotAuthorizedException);
+            }
+            superUserAdmin.namespaces().revokePermissionsOnNamespace("public/default", subject);
+        }
+    }
+
+    @SneakyThrows
+    @Test
+    public void testOffloadPolicy() {
+        final String random = UUID.randomUUID().toString();
+        final String topic = "persistent://public/default/" + random;
+        final String subject =  UUID.randomUUID().toString();
+        final String token = Jwts.builder()
+                .claim("sub", subject).signWith(SECRET_KEY).compact();
+        superUserAdmin.topics().createNonPartitionedTopic(topic);
+
+        @Cleanup
+        final PulsarAdmin subAdmin = PulsarAdmin.builder()
+                .serviceHttpUrl(getPulsarService().getWebServiceAddress())
+                .authentication(new AuthenticationToken(token))
+                .build();
+
+        // mocked data
+        final OffloadPoliciesImpl definedOffloadPolicies = new OffloadPoliciesImpl();
+        definedOffloadPolicies.setManagedLedgerOffloadThresholdInBytes(100L);
+        definedOffloadPolicies.setManagedLedgerOffloadThresholdInSeconds(100L);
+        definedOffloadPolicies.setManagedLedgerOffloadDeletionLagInMillis(200L);
+        definedOffloadPolicies.setManagedLedgerOffloadDriver("s3");
+        definedOffloadPolicies.setManagedLedgerOffloadBucket("buck");
+
+        // test superuser
+        superUserAdmin.topicPolicies().setOffloadPolicies(topic, definedOffloadPolicies);
+
+        // because the topic policies is eventual consistency, we should wait here
+        await().untilAsserted(() -> {
+            final OffloadPolicies offloadPolicy = superUserAdmin.topicPolicies().getOffloadPolicies(topic);
+            Assert.assertEquals(offloadPolicy, definedOffloadPolicies);
+        });
+        superUserAdmin.topicPolicies().removeOffloadPolicies(topic);
+
+        await().untilAsserted(() -> {
+            final OffloadPolicies offloadPolicy = superUserAdmin.topicPolicies().getOffloadPolicies(topic);
+            Assert.assertNull(offloadPolicy);
+        });
+
+        // test tenant manager
+
+        tenantManagerAdmin.topicPolicies().setOffloadPolicies(topic, definedOffloadPolicies);
+        await().untilAsserted(() -> {
+            final OffloadPolicies offloadPolicy = tenantManagerAdmin.topicPolicies().getOffloadPolicies(topic);
+            Assert.assertEquals(offloadPolicy, definedOffloadPolicies);
+        });
+        tenantManagerAdmin.topicPolicies().removeOffloadPolicies(topic);
+        await().untilAsserted(() -> {
+            final OffloadPolicies offloadPolicy = tenantManagerAdmin.topicPolicies().getOffloadPolicies(topic);
+            Assert.assertNull(offloadPolicy);
+        });
+
+        // test nobody
+
+        try {
+            subAdmin.topicPolicies().getOffloadPolicies(topic);
+            Assert.fail("unexpected behaviour");
+        } catch (PulsarAdminException ex) {
+            Assert.assertTrue(ex instanceof PulsarAdminException.NotAuthorizedException);
+        }
+
+        try {
+
+            subAdmin.topicPolicies().setOffloadPolicies(topic, definedOffloadPolicies);
+            Assert.fail("unexpected behaviour");
+        } catch (PulsarAdminException ex) {
+            Assert.assertTrue(ex instanceof PulsarAdminException.NotAuthorizedException);
+        }
+
+        try {
+            subAdmin.topicPolicies().removeOffloadPolicies(topic);
+            Assert.fail("unexpected behaviour");
+        } catch (PulsarAdminException ex) {
+            Assert.assertTrue(ex instanceof PulsarAdminException.NotAuthorizedException);
+        }
+
+        // test sub user with permissions
+        for (AuthAction action : AuthAction.values()) {
+            superUserAdmin.namespaces().grantPermissionOnNamespace("public/default",
+                    subject, Set.of(action));
+            try {
+                subAdmin.topicPolicies().getOffloadPolicies(topic);
+                Assert.fail("unexpected behaviour");
+            } catch (PulsarAdminException ex) {
+                Assert.assertTrue(ex instanceof PulsarAdminException.NotAuthorizedException);
+            }
+
+            try {
+
+                subAdmin.topicPolicies().setOffloadPolicies(topic, definedOffloadPolicies);
+                Assert.fail("unexpected behaviour");
+            } catch (PulsarAdminException ex) {
+                Assert.assertTrue(ex instanceof PulsarAdminException.NotAuthorizedException);
+            }
+
+            try {
+                subAdmin.topicPolicies().removeOffloadPolicies(topic);
                 Assert.fail("unexpected behaviour");
             } catch (PulsarAdminException ex) {
                 Assert.assertTrue(ex instanceof PulsarAdminException.NotAuthorizedException);
