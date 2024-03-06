@@ -36,27 +36,27 @@ export Pulsar metrics.
 
 ### Why exposing OpenTelemetry directly in Pulsar API
 
-When deciding how to expose the metrics exporter configuration there are multiple options: 
+When deciding how to expose the metrics exporter configuration there are multiple options:
 
- 1. Accept an `OpenTelemetry` object directly in Pulsar API
- 2. Build a pluggable interface that describe all the Pulsar client SDK events and allow application to
-    provide an implementation, perhaps providing an OpenTelemetry included option.
+1. Accept an `OpenTelemetry` object directly in Pulsar API
+2. Build a pluggable interface that describe all the Pulsar client SDK events and allow application to
+   provide an implementation, perhaps providing an OpenTelemetry included option.
 
 For this proposal, we are following the (1) option. Here are the reasons:
 
- 1. In a way, OpenTelemetry can be compared to [SLF4J](https://www.slf4j.org/), in the sense that it provides an API
-    on top of which different vendor can build multiple implementations. Therefore, there is no need to create a new
-    Pulsar-specific interface
- 2. OpenTelemetry has 2 main artifacts: API and SDK. For the context of Pulsar client, we will only depend on its
-    API. Applications that are going to use OpenTelemetry, will include the OTel SDK
- 3. Providing a custom interface has several drawbacks:
-     1. Applications need to update their implementations every time a new metric is added in Pulsar SDK
-     2. The surface of this plugin API can become quite big when there are several metrics
-     3. If we imagine an application that uses multiple libraries, like Pulsar SDK, and each of these has its own
-        custom way to expose metrics, we can see the level of integration burden that is pushed to application
-        developers
- 4. It will always be easy to use OpenTelemetry to collect the metrics and export them using a custom metrics API. There
-    are several examples of this in OpenTelemetry documentation.
+1. In a way, OpenTelemetry can be compared to [SLF4J](https://www.slf4j.org/), in the sense that it provides an API
+   on top of which different vendor can build multiple implementations. Therefore, there is no need to create a new
+   Pulsar-specific interface
+2. OpenTelemetry has 2 main artifacts: API and SDK. For the context of Pulsar client, we will only depend on its
+   API. Applications that are going to use OpenTelemetry, will include the OTel SDK
+3. Providing a custom interface has several drawbacks:
+    1. Applications need to update their implementations every time a new metric is added in Pulsar SDK
+    2. The surface of this plugin API can become quite big when there are several metrics
+    3. If we imagine an application that uses multiple libraries, like Pulsar SDK, and each of these has its own
+       custom way to expose metrics, we can see the level of integration burden that is pushed to application
+       developers
+4. It will always be easy to use OpenTelemetry to collect the metrics and export them using a custom metrics API. There
+   are several examples of this in OpenTelemetry documentation.
 
 ## Public API changes
 
@@ -77,59 +77,14 @@ The common usage for an application would be something like:
 
 ```java
 // Creates a OpenTelemetry instance using environment variables to configure it
-OpenTelemetry otel=AutoConfiguredOpenTelemetrySdk.builder()
-        .build().getOpenTelemetrySdk();
+OpenTelemetry otel = AutoConfiguredOpenTelemetrySdk.builder().build()
+        .getOpenTelemetrySdk();
 
-        PulsarClient client=PulsarClient.builder()
+PulsarClient client = PulsarClient.builder()
         .serviceUrl("pulsar://localhost:6650")
         .build();
 
 // ....
-```
-
-Cardinality enum will allow to select a default cardinality label to be attached to the
-metrics:
-
-```java
-public enum MetricsCardinality {
-    /**
-     * Do not add additional labels to metrics
-     */
-    None,
-
-    /**
-     * Label metrics by tenant
-     */
-    Tenant,
-
-    /**
-     * Label metrics by tenant and namespace
-     */
-    Namespace,
-
-    /**
-     * Label metrics by topic
-     */
-    Topic,
-
-    /**
-     * Label metrics by each partition
-     */
-    Partition,
-}
-```
-
-The labels are addictive. For example, selecting `Topic` level would mean that the metrics will be
-labeled like:
-
-```
-pulsar_client_received_total{namespace="public/default",tenant="public",topic="persistent://public/default/pt"} 149.0
-```
-
-While selecting `Namespace` level:
-
-```
-pulsar_client_received_total{namespace="public/default",tenant="public"} 149.0
 ```
 
 ### Deprecating the old stats methods
@@ -168,34 +123,49 @@ and then evaluate any missing information.
 
 | OTel metric name                                | Type      | Unit        | Description                                                                                    |
 |-------------------------------------------------|-----------|-------------|------------------------------------------------------------------------------------------------|
-| `pulsar.client.connections.opened`              | Counter   | connections | Counter of connections opened                                                                  |
-| `pulsar.client.connections.closed`              | Counter   | connections | Counter of connections closed                                                                  |
-| `pulsar.client.connections.failed`              | Counter   | connections | Counter of connections establishment failures                                                  |
-| `pulsar.client.session.opened`                  | Counter   | sessions    | Counter of sessions opened. `type="producer"` or `consumer`                                    |
-| `pulsar.client.session.closed`                  | Counter   | sessions    | Counter of sessions closed. `type="producer"` or `consumer`                                    |
-| `pulsar.client.received`                        | Counter   | messages    | Number of messages received                                                                    |
-| `pulsar.client.received`                        | Counter   | bytes       | Number of bytes received                                                                       |
-| `pulsar.client.consumer.preteched.messages`     | Gauge     | messages    | Number of messages currently sitting in the consumer pre-fetch queue                           |
-| `pulsar.client.consumer.preteched`              | Gauge     | bytes       | Total number of bytes currently sitting in the consumer pre-fetch queue                        |
-| `pulsar.client.consumer.ack`                    | Counter   | messages    | Number of ack operations                                                                       |
-| `pulsar.client.consumer.nack`                   | Counter   | messages    | Number of negative ack operations                                                              |
-| `pulsar.client.consumer.dlq`                    | Counter   | messages    | Number of messages sent to DLQ                                                                 |
-| `pulsar.client.consumer.ack.timeout`            | Counter   | messages    | Number of ack timeouts events                                                                  |
-| `pulsar.client.producer.latency`                | Histogram | seconds     | Publish latency experienced by the application, includes client batching time                  |
-| `pulsar.client.producer.rpc.latency`            | Histogram | seconds     | Publish RPC latency experienced internally by the client when sending data to receiving an ack |
-| `pulsar.client.producer.published`              | Counter   | bytes       | Bytes published                                                                                |
-| `pulsar.client.producer.pending.messages.count` | Gauge     | messages    | Pending messages for this producer                                                             |
-| `pulsar.client.producer.pending.count`          | Gauge     | bytes       | Pending bytes for this producer                                                                |
+| `pulsar.client.connections.opened`              | Counter   | connections | The number of connections opened                                                               |
+| `pulsar.client.connections.closed`              | Counter   | connections | The number of connections closed                                                               |
+| `pulsar.client.connections.failed`              | Counter   | connections | The number of failed connection attempts                                                       |
+| `pulsar.client.producer.opened`                 | Counter   | sessions    | The number of producer sessions opened                                                         |
+| `pulsar.client.producer.closed`                 | Counter   | sessions    | The number of producer sessions closed                                                         |
+| `pulsar.client.consumer.opened`                 | Counter   | sessions    | The number of consumer sessions opened                                                         |
+| `pulsar.client.consumer.closed`                 | Counter   | sessions    | The number of consumer sessions closed                                                         |
+| `pulsar.client.received.count`                  | Counter   | messages    | The number of messages explicitly received by the consumer application                         |
+| `pulsar.client.received.size`                   | Counter   | bytes       | The number of bytes explicitly received by the consumer application                            |
+| `pulsar.client.consumer.prefetched.count`       | Gauge     | messages    | Number of messages currently sitting in the consumer pre-fetch queue                           |
+| `pulsar.client.consumer.prefetched.size`        | Gauge     | bytes       | Total number of bytes currently sitting in the consumer pre-fetch queue                        |
+| `pulsar.client.consumer.message.ack`            | Counter   | messages    | The number of acknowledged messages                                                            |
+| `pulsar.client.consumer.message.nack`           | Counter   | messages    | Number of negative ack operations                                                              |
+| `pulsar.client.consumer.message.dlq`            | Counter   | messages    | The number of messages sent to DLQ                                                             |
+| `pulsar.client.consumer.message.ack.timeout`    | Counter   | messages    | Number of ack timeouts events                                                                  |
+| `pulsar.client.producer.message.send.duration`  | Histogram | seconds     | Publish latency experienced by the application, includes client batching time                  |
+| `pulsar.client.producer.rpc.send.duration`      | Histogram | seconds     | Publish RPC latency experienced internally by the client when sending data to receiving an ack |
+| `pulsar.client.producer.message.send.size`      | Counter   | bytes       | The number of bytes published                                                                  |
+| `pulsar.client.producer.message.pending.count"` | Gauge     | messages    | Pending messages for this producer                                                             |
+| `pulsar.client.producer.message.pending.size`   | Gauge     | bytes       | Pending bytes for this producer                                                                |
 
 Topic lookup metric will be differentiated by the lookup type label and by the lookup transport
-mechanism (`transport-type="binary|http"`):
+mechanism (`pulsar.lookup.transport-type="binary|http"`):
 
-| OTel metric name                           | Type      | Unit    | Description                                      |
-|--------------------------------------------|-----------|---------|--------------------------------------------------|
-| `pulsar.client.lookup{type="topic"}`       | Histogram | seconds | Counter of topic lookup operations               |
-| `pulsar.client.lookup{type="metadata"}`    | Histogram | seconds | Counter of topic partitioned metadata operations |
-| `pulsar.client.lookup{type="schema"}`      | Histogram | seconds | Counter of schema retrieval operations           |
-| `pulsar.client.lookup{type="list-topics"}` | Histogram | seconds | Counter of namespace list topics operations      |
+| OTel metric name                                         | Type      | Unit    | Description                                       |
+|----------------------------------------------------------|-----------|---------|---------------------------------------------------|
+| `pulsar.client.lookup{pulsar.lookup.type="topic"}`       | Histogram | seconds | Duration of topic lookup operations               |
+| `pulsar.client.lookup{pulsar.lookup.type="metadata"}`    | Histogram | seconds | Duration of topic partitioned metadata operations |
+| `pulsar.client.lookup{pulsar.lookup.type="schema"}`      | Histogram | seconds | Duration of schema retrieval operations           |
+| `pulsar.client.lookup{pulsar.lookup.type="list-topics"}` | Histogram | seconds | Duration of namespace list topics operations      |
 
 Additionally, all the histograms will have a `success=true|false` label to distinguish successful and failed
 operations.
+
+## Metrics cardinality
+
+The metrics data point will be tagged with these attributes: 
+
+   * `pulsar.tenant`
+   * `pulsar.namespace`
+   * `pulsar.topic`
+   * `pulsar.partition`
+
+By default the metrics will be exported with tenant and namespace attributes set. If an application wants to enable
+a finer level, with higher cardinality, it can do so by using OpenTelemetry configuration.
+
