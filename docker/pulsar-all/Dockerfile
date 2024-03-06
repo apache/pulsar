@@ -32,7 +32,6 @@ COPY --from=pulsar-all /connectors/pulsar-io-elastic-search-*.nar /pulsar/connec
 COPY --from=pulsar-all /connectors/pulsar-io-kinesis-*.nar /pulsar/connectors/
 # Exclude kafka-connect connector
 COPY --from=pulsar-all "/connectors/pulsar-io-kafka-[^connect-adaptor*]*.nar" /pulsar/connectors/
-COPY --from=pulsar-all /connectors/pulsar-io-cassandra-*.nar /pulsar/connectors/
 COPY --from=pulsar-all /connectors/pulsar-io-jdbc-*.nar /pulsar/connectors/
 COPY --from=pulsar-all /connectors/pulsar-io-debezium-*.nar /pulsar/connectors/
 COPY --from=pulsar-all /connectors/pulsar-io-data-generator-*.nar /pulsar/connectors/
