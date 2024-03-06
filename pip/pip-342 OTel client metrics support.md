@@ -68,8 +68,6 @@ When building a `PulsarClient` instance, it will be possible to pass an `OpenTel
 interface ClientBuilder {
     // ...
     ClientBuilder openTelemetry(io.opentelemetry.api.OpenTelemetry openTelemetry);
-
-    ClientBuilder openTelemetryMetricsCardinality(MetricsCardinality metricsCardinality);
 }
 ```
 
