@@ -18,11 +18,10 @@
  */
 package org.apache.pulsar.broker.admin;
 
+import static org.awaitility.Awaitility.await;
 import io.jsonwebtoken.Jwts;
-
 import java.util.Set;
 import java.util.UUID;
-
 import lombok.Cleanup;
 import lombok.SneakyThrows;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -38,8 +37,6 @@ import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
-
-import static org.awaitility.Awaitility.await;
 
 
 public final class TopicPoliciesAuthZTest extends MockedPulsarStandalone {
