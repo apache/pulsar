@@ -310,6 +310,9 @@ This projects includes binary packages with the following licenses:
 
 The Apache Software License, Version 2.0
  * JCommander -- jcommander-1.82.jar
+ * Picocli
+     - picocli-4.7.5.jar
+     - picocli-shell-jline3-4.7.5.jar
  * Jackson
      - jackson-annotations-2.14.2.jar
      - jackson-core-2.14.2.jar

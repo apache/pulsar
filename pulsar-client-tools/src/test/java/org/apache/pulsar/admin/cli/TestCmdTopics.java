@@ -33,14 +33,14 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import com.google.common.collect.Lists;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.PrintStream;
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
+import lombok.Cleanup;
 import org.apache.pulsar.client.admin.ListTopicsOptions;
 import org.apache.pulsar.client.admin.Lookup;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -132,19 +132,19 @@ public class TestCmdTopics {
         assertEquals(admin.topics().getList("test", TopicDomain.persistent), topicList);
 
         CmdTopics cmd = new CmdTopics(() -> admin);
+        @Cleanup
+        StringWriter stringWriter = new StringWriter();
+        @Cleanup
+        PrintWriter printWriter = new PrintWriter(stringWriter);
+        cmd.getCommander().setOut(printWriter);
 
-        PrintStream defaultSystemOut = System.out;
-        try (ByteArrayOutputStream out = new ByteArrayOutputStream(); PrintStream ps = new PrintStream(out)) {
-            System.setOut(ps);
-            cmd.run("list public/default".split("\\s+"));
-            Assert.assertEquals(out.toString(), String.join("\n", topicList) + "\n");
-        } finally {
-            System.setOut(defaultSystemOut);
-        }
-   }
+        cmd.run("list public/default".split("\\s+"));
+        Assert.assertEquals(stringWriter.toString(), String.join("\n", topicList) + "\n");
+    }
+
     @Test
     public void testPartitionedLookup() throws Exception {
-        partitionedLookup.params = Arrays.asList("persistent://public/default/my-topic");
+        partitionedLookup.topicName = "persistent://public/default/my-topic";
         partitionedLookup.run();
         StringBuilder topic = new StringBuilder();
         topic.append(PERSISTENT_TOPIC_URL);
@@ -158,7 +158,7 @@ public class TestCmdTopics {
 
     @Test
     public void testPartitionedLookupSortByBroker() throws Exception {
-        partitionedLookup.params = Arrays.asList("persistent://public/default/my-topic");
+        partitionedLookup.topicName = "persistent://public/default/my-topic";
         partitionedLookup.run();
         StringBuilder topic = new StringBuilder();
         topic.append(PERSISTENT_TOPIC_URL);
@@ -173,7 +173,7 @@ public class TestCmdTopics {
     @Test
     public void testRunDeleteSingleTopic() throws PulsarAdminException, IOException {
         // Setup: Specify a single topic to delete
-        deleteCmd.params = List.of("persistent://tenant/namespace/topic");
+        deleteCmd.topic = "persistent://tenant/namespace/topic";
 
         // Act: Run the delete command
         deleteCmd.run();
@@ -185,7 +185,7 @@ public class TestCmdTopics {
     @Test
     public void testRunDeleteMultipleTopics() throws PulsarAdminException, IOException {
         // Setup: Specify a regex to delete multiple topics
-        deleteCmd.params = List.of("persistent://tenant/namespace/.*");
+        deleteCmd.topic = "persistent://tenant/namespace/.*";
         deleteCmd.regex = true;
 
         // Mock: Simulate the return of multiple topics that match the regex
@@ -212,7 +212,7 @@ public class TestCmdTopics {
         Files.write(tempFile, topics);
 
         // Setup: Specify the temporary file as input for the delete command
-        deleteCmd.params = List.of(tempFile.toString());
+        deleteCmd.topic = tempFile.toString();
         deleteCmd.readFromFile = true;
 
         // Act: Run the delete command
@@ -239,7 +239,7 @@ public class TestCmdTopics {
         Files.write(tempFile, topics);
 
         // Setup: Specify the temporary file as input for the delete command
-        deleteCmd.params = List.of(tempFile.toString());
+        deleteCmd.topic = tempFile.toString();
         deleteCmd.readFromFile = true;
 
         // Act: Run the delete command

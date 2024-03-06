@@ -259,6 +259,7 @@ flexible messaging model and an intuitive client API.</description>
     <opentelemetry.alpha.version>1.34.1-alpha</opentelemetry.alpha.version>
     <opentelemetry.instrumentation.version>1.32.1-alpha</opentelemetry.instrumentation.version>
     <opentelemetry.semconv.version>1.23.1-alpha</opentelemetry.semconv.version>
+    <picocli.version>4.7.5</picocli.version>
 
     <!-- test dependencies -->
     <testcontainers.version>1.18.3</testcontainers.version>
@@ -689,6 +690,18 @@ flexible messaging model and an intuitive client API.</description>
         <groupId>com.beust</groupId>
         <artifactId>jcommander</artifactId>
         <version>${jcommander.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>info.picocli</groupId>
+        <artifactId>picocli</artifactId>
+        <version>${picocli.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>info.picocli</groupId>
+        <artifactId>picocli-shell-jline3</artifactId>
+        <version>${picocli.version}</version>
       </dependency>
 
       <dependency>

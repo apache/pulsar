@@ -244,6 +244,9 @@ This projects includes binary packages with the following licenses:
 
 The Apache Software License, Version 2.0
  * JCommander -- com.beust-jcommander-1.82.jar
+ * Picocli
+     - info.picocli-picocli-4.7.5.jar
+     - info.picocli-picocli-shell-jline3-4.7.5.jar
  * High Performance Primitive Collections for Java -- com.carrotsearch-hppc-0.9.1.jar
  * Jackson
      - com.fasterxml.jackson.core-jackson-annotations-2.14.2.jar
