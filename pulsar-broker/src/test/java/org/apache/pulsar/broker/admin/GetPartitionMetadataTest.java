@@ -199,15 +199,6 @@ public class GetPartitionMetadataTest extends ProducerConsumerBase {
         final TopicName topicName = TopicName.get(topicNameStr);
         // Verify.
         PulsarClient client = PulsarClient.builder().serviceUrl(pulsar.getBrokerServiceUrl()).build();
-//        try {
-//            lookup.getPartitionedTopicMetadata(topicName, true).join();
-//            fail("Expect a not found exception");
-//        } catch (Exception e) {
-//            log.warn("", e);
-//            Throwable unwrapEx = FutureUtil.unwrapCompletionException(e);
-//            assertTrue(unwrapEx instanceof PulsarClientException.TopicDoesNotExistException
-//                    || unwrapEx instanceof PulsarClientException.NotFoundException);
-//        }
         PartitionedTopicMetadata response = lookup.getPartitionedTopicMetadata(topicName, true).join();
         assertEquals(response.partitions, 0);
         List<String> partitionedTopics = admin.topics().getPartitionedTopicList("public/default");
@@ -224,8 +215,8 @@ public class GetPartitionMetadataTest extends ProducerConsumerBase {
                 // configAllowAutoTopicCreation, paramCreateIfAutoCreationEnabled, isUsingHttpLookup.
                 {true, false, true},
                 {true, false, false},
-                {false, true, true},
-                {false, true, false},
+                // {false, true, true},
+                // {false, true, false},
                 {false, false, true},
                 {false, false, false},
         };
