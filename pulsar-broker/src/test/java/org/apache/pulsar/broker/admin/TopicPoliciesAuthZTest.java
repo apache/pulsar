@@ -19,8 +19,10 @@
 package org.apache.pulsar.broker.admin;
 
 import io.jsonwebtoken.Jwts;
+
 import java.util.Set;
 import java.util.UUID;
+
 import lombok.Cleanup;
 import lombok.SneakyThrows;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -279,4 +281,103 @@ public final class TopicPoliciesAuthZTest extends MockedPulsarStandalone {
         }
     }
 
+    @SneakyThrows
+    @Test
+    public void testMaxUnackedMessagesOnConsumer() {
+        final String random = UUID.randomUUID().toString();
+        final String topic = "persistent://public/default/" + random;
+        final String subject = UUID.randomUUID().toString();
+        final String token = Jwts.builder()
+                .claim("sub", subject).signWith(SECRET_KEY).compact();
+        superUserAdmin.topics().createNonPartitionedTopic(topic);
+
+        @Cleanup final PulsarAdmin subAdmin = PulsarAdmin.builder()
+                .serviceHttpUrl(getPulsarService().getWebServiceAddress())
+                .authentication(new AuthenticationToken(token))
+                .build();
+
+        // mocked data
+        int definedUnackedMessagesOnConsumer = 100;
+
+        // test superuser
+        superUserAdmin.topicPolicies().setMaxUnackedMessagesOnConsumer(topic, definedUnackedMessagesOnConsumer);
+
+        // because the topic policies is eventual consistency, we should wait here
+        await().untilAsserted(() -> {
+            final int unackedMessagesOnConsumer = superUserAdmin.topicPolicies()
+                    .getMaxUnackedMessagesOnConsumer(topic);
+            Assert.assertEquals(unackedMessagesOnConsumer, definedUnackedMessagesOnConsumer);
+        });
+        superUserAdmin.topicPolicies().removeMaxUnackedMessagesOnConsumer(topic);
+
+        await().untilAsserted(() -> {
+            final Integer unackedMessagesOnConsumer = superUserAdmin.topicPolicies().getMaxUnackedMessagesOnConsumer(topic);
+            Assert.assertNull(unackedMessagesOnConsumer);
+        });
+
+        // test tenant manager
+
+        tenantManagerAdmin.topicPolicies().setMaxUnackedMessagesOnConsumer(topic, definedUnackedMessagesOnConsumer);
+        await().untilAsserted(() -> {
+            final int unackedMessagesOnConsumer = tenantManagerAdmin.topicPolicies().getMaxUnackedMessagesOnConsumer(topic);
+            Assert.assertEquals(unackedMessagesOnConsumer, definedUnackedMessagesOnConsumer);
+        });
+        tenantManagerAdmin.topicPolicies().removeMaxUnackedMessagesOnConsumer(topic);
+        await().untilAsserted(() -> {
+            final Integer unackedMessagesOnConsumer = tenantManagerAdmin.topicPolicies().getMaxUnackedMessagesOnConsumer(topic);
+            Assert.assertNull(unackedMessagesOnConsumer);
+        });
+
+        // test nobody
+
+        try {
+            subAdmin.topicPolicies().getMaxUnackedMessagesOnConsumer(topic);
+            Assert.fail("unexpected behaviour");
+        } catch (PulsarAdminException ex) {
+            Assert.assertTrue(ex instanceof PulsarAdminException.NotAuthorizedException);
+        }
+
+        try {
+
+            subAdmin.topicPolicies().setMaxUnackedMessagesOnConsumer(topic, definedUnackedMessagesOnConsumer);
+            Assert.fail("unexpected behaviour");
+        } catch (PulsarAdminException ex) {
+            Assert.assertTrue(ex instanceof PulsarAdminException.NotAuthorizedException);
+        }
+
+        try {
+            subAdmin.topicPolicies().removeMaxUnackedMessagesOnConsumer(topic);
+            Assert.fail("unexpected behaviour");
+        } catch (PulsarAdminException ex) {
+            Assert.assertTrue(ex instanceof PulsarAdminException.NotAuthorizedException);
+        }
+
+        // test sub user with permissions
+        for (AuthAction action : AuthAction.values()) {
+            superUserAdmin.namespaces().grantPermissionOnNamespace("public/default",
+                    subject, Set.of(action));
+            try {
+                subAdmin.topicPolicies().getMaxUnackedMessagesOnConsumer(topic);
+                Assert.fail("unexpected behaviour");
+            } catch (PulsarAdminException ex) {
+                Assert.assertTrue(ex instanceof PulsarAdminException.NotAuthorizedException);
+            }
+
+            try {
+
+                subAdmin.topicPolicies().setMaxUnackedMessagesOnConsumer(topic, definedUnackedMessagesOnConsumer);
+                Assert.fail("unexpected behaviour");
+            } catch (PulsarAdminException ex) {
+                Assert.assertTrue(ex instanceof PulsarAdminException.NotAuthorizedException);
+            }
+
+            try {
+                subAdmin.topicPolicies().removeMaxUnackedMessagesOnConsumer(topic);
+                Assert.fail("unexpected behaviour");
+            } catch (PulsarAdminException ex) {
+                Assert.assertTrue(ex instanceof PulsarAdminException.NotAuthorizedException);
+            }
+            superUserAdmin.namespaces().revokePermissionsOnNamespace("public/default", subject);
+        }
+    }
 }
