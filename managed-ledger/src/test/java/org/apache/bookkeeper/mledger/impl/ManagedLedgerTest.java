@@ -145,6 +145,7 @@ import org.apache.pulsar.metadata.api.extended.SessionEvent;
 import org.apache.pulsar.metadata.impl.FaultInjectionMetadataStore;
 import org.awaitility.Awaitility;
 import org.awaitility.reflect.WhiteboxImpl;
+import org.eclipse.jetty.util.BlockingArrayQueue;
 import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.DataProvider;
@@ -3168,6 +3169,55 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
                 .startsWith(BKException.getMessage(BKException.Code.TimeoutException)));
 
         ledger.close();
+    }
+
+    @Test
+    public void testAddEntryResponseTimeout() throws Exception {
+        // Create ML with feature Add Entry Timeout Check.
+        final ManagedLedgerConfig config = new ManagedLedgerConfig().setAddEntryTimeoutSeconds(2);
+        final ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("ml1", config);
+        final ManagedCursor cursor = ledger.openCursor("c1");
+        final CollectCtxAddEntryCallback collectCtxAddEntryCallback = new CollectCtxAddEntryCallback();
+
+        // Insert a response delay.
+        bkc.addEntryResponseDelay(8, TimeUnit.SECONDS);
+
+        // Add two entries.
+        final byte[] msg1 = new byte[]{1};
+        final byte[] msg2 = new byte[]{2};
+        int ctx1 = 1;
+        int ctx2 = 2;
+        ledger.asyncAddEntry(msg1, collectCtxAddEntryCallback, ctx1);
+        ledger.asyncAddEntry(msg2, collectCtxAddEntryCallback, ctx2);
+        // Verify all write requests are completed.
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(collectCtxAddEntryCallback.addCompleteCtxList, Arrays.asList(1, 2));
+        });
+        Entry entry1 = cursor.readEntries(1).get(0);
+        assertEquals(entry1.getData(), msg1);
+        entry1.release();
+        Entry entry2 = cursor.readEntries(1).get(0);
+        assertEquals(entry2.getData(), msg2);
+        entry2.release();
+
+        // cleanup.
+        ledger.close();
+    }
+
+    private static class CollectCtxAddEntryCallback implements AddEntryCallback {
+
+        public List<Object> addCompleteCtxList = new BlockingArrayQueue<>();
+        public List<Object> addFailedCtxList = new BlockingArrayQueue<>();
+
+        @Override
+        public void addComplete(Position position, ByteBuf entryData, Object ctx) {
+            addCompleteCtxList.add(ctx);
+        }
+
+        @Override
+        public void addFailed(ManagedLedgerException exception, Object ctx) {
+            addFailedCtxList.add(ctx);
+        }
     }
 
     /**

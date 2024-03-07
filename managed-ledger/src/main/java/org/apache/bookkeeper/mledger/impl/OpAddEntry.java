@@ -45,7 +45,7 @@ import org.apache.bookkeeper.mledger.intercept.ManagedLedgerInterceptor;
 public class OpAddEntry implements AddCallback, CloseCallback, Runnable {
     protected ManagedLedgerImpl ml;
     LedgerHandle ledger;
-    private long entryId;
+    long entryId;
     private int numberOfMessages;
 
     @SuppressWarnings("unused")
