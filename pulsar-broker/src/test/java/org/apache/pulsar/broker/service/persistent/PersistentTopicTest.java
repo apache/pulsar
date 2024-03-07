@@ -670,7 +670,7 @@ public class PersistentTopicTest extends BrokerTestBase {
     }
 
     @Test
-    public void testAddWaitingCursors() throws Exception {
+    public void testAddWaitingCursorsForNonDurable() throws Exception {
         final String ns = "prop/ns-test";
         admin.namespaces().createNamespace(ns, 2);
         final String topicName = "persistent://prop/ns-test/testAddWaitingCursors";

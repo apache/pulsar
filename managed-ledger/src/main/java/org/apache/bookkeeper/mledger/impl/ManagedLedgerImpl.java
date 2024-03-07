@@ -3805,7 +3805,11 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     }
 
     public void addWaitingCursor(ManagedCursorImpl cursor) {
-        if (cursor.isActive()) {
+        if (cursor instanceof NonDurableCursorImpl) {
+            if (cursor.isActive()) {
+                this.waitingCursors.add(cursor);
+            }
+        } else {
             this.waitingCursors.add(cursor);
         }
     }
