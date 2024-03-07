@@ -27,10 +27,6 @@ import io.opentelemetry.api.metrics.DoubleHistogram;
 import io.opentelemetry.api.metrics.LongCounter;
 import io.opentelemetry.api.metrics.Meter;
 import io.opentelemetry.semconv.SemanticAttributes;
-import org.apache.pulsar.broker.stats.PulsarBrokerOpenTelemetry;
-import org.glassfish.jersey.server.internal.routing.UriRoutingContext;
-import org.glassfish.jersey.server.model.Resource;
-import org.glassfish.jersey.server.model.ResourceMethod;
 import java.io.IOException;
 import java.time.Duration;
 import java.util.List;
@@ -41,6 +37,10 @@ import javax.ws.rs.container.ContainerRequestFilter;
 import javax.ws.rs.container.ContainerResponseContext;
 import javax.ws.rs.container.ContainerResponseFilter;
 import javax.ws.rs.core.Response;
+import org.apache.pulsar.broker.stats.PulsarBrokerOpenTelemetry;
+import org.glassfish.jersey.server.internal.routing.UriRoutingContext;
+import org.glassfish.jersey.server.model.Resource;
+import org.glassfish.jersey.server.model.ResourceMethod;
 
 public class RestEndpointMetricsFilter implements ContainerResponseFilter, ContainerRequestFilter {
     private final LoadingCache<ResourceMethod, Attributes> cache = CacheBuilder
