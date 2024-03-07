@@ -74,5 +74,6 @@ RUN abuild -F -c -r
 FROM busybox
 ARG GLIBC_VERSION
 
+RUN mkdir -p /root/packages
 COPY --from=apk /root/packages/*/glibc-${GLIBC_VERSION}-r0.apk /root/packages
 COPY --from=apk /root/packages/*/glibc-bin-${GLIBC_VERSION}-r0.apk /root/packages
