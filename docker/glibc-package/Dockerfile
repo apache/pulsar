@@ -51,7 +51,7 @@ RUN tar --dereference --hard-dereference -zcf /glibc-bin.tar.gz /usr/glibc-compa
 
 ################################################
 ## Build the APK package
-FROM alpine:3.19
+FROM alpine:3.19 as apk
 ARG GLIBC_VERSION
 
 RUN apk add abuild sudo build-base
@@ -68,3 +68,11 @@ RUN echo "sha512sums=\"$(sha512sum glibc-bin.tar.gz ld.so.conf)\"" >> /build/APK
 
 RUN abuild-keygen -a -i -n
 RUN abuild -F -c -r
+
+################################################
+## Last stage - Only leaves the packages
+FROM busybox
+ARG GLIBC_VERSION
+
+COPY --from=apk /root/packages/*/glibc-${GLIBC_VERSION}-r0.apk /root/packages
+COPY --from=apk /root/packages/*/glibc-bin-${GLIBC_VERSION}-r0.apk /root/packages
