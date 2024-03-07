@@ -21,6 +21,8 @@ package org.apache.pulsar.broker.authentication;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.verify;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotEquals;
@@ -38,7 +40,10 @@ import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
 import java.io.File;
+import java.security.interfaces.ECPublicKey;
+import java.security.interfaces.RSAPublicKey;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.security.Key;
@@ -46,6 +51,7 @@ import java.security.KeyPair;
 import java.security.PrivateKey;
 import java.sql.Date;
 import java.util.Arrays;
+import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Optional;
@@ -1034,5 +1040,133 @@ public class AuthenticationProviderTokenTest {
         });
         assertEquals(subject, SUBJECT);
         provider.close();
+    }
+
+    private void testAuthPublicKeyWithJwks(byte[] jwks, String kid, KeyPair keyPair)
+            throws IOException, AuthenticationException {
+        @Cleanup
+        AuthenticationProviderToken provider = new AuthenticationProviderToken();
+        Properties properties = new Properties();
+        properties.setProperty(AuthenticationProviderToken.CONF_TOKEN_KEY_SET_KEY,
+                Base64.getEncoder().encodeToString(jwks));
+        ServiceConfiguration conf = new ServiceConfiguration();
+        conf.setProperties(properties);
+        provider.initialize(conf);
+
+        // kid is valid
+        provider.authenticate(new AuthenticationDataSource() {
+            @Override
+            public boolean hasDataFromCommand() {
+                return true;
+            }
+
+            @Override
+            public String getCommandData() {
+                return Jwts.builder()
+                        .setSubject(SUBJECT)
+                        .setHeaderParam("kid", kid)
+                        .signWith(keyPair.getPrivate()).compact();
+            }
+        });
+
+        // kid not found
+        byte[] invalidToken = Jwts.builder()
+                .setSubject(SUBJECT)
+                .setHeaderParam("kid", "invalid")
+                .signWith(keyPair.getPrivate()).compact().getBytes(StandardCharsets.UTF_8);
+        assertThrows(IllegalArgumentException.class, () -> provider.authenticate(new AuthenticationDataSource() {
+            @Override
+            public boolean hasDataFromCommand() {
+                return true;
+            }
+
+            @Override
+            public String getCommandData() {
+                return Jwts.builder()
+                        .setSubject(SUBJECT)
+                        .setHeaderParam("kid", "invalid")
+                        .signWith(keyPair.getPrivate()).compact();
+            }
+        }));
+    }
+
+    @Test
+    public void testAuthRSAPublicKeyWithJwks() throws Exception {
+        KeyPair keyPair = Keys.keyPairFor(SignatureAlgorithm.RS256);
+
+        RSAPublicKey rsaPublicKey = (RSAPublicKey) keyPair.getPublic();
+        String n = Base64.getUrlEncoder().encodeToString(rsaPublicKey.getModulus().toByteArray());
+        String e = Base64.getUrlEncoder().encodeToString(rsaPublicKey.getPublicExponent().toByteArray());
+        String kid = "iLbu_pppNwxl4S4QB4Ew3";
+
+        byte[] jwks = ("{\n"
+                + "  \"keys\": [\n"
+                + "    {\n"
+                + "      \"alg\": \"RS256\",\n"
+                + "      \"kty\": \"RSA\",\n"
+                + "      \"use\": \"sig\",\n"
+                + "      \"n\": \"" + n + "\",\n"
+                + "      \"e\": \"" + e + "\",\n"
+                + "      \"kid\": \"" + kid + "\"\n"
+                + "    }\n"
+                + "  ]\n"
+                + "}").getBytes();
+
+        testAuthPublicKeyWithJwks(jwks, kid, keyPair);
+    }
+
+    @Test
+    public void testAuthECPublicKeyWithJkws() throws Exception {
+        KeyPair keyPair = Keys.keyPairFor(SignatureAlgorithm.ES256);
+
+        ECPublicKey ecPublicKey = (ECPublicKey) keyPair.getPublic();
+        String x = Base64.getUrlEncoder().encodeToString(ecPublicKey.getW().getAffineX().toByteArray());
+        String y = Base64.getUrlEncoder().encodeToString(ecPublicKey.getW().getAffineY().toByteArray());
+        String kid = "iLbu_pppNwxl4S4QB4Ew3";
+
+        byte[] jwks = ("{\n"
+                + "  \"keys\": [\n"
+                + "    {\n"
+                + "      \"crv\": \"P-256\",\n"
+                + "      \"kty\": \"EC\",\n"
+                + "      \"use\": \"enc\",\n"
+                + "      \"x\": \"" + x + "\",\n"
+                + "      \"y\": \"" + y + "\",\n"
+                + "      \"kid\": \"" + kid + "\"\n"
+                + "    }\n"
+                + "  ]\n"
+                + "}").getBytes();
+
+        testAuthPublicKeyWithJwks(jwks, kid, keyPair);
+    }
+
+    @Test
+    public void testAuthPublicKeyWithBlankJwks() throws Exception {
+        @Cleanup
+        AuthenticationProviderToken provider = new AuthenticationProviderToken();
+        Properties properties = new Properties();
+        properties.setProperty(AuthenticationProviderToken.CONF_TOKEN_KEY_SET_KEY,
+                Base64.getEncoder().encodeToString(new byte[]{}));
+        ServiceConfiguration conf = new ServiceConfiguration();
+        conf.setProperties(properties);
+        assertThrows(IOException.class, () -> provider.initialize(conf));
+    }
+
+    @Test
+    public void testTokenKeySetPrefix() throws Exception {
+        AuthenticationProviderToken provider = new AuthenticationProviderToken();
+
+        Properties properties = spy(new Properties());
+        String prefix = "test";
+        properties.setProperty(AuthenticationProviderToken.CONF_TOKEN_SETTING_PREFIX, prefix);
+        String tokenKeySetKey = prefix + AuthenticationProviderToken.CONF_TOKEN_KEY_SET_KEY;
+        properties.setProperty(tokenKeySetKey, Base64.getEncoder().encodeToString("{\"keys\":[]}".getBytes(
+                        StandardCharsets.UTF_8)));
+        ServiceConfiguration conf = new ServiceConfiguration();
+        conf.setProperties(properties);
+
+        provider.initialize(conf);
+
+        verify(properties, Mockito.times(1)).getProperty(tokenKeySetKey);
     }
 }

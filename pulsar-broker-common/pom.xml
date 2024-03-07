@@ -69,6 +69,11 @@
       <artifactId>jjwt-jackson</artifactId>
     </dependency>
 
+    <dependency>
+      <groupId>com.auth0</groupId>
+      <artifactId>jwks-rsa</artifactId>
+    </dependency>
+
     <!-- test -->
     <dependency>
       <groupId>org.bouncycastle</groupId>
