@@ -80,8 +80,11 @@ import javax.ws.rs.core.MediaType;
 public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
 
     public static byte[] createMessageWrittenToLedger(String msg) {
+        return createMessageWrittenToLedger(msg, System.currentTimeMillis());
+    }
+    public static byte[] createMessageWrittenToLedger(String msg, long messageTimestamp) {
         MessageMetadata messageMetadata = new MessageMetadata()
-                    .setPublishTime(System.currentTimeMillis())
+                    .setPublishTime(messageTimestamp)
                     .setProducerName("createMessageWrittenToLedger")
                     .setSequenceId(1);
         ByteBuf data = UnpooledByteBufAllocator.DEFAULT.heapBuffer().writeBytes(msg.getBytes());
@@ -426,6 +429,26 @@ public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
         ledger.close();
         factory.shutdown();
 
+    }
+
+    @Test
+    public void testIncorrectClientClock() throws Exception {
+        final String ledgerAndCursorName = "testIncorrectClientClock";
+        int maxTTLSeconds = 1;
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setMaxEntriesPerLedger(1);
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open(ledgerAndCursorName, config);
+        ManagedCursorImpl c1 = (ManagedCursorImpl) ledger.openCursor(ledgerAndCursorName);
+        // set client clock to 10 days later
+        long incorrectPublishTimestamp = System.currentTimeMillis() + TimeUnit.DAYS.toMillis(10);
+        for (int i = 0; i < 10; i++) {
+            ledger.addEntry(createMessageWrittenToLedger("msg" + i, incorrectPublishTimestamp));
+        }
+        assertEquals(ledger.getLedgersInfoAsList().size(), 10);
+        PersistentMessageExpiryMonitor monitor = new PersistentMessageExpiryMonitor("topicname", c1.getName(), c1, null);
+        Thread.sleep(TimeUnit.SECONDS.toMillis(maxTTLSeconds));
+        monitor.expireMessages(maxTTLSeconds);
+        assertEquals(c1.getNumberOfEntriesInBacklog(true), 0);
     }
 
     @Test
