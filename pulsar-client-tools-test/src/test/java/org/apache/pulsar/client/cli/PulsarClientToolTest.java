@@ -258,8 +258,16 @@ public class PulsarClientToolTest extends BrokerTestBase {
                 .until(()->admin.topics().getSubscriptions(topicName).size() == 0);
     }
 
-    @Test(timeOut = 20000)
-    public void testEncryption() throws Exception {
+    @DataProvider(name = "rsaKeyNames")
+    public Object[][] rsaKeyNames() {
+        return new Object[][]{
+                {"client-rsa.pem"},
+                {"client-pkcs8-rsa.pem"}
+        };
+    }
+
+    @Test(timeOut = 20000, dataProvider = "rsaKeyNames")
+    public void testEncryption(String rsaKeyName) throws Exception {
         Properties properties = new Properties();
         properties.setProperty("serviceUrl", brokerUrl.toString());
         properties.setProperty("useTls", "false");
@@ -276,7 +284,7 @@ public class PulsarClientToolTest extends BrokerTestBase {
             try {
                 PulsarClientTool pulsarClientToolConsumer = new PulsarClientTool(properties);
                 String[] args = {"consume", "-s", "sub-name", "-n", Integer.toString(numberOfMessages), "-ekv",
-                        keyUriBase + "private-key.client-rsa.pem", topicName};
+                        keyUriBase + "private-key." + rsaKeyName, topicName};
                 Assert.assertEquals(pulsarClientToolConsumer.run(args), 0);
                 future.complete(null);
             } catch (Throwable t) {
@@ -292,7 +300,7 @@ public class PulsarClientToolTest extends BrokerTestBase {
 
         PulsarClientTool pulsarClientToolProducer = new PulsarClientTool(properties);
         String[] args = {"produce", "-m", "Have a nice day", "-n", Integer.toString(numberOfMessages), "-ekn",
-                "my-app-key", "-ekv", keyUriBase + "public-key.client-rsa.pem", topicName};
+                "my-app-key", "-ekv", keyUriBase + "public-key." + rsaKeyName, topicName};
         Assert.assertEquals(pulsarClientToolProducer.run(args), 0);
 
         try {
@@ -386,7 +394,7 @@ public class PulsarClientToolTest extends BrokerTestBase {
                 "-ml", memoryLimitArg,
                 "produce", "-m", message,
                 "-n", Integer.toString(numberOfMessages), topicName};
-        
+
         pulsarClientTool.jcommander.parse(args);
         assertEquals(pulsarClientTool.rootParams.getMemoryLimit(), 10 * 1024 * 1024);
     }
@@ -410,7 +418,7 @@ public class PulsarClientToolTest extends BrokerTestBase {
         assertEquals(pulsarClientTool.rootParams.getProxyServiceURL(), "pulsar+ssl://my-proxy-pulsar:4443");
         assertEquals(pulsarClientTool.rootParams.getProxyProtocol(), ProxyProtocol.SNI);
     }
-    
+
     @Test
     public void testSendMultipleMessage() throws Exception {
         Properties properties = new Properties();
