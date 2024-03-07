@@ -1403,7 +1403,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
             category = CATEGORY_SERVER,
             doc = "Enable or disable system topic.")
-    private boolean systemTopicEnabled = false;
+    private boolean systemTopicEnabled = true;
 
     @FieldContext(
             category = CATEGORY_SERVER,
