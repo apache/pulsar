@@ -79,8 +79,7 @@ RUN echo networkaddress.cache.ttl=1 >> /opt/jvm/conf/security/java.security
 RUN echo networkaddress.cache.negative.ttl=1 >> /opt/jvm/conf/security/java.security
 
 
-## TODO: use apachepulsar/glibc-base:2.38 once it's finalized
-FROM merlimat/glibc-base:2.38 as glibc
+FROM apachepulsar/glibc-base:2.38 as glibc
 
 ## Create final stage from Alpine image
 ## and add OpenJDK and Python dependencies (for Pulsar functions)
