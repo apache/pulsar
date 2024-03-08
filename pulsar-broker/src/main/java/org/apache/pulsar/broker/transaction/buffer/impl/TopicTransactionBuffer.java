@@ -161,6 +161,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                             }
                         }
                     }
+
                     @Override
                     public void handleTxnEntry(Entry entry) {
                         ByteBuf metadataAndPayload = entry.getDataBuffer();
@@ -255,7 +256,8 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
     }
 
     @Override
-    public CompletableFuture<Position> appendBufferToTxn(TxnID txnId, long sequenceId, ByteBuf buffer) {
+    public CompletableFuture<Position> appendBufferToTxn(TxnID txnId, long sequenceId, ByteBuf buffer,
+                                                         MessageMetadata metadata) {
         CompletableFuture<Position> completableFuture = new CompletableFuture<>();
         Long lowWaterMark = lowWaterMarks.get(txnId.getMostSigBits());
         if (lowWaterMark != null && lowWaterMark >= txnId.getLeastSigBits()) {
@@ -269,6 +271,9 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
             public void addComplete(Position position, ByteBuf entryData, Object ctx) {
                 synchronized (TopicTransactionBuffer.this) {
                     handleTransactionMessage(txnId, position);
+                }
+                if (metadata != null && metadata.hasPublishTime()) {
+                    topic.getManagedLedger().updatePublishTimestamp(position.getLedgerId(), metadata.getPublishTime());
                 }
                 completableFuture.complete(position);
             }

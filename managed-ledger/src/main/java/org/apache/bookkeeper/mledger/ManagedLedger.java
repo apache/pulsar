@@ -691,4 +691,12 @@ public interface ManagedLedger {
      * Check if managed ledger should cache backlog reads.
      */
     void checkCursorsToCacheEntries();
+
+    /**
+     * Update the publish time of the ledger.
+     *
+     * @param ledgerId
+     * @param publishTime
+     */
+    void updatePublishTimestamp(long ledgerId, long publishTime);
 }

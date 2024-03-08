@@ -317,6 +317,7 @@ public class MessageDeduplication {
         return status == Status.Enabled;
     }
 
+
     /**
      * Assess whether the message was already stored in the topic.
      *
@@ -330,28 +331,27 @@ public class MessageDeduplication {
         String producerName = publishContext.getProducerName();
         long sequenceId = publishContext.getSequenceId();
         long highestSequenceId = Math.max(publishContext.getHighestSequenceId(), sequenceId);
-        MessageMetadata md = null;
+        MessageMetadata md;
+        if (publishContext.getMetadata() == null) {
+            int readerIndex = headersAndPayload.readerIndex();
+            md = Commands.parseMessageMetadata(headersAndPayload);
+            headersAndPayload.readerIndex(readerIndex);
+        } else {
+            md = publishContext.getMetadata();
+        }
         if (producerName.startsWith(replicatorPrefix)) {
             // Message is coming from replication, we need to use the original producer name and sequence id
             // for the purpose of deduplication and not rely on the "replicator" name.
-            int readerIndex = headersAndPayload.readerIndex();
-            md = Commands.parseMessageMetadata(headersAndPayload);
             producerName = md.getProducerName();
             sequenceId = md.getSequenceId();
             highestSequenceId = Math.max(md.getHighestSequenceId(), sequenceId);
             publishContext.setOriginalProducerName(producerName);
             publishContext.setOriginalSequenceId(sequenceId);
             publishContext.setOriginalHighestSequenceId(highestSequenceId);
-            headersAndPayload.readerIndex(readerIndex);
         }
         long chunkID = -1;
         long totalChunk = -1;
         if (publishContext.isChunked()) {
-            if (md == null) {
-                int readerIndex = headersAndPayload.readerIndex();
-                md = Commands.parseMessageMetadata(headersAndPayload);
-                headersAndPayload.readerIndex(readerIndex);
-            }
             chunkID = md.getChunkId();
             totalChunk = md.getNumChunksFromMsg();
         }

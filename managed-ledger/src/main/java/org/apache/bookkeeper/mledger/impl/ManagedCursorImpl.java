@@ -1215,44 +1215,46 @@ public class ManagedCursorImpl implements ManagedCursor {
                                         Object ctx, boolean isFindFromLedger) {
         OpFindNewest op;
         PositionImpl startPosition;
-        long max;
+        long max = 0;
         switch (constraint) {
             case SearchAllAvailableEntries -> {
-                if (start instanceof PositionImpl start0 && end instanceof PositionImpl end0) {
+                if (start instanceof PositionImpl start0) {
                     startPosition = start0;
-                    max = startPosition.compareTo(end0) > 0 ? 0
-                            : ledger.getNumberOfEntries(Range.closed(start0, end0));
-                } else if (start instanceof PositionImpl start0) {
-                    startPosition = start0;
-                    max = startPosition.compareTo(ledger.lastConfirmedEntry) > 0 ? 0
-                            : ledger.getNumberOfEntries(Range.closed(start0, ledger.lastConfirmedEntry));
-                } else if (end instanceof PositionImpl end0) {
-                    startPosition = (PositionImpl) getFirstPosition();
-                    max = startPosition.compareTo(end0) > 0 ? 0
-                            : ledger.getNumberOfEntries(Range.closed(startPosition, end0));
                 } else {
                     startPosition = (PositionImpl) getFirstPosition();
-                    max = ledger.getNumberOfEntries() - 1;
+                }
+                if (startPosition != null) {
+                    if (end instanceof PositionImpl end0) {
+                        if (startPosition.compareTo(end0) <= 0) {
+                            max = ledger.getNumberOfEntries(Range.closed(startPosition, end0));
+                        }
+                    } else {
+                        if (startPosition.compareTo(ledger.lastConfirmedEntry) <= 0) {
+                            max = ledger.getNumberOfEntries(Range.closed(startPosition, ledger.lastConfirmedEntry));
+                        }
+                    }
                 }
             }
             case SearchActiveEntries -> {
-                if (start instanceof PositionImpl start0 && end instanceof PositionImpl end0) {
-                    startPosition = start0.compareTo(markDeletePosition) <= 0
-                            ? ledger.getNextValidPosition(markDeletePosition) : start0;
-                    max = startPosition.compareTo(end0) > 0 ? 0
-                            : ledger.getNumberOfEntries(Range.closed(startPosition, end0));
-                } else if (start instanceof PositionImpl start0) {
-                    startPosition = start0.compareTo(markDeletePosition) <= 0
-                            ? ledger.getNextValidPosition(markDeletePosition) : start0;
-                    max = startPosition.compareTo(ledger.lastConfirmedEntry) > 0 ? 0
-                            : ledger.getNumberOfEntries(Range.closed(start0, ledger.lastConfirmedEntry));
-                } else if (end instanceof PositionImpl end0) {
-                    startPosition = ledger.getNextValidPosition(markDeletePosition);
-                    max = startPosition.compareTo(end0) > 0 ? 0
-                            : ledger.getNumberOfEntries(Range.closed(startPosition, end0));
+                if (start instanceof PositionImpl start0) {
+                    if (start0.compareTo(markDeletePosition) <= 0) {
+                        startPosition = ledger.getNextValidPosition(markDeletePosition);
+                    } else {
+                        startPosition = start0;
+                    }
                 } else {
                     startPosition = ledger.getNextValidPosition(markDeletePosition);
-                    max = getNumberOfEntriesInStorage();
+                }
+                if (startPosition != null) {
+                    if (end instanceof PositionImpl end0) {
+                        if (startPosition.compareTo(end0) <= 0) {
+                            max = ledger.getNumberOfEntries(Range.closed(startPosition, end0));
+                        }
+                    } else {
+                        if (startPosition.compareTo(ledger.lastConfirmedEntry) <= 0) {
+                            max = ledger.getNumberOfEntries(Range.closed(startPosition, ledger.lastConfirmedEntry));
+                        }
+                    }
                 }
             }
             default -> {
@@ -1261,14 +1263,13 @@ public class ManagedCursorImpl implements ManagedCursor {
                 return;
             }
         }
-
-        if (max == 0) {
-            callback.findEntryComplete(null, ctx);
-            return;
-        }
         if (startPosition == null) {
             callback.findEntryFailed(new ManagedLedgerException("Couldn't find start position"),
                     Optional.empty(), ctx);
+            return;
+        }
+        if (max == 0) {
+            callback.findEntryComplete(null, ctx);
             return;
         }
         if (isFindFromLedger) {

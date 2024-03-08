@@ -28,6 +28,7 @@ import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.Codec;
@@ -63,28 +64,7 @@ public class PersistentMessageFinder implements AsyncCallbacks.FindEntryCallback
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Starting message position find at timestamp {}", subName, timestamp);
             }
-            ManagedLedgerImpl ledger = (ManagedLedgerImpl) cursor.getManagedLedger();
-            MLDataFormats.ManagedLedgerInfo.LedgerInfo info0 = null;
-            MLDataFormats.ManagedLedgerInfo.LedgerInfo info1 = null;
-            for (MLDataFormats.ManagedLedgerInfo.LedgerInfo info : ledger.getLedgersInfo().values()) {
-                if (info.hasTimestamp() && info.getTimestamp() > 0) {
-                    if (info.getTimestamp() <= timestamp) {
-                        info0 = info;
-                    } else {
-                        info1 = info;
-                        break;
-                    }
-                }
-            }
-
-            Position start = null;
-            Position end = null;
-            if (info0 != null) {
-                start = PositionImpl.get(info0.getLedgerId(), 0);
-            }
-            if (info1 != null) {
-                end = PositionImpl.get(info1.getLedgerId(), 0);
-            }
+            Pair<Position, Position> range = getFindPositionRange((ManagedLedgerImpl) cursor.getManagedLedger());
             cursor.asyncFindNewestMatching(ManagedCursor.FindPositionConstraint.SearchAllAvailableEntries, entry -> {
                 try {
                     long entryTimestamp = Commands.getEntryTimestamp(entry.getDataBuffer());
@@ -95,7 +75,7 @@ public class PersistentMessageFinder implements AsyncCallbacks.FindEntryCallback
                     entry.release();
                 }
                 return false;
-            }, start, end, this, callback, true);
+            }, range.getLeft(), range.getRight(), this, callback, true);
         } else {
             if (log.isDebugEnabled()) {
                 log.debug("[{}][{}] Ignore message position find scheduled task, last find is still running", topicName,
@@ -105,6 +85,27 @@ public class PersistentMessageFinder implements AsyncCallbacks.FindEntryCallback
                     new ManagedLedgerException.ConcurrentFindCursorPositionException("last find is still running"),
                     Optional.empty(), null);
         }
+    }
+
+    private Pair<Position, Position> getFindPositionRange(ManagedLedgerImpl ledger) {
+        Position start = null;
+        Position end = null;
+
+        for (MLDataFormats.ManagedLedgerInfo.LedgerInfo info : ledger.getLedgersInfo().values()) {
+            if (!info.hasBeginPublishTimestamp() || !info.hasEndPublishTimestamp()) {
+                return Pair.of(null, null);
+            }
+            if (info.getBeginPublishTimestamp() <= 0 || info.getEndPublishTimestamp() <= 0) {
+                return Pair.of(null, null);
+            }
+            if (info.getBeginPublishTimestamp() <= timestamp && info.getEndPublishTimestamp() >= timestamp) {
+                start = PositionImpl.get(info.getLedgerId(), 0);
+                end = PositionImpl.get(info.getLedgerId(), info.getEntries() - 1);
+                break;
+            }
+        }
+
+        return Pair.of(start, end);
     }
 
     private static final Logger log = LoggerFactory.getLogger(PersistentMessageFinder.class);
