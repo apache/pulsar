@@ -3201,7 +3201,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         entry2.release();
 
         // cleanup.
-        ledger.close();
+        factory.delete(ledger.name);
     }
 
     private static class CollectCtxAddEntryCallback implements AddEntryCallback {
@@ -3295,7 +3295,8 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
 
         List<OpAddEntry> oldOps = new ArrayList<>();
         for (int i = 0; i < 10; i++) {
-            OpAddEntry op = OpAddEntry.createNoRetainBuffer(ledger, ByteBufAllocator.DEFAULT.buffer(128).retain(), null, null);
+            OpAddEntry op = OpAddEntry.createNoRetainBuffer(ledger,
+                    ByteBufAllocator.DEFAULT.buffer(128).retain(), null, null, new MutableBoolean());
             if (i > 4) {
                 op.setLedger(mock(LedgerHandle.class));
             }
