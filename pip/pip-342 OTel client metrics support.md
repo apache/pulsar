@@ -85,6 +85,9 @@ PulsarClient client = PulsarClient.builder()
 // ....
 ```
 
+Even without passing the `OpenTelemetry` instance to Pulsar client SDK, an application using the OpenTelemetry
+agent, will be able to instrument the Pulsar client automatically, because we default to use `GlobalOpenTelemetry.get()`. 
+
 ### Deprecating the old stats methods
 
 The old way of collecting stats will be disabled by default, deprecated and eventually removed
@@ -119,28 +122,28 @@ this is the proposed initial set of metrics to export.
 Additional metrics could be added later on, though it's better to start with the set of most important metrics
 and then evaluate any missing information.
 
-| OTel metric name                                | Type      | Unit        | Description                                                                                    |
-|-------------------------------------------------|-----------|-------------|------------------------------------------------------------------------------------------------|
-| `pulsar.client.connections.opened`              | Counter   | connections | The number of connections opened                                                               |
-| `pulsar.client.connections.closed`              | Counter   | connections | The number of connections closed                                                               |
-| `pulsar.client.connections.failed`              | Counter   | connections | The number of failed connection attempts                                                       |
-| `pulsar.client.producer.opened`                 | Counter   | sessions    | The number of producer sessions opened                                                         |
-| `pulsar.client.producer.closed`                 | Counter   | sessions    | The number of producer sessions closed                                                         |
-| `pulsar.client.consumer.opened`                 | Counter   | sessions    | The number of consumer sessions opened                                                         |
-| `pulsar.client.consumer.closed`                 | Counter   | sessions    | The number of consumer sessions closed                                                         |
-| `pulsar.client.received.count`                  | Counter   | messages    | The number of messages explicitly received by the consumer application                         |
-| `pulsar.client.received.size`                   | Counter   | bytes       | The number of bytes explicitly received by the consumer application                            |
-| `pulsar.client.consumer.prefetched.count`       | Gauge     | messages    | Number of messages currently sitting in the consumer pre-fetch queue                           |
-| `pulsar.client.consumer.prefetched.size`        | Gauge     | bytes       | Total number of bytes currently sitting in the consumer pre-fetch queue                        |
-| `pulsar.client.consumer.message.ack`            | Counter   | messages    | The number of acknowledged messages                                                            |
-| `pulsar.client.consumer.message.nack`           | Counter   | messages    | Number of negative ack operations                                                              |
-| `pulsar.client.consumer.message.dlq`            | Counter   | messages    | The number of messages sent to DLQ                                                             |
-| `pulsar.client.consumer.message.ack.timeout`    | Counter   | messages    | Number of ack timeouts events                                                                  |
-| `pulsar.client.producer.message.send.duration`  | Histogram | seconds     | Publish latency experienced by the application, includes client batching time                  |
-| `pulsar.client.producer.rpc.send.duration`      | Histogram | seconds     | Publish RPC latency experienced internally by the client when sending data to receiving an ack |
-| `pulsar.client.producer.message.send.size`      | Counter   | bytes       | The number of bytes published                                                                  |
-| `pulsar.client.producer.message.pending.count"` | Gauge     | messages    | Pending messages for this producer                                                             |
-| `pulsar.client.producer.message.pending.size`   | Gauge     | bytes       | Pending bytes for this producer                                                                |
+| OTel metric name                                | Type      | Unit        | Description                                                                                                                               |
+|-------------------------------------------------|-----------|-------------|-------------------------------------------------------------------------------------------------------------------------------------------|
+| `pulsar.client.connection.opened`               | Counter   | connections | The number of connections opened                                                                                                          |
+| `pulsar.client.connection.closed`               | Counter   | connections | The number of connections closed                                                                                                          |
+| `pulsar.client.connection.failed`               | Counter   | connections | The number of failed connection attempts                                                                                                  |
+| `pulsar.client.producer.opened`                 | Counter   | sessions    | The number of producer sessions opened                                                                                                    |
+| `pulsar.client.producer.closed`                 | Counter   | sessions    | The number of producer sessions closed                                                                                                    |
+| `pulsar.client.consumer.opened`                 | Counter   | sessions    | The number of consumer sessions opened                                                                                                    |
+| `pulsar.client.consumer.closed`                 | Counter   | sessions    | The number of consumer sessions closed                                                                                                    |
+| `pulsar.client.consumer.message.received.count` | Counter   | messages    | The number of messages explicitly received by the consumer application                                                                    |
+| `pulsar.client.consumer.message.received.size`  | Counter   | bytes       | The number of bytes explicitly received by the consumer application                                                                       |
+| `pulsar.client.consumer.receive_queue.count`    | Gauge     | messages    | Number of messages currently sitting in the consumer receive queue                                                                        |
+| `pulsar.client.consumer.receive_queue.size`     | Gauge     | bytes       | Total number of bytes currently sitting in the consumer receive queue                                                                     |
+| `pulsar.client.consumer.message.ack`            | Counter   | messages    | The number of acknowledged messages                                                                                                       |
+| `pulsar.client.consumer.message.nack`           | Counter   | messages    | Number of negative ack operations                                                                                                         |
+| `pulsar.client.consumer.message.dlq`            | Counter   | messages    | The number of messages sent to DLQ                                                                                                        |
+| `pulsar.client.consumer.message.ack.timeout`    | Counter   | messages    | The number of messages that were not acknowledged in the configured timeout period, hence, were requested by the client to be redelivered |
+| `pulsar.client.producer.message.send.duration`  | Histogram | seconds     | Publish latency experienced by the application, includes client batching time                                                             |
+| `pulsar.client.producer.rpc.send.duration`      | Histogram | seconds     | Publish RPC latency experienced internally by the client when sending data to receiving an ack                                            |
+| `pulsar.client.producer.message.send.size`      | Counter   | bytes       | The number of bytes published                                                                                                             |
+| `pulsar.client.producer.message.pending.count"` | Gauge     | messages    | The number of messages in the producer internal send queue, waiting to be sent                                                            |
+| `pulsar.client.producer.message.pending.size`   | Gauge     | bytes       | The size of the messages in the producer internal queue, waiting to sent                                                                  |
 
 Topic lookup metric will be differentiated by the lookup type label and by the lookup transport
 mechanism (`pulsar.lookup.transport-type="binary|http"`):
@@ -152,7 +155,7 @@ mechanism (`pulsar.lookup.transport-type="binary|http"`):
 | `pulsar.client.lookup{pulsar.lookup.type="schema"}`      | Histogram | seconds | Duration of schema retrieval operations           |
 | `pulsar.client.lookup{pulsar.lookup.type="list-topics"}` | Histogram | seconds | Duration of namespace list topics operations      |
 
-Additionally, all the histograms will have a `success=true|false` label to distinguish successful and failed
+Additionally, all the histograms will have a `pulsar.response.status=success|failed` label to distinguish successful and failed
 operations.
 
 ## Metrics cardinality
