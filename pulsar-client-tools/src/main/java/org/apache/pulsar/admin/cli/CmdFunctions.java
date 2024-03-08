@@ -838,7 +838,7 @@ public class CmdFunctions extends CmdBase {
             localRunArgs.add("--functionConfig");
             localRunArgs.add(new Gson().toJson(functionConfig));
             for (Field field : this.getClass().getDeclaredFields()) {
-                if (field.getName().startsWith("DEPRECATED")) {
+                if (field.getName().toUpperCase().startsWith("DEPRECATED")) {
                     continue;
                 }
                 if (field.getName().contains("$")) {
