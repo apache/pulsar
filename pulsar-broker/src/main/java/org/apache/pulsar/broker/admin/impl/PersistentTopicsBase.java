@@ -828,7 +828,9 @@ public class PersistentTopicsBase extends AdminResource {
         } else {
             future = CompletableFuture.completedFuture(null);
         }
-       future.thenAccept(__ -> {
+        future
+        .thenCompose(__ -> validateTopicOperationAsync(topicName, TopicOperation.UNLOAD))
+        .thenAccept(__ -> {
            // If the topic name is a partition name, no need to get partition topic metadata again
            if (topicName.isPartitioned()) {
                if (isTransactionCoordinatorAssign(topicName)) {
@@ -1290,7 +1292,9 @@ public class PersistentTopicsBase extends AdminResource {
         } else {
             future = CompletableFuture.completedFuture(null);
         }
-        future.thenAccept(__ -> {
+        future
+        .thenCompose(__ -> validateTopicOperationAsync(topicName, TopicOperation.GET_STATS))
+        .thenAccept(__ -> {
             // If the topic name is a partition name, no need to get partition topic metadata again
             if (topicName.isPartitioned()) {
                 internalGetManagedLedgerInfoForNonPartitionedTopic(asyncResponse);
@@ -1400,7 +1404,9 @@ public class PersistentTopicsBase extends AdminResource {
         } else {
             future = CompletableFuture.completedFuture(null);
         }
-        future.thenCompose(__ -> getPartitionedTopicMetadataAsync(topicName,
+        future
+        .thenCompose(__ -> validateTopicOperationAsync(topicName, TopicOperation.GET_STATS))
+        .thenCompose(__ -> getPartitionedTopicMetadataAsync(topicName,
                 authoritative, false)).thenAccept(partitionMetadata -> {
             if (partitionMetadata.partitions == 0) {
                 asyncResponse.resume(new RestException(Status.NOT_FOUND,
