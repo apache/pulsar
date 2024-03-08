@@ -404,17 +404,17 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
         InstrumentProvider ip = client.instrumentProvider();
         consumersOpenedCounter = ip.newCounter("pulsar.client.consumer.opened", Unit.Sessions,
-                "Counter of sessions opened", topic, Attributes.empty());
+                "The number of consumer sessions opened", topic, Attributes.empty());
         consumersClosedCounter = ip.newCounter("pulsar.client.consumer.closed", Unit.Sessions,
-                "Counter of sessions closed", topic, Attributes.empty());
-        messagesReceivedCounter = ip.newCounter("pulsar.client.received.count", Unit.Messages,
+                "The number of consumer sessions closed", topic, Attributes.empty());
+        messagesReceivedCounter = ip.newCounter("pulsar.client.consumer.message.received.count", Unit.Messages,
                 "The number of messages explicitly received by the consumer application", topic, Attributes.empty());
-        bytesReceivedCounter = ip.newCounter("pulsar.client.received.size", Unit.Bytes,
+        bytesReceivedCounter = ip.newCounter("pulsar.client.consumer.message.received.size", Unit.Bytes,
                 "The number of bytes explicitly received by the consumer application", topic, Attributes.empty());
-        messagesPrefetchedGauge = ip.newUpDownCounter("pulsar.client.consumer.prefetched.count", Unit.Messages,
-                "Number of messages currently sitting in the consumer pre-fetch queue", topic, Attributes.empty());
-        bytesPrefetchedGauge = ip.newUpDownCounter("pulsar.client.consumer.prefetched.size", Unit.Bytes,
-                "Total number of bytes currently sitting in the consumer pre-fetch queue", topic, Attributes.empty());
+        messagesPrefetchedGauge = ip.newUpDownCounter("pulsar.client.consumer.receive_queue.count", Unit.Messages,
+                "Number of messages currently sitting in the consumer receive queue", topic, Attributes.empty());
+        bytesPrefetchedGauge = ip.newUpDownCounter("pulsar.client.consumer.receive_queue.size", Unit.Bytes,
+                "Total number of bytes currently sitting in the consumer receive queue", topic, Attributes.empty());
 
         consumerAcksCounter = ip.newCounter("pulsar.client.consumer.message.ack", Unit.Messages,
                 "The number of acknowledged messages", topic, Attributes.empty());

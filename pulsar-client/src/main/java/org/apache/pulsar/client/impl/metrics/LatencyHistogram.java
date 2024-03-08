@@ -68,16 +68,16 @@ public class LatencyHistogram {
             if (builder instanceof ExtendedDoubleHistogramBuilder) {
                 ExtendedDoubleHistogramBuilder eb = (ExtendedDoubleHistogramBuilder) builder;
                 eb.setAttributesAdvice(
-                        getDefaultAggregationLabels(attributes.toBuilder().put("success", true).build()));
+                        getDefaultAggregationLabels(attributes.toBuilder().put("pulsar.response.status", "success").build()));
             }
             attributes = getTopicAttributes(topic, attributes);
         }
 
         successAttributes = attributes.toBuilder()
-                .put("success", true)
+                .put("pulsar.response.status", "success")
                 .build();
         failedAttributes = attributes.toBuilder()
-                .put("success", false)
+                .put("pulsar.response.status", "failed")
                 .build();
         this.histogram = builder.build();
     }

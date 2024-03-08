@@ -40,6 +40,7 @@ import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.assertj.core.api.Assertions;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -141,11 +142,10 @@ public class ClientMetricsTest extends ProducerConsumerBase {
                 .put("pulsar.namespace", "my-property/my-ns")
                 .build();
         Attributes nsAttrsSuccess = nsAttrs.toBuilder()
-                .put("success", true)
+                .put("pulsar.response.status", "success")
                 .build();
 
         var metrics = collectMetrics();
-        System.err.println("All metrics: " + metrics.keySet());
 
         assertCounterValue(metrics, "pulsar.client.connections.opened", 1, Attributes.empty());
         assertCounterValue(metrics, "pulsar.client.producer.message.pending.count", 0, nsAttrs);
@@ -155,13 +155,13 @@ public class ClientMetricsTest extends ProducerConsumerBase {
                 Attributes.builder()
                         .put("pulsar.lookup.transport-type", "binary")
                         .put("pulsar.lookup.type", "topic")
-                        .put("success", true)
+                        .put("pulsar.response.status", "success")
                         .build());
         assertHistoCountValue(metrics, "pulsar.client.lookup.duration", 1,
                 Attributes.builder()
                         .put("pulsar.lookup.transport-type", "binary")
                         .put("pulsar.lookup.type", "metadata")
-                        .put("success", true)
+                        .put("pulsar.response.status", "success")
                         .build());
 
         assertHistoCountValue(metrics, "pulsar.client.producer.message.send.duration", 5, nsAttrsSuccess);
@@ -176,7 +176,7 @@ public class ClientMetricsTest extends ProducerConsumerBase {
 
         metrics = collectMetrics();
         assertCounterValue(metrics, "pulsar.client.producer.closed", 1, nsAttrs);
-        assertCounterValue(metrics, "pulsar.client.connections.closed", 1, Attributes.empty());
+        assertCounterValue(metrics, "pulsar.client.connection.closed", 1, Attributes.empty());
     }
 
     @Test
@@ -190,19 +190,19 @@ public class ClientMetricsTest extends ProducerConsumerBase {
                 .openTelemetry(otel)
                 .build();
 
-        try {
-            client.newProducer(Schema.STRING)
-                    .topic(topic)
-                    .create();
-            fail("Should have failed the producer creation");
-        } catch (Exception e) {
-            // Expected
-        }
+        Assertions.assertThatThrownBy(() -> {
+                    client.newProducer(Schema.STRING)
+                            .topic(topic)
+                            .create();
+                }).isInstanceOf(Exception.class);
+
 
         var metrics = collectMetrics();
 
-        assertTrue(getCounterValue(metrics, "pulsar.client.connections.failed",
-                Attributes.builder().put("pulsar.failure.type", "tcp-failed").build()) >= 1);
+        Assertions.assertThat(
+                getCounterValue(metrics, "pulsar.client.connection.failed",
+                        Attributes.builder().put("pulsar.failure.type", "tcp-failed").build()))
+                .isGreaterThanOrEqualTo(1L);
     }
 
     @Test
@@ -240,7 +240,7 @@ public class ClientMetricsTest extends ProducerConsumerBase {
                 .put("pulsar.namespace", "my-property/my-ns")
                 .build();
         Attributes nsAttrsFailure = nsAttrs.toBuilder()
-                .put("success", false)
+                .put("pulsar.response.status", "failed")
                 .build();
 
         assertCounterValue(metrics, "pulsar.client.producer.message.pending.count", 0, nsAttrs);
@@ -282,23 +282,23 @@ public class ClientMetricsTest extends ProducerConsumerBase {
                 .build();
         var metrics = collectMetrics();
 
-        assertCounterValue(metrics, "pulsar.client.connections.opened", 1, Attributes.empty());
+        assertCounterValue(metrics, "pulsar.client.connection.opened", 1, Attributes.empty());
 
         assertHistoCountValue(metrics, "pulsar.client.lookup.duration", 2,
                 Attributes.builder()
                         .put("pulsar.lookup.transport-type", "binary")
                         .put("pulsar.lookup.type", "topic")
-                        .put("success", true)
+                        .put("pulsar.response.status", "success")
                         .build());
         assertHistoCountValue(metrics, "pulsar.client.lookup.duration", 2,
                 Attributes.builder()
                         .put("pulsar.lookup.transport-type", "binary")
                         .put("pulsar.lookup.type", "metadata")
-                        .put("success", true)
+                        .put("pulsar.response.status", "success")
                         .build());
 
-        assertCounterValue(metrics, "pulsar.client.consumer.prefetched.count", 10, nsAttrs);
-        assertCounterValue(metrics, "pulsar.client.consumer.prefetched.size", "hello".length() * 10, nsAttrs);
+        assertCounterValue(metrics, "pulsar.client.consumer.receive_queue.count", 10, nsAttrs);
+        assertCounterValue(metrics, "pulsar.client.consumer.receive_queue.size", "hello".length() * 10, nsAttrs);
         assertCounterValue(metrics, "pulsar.client.consumer.opened", 1, nsAttrs);
 
         Message<String> msg1 = consumer.receive();
@@ -310,15 +310,18 @@ public class ClientMetricsTest extends ProducerConsumerBase {
         /* Message<String> msg3 = */ consumer.receive();
 
         metrics = collectMetrics();
-        assertCounterValue(metrics, "pulsar.client.consumer.prefetched.count", 7, nsAttrs);
-        assertCounterValue(metrics, "pulsar.client.consumer.prefetched.size", "hello".length() * 7, nsAttrs);
+        assertCounterValue(metrics, "pulsar.client.consumer.receive_queue.count", 7, nsAttrs);
+        assertCounterValue(metrics, "pulsar.client.consumer.receive_queue.size", "hello".length() * 7, nsAttrs);
+        assertCounterValue(metrics, "pulsar.client.consumer.message.received.count", 3, nsAttrs);
+        assertCounterValue(metrics, "pulsar.client.consumer.message.received.size", "hello".length() * 3, nsAttrs);
+
 
         // Let msg3 to reach ack-timeout
         Thread.sleep(3000);
 
         metrics = collectMetrics();
-        assertCounterValue(metrics, "pulsar.client.consumer.prefetched.count", 8, nsAttrs);
-        assertCounterValue(metrics, "pulsar.client.consumer.prefetched.size", "hello".length() * 8, nsAttrs);
+        assertCounterValue(metrics, "pulsar.client.consumer.receive_queue.count", 8, nsAttrs);
+        assertCounterValue(metrics, "pulsar.client.consumer.receive_queue.size", "hello".length() * 8, nsAttrs);
 
         assertCounterValue(metrics, "pulsar.client.consumer.message.ack", 1, nsAttrs);
         assertCounterValue(metrics, "pulsar.client.consumer.message.nack", 1, nsAttrs);
@@ -328,6 +331,6 @@ public class ClientMetricsTest extends ProducerConsumerBase {
 
         metrics = collectMetrics();
         assertCounterValue(metrics, "pulsar.client.consumer.closed", 1, nsAttrs);
-        assertCounterValue(metrics, "pulsar.client.connections.closed", 1, Attributes.empty());
+        assertCounterValue(metrics, "pulsar.client.connection.closed", 1, Attributes.empty());
     }
 }

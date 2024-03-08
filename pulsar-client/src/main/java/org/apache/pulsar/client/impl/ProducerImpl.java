@@ -180,8 +180,8 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     private final LatencyHistogram latencyHistogram;
     final LatencyHistogram rpcLatencyHistogram;
     private final Counter publishedBytesCounter;
-    private final UpDownCounter pendingMessagesCounter;
-    private final UpDownCounter pendingBytesCounter;
+    private final UpDownCounter pendingMessagesUpDownCounter;
+    private final UpDownCounter pendingBytesUpDownCounter;
 
     private final Counter producersOpenedCounter;
     private final Counter producersClosedCounter;
@@ -292,10 +292,10 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 Attributes.empty());
         publishedBytesCounter = ip.newCounter("pulsar.client.producer.message.send.size",
                 Unit.Bytes, "The number of bytes published", topic, Attributes.empty());
-        pendingMessagesCounter = ip.newUpDownCounter("pulsar.client.producer.message.pending.count", Unit.Messages,
-                "Pending messages for this producer", topic, Attributes.empty());
-        pendingBytesCounter = ip.newUpDownCounter("pulsar.client.producer.message.pending.size", Unit.Bytes,
-                "Pending bytes for this producer", topic, Attributes.empty());
+        pendingMessagesUpDownCounter = ip.newUpDownCounter("pulsar.client.producer.message.pending.count", Unit.Messages,
+                "The number of messages in the producer internal send queue, waiting to be sent", topic, Attributes.empty());
+        pendingBytesUpDownCounter = ip.newUpDownCounter("pulsar.client.producer.message.pending.size", Unit.Bytes,
+                "The size of the messages in the producer internal queue, waiting to sent", topic, Attributes.empty());
         producersOpenedCounter = ip.newCounter("pulsar.client.producer.opened", Unit.Sessions,
                 "The number of producer sessions opened", topic, Attributes.empty());
         producersClosedCounter = ip.newCounter("pulsar.client.producer.closed", Unit.Sessions,
@@ -371,8 +371,8 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         }
 
         int msgSize = interceptorMessage.getDataBuffer().readableBytes();
-        pendingMessagesCounter.increment();
-        pendingBytesCounter.add(msgSize);
+        pendingMessagesUpDownCounter.increment();
+        pendingBytesUpDownCounter.add(msgSize);
 
         sendAsync(interceptorMessage, new SendCallback() {
             SendCallback nextCallback = null;
@@ -397,8 +397,8 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             @Override
             public void sendComplete(Exception e) {
                 long latencyNanos = System.nanoTime() - createdAt;
-                pendingMessagesCounter.decrement();
-                pendingBytesCounter.subtract(msgSize);
+                pendingMessagesUpDownCounter.decrement();
+                pendingBytesUpDownCounter.subtract(msgSize);
 
                 try {
                     if (e != null) {

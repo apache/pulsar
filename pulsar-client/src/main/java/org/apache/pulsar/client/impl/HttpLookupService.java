@@ -75,7 +75,7 @@ public class HttpLookupService implements LookupService {
         this.useTls = conf.isUseTls();
         this.listenerName = conf.getListenerName();
 
-        Attributes attrs = Attributes.of(AttributeKey.stringKey("pulsar.lookup.transport-type"), "binary");
+        Attributes attrs = Attributes.of(AttributeKey.stringKey("pulsar.lookup.transport-type"), "http");
 
         histoGetBroker = instrumentProvider.newLatencyHistogram("pulsar.client.lookup.duration",
                 "Duration of lookup operations",

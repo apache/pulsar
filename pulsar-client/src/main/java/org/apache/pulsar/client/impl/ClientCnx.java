@@ -265,9 +265,9 @@ public class ClientCnx extends PulsarHandler {
         this.idleState = new ClientCnxIdleState(this);
         this.clientVersion = "Pulsar-Java-v" + PulsarVersion.getVersion()
                 + (conf.getDescription() == null ? "" : ("-" + conf.getDescription()));
-        this.connectionsOpenedCounter = instrumentProvider.newCounter("pulsar.client.connections.opened", Unit.Connections,
+        this.connectionsOpenedCounter = instrumentProvider.newCounter("pulsar.client.connection.opened", Unit.Connections,
                 "The number of connections opened", null, Attributes.empty());
-        this.connectionsClosedCounter = instrumentProvider.newCounter("pulsar.client.connections.closed", Unit.Connections,
+        this.connectionsClosedCounter = instrumentProvider.newCounter("pulsar.client.connection.closed", Unit.Connections,
                 "The number of connections closed", null, Attributes.empty());
 
     }
