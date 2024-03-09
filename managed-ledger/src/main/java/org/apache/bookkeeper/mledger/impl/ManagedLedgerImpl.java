@@ -1748,7 +1748,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         if (entriesInLedger > 0) {
             long begin = 0;
             long end = 0;
-            MutablePair<Long, Long> pair = ledgerPublishTimeMap.get(lh.getId());
+            MutablePair<Long, Long> pair = ledgerPublishTimeMap.remove(lh.getId());
             if (pair != null) {
                 begin = pair.getKey();
                 end = pair.getValue();
