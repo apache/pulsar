@@ -68,7 +68,8 @@ public class LatencyHistogram {
             if (builder instanceof ExtendedDoubleHistogramBuilder) {
                 ExtendedDoubleHistogramBuilder eb = (ExtendedDoubleHistogramBuilder) builder;
                 eb.setAttributesAdvice(
-                        getDefaultAggregationLabels(attributes.toBuilder().put("pulsar.response.status", "success").build()));
+                        getDefaultAggregationLabels(
+                                attributes.toBuilder().put("pulsar.response.status", "success").build()));
             }
             attributes = getTopicAttributes(topic, attributes);
         }
@@ -80,6 +81,23 @@ public class LatencyHistogram {
                 .put("pulsar.response.status", "failed")
                 .build();
         this.histogram = builder.build();
+    }
+
+    private LatencyHistogram(DoubleHistogram histogram, Attributes successAttributes, Attributes failedAttributes) {
+        this.histogram = histogram;
+        this.successAttributes = successAttributes;
+        this.failedAttributes = failedAttributes;
+    }
+
+    /**
+     * Create a new histograms that inherits the old histograms attributes and adds new ones.
+     */
+    public LatencyHistogram withAttributes(Attributes attributes) {
+        return new LatencyHistogram(
+                histogram,
+                successAttributes.toBuilder().putAll(attributes).build(),
+                failedAttributes.toBuilder().putAll(attributes).build()
+        );
     }
 
 

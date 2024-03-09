@@ -93,20 +93,14 @@ public class BinaryProtoLookupService implements LookupService {
         this.listenerName = listenerName;
         updateServiceUrl(serviceUrl);
 
-        Attributes attrs = Attributes.of(AttributeKey.stringKey("pulsar.lookup.transport-type"), "binary");
-
-        histoGetBroker = client.instrumentProvider().newLatencyHistogram("pulsar.client.lookup.duration",
+        LatencyHistogram histo = client.instrumentProvider().newLatencyHistogram("pulsar.client.lookup.duration",
                 "Duration of lookup operations", null,
-                attrs.toBuilder().put("pulsar.lookup.type", "topic").build());
-        histoGetTopicMetadata = client.instrumentProvider().newLatencyHistogram("pulsar.client.lookup.duration",
-                "Duration of lookup operations", null,
-                attrs.toBuilder().put("pulsar.lookup.type", "metadata").build());
-        histoGetSchema = client.instrumentProvider().newLatencyHistogram("pulsar.client.lookup.duration",
-                "Duration of lookup operations", null,
-                attrs.toBuilder().put("pulsar.lookup.type", "schema").build());
-        histoListTopics = client.instrumentProvider().newLatencyHistogram("pulsar.client.lookup.duration",
-                "Duration of lookup operations", null,
-                attrs.toBuilder().put("pulsar.lookup.type", "list-topics").build());
+                Attributes.builder().put("pulsar.lookup.transport-type", "binary").build());
+        histoGetBroker = histo.withAttributes(Attributes.builder().put("pulsar.lookup.type", "topic").build());
+        histoGetTopicMetadata =
+                histo.withAttributes(Attributes.builder().put("pulsar.lookup.type", "metadata").build());
+        histoGetSchema = histo.withAttributes(Attributes.builder().put("pulsar.lookup.type", "schema").build());
+        histoListTopics = histo.withAttributes(Attributes.builder().put("pulsar.lookup.type", "list-topics").build());
     }
 
     @Override

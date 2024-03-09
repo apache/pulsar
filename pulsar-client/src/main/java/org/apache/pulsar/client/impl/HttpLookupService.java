@@ -75,20 +75,14 @@ public class HttpLookupService implements LookupService {
         this.useTls = conf.isUseTls();
         this.listenerName = conf.getListenerName();
 
-        Attributes attrs = Attributes.of(AttributeKey.stringKey("pulsar.lookup.transport-type"), "http");
-
-        histoGetBroker = instrumentProvider.newLatencyHistogram("pulsar.client.lookup.duration",
-                "Duration of lookup operations",
-                null, attrs.toBuilder().put("pulsar.lookup.type", "topic").build());
-        histoGetTopicMetadata = instrumentProvider.newLatencyHistogram("pulsar.client.lookup.duration",
-                "Duration of lookup operations",
-                null, attrs.toBuilder().put("pulsar.lookup.type", "metadata").build());
-        histoGetSchema = instrumentProvider.newLatencyHistogram("pulsar.client.lookup.duration",
-                "Duration of lookup operations",
-                null, attrs.toBuilder().put("pulsar.lookup.type", "schema").build());
-        histoListTopics = instrumentProvider.newLatencyHistogram("pulsar.client.lookup.duration",
-                "Duration of lookup operations",
-                null, attrs.toBuilder().put("pulsar.lookup.type", "list-topics").build());
+        LatencyHistogram histo = instrumentProvider.newLatencyHistogram("pulsar.client.lookup.duration",
+                "Duration of lookup operations", null,
+                Attributes.builder().put("pulsar.lookup.transport-type", "http").build());
+        histoGetBroker = histo.withAttributes(Attributes.builder().put("pulsar.lookup.type", "topic").build());
+        histoGetTopicMetadata =
+                histo.withAttributes(Attributes.builder().put("pulsar.lookup.type", "metadata").build());
+        histoGetSchema = histo.withAttributes(Attributes.builder().put("pulsar.lookup.type", "schema").build());
+        histoListTopics = histo.withAttributes(Attributes.builder().put("pulsar.lookup.type", "list-topics").build());
     }
 
     @Override

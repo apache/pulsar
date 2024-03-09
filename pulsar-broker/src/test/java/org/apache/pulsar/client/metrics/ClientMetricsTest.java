@@ -147,7 +147,7 @@ public class ClientMetricsTest extends ProducerConsumerBase {
 
         var metrics = collectMetrics();
 
-        assertCounterValue(metrics, "pulsar.client.connections.opened", 1, Attributes.empty());
+        assertCounterValue(metrics, "pulsar.client.connection.opened", 1, Attributes.empty());
         assertCounterValue(metrics, "pulsar.client.producer.message.pending.count", 0, nsAttrs);
         assertCounterValue(metrics, "pulsar.client.producer.message.pending.size", 0, nsAttrs);
 
