@@ -4547,7 +4547,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
      * @param publishTime
      */
     protected void updatePublishTimestamp(long ledgerId, long publishTime) {
-        MutablePair<Long, Long> pair = ledgerPublishTimeMap.computeIfAbsent(ledgerId, k -> MutablePair.of(Long.MAX_VALUE, Long.MIN_VALUE));
+        MutablePair<Long, Long> pair =
+                ledgerPublishTimeMap.computeIfAbsent(ledgerId, k -> MutablePair.of(Long.MAX_VALUE, Long.MIN_VALUE));
         long start = pair.getLeft();
         long end = pair.getRight();
         if (publishTime < start) {
