@@ -25,7 +25,12 @@ The motivation of this PIP is to optimize the finding message by timestamp, to m
 
 # Goals
 
-Through this PIP, we want to optimize the finding message by timestamp, to make it more efficient and faster.
+Add the `beginPublishTimestamp` and `endPublishTimestamp` to `LedgerInfo`, to speed up the finding message by timestamp.
+
+Before read entries from the ledger, we can use the `beginPublishTimestamp` and `endPublishTimestamp` to calculate the 
+range of the entries, and just scan the entries in the range, so we don't need to scan all the ledgers to find the message by timestamp.
+
+It will make the finding message by timestamp more efficient and faster, and reduce the number of iterations to find the message.
 
 ## In Scope
 
