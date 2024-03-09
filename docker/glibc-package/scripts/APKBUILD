@@ -1,0 +1,53 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+
+pkgname="glibc"
+pkgrel="0"
+pkgdesc="GNU C Library compatibility layer"
+arch="all"
+url="https:/pulsar.apache.org"
+license="LGPL"
+options="!check"
+source="glibc-bin.tar.gz
+ld.so.conf"
+subpackages="${pkgname}-bin ${pkgname}-dev"
+triggers="glibc-bin.trigger=/lib:/usr/lib:/usr/glibc-compat/lib"
+depends="libuuid libgcc"
+
+package() {
+  mkdir -p $pkgdir/lib $pkgdir/usr/glibc-compat/lib/locale $pkgdir/usr/glibc-compat/lib64 $pkgdir/etc $pkgdir/usr/glibc-compat/etc/
+  cp -a $srcdir/usr $pkgdir
+  cp $srcdir/ld.so.conf $pkgdir/usr/glibc-compat/etc/ld.so.conf
+  cd $pkgdir/usr/glibc-compat
+  rm -rf etc/rpc bin sbin lib/gconv lib/getconf lib/audit share var include
+
+  FILENAME=$(ls $pkgdir/usr/glibc-compat/lib/ld-linux-*.so.*)
+  LIBNAME=$(basename $FILENAME)
+  ln -s  /usr/glibc-compat/lib/$LIBNAME $pkgdir/lib/$LIBNAME
+  ln -s /usr/glibc-compat/lib/$LIBNAME $pkgdir/usr/glibc-compat/lib64/$LIBNAME
+  ln -s /usr/glibc-compat/etc/ld.so.cache $pkgdir/etc/ld.so.cache
+}
+
+bin() {
+  depends="$pkgname libc6-compat"
+  mkdir -p $subpkgdir/usr/glibc-compat
+  cp -a $srcdir/usr/glibc-compat/bin $subpkgdir/usr/glibc-compat
+  cp -a $srcdir/usr/glibc-compat/sbin $subpkgdir/usr/glibc-compat
+}
+

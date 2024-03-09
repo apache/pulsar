@@ -19,30 +19,21 @@
 
 -->
 
-This folder contains a Docker image that can used to compile the Pulsar C++ client library
-and website in a reproducible environment.
+# GLibc compatibility package
 
-```shell
-docker build -t pulsar-build .
+This directory includes the Docker scripts to build an image with GLibc compiled for Alpine Linux. 
+
+This is used to ensure plugins that are going to be used in the Pulsar image and that are depeding on GLibc, will
+still be working correctly in the Alpine Image. (eg: Netty Tc-Native and Kinesis Producer Library).
+
+This image only needs to be re-created when we want to upgrade to a newer version of GLibc.
+
+# Steps
+
+1. Change the version in the Dockerfile for this directory.
+2. Rebuild the image and push it to Docker Hub:
+```
+docker buildx build --platform=linux/amd64,linux/arm64 -t apachepulsar/glibc-base:2.38 . --push
 ```
 
-The image is already available at https://hub.docker.com/r/apachepulsar/pulsar-build
-
-Example: `apachepulsar/pulsar-build:ubuntu-16.04`
-
-## Build and Publish pulsar-build image
-
-> Only committers have permissions on publishing pulsar images to `apachepulsar` docker hub.
-
-### Build pulsar-build image
-
-
-```shell
-docker build -t apachepulsar/pulsar-build:ubuntu-16.04 .
-```
-
-### Publish pulsar-build image
-
-```shell
-publish.sh
-```
+The image tag is then used in `docker/pulsar/Dockerfile`.
