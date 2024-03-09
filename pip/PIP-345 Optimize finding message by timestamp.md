@@ -10,11 +10,11 @@ and reset cursor[[3]](https://github.com/apache/pulsar/blob/master/pulsar-broker
 * And also used by the `expiry-monitor` to find the messages that are expired[[5]](https://github.com/apache/pulsar/blob/master/pulsar-broker/src/main/java/org/apache/pulsar/broker/service/persistent/PersistentMessageExpiryMonitor.java#L73).
 
 Even though the current implementation is correct, and using binary search to speed-up, but it's still not efficient *enough*. 
-The current implementation is to scan all the ledgers to find the message id by timestamp.
+The current implementation is to scan all the ledgers to find the message by timestamp.
 This is a performance bottleneck, especially for large topics with many messages.
-Say, if there is a topic which has 1m entries, through the binary search, it will take 20 iterations to find the message id.
+Say, if there is a topic which has 1m entries, through the binary search, it will take 20 iterations to find the message.
 
-In some extreme cases, it may lead to a timeout, and the client will not be able to get the message id by timestamp.
+In some extreme cases, it may lead to a timeout, and the client will not be able to seeking by timestamp.
 
 # Motivation
 
@@ -26,7 +26,7 @@ Through this PIP, we want to optimize the finding message by timestamp, to make 
 
 ## In Scope
 
-* Record the begin/end publish timestamp to LedgerInfo, to speed-up the seeking by timestamp.
+* Record the begin/end publish timestamp to `LedgerInfo`, to speed-up the seeking by timestamp.
 
 ## Out of Scope
 
