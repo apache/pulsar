@@ -2516,7 +2516,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                                     stats.schemaLedgers.add(schemaLedgerInfo);
                                     completableFuture.complete(null);
                                 }).exceptionally(e -> {
-                                    log.info("[{}] Failed to get ledger metadata for the schema ledger {}",
+                                    log.error("[{}] Failed to get ledger metadata for the schema ledger {}",
                                             topic, ledgerId, e);
                                     completableFuture.completeExceptionally(e);
                                     return null;
