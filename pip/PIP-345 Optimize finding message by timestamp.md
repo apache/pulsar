@@ -9,14 +9,17 @@ and reset cursor[[3]](https://github.com/apache/pulsar/blob/master/pulsar-broker
 * It is used by the `pulsar-client` to reset the subscription to a specific timestamp[[4]](https://github.com/apache/pulsar/blob/master/pulsar-client-api/src/main/java/org/apache/pulsar/client/api/Consumer.java#L497).
 * And also used by the `expiry-monitor` to find the messages that are expired[[5]](https://github.com/apache/pulsar/blob/master/pulsar-broker/src/main/java/org/apache/pulsar/broker/service/persistent/PersistentMessageExpiryMonitor.java#L73).
 
-Even though the current implementation is correct, and using binary search to speed-up, but it's still not efficient *enough*. 
+Pulsar uses binary search to find the message by timestamp, it will reduce the number of iterations to find the message,
+and make it more efficient and faster.
+
+# Motivation
+
+Even though the current implementation is correct, and using binary search to speed-up, but it's still not efficient *enough*.
 The current implementation is to scan all the ledgers to find the message by timestamp.
 This is a performance bottleneck, especially for large topics with many messages.
 Say, if there is a topic which has 1m entries, through the binary search, it will take 20 iterations to find the message.
 
 In some extreme cases, it may lead to a timeout, and the client will not be able to seeking by timestamp.
-
-# Motivation
 
 The motivation of this PIP is to optimize the finding message by timestamp, to make it more efficient and faster.
 
