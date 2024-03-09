@@ -65,7 +65,7 @@ public class ServerCnx {
     protected void handleSend(CommandSend send, ByteBuf headersAndPayload) {
         // ...
         // Deserialize the MessageMetadata from the message payload
-        MessageMetadata msgMetadata = Commands.parseMessageMetadata(send.getMetadataAndPayload().getMetadata());
+        MessageMetadata msgMetadata = Commands.parseMessageMetadata(headersAndPayload);
         // ...
         // Pass the MessageMetadata to Producer if the message is transactional
         if (send.hasTxnidMostBits() && send.hasTxnidLeastBits()) {
@@ -239,12 +239,14 @@ public class ManagedCursorImpl implements ManagedCursor {
         Position startPosition;
         long max = 0;
         // Calculate the startPosition and max based on the start and end
+        startPosition = ...;
+        max = ...;
         // ...
         // Find the newest matching entry
         if (isFindFromLedger) {
-            ledger.asyncFindNewestMatching(ledger, condition, start, max, callback, ctx);
+            ledger.asyncFindNewestMatching(ledger, condition, startPosition, max, callback, ctx);
         } else {
-            cache.asyncFindNewestMatching(cursor, condition, start, max, callback, ctx);
+            cache.asyncFindNewestMatching(cursor, condition, startPosition, max, callback, ctx);
         }
     }
 }
