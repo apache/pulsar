@@ -306,9 +306,11 @@ This change is backward compatible, the old clients can still work with the new 
 
 # Alternatives
 
-An alternative is introducing a new configuration `enableSpeedUpSeekingByTimestamp` to broker.conf,
+An alternative is introducing a new configuration `enableSpeedUpFindingMessageByTimestamp` to broker.conf,
 if it set to `true`, the broker will calculate the `start`/`end` position based on the `LedgerInfo#timestamp` of the ledger, 
-and pass them to `ManagedCursor#asyncFindNewestMatching` to speed-up the seeking by timestamp.
+and pass them to `ManagedCursor#asyncFindNewestMatching` to speed-up the finding message by timestamp,
+so we don't need to change the `LedgerInfo`, deserialize `MessageMetadata` once broker received the message,
+and add additional logic to manage the `beginPublishTimestamp` and `endPublishTimestamp` of the ledger.
 
 But the `LedgerInfo#timestamp` is the broker's timestamp, it's not accurate, 
 and it's not suitable for finding message by timestamp if clients' clocks are not synchronized with the broker's clock.
