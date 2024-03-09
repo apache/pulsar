@@ -829,11 +829,11 @@ public class SubscriptionSeekTest extends BrokerTestBase {
         field0.setAccessible(true);
 
         cursor = Mockito.spy(cursor);
-        AtomicReference<Position> start = new AtomicReference<>();
-        AtomicReference<Position> end = new AtomicReference<>();
+        AtomicReference<PositionImpl> start = new AtomicReference<>();
+        AtomicReference<PositionImpl> end = new AtomicReference<>();
         Mockito.doAnswer(inv -> {
-            start.set((Position) inv.getArguments()[2]);
-            end.set((Position) inv.getArguments()[3]);
+            start.set((PositionImpl) inv.getArguments()[2]);
+            end.set((PositionImpl) inv.getArguments()[3]);
             return inv.callRealMethod();
         }).when(cursor).asyncFindNewestMatching(Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.anyBoolean());
         field0.set(sub, cursor);
@@ -861,13 +861,13 @@ public class SubscriptionSeekTest extends BrokerTestBase {
         long publishTime = publishTime2MessageId.firstKey();
         MessageIdImpl messageId = publishTime2MessageId.get(publishTime);
         consumer.seek(publishTime);
-        Position start0 = start.get();
-        Position end0 = end.get();
+        PositionImpl start0 = start.get();
+        PositionImpl end0 = end.get();
         assertNotNull(start0);
         assertNotNull(end0);
+        assertEquals(start0, end0);
         assertTrue(start0.getLedgerId() == messageId.getLedgerId() && start0.getEntryId() == 0);
-        assertTrue(end0.getLedgerId() == messageId.getLedgerId() && end0.getEntryId() == 1);
-        assertEquals(cursor.getReadPosition(), ledger.getNextValidPosition(PositionImpl.get(messageId.getLedgerId(), messageId.getEntryId())));
+        assertEquals(cursor.getReadPosition(), PositionImpl.get(messageId.getLedgerId(), messageId.getEntryId()));
         publishTime2MessageId.remove(publishTime);
 
         // seek second message
@@ -880,7 +880,7 @@ public class SubscriptionSeekTest extends BrokerTestBase {
         assertNotNull(end1);
         assertTrue(start1.getLedgerId() == messageId1.getLedgerId() && start1.getEntryId() == 0);
         assertTrue(end1.getLedgerId() == messageId1.getLedgerId() && end1.getEntryId() == 1);
-        assertEquals(cursor.getReadPosition(), ledger.getNextValidPosition(PositionImpl.get(messageId1.getLedgerId(), messageId1.getEntryId())));
+        assertEquals(cursor.getReadPosition(), PositionImpl.get(messageId1.getLedgerId(), messageId1.getEntryId()));
         publishTime2MessageId.remove(publishTime1);
 
         // seek third message
@@ -891,9 +891,9 @@ public class SubscriptionSeekTest extends BrokerTestBase {
         Position end2 = end.get();
         assertNotNull(start2);
         assertNotNull(end2);
-        assertTrue(start2.getLedgerId() == messageId2.getLedgerId() && start2.getEntryId() == 0);
-        assertTrue(end2.getLedgerId() == messageId2.getLedgerId() && end2.getEntryId() == 1);
-        assertEquals(cursor.getReadPosition(), ledger.getNextValidPosition(PositionImpl.get(messageId2.getLedgerId(), messageId2.getEntryId())));
+        assertEquals(ledger.getPreviousPosition(PositionImpl.get(messageId2.getLedgerId(), messageId2.getEntryId())), start2);
+        assertEquals(end2, PositionImpl.get(messageId2.getLedgerId(), messageId2.getEntryId()));
+        assertEquals(cursor.getReadPosition(), PositionImpl.get(messageId2.getLedgerId(), messageId2.getEntryId()));
         publishTime2MessageId.remove(publishTime2);
 
         // seek fourth message
@@ -906,7 +906,7 @@ public class SubscriptionSeekTest extends BrokerTestBase {
         assertNotNull(end3);
         assertTrue(start3.getLedgerId() == messageId3.getLedgerId() && start3.getEntryId() == 0);
         assertTrue(end3.getLedgerId() == messageId3.getLedgerId() && end3.getEntryId() == 1);
-        assertEquals(cursor.getReadPosition(), ledger.getNextValidPosition(PositionImpl.get(messageId3.getLedgerId(), messageId3.getEntryId())));
+        assertEquals(cursor.getReadPosition(), PositionImpl.get(messageId3.getLedgerId(), messageId3.getEntryId()));
         publishTime2MessageId.remove(publishTime3);
 
         // seek fifth message
@@ -917,7 +917,6 @@ public class SubscriptionSeekTest extends BrokerTestBase {
         Position end4 = end.get();
         assertNotNull(start4);
         assertNull(end4);
-        assertEquals(PositionImpl.get(messageId2.getLedgerId(), messageId2.getEntryId()), start4);
-        assertEquals(cursor.getReadPosition(), ledger.getNextValidPosition(PositionImpl.get(messageId4.getLedgerId(), messageId4.getEntryId())));
+        assertEquals(cursor.getReadPosition(), PositionImpl.get(messageId4.getLedgerId(), messageId4.getEntryId()));
     }
 }

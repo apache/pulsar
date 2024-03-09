@@ -331,14 +331,7 @@ public class MessageDeduplication {
         String producerName = publishContext.getProducerName();
         long sequenceId = publishContext.getSequenceId();
         long highestSequenceId = Math.max(publishContext.getHighestSequenceId(), sequenceId);
-        MessageMetadata md;
-        if (publishContext.getMetadata() == null && headersAndPayload != null) {
-            int readerIndex = headersAndPayload.readerIndex();
-            md = Commands.parseMessageMetadata(headersAndPayload);
-            headersAndPayload.readerIndex(readerIndex);
-        } else {
-            md = publishContext.getMetadata();
-        }
+        MessageMetadata md = publishContext.getMetadata();
         if (producerName.startsWith(replicatorPrefix)) {
             // Message is coming from replication, we need to use the original producer name and sequence id
             // for the purpose of deduplication and not rely on the "replicator" name.

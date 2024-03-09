@@ -95,13 +95,30 @@ public class PersistentMessageFinder implements AsyncCallbacks.FindEntryCallback
             if (!info.hasBeginPublishTimestamp() || !info.hasEndPublishTimestamp()) {
                 return Pair.of(null, null);
             }
+            // If the timestamp is exactly the same as the first message in the ledger
+            if (info.getBeginPublishTimestamp() == timestamp) {
+                PositionImpl previous = ledger.getPreviousPosition(PositionImpl.get(info.getLedgerId(), 0));
+                if (previous.getEntryId() < 0) {
+                    // If the ledger is the first ledger,  the find result should be null,
+                    // the cursor will automatically rewind to the first message in the ledger
+                    start = end = PositionImpl.get(info.getLedgerId(), 0);
+                    break;
+                }
+                // If the ledger is not the first ledger,
+                // the find result should be the first message in the current ledger
+                start = previous;
+                end = PositionImpl.get(info.getLedgerId(), 0);
+                break;
+            }
             // if the ledger is not yet closed
             if (info.getBeginPublishTimestamp() <= 0 || info.getEndPublishTimestamp() <= 0) {
                 return Pair.of(start, null);
             }
-            if (info.getBeginPublishTimestamp() <= timestamp) {
+            // If the timestamp is less than the first message in the ledger
+            if (info.getBeginPublishTimestamp() < timestamp) {
                 start = PositionImpl.get(info.getLedgerId(), 0);
             }
+            // If the timestamp is less than the last message in the ledger
             if (info.getEndPublishTimestamp() >= timestamp) {
                 end = PositionImpl.get(info.getLedgerId(), info.getEntries() - 1);
                 break;
