@@ -332,7 +332,7 @@ public class MessageDeduplication {
         long sequenceId = publishContext.getSequenceId();
         long highestSequenceId = Math.max(publishContext.getHighestSequenceId(), sequenceId);
         MessageMetadata md;
-        if (publishContext.getMetadata() == null) {
+        if (publishContext.getMetadata() == null && headersAndPayload != null) {
             int readerIndex = headersAndPayload.readerIndex();
             md = Commands.parseMessageMetadata(headersAndPayload);
             headersAndPayload.readerIndex(readerIndex);

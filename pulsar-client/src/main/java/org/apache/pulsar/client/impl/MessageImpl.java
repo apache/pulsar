@@ -286,7 +286,7 @@ public class MessageImpl<T> implements Message<T> {
     }
 
     public static boolean isEntryPublishedEarlierThan(long entryTimestamp, long timestamp) {
-        return entryTimestamp < timestamp;
+        return entryTimestamp <= timestamp;
     }
 
     public static MessageImpl<byte[]> deserializeSkipBrokerEntryMetaData(

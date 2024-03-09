@@ -25,18 +25,22 @@ import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
-import java.util.UUID;
+
+import java.lang.reflect.Field;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
+import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
+import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
+import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.commons.collections4.map.LinkedMap;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -54,6 +58,7 @@ import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.util.RelativeTimeUtil;
 import org.awaitility.Awaitility;
+import org.mockito.Mockito;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
@@ -803,5 +808,117 @@ public class SubscriptionSeekTest extends BrokerTestBase {
             assertTrue(e.getCause() instanceof PulsarClientException);
             assertTrue(e.getCause().getMessage().contains("Only support seek by messageId or timestamp"));
         }
+    }
+
+    @Test
+    public void testSeekByTimeSpeedUp() throws Exception {
+        conf.setManagedLedgerMaxEntriesPerLedger(2);
+        conf.setManagedLedgerMinLedgerRolloverTimeMinutes(0);
+        final String topicName = "persistent://prop/use/ns-abc/testSeekByTimeSpeedUp";
+        final String subscriptionName = "my-subscription";
+
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient.newProducer().enableBatching(false).topic(topicName).create();
+        @Cleanup
+        org.apache.pulsar.client.api.Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName)
+                .subscriptionName(subscriptionName).subscribe();
+
+        PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName).get();
+        PersistentSubscription sub = topic.getSubscription(subscriptionName);
+        ManagedCursorImpl cursor = (ManagedCursorImpl) sub.getCursor();
+        Field field0 = PersistentSubscription.class.getDeclaredField("cursor");
+        field0.setAccessible(true);
+
+        cursor = Mockito.spy(cursor);
+        AtomicReference<Position> start = new AtomicReference<>();
+        AtomicReference<Position> end = new AtomicReference<>();
+        Mockito.doAnswer(inv -> {
+            start.set((Position) inv.getArguments()[2]);
+            end.set((Position) inv.getArguments()[3]);
+            return inv.callRealMethod();
+        }).when(cursor).asyncFindNewestMatching(Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.anyBoolean());
+        field0.set(sub, cursor);
+
+        for (int i = 0; i < 5; i++) {
+            String message = "my-message-" + i;
+            MessageId __ = producer.send(message.getBytes());
+            Thread.sleep(10);
+        }
+
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) cursor.getManagedLedger();
+        assertEquals(ledger.getLedgersInfo().size(), 3);
+
+        LinkedMap<Long, MessageIdImpl> publishTime2MessageId = new LinkedMap<>();
+        @Cleanup
+        Reader<byte[]> reader = pulsarClient.newReader().topic(topicName).startMessageId(MessageId.earliest).create();
+        while (reader.hasMessageAvailable()) {
+            Message<byte[]> message = reader.readNext();
+            publishTime2MessageId.put(message.getPublishTime(), (MessageIdImpl) message.getMessageId());
+        }
+
+        assertEquals(publishTime2MessageId.size(), 5);
+
+        // seek first message
+        long publishTime = publishTime2MessageId.firstKey();
+        MessageIdImpl messageId = publishTime2MessageId.get(publishTime);
+        consumer.seek(publishTime);
+        Position start0 = start.get();
+        Position end0 = end.get();
+        assertNotNull(start0);
+        assertNotNull(end0);
+        assertTrue(start0.getLedgerId() == messageId.getLedgerId() && start0.getEntryId() == 0);
+        assertTrue(end0.getLedgerId() == messageId.getLedgerId() && end0.getEntryId() == 1);
+        assertEquals(cursor.getReadPosition(), ledger.getNextValidPosition(PositionImpl.get(messageId.getLedgerId(), messageId.getEntryId())));
+        publishTime2MessageId.remove(publishTime);
+
+        // seek second message
+        long publishTime1 = publishTime2MessageId.firstKey();
+        MessageIdImpl messageId1 = publishTime2MessageId.get(publishTime1);
+        consumer.seek(publishTime1);
+        Position start1 = start.get();
+        Position end1 = end.get();
+        assertNotNull(start1);
+        assertNotNull(end1);
+        assertTrue(start1.getLedgerId() == messageId1.getLedgerId() && start1.getEntryId() == 0);
+        assertTrue(end1.getLedgerId() == messageId1.getLedgerId() && end1.getEntryId() == 1);
+        assertEquals(cursor.getReadPosition(), ledger.getNextValidPosition(PositionImpl.get(messageId1.getLedgerId(), messageId1.getEntryId())));
+        publishTime2MessageId.remove(publishTime1);
+
+        // seek third message
+        long publishTime2 = publishTime2MessageId.firstKey();
+        MessageIdImpl messageId2 = publishTime2MessageId.get(publishTime2);
+        consumer.seek(publishTime2);
+        Position start2 = start.get();
+        Position end2 = end.get();
+        assertNotNull(start2);
+        assertNotNull(end2);
+        assertTrue(start2.getLedgerId() == messageId2.getLedgerId() && start2.getEntryId() == 0);
+        assertTrue(end2.getLedgerId() == messageId2.getLedgerId() && end2.getEntryId() == 1);
+        assertEquals(cursor.getReadPosition(), ledger.getNextValidPosition(PositionImpl.get(messageId2.getLedgerId(), messageId2.getEntryId())));
+        publishTime2MessageId.remove(publishTime2);
+
+        // seek fourth message
+        long publishTime3 = publishTime2MessageId.firstKey();
+        MessageIdImpl messageId3 = publishTime2MessageId.get(publishTime3);
+        consumer.seek(publishTime3);
+        Position start3 = start.get();
+        Position end3 = end.get();
+        assertNotNull(start3);
+        assertNotNull(end3);
+        assertTrue(start3.getLedgerId() == messageId3.getLedgerId() && start3.getEntryId() == 0);
+        assertTrue(end3.getLedgerId() == messageId3.getLedgerId() && end3.getEntryId() == 1);
+        assertEquals(cursor.getReadPosition(), ledger.getNextValidPosition(PositionImpl.get(messageId3.getLedgerId(), messageId3.getEntryId())));
+        publishTime2MessageId.remove(publishTime3);
+
+        // seek fifth message
+        long publishTime4 = publishTime2MessageId.firstKey();
+        MessageIdImpl messageId4 = publishTime2MessageId.get(publishTime4);
+        consumer.seek(publishTime4);
+        Position start4 = start.get();
+        Position end4 = end.get();
+        assertNotNull(start4);
+        assertNull(end4);
+        assertEquals(PositionImpl.get(messageId2.getLedgerId(), messageId2.getEntryId()), start4);
+        assertEquals(cursor.getReadPosition(), ledger.getNextValidPosition(PositionImpl.get(messageId4.getLedgerId(), messageId4.getEntryId())));
     }
 }

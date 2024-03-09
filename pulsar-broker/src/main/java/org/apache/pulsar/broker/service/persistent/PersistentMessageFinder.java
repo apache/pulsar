@@ -88,23 +88,25 @@ public class PersistentMessageFinder implements AsyncCallbacks.FindEntryCallback
     }
 
     private Pair<Position, Position> getFindPositionRange(ManagedLedgerImpl ledger) {
-        Position start = null;
-        Position end = null;
+        PositionImpl start = null;
+        PositionImpl end = null;
 
         for (MLDataFormats.ManagedLedgerInfo.LedgerInfo info : ledger.getLedgersInfo().values()) {
             if (!info.hasBeginPublishTimestamp() || !info.hasEndPublishTimestamp()) {
                 return Pair.of(null, null);
             }
+            // if the ledger is not yet closed
             if (info.getBeginPublishTimestamp() <= 0 || info.getEndPublishTimestamp() <= 0) {
-                return Pair.of(null, null);
+                return Pair.of(start, null);
             }
-            if (info.getBeginPublishTimestamp() <= timestamp && info.getEndPublishTimestamp() >= timestamp) {
+            if (info.getBeginPublishTimestamp() <= timestamp) {
                 start = PositionImpl.get(info.getLedgerId(), 0);
+            }
+            if (info.getEndPublishTimestamp() >= timestamp) {
                 end = PositionImpl.get(info.getLedgerId(), info.getEntries() - 1);
                 break;
             }
         }
-
         return Pair.of(start, end);
     }
 

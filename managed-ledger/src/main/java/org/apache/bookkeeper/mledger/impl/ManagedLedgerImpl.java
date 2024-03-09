@@ -1748,10 +1748,10 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         if (entriesInLedger > 0) {
             long begin = 0;
             long end = 0;
-            MutablePair<Long, Long> pair = ledgerPublishTimeMap.remove(lh.getId());
+            MutablePair<Long, Long> pair = ledgerPublishTimeMap.get(lh.getId());
             if (pair != null) {
-                begin = pair.getLeft();
-                end = pair.getRight();
+                begin = pair.getKey();
+                end = pair.getValue();
             }
             LedgerInfo info = LedgerInfo.newBuilder().setLedgerId(lh.getId()).setEntries(entriesInLedger)
                     .setSize(lh.getLength()).setTimestamp(clock.millis()).setBeginPublishTimestamp(begin)
