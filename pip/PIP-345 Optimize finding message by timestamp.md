@@ -1,4 +1,4 @@
-# PIP-340: Optimize finding message by timestamp
+# PIP-345: Optimize finding message by timestamp
 
 # Background knowledge
 
