@@ -68,7 +68,7 @@ public interface TransactionBuffer {
      * <p>The entry will be indexed by <tt>txnId</tt> and <tt>sequenceId</tt>.
      *
      * @param txnId the transaction id
-     * @param sequenceId the sequence id of the entry in this transaction buffer.
+     * @param context the publish context
      * @param buffer the entry buffer
      * @return a future represents the result of the operation.
      * @throws org.apache.pulsar.broker.transaction.buffer.exceptions.TransactionSealedException if the transaction
