@@ -32,6 +32,7 @@ import org.apache.bookkeeper.client.AsyncCallback.CloseCallback;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.LedgerHandle;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.AddEntryCallback;
+import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.intercept.ManagedLedgerInterceptor;
@@ -63,6 +64,7 @@ public class OpAddEntry implements AddCallback, CloseCallback, Runnable {
     ByteBuf data;
     private int dataLength;
     private ManagedLedgerInterceptor.PayloadProcessorHandle payloadProcessorHandle = null;
+    private Long entryPublishTime = null;
 
     private static final AtomicReferenceFieldUpdater<OpAddEntry, OpAddEntry.State> STATE_UPDATER =
             AtomicReferenceFieldUpdater.newUpdater(OpAddEntry.class, OpAddEntry.State.class, "state");
@@ -110,6 +112,9 @@ public class OpAddEntry implements AddCallback, CloseCallback, Runnable {
         op.state = State.OPEN;
         op.payloadProcessorHandle = null;
         ml.mbean.addAddEntrySample(op.dataLength);
+        if (ctx instanceof Entry.PublishTimestampProvider) {
+            op.entryPublishTime = ((Entry.PublishTimestampProvider) ctx).getPublishTimestamp();
+        }
         return op;
     }
 
@@ -241,6 +246,11 @@ public class OpAddEntry implements AddCallback, CloseCallback, Runnable {
         ManagedLedgerImpl.ENTRIES_ADDED_COUNTER_UPDATER.incrementAndGet(ml);
         ml.lastConfirmedEntry = lastEntry;
 
+        // Update the publishing timestamp for the ledger.
+        if (entryPublishTime != null) {
+            ml.updatePublishTimestamp(ledgerId, entryPublishTime);
+        }
+
         if (closeWhenDone) {
             log.info("[{}] Closing ledger {} for being full", ml.getName(), ledgerId);
             // `data` will be released in `closeComplete`
@@ -273,18 +283,17 @@ public class OpAddEntry implements AddCallback, CloseCallback, Runnable {
             log.warn("Error when closing ledger {}. Status={}", lh.getId(), BKException.getMessage(rc));
         }
 
+        ml.ledgerClosed(lh);
+        updateLatency();
+
         AddEntryCallback cb = callbackUpdater.getAndSet(this, null);
         if (cb != null) {
             cb.addComplete(PositionImpl.get(lh.getId(), entryId), data.asReadOnly(), ctx);
-            ml.ledgerClosed(lh);
-            updateLatency();
             ml.notifyCursors();
             ml.notifyWaitingEntryCallBacks();
             ReferenceCountUtil.release(data);
             this.recycle();
         } else {
-            ml.ledgerClosed(lh);
-            updateLatency();
             ReferenceCountUtil.release(data);
         }
     }
@@ -390,6 +399,7 @@ public class OpAddEntry implements AddCallback, CloseCallback, Runnable {
         startTime = -1;
         lastInitTime = -1;
         payloadProcessorHandle = null;
+        entryPublishTime = null;
         recyclerHandle.recycle(this);
     }
 

@@ -392,9 +392,4 @@ public class MockManagedLedger implements ManagedLedger {
         // no-op
         return false;
     }
-
-    @Override
-    public void updatePublishTimestamp(long ledgerId, long publishTime) {
-        // no-op
-    }
 }

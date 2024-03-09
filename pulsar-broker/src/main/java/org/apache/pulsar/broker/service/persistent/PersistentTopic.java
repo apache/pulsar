@@ -668,12 +668,6 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     public void addComplete(Position pos, ByteBuf entryData, Object ctx) {
         PublishContext publishContext = (PublishContext) ctx;
         PositionImpl position = (PositionImpl) pos;
-
-        // Update publish time for the ledger.
-        MessageMetadata metadata = publishContext.getMetadata();
-        if (metadata != null && metadata.hasPublishTime()) {
-            ledger.updatePublishTimestamp(position.getLedgerId(), metadata.getPublishTime());
-        }
         // Message has been successfully persisted
         messageDeduplication.recordMessagePersisted(publishContext, position);
 
@@ -3902,8 +3896,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 messageDeduplication.isDuplicate(publishContext, headersAndPayload);
         switch (status) {
             case NotDup:
-                transactionBuffer.appendBufferToTxn(txnID, publishContext.getSequenceId(),
-                                headersAndPayload, publishContext.getMetadata())
+                transactionBuffer.appendBufferToTxn(txnID, publishContext, headersAndPayload)
                         .thenAccept(position -> {
                             // Message has been successfully persisted
                             messageDeduplication.recordMessagePersisted(publishContext, (PositionImpl) position);

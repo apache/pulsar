@@ -24,6 +24,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.pulsar.broker.service.persistent.DispatchRateLimiter;
 import org.apache.pulsar.broker.service.persistent.SubscribeRateLimiter;
@@ -51,7 +52,7 @@ import org.apache.pulsar.utils.StatsOutputStream;
 
 public interface Topic {
 
-    interface PublishContext {
+    interface PublishContext extends Entry.PublishTimestampProvider {
 
         default String getProducerName() {
             return null;

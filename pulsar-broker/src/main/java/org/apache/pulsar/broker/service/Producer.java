@@ -432,6 +432,14 @@ public class Producer {
         }
 
         @Override
+        public Long getPublishTimestamp() {
+            if (null == metadata || !metadata.hasPublishTime()) {
+                return null;
+            }
+            return metadata.getPublishTime();
+        }
+
+        @Override
         public void setProperty(String propertyName, Object value){
             if (this.propertyMap == null) {
                 this.propertyMap = new HashMap<>();

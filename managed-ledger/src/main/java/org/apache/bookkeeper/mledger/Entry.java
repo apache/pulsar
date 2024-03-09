@@ -66,4 +66,15 @@ public interface Entry {
      * of data reached to 0).
      */
     boolean release();
+
+    interface PublishTimestampProvider {
+        /**
+         * Return the entry's publish timestamp in milliseconds
+         *
+         * @return the entry's publish timestamp in milliseconds, can be null if the timestamp is not available
+         */
+        default Long getPublishTimestamp() {
+            return null;
+        }
+    }
 }
