@@ -198,12 +198,20 @@ public class LinuxInfoUtils {
                 return false;
             }
             // Check the type to make sure it's ethernet (type "1")
-            String type = readTrimStringFromFile(nicPath.resolve("type"));
+            final Path nicTypePath = nicPath.resolve("type");
+            if (!Files.exists(nicTypePath)) {
+                if (log.isDebugEnabled()) {
+                    log.debug("Failed to read NIC type, the expected linux type file does not exist."
+                              + " nic_type_path={}", nicTypePath);
+                }
+               return false;
+            }
             // wireless NICs don't report speed, ignore them.
-            return Integer.parseInt(type) == ARPHRD_ETHER;
-        } catch (Exception e) {
-            log.warn("[LinuxInfo] Failed to read {} NIC type, the detail is: {}", nicPath, e.getMessage());
-            // Read type got error.
+            return Integer.parseInt(readTrimStringFromFile(nicTypePath)) == ARPHRD_ETHER;
+        } catch (Exception ex) {
+            if (log.isDebugEnabled()) {
+                log.debug("Failed to read NIC type. nic_path={}", nicPath, ex);
+            }
             return false;
         }
     }
