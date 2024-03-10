@@ -254,7 +254,7 @@ public class CompactedTopicImpl implements CompactedTopic {
                                }
                            }, null);
         return promise.thenApply((ledger) -> new CompactedTopicContext(
-                                         ledger, createCache(ledger, DEFAULT_STARTPOINT_CACHE_SIZE)));
+                                         ledger, createCache(ledger, DEFAULT_MAX_CACHE_SIZE)));
     }
 
     private static CompletableFuture<Void> tryDeleteCompactedLedger(BookKeeper bk, long id) {
