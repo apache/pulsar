@@ -31,7 +31,6 @@ import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
 import com.google.common.collect.Sets;
-import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.time.Duration;
 import java.util.HashSet;
@@ -245,9 +244,6 @@ public class TableViewTest extends MockedPulsarServiceBaseTest {
             }
         });
         publishMessages(topic1, 20, false);
-        Field field = TableViewImpl.class.getDeclaredField("reader");
-        field.setAccessible(true);
-        CompletableFuture<Reader<byte[]>> readerFuture1 = (CompletableFuture<Reader<byte[]>>) field.get(tv1);
         AtomicBoolean completedExceptionally = new AtomicBoolean(false);
         // 3. Test failing `refresh` in the reading process.
         tv1.refreshAsync().exceptionally(ex -> {
@@ -256,11 +252,10 @@ public class TableViewTest extends MockedPulsarServiceBaseTest {
             }
             return null;
         });
-        readerFuture1.get().close();
+        tv1.close();
 
         // 4. Test failing `refresh` when get last message IDs. The topic2 has no available messages.
-        CompletableFuture<Reader<byte[]>> readerFuture2 = (CompletableFuture<Reader<byte[]>>) field.get(tv2);
-        readerFuture2.get().close();
+        tv2.close();
         try {
             tv2.refresh();
             fail();
