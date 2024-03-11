@@ -22,7 +22,6 @@ import static org.apache.pulsar.common.topics.TopicCompactionStrategy.TABLE_VIEW
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -255,7 +254,7 @@ public class TableViewImpl<T> implements TableView<T> {
     @Override
     public CompletableFuture<Void> refreshAsync() {
         CompletableFuture<Void> completableFuture = new CompletableFuture<>();
-        reader.thenCompose(reader -> buildFreshTask(reader, completableFuture).thenAccept(lastMessageIds -> {
+        reader.thenCompose(reader -> getLastMessageIds(reader).thenAccept(lastMessageIds -> {
             // After get the response of lastMessageIds, put the future and result into `refreshMap`
             // and then filter out partitions that has been read to the lastMessageID.
             refreshRequests.put(completableFuture, lastMessageIds);
@@ -265,7 +264,11 @@ public class TableViewImpl<T> implements TableView<T> {
                 refreshRequests.remove(completableFuture);
                 completableFuture.complete(null);
             }
-        }));
+        })).exceptionally(throwable -> {
+            completableFuture.completeExceptionally(throwable);
+            log.info("[{}] Refresh Tableview failed", this.conf.getTopicName(), throwable);
+            return null;
+        });
         return completableFuture;
     }
 
@@ -279,23 +282,22 @@ public class TableViewImpl<T> implements TableView<T> {
         AtomicLong messagesRead = new AtomicLong();
 
         CompletableFuture<Void> future = new CompletableFuture<>();
-        buildFreshTask(reader, future).thenAccept(maxMessageIds -> {
+        getLastMessageIds(reader).thenAccept(maxMessageIds -> {
             readAllExistingMessages(reader, future, startTime, messagesRead, maxMessageIds);
+        }).exceptionally(ex -> {
+            future.completeExceptionally(ex);
+            return null;
         });
         return future;
     }
 
-    private CompletableFuture<Map<String, TopicMessageId>> buildFreshTask(Reader<T> reader,
-                                                                            CompletableFuture<Void> future) {
+    private CompletableFuture<Map<String, TopicMessageId>> getLastMessageIds(Reader<T> reader) {
         return reader.getLastMessageIdsAsync().thenApply(lastMessageIds -> {
             Map<String, TopicMessageId> maxMessageIds = new ConcurrentHashMap<>();
             lastMessageIds.forEach(topicMessageId -> {
                 maxMessageIds.put(topicMessageId.getOwnerTopic(), topicMessageId);
             });
             return maxMessageIds;
-        }).exceptionally(ex -> {
-            future.completeExceptionally(ex);
-            return null;
         });
     }
 
