@@ -204,50 +204,55 @@ public class TableViewImpl<T> implements TableView<T> {
 
     private void handleMessage(Message<T> msg) {
         readPositions.put(msg.getTopicName(), msg.getMessageId());
-        if (msg.hasKey()) {
-            String key = msg.getKey();
-            T cur = msg.size() > 0 ? msg.getValue() : null;
-            if (log.isDebugEnabled()) {
-                log.debug("Applying message from topic {}. key={} value={}",
-                        conf.getTopicName(),
-                        key,
-                        cur);
-            }
-
-            boolean update = true;
-            if (compactionStrategy != null) {
-                T prev = data.get(key);
-                update = !compactionStrategy.shouldKeepLeft(prev, cur);
-                if (!update) {
-                    log.info("Skipped the message from topic {}. key={} value={} prev={}",
+        try {
+            if (msg.hasKey()) {
+                String key = msg.getKey();
+                T cur = msg.size() > 0 ? msg.getValue() : null;
+                if (log.isDebugEnabled()) {
+                    log.debug("Applying message from topic {}. key={} value={}",
                             conf.getTopicName(),
                             key,
-                            cur,
-                            prev);
-                    compactionStrategy.handleSkippedMessage(key, cur);
+                            cur);
                 }
-            }
 
-            if (update) {
-                try {
-                    listenersMutex.lock();
-                    if (null == cur) {
-                        data.remove(key);
-                    } else {
-                        data.put(key, cur);
+                boolean update = true;
+                if (compactionStrategy != null) {
+                    T prev = data.get(key);
+                    update = !compactionStrategy.shouldKeepLeft(prev, cur);
+                    if (!update) {
+                        log.info("Skipped the message from topic {}. key={} value={} prev={}",
+                                conf.getTopicName(),
+                                key,
+                                cur,
+                                prev);
+                        compactionStrategy.handleSkippedMessage(key, cur);
                     }
+                }
 
-                    for (BiConsumer<String, T> listener : listeners) {
-                        try {
-                            listener.accept(key, cur);
-                        } catch (Throwable t) {
-                            log.error("Table view listener raised an exception", t);
+                if (update) {
+                    try {
+                        listenersMutex.lock();
+                        if (null == cur) {
+                            data.remove(key);
+                        } else {
+                            data.put(key, cur);
                         }
+
+                        for (BiConsumer<String, T> listener : listeners) {
+                            try {
+                                listener.accept(key, cur);
+                            } catch (Throwable t) {
+                                log.error("Table view listener raised an exception", t);
+                            }
+                        }
+                    } finally {
+                        listenersMutex.unlock();
                     }
-                } finally {
-                    listenersMutex.unlock();
                 }
             }
+            checkAllFreshTask(msg);
+        } finally {
+            msg.release();
         }
     }
 
@@ -266,7 +271,7 @@ public class TableViewImpl<T> implements TableView<T> {
             }
         })).exceptionally(throwable -> {
             completableFuture.completeExceptionally(throwable);
-            log.info("[{}] Refresh Tableview failed", this.conf.getTopicName(), throwable);
+            refreshRequests.remove(completableFuture);
             return null;
         });
         return completableFuture;
@@ -383,17 +388,19 @@ public class TableViewImpl<T> implements TableView<T> {
                 .thenAccept(msg -> {
                     try {
                         handleMessage(msg);
-                        checkAllFreshTask(msg);
-                        readTailMessages(reader);
                     } finally {
                         msg.release();
                     }
+                    readTailMessages(reader);
                 }).exceptionally(ex -> {
                     if (ex.getCause() instanceof PulsarClientException.AlreadyClosedException) {
                         log.error("Reader {} was closed while reading tail messages.",
                                 reader.getTopic(), ex);
                         // Fail all refresh request when no more messages can be read.
-                        refreshRequests.keySet().forEach(future -> future.completeExceptionally(ex));
+                        refreshRequests.keySet().forEach(future -> {
+                            refreshRequests.remove(future);
+                            future.completeExceptionally(ex);
+                        });
                     } else {
                         // Retrying on the other exceptions such as NotConnectedException
                         try {
