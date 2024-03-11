@@ -124,7 +124,9 @@ public class UnAckedMessageTracker implements Closeable {
 
         InstrumentProvider ip = client.instrumentProvider();
         consumerAckTimeoutsCounter = ip.newCounter("pulsar.client.consumer.message.ack.timeout", Unit.Messages,
-                "The number of messages that were not acknowledged in the configured timeout period, hence, were requested by the client to be redelivered", consumerBase.getTopic(), Attributes.empty());
+                "The number of messages that were not acknowledged in the configured timeout period, hence, were "
+                        + "requested by the client to be redelivered",
+                consumerBase.getTopic(), Attributes.empty());
 
         if (conf.getAckTimeoutRedeliveryBackoff() == null) {
             this.messageIdPartitionMap = new HashMap<>();

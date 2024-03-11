@@ -18,7 +18,8 @@
  */
 package org.apache.pulsar.client.impl.metrics;
 
-import static org.apache.pulsar.client.impl.metrics.MetricsUtil.*;
+import static org.apache.pulsar.client.impl.metrics.MetricsUtil.getDefaultAggregationLabels;
+import static org.apache.pulsar.client.impl.metrics.MetricsUtil.getTopicAttributes;
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.metrics.LongCounter;
 import io.opentelemetry.api.metrics.LongCounterBuilder;

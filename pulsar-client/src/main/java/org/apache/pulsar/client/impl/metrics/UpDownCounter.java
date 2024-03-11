@@ -25,7 +25,6 @@ import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.metrics.LongUpDownCounter;
 import io.opentelemetry.api.metrics.LongUpDownCounterBuilder;
 import io.opentelemetry.api.metrics.Meter;
-import io.opentelemetry.extension.incubator.metrics.ExtendedLongCounterBuilder;
 import io.opentelemetry.extension.incubator.metrics.ExtendedLongUpDownCounterBuilder;
 
 public class UpDownCounter {

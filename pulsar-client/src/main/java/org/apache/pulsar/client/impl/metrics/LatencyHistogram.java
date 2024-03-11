@@ -26,7 +26,6 @@ import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.metrics.DoubleHistogram;
 import io.opentelemetry.api.metrics.DoubleHistogramBuilder;
 import io.opentelemetry.api.metrics.Meter;
-import io.opentelemetry.api.metrics.MeterBuilder;
 import io.opentelemetry.extension.incubator.metrics.ExtendedDoubleHistogramBuilder;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -34,7 +33,7 @@ import java.util.concurrent.TimeUnit;
 public class LatencyHistogram {
 
     // Used for tests
-    public final static LatencyHistogram NOOP = new LatencyHistogram() {
+    public static final LatencyHistogram NOOP = new LatencyHistogram() {
         public void recordSuccess(long latencyNanos) {
         }
 

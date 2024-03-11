@@ -292,8 +292,10 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 Attributes.empty());
         publishedBytesCounter = ip.newCounter("pulsar.client.producer.message.send.size",
                 Unit.Bytes, "The number of bytes published", topic, Attributes.empty());
-        pendingMessagesUpDownCounter = ip.newUpDownCounter("pulsar.client.producer.message.pending.count", Unit.Messages,
-                "The number of messages in the producer internal send queue, waiting to be sent", topic, Attributes.empty());
+        pendingMessagesUpDownCounter =
+                ip.newUpDownCounter("pulsar.client.producer.message.pending.count", Unit.Messages,
+                        "The number of messages in the producer internal send queue, waiting to be sent", topic,
+                        Attributes.empty());
         pendingBytesUpDownCounter = ip.newUpDownCounter("pulsar.client.producer.message.pending.size", Unit.Bytes,
                 "The size of the messages in the producer internal queue, waiting to sent", topic, Attributes.empty());
         producersOpenedCounter = ip.newCounter("pulsar.client.producer.opened", Unit.Sessions,

@@ -23,9 +23,7 @@ import io.opentelemetry.api.GlobalOpenTelemetry;
 import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.metrics.Meter;
-import java.util.Optional;
 import org.apache.pulsar.PulsarVersion;
-import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 
 public class InstrumentProvider {
 
@@ -49,7 +47,8 @@ public class InstrumentProvider {
         return new Counter(meter, name, unit, description, topic, attributes);
     }
 
-    public UpDownCounter newUpDownCounter(String name, Unit unit, String description, String topic, Attributes attributes) {
+    public UpDownCounter newUpDownCounter(String name, Unit unit, String description, String topic,
+                                          Attributes attributes) {
         return new UpDownCounter(meter, name, unit, description, topic, attributes);
     }
 

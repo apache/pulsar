@@ -20,7 +20,6 @@ package org.apache.pulsar.client.impl;
 
 import static java.lang.String.format;
 import io.netty.buffer.ByteBuf;
-import io.opentelemetry.api.common.AttributeKey;
 import io.opentelemetry.api.common.Attributes;
 import java.net.InetSocketAddress;
 import java.net.URI;

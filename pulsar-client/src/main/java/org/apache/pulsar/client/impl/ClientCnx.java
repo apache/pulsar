@@ -249,7 +249,8 @@ public class ClientCnx extends PulsarHandler {
         this(instrumentProvider, conf, eventLoopGroup, Commands.getCurrentProtocolVersion());
     }
 
-    public ClientCnx(InstrumentProvider instrumentProvider, ClientConfigurationData conf, EventLoopGroup eventLoopGroup, int protocolVersion) {
+    public ClientCnx(InstrumentProvider instrumentProvider, ClientConfigurationData conf, EventLoopGroup eventLoopGroup,
+                     int protocolVersion) {
         super(conf.getKeepAliveIntervalSeconds(), TimeUnit.SECONDS);
         checkArgument(conf.getMaxLookupRequest() > conf.getConcurrentLookupRequest());
         this.pendingLookupRequestSemaphore = new Semaphore(conf.getConcurrentLookupRequest(), false);
@@ -265,10 +266,12 @@ public class ClientCnx extends PulsarHandler {
         this.idleState = new ClientCnxIdleState(this);
         this.clientVersion = "Pulsar-Java-v" + PulsarVersion.getVersion()
                 + (conf.getDescription() == null ? "" : ("-" + conf.getDescription()));
-        this.connectionsOpenedCounter = instrumentProvider.newCounter("pulsar.client.connection.opened", Unit.Connections,
-                "The number of connections opened", null, Attributes.empty());
-        this.connectionsClosedCounter = instrumentProvider.newCounter("pulsar.client.connection.closed", Unit.Connections,
-                "The number of connections closed", null, Attributes.empty());
+        this.connectionsOpenedCounter =
+                instrumentProvider.newCounter("pulsar.client.connection.opened", Unit.Connections,
+                        "The number of connections opened", null, Attributes.empty());
+        this.connectionsClosedCounter =
+                instrumentProvider.newCounter("pulsar.client.connection.closed", Unit.Connections,
+                        "The number of connections closed", null, Attributes.empty());
 
     }
 
