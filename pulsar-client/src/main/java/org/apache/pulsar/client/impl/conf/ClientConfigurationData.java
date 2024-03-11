@@ -108,7 +108,7 @@ public class ClientConfigurationData implements Serializable, Cloneable {
             name = "statsIntervalSeconds",
             value = "Interval to print client stats (in seconds)."
     )
-    private long statsIntervalSeconds = 0;
+    private long statsIntervalSeconds = 60;
 
     @ApiModelProperty(
             name = "numIoThreads",

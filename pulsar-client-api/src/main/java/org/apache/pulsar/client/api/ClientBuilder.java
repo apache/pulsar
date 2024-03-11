@@ -452,7 +452,7 @@ public interface ClientBuilder extends Serializable, Cloneable {
     ClientBuilder memoryLimit(long memoryLimit, SizeUnit unit);
 
     /**
-     * Set the interval between each stat info <i>(default: disabled)</i> Stats will be activated with positive
+     * Set the interval between each stat info <i>(default: 60 seconds)</i> Stats will be activated with positive
      * statsInterval It should be set to at least 1 second.
      *
      * @param statsInterval
@@ -558,6 +558,22 @@ public interface ClientBuilder extends Serializable, Cloneable {
      */
     ClientBuilder enableBusyWait(boolean enableBusyWait);
 
+    /**
+     * Configure OpenTelemetry for Pulsar Client
+     * <p>
+     * When you pass an OpenTelemetry instance, Pulsar client will emit metrics that can be exported in a variety
+     * of different methods.
+     * <p>
+     * Refer to <a href="https://opentelemetry.io/docs/languages/java/">OpenTelemetry Java SDK documentation</a> for
+     * how to configure OpenTelemetry and the metrics exporter.
+     * <p>
+     * By default, Pulsar client will use the {@link io.opentelemetry.api.GlobalOpenTelemetry} instance. If an
+     * OpenTelemetry JVM agent is configured, the metrics will be reported, otherwise the metrics will be
+     * completely disabled.
+     *
+     * @param openTelemetry the OpenTelemetry instance
+     * @return the client builder instance
+     */
     ClientBuilder openTelemetry(io.opentelemetry.api.OpenTelemetry openTelemetry);
 
     /**
