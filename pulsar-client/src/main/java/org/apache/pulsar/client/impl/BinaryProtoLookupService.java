@@ -145,7 +145,6 @@ public class BinaryProtoLookupService implements LookupService {
      *
      */
     public CompletableFuture<PartitionedTopicMetadata> getPartitionedTopicMetadata(TopicName topicName) {
-        long startTime = System.nanoTime();
         final MutableObject<CompletableFuture> newFutureCreated = new MutableObject<>();
         try {
             return partitionedMetadataInProgress.computeIfAbsent(topicName, tpName -> {

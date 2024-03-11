@@ -180,8 +180,6 @@ public class PulsarClientImpl implements PulsarClient {
                              ExecutorProvider internalExecutorProvider,
                              ScheduledExecutorProvider scheduledExecutorProvider) throws PulsarClientException {
 
-        this.instrumentProvider = new InstrumentProvider(conf.getOpenTelemetry());
-
         EventLoopGroup eventLoopGroupReference = null;
         ConnectionPool connectionPoolReference = null;
         try {
@@ -199,6 +197,7 @@ public class PulsarClientImpl implements PulsarClient {
                 throw new PulsarClientException.InvalidConfigurationException("Invalid client configuration");
             }
             this.conf = conf;
+            this.instrumentProvider = new InstrumentProvider(conf.getOpenTelemetry());
             clientClock = conf.getClock();
             conf.getAuthentication().start();
             connectionPoolReference =
