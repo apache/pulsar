@@ -1496,8 +1496,8 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             chunkedMessageCtx = null;
         }
 
-        static OpSendMsg create(LatencyHistogram rpcLatencyHistogram, MessageImpl<?> msg, ByteBufPair cmd, long sequenceId,
-                                SendCallback callback) {
+        static OpSendMsg create(LatencyHistogram rpcLatencyHistogram, MessageImpl<?> msg, ByteBufPair cmd,
+                                long sequenceId, SendCallback callback) {
             OpSendMsg op = RECYCLER.get();
             op.initialize();
             op.rpcLatencyHistogram = rpcLatencyHistogram;
@@ -1510,9 +1510,8 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             return op;
         }
 
-        static OpSendMsg create(LatencyHistogram rpcLatencyHistogram, List<MessageImpl<?>> msgs, ByteBufPair cmd, long sequenceId,
-                                SendCallback callback,
-                                int batchAllocatedSize) {
+        static OpSendMsg create(LatencyHistogram rpcLatencyHistogram, List<MessageImpl<?>> msgs, ByteBufPair cmd,
+                                long sequenceId, SendCallback callback, int batchAllocatedSize) {
             OpSendMsg op = RECYCLER.get();
             op.initialize();
             op.rpcLatencyHistogram = rpcLatencyHistogram;
