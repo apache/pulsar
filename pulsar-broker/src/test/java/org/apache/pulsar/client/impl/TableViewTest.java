@@ -195,7 +195,7 @@ public class TableViewTest extends MockedPulsarServiceBaseTest {
         // 4. Test refresh operation can be completed when there is a partition with on new messages
         // or no new message for no partition topic.
         if (partition > 0) {
-            publishMessages(topic, count, partition - 1, false, false);
+            publishMessages(topic, partition - 1, count, false, false);
             tv.refreshAsync().get(5, TimeUnit.SECONDS);
             assertEquals(tv.size(), count + partition - 1);
         } else {
@@ -255,7 +255,7 @@ public class TableViewTest extends MockedPulsarServiceBaseTest {
             tv2.refresh();
             fail();
         } catch (Exception e) {
-            assertTrue(e.getCause() instanceof PulsarClientException.AlreadyClosedException);
+            assertTrue(e instanceof PulsarClientException.AlreadyClosedException);
         }
         Awaitility.await().untilAsserted(() -> assertTrue(completedExceptionally.get()));
     }
