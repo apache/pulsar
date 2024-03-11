@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/sh
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -18,13 +18,4 @@
 # under the License.
 #
 
-set -x
-
-# TODO: remove these lines once grpcio doesn't need to compile from source on ARM64 platform
-ARCH=$(uname -m | sed -r 's/aarch64/arm64/g' |  awk '!/arm64/{$0="amd64"}1')
-if [ "${ARCH}" == "arm64" ]; then
-  apt update
-  apt -y install build-essential python3-dev
-fi
-
-pip3 install pulsar-client[all]==${PULSAR_CLIENT_PYTHON_VERSION}
+/usr/glibc-compat/sbin/ldconfig
