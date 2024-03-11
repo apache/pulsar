@@ -279,7 +279,11 @@ public class TableViewImpl<T> implements TableView<T> {
 
     @Override
     public void refresh() throws PulsarClientException {
-        refreshAsync().join();
+        try {
+            refreshAsync().get();
+        } catch (Exception e) {
+            throw PulsarClientException.unwrap(e);
+        }
     }
 
     private CompletableFuture<Void> readAllExistingMessages(Reader<T> reader) {
@@ -317,13 +321,12 @@ public class TableViewImpl<T> implements TableView<T> {
     }
 
     private boolean checkFreshTask(Map<String, TopicMessageId> maxMessageIds, CompletableFuture<Void> future,
-                                   Message<T> msg) {
+                                   MessageId messageId, String topicName) {
         // The message received from multi-consumer/multi-reader is processed to TopicMessageImpl.
-        String topicName = msg.getTopicName();
         TopicMessageId maxMessageId = maxMessageIds.get(topicName);
         // We need remove the partition from the maxMessageIds map
         // once the partition has been read completely.
-        if (maxMessageId != null && msg.getMessageId().compareTo(maxMessageId) >= 0) {
+        if (maxMessageId != null && messageId.compareTo(maxMessageId) >= 0) {
             maxMessageIds.remove(topicName);
         }
         if (maxMessageIds.isEmpty()) {
@@ -336,7 +339,9 @@ public class TableViewImpl<T> implements TableView<T> {
 
     private void checkAllFreshTask(Message<T> msg) {
         refreshRequests.forEach((future, maxMessageIds) -> {
-            if (checkFreshTask(maxMessageIds, future, msg)) {
+            String topicName = msg.getTopicName();
+            MessageId messageId = msg.getMessageId();
+            if (checkFreshTask(maxMessageIds, future, messageId, topicName)) {
                 refreshRequests.remove(future);
             }
         });
@@ -350,15 +355,13 @@ public class TableViewImpl<T> implements TableView<T> {
                        reader.readNextAsync()
                                .thenAccept(msg -> {
                                   messagesRead.incrementAndGet();
-                                   try {
-                                       handleMessage(msg);
-                                       if (!checkFreshTask(maxMessageIds, future, msg)) {
-                                           readAllExistingMessages(reader, future, startTime,
-                                                   messagesRead, maxMessageIds);
-                                       }
-                                   } finally {
-                                       msg.release();
-                                   }
+                                  String topicName = msg.getTopicName();
+                                  MessageId messageId = msg.getMessageId();
+                                  handleMessage(msg);
+                                  if (!checkFreshTask(maxMessageIds, future, messageId, topicName)) {
+                                      readAllExistingMessages(reader, future, startTime,
+                                              messagesRead, maxMessageIds);
+                                  }
                                }).exceptionally(ex -> {
                                    if (ex.getCause() instanceof PulsarClientException.AlreadyClosedException) {
                                        log.error("Reader {} was closed while reading existing messages.",
@@ -386,11 +389,7 @@ public class TableViewImpl<T> implements TableView<T> {
     private void readTailMessages(Reader<T> reader) {
         reader.readNextAsync()
                 .thenAccept(msg -> {
-                    try {
-                        handleMessage(msg);
-                    } finally {
-                        msg.release();
-                    }
+                    handleMessage(msg);
                     readTailMessages(reader);
                 }).exceptionally(ex -> {
                     if (ex.getCause() instanceof PulsarClientException.AlreadyClosedException) {
