@@ -30,7 +30,7 @@ import org.apache.pulsar.common.classification.InterfaceStability;
  *
  * <p>All the stats are relative to the last recording period. The interval of the stats refreshes is configured with
  * {@link ClientBuilder#statsInterval(long, java.util.concurrent.TimeUnit)} with a default of 1 minute.
- * 
+ *
  * @deprecated use {@link ClientBuilder#openTelemetry(OpenTelemetry)} to enable stats
  */
 @InterfaceAudience.Public

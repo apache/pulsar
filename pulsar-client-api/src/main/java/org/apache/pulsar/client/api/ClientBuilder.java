@@ -460,7 +460,7 @@ public interface ClientBuilder extends Serializable, Cloneable {
      * @param unit
      *            time unit for {@code statsInterval}
      * @return the client builder instance
-     * 
+     *
      * @deprecated @see {@link #openTelemetry(OpenTelemetry)}
      */
     @Deprecated
