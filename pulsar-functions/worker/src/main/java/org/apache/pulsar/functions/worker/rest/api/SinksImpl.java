@@ -47,18 +47,20 @@ import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.common.io.SinkConfig;
 import org.apache.pulsar.common.policies.data.ExceptionInformation;
 import org.apache.pulsar.common.policies.data.SinkStatus;
-import org.apache.pulsar.common.util.ClassLoaderUtils;
 import org.apache.pulsar.common.util.RestException;
 import org.apache.pulsar.functions.auth.FunctionAuthData;
 import org.apache.pulsar.functions.instance.InstanceUtils;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
 import org.apache.pulsar.functions.utils.ComponentTypeUtils;
+import org.apache.pulsar.functions.utils.FunctionFilePackage;
 import org.apache.pulsar.functions.utils.FunctionMetaDataUtils;
 import org.apache.pulsar.functions.utils.SinkConfigUtils;
+import org.apache.pulsar.functions.utils.ValidatableFunctionPackage;
 import org.apache.pulsar.functions.utils.io.Connector;
 import org.apache.pulsar.functions.worker.FunctionMetaDataManager;
 import org.apache.pulsar.functions.worker.PulsarWorkerService;
+import org.apache.pulsar.functions.worker.WorkerConfig;
 import org.apache.pulsar.functions.worker.WorkerUtils;
 import org.apache.pulsar.functions.worker.service.api.Sinks;
 import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
@@ -141,7 +143,7 @@ public class SinksImpl extends ComponentImpl implements Sinks<PulsarWorkerServic
             // validate parameters
             try {
                 if (isNotBlank(sinkPkgUrl)) {
-                    componentPackageFile = getPackageFile(sinkPkgUrl);
+                    componentPackageFile = getPackageFile(componentType, sinkPkgUrl);
                     functionDetails = validateUpdateRequestParams(tenant, namespace, sinkName,
                             sinkConfig, componentPackageFile);
                 } else {
@@ -308,6 +310,7 @@ public class SinksImpl extends ComponentImpl implements Sinks<PulsarWorkerServic
             // validate parameters
             try {
                 componentPackageFile = getPackageFile(
+                        componentType,
                         sinkPkgUrl,
                         existingComponent.getPackageLocation().getPackagePath(),
                         uploadedInputStream);
@@ -419,7 +422,8 @@ public class SinksImpl extends ComponentImpl implements Sinks<PulsarWorkerServic
         try {
             String builtin = functionDetails.getBuiltin();
             if (isBlank(builtin)) {
-                functionPackageFile = getPackageFile(transformFunction);
+                functionPackageFile =
+                        getPackageFile(Function.FunctionDetails.ComponentType.FUNCTION, transformFunction);
             }
             Function.PackageLocationMetaData.Builder functionPackageLocation =
                     getFunctionPackageLocation(functionMetaDataBuilder.build(),
@@ -704,7 +708,7 @@ public class SinksImpl extends ComponentImpl implements Sinks<PulsarWorkerServic
         sinkConfig.setName(sinkName);
         org.apache.pulsar.common.functions.Utils.inferMissingArguments(sinkConfig);
 
-        ClassLoader classLoader = null;
+        ValidatableFunctionPackage connectorFunctionPackage = null;
         // check if sink is builtin and extract classloader
         if (!StringUtils.isEmpty(sinkConfig.getArchive())) {
             String archive = sinkConfig.getArchive();
@@ -716,45 +720,63 @@ public class SinksImpl extends ComponentImpl implements Sinks<PulsarWorkerServic
                 if (connector == null) {
                     throw new IllegalArgumentException("Built-in sink is not available");
                 }
-                classLoader = connector.getClassLoader();
+                connectorFunctionPackage = connector.getConnectorFunctionPackage();
             }
         }
 
-        boolean shouldCloseClassLoader = false;
+        boolean shouldCloseFunctionPackage = false;
+        ValidatableFunctionPackage transformFunctionPackage = null;
+        boolean shouldCloseTransformFunctionPackage = false;
         try {
 
             // if sink is not builtin, attempt to extract classloader from package file if it exists
-            if (classLoader == null && sinkPackageFile != null) {
-                classLoader = getClassLoaderFromPackage(sinkConfig.getClassName(),
-                        sinkPackageFile, worker().getWorkerConfig().getNarExtractionDirectory());
-                shouldCloseClassLoader = true;
+            WorkerConfig workerConfig = worker().getWorkerConfig();
+            if (connectorFunctionPackage == null && sinkPackageFile != null) {
+                connectorFunctionPackage =
+                        new FunctionFilePackage(sinkPackageFile, workerConfig.getNarExtractionDirectory(),
+                                workerConfig.getEnableClassloadingOfExternalFiles(), ConnectorDefinition.class);
+                shouldCloseFunctionPackage = true;
             }
 
-            if (classLoader == null) {
+            if (connectorFunctionPackage == null) {
                 throw new IllegalArgumentException("Sink package is not provided");
             }
 
-            ClassLoader functionClassLoader = null;
             if (isNotBlank(sinkConfig.getTransformFunction())) {
-                functionClassLoader =
-                        getBuiltinFunctionClassLoader(sinkConfig.getTransformFunction());
-                if (functionClassLoader == null) {
-                    File functionPackageFile = getPackageFile(sinkConfig.getTransformFunction());
-                    functionClassLoader = getClassLoaderFromPackage(sinkConfig.getTransformFunctionClassName(),
-                            functionPackageFile, worker().getWorkerConfig().getNarExtractionDirectory());
+                transformFunctionPackage =
+                        getBuiltinFunctionPackage(sinkConfig.getTransformFunction());
+                if (transformFunctionPackage == null) {
+                    File functionPackageFile = getPackageFile(Function.FunctionDetails.ComponentType.FUNCTION,
+                            sinkConfig.getTransformFunction());
+                    transformFunctionPackage =
+                            new FunctionFilePackage(functionPackageFile, workerConfig.getNarExtractionDirectory(),
+                                    workerConfig.getEnableClassloadingOfExternalFiles(), ConnectorDefinition.class);
+                    shouldCloseTransformFunctionPackage = true;
                 }
-                if (functionClassLoader == null) {
+                if (transformFunctionPackage == null) {
                     throw new IllegalArgumentException("Transform Function package not found");
                 }
             }
 
-            SinkConfigUtils.ExtractedSinkDetails sinkDetails = SinkConfigUtils.validateAndExtractDetails(
-                sinkConfig, classLoader, functionClassLoader, worker().getWorkerConfig().getValidateConnectorConfig());
+            SinkConfigUtils.ExtractedSinkDetails sinkDetails =
+                    SinkConfigUtils.validateAndExtractDetails(sinkConfig, connectorFunctionPackage,
+                            transformFunctionPackage, workerConfig.getValidateConnectorConfig());
 
             return SinkConfigUtils.convert(sinkConfig, sinkDetails);
         } finally {
-            if (shouldCloseClassLoader) {
-                ClassLoaderUtils.closeClassLoader(classLoader);
+            if (shouldCloseFunctionPackage && connectorFunctionPackage instanceof AutoCloseable) {
+                try {
+                    ((AutoCloseable) connectorFunctionPackage).close();
+                } catch (Exception e) {
+                    log.error("Failed to connector function file", e);
+                }
+            }
+            if (shouldCloseTransformFunctionPackage && transformFunctionPackage instanceof AutoCloseable) {
+                try {
+                    ((AutoCloseable) transformFunctionPackage).close();
+                } catch (Exception e) {
+                    log.error("Failed to close transform function file", e);
+                }
             }
         }
     }

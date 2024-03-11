@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.common.policies.data;
 
+import static org.apache.pulsar.common.policies.data.OffloadPoliciesImpl.EXTRA_CONFIG_PREFIX;
+import static org.testng.Assert.assertEquals;
 import java.io.DataInputStream;
 import java.io.File;
 import java.io.IOException;
@@ -26,6 +28,7 @@ import java.lang.reflect.Method;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
 import org.testng.Assert;
@@ -436,13 +439,37 @@ public class OffloadPoliciesTest {
     @Test
     public void testCreateOffloadPoliciesWithExtraConfiguration() {
         Properties properties = new Properties();
-        properties.put("managedLedgerOffloadExtraConfigKey1", "value1");
-        properties.put("managedLedgerOffloadExtraConfigKey2", "value2");
+        properties.put(EXTRA_CONFIG_PREFIX + "Key1", "value1");
+        properties.put(EXTRA_CONFIG_PREFIX + "Key2", "value2");
         OffloadPoliciesImpl policies = OffloadPoliciesImpl.create(properties);
 
         Map<String, String> extraConfigurations = policies.getManagedLedgerExtraConfigurations();
         Assert.assertEquals(extraConfigurations.size(), 2);
         Assert.assertEquals(extraConfigurations.get("Key1"), "value1");
         Assert.assertEquals(extraConfigurations.get("Key2"), "value2");
+    }
+
+    /**
+     * Test toProperties as well as create from properties.
+     * @throws Exception
+     */
+    @Test
+    public void testToProperties() throws Exception {
+        // Base information convert.
+        OffloadPoliciesImpl offloadPolicies = OffloadPoliciesImpl.create("aws-s3", "test-region", "test-bucket",
+                "http://test.endpoint", null, null, null, null, 32 * 1024 * 1024, 5 * 1024 * 1024,
+                10 * 1024 * 1024L, 100L, 10000L, OffloadedReadPriority.TIERED_STORAGE_FIRST);
+        assertEquals(offloadPolicies, OffloadPoliciesImpl.create(offloadPolicies.toProperties()));
+
+        // Set useless config to offload policies. Make sure convert conversion result is the same.
+        offloadPolicies.setFileSystemProfilePath("/test/file");
+        assertEquals(offloadPolicies, OffloadPoliciesImpl.create(offloadPolicies.toProperties()));
+
+        // Set extra config to offload policies. Make sure convert conversion result is the same.
+        Map<String, String> extraConfiguration = new HashMap<>();
+        extraConfiguration.put("key1", "value1");
+        extraConfiguration.put("key2", "value2");
+        offloadPolicies.setManagedLedgerExtraConfigurations(extraConfiguration); 
+        assertEquals(offloadPolicies, OffloadPoliciesImpl.create(offloadPolicies.toProperties()));
     }
 }

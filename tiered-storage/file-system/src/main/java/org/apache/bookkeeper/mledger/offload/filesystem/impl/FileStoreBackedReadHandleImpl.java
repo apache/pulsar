@@ -27,6 +27,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.api.LastConfirmedAndEntry;
 import org.apache.bookkeeper.client.api.LedgerEntries;
@@ -36,6 +37,7 @@ import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.client.impl.LedgerEntriesImpl;
 import org.apache.bookkeeper.client.impl.LedgerEntryImpl;
 import org.apache.bookkeeper.mledger.LedgerOffloaderStats;
+import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.hadoop.io.BytesWritable;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.MapFile;
@@ -53,6 +55,12 @@ public class FileStoreBackedReadHandleImpl implements ReadHandle {
     private final LedgerOffloaderStats offloaderStats;
     private final String managedLedgerName;
     private final String topicName;
+    enum State {
+        Opened,
+        Closed
+    }
+    private volatile State state;
+    private final AtomicReference<CompletableFuture<Void>> closeFuture = new AtomicReference<>();
 
     private FileStoreBackedReadHandleImpl(ExecutorService executor, MapFile.Reader reader, long ledgerId,
                                           LedgerOffloaderStats offloaderStats,
@@ -72,6 +80,7 @@ public class FileStoreBackedReadHandleImpl implements ReadHandle {
             offloaderStats.recordReadOffloadIndexLatency(topicName,
                     System.nanoTime() - startReadIndexTime, TimeUnit.NANOSECONDS);
             this.ledgerMetadata = parseLedgerMetadata(ledgerId, value.copyBytes());
+            state = State.Opened;
         } catch (IOException e) {
             log.error("Fail to read LedgerMetadata for ledgerId {}",
                     ledgerId);
@@ -92,15 +101,20 @@ public class FileStoreBackedReadHandleImpl implements ReadHandle {
 
     @Override
     public CompletableFuture<Void> closeAsync() {
-        CompletableFuture<Void> promise = new CompletableFuture<>();
+        if (closeFuture.get() != null || !closeFuture.compareAndSet(null, new CompletableFuture<>())) {
+            return closeFuture.get();
+        }
+
+        CompletableFuture<Void> promise = closeFuture.get();
         executor.execute(() -> {
-                try {
-                    reader.close();
-                    promise.complete(null);
-                } catch (IOException t) {
-                    promise.completeExceptionally(t);
-                }
-            });
+            try {
+                reader.close();
+                state = State.Closed;
+                promise.complete(null);
+            } catch (IOException t) {
+                promise.completeExceptionally(t);
+            }
+        });
         return promise;
     }
 
@@ -111,6 +125,12 @@ public class FileStoreBackedReadHandleImpl implements ReadHandle {
         }
         CompletableFuture<LedgerEntries> promise = new CompletableFuture<>();
         executor.execute(() -> {
+            if (state == State.Closed) {
+                log.warn("Reading a closed read handler. Ledger ID: {}, Read range: {}-{}",
+                        ledgerId, firstEntry, lastEntry);
+                promise.completeExceptionally(new ManagedLedgerException.OffloadReadHandleClosedException());
+                return;
+            }
             if (firstEntry > lastEntry
                     || firstEntry < 0
                     || lastEntry > getLastAddConfirmed()) {

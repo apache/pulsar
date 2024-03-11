@@ -126,7 +126,7 @@ public interface ConsumerBuilder<T> extends Cloneable {
     ConsumerBuilder<T> topics(List<String> topicNames);
 
     /**
-     * Specify a pattern for topics that this consumer subscribes to.
+     * Specify a pattern for topics(not contains the partition suffix) that this consumer subscribes to.
      *
      * <p>The pattern is applied to subscribe to all topics, within a single namespace, that match the
      * pattern.
@@ -134,13 +134,13 @@ public interface ConsumerBuilder<T> extends Cloneable {
      * <p>The consumer automatically subscribes to topics created after itself.
      *
      * @param topicsPattern
-     *            a regular expression to select a list of topics to subscribe to
+     *            a regular expression to select a list of topics(not contains the partition suffix) to subscribe to
      * @return the consumer builder instance
      */
     ConsumerBuilder<T> topicsPattern(Pattern topicsPattern);
 
     /**
-     * Specify a pattern for topics that this consumer subscribes to.
+     * Specify a pattern for topics(not contains the partition suffix) that this consumer subscribes to.
      *
      * <p>It accepts a regular expression that is compiled into a pattern internally. E.g.,
      * "persistent://public/default/pattern-topic-.*"
@@ -151,7 +151,7 @@ public interface ConsumerBuilder<T> extends Cloneable {
      * <p>The consumer automatically subscribes to topics created after itself.
      *
      * @param topicsPattern
-     *            given regular expression for topics pattern
+     *            given regular expression for topics(not contains the partition suffix) pattern
      * @return the consumer builder instance
      */
     ConsumerBuilder<T> topicsPattern(String topicsPattern);
@@ -345,6 +345,10 @@ public interface ConsumerBuilder<T> extends Cloneable {
      * application calls {@link Consumer#receive()}. Using a higher value can potentially increase consumer
      * throughput at the expense of bigger memory utilization.
      *
+     * <p>For the consumer that subscribes to the partitioned topic, the parameter
+     * {@link ConsumerBuilder#maxTotalReceiverQueueSizeAcrossPartitions} also affects
+     * the number of messages accumulated in the consumer.
+     *
      * <p><b>Setting the consumer queue size as zero</b>
      * <ul>
      * <li>Decreases the throughput of the consumer by disabling pre-fetching of messages. This approach improves the
@@ -409,8 +413,13 @@ public interface ConsumerBuilder<T> extends Cloneable {
      * of messages that a consumer can be pushed at once from a broker, across all
      * the partitions.
      *
-     * @param maxTotalReceiverQueueSizeAcrossPartitions
-     *            max pending messages across all the partitions
+     * <p>This setting is applicable only to consumers subscribing to partitioned topics. In such cases, there will
+     * be multiple queues for each partition and a single queue for the parent consumer. This setting controls the
+     * queues of all partitions, not the parent queue. For instance, if a consumer subscribes to a single partitioned
+     * topic, the total number of messages accumulated in this consumer will be the sum of
+     * {@link #receiverQueueSize(int)} and maxTotalReceiverQueueSizeAcrossPartitions.
+     *
+     * @param maxTotalReceiverQueueSizeAcrossPartitions max pending messages across all the partitions
      * @return the consumer builder instance
      */
     ConsumerBuilder<T> maxTotalReceiverQueueSizeAcrossPartitions(int maxTotalReceiverQueueSizeAcrossPartitions);
@@ -502,9 +511,9 @@ public interface ConsumerBuilder<T> extends Cloneable {
      * Order in which broker dispatches messages to consumers: C1, C2, C3, C1, C4, C5, C4
      * </pre>
      *
-     * <p><b>Failover subscription</b>
-     * The broker selects the active consumer for a failover subscription based on consumer's priority-level and
-     * lexicographical sorting of consumer name.
+     * <p><b>Failover subscription for partitioned topic</b>
+     * The broker selects the active consumer for a failover subscription for a partitioned topic
+     * based on consumer's priority-level and lexicographical sorting of consumer name.
      * eg:
      * <pre>
      * 1. Active consumer = C1 : Same priority-level and lexicographical sorting
@@ -520,6 +529,8 @@ public interface ConsumerBuilder<T> extends Cloneable {
      * Partitioned-topics:
      * Broker evenly assigns partitioned topics to highest priority consumers.
      * </pre>
+     *
+     * <p>Priority level has no effect on failover subscriptions for non-partitioned topics.
      *
      * @param priorityLevel the priority of this consumer
      * @return the consumer builder instance

@@ -396,8 +396,14 @@ public class TableViewImpl<T> implements TableView<T> {
                         // Fail all refresh request when no more messages can be read.
                         refreshRequests.keySet().forEach(future -> future.completeExceptionally(ex));
                     } else {
+                        // Retrying on the other exceptions such as NotConnectedException
+                        try {
+                            Thread.sleep(50);
+                        } catch (InterruptedException e) {
+                            Thread.currentThread().interrupt();
+                        }
                         log.warn("Reader {} was interrupted while reading tail messages. "
-                                        + "Retrying..", reader.getTopic(), ex);
+                                + "Retrying..", reader.getTopic(), ex);
                         readTailMessages(reader);
                     }
                     return null;

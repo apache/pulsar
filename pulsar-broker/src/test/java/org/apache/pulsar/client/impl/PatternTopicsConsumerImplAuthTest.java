@@ -30,7 +30,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 import java.util.stream.IntStream;
@@ -63,7 +62,6 @@ import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.data.TenantOperation;
 import org.apache.pulsar.common.policies.data.TopicOperation;
-import org.apache.pulsar.common.util.RestException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
@@ -333,12 +331,6 @@ public class PatternTopicsConsumerImplAuthTest extends ProducerConsumerBase {
         }
 
         @Override
-        public Boolean allowTenantOperation(
-                String tenantName, String role, TenantOperation operation, AuthenticationDataSource authData) {
-            return true;
-        }
-
-        @Override
         public CompletableFuture<Boolean> allowNamespaceOperationAsync(
                 NamespaceName namespaceName, String role, NamespaceOperation operation, AuthenticationDataSource authData) {
             CompletableFuture<Boolean> isAuthorizedFuture;
@@ -350,16 +342,6 @@ public class PatternTopicsConsumerImplAuthTest extends ProducerConsumerBase {
             }
 
             return isAuthorizedFuture;
-        }
-
-        @Override
-        public Boolean allowNamespaceOperation(
-                NamespaceName namespaceName, String role, NamespaceOperation operation, AuthenticationDataSource authData) {
-            try {
-                return allowNamespaceOperationAsync(namespaceName, role, operation, authData).get();
-            } catch (InterruptedException | ExecutionException e) {
-                throw new RestException(e);
-            }
         }
 
         @Override
@@ -377,16 +359,6 @@ public class PatternTopicsConsumerImplAuthTest extends ProducerConsumerBase {
         }
 
         @Override
-        public Boolean allowTopicOperation(
-                TopicName topicName, String role, TopicOperation operation, AuthenticationDataSource authData) {
-            try {
-                return allowTopicOperationAsync(topicName, role, operation, authData).get();
-            } catch (InterruptedException | ExecutionException e) {
-                throw new RestException(e);
-            }
-        }
-
-        @Override
         public CompletableFuture<Boolean> allowTopicPolicyOperationAsync(TopicName topic, String role,
                                                                          PolicyName policy, PolicyOperation operation,
                                                                          AuthenticationDataSource authData) {
@@ -399,16 +371,6 @@ public class PatternTopicsConsumerImplAuthTest extends ProducerConsumerBase {
             }
 
             return isAuthorizedFuture;
-        }
-
-        @Override
-        public Boolean allowTopicPolicyOperation(TopicName topicName, String role, PolicyName policy,
-                                                 PolicyOperation operation, AuthenticationDataSource authData) {
-            try {
-                return allowTopicPolicyOperationAsync(topicName, role, policy, operation, authData).get();
-            } catch (InterruptedException | ExecutionException e) {
-                throw new RestException(e);
-            }
         }
     }
 

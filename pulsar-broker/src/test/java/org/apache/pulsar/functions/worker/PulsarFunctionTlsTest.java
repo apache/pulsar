@@ -20,6 +20,8 @@ package org.apache.pulsar.functions.worker;
 
 import static org.apache.pulsar.common.util.PortManager.nextLockedFreePort;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertTrue;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Sets;
@@ -30,9 +32,11 @@ import java.io.UncheckedIOException;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -41,6 +45,7 @@ import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.impl.auth.AuthenticationTls;
 import org.apache.pulsar.common.functions.FunctionConfig;
+import org.apache.pulsar.common.functions.WorkerInfo;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.util.ClassLoaderUtils;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
@@ -149,6 +154,12 @@ public class PulsarFunctionTlsTest {
             workerConfig.setUseTls(true);
             workerConfig.setTlsEnableHostnameVerification(true);
             workerConfig.setTlsAllowInsecureConnection(false);
+            File packagePath = new File(
+                    PulsarSink.class.getProtectionDomain().getCodeSource().getLocation().getPath()).getParentFile();
+            List<String> urlPatterns =
+                    List.of(packagePath.toURI() + ".*");
+            workerConfig.setAdditionalEnabledConnectorUrlPatterns(urlPatterns);
+            workerConfig.setAdditionalEnabledFunctionsUrlPatterns(urlPatterns);
             fnWorkerServices[i] = WorkerServiceLoader.load(workerConfig);
 
             configurations[i] = config;
@@ -242,6 +253,18 @@ public class PulsarFunctionTlsTest {
 
             log.info(" -------- Start test function : {}", functionName);
 
+            int finalI = i;
+            Awaitility.await().atMost(1, TimeUnit.MINUTES).pollInterval(1, TimeUnit.SECONDS).untilAsserted(() -> {
+                final PulsarWorkerService workerService = ((PulsarWorkerService) fnWorkerServices[finalI]);
+                final LeaderService leaderService = workerService.getLeaderService();
+                assertNotNull(leaderService);
+                if (leaderService.isLeader()) {
+                    assertTrue(true);
+                } else {
+                    final WorkerInfo workerInfo = workerService.getMembershipManager().getLeader();
+                    assertTrue(workerInfo != null && !workerInfo.getWorkerId().equals(workerService.getWorkerConfig().getWorkerId()));
+                }
+            });
             pulsarAdmins[i].functions().createFunctionWithUrl(
                 functionConfig, jarFilePathUrl
             );

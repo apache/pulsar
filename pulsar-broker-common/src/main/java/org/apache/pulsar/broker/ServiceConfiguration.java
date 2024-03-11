@@ -384,6 +384,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
             + "logic to handle fixed delays in messages in a different way.")
     private long delayedDeliveryFixedDelayDetectionLookahead = 50_000;
 
+    @FieldContext(category = CATEGORY_SERVER, doc = """
+            The max allowed delay for delayed delivery (in milliseconds). If the broker receives a message which \
+            exceeds this max delay, then it will return an error to the producer. \
+            The default value is 0 which means there is no limit on the max delivery delay.""")
+    private long delayedDeliveryMaxDelayInMillis = 0;
+
     @FieldContext(category = CATEGORY_SERVER, doc = "Whether to enable the acknowledge of batch local index")
     private boolean acknowledgmentAtBatchIndexLevelEnabled = false;
 
@@ -1757,7 +1763,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
         category = CATEGORY_STORAGE_BK,
         doc = "Enable/disable reordering read sequence on reading entries")
-    private boolean bookkeeperClientReorderReadSequenceEnabled = false;
+    private boolean bookkeeperClientReorderReadSequenceEnabled = true;
     @FieldContext(
         category = CATEGORY_STORAGE_BK,
         required = false,
@@ -2096,6 +2102,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
             doc = "Use Open Range-Set to cache unacked messages (it is memory efficient but it can take more cpu)"
         )
     private boolean managedLedgerUnackedRangesOpenCacheSetEnabled = true;
+    @FieldContext(
+        dynamic = true,
+        category = CATEGORY_STORAGE_ML,
+        doc = "After enabling this feature, Pulsar will stop delivery messages to clients if the cursor metadata is"
+            + " too large to persist, it will help to reduce the duplicates caused by the ack state that can not be"
+            + " fully persistent. Default false.")
+    private boolean dispatcherPauseOnAckStatePersistentEnabled = false;
     @FieldContext(
         dynamic = true,
         category = CATEGORY_STORAGE_ML,
@@ -2661,6 +2674,35 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private boolean loadBalancerSheddingBundlesWithPoliciesEnabled = false;
 
+    @FieldContext(
+            category = CATEGORY_LOAD_BALANCER,
+            doc = "Time to wait before fixing any stuck in-flight service unit states. "
+                    + "The leader monitor fixes any in-flight service unit(bundle) states "
+                    + "by reassigning the ownerships if stuck too long, longer than this period."
+                    + "(only used in load balancer extension logics)"
+    )
+    private long loadBalancerInFlightServiceUnitStateWaitingTimeInMillis = 30 * 1000;
+
+    @FieldContext(
+            category = CATEGORY_LOAD_BALANCER,
+            doc = "Interval between service unit state monitor checks. "
+                    + "The service unit(bundle) state channel is periodically monitored"
+                    + " by the leader broker at this interval"
+                    + " to fix any orphan bundle ownerships, stuck in-flight states, and other cleanup jobs."
+                    + "`loadBalancerServiceUnitStateTombstoneDelayTimeInSeconds` * 1000 must be bigger than "
+                    + "`loadBalancerInFlightServiceUnitStateWaitingTimeInMillis`."
+                    + "(only used in load balancer extension logics)"
+    )
+    private long loadBalancerServiceUnitStateMonitorIntervalInSeconds = 60;
+
+    @FieldContext(
+            category = CATEGORY_LOAD_BALANCER,
+            doc = "Enables the multi-phase unloading of bundles. Set to true, forwards destination broker information "
+                    + "to consumers and producers during bundle unload, allowing them to quickly reconnect to the "
+                    + "broker without performing an additional topic lookup."
+    )
+    private boolean loadBalancerMultiPhaseBundleUnload = true;
+
     /**** --- Replication. --- ****/
     @FieldContext(
         category = CATEGORY_REPLICATION,
@@ -2767,10 +2809,16 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
             category = CATEGORY_SERVER,
-            doc = "Timeout for the compaction phase one loop, If the execution time of the compaction "
-                    + "phase one loop exceeds this time, the compaction will not proceed."
+            doc = "Timeout for each read request in the compaction phase one loop, If the execution time of one "
+                    + "single message read operation exceeds this time, the compaction will not proceed."
     )
     private long brokerServiceCompactionPhaseOneLoopTimeInSeconds = 30;
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "Whether retain null-key message during topic compaction."
+    )
+    private boolean topicCompactionRetainNullKey = false;
 
     @FieldContext(
         category = CATEGORY_SERVER,
@@ -3511,5 +3559,9 @@ public class ServiceConfiguration implements PulsarConfiguration {
     public int getTopicOrderedExecutorThreadNum() {
         return numWorkerThreadsForNonPersistentTopic > 0
                 ? numWorkerThreadsForNonPersistentTopic : topicOrderedExecutorThreadNum;
+    }
+
+    public boolean isSystemTopicAndTopicLevelPoliciesEnabled() {
+        return topicLevelPoliciesEnabled && systemTopicEnabled;
     }
 }

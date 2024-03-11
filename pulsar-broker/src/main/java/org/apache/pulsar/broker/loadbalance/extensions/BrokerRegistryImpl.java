@@ -82,9 +82,9 @@ public class BrokerRegistryImpl implements BrokerRegistry {
         this.brokerLookupDataLockManager = pulsar.getCoordinationService().getLockManager(BrokerLookupData.class);
         this.scheduler = pulsar.getLoadManagerExecutor();
         this.listeners = new ArrayList<>();
-        this.brokerId = pulsar.getLookupServiceAddress();
+        this.brokerId = pulsar.getBrokerId();
         this.brokerLookupData = new BrokerLookupData(
-                pulsar.getSafeWebServiceAddress(),
+                pulsar.getWebServiceAddress(),
                 pulsar.getWebServiceAddressTls(),
                 pulsar.getBrokerServiceUrl(),
                 pulsar.getBrokerServiceUrlTls(),

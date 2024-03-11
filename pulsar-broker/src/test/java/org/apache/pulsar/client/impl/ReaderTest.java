@@ -68,6 +68,7 @@ import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Slf4j
@@ -785,4 +786,58 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
         admin.topics().deletePartitionedTopic(partitionedTopic);
     }
 
+    @Test
+    public void testReaderReconnectedFromNextEntry() throws Exception {
+        final String topic = "persistent://my-property/my-ns/testReaderReconnectedFromNextEntry";
+        Reader<String> reader = pulsarClient.newReader(Schema.STRING).topic(topic).receiverQueueSize(1)
+                .startMessageId(MessageId.earliest).create();
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topic).create();
+
+        // Send 3 and consume 1.
+        producer.send("1");
+        producer.send("2");
+        producer.send("3");
+        Message<String> msg1 = reader.readNext(2, TimeUnit.SECONDS);
+        assertEquals(msg1.getValue(), "1");
+
+        // Trigger reader reconnect.
+        admin.topics().unload(topic);
+
+        // For non-durable we are going to restart from the next entry.
+        Message<String> msg2 = reader.readNext(2, TimeUnit.SECONDS);
+        assertEquals(msg2.getValue(), "2");
+        Message<String> msg3 = reader.readNext(2, TimeUnit.SECONDS);
+        assertEquals(msg3.getValue(), "3");
+
+        // cleanup.
+        reader.close();
+        producer.close();
+        admin.topics().delete(topic, false);
+    }
+
+    @DataProvider
+    public static Object[][] initializeLastMessageIdInBroker() {
+        return new Object[][] { { true }, { false } };
+    }
+
+    @Test(dataProvider = "initializeLastMessageIdInBroker")
+    public void testHasMessageAvailableAfterSeek(boolean initializeLastMessageIdInBroker) throws Exception {
+        final String topic = "persistent://my-property/my-ns/test-has-message-available-after-seek";
+        @Cleanup Reader<String> reader = pulsarClient.newReader(Schema.STRING).topic(topic).receiverQueueSize(1)
+                .startMessageId(MessageId.earliest).create();
+
+        @Cleanup Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topic).create();
+        producer.send("msg");
+
+        if (initializeLastMessageIdInBroker) {
+            assertTrue(reader.hasMessageAvailable());
+        } // else: lastMessageIdInBroker is earliest
+
+        reader.seek(MessageId.latest);
+        // lastMessageIdInBroker is the last message ID, while startMessageId is still earliest
+        assertFalse(reader.hasMessageAvailable());
+
+        producer.send("msg");
+        assertTrue(reader.hasMessageAvailable());
+    }
 }

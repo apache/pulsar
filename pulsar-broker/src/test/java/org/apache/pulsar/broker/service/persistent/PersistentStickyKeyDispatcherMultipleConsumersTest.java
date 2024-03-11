@@ -65,6 +65,7 @@ import org.apache.pulsar.broker.service.EntryBatchIndexesAcks;
 import org.apache.pulsar.broker.service.EntryBatchSizes;
 import org.apache.pulsar.broker.service.RedeliveryTracker;
 import org.apache.pulsar.broker.service.StickyKeyConsumerSelector;
+import org.apache.pulsar.broker.service.plugin.EntryFilterProvider;
 import org.apache.pulsar.common.api.proto.KeySharedMeta;
 import org.apache.pulsar.common.api.proto.KeySharedMode;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
@@ -104,12 +105,17 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
         doReturn(true).when(configMock).isSubscriptionKeySharedUseConsistentHashing();
         doReturn(1).when(configMock).getSubscriptionKeySharedConsistentHashingReplicaPoints();
         doReturn(true).when(configMock).isDispatcherDispatchMessagesInSubscriptionThread();
+        doReturn(false).when(configMock).isAllowOverrideEntryFilters();
 
         pulsarMock = mock(PulsarService.class);
         doReturn(configMock).when(pulsarMock).getConfiguration();
 
+        EntryFilterProvider mockEntryFilterProvider = mock(EntryFilterProvider.class);
+        when(mockEntryFilterProvider.getBrokerEntryFilters()).thenReturn(Collections.emptyList());
+
         brokerMock = mock(BrokerService.class);
         doReturn(pulsarMock).when(brokerMock).pulsar();
+        when(brokerMock.getEntryFilterProvider()).thenReturn(mockEntryFilterProvider);
 
         HierarchyTopicPolicies topicPolicies = new HierarchyTopicPolicies();
         topicPolicies.getMaxConsumersPerSubscription().updateBrokerValue(0);
@@ -149,6 +155,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
         );
 
         subscriptionMock = mock(PersistentSubscription.class);
+        when(subscriptionMock.getTopic()).thenReturn(topicMock);
         persistentDispatcher = new PersistentStickyKeyDispatcherMultipleConsumers(
                 topicMock, cursorMock, subscriptionMock, configMock,
                 new KeySharedMeta().setKeySharedMode(KeySharedMode.AUTO_SPLIT));
@@ -255,7 +262,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
         redeliverEntries.add(EntryImpl.create(1, 1, createMessage("message1", 1, "key1")));
         final List<Entry> readEntries = new ArrayList<>();
         readEntries.add(EntryImpl.create(1, 2, createMessage("message2", 2, "key1")));
-        readEntries.add(EntryImpl.create(1, 3, createMessage("message3", 3, "key2")));
+        readEntries.add(EntryImpl.create(1, 3, createMessage("message3", 3, "key22")));
 
         try {
             Field totalAvailablePermitsField = PersistentDispatcherMultipleConsumers.class.getDeclaredField("totalAvailablePermits");
@@ -351,7 +358,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
 
         // Messages with key1 are routed to consumer1 and messages with key2 are routed to consumer2
         final List<Entry> allEntries = new ArrayList<>();
-        allEntries.add(EntryImpl.create(1, 1, createMessage("message1", 1, "key2")));
+        allEntries.add(EntryImpl.create(1, 1, createMessage("message1", 1, "key22")));
         allEntries.add(EntryImpl.create(1, 2, createMessage("message2", 2, "key1")));
         allEntries.add(EntryImpl.create(1, 3, createMessage("message3", 3, "key1")));
         allEntries.forEach(entry -> ((EntryImpl) entry).retain());

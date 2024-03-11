@@ -69,7 +69,6 @@ import org.apache.pulsar.client.api.ProducerAccessMode;
 import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.client.api.SizeUnit;
 import org.apache.pulsar.client.api.TypedMessageBuilder;
 import org.apache.pulsar.client.api.transaction.Transaction;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
@@ -513,7 +512,6 @@ public class PerformanceProducer {
 
 
             ClientBuilder clientBuilder = PerfClientUtils.createClientBuilderFromArguments(arguments)
-                    .memoryLimit(arguments.memoryLimit, SizeUnit.BYTES)
                     .enableTransaction(arguments.isEnableTransaction);
 
             client = clientBuilder.build();
@@ -568,7 +566,7 @@ public class PerformanceProducer {
                 }
             }
             // Send messages on all topics/producers
-            long totalSent = 0;
+            AtomicLong totalSent = new AtomicLong(0);
             AtomicLong numMessageSend = new AtomicLong(0);
             Semaphore numMsgPerTxnLimit = new Semaphore(arguments.numMessagesPerTransaction);
             while (true) {
@@ -581,18 +579,16 @@ public class PerformanceProducer {
                             log.info("------------- DONE (reached the maximum duration: [{} seconds] of production) "
                                     + "--------------", arguments.testTime);
                             doneLatch.countDown();
-                            Thread.sleep(5000);
                             produceEnough = true;
                             break;
                         }
                     }
 
                     if (numMessages > 0) {
-                        if (totalSent++ >= numMessages) {
+                        if (totalSent.get() >= numMessages) {
                             log.info("------------- DONE (reached the maximum number: {} of production) --------------"
                                     , numMessages);
                             doneLatch.countDown();
-                            Thread.sleep(5000);
                             produceEnough = true;
                             break;
                         }
@@ -606,7 +602,7 @@ public class PerformanceProducer {
 
                     if (arguments.payloadFilename != null) {
                         if (messageFormatter != null) {
-                            payloadData = messageFormatter.formatMessage(arguments.producerName, totalSent,
+                            payloadData = messageFormatter.formatMessage(arguments.producerName, totalSent.get(),
                                     payloadByteList.get(ThreadLocalRandom.current().nextInt(payloadByteList.size())));
                         } else {
                             payloadData = payloadByteList.get(
@@ -644,13 +640,13 @@ public class PerformanceProducer {
                     if (msgKeyMode == MessageKeyGenerationMode.random) {
                         messageBuilder.key(String.valueOf(ThreadLocalRandom.current().nextInt()));
                     } else if (msgKeyMode == MessageKeyGenerationMode.autoIncrement) {
-                        messageBuilder.key(String.valueOf(totalSent));
+                        messageBuilder.key(String.valueOf(totalSent.get()));
                     }
                     PulsarClient pulsarClient = client;
                     messageBuilder.sendAsync().thenRun(() -> {
                         bytesSent.add(payloadData.length);
                         messagesSent.increment();
-
+                        totalSent.incrementAndGet();
                         totalMessagesSent.increment();
                         totalBytesSent.add(payloadData.length);
 
