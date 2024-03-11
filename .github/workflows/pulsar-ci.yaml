@@ -70,6 +70,7 @@ env:
   # it's possible to rerun individual failed jobs when the build artifacts are available
   # if the artifacts have already been expired, the complete workflow can be rerun by closing and reopening the PR or by rebasing the PR
   ARTIFACT_RETENTION_DAYS: 3
+  JDK_DISTRIBUTION: corretto
 
 jobs:
   preconditions:
@@ -180,7 +181,7 @@ jobs:
       - name: Set up JDK ${{ env.CI_JDK_MAJOR_VERSION }}
         uses: actions/setup-java@v4
         with:
-          distribution: 'temurin'
+          distribution: ${{ env.JDK_DISTRIBUTION }}
           java-version: ${{ env.CI_JDK_MAJOR_VERSION }}
 
       - name: Check source code license headers
@@ -299,7 +300,7 @@ jobs:
       - name: Set up JDK ${{ matrix.jdk || env.CI_JDK_MAJOR_VERSION }}
         uses: actions/setup-java@v4
         with:
-          distribution: 'temurin'
+          distribution: ${{ env.JDK_DISTRIBUTION }}
           java-version: ${{ matrix.jdk || env.CI_JDK_MAJOR_VERSION }}
 
       - name: Install gh-actions-artifact-client.js
@@ -415,7 +416,7 @@ jobs:
       - name: Set up JDK ${{ matrix.jdk || env.CI_JDK_MAJOR_VERSION }}
         uses: actions/setup-java@v4
         with:
-          distribution: 'temurin'
+          distribution: ${{ env.JDK_DISTRIBUTION }}
           java-version: ${{ matrix.jdk || env.CI_JDK_MAJOR_VERSION }}
 
       - name: Install gh-actions-artifact-client.js
@@ -497,7 +498,7 @@ jobs:
       - name: Set up JDK ${{ env.CI_JDK_MAJOR_VERSION }}
         uses: actions/setup-java@v4
         with:
-          distribution: 'temurin'
+          distribution: ${{ env.JDK_DISTRIBUTION }}
           java-version: ${{ env.CI_JDK_MAJOR_VERSION }}
 
       - name: Install gh-actions-artifact-client.js
@@ -618,7 +619,7 @@ jobs:
       - name: Set up JDK ${{ env.CI_JDK_MAJOR_VERSION }}
         uses: actions/setup-java@v4
         with:
-          distribution: 'temurin'
+          distribution: ${{ env.JDK_DISTRIBUTION }}
           java-version: ${{ env.CI_JDK_MAJOR_VERSION }}
 
       - name: Install gh-actions-artifact-client.js
@@ -643,7 +644,7 @@ jobs:
         uses: actions/setup-java@v4
         if: ${{ matrix.runtime_jdk }}
         with:
-          distribution: 'temurin'
+          distribution: ${{ env.JDK_DISTRIBUTION }}
           java-version: ${{ matrix.runtime_jdk }}
 
       - name: Run integration test group '${{ matrix.group }}'
@@ -735,7 +736,7 @@ jobs:
       - name: Set up JDK ${{ env.CI_JDK_MAJOR_VERSION }}
         uses: actions/setup-java@v4
         with:
-          distribution: 'temurin'
+          distribution: ${{ env.JDK_DISTRIBUTION }}
           java-version: ${{ env.CI_JDK_MAJOR_VERSION }}
 
       - name: Install gh-actions-artifact-client.js
@@ -852,7 +853,7 @@ jobs:
       - name: Set up JDK ${{ env.CI_JDK_MAJOR_VERSION }}
         uses: actions/setup-java@v4
         with:
-          distribution: 'temurin'
+          distribution: ${{ env.JDK_DISTRIBUTION }}
           java-version: ${{ env.CI_JDK_MAJOR_VERSION }}
 
       - name: Install gh-actions-artifact-client.js
@@ -982,7 +983,7 @@ jobs:
       - name: Set up JDK ${{ env.CI_JDK_MAJOR_VERSION }}
         uses: actions/setup-java@v4
         with:
-          distribution: 'temurin'
+          distribution: ${{ env.JDK_DISTRIBUTION }}
           java-version: ${{ env.CI_JDK_MAJOR_VERSION }}
 
       - name: Install gh-actions-artifact-client.js
@@ -1094,7 +1095,7 @@ jobs:
       - name: Set up JDK ${{ env.CI_JDK_MAJOR_VERSION }}
         uses: actions/setup-java@v4
         with:
-          distribution: 'temurin'
+          distribution: ${{ env.JDK_DISTRIBUTION }}
           java-version: ${{ env.CI_JDK_MAJOR_VERSION }}
 
       - name: Install gh-actions-artifact-client.js
@@ -1197,7 +1198,7 @@ jobs:
       - name: Set up JDK ${{ env.CI_JDK_MAJOR_VERSION }}
         uses: actions/setup-java@v4
         with:
-          distribution: 'temurin'
+          distribution: ${{ env.JDK_DISTRIBUTION }}
           java-version: ${{ env.CI_JDK_MAJOR_VERSION }}
 
       - name: Install gh-actions-artifact-client.js
@@ -1316,7 +1317,7 @@ jobs:
       - name: Set up JDK ${{ env.CI_JDK_MAJOR_VERSION }}
         uses: actions/setup-java@v4
         with:
-          distribution: 'temurin'
+          distribution: ${{ env.JDK_DISTRIBUTION }}
           java-version: ${{ env.CI_JDK_MAJOR_VERSION }}
 
       - name: build package
@@ -1370,7 +1371,7 @@ jobs:
       - name: Set up JDK ${{ env.CI_JDK_MAJOR_VERSION }}
         uses: actions/setup-java@v4
         with:
-          distribution: 'temurin'
+          distribution: ${{ env.JDK_DISTRIBUTION }}
           java-version: ${{ env.CI_JDK_MAJOR_VERSION }}
 
       - name: Initialize CodeQL
@@ -1427,7 +1428,7 @@ jobs:
       - name: Set up JDK ${{ matrix.jdk || env.CI_JDK_MAJOR_VERSION }}
         uses: actions/setup-java@v4
         with:
-          distribution: 'temurin'
+          distribution: ${{ env.JDK_DISTRIBUTION }}
           java-version: ${{ matrix.jdk || env.CI_JDK_MAJOR_VERSION }}
 
       - name: Clean Disk
