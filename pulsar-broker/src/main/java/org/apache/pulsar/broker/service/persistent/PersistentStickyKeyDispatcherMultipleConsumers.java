@@ -472,7 +472,6 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
             // Avoid error due to concurrent modifying.
             return src;
         }
-        // Group by key_hash.
         NavigableSet<PositionImpl> res = new TreeSet<>();
         final Map<Consumer, List<PositionImpl>> groupedEntries = localGroupedPositions.get();
         groupedEntries.clear();
