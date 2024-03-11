@@ -17,12 +17,20 @@
  * under the License.
  */
 package org.apache.pulsar.broker.stats;
-
+import io.opentelemetry.api.common.Attributes;
+import io.opentelemetry.sdk.metrics.data.Data;
+import io.opentelemetry.sdk.metrics.data.HistogramPointData;
+import io.opentelemetry.sdk.metrics.data.MetricData;
+import io.opentelemetry.sdk.metrics.data.MetricDataType;
+import io.opentelemetry.semconv.SemanticAttributes;
+import java.util.Collection;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import org.apache.pulsar.broker.service.BrokerTestBase;
-import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient;
+import org.apache.pulsar.broker.testcontext.PulsarTestContext;
 import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.testng.Assert;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
@@ -39,6 +47,12 @@ public class BrokerRestEndpointMetricsTest extends BrokerTestBase {
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
+    }
+
+    @Override
+    protected void customizeMainPulsarTestContextBuilder(PulsarTestContext.Builder builder) {
+        super.customizeMainPulsarTestContextBuilder(builder);
+        builder.enableOpenTelemetry(true);
     }
 
 
@@ -61,28 +75,51 @@ public class BrokerRestEndpointMetricsTest extends BrokerTestBase {
         admin.namespaces().deleteNamespace("test/test");
         admin.tenants().deleteTenant("test");
 
-        // TODO: add more test cases
-        PrometheusMetricsClient client = new PrometheusMetricsClient("127.0.0.1", pulsar.getListenPortHTTP().get());
-        PrometheusMetricsClient.Metrics metrics = client.getMetrics();
-        System.out.println();
+        Collection<MetricData> metricDatas = pulsarTestContext.getOpenTelemetryMetricReader().collectAllMetrics();
+        Optional<MetricData> optional = metricDatas.stream().filter(m -> m.getName()
+                .equals("pulsar_broker_rest_endpoint_latency")).findFirst();
+        Assert.assertTrue(optional.isPresent());
 
-//        Collection<PrometheusMetricsClient.Metric> latency = metricsMap.get("pulsar_broker_rest_endpoint_latency_ms_sum");
-//        Collection<PrometheusMetricsClient.Metric> failed = metricsMap.get("pulsar_broker_rest_endpoint_failed_total");
-//
-//        Assert.assertTrue(latency.size() > 0);
-//        Assert.assertTrue(failed.size() > 0);
-//
-//        for (PrometheusMetricsClient.Metric m : latency) {
-//            Assert.assertNotNull(m.tags.get("cluster"));
-//            Assert.assertNotNull(m.tags.get("path"));
-//            Assert.assertNotNull(m.tags.get("method"));
-//        }
-//
-//        for (PrometheusMetricsClient.Metric m : failed) {
-//            Assert.assertNotNull(m.tags.get("cluster"));
-//            Assert.assertNotNull(m.tags.get("path"));
-//            Assert.assertNotNull(m.tags.get("method"));
-//            Assert.assertNotNull(m.tags.get("code"));
-//        }
+        MetricData metricData = optional.get();
+        Assert.assertFalse(metricData.getDescription().isEmpty());
+        Assert.assertEquals(metricData.getUnit(), "ms");
+        Assert.assertEquals(metricData.getType(), MetricDataType.HISTOGRAM);
+
+        @SuppressWarnings("unchecked")
+        Data<HistogramPointData> data = (Data<HistogramPointData>) metricData.getData();
+        data.getPoints().forEach(point -> {
+            hasAttributes(point);
+            Assert.assertTrue(point.getCount() > 0);
+            Assert.assertTrue(point.getSum() > 0);
+        });
+
+        Assert.assertTrue(hasPoint(data, "/persistent/:tenant/:namespace/:topic", "DELETE"));
+        Assert.assertTrue(hasPoint(data, "/persistent/:tenant/:namespace/:topic", "PUT"));
+        Assert.assertTrue(hasPoint(data, "/tenants/:tenant", "PUT"));
+        Assert.assertTrue(hasPoint(data, "/tenants/:tenant", "DELETE"));
+        Assert.assertTrue(hasPoint(data, "/clusters/:cluster", "PUT"));
+        Assert.assertTrue(hasPoint(data, "/namespaces/:tenant/:namespace", "PUT"));
+        Assert.assertTrue(hasPoint(data, "/namespaces/:tenant/:namespace", "DELETE"));
+    }
+
+    private static boolean hasPoint(Data<HistogramPointData> data, String uri, String method) {
+        Collection<HistogramPointData> points = data.getPoints();
+        for (HistogramPointData point : points) {
+            Attributes attrs = point.getAttributes();
+
+            if (attrs.get(SemanticAttributes.HTTP_REQUEST_METHOD).equals(method)
+                    && attrs.get(SemanticAttributes.URL_PATH).equals(uri)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static void hasAttributes(HistogramPointData data) {
+        Attributes attrs = data.getAttributes();
+        Assert.assertNotNull(attrs.get(SemanticAttributes.HTTP_REQUEST_METHOD));
+        Assert.assertNotNull(attrs.get(SemanticAttributes.URL_PATH));
+        Assert.assertNotNull(attrs.get(SemanticAttributes.HTTP_RESPONSE_STATUS_CODE));
     }
 }
