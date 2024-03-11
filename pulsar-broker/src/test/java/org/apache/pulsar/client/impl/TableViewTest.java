@@ -169,11 +169,7 @@ public class TableViewTest extends MockedPulsarServiceBaseTest {
         } else {
             admin.topics().createPartitionedTopic(topic, partition);
         }
-        @Cleanup
-        Consumer<byte[]> consumer = pulsarClient.newConsumer()
-                .topic(topic)
-                .subscriptionName("my-sub")
-                .subscribe();
+
         @Cleanup
         TableView<byte[]> tv = pulsarClient.newTableView(Schema.BYTES)
                 .topic(topic)
