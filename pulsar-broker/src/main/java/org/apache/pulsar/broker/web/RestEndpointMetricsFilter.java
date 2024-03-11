@@ -18,49 +18,31 @@
  */
 package org.apache.pulsar.broker.web;
 
-import com.google.common.cache.CacheBuilder;
-import com.google.common.cache.CacheLoader;
-import com.google.common.cache.LoadingCache;
 import io.opentelemetry.api.common.AttributeKey;
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.metrics.DoubleHistogram;
-import io.opentelemetry.api.metrics.LongCounter;
 import io.opentelemetry.api.metrics.Meter;
 import io.opentelemetry.semconv.SemanticAttributes;
 import java.io.IOException;
-import java.time.Duration;
 import java.util.List;
-import java.util.Stack;
-import javax.validation.constraints.NotNull;
 import javax.ws.rs.container.ContainerRequestContext;
 import javax.ws.rs.container.ContainerRequestFilter;
 import javax.ws.rs.container.ContainerResponseContext;
 import javax.ws.rs.container.ContainerResponseFilter;
 import javax.ws.rs.core.Response;
+import org.apache.commons.collections4.CollectionUtils;
 import org.apache.pulsar.broker.stats.PulsarBrokerOpenTelemetry;
 import org.glassfish.jersey.server.internal.routing.UriRoutingContext;
-import org.glassfish.jersey.server.model.Resource;
 import org.glassfish.jersey.server.model.ResourceMethod;
+import org.glassfish.jersey.uri.UriTemplate;
 
 public class RestEndpointMetricsFilter implements ContainerResponseFilter, ContainerRequestFilter {
-    private final LoadingCache<ResourceMethod, Attributes> cache = CacheBuilder
-            .newBuilder()
-            .maximumSize(100)
-            .expireAfterAccess(Duration.ofMinutes(1))
-            .build(new CacheLoader<>() {
-                @Override
-                public @NotNull Attributes load(@NotNull ResourceMethod method) throws Exception {
-                    return Attributes.of(PATH, getRestPath(method), METHOD, method.getHttpMethod());
-                }
-            });
-
     private static final String REQUEST_START_TIME = "requestStartTime";
     private static final AttributeKey<String> PATH = SemanticAttributes.URL_PATH;
     private static final AttributeKey<String> METHOD = SemanticAttributes.HTTP_REQUEST_METHOD;
     private static final AttributeKey<Long> CODE = SemanticAttributes.HTTP_RESPONSE_STATUS_CODE;
 
     private final DoubleHistogram latency;
-    private final LongCounter failed;
 
     private RestEndpointMetricsFilter(PulsarBrokerOpenTelemetry openTelemetry) {
         Meter meter = openTelemetry.getMeter();
@@ -69,18 +51,15 @@ public class RestEndpointMetricsFilter implements ContainerResponseFilter, Conta
                 .setUnit("ms")
                 .setExplicitBucketBoundariesAdvice(List.of(10D, 20D, 50D, 100D, 200D, 500D, 1000D, 2000D))
                 .build();
-        failed = meter.counterBuilder("pulsar_broker_rest_endpoint_failed")
-                .setDescription("Number of failed REST endpoints in Pulsar broker")
-                .build();
     }
 
     private static volatile RestEndpointMetricsFilter instance;
 
     public static synchronized RestEndpointMetricsFilter create(PulsarBrokerOpenTelemetry openTelemetry) {
-            if (instance == null) {
-                instance = new RestEndpointMetricsFilter(openTelemetry);
-            }
-            return instance;
+        if (instance == null) {
+            instance = new RestEndpointMetricsFilter(openTelemetry);
+        }
+        return instance;
     }
 
     @Override
@@ -88,23 +67,19 @@ public class RestEndpointMetricsFilter implements ContainerResponseFilter, Conta
         Attributes attrs;
         try {
             UriRoutingContext info = (UriRoutingContext) req.getUriInfo();
-            ResourceMethod rm = info.getMatchedResourceMethod();
-            attrs = cache.get(rm);
+            attrs = getRequestAttributes(info);
         } catch (Throwable ex) {
             attrs = Attributes.of(PATH, "UNKNOWN", METHOD, req.getMethod());
         }
 
         Response.StatusType status = resp.getStatusInfo();
-        // record failure
-        if (status.getStatusCode() >= Response.Status.BAD_REQUEST.getStatusCode()) {
-            recordFailure(attrs, status.getStatusCode());
+        int statusCode = status.getStatusCode();
+        Object o = req.getProperty(REQUEST_START_TIME);
+        if (!(o instanceof Long start)) {
             return;
         }
-        // record success
-        Object o = req.getProperty(REQUEST_START_TIME);
-        if (o instanceof Long start) {
-            recordSuccess(attrs, System.currentTimeMillis() - start);
-        }
+        long latency = System.currentTimeMillis() - start;
+        recordLatency(attrs, statusCode, latency);
     }
 
     @Override
@@ -114,40 +89,25 @@ public class RestEndpointMetricsFilter implements ContainerResponseFilter, Conta
     }
 
 
-    private void recordSuccess(Attributes attrs, long duration) {
+    private void recordLatency(Attributes attrs, int code, long duration) {
+        attrs = attrs.toBuilder().put(CODE, (long) code).build();
         latency.record(duration, attrs);
     }
 
-    private void recordFailure(Attributes attrs, long code) {
-        Attributes attributes = attrs.toBuilder().put(CODE, code).build();
-        failed.add(1, attributes);
-    }
-
-    private static String getRestPath(ResourceMethod method) {
-        try {
-            StringBuilder fullPath = new StringBuilder();
-            Stack<String> pathStack = new Stack<>();
-            Resource parent = method.getParent();
-
-            while (true) {
-                String path = parent.getPath();
-                parent = parent.getParent();
-                if (parent == null) {
-                    if (!path.endsWith("/") && !pathStack.peek().startsWith("/")) {
-                        pathStack.push("/");
-                    }
-                    pathStack.push(path);
-                    break;
-                }
-                pathStack.push(path);
-
-            }
-            while (!pathStack.isEmpty()) {
-                fullPath.append(pathStack.pop().replace("{", ":").replace("}", ""));
-            }
-            return fullPath.toString();
-        } catch (Exception ex) {
-            return "UNKNOWN";
+    private static Attributes getRequestAttributes(UriRoutingContext ctx) {
+        List<UriTemplate> templates = ctx.getMatchedTemplates();
+        ResourceMethod method = ctx.getMatchedResourceMethod();
+        String httpMethod = method == null ? "UNKNOWN" : method.getHttpMethod();
+        if (CollectionUtils.isEmpty(templates)) {
+            return Attributes.of(PATH, "UNKNOWN", METHOD, httpMethod);
         }
+        UriTemplate[] arr = templates.toArray(new UriTemplate[0]);
+        int idx = arr.length - 1;
+        StringBuilder builder = new StringBuilder();
+        for (; idx >= 0; idx--) {
+            builder.append(arr[idx].getTemplate());
+        }
+        String template = builder.toString().replace("{", ":").replace("}", "");
+        return Attributes.of(PATH, template, METHOD, httpMethod);
     }
 }

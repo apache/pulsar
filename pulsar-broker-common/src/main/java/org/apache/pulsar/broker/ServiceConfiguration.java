@@ -2983,11 +2983,6 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private boolean exposeBundlesMetricsInPrometheus = false;
 
-    @FieldContext(
-            category = CATEGORY_METRICS,
-            doc = "Enable expose per rest endpoint metrics of the broker.")
-    private boolean exposePerRestEndpointMetricsInPrometheus = false;
-
     /**** --- Functions. --- ****/
     @FieldContext(
         category = CATEGORY_FUNCTIONS,
