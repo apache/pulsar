@@ -449,7 +449,6 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
 
     @Override
     public void reconsumeLater(Message<?> message, long delayTime, TimeUnit unit) throws PulsarClientException {
-        checkArgument(delayTime >= 0, "The delay time must not be negative.");
         reconsumeLater(message, null, delayTime, unit);
     }
 
@@ -564,7 +563,6 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     @Override
     public CompletableFuture<Void> reconsumeLaterAsync(
             Message<?> message, Map<String, String> customProperties, long delayTime, TimeUnit unit) {
-        checkArgument(delayTime >= 0, "The delay time must not be negative.");
         if (!conf.isRetryEnable()) {
             return FutureUtil.failedFuture(new PulsarClientException(RECONSUME_LATER_ERROR_MSG));
         }
@@ -601,14 +599,12 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
 
     @Override
     public CompletableFuture<Void> reconsumeLaterCumulativeAsync(Message<?> message, long delayTime, TimeUnit unit) {
-        checkArgument(delayTime >= 0, "The delay time must not be negative.");
         return reconsumeLaterCumulativeAsync(message, null, delayTime, unit);
     }
 
     @Override
     public CompletableFuture<Void> reconsumeLaterCumulativeAsync(
             Message<?> message, Map<String, String> customProperties, long delayTime, TimeUnit unit) {
-        checkArgument(delayTime >= 0, "The delay time must not be negative.");
         if (!conf.isRetryEnable()) {
             return FutureUtil.failedFuture(new PulsarClientException(RECONSUME_LATER_ERROR_MSG));
         }

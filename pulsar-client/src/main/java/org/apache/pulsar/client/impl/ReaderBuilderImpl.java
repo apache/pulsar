@@ -267,7 +267,6 @@ public class ReaderBuilderImpl<T> implements ReaderBuilder<T> {
 
     @Override
     public ReaderBuilder<T> expireTimeOfIncompleteChunkedMessage(long duration, TimeUnit unit) {
-        checkArgument(duration >= 0, "The expired time must not be negative.");
         conf.setExpireTimeOfIncompleteChunkedMessageMillis(unit.toMillis(duration));
         return this;
     }

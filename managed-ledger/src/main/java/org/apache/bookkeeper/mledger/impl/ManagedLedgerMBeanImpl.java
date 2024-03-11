@@ -18,7 +18,6 @@
  */
 package org.apache.bookkeeper.mledger.impl;
 
-import static com.google.common.base.Preconditions.checkArgument;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.LongAdder;
 import org.apache.bookkeeper.mledger.ManagedCursor;
@@ -64,7 +63,6 @@ public class ManagedLedgerMBeanImpl implements ManagedLedgerMXBean {
     }
 
     public void refreshStats(long period, TimeUnit unit) {
-        checkArgument(period >= 0);
         double seconds = unit.toMillis(period) / 1000.0;
         if (seconds <= 0.0) {
             // skip refreshing stats
