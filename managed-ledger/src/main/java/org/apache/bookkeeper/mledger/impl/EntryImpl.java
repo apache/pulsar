@@ -42,6 +42,7 @@ public final class EntryImpl extends AbstractCASReferenceCounted implements Entr
     private long timestamp;
     private long ledgerId;
     private long entryId;
+    private PositionImplRecyclable position;
     ByteBuf data;
 
     private Runnable onDeallocate;
@@ -51,6 +52,9 @@ public final class EntryImpl extends AbstractCASReferenceCounted implements Entr
         entry.timestamp = System.nanoTime();
         entry.ledgerId = ledgerEntry.getLedgerId();
         entry.entryId = ledgerEntry.getEntryId();
+        entry.position = PositionImplRecyclable.create();
+        entry.position.ledgerId = entry.ledgerId;
+        entry.position.entryId = entry.entryId;
         entry.data = ledgerEntry.getEntryBuffer();
         entry.data.retain();
         entry.setRefCnt(1);
@@ -63,6 +67,9 @@ public final class EntryImpl extends AbstractCASReferenceCounted implements Entr
         entry.timestamp = System.nanoTime();
         entry.ledgerId = ledgerId;
         entry.entryId = entryId;
+        entry.position = PositionImplRecyclable.create();
+        entry.position.ledgerId = entry.ledgerId;
+        entry.position.entryId = entry.entryId;
         entry.data = Unpooled.wrappedBuffer(data);
         entry.setRefCnt(1);
         return entry;
@@ -73,6 +80,9 @@ public final class EntryImpl extends AbstractCASReferenceCounted implements Entr
         entry.timestamp = System.nanoTime();
         entry.ledgerId = ledgerId;
         entry.entryId = entryId;
+        entry.position = PositionImplRecyclable.create();
+        entry.position.ledgerId = entry.ledgerId;
+        entry.position.entryId = entry.entryId;
         entry.data = data;
         entry.data.retain();
         entry.setRefCnt(1);
@@ -84,6 +94,9 @@ public final class EntryImpl extends AbstractCASReferenceCounted implements Entr
         entry.timestamp = System.nanoTime();
         entry.ledgerId = position.getLedgerId();
         entry.entryId = position.getEntryId();
+        entry.position = PositionImplRecyclable.create();
+        entry.position.ledgerId = entry.ledgerId;
+        entry.position.entryId = entry.entryId;
         entry.data = data;
         entry.data.retain();
         entry.setRefCnt(1);
@@ -95,6 +108,9 @@ public final class EntryImpl extends AbstractCASReferenceCounted implements Entr
         entry.timestamp = System.nanoTime();
         entry.ledgerId = other.ledgerId;
         entry.entryId = other.entryId;
+        entry.position = PositionImplRecyclable.create();
+        entry.position.ledgerId = entry.ledgerId;
+        entry.position.entryId = entry.entryId;
         entry.data = other.data.retainedDuplicate();
         entry.setRefCnt(1);
         return entry;
@@ -151,7 +167,7 @@ public final class EntryImpl extends AbstractCASReferenceCounted implements Entr
 
     @Override
     public PositionImpl getPosition() {
-        return new PositionImpl(ledgerId, entryId);
+        return position;
     }
 
     @Override
@@ -197,6 +213,8 @@ public final class EntryImpl extends AbstractCASReferenceCounted implements Entr
         timestamp = -1;
         ledgerId = -1;
         entryId = -1;
+        position.recycle();
+        position = null;
         recyclerHandle.recycle(this);
     }
 
