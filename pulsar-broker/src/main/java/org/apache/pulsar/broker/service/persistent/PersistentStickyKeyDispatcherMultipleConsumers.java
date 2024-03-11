@@ -481,13 +481,13 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
                 res.add(pos);
             }
             Consumer c = selector.select(stickyKeyHash.intValue());
+            if (c == null) {
+                continue;
+            }
             if (getAvailablePermits(c) == 0) {
                 continue;
             }
             PositionImpl currentMaxReadPosition = recentlyJoinedConsumers.get(c);
-            if (c == null) {
-                continue;
-            }
             if (currentMaxReadPosition == null) {
                 res.add(pos);
             } else if (pos.compareTo(firstMaxReadPos) < 0 && pos.compareTo(currentMaxReadPosition) < 0) {
