@@ -90,8 +90,10 @@ agent, will be able to instrument the Pulsar client automatically, because we de
 
 ### Deprecating the old stats methods
 
-The old way of collecting stats will be disabled by default, deprecated and eventually removed
-in Pulsar 4.0 release.
+The old way of collecting stats will be deprecated in phases:
+ 1. Pulsar 3.3 - Old metrics deprecated, still enabled by default
+ 2. Pulsar 3.4 - Old metrics disabled by default
+ 3. Pulsar 4.0 - Old metrics removed
 
 Methods to deprecate:
 
