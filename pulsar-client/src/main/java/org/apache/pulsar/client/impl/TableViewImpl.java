@@ -67,7 +67,7 @@ public class TableViewImpl<T> implements TableView<T> {
      * There should be no timeout exception here, because the caller can only retry for TimeoutException.
      * It will only be completed exceptionally when no more messages can be read.
      */
-    private final LinkedHashMap<CompletableFuture<Void>, Map<String, TopicMessageId>> refreshRequests;
+    private final ConcurrentHashMap<CompletableFuture<Void>, Map<String, TopicMessageId>> refreshRequests;
 
     /**
      * This map stored the read position of each partition. It is used for the following case:
@@ -90,7 +90,7 @@ public class TableViewImpl<T> implements TableView<T> {
         this.listenersMutex = new ReentrantLock();
         this.compactionStrategy =
                 TopicCompactionStrategy.load(TABLE_VIEW_TAG, conf.getTopicCompactionStrategyClassName());
-        this.refreshRequests = new LinkedHashMap<>();
+        this.refreshRequests = new ConcurrentHashMap<>();
         this.readPositions = new ConcurrentHashMap<>();
         ReaderBuilder<T> readerBuilder = client.newReader(schema)
                 .topic(conf.getTopicName())
@@ -258,14 +258,12 @@ public class TableViewImpl<T> implements TableView<T> {
         reader.thenCompose(reader -> buildFreshTask(reader, completableFuture).thenAccept(lastMessageIds -> {
             // After get the response of lastMessageIds, put the future and result into `refreshMap`
             // and then filter out partitions that has been read to the lastMessageID.
-            synchronized (this) {
-                refreshRequests.put(completableFuture, lastMessageIds);
-                filterReceivedMessages(lastMessageIds);
-                // If there is no new messages, the refresh operation could be completed right now.
-                if (lastMessageIds.isEmpty()) {
-                    refreshRequests.remove(completableFuture);
-                    completableFuture.complete(null);
-                }
+            refreshRequests.put(completableFuture, lastMessageIds);
+            filterReceivedMessages(lastMessageIds);
+            // If there is no new messages, the refresh operation could be completed right now.
+            if (lastMessageIds.isEmpty()) {
+                refreshRequests.remove(completableFuture);
+                completableFuture.complete(null);
             }
         }));
         return completableFuture;
@@ -304,7 +302,8 @@ public class TableViewImpl<T> implements TableView<T> {
     private void filterReceivedMessages(Map<String, TopicMessageId> lastMessageIds) {
         // The `lastMessageIds` and `readPositions` is concurrency-safe data types.
         lastMessageIds.forEach((partition, lastMessageId) -> {
-            if (readPositions.containsKey(partition) && lastMessageId.compareTo(readPositions.get(partition)) <= 0) {
+            MessageId messageId = readPositions.get(partition);
+            if (messageId != null && lastMessageId.compareTo(messageId) <= 0) {
                 lastMessageIds.remove(partition);
             }
         });
@@ -329,13 +328,11 @@ public class TableViewImpl<T> implements TableView<T> {
     }
 
     private void checkAllFreshTask(Message<T> msg) {
-        synchronized (this) {
-            refreshRequests.forEach((future, maxMessageIds) -> {
-                if (checkFreshTask(maxMessageIds, future, msg)) {
-                   refreshRequests.remove(future);
-                }
-            });
-        }
+        refreshRequests.forEach((future, maxMessageIds) -> {
+            if (checkFreshTask(maxMessageIds, future, msg)) {
+                refreshRequests.remove(future);
+            }
+        });
     }
 
     private void readAllExistingMessages(Reader<T> reader, CompletableFuture<Void> future, long startTime,

@@ -179,7 +179,7 @@ public class TableViewTest extends MockedPulsarServiceBaseTest {
         TableView<byte[]> tv = pulsarClient.newTableView(Schema.BYTES)
                 .topic(topic)
                 .create();
-        // 2. Add a listen action to provider the test environment.
+        // 2. Add a listen action to provide the test environment.
         // The listen action will be triggered when there are incoming messages every time.
         // This is a sync operation, so sleep in the listen action can slow down the reading rate of messages.
         tv.listen((k, v) -> {
