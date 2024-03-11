@@ -916,7 +916,7 @@ public class Commands {
         cmd.setPartitionMetadata()
                 .setTopic(topic)
                 .setRequestId(requestId)
-                .setCreateIfAutoCreationEnabled(createIfAutoCreationEnabled);
+                .setMetadataAutoCreationEnabled(createIfAutoCreationEnabled);
         return serializeWithSize(cmd);
     }
 
