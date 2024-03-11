@@ -32,7 +32,6 @@ import static org.apache.pulsar.common.protocol.Commands.readChecksum;
 import static org.apache.pulsar.common.util.Runnables.catchingAndLoggingThrowables;
 import com.google.common.annotations.VisibleForTesting;
 import io.netty.buffer.ByteBuf;
-import io.netty.util.AbstractReferenceCounted;
 import io.netty.util.Recycler;
 import io.netty.util.Recycler.Handle;
 import io.netty.util.ReferenceCountUtil;
@@ -92,6 +91,7 @@ import org.apache.pulsar.common.protocol.schema.SchemaHash;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
+import org.apache.pulsar.common.util.AbstractValidatingReferenceCounted;
 import org.apache.pulsar.common.util.DateFormatter;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.RelativeTimeUtil;
@@ -1357,11 +1357,12 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         }
     }
 
-    static class ChunkedMessageCtx extends AbstractReferenceCounted {
+    static class ChunkedMessageCtx extends AbstractValidatingReferenceCounted {
         protected MessageIdImpl firstChunkMessageId;
         protected MessageIdImpl lastChunkMessageId;
 
         public ChunkMessageIdImpl getChunkMessageId() {
+            checkRefCount();
             return new ChunkMessageIdImpl(firstChunkMessageId, lastChunkMessageId);
         }
 
@@ -1374,8 +1375,10 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 };
 
         public static ChunkedMessageCtx get(int totalChunks) {
-            ChunkedMessageCtx chunkedMessageCtx = RECYCLER.get();
-            chunkedMessageCtx.setRefCnt(totalChunks);
+            ChunkedMessageCtx chunkedMessageCtx = getAndCheck(RECYCLER);
+            if (totalChunks > 1) {
+                chunkedMessageCtx.retain(totalChunks - 1);
+            }
             return chunkedMessageCtx;
         }
 

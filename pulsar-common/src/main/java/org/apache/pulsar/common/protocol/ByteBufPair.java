@@ -25,16 +25,16 @@ import io.netty.channel.ChannelHandler.Sharable;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelOutboundHandlerAdapter;
 import io.netty.channel.ChannelPromise;
-import io.netty.util.AbstractReferenceCounted;
 import io.netty.util.Recycler;
 import io.netty.util.Recycler.Handle;
 import io.netty.util.ReferenceCountUtil;
 import io.netty.util.ReferenceCounted;
+import org.apache.pulsar.common.util.AbstractValidatingReferenceCounted;
 
 /**
  * ByteBuf holder that contains 2 buffers.
  */
-public final class ByteBufPair extends AbstractReferenceCounted {
+public final class ByteBufPair extends AbstractValidatingReferenceCounted {
 
     private ByteBuf b1;
     private ByteBuf b2;
@@ -62,22 +62,24 @@ public final class ByteBufPair extends AbstractReferenceCounted {
      * @return
      */
     public static ByteBufPair get(ByteBuf b1, ByteBuf b2) {
-        ByteBufPair buf = RECYCLER.get();
-        buf.setRefCnt(1);
+        ByteBufPair buf = getAndCheck(RECYCLER);
         buf.b1 = b1;
         buf.b2 = b2;
         return buf;
     }
 
     public ByteBuf getFirst() {
+        checkRefCount();
         return b1;
     }
 
     public ByteBuf getSecond() {
+        checkRefCount();
         return b2;
     }
 
     public int readableBytes() {
+        checkRefCount();
         return b1.readableBytes() + b2.readableBytes();
     }
 

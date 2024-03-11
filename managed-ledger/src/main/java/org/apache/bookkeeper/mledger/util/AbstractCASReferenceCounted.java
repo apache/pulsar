@@ -32,6 +32,9 @@ import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
  */
 
 public abstract class AbstractCASReferenceCounted implements ReferenceCounted {
+    private static final boolean refCountCheckOnAccess =
+            Boolean.parseBoolean(System.getProperty("pulsar.refcount.check.on_access", "true"));
+
     private static final AtomicIntegerFieldUpdater<AbstractCASReferenceCounted> refCntUpdater =
             AtomicIntegerFieldUpdater.newUpdater(AbstractCASReferenceCounted.class, "refCnt");
 
@@ -40,13 +43,6 @@ public abstract class AbstractCASReferenceCounted implements ReferenceCounted {
     @Override
     public final int refCnt() {
         return refCnt;
-    }
-
-    /**
-     * An unsafe operation intended for use by a subclass that sets the reference count of the buffer directly.
-     */
-    protected final void setRefCnt(int refCnt) {
-        refCntUpdater.set(this, refCnt);
     }
 
     @Override
@@ -60,7 +56,7 @@ public abstract class AbstractCASReferenceCounted implements ReferenceCounted {
     }
 
     private ReferenceCounted retain0(int increment) {
-        for (;;) {
+        for (; ; ) {
             int refCnt = this.refCnt;
             final int nextCnt = refCnt + increment;
 
@@ -91,7 +87,7 @@ public abstract class AbstractCASReferenceCounted implements ReferenceCounted {
     }
 
     private boolean release0(int decrement) {
-        for (;;) {
+        for (; ; ) {
             int refCnt = this.refCnt;
             if (refCnt < decrement) {
                 throw new IllegalReferenceCountException(refCnt, -decrement);
@@ -111,4 +107,20 @@ public abstract class AbstractCASReferenceCounted implements ReferenceCounted {
      * Called once {@link #refCnt()} is equals 0.
      */
     protected abstract void deallocate();
+
+    public final void resetRefCnt() {
+        refCntUpdater.set(this, 1);
+    }
+
+    /**
+     * Validate that the instance hasn't been released before accessing fields.
+     * This is a sanity check to ensure that we don't read fields from deallocated objects.
+     */
+    protected void checkRefCount() {
+        if (refCountCheckOnAccess && refCnt() < 1) {
+            throw new IllegalReferenceCountException(
+                    "Possible double release bug (refCnt=" + refCnt() + "). " + getClass().getSimpleName()
+                            + " has been deallocated. ");
+        }
+    }
 }

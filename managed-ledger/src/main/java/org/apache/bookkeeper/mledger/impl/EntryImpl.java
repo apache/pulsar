@@ -31,7 +31,7 @@ import org.apache.bookkeeper.mledger.util.AbstractCASReferenceCounted;
 public final class EntryImpl extends AbstractCASReferenceCounted implements Entry, Comparable<EntryImpl>,
         ReferenceCounted {
 
-    private static final Recycler<EntryImpl> RECYCLER = new Recycler<EntryImpl>() {
+    private static final Recycler<EntryImpl> RECYCLER = new Recycler<>() {
         @Override
         protected EntryImpl newObject(Handle<EntryImpl> handle) {
             return new EntryImpl(handle);
@@ -47,56 +47,57 @@ public final class EntryImpl extends AbstractCASReferenceCounted implements Entr
     private Runnable onDeallocate;
 
     public static EntryImpl create(LedgerEntry ledgerEntry) {
-        EntryImpl entry = RECYCLER.get();
+        EntryImpl entry = getEntryFromRecycler();
         entry.timestamp = System.nanoTime();
         entry.ledgerId = ledgerEntry.getLedgerId();
         entry.entryId = ledgerEntry.getEntryId();
         entry.data = ledgerEntry.getEntryBuffer();
         entry.data.retain();
-        entry.setRefCnt(1);
+        return entry;
+    }
+
+    private static EntryImpl getEntryFromRecycler() {
+        EntryImpl entry = RECYCLER.get();
+        entry.resetRefCnt();
         return entry;
     }
 
     @VisibleForTesting
     public static EntryImpl create(long ledgerId, long entryId, byte[] data) {
-        EntryImpl entry = RECYCLER.get();
+        EntryImpl entry = getEntryFromRecycler();
         entry.timestamp = System.nanoTime();
         entry.ledgerId = ledgerId;
         entry.entryId = entryId;
         entry.data = Unpooled.wrappedBuffer(data);
-        entry.setRefCnt(1);
         return entry;
     }
 
     public static EntryImpl create(long ledgerId, long entryId, ByteBuf data) {
-        EntryImpl entry = RECYCLER.get();
+        EntryImpl entry = getEntryFromRecycler();
         entry.timestamp = System.nanoTime();
         entry.ledgerId = ledgerId;
         entry.entryId = entryId;
         entry.data = data;
         entry.data.retain();
-        entry.setRefCnt(1);
         return entry;
     }
 
     public static EntryImpl create(PositionImpl position, ByteBuf data) {
-        EntryImpl entry = RECYCLER.get();
+        EntryImpl entry = getEntryFromRecycler();
         entry.timestamp = System.nanoTime();
         entry.ledgerId = position.getLedgerId();
         entry.entryId = position.getEntryId();
         entry.data = data;
         entry.data.retain();
-        entry.setRefCnt(1);
         return entry;
     }
 
     public static EntryImpl create(EntryImpl other) {
-        EntryImpl entry = RECYCLER.get();
+        EntryImpl entry = getEntryFromRecycler();
         entry.timestamp = System.nanoTime();
         entry.ledgerId = other.ledgerId;
         entry.entryId = other.entryId;
         entry.data = other.data.retainedDuplicate();
-        entry.setRefCnt(1);
         return entry;
     }
 
@@ -121,16 +122,19 @@ public final class EntryImpl extends AbstractCASReferenceCounted implements Entr
     }
 
     public long getTimestamp() {
+        checkRefCount();
         return timestamp;
     }
 
     @Override
     public ByteBuf getDataBuffer() {
+        checkRefCount();
         return data;
     }
 
     @Override
     public byte[] getData() {
+        checkRefCount();
         byte[] array = new byte[data.readableBytes()];
         data.getBytes(data.readerIndex(), array);
         return array;
@@ -139,6 +143,7 @@ public final class EntryImpl extends AbstractCASReferenceCounted implements Entr
     // Only for test
     @Override
     public byte[] getDataAndRelease() {
+        checkRefCount();
         byte[] array = getData();
         release();
         return array;
@@ -146,26 +151,31 @@ public final class EntryImpl extends AbstractCASReferenceCounted implements Entr
 
     @Override
     public int getLength() {
+        checkRefCount();
         return data.readableBytes();
     }
 
     @Override
     public PositionImpl getPosition() {
+        checkRefCount();
         return new PositionImpl(ledgerId, entryId);
     }
 
     @Override
     public long getLedgerId() {
+        checkRefCount();
         return ledgerId;
     }
 
     @Override
     public long getEntryId() {
+        checkRefCount();
         return entryId;
     }
 
     @Override
     public int compareTo(EntryImpl other) {
+        checkRefCount();
         if (this.ledgerId != other.ledgerId) {
             return this.ledgerId < other.ledgerId ? -1 : 1;
         }
