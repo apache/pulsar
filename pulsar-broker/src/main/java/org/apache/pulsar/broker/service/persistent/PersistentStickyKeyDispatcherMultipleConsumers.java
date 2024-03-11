@@ -29,6 +29,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.NavigableSet;
+import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.CompletableFuture;
@@ -38,6 +39,7 @@ import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.commons.collections4.MapUtils;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.ConsistentHashingStickyKeyConsumerSelector;
@@ -257,13 +259,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
             assert consumer != null; // checked when added to groupedEntries
             List<Entry> entriesWithSameKey = current.getValue();
             int entriesWithSameKeyCount = entriesWithSameKey.size();
-            int availablePermits = Math.max(consumer.getAvailablePermits(), 0);
-            if (consumer.getMaxUnackedMessages() > 0) {
-                int remainUnAckedMessages =
-                        // Avoid negative number
-                        Math.max(consumer.getMaxUnackedMessages() - consumer.getUnackedMessages(), 0);
-                availablePermits = Math.min(availablePermits, remainUnAckedMessages);
-            }
+            int availablePermits = getAvailablePermits(consumer);
             int maxMessagesForC = Math.min(entriesWithSameKeyCount, availablePermits);
             int messagesForC = getRestrictedMaxEntriesForConsumer(consumer, entriesWithSameKey, maxMessagesForC,
                     readType, consumerStickyKeyHashesMap.get(consumer));
@@ -447,6 +443,16 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
         }
     }
 
+    private int getAvailablePermits(Consumer c) {
+        int availablePermits = Math.max(c.getAvailablePermits(), 0);
+        if (c.getMaxUnackedMessages() > 0) {
+            // Avoid negative number
+            int remainUnAckedMessages = Math.max(c.getMaxUnackedMessages() - c.getUnackedMessages(), 0);
+            availablePermits = Math.min(availablePermits, remainUnAckedMessages);
+        }
+        return availablePermits;
+    }
+
     /**
      * This method is in order to avoid the scenario below:
      * - Read entries from the Replay queue.
@@ -456,10 +462,16 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
     private NavigableSet<PositionImpl> filterOutMessagesWillBeDiscarded(NavigableSet<PositionImpl> src) {
         // Remove invalid items.
         removeConsumersFromRecentJoinedConsumers();
-        if (recentlyJoinedConsumers == null || src.isEmpty()) {
+        if (MapUtils.isEmpty(recentlyJoinedConsumers) || src.isEmpty()) {
             return src;
         }
-        PositionImpl firstMaxReadPos = recentlyJoinedConsumers.values().iterator().next();
+        PositionImpl firstMaxReadPos = null;
+        try {
+            firstMaxReadPos = recentlyJoinedConsumers.values().iterator().next();
+        } catch (NoSuchElementException noSuchElementException) {
+            // Avoid error due to concurrent modifying.
+            return src;
+        }
         // Group by key_hash.
         NavigableSet<PositionImpl> res = new TreeSet<>();
         final Map<Consumer, List<PositionImpl>> groupedEntries = localGroupedPositions.get();
@@ -470,6 +482,9 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
                 res.add(pos);
             }
             Consumer c = selector.select(stickyKeyHash.intValue());
+            if (getAvailablePermits(c) == 0) {
+                continue;
+            }
             PositionImpl currentMaxReadPosition = recentlyJoinedConsumers.get(c);
             if (c == null) {
                 continue;

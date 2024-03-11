@@ -49,11 +49,15 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import lombok.Cleanup;
+import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
+import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.nonpersistent.NonPersistentStickyKeyDispatcherMultipleConsumers;
 import org.apache.pulsar.broker.service.persistent.PersistentStickyKeyDispatcherMultipleConsumers;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
+import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.impl.ConsumerImpl;
 import org.apache.pulsar.common.api.proto.KeySharedMode;
 import org.apache.pulsar.common.naming.TopicDomain;
@@ -61,6 +65,7 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.util.Murmur3_32Hash;
 import org.awaitility.Awaitility;
+import org.mockito.Mockito;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
@@ -1629,5 +1634,108 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
 
         log.info("Got {} other messages...", sum);
         Assert.assertEquals(sum, delayedMessages + messages);
+    }
+
+    private AtomicInteger injectReplayReadCounter(String topicName, String cursorName) throws Exception {
+        PersistentTopic persistentTopic =
+                (PersistentTopic) pulsar.getBrokerService().getTopic(topicName, false).join().get();
+        ManagedLedgerImpl managedLedger = (ManagedLedgerImpl) persistentTopic.getManagedLedger();
+        ManagedCursorImpl cursor = (ManagedCursorImpl) managedLedger.openCursor(cursorName);
+        managedLedger.getCursors().removeCursor(cursor.getName());
+        managedLedger.getActiveCursors().removeCursor(cursor.getName());
+        ManagedCursorImpl spyCursor = Mockito.spy(cursor);
+        managedLedger.getCursors().add(spyCursor, PositionImpl.EARLIEST);
+        managedLedger.getActiveCursors().add(spyCursor, PositionImpl.EARLIEST);
+        AtomicInteger replyReadCounter = new AtomicInteger();
+        Mockito.doAnswer(invocation -> {
+            if (!String.valueOf(invocation.getArguments()[2]).equals("Normal")) {
+                replyReadCounter.incrementAndGet();
+            }
+            return invocation.callRealMethod();
+        }).when(spyCursor).asyncReplayEntries(Mockito.anySet(), Mockito.any(), Mockito.any());
+        Mockito.doAnswer(invocation -> {
+            if (!String.valueOf(invocation.getArguments()[2]).equals("Normal")) {
+                replyReadCounter.incrementAndGet();
+            }
+            return invocation.callRealMethod();
+        }).when(spyCursor).asyncReplayEntries(Mockito.anySet(), Mockito.any(), Mockito.any(), Mockito.anyBoolean());
+        admin.topics().createSubscription(topicName, cursorName, MessageId.earliest);
+        return replyReadCounter;
+    }
+
+    @Test
+    public void testNoRepeatedReadAndDiscard() throws Exception {
+        int delayedMessages = 100;
+        final String topic = BrokerTestUtil.newUniqueName("persistent://public/default/tp");
+        final String subName = "my-sub";
+        admin.topics().createNonPartitionedTopic(topic);
+        AtomicInteger replyReadCounter = injectReplayReadCounter(topic, subName);
+
+        // Send messages.
+        @Cleanup
+        Producer<Integer> producer = pulsarClient.newProducer(Schema.INT32).topic(topic).enableBatching(false).create();
+        for (int i = 0; i < delayedMessages; i++) {
+            MessageId messageId = producer.newMessage()
+                    .key(String.valueOf(random.nextInt(NUMBER_OF_KEYS)))
+                    .value(100 + i)
+                    .send();
+            log.info("Published delayed message :{}", messageId);
+        }
+        producer.close();
+
+        // Make ack holes.
+        Consumer<Integer> consumer1 = pulsarClient.newConsumer(Schema.INT32)
+                .topic(topic)
+                .subscriptionName(subName)
+                .receiverQueueSize(10)
+                .subscriptionType(SubscriptionType.Key_Shared)
+                .subscribe();
+        Consumer<Integer> consumer2 = pulsarClient.newConsumer(Schema.INT32)
+                .topic(topic)
+                .subscriptionName(subName)
+                .receiverQueueSize(10)
+                .subscriptionType(SubscriptionType.Key_Shared)
+                .subscribe();
+        List<Message> msgList1 = new ArrayList<>();
+        List<Message> msgList2 = new ArrayList<>();
+        for (int i = 0; i < 10; i++) {
+            Message msg1 = consumer1.receive(1, TimeUnit.SECONDS);
+            if (msg1 != null) {
+                msgList1.add(msg1);
+            }
+            Message msg2 = consumer2.receive(1, TimeUnit.SECONDS);
+            if (msg2 != null) {
+                msgList2.add(msg2);
+            }
+        }
+        Consumer<Integer> redeliverConsumer = null;
+        if (!msgList1.isEmpty()) {
+            msgList1.forEach(msg -> consumer1.acknowledgeAsync(msg));
+            redeliverConsumer = consumer2;
+        } else {
+            msgList2.forEach(msg -> consumer2.acknowledgeAsync(msg));
+            redeliverConsumer = consumer1;
+        }
+
+        // consumer3 will be added to the "recentJoinedConsumers".
+        Consumer<Integer> consumer3 = pulsarClient.newConsumer(Schema.INT32)
+                .topic(topic)
+                .subscriptionName(subName)
+                .receiverQueueSize(10)
+                .subscriptionType(SubscriptionType.Key_Shared)
+                .subscribe();
+        redeliverConsumer.close();
+
+        // Verify: no repeated Read-and-discard.
+        Thread.sleep(5 * 1000);
+        int maxReplayCount = delayedMessages * 2;
+        log.info("Reply read count: {}", replyReadCounter.get());
+        assertTrue(replyReadCounter.get() < maxReplayCount);
+
+        // cleanup.
+        consumer1.close();
+        consumer2.close();
+        consumer3.close();
+        admin.topics().delete(topic, false);
     }
 }
