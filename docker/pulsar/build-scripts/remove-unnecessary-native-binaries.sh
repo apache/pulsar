@@ -25,7 +25,13 @@ set -e
 ARCH=$(uname -m)
 
 # Remove extra binaries for Netty TCNative
-ls /pulsar/lib/io.netty-netty-tcnative-boringssl-static*Final-*.jar | grep -v linux-$ARCH | xargs rm
+if [ "$ARCH" = "aarch64" ]
+then
+  TC_NATIVE_TO_KEEP=linux-aarch_64
+else
+  TC_NATIVE_TO_KEEP=linux-$ARCH
+fi
+ls /pulsar/lib/io.netty-netty-tcnative-boringssl-static*Final-*.jar | grep -v $TC_NATIVE_TO_KEEP | xargs rm
 
 # Prune extra libs from RocksDB JAR
 mkdir /tmp/rocksdb
@@ -33,6 +39,13 @@ cd /tmp/rocksdb
 ROCKSDB_JAR=$(ls /pulsar/lib/org.rocksdb-rocksdbjni-*.jar)
 unzip $ROCKSDB_JAR > /dev/null
 
-ls librocksdbjni-* | grep -v librocksdbjni-linux-$ARCH-musl.so | xargs rm
+if [ "$ARCH" = "x86_64" ]
+then
+  ROCKSDB_TO_KEEP=linux64-musl
+else
+  ROCKSDB_TO_KEEP=linux-$ARCH-musl
+fi
+
+ls librocksdbjni-* | grep -v librocksdbjni-${ROCKSDB_TO_KEEP}.so | xargs rm
 rm $ROCKSDB_JAR
 zip -r -9 $ROCKSDB_JAR * > /dev/null
