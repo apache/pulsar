@@ -329,5 +329,5 @@ N/A
 
 # Links
 
-* Mailing List discussion thread:
+* Mailing List discussion thread: https://lists.apache.org/thread/5owc9os6wmy52zxbv07qo2jrfjm17hd2
 * Mailing List voting thread:
