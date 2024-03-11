@@ -18,13 +18,18 @@
 #
 
 # First create a stage with just the Pulsar tarball and scripts
-FROM busybox as pulsar
+FROM alpine as pulsar
+
+RUN apk add zip
 
 ARG PULSAR_TARBALL
 
 ADD ${PULSAR_TARBALL} /
 RUN mv /apache-pulsar-* /pulsar
 RUN rm -rf /pulsar/bin/*.cmd
+
+COPY build-scripts /build-scripts/
+RUN /build-scripts/remove-unnecessary-native-binaries.sh
 
 COPY scripts/* /pulsar/bin/
 
