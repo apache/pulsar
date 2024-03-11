@@ -64,22 +64,21 @@ public class RestEndpointMetricsFilter implements ContainerResponseFilter, Conta
 
     @Override
     public void filter(ContainerRequestContext req, ContainerResponseContext resp) throws IOException {
+        Response.StatusType status = resp.getStatusInfo();
+        int statusCode = status.getStatusCode();
         Attributes attrs;
         try {
             UriRoutingContext info = (UriRoutingContext) req.getUriInfo();
-            attrs = getRequestAttributes(info);
+            attrs = getRequestAttributes(info, statusCode);
         } catch (Throwable ex) {
-            attrs = Attributes.of(PATH, "UNKNOWN", METHOD, req.getMethod());
+            attrs = Attributes.of(PATH, "UNKNOWN", METHOD, req.getMethod(), CODE, (long) statusCode);
         }
 
-        Response.StatusType status = resp.getStatusInfo();
-        int statusCode = status.getStatusCode();
         Object o = req.getProperty(REQUEST_START_TIME);
-        if (!(o instanceof Long start)) {
-            return;
+        if (o instanceof Long start) {
+            long duration = System.currentTimeMillis() - start;
+            this.latency.record(duration, attrs);
         }
-        long latency = System.currentTimeMillis() - start;
-        recordLatency(attrs, statusCode, latency);
     }
 
     @Override
@@ -88,18 +87,12 @@ public class RestEndpointMetricsFilter implements ContainerResponseFilter, Conta
         req.setProperty(REQUEST_START_TIME, System.currentTimeMillis());
     }
 
-
-    private void recordLatency(Attributes attrs, int code, long duration) {
-        attrs = attrs.toBuilder().put(CODE, (long) code).build();
-        latency.record(duration, attrs);
-    }
-
-    private static Attributes getRequestAttributes(UriRoutingContext ctx) {
+    private static Attributes getRequestAttributes(UriRoutingContext ctx, long statusCode) {
         List<UriTemplate> templates = ctx.getMatchedTemplates();
         ResourceMethod method = ctx.getMatchedResourceMethod();
         String httpMethod = method == null ? "UNKNOWN" : method.getHttpMethod();
         if (CollectionUtils.isEmpty(templates)) {
-            return Attributes.of(PATH, "UNKNOWN", METHOD, httpMethod);
+            return Attributes.of(PATH, "UNKNOWN", METHOD, httpMethod, CODE, statusCode);
         }
         UriTemplate[] arr = templates.toArray(new UriTemplate[0]);
         int idx = arr.length - 1;
@@ -108,6 +101,6 @@ public class RestEndpointMetricsFilter implements ContainerResponseFilter, Conta
             builder.append(arr[idx].getTemplate());
         }
         String template = builder.toString().replace("{", ":").replace("}", "");
-        return Attributes.of(PATH, template, METHOD, httpMethod);
+        return Attributes.of(PATH, template, METHOD, httpMethod, CODE, statusCode);
     }
 }
