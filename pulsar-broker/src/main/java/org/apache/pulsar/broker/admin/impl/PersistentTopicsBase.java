@@ -1498,7 +1498,8 @@ public class PersistentTopicsBase extends AdminResource {
         } else {
             future = CompletableFuture.completedFuture(null);
         }
-        future.thenCompose(__ -> getPartitionedTopicMetadataAsync(topicName, authoritative, false))
+        future.thenCompose(__ -> validateTopicOperationAsync(topicName, TopicOperation.GET_STATS))
+              .thenCompose(__ -> getPartitionedTopicMetadataAsync(topicName, authoritative, false))
                 .thenAccept(partitionMetadata -> {
             if (partitionMetadata.partitions == 0) {
                 asyncResponse.resume(new RestException(Status.NOT_FOUND,
@@ -1601,7 +1602,6 @@ public class PersistentTopicsBase extends AdminResource {
         });
     }
 
-    // Note: this method expects the caller to check authorization
     private CompletableFuture<Void> internalDeleteSubscriptionForNonPartitionedTopicAsync(String subName,
                                                                                           boolean authoritative,
                                                                                           boolean force) {
@@ -2258,7 +2258,8 @@ public class PersistentTopicsBase extends AdminResource {
         } else {
             ret = CompletableFuture.completedFuture(null);
         }
-        ret.thenAccept(__ -> {
+        ret.thenCompose(__ -> validateTopicOperationAsync(topicName, TopicOperation.SUBSCRIBE, subscriptionName))
+           .thenAccept(__ -> {
             final MessageIdImpl targetMessageId = messageId == null ? (MessageIdImpl) MessageId.latest : messageId;
             log.info("[{}][{}] Creating subscription {} at message id {} with properties {}", clientAppId(),
                     topicName, subscriptionName, targetMessageId, properties);
@@ -2424,7 +2425,9 @@ public class PersistentTopicsBase extends AdminResource {
             future = CompletableFuture.completedFuture(null);
         }
 
-        future.thenCompose(__ -> validateTopicOwnershipAsync(topicName, authoritative)).thenAccept(__ -> {
+        future.thenCompose(__ -> validateTopicOwnershipAsync(topicName, authoritative))
+              .thenCompose(__ -> validateTopicOperationAsync(topicName, TopicOperation.CONSUME, subName))
+              .thenAccept(__ -> {
             if (topicName.isPartitioned()) {
                 internalUpdateSubscriptionPropertiesForNonPartitionedTopic(asyncResponse, subName,
                         subscriptionProperties, authoritative);
@@ -2504,6 +2507,7 @@ public class PersistentTopicsBase extends AdminResource {
         }
 
         future.thenCompose(__ -> validateTopicOwnershipAsync(topicName, authoritative))
+                .thenCompose(__ -> validateTopicOperationAsync(topicName, TopicOperation.CONSUME, subName))
                 .thenCompose(__ -> {
                     if (topicName.isPartitioned()) {
                         return CompletableFuture.completedFuture(null);
@@ -2541,8 +2545,9 @@ public class PersistentTopicsBase extends AdminResource {
         } else {
             future = CompletableFuture.completedFuture(null);
         }
-
-        future.thenCompose(__ -> validateTopicOwnershipAsync(topicName, authoritative)).thenAccept(__ -> {
+        future.thenCompose(__ -> validateTopicOwnershipAsync(topicName, authoritative))
+            .thenCompose(__ -> validateTopicOperationAsync(topicName, TopicOperation.CONSUME, subName))
+            .thenAccept(__ -> {
             if (topicName.isPartitioned()) {
                 internalGetSubscriptionPropertiesForNonPartitionedTopic(asyncResponse, subName,
                         authoritative);
@@ -3319,8 +3324,7 @@ public class PersistentTopicsBase extends AdminResource {
             future = ret;
         }
         future.thenAccept(__ -> validateTopicOwnershipAsync(topicName, authoritative)
-                .thenCompose(unused -> validateTopicOperationAsync(topicName,
-                        TopicOperation.GET_BACKLOG_SIZE))
+                .thenCompose(unused -> validateTopicOperationAsync(topicName, TopicOperation.GET_BACKLOG_SIZE))
                 .thenCompose(unused -> getTopicReferenceAsync(topicName))
                 .thenAccept(t -> {
                     PersistentTopic topic = (PersistentTopic) t;
@@ -4227,7 +4231,8 @@ public class PersistentTopicsBase extends AdminResource {
         } else {
             future = CompletableFuture.completedFuture(null);
         }
-        future.thenAccept(__ -> {
+        future.thenCompose(__ -> validateTopicOperationAsync(topicName, TopicOperation.COMPACT))
+              .thenAccept(__ -> {
             // If the topic name is a partition name, no need to get partition topic metadata again
             if (topicName.isPartitioned()) {
                 internalTriggerCompactionNonPartitionedTopic(asyncResponse, authoritative);
@@ -4659,11 +4664,12 @@ public class PersistentTopicsBase extends AdminResource {
                     "Trim on a non-persistent topic is not allowed"));
             return null;
         }
+        CompletableFuture<Void> future = validateTopicOperationAsync(topicName, TopicOperation.TRIM_TOPIC);
         if (topicName.isPartitioned()) {
-            return validateTopicOperationAsync(topicName, TopicOperation.TRIM_TOPIC).thenCompose((x)
+            return future.thenCompose((x)
                     -> trimNonPartitionedTopic(asyncResponse, topicName, authoritative));
         }
-        return validateTopicOperationAsync(topicName, TopicOperation.TRIM_TOPIC)
+        return future
                 .thenCompose(__ -> pulsar().getBrokerService().fetchPartitionedTopicMetadataAsync(topicName))
                 .thenCompose(metadata -> {
                     if (metadata.partitions > 0) {
@@ -5031,8 +5037,8 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     protected CompletableFuture<Void> internalTruncateNonPartitionedTopicAsync(boolean authoritative) {
-        return validateAdminAccessForTenantAsync(topicName.getTenant())
-            .thenCompose(__ -> validateTopicOwnershipAsync(topicName, authoritative))
+        return validateTopicOwnershipAsync(topicName, authoritative)
+            .thenCompose(__ -> validateAdminAccessForTenantAsync(topicName.getTenant()))
             .thenCompose(__ -> getTopicReferenceAsync(topicName))
             .thenCompose(Topic::truncate);
     }
@@ -5086,9 +5092,9 @@ public class PersistentTopicsBase extends AdminResource {
 
         // 1.Permission to consume this topic is required
         // 2.Redirect the request to the peer-cluster if the local cluster is not included in the replication clusters
-        CompletableFuture<Void> validateFuture =
-                validateTopicOperationAsync(topicName, TopicOperation.SET_REPLICATED_SUBSCRIPTION_STATUS, subName)
-                        .thenCompose(__ -> validateGlobalNamespaceOwnershipAsync(namespaceName));
+        CompletableFuture<Void> validateFuture = validateGlobalNamespaceOwnershipAsync(namespaceName)
+            .thenCompose(__ -> validateTopicOperationAsync(topicName, TopicOperation.SET_REPLICATED_SUBSCRIPTION_STATUS,
+                    subName));
 
 
         CompletableFuture<Void> resultFuture;
@@ -5345,13 +5351,12 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     protected CompletableFuture<SchemaCompatibilityStrategy> internalGetSchemaCompatibilityStrategy(boolean applied) {
+        CompletableFuture<Void> future = validateTopicPolicyOperationAsync(topicName,
+                PolicyName.SCHEMA_COMPATIBILITY_STRATEGY, PolicyOperation.READ);
         if (applied) {
-            return getSchemaCompatibilityStrategyAsync();
+            return future.thenCompose(__ -> getSchemaCompatibilityStrategyAsync());
         }
-        return validateTopicPolicyOperationAsync(topicName,
-                PolicyName.SCHEMA_COMPATIBILITY_STRATEGY,
-                PolicyOperation.READ)
-                .thenCompose(n -> getTopicPoliciesAsyncWithRetry(topicName).thenApply(op -> {
+        return future.thenCompose(n -> getTopicPoliciesAsyncWithRetry(topicName).thenApply(op -> {
                     if (!op.isPresent()) {
                         return null;
                     }
@@ -5362,8 +5367,7 @@ public class PersistentTopicsBase extends AdminResource {
 
     protected CompletableFuture<Void> internalSetSchemaCompatibilityStrategy(SchemaCompatibilityStrategy strategy) {
         return validateTopicPolicyOperationAsync(topicName,
-                PolicyName.SCHEMA_COMPATIBILITY_STRATEGY,
-                PolicyOperation.WRITE)
+                PolicyName.SCHEMA_COMPATIBILITY_STRATEGY, PolicyOperation.WRITE)
                 .thenCompose((__) -> getTopicPoliciesAsyncWithRetry(topicName)
                         .thenCompose(op -> {
                             TopicPolicies topicPolicies = op.orElseGet(TopicPolicies::new);
