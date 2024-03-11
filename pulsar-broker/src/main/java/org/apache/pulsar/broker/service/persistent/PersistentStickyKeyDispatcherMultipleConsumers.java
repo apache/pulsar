@@ -30,6 +30,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.NavigableSet;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.bookkeeper.mledger.Entry;
@@ -161,6 +162,14 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
             new FastThreadLocal<Map<Consumer, List<Entry>>>() {
                 @Override
                 protected Map<Consumer, List<Entry>> initialValue() throws Exception {
+                    return new HashMap<>();
+                }
+            };
+
+    private static final FastThreadLocal<Map<Consumer, List<PositionImpl>>> localGroupedPositions =
+            new FastThreadLocal<Map<Consumer, List<PositionImpl>>>() {
+                @Override
+                protected Map<Consumer, List<PositionImpl>> initialValue() throws Exception {
                     return new HashMap<>();
                 }
             };
@@ -433,8 +442,49 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
             this.isDispatcherStuckOnReplays = false;
             return Collections.emptyNavigableSet();
         } else {
-            return super.getMessagesToReplayNow(maxMessagesToRead);
+            NavigableSet<PositionImpl> res = super.getMessagesToReplayNow(maxMessagesToRead);
+            return filterOutMessagesWillBeDiscarded(res);
         }
+    }
+
+    /**
+     * This method is in order to avoid the scenario below:
+     * - Read entries from the Replay queue.
+     * - The Key_Shared anti-ordering mechanism filtered out all of the entries.
+     * - Delivery non entry to the client, but we did a BK read.
+     */
+    private NavigableSet<PositionImpl> filterOutMessagesWillBeDiscarded(NavigableSet<PositionImpl> src) {
+        // Remove invalid items.
+        removeConsumersFromRecentJoinedConsumers();
+        if (recentlyJoinedConsumers == null || src.isEmpty()) {
+            return src;
+        }
+        PositionImpl firstMaxReadPos = recentlyJoinedConsumers.values().iterator().next();
+        // Group by key_hash.
+        NavigableSet<PositionImpl> res = new TreeSet<>();
+        final Map<Consumer, List<PositionImpl>> groupedEntries = localGroupedPositions.get();
+        groupedEntries.clear();
+        for (PositionImpl pos : src) {
+            Long stickyKeyHash = redeliveryMessages.getHash(pos.getLedgerId(), pos.getEntryId());
+            if (stickyKeyHash == null) {
+                res.add(pos);
+            }
+            Consumer c = selector.select(stickyKeyHash.intValue());
+            PositionImpl currentMaxReadPosition = recentlyJoinedConsumers.get(c);
+            if (c == null) {
+                continue;
+            }
+            if (currentMaxReadPosition == null) {
+                res.add(pos);
+            } else if (pos.compareTo(firstMaxReadPos) < 0 && pos.compareTo(currentMaxReadPosition) < 0) {
+                res.add(pos);
+            } else {
+                // The subsequent positions will also be larger than "firstMaxReadPos", why need to check continuous.
+                // Because the subsequent positions may be delivered to a consumer which does not in the
+                // "recentlyJoinedConsumers".
+            }
+        }
+        return res;
     }
 
     @Override
