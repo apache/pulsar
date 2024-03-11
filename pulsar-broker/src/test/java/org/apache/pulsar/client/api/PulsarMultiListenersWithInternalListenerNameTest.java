@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.client.api;
 
-import io.opentelemetry.api.OpenTelemetry;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.net.InetAddress;
