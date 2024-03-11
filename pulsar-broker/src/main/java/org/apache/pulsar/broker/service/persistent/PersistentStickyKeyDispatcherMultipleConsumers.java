@@ -482,6 +482,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
             }
             Consumer c = selector.select(stickyKeyHash.intValue());
             if (c == null) {
+                // Maybe using HashRangeExclusiveStickyKeyConsumerSelector.
                 continue;
             }
             if (getAvailablePermits(c) == 0) {
