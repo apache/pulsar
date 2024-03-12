@@ -129,6 +129,8 @@ public class BrokerServiceTest extends BrokerTestBase {
     protected void setup() throws Exception {
         conf.setSystemTopicEnabled(false);
         conf.setTopicLevelPoliciesEnabled(false);
+        conf.setStatsUpdateInitialDelayInSecs(1);
+        conf.setStatsUpdateFrequencyInSecs(1);
         super.baseSetup();
     }
 
@@ -1618,8 +1620,8 @@ public class BrokerServiceTest extends BrokerTestBase {
             // ignore
         }
 
-        Awaitility.waitAtMost(2, TimeUnit.MINUTES)
-                .pollInterval(5, TimeUnit.SECONDS)
+        Awaitility.waitAtMost(5, TimeUnit.SECONDS)
+                .pollInterval(1, TimeUnit.SECONDS)
                 .until(() -> {
                     String json = admin.brokerStats().getMetrics();
                     JsonArray metrics = new Gson().fromJson(json, JsonArray.class);
