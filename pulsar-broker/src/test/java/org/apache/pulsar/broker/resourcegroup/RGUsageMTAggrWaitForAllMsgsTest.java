@@ -119,9 +119,9 @@ public class RGUsageMTAggrWaitForAllMsgsTest extends ProducerConsumerBase {
         private final int numMesgsToProduce;
         private final String myProduceTopic;
 
-        private int sentNumBytes = 0;
-        private int sentNumMsgs = 0;
-        private int numExceptions = 0;
+        private volatile int sentNumBytes = 0;
+        private volatile int sentNumMsgs = 0;
+        private volatile int numExceptions = 0;
 
         ProduceMessages(int prodId, int nMesgs, String[] topics) {
             producerId = prodId;
@@ -202,9 +202,9 @@ public class RGUsageMTAggrWaitForAllMsgsTest extends ProducerConsumerBase {
 
         private final int recvTimeoutMilliSecs = 1000;
         private final int ackTimeoutMilliSecs = 1100; // has to be more than 1 second
-        private int recvdNumBytes = 0;
-        private int recvdNumMsgs = 0;
-        private int numExceptions = 0;
+        private volatile int recvdNumBytes = 0;
+        private volatile int recvdNumMsgs = 0;
+        private volatile int numExceptions = 0;
         private volatile boolean allMessagesReceived = false;
         private volatile boolean consumerIsReady = false;
 
