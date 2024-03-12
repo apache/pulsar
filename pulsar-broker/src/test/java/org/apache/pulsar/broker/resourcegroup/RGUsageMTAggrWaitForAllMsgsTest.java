@@ -494,14 +494,14 @@ public class RGUsageMTAggrWaitForAllMsgsTest extends ProducerConsumerBase {
         while (numConsumersDone < NUM_CONSUMERS) {
             for (int ix = 0; ix < NUM_CONSUMERS; ix++) {
                 if (!joinedConsumers[ix]) {
+                    consThr[ix].thread.join();
+                    joinedConsumers[ix] = true;
+                    log.debug("Joined consumer={}", ix);
+
                     recvdBytes = consThr[ix].consumer.getNumBytesRecvd();
                     recvdMsgs = consThr[ix].consumer.getNumMessagesRecvd();
                     numConsumerExceptions += consThr[ix].consumer.getNumExceptions();
                     log.debug("Consumer={} received {} mesgs and {} bytes", ix, recvdMsgs, recvdBytes);
-
-                    consThr[ix].thread.join();
-                    joinedConsumers[ix] = true;
-                    log.debug("Joined consumer={}", ix);
 
                     recvdNumBytes += recvdBytes;
                     recvdNumMsgs += recvdMsgs;
