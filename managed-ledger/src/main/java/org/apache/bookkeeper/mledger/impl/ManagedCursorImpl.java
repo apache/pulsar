@@ -1506,10 +1506,7 @@ public class ManagedCursorImpl implements ManagedCursor {
         Set<Position> alreadyAcknowledgedPositions = new HashSet<>();
         lock.readLock().lock();
         try {
-            positions.stream()
-                    .filter(position -> ((PositionImpl) position).compareTo(markDeletePosition) <= 0
-                            || individualDeletedMessages.contains(position.getLedgerId(), position.getEntryId()))
-                    .forEach(alreadyAcknowledgedPositions::add);
+            positions.stream().filter(this::isMessageDeleted).forEach(alreadyAcknowledgedPositions::add);
         } finally {
             lock.readLock().unlock();
         }
@@ -2281,8 +2278,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                     return;
                 }
 
-                if (position.compareTo(markDeletePosition) <= 0
-                        || individualDeletedMessages.contains(position.getLedgerId(), position.getEntryId())) {
+                if (isMessageDeleted(position)) {
                     if (config.isDeletionAtBatchIndexLevelEnabled()) {
                         BitSetRecyclable bitSetRecyclable = batchDeletedIndexes.remove(position);
                         if (bitSetRecyclable != null) {
@@ -3541,8 +3537,7 @@ public class ManagedCursorImpl implements ManagedCursor {
     @Override
     public void trimDeletedEntries(List<Entry> entries) {
         entries.removeIf(entry -> {
-            boolean isDeleted = markDeletePosition.compareTo(entry.getLedgerId(), entry.getEntryId()) >= 0
-                    || individualDeletedMessages.contains(entry.getLedgerId(), entry.getEntryId());
+            boolean isDeleted = isMessageDeleted(entry.getPosition());
             if (isDeleted) {
                 entry.release();
             }
