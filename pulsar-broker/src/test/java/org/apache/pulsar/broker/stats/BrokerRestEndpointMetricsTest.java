@@ -27,20 +27,21 @@ import java.util.Collection;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
-import org.apache.pulsar.broker.service.BrokerTestBase;
+import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.testcontext.PulsarTestContext;
+import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.testng.Assert;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker")
-public class BrokerRestEndpointMetricsTest extends BrokerTestBase {
+public class BrokerRestEndpointMetricsTest extends MockedPulsarServiceBaseTest {
 
     @BeforeMethod(alwaysRun = true)
     @Override
     protected void setup() throws Exception {
-        baseSetup();
+        super.internalSetup();
     }
 
     @BeforeMethod(alwaysRun = true)
@@ -58,6 +59,7 @@ public class BrokerRestEndpointMetricsTest extends BrokerTestBase {
 
     @Test
     public void testMetrics() throws Exception {
+        admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
         admin.tenants().createTenant("test", TenantInfo.builder().allowedClusters(Set.of("test")).build());
         admin.namespaces().createNamespace("test/test");
         String topic = "persistent://test/test/test_" + UUID.randomUUID();
