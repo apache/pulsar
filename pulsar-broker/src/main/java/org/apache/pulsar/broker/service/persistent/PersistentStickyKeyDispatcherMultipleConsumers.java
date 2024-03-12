@@ -410,6 +410,9 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
     }
 
     private boolean removeConsumersFromRecentJoinedConsumers() {
+        if (MapUtils.isEmpty(recentlyJoinedConsumers)) {
+            return false;
+        }
         Iterator<Map.Entry<Consumer, PositionImpl>> itr = recentlyJoinedConsumers.entrySet().iterator();
         boolean hasConsumerRemovedFromTheRecentJoinedConsumers = false;
         PositionImpl mdp = (PositionImpl) cursor.getMarkDeletedPosition();
@@ -479,6 +482,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
             Long stickyKeyHash = redeliveryMessages.getHash(pos.getLedgerId(), pos.getEntryId());
             if (stickyKeyHash == null) {
                 res.add(pos);
+                continue;
             }
             Consumer c = selector.select(stickyKeyHash.intValue());
             if (c == null) {
