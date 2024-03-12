@@ -165,7 +165,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
             return;
         }
 
-        checkArgument(topicNamesValid(conf.getTopicNames()), "Topics is invalid.");
+        checkArgument(topicNamesValid(conf.getTopicNames()), "The param [topics] is invalid.");
 
         List<CompletableFuture<Void>> futures = conf.getTopicNames().stream()
                 .map(t -> subscribeAsync(t, createTopicIfDoesNotExist))
@@ -202,21 +202,21 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         checkState(topics != null && topics.size() >= 1,
             "topics should contain more than 1 topic");
 
-        Optional<String> result = topics.stream()
-                .filter(topic -> !TopicName.isValid(topic))
-                .findFirst();
+        Set<TopicName> topicNames = new HashSet<>();
 
-        if (result.isPresent()) {
-            log.warn("Received invalid topic name: {}", result.get());
-            return false;
+        for (String topic : topics) {
+            if (!TopicName.isValid(topic)) {
+                log.warn("Received invalid topic name: {}", topic);
+                return false;
+            }
+            topicNames.add(TopicName.get(topic));
         }
 
         // check topic names are unique
-        HashSet<String> set = new HashSet<>(topics);
-        if (set.size() == topics.size()) {
+        if (topicNames.size() == topics.size()) {
             return true;
         } else {
-            log.warn("Topic names not unique. unique/all : {}/{}", set.size(), topics.size());
+            log.warn("Topic names not unique. unique/all : {}/{}", topicNames.size(), topics.size());
             return false;
         }
     }
