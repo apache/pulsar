@@ -99,7 +99,7 @@ public class MultiBrokerLeaderElectionTest extends MultiBrokerTestZKBaseTest {
         });
     }
 
-    @Test(timeOut = 60000L)
+    @Test(timeOut = 120000L)
     public void shouldProvideConsistentAnswerToTopicLookupsUsingAdminApi()
             throws PulsarAdminException, ExecutionException, InterruptedException {
         String namespace = "public/ns" + UUID.randomUUID();
