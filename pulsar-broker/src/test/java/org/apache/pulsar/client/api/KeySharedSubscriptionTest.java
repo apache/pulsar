@@ -1721,7 +1721,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         Consumer<Integer> consumer3 = pulsarClient.newConsumer(Schema.INT32)
                 .topic(topic)
                 .subscriptionName(subName)
-                .receiverQueueSize(10)
+                .receiverQueueSize(1000)
                 .subscriptionType(SubscriptionType.Key_Shared)
                 .subscribe();
         redeliverConsumer.close();
