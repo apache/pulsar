@@ -259,17 +259,17 @@ public class WebService implements AutoCloseable {
 
     public void addServlet(String path, ServletHolder servletHolder, boolean requiresAuthentication,
                            Map<String, Object> attributeMap) {
-        ServletContextHandler context = new ServletContextHandler(ServletContextHandler.SESSIONS);
+        ServletContextHandler servletContextHandler = new ServletContextHandler(ServletContextHandler.SESSIONS);
         // Notice: each context path should be unique, but there's nothing here to verify that
-        context.setContextPath(path);
-        context.addServlet(servletHolder, MATCH_ALL);
+        servletContextHandler.setContextPath(path);
+        servletContextHandler.addServlet(servletHolder, MATCH_ALL);
         if (attributeMap != null) {
-            attributeMap.forEach(context::setAttribute);
+            attributeMap.forEach(servletContextHandler::setAttribute);
         }
-        filterInitializer.addFilters(context, requiresAuthentication);
+        filterInitializer.addFilters(servletContextHandler, requiresAuthentication);
 
         GzipHandler gzipHandler = new GzipHandler();
-        gzipHandler.setHandler(context);
+        gzipHandler.setHandler(servletContextHandler);
         handlers.add(gzipHandler);
     }
 
