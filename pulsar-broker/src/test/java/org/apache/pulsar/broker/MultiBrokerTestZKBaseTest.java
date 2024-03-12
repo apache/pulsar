@@ -65,6 +65,7 @@ public abstract class MultiBrokerTestZKBaseTest extends MultiBrokerBaseTest {
     @Override
     protected PulsarTestContext.Builder createPulsarTestContextBuilder(ServiceConfiguration conf) {
         return super.createPulsarTestContextBuilder(conf)
+                .spyNoneByDefault()
                 .localMetadataStore(createMetadataStore(MetadataStoreConfig.METADATA_STORE))
                 .configurationMetadataStore(createMetadataStore(MetadataStoreConfig.CONFIGURATION_METADATA_STORE));
     }
