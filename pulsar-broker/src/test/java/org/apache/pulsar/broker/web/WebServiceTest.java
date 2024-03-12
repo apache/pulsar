@@ -24,11 +24,14 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
+
 import com.google.common.collect.Multimap;
 import com.google.common.collect.Sets;
 import com.google.common.io.CharStreams;
 import com.google.common.io.Closeables;
 import io.netty.handler.ssl.util.InsecureTrustManagerFactory;
+
+import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -45,6 +48,7 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.zip.GZIPInputStream;
 import javax.net.ssl.HttpsURLConnection;
 import javax.net.ssl.KeyManager;
 import javax.net.ssl.KeyManagerFactory;
@@ -52,6 +56,12 @@ import javax.net.ssl.SSLContext;
 import javax.net.ssl.TrustManager;
 import lombok.Cleanup;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.http.HttpEntity;
+import org.apache.http.HttpResponse;
+import org.apache.http.client.methods.HttpGet;
+import org.apache.http.impl.client.CloseableHttpClient;
+import org.apache.http.impl.client.HttpClients;
+import org.apache.http.util.EntityUtils;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsGenerator;
@@ -74,6 +84,7 @@ import org.eclipse.jetty.client.HttpClient;
 import org.eclipse.jetty.client.api.ContentResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.testcontainers.shaded.org.apache.commons.io.IOUtils;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.Test;
@@ -104,7 +115,7 @@ public class WebServiceTest {
 
     @Test
     public void testWebExecutorMetrics() throws Exception {
-        setupEnv(true, false, false, false, -1, false, false);
+        setupEnv(true, false, false, false, -1, false);
         ByteArrayOutputStream statsOut = new ByteArrayOutputStream();
         PrometheusMetricsGenerator.generate(pulsar, false, false, false, statsOut);
         String metricsStr = statsOut.toString();
@@ -145,7 +156,7 @@ public class WebServiceTest {
      */
     @Test
     public void testDefaultClientVersion() throws Exception {
-        setupEnv(true, false, false, false, -1, false, false);
+        setupEnv(true, false, false, false, -1, false);
 
         try {
             // Make an HTTP request to lookup a namespace. The request should
@@ -163,7 +174,7 @@ public class WebServiceTest {
      */
     @Test
     public void testTlsEnabled() throws Exception {
-        setupEnv(false, true, false, false, -1, false, false);
+        setupEnv(false, true, false, false, -1, false);
 
         // Make requests both HTTP and HTTPS. The requests should succeed
         try {
@@ -185,7 +196,7 @@ public class WebServiceTest {
      */
     @Test
     public void testTlsDisabled() throws Exception {
-        setupEnv(false, false, false, false, -1, false, false);
+        setupEnv(false, false, false, false, -1, false);
 
         // Make requests both HTTP and HTTPS. Only the HTTP request should succeed
         try {
@@ -209,7 +220,7 @@ public class WebServiceTest {
      */
     @Test
     public void testTlsAuthAllowInsecure() throws Exception {
-        setupEnv(false, true, true, true, -1, false, false);
+        setupEnv(false, true, true, true, -1, false);
 
         // Only the request with client certificate should succeed
         try {
@@ -232,7 +243,7 @@ public class WebServiceTest {
      */
     @Test
     public void testTlsAuthDisallowInsecure() throws Exception {
-        setupEnv(false, true, true, false, -1, false, false);
+        setupEnv(false, true, true, false, -1, false);
 
         // Only the request with trusted client certificate should succeed
         try {
@@ -250,7 +261,7 @@ public class WebServiceTest {
 
     @Test
     public void testRateLimiting() throws Exception {
-        setupEnv(false, false, false, false, 10.0, false, false);
+        setupEnv(false, false, false, false, 10.0, false);
 
         // Make requests without exceeding the max rate
         for (int i = 0; i < 5; i++) {
@@ -277,7 +288,7 @@ public class WebServiceTest {
 
     @Test
     public void testDisableHttpTraceAndTrackMethods() throws Exception {
-        setupEnv(true, false, false, false, -1, true, false);
+        setupEnv(true, false, false, false, -1, true);
 
         String url = pulsar.getWebServiceAddress() + "/admin/v2/tenants/my-tenant" + System.currentTimeMillis();
 
@@ -301,7 +312,7 @@ public class WebServiceTest {
 
     @Test
     public void testMaxRequestSize() throws Exception {
-        setupEnv(true, false, false, false, -1, false, false);
+        setupEnv(true, false, false, false, -1, false);
 
         String url = pulsar.getWebServiceAddress() + "/admin/v2/tenants/my-tenant" + System.currentTimeMillis();
 
@@ -345,7 +356,7 @@ public class WebServiceTest {
 
     @Test
     public void testBrokerReady() throws Exception {
-        setupEnv(true, false, false, false, -1, false, false);
+        setupEnv(true, false, false, false, -1, false);
 
         String url = pulsar.getWebServiceAddress() + "/admin/v2/brokers/ready";
 
@@ -360,7 +371,7 @@ public class WebServiceTest {
     @Test
     public void testNonCompressOutputMetricsInPrometheus() throws Exception {
 
-        setupEnv(true, false, false, false, -1, false, false);
+        setupEnv(true, false, false, false, -1, false);
         String metricsUrl = pulsar.getWebServiceAddress() + "/metrics";
         HttpClient client = new HttpClient();
         client.start();
@@ -373,15 +384,28 @@ public class WebServiceTest {
     @Test
     public void testCompressOutputMetricsInPrometheus() throws Exception {
 
-        setupEnv(true, false, false, false, -1, false, true);
+        setupEnv(true, false, false, false, -1, false);
 
-        String metricsUrl = pulsar.getWebServiceAddress() + "/metrics";
+        String metricsUrl = pulsar.getWebServiceAddress() + "/metrics/";
 
-        HttpClient client = new HttpClient();
-        client.start();
-        ContentResponse response = client.GET(metricsUrl);
-        assertEquals(response.getStatus(), 200);
-        assertEquals(response.getHeaders().get("Content-Encoding"), "gzip");
+        String[] command = {"curl", "-H", "Accept-Encoding: gzip", metricsUrl};
+
+        ProcessBuilder processBuilder = new ProcessBuilder(command);
+        Process process = processBuilder.start();
+
+        InputStream inputStream = process.getInputStream();
+        GZIPInputStream gzipInputStream = new GZIPInputStream(inputStream);
+
+        // Process the decompressed content
+        StringBuilder content = new StringBuilder();
+        int data;
+        while ((data = gzipInputStream.read()) != -1) {
+            content.append((char) data);
+        }
+        log.info("Response Content: {}", content);
+
+        process.waitFor();
+        assertTrue(content.toString().contains("process_cpu_seconds_total"));
     }
 
     private String makeHttpRequest(boolean useTls, boolean useAuth) throws Exception {
@@ -418,7 +442,7 @@ public class WebServiceTest {
     }
 
     private void setupEnv(boolean enableFilter, boolean enableTls, boolean enableAuth, boolean allowInsecure,
-                          double rateLimit, boolean disableTrace, boolean enableCompressionSupport) throws Exception {
+                          double rateLimit, boolean disableTrace) throws Exception {
         if (pulsar != null) {
             throw new Exception("broker already started");
         }
@@ -451,7 +475,6 @@ public class WebServiceTest {
         config.setMetadataStoreUrl("zk:localhost:2181");
         config.setHttpMaxRequestSize(10 * 1024);
         config.setDisableHttpDebugMethods(disableTrace);
-        config.setHttpResponseCompressionEnabled(enableCompressionSupport);
         if (rateLimit > 0) {
             config.setHttpRequestsLimitEnabled(true);
             config.setHttpRequestsMaxPerSecond(rateLimit);

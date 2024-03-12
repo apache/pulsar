@@ -268,12 +268,9 @@ public class WebService implements AutoCloseable {
         }
         filterInitializer.addFilters(context, requiresAuthentication);
 
-        if (pulsar.getConfiguration().isHttpResponseCompressionEnabled()) {
-            GzipHandler gzipHandler = new GzipHandler();
-            context.setHandler(gzipHandler);
-        }
-
-        handlers.add(context);
+        GzipHandler gzipHandler = new GzipHandler();
+        gzipHandler.setHandler(context);
+        handlers.add(gzipHandler);
     }
 
     public void addStaticResources(String basePath, String resourcePath) {

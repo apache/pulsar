@@ -1628,14 +1628,6 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private boolean httpRequestsFailOnUnknownPropertiesEnabled = false;
 
     @FieldContext(
-        category = CATEGORY_HTTP,
-        doc = "Enable support for compressing HTTP responses. However, enabling this feature does not guarantee"
-            + " that the response will be compressed. The decision to compress the response depends on whether the"
-            + " client's request header contains the `Accept-Encoding: gzip` flag."
-    )
-    private boolean httpResponseCompressionEnabled = false;
-
-    @FieldContext(
         category = CATEGORY_SASL_AUTH,
         doc = "This is a regexp, which limits the range of possible ids which can connect to the Broker using SASL.\n"
             + " Default value is: \".*pulsar.*\", so only clients whose id contains 'pulsar' are allowed to connect."
