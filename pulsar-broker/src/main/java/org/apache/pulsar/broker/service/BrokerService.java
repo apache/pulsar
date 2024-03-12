@@ -1266,7 +1266,8 @@ public class BrokerService implements Closeable {
                         topicFuture.complete(Optional.of(nonPersistentTopic));
                     })
                     .exceptionally(ex -> {
-                        log.warn("Replication check failed. Removing topic from topics list {}, {}", topic, ex.getCause());
+                        log.warn("Replication check failed. Removing topic from topics list {}, {}",
+                                topic, ex.getCause());
                         nonPersistentTopic.stopReplProducers()
                                 .whenComplete((v, exception) -> {
                                     pulsar.getExecutor().execute(() -> topics.remove(topic, topicFuture));
