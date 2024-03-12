@@ -1264,15 +1264,12 @@ public class BrokerService implements Closeable {
                         pulsarStats.recordTopicLoadTimeValue(topic, topicLoadLatencyMs);
                         addTopicToStatsMaps(TopicName.get(topic), nonPersistentTopic);
                         topicFuture.complete(Optional.of(nonPersistentTopic));
-                    })
-                    .exceptionally(ex -> {
-                        log.warn("Replication check failed. Removing topic from topics list {}, {}",
-                                topic, ex.getCause());
-                        nonPersistentTopic.stopReplProducers()
-                                .whenComplete((v, exception) -> {
-                                    pulsar.getExecutor().execute(() -> topics.remove(topic, topicFuture));
-                                    topicFuture.completeExceptionally(ex);
-                                });
+                    }).exceptionally(ex -> {
+                        log.warn("Replication check failed. Removing topic from topics list {}, {}", topic, ex.getCause());
+                        nonPersistentTopic.stopReplProducers().whenComplete((v, exception) -> {
+                            pulsar.getExecutor().execute(() -> topics.remove(topic, topicFuture));
+                            topicFuture.completeExceptionally(ex);
+                        });
                         return null;
                     });
         }).exceptionally(e -> {
