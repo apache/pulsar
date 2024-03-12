@@ -1520,7 +1520,7 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     protected void internalRemoveReplicatorDispatchRate() {
-        validateNamespacePolicyOperation(namespaceName, PolicyName.REPLICATION_RATE, PolicyOperation.WRITE)();
+        validateNamespacePolicyOperation(namespaceName, PolicyName.REPLICATION_RATE, PolicyOperation.WRITE);
         try {
             updatePolicies(namespaceName, policies -> {
                 policies.replicatorDispatchRate.remove(pulsar().getConfiguration().getClusterName());
