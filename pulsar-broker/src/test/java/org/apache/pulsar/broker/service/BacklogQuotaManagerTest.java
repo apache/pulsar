@@ -316,10 +316,10 @@ public class BacklogQuotaManagerTest {
             TopicStats stats = getTopicStats(topic1);
             // overall backlogSize should be zero because we only have readers
             assertEquals(stats.getBacklogSize(), 0, "backlog size is [" + stats.getBacklogSize() + "]");
-            // non-durable mes should still
             assertEquals(stats.getSubscriptions().size(), 1);
             long nonDurableSubscriptionBacklog = stats.getSubscriptions().values().iterator().next().getMsgBacklog();
-            assertEquals(nonDurableSubscriptionBacklog, MAX_ENTRIES_PER_LEDGER,
+            // All the full ledgers should be deleted.
+            assertEquals(nonDurableSubscriptionBacklog, 0,
               "non-durable subscription backlog is [" + nonDurableSubscriptionBacklog + "]");
             MessageIdImpl messageId = null;
             try {
@@ -341,7 +341,7 @@ public class BacklogQuotaManagerTest {
                 assertEquals(internalStats.ledgers.size(), 1);
 
                 // check if it's the expected ledger id given MAX_ENTRIES_PER_LEDGER
-                assertEquals(internalStats.ledgers.get(0).ledgerId, finalMessageId.getLedgerId());
+                assertEquals(internalStats.ledgers.get(0).ledgerId, finalMessageId.getLedgerId() + 1);
             });
             // check reader can still read without error
 
@@ -501,6 +501,7 @@ public class BacklogQuotaManagerTest {
     @Test
     public void backlogsStatsNotPrecise() throws PulsarAdminException, PulsarClientException, InterruptedException {
         config.setPreciseTimeBasedBacklogQuotaCheck(false);
+        config.setManagedLedgerMaxEntriesPerLedger(6);
         final String namespace = "prop/ns-quota";
         assertEquals(admin.namespaces().getBacklogQuotaMap(namespace), new HashMap<>());
         final int sizeLimitBytes = 15 * 1024 * 1024;
@@ -592,6 +593,7 @@ public class BacklogQuotaManagerTest {
             assertThat(topicStats.getOldestBacklogMessageSubscriptionName()).isEqualTo(subName2);
             expectedAge = MILLISECONDS.toSeconds(System.currentTimeMillis() - unloadTime);
             assertThat(topicStats.getOldestBacklogMessageAgeSeconds()).isCloseTo(expectedAge, within(1L));
+            config.setManagedLedgerMaxEntriesPerLedger(MAX_ENTRIES_PER_LEDGER);
         }
     }
 

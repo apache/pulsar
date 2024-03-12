@@ -1122,9 +1122,13 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
 
         cursor.markDelete(lastPosition);
 
-        while (ledger.getNumberOfEntries() != 2) {
-            Thread.sleep(10);
-        }
+        Awaitility.await().untilAsserted(() -> {
+            // The number of entries in the ledger should not contain the entry in the mark delete position.
+            // last position is the position of entry-3.
+            // cursor.markDelete(lastPosition);
+            // only entry-4 is left in the ledger.
+            assertEquals(ledger.getNumberOfEntries(), 1);
+        });
     }
 
     @Test(timeOut = 20000)
@@ -2438,7 +2442,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
 
         Awaitility.await().untilAsserted(() -> {
             assertTrue(ml.getTotalSize() <= retentionSizeInMB * 1024 * 1024);
-            assertEquals(ml.getLedgersInfoAsList().size(), 5);
+            assertEquals(ml.getLedgersInfoAsList().size(), 6);
         });
     }
 
@@ -2696,9 +2700,17 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
 
         assertEquals(ledger.getNextValidPosition((PositionImpl) c1.getMarkDeletedPosition()), p1);
         assertEquals(ledger.getNextValidPosition(p1), p2);
-        assertEquals(ledger.getNextValidPosition(p3), PositionImpl.get(p3.getLedgerId(), p3.getEntryId() + 1));
-        assertEquals(ledger.getNextValidPosition(PositionImpl.get(p3.getLedgerId(), p3.getEntryId() + 1)), PositionImpl.get(p3.getLedgerId(), p3.getEntryId() + 1));
-        assertEquals(ledger.getNextValidPosition(PositionImpl.get(p3.getLedgerId() + 1, p3.getEntryId() + 1)), PositionImpl.get(p3.getLedgerId(), p3.getEntryId() + 1));
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(ledger.getNextValidPosition(p3), PositionImpl.get(p3.getLedgerId() + 1, 0));
+        });
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(ledger.getNextValidPosition(PositionImpl.get(p3.getLedgerId(), p3.getEntryId() + 1)),
+                    PositionImpl.get(p3.getLedgerId() + 1, 0));
+        });
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(ledger.getNextValidPosition(PositionImpl.get(p3.getLedgerId() + 1, p3.getEntryId() + 1)),
+                    PositionImpl.get(p3.getLedgerId() + 1, 0));
+        });
     }
 
     /**
@@ -3037,19 +3049,22 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
             String content = "entry" + i; // 5 bytes
             ledger.addEntry(content.getBytes());
         }
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(ledger.currentLedgerSize, 0);
+            assertEquals(ledger.ledgers.size(), 1);
+        });
         // Open Cursor also adds cursor into activeCursor-container
         ManagedCursor latestCursor = ledger.openCursor("c1", InitialPosition.Latest);
         ManagedCursor earliestCursor = ledger.openCursor("c2", InitialPosition.Earliest);
 
         // Since getReadPosition returns the next position, we decrease the entryId by 1
-        PositionImpl p1 = (PositionImpl) latestCursor.getReadPosition();
         PositionImpl p2 = (PositionImpl) earliestCursor.getReadPosition();
 
         Pair<PositionImpl, Long> latestPositionAndCounter = ledger.getLastPositionAndCounter();
         Pair<PositionImpl, Long> earliestPositionAndCounter = ledger.getFirstPositionAndCounter();
-
-        assertEquals(latestPositionAndCounter.getLeft().getNext(), p1);
-        assertEquals(earliestPositionAndCounter.getLeft().getNext(), p2);
+        // The read position is the valid next position of the last position instead of the next position.
+        assertEquals(ledger.getNextValidPosition(latestPositionAndCounter.getLeft()), latestCursor.getReadPosition());
+        assertEquals(ledger.getNextValidPosition(earliestPositionAndCounter.getLeft()), p2);
 
         assertEquals(latestPositionAndCounter.getRight().longValue(), totalInsertedEntries);
         assertEquals(earliestPositionAndCounter.getRight().longValue(), totalInsertedEntries - earliestCursor.getNumberOfEntriesInBacklog(false));
@@ -3472,7 +3487,8 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
             ledger.addEntry(new byte[1024 * 1024]);
         }
 
-        Awaitility.await().untilAsserted(() -> Assert.assertEquals(ledger.getLedgersInfoAsList().size(), msgNum / 2));
+        Awaitility.await().untilAsserted(() -> Assert.assertEquals(ledger.getLedgersInfoAsList().size(),
+                msgNum / 2 + 1));
         List<Entry> entries = cursor.readEntries(msgNum);
         Assert.assertEquals(msgNum, entries.size());
 
@@ -3487,6 +3503,9 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         stateUpdater.setAccessible(true);
         stateUpdater.set(ledger, ManagedLedgerImpl.State.LedgerOpened);
         ledger.rollCurrentLedgerIfFull();
+        CompletableFuture<Void> completableFuture = new CompletableFuture<>();
+        ledger.trimConsumedLedgersInBackground(completableFuture);
+        completableFuture.get();
         Awaitility.await().untilAsserted(() -> Assert.assertEquals(ledger.getLedgersInfoAsList().size(), 1));
         Awaitility.await().untilAsserted(() -> Assert.assertEquals(ledger.getTotalSize(), 0));
     }
@@ -3652,8 +3671,12 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         }
         List<Entry> entryList = cursor.readEntries(3);
         assertEquals(entryList.size(), 3);
-        assertEquals(ledger.ledgers.size(), 3);
-        assertEquals(ledger.ledgerCache.size(), 2);
+        Awaitility.await().untilAsserted(() -> {
+            log.error("ledger.ledgerCache.size() : " + ledger.ledgerCache.size());
+            assertEquals(ledger.ledgerCache.size(), 3);
+            assertEquals(ledger.ledgers.size(), 4);
+        });
+
         cursor.clearBacklog();
         cursor2.clearBacklog();
         ledger.trimConsumedLedgersInBackground(Futures.NULL_PROMISE);
@@ -3682,15 +3705,15 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         }
         List<Entry> entryList = cursor.readEntries(entries);
         assertEquals(entryList.size(), entries);
-        assertEquals(ledger.ledgers.size(), entries);
-        assertEquals(ledger.ledgerCache.size(), entries - 1);
+        assertEquals(ledger.ledgers.size() - 1, entries);
+        assertEquals(ledger.ledgerCache.size() - 1, entries - 1);
         cursor.clearBacklog();
         ledger.trimConsumedLedgersInBackground(Futures.NULL_PROMISE);
         ledger.trimConsumedLedgersInBackground(Futures.NULL_PROMISE);
         // Cleanup fails because ManagedLedgerNotFoundException is thrown
         Awaitility.await().untilAsserted(() -> {
-            assertEquals(ledger.ledgers.size(), entries);
-            assertEquals(ledger.ledgerCache.size(), entries - 1);
+            assertEquals(ledger.ledgers.size() - 1, entries);
+            assertEquals(ledger.ledgerCache.size() - 1, entries - 1);
         });
         // The lock is released even if an ManagedLedgerNotFoundException occurs, so it can be called repeatedly
         Awaitility.await().untilAsserted(() ->
@@ -3716,13 +3739,13 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         }
         List<Entry> entryList = cursor.readEntries(3);
         assertEquals(entryList.size(), 3);
-        assertEquals(ledger.ledgers.size(), 3);
-        assertEquals(ledger.ledgerCache.size(), 2);
+        assertEquals(ledger.ledgers.size(), 4);
+        assertEquals(ledger.ledgerCache.size(), 3);
         cursor.clearBacklog();
         cursor2.clearBacklog();
         ledger.trimConsumedLedgersInBackground(Futures.NULL_PROMISE);
         Awaitility.await().untilAsserted(() -> {
-            assertEquals(ledger.ledgers.size(), 3);
+            assertEquals(ledger.ledgers.size(), 4);
             assertEquals(ledger.ledgerCache.size(), 0);
         });
 
@@ -3730,11 +3753,11 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         ManagedCursor cursor3 = ledger.openCursor("test-cursor3", InitialPosition.Earliest);
         entryList = cursor3.readEntries(3);
         assertEquals(entryList.size(), 3);
-        assertEquals(ledger.ledgerCache.size(), 2);
+        assertEquals(ledger.ledgerCache.size(), 3);
         cursor3.clearBacklog();
         ledger.trimConsumedLedgersInBackground(Futures.NULL_PROMISE);
         Awaitility.await().untilAsserted(() -> {
-            assertEquals(ledger.ledgers.size(), 3);
+            assertEquals(ledger.ledgers.size(), 4);
             assertEquals(ledger.ledgerCache.size(), 0);
         });
 

@@ -22,8 +22,6 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -41,7 +39,6 @@ import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.api.proto.CommandCloseProducer;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.awaitility.Awaitility;
-import org.checkerframework.checker.units.qual.C;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
@@ -197,6 +194,7 @@ public class ProducerConsumerInternalTest extends ProducerConsumerBase {
 
     @Test
     public void testRetentionPolicyByProducingMessages() throws Exception {
+        // Setup: configure the entries per ledger and retention polices.
         final int maxEntriesPerLedger = 10, messagesCount = 10;
         final String topicName = BrokerTestUtil.newUniqueName("persistent://my-property/my-ns/tp_");
         pulsar.getConfiguration().setManagedLedgerMaxEntriesPerLedger(maxEntriesPerLedger);
@@ -214,18 +212,17 @@ public class ProducerConsumerInternalTest extends ProducerConsumerBase {
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName)
                 .subscriptionName("my-sub")
                 .subscribe();
-
+        // Act: prepare a full ledger data and ack them.
         for (int i = 0; i < messagesCount; i++) {
             producer.newMessage().sendAsync();
         }
-        List<Message<byte[]>> messageList = new ArrayList<>();
         for (int i = 0; i < messagesCount; i++) {
             Message<byte[]> message = consumer.receive();
             assertNotNull(message);
             consumer.acknowledge(message);
-            messageList.add(message);
         }
-
+        // Verify: a new empty ledger will be created after the current ledger is fulled.
+        // And the previous consumed ledgers will be deleted
         Awaitility.await().untilAsserted(() -> {
             admin.topics().trimTopic(topicName);
             PersistentTopicInternalStats internalStats = admin.topics().getInternalStatsAsync(topicName).get();

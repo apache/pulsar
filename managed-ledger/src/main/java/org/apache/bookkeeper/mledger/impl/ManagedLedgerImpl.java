@@ -2647,7 +2647,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 if (slowestReaderPosition != null) {
                     // The slowest reader position is the mark delete position.
                     // If the slowest reader position point the last entry in the ledger x,
-                    // then the slowestReaderLedgerId should be x + 1 and the ledger x could be deleted.
+                    // the slowestReaderLedgerId should be x + 1 and the ledger x could be deleted.
                     LedgerInfo ledgerInfo = ledgers.get(slowestReaderPosition.getLedgerId());
                     if (ledgerInfo != null && ledgerInfo.getLedgerId() != currentLedger.getId()
                             && ledgerInfo.getEntries() == slowestReaderPosition.getEntryId() + 1) {

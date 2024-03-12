@@ -1685,7 +1685,6 @@ public class TransactionTest extends TransactionTestBase {
                     .value(UUID.randomUUID().toString().getBytes(StandardCharsets.UTF_8))
                     .send();
         txn.commit();
-        admin.namespaces().deleteNamespace(namespace, true);
     }
 
     @Test
@@ -1946,6 +1945,5 @@ public class TransactionTest extends TransactionTestBase {
             assertEquals(ex.getMessage(), "Exceeds max allowed delivery delay of "
                     + maxDeliveryDelayInMillis + " milliseconds");
         }
-        admin.namespaces().deleteNamespace(namespace, true);
     }
 }
