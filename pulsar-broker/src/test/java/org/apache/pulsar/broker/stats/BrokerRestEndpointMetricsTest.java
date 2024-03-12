@@ -81,6 +81,7 @@ public class BrokerRestEndpointMetricsTest extends MockedPulsarServiceBaseTest {
         admin.tenants().deleteTenant("test");
 
         Collection<MetricData> metricDatas = pulsarTestContext.getOpenTelemetryMetricReader().collectAllMetrics();
+        log.info("Metrics size: {}", metricDatas.size());
         Optional<MetricData> optional = metricDatas.stream().peek(m -> log.info("metric name: {}", m.getName()))
                 .filter(m -> m.getName().equals("pulsar_broker_rest_endpoint_latency")).findFirst();
         Assert.assertTrue(optional.isPresent());
