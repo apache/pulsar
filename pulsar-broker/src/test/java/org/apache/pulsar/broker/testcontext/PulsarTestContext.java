@@ -331,7 +331,17 @@ public class PulsarTestContext implements AutoCloseable {
          * @return the builder
          */
         public Builder spyByDefault() {
-            spyConfigBuilder = SpyConfig.builder(SpyConfig.SpyType.SPY);
+            spyConfigDefault(SpyConfig.SpyType.SPY);
+            return this;
+        }
+
+        public Builder spyNoneByDefault() {
+            spyConfigDefault(SpyConfig.SpyType.NONE);
+            return this;
+        }
+
+        public Builder spyConfigDefault(SpyConfig.SpyType spyType) {
+            spyConfigBuilder = SpyConfig.builder(spyType);
             return this;
         }
 
