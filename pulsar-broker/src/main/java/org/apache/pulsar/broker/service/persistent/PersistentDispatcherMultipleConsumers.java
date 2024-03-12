@@ -336,22 +336,32 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
             NavigableSet<PositionImpl> messagesToReplayNow = getMessagesToReplayNow(messagesToRead);
 
             if (!messagesToReplayNow.isEmpty()) {
+                // In Key_Shared mode: It is possible that all resend messages will be discarded:
+                // - Partly because the target consumer does not have enough permits
+                // - Partly because of mechanism “recentJoinedConsumers”.
+                NavigableSet<PositionImpl> messagesToReplayNowFiltered =
+                        filterOutMessagesWillBeDiscarded(messagesToReplayNow);
+                if (messagesToReplayNowFiltered.isEmpty()) {
+                    // No messages can be delivery now.
+                    return;
+                }
                 if (log.isDebugEnabled()) {
-                    log.debug("[{}] Schedule replay of {} messages for {} consumers", name, messagesToReplayNow.size(),
-                            consumerList.size());
+                    log.debug("[{}] Schedule replay of {} messages for {} consumers", name,
+                            messagesToReplayNowFiltered.size(), consumerList.size());
                 }
 
                 havePendingReplayRead = true;
                 minReplayedPosition = messagesToReplayNow.first();
                 Set<? extends Position> deletedMessages = topic.isDelayedDeliveryEnabled()
-                        ? asyncReplayEntriesInOrder(messagesToReplayNow) : asyncReplayEntries(messagesToReplayNow);
+                        ? asyncReplayEntriesInOrder(messagesToReplayNowFiltered)
+                        : asyncReplayEntries(messagesToReplayNowFiltered);
                 // clear already acked positions from replay bucket
 
                 deletedMessages.forEach(position -> redeliveryMessages.remove(((PositionImpl) position).getLedgerId(),
                         ((PositionImpl) position).getEntryId()));
                 // if all the entries are acked-entries and cleared up from redeliveryMessages, try to read
                 // next entries as readCompletedEntries-callback was never called
-                if ((messagesToReplayNow.size() - deletedMessages.size()) == 0) {
+                if ((messagesToReplayNowFiltered.size() - deletedMessages.size()) == 0) {
                     havePendingReplayRead = false;
                     readMoreEntriesAsync();
                 }
@@ -1177,6 +1187,16 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         } else {
             return Collections.emptyNavigableSet();
         }
+    }
+
+    /**
+     * This method is in order to avoid the scenario below:
+     * - Read entries from the Replay queue.
+     * - The Key_Shared anti-ordering mechanism filtered out all of the entries.
+     * - Delivery non entry to the client, but we did a BK read.
+     */
+    protected NavigableSet<PositionImpl> filterOutMessagesWillBeDiscarded(NavigableSet<PositionImpl> src) {
+        return src;
     }
 
     protected synchronized boolean shouldPauseDeliveryForDelayTracker() {

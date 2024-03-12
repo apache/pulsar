@@ -168,14 +168,6 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
                 }
             };
 
-    private static final FastThreadLocal<Map<Consumer, List<PositionImpl>>> localGroupedPositions =
-            new FastThreadLocal<Map<Consumer, List<PositionImpl>>>() {
-                @Override
-                protected Map<Consumer, List<PositionImpl>> initialValue() throws Exception {
-                    return new HashMap<>();
-                }
-            };
-
     @Override
     protected synchronized boolean trySendMessagesToConsumers(ReadType readType, List<Entry> entries) {
         long totalMessagesSent = 0;
@@ -294,7 +286,6 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
                 EntryBatchIndexesAcks batchIndexesAcks = EntryBatchIndexesAcks.get(messagesForC);
                 totalEntries += filterEntriesForConsumer(entriesWithSameKey, batchSizes, sendMessageInfo,
                         batchIndexesAcks, cursor, readType == ReadType.Replay, consumer);
-
                 consumer.sendMessages(entriesWithSameKey, batchSizes, batchIndexesAcks,
                         sendMessageInfo.getTotalMessages(),
                         sendMessageInfo.getTotalBytes(), sendMessageInfo.getTotalChunkedMessages(),
@@ -441,8 +432,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
             this.isDispatcherStuckOnReplays = false;
             return Collections.emptyNavigableSet();
         } else {
-            NavigableSet<PositionImpl> res = super.getMessagesToReplayNow(maxMessagesToRead);
-            return filterOutMessagesWillBeDiscarded(res);
+            return super.getMessagesToReplayNow(maxMessagesToRead);
         }
     }
 
@@ -456,13 +446,8 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
         return availablePermits;
     }
 
-    /**
-     * This method is in order to avoid the scenario below:
-     * - Read entries from the Replay queue.
-     * - The Key_Shared anti-ordering mechanism filtered out all of the entries.
-     * - Delivery non entry to the client, but we did a BK read.
-     */
-    private NavigableSet<PositionImpl> filterOutMessagesWillBeDiscarded(NavigableSet<PositionImpl> src) {
+    @Override
+    protected NavigableSet<PositionImpl> filterOutMessagesWillBeDiscarded(NavigableSet<PositionImpl> src) {
         // Remove invalid items.
         removeConsumersFromRecentJoinedConsumers();
         if (MapUtils.isEmpty(recentlyJoinedConsumers) || src.isEmpty()) {
@@ -476,8 +461,6 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
             return src;
         }
         NavigableSet<PositionImpl> res = new TreeSet<>();
-        final Map<Consumer, List<PositionImpl>> groupedEntries = localGroupedPositions.get();
-        groupedEntries.clear();
         for (PositionImpl pos : src) {
             Long stickyKeyHash = redeliveryMessages.getHash(pos.getLedgerId(), pos.getEntryId());
             if (stickyKeyHash == null) {
