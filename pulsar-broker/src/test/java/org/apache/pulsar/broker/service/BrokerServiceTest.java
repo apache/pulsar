@@ -33,7 +33,6 @@ import com.google.common.collect.Sets;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
-import com.google.gson.JsonPrimitive;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.EventLoopGroup;
 import io.netty.util.concurrent.DefaultThreadFactory;
@@ -80,6 +79,7 @@ import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.service.BrokerServiceException.PersistenceException;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusRawMetricsProvider;
 import org.apache.pulsar.client.admin.BrokerStats;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -129,8 +129,6 @@ public class BrokerServiceTest extends BrokerTestBase {
     protected void setup() throws Exception {
         conf.setSystemTopicEnabled(false);
         conf.setTopicLevelPoliciesEnabled(false);
-        conf.setStatsUpdateInitialDelayInSecs(1);
-        conf.setStatsUpdateFrequencyInSecs(1);
         super.baseSetup();
     }
 
@@ -1623,24 +1621,11 @@ public class BrokerServiceTest extends BrokerTestBase {
         // Clear the context to avoid the context being shared between tests
         field.set(pulsarService, brokerService);
 
-        Awaitility.waitAtMost(5, TimeUnit.SECONDS)
-                .pollInterval(1, TimeUnit.SECONDS)
-                .until(() -> {
-                    String json = admin.brokerStats().getMetrics();
-                    JsonArray metrics = new Gson().fromJson(json, JsonArray.class);
-                    AtomicBoolean flag = new AtomicBoolean(false);
-
-                    metrics.forEach(ele -> {
-                        JsonObject obj = ((JsonObject) ele);
-                        JsonObject metrics0 = (JsonObject) obj.get("metrics");
-                        JsonPrimitive v = (JsonPrimitive) metrics0.get("brk_topic_load_failed_count");
-                        if (null != v && v.getAsDouble() >= 2D) {
-                            flag.set(true);
-                        }
-                    });
-
-                    return flag.get();
-                });
+        PrometheusMetricsClient client = new PrometheusMetricsClient("127.0.0.1", pulsar.getListenPortHTTP().get());
+        PrometheusMetricsClient.Metrics metrics = client.getMetrics();
+        List<PrometheusMetricsClient.Metric> metricList = metrics.findByNameAndLabels("pulsar_topic_load_failed_count", "cluster", "test");
+        assertEquals(metricList.size(), 1);
+        assertTrue(metricList.get(0).value >= 2.0F);
     }
 
     @Test

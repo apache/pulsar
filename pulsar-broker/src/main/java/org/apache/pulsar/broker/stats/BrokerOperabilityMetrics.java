@@ -118,7 +118,7 @@ public class BrokerOperabilityMetrics {
     }
 
     public void recordTopicLoadFailed() {
-        this.TOPIC_LOAD_FAILED.inc();
+        TOPIC_LOAD_FAILED.inc();
     }
 
     public void recordConnectionCreate() {
