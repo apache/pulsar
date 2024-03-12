@@ -1265,13 +1265,13 @@ public class BrokerService implements Closeable {
                         addTopicToStatsMaps(TopicName.get(topic), nonPersistentTopic);
                         topicFuture.complete(Optional.of(nonPersistentTopic));
                     }).exceptionally(ex -> {
-                        log.warn("Replication check failed. Removing topic from topics list {}, {}", topic, ex.getCause());
-                        nonPersistentTopic.stopReplProducers().whenComplete((v, exception) -> {
-                            pulsar.getExecutor().execute(() -> topics.remove(topic, topicFuture));
-                            topicFuture.completeExceptionally(ex);
-                        });
-                        return null;
-                    });
+                log.warn("Replication check failed. Removing topic from topics list {}, {}", topic, ex.getCause());
+                nonPersistentTopic.stopReplProducers().whenComplete((v, exception) -> {
+                    pulsar.getExecutor().execute(() -> topics.remove(topic, topicFuture));
+                    topicFuture.completeExceptionally(ex);
+                });
+                return null;
+            });
         }).exceptionally(e -> {
             log.warn("CheckTopicNsOwnership fail when createNonPersistentTopic! {}", topic, e.getCause());
             // CheckTopicNsOwnership fail dont create nonPersistentTopic, when topic do lookup will find the correct
