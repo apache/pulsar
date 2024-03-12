@@ -1599,15 +1599,15 @@ public class BrokerServiceTest extends BrokerTestBase {
         String nonPersistentTopic = "non-persistent://prop/ns-test/topic2_" + uuid;
 
         BrokerService brokerService = pulsar.getBrokerService();
-        brokerService = Mockito.spy(brokerService);
+        BrokerService mockedBrokerService = Mockito.spy(brokerService);
 
         Mockito.doThrow(new PulsarServerException("This a an exception"))
-                .when(brokerService).newTopic(Mockito.endsWith(uuid), Mockito.any(), Mockito.any(), Mockito.any());
+                .when(mockedBrokerService).newTopic(Mockito.endsWith(uuid), Mockito.any(), Mockito.any(), Mockito.any());
 
         PulsarService pulsarService = pulsar;
         Field field = PulsarService.class.getDeclaredField("brokerService");
         field.setAccessible(true);
-        field.set(pulsarService, brokerService);
+        field.set(pulsarService, mockedBrokerService);
 
         try {
             admin.topics().createNonPartitionedTopic(nonPersistentTopic);
@@ -1619,6 +1619,9 @@ public class BrokerServiceTest extends BrokerTestBase {
         } catch (Exception ex) {
             // ignore
         }
+
+        // Clear the context to avoid the context being shared between tests
+        field.set(pulsarService, brokerService);
 
         Awaitility.waitAtMost(5, TimeUnit.SECONDS)
                 .pollInterval(1, TimeUnit.SECONDS)
