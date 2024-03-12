@@ -1235,14 +1235,15 @@ public class BrokerService implements Closeable {
         CompletableFuture<Optional<Topic>> topicFuture = new CompletableFuture<>();
         topicFuture.exceptionally(t -> {
             pulsarStats.recordTopicLoadFailed();
-            return null;
+            return Optional.empty();
         });
         if (!pulsar.getConfiguration().isEnableNonPersistentTopics()) {
             if (log.isDebugEnabled()) {
                 log.debug("Broker is unable to load non-persistent topic {}", topic);
             }
-            return FutureUtil.failedFuture(
+            topicFuture.completeExceptionally(
                     new NotAllowedException("Broker is not unable to load non-persistent topic"));
+            return topicFuture;
         }
         final long topicCreateTimeMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime());
         NonPersistentTopic nonPersistentTopic;
@@ -1250,7 +1251,8 @@ public class BrokerService implements Closeable {
             nonPersistentTopic = newTopic(topic, null, this, NonPersistentTopic.class);
         } catch (Throwable e) {
             log.warn("Failed to create topic {}", topic, e);
-            return FutureUtil.failedFuture(e);
+            topicFuture.completeExceptionally(e);
+            return topicFuture;
         }
         CompletableFuture<Void> isOwner = checkTopicNsOwnership(topic);
         isOwner.thenRun(() -> {
@@ -1262,14 +1264,16 @@ public class BrokerService implements Closeable {
                         pulsarStats.recordTopicLoadTimeValue(topic, topicLoadLatencyMs);
                         addTopicToStatsMaps(TopicName.get(topic), nonPersistentTopic);
                         topicFuture.complete(Optional.of(nonPersistentTopic));
-                    }).exceptionally(ex -> {
-                log.warn("Replication check failed. Removing topic from topics list {}, {}", topic, ex.getCause());
-                nonPersistentTopic.stopReplProducers().whenComplete((v, exception) -> {
-                    pulsar.getExecutor().execute(() -> topics.remove(topic, topicFuture));
-                    topicFuture.completeExceptionally(ex);
-                });
-                return null;
-            });
+                    })
+                    .exceptionally(ex -> {
+                        log.warn("Replication check failed. Removing topic from topics list {}, {}", topic, ex.getCause());
+                        nonPersistentTopic.stopReplProducers()
+                                .whenComplete((v, exception) -> {
+                                    pulsar.getExecutor().execute(() -> topics.remove(topic, topicFuture));
+                                    topicFuture.completeExceptionally(ex);
+                                });
+                        return null;
+                    });
         }).exceptionally(e -> {
             log.warn("CheckTopicNsOwnership fail when createNonPersistentTopic! {}", topic, e.getCause());
             // CheckTopicNsOwnership fail dont create nonPersistentTopic, when topic do lookup will find the correct
@@ -1637,10 +1641,9 @@ public class BrokerService implements Closeable {
                                        Map<String, String> properties, @Nullable TopicPolicies topicPolicies) {
         TopicName topicName = TopicName.get(topic);
         final long topicCreateTimeMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime());
-
         topicFuture.exceptionally(t -> {
             pulsarStats.recordTopicLoadFailed();
-            return null;
+            return Optional.empty();
         });
 
         if (isTransactionInternalName(topicName)) {
