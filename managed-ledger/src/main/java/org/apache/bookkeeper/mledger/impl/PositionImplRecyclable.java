@@ -43,8 +43,6 @@ public class PositionImplRecyclable extends PositionImpl implements Position {
     }
 
     public void recycle() {
-        ledgerId = -1;
-        entryId = -1;
         ackSet = null;
         recyclerHandle.recycle(this);
     }

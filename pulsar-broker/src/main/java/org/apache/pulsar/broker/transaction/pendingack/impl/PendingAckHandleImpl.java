@@ -848,7 +848,8 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
 
             // If try to ack message already acked by committed transaction or
             // normal acknowledge,throw exception.
-            if (((ManagedCursorImpl) persistentSubscription.getCursor()).isMessageDeleted(position)) {
+            if (((ManagedCursorImpl) persistentSubscription.getCursor())
+                    .isMessageDeleted(position)) {
                 return;
             }
 
