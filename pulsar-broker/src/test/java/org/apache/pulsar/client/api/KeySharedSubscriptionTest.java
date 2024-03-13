@@ -38,6 +38,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Random;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentSkipListSet;
@@ -48,6 +49,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
 import lombok.Cleanup;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
@@ -1736,6 +1738,149 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         consumer1.close();
         consumer2.close();
         consumer3.close();
+        admin.topics().delete(topic, false);
+    }
+
+    /**
+     * This test is in order to guarantee the feature added by https://github.com/apache/pulsar/pull/7105.
+     * 1. Start 3 consumers:
+     *   - consumer1 will be closed and trigger a messages redeliver.
+     *   - consumer2 will not ack any messages to make the new consumer joined late will be stuck due
+     *     to the mechanism "recentlyJoinedConsumers".
+     *   - consumer3 will always receive and ack messages.
+     * 2. Add consumer4 after consumer1 was close, and consumer4 will be stuck due to the mechanism
+     *    "recentlyJoinedConsumers".
+     * 3. Verify:
+     *   - (Main purpose) consumer3 can still receive messages util the cursor.readerPosition is larger than LAC.
+     *   - no repeated Read-and-discard.
+     *   - at last, all messages will be received.
+     */
+    @Test(timeOut = 180 * 1000) // the test will be finished in 60s.
+    public void testRecentJoinedPosWillNotStuckOtherConsumer() throws Exception {
+        final int messagesSentCount = 100;
+        final Set<Integer> totalReceivedMessages = new TreeSet<>();
+        final String topic = BrokerTestUtil.newUniqueName("persistent://public/default/tp");
+        final String subName = "my-sub";
+        admin.topics().createNonPartitionedTopic(topic);
+        AtomicInteger replyReadCounter = injectReplayReadCounter(topic, subName);
+
+        // Send messages.
+        @Cleanup
+        Producer<Integer> producer = pulsarClient.newProducer(Schema.INT32).topic(topic).enableBatching(false).create();
+        for (int i = 0; i < messagesSentCount; i++) {
+            MessageId messageId = producer.newMessage()
+                    .key(String.valueOf(random.nextInt(NUMBER_OF_KEYS)))
+                    .value(100 + i)
+                    .send();
+            log.info("Published delayed message :{}", messageId);
+        }
+        producer.close();
+
+        // 1. Start 3 consumers and make ack holes.
+        //   - one consumer will be closed and trigger a messages redeliver.
+        //   - one consumer will not ack any messages to make the new consumer joined late will be stuck due to the
+        //     mechanism "recentlyJoinedConsumers".
+        //   - one consumer will always receive and ack messages.
+        Consumer<Integer> consumer1 = pulsarClient.newConsumer(Schema.INT32)
+                .topic(topic)
+                .subscriptionName(subName)
+                .receiverQueueSize(10)
+                .subscriptionType(SubscriptionType.Key_Shared)
+                .subscribe();
+        Consumer<Integer> consumer2 = pulsarClient.newConsumer(Schema.INT32)
+                .topic(topic)
+                .subscriptionName(subName)
+                .receiverQueueSize(10)
+                .subscriptionType(SubscriptionType.Key_Shared)
+                .subscribe();
+        Consumer<Integer> consumer3 = pulsarClient.newConsumer(Schema.INT32)
+                .topic(topic)
+                .subscriptionName(subName)
+                .receiverQueueSize(10)
+                .subscriptionType(SubscriptionType.Key_Shared)
+                .subscribe();
+        List<Message> msgList1 = new ArrayList<>();
+        List<Message> msgList2 = new ArrayList<>();
+        List<Message> msgList3 = new ArrayList<>();
+        for (int i = 0; i < 10; i++) {
+            Message<Integer> msg1 = consumer1.receive(1, TimeUnit.SECONDS);
+            if (msg1 != null) {
+                totalReceivedMessages.add(msg1.getValue());
+                msgList1.add(msg1);
+            }
+            Message<Integer> msg2 = consumer2.receive(1, TimeUnit.SECONDS);
+            if (msg2 != null) {
+                totalReceivedMessages.add(msg2.getValue());
+                msgList2.add(msg2);
+            }
+            Message<Integer> msg3 = consumer3.receive(1, TimeUnit.SECONDS);
+            if (msg2 != null) {
+                totalReceivedMessages.add(msg3.getValue());
+                msgList3.add(msg3);
+            }
+        }
+        Consumer<Integer> consumerWillBeClose = null;
+        Consumer<Integer> consumerAlwaysAck = null;
+        Consumer<Integer> consumerStuck = null;
+        if (!msgList1.isEmpty()) {
+            msgList1.forEach(msg -> consumer1.acknowledgeAsync(msg));
+            consumerAlwaysAck = consumer1;
+            consumerWillBeClose = consumer2;
+            consumerStuck = consumer3;
+        } else if (!msgList2.isEmpty()){
+            msgList2.forEach(msg -> consumer2.acknowledgeAsync(msg));
+            consumerAlwaysAck = consumer2;
+            consumerWillBeClose = consumer3;
+            consumerStuck = consumer1;
+        } else {
+            msgList3.forEach(msg -> consumer3.acknowledgeAsync(msg));
+            consumerAlwaysAck = consumer3;
+            consumerWillBeClose = consumer1;
+            consumerStuck = consumer2;
+        }
+
+        // 2. Add consumer4 after "consumerWillBeClose" was close, and consumer4 will be stuck due to the mechanism
+        //    "recentlyJoinedConsumers".
+        Consumer<Integer> consumer4 = pulsarClient.newConsumer(Schema.INT32)
+                .topic(topic)
+                .subscriptionName(subName)
+                .receiverQueueSize(1000)
+                .subscriptionType(SubscriptionType.Key_Shared)
+                .subscribe();
+        consumerWillBeClose.close();
+
+        // Verify: "consumerAlwaysAck" can receive messages util the cursor.readerPosition is larger than LAC.
+        while (true) {
+            Message<Integer> msg = consumerAlwaysAck.receive(2, TimeUnit.SECONDS);
+            if (msg == null) {
+                break;
+            }
+            totalReceivedMessages.add(msg.getValue());
+            consumerAlwaysAck.acknowledge(msg);
+        }
+        PersistentTopic persistentTopic =
+                (PersistentTopic) pulsar.getBrokerService().getTopic(topic, false).join().get();
+        ManagedLedgerImpl managedLedger = (ManagedLedgerImpl) persistentTopic.getManagedLedger();
+        ManagedCursorImpl cursor = (ManagedCursorImpl) managedLedger.openCursor(subName);
+        log.info("cursor_readPosition {}, LAC {}", cursor.getReadPosition(), managedLedger.getLastConfirmedEntry());
+        assertTrue(((PositionImpl) cursor.getReadPosition())
+                .compareTo((PositionImpl) managedLedger.getLastConfirmedEntry())  > 0);
+        // Verify: no repeated Read-and-discard.
+        Thread.sleep(5 * 1000);
+        int maxReplayCount = messagesSentCount * 2;
+        log.info("Reply read count: {}", replyReadCounter.get());
+        assertTrue(replyReadCounter.get() < maxReplayCount);
+        // Verify: at last, all messages will be received.
+        ReceivedMessages<Integer> receivedMessages = ackAllMessages(consumerAlwaysAck, consumerStuck, consumer4);
+        totalReceivedMessages.addAll(receivedMessages.messagesReceived.stream().map(p -> p.getRight()).collect(
+                Collectors.toList()));
+        assertEquals(totalReceivedMessages.size(), messagesSentCount);
+
+        // cleanup.
+        consumer1.close();
+        consumer2.close();
+        consumer3.close();
+        consumer4.close();
         admin.topics().delete(topic, false);
     }
 }
