@@ -170,7 +170,6 @@ public class ManagedLedgerConfig {
      *            the time unit
      */
     public void setMinimumRolloverTime(int minimumRolloverTime, TimeUnit unit) {
-        checkArgument(minimumRolloverTime >= 0);
         this.minimumRolloverTimeMs = (int) unit.toMillis(minimumRolloverTime);
         checkArgument(maximumRolloverTimeMs >= minimumRolloverTimeMs,
                 "Minimum rollover time needs to be less than maximum rollover time");
@@ -196,7 +195,6 @@ public class ManagedLedgerConfig {
      *            the time unit
      */
     public void setMaximumRolloverTime(int maximumRolloverTime, TimeUnit unit) {
-        checkArgument(maximumRolloverTime >= 0);
         this.maximumRolloverTimeMs = unit.toMillis(maximumRolloverTime);
         checkArgument(maximumRolloverTimeMs >= minimumRolloverTimeMs,
                 "Maximum rollover time needs to be greater than minimum rollover time");
@@ -413,8 +411,7 @@ public class ManagedLedgerConfig {
      *            time unit for retention time
      */
     public ManagedLedgerConfig setRetentionTime(int retentionTime, TimeUnit unit) {
-        checkArgument(retentionTime >= -1, "The retention time should be -1, 0 or value > 0");
-        this.retentionTimeMs = retentionTime != -1 ? unit.toMillis(retentionTime) : -1;
+        this.retentionTimeMs = unit.toMillis(retentionTime);
         return this;
     }
 
