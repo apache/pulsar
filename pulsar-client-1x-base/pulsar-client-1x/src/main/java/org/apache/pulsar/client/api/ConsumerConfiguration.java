@@ -69,7 +69,6 @@ public class ConsumerConfiguration implements Serializable {
      * @return {@link ConsumerConfiguration}
      */
     public ConsumerConfiguration setAckTimeout(long ackTimeout, TimeUnit timeUnit) {
-        checkArgument(ackTimeout >= 0);
         long ackTimeoutMillis = timeUnit.toMillis(ackTimeout);
         checkArgument(ackTimeoutMillis >= minAckTimeoutMillis,
                 "Ack timeout should be should be greater than " + minAckTimeoutMillis + " ms");

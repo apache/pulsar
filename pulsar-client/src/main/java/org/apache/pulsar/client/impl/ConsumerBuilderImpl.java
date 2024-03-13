@@ -497,7 +497,6 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
 
     @Override
     public ConsumerBuilder<T> expireTimeOfIncompleteChunkedMessage(long duration, TimeUnit unit) {
-        checkArgument(duration >= 0, "expired time of incomplete chunk message must not be negative");
         conf.setExpireTimeOfIncompleteChunkedMessageMillis(unit.toMillis(duration));
         return this;
     }
