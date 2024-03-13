@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.client.admin.internal;
 
-import static com.google.common.base.Preconditions.checkArgument;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
@@ -201,21 +200,18 @@ public class PulsarAdminBuilderImpl implements PulsarAdminBuilder {
 
     @Override
     public PulsarAdminBuilder connectionTimeout(int connectionTimeout, TimeUnit connectionTimeoutUnit) {
-        checkArgument(connectionTimeout >= 0);
         this.conf.setConnectionTimeoutMs((int) connectionTimeoutUnit.toMillis(connectionTimeout));
         return this;
     }
 
     @Override
     public PulsarAdminBuilder readTimeout(int readTimeout, TimeUnit readTimeoutUnit) {
-        checkArgument(readTimeout >= 0);
         this.conf.setReadTimeoutMs((int) readTimeoutUnit.toMillis(readTimeout));
         return this;
     }
 
     @Override
     public PulsarAdminBuilder requestTimeout(int requestTimeout, TimeUnit requestTimeoutUnit) {
-        checkArgument(requestTimeout >= 0);
         this.conf.setRequestTimeoutMs((int) requestTimeoutUnit.toMillis(requestTimeout));
         return this;
     }

@@ -175,7 +175,6 @@ public class ClientBuilderImpl implements ClientBuilder {
 
     @Override
     public ClientBuilder lookupTimeout(int lookupTimeout, TimeUnit unit) {
-        checkArgument(lookupTimeout >= 0, "lookupTimeout must not be negative");
         conf.setLookupTimeoutMs(unit.toMillis(lookupTimeout));
         return this;
     }
@@ -341,7 +340,6 @@ public class ClientBuilderImpl implements ClientBuilder {
 
     @Override
     public ClientBuilder connectionTimeout(int duration, TimeUnit unit) {
-        checkArgument(duration >= 0, "connectionTimeout needs to be >= 0");
         conf.setConnectionTimeoutMs((int) unit.toMillis(duration));
         return this;
     }

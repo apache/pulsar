@@ -448,19 +448,27 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
         return builder;
     }
 
+    protected PulsarTestContext createAdditionalPulsarTestContext(ServiceConfiguration conf) throws Exception {
+        return createAdditionalPulsarTestContext(conf, null);
+    }
     /**
      * This method can be used in test classes for creating additional PulsarTestContext instances
      * that share the same mock ZooKeeper and BookKeeper instances as the main PulsarTestContext instance.
      *
      * @param conf the ServiceConfiguration instance to use
+     * @param builderCustomizer a consumer that can be used to customize the builder configuration
      * @return the PulsarTestContext instance
      * @throws Exception if an error occurs
      */
-    protected PulsarTestContext createAdditionalPulsarTestContext(ServiceConfiguration conf) throws Exception {
-        return createPulsarTestContextBuilder(conf)
+    protected PulsarTestContext createAdditionalPulsarTestContext(ServiceConfiguration conf,
+                                              Consumer<PulsarTestContext.Builder> builderCustomizer) throws Exception {
+        var builder = createPulsarTestContextBuilder(conf)
                 .reuseMockBookkeeperAndMetadataStores(pulsarTestContext)
-                .reuseSpyConfig(pulsarTestContext)
-                .build();
+                .reuseSpyConfig(pulsarTestContext);
+        if (builderCustomizer != null) {
+            builderCustomizer.accept(builder);
+        }
+        return builder.build();
     }
 
     protected void waitForZooKeeperWatchers() {

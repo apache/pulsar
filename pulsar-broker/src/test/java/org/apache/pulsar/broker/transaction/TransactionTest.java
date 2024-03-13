@@ -1665,7 +1665,7 @@ public class TransactionTest extends TransactionTestBase {
 
     @Test
     public void testEncryptionRequired() throws Exception {
-        final String namespace = "tnx/ns-prechecks";
+        final String namespace = "tnx/testEncryptionRequired";
         final String topic = "persistent://" + namespace + "/test_transaction_topic";
         admin.namespaces().createNamespace(namespace);
         admin.namespaces().setEncryptionRequiredStatus(namespace, true);
@@ -1913,7 +1913,7 @@ public class TransactionTest extends TransactionTestBase {
     @Test
     public void testDelayedDeliveryExceedsMaxDelay() throws Exception {
         final long maxDeliveryDelayInMillis = 5000;
-        final String namespace = "tnx/ns-prechecks";
+        final String namespace = "tnx/testDelayedDeliveryExceedsMaxDelay";
         final String topic = "persistent://" + namespace + "/test_transaction_topic" + UUID.randomUUID();
         admin.namespaces().createNamespace(namespace);
         admin.topics().createNonPartitionedTopic(topic);

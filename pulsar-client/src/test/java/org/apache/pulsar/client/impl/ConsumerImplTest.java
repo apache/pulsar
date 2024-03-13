@@ -283,6 +283,7 @@ public class ConsumerImplTest {
 
         consumer.setClientCnx(cnx);
         consumer.setState(HandlerState.State.Ready);
+        consumer.seekStatus.set(ConsumerImpl.SeekStatus.NOT_STARTED);
 
         // when
         CompletableFuture<Void> firstResult = consumer.seekAsync(1L);
@@ -290,7 +291,6 @@ public class ConsumerImplTest {
 
         clientReq.complete(null);
 
-        // then
         assertTrue(firstResult.isDone());
         assertTrue(secondResult.isCompletedExceptionally());
         verify(cnx, times(1)).sendRequestWithId(any(ByteBuf.class), anyLong());

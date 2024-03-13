@@ -30,6 +30,9 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}
   cancel-in-progress: true
 
+env:
+  JDK_DISTRIBUTION: corretto
+
 jobs:
   analyze:
     # only run scheduled analysis in apache/pulsar repository
@@ -63,7 +66,7 @@ jobs:
       - name: Set up JDK
         uses: actions/setup-java@v4
         with:
-          distribution: 'temurin'
+          distribution: ${{ env.JDK_DISTRIBUTION }}
           java-version: 17
 
       - name: Checkout repository

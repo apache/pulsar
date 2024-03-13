@@ -136,6 +136,7 @@ public class SinkConfigUtilsTest {
 
         sinkConfig.setTransformFunction("builtin://transform");
         sinkConfig.setTransformFunctionConfig("{\"key\": \"value\"}");
+        sinkConfig.setLogTopic("log-topic");
 
         Function.FunctionDetails functionDetails = SinkConfigUtils.convert(sinkConfig, new SinkConfigUtils.ExtractedSinkDetails(null, null, null));
         assertEquals(Function.SubscriptionType.SHARED, functionDetails.getSource().getSubscriptionType());
@@ -523,6 +524,22 @@ public class SinkConfigUtilsTest {
     }
 
     @Test
+    public void testMergeDifferentLogTopic() {
+        SinkConfig sinkConfig = createSinkConfig();
+        SinkConfig newSinkConfig = createUpdatedSinkConfig("logTopic", "Different");
+        SinkConfig mergedConfig = SinkConfigUtils.validateUpdate(sinkConfig, newSinkConfig);
+        assertEquals(
+                mergedConfig.getLogTopic(),
+                "Different"
+        );
+        mergedConfig.setLogTopic(sinkConfig.getLogTopic());
+        assertEquals(
+                new Gson().toJson(sinkConfig),
+                new Gson().toJson(mergedConfig)
+        );
+    }
+
+    @Test
     public void testValidateConfig() {
         SinkConfig sinkConfig = createSinkConfig();
 
@@ -559,6 +576,7 @@ public class SinkConfigUtilsTest {
         sinkConfig.setTransformFunction("builtin://transform");
         sinkConfig.setTransformFunctionClassName("Transform");
         sinkConfig.setTransformFunctionConfig("{\"key\": \"value\"}");
+        sinkConfig.setLogTopic("log-topic");
         return sinkConfig;
     }
 
