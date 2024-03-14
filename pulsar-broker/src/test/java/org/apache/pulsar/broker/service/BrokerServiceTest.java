@@ -1381,11 +1381,10 @@ public class BrokerServiceTest extends BrokerTestBase {
 
         // create topic async and wait on the future completion
         executor.submit(() -> {
-            service.getOrCreateTopic(deadLockTestTopic)
-                    .thenAccept(topic -> topicCreation.complete(null)).exceptionally(e -> {
-                        topicCreation.completeExceptionally(e.getCause());
-                        return null;
-                    });
+            service.getOrCreateTopic(deadLockTestTopic).thenAccept(topic -> topicCreation.complete(null)).exceptionally(e -> {
+                topicCreation.completeExceptionally(e.getCause());
+                return null;
+            });
         });
 
         // future-result should be completed with exception
