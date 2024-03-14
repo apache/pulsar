@@ -236,7 +236,6 @@ public class ControlledClusterFailover implements ServiceUrlProvider {
 
         @Override
         public ControlledClusterFailoverBuilder checkInterval(long interval, @NonNull TimeUnit timeUnit) {
-            checkArgument(interval >= 0, "The check interval time must not be negative.");
             this.interval = timeUnit.toMillis(interval);
             return this;
         }
