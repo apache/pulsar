@@ -101,6 +101,21 @@
         <artifactId>jakarta.inject-api</artifactId>
         <version>${jakarta.inject.api.version}</version>
       </dependency>
+      <dependency>
+        <groupId>jakarta.ws.rs</groupId>
+        <artifactId>jakarta.ws.rs-api</artifactId>
+        <version>3.0.0</version>
+      </dependency>
+      <dependency>
+        <groupId>jakarta.annotation</groupId>
+        <artifactId>jakarta.annotation-api</artifactId>
+        <version>2.0.0</version>
+      </dependency>
+      <dependency>
+        <groupId>com.sun.xml.bind</groupId>
+        <artifactId>jaxb-impl</artifactId>
+        <version>2.3.3</version>
+      </dependency>
     </dependencies>
   </dependencyManagement>
 
@@ -142,6 +157,9 @@
                   <include>javax.annotation:*</include>
                   <include>com.google.errorprone:*</include>
                   <include>jakarta.inject:jakarta.inject-api</include>
+                  <include>jakarta.annotation:jakarta.annotation-api</include>
+                  <include>jakarta.ws.rs:jakarta.ws.rs-api</include>
+                  <include>com.sun.xml.bind:jaxb-impl</include>
                 </includes>
               </artifactSet>
 
@@ -179,8 +197,12 @@
                   <shadedPattern>org.apache.pulsar.jcloud.shade.com.google.errorprone</shadedPattern>
                 </relocation>
                 <relocation>
-                  <pattern>jakarta.inject</pattern>
-                  <shadedPattern>org.apache.pulsar.jcloud.shade.jakarta.inject</shadedPattern>
+                  <pattern>jakarta</pattern>
+                  <shadedPattern>org.apache.pulsar.jcloud.shade.jakarta</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>com.sun.xml.bind</pattern>
+                  <shadedPattern>org.apache.pulsar.jcloud.shade.com.sun.xml.bind</shadedPattern>
                 </relocation>
               </relocations>
               <transformers>
