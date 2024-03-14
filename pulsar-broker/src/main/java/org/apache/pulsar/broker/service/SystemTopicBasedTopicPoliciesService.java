@@ -351,11 +351,13 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                                         });
                                 initFuture.exceptionally(ex -> {
                                     try {
-                                        log.error("[{}] Failed to create reader on __change_events topic", namespace, ex);
+                                        log.error("[{}] Failed to create reader on __change_events topic",
+                                                namespace, ex);
                                         cleanCacheAndCloseReader(namespace, false);
                                     } catch (Throwable cleanupEx) {
                                         // Adding this catch to avoid break callback chain
-                                        log.error("[{}] Failed to cleanup reader on __change_events topic", namespace, cleanupEx);
+                                        log.error("[{}] Failed to cleanup reader on __change_events topic",
+                                                namespace, cleanupEx);
                                     }
                                     return null;
                                 });
