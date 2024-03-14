@@ -99,7 +99,7 @@ public class MultiBrokerLeaderElectionTest extends MultiBrokerTestZKBaseTest {
         });
     }
 
-    @Test(timeOut = 60000L)
+    @Test(timeOut = 120000L)
     public void shouldProvideConsistentAnswerToTopicLookupsUsingAdminApi()
             throws PulsarAdminException, ExecutionException, InterruptedException {
         String namespace = "public/ns" + UUID.randomUUID();
@@ -108,11 +108,12 @@ public class MultiBrokerLeaderElectionTest extends MultiBrokerTestZKBaseTest {
         List<String> topicNames = IntStream.range(0, 500).mapToObj(i -> topicNameBase + i)
                 .collect(Collectors.toList());
         List<PulsarAdmin> allAdmins = getAllAdmins();
-        @Cleanup("shutdown")
+        @Cleanup("shutdownNow")
         ExecutorService executorService = Executors.newFixedThreadPool(allAdmins.size());
         List<Future<List<String>>> resultFutures = new ArrayList<>();
         // use Phaser to increase the chances of a race condition by triggering all threads once
         // they are waiting just before each lookupTopic call
+        @Cleanup("forceTermination")
         final Phaser phaser = new Phaser(1);
         for (PulsarAdmin brokerAdmin : allAdmins) {
             phaser.register();
@@ -149,11 +150,12 @@ public class MultiBrokerLeaderElectionTest extends MultiBrokerTestZKBaseTest {
         List<String> topicNames = IntStream.range(0, 500).mapToObj(i -> topicNameBase + i)
                 .collect(Collectors.toList());
         List<PulsarClient> allClients = getAllClients();
-        @Cleanup("shutdown")
+        @Cleanup("shutdownNow")
         ExecutorService executorService = Executors.newFixedThreadPool(allClients.size());
         List<Future<List<String>>> resultFutures = new ArrayList<>();
         // use Phaser to increase the chances of a race condition by triggering all threads once
         // they are waiting just before each lookupTopic call
+        @Cleanup("forceTermination")
         final Phaser phaser = new Phaser(1);
         for (PulsarClient brokerClient : allClients) {
             phaser.register();

@@ -87,6 +87,9 @@ public class SinkConfigUtils {
         if (sinkConfig.getName() != null) {
             functionDetailsBuilder.setName(sinkConfig.getName());
         }
+        if (sinkConfig.getLogTopic() != null) {
+            functionDetailsBuilder.setLogTopic(sinkConfig.getLogTopic());
+        }
         functionDetailsBuilder.setRuntime(FunctionDetails.Runtime.JAVA);
         if (sinkConfig.getParallelism() != null) {
             functionDetailsBuilder.setParallelism(sinkConfig.getParallelism());
@@ -321,6 +324,9 @@ public class SinkConfigUtils {
             sinkConfig.setRetainOrdering(false);
             sinkConfig.setRetainKeyOrdering(false);
         }
+        if (!isEmpty(functionDetails.getLogTopic())) {
+            sinkConfig.setLogTopic(functionDetails.getLogTopic());
+        }
 
         sinkConfig.setProcessingGuarantees(convertProcessingGuarantee(functionDetails.getProcessingGuarantees()));
 
@@ -424,6 +430,12 @@ public class SinkConfigUtils {
         for (String topic : allInputs) {
             if (!TopicName.isValid(topic)) {
                 throw new IllegalArgumentException(String.format("Input topic %s is invalid", topic));
+            }
+        }
+        if (!isEmpty(sinkConfig.getLogTopic())) {
+            if (!TopicName.isValid(sinkConfig.getLogTopic())) {
+                throw new IllegalArgumentException(
+                        String.format("LogTopic topic %s is invalid", sinkConfig.getLogTopic()));
             }
         }
 
@@ -612,6 +624,9 @@ public class SinkConfigUtils {
 
         if (mergedConfig.getInputSpecs() == null) {
             mergedConfig.setInputSpecs(new HashMap<>());
+        }
+        if (!StringUtils.isEmpty(newConfig.getLogTopic())) {
+            mergedConfig.setLogTopic(newConfig.getLogTopic());
         }
 
         if (newConfig.getInputs() != null) {

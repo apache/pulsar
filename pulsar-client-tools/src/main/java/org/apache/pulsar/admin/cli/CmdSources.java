@@ -365,6 +365,8 @@ public class CmdSources extends CmdBase {
         @Parameter(names = "--secrets", description = "The map of secretName to an object that encapsulates "
                 + "how the secret is fetched by the underlying secrets provider")
         protected String secretsString;
+        @Parameter(names = "--log-topic", description = "The topic to which the logs of a Pulsar Sink are produced")
+        protected String logTopic;
 
         protected SourceConfig sourceConfig;
 
@@ -499,6 +501,9 @@ public class CmdSources extends CmdBase {
                     secretsMap = Collections.emptyMap();
                 }
                 sourceConfig.setSecrets(secretsMap);
+            }
+            if (null != logTopic) {
+                sourceConfig.setLogTopic(logTopic);
             }
 
             // check if source configs are valid
