@@ -33,6 +33,14 @@
   <artifactId>jclouds-shaded</artifactId>
   <name>Apache Pulsar :: Jclouds shaded</name>
 
+  <properties>
+    <!-- for compatibility, use versions from jclouds-project
+         https://repo1.maven.org/maven2/org/apache/jclouds/jclouds-project/2.6.0/jclouds-project-2.6.0.pom -->
+    <gson.version>2.10.1</gson.version>
+    <guava.version>32.0.0-jre</guava.version>
+    <guice.version>7.0.0</guice.version>
+  </properties>
+
   <dependencies>
 
     <dependency>
@@ -66,6 +74,31 @@
       <artifactId>javax.annotation-api</artifactId>
     </dependency>
   </dependencies>
+
+  <dependencyManagement>
+    <dependencies>
+      <dependency>
+        <groupId>com.google.code.gson</groupId>
+        <artifactId>gson</artifactId>
+        <version>${gson.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.google.guava</groupId>
+        <artifactId>guava</artifactId>
+        <version>${guava.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.google.inject</groupId>
+        <artifactId>guice</artifactId>
+        <version>${guice.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.google.inject.extensions</groupId>
+        <artifactId>guice-assistedinject</artifactId>
+        <version>${guice.version}</version>
+      </dependency>
+    </dependencies>
+  </dependencyManagement>
 
   <build>
     <plugins>
