@@ -16,26 +16,20 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.cli.converters;
+package org.apache.pulsar.cli.converters.picocli;
 
-import static org.apache.pulsar.cli.ValueValidationUtil.emptyCheck;
-import static org.apache.pulsar.cli.converters.ByteUnitUtil.validateSizeString;
-import com.beust.jcommander.converters.BaseConverter;
+import java.util.concurrent.TimeUnit;
+import org.apache.pulsar.cli.converters.RelativeTimeUtil;
+import picocli.CommandLine.ITypeConverter;
+import picocli.CommandLine.TypeConversionException;
 
-public class ByteUnitIntegerConverter extends BaseConverter<Integer> {
-
-    public ByteUnitIntegerConverter(String optionName) {
-        super(optionName);
-    }
-
+public class TimeUnitToSecondsConverter implements ITypeConverter<Long> {
     @Override
-    public Integer convert(String argStr) {
-        return parseBytes(argStr).intValue();
-    }
-
-    Long parseBytes(String argStr) {
-        emptyCheck(getOptionName(), argStr);
-        long valueInBytes = validateSizeString(argStr);
-        return valueInBytes;
+    public Long convert(String value) throws Exception {
+        try {
+            return TimeUnit.SECONDS.toSeconds(RelativeTimeUtil.parseRelativeTimeInSeconds(value));
+        } catch (Exception e) {
+            throw new TypeConversionException(e.getMessage());
+        }
     }
 }

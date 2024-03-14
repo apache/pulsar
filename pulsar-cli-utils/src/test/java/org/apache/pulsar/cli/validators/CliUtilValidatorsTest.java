@@ -19,7 +19,6 @@
 package org.apache.pulsar.cli.validators;
 
 import static org.testng.Assert.assertThrows;
-import com.beust.jcommander.ParameterException;
 import org.testng.annotations.Test;
 
 public class CliUtilValidatorsTest {
@@ -27,23 +26,23 @@ public class CliUtilValidatorsTest {
     @Test
     public void testPositiveLongValueValidator() {
         PositiveLongValueValidator validator = new PositiveLongValueValidator();
-        assertThrows(ParameterException.class, () -> validator.validate("param", -1L));
-        assertThrows(ParameterException.class, () -> validator.validate("param", 0L));
+        assertThrows(IllegalArgumentException.class, () -> validator.validate("param", -1L));
+        assertThrows(IllegalArgumentException.class, () -> validator.validate("param", 0L));
         validator.validate("param", 1L);
     }
 
     @Test
     public void testPositiveIntegerValueValidator() {
         PositiveIntegerValueValidator validator = new PositiveIntegerValueValidator();
-        assertThrows(ParameterException.class, () -> validator.validate("param", -1));
-        assertThrows(ParameterException.class, () -> validator.validate("param", 0));
+        assertThrows(IllegalArgumentException.class, () -> validator.validate("param", -1));
+        assertThrows(IllegalArgumentException.class, () -> validator.validate("param", 0));
         validator.validate("param", 1);
     }
 
     @Test
     public void testNonNegativeValueValidator() {
         NonNegativeValueValidator validator = new NonNegativeValueValidator();
-        assertThrows(ParameterException.class, () -> validator.validate("param", -1L));
+        assertThrows(IllegalArgumentException.class, () -> validator.validate("param", -1L));
         validator.validate("param", 0L);
         validator.validate("param", 1L);
     }
@@ -51,7 +50,7 @@ public class CliUtilValidatorsTest {
     @Test
     public void testMinNegativeOneValidator() {
         MinNegativeOneValidator validator = new MinNegativeOneValidator();
-        assertThrows(ParameterException.class, () -> validator.validate("param", -2L));
+        assertThrows(IllegalArgumentException.class, () -> validator.validate("param", -2L));
         validator.validate("param", -1L);
         validator.validate("param", 0L);
     }
@@ -59,7 +58,7 @@ public class CliUtilValidatorsTest {
     @Test
     public void testIntegerMaxValueLongValidator() {
         IntegerMaxValueLongValidator validator = new IntegerMaxValueLongValidator();
-        assertThrows(ParameterException.class, () -> validator.validate("param", Integer.MAX_VALUE + 1L));
+        assertThrows(IllegalArgumentException.class, () -> validator.validate("param", Integer.MAX_VALUE + 1L));
         validator.validate("param", (long) Integer.MAX_VALUE);
     }
 }

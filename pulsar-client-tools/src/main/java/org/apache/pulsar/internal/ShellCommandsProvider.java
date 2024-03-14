@@ -16,10 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.shell;
+package org.apache.pulsar.internal;
 
-import com.beust.jcommander.JCommander;
-import java.util.Properties;
+import picocli.CommandLine;
 
 /**
  * Commands provider for Pulsar shell.
@@ -47,32 +46,8 @@ public interface ShellCommandsProvider {
     String getAdminUrl();
 
     /**
-     * Init state before a command is executed.
-     * If the implementing class rely on JCommander, it's suggested to not recycle JCommander
-     * objects because they are meant to single-shot usage.
-     * @param properties
+     * Return commander instance.
+     * @return Non-null.
      */
-    void setupState(Properties properties);
-
-    /**
-     * Cleanup state after a command is executed.
-     * If the implementing class rely on JCommander, it's suggested to not recycle JCommander
-     * objects because they are meant to single-shot usage.
-     * @param properties
-     */
-    void cleanupState(Properties properties);
-
-    /**
-     * Return JCommander instance, if exists.
-     * @return
-     */
-    JCommander getJCommander();
-
-    /**
-     * Run command for the passed args.
-     *
-     * @param args arguments for the command. Note that the first word of the user command is omitted.
-     * @throws Exception if any error occurs. The shell session will not be closed.
-     */
-    boolean runCommand(String[] args) throws Exception;
+    CommandLine getCommander();
 }

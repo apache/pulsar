@@ -16,23 +16,20 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.client.cli;
+package org.apache.pulsar.cli.converters.picocli;
 
-import com.beust.jcommander.converters.IParameterSplitter;
-import java.util.LinkedList;
-import java.util.List;
+import java.util.concurrent.TimeUnit;
+import org.apache.pulsar.cli.converters.RelativeTimeUtil;
+import picocli.CommandLine.ITypeConverter;
+import picocli.CommandLine.TypeConversionException;
 
-public class NoSplitter implements IParameterSplitter {
-
-    /*
-     * (non-Javadoc)
-     *
-     * @see com.beust.jcommander.converters.IParameterSplitter#split(java.lang.String)
-     */
+public class TimeUnitToMillisConverter implements ITypeConverter<Long> {
     @Override
-    public List<String> split(final String value) {
-        final List<String> result = new LinkedList<>();
-        result.add(value);
-        return result;
+    public Long convert(String value) throws Exception {
+        try {
+            return TimeUnit.SECONDS.toMillis(RelativeTimeUtil.parseRelativeTimeInSeconds(value));
+        } catch (Exception e) {
+            throw new TypeConversionException(e.getMessage());
+        }
     }
 }

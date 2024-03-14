@@ -18,12 +18,12 @@
  */
 package org.apache.pulsar.cli.converters;
 
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertThrows;
 import java.util.concurrent.TimeUnit;
-
+import org.apache.pulsar.cli.converters.picocli.TimeUnitToMillisConverter;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
-
-import static org.testng.Assert.*;
 
 public class TimeConversionTest {
 
@@ -63,8 +63,8 @@ public class TimeConversionTest {
     }
 
     @Test(dataProvider = "successfulRelativeTimeUtilTestCases")
-    public void testSuccessfulTimeUnitToMillisConverter(String input, long expected) {
-        TimeUnitToMillisConverter millisConverter = new TimeUnitToMillisConverter("optionName");
+    public void testSuccessfulTimeUnitToMillisConverter(String input, long expected) throws Exception {
+        TimeUnitToMillisConverter millisConverter = new TimeUnitToMillisConverter();
         // We multiply the expected by 1000 to convert the seconds into milliseconds
         assertEquals(millisConverter.convert(input), Long.valueOf(expected * 1000));
     }

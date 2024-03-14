@@ -16,27 +16,16 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.cli.converters;
+package org.apache.pulsar.client.cli;
 
-import static org.apache.pulsar.cli.ValueValidationUtil.emptyCheck;
-import com.beust.jcommander.ParameterException;
-import com.beust.jcommander.converters.BaseConverter;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.Callable;
 
-public class TimeUnitToMillisConverter extends BaseConverter<Long> {
-
-    public TimeUnitToMillisConverter(String optionName) {
-        super(optionName);
-    }
-
+public abstract class AbstractCmd implements Callable<Integer> {
+    // Picocli entrypoint.
     @Override
-    public Long convert(String str) {
-        emptyCheck(getOptionName(), str);
-        try {
-            return TimeUnit.SECONDS.toMillis(
-                    RelativeTimeUtil.parseRelativeTimeInSeconds(str.trim()));
-        } catch (IllegalArgumentException exception) {
-            throw new ParameterException("For input " + getOptionName() + ": " + exception.getMessage());
-        }
+    public Integer call() throws Exception {
+        return run();
     }
+
+    abstract int run() throws Exception;
 }
