@@ -1597,16 +1597,8 @@ public class BrokerServiceTest extends BrokerTestBase {
         String nonPersistentTopic = "non-persistent://prop/ns-test/topic2_" + uuid;
 
         BrokerService brokerService = pulsar.getBrokerService();
-        BrokerService mockedBrokerService = Mockito.spy(brokerService);
-
         Mockito.doThrow(new PulsarServerException("This a an exception"))
-                .when(mockedBrokerService).newTopic(Mockito.endsWith(uuid), Mockito.any(), Mockito.any(), Mockito.any());
-
-        PulsarService pulsarService = pulsar;
-        Field field = PulsarService.class.getDeclaredField("brokerService");
-        field.setAccessible(true);
-        field.set(pulsarService, mockedBrokerService);
-
+                .when(brokerService).newTopic(Mockito.endsWith(uuid), Mockito.any(), Mockito.any(), Mockito.any());
         try {
             admin.topics().createNonPartitionedTopic(nonPersistentTopic);
         } catch (Exception ex) {
@@ -1618,14 +1610,16 @@ public class BrokerServiceTest extends BrokerTestBase {
             // ignore
         }
 
-        // Clear the context to avoid the context being shared between tests
-        field.set(pulsarService, brokerService);
-
         PrometheusMetricsClient client = new PrometheusMetricsClient("127.0.0.1", pulsar.getListenPortHTTP().get());
         PrometheusMetricsClient.Metrics metrics = client.getMetrics();
         List<PrometheusMetricsClient.Metric> metricList = metrics.findByNameAndLabels("pulsar_topic_load_failed_count", "cluster", "test");
         assertEquals(metricList.size(), 1);
         assertTrue(metricList.get(0).value >= 2.0F);
+    }
+
+    @Override
+    protected BrokerService customizeNewBrokerService(BrokerService brokerService) {
+        return Mockito.spy(brokerService);
     }
 
     @Test
