@@ -278,6 +278,7 @@ public class ClientMetricsTest extends ProducerConsumerBase {
         Attributes nsAttrs = Attributes.builder()
                 .put("pulsar.tenant", "my-property")
                 .put("pulsar.namespace", "my-property/my-ns")
+                .put("pulsar.subscription", "my-sub")
                 .build();
         var metrics = collectMetrics();
 

@@ -405,25 +405,26 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         topicNameWithoutPartition = topicName.getPartitionedTopicName();
 
         InstrumentProvider ip = client.instrumentProvider();
+        Attributes attrs = Attributes.builder().put("pulsar.subscription", subscription).build();
         consumersOpenedCounter = ip.newCounter("pulsar.client.consumer.opened", Unit.Sessions,
-                "The number of consumer sessions opened", topic, Attributes.empty());
+                "The number of consumer sessions opened", topic, attrs);
         consumersClosedCounter = ip.newCounter("pulsar.client.consumer.closed", Unit.Sessions,
-                "The number of consumer sessions closed", topic, Attributes.empty());
+                "The number of consumer sessions closed", topic, attrs);
         messagesReceivedCounter = ip.newCounter("pulsar.client.consumer.message.received.count", Unit.Messages,
-                "The number of messages explicitly received by the consumer application", topic, Attributes.empty());
+                "The number of messages explicitly received by the consumer application", topic, attrs);
         bytesReceivedCounter = ip.newCounter("pulsar.client.consumer.message.received.size", Unit.Bytes,
-                "The number of bytes explicitly received by the consumer application", topic, Attributes.empty());
+                "The number of bytes explicitly received by the consumer application", topic, attrs);
         messagesPrefetchedGauge = ip.newUpDownCounter("pulsar.client.consumer.receive_queue.count", Unit.Messages,
-                "Number of messages currently sitting in the consumer receive queue", topic, Attributes.empty());
+                "Number of messages currently sitting in the consumer receive queue", topic, attrs);
         bytesPrefetchedGauge = ip.newUpDownCounter("pulsar.client.consumer.receive_queue.size", Unit.Bytes,
-                "Total number of bytes currently sitting in the consumer receive queue", topic, Attributes.empty());
+                "Total number of bytes currently sitting in the consumer receive queue", topic, attrs);
 
         consumerAcksCounter = ip.newCounter("pulsar.client.consumer.message.ack", Unit.Messages,
-                "The number of acknowledged messages", topic, Attributes.empty());
+                "The number of acknowledged messages", topic, attrs);
         consumerNacksCounter = ip.newCounter("pulsar.client.consumer.message.nack", Unit.Messages,
-                "The number of negatively acknowledged messages", topic, Attributes.empty());
+                "The number of negatively acknowledged messages", topic, attrs);
         consumerDlqMessagesCounter = ip.newCounter("pulsar.client.consumer.message.dlq", Unit.Messages,
-                "The number of messages sent to DLQ", topic, Attributes.empty());
+                "The number of messages sent to DLQ", topic, attrs);
         grabCnx();
 
         consumersOpenedCounter.increment();
