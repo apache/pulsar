@@ -80,6 +80,7 @@ OpenTelemetry otel = AutoConfiguredOpenTelemetrySdk.builder().build()
 
 PulsarClient client = PulsarClient.builder()
         .serviceUrl("pulsar://localhost:6650")
+        .openTelemetry(otel)
         .build();
 
 // ....
