@@ -33,8 +33,41 @@
   <artifactId>jclouds-shaded</artifactId>
   <name>Apache Pulsar :: Jclouds shaded</name>
 
+  <properties>
+    <!-- for compatibility, use versions from jclouds-project
+         https://repo1.maven.org/maven2/org/apache/jclouds/jclouds-project/2.6.0/jclouds-project-2.6.0.pom -->
+    <jclouds.gson.version>2.10.1</jclouds.gson.version>
+    <jclouds.guava.version>32.0.0-jre</jclouds.guava.version>
+    <jclouds.guice.version>7.0.0</jclouds.guice.version>
+    <jclouds.jakarta-inject.version>2.0.1</jclouds.jakarta-inject.version>
+    <jclouds.jakarta-annotation.version>2.1.1</jclouds.jakarta-annotation.version>
+  </properties>
   <dependencies>
-
+    <dependency>
+      <groupId>com.google.code.gson</groupId>
+      <artifactId>gson</artifactId>
+      <version>${jclouds.gson.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.google.guava</groupId>
+      <artifactId>guava</artifactId>
+      <version>${jclouds.guava.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.google.inject</groupId>
+      <artifactId>guice</artifactId>
+      <version>${jclouds.guice.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>jakarta.inject</groupId>
+      <artifactId>jakarta.inject-api</artifactId>
+      <version>${jclouds.jakarta-inject.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>jakarta.annotation</groupId>
+      <artifactId>jakarta.annotation-api</artifactId>
+      <version>${jclouds.jakarta-annotation.version}</version>
+    </dependency>
     <dependency>
       <groupId>org.apache.jclouds</groupId>
       <artifactId>jclouds-allblobstore</artifactId>
@@ -104,6 +137,8 @@
                   <include>javax.inject:*</include>
                   <include>javax.annotation:*</include>
                   <include>com.google.errorprone:*</include>
+                  <include>jakarta.inject:jakarta.inject-api</include>
+                  <include>jakarta.annotation:jakarta.annotation-api</include>
                 </includes>
               </artifactSet>
 
@@ -139,6 +174,14 @@
                 <relocation>
                   <pattern>com.google.errorprone</pattern>
                   <shadedPattern>org.apache.pulsar.jcloud.shade.com.google.errorprone</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>jakarta.inject</pattern>
+                  <shadedPattern>org.apache.pulsar.jcloud.shade.jakarta.inject</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>jakarta.annotation</pattern>
+                  <shadedPattern>org.apache.pulsar.jcloud.shade.jakarta.annotation</shadedPattern>
                 </relocation>
 
               </relocations>
