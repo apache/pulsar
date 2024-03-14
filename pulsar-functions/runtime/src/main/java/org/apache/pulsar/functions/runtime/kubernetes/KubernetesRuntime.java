@@ -20,6 +20,8 @@ package org.apache.pulsar.functions.runtime.kubernetes;
 
 import static java.net.HttpURLConnection.HTTP_CONFLICT;
 import static java.net.HttpURLConnection.HTTP_NOT_FOUND;
+import static java.net.HttpURLConnection.HTTP_NO_CONTENT;
+import static java.net.HttpURLConnection.HTTP_OK;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.commons.lang3.StringUtils.isNotEmpty;
 import static org.apache.commons.lang3.StringUtils.left;
@@ -55,6 +57,7 @@ import io.kubernetes.client.openapi.models.V1ServicePort;
 import io.kubernetes.client.openapi.models.V1ServiceSpec;
 import io.kubernetes.client.openapi.models.V1StatefulSet;
 import io.kubernetes.client.openapi.models.V1StatefulSetSpec;
+import io.kubernetes.client.openapi.models.V1Status;
 import io.kubernetes.client.openapi.models.V1Toleration;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -472,7 +475,7 @@ public class KubernetesRuntime implements Runtime {
                 .supplier(() -> {
                     final V1Service response;
                     try {
-                        response = coreClient.createNamespacedService(jobNamespace, service, null, null, null, null);
+                        response = coreClient.createNamespacedService(jobNamespace, service).execute();
                     } catch (ApiException e) {
                         // already exists
                         if (e.getCode() == HTTP_CONFLICT) {
@@ -561,8 +564,7 @@ public class KubernetesRuntime implements Runtime {
                 .supplier(() -> {
                     final V1StatefulSet response;
                     try {
-                        response = appsClient.createNamespacedStatefulSet(jobNamespace, statefulSet,
-                                null, null, null, null);
+                        response = appsClient.createNamespacedStatefulSet(jobNamespace, statefulSet).execute();
                     } catch (ApiException e) {
                         // already exists
                         if (e.getCode() == HTTP_CONFLICT) {
@@ -597,9 +599,6 @@ public class KubernetesRuntime implements Runtime {
 
     public void deleteStatefulSet() throws InterruptedException {
         String statefulSetName = createJobName(instanceConfig.getFunctionDetails(), this.jobName);
-        final V1DeleteOptions options = new V1DeleteOptions();
-        options.setGracePeriodSeconds((long) gracePeriodSeconds);
-        options.setPropagationPolicy("Foreground");
 
         String fqfn = FunctionCommon.getFullyQualifiedName(instanceConfig.getFunctionDetails());
         Actions.Action deleteStatefulSet = Actions.Action.builder()
@@ -607,15 +606,11 @@ public class KubernetesRuntime implements Runtime {
                 .numRetries(KubernetesRuntimeFactory.numRetries)
                 .sleepBetweenInvocationsMs(KubernetesRuntimeFactory.sleepBetweenRetriesMs)
                 .supplier(() -> {
-                    Response response;
+                    V1Status status;
                     try {
-                        // cannot use deleteNamespacedStatefulSet because of bug in kuberenetes
-                        // https://github.com/kubernetes-client/java/issues/86
-                        response = appsClient.deleteNamespacedStatefulSetCall(
-                                statefulSetName,
-                                jobNamespace, null, null,
-                                gracePeriodSeconds, null, "Foreground",
-                                options, null)
+                        status = appsClient.deleteNamespacedStatefulSet(statefulSetName, jobNamespace)
+                                .gracePeriodSeconds(gracePeriodSeconds)
+                                .propagationPolicy("Foreground")
                                 .execute();
                     } catch (ApiException e) {
                         // if already deleted
@@ -629,7 +624,7 @@ public class KubernetesRuntime implements Runtime {
                                 .success(false)
                                 .errorMsg(errorMsg)
                                 .build();
-                    } catch (IOException e) {
+                    } catch (Exception e) {
                         return Actions.ActionResult.builder()
                                 .success(false)
                                 .errorMsg(e.getMessage())
@@ -637,13 +632,13 @@ public class KubernetesRuntime implements Runtime {
                     }
 
                     // if already deleted
-                    if (response.code() == HTTP_NOT_FOUND) {
+                    if (status.getCode() == HTTP_NOT_FOUND) {
                         log.warn("Statefulset for function {} does not exist", fqfn);
                         return Actions.ActionResult.builder().success(true).build();
                     } else {
                         return Actions.ActionResult.builder()
-                                .success(response.isSuccessful())
-                                .errorMsg(response.message())
+                                .success(status.getCode() == HTTP_OK)
+                                .errorMsg(status.getMessage())
                                 .build();
                     }
                 })
@@ -658,7 +653,7 @@ public class KubernetesRuntime implements Runtime {
                 .supplier(() -> {
                     V1StatefulSet response;
                     try {
-                        response = appsClient.readNamespacedStatefulSet(statefulSetName, jobNamespace, null);
+                        response = appsClient.readNamespacedStatefulSet(statefulSetName, jobNamespace).execute();
                     } catch (ApiException e) {
                         // statefulset is gone
                         if (e.getCode() == HTTP_NOT_FOUND) {
@@ -692,9 +687,9 @@ public class KubernetesRuntime implements Runtime {
 
                     V1PodList response;
                     try {
-                        response = coreClient.listNamespacedPod(jobNamespace, null, null,
-                                null, null, labels,
-                                null, null, null, null, null);
+                        response = coreClient.listNamespacedPod(jobNamespace)
+                                .labelSelector(labels)
+                                .execute();
                     } catch (ApiException e) {
 
                         String errorMsg = e.getResponseBody() != null ? e.getResponseBody() : e.getMessage();
@@ -758,15 +753,12 @@ public class KubernetesRuntime implements Runtime {
                 .numRetries(KubernetesRuntimeFactory.numRetries)
                 .sleepBetweenInvocationsMs(KubernetesRuntimeFactory.sleepBetweenRetriesMs)
                 .supplier(() -> {
-                    final Response response;
+                    V1Service response;
                     try {
-                        // cannot use deleteNamespacedService because of bug in kuberenetes
-                        // https://github.com/kubernetes-client/java/issues/86
-                        response = coreClient.deleteNamespacedServiceCall(
-                                serviceName,
-                                jobNamespace, null, null,
-                                0, null,
-                                "Foreground", options, null).execute();
+                        response = coreClient.deleteNamespacedService(serviceName, jobNamespace)
+                                .gracePeriodSeconds(0)
+                                .propagationPolicy("Foreground")
+                                .execute();
                     } catch (ApiException e) {
                         // if already deleted
                         if (e.getCode() == HTTP_NOT_FOUND) {
@@ -779,23 +771,16 @@ public class KubernetesRuntime implements Runtime {
                                 .success(false)
                                 .errorMsg(errorMsg)
                                 .build();
-                    } catch (IOException e) {
+                    } catch (Exception e) {
                         return Actions.ActionResult.builder()
                                 .success(false)
                                 .errorMsg(e.getMessage())
                                 .build();
                     }
 
-                    // if already deleted
-                    if (response.code() == HTTP_NOT_FOUND) {
-                        log.warn("Service for function {} does not exist", fqfn);
-                        return Actions.ActionResult.builder().success(true).build();
-                    } else {
-                        return Actions.ActionResult.builder()
-                                .success(response.isSuccessful())
-                                .errorMsg(response.message())
-                                .build();
-                    }
+                    return Actions.ActionResult.builder()
+                            .success(true)
+                            .build();
                 })
                 .build();
 
@@ -806,7 +791,7 @@ public class KubernetesRuntime implements Runtime {
                 .supplier(() -> {
                     V1Service response;
                     try {
-                        response = coreClient.readNamespacedService(serviceName, jobNamespace, null);
+                        response = coreClient.readNamespacedService(serviceName, jobNamespace).execute();
 
                     } catch (ApiException e) {
                         // service is gone

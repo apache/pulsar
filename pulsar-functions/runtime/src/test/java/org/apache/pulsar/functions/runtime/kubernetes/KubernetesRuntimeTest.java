@@ -53,6 +53,7 @@ import io.kubernetes.client.openapi.models.V1PodTemplateSpec;
 import io.kubernetes.client.openapi.models.V1ResourceRequirements;
 import io.kubernetes.client.openapi.models.V1Service;
 import io.kubernetes.client.openapi.models.V1StatefulSet;
+import io.kubernetes.client.openapi.models.V1Status;
 import io.kubernetes.client.openapi.models.V1Toleration;
 import java.lang.reflect.Type;
 import java.math.BigDecimal;
@@ -1315,43 +1316,53 @@ public class KubernetesRuntimeTest {
 
         CoreV1Api coreApi = mock(CoreV1Api.class);
         AppsV1Api appsApi = mock(AppsV1Api.class);
-        
+
         Call successfulCall = mock(Call.class);
         Response okResponse = mock(Response.class);
         when(okResponse.code()).thenReturn(HttpURLConnection.HTTP_OK);
         when(okResponse.isSuccessful()).thenReturn(true);
         when(okResponse.message()).thenReturn("");
         when(successfulCall.execute()).thenReturn(okResponse);
-        
+
         final String expectedFunctionNamePrefix = String.format("pf-%s-%s-%s", "c-tenant", "c-ns", "c-fn");
-        
+
         factory = createKubernetesRuntimeFactory(null, 10, 1.0, 1.0);
         factory.setCoreClient(coreApi);
         factory.setAppsClient(appsApi);
 
         ArgumentMatcher<String> hasTranslatedFunctionName = (String t) -> t.startsWith(expectedFunctionNamePrefix);
-        
-        when(appsApi.deleteNamespacedStatefulSetCall(
-                argThat(hasTranslatedFunctionName),
-                anyString(), isNull(), isNull(), anyInt(), isNull(), anyString(), any(), isNull())).thenReturn(successfulCall);
+
+        var deleteNsReq = mock(AppsV1Api.APIdeleteNamespacedStatefulSetRequest.class);
+        when(deleteNsReq.gracePeriodSeconds(anyInt())).thenReturn(deleteNsReq);
+        when(deleteNsReq.propagationPolicy("Foreground")).thenReturn(deleteNsReq);
+        V1Status success = new V1Status().code(200);
+        when(deleteNsReq.execute()).thenReturn(success);
+
+        when(appsApi.deleteNamespacedStatefulSet(argThat(hasTranslatedFunctionName), anyString()))
+                .thenReturn(deleteNsReq);
 
         ApiException notFoundException = mock(ApiException.class);
         when(notFoundException.getCode()).thenReturn(HttpURLConnection.HTTP_NOT_FOUND);
+
+        var readNsReq = mock(AppsV1Api.APIreadNamespacedStatefulSetRequest.class);
+        when(readNsReq.execute()).thenThrow(notFoundException);
         when(appsApi.readNamespacedStatefulSet(
-                argThat(hasTranslatedFunctionName), anyString(), isNull())).thenThrow(notFoundException);
+                argThat(hasTranslatedFunctionName), anyString())).thenReturn(readNsReq);
 
         V1PodList podList = mock(V1PodList.class);
         when(podList.getItems()).thenReturn(Collections.emptyList());
-        
+
         String expectedLabels = String.format("tenant=%s,namespace=%s,name=%s", "c-tenant", "c-ns", "c-fn");
-        
-        when(coreApi.listNamespacedPod(anyString(), isNull(), isNull(), isNull(), isNull(),
-                eq(expectedLabels), isNull(), isNull(), isNull(), isNull(), isNull())).thenReturn(podList);
-        KubernetesRuntime kr = factory.createContainer(config, "/test/code", "code.yml", "/test/transforms", "transform.yml", Long.MIN_VALUE);        
+
+        var listNamespacedPodReq = mock(CoreV1Api.APIlistNamespacedPodRequest.class);
+        when(listNamespacedPodReq.labelSelector(anyString())).thenReturn(listNamespacedPodReq);
+        when(listNamespacedPodReq.execute()).thenReturn(podList);
+
+        when(coreApi.listNamespacedPod(anyString())).thenReturn(listNamespacedPodReq);
+        KubernetesRuntime kr = factory.createContainer(config, "/test/code", "code.yml", "/test/transforms", "transform.yml", Long.MIN_VALUE);
         kr.deleteStatefulSet();
-        
-        verify(coreApi).listNamespacedPod(anyString(), isNull(), isNull(), isNull(), isNull(),
-                eq(expectedLabels), isNull(), isNull(), isNull(), isNull(), isNull());
+
+        verify(coreApi).listNamespacedPod(anyString());
     }
 
     @Test

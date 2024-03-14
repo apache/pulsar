@@ -22,6 +22,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 import io.kubernetes.client.openapi.ApiException;
 import io.kubernetes.client.openapi.apis.CoreV1Api;
@@ -103,7 +104,10 @@ public class KubernetesSecretsTokenAuthProviderTest {
     @Test
     public void testCacheAuthData() throws ApiException {
         CoreV1Api coreV1Api = mock(CoreV1Api.class);
-        doReturn(new V1Secret()).when(coreV1Api).createNamespacedSecret(anyString(), any(), anyString(), anyString(), anyString(), anyString());
+
+        var secretReq = mock(CoreV1Api.APIcreateNamespacedSecretRequest.class);
+        doReturn(new V1Secret()).when(secretReq).execute();
+        doReturn(secretReq).when(coreV1Api).createNamespacedSecret(anyString(), any());
         KubernetesSecretsTokenAuthProvider kubernetesSecretsTokenAuthProvider = new KubernetesSecretsTokenAuthProvider();
         kubernetesSecretsTokenAuthProvider.initialize(coreV1Api,  null, (fd) -> "default");
         Function.FunctionDetails funcDetails = Function.FunctionDetails.newBuilder().setTenant("test-tenant").setNamespace("test-ns").setName("test-func").build();
