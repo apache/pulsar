@@ -286,6 +286,31 @@ public class CmdClusters extends CmdBase {
         }
     }
 
+    @Parameters(commandDescription = "Update cluster health status, available or unavailable. default available.")
+    private class UpdateHealthStatus extends CliCommand {
+        @Parameter(description = "cluster-name", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = "--status", description = "status", required = true)
+        private String status;
+
+        void run() throws PulsarAdminException {
+            String cluster = getOneArgument(params);
+            getAdmin().clusters().updateHealthStatusAsync(cluster, status);
+        }
+    }
+
+    @Parameters(commandDescription = "Get cluster health status, available or unavailable.")
+    private class GetHealthStatus extends CliCommand {
+        @Parameter(description = "cluster-name", required = true)
+        private java.util.List<String> params;
+
+        void run() throws PulsarAdminException {
+            String cluster = getOneArgument(params);
+            print(getAdmin().clusters().getHealthStatusAsync(cluster));
+        }
+    }
+
     /**
      * Base command.
      */
@@ -493,6 +518,8 @@ public class CmdClusters extends CmdBase {
         jcommander.addCommand("update-failure-domain", new UpdateFailureDomain());
         jcommander.addCommand("delete-failure-domain", new DeleteFailureDomain());
         jcommander.addCommand("list-failure-domains", new ListFailureDomains());
+        jcommander.addCommand("update-health-status", new UpdateHealthStatus());
+        jcommander.addCommand("get-health-status", new GetHealthStatus());
     }
 
 }

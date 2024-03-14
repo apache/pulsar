@@ -35,6 +35,7 @@ import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.net.InetSocketAddress;
 import java.net.MalformedURLException;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -97,6 +98,7 @@ import org.apache.pulsar.broker.qos.MonotonicSnapshotClock;
 import org.apache.pulsar.broker.resourcegroup.ResourceGroupService;
 import org.apache.pulsar.broker.resourcegroup.ResourceUsageTopicTransportManager;
 import org.apache.pulsar.broker.resourcegroup.ResourceUsageTransportManager;
+import org.apache.pulsar.broker.resources.ClusterHealthStatusResources;
 import org.apache.pulsar.broker.resources.ClusterResources;
 import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.broker.rest.Topics;
@@ -767,6 +769,14 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                     : null;
             localMetadataStore = createLocalMetadataStore(localMetadataSynchronizer);
             localMetadataStore.registerSessionListener(this::handleMetadataSessionEvent);
+
+            String healthStatusPath = ClusterHealthStatusResources.BASE_PATH
+                    + config.getClusterName();
+            if (!localMetadataStore.exists(healthStatusPath).get(30000, TimeUnit.MICROSECONDS)) {
+                localMetadataStore.put(healthStatusPath,
+                        ClusterHealthStatusResources.Status.available.name().getBytes(StandardCharsets.UTF_8),
+                        Optional.of(-1L));
+            }
 
             coordinationService = new CoordinationServiceImpl(localMetadataStore);
 

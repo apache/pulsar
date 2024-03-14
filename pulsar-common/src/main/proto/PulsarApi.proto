@@ -295,6 +295,14 @@ message CommandConnect {
     optional string proxy_version = 11; // Version of the proxy. Should only be forwarded by a proxy.
 }
 
+message CommandHealthCheck {
+    repeated KeyValue metadata = 1;
+}
+
+message CommandHealthCheckResponse {
+    optional bool available = 1 [default = true];
+}
+
 message FeatureFlags {
   optional bool supports_auth_refresh = 1 [default = false];
   optional bool supports_broker_entry_metadata = 2 [default = false];
@@ -1049,6 +1057,9 @@ message BaseCommand {
         WATCH_TOPIC_LIST_CLOSE = 67;
 
         TOPIC_MIGRATED = 68;
+
+        HEALTH_CHECK = 69;
+        HEALTH_CHECK_RESPONSE = 70;
     }
 
 
@@ -1132,4 +1143,7 @@ message BaseCommand {
     optional CommandWatchTopicListClose watchTopicListClose = 67;
     
     optional CommandTopicMigrated topicMigrated = 68;
+
+    optional CommandHealthCheck healthCheck = 69;
+    optional CommandHealthCheckResponse healthCheckResponse = 70;
 }

@@ -34,6 +34,8 @@ public class PulsarResources {
     @Getter
     private final ClusterResources clusterResources;
     @Getter
+    private final ClusterHealthStatusResources clusterHealthStatusResources;
+    @Getter
     private final ResourceGroupResources resourcegroupResources;
     @Getter
     private final NamespaceResources namespaceResources;
@@ -63,11 +65,14 @@ public class PulsarResources {
             tenantResources = new TenantResources(configurationMetadataStore, operationTimeoutSec);
             clusterResources = new ClusterResources(localMetadataStore, configurationMetadataStore,
                     operationTimeoutSec);
+            clusterHealthStatusResources = new ClusterHealthStatusResources(localMetadataStore,
+                    operationTimeoutSec);
             namespaceResources = new NamespaceResources(configurationMetadataStore, operationTimeoutSec);
             resourcegroupResources = new ResourceGroupResources(configurationMetadataStore, operationTimeoutSec);
         } else {
             tenantResources = null;
             clusterResources = null;
+            clusterHealthStatusResources = null;
             namespaceResources  = null;
             resourcegroupResources = null;
         }
