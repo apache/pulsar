@@ -214,18 +214,10 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         // decrement unack-message count for removed consumer
         addUnAckedMessages(-consumer.getUnackedMessages());
         if (consumerSet.removeAll(consumer) == 1) {
-            consumerList.remove(consumer);
+            consumerList.removeIf(c -> consumer.equals(c));
             log.info("Removed consumer {} with pending {} acks", consumer, consumer.getPendingAcks().size());
             if (consumerList.isEmpty()) {
-                cancelPendingRead();
-
-                redeliveryMessages.clear();
-                redeliveryTracker.clear();
-                if (closeFuture != null) {
-                    log.info("[{}] All consumers removed. Subscription is disconnected", name);
-                    closeFuture.complete(null);
-                }
-                totalAvailablePermits = 0;
+                clearComponentsAfterRemovedAllConsumers();
             } else {
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] Consumer are left, reading more entries", name);
@@ -242,8 +234,24 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                 readMoreEntries();
             }
         } else {
-            log.info("[{}] Trying to remove a non-connected consumer: {}", name, consumer);
+            consumerList.removeIf(c -> consumer.equals(c));
+            if (consumerList.isEmpty()) {
+                clearComponentsAfterRemovedAllConsumers();
+            }
+            log.warn("[{}] Trying to remove a non-connected consumer: {}", name, consumer);
         }
+    }
+
+    private synchronized void clearComponentsAfterRemovedAllConsumers() {
+        cancelPendingRead();
+
+        redeliveryMessages.clear();
+        redeliveryTracker.clear();
+        if (closeFuture != null) {
+            log.info("[{}] All consumers removed. Subscription is disconnected", name);
+            closeFuture.complete(null);
+        }
+        totalAvailablePermits = 0;
     }
 
     @Override
@@ -554,6 +562,9 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         if (consumerList.isEmpty()) {
             closeFuture.complete(null);
         } else {
+            // Iterator of CopyOnWriteArrayList uses the internal array to do the for-each, and CopyOnWriteArrayList
+            // will create a new internal array when adding/removing a new item. So remove items in the for-each
+            // block is safety when the for-each and add/remove are using a same lock.
             consumerList.forEach(consumer -> consumer.disconnect(isResetCursor, assignedBrokerLookupData));
             cancelPendingRead();
         }
