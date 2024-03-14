@@ -161,7 +161,8 @@ class OpenIDProviderMetadataCache {
     private CompletableFuture<OpenIDProviderMetadata> loadOpenIDProviderMetadataForKubernetesApiServer() {
         CompletableFuture<OpenIDProviderMetadata> future = new CompletableFuture<>();
         try {
-            wellKnownApi.getServiceAccountIssuerOpenIDConfigurationAsync(new ApiCallback<>() {
+            wellKnownApi.getServiceAccountIssuerOpenIDConfiguration()
+                            .executeAsync(new ApiCallback<>() {
                 @Override
                 public void onFailure(ApiException e, int statusCode, Map<String, List<String>> responseHeaders) {
                     incrementFailureMetric(AuthenticationExceptionCode.ERROR_RETRIEVING_PROVIDER_METADATA);
