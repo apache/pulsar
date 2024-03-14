@@ -27,6 +27,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CancellationException;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -36,14 +37,17 @@ import org.apache.commons.lang3.tuple.ImmutableTriple;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.RawMessage;
 import org.apache.pulsar.client.api.RawReader;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
+import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.protocol.Commands;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
@@ -460,5 +464,24 @@ public class RawReaderTest extends MockedPulsarServiceBaseTest {
                 // correct behaviour
             }
         }
+    }
+
+    @Test
+    public void testAutoCreateTopic() throws ExecutionException, InterruptedException, PulsarAdminException {
+        String topic = "persistent://my-property/my-ns/" + BrokerTestUtil.newUniqueName("reader");
+
+        RawReader reader = RawReader.create(pulsarClient, topic, subscription).get();
+        TopicStats stats = admin.topics().getStats(topic);
+        Assert.assertNotNull(stats);
+        reader.closeAsync().join();
+
+        String topic2 = "persistent://my-property/my-ns/" + BrokerTestUtil.newUniqueName("reader");
+        try {
+            reader = RawReader.create(pulsarClient, topic2, subscription, false).get();
+            Assert.fail();
+        } catch (Exception e) {
+            Assert.assertTrue(e.getCause() instanceof PulsarClientException.TopicDoesNotExistException);
+        }
+        reader.closeAsync().join();
     }
 }
