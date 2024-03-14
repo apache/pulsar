@@ -21,32 +21,45 @@ package org.apache.pulsar.broker.authentication;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.apache.pulsar.broker.web.AuthenticationFilter.AuthenticatedDataAttributeName;
 import static org.apache.pulsar.broker.web.AuthenticationFilter.AuthenticatedRoleAttributeName;
+import com.auth0.jwk.InvalidPublicKeyException;
+import com.auth0.jwk.Jwk;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.annotations.VisibleForTesting;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.ExpiredJwtException;
+import io.jsonwebtoken.JwsHeader;
 import io.jsonwebtoken.Jwt;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.JwtParser;
+import io.jsonwebtoken.JwtParserBuilder;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.RequiredTypeException;
 import io.jsonwebtoken.SignatureAlgorithm;
+import io.jsonwebtoken.SigningKeyResolver;
 import io.jsonwebtoken.security.SignatureException;
 import io.prometheus.client.Counter;
 import io.prometheus.client.Histogram;
 import java.io.IOException;
 import java.net.SocketAddress;
 import java.security.Key;
+import java.util.Collections;
 import java.util.Date;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import javax.naming.AuthenticationException;
 import javax.net.ssl.SSLSession;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import lombok.Getter;
+import lombok.Setter;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.metrics.AuthenticationMetrics;
 import org.apache.pulsar.broker.authentication.utils.AuthTokenUtils;
 import org.apache.pulsar.common.api.AuthData;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
 
 public class AuthenticationProviderToken implements AuthenticationProvider {
 
@@ -77,6 +90,9 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
     // token validation.
     static final String CONF_TOKEN_ALLOWED_CLOCK_SKEW_SECONDS = "tokenAllowedClockSkewSeconds";
 
+    // When JSON Web Key Set is configured
+    static final String CONF_TOKEN_KEY_SET_KEY = "tokenKeySetKey";
+
     static final String TOKEN = "token";
 
     private static final Counter expiredTokenMetrics = Counter.build()
@@ -105,6 +121,7 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
     private String confTokenAudienceClaimSettingName;
     private String confTokenAudienceSettingName;
     private String confTokenAllowedClockSkewSecondsSettingName;
+    private String confTokenKeySetSettingName;
 
     public enum ErrorCode {
         INVALID_AUTH_DATA,
@@ -136,6 +153,7 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
         this.confTokenAudienceClaimSettingName = prefix + CONF_TOKEN_AUDIENCE_CLAIM;
         this.confTokenAudienceSettingName = prefix + CONF_TOKEN_AUDIENCE;
         this.confTokenAllowedClockSkewSecondsSettingName = prefix + CONF_TOKEN_ALLOWED_CLOCK_SKEW_SECONDS;
+        this.confTokenKeySetSettingName = prefix + CONF_TOKEN_KEY_SET_KEY;
 
         // we need to fetch the algorithm before we fetch the key
         this.publicKeyAlg = getPublicKeyAlgType(config);
@@ -146,10 +164,18 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
 
         long allowedSkew = getConfTokenAllowedClockSkewSeconds(config);
 
-        this.parser = Jwts.parserBuilder()
-                .setAllowedClockSkewSeconds(allowedSkew)
-                .setSigningKey(this.validationKey)
-                .build();
+        JwtParserBuilder jwtParserBuilder = Jwts.parserBuilder().setAllowedClockSkewSeconds(allowedSkew);
+        if (validationKey != null) {
+            jwtParserBuilder.setSigningKey(validationKey);
+        } else {
+            String jwksConfig = config.getProperties().getProperty(confTokenKeySetSettingName);
+            if (StringUtils.isEmpty(jwksConfig)) {
+                throw new IOException("No jwks/secret/Public key was provided for token authentication");
+            }
+            jwtParserBuilder.setSigningKeyResolver(new JwkResolver(jwksConfig));
+        }
+
+        this.parser = jwtParserBuilder.build();
 
         if (audienceClaim != null && audience == null) {
             throw new IllegalArgumentException("Token Audience Claim [" + audienceClaim
@@ -302,7 +328,8 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
             final byte[] validationKey = AuthTokenUtils.readKeyFromUrl(tokenPublicKey);
             return AuthTokenUtils.decodePublicKey(validationKey, publicKeyAlg);
         } else {
-            throw new IOException("No secret key was provided for token authentication");
+            // Returns null, the caller needs to get the key from the jwks.
+            return null;
         }
     }
 
@@ -456,6 +483,66 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
                 }
             }
             return super.getHeader(name);
+        }
+    }
+
+    @Slf4j
+    private static final class JwkResolver implements SigningKeyResolver {
+        @Setter
+        @Getter
+        private static class JwksData {
+            private List<Map<String, Object>> keys;
+        }
+
+        private final Map<String, Jwk> jwks;
+
+        public JwkResolver(String configValue) {
+            try {
+                byte[] bytes = AuthTokenUtils.readKeyFromUrl(configValue);
+                ObjectMapper objectMapper = ObjectMapperFactory.create();
+                JwksData data = objectMapper.reader().readValue(bytes, JwksData.class);
+                if (data == null || data.getKeys() == null || data.getKeys().isEmpty()) {
+                    log.warn("No keys in " + data);
+                    jwks = Collections.emptyMap();
+                    return;
+                }
+                jwks = new LinkedHashMap<>();
+                data.getKeys().forEach((n) -> {
+                    Jwk jwk = Jwk.fromValues(n);
+                    jwks.put(jwk.getId(), jwk);
+                });
+                if (log.isDebugEnabled()) {
+                    log.info("jwks: {}", jwks);
+                }
+            } catch (IOException e) {
+                log.error("Failed to get jwks from {}", configValue, e);
+                throw new IllegalArgumentException(e);
+            }
+        }
+
+        private Key get(String keyId) {
+            if (keyId != null) {
+                Jwk jwk = jwks.get(keyId);
+                if (jwk != null) {
+                    try {
+                        return jwk.getPublicKey();
+                    } catch (InvalidPublicKeyException e) {
+                        throw new IllegalArgumentException(e);
+                    }
+                }
+            }
+
+            throw new IllegalArgumentException("No public key for kid " + keyId);
+        }
+
+        @Override
+        public Key resolveSigningKey(JwsHeader jwsHeader, Claims claims) {
+            return get(jwsHeader.getKeyId());
+        }
+
+        @Override
+        public Key resolveSigningKey(JwsHeader jwsHeader, String s) {
+            return get(jwsHeader.getKeyId());
         }
     }
 }
