@@ -124,10 +124,10 @@ this is the proposed initial set of metrics to export.
 Additional metrics could be added later on, though it's better to start with the set of most important metrics
 and then evaluate any missing information.
 
-This metrics names and attributes will be considered "Experimental" for 3.3 release and might be subject to changes.
+These metrics names and attributes will be considered "Experimental" for 3.3 release and might be subject to changes.
 The plan is to finalize all the namings in 4.0 LTS release.
 
-Attributes with `[name]` brackets will be not be included by default, to avoid high cardinality metrics.
+Attributes with `[name]` brackets will not be included by default, to avoid high cardinality metrics.
 
 | OTel metric name                                | Type          | Unit        | Attributes                                                                                                                                             | Description                                                                                                                               |
 |-------------------------------------------------|---------------|-------------|--------------------------------------------------------------------------------------------------------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------|
