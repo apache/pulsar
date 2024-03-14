@@ -248,8 +248,6 @@ public class CmdProduce extends AbstractCmd {
      * @throws Exception
      */
     public int run() throws PulsarClientException {
-        System.out.println("run");
-
         if (this.numTimesProduce <= 0) {
             throw new CommandLine.ParameterException(commandSpec.commandLine(),
                     "Number of times need to be positive number.");
