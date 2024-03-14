@@ -326,32 +326,43 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
 
     private @Nonnull CompletableFuture<Void> prepareInitPoliciesCacheAsync(@Nonnull NamespaceName namespace) {
         requireNonNull(namespace);
-        return policyCacheInitMap.computeIfAbsent(namespace, (k) -> {
-            final CompletableFuture<SystemTopicClient.Reader<PulsarEvent>> readerCompletableFuture =
-                    createSystemTopicClient(namespace);
-            readerCaches.put(namespace, readerCompletableFuture);
-            ownedBundlesCountPerNamespace.putIfAbsent(namespace, new AtomicInteger(1));
-            final CompletableFuture<Void> initFuture = readerCompletableFuture
-                    .thenCompose(reader -> {
-                        final CompletableFuture<Void> stageFuture = new CompletableFuture<>();
-                        initPolicesCache(reader, stageFuture);
-                        return stageFuture
-                                // Read policies in background
-                                .thenAccept(__ -> readMorePoliciesAsync(reader));
-                    });
-            initFuture.exceptionally(ex -> {
-                try {
-                    log.error("[{}] Failed to create reader on __change_events topic", namespace, ex);
-                    cleanCacheAndCloseReader(namespace, false);
-                } catch (Throwable cleanupEx) {
-                    // Adding this catch to avoid break callback chain
-                    log.error("[{}] Failed to cleanup reader on __change_events topic", namespace, cleanupEx);
-                }
-                return null;
-            });
-            // let caller know we've got an exception.
-            return initFuture;
-        });
+        return pulsarService.getPulsarResources().getNamespaceResources().getPoliciesAsync(namespace)
+                        .thenCompose(namespacePolicies -> {
+                            if (namespacePolicies.isPresent() && namespacePolicies.get().deleted) {
+                                log.info("[{}] skip prepare init policies cache since the namespace is deleted",
+                                        namespace);
+                                return CompletableFuture.completedFuture(null);
+
+
+                            }
+
+                            return policyCacheInitMap.computeIfAbsent(namespace, (k) -> {
+                                final CompletableFuture<SystemTopicClient.Reader<PulsarEvent>> readerCompletableFuture =
+                                        createSystemTopicClient(namespace);
+                                readerCaches.put(namespace, readerCompletableFuture);
+                                ownedBundlesCountPerNamespace.putIfAbsent(namespace, new AtomicInteger(1));
+                                final CompletableFuture<Void> initFuture = readerCompletableFuture
+                                        .thenCompose(reader -> {
+                                            final CompletableFuture<Void> stageFuture = new CompletableFuture<>();
+                                            initPolicesCache(reader, stageFuture);
+                                            return stageFuture
+                                                    // Read policies in background
+                                                    .thenAccept(__ -> readMorePoliciesAsync(reader));
+                                        });
+                                initFuture.exceptionally(ex -> {
+                                    try {
+                                        log.error("[{}] Failed to create reader on __change_events topic", namespace, ex);
+                                        cleanCacheAndCloseReader(namespace, false);
+                                    } catch (Throwable cleanupEx) {
+                                        // Adding this catch to avoid break callback chain
+                                        log.error("[{}] Failed to cleanup reader on __change_events topic", namespace, cleanupEx);
+                                    }
+                                    return null;
+                                });
+                                // let caller know we've got an exception.
+                                return initFuture;
+                            });
+                        });
     }
 
     protected CompletableFuture<SystemTopicClient.Reader<PulsarEvent>> createSystemTopicClient(
