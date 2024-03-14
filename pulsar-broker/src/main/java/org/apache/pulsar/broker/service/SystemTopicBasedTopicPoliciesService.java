@@ -329,7 +329,7 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
         requireNonNull(namespace);
         return pulsarService.getPulsarResources().getNamespaceResources().getPoliciesAsync(namespace)
                         .thenCompose(namespacePolicies -> {
-                            if (namespacePolicies.isPresent() && namespacePolicies.get().deleted) {
+                            if (namespacePolicies.isEmpty() || namespacePolicies.get().deleted) {
                                 log.info("[{}] skip prepare init policies cache since the namespace is deleted",
                                         namespace);
                                 return CompletableFuture.completedFuture(null);
