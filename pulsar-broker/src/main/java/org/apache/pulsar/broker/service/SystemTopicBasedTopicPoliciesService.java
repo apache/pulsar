@@ -324,7 +324,8 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
         }
     }
 
-    private @Nonnull CompletableFuture<Void> prepareInitPoliciesCacheAsync(@Nonnull NamespaceName namespace) {
+    @VisibleForTesting
+    @Nonnull CompletableFuture<Void> prepareInitPoliciesCacheAsync(@Nonnull NamespaceName namespace) {
         requireNonNull(namespace);
         return pulsarService.getPulsarResources().getNamespaceResources().getPoliciesAsync(namespace)
                         .thenCompose(namespacePolicies -> {
@@ -332,8 +333,6 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                                 log.info("[{}] skip prepare init policies cache since the namespace is deleted",
                                         namespace);
                                 return CompletableFuture.completedFuture(null);
-
-
                             }
 
                             return policyCacheInitMap.computeIfAbsent(namespace, (k) -> {
@@ -463,7 +462,7 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
         });
     }
 
-    private void cleanCacheAndCloseReader(@Nonnull NamespaceName namespace, boolean cleanOwnedBundlesCount) {
+    void cleanCacheAndCloseReader(@Nonnull NamespaceName namespace, boolean cleanOwnedBundlesCount) {
         cleanCacheAndCloseReader(namespace, cleanOwnedBundlesCount, false);
     }
 
