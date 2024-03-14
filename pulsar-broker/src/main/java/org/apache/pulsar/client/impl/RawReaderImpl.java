@@ -51,7 +51,8 @@ public class RawReaderImpl implements RawReader {
     private RawConsumerImpl consumer;
 
     public RawReaderImpl(PulsarClientImpl client, String topic, String subscription,
-                         CompletableFuture<Consumer<byte[]>> consumerFuture) {
+                         CompletableFuture<Consumer<byte[]>> consumerFuture,
+                         boolean createTopicIfDoesNotExist) {
         consumerConfiguration = new ConsumerConfigurationData<>();
         consumerConfiguration.getTopicNames().add(topic);
         consumerConfiguration.setSubscriptionName(subscription);
@@ -61,8 +62,7 @@ public class RawReaderImpl implements RawReader {
         consumerConfiguration.setSubscriptionInitialPosition(SubscriptionInitialPosition.Earliest);
         consumerConfiguration.setAckReceiptEnabled(true);
 
-        consumer = new RawConsumerImpl(client, consumerConfiguration,
-                                       consumerFuture);
+        consumer = new RawConsumerImpl(client, consumerConfiguration, consumerFuture, createTopicIfDoesNotExist);
     }
 
     @Override
@@ -111,7 +111,7 @@ public class RawReaderImpl implements RawReader {
         final Queue<CompletableFuture<RawMessage>> pendingRawReceives;
 
         RawConsumerImpl(PulsarClientImpl client, ConsumerConfigurationData<byte[]> conf,
-                CompletableFuture<Consumer<byte[]>> consumerFuture) {
+                CompletableFuture<Consumer<byte[]>> consumerFuture, boolean createTopicIfDoesNotExist) {
             super(client,
                     conf.getSingleTopic(),
                     conf,
@@ -123,7 +123,7 @@ public class RawReaderImpl implements RawReader {
                     MessageId.earliest,
                     0 /* startMessageRollbackDurationInSec */,
                     Schema.BYTES, null,
-                    false
+                    createTopicIfDoesNotExist
             );
             incomingRawMessages = new GrowableArrayBlockingQueue<>();
             pendingRawReceives = new ConcurrentLinkedQueue<>();
