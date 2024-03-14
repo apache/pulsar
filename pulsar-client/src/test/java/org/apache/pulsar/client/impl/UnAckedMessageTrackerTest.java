@@ -88,6 +88,7 @@ public class UnAckedMessageTrackerTest  {
     public void testTrackChunkedMessageId() {
         PulsarClientImpl client = mock(PulsarClientImpl.class);
         ConnectionPool connectionPool = mock(ConnectionPool.class);
+        when(client.instrumentProvider()).thenReturn(InstrumentProvider.NOOP);
         when(client.getCnxPool()).thenReturn(connectionPool);
         Timer timer = new HashedWheelTimer(new DefaultThreadFactory("pulsar-timer", Thread.currentThread().isDaemon()),
                 1, TimeUnit.MILLISECONDS);

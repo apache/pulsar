@@ -415,9 +415,9 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         bytesReceivedCounter = ip.newCounter("pulsar.client.consumer.message.received.size", Unit.Bytes,
                 "The number of bytes explicitly received by the consumer application", topic, attrs);
         messagesPrefetchedGauge = ip.newUpDownCounter("pulsar.client.consumer.receive_queue.count", Unit.Messages,
-                "Number of messages currently sitting in the consumer receive queue", topic, attrs);
+                "The number of messages currently sitting in the consumer receive queue", topic, attrs);
         bytesPrefetchedGauge = ip.newUpDownCounter("pulsar.client.consumer.receive_queue.size", Unit.Bytes,
-                "Total number of bytes currently sitting in the consumer receive queue", topic, attrs);
+                "The total size in bytes of messages currently sitting in the consumer receive queue", topic, attrs);
 
         consumerAcksCounter = ip.newCounter("pulsar.client.consumer.message.ack", Unit.Messages,
                 "The number of acknowledged messages", topic, attrs);
