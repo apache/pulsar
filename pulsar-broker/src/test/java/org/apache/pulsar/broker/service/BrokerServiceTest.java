@@ -115,6 +115,7 @@ import org.apache.pulsar.common.util.netty.EventLoopUtil;
 import org.apache.pulsar.compaction.Compactor;
 import org.awaitility.Awaitility;
 import org.mockito.Mockito;
+import org.mockito.internal.util.MockUtil;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -1319,7 +1320,7 @@ public class BrokerServiceTest extends BrokerTestBase {
 
         @Cleanup("shutdownNow")
         ExecutorService executor = Executors.newSingleThreadExecutor();
-        BrokerService service = spy(pulsar.getBrokerService());
+        BrokerService service = pulsar.getBrokerService();
         // create topic will fail to get managedLedgerConfig
         CompletableFuture<ManagedLedgerConfig> failedManagedLedgerConfig = new CompletableFuture<>();
         failedManagedLedgerConfig.completeExceptionally(new NullPointerException("failed to persistent policy"));
@@ -1361,7 +1362,7 @@ public class BrokerServiceTest extends BrokerTestBase {
 
         @Cleanup("shutdownNow")
         ExecutorService executor = Executors.newSingleThreadExecutor();
-        BrokerService service = spy(pulsar.getBrokerService());
+        BrokerService service = pulsar.getBrokerService();
         // create topic will fail to get managedLedgerConfig
         CompletableFuture<ManagedLedgerConfig> failedManagedLedgerConfig = new CompletableFuture<>();
         failedManagedLedgerConfig.complete(new ManagedLedgerConfig());
@@ -1380,10 +1381,11 @@ public class BrokerServiceTest extends BrokerTestBase {
 
         // create topic async and wait on the future completion
         executor.submit(() -> {
-            service.getOrCreateTopic(deadLockTestTopic).thenAccept(topic -> topicCreation.complete(null)).exceptionally(e -> {
-                topicCreation.completeExceptionally(e.getCause());
-                return null;
-            });
+            service.getOrCreateTopic(deadLockTestTopic)
+                    .thenAccept(topic -> topicCreation.complete(null)).exceptionally(e -> {
+                        topicCreation.completeExceptionally(e.getCause());
+                        return null;
+                    });
         });
 
         // future-result should be completed with exception
@@ -1619,7 +1621,7 @@ public class BrokerServiceTest extends BrokerTestBase {
 
     @Override
     protected BrokerService customizeNewBrokerService(BrokerService brokerService) {
-        return Mockito.spy(brokerService);
+        return MockUtil.isMock(brokerService) ? brokerService : Mockito.spy(brokerService);
     }
 
     @Test
