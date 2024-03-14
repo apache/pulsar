@@ -39,10 +39,9 @@
     <gson.version>2.10.1</gson.version>
     <guava.version>32.0.0-jre</guava.version>
     <guice.version>7.0.0</guice.version>
+    <jakarta.inject.api.version>2.0.1</jakarta.inject.api.version>
   </properties>
-
   <dependencies>
-
     <dependency>
       <groupId>org.apache.jclouds</groupId>
       <artifactId>jclouds-allblobstore</artifactId>
@@ -97,6 +96,11 @@
         <artifactId>guice-assistedinject</artifactId>
         <version>${guice.version}</version>
       </dependency>
+      <dependency>
+        <groupId>jakarta.inject</groupId>
+        <artifactId>jakarta.inject-api</artifactId>
+        <version>${jakarta.inject.api.version}</version>
+      </dependency>
     </dependencies>
   </dependencyManagement>
 
@@ -137,6 +141,7 @@
                   <include>javax.inject:*</include>
                   <include>javax.annotation:*</include>
                   <include>com.google.errorprone:*</include>
+                  <include>jakarta.inject:jakarta.inject-api</include>
                 </includes>
               </artifactSet>
 
@@ -173,7 +178,10 @@
                   <pattern>com.google.errorprone</pattern>
                   <shadedPattern>org.apache.pulsar.jcloud.shade.com.google.errorprone</shadedPattern>
                 </relocation>
-
+                <relocation>
+                  <pattern>jakarta.inject</pattern>
+                  <shadedPattern>org.apache.pulsar.jcloud.shade.jakarta.inject</shadedPattern>
+                </relocation>
               </relocations>
               <transformers>
                 <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
