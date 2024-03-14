@@ -402,7 +402,7 @@ public class CmdSinks extends CmdBase {
         @Option(names = "--transform-function-config", description = "Configuration of the transform function "
                 + "applied before the Sink")
         protected String transformFunctionConfig;
-        @Parameter(names = "--log-topic", description = "The topic to which the logs of a Pulsar Sink are produced")
+        @Option(names = "--log-topic", description = "The topic to which the logs of a Pulsar Sink are produced")
         protected String logTopic;
 
         protected SinkConfig sinkConfig;
