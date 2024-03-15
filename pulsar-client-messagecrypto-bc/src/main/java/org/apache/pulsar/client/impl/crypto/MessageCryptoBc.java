@@ -148,7 +148,7 @@ public class MessageCryptoBc implements MessageCrypto<MessageMetadata, MessageMe
             cipher = Cipher.getInstance(AESGCM, BouncyCastleProvider.PROVIDER_NAME);
             // If keygen is not needed(e.g: consumer), data key will be decrypted from the message
             if (!keyGenNeeded) {
-
+                // codeql[java/weak-cryptographic-algorithm] - md5 is sufficient for this use case
                 digest = MessageDigest.getInstance("MD5");
 
                 dataKey = null;
