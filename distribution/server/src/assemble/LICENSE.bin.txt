@@ -483,9 +483,9 @@ The Apache Software License, Version 2.0
     - io.vertx-vertx-web-common-4.3.8.jar
     - io.vertx-vertx-grpc-4.3.5.jar
   * Apache ZooKeeper
-    - org.apache.zookeeper-zookeeper-3.9.1.jar
-    - org.apache.zookeeper-zookeeper-jute-3.9.1.jar
-    - org.apache.zookeeper-zookeeper-prometheus-metrics-3.9.1.jar
+    - org.apache.zookeeper-zookeeper-3.9.2.jar
+    - org.apache.zookeeper-zookeeper-jute-3.9.2.jar
+    - org.apache.zookeeper-zookeeper-prometheus-metrics-3.9.2.jar
   * Snappy Java
     - org.xerial.snappy-snappy-java-1.1.10.5.jar
   * Google HTTP Client
