@@ -469,9 +469,9 @@ The Apache Software License, Version 2.0
   * Apache Yetus
     - org.apache.yetus-audience-annotations-0.12.0.jar
   * Kubernetes Client
-    - io.kubernetes-client-java-18.0.0.jar
-    - io.kubernetes-client-java-api-18.0.0.jar
-    - io.kubernetes-client-java-proto-18.0.0.jar
+    - io.kubernetes-client-java-20.0.0.jar
+    - io.kubernetes-client-java-api-20.0.0.jar
+    - io.kubernetes-client-java-proto-20.0.0.jar
   * Dropwizard
     - io.dropwizard.metrics-metrics-core-4.1.12.1.jar
     - io.dropwizard.metrics-metrics-graphite-4.1.12.1.jar

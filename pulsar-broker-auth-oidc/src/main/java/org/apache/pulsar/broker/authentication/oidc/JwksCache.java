@@ -162,7 +162,7 @@ public class JwksCache {
     private CompletableFuture<List<Jwk>> getJwksFromKubernetesApiServer() {
         CompletableFuture<List<Jwk>> future = new CompletableFuture<>();
         try {
-            openidApi.getServiceAccountIssuerOpenIDKeysetAsync(new ApiCallback<String>() {
+            openidApi.getServiceAccountIssuerOpenIDKeyset().executeAsync(new ApiCallback<>() {
                 @Override
                 public void onFailure(ApiException e, int statusCode, Map<String, List<String>> responseHeaders) {
                     incrementFailureMetric(AuthenticationExceptionCode.ERROR_RETRIEVING_PUBLIC_KEY);
