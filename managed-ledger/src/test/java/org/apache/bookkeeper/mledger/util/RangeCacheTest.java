@@ -27,6 +27,7 @@ import static org.testng.Assert.fail;
 import com.google.common.collect.Lists;
 import io.netty.util.AbstractReferenceCounted;
 import io.netty.util.ReferenceCounted;
+import java.util.concurrent.atomic.AtomicReference;
 import org.apache.commons.lang3.tuple.Pair;
 import org.testng.annotations.Test;
 import java.util.UUID;
@@ -293,5 +294,36 @@ public class RangeCacheTest {
         assertEquals(s0.refCnt(), 1);
         assertTrue(cache.put(0, s0));
         assertFalse(cache.put(0, s0));
+    }
+
+    /**
+     * Both methods {@link RangeCache#removeRange(Comparable, Comparable, boolean)} and
+     * {@link RangeCache#evictLEntriesBeforeTimestamp(long)} are executed concurrently.
+     */
+    @Test
+    public void testConcurrencyEvictLEntriesBeforeTimestamp(){
+        final int concurrentDeleteKey = 2;
+        final long concurrentDeleteValue = 2;
+        final AtomicReference<RangeCache<Integer,RefString>> rangeCacheRef = new AtomicReference<>();
+
+        RangeCache.TimestampExtractor<RefString> timestampExtractor = v -> {
+            long longValue = Long.valueOf(v.s);
+            long timestamp = longValue;
+            if (longValue == concurrentDeleteValue){
+                // Make concurrent executed "RangeCache.removeRange(concurrentDeleteKey)"
+                rangeCacheRef.get().removeRange(concurrentDeleteKey, concurrentDeleteKey, true);
+            }
+            return timestamp;
+        };
+        // Mock data.
+        RangeCache<Integer,RefString> rangeCache =
+                new RangeCache<>(new RangeCache.DefaultWeighter(), timestampExtractor);
+        rangeCacheRef.set(rangeCache);
+        rangeCache.put(1, new RefString("1"));
+        rangeCache.put(concurrentDeleteKey, new RefString(Long.valueOf(concurrentDeleteValue).toString()));
+        rangeCache.put(3, new RefString("3"));
+        // Do test.
+        rangeCache.evictLEntriesBeforeTimestamp(2);
+        assertEquals(rangeCache.getSize(), 1);
     }
 }

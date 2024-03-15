@@ -19,6 +19,7 @@
 package org.apache.bookkeeper.mledger.util;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import com.google.common.annotations.VisibleForTesting;
 import io.netty.util.ReferenceCounted;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -273,7 +274,8 @@ public class RangeCache<Key extends Comparable<Key>, Value extends ReferenceCoun
      *
      * @param <Value>
      */
-    private static class DefaultWeighter<Value> implements Weighter<Value> {
+    @VisibleForTesting
+    static class DefaultWeighter<Value> implements Weighter<Value> {
         @Override
         public long getSize(Value value) {
             return 1;
