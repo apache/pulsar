@@ -142,12 +142,9 @@
                   <include>com.google.inject.extensions:guice-multibindings</include>
                   <include>com.google.code.gson:gson</include>
                   <include>org.apache.httpcomponents:*</include>
-                  <include>javax.ws.rs:*</include>
                   <include>com.jamesmurty.utils:*</include>
                   <include>net.iharder:*</include>
                   <include>aopalliance:*</include>
-                  <include>javax.inject:*</include>
-                  <include>javax.annotation:*</include>
                   <include>com.google.errorprone:*</include>
                   <include>jakarta.inject:jakarta.inject-api</include>
                   <include>jakarta.annotation:jakarta.annotation-api</include>
@@ -161,10 +158,6 @@
                   <shadedPattern>org.apache.pulsar.jcloud.shade.com.google</shadedPattern>
                 </relocation>
                 <relocation>
-                  <pattern>javax.ws</pattern>
-                  <shadedPattern>org.apache.pulsar.jcloud.shade.javax.ws</shadedPattern>
-                </relocation>
-                <relocation>
                   <pattern>com.jamesmurty.utils</pattern>
                   <shadedPattern>org.apache.pulsar.jcloud.shade.com.jamesmurty.utils</shadedPattern>
                 </relocation>
@@ -175,14 +168,6 @@
                 <relocation>
                   <pattern>net.iharder</pattern>
                   <shadedPattern>org.apache.pulsar.jcloud.shade.net.iharder</shadedPattern>
-                </relocation>
-                <relocation>
-                  <pattern>javax.inject</pattern>
-                  <shadedPattern>org.apache.pulsar.jcloud.shade.javax.inject</shadedPattern>
-                </relocation>
-                <relocation>
-                  <pattern>javax.annotation</pattern>
-                  <shadedPattern>org.apache.pulsar.jcloud.shade.javax.annotation</shadedPattern>
                 </relocation>
                 <relocation>
                   <pattern>com.google.errorprone</pattern>
