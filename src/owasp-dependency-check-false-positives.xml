@@ -201,4 +201,12 @@
     <notes>flat_project is not used at all.</notes>
     <cpe>cpe:/a:flat_project:flat</cpe>
   </suppress>
+
+  <suppress>
+    <notes><![CDATA[
+   CVE-2023-36479 has been addressed in jetty-servlets-9.4.53.v20231009.jar and newer
+   ]]></notes>
+    <packageUrl regex="true">^pkg:maven/org\.eclipse\.jetty/jetty\-servlets@.*$</packageUrl>
+    <cve>CVE-2023-36479</cve>
+  </suppress>
 </suppressions>

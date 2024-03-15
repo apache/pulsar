@@ -33,6 +33,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -48,6 +49,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import lombok.Builder;
 import lombok.Getter;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerBuilder;
@@ -104,6 +106,7 @@ public class PulsarClientImpl implements PulsarClient {
 
     private final boolean createdScheduledProviders;
     private LookupService lookup;
+    private Map<String, LookupService> urlLookupMap = new ConcurrentHashMap<>();
     private final ConnectionPool cnxPool;
     @Getter
     private final Timer timer;
@@ -944,10 +947,38 @@ public class PulsarClientImpl implements PulsarClient {
         conf.setTlsTrustStorePassword(tlsTrustStorePassword);
     }
 
+    public CompletableFuture<Pair<ClientCnx, Boolean>> getConnection(String topic, int randomKeyForSelectConnection) {
+        CompletableFuture<LookupTopicResult> lookupTopicResult = lookup.getBroker(TopicName.get(topic));
+        CompletableFuture<Boolean> isUseProxy = lookupTopicResult.thenApply(LookupTopicResult::isUseProxy);
+        return lookupTopicResult.thenCompose(lookupResult -> getConnection(lookupResult.getLogicalAddress(),
+                        lookupResult.getPhysicalAddress(), randomKeyForSelectConnection)).
+                thenCombine(isUseProxy, Pair::of);
+    }
+
+    /**
+     * Only for test.
+     */
+    @VisibleForTesting
     public CompletableFuture<ClientCnx> getConnection(final String topic) {
+        return getConnection(topic, cnxPool.genRandomKeyToSelectCon()).thenApply(Pair::getLeft);
+    }
+
+    public CompletableFuture<ClientCnx> getConnection(final String topic, final String url) {
         TopicName topicName = TopicName.get(topic);
-        return lookup.getBroker(topicName)
-                .thenCompose(pair -> getConnection(pair.getLeft(), pair.getRight()));
+        return getLookup(url).getBroker(topicName)
+                .thenCompose(lookupResult -> getConnection(lookupResult.getLogicalAddress(),
+                        lookupResult.getPhysicalAddress(), cnxPool.genRandomKeyToSelectCon()));
+    }
+
+    public LookupService getLookup(String serviceUrl) {
+        return urlLookupMap.computeIfAbsent(serviceUrl, url -> {
+            try {
+                return createLookup(serviceUrl);
+            } catch (PulsarClientException e) {
+                log.warn("Failed to update url to lookup service {}, {}", url, e.getMessage());
+                throw new IllegalStateException("Failed to update url " + url);
+            }
+        });
     }
 
     public CompletableFuture<ClientCnx> getConnectionToServiceUrl() {
@@ -956,12 +987,22 @@ public class PulsarClientImpl implements PulsarClient {
                     "Can't get client connection to HTTP service URL", null));
         }
         InetSocketAddress address = lookup.resolveHost();
-        return getConnection(address, address);
+        return getConnection(address, address, cnxPool.genRandomKeyToSelectCon());
+    }
+
+    public CompletableFuture<ClientCnx> getProxyConnection(final InetSocketAddress logicalAddress,
+                                                           final int randomKeyForSelectConnection) {
+        if (!(lookup instanceof BinaryProtoLookupService)) {
+            return FutureUtil.failedFuture(new PulsarClientException.InvalidServiceURL(
+                    "Cannot proxy connection through HTTP service URL", null));
+        }
+        return getConnection(logicalAddress, lookup.resolveHost(), randomKeyForSelectConnection);
     }
 
     public CompletableFuture<ClientCnx> getConnection(final InetSocketAddress logicalAddress,
-                                                      final InetSocketAddress physicalAddress) {
-        return cnxPool.getConnection(logicalAddress, physicalAddress);
+                                                      final InetSocketAddress physicalAddress,
+                                                      final int randomKeyForSelectConnection) {
+        return cnxPool.getConnection(logicalAddress, physicalAddress, randomKeyForSelectConnection);
     }
 
     /** visible for pulsar-functions. **/
@@ -1007,10 +1048,14 @@ public class PulsarClientImpl implements PulsarClient {
     }
 
     public void reloadLookUp() throws PulsarClientException {
-        if (conf.getServiceUrl().startsWith("http")) {
-            lookup = new HttpLookupService(conf, eventLoopGroup);
+        lookup = createLookup(conf.getServiceUrl());
+    }
+
+    public LookupService createLookup(String url) throws PulsarClientException {
+        if (url.startsWith("http")) {
+            return new HttpLookupService(conf, eventLoopGroup);
         } else {
-            lookup = new BinaryProtoLookupService(this, conf.getServiceUrl(), conf.getListenerName(), conf.isUseTls(),
+            return new BinaryProtoLookupService(this, url, conf.getListenerName(), conf.isUseTls(),
                     externalExecutorProvider.getExecutor());
         }
     }

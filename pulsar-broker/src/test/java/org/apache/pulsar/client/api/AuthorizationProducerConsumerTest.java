@@ -37,7 +37,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import javax.naming.AuthenticationException;
 import lombok.Cleanup;
@@ -64,7 +63,6 @@ import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.data.TenantOperation;
 import org.apache.pulsar.common.policies.data.TopicOperation;
-import org.apache.pulsar.common.util.RestException;
 import org.apache.pulsar.packages.management.core.MockedPackagesStorageProvider;
 import org.awaitility.Awaitility;
 import org.slf4j.Logger;
@@ -119,6 +117,7 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
     public void testProducerAndConsumerAuthorization() throws Exception {
         log.info("-- Starting {} test --", methodName);
         cleanup();
+        conf.setTopicLevelPoliciesEnabled(false);
         conf.setAuthorizationProvider(TestAuthorizationProvider.class.getName());
         setup();
 
@@ -179,6 +178,7 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
     public void testSubscriberPermission() throws Exception {
         log.info("-- Starting {} test --", methodName);
         cleanup();
+        conf.setTopicLevelPoliciesEnabled(false);
         conf.setEnablePackagesManagement(true);
         conf.setPackagesManagementStorageProvider(MockedPackagesStorageProvider.class.getName());
         conf.setAuthorizationProvider(PulsarAuthorizationProvider.class.getName());
@@ -369,6 +369,7 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
     public void testClearBacklogPermission() throws Exception {
         log.info("-- Starting {} test --", methodName);
         cleanup();
+        conf.setTopicLevelPoliciesEnabled(false);
         conf.setAuthorizationProvider(PulsarAuthorizationProvider.class.getName());
         setup();
 
@@ -610,6 +611,7 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
     public void testSubscriptionPrefixAuthorization() throws Exception {
         log.info("-- Starting {} test --", methodName);
         cleanup();
+        conf.setTopicLevelPoliciesEnabled(false);
         conf.setAuthorizationProvider(TestAuthorizationProviderWithSubscriptionPrefix.class.getName());
         setup();
 
@@ -749,6 +751,7 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
     public void testPermissionForProducerCreateInitialSubscription() throws Exception {
         log.info("-- Starting {} test --", methodName);
         cleanup();
+        conf.setTopicLevelPoliciesEnabled(false);
         conf.setAuthorizationProvider(PulsarAuthorizationProvider.class.getName());
         setup();
 
@@ -892,13 +895,6 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
         }
 
         @Override
-        public CompletableFuture<Boolean> isSuperUser(String role,
-                                                      ServiceConfiguration serviceConfiguration) {
-            Set<String> superUserRoles = serviceConfiguration.getSuperUserRoles();
-            return CompletableFuture.completedFuture(role != null && superUserRoles.contains(role) ? true : false);
-        }
-
-        @Override
         public void initialize(ServiceConfiguration conf, PulsarResources pulsarResources) throws IOException {
             this.conf = conf;
             // No-op
@@ -973,22 +969,11 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
         }
 
         @Override
-        public Boolean allowTenantOperation(
-            String tenantName, String role, TenantOperation operation, AuthenticationDataSource authData) {
-            return true;
-        }
-
-        @Override
         public CompletableFuture<Boolean> allowNamespaceOperationAsync(
             NamespaceName namespaceName, String role, NamespaceOperation operation, AuthenticationDataSource authData) {
             return CompletableFuture.completedFuture(true);
         }
 
-        @Override
-        public Boolean allowNamespaceOperation(
-            NamespaceName namespaceName, String role, NamespaceOperation operation, AuthenticationDataSource authData) {
-            return null;
-        }
 
         @Override
         public CompletableFuture<Boolean> allowTopicOperationAsync(
@@ -1002,18 +987,6 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
             }
 
             return isAuthorizedFuture;
-        }
-
-        @Override
-        public Boolean allowTopicOperation(
-            TopicName topicName, String role, TopicOperation operation, AuthenticationDataSource authData) {
-            try {
-                return allowTopicOperationAsync(topicName, role, operation, authData).get();
-            } catch (InterruptedException e) {
-                throw new RestException(e);
-            } catch (ExecutionException e) {
-                throw new RestException(e);
-            }
         }
     }
 

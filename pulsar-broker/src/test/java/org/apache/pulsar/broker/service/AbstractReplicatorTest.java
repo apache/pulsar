@@ -32,6 +32,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import lombok.Cleanup;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.PulsarServerException;
@@ -40,6 +41,7 @@ import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.impl.ConnectionPool;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.awaitility.Awaitility;
@@ -56,14 +58,18 @@ public class AbstractReplicatorTest {
         final String remoteCluster = "remoteCluster";
         final String topicName = "remoteTopicName";
         final String replicatorPrefix = "pulsar.repl";
+        @Cleanup("shutdownNow")
         final DefaultEventLoop eventLoopGroup = new DefaultEventLoop();
         // Mock services.
         final ServiceConfiguration pulsarConfig = mock(ServiceConfiguration.class);
         final PulsarService pulsar = mock(PulsarService.class);
         final BrokerService broker = mock(BrokerService.class);
         final Topic localTopic = mock(Topic.class);
+        ConnectionPool connectionPool = mock(ConnectionPool.class);
         final PulsarClientImpl localClient = mock(PulsarClientImpl.class);
+        when(localClient.getCnxPool()).thenReturn(connectionPool);
         final PulsarClientImpl remoteClient = mock(PulsarClientImpl.class);
+        when(remoteClient.getCnxPool()).thenReturn(connectionPool);
         final ProducerBuilder producerBuilder = mock(ProducerBuilder.class);
         final ConcurrentOpenHashMap<String, CompletableFuture<Optional<Topic>>> topics = new ConcurrentOpenHashMap<>();
         when(broker.executor()).thenReturn(eventLoopGroup);

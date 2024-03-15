@@ -403,6 +403,7 @@ public class LedgerManagerIteratorTest extends BaseMetadataStoreTest {
         final long start = MathUtils.nowInNano();
         final CountDownLatch latch = new CountDownLatch(1);
         ArrayList<Future<?>> futures = new ArrayList<>();
+        @Cleanup("shutdownNow")
         ExecutorService executor = Executors.newCachedThreadPool();
         final ConcurrentSkipListSet<Long> createdLedgers = new ConcurrentSkipListSet<>();
         for (int i = 0; i < numWriters; ++i) {

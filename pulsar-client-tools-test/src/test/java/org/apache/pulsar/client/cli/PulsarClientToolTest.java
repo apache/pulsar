@@ -73,6 +73,7 @@ public class PulsarClientToolTest extends BrokerTestBase {
         Properties properties = new Properties();
         properties.setProperty("serviceUrl", brokerUrl.toString());
         properties.setProperty("useTls", "false");
+        properties.setProperty("memoryLimit", "10M");
 
         String tenantName = UUID.randomUUID().toString();
 
@@ -94,6 +95,7 @@ public class PulsarClientToolTest extends BrokerTestBase {
                 String[] args = { "consume", "-t", "Exclusive", "-s", "sub-name", "-n",
                         Integer.toString(numberOfMessages), "--hex", "-r", "30", topicName };
                 Assert.assertEquals(pulsarClientToolConsumer.run(args), 0);
+                Assert.assertEquals(pulsarClientToolConsumer.rootParams.memoryLimit, 10 * 1024 * 1024);
                 future.complete(null);
             } catch (Throwable t) {
                 future.completeExceptionally(t);
@@ -108,6 +110,7 @@ public class PulsarClientToolTest extends BrokerTestBase {
         String[] args = { "produce", "--messages", "Have a nice day", "-n", Integer.toString(numberOfMessages), "-r",
                 "20", "-p", "key1=value1", "-p", "key2=value2", "-k", "partition_key", topicName };
         Assert.assertEquals(pulsarClientToolProducer.run(args), 0);
+        Assert.assertEquals(pulsarClientToolProducer.rootParams.memoryLimit, 10 * 1024 * 1024);
 
         future.get();
     }
@@ -120,6 +123,7 @@ public class PulsarClientToolTest extends BrokerTestBase {
         properties.setProperty("useTls", "false");
 
         final String topicName = getTopicWithRandomSuffix("non-durable");
+        admin.topics().createNonPartitionedTopic(topicName);
 
         int numberOfMessages = 10;
         @Cleanup("shutdownNow")
@@ -211,6 +215,7 @@ public class PulsarClientToolTest extends BrokerTestBase {
         properties.setProperty("useTls", "false");
 
         final String topicName = getTopicWithRandomSuffix("reader");
+        admin.topics().createNonPartitionedTopic(topicName);
 
         int numberOfMessages = 10;
         @Cleanup("shutdownNow")
@@ -260,6 +265,7 @@ public class PulsarClientToolTest extends BrokerTestBase {
         properties.setProperty("useTls", "false");
 
         final String topicName = getTopicWithRandomSuffix("encryption");
+        admin.topics().createNonPartitionedTopic(topicName);
         final String keyUriBase = "file:../pulsar-broker/src/test/resources/certificate/";
         final int numberOfMessages = 10;
 
@@ -342,20 +348,46 @@ public class PulsarClientToolTest extends BrokerTestBase {
         final String message = "test msg";
         final int numberOfMessages = 1;
         final String topicName = getTopicWithRandomSuffix("test-topic");
+        final String memoryLimitArg = "10M";
 
         String[] args = {"--url", url,
                 "--auth-plugin", authPlugin,
                 "--auth-params", authParams,
                 "--tlsTrustCertsFilePath", CA_CERT_FILE_PATH,
+                "--memory-limit", memoryLimitArg,
                 "produce", "-m", message,
                 "-n", Integer.toString(numberOfMessages), topicName};
-        pulsarClientTool.jcommander.parse(args);
+        pulsarClientTool.getCommander().parseArgs(args);
         assertEquals(pulsarClientTool.rootParams.getTlsTrustCertsFilePath(), CA_CERT_FILE_PATH);
         assertEquals(pulsarClientTool.rootParams.getAuthParams(), authParams);
         assertEquals(pulsarClientTool.rootParams.getAuthPluginClassName(), authPlugin);
+        assertEquals(pulsarClientTool.rootParams.getMemoryLimit(), 10 * 1024 * 1024);
         assertEquals(pulsarClientTool.rootParams.getServiceURL(), url);
         assertNull(pulsarClientTool.rootParams.getProxyServiceURL());
         assertNull(pulsarClientTool.rootParams.getProxyProtocol());
+    }
+
+    @Test(timeOut = 20000)
+    public void testMemoryLimitArgShortName() throws Exception {
+        PulsarClientTool pulsarClientTool = new PulsarClientTool(new Properties());
+        final String url = "pulsar+ssl://localhost:6651";
+        final String authPlugin = "org.apache.pulsar.client.impl.auth.AuthenticationTls";
+        final String authParams = String.format("tlsCertFile:%s,tlsKeyFile:%s", getTlsFileForClient("admin.cert"),
+                getTlsFileForClient("admin.key-pk8"));
+        final String message = "test msg";
+        final int numberOfMessages = 1;
+        final String topicName = getTopicWithRandomSuffix("test-topic");
+        final String memoryLimitArg = "10M";
+
+        String[] args = {"--url", url,
+                "--auth-plugin", authPlugin,
+                "--auth-params", authParams,
+                "--tlsTrustCertsFilePath", CA_CERT_FILE_PATH,
+                "-ml", memoryLimitArg,
+                "produce", "-m", message,
+                "-n", Integer.toString(numberOfMessages), topicName};
+        pulsarClientTool.getCommander().parseArgs(args);
+        assertEquals(pulsarClientTool.rootParams.getMemoryLimit(), 10 * 1024 * 1024);
     }
 
     @Test
@@ -372,7 +404,7 @@ public class PulsarClientToolTest extends BrokerTestBase {
         String[] args = {"--url", url,
                 "produce", "-m", message,
                 "-n", Integer.toString(numberOfMessages), topicName};
-        pulsarClientTool.jcommander.parse(args);
+        pulsarClientTool.getCommander().parseArgs(args);
         assertEquals(pulsarClientTool.rootParams.getServiceURL(), url);
         assertEquals(pulsarClientTool.rootParams.getProxyServiceURL(), "pulsar+ssl://my-proxy-pulsar:4443");
         assertEquals(pulsarClientTool.rootParams.getProxyProtocol(), ProxyProtocol.SNI);

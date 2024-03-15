@@ -32,6 +32,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
+import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
@@ -382,6 +383,7 @@ public class ClientDeduplicationTest extends ProducerConsumerBase {
         int totalMessage = 200;
         int threadSize = 5;
         String topicName = "subscription";
+        @Cleanup("shutdownNow")
         ExecutorService executorService = Executors.newFixedThreadPool(threadSize);
         conf.setBrokerDeduplicationEnabled(true);
 

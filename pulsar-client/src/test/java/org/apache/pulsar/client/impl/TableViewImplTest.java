@@ -38,6 +38,8 @@ public class TableViewImplTest {
     @BeforeClass(alwaysRun = true)
     public void setup() {
         client = mock(PulsarClientImpl.class);
+        ConnectionPool connectionPool = mock(ConnectionPool.class);
+        when(client.getCnxPool()).thenReturn(connectionPool);
         when(client.newReader(any(Schema.class)))
             .thenReturn(new ReaderBuilderImpl(client, Schema.BYTES));
 

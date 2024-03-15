@@ -54,6 +54,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
+import lombok.Cleanup;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.commons.lang.reflect.FieldUtils;
 import org.apache.commons.lang3.tuple.Pair;
@@ -168,7 +169,7 @@ public class ServiceUnitStateCompactionTest extends MockedPulsarServiceBaseTest 
     @Override
     public void cleanup() throws Exception {
         super.internalCleanup();
-
+        bk.close();
         if (compactionScheduler != null) {
             compactionScheduler.shutdownNow();
         }
@@ -534,6 +535,7 @@ public class ServiceUnitStateCompactionTest extends MockedPulsarServiceBaseTest 
                 .create();
 
         var defaultConf = getDefaultConf();
+        @Cleanup
         var additionalPulsarTestContext = createAdditionalPulsarTestContext(defaultConf);
         var pulsar2 = additionalPulsarTestContext.getPulsarService();
 

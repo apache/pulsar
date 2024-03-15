@@ -42,6 +42,7 @@ public final class EntryImpl extends AbstractCASReferenceCounted implements Entr
     private long timestamp;
     private long ledgerId;
     private long entryId;
+    private PositionImpl position;
     ByteBuf data;
 
     private Runnable onDeallocate;
@@ -151,7 +152,10 @@ public final class EntryImpl extends AbstractCASReferenceCounted implements Entr
 
     @Override
     public PositionImpl getPosition() {
-        return new PositionImpl(ledgerId, entryId);
+        if (position == null) {
+            position = PositionImpl.get(ledgerId, entryId);
+        }
+        return position;
     }
 
     @Override
@@ -197,6 +201,7 @@ public final class EntryImpl extends AbstractCASReferenceCounted implements Entr
         timestamp = -1;
         ledgerId = -1;
         entryId = -1;
+        position = null;
         recyclerHandle.recycle(this);
     }
 

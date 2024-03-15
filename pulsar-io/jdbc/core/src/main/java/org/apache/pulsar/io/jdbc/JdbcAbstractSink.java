@@ -76,7 +76,7 @@ public abstract class JdbcAbstractSink<T> implements Sink<T> {
 
     @Override
     public void open(Map<String, Object> config, SinkContext sinkContext) throws Exception {
-        jdbcSinkConfig = JdbcSinkConfig.load(config);
+        jdbcSinkConfig = JdbcSinkConfig.load(config, sinkContext);
         jdbcSinkConfig.validate();
 
         jdbcUrl = jdbcSinkConfig.getJdbcUrl();

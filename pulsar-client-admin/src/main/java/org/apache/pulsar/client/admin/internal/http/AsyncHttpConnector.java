@@ -152,7 +152,7 @@ public class AsyncHttpConnector implements Connector {
                                 ? SecurityUtility.createAutoRefreshSslContextForClient(
                                 sslProvider,
                                 conf.isTlsAllowInsecureConnection(),
-                                conf.getTlsTrustCertsFilePath(), authData.getTlsCerificateFilePath(),
+                                conf.getTlsTrustCertsFilePath(), authData.getTlsCertificateFilePath(),
                                 authData.getTlsPrivateKeyFilePath(), null, autoCertRefreshTimeSeconds, delayer)
                                 : SecurityUtility.createNettySslContextForClient(
                                 sslProvider,

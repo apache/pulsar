@@ -30,6 +30,8 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.TypedMessageBuilder;
+import org.apache.pulsar.client.api.schema.SchemaDefinition;
+import org.apache.pulsar.client.internal.DefaultImplementation;
 import org.apache.pulsar.common.events.ActionType;
 import org.apache.pulsar.common.events.PulsarEvent;
 import org.apache.pulsar.common.naming.TopicName;
@@ -41,13 +43,17 @@ import org.slf4j.LoggerFactory;
  */
 public class TopicPoliciesSystemTopicClient extends SystemTopicClientBase<PulsarEvent> {
 
+    static Schema<PulsarEvent> avroSchema = DefaultImplementation.getDefaultImplementation()
+            .newAvroSchema(SchemaDefinition.builder().withPojo(PulsarEvent.class).build());
+
     public TopicPoliciesSystemTopicClient(PulsarClient client, TopicName topicName) {
         super(client, topicName);
+
     }
 
     @Override
     protected  CompletableFuture<Writer<PulsarEvent>> newWriterAsyncInternal() {
-        return client.newProducer(Schema.AVRO(PulsarEvent.class))
+        return client.newProducer(avroSchema)
                 .topic(topicName.toString())
                 .enableBatching(false)
                 .createAsync()
@@ -61,7 +67,7 @@ public class TopicPoliciesSystemTopicClient extends SystemTopicClientBase<Pulsar
 
     @Override
     protected CompletableFuture<Reader<PulsarEvent>> newReaderAsyncInternal() {
-        return client.newReader(Schema.AVRO(PulsarEvent.class))
+        return client.newReader(avroSchema)
                 .topic(topicName.toString())
                 .startMessageId(MessageId.earliest)
                 .readCompacted(true)

@@ -93,6 +93,7 @@ public class MaxMessageSizeTest {
         try {
             pulsar.close();
             bkEnsemble.stop();
+            admin.close();
         } catch (Throwable t) {
             t.printStackTrace();
         }

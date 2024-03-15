@@ -26,6 +26,7 @@ import java.io.IOException;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import lombok.Cleanup;
 import lombok.SneakyThrows;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminBuilder;
@@ -66,6 +67,7 @@ public class PulsarAdminBuilderImplTest {
         config.put("connectionTimeoutMs", 30);
         config.put("readTimeoutMs", 40);
         PulsarAdminBuilder adminBuilder = PulsarAdmin.builder().loadConf(config);
+        @Cleanup
         PulsarAdminImpl admin = (PulsarAdminImpl) adminBuilder.build();
         ClientConfigurationData clientConfigData = admin.getClientConfigData();
         Assert.assertEquals(clientConfigData.getRequestTimeoutMs(), 10);

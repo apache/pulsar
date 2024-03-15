@@ -154,17 +154,17 @@ public class AnalyzeBacklogSubscriptionTest extends ProducerConsumerBase {
         AnalyzeSubscriptionBacklogResult analyzeSubscriptionBacklogResult
                 = admin.topics().analyzeSubscriptionBacklog(topic, subscription, Optional.empty());
 
-        assertEquals(numEntries, analyzeSubscriptionBacklogResult.getEntries());
-        assertEquals(numEntries, analyzeSubscriptionBacklogResult.getFilterAcceptedEntries());
-        assertEquals(0, analyzeSubscriptionBacklogResult.getFilterRejectedEntries());
-        assertEquals(0, analyzeSubscriptionBacklogResult.getFilterRescheduledEntries());
-        assertEquals(0, analyzeSubscriptionBacklogResult.getFilterRescheduledEntries());
+        assertEquals(analyzeSubscriptionBacklogResult.getEntries(), numEntries);
+        assertEquals(analyzeSubscriptionBacklogResult.getFilterAcceptedEntries(), numEntries);
+        assertEquals(analyzeSubscriptionBacklogResult.getFilterRejectedEntries(), 0);
+        assertEquals(analyzeSubscriptionBacklogResult.getFilterRescheduledEntries(), 0);
+        assertEquals(analyzeSubscriptionBacklogResult.getFilterRescheduledEntries(), 0);
 
-        assertEquals(numMessages, analyzeSubscriptionBacklogResult.getMessages());
-        assertEquals(numMessages, analyzeSubscriptionBacklogResult.getFilterAcceptedMessages());
-        assertEquals(0, analyzeSubscriptionBacklogResult.getFilterRejectedMessages());
+        assertEquals(analyzeSubscriptionBacklogResult.getMessages(), numMessages);
+        assertEquals(analyzeSubscriptionBacklogResult.getFilterAcceptedMessages(), numMessages);
+        assertEquals(analyzeSubscriptionBacklogResult.getFilterRejectedMessages(), 0);
 
-        assertEquals(0, analyzeSubscriptionBacklogResult.getFilterRescheduledMessages());
+        assertEquals(analyzeSubscriptionBacklogResult.getFilterRescheduledMessages(), 0);
         assertFalse(analyzeSubscriptionBacklogResult.isAborted());
     }
 

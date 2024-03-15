@@ -52,6 +52,7 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import javax.naming.AuthenticationException;
 import javax.net.ssl.SSLSession;
+import okhttp3.OkHttpClient;
 import org.apache.commons.lang.StringUtils;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
@@ -145,6 +146,7 @@ public class AuthenticationProviderOpenID implements AuthenticationProvider {
 
     // The list of audiences that are allowed to connect to this broker. A valid JWT must contain one of the audiences.
     private String[] allowedAudiences;
+    private ApiClient k8sApiClient;
 
     @Override
     public void initialize(ServiceConfiguration config) throws IOException {
@@ -178,8 +180,7 @@ public class AuthenticationProviderOpenID implements AuthenticationProvider {
                 .setSslContext(sslContext)
                 .build();
         httpClient = new DefaultAsyncHttpClient(clientConfig);
-        ApiClient k8sApiClient =
-                fallbackDiscoveryMode != FallbackDiscoveryMode.DISABLED ? Config.defaultClient() : null;
+        k8sApiClient = fallbackDiscoveryMode != FallbackDiscoveryMode.DISABLED ? Config.defaultClient() : null;
         this.openIDProviderMetadataCache = new OpenIDProviderMetadataCache(config, httpClient, k8sApiClient);
         this.jwksCache = new JwksCache(config, httpClient, k8sApiClient);
     }
@@ -361,7 +362,17 @@ public class AuthenticationProviderOpenID implements AuthenticationProvider {
 
     @Override
     public void close() throws IOException {
-        httpClient.close();
+        if (httpClient != null) {
+            httpClient.close();
+        }
+        if (k8sApiClient != null) {
+            OkHttpClient okHttpClient = k8sApiClient.getHttpClient();
+            okHttpClient.dispatcher().executorService().shutdown();
+            okHttpClient.connectionPool().evictAll();
+            if (okHttpClient.cache() != null) {
+                okHttpClient.cache().close();
+            }
+        }
     }
 
     /**

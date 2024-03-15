@@ -400,4 +400,18 @@ public interface Transactions {
     CompletableFuture<PositionInPendingAckStats> getPositionStatsInPendingAckAsync(String topic, String subName,
                                                                                    Long ledgerId, Long entryId,
                                                                                    Integer batchIndex);
+
+    /**
+     * Abort a transaction.
+     *
+     * @param txnID the txnId
+     */
+    void abortTransaction(TxnID txnID) throws PulsarAdminException;
+
+    /**
+     * Asynchronously abort a transaction.
+     *
+     * @param txnID the txnId
+     */
+    CompletableFuture<Void> abortTransactionAsync(TxnID txnID);
 }

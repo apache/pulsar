@@ -26,6 +26,7 @@ import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.client.api.ClientBuilder;
@@ -169,9 +170,9 @@ public class PerformanceProducerTest extends MockedPulsarServiceBaseTest {
     @Test(timeOut = 20000)
     public void testBatchingDisabled() throws Exception {
         PerformanceProducer.Arguments arguments = new PerformanceProducer.Arguments();
-        
+
         int producerId = 0;
-        
+
         String topic = testTopic + UUID.randomUUID();
         arguments.topics = List.of(topic);
         arguments.msgRate = 10;
@@ -181,8 +182,9 @@ public class PerformanceProducerTest extends MockedPulsarServiceBaseTest {
 
         ClientBuilder clientBuilder = PerfClientUtils.createClientBuilderFromArguments(arguments)
                 .enableTransaction(arguments.isEnableTransaction);
+        @Cleanup
         PulsarClient client = clientBuilder.build();
-        
+
         ProducerBuilderImpl<byte[]> builder = (ProducerBuilderImpl<byte[]>) PerformanceProducer.createProducerBuilder(client, arguments, producerId);
         Assert.assertFalse(builder.getConf().isBatchingEnabled());
     }

@@ -27,11 +27,6 @@
         <cpe>cpe:/a:netty:netty</cpe>
     </suppress>
     <suppress>
-        <notes>Suppress all pulsar-presto-distribution vulnerabilities</notes>
-        <filePath regex="true">.*pulsar-presto-distribution-.*</filePath>
-        <vulnerabilityName regex="true">.*</vulnerabilityName>
-    </suppress>
-    <suppress>
         <notes>Suppress libthrift-0.12.0.jar vulnerabilities</notes>
         <gav>org.apache.thrift:libthrift:0.12.0</gav>
         <vulnerabilityName regex="true">.*</vulnerabilityName>
@@ -456,5 +451,17 @@
        See https://github.com/FasterXML/jackson-databind/issues/3972#issuecomment-1596604021
        ]]></notes>
         <cve>CVE-2023-35116</cve>
+    </suppress>
+    <suppress>
+        <notes><![CDATA[
+   This is a false positive in avro-protobuf. The vulnerability is in Hamba avro golang library.
+   ]]></notes>
+        <cve>CVE-2023-37475</cve>
+    </suppress>
+    <suppress>
+        <notes><![CDATA[
+    This CVE can be suppressed since it is covered in Pulsar by hostname verification changes made in https://github.com/apache/pulsar/pull/15824.
+   ]]></notes>
+        <cve>CVE-2023-4586</cve>
     </suppress>
 </suppressions>

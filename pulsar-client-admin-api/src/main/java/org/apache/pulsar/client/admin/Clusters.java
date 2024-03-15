@@ -29,7 +29,8 @@ import org.apache.pulsar.client.admin.PulsarAdminException.NotFoundException;
 import org.apache.pulsar.client.admin.PulsarAdminException.PreconditionFailedException;
 import org.apache.pulsar.common.policies.data.BrokerNamespaceIsolationData;
 import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.ClusterData.ClusterUrl;
+import org.apache.pulsar.common.policies.data.ClusterPolicies;
+import org.apache.pulsar.common.policies.data.ClusterPolicies.ClusterUrl;
 import org.apache.pulsar.common.policies.data.FailureDomain;
 import org.apache.pulsar.common.policies.data.NamespaceIsolationData;
 
@@ -208,6 +209,46 @@ public interface Clusters {
      *
      */
     CompletableFuture<Void> updatePeerClusterNamesAsync(String cluster, LinkedHashSet<String> peerClusterNames);
+
+    /**
+     * Get the cluster migration configuration data for the specified cluster.
+     * <p/>
+     * Response Example:
+     *
+     * <pre>
+     * <code>{ serviceUrl : "http://my-broker.example.com:8080/" }</code>
+     * </pre>
+     *
+     * @param cluster
+     *            Cluster name
+     *
+     * @return the cluster configuration
+     *
+     * @throws NotAuthorizedException
+     *             You don't have admin permission to get the configuration of the cluster
+     * @throws NotFoundException
+     *             Cluster doesn't exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    ClusterPolicies getClusterMigration(String cluster) throws PulsarAdminException;
+
+    /**
+     * Get the cluster migration configuration data for the specified cluster asynchronously.
+     * <p/>
+     * Response Example:
+     *
+     * <pre>
+     * <code>{ serviceUrl : "http://my-broker.example.com:8080/" }</code>
+     * </pre>
+     *
+     * @param cluster
+     *            Cluster name
+     *
+     * @return the cluster configuration
+     *
+     */
+    CompletableFuture<ClusterPolicies> getClusterMigrationAsync(String cluster);
 
     /**
      * Update the configuration for a cluster migration.

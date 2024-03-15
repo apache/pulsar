@@ -23,7 +23,12 @@ import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import io.netty.buffer.ByteBufAllocator;
 import java.lang.reflect.Field;
+import java.nio.charset.StandardCharsets;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
+import org.apache.pulsar.client.api.CompressionType;
+import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -34,9 +39,6 @@ import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-
-import java.nio.charset.StandardCharsets;
-import java.util.concurrent.TimeUnit;
 
 @Test(groups = "broker-impl")
 public class ProducerMemoryLimitTest extends ProducerConsumerBase {
@@ -185,6 +187,40 @@ public class ProducerMemoryLimitTest extends ProducerConsumerBase {
                 .create();
         this.stopBroker();
         producer.sendAsync("memory-test".getBytes(StandardCharsets.UTF_8));
+        producer.close();
+        PulsarClientImpl clientImpl = (PulsarClientImpl) this.pulsarClient;
+        final MemoryLimitController memoryLimitController = clientImpl.getMemoryLimitController();
+        Assert.assertEquals(memoryLimitController.currentUsage(), 0);
+    }
+
+    @Test(timeOut = 10_000)
+    public void testProducerBlockReserveMemory() throws Exception {
+        replacePulsarClient(PulsarClient.builder().
+                serviceUrl(lookupUrl.toString())
+                .memoryLimit(1, SizeUnit.KILO_BYTES));
+        @Cleanup
+        ProducerImpl<byte[]> producer = (ProducerImpl<byte[]>) pulsarClient.newProducer()
+                .topic("testProducerMemoryLimit")
+                .sendTimeout(5, TimeUnit.SECONDS)
+                .compressionType(CompressionType.SNAPPY)
+                .messageRoutingMode(MessageRoutingMode.RoundRobinPartition)
+                .maxPendingMessages(0)
+                .blockIfQueueFull(true)
+                .enableBatching(true)
+                .batchingMaxMessages(100)
+                .batchingMaxBytes(65536)
+                .batchingMaxPublishDelay(100, TimeUnit.MILLISECONDS)
+                .create();
+        int msgCount = 5;
+        CountDownLatch cdl = new CountDownLatch(msgCount);
+        for (int i = 0; i < msgCount; i++) {
+            producer.sendAsync("memory-test".getBytes(StandardCharsets.UTF_8)).whenComplete(((messageId, throwable) -> {
+                cdl.countDown();
+            }));
+        }
+
+        cdl.await();
+
         producer.close();
         PulsarClientImpl clientImpl = (PulsarClientImpl) this.pulsarClient;
         final MemoryLimitController memoryLimitController = clientImpl.getMemoryLimitController();

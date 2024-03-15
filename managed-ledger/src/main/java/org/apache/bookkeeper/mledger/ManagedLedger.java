@@ -682,8 +682,10 @@ public interface ManagedLedger {
     /**
      * Check current inactive ledger (based on {@link ManagedLedgerConfig#getInactiveLedgerRollOverTimeMs()} and
      * roll over that ledger if inactive.
+     *
+     * @return true if ledger is considered for rolling over
      */
-    void checkInactiveLedgerAndRollOver();
+    boolean checkInactiveLedgerAndRollOver();
 
     /**
      * Check if managed ledger should cache backlog reads.

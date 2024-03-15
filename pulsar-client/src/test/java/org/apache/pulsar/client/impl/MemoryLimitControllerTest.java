@@ -21,6 +21,7 @@ package org.apache.pulsar.client.impl;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -196,5 +197,40 @@ public class MemoryLimitControllerTest {
         assertTrue(l2.await(1, TimeUnit.SECONDS));
         assertTrue(l3.await(1, TimeUnit.SECONDS));
         assertEquals(mlc.currentUsage(), 101);
+    }
+
+    @Test
+    public void testModifyMemoryFailedDueToNegativeParam() throws Exception {
+        MemoryLimitController mlc = new MemoryLimitController(100);
+
+        try {
+            mlc.tryReserveMemory(-1);
+            fail("The test should fail due to calling tryReserveMemory with a negative value.");
+        } catch (IllegalArgumentException e) {
+            // Expected ex.
+        }
+
+        try {
+            mlc.reserveMemory(-1);
+            fail("The test should fail due to calling reserveMemory with a negative value.");
+        } catch (IllegalArgumentException e) {
+            // Expected ex.
+        }
+
+        try {
+            mlc.forceReserveMemory(-1);
+            fail("The test should fail due to calling forceReserveMemory with a negative value.");
+        } catch (IllegalArgumentException e) {
+            // Expected ex.
+        }
+
+        try {
+            mlc.releaseMemory(-1);
+            fail("The test should fail due to calling releaseMemory with a negative value.");
+        } catch (IllegalArgumentException e) {
+            // Expected ex.
+        }
+
+        assertEquals(mlc.currentUsage(), 0);
     }
 }

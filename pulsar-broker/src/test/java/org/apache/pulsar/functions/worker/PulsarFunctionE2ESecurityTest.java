@@ -34,6 +34,7 @@ import java.lang.reflect.Method;
 import java.net.URL;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
@@ -267,8 +268,12 @@ public class PulsarFunctionE2ESecurityTest {
         workerConfig.setAuthorizationEnabled(config.isAuthorizationEnabled());
         workerConfig.setAuthorizationProvider(config.getAuthorizationProvider());
 
+        List<String> urlPatterns =
+                List.of(getPulsarApiExamplesJar().getParentFile().toURI() + ".*", "http://127\\.0\\.0\\.1:.*");
+        workerConfig.setAdditionalEnabledConnectorUrlPatterns(urlPatterns);
+        workerConfig.setAdditionalEnabledFunctionsUrlPatterns(urlPatterns);
+
         PulsarWorkerService workerService = new PulsarWorkerService();
-        workerService.init(workerConfig, null, false);
         return workerService;
     }
 

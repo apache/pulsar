@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.loadbalance;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
+import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -36,14 +37,24 @@ import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.MultiBrokerTestZKBaseTest;
 import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.client.admin.Lookup;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.impl.LookupService;
+import org.apache.pulsar.client.impl.PulsarClientImpl;
+import org.apache.pulsar.common.naming.TopicName;
 import org.awaitility.Awaitility;
 import org.testng.annotations.Test;
 
 @Slf4j
 @Test(groups = "broker")
 public class MultiBrokerLeaderElectionTest extends MultiBrokerTestZKBaseTest {
+    public MultiBrokerLeaderElectionTest() {
+        super();
+        this.isTcpLookup = true;
+    }
+
     @Override
     protected int numberOfAdditionalBrokers() {
         return 9;
@@ -88,39 +99,82 @@ public class MultiBrokerLeaderElectionTest extends MultiBrokerTestZKBaseTest {
         });
     }
 
-    @Test
-    public void shouldProvideConsistentAnswerToTopicLookups()
+    @Test(timeOut = 120000L)
+    public void shouldProvideConsistentAnswerToTopicLookupsUsingAdminApi()
             throws PulsarAdminException, ExecutionException, InterruptedException {
-        String topicNameBase = "persistent://public/default/lookuptest" + UUID.randomUUID() + "-";
+        String namespace = "public/ns" + UUID.randomUUID();
+        admin.namespaces().createNamespace(namespace, 256);
+        String topicNameBase = "persistent://" + namespace + "/lookuptest-";
         List<String> topicNames = IntStream.range(0, 500).mapToObj(i -> topicNameBase + i)
                 .collect(Collectors.toList());
         List<PulsarAdmin> allAdmins = getAllAdmins();
-        @Cleanup("shutdown")
+        @Cleanup("shutdownNow")
         ExecutorService executorService = Executors.newFixedThreadPool(allAdmins.size());
         List<Future<List<String>>> resultFutures = new ArrayList<>();
-        String leaderBrokerUrl = admin.brokers().getLeaderBroker().getServiceUrl();
-        log.info("LEADER is {}", leaderBrokerUrl);
         // use Phaser to increase the chances of a race condition by triggering all threads once
-        // they are waiting just before the lookupTopic call
+        // they are waiting just before each lookupTopic call
+        @Cleanup("forceTermination")
         final Phaser phaser = new Phaser(1);
         for (PulsarAdmin brokerAdmin : allAdmins) {
-            if (!leaderBrokerUrl.equals(brokerAdmin.getServiceUrl())) {
-                phaser.register();
-                log.info("Doing lookup to broker {}", brokerAdmin.getServiceUrl());
-                resultFutures.add(executorService.submit(() -> {
-                    phaser.arriveAndAwaitAdvance();
-                    return topicNames.stream().map(topicName -> {
-                        try {
-                            return brokerAdmin.lookups().lookupTopic(topicName);
-                        } catch (PulsarAdminException e) {
-                            log.error("Error looking up topic {} in {}", topicName, brokerAdmin.getServiceUrl());
-                            throw new RuntimeException(e);
-                        }
-                    }).collect(Collectors.toList());
-                }));
+            phaser.register();
+            Lookup lookups = brokerAdmin.lookups();
+            log.info("Doing lookup to broker {}", brokerAdmin.getServiceUrl());
+            resultFutures.add(executorService.submit(() -> topicNames.stream().map(topicName -> {
+                phaser.arriveAndAwaitAdvance();
+                try {
+                    return lookups.lookupTopic(topicName);
+                } catch (PulsarAdminException e) {
+                    log.error("Error looking up topic {} in {}", topicName, brokerAdmin.getServiceUrl());
+                    throw new RuntimeException(e);
+                }
+            }).collect(Collectors.toList())));
+        }
+        phaser.arriveAndDeregister();
+        List<String> firstResult = null;
+        for (Future<List<String>> resultFuture : resultFutures) {
+            List<String> result = resultFuture.get();
+            if (firstResult == null) {
+                firstResult = result;
+            } else {
+                assertEquals(result, firstResult, "The lookup results weren't consistent.");
             }
         }
-        phaser.arriveAndAwaitAdvance();
+    }
+
+    @Test(timeOut = 60000L)
+    public void shouldProvideConsistentAnswerToTopicLookupsUsingClient()
+            throws PulsarAdminException, ExecutionException, InterruptedException {
+        String namespace = "public/ns" + UUID.randomUUID();
+        admin.namespaces().createNamespace(namespace, 256);
+        String topicNameBase = "persistent://" + namespace + "/lookuptest-";
+        List<String> topicNames = IntStream.range(0, 500).mapToObj(i -> topicNameBase + i)
+                .collect(Collectors.toList());
+        List<PulsarClient> allClients = getAllClients();
+        @Cleanup("shutdownNow")
+        ExecutorService executorService = Executors.newFixedThreadPool(allClients.size());
+        List<Future<List<String>>> resultFutures = new ArrayList<>();
+        // use Phaser to increase the chances of a race condition by triggering all threads once
+        // they are waiting just before each lookupTopic call
+        @Cleanup("forceTermination")
+        final Phaser phaser = new Phaser(1);
+        for (PulsarClient brokerClient : allClients) {
+            phaser.register();
+            String serviceUrl = ((PulsarClientImpl) brokerClient).getConfiguration().getServiceUrl();
+            LookupService lookupService = ((PulsarClientImpl) brokerClient).getLookup();
+            log.info("Doing lookup to broker {}", serviceUrl);
+            resultFutures.add(executorService.submit(() -> topicNames.stream().map(topicName -> {
+                phaser.arriveAndAwaitAdvance();
+                try {
+                    InetSocketAddress logicalAddress =
+                            lookupService.getBroker(TopicName.get(topicName)).get().getLogicalAddress();
+                    return logicalAddress.getHostString() + ":" + logicalAddress.getPort();
+                } catch (InterruptedException | ExecutionException e) {
+                    log.error("Error looking up topic {} in {}", topicName, serviceUrl);
+                    throw new RuntimeException(e);
+                }
+            }).collect(Collectors.toList())));
+        }
+        phaser.arriveAndDeregister();
         List<String> firstResult = null;
         for (Future<List<String>> resultFuture : resultFutures) {
             List<String> result = resultFuture.get();

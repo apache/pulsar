@@ -127,6 +127,7 @@ class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
         previousCallback = callback;
         currentBatchSizeBytes += msg.getDataBuffer().readableBytes();
         messages.add(msg);
+        tryUpdateTimestamp();
 
         if (lowestSequenceId == -1L) {
             lowestSequenceId = msg.getSequenceId();
@@ -203,6 +204,7 @@ class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
 
     @Override
     public void clear() {
+        clearTimestamp();
         messages = new ArrayList<>(maxMessagesNum);
         firstCallback = null;
         previousCallback = null;
@@ -324,9 +326,11 @@ class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
     protected void updateAndReserveBatchAllocatedSize(int updatedSizeBytes) {
         int delta = updatedSizeBytes - batchAllocatedSizeBytes;
         batchAllocatedSizeBytes = updatedSizeBytes;
-        if (delta != 0) {
-            if (producer != null) {
+        if (producer != null) {
+            if (delta > 0) {
                 producer.client.getMemoryLimitController().forceReserveMemory(delta);
+            } else if (delta < 0) {
+                producer.client.getMemoryLimitController().releaseMemory(-delta);
             }
         }
     }

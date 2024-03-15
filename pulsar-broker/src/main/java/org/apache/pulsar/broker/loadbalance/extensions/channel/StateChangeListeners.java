@@ -51,7 +51,21 @@ public class StateChangeListeners {
     public <T> CompletableFuture<T> notifyOnCompletion(CompletableFuture<T> future,
                                                        String serviceUnit,
                                                        ServiceUnitStateData data) {
-        return future.whenComplete((r, ex) -> notify(serviceUnit, data, ex));
+        return notifyOnArrival(serviceUnit, data).
+                thenCombine(future, (unused, t) -> t).
+                whenComplete((r, ex) -> notify(serviceUnit, data, ex));
+    }
+
+    private CompletableFuture<Void> notifyOnArrival(String serviceUnit, ServiceUnitStateData data) {
+        stateChangeListeners.forEach(listener -> {
+            try {
+                listener.beforeEvent(serviceUnit, data);
+            } catch (Throwable ex) {
+                log.error("StateChangeListener: {} exception while notifying arrival event {} for service unit {}",
+                        listener, data, serviceUnit, ex);
+            }
+        });
+        return CompletableFuture.completedFuture(null);
     }
 
     public void notify(String serviceUnit, ServiceUnitStateData data, Throwable t) {

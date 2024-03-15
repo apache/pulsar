@@ -67,7 +67,7 @@ import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.instance.InstanceUtils;
 import org.apache.pulsar.functions.utils.FunctionCommon;
 import org.apache.pulsar.functions.worker.FunctionRuntimeManager;
-import org.apache.pulsar.functions.worker.PulsarFunctionTestUtils;
+import org.apache.pulsar.functions.worker.TestPulsarFunctionUtils;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.Test;
@@ -373,11 +373,11 @@ public class PulsarFunctionE2ETest extends AbstractPulsarE2ETest {
                 functionStats.getAvgProcessLatency());
 
         // validate prometheus metrics empty
-        String prometheusMetrics = PulsarFunctionTestUtils.getPrometheusMetrics(pulsar.getListenPortHTTP().get());
+        String prometheusMetrics = TestPulsarFunctionUtils.getPrometheusMetrics(pulsar.getListenPortHTTP().get());
         log.info("prometheus metrics: {}", prometheusMetrics);
 
-        Map<String, PulsarFunctionTestUtils.Metric> metrics = PulsarFunctionTestUtils.parseMetrics(prometheusMetrics);
-        PulsarFunctionTestUtils.Metric m = metrics.get("pulsar_function_received_total");
+        Map<String, TestPulsarFunctionUtils.Metric> metrics = TestPulsarFunctionUtils.parseMetrics(prometheusMetrics);
+        TestPulsarFunctionUtils.Metric m = metrics.get("pulsar_function_received_total");
         assertEquals(m.tags.get("cluster"), config.getClusterName());
         assertEquals(m.tags.get("instance_id"), "0");
         assertEquals(m.tags.get("name"), functionName);
@@ -533,10 +533,10 @@ public class PulsarFunctionE2ETest extends AbstractPulsarE2ETest {
         assertEquals(functionInstanceStats, functionStats.instances.get(0).getMetrics());
 
         // validate prometheus metrics
-        prometheusMetrics = PulsarFunctionTestUtils.getPrometheusMetrics(pulsar.getListenPortHTTP().get());
+        prometheusMetrics = TestPulsarFunctionUtils.getPrometheusMetrics(pulsar.getListenPortHTTP().get());
         log.info("prometheus metrics: {}", prometheusMetrics);
 
-        metrics = PulsarFunctionTestUtils.parseMetrics(prometheusMetrics);
+        metrics = TestPulsarFunctionUtils.parseMetrics(prometheusMetrics);
         m = metrics.get("pulsar_function_received_total");
         assertEquals(m.tags.get("cluster"), config.getClusterName());
         assertEquals(m.tags.get("instance_id"), "0");
@@ -736,6 +736,9 @@ public class PulsarFunctionE2ETest extends AbstractPulsarE2ETest {
         FunctionConfig functionConfig = createFunctionConfig(tenant, namespacePortion, functionName, false,
                 "my.*", sinkTopic, subscriptionName);
         if (!validRoleName) {
+            if (admin != null) {
+                admin.close();
+            }
             // create a non-superuser admin to test the api
             admin = spy(
                 PulsarAdmin.builder().serviceHttpUrl(pulsar.getWebServiceAddressTls())

@@ -150,4 +150,26 @@ public class StatsOutputStreamTest {
         reset();
         return s;
     }
+
+    @Test
+    public void testBehaviorOfStatsOutputStreamWithDeque() {
+        // Create a byte buffer for collecting output
+        ByteBuf buffer = Unpooled.buffer();
+
+        // Create an instance of StatsOutputStream using Deque
+        StatsOutputStream output = new StatsOutputStream(buffer);
+        output.startObject()
+                .writePair("name", "test")
+                .startList("items")
+                .writeItem(true)
+                .writeItem(123L)
+                .writeItem("sample")
+                .endList()
+                .endObject();
+        
+        // Assert
+        assertEquals(buffer.toString(java.nio.charset.StandardCharsets.UTF_8), 
+                "{\"name\":\"test\",\"items\":[true,123,\"sample\"]}");
+    }
+
 }

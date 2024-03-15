@@ -113,7 +113,7 @@ public class RocksdbMetadataStore extends AbstractMetadataStore {
         store = new RocksdbMetadataStore(metadataStoreUri, conf);
         // update synchronizer and register sync listener
         store.synchronizer = conf.getSynchronizer();
-        store.registerSyncLister(Optional.ofNullable(store.synchronizer));
+        store.registerSyncListener(Optional.ofNullable(store.synchronizer));
         instancesCache.put(metadataStoreUri, store);
         return store;
     }

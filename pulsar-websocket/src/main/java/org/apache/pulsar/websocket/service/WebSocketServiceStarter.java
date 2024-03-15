@@ -29,6 +29,7 @@ import org.apache.pulsar.common.configuration.VipStatus;
 import org.apache.pulsar.common.util.ShutdownUtil;
 import org.apache.pulsar.docs.tools.CmdGenerateDocs;
 import org.apache.pulsar.websocket.WebSocketConsumerServlet;
+import org.apache.pulsar.websocket.WebSocketMultiTopicConsumerServlet;
 import org.apache.pulsar.websocket.WebSocketProducerServlet;
 import org.apache.pulsar.websocket.WebSocketReaderServlet;
 import org.apache.pulsar.websocket.WebSocketService;
@@ -74,9 +75,7 @@ public class WebSocketServiceStarter {
         try {
             // load config file and start proxy service
             String configFile = args[0];
-            log.info("Loading configuration from {}", configFile);
-            WebSocketProxyConfiguration config = PulsarConfigurationLoader.create(configFile,
-                    WebSocketProxyConfiguration.class);
+            WebSocketProxyConfiguration config = loadConfig(configFile);
             ProxyServer proxyServer = new ProxyServer(config);
             WebSocketService service = new WebSocketService(config);
             start(proxyServer, service);
@@ -95,6 +94,8 @@ public class WebSocketServiceStarter {
                 new WebSocketProducerServlet(service));
         proxyServer.addWebSocketServlet(WebSocketConsumerServlet.SERVLET_PATH_V2,
                 new WebSocketConsumerServlet(service));
+        proxyServer.addWebSocketServlet(WebSocketMultiTopicConsumerServlet.SERVLET_PATH,
+                new WebSocketMultiTopicConsumerServlet(service));
         proxyServer.addWebSocketServlet(WebSocketReaderServlet.SERVLET_PATH_V2,
                 new WebSocketReaderServlet(service));
 
@@ -104,6 +105,14 @@ public class WebSocketServiceStarter {
                 VipStatus.class);
         proxyServer.start();
         service.start();
+    }
+
+    private static WebSocketProxyConfiguration loadConfig(String configFile) throws Exception {
+        log.info("Loading configuration from {}", configFile);
+        WebSocketProxyConfiguration config = PulsarConfigurationLoader.create(configFile,
+                WebSocketProxyConfiguration.class);
+        PulsarConfigurationLoader.isComplete(config);
+        return config;
     }
 
     private static final Logger log = LoggerFactory.getLogger(WebSocketServiceStarter.class);

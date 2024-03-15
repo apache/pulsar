@@ -927,6 +927,7 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
         context.txnLogBufferedWriter.close().get();
         context.metrics.close();
         context.timer.stop();
+        context.orderedExecutor.shutdownNow();
         CollectorRegistry.defaultRegistry.clear();
     }
 
@@ -936,6 +937,7 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
         MockedManagedLedger mockedManagedLedger;
         Timer timer;
         TxnLogBufferedWriterMetricsStats metrics;
+        OrderedExecutor orderedExecutor;
     }
 
     @AllArgsConstructor
@@ -970,7 +972,7 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
                 dataSerializer, batchedWriteMaxRecords, batchedWriteMaxSize,
                 batchedWriteMaxDelayInMillis, true, metricsStats);
         return new TxnLogBufferedWriterContext(txnLogBufferedWriter, mockedManagedLedger, transactionTimer,
-                metricsStats);
+                metricsStats, orderedExecutor);
     }
 
     private void verifyTheCounterMetrics(int triggeredByRecordCount, int triggeredByMaxSize, int triggeredByMaxDelay,

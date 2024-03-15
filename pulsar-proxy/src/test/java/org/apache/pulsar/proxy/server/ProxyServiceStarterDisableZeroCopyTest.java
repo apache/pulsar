@@ -21,7 +21,7 @@ package org.apache.pulsar.proxy.server;
 import java.util.Optional;
 import org.testng.annotations.BeforeClass;
 
-public class ProxyServiceStarterDisableZeroCopyTest extends ProxyServiceStarterTest{
+public class ProxyServiceStarterDisableZeroCopyTest extends ProxyServiceStarterTest {
 
     @Override
     @BeforeClass
@@ -35,6 +35,7 @@ public class ProxyServiceStarterDisableZeroCopyTest extends ProxyServiceStarterT
         serviceStarter.getConfig().setWebSocketServiceEnabled(true);
         serviceStarter.getConfig().setBrokerProxyAllowedTargetPorts("*");
         serviceStarter.getConfig().setProxyZeroCopyModeEnabled(false);
+        serviceStarter.getConfig().setClusterName(configClusterName);
         serviceStarter.start();
         serviceUrl = serviceStarter.getProxyService().getServiceUrl();
     }

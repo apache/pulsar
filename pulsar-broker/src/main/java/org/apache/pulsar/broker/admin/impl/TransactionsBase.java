@@ -44,6 +44,7 @@ import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.Transactions;
 import org.apache.pulsar.client.api.transaction.TxnID;
+import org.apache.pulsar.common.api.proto.TxnAction;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.naming.TopicDomain;
@@ -501,11 +502,13 @@ public abstract class TransactionsBase extends AdminResource {
             CompletableFuture<Optional<Topic>> topicFuture = pulsar().getBrokerService()
                     .getTopics().get(topicName.toString());
             if (topicFuture == null) {
-                return FutureUtil.failedFuture(new RestException(NOT_FOUND, "Topic not found"));
+                return FutureUtil.failedFuture(new RestException(NOT_FOUND,
+                        String.format("Topic not found %s", topicName.toString())));
             }
             return topicFuture.thenCompose(optionalTopic -> {
                 if (!optionalTopic.isPresent()) {
-                    return FutureUtil.failedFuture(new RestException(NOT_FOUND, "Topic not found"));
+                    return FutureUtil.failedFuture(new RestException(NOT_FOUND,
+                            String.format("Topic not found %s", topicName.toString())));
                 }
                 return CompletableFuture.completedFuture((PersistentTopic) optionalTopic.get());
             });
@@ -557,5 +560,14 @@ public abstract class TransactionsBase extends AdminResource {
                     return null;
         });
         return completableFuture;
+    }
+
+    protected CompletableFuture<Void> internalAbortTransaction(boolean authoritative, long mostSigBits,
+                                                               long leastSigBits) {
+        return validateTopicOwnershipAsync(
+                SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN.getPartition((int) mostSigBits), authoritative)
+                .thenCompose(__ -> validateSuperUserAccessAsync())
+                .thenCompose(__ -> pulsar().getTransactionMetadataStoreService()
+                        .endTransaction(new TxnID(mostSigBits, leastSigBits), TxnAction.ABORT_VALUE, false));
     }
 }

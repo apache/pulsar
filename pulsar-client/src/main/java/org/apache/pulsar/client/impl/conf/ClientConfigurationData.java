@@ -19,11 +19,14 @@
 package org.apache.pulsar.client.impl.conf;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import io.swagger.annotations.ApiModelProperty;
 import java.io.Serializable;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.time.Clock;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -358,6 +361,13 @@ public class ClientConfigurationData implements Serializable, Cloneable {
                     + " default value is 0."
     )
     private int dnsLookupBindPort = 0;
+
+    @ApiModelProperty(
+            name = "dnsServerAddresses",
+            value = "The Pulsar client dns lookup server address"
+    )
+    @SuppressFBWarnings({"EI_EXPOSE_REP2", "EI_EXPOSE_REP"})
+    private List<InetSocketAddress> dnsServerAddresses = new ArrayList<>();
 
     // socks5
     @ApiModelProperty(

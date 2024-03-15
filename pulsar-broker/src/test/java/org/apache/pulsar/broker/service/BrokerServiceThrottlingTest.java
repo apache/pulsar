@@ -18,8 +18,9 @@
  */
 package org.apache.pulsar.broker.service;
 
+import static io.opentelemetry.sdk.testing.assertj.OpenTelemetryAssertions.assertThat;
+import static org.awaitility.Awaitility.waitAtMost;
 import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import io.netty.buffer.ByteBuf;
@@ -38,6 +39,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
+import org.apache.pulsar.broker.testcontext.PulsarTestContext;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -66,18 +68,54 @@ public class BrokerServiceThrottlingTest extends BrokerTestBase {
         super.internalCleanup();
     }
 
+    @Override
+    protected void customizeMainPulsarTestContextBuilder(PulsarTestContext.Builder builder) {
+        super.customizeMainPulsarTestContextBuilder(builder);
+        builder.enableOpenTelemetry(true);
+    }
+
     /**
-     * Verifies: updating zk-throttling node reflects broker-maxConcurrentLookupRequest and updates semaphore.
-     *
-     * @throws Exception
+     * Verifies: updating zk-throttling node reflects broker-maxConcurrentLookupRequest and updates semaphore, as well
+     * as the related limit metric value.
      */
     @Test
     public void testThrottlingLookupRequestSemaphore() throws Exception {
-        BrokerService service = pulsar.getBrokerService();
-        assertNotEquals(service.lookupRequestSemaphore.get().availablePermits(), 0);
-        admin.brokers().updateDynamicConfiguration("maxConcurrentLookupRequest", Integer.toString(0));
-        Thread.sleep(1000);
-        assertEquals(service.lookupRequestSemaphore.get().availablePermits(), 0);
+        var lookupRequestSemaphore = pulsar.getBrokerService().lookupRequestSemaphore;
+        var configName = "maxConcurrentLookupRequest";
+        var metricName = BrokerService.TOPIC_LOOKUP_LIMIT_METRIC_NAME;
+        // Validate that the configuration has not been overridden.
+        assertThat(admin.brokers().getAllDynamicConfigurations()).doesNotContainKey(configName);
+        assertLongSumValue(metricName, 50_000);
+        assertThat(lookupRequestSemaphore.get().availablePermits()).isNotEqualTo(0);
+        admin.brokers().updateDynamicConfiguration(configName, Integer.toString(0));
+        waitAtMost(1, TimeUnit.SECONDS).until(() -> lookupRequestSemaphore.get().availablePermits() == 0);
+        assertLongSumValue(metricName, 0);
+    }
+
+    /**
+     * Verifies: updating zk-throttling node reflects broker-maxConcurrentTopicLoadRequest and updates semaphore, as
+     * well as the related limit metric value.
+     */
+    @Test
+    public void testThrottlingTopicLoadRequestSemaphore() throws Exception {
+        var topicLoadRequestSemaphore = pulsar.getBrokerService().topicLoadRequestSemaphore;
+        var configName = "maxConcurrentTopicLoadRequest";
+        var metricName = BrokerService.TOPIC_LOAD_LIMIT_METRIC_NAME;
+        // Validate that the configuration has not been overridden.
+        assertThat(admin.brokers().getAllDynamicConfigurations()).doesNotContainKey(configName);
+        assertLongSumValue(metricName, 5_000);
+        assertThat(topicLoadRequestSemaphore.get().availablePermits()).isNotEqualTo(0);
+        admin.brokers().updateDynamicConfiguration(configName, Integer.toString(0));
+        waitAtMost(1, TimeUnit.SECONDS).until(() -> topicLoadRequestSemaphore.get().availablePermits() == 0);
+        assertLongSumValue(metricName, 0);
+    }
+
+    private void assertLongSumValue(String metricName, int value) {
+        assertThat(pulsarTestContext.getOpenTelemetryMetricReader().collectAllMetrics())
+                .anySatisfy(metric -> assertThat(metric)
+                        .hasName(metricName)
+                        .hasLongSumSatisfying(
+                                sum -> sum.hasPointsSatisfying(point -> point.hasValue(value))));
     }
 
     /**

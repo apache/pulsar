@@ -1260,6 +1260,27 @@ public class TopicPoliciesImpl extends BaseResource implements TopicPolicies {
         return asyncDeleteRequest(path);
     }
 
+    @Override
+    public CompletableFuture<Void> setDispatcherPauseOnAckStatePersistent(String topic) {
+        TopicName tn = validateTopic(topic);
+        WebTarget path = topicPath(tn, "dispatcherPauseOnAckStatePersistent");
+        return asyncPostRequest(path, Entity.entity("", MediaType.APPLICATION_JSON));
+    }
+
+    @Override
+    public CompletableFuture<Void> removeDispatcherPauseOnAckStatePersistent(String topic) {
+        TopicName tn = validateTopic(topic);
+        WebTarget path = topicPath(tn, "dispatcherPauseOnAckStatePersistent");
+        return asyncDeleteRequest(path);
+    }
+
+    @Override
+    public CompletableFuture<Boolean> getDispatcherPauseOnAckStatePersistent(String topic, boolean applied) {
+        TopicName tn = validateTopic(topic);
+        WebTarget path = topicPath(tn, "dispatcherPauseOnAckStatePersistent").queryParam("applied", applied);
+        return asyncGetRequest(path, new FutureCallback<Boolean>(){});
+    }
+
     /*
      * returns topic name with encoded Local Name
      */

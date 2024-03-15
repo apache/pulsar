@@ -102,7 +102,7 @@ public class OwnershipCacheTest {
         nsService = mock(NamespaceService.class);
         brokerService = mock(BrokerService.class);
         doReturn(CompletableFuture.completedFuture(1)).when(brokerService)
-                .unloadServiceUnit(any(), anyBoolean(), anyLong(), any());
+                .unloadServiceUnit(any(), anyBoolean(), anyBoolean(), anyLong(), any());
 
         doReturn(config).when(pulsar).getConfiguration();
         doReturn(nsService).when(pulsar).getNamespaceService();

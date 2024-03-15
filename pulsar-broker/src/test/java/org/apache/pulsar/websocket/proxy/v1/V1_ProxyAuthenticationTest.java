@@ -84,7 +84,7 @@ public class V1_ProxyAuthenticationTest extends V1_ProducerConsumerBase {
         }
 
         service = spyWithClassAndConstructorArgs(WebSocketService.class, config);
-        doReturn(new ZKMetadataStore(mockZooKeeperGlobal)).when(service)
+        doReturn(registerCloseable(new ZKMetadataStore(mockZooKeeperGlobal))).when(service)
                 .createConfigMetadataStore(anyString(), anyInt(), anyBoolean());
         proxyServer = new ProxyServer(config);
         WebSocketServiceStarter.start(proxyServer, service);

@@ -44,6 +44,10 @@ public class RawBatchConverter {
     public static boolean isReadableBatch(RawMessage msg) {
         ByteBuf payload = msg.getHeadersAndPayload();
         MessageMetadata metadata = Commands.parseMessageMetadata(payload);
+        return isReadableBatch(metadata);
+    }
+
+    public static boolean isReadableBatch(MessageMetadata metadata) {
         return metadata.hasNumMessagesInBatch() && metadata.getEncryptionKeysCount() == 0;
     }
 
@@ -73,13 +77,18 @@ public class RawBatchConverter {
                                                   i);
             if (!smm.isCompactedOut()) {
                 idsAndKeysAndSize.add(ImmutableTriple.of(id,
-                        smm.hasPartitionKey() ? smm.getPartitionKey() : null,
-                        smm.hasPayloadSize() ? smm.getPayloadSize() : 0));
+                            smm.hasPartitionKey() ? smm.getPartitionKey() : null,
+                            smm.hasPayloadSize() ? smm.getPayloadSize() : 0));
             }
             singleMessagePayload.release();
         }
         uncompressedPayload.release();
         return idsAndKeysAndSize;
+    }
+
+    public static Optional<RawMessage> rebatchMessage(RawMessage msg,
+                                                      BiPredicate<String, MessageId> filter) throws IOException {
+        return rebatchMessage(msg, filter, true);
     }
 
     /**
@@ -89,7 +98,8 @@ public class RawBatchConverter {
      *  NOTE: this message does not alter the reference count of the RawMessage argument.
      */
     public static Optional<RawMessage> rebatchMessage(RawMessage msg,
-                                                      BiPredicate<String, MessageId> filter)
+                                                      BiPredicate<String, MessageId> filter,
+                                                      boolean retainNullKey)
             throws IOException {
         checkArgument(msg.getMessageIdData().getBatchIndex() == -1);
 
@@ -124,10 +134,19 @@ public class RawBatchConverter {
                                                       msg.getMessageIdData().getEntryId(),
                                                       msg.getMessageIdData().getPartition(),
                                                       i);
-                if (!singleMessageMetadata.hasPartitionKey()) {
-                    messagesRetained++;
-                    Commands.serializeSingleMessageInBatchWithPayload(singleMessageMetadata,
-                                                                      singleMessagePayload, batchBuffer);
+                if (singleMessageMetadata.isCompactedOut()) {
+                    // we may read compacted out message from the compacted topic
+                    Commands.serializeSingleMessageInBatchWithPayload(emptyMetadata,
+                            Unpooled.EMPTY_BUFFER, batchBuffer);
+                } else if (!singleMessageMetadata.hasPartitionKey()) {
+                    if (retainNullKey) {
+                        messagesRetained++;
+                        Commands.serializeSingleMessageInBatchWithPayload(singleMessageMetadata,
+                                singleMessagePayload, batchBuffer);
+                    } else {
+                        Commands.serializeSingleMessageInBatchWithPayload(emptyMetadata,
+                                Unpooled.EMPTY_BUFFER, batchBuffer);
+                    }
                 } else if (filter.test(singleMessageMetadata.getPartitionKey(), id)
                            && singleMessagePayload.readableBytes() > 0) {
                     messagesRetained++;

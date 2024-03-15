@@ -52,6 +52,8 @@ public class ProducerBuilderImplTest {
     public void setup() {
         Producer<?> producer = mock(Producer.class);
         client = mock(PulsarClientImpl.class);
+        ConnectionPool connectionPool = mock(ConnectionPool.class);
+        when(client.getCnxPool()).thenReturn(connectionPool);
         producerBuilderImpl = new ProducerBuilderImpl<>(client, Schema.BYTES);
         when(client.newProducer()).thenReturn(producerBuilderImpl);
 

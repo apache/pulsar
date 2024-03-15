@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.broker.stats;
 
+import static org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient.Metric;
+import static org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient.parseMetrics;
 import com.google.common.collect.Multimap;
 import java.io.ByteArrayOutputStream;
 import java.util.Collection;
@@ -101,12 +103,12 @@ public class MetadataStoreStatsTest extends BrokerTestBase {
         ByteArrayOutputStream output = new ByteArrayOutputStream();
         PrometheusMetricsGenerator.generate(pulsar, false, false, false, false, output);
         String metricsStr = output.toString();
-        Multimap<String, PrometheusMetricsTest.Metric> metricsMap = PrometheusMetricsTest.parseMetrics(metricsStr);
+        Multimap<String, Metric> metricsMap = parseMetrics(metricsStr);
 
         String metricsDebugMessage = "Assertion failed with metrics:\n" + metricsStr + "\n";
 
-        Collection<PrometheusMetricsTest.Metric> opsLatency = metricsMap.get("pulsar_metadata_store_ops_latency_ms" + "_sum");
-        Collection<PrometheusMetricsTest.Metric> putBytes = metricsMap.get("pulsar_metadata_store_put_bytes" + "_total");
+        Collection<Metric> opsLatency = metricsMap.get("pulsar_metadata_store_ops_latency_ms" + "_sum");
+        Collection<Metric> putBytes = metricsMap.get("pulsar_metadata_store_put_bytes" + "_total");
 
         Assert.assertTrue(opsLatency.size() > 1, metricsDebugMessage);
         Assert.assertTrue(putBytes.size() > 1, metricsDebugMessage);
@@ -116,7 +118,7 @@ public class MetadataStoreStatsTest extends BrokerTestBase {
         expectedMetadataStoreName.add(MetadataStoreConfig.CONFIGURATION_METADATA_STORE);
 
         AtomicInteger matchCount = new AtomicInteger(0);
-        for (PrometheusMetricsTest.Metric m : opsLatency) {
+        for (Metric m : opsLatency) {
             Assert.assertEquals(m.tags.get("cluster"), "test", metricsDebugMessage);
             String metadataStoreName = m.tags.get("name");
             if (!isExpectedLabel(metadataStoreName, expectedMetadataStoreName, matchCount)) {
@@ -150,7 +152,7 @@ public class MetadataStoreStatsTest extends BrokerTestBase {
         Assert.assertEquals(matchCount.get(), expectedMetadataStoreName.size() * 6);
 
         matchCount = new AtomicInteger(0);
-        for (PrometheusMetricsTest.Metric m : putBytes) {
+        for (Metric m : putBytes) {
             Assert.assertEquals(m.tags.get("cluster"), "test", metricsDebugMessage);
             String metadataStoreName = m.tags.get("name");
             if (!isExpectedLabel(metadataStoreName, expectedMetadataStoreName, matchCount)) {
@@ -191,12 +193,12 @@ public class MetadataStoreStatsTest extends BrokerTestBase {
         ByteArrayOutputStream output = new ByteArrayOutputStream();
         PrometheusMetricsGenerator.generate(pulsar, false, false, false, false, output);
         String metricsStr = output.toString();
-        Multimap<String, PrometheusMetricsTest.Metric> metricsMap = PrometheusMetricsTest.parseMetrics(metricsStr);
+        Multimap<String, Metric> metricsMap = parseMetrics(metricsStr);
 
-        Collection<PrometheusMetricsTest.Metric> executorQueueSize = metricsMap.get("pulsar_batch_metadata_store_executor_queue_size");
-        Collection<PrometheusMetricsTest.Metric> opsWaiting = metricsMap.get("pulsar_batch_metadata_store_queue_wait_time_ms" + "_sum");
-        Collection<PrometheusMetricsTest.Metric> batchExecuteTime = metricsMap.get("pulsar_batch_metadata_store_batch_execute_time_ms" + "_sum");
-        Collection<PrometheusMetricsTest.Metric> opsPerBatch = metricsMap.get("pulsar_batch_metadata_store_batch_size" + "_sum");
+        Collection<Metric> executorQueueSize = metricsMap.get("pulsar_batch_metadata_store_executor_queue_size");
+        Collection<Metric> opsWaiting = metricsMap.get("pulsar_batch_metadata_store_queue_wait_time_ms" + "_sum");
+        Collection<Metric> batchExecuteTime = metricsMap.get("pulsar_batch_metadata_store_batch_execute_time_ms" + "_sum");
+        Collection<Metric> opsPerBatch = metricsMap.get("pulsar_batch_metadata_store_batch_size" + "_sum");
 
         String metricsDebugMessage = "Assertion failed with metrics:\n" + metricsStr + "\n";
 
@@ -210,7 +212,7 @@ public class MetadataStoreStatsTest extends BrokerTestBase {
         expectedMetadataStoreName.add(MetadataStoreConfig.CONFIGURATION_METADATA_STORE);
 
         AtomicInteger matchCount = new AtomicInteger(0);
-        for (PrometheusMetricsTest.Metric m : executorQueueSize) {
+        for (Metric m : executorQueueSize) {
             Assert.assertEquals(m.tags.get("cluster"), "test", metricsDebugMessage);
             String metadataStoreName = m.tags.get("name");
             if (isExpectedLabel(metadataStoreName, expectedMetadataStoreName, matchCount)) {
@@ -221,7 +223,7 @@ public class MetadataStoreStatsTest extends BrokerTestBase {
         Assert.assertEquals(matchCount.get(), expectedMetadataStoreName.size());
 
         matchCount = new AtomicInteger(0);
-        for (PrometheusMetricsTest.Metric m : opsWaiting) {
+        for (Metric m : opsWaiting) {
             Assert.assertEquals(m.tags.get("cluster"), "test", metricsDebugMessage);
             String metadataStoreName = m.tags.get("name");
             if (isExpectedLabel(metadataStoreName, expectedMetadataStoreName, matchCount)) {
@@ -232,7 +234,7 @@ public class MetadataStoreStatsTest extends BrokerTestBase {
         Assert.assertEquals(matchCount.get(), expectedMetadataStoreName.size());
 
         matchCount = new AtomicInteger(0);
-        for (PrometheusMetricsTest.Metric m : batchExecuteTime) {
+        for (Metric m : batchExecuteTime) {
             Assert.assertEquals(m.tags.get("cluster"), "test", metricsDebugMessage);
             String metadataStoreName = m.tags.get("name");
             if (isExpectedLabel(metadataStoreName, expectedMetadataStoreName, matchCount)) {
@@ -243,7 +245,7 @@ public class MetadataStoreStatsTest extends BrokerTestBase {
         Assert.assertEquals(matchCount.get(), expectedMetadataStoreName.size());
 
         matchCount = new AtomicInteger(0);
-        for (PrometheusMetricsTest.Metric m : opsPerBatch) {
+        for (Metric m : opsPerBatch) {
             Assert.assertEquals(m.tags.get("cluster"), "test", metricsDebugMessage);
             String metadataStoreName = m.tags.get("name");
             if (isExpectedLabel(metadataStoreName, expectedMetadataStoreName, matchCount)) {

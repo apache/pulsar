@@ -53,7 +53,7 @@ public class RabbitMQSink implements Sink<byte[]> {
 
     @Override
     public void open(Map<String, Object> config, SinkContext sinkContext) throws Exception {
-        rabbitMQSinkConfig = RabbitMQSinkConfig.load(config);
+        rabbitMQSinkConfig = RabbitMQSinkConfig.load(config, sinkContext);
         rabbitMQSinkConfig.validate();
 
         ConnectionFactory connectionFactory = rabbitMQSinkConfig.createConnectionFactory();

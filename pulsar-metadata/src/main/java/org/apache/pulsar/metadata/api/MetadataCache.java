@@ -149,6 +149,11 @@ public interface MetadataCache<T> {
     void invalidate(String path);
 
     /**
+     * Force the invalidation of all object in the metadata cache.
+     */
+    void invalidateAll();
+
+    /**
      * Invalidate and reload an object in the metadata cache.
      *
      * @param path the path of the object in the metadata store

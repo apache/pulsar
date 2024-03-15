@@ -122,4 +122,14 @@ public interface ConsumerStats extends Serializable {
     default Map<String, ConsumerStats> getPartitionStats() {
         return Collections.emptyMap();
     }
+
+    /**
+     * @return producer stats for deadLetterProducer if available
+     */
+    ProducerStats getDeadLetterProducerStats();
+
+    /**
+     * @return producer stats for retryLetterProducer if available
+     */
+    ProducerStats getRetryLetterProducerStats();
 }

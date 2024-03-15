@@ -219,9 +219,8 @@ public class UnloadScheduler implements LoadManagerScheduler {
                     Thread.currentThread().getContextClassLoader());
             log.info("Created namespace unload strategy:{}", unloadStrategy.getClass().getCanonicalName());
         } catch (Exception e) {
-            log.error("Error when trying to create namespace unload strategy: {}",
-                    conf.getLoadBalancerLoadPlacementStrategy(), e);
-            log.error("create namespace unload strategy failed. using TransferShedder instead.");
+            log.error("Error when trying to create namespace unload strategy: {}. Using {} instead.",
+                    conf.getLoadBalancerLoadSheddingStrategy(), TransferShedder.class.getCanonicalName(), e);
             unloadStrategy = new TransferShedder();
         }
         unloadStrategy.initialize(pulsar);

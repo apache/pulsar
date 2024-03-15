@@ -167,6 +167,8 @@ public class TransactionMetaStoreHandler extends HandlerState
                     return null;
                 });
             } else {
+                LOG.warn("Can not connect to the transaction coordinator because the protocol version {} is "
+                                + "lower than 19", cnx.getRemoteEndpointProtocolVersion());
                 registerToConnection(cnx);
                 future.complete(null);
             }

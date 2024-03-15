@@ -33,6 +33,7 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.EventLoopGroup;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import java.lang.reflect.Field;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
@@ -278,12 +279,18 @@ public class ClientCnxTest {
         ClientCnx cnx = new ClientCnx(conf, eventLoop);
 
         long consumerId = 1;
-        cnx.registerConsumer(consumerId, mock(ConsumerImpl.class));
+        PulsarClientImpl pulsarClient = mock(PulsarClientImpl.class);
+        when(pulsarClient.getConfiguration()).thenReturn(conf);
+        ConsumerImpl consumer = mock(ConsumerImpl.class);
+        when(consumer.getClient()).thenReturn(pulsarClient);
+        cnx.registerConsumer(consumerId, consumer);
         assertEquals(cnx.consumers.size(), 1);
 
-        CommandCloseConsumer closeConsumer = new CommandCloseConsumer().setConsumerId(consumerId);
+        CommandCloseConsumer closeConsumer = new CommandCloseConsumer().setConsumerId(consumerId).setRequestId(1);
         cnx.handleCloseConsumer(closeConsumer);
         assertEquals(cnx.consumers.size(), 0);
+
+        verify(consumer).connectionClosed(cnx, Optional.empty(), Optional.empty());
 
         eventLoop.shutdownGracefully();
     }
@@ -296,12 +303,18 @@ public class ClientCnxTest {
         ClientCnx cnx = new ClientCnx(conf, eventLoop);
 
         long producerId = 1;
-        cnx.registerProducer(producerId, mock(ProducerImpl.class));
+        PulsarClientImpl pulsarClient = mock(PulsarClientImpl.class);
+        when(pulsarClient.getConfiguration()).thenReturn(conf);
+        ProducerImpl producer = mock(ProducerImpl.class);
+        when(producer.getClient()).thenReturn(pulsarClient);
+        cnx.registerProducer(producerId, producer);
         assertEquals(cnx.producers.size(), 1);
 
-        CommandCloseProducer closeProducerCmd = new CommandCloseProducer().setProducerId(producerId);
+        CommandCloseProducer closeProducerCmd = new CommandCloseProducer().setProducerId(producerId).setRequestId(1);
         cnx.handleCloseProducer(closeProducerCmd);
         assertEquals(cnx.producers.size(), 0);
+
+        verify(producer).connectionClosed(cnx, Optional.empty(), Optional.empty());
 
         eventLoop.shutdownGracefully();
     }

@@ -68,7 +68,7 @@ public class RedisSink implements Sink<byte[]> {
     public void open(Map<String, Object> config, SinkContext sinkContext) throws Exception {
         log.info("Open Redis Sink");
 
-        redisSinkConfig = RedisSinkConfig.load(config);
+        redisSinkConfig = RedisSinkConfig.load(config, sinkContext);
         redisSinkConfig.validate();
 
         redisSession = RedisSession.create(redisSinkConfig);

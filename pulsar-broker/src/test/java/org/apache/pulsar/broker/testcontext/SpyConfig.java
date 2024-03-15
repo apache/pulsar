@@ -129,6 +129,11 @@ public class SpyConfig {
      */
     public static Builder builder(SpyType defaultSpyType) {
         Builder spyConfigBuilder = new Builder();
+        configureDefaults(spyConfigBuilder, defaultSpyType);
+        return spyConfigBuilder;
+    }
+
+    public static void configureDefaults(Builder spyConfigBuilder, SpyType defaultSpyType) {
         spyConfigBuilder.pulsarService(defaultSpyType);
         spyConfigBuilder.pulsarResources(defaultSpyType);
         spyConfigBuilder.brokerService(defaultSpyType);
@@ -136,6 +141,5 @@ public class SpyConfig {
         spyConfigBuilder.compactor(defaultSpyType);
         spyConfigBuilder.compactedServiceFactory(defaultSpyType);
         spyConfigBuilder.namespaceService(defaultSpyType);
-        return spyConfigBuilder;
     }
 }

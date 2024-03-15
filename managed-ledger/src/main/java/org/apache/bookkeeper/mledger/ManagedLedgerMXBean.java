@@ -91,6 +91,11 @@ public interface ManagedLedgerMXBean {
     long getAddEntryErrors();
 
     /**
+     * @return the number of entries read from the managed ledger (from cache or BK)
+     */
+    long getEntriesReadTotalCount();
+
+    /**
      * @return the number of readEntries requests that succeeded
      */
     long getReadEntriesSucceeded();

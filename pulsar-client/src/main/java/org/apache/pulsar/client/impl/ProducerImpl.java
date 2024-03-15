@@ -41,6 +41,7 @@ import io.netty.util.Timeout;
 import io.netty.util.TimerTask;
 import io.netty.util.concurrent.ScheduledFuture;
 import java.io.IOException;
+import java.net.URI;
 import java.nio.ByteBuffer;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -586,11 +587,14 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
             msgMetadata.setProducerName(producerName);
 
-            if (conf.getCompressionType() != CompressionType.NONE) {
-                msgMetadata
-                        .setCompression(CompressionCodecProvider.convertToWireProtocol(conf.getCompressionType()));
+            // The field "uncompressedSize" is zero means the compression info were not set yet.
+            if (msgMetadata.getUncompressedSize() <= 0) {
+                if (conf.getCompressionType() != CompressionType.NONE) {
+                    msgMetadata
+                            .setCompression(CompressionCodecProvider.convertToWireProtocol(conf.getCompressionType()));
+                }
+                msgMetadata.setUncompressedSize(uncompressedSize);
             }
-            msgMetadata.setUncompressedSize(uncompressedSize);
         }
     }
 
@@ -695,6 +699,12 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 op = OpSendMsg.create(msg, null, sequenceId, callback);
                 final MessageMetadata finalMsgMetadata = msgMetadata;
                 op.rePopulate = () -> {
+                    if (msgMetadata.hasChunkId()) {
+                        // The message metadata is shared between all chunks in a large message
+                        // We need to reset the chunk id for each call of this method
+                        // It's safe to do that because there is only 1 thread to manipulate this message metadata
+                        finalMsgMetadata.setChunkId(chunkId);
+                    }
                     op.cmd = sendMessage(producerId, sequenceId, numMessages, messageId, finalMsgMetadata,
                             encryptedPayload);
                 };
@@ -1973,6 +1983,11 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         return producerName;
     }
 
+    @VisibleForTesting
+    void triggerSendTimer() throws Exception {
+        run(sendTimeout);
+    }
+
     /**
      * Process sendTimeout events.
      */
@@ -1991,7 +2006,8 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             }
 
             OpSendMsg firstMsg = pendingMessages.peek();
-            if (firstMsg == null && (batchMessageContainer == null || batchMessageContainer.isEmpty())) {
+            if (firstMsg == null && (batchMessageContainer == null || batchMessageContainer.isEmpty()
+                    || batchMessageContainer.getFirstAddedTimestamp() == 0L)) {
                 // If there are no pending messages, reset the timeout to the configured value.
                 timeToWaitMs = conf.getSendTimeoutMs();
             } else {
@@ -2001,7 +2017,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 } else {
                     // Because we don't flush batch messages while disconnected, we consider them "createdAt" when
                     // they would have otherwise been flushed.
-                    createdAt = lastBatchSendNanoTime
+                    createdAt = batchMessageContainer.getFirstAddedTimestamp()
                             + TimeUnit.MICROSECONDS.toNanos(conf.getBatchingMaxPublishDelayMicros());
                 }
                 // If there is at least one message, calculate the diff between the message timeout and the elapsed
@@ -2363,8 +2379,8 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         this.connectionHandler.resetBackoff();
     }
 
-    void connectionClosed(ClientCnx cnx) {
-        this.connectionHandler.connectionClosed(cnx);
+    void connectionClosed(ClientCnx cnx, Optional<Long> initialConnectionDelayMs, Optional<URI> hostUrl) {
+        this.connectionHandler.connectionClosed(cnx, initialConnectionDelayMs, hostUrl);
     }
 
     public ClientCnx getClientCnx() {

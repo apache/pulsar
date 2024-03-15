@@ -18,19 +18,14 @@
  */
 package org.apache.pulsar.client.impl;
 
-import java.lang.reflect.Field;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.HashSet;
-import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
 import org.apache.pulsar.broker.MultiBrokerBaseTest;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -71,16 +66,8 @@ public class AutoCloseUselessClientConSupports extends MultiBrokerBaseTest {
     protected void trigReleaseConnection(PulsarClientImpl pulsarClient)
             throws InterruptedException, NoSuchFieldException, IllegalAccessException {
         // Wait for every request has been response.
-        Field field = ConnectionPool.class.getDeclaredField("pool");
-        field.setAccessible(true);
-        ConcurrentHashMap<InetSocketAddress,ConcurrentMap<Integer,
-                CompletableFuture<ClientCnx>>> pool =
-                (ConcurrentHashMap<InetSocketAddress, ConcurrentMap<Integer,
-                        CompletableFuture<ClientCnx>>>) field.get(pulsarClient.getCnxPool());
-        final List<CompletableFuture<ClientCnx>> clientCnxWrapList =
-                pool.values().stream().flatMap(c -> c.values().stream()).collect(Collectors.toList());
         Awaitility.waitAtMost(Duration.ofSeconds(5)).until(() -> {
-            for (CompletableFuture<ClientCnx> clientCnxWrapFuture : clientCnxWrapList){
+            for (CompletableFuture<ClientCnx> clientCnxWrapFuture : pulsarClient.getCnxPool().getConnections()){
                 if (!clientCnxWrapFuture.isDone()){
                     continue;
                 }

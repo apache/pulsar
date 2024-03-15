@@ -18,9 +18,6 @@
  */
 package org.apache.pulsar.admin.cli;
 
-import com.beust.jcommander.Parameter;
-import com.beust.jcommander.Parameters;
-import com.beust.jcommander.converters.CommaParameterSplitter;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
@@ -28,10 +25,13 @@ import java.util.function.Supplier;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
+import picocli.CommandLine.Command;
+import picocli.CommandLine.Option;
+import picocli.CommandLine.Parameters;
 
-@Parameters(commandDescription = "Operations about tenants")
+@Command(description = "Operations about tenants")
 public class CmdTenants extends CmdBase {
-    @Parameters(commandDescription = "List the existing tenants")
+    @Command(description = "List the existing tenants")
     private class List extends CliCommand {
         @Override
         void run() throws PulsarAdminException {
@@ -39,38 +39,35 @@ public class CmdTenants extends CmdBase {
         }
     }
 
-    @Parameters(commandDescription = "Gets the configuration of a tenant")
+    @Command(description = "Gets the configuration of a tenant")
     private class Get extends CliCommand {
-        @Parameter(description = "tenant-name", required = true)
-        private java.util.List<String> params;
+        @Parameters(description = "tenant-name", arity = "1")
+        private String tenant;
 
         @Override
         void run() throws PulsarAdminException {
-            String tenant = getOneArgument(params);
             print(getAdmin().tenants().getTenantInfo(tenant));
         }
     }
 
-    @Parameters(commandDescription = "Creates a new tenant")
+    @Command(description = "Creates a new tenant")
     private class Create extends CliCommand {
-        @Parameter(description = "tenant-name", required = true)
-        private java.util.List<String> params;
+        @Parameters(description = "tenant-name", arity = "1")
+        private String tenant;
 
-        @Parameter(names = { "--admin-roles",
+        @Option(names = { "--admin-roles",
                 "-r" }, description = "Comma separated list of auth principal allowed to administrate the tenant",
-                required = false, splitter = CommaParameterSplitter.class)
+                required = false, split = ",")
         private java.util.List<String> adminRoles;
 
-        @Parameter(names = { "--allowed-clusters",
+        @Option(names = { "--allowed-clusters",
                 "-c" }, description = "Comma separated allowed clusters. "
                 + "If empty, the tenant will have access to all clusters",
-                required = false, splitter = CommaParameterSplitter.class)
+                required = false, split = ",")
         private java.util.List<String> allowedClusters;
 
         @Override
         void run() throws PulsarAdminException {
-            String tenant = getOneArgument(params);
-
             if (adminRoles == null) {
                 adminRoles = Collections.emptyList();
             }
@@ -85,27 +82,25 @@ public class CmdTenants extends CmdBase {
         }
     }
 
-    @Parameters(commandDescription = "Updates the configuration for a tenant")
+    @Command(description = "Updates the configuration for a tenant")
     private class Update extends CliCommand {
-        @Parameter(description = "tenant-name", required = true)
-        private java.util.List<String> params;
+        @Parameters(description = "tenant-name", arity = "1")
+        private String tenant;
 
-        @Parameter(names = { "--admin-roles",
+        @Option(names = { "--admin-roles",
                 "-r" }, description = "Comma separated list of auth principal allowed to administrate the tenant. "
                 + "If empty the current set of roles won't be modified",
-                required = false, splitter = CommaParameterSplitter.class)
+                required = false, split = ",")
         private java.util.List<String> adminRoles;
 
-        @Parameter(names = { "--allowed-clusters",
+        @Option(names = { "--allowed-clusters",
                 "-c" }, description = "Comma separated allowed clusters. "
                 + "If omitted, the current set of clusters will be preserved",
-                required = false, splitter = CommaParameterSplitter.class)
+                required = false, split = ",")
         private java.util.List<String> allowedClusters;
 
         @Override
         void run() throws PulsarAdminException {
-            String tenant = getOneArgument(params);
-
             if (adminRoles == null) {
                 adminRoles = new ArrayList<>(getAdmin().tenants().getTenantInfo(tenant).getAdminRoles());
             }
@@ -119,41 +114,34 @@ public class CmdTenants extends CmdBase {
         }
     }
 
-    @Parameters(commandDescription = "Deletes an existing tenant")
+    @Command(description = "Deletes an existing tenant")
     private class Delete extends CliCommand {
-        @Parameter(description = "tenant-name", required = true)
-        private java.util.List<String> params;
+        @Parameters(description = "tenant-name", arity = "1")
+        private String tenant;
 
-        @Parameter(names = { "-f",
+        @Option(names = { "-f",
                 "--force" }, description = "Delete a tenant forcefully by deleting all namespaces under it.")
         private boolean force = false;
 
         @Override
         void run() throws PulsarAdminException {
-            String tenant = getOneArgument(params);
             getAdmin().tenants().deleteTenant(tenant, force);
         }
     }
 
     public CmdTenants(Supplier<PulsarAdmin> admin) {
         super("tenants", admin);
-        jcommander.addCommand("list", new List());
-        jcommander.addCommand("get", new Get());
-        jcommander.addCommand("create", new Create());
-        jcommander.addCommand("update", new Update());
-        jcommander.addCommand("delete", new Delete());
+        addCommand("list", new List());
+        addCommand("get", new Get());
+        addCommand("create", new Create());
+        addCommand("update", new Update());
+        addCommand("delete", new Delete());
     }
 
-    @Parameters(hidden = true)
+    @Command(hidden = true)
     static class CmdProperties extends CmdTenants {
         public CmdProperties(Supplier<PulsarAdmin> admin) {
             super(admin);
-        }
-
-        @Override
-        public boolean run(String[] args) {
-            System.err.println("WARN: The properties subcommand is deprecated. Please use tenants instead");
-            return super.run(args);
         }
     }
 }

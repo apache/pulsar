@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.namespace;
 
+import static org.apache.pulsar.broker.resources.LoadBalanceResources.BUNDLE_DATA_BASE_PATH;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
@@ -44,6 +45,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -72,6 +74,7 @@ import org.apache.pulsar.common.naming.NamespaceBundleSplitAlgorithm;
 import org.apache.pulsar.common.naming.NamespaceBundles;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.ServiceUnitId;
+import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.LocalPolicies;
@@ -94,6 +97,7 @@ import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Test(groups = "flaky")
@@ -349,14 +353,14 @@ public class NamespaceServiceTest extends BrokerTestBase {
     @Test
     public void testLoadReportDeserialize() throws Exception {
 
-        final String candidateBroker1 = "http://localhost:8000";
-        final String candidateBroker2 = "http://localhost:3000";
-        LoadReport lr = new LoadReport(null, null, candidateBroker1, null);
-        LocalBrokerData ld = new LocalBrokerData(null, null, candidateBroker2, null);
-        URI uri1 = new URI(candidateBroker1);
-        URI uri2 = new URI(candidateBroker2);
-        String path1 = String.format("%s/%s:%s", LoadManager.LOADBALANCE_BROKERS_ROOT, uri1.getHost(), uri1.getPort());
-        String path2 = String.format("%s/%s:%s", LoadManager.LOADBALANCE_BROKERS_ROOT, uri2.getHost(), uri2.getPort());
+        final String candidateBroker1 = "localhost:8000";
+        String broker1Url = "pulsar://localhost:6650";
+        final String candidateBroker2 = "localhost:3000";
+        String broker2Url = "pulsar://localhost:6660";
+        LoadReport lr = new LoadReport("http://" + candidateBroker1, null, broker1Url, null);
+        LocalBrokerData ld = new LocalBrokerData("http://" + candidateBroker2, null, broker2Url, null);
+        String path1 = String.format("%s/%s", LoadManager.LOADBALANCE_BROKERS_ROOT, candidateBroker1);
+        String path2 = String.format("%s/%s", LoadManager.LOADBALANCE_BROKERS_ROOT, candidateBroker2);
 
         pulsar.getLocalMetadataStore().put(path1,
                 ObjectMapperFactory.getMapper().writer().writeValueAsBytes(lr),
@@ -375,23 +379,23 @@ public class NamespaceServiceTest extends BrokerTestBase {
                 .getAndSet(new ModularLoadManagerWrapper(new ModularLoadManagerImpl()));
         oldLoadManager.stop();
         LookupResult result2 = pulsar.getNamespaceService().createLookupResult(candidateBroker2, false, null).get();
-        Assert.assertEquals(result1.getLookupData().getBrokerUrl(), candidateBroker1);
-        Assert.assertEquals(result2.getLookupData().getBrokerUrl(), candidateBroker2);
+        Assert.assertEquals(result1.getLookupData().getBrokerUrl(), broker1Url);
+        Assert.assertEquals(result2.getLookupData().getBrokerUrl(), broker2Url);
         System.out.println(result2);
     }
 
     @Test
     public void testCreateLookupResult() throws Exception {
 
-        final String candidateBroker = "pulsar://localhost:6650";
+        final String candidateBroker = "localhost:8080";
+        final String brokerUrl = "pulsar://localhost:6650";
         final String listenerUrl = "pulsar://localhost:7000";
         final String listenerUrlTls = "pulsar://localhost:8000";
         final String listener = "listenerName";
         Map<String, AdvertisedListener> advertisedListeners = new HashMap<>();
         advertisedListeners.put(listener, AdvertisedListener.builder().brokerServiceUrl(new URI(listenerUrl)).brokerServiceUrlTls(new URI(listenerUrlTls)).build());
-        LocalBrokerData ld = new LocalBrokerData(null, null, candidateBroker, null, advertisedListeners);
-        URI uri = new URI(candidateBroker);
-        String path = String.format("%s/%s:%s", LoadManager.LOADBALANCE_BROKERS_ROOT, uri.getHost(), uri.getPort());
+        LocalBrokerData ld = new LocalBrokerData("http://" + candidateBroker, null, brokerUrl, null, advertisedListeners);
+        String path = String.format("%s/%s", LoadManager.LOADBALANCE_BROKERS_ROOT, candidateBroker);
 
         pulsar.getLocalMetadataStore().put(path,
                 ObjectMapperFactory.getMapper().writer().writeValueAsBytes(ld),
@@ -401,7 +405,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
         LookupResult noListener = pulsar.getNamespaceService().createLookupResult(candidateBroker, false, null).get();
         LookupResult withListener = pulsar.getNamespaceService().createLookupResult(candidateBroker, false, listener).get();
 
-        Assert.assertEquals(noListener.getLookupData().getBrokerUrl(), candidateBroker);
+        Assert.assertEquals(noListener.getLookupData().getBrokerUrl(), brokerUrl);
         Assert.assertEquals(withListener.getLookupData().getBrokerUrl(), listenerUrl);
         Assert.assertEquals(withListener.getLookupData().getBrokerUrlTls(), listenerUrlTls);
         System.out.println(withListener);
@@ -649,7 +653,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
 
         NamespaceBundle targetNamespaceBundle =  bundles.findBundle(TopicName.get(topic + "0"));
         String bundle = targetNamespaceBundle.getBundleRange();
-        String path = ModularLoadManagerImpl.getBundleDataPath(namespace + "/" + bundle);
+        String path = BUNDLE_DATA_BASE_PATH + "/" + namespace + "/" + bundle;
         NamespaceBundleStats defaultStats = new NamespaceBundleStats();
         defaultStats.msgThroughputIn = 100000;
         defaultStats.msgThroughputOut = 100000;
@@ -683,7 +687,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
 
     @Test
     public void testHeartbeatNamespaceMatch() throws Exception {
-        NamespaceName namespaceName = NamespaceService.getHeartbeatNamespace(pulsar.getAdvertisedAddress(), conf);
+        NamespaceName namespaceName = NamespaceService.getHeartbeatNamespace(pulsar.getBrokerId(), conf);
         NamespaceBundle namespaceBundle = pulsar.getNamespaceService().getNamespaceBundleFactory().getFullBundle(namespaceName);
         assertTrue(NamespaceService.isSystemServiceNamespace(
                         NamespaceBundle.getBundleNamespace(namespaceBundle.toString())));
@@ -691,7 +695,6 @@ public class NamespaceServiceTest extends BrokerTestBase {
 
     @Test
     public void testModularLoadManagerRemoveInactiveBundleFromLoadData() throws Exception {
-        final String BUNDLE_DATA_PATH = "/loadbalance/bundle-data";
         final String namespace = "pulsar/test/ns1";
         final String topic1 = "persistent://" + namespace + "/topic1";
         final String topic2 = "persistent://" + namespace + "/topic2";
@@ -704,7 +707,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
         Field loadManagerField = NamespaceService.class.getDeclaredField("loadManager");
         loadManagerField.setAccessible(true);
         doReturn(true).when(loadManager).isCentralized();
-        SimpleResourceUnit resourceUnit = new SimpleResourceUnit(pulsar.getSafeWebServiceAddress(), null);
+        SimpleResourceUnit resourceUnit = new SimpleResourceUnit(pulsar.getBrokerId(), null);
         Optional<ResourceUnit> res = Optional.of(resourceUnit);
         doReturn(res).when(loadManager).getLeastLoaded(any(ServiceUnitId.class));
         loadManagerField.set(pulsar.getNamespaceService(), new AtomicReference<>(loadManager));
@@ -742,13 +745,12 @@ public class NamespaceServiceTest extends BrokerTestBase {
 
         Awaitility.await().untilAsserted(() -> {
             assertNull(loadData.getBundleData().get(oldBundle.toString()));
-            assertFalse(bundlesCache.exists(BUNDLE_DATA_PATH + "/" + oldBundle.toString()).get());
+            assertFalse(bundlesCache.exists(BUNDLE_DATA_BASE_PATH + "/" + oldBundle.toString()).get());
         });
     }
 
     @Test
     public void testModularLoadManagerRemoveBundleAndLoad() throws Exception {
-        final String BUNDLE_DATA_PATH = "/loadbalance/bundle-data";
         final String namespace = "prop/ns-abc";
         final String bundleName = namespace + "/0x00000000_0xffffffff";
         final String topic1 = "persistent://" + namespace + "/topic1";
@@ -783,7 +785,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
         pulsar.getBrokerService().updateRates();
 
         waitResourceDataUpdateToZK(loadManager);
-        String path = BUNDLE_DATA_PATH + "/" + bundleName;
+        String path = BUNDLE_DATA_BASE_PATH + "/" + bundleName;
 
         Optional<GetResult> getResult = pulsar.getLocalMetadataStore().get(path).get();
         assertTrue(getResult.isPresent());
@@ -798,6 +800,30 @@ public class NamespaceServiceTest extends BrokerTestBase {
 
         getResult = pulsar.getLocalMetadataStore().get(path).get();
         assertFalse(getResult.isPresent());
+    }
+
+    @DataProvider(name = "topicDomain")
+    public Object[] topicDomain() {
+        return new Object[]{
+                TopicDomain.persistent.value(),
+                TopicDomain.non_persistent.value()
+        };
+    }
+
+    @Test(dataProvider = "topicDomain")
+    public void testCheckTopicExists(String topicDomain) throws Exception {
+        String topic = topicDomain + "://prop/ns-abc/" + UUID.randomUUID();
+        admin.topics().createNonPartitionedTopic(topic);
+        Awaitility.await().untilAsserted(() -> {
+            assertTrue(pulsar.getNamespaceService().checkTopicExists(TopicName.get(topic)).get());
+        });
+
+        String partitionedTopic = topicDomain + "://prop/ns-abc/" + UUID.randomUUID();
+        admin.topics().createPartitionedTopic(partitionedTopic, 5);
+        Awaitility.await().untilAsserted(() -> {
+            assertTrue(pulsar.getNamespaceService().checkTopicExists(TopicName.get(partitionedTopic)).get());
+            assertTrue(pulsar.getNamespaceService().checkTopicExists(TopicName.get(partitionedTopic + "-partition-2")).get());
+        });
     }
 
     /**
@@ -834,10 +860,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
 
     public CompletableFuture<Void> registryBrokerDataChangeNotice() {
         CompletableFuture<Void> completableFuture = new CompletableFuture<>();
-        String lookupServiceAddress = pulsar.getAdvertisedAddress() + ":"
-                + (conf.getWebServicePort().isPresent() ? conf.getWebServicePort().get()
-                : conf.getWebServicePortTls().get());
-        String brokerDataPath = LoadManager.LOADBALANCE_BROKERS_ROOT + "/" + lookupServiceAddress;
+        String brokerDataPath = LoadManager.LOADBALANCE_BROKERS_ROOT + "/" + pulsar.getBrokerId();
         pulsar.getLocalMetadataStore().registerListener(notice -> {
             if (brokerDataPath.equals(notice.getPath())){
                 if (!completableFuture.isDone()) {

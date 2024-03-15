@@ -52,7 +52,6 @@ public class NamespaceResources extends BaseResources<Policies> {
 
     public static final String POLICIES_READONLY_FLAG_PATH = "/admin/flags/policies-readonly";
     private static final String NAMESPACE_BASE_PATH = "/namespace";
-    private static final String BUNDLE_DATA_BASE_PATH = "/loadbalance/bundle-data";
 
     public NamespaceResources(MetadataStore configurationStore, int operationTimeoutSec) {
         super(configurationStore, Policies.class, operationTimeoutSec);
@@ -377,17 +376,4 @@ public class NamespaceResources extends BaseResources<Policies> {
             return future;
         }
     }
-
-    // clear resource of `/loadbalance/bundle-data/{tenant}/{namespace}/` in metadata-store
-    public CompletableFuture<Void> deleteBundleDataAsync(NamespaceName ns) {
-        final String namespaceBundlePath = joinPath(BUNDLE_DATA_BASE_PATH, ns.toString());
-        return getStore().deleteRecursive(namespaceBundlePath);
-    }
-
-    // clear resource of `/loadbalance/bundle-data/{tenant}/` in metadata-store
-    public CompletableFuture<Void> deleteBundleDataTenantAsync(String tenant) {
-        final String tenantBundlePath = joinPath(BUNDLE_DATA_BASE_PATH, tenant);
-        return getStore().deleteRecursive(tenantBundlePath);
-    }
-
 }

@@ -81,7 +81,8 @@ public class ResourceGroup {
         this.setResourceGroupMonitoringClassFields();
         this.setResourceGroupConfigParameters(rgConfig);
         this.setDefaultResourceUsageTransportHandlers();
-        this.resourceGroupPublishLimiter = new ResourceGroupPublishLimiter(rgConfig, rgs.getPulsar().getExecutor());
+        this.resourceGroupPublishLimiter = new ResourceGroupPublishLimiter(rgConfig, rgs.getPulsar()
+                .getMonotonicSnapshotClock());
         log.info("attaching publish rate limiter {} to {} get {}", this.resourceGroupPublishLimiter, name,
           this.getResourceGroupPublishLimiter());
     }
@@ -96,7 +97,8 @@ public class ResourceGroup {
         this.resourceGroupName = rgName;
         this.setResourceGroupMonitoringClassFields();
         this.setResourceGroupConfigParameters(rgConfig);
-        this.resourceGroupPublishLimiter = new ResourceGroupPublishLimiter(rgConfig, rgs.getPulsar().getExecutor());
+        this.resourceGroupPublishLimiter = new ResourceGroupPublishLimiter(rgConfig, rgs.getPulsar()
+                .getMonotonicSnapshotClock());
         this.ruPublisher = rgPublisher;
         this.ruConsumer = rgConsumer;
     }
@@ -323,8 +325,10 @@ public class ResourceGroup {
             retval.bytes = pbus.usedValues.bytes;
             retval.messages = pbus.usedValues.messages;
         } else {
-            log.info("getLocalUsageStatsFromBrokerReports: no usage report found for broker={} and monClass={}",
-                    myBrokerId, monClass);
+            if (log.isDebugEnabled()) {
+                log.debug("getLocalUsageStatsFromBrokerReports: no usage report found for broker={} and monClass={}",
+                        myBrokerId, monClass);
+            }
         }
 
         return retval;
@@ -404,8 +408,8 @@ public class ResourceGroup {
     }
 
     // Visibility for unit testing
-    protected static double getRgUsageReportedCount (String rgName, String monClassName) {
-        return rgLocalUsageReportCount.labels(rgName, monClassName).get();
+    protected static long getRgUsageReportedCount (String rgName, String monClassName) {
+        return (long) rgLocalUsageReportCount.labels(rgName, monClassName).get();
     }
 
     // Visibility for unit testing

@@ -80,7 +80,8 @@ public class NonDurableCursorTest extends MockedBookKeeperTestCase {
         entries.forEach(Entry::release);
 
         // Test string representation
-        assertEquals(c1.toString(), "NonDurableCursorImpl{ledger=my_test_ledger, ackPos=3:-1, readPos=3:1}");
+        assertEquals(c1.toString(), "NonDurableCursorImpl{ledger=my_test_ledger, cursor="
+                + c1.getName() + ", ackPos=3:-1, readPos=3:1}");
     }
 
     @Test(timeOut = 20000)

@@ -94,4 +94,5 @@ public class SinkConfig {
     private String transformFunction;
     private String transformFunctionClassName;
     private String transformFunctionConfig;
+    private String logTopic;
 }

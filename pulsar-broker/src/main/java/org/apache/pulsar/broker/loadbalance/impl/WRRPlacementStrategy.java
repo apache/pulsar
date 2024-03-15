@@ -76,7 +76,7 @@ public class WRRPlacementStrategy implements PlacementStrategy {
         }
         int weightedSelector = rand.nextInt(totalAvailability);
         log.debug("Generated Weighted Selector Number - [{}] ", weightedSelector);
-        int weightRangeSoFar = 0;
+        long weightRangeSoFar = 0;
         for (Map.Entry<Long, ResourceUnit> candidateOwner : finalCandidates.entries()) {
             weightRangeSoFar += candidateOwner.getKey();
             if (weightedSelector < weightRangeSoFar) {

@@ -19,6 +19,8 @@
 package org.apache.pulsar.io.mongodb;
 
 import java.util.Map;
+import org.apache.pulsar.io.core.SinkContext;
+import org.mockito.Mockito;
 import org.testng.annotations.Test;
 
 import java.io.File;
@@ -34,7 +36,27 @@ public class MongoSinkConfigTest {
         commonConfigMap.put("batchSize", TestHelper.BATCH_SIZE);
         commonConfigMap.put("batchTimeMs", TestHelper.BATCH_TIME);
 
-        final MongoSinkConfig cfg = MongoSinkConfig.load(commonConfigMap);
+        SinkContext sinkContext = Mockito.mock(SinkContext.class);
+        final MongoSinkConfig cfg = MongoSinkConfig.load(commonConfigMap, sinkContext);
+
+        assertEquals(cfg.getMongoUri(), TestHelper.URI);
+        assertEquals(cfg.getDatabase(), TestHelper.DB);
+        assertEquals(cfg.getCollection(), TestHelper.COLL);
+        assertEquals(cfg.getBatchSize(), TestHelper.BATCH_SIZE);
+        assertEquals(cfg.getBatchTimeMs(), TestHelper.BATCH_TIME);
+    }
+
+    @Test
+    public void testLoadMapConfigUrlFromSecret() throws IOException {
+        final Map<String, Object> commonConfigMap = TestHelper.createCommonConfigMap();
+        commonConfigMap.put("batchSize", TestHelper.BATCH_SIZE);
+        commonConfigMap.put("batchTimeMs", TestHelper.BATCH_TIME);
+        commonConfigMap.remove("mongoUri");
+
+        SinkContext sinkContext = Mockito.mock(SinkContext.class);
+        Mockito.when(sinkContext.getSecret("mongoUri"))
+                .thenReturn(TestHelper.URI);
+        final MongoSinkConfig cfg = MongoSinkConfig.load(commonConfigMap, sinkContext);
 
         assertEquals(cfg.getMongoUri(), TestHelper.URI);
         assertEquals(cfg.getDatabase(), TestHelper.DB);
@@ -44,12 +66,13 @@ public class MongoSinkConfigTest {
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class,
-            expectedExceptionsMessageRegExp = "Required MongoDB URI is not set.")
+            expectedExceptionsMessageRegExp = "mongoUri cannot be null")
     public void testBadMongoUri() throws IOException {
         final Map<String, Object> configMap = TestHelper.createCommonConfigMap();
         TestHelper.removeMongoUri(configMap);
 
-        final MongoSinkConfig cfg = MongoSinkConfig.load(configMap);
+        SinkContext sinkContext = Mockito.mock(SinkContext.class);
+        final MongoSinkConfig cfg = MongoSinkConfig.load(configMap, sinkContext);
 
         cfg.validate();
     }
@@ -60,7 +83,8 @@ public class MongoSinkConfigTest {
         final Map<String, Object> configMap = TestHelper.createCommonConfigMap();
         TestHelper.removeDatabase(configMap);
 
-        final MongoSinkConfig cfg = MongoSinkConfig.load(configMap);
+        SinkContext sinkContext = Mockito.mock(SinkContext.class);
+        final MongoSinkConfig cfg = MongoSinkConfig.load(configMap, sinkContext);
 
         cfg.validate();
     }
@@ -71,7 +95,8 @@ public class MongoSinkConfigTest {
         final Map<String, Object> configMap = TestHelper.createCommonConfigMap();
         TestHelper.removeCollection(configMap);
 
-        final MongoSinkConfig cfg = MongoSinkConfig.load(configMap);
+        SinkContext sinkContext = Mockito.mock(SinkContext.class);
+        final MongoSinkConfig cfg = MongoSinkConfig.load(configMap, sinkContext);
 
         cfg.validate();
     }
@@ -82,7 +107,8 @@ public class MongoSinkConfigTest {
         final Map<String, Object> configMap = TestHelper.createCommonConfigMap();
         TestHelper.putBatchSize(configMap, 0);
 
-        final MongoSinkConfig cfg = MongoSinkConfig.load(configMap);
+        SinkContext sinkContext = Mockito.mock(SinkContext.class);
+        final MongoSinkConfig cfg = MongoSinkConfig.load(configMap, sinkContext);
 
         cfg.validate();
     }
@@ -93,7 +119,8 @@ public class MongoSinkConfigTest {
         final Map<String, Object> configMap = TestHelper.createCommonConfigMap();
         TestHelper.putBatchTime(configMap, 0L);
 
-        final MongoSinkConfig cfg = MongoSinkConfig.load(configMap);
+        SinkContext sinkContext = Mockito.mock(SinkContext.class);
+        final MongoSinkConfig cfg = MongoSinkConfig.load(configMap, sinkContext);
 
         cfg.validate();
     }

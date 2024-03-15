@@ -23,7 +23,15 @@ import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateD
 public interface StateChangeListener {
 
     /**
-     * Handle the service unit state change.
+     * Called before the state change is handled.
+     *
+     * @param serviceUnit - Service Unit(Namespace bundle).
+     * @param data - Service unit state data.
+     */
+    default void beforeEvent(String serviceUnit, ServiceUnitStateData data) { }
+
+    /**
+     * Called after the service unit state change has been handled.
      *
      * @param serviceUnit - Service Unit(Namespace bundle).
      * @param data - Service unit state data.

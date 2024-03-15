@@ -26,15 +26,14 @@ import io.netty.util.concurrent.DefaultThreadFactory;
 import java.io.IOException;
 import java.net.URI;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.Supplier;
 import javax.ws.rs.core.Response;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.bookkeeper.clients.StorageClientBuilder;
-import org.apache.bookkeeper.clients.admin.StorageAdminClient;
-import org.apache.bookkeeper.clients.config.StorageClientSettings;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.distributedlog.DistributedLogConfiguration;
 import org.apache.distributedlog.api.namespace.Namespace;
@@ -57,6 +56,7 @@ import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.util.SimpleTextOutputStream;
+import org.apache.pulsar.functions.instance.state.StateStoreProvider;
 import org.apache.pulsar.functions.worker.rest.api.FunctionsImpl;
 import org.apache.pulsar.functions.worker.rest.api.FunctionsImplV2;
 import org.apache.pulsar.functions.worker.rest.api.SinksImpl;
@@ -97,7 +97,6 @@ public class PulsarWorkerService implements WorkerService {
     // dlog namespace for storing function jars in bookkeeper
     private Namespace dlogNamespace;
     // storage client for accessing state storage for functions
-    private StorageAdminClient stateStoreAdminClient;
     private MembershipManager membershipManager;
     private SchedulerManager schedulerManager;
     private volatile boolean isInitialized = false;
@@ -109,6 +108,7 @@ public class PulsarWorkerService implements WorkerService {
     private PulsarAdmin brokerAdmin;
     private PulsarAdmin functionAdmin;
     private MetricsGenerator metricsGenerator;
+    private PulsarWorkerOpenTelemetry openTelemetry;
     @VisibleForTesting
     private URI dlogUri;
     private LeaderService leaderService;
@@ -119,8 +119,10 @@ public class PulsarWorkerService implements WorkerService {
     private Sinks<PulsarWorkerService> sinks;
     private Sources<PulsarWorkerService> sources;
     private Workers<PulsarWorkerService> workers;
-
+    @Getter
+    private PackageUrlValidator packageUrlValidator;
     private final PulsarClientCreator clientCreator;
+    private StateStoreProvider stateStoreProvider;
 
     public PulsarWorkerService() {
         this.clientCreator = new PulsarClientCreator() {
@@ -188,6 +190,7 @@ public class PulsarWorkerService implements WorkerService {
         this.statsUpdater = Executors
             .newSingleThreadScheduledExecutor(new DefaultThreadFactory("worker-stats-updater"));
         this.metricsGenerator = new MetricsGenerator(this.statsUpdater, workerConfig);
+        this.openTelemetry = new PulsarWorkerOpenTelemetry(workerConfig);
         this.workerConfig = workerConfig;
         this.dlogUri = dlogUri;
         this.workerStatsManager = new WorkerStatsManager(workerConfig, runAsStandalone);
@@ -196,6 +199,7 @@ public class PulsarWorkerService implements WorkerService {
         this.sinks = new SinksImpl(() -> PulsarWorkerService.this);
         this.sources = new SourcesImpl(() -> PulsarWorkerService.this);
         this.workers = new WorkerImpl(() -> PulsarWorkerService.this);
+        this.packageUrlValidator = new PackageUrlValidator(workerConfig);
     }
 
     @Override
@@ -222,7 +226,7 @@ public class PulsarWorkerService implements WorkerService {
                 log.warn("Retry to connect to Pulsar service at {}", workerConfig.getPulsarWebServiceUrl());
                 if (retries >= maxRetries) {
                     log.error("Failed to connect to Pulsar service at {} after {} attempts",
-                            workerConfig.getPulsarFunctionsNamespace(), maxRetries);
+                            workerConfig.getPulsarFunctionsNamespace(), maxRetries, e);
                     throw e;
                 }
                 retries++;
@@ -418,14 +422,15 @@ public class PulsarWorkerService implements WorkerService {
                 }
             }
 
-            // create the state storage client for accessing function state
+            // create the state storage provider for accessing function state
             if (workerConfig.getStateStorageServiceUrl() != null) {
-                StorageClientSettings clientSettings = StorageClientSettings.newBuilder()
-                        .serviceUri(workerConfig.getStateStorageServiceUrl())
-                        .build();
-                this.stateStoreAdminClient = StorageClientBuilder.newBuilder()
-                        .withSettings(clientSettings)
-                        .buildAdmin();
+                this.stateStoreProvider =
+                        (StateStoreProvider) Class.forName(workerConfig.getStateStorageProviderImplementation())
+                                .getConstructor().newInstance();
+                Map<String, Object> stateStoreProviderConfig = new HashMap<>();
+                stateStoreProviderConfig.put(StateStoreProvider.STATE_STORAGE_SERVICE_URL,
+                        workerConfig.getStateStorageServiceUrl());
+                this.stateStoreProvider.init(stateStoreProviderConfig);
             }
 
             final String functionWebServiceUrl = StringUtils.isNotBlank(workerConfig.getFunctionWebServiceUrl())
@@ -647,16 +652,28 @@ public class PulsarWorkerService implements WorkerService {
             functionAdmin.close();
         }
 
-        if (null != stateStoreAdminClient) {
-            stateStoreAdminClient.close();
-        }
-
         if (null != dlogNamespace) {
             dlogNamespace.close();
         }
 
         if (statsUpdater != null) {
             statsUpdater.shutdownNow();
+        }
+
+        if (null != stateStoreProvider) {
+            stateStoreProvider.close();
+        }
+
+        if (null != openTelemetry) {
+            openTelemetry.close();
+        }
+
+        if (null != functionsManager) {
+            functionsManager.close();
+        }
+
+        if (null != connectorsManager) {
+            connectorsManager.close();
         }
     }
 

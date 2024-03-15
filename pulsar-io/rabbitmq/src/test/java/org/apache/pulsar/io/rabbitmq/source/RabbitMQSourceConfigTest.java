@@ -18,7 +18,9 @@
  */
 package org.apache.pulsar.io.rabbitmq.source;
 
+import org.apache.pulsar.io.core.SourceContext;
 import org.apache.pulsar.io.rabbitmq.RabbitMQSourceConfig;
+import org.mockito.Mockito;
 import org.testng.annotations.Test;
 
 import java.io.File;
@@ -76,7 +78,50 @@ public class RabbitMQSourceConfigTest {
         map.put("prefetchGlobal", "false");
         map.put("passive", "true");
 
-        RabbitMQSourceConfig config = RabbitMQSourceConfig.load(map);
+        SourceContext sourceContext = Mockito.mock(SourceContext.class);
+        RabbitMQSourceConfig config = RabbitMQSourceConfig.load(map, sourceContext);
+        assertNotNull(config);
+        assertEquals("localhost", config.getHost());
+        assertEquals(Integer.parseInt("5672"), config.getPort());
+        assertEquals("/", config.getVirtualHost());
+        assertEquals("guest", config.getUsername());
+        assertEquals("guest", config.getPassword());
+        assertEquals("test-queue", config.getQueueName());
+        assertEquals("test-connection", config.getConnectionName());
+        assertEquals(Integer.parseInt("0"), config.getRequestedChannelMax());
+        assertEquals(Integer.parseInt("0"), config.getRequestedFrameMax());
+        assertEquals(Integer.parseInt("60000"), config.getConnectionTimeout());
+        assertEquals(Integer.parseInt("10000"), config.getHandshakeTimeout());
+        assertEquals(Integer.parseInt("60"), config.getRequestedHeartbeat());
+        assertEquals(Integer.parseInt("0"), config.getPrefetchCount());
+        assertEquals(false, config.isPrefetchGlobal());
+        assertEquals(false, config.isPrefetchGlobal());
+        assertEquals(true, config.isPassive());
+    }
+
+    @Test
+    public final void loadFromMapCredentialsFromSecretTest() throws IOException {
+        Map<String, Object> map = new HashMap<>();
+        map.put("host", "localhost");
+        map.put("port", "5672");
+        map.put("virtualHost", "/");
+        map.put("queueName", "test-queue");
+        map.put("connectionName", "test-connection");
+        map.put("requestedChannelMax", "0");
+        map.put("requestedFrameMax", "0");
+        map.put("connectionTimeout", "60000");
+        map.put("handshakeTimeout", "10000");
+        map.put("requestedHeartbeat", "60");
+        map.put("prefetchCount", "0");
+        map.put("prefetchGlobal", "false");
+        map.put("passive", "true");
+
+        SourceContext sourceContext = Mockito.mock(SourceContext.class);
+        Mockito.when(sourceContext.getSecret("username"))
+                .thenReturn("guest");
+        Mockito.when(sourceContext.getSecret("password"))
+                .thenReturn("guest");
+        RabbitMQSourceConfig config = RabbitMQSourceConfig.load(map, sourceContext);
         assertNotNull(config);
         assertEquals("localhost", config.getHost());
         assertEquals(Integer.parseInt("5672"), config.getPort());
@@ -115,12 +160,13 @@ public class RabbitMQSourceConfigTest {
         map.put("prefetchGlobal", "false");
         map.put("passive", "false");
 
-        RabbitMQSourceConfig config = RabbitMQSourceConfig.load(map);
+        SourceContext sourceContext = Mockito.mock(SourceContext.class);
+        RabbitMQSourceConfig config = RabbitMQSourceConfig.load(map, sourceContext);
         config.validate();
     }
 
-    @Test(expectedExceptions = NullPointerException.class,
-        expectedExceptionsMessageRegExp = "host property not set.")
+    @Test(expectedExceptions = IllegalArgumentException.class,
+        expectedExceptionsMessageRegExp = "host cannot be null")
     public final void missingHostValidateTest() throws IOException {
         Map<String, Object> map = new HashMap<>();
         map.put("port", "5672");
@@ -138,7 +184,8 @@ public class RabbitMQSourceConfigTest {
         map.put("prefetchGlobal", "false");
         map.put("passive", "false");
 
-        RabbitMQSourceConfig config = RabbitMQSourceConfig.load(map);
+        SourceContext sourceContext = Mockito.mock(SourceContext.class);
+        RabbitMQSourceConfig config = RabbitMQSourceConfig.load(map, sourceContext);
         config.validate();
     }
 
@@ -162,7 +209,8 @@ public class RabbitMQSourceConfigTest {
         map.put("prefetchGlobal", "false");
         map.put("passive", "false");
 
-        RabbitMQSourceConfig config = RabbitMQSourceConfig.load(map);
+        SourceContext sourceContext = Mockito.mock(SourceContext.class);
+        RabbitMQSourceConfig config = RabbitMQSourceConfig.load(map, sourceContext);
         config.validate();
     }
 

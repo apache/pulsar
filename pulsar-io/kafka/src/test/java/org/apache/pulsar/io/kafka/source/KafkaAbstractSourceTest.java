@@ -108,17 +108,37 @@ public class KafkaAbstractSourceTest {
     public void loadConsumerConfigPropertiesFromMapTest() throws Exception {
         Map<String, Object> config = new HashMap<>();
         config.put("consumerConfigProperties", "");
-        KafkaSourceConfig kafkaSourceConfig = KafkaSourceConfig.load(config);
+        config.put("bootstrapServers", "localhost:8080");
+        config.put("groupId", "test-group");
+        config.put("topic", "test-topic");
+        SourceContext sourceContext = Mockito.mock(SourceContext.class);
+        KafkaSourceConfig kafkaSourceConfig = KafkaSourceConfig.load(config, sourceContext);
         assertNotNull(kafkaSourceConfig);
         assertNull(kafkaSourceConfig.getConsumerConfigProperties());
 
         config.put("consumerConfigProperties", null);
-        kafkaSourceConfig = KafkaSourceConfig.load(config);
+        kafkaSourceConfig = KafkaSourceConfig.load(config, sourceContext);
         assertNull(kafkaSourceConfig.getConsumerConfigProperties());
 
         config.put("consumerConfigProperties", ImmutableMap.of("foo", "bar"));
-        kafkaSourceConfig = KafkaSourceConfig.load(config);
+        kafkaSourceConfig = KafkaSourceConfig.load(config, sourceContext);
         assertEquals(kafkaSourceConfig.getConsumerConfigProperties(), ImmutableMap.of("foo", "bar"));
+    }
+
+    @Test
+    public void loadSensitiveFieldsFromSecretTest() throws Exception {
+        Map<String, Object> config = new HashMap<>();
+        config.put("consumerConfigProperties", "");
+        config.put("bootstrapServers", "localhost:8080");
+        config.put("groupId", "test-group");
+        config.put("topic", "test-topic");
+        SourceContext sourceContext = Mockito.mock(SourceContext.class);
+        Mockito.when(sourceContext.getSecret("sslTruststorePassword"))
+                .thenReturn("xxxx");
+        KafkaSourceConfig kafkaSourceConfig = KafkaSourceConfig.load(config, sourceContext);
+        assertNotNull(kafkaSourceConfig);
+        assertNull(kafkaSourceConfig.getConsumerConfigProperties());
+        assertEquals("xxxx", kafkaSourceConfig.getSslTruststorePassword());
     }
 
     @Test

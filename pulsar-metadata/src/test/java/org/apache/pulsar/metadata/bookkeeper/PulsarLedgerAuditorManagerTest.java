@@ -77,6 +77,7 @@ public class PulsarLedgerAuditorManagerTest extends BaseMetadataStoreTest {
 
         methodSetup(urlSupplier);
 
+        @Cleanup
         LedgerAuditorManager lam1 = new PulsarLedgerAuditorManager(store1, ledgersRootPath);
         assertNull(lam1.getCurrentAuditor());
 
@@ -89,6 +90,7 @@ public class PulsarLedgerAuditorManagerTest extends BaseMetadataStoreTest {
         @Cleanup("shutdownNow")
         ExecutorService executor = Executors.newCachedThreadPool();
 
+        @Cleanup
         LedgerAuditorManager lam2 = new PulsarLedgerAuditorManager(store2, ledgersRootPath);
         assertEquals(lam2.getCurrentAuditor(), BookieId.parse("bookie-1:3181"));
 

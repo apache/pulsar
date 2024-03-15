@@ -63,7 +63,7 @@ public class WaterMarkEventGeneratorTest {
 
     @AfterMethod(alwaysRun = true)
     public void tearDown() {
-//        waterMarkEventGenerator.shutdown();
+        waterMarkEventGenerator.shutdown();
         eventList.clear();
     }
 

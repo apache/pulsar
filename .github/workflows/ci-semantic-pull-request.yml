@@ -53,7 +53,6 @@ jobs:
           # io      -> Pulsar Connectors
           # offload -> tiered storage
           # sec     -> security
-          # sql     -> Pulsar Trino Plugin
           # txn     -> transaction
           # ws      -> websocket
           # ml      -> managed ledger
@@ -79,12 +78,12 @@ jobs:
             schema
             sec
             site
-            sql
             storage
             test
             txn
             ws
             zk
+            pip
           # The pull request's title should be fulfilled the following pattern:
           #
           #     [<type>][<optional scope>] <description>

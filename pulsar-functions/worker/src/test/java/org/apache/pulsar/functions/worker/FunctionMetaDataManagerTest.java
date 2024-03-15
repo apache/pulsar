@@ -145,7 +145,7 @@ public class FunctionMetaDataManagerTest {
                 .setFunctionDetails(Function.FunctionDetails.newBuilder().setName("func-1")).build();
 
         // become leader
-        Producer<byte[]> exclusiveProducer = spy(functionMetaDataManager.acquireExclusiveWrite(() -> true));
+        Producer<byte[]> exclusiveProducer = functionMetaDataManager.acquireExclusiveWrite(() -> true);
         // make sure send msg fail
         functionMetaDataManager.acquireLeadership(exclusiveProducer);
         exclusiveProducer.close();

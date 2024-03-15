@@ -291,6 +291,7 @@ public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
 
             case REDELIVER_UNACKNOWLEDGED_MESSAGES:
                 checkArgument(cmd.hasRedeliverUnacknowledgedMessages());
+                safeInterceptCommand(cmd);
                 handleRedeliverUnacknowledged(cmd.getRedeliverUnacknowledgedMessages());
                 break;
 

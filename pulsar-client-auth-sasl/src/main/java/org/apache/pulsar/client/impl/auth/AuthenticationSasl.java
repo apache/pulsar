@@ -165,6 +165,12 @@ public class AuthenticationSasl implements Authentication, EncodedAuthentication
     public void close() throws IOException {
         if (client != null) {
             client.close();
+            client = null;
+        }
+        if (jaasCredentialsContainer != null) {
+            jaasCredentialsContainer.close();
+            jaasCredentialsContainer = null;
+            initializedJAAS = false;
         }
     }
 

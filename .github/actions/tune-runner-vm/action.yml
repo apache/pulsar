@@ -53,8 +53,8 @@ runs:
             # tune filesystem mount options, https://www.kernel.org/doc/Documentation/filesystems/ext4.txt
             # commit=999999, effectively disables automatic syncing to disk (default is every 5 seconds)
             # nobarrier/barrier=0, loosen data consistency on system crash (no negative impact to empheral CI nodes)
-            sudo mount -o remount,nodiscard,commit=999999,barrier=0 /
-            sudo mount -o remount,nodiscard,commit=999999,barrier=0 /mnt
+            sudo mount -o remount,nodiscard,commit=999999,barrier=0 / || true
+            sudo mount -o remount,nodiscard,commit=999999,barrier=0 /mnt || true
             # disable discard/trim at device level since remount with nodiscard doesn't seem to be effective
             # https://www.spinics.net/lists/linux-ide/msg52562.html
             for i in /sys/block/sd*/queue/discard_max_bytes; do

@@ -284,11 +284,12 @@ public class NonPersistentTopics extends PersistentTopics {
         }
     }
 
-    private Topic getTopicReference(TopicName topicName) {
+    private Topic getTopicReference(final TopicName topicName) {
         try {
             return pulsar().getBrokerService().getTopicIfExists(topicName.toString())
                     .get(config().getMetadataStoreOperationTimeoutSeconds(), TimeUnit.SECONDS)
-                    .orElseThrow(() -> new RestException(Status.NOT_FOUND, "Topic not found"));
+                    .orElseThrow(() -> new RestException(Status.NOT_FOUND,
+                            String.format("Topic not found %s", topicName.toString())));
         } catch (ExecutionException e) {
             throw new RuntimeException(e.getCause());
         } catch (InterruptedException | TimeoutException e) {

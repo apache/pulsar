@@ -65,7 +65,7 @@ public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
 
     @ApiModelProperty(
             name = "topicsPattern",
-            value = "Topic pattern"
+            value = "The regexp for the topic name(not contains partition suffix)."
     )
     private Pattern topicsPattern;
 

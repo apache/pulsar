@@ -25,6 +25,7 @@ import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.impl.ConsumerImpl;
 import org.apache.pulsar.client.impl.ProducerImpl;
+import org.awaitility.Awaitility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
@@ -90,14 +91,12 @@ public class ReplicatorGlobalNSTest extends ReplicatorTestBase {
 
         admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r2", "r3"));
 
-        MockedPulsarServiceBaseTest
-                .retryStrategically((test) -> !pulsar1.getBrokerService().getTopics().containsKey(topicName), 50, 150);
-
-        Assert.assertFalse(pulsar1.getBrokerService().getTopics().containsKey(topicName));
-        Assert.assertFalse(producer1.isConnected());
-        Assert.assertFalse(consumer1.isConnected());
-        Assert.assertTrue(consumer2.isConnected());
-
+        Awaitility.await().atMost(1, TimeUnit.MINUTES).untilAsserted(() -> {
+            Assert.assertFalse(pulsar1.getBrokerService().getTopics().containsKey(topicName));
+            Assert.assertFalse(producer1.isConnected());
+            Assert.assertFalse(consumer1.isConnected());
+            Assert.assertTrue(consumer2.isConnected());
+        });
     }
 
     @Test

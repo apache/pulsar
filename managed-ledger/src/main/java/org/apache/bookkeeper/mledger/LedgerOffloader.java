@@ -27,7 +27,7 @@ import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.common.annotation.InterfaceAudience;
 import org.apache.bookkeeper.common.annotation.InterfaceStability;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats;
-import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
+import org.apache.pulsar.common.policies.data.OffloadPolicies;
 
 /**
  * Interface for offloading ledgers to long-term storage.
@@ -212,7 +212,7 @@ public interface LedgerOffloader {
      *
      * @return offload policies
      */
-    OffloadPoliciesImpl getOffloadPolicies();
+    OffloadPolicies getOffloadPolicies();
 
     /**
      * Close the resources if necessary.

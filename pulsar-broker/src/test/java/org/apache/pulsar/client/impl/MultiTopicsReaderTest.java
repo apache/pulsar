@@ -211,7 +211,7 @@ public class MultiTopicsReaderTest extends MockedPulsarServiceBaseTest {
         reader.close();
     }
 
-    @Test(timeOut = 10000)
+    @Test
     public void testReaderWithTimeLong() throws Exception {
         String ns = "my-property/my-ns";
         String topic = "persistent://" + ns + "/testReadFromPartition" + UUID.randomUUID();

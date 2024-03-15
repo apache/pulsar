@@ -70,8 +70,9 @@ public class HierarchyTopicAutoCreationTest extends ProducerConsumerBase {
         Assert.assertEquals(nsAutoTopicCreationOverride, expectedPolicies);
         // Background invalidate cache
         final MetadataCache<Policies> nsCache = pulsar.getPulsarResources().getNamespaceResources().getCache();
+        @Cleanup("interrupt")
         final Thread t1 = new Thread(() -> {
-            while (true) {
+            while (!Thread.currentThread().isInterrupted()) {
                 nsCache.invalidate("/admin/policies/" + namespace);
             }
         });
@@ -90,7 +91,5 @@ public class HierarchyTopicAutoCreationTest extends ProducerConsumerBase {
         // double-check policies
         final AutoTopicCreationOverride actualPolicies2 = admin.namespaces().getAutoTopicCreation(namespace);
         Assert.assertEquals(actualPolicies2, expectedPolicies);
-
-        t1.interrupt();
     }
 }

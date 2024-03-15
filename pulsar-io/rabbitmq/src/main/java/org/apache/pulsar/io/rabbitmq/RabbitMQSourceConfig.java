@@ -28,6 +28,8 @@ import java.util.Map;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.experimental.Accessors;
+import org.apache.pulsar.io.common.IOConfigUtils;
+import org.apache.pulsar.io.core.SourceContext;
 import org.apache.pulsar.io.core.annotations.FieldDoc;
 
 @Data
@@ -66,9 +68,8 @@ public class RabbitMQSourceConfig extends RabbitMQAbstractConfig implements Seri
         return mapper.readValue(new File(yamlFile), RabbitMQSourceConfig.class);
     }
 
-    public static RabbitMQSourceConfig load(Map<String, Object> map) throws IOException {
-        ObjectMapper mapper = new ObjectMapper();
-        return mapper.readValue(mapper.writeValueAsString(map), RabbitMQSourceConfig.class);
+    public static RabbitMQSourceConfig load(Map<String, Object> map, SourceContext sourceContext) throws IOException {
+        return IOConfigUtils.loadWithSecrets(map, RabbitMQSourceConfig.class, sourceContext);
     }
 
     @Override

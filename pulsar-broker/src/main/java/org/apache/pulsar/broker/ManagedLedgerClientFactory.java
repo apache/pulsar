@@ -112,8 +112,14 @@ public class ManagedLedgerClientFactory implements ManagedLedgerStorage {
             return bkClient != null ? bkClient : defaultBkClient;
         };
 
-        this.managedLedgerFactory =
-                new ManagedLedgerFactoryImpl(metadataStore, bkFactory, managedLedgerFactoryConfig, statsLogger);
+        try {
+            this.managedLedgerFactory =
+                    new ManagedLedgerFactoryImpl(metadataStore, bkFactory, managedLedgerFactoryConfig, statsLogger);
+        } catch (Exception e) {
+            statsProvider.stop();
+            defaultBkClient.close();
+            throw e;
+        }
     }
 
     public ManagedLedgerFactory getManagedLedgerFactory() {

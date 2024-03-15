@@ -25,6 +25,7 @@ import java.util.Map;
 import java.util.function.Supplier;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.common.naming.TopicDomain;
 import org.testng.annotations.DataProvider;
 
 import java.util.stream.Stream;
@@ -83,6 +84,20 @@ public abstract class PulsarClusterTestBase extends PulsarTestBase {
                         stringSupplier(() -> getPulsarCluster().getPlainTextServiceUrl()),
                         stringSupplier(() -> getPulsarCluster().getHttpServiceUrl())
                 }
+        };
+    }
+
+    @DataProvider
+    public Object[][] serviceUrlAndTopicDomain() {
+        return new Object[][] {
+                {
+                        stringSupplier(() -> getPulsarCluster().getPlainTextServiceUrl()),
+                        TopicDomain.persistent
+                },
+                {
+                        stringSupplier(() -> getPulsarCluster().getPlainTextServiceUrl()),
+                        TopicDomain.non_persistent
+                },
         };
     }
 

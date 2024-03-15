@@ -90,7 +90,7 @@ public interface ManagedLedgerFactory {
      *            opaque context
      */
     void asyncOpen(String name, ManagedLedgerConfig config, OpenLedgerCallback callback,
-            Supplier<Boolean> mlOwnershipChecker, Object ctx);
+            Supplier<CompletableFuture<Boolean>> mlOwnershipChecker, Object ctx);
 
     /**
      * Open a {@link ReadOnlyCursor} positioned to the earliest entry for the specified managed ledger.

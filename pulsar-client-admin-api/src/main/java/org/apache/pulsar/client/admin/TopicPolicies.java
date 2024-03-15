@@ -1913,4 +1913,20 @@ public interface TopicPolicies {
      *            Topic name
      */
     CompletableFuture<Void> removeAutoSubscriptionCreationAsync(String topic);
+
+    /**
+     * After enabling this feature, Pulsar will stop delivery messages to clients if the cursor metadata is too large to
+     * # persist, it will help to reduce the duplicates caused by the ack state that can not be fully persistent.
+     */
+    CompletableFuture<Void> setDispatcherPauseOnAckStatePersistent(String topic);
+
+    /**
+     * Removes the dispatcherPauseOnAckStatePersistentEnabled policy for a given topic asynchronously.
+     */
+    CompletableFuture<Void> removeDispatcherPauseOnAckStatePersistent(String topic);
+
+    /**
+     * Get the dispatcherPauseOnAckStatePersistentEnabled policy for a given topic asynchronously.
+     */
+    CompletableFuture<Boolean> getDispatcherPauseOnAckStatePersistent(String topic, boolean applied);
 }

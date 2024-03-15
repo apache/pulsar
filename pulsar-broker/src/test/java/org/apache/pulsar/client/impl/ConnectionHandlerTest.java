@@ -47,20 +47,21 @@ public class ConnectionHandlerTest extends ProducerConsumerBase {
     private static final Backoff BACKOFF = new BackoffBuilder().setInitialTime(1, TimeUnit.MILLISECONDS)
             .setMandatoryStop(1, TimeUnit.SECONDS)
             .setMax(3, TimeUnit.SECONDS).create();
-    private final ExecutorService executor = Executors.newFixedThreadPool(4);
+    private ExecutorService executor;
 
     @BeforeClass(alwaysRun = true)
     @Override
     protected void setup() throws Exception {
         super.internalSetup();
         super.producerBaseSetup();
+        executor = Executors.newFixedThreadPool(4);
     }
 
     @AfterClass
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
-        executor.shutdown();
+        executor.shutdownNow();
     }
 
     @Test(timeOut = 30000)

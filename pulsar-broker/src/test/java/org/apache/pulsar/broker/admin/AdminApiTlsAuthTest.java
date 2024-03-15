@@ -35,6 +35,7 @@ import javax.ws.rs.client.ClientBuilder;
 import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.GenericType;
 import javax.ws.rs.core.MediaType;
+import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang.mutable.MutableBoolean;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
@@ -197,6 +198,7 @@ public class AdminApiTlsAuthTest extends MockedPulsarServiceBaseTest {
                 .getPartitionedTopicResources()
                 .createPartitionedTopic(SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN,
                         new PartitionedTopicMetadata(3));
+        @Cleanup
         PulsarAdmin admin = buildAdminClient("admin");
         admin.transactions().scaleTransactionCoordinators(4);
         int partitions = pulsar.getPulsarResources()
@@ -472,6 +474,7 @@ public class AdminApiTlsAuthTest extends MockedPulsarServiceBaseTest {
         int autoCertRefreshTimeSec = 1;
         try {
             Files.copy(Paths.get(getTlsFileForClient(user2 + ".key-pk8")), keyFilePath, StandardCopyOption.REPLACE_EXISTING);
+            @Cleanup
             PulsarAdmin admin = PulsarAdmin.builder()
                     .allowTlsInsecureConnection(false)
                     .enableTlsHostnameVerification(false)
@@ -506,8 +509,7 @@ public class AdminApiTlsAuthTest extends MockedPulsarServiceBaseTest {
             }, 5, 1000);
             Assert.assertTrue(success.booleanValue());
             Assert.assertEquals(Set.of("tenantX"), admin.tenants().getTenants());
-            admin.close();
-        }finally {
+        } finally {
             Files.delete(keyFile.toPath());
         }
     }

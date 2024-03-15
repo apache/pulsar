@@ -21,6 +21,8 @@ package org.apache.pulsar.common.topics;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.common.classification.InterfaceAudience;
+import org.apache.pulsar.common.classification.InterfaceStability;
 
 /**
  * Defines a custom strategy to compact messages in a topic.
@@ -45,6 +47,8 @@ import org.apache.pulsar.client.api.Schema;
  *                         "topicCompactionStrategyClassName", strategy.getClass().getCanonicalName()))
  *                 .create();
  */
+@InterfaceAudience.Private
+@InterfaceStability.Unstable
 public interface TopicCompactionStrategy<T> {
 
     String TABLE_VIEW_TAG = "table-view";

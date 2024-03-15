@@ -76,7 +76,7 @@ public class SaslRoleTokenSigner {
         String originalSignature = signedStr.substring(index + SIGNATURE.length());
         String rawValue = signedStr.substring(0, index);
         String currentSignature = computeSignature(rawValue);
-        if (!originalSignature.equals(currentSignature)) {
+        if (!MessageDigest.isEqual(originalSignature.getBytes(), currentSignature.getBytes())){
             throw new AuthenticationException("Invalid signature");
         }
         return rawValue;

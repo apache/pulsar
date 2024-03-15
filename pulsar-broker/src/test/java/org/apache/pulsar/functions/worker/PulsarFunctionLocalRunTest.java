@@ -538,15 +538,15 @@ public class PulsarFunctionLocalRunTest {
                 totalMsgs);
 
         // validate prometheus metrics
-        String prometheusMetrics = PulsarFunctionTestUtils.getPrometheusMetrics(metricsPort);
+        String prometheusMetrics = TestPulsarFunctionUtils.getPrometheusMetrics(metricsPort);
         log.info("prometheus metrics: {}", prometheusMetrics);
 
-        Map<String, PulsarFunctionTestUtils.Metric> metricsMap = new HashMap<>();
+        Map<String, TestPulsarFunctionUtils.Metric> metricsMap = new HashMap<>();
         Arrays.asList(prometheusMetrics.split("\n")).forEach(line -> {
             if (line.startsWith("pulsar_function_processed_successfully_total")) {
-                Map<String, PulsarFunctionTestUtils.Metric> metrics = PulsarFunctionTestUtils.parseMetrics(line);
+                Map<String, TestPulsarFunctionUtils.Metric> metrics = TestPulsarFunctionUtils.parseMetrics(line);
                 assertFalse(metrics.isEmpty());
-                PulsarFunctionTestUtils.Metric m = metrics.get("pulsar_function_processed_successfully_total");
+                TestPulsarFunctionUtils.Metric m = metrics.get("pulsar_function_processed_successfully_total");
                 if (m != null) {
                     metricsMap.put(m.tags.get("instance_id"), m);
                 }
@@ -556,7 +556,7 @@ public class PulsarFunctionLocalRunTest {
 
         double totalMsgRecv = 0.0;
         for (int i = 0; i < parallelism; i++) {
-            PulsarFunctionTestUtils.Metric m = metricsMap.get(String.valueOf(i));
+            TestPulsarFunctionUtils.Metric m = metricsMap.get(String.valueOf(i));
             Assert.assertNotNull(m);
             assertEquals(m.tags.get("cluster"), config.getClusterName());
             assertEquals(m.tags.get("instance_id"), String.valueOf(i));
@@ -843,15 +843,15 @@ public class PulsarFunctionLocalRunTest {
         assertEquals(admin.topics().getStats(sinkTopic).getPublishers().size(), parallelism);
 
         // validate prometheus metrics
-        String prometheusMetrics = PulsarFunctionTestUtils.getPrometheusMetrics(metricsPort);
+        String prometheusMetrics = TestPulsarFunctionUtils.getPrometheusMetrics(metricsPort);
         log.info("prometheus metrics: {}", prometheusMetrics);
 
-        Map<String, PulsarFunctionTestUtils.Metric> metricsMap = new HashMap<>();
+        Map<String, TestPulsarFunctionUtils.Metric> metricsMap = new HashMap<>();
         Arrays.asList(prometheusMetrics.split("\n")).forEach(line -> {
             if (line.startsWith("pulsar_source_written_total")) {
-                Map<String, PulsarFunctionTestUtils.Metric> metrics = PulsarFunctionTestUtils.parseMetrics(line);
+                Map<String, TestPulsarFunctionUtils.Metric> metrics = TestPulsarFunctionUtils.parseMetrics(line);
                 assertFalse(metrics.isEmpty());
-                PulsarFunctionTestUtils.Metric m = metrics.get("pulsar_source_written_total");
+                TestPulsarFunctionUtils.Metric m = metrics.get("pulsar_source_written_total");
                 if (m != null) {
                     metricsMap.put(m.tags.get("instance_id"), m);
                 }
@@ -860,7 +860,7 @@ public class PulsarFunctionLocalRunTest {
         Assert.assertEquals(metricsMap.size(), parallelism);
 
         for (int i = 0; i < parallelism; i++) {
-            PulsarFunctionTestUtils.Metric m = metricsMap.get(String.valueOf(i));
+            TestPulsarFunctionUtils.Metric m = metricsMap.get(String.valueOf(i));
             Assert.assertNotNull(m);
             assertEquals(m.tags.get("cluster"), config.getClusterName());
             assertEquals(m.tags.get("instance_id"), String.valueOf(i));
@@ -1002,22 +1002,22 @@ public class PulsarFunctionLocalRunTest {
         }, 5, 200));
 
         // validate prometheus metrics
-        String prometheusMetrics = PulsarFunctionTestUtils.getPrometheusMetrics(metricsPort);
+        String prometheusMetrics = TestPulsarFunctionUtils.getPrometheusMetrics(metricsPort);
         log.info("prometheus metrics: {}", prometheusMetrics);
 
-        Map<String, PulsarFunctionTestUtils.Metric> metricsMap = new HashMap<>();
+        Map<String, TestPulsarFunctionUtils.Metric> metricsMap = new HashMap<>();
         Arrays.asList(prometheusMetrics.split("\n")).forEach(line -> {
             if (line.startsWith("pulsar_sink_written_total")) {
-                Map<String, PulsarFunctionTestUtils.Metric> metrics = PulsarFunctionTestUtils.parseMetrics(line);
+                Map<String, TestPulsarFunctionUtils.Metric> metrics = TestPulsarFunctionUtils.parseMetrics(line);
                 assertFalse(metrics.isEmpty());
-                PulsarFunctionTestUtils.Metric m = metrics.get("pulsar_sink_written_total");
+                TestPulsarFunctionUtils.Metric m = metrics.get("pulsar_sink_written_total");
                 if (m != null) {
                     metricsMap.put(m.tags.get("instance_id"), m);
                 }
             } else if (line.startsWith("pulsar_sink_sink_exceptions_total")) {
-                Map<String, PulsarFunctionTestUtils.Metric> metrics = PulsarFunctionTestUtils.parseMetrics(line);
+                Map<String, TestPulsarFunctionUtils.Metric> metrics = TestPulsarFunctionUtils.parseMetrics(line);
                 assertFalse(metrics.isEmpty());
-                PulsarFunctionTestUtils.Metric m = metrics.get("pulsar_sink_sink_exceptions_total");
+                TestPulsarFunctionUtils.Metric m = metrics.get("pulsar_sink_sink_exceptions_total");
                 if (m == null) {
                     m = metrics.get("pulsar_sink_sink_exceptions_1min_total");
                 }
@@ -1028,7 +1028,7 @@ public class PulsarFunctionLocalRunTest {
 
         double totalNumRecvMsg = 0;
         for (int i = 0; i < parallelism; i++) {
-            PulsarFunctionTestUtils.Metric m = metricsMap.get(String.valueOf(i));
+            TestPulsarFunctionUtils.Metric m = metricsMap.get(String.valueOf(i));
             Assert.assertNotNull(m);
             assertEquals(m.tags.get("cluster"), config.getClusterName());
             assertEquals(m.tags.get("instance_id"), String.valueOf(i));

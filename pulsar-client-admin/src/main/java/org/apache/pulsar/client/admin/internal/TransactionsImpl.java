@@ -283,4 +283,17 @@ public class TransactionsImpl extends BaseResource implements Transactions {
             throws PulsarAdminException {
         return sync(() -> getPositionStatsInPendingAckAsync(topic, subName, ledgerId, entryId, batchIndex));
     }
+
+    @Override
+    public CompletableFuture<Void> abortTransactionAsync(TxnID txnID)  {
+        WebTarget path = adminV3Transactions.path("abortTransaction");
+        path = path.path(String.valueOf(txnID.getMostSigBits()));
+        path = path.path(String.valueOf(txnID.getLeastSigBits()));
+        return asyncPostRequest(path, Entity.entity("", MediaType.APPLICATION_JSON));
+    }
+
+    @Override
+    public void abortTransaction(TxnID txnID) throws PulsarAdminException {
+        sync(() -> abortTransactionAsync(txnID));
+    }
 }

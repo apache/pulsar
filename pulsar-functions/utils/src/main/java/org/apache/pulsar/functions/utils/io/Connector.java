@@ -20,17 +20,79 @@ package org.apache.pulsar.functions.utils.io;
 
 import java.nio.file.Path;
 import java.util.List;
-import lombok.Builder;
-import lombok.Data;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.common.io.ConfigFieldDefinition;
 import org.apache.pulsar.common.io.ConnectorDefinition;
+import org.apache.pulsar.functions.utils.FunctionFilePackage;
+import org.apache.pulsar.functions.utils.ValidatableFunctionPackage;
 
-@Builder
-@Data
-public class Connector {
-    private Path archivePath;
+public class Connector implements AutoCloseable {
+    private final Path archivePath;
+    private final String narExtractionDirectory;
+    private final boolean enableClassloading;
+    private ValidatableFunctionPackage connectorFunctionPackage;
     private List<ConfigFieldDefinition> sourceConfigFieldDefinitions;
     private List<ConfigFieldDefinition> sinkConfigFieldDefinitions;
-    private ClassLoader classLoader;
     private ConnectorDefinition connectorDefinition;
+    private boolean closed;
+
+    public Connector(Path archivePath, ConnectorDefinition connectorDefinition, String narExtractionDirectory,
+                     boolean enableClassloading) {
+        this.archivePath = archivePath;
+        this.connectorDefinition = connectorDefinition;
+        this.narExtractionDirectory = narExtractionDirectory;
+        this.enableClassloading = enableClassloading;
+    }
+
+    public Path getArchivePath() {
+        return archivePath;
+    }
+
+    public synchronized ValidatableFunctionPackage getConnectorFunctionPackage() {
+        checkState();
+        if (connectorFunctionPackage == null) {
+            connectorFunctionPackage =
+                    new FunctionFilePackage(archivePath.toFile(), narExtractionDirectory, enableClassloading,
+                            ConnectorDefinition.class);
+        }
+        return connectorFunctionPackage;
+    }
+
+    private void checkState() {
+        if (closed) {
+            throw new IllegalStateException("Connector is already closed");
+        }
+    }
+
+    public synchronized List<ConfigFieldDefinition> getSourceConfigFieldDefinitions() {
+        checkState();
+        if (sourceConfigFieldDefinitions == null && !StringUtils.isEmpty(connectorDefinition.getSourceClass())
+                && !StringUtils.isEmpty(connectorDefinition.getSourceConfigClass())) {
+            sourceConfigFieldDefinitions = ConnectorUtils.getConnectorConfigDefinition(getConnectorFunctionPackage(),
+                    connectorDefinition.getSourceConfigClass());
+        }
+        return sourceConfigFieldDefinitions;
+    }
+
+    public synchronized List<ConfigFieldDefinition> getSinkConfigFieldDefinitions() {
+        checkState();
+        if (sinkConfigFieldDefinitions == null && !StringUtils.isEmpty(connectorDefinition.getSinkClass())
+                && !StringUtils.isEmpty(connectorDefinition.getSinkConfigClass())) {
+            sinkConfigFieldDefinitions = ConnectorUtils.getConnectorConfigDefinition(getConnectorFunctionPackage(),
+                    connectorDefinition.getSinkConfigClass());
+        }
+        return sinkConfigFieldDefinitions;
+    }
+
+    public ConnectorDefinition getConnectorDefinition() {
+        return connectorDefinition;
+    }
+
+    @Override
+    public synchronized void close() throws Exception {
+        closed = true;
+        if (connectorFunctionPackage instanceof AutoCloseable) {
+            ((AutoCloseable) connectorFunctionPackage).close();
+        }
+    }
 }

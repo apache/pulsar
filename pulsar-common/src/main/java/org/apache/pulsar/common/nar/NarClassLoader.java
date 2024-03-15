@@ -154,6 +154,11 @@ public class NarClassLoader extends URLClassLoader {
         });
     }
 
+    public static List<File> getClasspathFromArchive(File narPath, String narExtractionDirectory) throws IOException {
+        File unpacked = NarUnpacker.unpackNar(narPath, getNarExtractionDirectory(narExtractionDirectory));
+        return getClassPathEntries(unpacked);
+    }
+
     private static File getNarExtractionDirectory(String configuredDirectory) {
         return new File(configuredDirectory + "/" + TMP_DIR_PREFIX);
     }
@@ -164,16 +169,11 @@ public class NarClassLoader extends URLClassLoader {
      * @param narWorkingDirectory
      *            directory to explode nar contents to
      * @param parent
-     * @throws IllegalArgumentException
-     *             if the NAR is missing the Java Services API file for <tt>FlowFileProcessor</tt> implementations.
-     * @throws ClassNotFoundException
-     *             if any of the <tt>FlowFileProcessor</tt> implementations defined by the Java Services API cannot be
-     *             loaded.
      * @throws IOException
      *             if an error occurs while loading the NAR.
      */
     private NarClassLoader(final File narWorkingDirectory, Set<String> additionalJars, ClassLoader parent)
-            throws ClassNotFoundException, IOException {
+            throws IOException {
         super(new URL[0], parent);
         this.narWorkingDirectory = narWorkingDirectory;
 
@@ -238,22 +238,31 @@ public class NarClassLoader extends URLClassLoader {
      *             if the URL list could not be updated.
      */
     private void updateClasspath(File root) throws IOException {
-        addURL(root.toURI().toURL()); // for compiled classes, META-INF/, etc.
+        getClassPathEntries(root).forEach(f -> {
+            try {
+                addURL(f.toURI().toURL());
+            } catch (IOException e) {
+                log.error("Failed to add entry to classpath: {}", f, e);
+            }
+        });
+    }
 
+    static List<File> getClassPathEntries(File root) {
+        List<File> classPathEntries = new ArrayList<>();
+        classPathEntries.add(root);
         File dependencies = new File(root, "META-INF/bundled-dependencies");
         if (!dependencies.isDirectory()) {
-            log.warn("{} does not contain META-INF/bundled-dependencies!", narWorkingDirectory);
+            log.warn("{} does not contain META-INF/bundled-dependencies!", root);
         }
-        addURL(dependencies.toURI().toURL());
+        classPathEntries.add(dependencies);
         if (dependencies.isDirectory()) {
             final File[] jarFiles = dependencies.listFiles(JAR_FILTER);
             if (jarFiles != null) {
                 Arrays.sort(jarFiles, Comparator.comparing(File::getName));
-                for (File libJar : jarFiles) {
-                    addURL(libJar.toURI().toURL());
-                }
+                classPathEntries.addAll(Arrays.asList(jarFiles));
             }
         }
+        return classPathEntries;
     }
 
     @Override

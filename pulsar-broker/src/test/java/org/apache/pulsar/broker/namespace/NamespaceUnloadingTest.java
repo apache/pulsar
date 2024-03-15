@@ -22,8 +22,12 @@ import static org.testng.Assert.assertTrue;
 
 import com.google.common.collect.Sets;
 
+import lombok.Cleanup;
 import org.apache.pulsar.broker.service.BrokerTestBase;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.Schema;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -34,6 +38,9 @@ public class NamespaceUnloadingTest extends BrokerTestBase {
     @BeforeMethod
     @Override
     protected void setup() throws Exception {
+        conf.setTopicLevelPoliciesEnabled(true);
+        conf.setForceDeleteNamespaceAllowed(true);
+        conf.setTopicLoadTimeoutSeconds(Integer.MAX_VALUE);
         super.baseSetup();
     }
 
@@ -66,6 +73,28 @@ public class NamespaceUnloadingTest extends BrokerTestBase {
         admin.namespaces().unload("prop/ns-test-2");
 
         producer.close();
+    }
+
+    @Test
+    public void testUnloadWithTopicCreation() throws PulsarAdminException, PulsarClientException {
+        final String namespaceName = "prop/ns_unloading";
+        final String topicName = "persistent://prop/ns_unloading/with_topic_creation";
+        final int partitions = 5;
+        admin.namespaces().createNamespace(namespaceName, 1);
+        admin.topics().createPartitionedTopic(topicName, partitions);
+        @Cleanup
+        Producer<Integer> producer = pulsarClient.newProducer(Schema.INT32)
+                .topic(topicName)
+                .create();
+
+        for (int i = 0; i < 100; i++) {
+            admin.namespaces().unloadNamespaceBundle(namespaceName, "0x00000000_0xffffffff");
+        }
+
+        for (int i = 0; i < partitions; i++) {
+            producer.send(i);
+        }
+        admin.namespaces().deleteNamespace(namespaceName, true);
     }
 
 }

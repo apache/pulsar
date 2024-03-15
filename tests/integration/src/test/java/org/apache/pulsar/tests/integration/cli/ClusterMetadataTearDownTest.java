@@ -69,7 +69,6 @@ public class ClusterMetadataTearDownTest extends TestRetrySupport {
             .clusterName("ClusterMetadataTearDownTest-" + UUID.randomUUID().toString().substring(0, 8))
             .numProxies(0)
             .numFunctionWorkers(0)
-            .enablePrestoWorker(false)
             .build();
 
     private PulsarCluster pulsarCluster;

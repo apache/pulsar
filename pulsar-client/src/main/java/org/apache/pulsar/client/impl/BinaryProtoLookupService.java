@@ -26,11 +26,12 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
-import org.apache.commons.lang3.tuple.Pair;
+import org.apache.commons.lang3.mutable.MutableObject;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespace.Mode;
@@ -55,6 +56,12 @@ public class BinaryProtoLookupService implements LookupService {
     private final ExecutorService executor;
     private final String listenerName;
     private final int maxLookupRedirects;
+
+    private final ConcurrentHashMap<TopicName, CompletableFuture<LookupTopicResult>>
+            lookupInProgress = new ConcurrentHashMap<>();
+
+    private final ConcurrentHashMap<TopicName, CompletableFuture<PartitionedTopicMetadata>>
+            partitionedMetadataInProgress = new ConcurrentHashMap<>();
 
     public BinaryProtoLookupService(PulsarClientImpl client,
                                     String serviceUrl,
@@ -91,8 +98,22 @@ public class BinaryProtoLookupService implements LookupService {
      *            topic-name
      * @return broker-socket-address that serves given topic
      */
-    public CompletableFuture<Pair<InetSocketAddress, InetSocketAddress>> getBroker(TopicName topicName) {
-        return findBroker(serviceNameResolver.resolveHost(), false, topicName, 0);
+    public CompletableFuture<LookupTopicResult> getBroker(TopicName topicName) {
+        final MutableObject<CompletableFuture> newFutureCreated = new MutableObject<>();
+        try {
+            return lookupInProgress.computeIfAbsent(topicName, tpName -> {
+                CompletableFuture<LookupTopicResult> newFuture =
+                        findBroker(serviceNameResolver.resolveHost(), false, topicName, 0);
+                newFutureCreated.setValue(newFuture);
+                return newFuture;
+            });
+        } finally {
+            if (newFutureCreated.getValue() != null) {
+                newFutureCreated.getValue().whenComplete((v, ex) -> {
+                    lookupInProgress.remove(topicName, newFutureCreated.getValue());
+                });
+            }
+        }
     }
 
     /**
@@ -100,12 +121,26 @@ public class BinaryProtoLookupService implements LookupService {
      *
      */
     public CompletableFuture<PartitionedTopicMetadata> getPartitionedTopicMetadata(TopicName topicName) {
-        return getPartitionedTopicMetadata(serviceNameResolver.resolveHost(), topicName);
+        final MutableObject<CompletableFuture> newFutureCreated = new MutableObject<>();
+        try {
+            return partitionedMetadataInProgress.computeIfAbsent(topicName, tpName -> {
+                CompletableFuture<PartitionedTopicMetadata> newFuture =
+                        getPartitionedTopicMetadata(serviceNameResolver.resolveHost(), topicName);
+                newFutureCreated.setValue(newFuture);
+                return newFuture;
+            });
+        } finally {
+            if (newFutureCreated.getValue() != null) {
+                newFutureCreated.getValue().whenComplete((v, ex) -> {
+                    partitionedMetadataInProgress.remove(topicName, newFutureCreated.getValue());
+                });
+            }
+        }
     }
 
-    private CompletableFuture<Pair<InetSocketAddress, InetSocketAddress>> findBroker(InetSocketAddress socketAddress,
+    private CompletableFuture<LookupTopicResult> findBroker(InetSocketAddress socketAddress,
             boolean authoritative, TopicName topicName, final int redirectCount) {
-        CompletableFuture<Pair<InetSocketAddress, InetSocketAddress>> addressFuture = new CompletableFuture<>();
+        CompletableFuture<LookupTopicResult> addressFuture = new CompletableFuture<>();
 
         if (maxLookupRedirects > 0 && redirectCount > maxLookupRedirects) {
             addressFuture.completeExceptionally(
@@ -123,7 +158,6 @@ public class BinaryProtoLookupService implements LookupService {
                     if (log.isDebugEnabled()) {
                         log.debug("[{}] Lookup response exception: {}", topicName, t);
                     }
-
                     addressFuture.completeExceptionally(t);
                 } else {
                     URI uri = null;
@@ -162,10 +196,12 @@ public class BinaryProtoLookupService implements LookupService {
                             // (3) received correct broker to connect
                             if (r.proxyThroughServiceUrl) {
                                 // Connect through proxy
-                                addressFuture.complete(Pair.of(responseBrokerAddress, socketAddress));
+                                addressFuture.complete(
+                                        new LookupTopicResult(responseBrokerAddress, socketAddress, true));
                             } else {
                                 // Normal result with direct connection to broker
-                                addressFuture.complete(Pair.of(responseBrokerAddress, responseBrokerAddress));
+                                addressFuture.complete(
+                                        new LookupTopicResult(responseBrokerAddress, responseBrokerAddress, false));
                             }
                         }
 

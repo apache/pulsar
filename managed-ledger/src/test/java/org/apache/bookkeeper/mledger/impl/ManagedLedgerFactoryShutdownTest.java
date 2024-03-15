@@ -34,6 +34,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
+import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.client.AsyncCallback;
 import org.apache.bookkeeper.client.BookKeeper;
@@ -130,6 +131,7 @@ public class ManagedLedgerFactoryShutdownTest {
 
         LedgerHandle ledgerHandle = mock(LedgerHandle.class);
         LedgerHandle newLedgerHandle = mock(LedgerHandle.class);
+        @Cleanup("shutdownNow")
         OrderedExecutor executor = OrderedExecutor.newBuilder().name("Test").build();
         given(bookKeeper.getMainWorkerPool()).willReturn(executor);
         doAnswer(inv -> {

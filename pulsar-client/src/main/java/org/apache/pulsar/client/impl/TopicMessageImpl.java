@@ -47,7 +47,7 @@ public class TopicMessageImpl<T> implements Message<T> {
     }
 
     /**
-     * Get the topic name without partition part of this message.
+     * Get the topic name with partition part of this message.
      * @return the name of the topic on which this message was published
      */
     @Override

@@ -18,7 +18,10 @@
  */
 package org.apache.pulsar.broker.service;
 
-import static org.testng.Assert.assertTrue;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import org.apache.pulsar.broker.qos.AsyncTokenBucket;
 import org.testng.annotations.Test;
 
 public class PublishRateLimiterDisableTest {
@@ -26,7 +29,9 @@ public class PublishRateLimiterDisableTest {
     // GH issue #10603
     @Test
     void shouldAlwaysAllowAcquire() {
-        PublishRateLimiterDisable publishRateLimiter = PublishRateLimiterDisable.DISABLED_RATE_LIMITER;
-        assertTrue(publishRateLimiter.tryAcquire(Integer.MAX_VALUE, Long.MAX_VALUE));
+        PublishRateLimiter publishRateLimiter = new PublishRateLimiterImpl(AsyncTokenBucket.DEFAULT_SNAPSHOT_CLOCK);
+        Producer producer = mock(Producer.class);
+        publishRateLimiter.handlePublishThrottling(producer, Integer.MAX_VALUE, Long.MAX_VALUE);
+        verify(producer, never()).incrementThrottleCount();
     }
 }

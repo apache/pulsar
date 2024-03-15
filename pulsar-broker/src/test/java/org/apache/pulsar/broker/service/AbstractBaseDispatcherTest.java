@@ -37,6 +37,7 @@ import org.apache.bookkeeper.mledger.impl.EntryImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLookupData;
 import org.apache.pulsar.broker.service.persistent.DispatchRateLimiter;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
@@ -117,7 +118,7 @@ public class AbstractBaseDispatcherTest {
 
         int size = this.helper.filterEntriesForConsumer(entries, batchSizes, sendMessageInfo, null, cursor, false, null);
         assertEquals(size, 0);
-        verify(subscriptionDispatchRateLimiter).tryDispatchPermit(1, expectedBytePermits);
+        verify(subscriptionDispatchRateLimiter).consumeDispatchQuota(1, expectedBytePermits);
     }
 
     @Test
@@ -279,7 +280,8 @@ public class AbstractBaseDispatcherTest {
         }
 
         @Override
-        public CompletableFuture<Void> close() {
+        public CompletableFuture<Void> close(boolean disconnectConsumers,
+                                             Optional<BrokerLookupData> assignedBrokerLookupData) {
             return null;
         }
 
@@ -294,7 +296,8 @@ public class AbstractBaseDispatcherTest {
         }
 
         @Override
-        public CompletableFuture<Void> disconnectAllConsumers(boolean isResetCursor) {
+        public CompletableFuture<Void> disconnectAllConsumers(boolean isResetCursor,
+                                                              Optional<BrokerLookupData> assignedBrokerLookupData) {
             return null;
         }
 

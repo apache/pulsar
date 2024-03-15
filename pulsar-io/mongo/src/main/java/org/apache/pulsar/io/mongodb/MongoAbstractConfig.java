@@ -24,7 +24,6 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import java.io.Serializable;
 import lombok.Data;
 import lombok.experimental.Accessors;
-import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.io.core.annotations.FieldDoc;
 
 /**
@@ -42,6 +41,7 @@ public abstract class MongoAbstractConfig implements Serializable {
 
     @FieldDoc(
             required = true,
+            sensitive = true, // it may contain password
             defaultValue = "",
             help = "The URI of MongoDB that the connector connects to "
                     + "(see: https://docs.mongodb.com/manual/reference/connection-string/)"
@@ -95,7 +95,6 @@ public abstract class MongoAbstractConfig implements Serializable {
     }
 
     public void validate() {
-        checkArgument(!StringUtils.isEmpty(getMongoUri()), "Required MongoDB URI is not set.");
         checkArgument(getBatchSize() > 0, "batchSize must be a positive integer.");
         checkArgument(getBatchTimeMs() > 0, "batchTimeMs must be a positive long.");
     }

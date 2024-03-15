@@ -18,11 +18,14 @@
  */
 package org.apache.pulsar.bookie.rackawareness;
 
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.collect.Sets;
 import io.netty.util.HashedWheelTimer;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -34,18 +37,23 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import org.apache.bookkeeper.client.BKException.BKNotEnoughBookiesException;
 import org.apache.bookkeeper.conf.ClientConfiguration;
 import org.apache.bookkeeper.feature.SettableFeatureProvider;
 import org.apache.bookkeeper.net.BookieId;
 import org.apache.bookkeeper.net.BookieSocketAddress;
 import org.apache.bookkeeper.stats.NullStatsLogger;
+import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.pulsar.common.policies.data.BookieInfo;
+import org.apache.pulsar.common.policies.data.BookiesRackConfiguration;
 import org.apache.pulsar.common.policies.data.EnsemblePlacementPolicyConfig;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.MetadataStoreFactory;
+import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
+import org.apache.pulsar.metadata.cache.impl.MetadataCacheImpl;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
@@ -112,6 +120,113 @@ public class IsolatedBookieEnsemblePlacementPolicyTest {
         List<BookieId> ensemble = isolationPolicy.newEnsemble(2, 2, 2, Collections.emptyMap(), new HashSet<>()).getResult();
         assertFalse(ensemble.contains(new BookieSocketAddress(BOOKIE3).toBookieId()));
         assertFalse(ensemble.contains(new BookieSocketAddress(BOOKIE4).toBookieId()));
+    }
+
+    @Test
+    public void testMetadataStoreCases() throws Exception {
+        Map<String, BookieInfo> mainBookieGroup = new HashMap<>();
+        mainBookieGroup.put(BOOKIE1, BookieInfo.builder().rack("rack0").build());
+        mainBookieGroup.put(BOOKIE2, BookieInfo.builder().rack("rack1").build());
+        mainBookieGroup.put(BOOKIE3, BookieInfo.builder().rack("rack1").build());
+        mainBookieGroup.put(BOOKIE4, BookieInfo.builder().rack("rack0").build());
+
+        Map<String, BookieInfo> secondaryBookieGroup = new HashMap<>();
+
+        store = mock(MetadataStoreExtended.class);
+        MetadataCacheImpl cache = mock(MetadataCacheImpl.class);
+        when(store.getMetadataCache(BookiesRackConfiguration.class)).thenReturn(cache);
+        CompletableFuture<Optional<BookiesRackConfiguration>> initialFuture = new CompletableFuture<>();
+        //The initialFuture only has group1.
+        BookiesRackConfiguration rackConfiguration1 = new BookiesRackConfiguration();
+        rackConfiguration1.put("group1", mainBookieGroup);
+        rackConfiguration1.put("group2", secondaryBookieGroup);
+        initialFuture.complete(Optional.of(rackConfiguration1));
+
+        long waitTime = 2000;
+        CompletableFuture<Optional<BookiesRackConfiguration>> waitingCompleteFuture = new CompletableFuture<>();
+        new Thread(() -> {
+            try {
+                Thread.sleep(waitTime);
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
+            //The waitingCompleteFuture has group1 and group2.
+            BookiesRackConfiguration rackConfiguration2 = new BookiesRackConfiguration();
+            Map<String, BookieInfo> mainBookieGroup2 = new HashMap<>();
+            mainBookieGroup2.put(BOOKIE1, BookieInfo.builder().rack("rack0").build());
+            mainBookieGroup2.put(BOOKIE2, BookieInfo.builder().rack("rack1").build());
+            mainBookieGroup2.put(BOOKIE4, BookieInfo.builder().rack("rack0").build());
+
+            Map<String, BookieInfo> secondaryBookieGroup2 = new HashMap<>();
+            secondaryBookieGroup2.put(BOOKIE3, BookieInfo.builder().rack("rack0").build());
+            rackConfiguration2.put("group1", mainBookieGroup2);
+            rackConfiguration2.put("group2", secondaryBookieGroup2);
+            waitingCompleteFuture.complete(Optional.of(rackConfiguration2));
+        }).start();
+
+        long longWaitTime = 4000;
+        CompletableFuture<Optional<BookiesRackConfiguration>> emptyFuture = new CompletableFuture<>();
+        new Thread(() -> {
+            try {
+                Thread.sleep(longWaitTime);
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
+            //The emptyFuture means that the zk node /bookies already be removed.
+            emptyFuture.complete(Optional.empty());
+        }).start();
+
+        //Return different future means that cache expire.
+        when(cache.get(BookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH))
+                .thenReturn(initialFuture).thenReturn(initialFuture)
+                .thenReturn(waitingCompleteFuture).thenReturn(waitingCompleteFuture)
+                .thenReturn(emptyFuture).thenReturn(emptyFuture);
+
+        IsolatedBookieEnsemblePlacementPolicy isolationPolicy = new IsolatedBookieEnsemblePlacementPolicy();
+        ClientConfiguration bkClientConf = new ClientConfiguration();
+        bkClientConf.setProperty(BookieRackAffinityMapping.METADATA_STORE_INSTANCE, store);
+        bkClientConf.setProperty(IsolatedBookieEnsemblePlacementPolicy.ISOLATION_BOOKIE_GROUPS, isolationGroups);
+        isolationPolicy.initialize(bkClientConf, Optional.empty(), timer, SettableFeatureProvider.DISABLE_ALL, NullStatsLogger.INSTANCE, BookieSocketAddress.LEGACY_BOOKIEID_RESOLVER);
+        isolationPolicy.onClusterChanged(writableBookies, readOnlyBookies);
+
+        MutablePair<Set<String>, Set<String>> groups = new MutablePair<>();
+        groups.setLeft(Sets.newHashSet("group1"));
+        groups.setRight(new HashSet<>());
+
+        //initialFuture, the future is waiting done.
+        Set<BookieId> blacklist =
+                isolationPolicy.getExcludedBookiesWithIsolationGroups(2, groups);
+        assertTrue(blacklist.isEmpty());
+
+        //waitingCompleteFuture, the future is waiting done.
+        blacklist =
+                isolationPolicy.getExcludedBookiesWithIsolationGroups(2, groups);
+        assertTrue(blacklist.isEmpty());
+
+        Thread.sleep(waitTime);
+
+        //waitingCompleteFuture, the future is already done.
+        blacklist =
+                isolationPolicy.getExcludedBookiesWithIsolationGroups(2, groups);
+        assertFalse(blacklist.isEmpty());
+        assertEquals(blacklist.size(), 1);
+        BookieId excludeBookie = blacklist.iterator().next();
+        assertEquals(excludeBookie.toString(), BOOKIE3);
+
+        //emptyFuture, the future is waiting done.
+        blacklist =
+                isolationPolicy.getExcludedBookiesWithIsolationGroups(2, groups);
+        assertFalse(blacklist.isEmpty());
+        assertEquals(blacklist.size(), 1);
+        excludeBookie = blacklist.iterator().next();
+        assertEquals(excludeBookie.toString(), BOOKIE3);
+
+        Thread.sleep(longWaitTime - waitTime);
+
+        //emptyFuture, the future is already done.
+        blacklist =
+                isolationPolicy.getExcludedBookiesWithIsolationGroups(2, groups);
+        assertTrue(blacklist.isEmpty());
     }
 
     @Test

@@ -19,24 +19,20 @@
 package org.apache.pulsar.proxy.server;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
-
 import java.io.IOException;
 import java.util.Properties;
 import java.util.Queue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.function.BooleanSupplier;
-
 import javax.servlet.AsyncContext;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-
 import javax.ws.rs.client.Client;
 import javax.ws.rs.client.ClientBuilder;
 import javax.ws.rs.core.Response;
-
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.broker.resources.PulsarResources;
@@ -56,7 +52,6 @@ import org.eclipse.jetty.servlet.ServletHolder;
 import org.eclipse.jetty.util.ProcessorUtils;
 import org.glassfish.jersey.client.ClientConfig;
 import org.glassfish.jersey.logging.LoggingFeature;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
@@ -81,8 +76,8 @@ public class ProxyIsAHttpProxyTest extends MockedPulsarServiceBaseTest {
         // Set number of CPU's to two for unit tests for running in resource constrained env.
         ProcessorUtils.setAvailableProcessors(2);
 
-        resource = new PulsarResources(new ZKMetadataStore(mockZooKeeper),
-                new ZKMetadataStore(mockZooKeeperGlobal));
+        resource = new PulsarResources(registerCloseable(new ZKMetadataStore(mockZooKeeper)),
+                registerCloseable(new ZKMetadataStore(mockZooKeeperGlobal)));
         backingServer1 = new Server(0);
         backingServer1.setHandler(newHandler("server1"));
         backingServer1.start();
@@ -164,6 +159,7 @@ public class ProxyIsAHttpProxyTest extends MockedPulsarServiceBaseTest {
 
         backingServer1.stop();
         backingServer2.stop();
+        backingServer3.stop();
         client.close();
     }
 
@@ -204,7 +200,7 @@ public class ProxyIsAHttpProxyTest extends MockedPulsarServiceBaseTest {
 
         WebServer webServer = new WebServer(proxyConfig, authService);
         ProxyServiceStarter.addWebServerHandlers(webServer, proxyConfig, null,
-                new BrokerDiscoveryProvider(proxyConfig, resource));
+                registerCloseable(new BrokerDiscoveryProvider(proxyConfig, resource)));
         webServer.start();
         try {
             Response r = client.target(webServer.getServiceUri()).path("/ui/foobar").request().get();
@@ -233,7 +229,7 @@ public class ProxyIsAHttpProxyTest extends MockedPulsarServiceBaseTest {
 
         WebServer webServer = new WebServer(proxyConfig, authService);
         ProxyServiceStarter.addWebServerHandlers(webServer, proxyConfig, null,
-                new BrokerDiscoveryProvider(proxyConfig, resource));
+                registerCloseable(new BrokerDiscoveryProvider(proxyConfig, resource)));
         webServer.start();
         try {
             Response r1 = client.target(webServer.getServiceUri()).path("/server1/foobar").request().get();
@@ -264,7 +260,7 @@ public class ProxyIsAHttpProxyTest extends MockedPulsarServiceBaseTest {
 
         WebServer webServer = new WebServer(proxyConfig, authService);
         ProxyServiceStarter.addWebServerHandlers(webServer, proxyConfig, null,
-                new BrokerDiscoveryProvider(proxyConfig, resource));
+                registerCloseable(new BrokerDiscoveryProvider(proxyConfig, resource)));
 
     }
 
@@ -283,7 +279,7 @@ public class ProxyIsAHttpProxyTest extends MockedPulsarServiceBaseTest {
 
         WebServer webServer = new WebServer(proxyConfig, authService);
         ProxyServiceStarter.addWebServerHandlers(webServer, proxyConfig, null,
-                new BrokerDiscoveryProvider(proxyConfig, resource));
+                registerCloseable(new BrokerDiscoveryProvider(proxyConfig, resource)));
         webServer.start();
         try {
             Response r = client.target(webServer.getServiceUri()).path("/ui/foobar").request().get();
@@ -310,7 +306,7 @@ public class ProxyIsAHttpProxyTest extends MockedPulsarServiceBaseTest {
 
         WebServer webServer = new WebServer(proxyConfig, authService);
         ProxyServiceStarter.addWebServerHandlers(webServer, proxyConfig, null,
-                new BrokerDiscoveryProvider(proxyConfig, resource));
+                registerCloseable(new BrokerDiscoveryProvider(proxyConfig, resource)));
         webServer.start();
         try {
             Response r = client.target(webServer.getServiceUri()).path("/ui/foobar").request().get();
@@ -336,7 +332,7 @@ public class ProxyIsAHttpProxyTest extends MockedPulsarServiceBaseTest {
 
         WebServer webServer = new WebServer(proxyConfig, authService);
         ProxyServiceStarter.addWebServerHandlers(webServer, proxyConfig, null,
-                new BrokerDiscoveryProvider(proxyConfig, resource));
+                registerCloseable(new BrokerDiscoveryProvider(proxyConfig, resource)));
         webServer.start();
         try {
             Response r = client.target(webServer.getServiceUri()).path("/foo/bar/blah/foobar").request().get();
@@ -366,7 +362,7 @@ public class ProxyIsAHttpProxyTest extends MockedPulsarServiceBaseTest {
 
         WebServer webServerMaxUriLen8k = new WebServer(proxyConfig, authService);
         ProxyServiceStarter.addWebServerHandlers(webServerMaxUriLen8k, proxyConfig, null,
-                new BrokerDiscoveryProvider(proxyConfig, resource));
+                registerCloseable(new BrokerDiscoveryProvider(proxyConfig, resource)));
         webServerMaxUriLen8k.start();
         try {
             Response r = client.target(webServerMaxUriLen8k.getServiceUri()).path(longUri.toString()).request().get();
@@ -378,7 +374,7 @@ public class ProxyIsAHttpProxyTest extends MockedPulsarServiceBaseTest {
         proxyConfig.setHttpMaxRequestHeaderSize(12 * 1024);
         WebServer webServerMaxUriLen12k = new WebServer(proxyConfig, authService);
         ProxyServiceStarter.addWebServerHandlers(webServerMaxUriLen12k, proxyConfig, null,
-                new BrokerDiscoveryProvider(proxyConfig, resource));
+                registerCloseable(new BrokerDiscoveryProvider(proxyConfig, resource)));
         webServerMaxUriLen12k.start();
         try {
             Response r = client.target(webServerMaxUriLen12k.getServiceUri()).path(longUri.toString()).request().get();
@@ -402,7 +398,7 @@ public class ProxyIsAHttpProxyTest extends MockedPulsarServiceBaseTest {
 
         WebServer webServer = new WebServer(proxyConfig, authService);
         ProxyServiceStarter.addWebServerHandlers(webServer, proxyConfig, null,
-                new BrokerDiscoveryProvider(proxyConfig, resource));
+                registerCloseable(new BrokerDiscoveryProvider(proxyConfig, resource)));
         webServer.start();
         try {
             Response r = client.target(webServer.getServiceUri()).path("/ui/foobar").request().get();
@@ -434,7 +430,7 @@ public class ProxyIsAHttpProxyTest extends MockedPulsarServiceBaseTest {
 
         WebServer webServer = new WebServer(proxyConfig, authService);
         ProxyServiceStarter.addWebServerHandlers(webServer, proxyConfig, null,
-                new BrokerDiscoveryProvider(proxyConfig, resource));
+                registerCloseable(new BrokerDiscoveryProvider(proxyConfig, resource)));
         webServer.start();
 
         HttpClient httpClient = new HttpClient();

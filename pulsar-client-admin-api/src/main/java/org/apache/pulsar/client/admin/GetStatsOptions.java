@@ -18,11 +18,13 @@
  */
 package org.apache.pulsar.client.admin;
 
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 
 @Data
 @Builder
+@AllArgsConstructor
 public class GetStatsOptions {
     /**
      * Set to true to get precise backlog, Otherwise get imprecise backlog.
@@ -38,4 +40,14 @@ public class GetStatsOptions {
      * Whether to get the earliest time in backlog.
      */
     private final boolean getEarliestTimeInBacklog;
+
+    /**
+     * Whether to exclude publishers.
+     */
+    private final boolean excludePublishers;
+
+    /**
+     * Whether to exclude consumers.
+     */
+    private final boolean excludeConsumers;
 }

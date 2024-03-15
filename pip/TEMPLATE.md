@@ -13,6 +13,8 @@ THIS COMMENTS
 Please remove them when done.
 -->
 
+# PIP-XXX: Proposal title
+
 # Background knowledge
 
 <!--

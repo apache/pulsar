@@ -70,7 +70,6 @@ import org.apache.bookkeeper.discover.RegistrationManager;
 import org.apache.bookkeeper.meta.LedgerManager;
 import org.apache.bookkeeper.meta.LedgerManagerFactory;
 import org.apache.bookkeeper.meta.MetadataBookieDriver;
-import org.apache.bookkeeper.meta.zk.ZKMetadataDriverBase;
 import org.apache.bookkeeper.metastore.InMemoryMetaStore;
 import org.apache.bookkeeper.net.BookieId;
 import org.apache.bookkeeper.net.BookieSocketAddress;
@@ -486,7 +485,7 @@ public abstract class BookKeeperClusterTestCase {
     public ServerConfiguration killBookieAndWaitForZK(int index) throws Exception {
         ServerTester tester = servers.get(index); // IKTODO: this method is awful
         ServerConfiguration ret = killBookie(index);
-        while (zkc.exists(ZKMetadataDriverBase.resolveZkLedgersRootPath(baseConf) + "/" + AVAILABLE_NODE + "/"
+        while (zkc.exists("/ledgers/" + AVAILABLE_NODE + "/"
                 + tester.getServer().getBookieId().toString(), false) != null) {
             Thread.sleep(500);
         }

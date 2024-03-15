@@ -70,6 +70,7 @@ public class PerfClientUtilsTest {
         args.tlsTrustCertsFilePath = "path";
         args.tlsAllowInsecureConnection = true;
         args.maxLookupRequest = 100000;
+        args.memoryLimit = 10240;
 
         final ClientBuilderImpl builder = (ClientBuilderImpl)PerfClientUtils.createClientBuilderFromArguments(args);
         final ClientConfigurationData conf = builder.getClientConfigurationData();
@@ -89,6 +90,7 @@ public class PerfClientUtilsTest {
         Assert.assertEquals(conf.getMaxLookupRequest(), 100000);
         Assert.assertNull(conf.getProxyServiceUrl());
         Assert.assertNull(conf.getProxyProtocol());
+        Assert.assertEquals(conf.getMemoryLimitBytes(), 10240L);
 
     }
 

@@ -60,4 +60,21 @@ public interface TopicCompactionService extends AutoCloseable {
      * @return a future that will be completed with the last compacted position, this position can be null.
      */
     CompletableFuture<Position> getLastCompactedPosition();
+
+    /**
+    * Find the first entry that greater or equal to target publishTime.
+    *
+    * @param publishTime  the publish time of entry.
+    * @return the first entry metadata that greater or equal to target publishTime, this entry can be null.
+    */
+    CompletableFuture<Entry> findEntryByPublishTime(long publishTime);
+
+    /**
+    * Find the first entry that greater or equal to target entryIndex,
+    * if an entry that broker entry metadata is missed, then it will be skipped and find the next match entry.
+    *
+    * @param entryIndex  the index of entry.
+    * @return the first entry that greater or equal to target entryIndex, this entry can be null.
+    */
+    CompletableFuture<Entry> findEntryByEntryIndex(long entryIndex);
 }

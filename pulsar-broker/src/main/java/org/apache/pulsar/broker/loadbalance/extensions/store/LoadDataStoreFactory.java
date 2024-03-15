@@ -18,15 +18,16 @@
  */
 package org.apache.pulsar.broker.loadbalance.extensions.store;
 
-import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.broker.PulsarService;
 
 /**
  * The load data store factory, use to create the load data store.
  */
 public class LoadDataStoreFactory {
 
-    public static <T> LoadDataStore<T> create(PulsarClient client, String name, Class<T> clazz)
+    public static <T> LoadDataStore<T> create(PulsarService pulsar, String name,
+                                              Class<T> clazz)
             throws LoadDataStoreException {
-        return new TableViewLoadDataStoreImpl<>(client, name, clazz);
+        return new TableViewLoadDataStoreImpl<>(pulsar, name, clazz);
     }
 }

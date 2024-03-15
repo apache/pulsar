@@ -18,8 +18,6 @@
  */
 package org.apache.pulsar.io.kinesis;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import java.net.InetAddress;
 import java.util.Map;
 import java.util.UUID;
@@ -27,14 +25,12 @@ import java.util.concurrent.LinkedBlockingQueue;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.io.aws.AbstractAwsConnector;
 import org.apache.pulsar.io.aws.AwsCredentialProviderPlugin;
-import org.apache.pulsar.io.common.IOConfigUtils;
 import org.apache.pulsar.io.core.Source;
 import org.apache.pulsar.io.core.SourceContext;
 import org.apache.pulsar.io.core.annotations.Connector;
 import org.apache.pulsar.io.core.annotations.IOType;
 import software.amazon.awssdk.services.kinesis.KinesisAsyncClient;
 import software.amazon.kinesis.common.ConfigsBuilder;
-import software.amazon.kinesis.common.InitialPositionInStream;
 import software.amazon.kinesis.coordinator.Scheduler;
 import software.amazon.kinesis.processor.ShardRecordProcessorFactory;
 import software.amazon.kinesis.retrieval.RetrievalConfig;
@@ -68,18 +64,7 @@ public class KinesisSource extends AbstractAwsConnector implements Source<byte[]
 
     @Override
     public void open(Map<String, Object> config, SourceContext sourceContext) throws Exception {
-        this.kinesisSourceConfig = IOConfigUtils.loadWithSecrets(config, KinesisSourceConfig.class, sourceContext);
-
-        checkArgument(isNotBlank(kinesisSourceConfig.getAwsKinesisStreamName()), "empty kinesis-stream name");
-        checkArgument(isNotBlank(kinesisSourceConfig.getAwsEndpoint())
-                        || isNotBlank(kinesisSourceConfig.getAwsRegion()),
-                     "Either the aws-end-point or aws-region must be set");
-        checkArgument(isNotBlank(kinesisSourceConfig.getAwsCredentialPluginParam()), "empty aws-credential param");
-
-        if (kinesisSourceConfig.getInitialPositionInStream() == InitialPositionInStream.AT_TIMESTAMP) {
-            checkArgument((kinesisSourceConfig.getStartAtTime() != null), "Timestamp must be specified");
-        }
-
+        this.kinesisSourceConfig = KinesisSourceConfig.load(config, sourceContext);
         queue = new LinkedBlockingQueue<>(kinesisSourceConfig.getReceiveQueueSize());
         workerId = InetAddress.getLocalHost().getCanonicalHostName() + ":" + UUID.randomUUID();
 

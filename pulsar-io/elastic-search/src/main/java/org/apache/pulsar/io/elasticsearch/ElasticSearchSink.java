@@ -76,7 +76,7 @@ public class ElasticSearchSink implements Sink<GenericObject> {
     public void open(Map<String, Object> config, SinkContext sinkContext) throws Exception {
         elasticSearchConfig = ElasticSearchConfig.load(config, sinkContext);
         elasticSearchConfig.validate();
-        elasticsearchClient = new ElasticSearchClient(elasticSearchConfig);
+        elasticsearchClient = new ElasticSearchClient(elasticSearchConfig, sinkContext);
         if (!Strings.isNullOrEmpty(elasticSearchConfig.getPrimaryFields())) {
             primaryFields = Arrays.asList(elasticSearchConfig.getPrimaryFields().split(","));
         }
@@ -110,60 +110,55 @@ public class ElasticSearchSink implements Sink<GenericObject> {
 
     @Override
     public void write(Record<GenericObject> record) throws Exception {
-        if (!elasticsearchClient.isFailed()) {
-            Pair<String, String> idAndDoc = extractIdAndDocument(record);
-            try {
-                if (log.isDebugEnabled()) {
-                    log.debug("index doc {} {}", idAndDoc.getLeft(), idAndDoc.getRight());
-                }
-                if (idAndDoc.getRight() == null) {
-                    switch (elasticSearchConfig.getNullValueAction()) {
-                        case DELETE:
-                            if (idAndDoc.getLeft() != null) {
-                                if (elasticSearchConfig.isBulkEnabled()) {
-                                    elasticsearchClient.bulkDelete(record, idAndDoc.getLeft());
-                                } else {
-                                    elasticsearchClient.deleteDocument(record, idAndDoc.getLeft());
-                                }
+        Pair<String, String> idAndDoc = extractIdAndDocument(record);
+        try {
+            if (log.isDebugEnabled()) {
+                log.debug("index doc {} {}", idAndDoc.getLeft(), idAndDoc.getRight());
+            }
+            if (idAndDoc.getRight() == null) {
+                switch (elasticSearchConfig.getNullValueAction()) {
+                    case DELETE:
+                        if (idAndDoc.getLeft() != null) {
+                            if (elasticSearchConfig.isBulkEnabled()) {
+                                elasticsearchClient.bulkDelete(record, idAndDoc.getLeft());
+                            } else {
+                                elasticsearchClient.deleteDocument(record, idAndDoc.getLeft());
                             }
-                            break;
-                        case IGNORE:
-                            break;
-                        case FAIL:
-                            elasticsearchClient.failed(
-                                    new PulsarClientException.InvalidMessageException("Unexpected null message value"));
-                            throw elasticsearchClient.irrecoverableError.get();
-                    }
-                } else {
-                    if (elasticSearchConfig.isBulkEnabled()) {
-                        elasticsearchClient.bulkIndex(record, idAndDoc);
-                    } else {
-                        elasticsearchClient.indexDocument(record, idAndDoc);
-                    }
-                }
-            } catch (JsonProcessingException jsonProcessingException) {
-                switch (elasticSearchConfig.getMalformedDocAction()) {
+                        }
+                        break;
                     case IGNORE:
                         break;
-                    case WARN:
-                        log.warn("Ignoring malformed document messageId={}",
-                                record.getMessage().map(Message::getMessageId).orElse(null),
-                                jsonProcessingException);
-                        elasticsearchClient.failed(jsonProcessingException);
-                        throw jsonProcessingException;
                     case FAIL:
-                        log.error("Malformed document messageId={}",
-                                record.getMessage().map(Message::getMessageId).orElse(null),
-                                jsonProcessingException);
-                        elasticsearchClient.failed(jsonProcessingException);
-                        throw jsonProcessingException;
+                        elasticsearchClient.failed(
+                                new PulsarClientException.InvalidMessageException("Unexpected null message value"));
                 }
-            } catch (Exception e) {
-                log.error("write error for {} {}:", idAndDoc.getLeft(), idAndDoc.getRight(), e);
-                throw e;
+            } else {
+                if (elasticSearchConfig.isBulkEnabled()) {
+                    elasticsearchClient.bulkIndex(record, idAndDoc);
+                } else {
+                    elasticsearchClient.indexDocument(record, idAndDoc);
+                }
             }
-        } else {
-            throw new IllegalStateException("Elasticsearch client is in FAILED status");
+        } catch (JsonProcessingException jsonProcessingException) {
+            switch (elasticSearchConfig.getMalformedDocAction()) {
+                case IGNORE:
+                    break;
+                case WARN:
+                    log.warn("Ignoring malformed document messageId={}",
+                            record.getMessage().map(Message::getMessageId).orElse(null),
+                            jsonProcessingException);
+                    elasticsearchClient.failed(jsonProcessingException);
+                    break;
+                case FAIL:
+                    log.error("Malformed document messageId={}",
+                            record.getMessage().map(Message::getMessageId).orElse(null),
+                            jsonProcessingException);
+                    elasticsearchClient.failed(jsonProcessingException);
+                    break;
+            }
+        } catch (Exception e) {
+            log.error("write error for {} {}:", idAndDoc.getLeft(), idAndDoc.getRight(), e);
+            throw e;
         }
     }
 

@@ -236,7 +236,7 @@ public class TenantsBase extends PulsarWebResource {
                             .getPartitionedTopicResources().clearPartitionedTopicTenantAsync(tenant))
                 .thenCompose(__ -> pulsar().getPulsarResources().getLocalPolicies()
                             .deleteLocalPoliciesTenantAsync(tenant))
-                .thenCompose(__ -> pulsar().getPulsarResources().getNamespaceResources()
+                .thenCompose(__ -> pulsar().getPulsarResources().getLoadBalanceResources().getBundleDataResources()
                             .deleteBundleDataTenantAsync(tenant));
     }
 

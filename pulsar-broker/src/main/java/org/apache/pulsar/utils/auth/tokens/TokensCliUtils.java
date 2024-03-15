@@ -22,7 +22,6 @@ import com.beust.jcommander.DefaultUsageFormatter;
 import com.beust.jcommander.IUsageFormatter;
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
-import com.beust.jcommander.ParameterException;
 import com.beust.jcommander.Parameters;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwt;
@@ -41,11 +40,10 @@ import java.security.Key;
 import java.security.KeyPair;
 import java.util.Date;
 import java.util.Optional;
-import java.util.concurrent.TimeUnit;
 import javax.crypto.SecretKey;
 import lombok.Cleanup;
 import org.apache.pulsar.broker.authentication.utils.AuthTokenUtils;
-import org.apache.pulsar.common.util.RelativeTimeUtil;
+import org.apache.pulsar.cli.converters.TimeUnitToSecondsConverter;
 import org.apache.pulsar.docs.tools.CmdGenerateDocs;
 
 public class TokensCliUtils {
@@ -120,8 +118,9 @@ public class TokensCliUtils {
         @Parameter(names = {"-e",
                 "--expiry-time"},
                 description = "Relative expiry time for the token (eg: 1h, 3d, 10y)."
-                        + " (m=minutes) Default: no expiration")
-        private String expiryTime;
+                        + " (m=minutes) Default: no expiration",
+                    converter = TimeUnitToSecondsConverter.class)
+        private Long expiryTime = null;
 
         @Parameter(names = {"-sk",
                 "--secret-key"},
@@ -154,17 +153,9 @@ public class TokensCliUtils {
                 signingKey = AuthTokenUtils.decodeSecretKey(encodedKey);
             }
 
-            Optional<Date> optExpiryTime = Optional.empty();
-            if (expiryTime != null) {
-                long relativeTimeMillis;
-                try {
-                    relativeTimeMillis = TimeUnit.SECONDS.toMillis(
-                            RelativeTimeUtil.parseRelativeTimeInSeconds(expiryTime));
-                } catch (IllegalArgumentException exception) {
-                    throw new ParameterException(exception.getMessage());
-                }
-                optExpiryTime = Optional.of(new Date(System.currentTimeMillis() + relativeTimeMillis));
-            }
+            Optional<Date> optExpiryTime = (expiryTime == null)
+                    ? Optional.empty()
+                    : Optional.of(new Date(System.currentTimeMillis() + expiryTime));
 
             String token = AuthTokenUtils.createToken(signingKey, subject, optExpiryTime);
             System.out.println(token);

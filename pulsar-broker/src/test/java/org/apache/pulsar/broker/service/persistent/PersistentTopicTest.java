@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.broker.service.persistent;
 
+import static org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient.Metric;
+import static org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient.parseMetrics;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.doAnswer;
@@ -45,6 +47,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -60,7 +63,7 @@ import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.BrokerTestBase;
-import org.apache.pulsar.broker.stats.PrometheusMetricsTest;
+import org.apache.pulsar.broker.service.TopicPoliciesService;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsGenerator;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
@@ -77,7 +80,9 @@ import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.Policies;
+import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.policies.data.TopicPolicies;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
@@ -291,7 +296,8 @@ public class PersistentTopicTest extends BrokerTestBase {
 
         assertFalse(pulsar.getBrokerService().getTopics().containsKey(topicName));
         pulsar.getBrokerService().getTopicIfExists(topicName).get();
-        assertTrue(pulsar.getBrokerService().getTopics().containsKey(topicName));
+        // The map topics should only contain partitions, does not contain partitioned topic.
+        assertFalse(pulsar.getBrokerService().getTopics().containsKey(topicName));
 
         // ref of partitioned-topic name should be empty
         assertFalse(pulsar.getBrokerService().getTopicReference(topicName).isPresent());
@@ -352,14 +358,14 @@ public class PersistentTopicTest extends BrokerTestBase {
         PrometheusMetricsGenerator.generate(pulsar, exposeTopicLevelMetrics, true, true, output);
         String metricsStr = output.toString(StandardCharsets.UTF_8);
 
-        Multimap<String, PrometheusMetricsTest.Metric> metricsMap = PrometheusMetricsTest.parseMetrics(metricsStr);
-        Collection<PrometheusMetricsTest.Metric> metrics = metricsMap.get("pulsar_delayed_message_index_size_bytes");
+        Multimap<String, Metric> metricsMap = parseMetrics(metricsStr);
+        Collection<Metric> metrics = metricsMap.get("pulsar_delayed_message_index_size_bytes");
         Assert.assertTrue(metrics.size() > 0);
 
         int topicLevelNum = 0;
         int namespaceLevelNum = 0;
         int subscriptionLevelNum = 0;
-        for (PrometheusMetricsTest.Metric metric : metrics) {
+        for (Metric metric : metrics) {
             if (exposeTopicLevelMetrics && metric.tags.get("topic").equals(topic)) {
                 Assert.assertTrue(metric.value > 0);
                 topicLevelNum++;
@@ -453,8 +459,7 @@ public class PersistentTopicTest extends BrokerTestBase {
                     .topic(partition.toString())
                     .create();
             fail("unexpected behaviour");
-        } catch (PulsarClientException.TopicDoesNotExistException ignored) {
-
+        } catch (PulsarClientException.NotAllowedException ex) {
         }
         Assert.assertEquals(admin.topics().getPartitionedTopicMetadata(topicName).partitions, 4);
     }
@@ -602,5 +607,59 @@ public class PersistentTopicTest extends BrokerTestBase {
             }
             return !topic.getManagedLedger().getCursors().iterator().hasNext();
         });
+    }
+
+    @Test
+    public void testCheckPersistencePolicies() throws Exception {
+        final String myNamespace = "prop/ns";
+        admin.namespaces().createNamespace(myNamespace, Sets.newHashSet("test"));
+        final String topic = "persistent://" + myNamespace + "/testConfig" + UUID.randomUUID();
+        conf.setForceDeleteNamespaceAllowed(true);
+        pulsarClient.newProducer().topic(topic).create().close();
+        RetentionPolicies retentionPolicies = new RetentionPolicies(1, 1);
+        PersistentTopic persistentTopic = spy((PersistentTopic) pulsar.getBrokerService().getTopicIfExists(topic).get().get());
+        TopicPoliciesService policiesService = spy(pulsar.getTopicPoliciesService());
+        doReturn(policiesService).when(pulsar).getTopicPoliciesService();
+        TopicPolicies policies = new TopicPolicies();
+        policies.setRetentionPolicies(retentionPolicies);
+        doReturn(CompletableFuture.completedFuture(Optional.of(policies))).when(policiesService).getTopicPoliciesAsync(TopicName.get(topic));
+        persistentTopic.onUpdate(policies);
+        verify(persistentTopic, times(1)).checkPersistencePolicies();
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(persistentTopic.getManagedLedger().getConfig().getRetentionSizeInMB(), 1L);
+            assertEquals(persistentTopic.getManagedLedger().getConfig().getRetentionTimeMillis(), TimeUnit.MINUTES.toMillis(1));
+        });
+        // throw exception
+        doReturn(CompletableFuture.failedFuture(new RuntimeException())).when(persistentTopic).checkPersistencePolicies();
+        policies.setRetentionPolicies(new RetentionPolicies(2, 2));
+        persistentTopic.onUpdate(policies);
+        assertEquals(persistentTopic.getManagedLedger().getConfig().getRetentionSizeInMB(), 1L);
+        assertEquals(persistentTopic.getManagedLedger().getConfig().getRetentionTimeMillis(), TimeUnit.MINUTES.toMillis(1));
+    }
+
+    @Test
+    public void testDynamicConfigurationAutoSkipNonRecoverableData() throws Exception {
+        pulsar.getConfiguration().setAutoSkipNonRecoverableData(false);
+        final String topicName = "persistent://prop/ns-abc/testAutoSkipNonRecoverableData";
+        final String subName = "test_sub";
+
+        Consumer<byte[]> subscribe = pulsarClient.newConsumer().topic(topicName).subscriptionName(subName).subscribe();
+        PersistentTopic persistentTopic =
+                (PersistentTopic) pulsar.getBrokerService().getTopic(topicName, false).join().get();
+        PersistentSubscription subscription = persistentTopic.getSubscription(subName);
+
+        assertFalse(persistentTopic.ledger.getConfig().isAutoSkipNonRecoverableData());
+        assertFalse(subscription.getExpiryMonitor().isAutoSkipNonRecoverableData());
+
+        String key = "autoSkipNonRecoverableData";
+        admin.brokers().updateDynamicConfiguration(key, "true");
+        Awaitility.await()
+                .untilAsserted(() -> assertEquals(admin.brokers().getAllDynamicConfigurations().get(key), "true"));
+
+        assertTrue(persistentTopic.ledger.getConfig().isAutoSkipNonRecoverableData());
+        assertTrue(subscription.getExpiryMonitor().isAutoSkipNonRecoverableData());
+
+        subscribe.close();
+        admin.topics().delete(topicName);
     }
 }

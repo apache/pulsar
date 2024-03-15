@@ -45,7 +45,6 @@ import org.apache.bookkeeper.stream.proto.NamespaceConfiguration;
 import org.apache.bookkeeper.stream.proto.StorageType;
 import org.apache.bookkeeper.stream.proto.StreamConfiguration;
 import org.apache.pulsar.functions.api.StateStore;
-import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 import org.apache.pulsar.functions.utils.FunctionCommon;
 
 /**
@@ -58,7 +57,7 @@ public class BKStateStoreProviderImpl implements StateStoreProvider {
     private Map<String, StorageClient> clients;
 
     @Override
-    public void init(Map<String, Object> config, FunctionDetails functionDetails) throws Exception {
+    public void init(Map<String, Object> config) throws Exception {
         stateStorageServiceUrl = (String) config.get(STATE_STORAGE_SERVICE_URL);
         clients = new HashMap<>();
     }
@@ -189,6 +188,29 @@ public class BKStateStoreProviderImpl implements StateStoreProvider {
         Table<ByteBuf, ByteBuf> table = openStateTable(tenant, namespace, name);
         return (T) new BKStateStoreImpl(tenant, namespace, name, table);
     }
+
+    @Override
+    public void cleanUp(String tenant, String namespace, String name) throws Exception {
+        StorageAdminClient storageAdminClient = new SimpleStorageAdminClientImpl(
+                StorageClientSettings.newBuilder().serviceUri(stateStorageServiceUrl).build(),
+                ClientResources.create().scheduler());
+        String tableNs = FunctionCommon.getStateNamespace(tenant, namespace);
+        storageAdminClient.deleteStream(tableNs, name).whenComplete((res, throwable) -> {
+            if ((throwable == null && res)
+                    || ((throwable instanceof NamespaceNotFoundException
+                    || throwable instanceof StreamNotFoundException))) {
+                log.info("{}/{} table deleted successfully", tableNs, name);
+            } else {
+                if (throwable != null) {
+                    log.error("{}/{} table deletion failed {}  but moving on", tableNs, name, throwable);
+                } else {
+                    log.error("{}/{} table deletion failed but moving on", tableNs, name);
+                }
+            }
+        });
+        storageAdminClient.close();
+    }
+
 
     @Override
     public void close() {

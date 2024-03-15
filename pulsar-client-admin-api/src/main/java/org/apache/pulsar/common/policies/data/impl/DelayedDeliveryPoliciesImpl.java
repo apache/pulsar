@@ -32,6 +32,7 @@ import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
 public final class DelayedDeliveryPoliciesImpl implements DelayedDeliveryPolicies {
     private long tickTime;
     private boolean active;
+    private long maxDeliveryDelayInMillis;
 
     public static DelayedDeliveryPoliciesImplBuilder builder() {
         return new DelayedDeliveryPoliciesImplBuilder();
@@ -40,6 +41,7 @@ public final class DelayedDeliveryPoliciesImpl implements DelayedDeliveryPolicie
     public static class DelayedDeliveryPoliciesImplBuilder implements DelayedDeliveryPolicies.Builder {
         private long tickTime;
         private boolean active;
+        private long maxDeliveryDelayInMillis;
 
         public DelayedDeliveryPoliciesImplBuilder tickTime(long tickTime) {
             this.tickTime = tickTime;
@@ -51,8 +53,13 @@ public final class DelayedDeliveryPoliciesImpl implements DelayedDeliveryPolicie
             return this;
         }
 
+        public DelayedDeliveryPoliciesImplBuilder maxDeliveryDelayInMillis(long maxDeliveryDelayInMillis) {
+            this.maxDeliveryDelayInMillis = maxDeliveryDelayInMillis;
+            return this;
+        }
+
         public DelayedDeliveryPoliciesImpl build() {
-            return new DelayedDeliveryPoliciesImpl(tickTime, active);
+            return new DelayedDeliveryPoliciesImpl(tickTime, active, maxDeliveryDelayInMillis);
         }
     }
 }
