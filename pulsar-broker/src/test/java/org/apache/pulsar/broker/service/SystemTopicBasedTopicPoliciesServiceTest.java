@@ -473,13 +473,15 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
         SystemTopicBasedTopicPoliciesService service = (SystemTopicBasedTopicPoliciesService) pulsar.getTopicPoliciesService();
         admin.namespaces().createNamespace(NAMESPACE5);
 
-        pulsar.getPulsarResources().getNamespaceResources().setPolicies(NamespaceName.get(NAMESPACE5),
+        NamespaceName namespaceName = NamespaceName.get(NAMESPACE5);
+        pulsar.getPulsarResources().getNamespaceResources().setPolicies(namespaceName,
                 old -> {
                     old.deleted = true;
                     return old;
                 });
 
-        service.prepareInitPoliciesCacheAsync(NamespaceName.get(NAMESPACE5)).get();
+        assertNull(service.getPoliciesCacheInit(namespaceName));
+        service.prepareInitPoliciesCacheAsync(namespaceName).get();
         admin.namespaces().deleteNamespace(NAMESPACE5);
     }
 }
