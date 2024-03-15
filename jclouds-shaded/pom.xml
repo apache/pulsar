@@ -40,6 +40,8 @@
     <guava.version>32.0.0-jre</guava.version>
     <guice.version>7.0.0</guice.version>
     <jakarta.inject.api.version>2.0.1</jakarta.inject.api.version>
+    <jakarta.ws.rs-api.version>3.0.0</jakarta.ws.rs-api.version>
+    <jakarta.annotation-api.version>2.0.0</jakarta.annotation-api.version>
   </properties>
   <dependencies>
     <dependency>
@@ -67,10 +69,6 @@
       <groupId>org.apache.jclouds.driver</groupId>
       <artifactId>jclouds-slf4j</artifactId>
       <version>${jclouds.version}</version>
-    </dependency>
-    <dependency>
-      <groupId>javax.annotation</groupId>
-      <artifactId>javax.annotation-api</artifactId>
     </dependency>
   </dependencies>
 
@@ -104,17 +102,12 @@
       <dependency>
         <groupId>jakarta.ws.rs</groupId>
         <artifactId>jakarta.ws.rs-api</artifactId>
-        <version>3.0.0</version>
+        <version>${jakarta.ws.rs-api.version}</version>
       </dependency>
       <dependency>
         <groupId>jakarta.annotation</groupId>
         <artifactId>jakarta.annotation-api</artifactId>
-        <version>2.0.0</version>
-      </dependency>
-      <dependency>
-        <groupId>com.sun.xml.bind</groupId>
-        <artifactId>jaxb-impl</artifactId>
-        <version>2.3.3</version>
+        <version>${jakarta.annotation-api.version}</version>
       </dependency>
     </dependencies>
   </dependencyManagement>
@@ -159,7 +152,6 @@
                   <include>jakarta.inject:jakarta.inject-api</include>
                   <include>jakarta.annotation:jakarta.annotation-api</include>
                   <include>jakarta.ws.rs:jakarta.ws.rs-api</include>
-                  <include>com.sun.xml.bind:jaxb-impl</include>
                 </includes>
               </artifactSet>
 
@@ -201,8 +193,8 @@
                   <shadedPattern>org.apache.pulsar.jcloud.shade.jakarta</shadedPattern>
                 </relocation>
                 <relocation>
-                  <pattern>com.sun.xml.bind</pattern>
-                  <shadedPattern>org.apache.pulsar.jcloud.shade.com.sun.xml.bind</shadedPattern>
+                  <pattern>org.aopalliance</pattern>
+                  <shadedPattern>org.apache.pulsar.jcloud.shade.org.aopalliance</shadedPattern>
                 </relocation>
               </relocations>
               <transformers>
