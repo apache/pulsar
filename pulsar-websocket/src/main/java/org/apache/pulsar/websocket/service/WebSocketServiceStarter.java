@@ -74,9 +74,7 @@ public class WebSocketServiceStarter {
         try {
             // load config file and start proxy service
             String configFile = args[0];
-            log.info("Loading configuration from {}", configFile);
-            WebSocketProxyConfiguration config = PulsarConfigurationLoader.create(configFile,
-                    WebSocketProxyConfiguration.class);
+            WebSocketProxyConfiguration config = loadConfig(configFile);
             ProxyServer proxyServer = new ProxyServer(config);
             WebSocketService service = new WebSocketService(config);
             start(proxyServer, service);
@@ -104,6 +102,14 @@ public class WebSocketServiceStarter {
                 VipStatus.class);
         proxyServer.start();
         service.start();
+    }
+
+    private static WebSocketProxyConfiguration loadConfig(String configFile) throws Exception {
+        log.info("Loading configuration from {}", configFile);
+        WebSocketProxyConfiguration config = PulsarConfigurationLoader.create(configFile,
+                WebSocketProxyConfiguration.class);
+        PulsarConfigurationLoader.isComplete(config);
+        return config;
     }
 
     private static final Logger log = LoggerFactory.getLogger(WebSocketServiceStarter.class);
