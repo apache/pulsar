@@ -22,6 +22,7 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.RawReaderImpl;
+import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 
 /**
  * Topic reader which receives raw messages (i.e. as they are stored in the managed ledger).
@@ -42,6 +43,16 @@ public interface RawReader {
                 new RawReaderImpl((PulsarClientImpl) client, topic, subscription, future, createTopicIfDoesNotExist);
         return future.thenApply(__ -> r);
     }
+
+    static CompletableFuture<RawReader> create(PulsarClient client,
+                                               ConsumerConfigurationData<byte[]> consumerConfiguration,
+                                               boolean createTopicIfDoesNotExist) {
+        CompletableFuture<Consumer<byte[]>> future = new CompletableFuture<>();
+        RawReader r = new RawReaderImpl((PulsarClientImpl) client,
+                consumerConfiguration, future, createTopicIfDoesNotExist);
+        return future.thenApply(__ -> r);
+    }
+
 
     /**
      * Get the topic for the reader.
