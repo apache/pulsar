@@ -66,7 +66,7 @@ public class TableViewImpl<T> implements TableView<T> {
      * There should be no timeout exception here, because the caller can only retry for TimeoutException.
      * It will only be completed exceptionally when no more messages can be read.
      */
-    private final ConcurrentHashMap<CompletableFuture<Void>, Map<String, TopicMessageId>> refreshRequests;
+    private final ConcurrentHashMap<CompletableFuture<Void>, Map<String, TopicMessageId>> pendingRefreshRequests;
 
     /**
      * This map stored the read position of each partition. It is used for the following case:
@@ -78,7 +78,7 @@ public class TableViewImpl<T> implements TableView<T> {
      *      As a result, the refresh operation will never be completed.
      * </p>
      */
-    private final ConcurrentHashMap<String, MessageId> readPositions;
+    private final ConcurrentHashMap<String, MessageId> lastReadPositions;
 
     TableViewImpl(PulsarClientImpl client, Schema<T> schema, TableViewConfigurationData conf) {
         this.conf = conf;
@@ -89,8 +89,8 @@ public class TableViewImpl<T> implements TableView<T> {
         this.listenersMutex = new ReentrantLock();
         this.compactionStrategy =
                 TopicCompactionStrategy.load(TABLE_VIEW_TAG, conf.getTopicCompactionStrategyClassName());
-        this.refreshRequests = new ConcurrentHashMap<>();
-        this.readPositions = new ConcurrentHashMap<>();
+        this.pendingRefreshRequests = new ConcurrentHashMap<>();
+        this.lastReadPositions = new ConcurrentHashMap<>();
         ReaderBuilder<T> readerBuilder = client.newReader(schema)
                 .topic(conf.getTopicName())
                 .startMessageId(MessageId.earliest)
@@ -203,7 +203,7 @@ public class TableViewImpl<T> implements TableView<T> {
     }
 
     private void handleMessage(Message<T> msg) {
-        readPositions.put(msg.getTopicName(), msg.getMessageId());
+        lastReadPositions.put(msg.getTopicName(), msg.getMessageId());
         try {
             if (msg.hasKey()) {
                 String key = msg.getKey();
@@ -262,16 +262,16 @@ public class TableViewImpl<T> implements TableView<T> {
         reader.thenCompose(reader -> getLastMessageIds(reader).thenAccept(lastMessageIds -> {
             // After get the response of lastMessageIds, put the future and result into `refreshMap`
             // and then filter out partitions that has been read to the lastMessageID.
-            refreshRequests.put(completableFuture, lastMessageIds);
+            pendingRefreshRequests.put(completableFuture, lastMessageIds);
             filterReceivedMessages(lastMessageIds);
             // If there is no new messages, the refresh operation could be completed right now.
             if (lastMessageIds.isEmpty()) {
-                refreshRequests.remove(completableFuture);
+                pendingRefreshRequests.remove(completableFuture);
                 completableFuture.complete(null);
             }
         })).exceptionally(throwable -> {
             completableFuture.completeExceptionally(throwable);
-            refreshRequests.remove(completableFuture);
+            pendingRefreshRequests.remove(completableFuture);
             return null;
         });
         return completableFuture;
@@ -313,7 +313,7 @@ public class TableViewImpl<T> implements TableView<T> {
     private void filterReceivedMessages(Map<String, TopicMessageId> lastMessageIds) {
         // The `lastMessageIds` and `readPositions` is concurrency-safe data types.
         lastMessageIds.forEach((partition, lastMessageId) -> {
-            MessageId messageId = readPositions.get(partition);
+            MessageId messageId = lastReadPositions.get(partition);
             if (messageId != null && lastMessageId.compareTo(messageId) <= 0) {
                 lastMessageIds.remove(partition);
             }
@@ -338,11 +338,11 @@ public class TableViewImpl<T> implements TableView<T> {
     }
 
     private void checkAllFreshTask(Message<T> msg) {
-        refreshRequests.forEach((future, maxMessageIds) -> {
+        pendingRefreshRequests.forEach((future, maxMessageIds) -> {
             String topicName = msg.getTopicName();
             MessageId messageId = msg.getMessageId();
             if (checkFreshTask(maxMessageIds, future, messageId, topicName)) {
-                refreshRequests.remove(future);
+                pendingRefreshRequests.remove(future);
             }
         });
     }
@@ -396,8 +396,8 @@ public class TableViewImpl<T> implements TableView<T> {
                         log.error("Reader {} was closed while reading tail messages.",
                                 reader.getTopic(), ex);
                         // Fail all refresh request when no more messages can be read.
-                        refreshRequests.keySet().forEach(future -> {
-                            refreshRequests.remove(future);
+                        pendingRefreshRequests.keySet().forEach(future -> {
+                            pendingRefreshRequests.remove(future);
                             future.completeExceptionally(ex);
                         });
                     } else {
