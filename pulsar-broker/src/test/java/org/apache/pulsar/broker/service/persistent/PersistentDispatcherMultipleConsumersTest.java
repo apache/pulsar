@@ -59,7 +59,7 @@ public class PersistentDispatcherMultipleConsumersTest extends ProducerConsumerB
 
         Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING).topic(topicName).subscriptionName(subscription)
                 .subscriptionType(SubscriptionType.Shared).subscribe();
-        // Make an error that makes "consumerSet" is mismatch with "consumerList".
+        // Make an error that "consumerSet" is mismatch with "consumerList".
         Dispatcher dispatcher = pulsar.getBrokerService()
                 .getTopic(topicName, false).join().get()
                 .getSubscription(subscription).getDispatcher();
