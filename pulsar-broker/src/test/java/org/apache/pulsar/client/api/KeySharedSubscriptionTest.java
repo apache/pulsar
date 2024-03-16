@@ -1757,7 +1757,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
      */
     @Test(timeOut = 180 * 1000) // the test will be finished in 60s.
     public void testRecentJoinedPosWillNotStuckOtherConsumer() throws Exception {
-        final int messagesSentCount = 100;
+        final int messagesSentPerTime = 100;
         final Set<Integer> totalReceivedMessages = new TreeSet<>();
         final String topic = BrokerTestUtil.newUniqueName("persistent://public/default/tp");
         final String subName = "my-sub";
@@ -1767,14 +1767,13 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         // Send messages.
         @Cleanup
         Producer<Integer> producer = pulsarClient.newProducer(Schema.INT32).topic(topic).enableBatching(false).create();
-        for (int i = 0; i < messagesSentCount; i++) {
+        for (int i = 0; i < messagesSentPerTime; i++) {
             MessageId messageId = producer.newMessage()
                     .key(String.valueOf(random.nextInt(NUMBER_OF_KEYS)))
                     .value(100 + i)
                     .send();
-            log.info("Published delayed message :{}", messageId);
+            log.info("Published message :{}", messageId);
         }
-        producer.close();
 
         // 1. Start 3 consumers and make ack holes.
         //   - one consumer will be closed and trigger a messages redeliver.
@@ -1849,6 +1848,17 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
                 .subscribe();
         consumerWillBeClose.close();
 
+        Thread.sleep(2000);
+
+        for (int i = messagesSentPerTime; i < messagesSentPerTime * 2; i++) {
+            MessageId messageId = producer.newMessage()
+                    .key(String.valueOf(random.nextInt(NUMBER_OF_KEYS)))
+                    .value(100 + i)
+                    .send();
+            log.info("Published message :{}", messageId);
+        }
+
+        // Send messages again.
         // Verify: "consumerAlwaysAck" can receive messages util the cursor.readerPosition is larger than LAC.
         while (true) {
             Message<Integer> msg = consumerAlwaysAck.receive(2, TimeUnit.SECONDS);
@@ -1865,22 +1875,25 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         log.info("cursor_readPosition {}, LAC {}", cursor.getReadPosition(), managedLedger.getLastConfirmedEntry());
         assertTrue(((PositionImpl) cursor.getReadPosition())
                 .compareTo((PositionImpl) managedLedger.getLastConfirmedEntry())  > 0);
+
+        // Make all consumers to start to read and acknowledge messages.
         // Verify: no repeated Read-and-discard.
         Thread.sleep(5 * 1000);
-        int maxReplayCount = messagesSentCount * 2;
+        int maxReplayCount = messagesSentPerTime * 2;
         log.info("Reply read count: {}", replyReadCounter.get());
         assertTrue(replyReadCounter.get() < maxReplayCount);
         // Verify: at last, all messages will be received.
         ReceivedMessages<Integer> receivedMessages = ackAllMessages(consumerAlwaysAck, consumerStuck, consumer4);
         totalReceivedMessages.addAll(receivedMessages.messagesReceived.stream().map(p -> p.getRight()).collect(
                 Collectors.toList()));
-        assertEquals(totalReceivedMessages.size(), messagesSentCount);
+        assertEquals(totalReceivedMessages.size(), messagesSentPerTime * 2);
 
         // cleanup.
         consumer1.close();
         consumer2.close();
         consumer3.close();
         consumer4.close();
+        producer.close();
         admin.topics().delete(topic, false);
     }
 }
