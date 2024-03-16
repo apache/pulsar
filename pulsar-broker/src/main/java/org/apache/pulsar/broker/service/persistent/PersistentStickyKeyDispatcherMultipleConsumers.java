@@ -447,7 +447,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
     }
 
     @Override
-    protected NavigableSet<PositionImpl> filterOutMessagesWillBeDiscarded(NavigableSet<PositionImpl> src) {
+    protected NavigableSet<PositionImpl> filterOutEntriesWillBeDiscarded(NavigableSet<PositionImpl> src) {
         // Remove invalid items.
         removeConsumersFromRecentJoinedConsumers();
         if (MapUtils.isEmpty(recentlyJoinedConsumers) || src.isEmpty()) {
@@ -487,6 +487,29 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
             }
         }
         return res;
+    }
+
+    /**
+     * In Key_Shared mode, the consumer will not receive any entries from a normal reading if it is included in
+     * {@link #recentlyJoinedConsumers}, they can only receive entries from replay reads.
+     * If all entries in {@link #redeliveryMessages} have been filtered out due to the order guarantee mechanism,
+     * Broker need a normal read to make the consumers not included in @link #recentlyJoinedConsumers} will not be
+     * stuck. See https://github.com/apache/pulsar/pull/7105.
+     */
+    @Override
+    protected boolean hasConsumersNeededNormalRead() {
+        for (Consumer consumer : consumerList) {
+            if (consumer == null || consumer.isBlocked()) {
+                continue;
+            }
+            if (recentlyJoinedConsumers.containsKey(consumer)) {
+                continue;
+            }
+            if (consumer.getAvailablePermits() > 0) {
+                return true;
+            }
+        }
+        return false;
     }
 
     @Override
