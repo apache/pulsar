@@ -65,6 +65,14 @@ public class RawReaderImpl implements RawReader {
         consumer = new RawConsumerImpl(client, consumerConfiguration, consumerFuture, createTopicIfDoesNotExist);
     }
 
+    public RawReaderImpl(PulsarClientImpl client, ConsumerConfigurationData<byte[]> consumerConfiguration,
+                         CompletableFuture<Consumer<byte[]>> consumerFuture,
+                         boolean createTopicIfDoesNotExist) {
+        this.consumerConfiguration = consumerConfiguration;
+        consumer = new RawConsumerImpl(client, consumerConfiguration, consumerFuture, createTopicIfDoesNotExist);
+    }
+
+
     @Override
     public String getTopic() {
         return consumerConfiguration.getTopicNames().stream()
