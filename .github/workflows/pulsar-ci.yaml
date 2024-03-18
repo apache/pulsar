@@ -22,6 +22,7 @@ on:
   pull_request:
     branches:
       - master
+      - branch-3.2
   schedule:
     # scheduled job with JDK 17
     - cron: '0 12 * * *'
