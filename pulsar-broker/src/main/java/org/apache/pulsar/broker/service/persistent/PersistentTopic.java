@@ -888,8 +888,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 lock.readLock().unlock();
             }
 
-            CompletableFuture<? extends Subscription> subscriptionFuture = isDurable ? //
-                    getDurableSubscription(subscriptionName, initialPosition, startMessageRollbackDurationSec,
+            CompletableFuture<? extends Subscription> subscriptionFuture = isDurable
+                    ? getDurableSubscription(subscriptionName, initialPosition, startMessageRollbackDurationSec,
                             replicatedSubscriptionState, subscriptionProperties)
                     : getNonDurableSubscription(subscriptionName, startMessageId, initialPosition,
                     startMessageRollbackDurationSec, readCompacted, subscriptionProperties);
