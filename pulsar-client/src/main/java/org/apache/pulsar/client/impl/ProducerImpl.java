@@ -1831,9 +1831,9 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                         producerCreatedFuture.completeExceptionally(cause);
                         closeProducerTasks();
                         client.cleanupProducer(this);
-                    } else if (producerCreatedFuture.isDone() || //
-                               (cause instanceof PulsarClientException && PulsarClientException.isRetriableError(cause)
-                                && System.currentTimeMillis() < PRODUCER_DEADLINE_UPDATER.get(ProducerImpl.this))) {
+                    } else if (producerCreatedFuture.isDone()
+                            || (cause instanceof PulsarClientException && PulsarClientException.isRetriableError(cause)
+                            && System.currentTimeMillis() < PRODUCER_DEADLINE_UPDATER.get(ProducerImpl.this))) {
                         // Either we had already created the producer once (producerCreatedFuture.isDone()) or we are
                         // still within the initial timeout budget and we are dealing with a retriable error
                         future.completeExceptionally(cause);
