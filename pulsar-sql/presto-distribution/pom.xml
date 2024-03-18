@@ -33,7 +33,7 @@
 
   <properties>
     <skipBuildDistribution>false</skipBuildDistribution>
-    <jersey.version>2.34</jersey.version>
+    <jersey.version>2.41</jersey.version>
     <objenesis.version>2.6</objenesis.version>
     <objectsize.version>0.0.12</objectsize.version>
     <maven.version>3.0.5</maven.version>
