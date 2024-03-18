@@ -127,7 +127,7 @@ flexible messaging model and an intuitive client API.</description>
     <netty.version>4.1.100.Final</netty.version>
     <jetty.version>9.4.54.v20240208</jetty.version>
     <conscrypt.version>2.5.2</conscrypt.version>
-    <jersey.version>2.34</jersey.version>
+    <jersey.version>2.41</jersey.version>
     <athenz.version>1.10.50</athenz.version>
     <prometheus.version>0.16.0</prometheus.version>
     <vertx.version>3.9.8</vertx.version>
