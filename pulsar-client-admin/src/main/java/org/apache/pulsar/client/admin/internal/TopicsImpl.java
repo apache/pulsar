@@ -894,17 +894,29 @@ public class TopicsImpl extends BaseResource implements Topics {
     }
 
     @Override
+    public List<Message<byte[]>> peekMessages(String topic, String subName, int messagePosition, int numMessages)
+            throws PulsarAdminException {
+        return sync(() -> peekMessagesAsync(topic, subName, messagePosition, numMessages));
+    }
+
+    @Override
     public List<Message<byte[]>> peekMessages(String topic, String subName, int numMessages)
             throws PulsarAdminException {
-        return sync(() -> peekMessagesAsync(topic, subName, numMessages));
+        return sync(() -> peekMessagesAsync(topic, subName, 1, numMessages));
+    }
+
+    @Override
+    public CompletableFuture<List<Message<byte[]>>> peekMessagesAsync(String topic, String subName, int messagePosition, int numMessages) {
+        checkArgument(numMessages > 0);
+        CompletableFuture<List<Message<byte[]>>> future = new CompletableFuture<List<Message<byte[]>>>();
+        peekMessagesAsync(topic, subName, numMessages, new ArrayList<>(), future, messagePosition);
+        return future;
     }
 
     @Override
     public CompletableFuture<List<Message<byte[]>>> peekMessagesAsync(String topic, String subName, int numMessages) {
         checkArgument(numMessages > 0);
-        CompletableFuture<List<Message<byte[]>>> future = new CompletableFuture<List<Message<byte[]>>>();
-        peekMessagesAsync(topic, subName, numMessages, new ArrayList<>(), future, 1);
-        return future;
+        return peekMessagesAsync(topic, subName, 1, numMessages);
     }
 
     private void peekMessagesAsync(String topic, String subName, int numMessages,

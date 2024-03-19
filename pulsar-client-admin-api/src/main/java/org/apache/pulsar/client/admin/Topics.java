@@ -1639,21 +1639,41 @@ public interface Topics {
     /**
      * Peek messages from a topic subscription.
      *
-     * @param topic
-     *            topic name
-     * @param subName
-     *            Subscription name
-     * @param numMessages
-     *            Number of messages
+     * @param topic       topic name
+     * @param subName     Subscription name
+     * @param numMessages Number of messages
      * @return
-     * @throws NotAuthorizedException
-     *             Don't have admin permission
-     * @throws NotFoundException
-     *             Topic or subscription does not exist
-     * @throws PulsarAdminException
-     *             Unexpected error
+     * @throws NotAuthorizedException Don't have admin permission
+     * @throws NotFoundException      Topic or subscription does not exist
+     * @throws PulsarAdminException   Unexpected error
      */
-    List<Message<byte[]>> peekMessages(String topic, String subName, int numMessages) throws PulsarAdminException;
+    default List<Message<byte[]>> peekMessages(String topic, String subName, int numMessages) throws PulsarAdminException {
+        return peekMessages(topic, subName, 1, numMessages);
+    }
+
+    /**
+     * Peek messages from a topic subscription.
+     * @param topic       topic name
+     * @param subName     Subscription name
+     * @param numMessages Number of messages
+     * @param messagePosition Start index to read messages.
+     * @throws NotAuthorizedException Don't have admin permission
+     * @throws NotFoundException      Topic or subscription does not exist
+     * @throws PulsarAdminException   Unexpected error
+     */
+    List<Message<byte[]>> peekMessages(String topic, String subName, int messagePosition, int numMessages) throws PulsarAdminException;
+
+    /**
+     * Peek messages from a topic subscription asynchronously.
+     *
+     * @param topic       topic name
+     * @param subName     Subscription name
+     * @param numMessages Number of messages
+     * @return a future that can be used to track when the messages are returned
+     */
+    default CompletableFuture<List<Message<byte[]>>> peekMessagesAsync(String topic, String subName, int numMessages) {
+        return peekMessagesAsync (topic, subName,1,numMessages);
+    }
 
     /**
      * Peek messages from a topic subscription asynchronously.
@@ -1662,11 +1682,14 @@ public interface Topics {
      *            topic name
      * @param subName
      *            Subscription name
+     * @param messagePosition
+     *            Start index to read messages
      * @param numMessages
      *            Number of messages
      * @return a future that can be used to track when the messages are returned
      */
-    CompletableFuture<List<Message<byte[]>>> peekMessagesAsync(String topic, String subName, int numMessages);
+    CompletableFuture<List<Message<byte[]>>> peekMessagesAsync(String topic, String subName, int messagePosition,
+                                                               int numMessages);
 
     /**
      * Get a message by its messageId via a topic subscription.
