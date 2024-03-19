@@ -59,14 +59,17 @@ public abstract class AbstractBatchMessageContainer implements BatchMessageConta
     public boolean haveEnoughSpace(MessageImpl<?> msg) {
         int messageSize = msg.getDataBuffer().readableBytes();
         return (
-            (maxBytesInBatch <= 0 && (messageSize + currentBatchSizeBytes) <= ClientCnx.getMaxMessageSize())
+            (maxBytesInBatch <= 0 && (messageSize + currentBatchSizeBytes) <= getMaxMessageSize())
             || (maxBytesInBatch > 0 && (messageSize + currentBatchSizeBytes) <= maxBytesInBatch)
         ) && (maxNumMessagesInBatch <= 0 || numMessagesInBatch < maxNumMessagesInBatch);
+    }
+    protected int getMaxMessageSize() {
+        return (producer.getConnectionHandler().getMaxMessageSize());
     }
 
     protected boolean isBatchFull() {
         return (maxBytesInBatch > 0 && currentBatchSizeBytes >= maxBytesInBatch)
-            || (maxBytesInBatch <= 0 && currentBatchSizeBytes >= ClientCnx.getMaxMessageSize())
+            || (maxBytesInBatch <= 0 && currentBatchSizeBytes >= getMaxMessageSize())
             || (maxNumMessagesInBatch > 0 && numMessagesInBatch >= maxNumMessagesInBatch);
     }
 
