@@ -165,7 +165,8 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
             return;
         }
 
-        checkArgument(topicNamesValid(conf.getTopicNames()), "The param [topics] is invalid.");
+        checkArgument(topicNamesValid(conf.getTopicNames()), "Subscription topics include duplicate items"
+                + " or invalid names.");
 
         List<CompletableFuture<Void>> futures = conf.getTopicNames().stream()
                 .map(t -> subscribeAsync(t, createTopicIfDoesNotExist))
