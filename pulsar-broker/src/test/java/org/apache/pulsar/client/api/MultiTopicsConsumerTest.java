@@ -392,7 +392,8 @@ public class MultiTopicsConsumerTest extends ProducerConsumerBase {
             }
             Throwable unwrapEx = FutureUtil.unwrapCompletionException(e);
             assertTrue(unwrapEx instanceof IllegalArgumentException);
-            assertTrue(e.getMessage().contains( "The param [topics] is invalid"));
+            assertTrue(e.getMessage().contains( "Subscription topics include duplicate items"
+                    + " or invalid names"));
         }
         // cleanup.
         admin.topics().delete(topic2);
