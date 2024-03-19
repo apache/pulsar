@@ -56,7 +56,7 @@ Configuration:
       name: Console
       target: SYSTEM_OUT
       PatternLayout:
-        Pattern: "%d{ISO8601_OFFSET_DATE_TIME_HHMM} [%t] %-5level %logger{36} - %msg%n"
+        Pattern: "%d{ISO8601_OFFSET_DATE_TIME_HHMM} [%t] %-5level %logger{36} (%F:%L) - %msg%n"
 
     # Rolling file appender configuration
     RollingFile:
@@ -65,7 +65,7 @@ Configuration:
       filePattern: "${sys:pulsar.log.dir}/${sys:pulsar.log.file}-%d{MM-dd-yyyy}-%i.log.gz"
       immediateFlush: ${sys:pulsar.log.immediateFlush}
       PatternLayout:
-        Pattern: "%d{ISO8601_OFFSET_DATE_TIME_HHMM} [%t] %-5level %logger{36} - %msg%n"
+        Pattern: "%d{ISO8601_OFFSET_DATE_TIME_HHMM} [%t] %-5level %logger{36} (%F:%L) - %msg%n"
       Policies:
         TimeBasedTriggeringPolicy:
           interval: 1
