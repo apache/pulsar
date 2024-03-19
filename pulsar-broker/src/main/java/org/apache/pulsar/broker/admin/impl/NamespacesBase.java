@@ -2339,7 +2339,7 @@ public abstract class NamespacesBase extends AdminResource {
    }
 
    protected void internalSetProperty(String key, String value, AsyncResponse asyncResponse) {
-       validateTenantOperationAsync(namespaceName.getTenant(), TenantOperation.CREATE_NAMESPACE)
+       validateAdminAccessForTenantAsync(namespaceName.getTenant())
                .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
                .thenCompose(__ -> updatePoliciesAsync(namespaceName, policies -> {
                    policies.properties.put(key, value);
@@ -2359,7 +2359,7 @@ public abstract class NamespacesBase extends AdminResource {
    }
 
    protected void internalSetProperties(Map<String, String> properties, AsyncResponse asyncResponse) {
-       validateTenantOperationAsync(namespaceName.getTenant(), TenantOperation.CREATE_NAMESPACE)
+       validateAdminAccessForTenantAsync(namespaceName.getTenant())
                .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
                .thenCompose(__ -> updatePoliciesAsync(namespaceName, policies -> {
                    policies.properties.putAll(properties);
@@ -2379,7 +2379,7 @@ public abstract class NamespacesBase extends AdminResource {
    }
 
    protected void internalGetProperty(String key, AsyncResponse asyncResponse) {
-       validateTenantOperationAsync(namespaceName.getTenant(), TenantOperation.CREATE_NAMESPACE)
+       validateAdminAccessForTenantAsync(namespaceName.getTenant())
                .thenCompose(__ -> getNamespacePoliciesAsync(namespaceName))
                .thenAccept(policies -> asyncResponse.resume(policies.properties.get(key)))
                .exceptionally(ex -> {
@@ -2392,7 +2392,7 @@ public abstract class NamespacesBase extends AdminResource {
    }
 
    protected void internalGetProperties(AsyncResponse asyncResponse) {
-       validateTenantOperationAsync(namespaceName.getTenant(), TenantOperation.CREATE_NAMESPACE)
+       validateAdminAccessForTenantAsync(namespaceName.getTenant())
                .thenCompose(__ -> getNamespacePoliciesAsync(namespaceName))
                .thenAccept(policies -> asyncResponse.resume(policies.properties))
                .exceptionally(ex -> {
@@ -2405,7 +2405,7 @@ public abstract class NamespacesBase extends AdminResource {
 
    protected void internalRemoveProperty(String key, AsyncResponse asyncResponse) {
        AtomicReference<String> oldVal = new AtomicReference<>(null);
-       validateTenantOperationAsync(namespaceName.getTenant(), TenantOperation.CREATE_NAMESPACE)
+       validateAdminAccessForTenantAsync(namespaceName.getTenant())
                .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
                .thenCompose(__ -> updatePoliciesAsync(namespaceName, policies -> {
                    oldVal.set(policies.properties.remove(key));
@@ -2425,7 +2425,7 @@ public abstract class NamespacesBase extends AdminResource {
 
    protected void internalClearProperties(AsyncResponse asyncResponse) {
        AtomicReference<Integer> clearedCount = new AtomicReference<>(0);
-       validateTenantOperationAsync(namespaceName.getTenant(), TenantOperation.CREATE_NAMESPACE)
+       validateAdminAccessForTenantAsync(namespaceName.getTenant())
                .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
                .thenCompose(__ -> updatePoliciesAsync(namespaceName, policies -> {
                    clearedCount.set(policies.properties.size());
