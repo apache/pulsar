@@ -897,7 +897,8 @@ public class TopicsImpl extends BaseResource implements Topics {
     }
 
     @Override
-    public CompletableFuture<List<Message<byte[]>>> peekMessagesAsync(String topic, String subName, int messagePosition, int numMessages) {
+    public CompletableFuture<List<Message<byte[]>>> peekMessagesAsync(String topic, String subName, int messagePosition,
+                                                                      int numMessages) {
         checkArgument(numMessages > 0);
         CompletableFuture<List<Message<byte[]>>> future = new CompletableFuture<List<Message<byte[]>>>();
         peekMessagesAsync(topic, subName, numMessages, new ArrayList<>(), future, messagePosition);
