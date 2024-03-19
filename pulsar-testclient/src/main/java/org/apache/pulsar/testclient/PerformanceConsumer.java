@@ -82,7 +82,7 @@ public class PerformanceConsumer {
     private static final Recorder recorder = new Recorder(MAX_LATENCY, 5);
     private static final Recorder cumulativeRecorder = new Recorder(MAX_LATENCY, 5);
 
-    @Command(description = "Test pulsar consumer performance.")
+    @Command(description = "Test pulsar consumer performance.", showDefaultValues = true, scope = ScopeType.INHERIT)
     static class Arguments extends PerformanceTopicListArguments {
 
         @Option(names = { "-n", "--num-consumers" }, description = "Number of consumers (per subscription), only "
