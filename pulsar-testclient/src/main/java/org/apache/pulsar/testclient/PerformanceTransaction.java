@@ -89,7 +89,7 @@ public class PerformanceTransaction {
     private static final Recorder messageSendRCumulativeRecorder =
             new Recorder(TimeUnit.SECONDS.toMicros(120000), 5);
 
-    @Command(description = "Test pulsar transaction performance.")
+    @Command(description = "Test pulsar transaction performance.", showDefaultValues = true, scope = ScopeType.INHERIT)
     static class Arguments extends PerformanceBaseArguments {
 
         @Option(names = "--topics-c", description = "All topics that need ack for a transaction", required =
