@@ -31,6 +31,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.collect.Sets;
 import java.io.ByteArrayInputStream;
 import java.io.Serializable;
+import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -44,17 +45,23 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
+import javax.ws.rs.client.InvocationCallback;
+import javax.ws.rs.client.WebTarget;
+import javax.ws.rs.core.HttpHeaders;
+import javax.ws.rs.core.MultivaluedMap;
 import lombok.Cleanup;
 import lombok.EqualsAndHashCode;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.avro.Schema.Parser;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
+import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.service.schema.BookkeeperSchemaStorage;
 import org.apache.pulsar.broker.service.schema.SchemaRegistry;
 import org.apache.pulsar.broker.service.schema.SchemaRegistryServiceImpl;
 import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.client.admin.internal.SchemasImpl;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
@@ -1255,6 +1262,40 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
         producers.clear();
         producers2.clear();
         executor.shutdownNow();
+    }
+
+    @Test
+    public void testHTTPGetSchema() throws Exception {
+        final String namespace = "test-namespace-" + randomName(16);
+        String ns = PUBLIC_TENANT + "/" + namespace;
+        admin.namespaces().createNamespace(ns, Sets.newHashSet(CLUSTER_NAME));
+        final String topic = BrokerTestUtil.newUniqueName("persistent://" + ns + "/tp");
+        // create a schema.
+        pulsarClient.newProducer(Schema.STRING).topic(topic).create().close();
+
+        // call get schemas.
+        SchemasImpl schemas = (SchemasImpl) admin.schemas();
+        Method methodSchemasPath = SchemasImpl.class.getDeclaredMethod("schemasPath", new Class[]{TopicName.class});
+        methodSchemasPath.setAccessible(true);
+        WebTarget path = (WebTarget) methodSchemasPath.invoke(schemas, TopicName.get(topic));
+        CompletableFuture<javax.ws.rs.core.Response> response = new CompletableFuture();
+        schemas.asyncGetRequest(path, new InvocationCallback<javax.ws.rs.core.Response>() {
+
+            @Override
+            public void completed(javax.ws.rs.core.Response getSchemaResponse) {
+                response.complete(getSchemaResponse);
+            }
+
+            @Override
+            public void failed(Throwable throwable) {
+                response.completeExceptionally(throwable);
+            }
+        });
+        MultivaluedMap<String, Object> responseHeaders = response.join().getHeaders();
+        assertTrue(!responseHeaders.containsKey(HttpHeaders.CONTENT_ENCODING)
+                || !responseHeaders.get(HttpHeaders.CONTENT_ENCODING).toString().contains("application/json"));
+        assertTrue(responseHeaders.containsKey(HttpHeaders.CONTENT_TYPE)
+                && responseHeaders.get(HttpHeaders.CONTENT_TYPE).toString().contains("application/json"));
     }
 
     @EqualsAndHashCode

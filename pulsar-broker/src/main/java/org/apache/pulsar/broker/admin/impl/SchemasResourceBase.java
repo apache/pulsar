@@ -258,7 +258,7 @@ public class SchemasResourceBase extends AdminResource {
                 response.resume(Response.status(
                         Response.Status.NOT_FOUND.getStatusCode(), "Schema is deleted").build());
             } else {
-                response.resume(Response.ok().encoding(MediaType.APPLICATION_JSON)
+                response.resume(Response.ok()
                         .entity(convertSchemaAndMetadataToGetSchemaResponse(schema)).build());
             }
         } else {
@@ -275,7 +275,7 @@ public class SchemasResourceBase extends AdminResource {
                 response.resume(Response.status(
                         Response.Status.NOT_FOUND.getStatusCode(), "Schemas not found").build());
             } else {
-                response.resume(Response.ok().encoding(MediaType.APPLICATION_JSON)
+                response.resume(Response.ok()
                         .entity(GetAllVersionsSchemaResponse.builder()
                                 .getSchemaResponses(schemas.stream()
                                         .map(SchemasResourceBase::convertSchemaAndMetadataToGetSchemaResponse)
