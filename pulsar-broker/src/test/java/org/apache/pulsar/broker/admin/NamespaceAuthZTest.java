@@ -25,6 +25,7 @@ import lombok.SneakyThrows;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.impl.auth.AuthenticationToken;
+import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.security.MockedPulsarStandalone;
 import org.testng.Assert;
@@ -33,8 +34,10 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
+@Test(groups = "broker-admin")
 public class NamespaceAuthZTest extends MockedPulsarStandalone {
 
     private PulsarAdmin superUserAdmin;
@@ -132,5 +135,29 @@ public class NamespaceAuthZTest extends MockedPulsarStandalone {
         Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
                 () -> subAdmin.namespaces().clearProperties(namespace));
 
+        for (AuthAction action : AuthAction.values()) {
+            superUserAdmin.namespaces().grantPermissionOnNamespace(namespace, subject, Set.of(action));
+            Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
+                    () -> subAdmin.namespaces().setProperties(namespace, properties));
+
+            Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
+                    () -> subAdmin.namespaces().setProperty(namespace, "key2", "value2"));
+
+            Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
+                    () -> subAdmin.namespaces().getProperties(namespace));
+
+            Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
+                    () -> subAdmin.namespaces().getProperty(namespace, "key2"));
+
+
+            Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
+                    () -> subAdmin.namespaces().removeProperty(namespace, "key2"));
+
+            Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
+                    () -> subAdmin.namespaces().clearProperties(namespace));
+
+            superUserAdmin.namespaces().revokePermissionsOnNamespace(namespace, subject);
+        }
+        superUserAdmin.topics().delete(topic, true);
     }
 }

@@ -41,6 +41,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 
+@Test(groups = "broker-admin")
 public class TopicAuthZTest extends MockedPulsarStandalone {
 
     private PulsarAdmin superUserAdmin;
@@ -232,7 +233,7 @@ public class TopicAuthZTest extends MockedPulsarStandalone {
 
     @Test
     @SneakyThrows
-    public void testCreateSubscriptionAndUpdateSubscriptionProperties() {
+    public void testCreateSubscriptionAndUpdateSubscriptionPropertiesAndAnalyzeSubscriptionBacklog() {
         final String random = UUID.randomUUID().toString();
         final String topic = "persistent://public/default/" + random;
         final String subject =  UUID.randomUUID().toString();
@@ -304,6 +305,39 @@ public class TopicAuthZTest extends MockedPulsarStandalone {
                 Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
                         () -> subAdmin.topics().analyzeSubscriptionBacklog(TopicName.get(topic).getPartition(0).getLocalName(), "test-sub", Optional.empty()));
             }
+            superUserAdmin.topics().revokePermissions(topic, subject);
+        }
+        superUserAdmin.topics().deletePartitionedTopic(topic, true);
+    }
+
+    @Test
+    @SneakyThrows
+    public void testCreateMissingPartition() {
+        final String random = UUID.randomUUID().toString();
+        final String topic = "persistent://public/default/" + random;
+        final String subject =  UUID.randomUUID().toString();
+        final String token = Jwts.builder()
+                .claim("sub", subject).signWith(SECRET_KEY).compact();
+        superUserAdmin.topics().createPartitionedTopic(topic, 2);
+        AtomicInteger suffix = new AtomicInteger(1);
+        @Cleanup
+        final PulsarAdmin subAdmin = PulsarAdmin.builder()
+                .serviceHttpUrl(getPulsarService().getWebServiceAddress())
+                .authentication(new AuthenticationToken(token))
+                .build();
+        //
+        superUserAdmin.topics().createMissedPartitions(topic);
+
+        // test tenant manager
+        tenantManagerAdmin.topics().createMissedPartitions(topic);
+
+        Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
+                () -> subAdmin.topics().createMissedPartitions(topic));
+
+        for (AuthAction action : AuthAction.values()) {
+            superUserAdmin.topics().grantPermission(topic, subject, Set.of(action));
+            Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
+                    () -> subAdmin.topics().createMissedPartitions(topic));
             superUserAdmin.topics().revokePermissions(topic, subject);
         }
         superUserAdmin.topics().deletePartitionedTopic(topic, true);
