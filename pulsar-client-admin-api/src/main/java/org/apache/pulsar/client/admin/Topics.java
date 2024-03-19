@@ -1647,7 +1647,8 @@ public interface Topics {
      * @throws NotFoundException      Topic or subscription does not exist
      * @throws PulsarAdminException   Unexpected error
      */
-    default List<Message<byte[]>> peekMessages(String topic, String subName, int numMessages) throws PulsarAdminException {
+    default List<Message<byte[]>> peekMessages(String topic, String subName, int numMessages)
+            throws PulsarAdminException {
         return peekMessages(topic, subName, 1, numMessages);
     }
 
@@ -1661,7 +1662,8 @@ public interface Topics {
      * @throws NotFoundException      Topic or subscription does not exist
      * @throws PulsarAdminException   Unexpected error
      */
-    List<Message<byte[]>> peekMessages(String topic, String subName, int messagePosition, int numMessages) throws PulsarAdminException;
+    List<Message<byte[]>> peekMessages(String topic, String subName, int messagePosition, int numMessages)
+            throws PulsarAdminException;
 
     /**
      * Peek messages from a topic subscription asynchronously.
@@ -1672,7 +1674,7 @@ public interface Topics {
      * @return a future that can be used to track when the messages are returned
      */
     default CompletableFuture<List<Message<byte[]>>> peekMessagesAsync(String topic, String subName, int numMessages) {
-        return peekMessagesAsync (topic, subName,1,numMessages);
+        return peekMessagesAsync (topic, subName,1, numMessages);
     }
 
     /**
