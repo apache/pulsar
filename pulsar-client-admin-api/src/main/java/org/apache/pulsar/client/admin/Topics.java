@@ -1627,7 +1627,7 @@ public interface Topics {
      * @return a future that can be used to track when the messages are returned
      */
     default CompletableFuture<List<Message<byte[]>>> peekMessagesAsync(String topic, String subName, int numMessages) {
-        return peekMessagesAsync (topic, subName,1, numMessages);
+        return peekMessagesAsync (topic, subName, 1, numMessages);
     }
 
     /**
