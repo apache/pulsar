@@ -76,4 +76,26 @@ public class PersistentDispatcherMultipleConsumersTest extends ProducerConsumerB
         consumer.close();
         admin.topics().delete(topicName, false);
     }
+
+    @Test(timeOut = 30 * 1000)
+    public void testTopicDeleteIfConsumerSetMismatchConsumerList2() throws Exception {
+        final String topicName = BrokerTestUtil.newUniqueName("persistent://public/default/tp");
+        final String subscription = "s1";
+        admin.topics().createNonPartitionedTopic(topicName);
+        admin.topics().createSubscription(topicName, subscription, MessageId.earliest);
+
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING).topic(topicName).subscriptionName(subscription)
+                .subscriptionType(SubscriptionType.Shared).subscribe();
+        // Make an error that "consumerSet" is mismatch with "consumerList".
+        Dispatcher dispatcher = pulsar.getBrokerService()
+                .getTopic(topicName, false).join().get()
+                .getSubscription(subscription).getDispatcher();
+        ObjectSet<org.apache.pulsar.broker.service.Consumer> consumerSet =
+                WhiteboxImpl.getInternalState(dispatcher, "consumerSet");
+        consumerSet.clear();
+
+        // Verify: the topic can be deleted successfully.
+        consumer.close();
+        admin.topics().delete(topicName, false);
+    }
 }
