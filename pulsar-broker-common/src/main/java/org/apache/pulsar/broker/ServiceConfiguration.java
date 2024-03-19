@@ -2195,13 +2195,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
             category = CATEGORY_STORAGE_ML,
             doc = "Minimum backlog entries for any cursor before start caching reads"
     )
-    private int managedLedgerMinimumBacklogEntriesForCaching = 100;
+    private int managedLedgerMinimumBacklogEntriesForCaching = 1000;
     @FieldContext(
             dynamic = true,
             category = CATEGORY_STORAGE_ML,
             doc = "Maximum backlog entry difference to prevent caching entries that can't be reused"
     )
-    private int managedLedgerMaxBacklogBetweenCursorsForCaching = 10000;
+    private int managedLedgerMaxBacklogBetweenCursorsForCaching = 1000;
 
     /*** --- Load balancer. --- ****/
      @FieldContext(
