@@ -18,14 +18,9 @@
  */
 package org.apache.pulsar.cli.converters;
 
-import static org.apache.pulsar.cli.ValueValidationUtil.emptyCheck;
-import com.beust.jcommander.converters.BaseConverter;
+import picocli.CommandLine;
 
-public class ByteUnitToLongConverter extends BaseConverter<Long> {
-
-    public ByteUnitToLongConverter(String optionName) {
-        super(optionName);
-    }
+public class ByteUnitToLongConverter implements CommandLine.ITypeConverter<Long> {
 
     @Override
     public Long convert(String argStr) {
@@ -33,7 +28,6 @@ public class ByteUnitToLongConverter extends BaseConverter<Long> {
     }
 
     Long parseBytes(String argStr) {
-        emptyCheck(getOptionName(), argStr);
         return ByteUnitUtil.validateSizeString(argStr);
     }
 }

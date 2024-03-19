@@ -19,8 +19,6 @@
 package org.apache.pulsar.testclient;
 
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
-import com.beust.jcommander.Parameter;
-import com.beust.jcommander.Parameters;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.google.common.util.concurrent.RateLimiter;
@@ -65,6 +63,8 @@ import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.testclient.utils.PaddingDecimalFormat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import picocli.CommandLine.Command;
+import picocli.CommandLine.Option;
 
 public class PerformanceTransaction {
 
@@ -89,84 +89,84 @@ public class PerformanceTransaction {
     private static final Recorder messageSendRCumulativeRecorder =
             new Recorder(TimeUnit.SECONDS.toMicros(120000), 5);
 
-    @Parameters(commandDescription = "Test pulsar transaction performance.")
+    @Command(description = "Test pulsar transaction performance.")
     static class Arguments extends PerformanceBaseArguments {
 
-        @Parameter(names = "--topics-c", description = "All topics that need ack for a transaction", required =
+        @Option(names = "--topics-c", description = "All topics that need ack for a transaction", required =
                 true)
         public List<String> consumerTopic = Collections.singletonList("test-consume");
 
-        @Parameter(names = "--topics-p", description = "All topics that need produce for a transaction",
+        @Option(names = "--topics-p", description = "All topics that need produce for a transaction",
                 required = true)
         public List<String> producerTopic = Collections.singletonList("test-produce");
 
-        @Parameter(names = {"-threads", "--num-test-threads"}, description = "Number of test threads."
+        @Option(names = {"-threads", "--num-test-threads"}, description = "Number of test threads."
                 + "This thread is for a new transaction to ack messages from consumer topics and produce message to "
                 + "producer topics, and then commit or abort this transaction. "
                 + "Increasing the number of threads increases the parallelism of the performance test, "
                 + "thereby increasing the intensity of the stress test.")
         public int numTestThreads = 1;
 
-        @Parameter(names = {"-au", "--admin-url"}, description = "Pulsar Admin URL")
+        @Option(names = {"-au", "--admin-url"}, description = "Pulsar Admin URL")
         public String adminURL;
 
-        @Parameter(names = {"-np",
+        @Option(names = {"-np",
                 "--partitions"}, description = "Create partitioned topics with a given number of partitions, 0 means"
                 + "not trying to create a topic")
         public Integer partitions = null;
 
-        @Parameter(names = {"-time",
+        @Option(names = {"-time",
                 "--test-duration"}, description = "Test duration (in second). 0 means keeping publishing")
         public long testTime = 0;
 
-        @Parameter(names = {"-ss",
+        @Option(names = {"-ss",
                 "--subscriptions"}, description = "A list of subscriptions to consume (for example, sub1,sub2)")
         public List<String> subscriptions = Collections.singletonList("sub");
 
-        @Parameter(names = {"-ns", "--num-subscriptions"}, description = "Number of subscriptions (per topic)")
+        @Option(names = {"-ns", "--num-subscriptions"}, description = "Number of subscriptions (per topic)")
         public int numSubscriptions = 1;
 
-        @Parameter(names = {"-sp", "--subscription-position"}, description = "Subscription position")
+        @Option(names = {"-sp", "--subscription-position"}, description = "Subscription position")
         private SubscriptionInitialPosition subscriptionInitialPosition = SubscriptionInitialPosition.Earliest;
 
-        @Parameter(names = {"-st", "--subscription-type"}, description = "Subscription type")
+        @Option(names = {"-st", "--subscription-type"}, description = "Subscription type")
         public SubscriptionType subscriptionType = SubscriptionType.Shared;
 
-        @Parameter(names = {"-rs", "--replicated" },
+        @Option(names = {"-rs", "--replicated" },
                 description = "Whether the subscription status should be replicated")
         private boolean replicatedSubscription = false;
 
-        @Parameter(names = {"-q", "--receiver-queue-size"}, description = "Size of the receiver queue")
+        @Option(names = {"-q", "--receiver-queue-size"}, description = "Size of the receiver queue")
         public int receiverQueueSize = 1000;
 
-        @Parameter(names = {"-tto", "--txn-timeout"}, description = "Set the time value of transaction timeout,"
+        @Option(names = {"-tto", "--txn-timeout"}, description = "Set the time value of transaction timeout,"
                 + " and the time unit is second. (After --txn-enable setting to true, --txn-timeout takes effect)")
         public long transactionTimeout = 5;
 
-        @Parameter(names = {"-ntxn",
+        @Option(names = {"-ntxn",
                 "--number-txn"}, description = "Set the number of transaction. 0 means keeping open."
                 + "If transaction disabled, it means the number of tasks. The task or transaction produces or "
                 + "consumes a specified number of messages.")
         public long numTransactions = 0;
 
-        @Parameter(names = {"-nmp", "--numMessage-perTransaction-produce"},
+        @Option(names = {"-nmp", "--numMessage-perTransaction-produce"},
                 description = "Set the number of messages produced in  a transaction."
                         + "If transaction disabled, it means the number of messages produced in a task.")
         public int numMessagesProducedPerTransaction = 1;
 
-        @Parameter(names = {"-nmc", "--numMessage-perTransaction-consume"},
+        @Option(names = {"-nmc", "--numMessage-perTransaction-consume"},
                 description = "Set the number of messages consumed in a transaction."
                         + "If transaction disabled, it means the number of messages consumed in a task.")
         public int numMessagesReceivedPerTransaction = 1;
 
-        @Parameter(names = {"--txn-disable"}, description = "Disable transaction")
+        @Option(names = {"--txn-disable"}, description = "Disable transaction")
         public boolean isDisableTransaction = false;
 
-        @Parameter(names = {"-abort"}, description = "Abort the transaction. (After --txn-disEnable "
+        @Option(names = {"-abort"}, description = "Abort the transaction. (After --txn-disEnable "
                 + "setting to false, -abort takes effect)")
         public boolean isAbortTransaction = false;
 
-        @Parameter(names = "-txnRate", description = "Set the rate of opened transaction or task. 0 means no limit")
+        @Option(names = "-txnRate", description = "Set the rate of opened transaction or task. 0 means no limit")
         public int openTxnRate = 0;
 
         @Override

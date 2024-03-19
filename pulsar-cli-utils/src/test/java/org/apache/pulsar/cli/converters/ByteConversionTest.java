@@ -60,7 +60,7 @@ public class ByteConversionTest {
 
     @Test(dataProvider = "successfulByteUnitUtilTestCases")
     public void testSuccessfulByteUnitToLongConverter(String input, long expected) {
-        ByteUnitToLongConverter converter = new ByteUnitToLongConverter("optionName");
+        ByteUnitToLongConverter converter = new ByteUnitToLongConverter();
         assertEquals(converter.convert(input), Long.valueOf(expected));
     }
 
@@ -78,7 +78,7 @@ public class ByteConversionTest {
 
     @Test(dataProvider = "failingByteUnitUtilTestCases")
     public void testFailedByteUnitToLongConverter(String input) {
-        ByteUnitToLongConverter converter = new ByteUnitToLongConverter("optionName");
+        ByteUnitToLongConverter converter = new ByteUnitToLongConverter();
         assertThrows(IllegalArgumentException.class, () -> converter.convert(input));
     }
 

@@ -18,46 +18,47 @@
  */
 package org.apache.pulsar.testclient;
 
-import com.beust.jcommander.JCommander;
-import com.beust.jcommander.Parameter;
-import com.beust.jcommander.ParameterDescription;
-import com.beust.jcommander.ParameterException;
-import com.beust.jcommander.Parameters;
 import java.lang.reflect.Constructor;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
+import picocli.CommandLine;
+import picocli.CommandLine.Command;
+import picocli.CommandLine.Option;
+import picocli.CommandLine.ParameterException;
 
 @Slf4j
 public class CmdGenerateDocumentation {
 
-    @Parameters(commandDescription = "Generate documentation automatically.")
+    @Command(description = "Generate documentation automatically.")
     static class Arguments {
 
-        @Parameter(names = {"-h", "--help"}, description = "Help message", help = true)
+        @Option(names = {"-h", "--help"}, description = "Help message", help = true)
         boolean help;
 
-        @Parameter(names = {"-n", "--command-names"}, description = "List of command names")
+        @Option(names = {"-n", "--command-names"}, description = "List of command names")
         private List<String> commandNames = new ArrayList<>();
 
     }
 
     public static void main(String[] args) throws Exception {
         final Arguments arguments = new Arguments();
-        final JCommander jc = new JCommander(arguments);
-        jc.setProgramName("pulsar-perf gen-doc");
+        CommandLine commander = new CommandLine(arguments);
+        commander.setCommandName("pulsar-perf gen-doc");
         try {
-            jc.parse(args);
+            commander.parseArgs(args);
         } catch (ParameterException e) {
             System.out.println(e.getMessage());
-            jc.usage();
+            commander.usage(commander.getOut());
             PerfClientUtils.exit(1);
         }
 
+
         if (arguments.help) {
-            jc.usage();
+            commander.usage(commander.getOut());
             PerfClientUtils.exit(1);
         }
 
@@ -80,36 +81,36 @@ public class CmdGenerateDocumentation {
             Class<?> clazz = entry.getValue();
             Constructor<?> constructor = clazz.getDeclaredConstructor();
             constructor.setAccessible(true);
-            jc.addCommand(cmd, constructor.newInstance());
+            commander.addSubcommand(cmd, constructor.newInstance());
         }
 
         if (arguments.commandNames.size() == 0) {
-            for (Map.Entry<String, JCommander> cmd : jc.getCommands().entrySet()) {
-                generateDocument(cmd.getKey(), jc);
+            for (Map.Entry<String, CommandLine> cmd : commander.getSubcommands().entrySet()) {
+                generateDocument(cmd.getKey(), commander);
             }
         } else {
             for (String commandName : arguments.commandNames) {
-                generateDocument(commandName, jc);
+                generateDocument(commandName, commander);
             }
         }
     }
 
-    private static String generateDocument(String module, JCommander parentCmd) {
+    private static String generateDocument(String module, CommandLine parentCmd) {
         StringBuilder sb = new StringBuilder();
-        JCommander cmd = parentCmd.getCommands().get(module);
+        CommandLine cmd = parentCmd.getSubcommands().get(module);
         sb.append("## ").append(module).append("\n\n");
-        sb.append(parentCmd.getUsageFormatter().getCommandDescription(module)).append("\n");
+        sb.append(cmd.getCommandName()).append("\n");
         sb.append("\n\n```shell\n")
                 .append("$ pulsar-perf ").append(module).append(" [options]")
                 .append("\n```");
         sb.append("\n\n");
         sb.append("|Flag|Description|Default|\n");
         sb.append("|---|---|---|\n");
-        List<ParameterDescription> options = cmd.getParameters();
-        options.stream().filter(ele -> !ele.getParameterAnnotation().hidden()).forEach((option) ->
-                sb.append("| `").append(option.getNames())
-                        .append("` | ").append(option.getDescription().replace("\n", " "))
-                        .append("|").append(option.getDefault()).append("|\n")
+        List<CommandLine.Model.OptionSpec> options = cmd.getCommandSpec().options();
+        options.stream().filter(ele -> !ele.hidden()).forEach((option) ->
+                sb.append("| `").append(Arrays.toString(option.names()))
+                        .append("` | ").append(option.description()[0].replace("\n", " "))
+                        .append("|").append(option.defaultValue()).append("|\n")
         );
         System.out.println(sb.toString());
         return sb.toString();

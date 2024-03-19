@@ -18,15 +18,15 @@
  */
 package org.apache.pulsar.testclient;
 
-import com.beust.jcommander.IParameterValidator;
-import com.beust.jcommander.ParameterException;
+import picocli.CommandLine;
 
-public class PositiveNumberParameterValidator implements IParameterValidator {
-
+public class PositiveNumberParameterConvert implements CommandLine.ITypeConverter<Integer> {
     @Override
-    public void validate(String name, String value) throws ParameterException {
-        if (Integer.parseInt(value) <= 0) {
-            throw new ParameterException("Parameter " + name + " should be > 0 (found " + value + ")");
+    public Integer convert(String value) {
+        int result = Integer.parseInt(value);
+        if (result <= 0) {
+            throw new IllegalArgumentException("Parameter should be > 0 (found " + value + ")");
         }
+        return result;
     }
 }

@@ -19,10 +19,6 @@
 package org.apache.pulsar.testclient;
 
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
-import com.beust.jcommander.JCommander;
-import com.beust.jcommander.Parameter;
-import com.beust.jcommander.ParameterException;
-import com.beust.jcommander.Parameters;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.google.common.util.concurrent.RateLimiter;
@@ -64,6 +60,10 @@ import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.testclient.utils.PaddingDecimalFormat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import picocli.CommandLine;
+import picocli.CommandLine.Command;
+import picocli.CommandLine.Option;
+import picocli.CommandLine.ParameterException;
 
 public class ManagedLedgerWriter {
 
@@ -78,61 +78,61 @@ public class ManagedLedgerWriter {
     private static Recorder recorder = new Recorder(TimeUnit.SECONDS.toMillis(120000), 5);
     private static Recorder cumulativeRecorder = new Recorder(TimeUnit.SECONDS.toMillis(120000), 5);
 
-    @Parameters(commandDescription = "Write directly on managed-ledgers")
+    @Command(description = "Write directly on managed-ledgers")
     static class Arguments {
 
-        @Parameter(names = { "-h", "--help" }, description = "Help message", help = true)
+        @Option(names = { "-h", "--help" }, description = "Help message", help = true)
         boolean help;
 
-        @Parameter(names = { "-r", "--rate" }, description = "Write rate msg/s across managed ledgers")
+        @Option(names = { "-r", "--rate" }, description = "Write rate msg/s across managed ledgers")
         public int msgRate = 100;
 
-        @Parameter(names = { "-s", "--size" }, description = "Message size")
+        @Option(names = { "-s", "--size" }, description = "Message size")
         public int msgSize = 1024;
 
-        @Parameter(names = { "-t", "--num-topic" },
-                description = "Number of managed ledgers", validateWith = PositiveNumberParameterValidator.class)
+        @Option(names = { "-t", "--num-topic" },
+                description = "Number of managed ledgers", converter = PositiveNumberParameterConvert.class)
         public int numManagedLedgers = 1;
 
-        @Parameter(names = { "--threads" },
-                description = "Number of threads writing", validateWith = PositiveNumberParameterValidator.class)
+        @Option(names = { "--threads" },
+                description = "Number of threads writing", converter = PositiveNumberParameterConvert.class)
         public int numThreads = 1;
 
         @Deprecated
-        @Parameter(names = {"-zk", "--zookeeperServers"},
+        @Option(names = {"-zk", "--zookeeperServers"},
                 description = "ZooKeeper connection string",
                 hidden = true)
         public String zookeeperServers;
 
-        @Parameter(names = {"-md",
+        @Option(names = {"-md",
                 "--metadata-store"}, description = "Metadata store service URL. For example: zk:my-zk:2181")
         private String metadataStoreUrl;
 
-        @Parameter(names = { "-o", "--max-outstanding" }, description = "Max number of outstanding requests")
+        @Option(names = { "-o", "--max-outstanding" }, description = "Max number of outstanding requests")
         public int maxOutstanding = 1000;
 
-        @Parameter(names = { "-c",
+        @Option(names = { "-c",
                 "--max-connections" }, description = "Max number of TCP connections to a single bookie")
         public int maxConnections = 1;
 
-        @Parameter(names = { "-m",
+        @Option(names = { "-m",
                 "--num-messages" },
                 description = "Number of messages to publish in total. If <= 0, it will keep publishing")
         public long numMessages = 0;
 
-        @Parameter(names = { "-e", "--ensemble-size" }, description = "Ledger ensemble size")
+        @Option(names = { "-e", "--ensemble-size" }, description = "Ledger ensemble size")
         public int ensembleSize = 1;
 
-        @Parameter(names = { "-w", "--write-quorum" }, description = "Ledger write quorum")
+        @Option(names = { "-w", "--write-quorum" }, description = "Ledger write quorum")
         public int writeQuorum = 1;
 
-        @Parameter(names = { "-a", "--ack-quorum" }, description = "Ledger ack quorum")
+        @Option(names = { "-a", "--ack-quorum" }, description = "Ledger ack quorum")
         public int ackQuorum = 1;
 
-        @Parameter(names = { "-dt", "--digest-type" }, description = "BookKeeper digest type")
+        @Option(names = { "-dt", "--digest-type" }, description = "BookKeeper digest type")
         public DigestType digestType = DigestType.CRC32C;
 
-        @Parameter(names = { "-time",
+        @Option(names = { "-time",
                 "--test-duration" }, description = "Test duration in secs. If <= 0, it will keep publishing")
         public long testTime = 0;
 
@@ -141,25 +141,25 @@ public class ManagedLedgerWriter {
     public static void main(String[] args) throws Exception {
 
         final Arguments arguments = new Arguments();
-        JCommander jc = new JCommander(arguments);
-        jc.setProgramName("pulsar-perf managed-ledger");
+        CommandLine commander = new CommandLine(arguments);
+        commander.setCommandName("pulsar-perf managed-ledger");
 
         try {
-            jc.parse(args);
+            commander.parseArgs(args);
         } catch (ParameterException e) {
             System.out.println(e.getMessage());
-            jc.usage();
+            commander.usage(commander.getOut());
             PerfClientUtils.exit(1);
         }
 
         if (arguments.help) {
-            jc.usage();
+            commander.usage(commander.getOut());
             PerfClientUtils.exit(1);
         }
 
         if (arguments.metadataStoreUrl == null && arguments.zookeeperServers == null) {
             System.err.println("Metadata store address argument is required (--metadata-store)");
-            jc.usage();
+            commander.usage(commander.getOut());
             PerfClientUtils.exit(1);
         }
 

@@ -18,8 +18,6 @@
  */
 package org.apache.pulsar.testclient;
 
-import com.beust.jcommander.Parameter;
-import com.beust.jcommander.Parameters;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.google.common.util.concurrent.RateLimiter;
@@ -46,6 +44,8 @@ import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.testclient.utils.PaddingDecimalFormat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import picocli.CommandLine.Command;
+import picocli.CommandLine.Option;
 
 public class PerformanceReader {
     private static final LongAdder messagesReceived = new LongAdder();
@@ -59,30 +59,30 @@ public class PerformanceReader {
     private static Recorder recorder = new Recorder(TimeUnit.DAYS.toMillis(10), 5);
     private static Recorder cumulativeRecorder = new Recorder(TimeUnit.DAYS.toMillis(10), 5);
 
-    @Parameters(commandDescription = "Test pulsar reader performance.")
+    @Command(description = "Test pulsar reader performance.")
     static class Arguments extends PerformanceTopicListArguments {
 
-        @Parameter(names = { "-r", "--rate" }, description = "Simulate a slow message reader (rate in msg/s)")
+        @Option(names = { "-r", "--rate" }, description = "Simulate a slow message reader (rate in msg/s)")
         public double rate = 0;
 
-        @Parameter(names = { "-m",
+        @Option(names = { "-m",
                 "--start-message-id" }, description = "Start message id. This can be either 'earliest', "
                 + "'latest' or a specific message id by using 'lid:eid'")
         public String startMessageId = "earliest";
 
-        @Parameter(names = { "-q", "--receiver-queue-size" }, description = "Size of the receiver queue")
+        @Option(names = { "-q", "--receiver-queue-size" }, description = "Size of the receiver queue")
         public int receiverQueueSize = 1000;
 
-        @Parameter(names = {"-n",
+        @Option(names = {"-n",
                 "--num-messages"}, description = "Number of messages to consume in total. If <= 0, "
                 + "it will keep consuming")
         public long numMessages = 0;
 
-        @Parameter(names = {
+        @Option(names = {
                 "--use-tls" }, description = "Use TLS encryption on the connection")
         public boolean useTls;
 
-        @Parameter(names = { "-time",
+        @Option(names = { "-time",
                 "--test-duration" }, description = "Test duration in secs. If <= 0, it will keep consuming")
         public long testTime = 0;
 

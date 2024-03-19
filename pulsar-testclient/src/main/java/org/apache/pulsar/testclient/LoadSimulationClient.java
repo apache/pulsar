@@ -18,10 +18,6 @@
  */
 package org.apache.pulsar.testclient;
 
-import com.beust.jcommander.JCommander;
-import com.beust.jcommander.Parameter;
-import com.beust.jcommander.ParameterException;
-import com.beust.jcommander.Parameters;
 import com.google.common.util.concurrent.RateLimiter;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import java.io.DataInputStream;
@@ -48,6 +44,10 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.SizeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import picocli.CommandLine;
+import picocli.CommandLine.Command;
+import picocli.CommandLine.Option;
+import picocli.CommandLine.ParameterException;
 
 /**
  * LoadSimulationClient is used to simulate client load by maintaining producers and consumers for topics. Instances of
@@ -170,19 +170,19 @@ public class LoadSimulationClient {
         }
     }
 
-    // JCommander arguments for starting a LoadSimulationClient.
-    @Parameters(commandDescription = "Simulate client load by maintaining producers and consumers for topics.")
+    // picocli arguments for starting a LoadSimulationClient.
+    @Command(description = "Simulate client load by maintaining producers and consumers for topics.")
     private static class MainArguments {
-        @Parameter(names = { "-h", "--help" }, description = "Help message", help = true)
+        @Option(names = { "-h", "--help" }, description = "Help message", help = true)
         boolean help;
 
-        @Parameter(names = { "--port" }, description = "Port to listen on for controller", required = true)
+        @Option(names = { "--port" }, description = "Port to listen on for controller", required = true)
         public int port;
 
-        @Parameter(names = { "--service-url" }, description = "Pulsar Service URL", required = true)
+        @Option(names = { "--service-url" }, description = "Pulsar Service URL", required = true)
         public String serviceURL;
 
-        @Parameter(names = { "-ml", "--memory-limit", }, description = "Configure the Pulsar client memory limit "
+        @Option(names = { "-ml", "--memory-limit", }, description = "Configure the Pulsar client memory limit "
             + "(eg: 32M, 64M)", converter = ByteUnitToLongConverter.class)
         public long memoryLimit = 0L;
     }
@@ -310,7 +310,7 @@ public class LoadSimulationClient {
     private static final MessageListener<byte[]> ackListener = Consumer::acknowledgeAsync;
 
     /**
-     * Create a LoadSimulationClient with the given JCommander arguments.
+     * Create a LoadSimulationClient with the given picocli arguments.
      *
      * @param arguments
      *            Arguments to configure this from.
@@ -341,13 +341,13 @@ public class LoadSimulationClient {
      */
     public static void main(String[] args) throws Exception {
         final MainArguments mainArguments = new MainArguments();
-        final JCommander jc = new JCommander(mainArguments);
-        jc.setProgramName("pulsar-perf simulation-client");
+        CommandLine commander = new CommandLine(mainArguments);
+        commander.setCommandName("pulsar-perf simulation-client");
         try {
-            jc.parse(args);
+            commander.parseArgs(args);
         } catch (ParameterException e) {
             System.out.println(e.getMessage());
-            jc.usage();
+            commander.usage(commander.getOut());
             PerfClientUtils.exit(1);
         }
         PerfClientUtils.printJVMInformation(log);
