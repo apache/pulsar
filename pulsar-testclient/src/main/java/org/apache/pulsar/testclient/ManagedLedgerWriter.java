@@ -78,7 +78,7 @@ public class ManagedLedgerWriter {
     private static Recorder recorder = new Recorder(TimeUnit.SECONDS.toMillis(120000), 5);
     private static Recorder cumulativeRecorder = new Recorder(TimeUnit.SECONDS.toMillis(120000), 5);
 
-    @Command(description = "Write directly on managed-ledgers")
+    @Command(description = "Write directly on managed-ledgers", showDefaultValues = true, scope = ScopeType.INHERIT)
     static class Arguments {
 
         @Option(names = { "-h", "--help" }, description = "Help message", help = true)
