@@ -5338,7 +5338,7 @@ public class PersistentTopicsBase extends AdminResource {
         CompletableFuture<Void> future = validateTopicPolicyOperationAsync(topicName,
                 PolicyName.SCHEMA_COMPATIBILITY_STRATEGY, PolicyOperation.READ);
         if (applied) {
-            return getSchemaCompatibilityStrategyAsync();
+            return future.thenCompose(__ -> getSchemaCompatibilityStrategyAsync());
         }
         return future
                 .thenCompose(n -> getTopicPoliciesAsyncWithRetry(topicName).thenApply(op -> {
