@@ -71,6 +71,8 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
 
     private static final String NAMESPACE4 = "system-topic/namespace-4";
 
+    private static final String NAMESPACE5 = "system-topic/namespace-5";
+
     private static final TopicName TOPIC1 = TopicName.get("persistent", NamespaceName.get(NAMESPACE1), "topic-1");
     private static final TopicName TOPIC2 = TopicName.get("persistent", NamespaceName.get(NAMESPACE1), "topic-2");
     private static final TopicName TOPIC3 = TopicName.get("persistent", NamespaceName.get(NAMESPACE2), "topic-1");
@@ -464,5 +466,22 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
         }
         admin.namespaces().deleteNamespace(NAMESPACE4);
         Assert.assertNull(service.getWriterCaches().synchronous().getIfPresent(NamespaceName.get(NAMESPACE4)));
+    }
+
+    @Test
+    public void testPrepareInitPoliciesCacheAsyncWhenNamespaceBeingDeleted() throws Exception {
+        SystemTopicBasedTopicPoliciesService service = (SystemTopicBasedTopicPoliciesService) pulsar.getTopicPoliciesService();
+        admin.namespaces().createNamespace(NAMESPACE5);
+
+        NamespaceName namespaceName = NamespaceName.get(NAMESPACE5);
+        pulsar.getPulsarResources().getNamespaceResources().setPolicies(namespaceName,
+                old -> {
+                    old.deleted = true;
+                    return old;
+                });
+
+        assertNull(service.getPoliciesCacheInit(namespaceName));
+        service.prepareInitPoliciesCacheAsync(namespaceName).get();
+        admin.namespaces().deleteNamespace(NAMESPACE5);
     }
 }
