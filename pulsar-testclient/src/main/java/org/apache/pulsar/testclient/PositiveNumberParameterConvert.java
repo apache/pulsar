@@ -18,9 +18,10 @@
  */
 package org.apache.pulsar.testclient;
 
-import picocli.CommandLine;
+import picocli.CommandLine.ITypeConverter;
+import picocli.CommandLine.TypeConversionException;
 
-public class PositiveNumberParameterConvert implements CommandLine.ITypeConverter<Integer> {
+public class PositiveNumberParameterConvert implements ITypeConverter<Integer> {
     @Override
     public Integer convert(String value) {
         int result = Integer.parseInt(value);

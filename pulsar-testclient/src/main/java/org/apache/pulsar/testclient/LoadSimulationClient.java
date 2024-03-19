@@ -33,7 +33,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
-import org.apache.pulsar.cli.converters.ByteUnitToLongConverter;
+import org.apache.pulsar.cli.converters.picocli.ByteUnitToLongConverter;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
@@ -48,6 +48,7 @@ import picocli.CommandLine;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 import picocli.CommandLine.ParameterException;
+import picocli.CommandLine.ScopeType;
 
 /**
  * LoadSimulationClient is used to simulate client load by maintaining producers and consumers for topics. Instances of
@@ -171,7 +172,8 @@ public class LoadSimulationClient {
     }
 
     // picocli arguments for starting a LoadSimulationClient.
-    @Command(description = "Simulate client load by maintaining producers and consumers for topics.")
+    @Command(description = "Simulate client load by maintaining producers and consumers for topics.",
+            showDefaultValues = true, scope = ScopeType.INHERIT)
     private static class MainArguments {
         @Option(names = { "-h", "--help" }, description = "Help message", help = true)
         boolean help;

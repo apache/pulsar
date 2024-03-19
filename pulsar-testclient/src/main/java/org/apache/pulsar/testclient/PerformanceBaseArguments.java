@@ -25,7 +25,7 @@ import java.io.FileInputStream;
 import java.util.Properties;
 import lombok.SneakyThrows;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.pulsar.cli.converters.ByteUnitToLongConverter;
+import org.apache.pulsar.cli.converters.picocli.ByteUnitToLongConverter;
 import org.apache.pulsar.client.api.ProxyProtocol;
 import picocli.CommandLine;
 import picocli.CommandLine.Option;

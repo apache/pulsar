@@ -57,6 +57,7 @@ import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 import picocli.CommandLine.ParameterException;
 import picocli.CommandLine.Parameters;
+import picocli.CommandLine.ScopeType;
 
 /**
  * This class provides a shell for the user to dictate how simulation clients should incur load.
@@ -85,7 +86,7 @@ public class LoadSimulationController {
 
     // picocli arguments for starting a controller via main.
     @Command(description = "Provides a shell for the user to dictate how simulation clients should "
-            + "incur load.")
+            + "incur load.", showDefaultValues = true, scope = ScopeType.INHERIT)
     private static class MainArguments {
         @Option(names = { "-h", "--help" }, description = "Help message", help = true)
         boolean help;

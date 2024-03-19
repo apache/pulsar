@@ -50,6 +50,7 @@ import picocli.CommandLine;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 import picocli.CommandLine.ParameterException;
+import picocli.CommandLine.ScopeType;
 
 /**
  * Monitors brokers and prints to the console information about their system resource usages, their topic and bundle
@@ -436,7 +437,8 @@ public class BrokerMonitor {
 
     // picocli arguments class.
     @Command(description = "Monitors brokers and prints to the console information about their system "
-            + "resource usages, \ntheir topic and bundle counts, their message rates, and other metrics.")
+            + "resource usages, \ntheir topic and bundle counts, their message rates, and other metrics.",
+            showDefaultValues = true, scope = ScopeType.INHERIT)
     private static class Arguments {
         @Option(names = { "-h", "--help" }, description = "Help message", help = true)
         boolean help;

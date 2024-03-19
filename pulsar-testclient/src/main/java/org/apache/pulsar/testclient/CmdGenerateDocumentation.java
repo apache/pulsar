@@ -20,7 +20,6 @@ package org.apache.pulsar.testclient;
 
 import java.lang.reflect.Constructor;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -29,11 +28,12 @@ import picocli.CommandLine;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 import picocli.CommandLine.ParameterException;
+import picocli.CommandLine.ScopeType;
 
 @Slf4j
 public class CmdGenerateDocumentation {
 
-    @Command(description = "Generate documentation automatically.")
+    @Command(description = "Generate documentation automatically.", showDefaultValues = true, scope = ScopeType.INHERIT)
     static class Arguments {
 
         @Option(names = {"-h", "--help"}, description = "Help message", help = true)
@@ -108,7 +108,7 @@ public class CmdGenerateDocumentation {
         sb.append("|---|---|---|\n");
         List<CommandLine.Model.OptionSpec> options = cmd.getCommandSpec().options();
         options.stream().filter(ele -> !ele.hidden()).forEach((option) ->
-                sb.append("| `").append(Arrays.toString(option.names()))
+                sb.append("| `").append(String.join(", ", option.names()))
                         .append("` | ").append(option.description()[0].replace("\n", " "))
                         .append("|").append(option.defaultValueString()).append("|\n")
         );
