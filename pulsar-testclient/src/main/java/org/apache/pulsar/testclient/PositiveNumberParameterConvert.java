@@ -25,7 +25,7 @@ public class PositiveNumberParameterConvert implements CommandLine.ITypeConverte
     public Integer convert(String value) {
         int result = Integer.parseInt(value);
         if (result <= 0) {
-            throw new IllegalArgumentException("Parameter should be > 0 (found " + value + ")");
+            throw new TypeConversionException("Parameter should be > 0 (found " + value + ")");
         }
         return result;
     }
