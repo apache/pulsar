@@ -113,47 +113,24 @@ public class NamespaceAuthZTest extends MockedPulsarStandalone {
         tenantManagerAdmin.namespaces().clearProperties(namespace);
 
         // test nobody
-        try {
-            subAdmin.namespaces().setProperties(namespace, properties);
-            Assert.fail("unexpected behaviour");
-        } catch (PulsarAdminException ex) {
-            Assert.assertTrue(ex instanceof PulsarAdminException.NotAuthorizedException);
-        }
+        Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
+                () -> subAdmin.namespaces().setProperties(namespace, properties));
 
-        try {
+        Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
+                () -> subAdmin.namespaces().setProperty(namespace, "key2", "value2"));
 
-            subAdmin.namespaces().setProperty(namespace, "key2", "value2");
-            Assert.fail("unexpected behaviour");
-        } catch (PulsarAdminException ex) {
-            Assert.assertTrue(ex instanceof PulsarAdminException.NotAuthorizedException);
-        }
+        Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
+                () -> subAdmin.namespaces().getProperties(namespace));
 
-        try {
-            subAdmin.namespaces().getProperties(namespace);
-            Assert.fail("unexpected behaviour");
-        } catch (PulsarAdminException ex) {
-            Assert.assertTrue(ex instanceof PulsarAdminException.NotAuthorizedException);
-        }
+        Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
+                () -> subAdmin.namespaces().getProperty(namespace, "key2"));
 
-        try {
-            subAdmin.namespaces().getProperty(namespace, "key2");
-            Assert.fail("unexpected behaviour");
-        } catch (PulsarAdminException ex) {
-            Assert.assertTrue(ex instanceof PulsarAdminException.NotAuthorizedException);
-        }
 
-        try {
-            subAdmin.namespaces().removeProperty(namespace, "key2");
-            Assert.fail("unexpected behaviour");
-        } catch (PulsarAdminException ex) {
-            Assert.assertTrue(ex instanceof PulsarAdminException.NotAuthorizedException);
-        }
+        Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
+                () -> subAdmin.namespaces().removeProperty(namespace, "key2"));
 
-        try {
-            subAdmin.namespaces().clearProperties(namespace);
-            Assert.fail("unexpected behaviour");
-        } catch (PulsarAdminException ex) {
-            Assert.assertTrue(ex instanceof PulsarAdminException.NotAuthorizedException);
-        }
+        Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
+                () -> subAdmin.namespaces().clearProperties(namespace));
+
     }
 }

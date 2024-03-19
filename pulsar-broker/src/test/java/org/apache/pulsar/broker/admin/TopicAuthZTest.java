@@ -112,57 +112,34 @@ public class TopicAuthZTest extends MockedPulsarStandalone {
         tenantManagerAdmin.topicPolicies().getSchemaCompatibilityStrategy(topic, false);
 
         // test nobody
-        try {
-            subAdmin.topics().unload(topic);
-            Assert.fail("unexpected behaviour");
-        } catch (PulsarAdminException ex) {
-            Assert.assertTrue(ex instanceof PulsarAdminException.NotAuthorizedException);
-        }
-        try {
-            subAdmin.topics().triggerCompaction(topic);
-            Assert.fail("unexpected behaviour");
-        } catch (PulsarAdminException ex) {
-            Assert.assertTrue(ex instanceof PulsarAdminException.NotAuthorizedException);
-        }
-        try {
-            subAdmin.topics().trimTopic(TopicName.get(topic).getPartition(0).getLocalName());
-            Assert.fail("unexpected behaviour");
-        } catch (PulsarAdminException ex) {
-            Assert.assertTrue(ex instanceof PulsarAdminException.NotAuthorizedException);
-        }
-        try {
-            subAdmin.topicPolicies().getSchemaCompatibilityStrategy(topic, false);
-            Assert.fail("unexpected behaviour");
-        } catch (PulsarAdminException ex) {
-            Assert.assertTrue(ex instanceof PulsarAdminException.NotAuthorizedException);
-        }
+        Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
+                () -> subAdmin.topics().unload(topic));
 
+        Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
+                () -> subAdmin.topics().triggerCompaction(topic));
+
+        Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
+                () -> subAdmin.topics().trimTopic(TopicName.get(topic).getPartition(0).getLocalName()));
+
+        Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
+                () -> subAdmin.topicPolicies().getSchemaCompatibilityStrategy(topic, false));
+
+        // Test only super/admin can do the operation, other auth are not permitted.
         for (AuthAction action : AuthAction.values()) {
             superUserAdmin.topics().grantPermission(topic, subject, Set.of(action));
-            try {
-                subAdmin.topics().unload(topic);
-                Assert.fail("unexpected behaviour");
-            } catch (PulsarAdminException ex) {
-                Assert.assertTrue(ex instanceof PulsarAdminException.NotAuthorizedException);
-            }
-            try {
-                subAdmin.topics().triggerCompaction(topic);
-                Assert.fail("unexpected behaviour");
-            } catch (PulsarAdminException ex) {
-                Assert.assertTrue(ex instanceof PulsarAdminException.NotAuthorizedException);
-            }
-            try {
-                subAdmin.topics().trimTopic(topic);
-                Assert.fail("unexpected behaviour");
-            } catch (PulsarAdminException ex) {
-                Assert.assertTrue(ex instanceof PulsarAdminException.NotAuthorizedException);
-            }
-            try {
-                subAdmin.topicPolicies().getSchemaCompatibilityStrategy(topic, false);
-                Assert.fail("unexpected behaviour");
-            } catch (PulsarAdminException ex) {
-                Assert.assertTrue(ex instanceof PulsarAdminException.NotAuthorizedException);
-            }
+
+            Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
+                    () -> subAdmin.topics().unload(topic));
+
+            Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
+                    () -> subAdmin.topics().triggerCompaction(topic));
+
+            Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
+                    () -> subAdmin.topics().trimTopic(topic));
+
+            Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
+                    () -> subAdmin.topicPolicies().getSchemaCompatibilityStrategy(topic, false));
+
             superUserAdmin.topics().revokePermissions(topic, subject);
         }
         superUserAdmin.topics().deletePartitionedTopic(topic, true);
@@ -190,24 +167,16 @@ public class TopicAuthZTest extends MockedPulsarStandalone {
         tenantManagerAdmin.topics().getInternalInfo(topic);
 
         // test nobody
-        try {
-            subAdmin.topics().getInternalInfo(topic);
-            Assert.fail("unexpected behaviour");
-        } catch (PulsarAdminException ex) {
-            Assert.assertTrue(ex instanceof PulsarAdminException.NotAuthorizedException);
-        }
+        Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
+                () -> subAdmin.topics().getInternalInfo(topic));
 
         for (AuthAction action : AuthAction.values()) {
             superUserAdmin.topics().grantPermission(topic, subject, Set.of(action));
             if (action == AuthAction.produce || action == AuthAction.consume) {
                 subAdmin.topics().getInternalInfo(topic);
             } else {
-                try {
-                    subAdmin.topics().getInternalInfo(topic);
-                    Assert.fail("unexpected behaviour");
-                } catch (PulsarAdminException ex) {
-                    Assert.assertTrue(ex instanceof PulsarAdminException.NotAuthorizedException);
-                }
+                Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
+                        () -> subAdmin.topics().getInternalInfo(topic));
             }
             superUserAdmin.topics().revokePermissions(topic, subject);
         }
@@ -238,19 +207,11 @@ public class TopicAuthZTest extends MockedPulsarStandalone {
         tenantManagerAdmin.topics().getPartitionedInternalStats(topic);
 
         // test nobody
-        try {
-            subAdmin.topics().getPartitionedStats(topic, false);
-            Assert.fail("unexpected behaviour");
-        } catch (PulsarAdminException ex) {
-            Assert.assertTrue(ex instanceof PulsarAdminException.NotAuthorizedException);
-        }
+        Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
+                () -> subAdmin.topics().getPartitionedStats(topic, false));
 
-        try {
-            subAdmin.topics().getPartitionedInternalStats(topic);
-            Assert.fail("unexpected behaviour");
-        } catch (PulsarAdminException ex) {
-            Assert.assertTrue(ex instanceof PulsarAdminException.NotAuthorizedException);
-        }
+        Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
+                () -> subAdmin.topics().getPartitionedInternalStats(topic));
 
         for (AuthAction action : AuthAction.values()) {
             superUserAdmin.topics().grantPermission(topic, subject, Set.of(action));
@@ -258,18 +219,11 @@ public class TopicAuthZTest extends MockedPulsarStandalone {
                 subAdmin.topics().getPartitionedStats(topic, false);
                 subAdmin.topics().getPartitionedInternalStats(topic);
             } else {
-                try {
-                    subAdmin.topics().getPartitionedStats(topic, false);
-                    Assert.fail("unexpected behaviour");
-                } catch (PulsarAdminException ex) {
-                    Assert.assertTrue(ex instanceof PulsarAdminException.NotAuthorizedException);
-                }
-                try {
-                    subAdmin.topics().getPartitionedInternalStats(topic);
-                    Assert.fail("unexpected behaviour");
-                } catch (PulsarAdminException ex) {
-                    Assert.assertTrue(ex instanceof PulsarAdminException.NotAuthorizedException);
-                }
+                Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
+                        () -> subAdmin.topics().getPartitionedStats(topic, false));
+
+                Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
+                        () -> subAdmin.topics().getPartitionedInternalStats(topic));
             }
             superUserAdmin.topics().revokePermissions(topic, subject);
         }
@@ -298,25 +252,16 @@ public class TopicAuthZTest extends MockedPulsarStandalone {
         tenantManagerAdmin.topics().createSubscription(topic, "test-sub" + suffix.incrementAndGet(), MessageId.earliest);
 
         // test nobody
-        try {
-            subAdmin.topics().createSubscription(topic, "test-sub" + suffix.incrementAndGet(), MessageId.earliest);
-            Assert.fail("unexpected behaviour");
-        } catch (PulsarAdminException ex) {
-            Assert.assertTrue(ex instanceof PulsarAdminException.NotAuthorizedException);
-        }
-
+        Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
+                () -> subAdmin.topics().createSubscription(topic, "test-sub" + suffix.incrementAndGet(), MessageId.earliest));
 
         for (AuthAction action : AuthAction.values()) {
             superUserAdmin.topics().grantPermission(topic, subject, Set.of(action));
             if (action == AuthAction.consume) {
                 subAdmin.topics().createSubscription(topic, "test-sub" + suffix.incrementAndGet(), MessageId.earliest);
             } else {
-                try {
-                    subAdmin.topics().createSubscription(topic, "test-sub" + suffix.incrementAndGet(), MessageId.earliest);
-                    Assert.fail("unexpected behaviour");
-                } catch (PulsarAdminException ex) {
-                    Assert.assertTrue(ex instanceof PulsarAdminException.NotAuthorizedException);
-                }
+                Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
+                        () -> subAdmin.topics().createSubscription(topic, "test-sub" + suffix.incrementAndGet(), MessageId.earliest));
             }
             superUserAdmin.topics().revokePermissions(topic, subject);
         }
@@ -334,25 +279,14 @@ public class TopicAuthZTest extends MockedPulsarStandalone {
         tenantManagerAdmin.topics().analyzeSubscriptionBacklog(TopicName.get(topic).getPartition(0).getLocalName(), "test-sub", Optional.empty());
 
         // test nobody
-        try {
-            subAdmin.topics().updateSubscriptionProperties(topic, "test-sub", properties);
-            Assert.fail("unexpected behaviour");
-        } catch (PulsarAdminException ex) {
-            Assert.assertTrue(ex instanceof PulsarAdminException.NotAuthorizedException);
-        }
-        try {
-            subAdmin.topics().getSubscriptionProperties(topic, "test-sub");
-            Assert.fail("unexpected behaviour");
-        } catch (PulsarAdminException ex) {
-            Assert.assertTrue(ex instanceof PulsarAdminException.NotAuthorizedException);
-        }
-        try {
-            subAdmin.topics().analyzeSubscriptionBacklog(TopicName.get(topic).getPartition(0).getLocalName(), "test-sub", Optional.empty());
-            Assert.fail("unexpected behaviour");
-        } catch (PulsarAdminException ex) {
-            Assert.assertTrue(ex instanceof PulsarAdminException.NotAuthorizedException);
-        }
+        Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
+                () -> subAdmin.topics().updateSubscriptionProperties(topic, "test-sub", properties));
 
+        Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
+                () -> subAdmin.topics().getSubscriptionProperties(topic, "test-sub"));
+
+        Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
+                () -> subAdmin.topics().analyzeSubscriptionBacklog(TopicName.get(topic).getPartition(0).getLocalName(), "test-sub", Optional.empty()));
 
         for (AuthAction action : AuthAction.values()) {
             superUserAdmin.topics().grantPermission(topic, subject, Set.of(action));
@@ -361,24 +295,14 @@ public class TopicAuthZTest extends MockedPulsarStandalone {
                 subAdmin.topics().getSubscriptionProperties(topic, "test-sub");
                 subAdmin.topics().analyzeSubscriptionBacklog(TopicName.get(topic).getPartition(0).getLocalName(), "test-sub", Optional.empty());
             } else {
-                try {
-                    subAdmin.topics().updateSubscriptionProperties(topic, "test-sub", properties);
-                    Assert.fail("unexpected behaviour");
-                } catch (PulsarAdminException ex) {
-                    Assert.assertTrue(ex instanceof PulsarAdminException.NotAuthorizedException);
-                }
-                try {
-                    subAdmin.topics().getSubscriptionProperties(topic, "test-sub");
-                    Assert.fail("unexpected behaviour");
-                } catch (PulsarAdminException ex) {
-                    Assert.assertTrue(ex instanceof PulsarAdminException.NotAuthorizedException);
-                }
-                try {
-                    subAdmin.topics().analyzeSubscriptionBacklog(TopicName.get(topic).getPartition(0).getLocalName(), "test-sub", Optional.empty());
-                    Assert.fail("unexpected behaviour");
-                } catch (PulsarAdminException ex) {
-                    Assert.assertTrue(ex instanceof PulsarAdminException.NotAuthorizedException);
-                }
+                Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
+                        () -> subAdmin.topics().updateSubscriptionProperties(topic, "test-sub", properties));
+
+                Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
+                        () -> subAdmin.topics().getSubscriptionProperties(topic, "test-sub"));
+
+                Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
+                        () -> subAdmin.topics().analyzeSubscriptionBacklog(TopicName.get(topic).getPartition(0).getLocalName(), "test-sub", Optional.empty()));
             }
             superUserAdmin.topics().revokePermissions(topic, subject);
         }
