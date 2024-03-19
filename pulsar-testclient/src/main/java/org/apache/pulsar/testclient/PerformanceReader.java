@@ -59,7 +59,7 @@ public class PerformanceReader {
     private static Recorder recorder = new Recorder(TimeUnit.DAYS.toMillis(10), 5);
     private static Recorder cumulativeRecorder = new Recorder(TimeUnit.DAYS.toMillis(10), 5);
 
-    @Command(description = "Test pulsar reader performance.")
+    @Command(description = "Test pulsar reader performance.", showDefaultValues = true, scope = ScopeType.INHERIT)
     static class Arguments extends PerformanceTopicListArguments {
 
         @Option(names = { "-r", "--rate" }, description = "Simulate a slow message reader (rate in msg/s)")
