@@ -1068,8 +1068,10 @@ public class PersistentTopicsBase extends AdminResource {
 
     private void internalUnloadTransactionCoordinatorAsync(AsyncResponse asyncResponse, boolean authoritative) {
         validateTopicOwnershipAsync(topicName, authoritative)
-                .thenCompose(v -> pulsar().getTransactionMetadataStoreService().removeTransactionMetadataStore(
-                                        TransactionCoordinatorID.get(topicName.getPartitionIndex())))
+                .thenCompose(v -> pulsar()
+                        .getTransactionMetadataStoreService()
+                        .removeTransactionMetadataStore(
+                                TransactionCoordinatorID.get(topicName.getPartitionIndex())))
                 .thenRun(() -> {
                     log.info("[{}] Successfully unloaded tc {}", clientAppId(), topicName.getPartitionIndex());
                     asyncResponse.resume(Response.noContent().build());
