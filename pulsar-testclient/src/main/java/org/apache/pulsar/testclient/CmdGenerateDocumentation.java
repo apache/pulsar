@@ -110,7 +110,7 @@ public class CmdGenerateDocumentation {
         options.stream().filter(ele -> !ele.hidden()).forEach((option) ->
                 sb.append("| `").append(Arrays.toString(option.names()))
                         .append("` | ").append(option.description()[0].replace("\n", " "))
-                        .append("|").append(option.defaultValue()).append("|\n")
+                        .append("|").append(option.defaultValueString()).append("|\n")
         );
         System.out.println(sb.toString());
         return sb.toString();
