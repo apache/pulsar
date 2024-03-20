@@ -65,8 +65,8 @@ public abstract class AbstractBatchMessageContainer implements BatchMessageConta
         ) && (maxNumMessagesInBatch <= 0 || numMessagesInBatch < maxNumMessagesInBatch);
     }
     protected int getMaxMessageSize() {
-        return producer != null && producer.getConnectionHandler() != null ?
-                producer.getConnectionHandler().getMaxMessageSize() : Commands.DEFAULT_MAX_MESSAGE_SIZE;
+        return producer != null && producer.getConnectionHandler() != null
+                ? producer.getConnectionHandler().getMaxMessageSize() : Commands.DEFAULT_MAX_MESSAGE_SIZE;
     }
 
     protected boolean isBatchFull() {
