@@ -105,7 +105,7 @@ public class PerformanceProducer {
 
     private static IMessageFormatter messageFormatter = null;
 
-    @Command(name = "Test pulsar producer performance.", showDefaultValues = true, scope = ScopeType.INHERIT)
+    @Command(description = "Test pulsar producer performance.", showDefaultValues = true, scope = ScopeType.INHERIT)
     static class Arguments extends PerformanceTopicListArguments {
 
         @Option(names = { "-threads", "--num-test-threads" }, description = "Number of test threads",

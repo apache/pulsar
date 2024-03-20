@@ -99,7 +99,7 @@ public class CmdGenerateDocumentation {
         StringBuilder sb = new StringBuilder();
         CommandLine cmd = parentCmd.getSubcommands().get(module);
         sb.append("## ").append(module).append("\n\n");
-        sb.append(cmd.getCommandName()).append("\n");
+        sb.append(getCommandDescription(cmd)).append("\n");
         sb.append("\n\n```shell\n")
                 .append("$ pulsar-perf ").append(module).append(" [options]")
                 .append("\n```");
@@ -109,10 +109,26 @@ public class CmdGenerateDocumentation {
         List<CommandLine.Model.OptionSpec> options = cmd.getCommandSpec().options();
         options.stream().filter(ele -> !ele.hidden()).forEach((option) ->
                 sb.append("| `").append(String.join(", ", option.names()))
-                        .append("` | ").append(option.description()[0].replace("\n", " "))
+                        .append("` | ").append(getOptionDescription(option).replace("\n", " "))
                         .append("|").append(option.defaultValueString()).append("|\n")
         );
         System.out.println(sb.toString());
         return sb.toString();
+    }
+
+    public static String getCommandDescription(CommandLine commandLine) {
+        String[] description = commandLine.getCommandSpec().usageMessage().description();
+        if (description != null && description.length != 0) {
+            return description[0];
+        }
+        return "";
+    }
+
+    public static String getOptionDescription(CommandLine.Model.OptionSpec optionSpec) {
+        String[] description = optionSpec.description();
+        if (description != null && description.length != 0) {
+            return description[0];
+        }
+        return "";
     }
 }
