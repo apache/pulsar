@@ -2490,7 +2490,7 @@ public class PersistentTopicsBase extends AdminResource {
     protected void internalAnalyzeSubscriptionBacklog(AsyncResponse asyncResponse, String subName,
                                                       Optional<Position> position,
                                                       boolean authoritative) {
-        CompletableFuture<Void> future = validateTopicOperationAsync(topicName, TopicOperation.GET_STATS, subName);
+        CompletableFuture<Void> future = validateTopicOperationAsync(topicName, TopicOperation.CONSUME, subName);
         future.thenCompose(__ -> {
             if (topicName.isGlobal()) {
                 return validateGlobalNamespaceOwnershipAsync(namespaceName);
@@ -2528,7 +2528,7 @@ public class PersistentTopicsBase extends AdminResource {
 
     protected void internalGetSubscriptionProperties(AsyncResponse asyncResponse, String subName,
                                                         boolean authoritative) {
-        CompletableFuture<Void> future = validateTopicOperationAsync(topicName, TopicOperation.GET_METADATA, subName);
+        CompletableFuture<Void> future = validateTopicOperationAsync(topicName, TopicOperation.CONSUME, subName);
         future.thenCompose(__ -> {
             if (topicName.isGlobal()) {
                 return validateGlobalNamespaceOwnershipAsync(namespaceName);
