@@ -102,5 +102,7 @@ public class SimpleProducerConsumerMLInitializeDelayTest extends ProducerConsume
         // Verify: the topic can be deleted.
         consumer.close();
         admin.topics().delete(topicName);
+        // cleanup.
+        client.close();
     }
 }
