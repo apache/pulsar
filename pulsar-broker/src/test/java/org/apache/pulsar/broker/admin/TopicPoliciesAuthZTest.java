@@ -19,107 +19,23 @@
 package org.apache.pulsar.broker.admin;
 
 import static org.awaitility.Awaitility.await;
-import com.google.common.collect.Sets;
 import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.SignatureAlgorithm;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Properties;
+import java.util.Collections;
 import java.util.UUID;
-import javax.crypto.SecretKey;
 import lombok.Cleanup;
 import lombok.SneakyThrows;
-import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
-import org.apache.pulsar.broker.authentication.AuthenticationProviderToken;
-import org.apache.pulsar.broker.authentication.utils.AuthTokenUtils;
-import org.apache.pulsar.broker.authorization.PulsarAuthorizationProvider;
 import org.apache.pulsar.client.admin.PulsarAdmin;
-import org.apache.pulsar.client.admin.PulsarAdminBuilder;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.impl.auth.AuthenticationToken;
 import org.apache.pulsar.common.policies.data.AuthAction;
+import org.apache.pulsar.common.policies.data.OffloadPolicies;
+import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
-import org.apache.pulsar.common.policies.data.TenantInfo;
-import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.testng.Assert;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-public final class TopicPoliciesAuthZTest extends MockedPulsarServiceBaseTest {
 
-    private PulsarAdmin superUserAdmin;
-
-    private PulsarAdmin tenantManagerAdmin;
-
-    private static final SecretKey SECRET_KEY = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
-    private static final String TENANT_ADMIN_SUBJECT =  UUID.randomUUID().toString();
-    private static final String TENANT_ADMIN_TOKEN = Jwts.builder()
-            .claim("sub", TENANT_ADMIN_SUBJECT).signWith(SECRET_KEY).compact();
-
-
-    private static final String BROKER_INTERNAL_CLIENT_SUBJECT = "broker_internal";
-    private static final String BROKER_INTERNAL_CLIENT_TOKEN = Jwts.builder()
-            .claim("sub", BROKER_INTERNAL_CLIENT_SUBJECT).signWith(SECRET_KEY).compact();
-    private static final String SUPER_USER_SUBJECT = "super-user";
-    private static final String SUPER_USER_TOKEN = Jwts.builder()
-            .claim("sub", SUPER_USER_SUBJECT).signWith(SECRET_KEY).compact();
-    private static final String NOBODY_SUBJECT =  "nobody";
-    private static final String NOBODY_TOKEN = Jwts.builder()
-            .claim("sub", NOBODY_SUBJECT).signWith(SECRET_KEY).compact();
-
-
-    @BeforeClass
-    @Override
-    protected void setup() throws Exception {
-        conf.setAuthorizationEnabled(true);
-        conf.setAuthorizationProvider(PulsarAuthorizationProvider.class.getName());
-        conf.setSuperUserRoles(Sets.newHashSet(SUPER_USER_SUBJECT, BROKER_INTERNAL_CLIENT_SUBJECT));
-        conf.setAuthenticationEnabled(true);
-        conf.setSystemTopicEnabled(true);
-        conf.setTopicLevelPoliciesEnabled(true);
-        conf.setAuthenticationProviders(Sets.newHashSet(AuthenticationProviderToken.class.getName()));
-        // internal client
-        conf.setBrokerClientAuthenticationPlugin(AuthenticationToken.class.getName());
-        final Map<String, String> brokerClientAuthParams = new HashMap<>();
-        brokerClientAuthParams.put("token", BROKER_INTERNAL_CLIENT_TOKEN);
-        final String brokerClientAuthParamStr = ObjectMapperFactory.getThreadLocal()
-                .writeValueAsString(brokerClientAuthParams);
-        conf.setBrokerClientAuthenticationParameters(brokerClientAuthParamStr);
-
-        Properties properties = conf.getProperties();
-        if (properties == null) {
-            properties = new Properties();
-            conf.setProperties(properties);
-        }
-        properties.put("tokenSecretKey", AuthTokenUtils.encodeKeyBase64(SECRET_KEY));
-
-        internalSetup();
-        setupDefaultTenantAndNamespace();
-
-        this.superUserAdmin =PulsarAdmin.builder()
-                .serviceHttpUrl(pulsar.getWebServiceAddress())
-                .authentication(new AuthenticationToken(SUPER_USER_TOKEN))
-                .build();
-        final TenantInfo tenantInfo = superUserAdmin.tenants().getTenantInfo("public");
-        tenantInfo.getAdminRoles().add(TENANT_ADMIN_SUBJECT);
-        superUserAdmin.tenants().updateTenant("public", tenantInfo);
-        this.tenantManagerAdmin = PulsarAdmin.builder()
-                .serviceHttpUrl(pulsar.getWebServiceAddress())
-                .authentication(new AuthenticationToken(TENANT_ADMIN_TOKEN))
-                .build();
-    }
-
-    @Override
-    protected void customizeNewPulsarAdminBuilder(PulsarAdminBuilder pulsarAdminBuilder) {
-        pulsarAdminBuilder.authentication(new AuthenticationToken(SUPER_USER_TOKEN));
-    }
-
-    @AfterClass
-    @Override
-    protected void cleanup() throws Exception {
-     internalCleanup();
-    }
+public final class TopicPoliciesAuthZTest extends BaseAuthZTest {
 
 
     @SneakyThrows
@@ -193,7 +109,7 @@ public final class TopicPoliciesAuthZTest extends MockedPulsarServiceBaseTest {
         // test sub user with permissions
         for (AuthAction action : AuthAction.values()) {
             superUserAdmin.namespaces().grantPermissionOnNamespace("public/default",
-                    subject, Sets.newHashSet(action));
+                    subject, Collections.singleton(action));
             try {
                 subAdmin.topicPolicies().getRetention(topic);
                 Assert.fail("unexpected behaviour");
@@ -218,6 +134,109 @@ public final class TopicPoliciesAuthZTest extends MockedPulsarServiceBaseTest {
             superUserAdmin.namespaces().revokePermissionsOnNamespace("public/default", subject);
         }
     }
+    @SneakyThrows
+    @Test
+    public void testOffloadPolicy() {
+        final String random = UUID.randomUUID().toString();
+        final String topic = "persistent://public/default/" + random;
+        final String subject =  UUID.randomUUID().toString();
+        final String token = Jwts.builder()
+                .claim("sub", subject).signWith(SECRET_KEY).compact();
+        superUserAdmin.topics().createNonPartitionedTopic(topic);
+
+        @Cleanup
+        final PulsarAdmin subAdmin = PulsarAdmin.builder()
+                .serviceHttpUrl(getPulsar().getWebServiceAddress())
+                .authentication(new AuthenticationToken(token))
+                .build();
+
+        // mocked data
+        final OffloadPoliciesImpl definedOffloadPolicies = new OffloadPoliciesImpl();
+        definedOffloadPolicies.setManagedLedgerOffloadThresholdInBytes(100L);
+        definedOffloadPolicies.setManagedLedgerOffloadDeletionLagInMillis(200L);
+        definedOffloadPolicies.setManagedLedgerOffloadDriver(""); // set to blank value to test the behaviour
+        definedOffloadPolicies.setManagedLedgerOffloadBucket("buck");
+
+        // test superuser
+        superUserAdmin.topicPolicies().setOffloadPolicies(topic, definedOffloadPolicies);
+
+        // because the topic policies is eventual consistency, we should wait here
+        await().untilAsserted(() -> {
+            final OffloadPolicies offloadPolicy = superUserAdmin.topicPolicies().getOffloadPolicies(topic);
+            Assert.assertEquals(offloadPolicy, definedOffloadPolicies);
+        });
+        superUserAdmin.topicPolicies().removeOffloadPolicies(topic);
+
+        await().untilAsserted(() -> {
+            final OffloadPolicies offloadPolicy = superUserAdmin.topicPolicies().getOffloadPolicies(topic);
+            Assert.assertNull(offloadPolicy);
+        });
+
+        // test tenant manager
+
+        tenantManagerAdmin.topicPolicies().setOffloadPolicies(topic, definedOffloadPolicies);
+        await().untilAsserted(() -> {
+            final OffloadPolicies offloadPolicy = tenantManagerAdmin.topicPolicies().getOffloadPolicies(topic);
+            Assert.assertEquals(offloadPolicy, definedOffloadPolicies);
+        });
+        tenantManagerAdmin.topicPolicies().removeOffloadPolicies(topic);
+        await().untilAsserted(() -> {
+            final OffloadPolicies offloadPolicy = tenantManagerAdmin.topicPolicies().getOffloadPolicies(topic);
+            Assert.assertNull(offloadPolicy);
+        });
+
+        // test nobody
+
+        try {
+            subAdmin.topicPolicies().getOffloadPolicies(topic);
+            Assert.fail("unexpected behaviour");
+        } catch (PulsarAdminException ex) {
+            Assert.assertTrue(ex instanceof PulsarAdminException.NotAuthorizedException);
+        }
+
+        try {
+
+            subAdmin.topicPolicies().setOffloadPolicies(topic, definedOffloadPolicies);
+            Assert.fail("unexpected behaviour");
+        } catch (PulsarAdminException ex) {
+            Assert.assertTrue(ex instanceof PulsarAdminException.NotAuthorizedException);
+        }
+
+        try {
+            subAdmin.topicPolicies().removeOffloadPolicies(topic);
+            Assert.fail("unexpected behaviour");
+        } catch (PulsarAdminException ex) {
+            Assert.assertTrue(ex instanceof PulsarAdminException.NotAuthorizedException);
+        }
+
+        // test sub user with permissions
+        for (AuthAction action : AuthAction.values()) {
+            superUserAdmin.namespaces().grantPermissionOnNamespace("public/default",
+                    subject, Collections.singleton(action));
+            try {
+                subAdmin.topicPolicies().getOffloadPolicies(topic);
+                Assert.fail("unexpected behaviour");
+            } catch (PulsarAdminException ex) {
+                Assert.assertTrue(ex instanceof PulsarAdminException.NotAuthorizedException);
+            }
+
+            try {
+
+                subAdmin.topicPolicies().setOffloadPolicies(topic, definedOffloadPolicies);
+                Assert.fail("unexpected behaviour");
+            } catch (PulsarAdminException ex) {
+                Assert.assertTrue(ex instanceof PulsarAdminException.NotAuthorizedException);
+            }
+
+            try {
+                subAdmin.topicPolicies().removeOffloadPolicies(topic);
+                Assert.fail("unexpected behaviour");
+            } catch (PulsarAdminException ex) {
+                Assert.assertTrue(ex instanceof PulsarAdminException.NotAuthorizedException);
+            }
+            superUserAdmin.namespaces().revokePermissionsOnNamespace("public/default", subject);
+        }
+    }
 
     @SneakyThrows
     @Test
@@ -230,7 +249,7 @@ public final class TopicPoliciesAuthZTest extends MockedPulsarServiceBaseTest {
         superUserAdmin.topics().createNonPartitionedTopic(topic);
 
         @Cleanup final PulsarAdmin subAdmin = PulsarAdmin.builder()
-                .serviceHttpUrl(pulsar.getWebServiceAddress())
+                .serviceHttpUrl(getPulsar().getWebServiceAddress())
                 .authentication(new AuthenticationToken(token))
                 .build();
 
@@ -293,7 +312,7 @@ public final class TopicPoliciesAuthZTest extends MockedPulsarServiceBaseTest {
         // test sub user with permissions
         for (AuthAction action : AuthAction.values()) {
             superUserAdmin.namespaces().grantPermissionOnNamespace("public/default",
-                    subject, Sets.newHashSet(action));
+                    subject, Collections.singleton(action));
             try {
                 subAdmin.topicPolicies().getMaxUnackedMessagesOnConsumer(topic);
                 Assert.fail("unexpected behaviour");
@@ -330,7 +349,7 @@ public final class TopicPoliciesAuthZTest extends MockedPulsarServiceBaseTest {
         superUserAdmin.topics().createNonPartitionedTopic(topic);
 
         @Cleanup final PulsarAdmin subAdmin = PulsarAdmin.builder()
-                .serviceHttpUrl(pulsar.getWebServiceAddress())
+                .serviceHttpUrl(getPulsar().getWebServiceAddress())
                 .authentication(new AuthenticationToken(token))
                 .build();
 
@@ -395,7 +414,7 @@ public final class TopicPoliciesAuthZTest extends MockedPulsarServiceBaseTest {
         // test sub user with permissions
         for (AuthAction action : AuthAction.values()) {
             superUserAdmin.namespaces().grantPermissionOnNamespace("public/default",
-                    subject, Sets.newHashSet(action));
+                    subject, Collections.singleton(action));
             try {
                 subAdmin.topicPolicies().getMaxUnackedMessagesOnSubscription(topic);
                 Assert.fail("unexpected behaviour");

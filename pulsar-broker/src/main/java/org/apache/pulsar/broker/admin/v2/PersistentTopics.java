@@ -372,7 +372,6 @@ public class PersistentTopics extends PersistentTopicsBase {
             @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
             @ApiParam(value = "Offload policies for the specified topic") OffloadPoliciesImpl offloadPolicies) {
         validateTopicName(tenant, namespace, encodedTopic);
-        validateTopicPolicyOperation(topicName, PolicyName.OFFLOAD, PolicyOperation.WRITE);
         validateTopicPolicyOperationAsync(topicName, PolicyName.OFFLOAD, PolicyOperation.WRITE)
             .thenCompose(__ -> preValidation(authoritative))
             .thenCompose(__ -> internalSetOffloadPolicies(offloadPolicies, isGlobal))
