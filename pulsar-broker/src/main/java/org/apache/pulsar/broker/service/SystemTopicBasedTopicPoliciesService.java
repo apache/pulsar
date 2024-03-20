@@ -72,6 +72,8 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
     private final String clusterName;
     private volatile NamespaceEventsSystemTopicFactory namespaceEventsSystemTopicFactory;
 
+
+
     @VisibleForTesting
     final Map<TopicName, TopicPolicies> policiesCache = new ConcurrentHashMap<>();
 
