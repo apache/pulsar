@@ -18,13 +18,42 @@
  */
 package org.apache.pulsar.common.util.netty;
 
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.testng.Assert.assertEquals;
 import io.netty.channel.EventLoop;
 import io.netty.resolver.dns.DnsNameResolverBuilder;
+import java.security.Security;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 import org.testng.Assert;
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 public class DnsResolverTest {
+    private static final int MIN_TTL = 0;
+    private static final int TTL = 101;
+    private static final int NEGATIVE_TTL = 121;
+
+    @BeforeClass
+    public void beforeClass() {
+        Security.setProperty("networkaddress.cache.ttl",Integer.toString(TTL));
+        Security.setProperty("networkaddress.cache.negative.ttl",Integer.toString(NEGATIVE_TTL));
+    }
+
+    @Test
+    public void testTTl() {
+        final DnsNameResolverBuilder builder = mock(DnsNameResolverBuilder.class);
+        ArgumentCaptor<Integer> minTtlCaptor = ArgumentCaptor.forClass(Integer.class);
+        ArgumentCaptor<Integer> maxTtlCaptor = ArgumentCaptor.forClass(Integer.class);
+        ArgumentCaptor<Integer> negativeTtlCaptor = ArgumentCaptor.forClass(Integer.class);
+        DnsResolverUtil.applyJdkDnsCacheSettings(builder);
+        verify(builder).ttl(minTtlCaptor.capture(), maxTtlCaptor.capture());
+        verify(builder).negativeTtl(negativeTtlCaptor.capture());
+        assertEquals(minTtlCaptor.getValue(), MIN_TTL);
+        assertEquals(maxTtlCaptor.getValue(), TTL);
+        assertEquals(negativeTtlCaptor.getValue(), NEGATIVE_TTL);
+    }
 
     @Test
     public void testMaxTtl() {
