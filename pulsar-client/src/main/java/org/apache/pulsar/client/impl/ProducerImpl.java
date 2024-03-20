@@ -272,11 +272,14 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 .setMandatoryStop(Math.max(100, conf.getSendTimeoutMs() - 100), TimeUnit.MILLISECONDS)
                 .create(),
             this);
+        setChunkMaxMessageSize();
+        grabCnx();
+    }
+
+    private void setChunkMaxMessageSize() {
         this.chunkMaxMessageSize = conf.getChunkMaxMessageSize() > 0
                 ? Math.min(conf.getChunkMaxMessageSize(), getMaxMessageSize())
                 : getMaxMessageSize();
-
-        grabCnx();
     }
 
     protected void semaphoreRelease(final int releaseCountRequest) {
@@ -1664,7 +1667,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     public CompletableFuture<Void> connectionOpened(final ClientCnx cnx) {
         previousExceptions.clear();
         getConnectionHandler().setMaxMessageSize(cnx.getMaxMessageSize());
-        chunkMaxMessageSize = Math.min(chunkMaxMessageSize, getMaxMessageSize());
+        setChunkMaxMessageSize();
 
         final long epoch;
         synchronized (this) {
