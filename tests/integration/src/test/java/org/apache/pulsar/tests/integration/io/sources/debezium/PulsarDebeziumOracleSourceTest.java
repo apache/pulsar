@@ -43,7 +43,7 @@ public class PulsarDebeziumOracleSourceTest extends PulsarIOTestBase {
         super(FunctionRuntimeType.PROCESS);
     }
 
-    @Test(groups = "source", timeOut = 1800000)
+    @Test(groups = "source", timeOut = 1200000)
     public void testDebeziumOracleDbSource() throws Exception{
         testDebeziumOracleDbConnect("org.apache.kafka.connect.json.JsonConverter", true);
     }
