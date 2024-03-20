@@ -372,7 +372,8 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
                                    If there is no segment index, the persistent worker will write segment begin from 0.
                                  */
                                 if (indexes.size() != 0) {
-                                    persistentWorker.sequenceID.set(indexes.get(indexes.lastKey()).sequenceID + 1);
+                                    PositionImpl lastKey = indexes.lastKey();
+                                    persistentWorker.sequenceID.set(indexes.get(lastKey).sequenceID + 1);
                                 }
                                 /*
                                   Append the aborted txn IDs in the index metadata
@@ -496,7 +497,8 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
         TransactionBufferSnapshotSegment snapshotSegment = Schema.AVRO(TransactionBufferSnapshotSegment.class)
                 .decode(Unpooled.wrappedBuffer(headersAndPayload).nioBuffer());
 
-        TxnIDData lastTxn = snapshotSegment.getAborts().get(snapshotSegment.getAborts().size() - 1);
+        long size = snapshotSegment.getAborts().size();
+        TxnIDData lastTxn = snapshotSegment.getAborts().get(size - 1);
         segmentIndex.put(new PositionImpl(snapshotSegment.getPersistentPositionLedgerId(),
                 snapshotSegment.getPersistentPositionEntryId()),
                 new TxnID(lastTxn.getMostSigBits(), lastTxn.getLeastSigBits()));
