@@ -55,7 +55,7 @@ public abstract class BaseAuthZTest extends MockedPulsarServiceBaseTest {
     protected PulsarAdmin superUserAdmin;
     protected PulsarAdmin tenantManagerAdmin;
 
-    @BeforeClass
+    @BeforeClass(alwaysRun = true)
     @Override
     protected void setup() throws Exception {
         conf.setAuthorizationEnabled(true);
@@ -99,9 +99,17 @@ public abstract class BaseAuthZTest extends MockedPulsarServiceBaseTest {
         pulsarAdminBuilder.authentication(new AuthenticationToken(SUPER_USER_TOKEN));
     }
 
-    @AfterClass
+    @AfterClass(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
+        if (superUserAdmin != null) {
+            superUserAdmin.close();
+            superUserAdmin = null;
+        }
+        if (tenantManagerAdmin != null) {
+            tenantManagerAdmin.close();
+            tenantManagerAdmin = null;
+        }
         internalCleanup();
     }
 }
