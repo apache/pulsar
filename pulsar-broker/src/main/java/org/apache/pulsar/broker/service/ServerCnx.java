@@ -609,7 +609,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                     isAuthorized -> {
                 if (isAuthorized) {
                     // Get if exists, respond not found error if not exists.
-                    if (!partitionMetadata.isCreateIfAutoCreationEnabled()) {
+                    if (!partitionMetadata.isMetadataAutoCreationEnabled()) {
                         final NamespaceResources namespaceResources = getBrokerService().pulsar().getPulsarResources()
                                 .getNamespaceResources();
                         final TopicResources topicResources = getBrokerService().pulsar().getPulsarResources()
