@@ -29,7 +29,6 @@ import java.time.Clock;
 import java.util.List;
 import java.util.stream.Collectors;
 import javax.ws.rs.container.AsyncResponse;
-import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.service.schema.SchemaRegistry.SchemaAndMetadata;
