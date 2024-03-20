@@ -107,7 +107,7 @@ public class LoadSimulationController {
                 + "change tenant namespace topic\n" + "stop tenant namespace topic\n"
                 + "trade_group tenant group_name num_namespaces\n" + "change_group tenant group_name\n"
                 + "stop_group tenant group_name\n" + "script script_name\n" + "copy tenant_name source_zk target_zk\n"
-                + "stream source_zk\n" + "simulate zk\n")
+                + "stream source_zk\n" + "simulate zk\n", arity = "1")
         List<String> commandArguments;
 
         @Option(names = { "--rand-rate" }, description = "Choose message rate uniformly randomly from the next two "
