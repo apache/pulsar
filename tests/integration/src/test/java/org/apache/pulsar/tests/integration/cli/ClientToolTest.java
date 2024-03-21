@@ -86,7 +86,9 @@ public class ClientToolTest extends TopicMessagingBase {
                     + "\nError output:\n" + result.getStderr());
         }
         String output = result.getStdout();
-        Pattern message = Pattern.compile("----- got message -----\nkey:\\[null\\], properties:\\[\\], content:(.*)");
+        Pattern message = Pattern.compile(
+                "----- got message -----\npublishTime:\\[(.*)\\], eventTime:\\[(.*)\\], key:\\[null\\], "
+                        + "properties:\\[\\], content:(.*)");
         Matcher matcher = message.matcher(output);
         List<String> received = new ArrayList<>(MESSAGE_COUNT);
         while (matcher.find()) {
@@ -94,5 +96,4 @@ public class ClientToolTest extends TopicMessagingBase {
         }
         return received;
     }
-
 }
