@@ -75,7 +75,7 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
      * Stored the unsealed aborted transaction IDs Whose size is always less than the snapshotSegmentCapacity.
      * It will be persistent as a snapshot segment when its size reach the configured capacity.
      */
-    private LinkedList<TxnID> unsealedTxnIds;
+    private volatile LinkedList<TxnID> unsealedTxnIds;
 
     /**
      * The map is used to clear the aborted transaction IDs persistent in the expired ledger.
@@ -381,7 +381,9 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
                                   So that we can trim the expired snapshot segment in aborts
                                   according to the latest transaction IDs in the segmentIndex.
                                  */
-                                unsealedTxnIds.forEach(txnID -> aborts.put(txnID, txnID));
+                                synchronized(unsealedTxnIds){
+                                    unsealedTxnIds.forEach(txnID -> aborts.put(txnID, txnID));
+                                }
                                 return CompletableFuture.completedFuture(finalStartReadCursorPosition);
                             }).exceptionally(ex -> {
                                 log.error("[{}] Failed to recover snapshot segment", this.topic.getName(), ex);
@@ -463,7 +465,7 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
                 persistentWorker::clearSnapshotSegmentAndIndexes);
     }
 
-    public TransactionBufferStats generateSnapshotStats(boolean segmentStats) {
+    public synchronized TransactionBufferStats generateSnapshotStats(boolean segmentStats) {
         TransactionBufferStats transactionBufferStats = new TransactionBufferStats();
         transactionBufferStats.totalAbortedTransactions = this.aborts.size();
         transactionBufferStats.lastSnapshotTimestamps = this.lastSnapshotTimestamps;
@@ -721,7 +723,7 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
             return res;
         }
 
-        private CompletableFuture<Void> writeSnapshotSegmentAsync(LinkedList<TxnID> segment,
+        private synchronized CompletableFuture<Void> writeSnapshotSegmentAsync(LinkedList<TxnID> segment,
                                                                   PositionImpl abortedMarkerPersistentPosition) {
             TransactionBufferSnapshotSegment transactionBufferSnapshotSegment = new TransactionBufferSnapshotSegment();
             transactionBufferSnapshotSegment.setAborts(convertTypeToTxnIDData(segment));
