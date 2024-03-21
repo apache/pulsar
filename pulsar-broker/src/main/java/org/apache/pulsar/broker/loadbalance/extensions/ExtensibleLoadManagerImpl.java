@@ -270,10 +270,6 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
         this.brokerSelectionStrategy = new LeastResourceUsageWithWeight();
     }
 
-    public static boolean isLoadManagerExtensionEnabled(ServiceConfiguration conf) {
-        return ExtensibleLoadManagerImpl.class.getName().equals(conf.getLoadManagerClassName());
-    }
-
     public static boolean isLoadManagerExtensionEnabled(PulsarService pulsar) {
         return pulsar.getLoadManager().get() instanceof ExtensibleLoadManagerWrapper;
     }
@@ -346,7 +342,7 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
     public static CompletableFuture<Optional<BrokerLookupData>> getAssignedBrokerLookupData(PulsarService pulsar,
                                                                           String topic) {
         var config = pulsar.getConfig();
-        if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(config)
+        if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(pulsar)
                 && config.isLoadBalancerMultiPhaseBundleUnload()) {
             var topicName = TopicName.get(topic);
             try {
