@@ -87,7 +87,7 @@ public class SimpleProducerConsumerMLInitializeDelayTest extends ProducerConsume
         });
         admin.topics().unload(topicName);
         // Verify: at last, "dispatcher.consumers.size" equals "dispatcher.consumerList.size".
-        Awaitility.await().atMost(Duration.ofSeconds(clientMaxBackoffSeconds * 3))
+        Awaitility.await().atMost(Duration.ofSeconds(loadMLDelayMillis * 3))
                 .ignoreExceptions().untilAsserted(() -> {
             Dispatcher dispatcher = pulsar.getBrokerService()
                             .getTopic(topicName, false).join().get()
