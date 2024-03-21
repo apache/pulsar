@@ -92,7 +92,7 @@ public class ClientToolTest extends TopicMessagingBase {
         Matcher matcher = message.matcher(output);
         List<String> received = new ArrayList<>(MESSAGE_COUNT);
         while (matcher.find()) {
-            received.add(matcher.group(1));
+            received.add(matcher.group(3));
         }
         return received;
     }
