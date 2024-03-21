@@ -18,5 +18,113 @@
  */
 package org.apache.pulsar.broker.stats;
 
-public class OpenTelemetryTopicStats {
+import io.opentelemetry.api.common.AttributeKey;
+import io.opentelemetry.api.common.Attributes;
+import io.opentelemetry.api.metrics.BatchCallback;
+import io.opentelemetry.api.metrics.ObservableLongMeasurement;
+import java.util.Optional;
+import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.broker.service.Topic;
+import org.apache.pulsar.opentelemetry.OpenTelemetryAttributes;
+
+public class OpenTelemetryTopicStats implements AutoCloseable {
+
+    private static final String INSTRUMENT_PREFIX = "pulsar.broker.messaging.topic.";
+
+
+    private final ObservableLongMeasurement subscriptionCounter;
+    private final ObservableLongMeasurement producerCounter;
+    private final ObservableLongMeasurement consumerCounter;
+    private final ObservableLongMeasurement messageIncomingCounter;
+    private final ObservableLongMeasurement messageOutgoingCounter;
+    private final ObservableLongMeasurement publishRateLimitCounter;
+    private final ObservableLongMeasurement bytesIncomingCounter;
+    private final ObservableLongMeasurement bytesOutgoingCounter;
+    private final ObservableLongMeasurement storageCounter;
+
+    private final BatchCallback batchCallback;
+
+    public OpenTelemetryTopicStats(PulsarService pulsar) {
+        var meter = pulsar.getOpenTelemetry().getMeter();
+
+        subscriptionCounter = meter
+                .upDownCounterBuilder(INSTRUMENT_PREFIX + "subscription")
+                .setUnit("{subscription}")
+                .buildObserver();
+
+        producerCounter = meter
+                .upDownCounterBuilder(INSTRUMENT_PREFIX + "producer")
+                .setUnit("{producer}")
+                .buildObserver();
+
+        consumerCounter = meter
+                .upDownCounterBuilder(INSTRUMENT_PREFIX + "consumer")
+                .setUnit("{consumer}")
+                .buildObserver();
+
+        messageIncomingCounter = meter.counterBuilder(INSTRUMENT_PREFIX + "message.incoming")
+                .setUnit("{message}")
+                .buildObserver();
+
+        messageOutgoingCounter = meter.counterBuilder(INSTRUMENT_PREFIX + "message.outgoing")
+                .setUnit("{message}")
+                .buildObserver();
+
+        publishRateLimitCounter = meter.counterBuilder(INSTRUMENT_PREFIX + "publish.rate.limit.exceeded")
+                .setUnit("{operation}")
+                .buildObserver();
+
+        bytesIncomingCounter = meter.counterBuilder(INSTRUMENT_PREFIX + "byte.incoming")
+                .setUnit("{byte}")
+                .buildObserver();
+
+        bytesOutgoingCounter = meter.counterBuilder(INSTRUMENT_PREFIX + "byte.outgoing")
+                .setUnit("{byte}")
+                .buildObserver();
+
+        storageCounter = meter.counterBuilder(INSTRUMENT_PREFIX + "storage")
+                .setUnit("{byte}")
+                .buildObserver();
+
+        batchCallback = meter.batchCallback(() -> pulsar.getBrokerService()
+                        .getTopics()
+                        .values()
+                        .stream()
+                        .map(topicFuture -> topicFuture.getNow(Optional.empty()))
+                        .forEach(topic -> topic.ifPresent(this::recordMetricsForTopic)),
+                subscriptionCounter,
+                producerCounter,
+                consumerCounter,
+                messageIncomingCounter,
+                messageOutgoingCounter,
+                publishRateLimitCounter);
+    }
+
+    @Override
+    public void close() {
+        batchCallback.close();
+    }
+
+    private void recordMetricsForTopic(Topic topic) {
+        var attributes = Attributes.builder()
+                .put(OpenTelemetryAttributes.PULSAR_TOPIC, topic.getName())
+                .build();
+        subscriptionCounter.record(100, attributes);
+
+        storageCounter.record(100, Attributes.builder()
+                .putAll(attributes)
+                .put(OpenTelemetryAttributes.PULSAR_STORAGE_TYPE, "logical")
+                .build());
+
+        storageCounter.record(100, Attributes.builder()
+                .putAll(attributes)
+                .put(OpenTelemetryAttributes.PULSAR_STORAGE_TYPE, "backlog")
+                .build());
+
+        storageCounter.record(100, Attributes.builder()
+                .putAll(attributes)
+                .put(OpenTelemetryAttributes.PULSAR_STORAGE_TYPE, "offloaded")
+                .build());
+    }
+
 }
