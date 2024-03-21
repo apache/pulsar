@@ -167,8 +167,7 @@ public class ClientCnx extends PulsarHandler {
     private volatile int numberOfRejectRequests = 0;
 
     @Getter
-    private static int maxMessageSize = Commands.DEFAULT_MAX_MESSAGE_SIZE;
-
+    private int maxMessageSize = Commands.DEFAULT_MAX_MESSAGE_SIZE;
     private final int maxNumberOfRejectedRequestPerConnection;
     private final int rejectedRequestResetTimeSec = 60;
     protected final int protocolVersion;
