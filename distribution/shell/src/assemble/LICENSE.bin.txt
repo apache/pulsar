@@ -357,6 +357,7 @@ The Apache Software License, Version 2.0
     - netty-resolver-dns-4.1.108.Final.jar
     - netty-transport-4.1.108.Final.jar
     - netty-transport-classes-epoll-4.1.108.Final.jar
+    - netty-transport-native-epoll-4.1.108.Final-linux-aarch_64.jar
     - netty-transport-native-epoll-4.1.108.Final-linux-x86_64.jar
     - netty-transport-native-unix-common-4.1.108.Final.jar
     - netty-transport-native-unix-common-4.1.108.Final-linux-x86_64.jar
