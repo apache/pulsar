@@ -196,8 +196,6 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         }
         if (consumerSet.contains(consumer)) {
             log.warn("[{}] Attempting to add a consumer that already registered {}", name, consumer);
-            return FutureUtil.failedFuture(new ConsumerBusyException("Attempting to add a consumer that already"
-                    + " registered"));
         }
 
         consumerList.add(consumer);

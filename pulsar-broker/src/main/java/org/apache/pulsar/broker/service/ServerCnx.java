@@ -1224,12 +1224,22 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                         commandSender.sendErrorResponse(requestId, ServerError.ServiceNotReady,
                                 "Consumer is already present on the connection");
                     } else if (existingConsumerFuture.isCompletedExceptionally()){
+                        log.warn("[{}][{}][{}] A failed consumer with id is already present on the connection,"
+                                + " consumerId={}", remoteAddress, topicName, subscriptionName, consumerId);
                         ServerError error = getErrorCodeWithErrorLog(existingConsumerFuture, true,
-                                String.format("Consumer subscribe failure. remoteAddress: %s, subscription: %s",
+                                String.format("A failed consumer with id is already present on the connection."
+                                                + " remoteAddress: %s, subscription: %s",
                                         remoteAddress, subscriptionName));
-                        consumers.remove(consumerId, existingConsumerFuture);
+                        /**
+                         * This feature may was failed due to the client closed a in-progress subscribing.
+                         * See {@link #handleCloseConsumer(CommandCloseConsumer)}
+                         * Do not remove the failed feature at current line, it will be removed after the progress of
+                         * the previous subscribing is done.
+                         * Before the previous subscribing is done, the new subscribe request will always fail.
+                         * This mechanism is in order to prevent more complex logic to handle the race conditions.
+                         */
                         commandSender.sendErrorResponse(requestId, error,
-                                "Consumer that failed is already present on the connection");
+                                "A failed consumer is already present on the connection");
                     } else {
                         Consumer consumer = existingConsumerFuture.getNow(null);
                         log.warn("[{}] Consumer with the same id is already created:"
