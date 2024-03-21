@@ -31,6 +31,7 @@ import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.testng.Assert.assertThrows;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -1679,5 +1680,11 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
 
         // verify we only call getReplicatedSubscriptionStatusAsync once.
         verify(topics, times(1)).getReplicatedSubscriptionStatusAsync(any(), any());
+    }
+
+    @Test
+    public void testCreateMissingPartitions() throws Exception {
+        String topicName = "persistent://" + testTenant + "/" + testNamespaceLocal + "/testCreateMissingPartitions";
+        assertThrows(PulsarAdminException.NotFoundException.class, () -> admin.topics().createMissedPartitions(topicName));
     }
 }
