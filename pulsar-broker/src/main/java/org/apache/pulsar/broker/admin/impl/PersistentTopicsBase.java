@@ -500,7 +500,7 @@ public class PersistentTopicsBase extends AdminResource {
 
     protected void internalCreateMissedPartitions(AsyncResponse asyncResponse) {
         getPartitionedTopicMetadataAsync(topicName, false, false).thenAccept(metadata -> {
-            if (metadata != null) {
+            if (metadata != null && metadata.partitions > 0) {
                 CompletableFuture<Void> future = validateNamespaceOperationAsync(topicName.getNamespaceObject(),
                         NamespaceOperation.CREATE_TOPIC);
                 future.thenCompose(__ -> tryCreatePartitionsAsync(metadata.partitions)).thenAccept(v -> {
@@ -510,6 +510,8 @@ public class PersistentTopicsBase extends AdminResource {
                     resumeAsyncResponseExceptionally(asyncResponse, e);
                     return null;
                 });
+            } else {
+                throw new RestException(Status.NOT_FOUND, String.format("Topic %s does not exist", topicName));
             }
         }).exceptionally(ex -> {
             // If the exception is not redirect exception we need to log it.

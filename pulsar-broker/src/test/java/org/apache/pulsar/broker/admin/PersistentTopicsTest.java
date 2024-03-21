@@ -35,6 +35,7 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertSame;
 import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.assertThrows;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -1810,5 +1811,11 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
 
         assertEquals(cursor.getCursorProperties().size(), 1);
         assertEquals(cursor.getCursorProperties().get("foo"), "bar");
+    }
+
+    @Test
+    public void testCreateMissingPartitions() throws Exception {
+        String topicName = "persistent://" + testTenant + "/" + testNamespaceLocal + "/testCreateMissingPartitions";
+        assertThrows(PulsarAdminException.NotFoundException.class, () -> admin.topics().createMissedPartitions(topicName));
     }
 }
