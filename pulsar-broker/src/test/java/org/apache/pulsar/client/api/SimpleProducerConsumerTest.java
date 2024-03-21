@@ -93,13 +93,13 @@ import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.impl.ClientBuilderImpl;
-import org.apache.pulsar.client.impl.ClientCnx;
 import org.apache.pulsar.client.impl.ConsumerBase;
 import org.apache.pulsar.client.impl.ConsumerImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.client.impl.MultiTopicsConsumerImpl;
 import org.apache.pulsar.client.impl.PartitionedProducerImpl;
+import org.apache.pulsar.client.impl.ProducerImpl;
 import org.apache.pulsar.client.impl.TopicMessageImpl;
 import org.apache.pulsar.client.impl.TypedMessageBuilderImpl;
 import org.apache.pulsar.client.impl.crypto.MessageCryptoBc;
@@ -3906,11 +3906,11 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
                 .topic("persistent://my-property/my-ns/my-topic2");
 
         @Cleanup
-        Producer<byte[]> producer = producerBuilder.create();
+        ProducerImpl<byte[]> producer = (ProducerImpl<byte[]>)producerBuilder.create();
         List<Future<MessageId>> futures = new ArrayList<>();
 
         // Asynchronously produce messages
-        byte[] message = new byte[ClientCnx.getMaxMessageSize() + 1];
+        byte[] message = new byte[producer.getConnectionHandler().getMaxMessageSize() + 1];
         for (int i = 0; i < maxPendingMessages + 10; i++) {
             Future<MessageId> future = producer.sendAsync(message);
             try {
