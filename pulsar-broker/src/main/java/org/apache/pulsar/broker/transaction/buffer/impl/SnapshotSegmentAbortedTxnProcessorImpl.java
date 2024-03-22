@@ -499,7 +499,7 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
         TransactionBufferSnapshotSegment snapshotSegment = Schema.AVRO(TransactionBufferSnapshotSegment.class)
                 .decode(Unpooled.wrappedBuffer(headersAndPayload).nioBuffer());
 
-        long size = snapshotSegment.getAborts().size();
+        int size = snapshotSegment.getAborts().size();
         TxnIDData lastTxn = snapshotSegment.getAborts().get(size - 1);
         segmentIndex.put(new PositionImpl(snapshotSegment.getPersistentPositionLedgerId(),
                 snapshotSegment.getPersistentPositionEntryId()),
