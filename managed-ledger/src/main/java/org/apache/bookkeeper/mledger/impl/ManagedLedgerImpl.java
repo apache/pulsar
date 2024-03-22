@@ -1748,10 +1748,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
         maybeOffloadInBackground(NULL_OFFLOAD_PROMISE);
 
-        if (!pendingAddEntries.isEmpty()) {
-            // Need to create a new ledger to write pending entries
-            createLedgerAfterClosed();
-        }
+        createLedgerAfterClosed();
     }
 
     @Override
@@ -1805,7 +1802,6 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     }
 
                     ledgerClosed(lh);
-                    createLedgerAfterClosed();
                 }
             }, null);
         }
@@ -2638,7 +2634,16 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             } else {
                 PositionImpl slowestReaderPosition = cursors.getSlowestReaderPosition();
                 if (slowestReaderPosition != null) {
-                    slowestReaderLedgerId = slowestReaderPosition.getLedgerId();
+                    // The slowest reader position is the mark delete position.
+                    // If the slowest reader position point the last entry in the ledger x,
+                    // the slowestReaderLedgerId should be x + 1 and the ledger x could be deleted.
+                    LedgerInfo ledgerInfo = ledgers.get(slowestReaderPosition.getLedgerId());
+                    if (ledgerInfo != null && ledgerInfo.getLedgerId() != currentLedger.getId()
+                            && ledgerInfo.getEntries() == slowestReaderPosition.getEntryId() + 1) {
+                        slowestReaderLedgerId = slowestReaderPosition.getLedgerId() + 1;
+                    } else {
+                        slowestReaderLedgerId = slowestReaderPosition.getLedgerId();
+                    }
                 } else {
                     promise.completeExceptionally(new ManagedLedgerException("Couldn't find reader position"));
                     trimmerMutex.unlock();
@@ -3639,7 +3644,11 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         PositionImpl skippedPosition = position.getPositionAfterEntries(skippedEntryNum);
         while (!isValidPosition(skippedPosition)) {
             Long nextLedgerId = ledgers.ceilingKey(skippedPosition.getLedgerId() + 1);
+            // This means it has jumped to the last position
             if (nextLedgerId == null) {
+                if (currentLedgerEntries == 0) {
+                    return PositionImpl.get(currentLedger.getId(), 0);
+                }
                 return lastConfirmedEntry.getNext();
             }
             skippedPosition = PositionImpl.get(nextLedgerId, 0);
@@ -4430,7 +4439,6 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     }
 
                     ledgerClosed(lh);
-                    createLedgerAfterClosed();
                     // we do not create ledger here, since topic is inactive for a long time.
                 }, null);
                 return true;
