@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.service.persistent;
 
 import static org.apache.pulsar.common.util.Runnables.catchingAndLoggingThrowables;
 import io.netty.buffer.ByteBuf;
+import io.prometheus.client.Counter;
 import io.prometheus.client.Gauge;
 import java.io.IOException;
 import java.time.Clock;
@@ -75,6 +76,10 @@ public class ReplicatedSubscriptionsController implements AutoCloseable, Topic.P
                     "Counter of currently pending snapshots")
             .register();
 
+    private static final Counter timedoutSnapshotsMetric = Counter
+            .build().name("pulsar_replicated_subscriptions_snapshot_timeouts")
+            .help("Counter of timed out snapshots").register();
+    
     public ReplicatedSubscriptionsController(PersistentTopic topic, String localCluster) {
         this.topic = topic;
         this.localCluster = localCluster;
@@ -257,6 +262,7 @@ public class ReplicatedSubscriptionsController implements AutoCloseable, Topic.P
                 }
 
                 pendingSnapshotsMetric.dec();
+                timedoutSnapshotsMetric.inc();
                 it.remove();
             }
         }
