@@ -16,26 +16,20 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.cli.converters;
+package org.apache.pulsar.client.cli;
 
-import static org.apache.pulsar.cli.ValueValidationUtil.emptyCheck;
-import static org.apache.pulsar.cli.converters.ByteUnitUtil.validateSizeString;
-import com.beust.jcommander.converters.BaseConverter;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.client.api.ProxyProtocol;
+import picocli.CommandLine.ITypeConverter;
 
-public class ByteUnitIntegerConverter extends BaseConverter<Integer> {
-
-    public ByteUnitIntegerConverter(String optionName) {
-        super(optionName);
-    }
+public class ProxyProtocolConverter implements ITypeConverter<ProxyProtocol> {
 
     @Override
-    public Integer convert(String argStr) {
-        return parseBytes(argStr).intValue();
-    }
-
-    Long parseBytes(String argStr) {
-        emptyCheck(getOptionName(), argStr);
-        long valueInBytes = validateSizeString(argStr);
-        return valueInBytes;
+    public ProxyProtocol convert(String value) throws Exception {
+        String proxyProtocolString = StringUtils.trimToNull(value);
+        if (proxyProtocolString != null) {
+            return ProxyProtocol.valueOf(proxyProtocolString.toUpperCase());
+        }
+        return null;
     }
 }

@@ -16,17 +16,20 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.testclient;
+package org.apache.pulsar.cli.converters.picocli;
 
-import com.beust.jcommander.IParameterValidator;
-import com.beust.jcommander.ParameterException;
+import static org.apache.pulsar.cli.converters.ByteUnitUtil.validateSizeString;
+import picocli.CommandLine.ITypeConverter;
+import picocli.CommandLine.TypeConversionException;
 
-public class PositiveNumberParameterValidator implements IParameterValidator {
-
+public class ByteUnitToIntegerConverter implements ITypeConverter<Integer> {
     @Override
-    public void validate(String name, String value) throws ParameterException {
-        if (Integer.parseInt(value) <= 0) {
-            throw new ParameterException("Parameter " + name + " should be > 0 (found " + value + ")");
+    public Integer convert(String value) throws Exception {
+        try {
+            long l = validateSizeString(value);
+            return (int) l;
+        } catch (Exception e) {
+            throw new TypeConversionException(e.getMessage());
         }
     }
 }

@@ -244,6 +244,9 @@ This projects includes binary packages with the following licenses:
 
 The Apache Software License, Version 2.0
  * JCommander -- com.beust-jcommander-1.82.jar
+ * Picocli
+     - info.picocli-picocli-4.7.5.jar
+     - info.picocli-picocli-shell-jline3-4.7.5.jar
  * High Performance Primitive Collections for Java -- com.carrotsearch-hppc-0.9.1.jar
  * Jackson
      - com.fasterxml.jackson.core-jackson-annotations-2.14.2.jar
@@ -260,7 +263,7 @@ The Apache Software License, Version 2.0
  * Caffeine -- com.github.ben-manes.caffeine-caffeine-2.9.1.jar
  * Conscrypt -- org.conscrypt-conscrypt-openjdk-uber-2.5.2.jar
  * Proto Google Common Protos -- com.google.api.grpc-proto-google-common-protos-2.9.0.jar
- * Bitbucket -- org.bitbucket.b_c-jose4j-0.9.3.jar
+ * Bitbucket -- org.bitbucket.b_c-jose4j-0.9.4.jar
  * Gson
     - com.google.code.gson-gson-2.8.9.jar
     - io.gsonfire-gson-fire-1.8.5.jar
@@ -306,6 +309,7 @@ The Apache Software License, Version 2.0
     - io.netty-netty-resolver-dns-native-macos-4.1.105.Final-osx-x86_64.jar
     - io.netty-netty-transport-4.1.105.Final.jar
     - io.netty-netty-transport-classes-epoll-4.1.105.Final.jar
+    - io.netty-netty-transport-native-epoll-4.1.105.Final-linux-aarch_64.jar
     - io.netty-netty-transport-native-epoll-4.1.105.Final-linux-x86_64.jar
     - io.netty-netty-transport-native-unix-common-4.1.105.Final.jar
     - io.netty-netty-transport-native-unix-common-4.1.105.Final-linux-x86_64.jar
@@ -492,9 +496,9 @@ The Apache Software License, Version 2.0
     - io.vertx-vertx-web-common-4.3.8.jar
     - io.vertx-vertx-grpc-4.3.5.jar
   * Apache ZooKeeper
-    - org.apache.zookeeper-zookeeper-3.9.1.jar
-    - org.apache.zookeeper-zookeeper-jute-3.9.1.jar
-    - org.apache.zookeeper-zookeeper-prometheus-metrics-3.9.1.jar
+    - org.apache.zookeeper-zookeeper-3.9.2.jar
+    - org.apache.zookeeper-zookeeper-jute-3.9.2.jar
+    - org.apache.zookeeper-zookeeper-prometheus-metrics-3.9.2.jar
   * Snappy Java
     - org.xerial.snappy-snappy-java-1.1.10.5.jar
   * Google HTTP Client
@@ -579,16 +583,16 @@ CDDL-1.1 -- ../licenses/LICENSE-CDDL-1.1.txt
     - org.glassfish.hk2-osgi-resource-locator-1.0.3.jar
     - org.glassfish.hk2.external-aopalliance-repackaged-2.6.1.jar
  * Jersey
-    - org.glassfish.jersey.containers-jersey-container-servlet-2.34.jar
-    - org.glassfish.jersey.containers-jersey-container-servlet-core-2.34.jar
-    - org.glassfish.jersey.core-jersey-client-2.34.jar
-    - org.glassfish.jersey.core-jersey-common-2.34.jar
-    - org.glassfish.jersey.core-jersey-server-2.34.jar
-    - org.glassfish.jersey.ext-jersey-entity-filtering-2.34.jar
-    - org.glassfish.jersey.media-jersey-media-json-jackson-2.34.jar
-    - org.glassfish.jersey.media-jersey-media-multipart-2.34.jar
-    - org.glassfish.jersey.inject-jersey-hk2-2.34.jar
- * Mimepull -- org.jvnet.mimepull-mimepull-1.9.13.jar
+    - org.glassfish.jersey.containers-jersey-container-servlet-2.41.jar
+    - org.glassfish.jersey.containers-jersey-container-servlet-core-2.41.jar
+    - org.glassfish.jersey.core-jersey-client-2.41.jar
+    - org.glassfish.jersey.core-jersey-common-2.41.jar
+    - org.glassfish.jersey.core-jersey-server-2.41.jar
+    - org.glassfish.jersey.ext-jersey-entity-filtering-2.41.jar
+    - org.glassfish.jersey.media-jersey-media-json-jackson-2.41.jar
+    - org.glassfish.jersey.media-jersey-media-multipart-2.41.jar
+    - org.glassfish.jersey.inject-jersey-hk2-2.41.jar
+ * Mimepull -- org.jvnet.mimepull-mimepull-1.9.15.jar
 
 Eclipse Distribution License 1.0 -- ../licenses/LICENSE-EDL-1.0.txt
  * Jakarta Activation

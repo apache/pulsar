@@ -195,9 +195,6 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         this.userProvidedProducerName = StringUtils.isNotBlank(producerName);
         this.partitionIndex = partitionIndex;
         this.pendingMessages = createPendingMessagesQueue();
-        this.chunkMaxMessageSize = conf.getChunkMaxMessageSize() > 0
-                ? Math.min(conf.getChunkMaxMessageSize(), ClientCnx.getMaxMessageSize())
-                : ClientCnx.getMaxMessageSize();
         if (conf.getMaxPendingMessages() > 0) {
             this.semaphore = Optional.of(new Semaphore(conf.getMaxPendingMessages(), true));
         } else {
@@ -304,16 +301,21 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 "The number of producer sessions closed", topic, Attributes.empty());
 
         this.connectionHandler = new ConnectionHandler(this,
-                new BackoffBuilder()
-                        .setInitialTime(client.getConfiguration().getInitialBackoffIntervalNanos(),
-                                TimeUnit.NANOSECONDS)
-                        .setMax(client.getConfiguration().getMaxBackoffIntervalNanos(), TimeUnit.NANOSECONDS)
-                        .setMandatoryStop(Math.max(100, conf.getSendTimeoutMs() - 100), TimeUnit.MILLISECONDS)
-                        .create(),
-                this);
-
+            new BackoffBuilder()
+                .setInitialTime(client.getConfiguration().getInitialBackoffIntervalNanos(), TimeUnit.NANOSECONDS)
+                .setMax(client.getConfiguration().getMaxBackoffIntervalNanos(), TimeUnit.NANOSECONDS)
+                .setMandatoryStop(Math.max(100, conf.getSendTimeoutMs() - 100), TimeUnit.MILLISECONDS)
+                .create(),
+            this);
+        setChunkMaxMessageSize();
         grabCnx();
         producersOpenedCounter.increment();
+    }
+
+    private void setChunkMaxMessageSize() {
+        this.chunkMaxMessageSize = conf.getChunkMaxMessageSize() > 0
+                ? Math.min(conf.getChunkMaxMessageSize(), getMaxMessageSize())
+                : getMaxMessageSize();
     }
 
     protected void semaphoreRelease(final int releaseCountRequest) {
@@ -505,15 +507,14 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
             // validate msg-size (For batching this will be check at the batch completion size)
             int compressedSize = compressedPayload.readableBytes();
-            if (compressedSize > ClientCnx.getMaxMessageSize() && !this.conf.isChunkingEnabled()) {
+            if (compressedSize > getMaxMessageSize() && !this.conf.isChunkingEnabled()) {
                 compressedPayload.release();
                 String compressedStr = conf.getCompressionType() != CompressionType.NONE ? "Compressed" : "";
                 PulsarClientException.InvalidMessageException invalidMessageException =
                         new PulsarClientException.InvalidMessageException(
                                 format("The producer %s of the topic %s sends a %s message with %d bytes that exceeds"
                                                 + " %d bytes",
-                                        producerName, topic, compressedStr, compressedSize,
-                                        ClientCnx.getMaxMessageSize()));
+                        producerName, topic, compressedStr, compressedSize, getMaxMessageSize()));
                 completeCallbackAndReleaseSemaphore(uncompressedSize, callback, invalidMessageException);
                 return;
             }
@@ -544,19 +545,19 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         int payloadChunkSize;
         if (canAddToBatch(msg) || !conf.isChunkingEnabled()) {
             totalChunks = 1;
-            payloadChunkSize = ClientCnx.getMaxMessageSize();
+            payloadChunkSize = getMaxMessageSize();
         } else {
             // Reserve current metadata size for chunk size to avoid message size overflow.
             // NOTE: this is not strictly bounded, as metadata will be updated after chunking.
             // So there is a small chance that the final message size is larger than ClientCnx.getMaxMessageSize().
             // But it won't cause produce failure as broker have 10 KB padding space for these cases.
-            payloadChunkSize = ClientCnx.getMaxMessageSize() - msgMetadata.getSerializedSize();
+            payloadChunkSize = getMaxMessageSize() - msgMetadata.getSerializedSize();
             if (payloadChunkSize <= 0) {
                 PulsarClientException.InvalidMessageException invalidMessageException =
                         new PulsarClientException.InvalidMessageException(
                                 format("The producer %s of the topic %s sends a message with %d bytes metadata that "
                                                 + "exceeds %d bytes", producerName, topic,
-                                        msgMetadata.getSerializedSize(), ClientCnx.getMaxMessageSize()));
+                                        msgMetadata.getSerializedSize(), getMaxMessageSize()));
                 completeCallbackAndReleaseSemaphore(uncompressedSize, callback, invalidMessageException);
                 compressedPayload.release();
                 return;
@@ -1735,7 +1736,8 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     @Override
     public CompletableFuture<Void> connectionOpened(final ClientCnx cnx) {
         previousExceptions.clear();
-        chunkMaxMessageSize = Math.min(chunkMaxMessageSize, ClientCnx.getMaxMessageSize());
+        getConnectionHandler().setMaxMessageSize(cnx.getMaxMessageSize());
+        setChunkMaxMessageSize();
 
         final long epoch;
         synchronized (this) {
@@ -1907,9 +1909,11 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 producerCreatedFuture.completeExceptionally(cause);
                 closeProducerTasks();
                 client.cleanupProducer(this);
-            } else if (producerCreatedFuture.isDone() || //
-                    (cause instanceof PulsarClientException && PulsarClientException.isRetriableError(cause)
-                            && System.currentTimeMillis() < PRODUCER_DEADLINE_UPDATER.get(ProducerImpl.this))) {
+            } else if (producerCreatedFuture.isDone() || (
+                    cause instanceof PulsarClientException
+                            && PulsarClientException.isRetriableError(cause)
+                            && System.currentTimeMillis() < PRODUCER_DEADLINE_UPDATER.get(ProducerImpl.this)
+            )) {
                 // Either we had already created the producer once (producerCreatedFuture.isDone()) or we are
                 // still within the initial timeout budget and we are dealing with a retriable error
                 future.completeExceptionally(cause);
@@ -2396,16 +2400,20 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     private boolean isMessageSizeExceeded(OpSendMsg op) {
         if (op.msg != null && !conf.isChunkingEnabled()) {
             int messageSize = op.getMessageHeaderAndPayloadSize();
-            if (messageSize > ClientCnx.getMaxMessageSize()) {
+            if (messageSize > getMaxMessageSize()) {
                 releaseSemaphoreForSendOp(op);
                 op.sendComplete(new PulsarClientException.InvalidMessageException(
                         format("The producer %s of the topic %s sends a message with %d bytes that exceeds %d bytes",
-                                producerName, topic, messageSize, ClientCnx.getMaxMessageSize()),
+                                producerName, topic, messageSize, getMaxMessageSize()),
                         op.sequenceId));
                 return true;
             }
         }
         return false;
+    }
+
+    private int getMaxMessageSize() {
+        return getConnectionHandler().getMaxMessageSize();
     }
 
     public long getDelayInMillis() {

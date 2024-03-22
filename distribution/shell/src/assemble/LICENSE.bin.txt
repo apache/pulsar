@@ -310,6 +310,9 @@ This projects includes binary packages with the following licenses:
 
 The Apache Software License, Version 2.0
  * JCommander -- jcommander-1.82.jar
+ * Picocli
+     - picocli-4.7.5.jar
+     - picocli-shell-jline3-4.7.5.jar
  * Jackson
      - jackson-annotations-2.14.2.jar
      - jackson-core-2.14.2.jar
@@ -357,6 +360,7 @@ The Apache Software License, Version 2.0
     - netty-resolver-dns-4.1.105.Final.jar
     - netty-transport-4.1.105.Final.jar
     - netty-transport-classes-epoll-4.1.105.Final.jar
+    - netty-transport-native-epoll-4.1.105.Final-linux-aarch_64.jar
     - netty-transport-native-epoll-4.1.105.Final-linux-x86_64.jar
     - netty-transport-native-unix-common-4.1.105.Final.jar
     - netty-transport-native-unix-common-4.1.105.Final-linux-x86_64.jar
@@ -442,13 +446,13 @@ CDDL-1.1 -- ../licenses/LICENSE-CDDL-1.1.txt
     - aopalliance-repackaged-2.6.1.jar
     - osgi-resource-locator-1.0.3.jar
  * Jersey
-    - jersey-client-2.34.jar
-    - jersey-common-2.34.jar
-    - jersey-entity-filtering-2.34.jar
-    - jersey-media-json-jackson-2.34.jar
-    - jersey-media-multipart-2.34.jar
-    - jersey-hk2-2.34.jar
- * Mimepull -- mimepull-1.9.13.jar
+    - jersey-client-2.41.jar
+    - jersey-common-2.41.jar
+    - jersey-entity-filtering-2.41.jar
+    - jersey-media-json-jackson-2.41.jar
+    - jersey-media-multipart-2.41.jar
+    - jersey-hk2-2.41.jar
+ * Mimepull -- mimepull-1.9.15.jar
 
 Eclipse Distribution License 1.0 -- ../licenses/LICENSE-EDL-1.0.txt
  * Jakarta Activation
