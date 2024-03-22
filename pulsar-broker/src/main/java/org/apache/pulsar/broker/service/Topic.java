@@ -24,6 +24,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.pulsar.broker.service.persistent.DispatchRateLimiter;
 import org.apache.pulsar.broker.service.persistent.SubscribeRateLimiter;
@@ -35,6 +36,7 @@ import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.api.proto.KeySharedMeta;
+import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType;
 import org.apache.pulsar.common.policies.data.EntryFilters;
@@ -50,7 +52,7 @@ import org.apache.pulsar.utils.StatsOutputStream;
 
 public interface Topic {
 
-    interface PublishContext {
+    interface PublishContext extends Entry.PublishTimestampProvider {
 
         default String getProducerName() {
             return null;
@@ -126,6 +128,10 @@ public interface Topic {
 
         default void setEntryTimestamp(long entryTimestamp) {
 
+        }
+
+        default MessageMetadata getMetadata() {
+            return null;
         }
     }
 

@@ -52,7 +52,7 @@ public class TransactionBufferDisable implements TransactionBuffer {
     }
 
     @Override
-    public CompletableFuture<Position> appendBufferToTxn(TxnID txnId, long sequenceId, ByteBuf buffer) {
+    public CompletableFuture<Position> appendBufferToTxn(TxnID txnId, Topic.PublishContext context, ByteBuf buffer) {
         return FutureUtil.failedFuture(new BrokerServiceException.NotAllowedException("Transaction buffer disable!"));
     }
 

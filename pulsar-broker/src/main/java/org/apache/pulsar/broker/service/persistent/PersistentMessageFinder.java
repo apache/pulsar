@@ -25,6 +25,10 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
+import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.bookkeeper.mledger.proto.MLDataFormats;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.Codec;
@@ -60,7 +64,7 @@ public class PersistentMessageFinder implements AsyncCallbacks.FindEntryCallback
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Starting message position find at timestamp {}", subName, timestamp);
             }
-
+            Pair<Position, Position> range = getFindPositionRange((ManagedLedgerImpl) cursor.getManagedLedger());
             cursor.asyncFindNewestMatching(ManagedCursor.FindPositionConstraint.SearchAllAvailableEntries, entry -> {
                 try {
                     long entryTimestamp = Commands.getEntryTimestamp(entry.getDataBuffer());
@@ -71,7 +75,7 @@ public class PersistentMessageFinder implements AsyncCallbacks.FindEntryCallback
                     entry.release();
                 }
                 return false;
-            }, this, callback, true);
+            }, range.getLeft(), range.getRight(), this, callback, true);
         } else {
             if (log.isDebugEnabled()) {
                 log.debug("[{}][{}] Ignore message position find scheduled task, last find is still running", topicName,
@@ -81,6 +85,46 @@ public class PersistentMessageFinder implements AsyncCallbacks.FindEntryCallback
                     new ManagedLedgerException.ConcurrentFindCursorPositionException("last find is still running"),
                     Optional.empty(), null);
         }
+    }
+
+    private Pair<Position, Position> getFindPositionRange(ManagedLedgerImpl ledger) {
+        PositionImpl start = null;
+        PositionImpl end = null;
+
+        for (MLDataFormats.ManagedLedgerInfo.LedgerInfo info : ledger.getLedgersInfo().values()) {
+            if (!info.hasBeginPublishTimestamp() || !info.hasEndPublishTimestamp()) {
+                return Pair.of(null, null);
+            }
+            // If the timestamp is exactly the same as the first message in the ledger
+            if (info.getBeginPublishTimestamp() == timestamp) {
+                PositionImpl previous = ledger.getPreviousPosition(PositionImpl.get(info.getLedgerId(), 0));
+                if (previous.getEntryId() < 0) {
+                    // If the ledger is the first ledger,  the find result should be null,
+                    // the cursor will automatically rewind to the first message in the ledger
+                    start = end = PositionImpl.get(info.getLedgerId(), 0);
+                    break;
+                }
+                // If the ledger is not the first ledger,
+                // the find result should be the first message in the current ledger
+                start = previous;
+                end = PositionImpl.get(info.getLedgerId(), 0);
+                break;
+            }
+            // if the ledger is not yet closed
+            if (info.getBeginPublishTimestamp() <= 0 || info.getEndPublishTimestamp() <= 0) {
+                return Pair.of(start, null);
+            }
+            // If the timestamp is less than the first message in the ledger
+            if (info.getBeginPublishTimestamp() < timestamp) {
+                start = PositionImpl.get(info.getLedgerId(), 0);
+            }
+            // If the timestamp is less than the last message in the ledger
+            if (info.getEndPublishTimestamp() >= timestamp) {
+                end = PositionImpl.get(info.getLedgerId(), info.getEntries() - 1);
+                break;
+            }
+        }
+        return Pair.of(start, end);
     }
 
     private static final Logger log = LoggerFactory.getLogger(PersistentMessageFinder.class);

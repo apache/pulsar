@@ -283,6 +283,13 @@ public class MockManagedCursor implements ManagedCursor {
     }
 
     @Override
+    public void asyncFindNewestMatching(FindPositionConstraint constraint, Predicate<Entry> condition,
+                                        Position start, Position end, AsyncCallbacks.FindEntryCallback callback,
+                                        Object ctx, boolean isFindFromLedger) {
+
+    }
+
+    @Override
     public void resetCursor(Position position) throws InterruptedException, ManagedLedgerException {
 
     }

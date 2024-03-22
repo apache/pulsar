@@ -2316,7 +2316,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         producer1.close(false).get();
         producer1.publishTxnMessage(
                 new TxnID(1L, 0L),
-                1, 1, 1, null, 1, false, false
+                1, 1, 1, null, null, 1, false, false
         );
         verify(topic, times(0)).publishTxnMessage(any(), any(), any());
     }

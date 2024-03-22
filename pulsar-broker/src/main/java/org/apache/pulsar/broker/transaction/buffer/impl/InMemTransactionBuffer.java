@@ -258,14 +258,12 @@ class InMemTransactionBuffer implements TransactionBuffer {
     }
 
     @Override
-    public CompletableFuture<Position> appendBufferToTxn(TxnID txnId,
-                                                     long sequenceId,
-                                                     ByteBuf buffer) {
+    public CompletableFuture<Position> appendBufferToTxn(TxnID txnId, Topic.PublishContext context, ByteBuf buffer) {
         TxnBuffer txnBuffer = getTxnBufferOrCreateIfNotExist(txnId);
 
-        CompletableFuture appendFuture = new CompletableFuture();
+        CompletableFuture<Position> appendFuture = new CompletableFuture<>();
         try {
-            txnBuffer.appendEntry(sequenceId, buffer);
+            txnBuffer.appendEntry(context.getSequenceId(), buffer);
             appendFuture.complete(null);
         } catch (TransactionBufferException.TransactionSealedException e) {
             appendFuture.completeExceptionally(e);

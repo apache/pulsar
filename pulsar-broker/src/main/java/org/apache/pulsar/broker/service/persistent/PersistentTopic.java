@@ -669,7 +669,6 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     public void addComplete(Position pos, ByteBuf entryData, Object ctx) {
         PublishContext publishContext = (PublishContext) ctx;
         PositionImpl position = (PositionImpl) pos;
-
         // Message has been successfully persisted
         messageDeduplication.recordMessagePersisted(publishContext, position);
 
@@ -3902,14 +3901,12 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 messageDeduplication.isDuplicate(publishContext, headersAndPayload);
         switch (status) {
             case NotDup:
-                transactionBuffer.appendBufferToTxn(txnID, publishContext.getSequenceId(), headersAndPayload)
+                transactionBuffer.appendBufferToTxn(txnID, publishContext, headersAndPayload)
                         .thenAccept(position -> {
                             // Message has been successfully persisted
-                            messageDeduplication.recordMessagePersisted(publishContext,
-                                    (PositionImpl) position);
+                            messageDeduplication.recordMessagePersisted(publishContext, (PositionImpl) position);
                             publishContext.setProperty("txn_id", txnID.toString());
-                            publishContext.completed(null, ((PositionImpl) position).getLedgerId(),
-                                    ((PositionImpl) position).getEntryId());
+                            publishContext.completed(null, position.getLedgerId(), position.getEntryId());
 
                             decrementPendingWriteOpsAndCheck();
                         })

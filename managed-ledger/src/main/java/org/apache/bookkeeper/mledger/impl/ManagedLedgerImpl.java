@@ -126,6 +126,7 @@ import org.apache.bookkeeper.mledger.proto.MLDataFormats.OffloadContext;
 import org.apache.bookkeeper.mledger.util.CallbackMutex;
 import org.apache.bookkeeper.mledger.util.Futures;
 import org.apache.bookkeeper.net.BookieId;
+import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.common.policies.data.EnsemblePlacementPolicyConfig;
@@ -163,6 +164,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     .concurrencyLevel(1) // number of sections
                     .build();
     protected final NavigableMap<Long, LedgerInfo> ledgers = new ConcurrentSkipListMap<>();
+    private final NavigableMap<Long, MutablePair<Long, Long>> ledgerPublishTimeMap = new ConcurrentSkipListMap<>();
     protected volatile Stat ledgersStat;
 
     // contains all cursors, where durable cursors are ordered by mark delete position
@@ -415,6 +417,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                             if (rc == BKException.Code.OK) {
                                 LedgerInfo info = LedgerInfo.newBuilder().setLedgerId(id)
                                         .setEntries(lh.getLastAddConfirmed() + 1).setSize(lh.getLength())
+                                        .setBeginPublishTimestamp(0).setEndPublishTimestamp(0)
                                         .setTimestamp(clock.millis()).build();
                                 ledgers.put(id, info);
                                 if (managedLedgerInterceptor != null) {
@@ -545,7 +548,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     }
                 }
 
-                LedgerInfo info = LedgerInfo.newBuilder().setLedgerId(lh.getId()).setTimestamp(0).build();
+                LedgerInfo info = LedgerInfo.newBuilder().setLedgerId(lh.getId()).setTimestamp(0)
+                        .setBeginPublishTimestamp(0).setEndPublishTimestamp(0).build();
                 ledgers.put(lh.getId(), info);
 
                 // Save it back to ensure all nodes exist
@@ -1572,7 +1576,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             lastLedgerCreationFailureTimestamp = clock.millis();
         } else {
             log.info("[{}] Created new ledger {}", name, lh.getId());
-            LedgerInfo newLedger = LedgerInfo.newBuilder().setLedgerId(lh.getId()).setTimestamp(0).build();
+            LedgerInfo newLedger = LedgerInfo.newBuilder().setLedgerId(lh.getId()).setBeginPublishTimestamp(0)
+                    .setEndPublishTimestamp(0).setTimestamp(0).build();
             final MetaStoreCallback<Void> cb = new MetaStoreCallback<Void>() {
                 @Override
                 public void operationComplete(Void v, Stat stat) {
@@ -1741,8 +1746,16 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             log.debug("[{}] Ledger has been closed id={} entries={}", name, lh.getId(), entriesInLedger);
         }
         if (entriesInLedger > 0) {
+            long begin = 0;
+            long end = 0;
+            MutablePair<Long, Long> pair = ledgerPublishTimeMap.remove(lh.getId());
+            if (pair != null) {
+                begin = pair.getKey();
+                end = pair.getValue();
+            }
             LedgerInfo info = LedgerInfo.newBuilder().setLedgerId(lh.getId()).setEntries(entriesInLedger)
-                    .setSize(lh.getLength()).setTimestamp(clock.millis()).build();
+                    .setSize(lh.getLength()).setTimestamp(clock.millis()).setBeginPublishTimestamp(begin)
+                    .setEndPublishTimestamp(end).build();
             ledgers.put(lh.getId(), info);
         } else {
             // The last ledger was empty, so we can discard it
@@ -4524,6 +4537,25 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 log.info("{} Enabling cache read = {} for {}", name,
                         cursorsInSameBacklogRange >= minBacklogCursorsForCaching, cursor.getKey().getName());
             }
+        }
+    }
+
+    /**
+     * Update the publish time of the ledger.
+     *
+     * @param ledgerId
+     * @param publishTime
+     */
+    protected void updatePublishTimestamp(long ledgerId, long publishTime) {
+        MutablePair<Long, Long> pair =
+                ledgerPublishTimeMap.computeIfAbsent(ledgerId, k -> MutablePair.of(Long.MAX_VALUE, Long.MIN_VALUE));
+        long start = pair.getLeft();
+        long end = pair.getRight();
+        if (publishTime < start) {
+            pair.setLeft(publishTime);
+        }
+        if (publishTime > end) {
+            pair.setRight(publishTime);
         }
     }
 
