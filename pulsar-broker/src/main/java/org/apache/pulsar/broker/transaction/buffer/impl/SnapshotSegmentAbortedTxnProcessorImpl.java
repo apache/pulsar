@@ -381,7 +381,7 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
                                   So that we can trim the expired snapshot segment in aborts
                                   according to the latest transaction IDs in the segmentIndex.
                                  */
-                                synchronized(unsealedTxnIds){
+                                synchronized (unsealedTxnIds) {
                                     unsealedTxnIds.forEach(txnID -> aborts.put(txnID, txnID));
                                 }
                                 return CompletableFuture.completedFuture(finalStartReadCursorPosition);
