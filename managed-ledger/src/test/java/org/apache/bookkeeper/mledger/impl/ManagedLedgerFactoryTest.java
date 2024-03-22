@@ -54,7 +54,7 @@ public class ManagedLedgerFactoryTest extends MockedBookKeeperTestCase {
 
         ManagedLedgerInfo info = factory.getManagedLedgerInfo("testGetManagedLedgerInfo");
 
-        assertEquals(info.ledgers.size(), 4);
+        assertEquals(info.ledgers.size(), 5);
 
         assertEquals(info.ledgers.get(0).ledgerId, 3);
         assertEquals(info.ledgers.get(1).ledgerId, 4);
