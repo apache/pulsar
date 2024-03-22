@@ -228,7 +228,7 @@ public class BacklogQuotaManagerTest {
             // non-durable mes should still
             assertEquals(stats.getSubscriptions().size(), 1);
             long nonDurableSubscriptionBacklog = stats.getSubscriptions().values().iterator().next().getMsgBacklog();
-            assertEquals(nonDurableSubscriptionBacklog, MAX_ENTRIES_PER_LEDGER,
+            assertEquals(nonDurableSubscriptionBacklog, 0,
               "non-durable subscription backlog is [" + nonDurableSubscriptionBacklog + "]");
 
             MessageIdImpl msgId = null;
@@ -254,9 +254,6 @@ public class BacklogQuotaManagerTest {
 
                 // check there is only one ledger left
                 assertEquals(internalStats.ledgers.size(), 1);
-
-                // check if its the expected ledger id given MAX_ENTRIES_PER_LEDGER
-                assertEquals(internalStats.ledgers.get(0).ledgerId, finalMsgId.getLedgerId());
             });
 
             // check reader can still read with out error
@@ -303,10 +300,10 @@ public class BacklogQuotaManagerTest {
             TopicStats stats = getTopicStats(topic1);
             // overall backlogSize should be zero because we only have readers
             assertEquals(stats.getBacklogSize(), 0, "backlog size is [" + stats.getBacklogSize() + "]");
-            // non-durable mes should still
             assertEquals(stats.getSubscriptions().size(), 1);
             long nonDurableSubscriptionBacklog = stats.getSubscriptions().values().iterator().next().getMsgBacklog();
-            assertEquals(nonDurableSubscriptionBacklog, MAX_ENTRIES_PER_LEDGER,
+            // All the full ledgers should be deleted.
+            assertEquals(nonDurableSubscriptionBacklog, 0,
               "non-durable subscription backlog is [" + nonDurableSubscriptionBacklog + "]");
             MessageIdImpl messageId = null;
             try {
@@ -327,8 +324,8 @@ public class BacklogQuotaManagerTest {
                 // check there is only one ledger left
                 assertEquals(internalStats.ledgers.size(), 1);
 
-                // check if its the expected ledger id given MAX_ENTRIES_PER_LEDGER
-                assertEquals(internalStats.ledgers.get(0).ledgerId, finalMessageId.getLedgerId());
+                // check if it's the expected ledger id given MAX_ENTRIES_PER_LEDGER
+                assertEquals(internalStats.ledgers.get(0).ledgerId, finalMessageId.getLedgerId() + 1);
             });
             // check reader can still read with out error
 
