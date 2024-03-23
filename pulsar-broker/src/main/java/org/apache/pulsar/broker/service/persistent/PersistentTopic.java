@@ -2948,6 +2948,15 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                     log.debug("[{}] Global topic inactive for {} seconds, closing repl producers.", topic,
                         maxInactiveDurationInSec);
                 }
+                /**
+                 * There is a race condition that may cause a NPE:
+                 * - task 1: a callback of "replicator.cursor.asyncRead" will trigger a replication.
+                 * - task 2: "closeReplProducersIfNoBacklog" called by current thread will make the variable
+                 *   "replicator.producer" to a null value.
+                 * Race condition: task 1 will get a NPE when it tries to send messages using the variable
+                 * "replicator.producer", because task 2 will set this variable to "null".
+                 * TODO Create a seperated PR to fix it.
+                 */
                 closeReplProducersIfNoBacklog().thenRun(() -> {
                     if (hasRemoteProducers()) {
                         if (log.isDebugEnabled()) {
