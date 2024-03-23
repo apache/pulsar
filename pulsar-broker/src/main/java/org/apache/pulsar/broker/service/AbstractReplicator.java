@@ -275,11 +275,10 @@ public abstract class AbstractReplicator implements Replicator {
     }
 
     /**
-     * @Deprecated This method only be used by {@link PersistentTopic#checkGC} now.
+     * This method only be used by {@link PersistentTopic#checkGC} now.
      * TODO "PersistentReplicator.replicateEntries" may get a NullPointerException if this method and a
      *   "cursor.readComplete" execute concurrently.
      */
-    @Deprecated
     public CompletableFuture<Void> disconnect(boolean failIfHasBacklog, boolean closeTheStartingProducer) {
         long backlog = getNumberOfEntriesInBacklog();
         if (failIfHasBacklog && backlog > 0) {
@@ -296,11 +295,10 @@ public abstract class AbstractReplicator implements Replicator {
     }
 
     /**
-     * @Deprecated This method only be used by {@link PersistentTopic#checkGC} now.
+     * This method only be used by {@link PersistentTopic#checkGC} now.
      * TODO "PersistentReplicator.replicateEntries" may get a NullPointerException if this method and a
      *   "cursor.readComplete" execute concurrently.
      */
-    @Deprecated
     protected CompletableFuture<Void> closeProducerAsync(boolean closeTheStartingProducer) {
         Pair<Boolean, State> setStoppingRes = compareSetAndGetState(State.Started, State.Stopping);
         if (!setStoppingRes.getLeft()) {

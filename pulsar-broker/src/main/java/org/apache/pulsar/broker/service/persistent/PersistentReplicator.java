@@ -152,10 +152,14 @@ public abstract class PersistentReplicator extends AbstractReplicator
         if (changeStateRes.getLeft()) {
             this.producer = (ProducerImpl) producer;
             HAVE_PENDING_READ_UPDATER.set(this, FALSE);
-        }
-
-        // Close the producer if change the state fail.
-        if (!changeStateRes.getLeft()) {
+            // Trigger a new read.
+            log.info("[{}] Created replicator producer, Replicator state: {}", replicatorId, state);
+            backOff.reset();
+            // activate cursor: so, entries can be cached.
+            this.cursor.setActive();
+            // read entries
+            readMoreEntries();
+        } else {
             if (changeStateRes.getRight() == Started) {
                 // Since only one task can call "producerBuilder.createAsync()", this scenario is not expected.
                 // So print a warn log.
@@ -168,17 +172,9 @@ public abstract class PersistentReplicator extends AbstractReplicator
                 log.error("[{}] Replicator state is not expected, so close the producer. Replicator state: {}",
                         replicatorId, changeStateRes.getRight());
             }
+            // Close the producer if change the state fail.
             doCloseProducerAsync(producer, () -> {});
-            return;
         }
-
-        // Trigger a new read.
-        log.info("[{}] Created replicator producer, Replicator state: {}", replicatorId, state);
-        backOff.reset();
-        // activate cursor: so, entries can be cached.
-        this.cursor.setActive();
-        // read entries
-        readMoreEntries();
     }
 
     @Override
@@ -472,7 +468,7 @@ public abstract class PersistentReplicator extends AbstractReplicator
         }
 
         HAVE_PENDING_READ_UPDATER.set(this, FALSE);
-        brokerService.executor().schedule(() -> readMoreEntries(), waitTimeMillis, TimeUnit.MILLISECONDS);
+        brokerService.executor().schedule(this::readMoreEntries, waitTimeMillis, TimeUnit.MILLISECONDS);
     }
 
     public CompletableFuture<Void> clearBacklog() {
