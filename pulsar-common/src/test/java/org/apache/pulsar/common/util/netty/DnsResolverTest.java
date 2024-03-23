@@ -35,7 +35,7 @@ public class DnsResolverTest {
     private static final int TTL = 101;
     private static final int NEGATIVE_TTL = 121;
 
-    @BeforeClass
+    @BeforeClass(alwaysRun = true)
     public void beforeClass() {
         Security.setProperty("networkaddress.cache.ttl",Integer.toString(TTL));
         Security.setProperty("networkaddress.cache.negative.ttl",Integer.toString(NEGATIVE_TTL));
