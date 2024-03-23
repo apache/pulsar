@@ -27,6 +27,7 @@ import java.security.Security;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 import org.testng.Assert;
+import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
@@ -34,11 +35,20 @@ public class DnsResolverTest {
     private static final int MIN_TTL = 0;
     private static final int TTL = 101;
     private static final int NEGATIVE_TTL = 121;
+    private static final String CACHE_POLICY_PROP = "networkaddress.cache.ttl";
+    private static final String NEGATIVE_CACHE_POLICY_PROP = "networkaddress.cache.negative.ttl";
 
     @BeforeClass(alwaysRun = true)
     public void beforeClass() {
-        Security.setProperty("networkaddress.cache.ttl",Integer.toString(TTL));
-        Security.setProperty("networkaddress.cache.negative.ttl",Integer.toString(NEGATIVE_TTL));
+        Security.setProperty(CACHE_POLICY_PROP, Integer.toString(TTL));
+        Security.setProperty(NEGATIVE_CACHE_POLICY_PROP, Integer.toString(NEGATIVE_TTL));
+    }
+
+    @AfterClass(alwaysRun = true)
+    public void afterClass() {
+        // The current test cannot restore to its original settings; it has been modified to default values.
+        Security.setProperty(CACHE_POLICY_PROP, "60");
+        Security.setProperty(NEGATIVE_CACHE_POLICY_PROP, "10");
     }
 
     @Test
