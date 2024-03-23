@@ -272,8 +272,6 @@ public abstract class AbstractReplicator implements Replicator {
 
     /**
      * This method only be used by {@link PersistentTopic#checkGC} now.
-     * TODO "PersistentReplicator.replicateEntries" may get a NullPointerException if this method and a
-     *   "cursor.readComplete" execute concurrently.
      */
     public CompletableFuture<Void> disconnect(boolean failIfHasBacklog, boolean closeTheStartingProducer) {
         long backlog = getNumberOfEntriesInBacklog();
@@ -292,8 +290,6 @@ public abstract class AbstractReplicator implements Replicator {
 
     /**
      * This method only be used by {@link PersistentTopic#checkGC} now.
-     * TODO "PersistentReplicator.replicateEntries" may get a NullPointerException if this method and a
-     *   "cursor.readComplete" execute concurrently.
      */
     protected CompletableFuture<Void> closeProducerAsync(boolean closeTheStartingProducer) {
         Pair<Boolean, State> setDisconnectingRes = compareSetAndGetState(State.Started, State.Disconnecting);
@@ -304,7 +300,7 @@ public abstract class AbstractReplicator implements Replicator {
                      * Delay retry(wait for the start producer task is finish).
                      * Note: If the producer always start fail, the start producer task will always retry until the
                      *   state changed to {@link State.Terminated}.
-                     *   TODO The better solution is creating a {@link CompletableFuture} to trace the in-progress
+                     *   Nit: The better solution is creating a {@link CompletableFuture} to trace the in-progress
                      *     creation and call "inProgressCreationFuture.thenApply(closeProducer())".
                      */
                     long waitTimeMs = backOff.next();
