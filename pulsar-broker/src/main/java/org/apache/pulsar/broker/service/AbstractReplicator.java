@@ -72,29 +72,25 @@ public abstract class AbstractReplicator implements Replicator {
             AtomicReferenceFieldUpdater.newUpdater(AbstractReplicator.class, State.class, "state");
     @VisibleForTesting
     @Getter
-    protected volatile State state = State.Stopped;
+    protected volatile State state = State.Disconnected;
 
     public enum State {
         /**
-         * This enum has two mean meanings：Init, Stopped.
-         * Regarding the meaning "Stopped", only {@link PersistentTopic#checkGC} will call {@link #disconnect},
-         *   so this method only be used by {@link PersistentTopic#checkGC} now.
-         * TODO After improving the method {@link #disconnect)}, we should rename "Stopped" to "Init".
+         * This enum has two mean meanings：
+         *   Init: replicator is just created, has not been started now.
+         *   Disconnected: the producer was closed after {@link PersistentTopic#checkGC} called {@link #disconnect}.
          */
-        // The internal producer is stopped.
-        Stopped,
+        // The internal producer is disconnected.
+        Disconnected,
         // Trying to create a new internal producer.
         Starting,
         // The internal producer has started, and tries copy data.
         Started,
         /**
-         * @Deprecated Only {@link PersistentTopic#checkGC} will call {@link #disconnect}, so this method only be
-         *  used by {@link PersistentTopic#checkGC} now.
-         * TODO After improving the method {@link #disconnect)}, this enum should be removed.
+         * The producer is closing after {@link PersistentTopic#checkGC} called {@link #disconnect}.
          */
-        @Deprecated
-        // The internal producer is trying to stop.
-        Stopping,
+        // The internal producer is trying to disconnect.
+        Disconnecting,
         // The replicator is in terminating.
         Terminating,
         // The replicator is never used again. Pulsar will create a new Replicator when enable replication again.
@@ -127,7 +123,7 @@ public abstract class AbstractReplicator implements Replicator {
                 .sendTimeout(0, TimeUnit.SECONDS) //
                 .maxPendingMessages(producerQueueSize) //
                 .producerName(getProducerName());
-        STATE_UPDATER.set(this, State.Stopped);
+        STATE_UPDATER.set(this, State.Disconnected);
     }
 
     protected abstract String getProducerName();
@@ -146,7 +142,7 @@ public abstract class AbstractReplicator implements Replicator {
 
     public void startProducer() {
         // Guarantee only one task call "producerBuilder.createAsync()".
-        Pair<Boolean, State> setStartingRes = compareSetAndGetState(State.Stopped, State.Starting);
+        Pair<Boolean, State> setStartingRes = compareSetAndGetState(State.Disconnected, State.Starting);
         if (!setStartingRes.getLeft()) {
             if (setStartingRes.getRight() == State.Starting) {
                 log.info("[{}] Skip the producer creation since other thread is doing starting, state : {}",
@@ -156,12 +152,12 @@ public abstract class AbstractReplicator implements Replicator {
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] Replicator was already running. state: {}", replicatorId, state);
                 }
-            } else if (setStartingRes.getRight() == State.Stopping) {
+            } else if (setStartingRes.getRight() == State.Disconnecting) {
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] Rep.producer is closing, delay to retry(wait the producer close success)."
                             + " state: {}", replicatorId, state);
                 }
-                delayStartProducerAfterStopped();
+                delayStartProducerAfterDisconnected();
             } else {
                 /** {@link State.Terminating}, {@link State.Terminated}. **/
                 log.info("[{}] Skip the producer creation since the replicator state is : {}", replicatorId, state);
@@ -173,20 +169,20 @@ public abstract class AbstractReplicator implements Replicator {
         producerBuilder.createAsync().thenAccept(producer -> {
             setProducerAndTriggerReadEntries(producer);
         }).exceptionally(ex -> {
-            Pair<Boolean, State> setStoppedRes = compareSetAndGetState(State.Starting, State.Stopped);
-            if (setStoppedRes.getLeft()) {
+            Pair<Boolean, State> setDisconnectedRes = compareSetAndGetState(State.Starting, State.Disconnected);
+            if (setDisconnectedRes.getLeft()) {
                 long waitTimeMs = backOff.next();
                 log.warn("[{}] Failed to create remote producer ({}), retrying in {} s",
                         replicatorId, ex.getMessage(), waitTimeMs / 1000.0);
                 // BackOff before retrying
                 scheduleCheckTopicActiveAndStartProducer(waitTimeMs);
             } else {
-                if (setStoppedRes.getRight() == State.Terminating
-                        || setStoppedRes.getRight() == State.Terminated) {
+                if (setDisconnectedRes.getRight() == State.Terminating
+                        || setDisconnectedRes.getRight() == State.Terminated) {
                     log.info("[{}] Skip to create producer, because it has been terminated, state is : {}",
                             replicatorId, state);
                 } else {
-                    /** {@link  State.Stopped}, {@link  State.Starting}, {@link  State.Started} **/
+                    /** {@link  State.Disconnected}, {@link  State.Starting}, {@link  State.Started} **/
                     // Since only one task can call "producerBuilder.createAsync()", this scenario is not expected.
                     // So print a warn log.
                     log.warn("[{}] Other thread will try to create the producer again. so skipped current one task."
@@ -199,10 +195,10 @@ public abstract class AbstractReplicator implements Replicator {
     }
 
     /***
-     * The producer is stopping, delay to start the producer.
+     * The producer is disconnecting, delay to start the producer.
      * If we start a producer immediately, we will get a conflict producer(same name producer) registered error.
      */
-    protected void delayStartProducerAfterStopped() {
+    protected void delayStartProducerAfterDisconnected() {
         long waitTimeMs = backOff.next();
         if (log.isDebugEnabled()) {
             log.debug(
@@ -300,15 +296,16 @@ public abstract class AbstractReplicator implements Replicator {
      *   "cursor.readComplete" execute concurrently.
      */
     protected CompletableFuture<Void> closeProducerAsync(boolean closeTheStartingProducer) {
-        Pair<Boolean, State> setStoppingRes = compareSetAndGetState(State.Started, State.Stopping);
-        if (!setStoppingRes.getLeft()) {
-            if (setStoppingRes.getRight() == State.Starting) {
+        Pair<Boolean, State> setDisconnectingRes = compareSetAndGetState(State.Started, State.Disconnecting);
+        if (!setDisconnectingRes.getLeft()) {
+            if (setDisconnectingRes.getRight() == State.Starting) {
                 if (closeTheStartingProducer) {
                     /**
                      * Delay retry(wait for the start producer task is finish).
-                     * Note: If the producer always start fail, the start producer task will always retry.
-                     *   Then current task may always retry. But if the state is {@link State.Stopped} next retry will
-                     *   be skipped. The better solution is creating a {@link CompletableFuture} to trace the creation.
+                     * Note: If the producer always start fail, the start producer task will always retry until the
+                     *   state changed to {@link State.Terminated}.
+                     *   TODO The better solution is creating a {@link CompletableFuture} to trace the in-progress
+                     *     creation and call "inProgressCreationFuture.thenApply(closeProducer())".
                      */
                     long waitTimeMs = backOff.next();
                     brokerService.executor().schedule(() -> closeProducerAsync(true),
@@ -316,14 +313,14 @@ public abstract class AbstractReplicator implements Replicator {
                 } else {
                     log.info("[{}] Skip current producer closing since the previous producer has been closed,"
                                     + " and trying start a new one, state : {}",
-                            replicatorId, setStoppingRes.getRight());
+                            replicatorId, setDisconnectingRes.getRight());
                 }
-            } else if (setStoppingRes.getRight() == State.Stopped
-                    || setStoppingRes.getRight() == State.Stopping) {
+            } else if (setDisconnectingRes.getRight() == State.Disconnected
+                    || setDisconnectingRes.getRight() == State.Disconnecting) {
                 log.info("[{}] Skip current producer closing since other thread did closing, state : {}",
-                        replicatorId, setStoppingRes.getRight());
-            } else if (setStoppingRes.getRight() == State.Terminating
-                    || setStoppingRes.getRight() == State.Terminated) {
+                        replicatorId, setDisconnectingRes.getRight());
+            } else if (setDisconnectingRes.getRight() == State.Terminating
+                    || setDisconnectingRes.getRight() == State.Terminated) {
                 log.info("[{}] Skip current producer closing since other thread is doing termination, state : {}",
                         replicatorId, state);
             }
@@ -334,20 +331,20 @@ public abstract class AbstractReplicator implements Replicator {
 
         // Close producer and update state.
         return doCloseProducerAsync(producer, () -> {
-            Pair<Boolean, State> setStoppedRes = compareSetAndGetState(State.Stopping, State.Stopped);
-            if (setStoppedRes.getLeft()) {
+            Pair<Boolean, State> setDisconnectedRes = compareSetAndGetState(State.Disconnecting, State.Disconnected);
+            if (setDisconnectedRes.getLeft()) {
                 this.producer = null;
                 // deactivate further read
                 disableReplicatorRead();
                 return;
             }
-            if (setStoppedRes.getRight() == State.Terminating || setStoppingRes.getRight() == State.Terminated) {
-                log.info("[{}] Skip setting state to stopped because it was terminated, state : {}",
+            if (setDisconnectedRes.getRight() == State.Terminating || setDisconnectingRes.getRight() == State.Terminated) {
+                log.info("[{}] Skip setting state to terminated because it was terminated, state : {}",
                         replicatorId, state);
             } else {
                 // Since only one task can call "doCloseProducerAsync(producer, action)", this scenario is not expected.
                 // So print a warn log.
-                log.warn("[{}] Other task has change the state to stopped. so skipped current one task."
+                log.warn("[{}] Other task has change the state to terminated. so skipped current one task."
                                 + " State is : {}",
                         replicatorId, state);
             }
@@ -393,10 +390,10 @@ public abstract class AbstractReplicator implements Replicator {
         if (STATE_UPDATER.compareAndSet(this, State.Started, State.Terminating)){
             return true;
         }
-        if (STATE_UPDATER.compareAndSet(this, State.Stopping, State.Terminating)){
+        if (STATE_UPDATER.compareAndSet(this, State.Disconnecting, State.Terminating)){
             return true;
         }
-        if (STATE_UPDATER.compareAndSet(this, State.Stopped, State.Terminating)) {
+        if (STATE_UPDATER.compareAndSet(this, State.Disconnected, State.Terminating)) {
             return true;
         }
         return false;

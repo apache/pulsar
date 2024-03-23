@@ -163,8 +163,8 @@ public abstract class PersistentReplicator extends AbstractReplicator
             if (changeStateRes.getRight() == Started) {
                 // Since only one task can call "producerBuilder.createAsync()", this scenario is not expected.
                 // So print a warn log.
-                log.warn("[{}] Replicator was stopped while creating the producer. Closing it. Replicator state: {}",
-                        replicatorId, state);
+                log.warn("[{}] Replicator was already started by another thread while creating the producer."
+                        + " Closing the producer newly created. Replicator state: {}", replicatorId, state);
             } else if (changeStateRes.getRight() == Terminating || changeStateRes.getRight() == Terminated) {
                 log.info("[{}] Replicator was terminated, so close the producer. Replicator state: {}",
                         replicatorId, state);
@@ -438,7 +438,7 @@ public abstract class PersistentReplicator extends AbstractReplicator
     @Override
     public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
         if (state != Started) {
-            log.info("[{}] Replicator was stopped while reading entries."
+            log.info("[{}] Replicator was disconnected while reading entries."
                             + " Stop reading. Replicator state: {}",
                     replicatorId, STATE_UPDATER.get(this));
             return;
@@ -453,7 +453,7 @@ public abstract class PersistentReplicator extends AbstractReplicator
             log.error("[{}] Error reading entries because replicator is"
                             + " already deleted and cursor is already closed {}, ({})",
                     replicatorId, ctx, exception.getMessage(), exception);
-            // replicator is already deleted and cursor is already closed so, producer should also be stopped.
+            // replicator is already deleted and cursor is already closed so, producer should also be disconnected.
             terminate();
             return;
         } else if (!(exception instanceof TooManyRequestsException)) {
@@ -572,7 +572,7 @@ public abstract class PersistentReplicator extends AbstractReplicator
         if (exception instanceof CursorAlreadyClosedException) {
             log.error("[{}] Asynchronous ack failure because replicator is already deleted and cursor is already"
                             + " closed {}, ({})", replicatorId, ctx, exception.getMessage(), exception);
-            // replicator is already deleted and cursor is already closed so, producer should also be stopped.
+            // replicator is already deleted and cursor is already closed so, producer should also be disconnected.
             terminate();
             return;
         }
