@@ -79,7 +79,7 @@ public class ReplicatedSubscriptionsController implements AutoCloseable, Topic.P
     private static final Counter timedoutSnapshotsMetric = Counter
             .build().name("pulsar_replicated_subscriptions_snapshot_timeouts")
             .help("Counter of timed out snapshots").register();
-    
+
     public ReplicatedSubscriptionsController(PersistentTopic topic, String localCluster) {
         this.topic = topic;
         this.localCluster = localCluster;
