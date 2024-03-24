@@ -623,33 +623,33 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testSetRetention() throws Exception {
-        RetentionPolicies retention = new RetentionPolicies(60, 1024);
-        log.info("Retention: {} will set to the topic: {}", retention, testTopic);
+        for (int i = 0; i < 10; i++) {
+            RetentionPolicies retention = new RetentionPolicies(i, 1024);
+            log.info("Retention: {} will set to the topic: {}", retention, testTopic);
 
-        admin.topicPolicies().setRetention(testTopic, retention);
-        log.info("Retention set success on topic: {}", testTopic);
+            admin.topicPolicies().setRetention(testTopic, retention);
+            log.info("Retention set success on topic: {}", testTopic);
 
-        Awaitility.await()
-                .untilAsserted(() -> Assert.assertEquals(admin.topicPolicies().getRetention(testTopic), retention));
+            Assert.assertEquals(admin.topicPolicies().getRetention(testTopic), retention);
+        }
 
         admin.topics().deletePartitionedTopic(testTopic, true);
     }
 
     @Test
     public void testRemoveRetention() throws Exception {
+        for (int i = 0; i < 10; i++) {
+            RetentionPolicies retention = new RetentionPolicies(i, 1024);
+            log.info("Retention: {} will set to the topic: {}", retention, testTopic);
 
-        RetentionPolicies retention = new RetentionPolicies(60, 1024);
-        log.info("Retention: {} will set to the topic: {}", retention, testTopic);
+            admin.topicPolicies().setRetention(testTopic, retention);
+            log.info("Retention set success on topic: {}", testTopic);
 
-        admin.topicPolicies().setRetention(testTopic, retention);
-        log.info("Retention set success on topic: {}", testTopic);
+            Assert.assertEquals(admin.topicPolicies().getRetention(testTopic), retention);
 
-        Awaitility.await()
-                .untilAsserted(() -> Assert.assertEquals(admin.topicPolicies().getRetention(testTopic), retention));
-
-        admin.topicPolicies().removeRetention(testTopic);
-        Awaitility.await()
-                .untilAsserted(() -> Assert.assertNull(admin.topicPolicies().getRetention(testTopic)));
+            admin.topicPolicies().removeRetention(testTopic);
+            Assert.assertNull(admin.topicPolicies().getRetention(testTopic));
+        }
 
         admin.topics().deletePartitionedTopic(testTopic, true);
     }

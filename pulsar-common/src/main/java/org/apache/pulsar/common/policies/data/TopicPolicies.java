@@ -80,6 +80,39 @@ public class TopicPolicies {
     // If set, it will override the namespace settings for allowing auto subscription creation
     private AutoSubscriptionCreationOverrideImpl autoSubscriptionCreationOverride;
 
+    public TopicPolicies(TopicPolicies policies) {
+        this.backLogQuotaMap = policies.backLogQuotaMap;
+        this.subscriptionTypesEnabled = policies.subscriptionTypesEnabled;
+        this.replicationClusters = policies.replicationClusters;
+        this.shadowTopics = policies.shadowTopics;
+        this.isGlobal = policies.isGlobal;
+        this.persistence = policies.persistence;
+        this.retentionPolicies = policies.retentionPolicies;
+        this.deduplicationEnabled = policies.deduplicationEnabled;
+        this.messageTTLInSeconds = policies.messageTTLInSeconds;
+        this.maxProducerPerTopic = policies.maxProducerPerTopic;
+        this.maxConsumerPerTopic = policies.maxConsumerPerTopic;
+        this.maxConsumersPerSubscription = policies.maxConsumersPerSubscription;
+        this.maxUnackedMessagesOnConsumer = policies.maxUnackedMessagesOnConsumer;
+        this.maxUnackedMessagesOnSubscription = policies.maxUnackedMessagesOnSubscription;
+        this.delayedDeliveryTickTimeMillis = policies.delayedDeliveryTickTimeMillis;
+        this.delayedDeliveryEnabled = policies.delayedDeliveryEnabled;
+        this.offloadPolicies = policies.offloadPolicies;
+        this.inactiveTopicPolicies = policies.inactiveTopicPolicies;
+        this.dispatchRate = policies.dispatchRate;
+        this.subscriptionDispatchRate = policies.subscriptionDispatchRate;
+        this.compactionThreshold = policies.compactionThreshold;
+        this.publishRate = policies.publishRate;
+        this.subscribeRate = policies.subscribeRate;
+        this.deduplicationSnapshotIntervalSeconds = policies.deduplicationSnapshotIntervalSeconds;
+        this.maxMessageSize = policies.maxMessageSize;
+        this.maxSubscriptionsPerTopic = policies.maxSubscriptionsPerTopic;
+        this.replicatorDispatchRate = policies.replicatorDispatchRate;
+        this.schemaCompatibilityStrategy = policies.schemaCompatibilityStrategy;
+        this.entryFilters = policies.entryFilters;
+        this.autoSubscriptionCreationOverride = policies.autoSubscriptionCreationOverride;
+    }
+
     /**
      * Subscription level policies for specific subscription.
      */
