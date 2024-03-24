@@ -18,8 +18,11 @@
  */
 package org.apache.pulsar.broker.lookup;
 
+import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLookupData;
 import org.apache.pulsar.broker.namespace.NamespaceEphemeralData;
 import org.apache.pulsar.common.lookup.data.LookupData;
+import org.apache.pulsar.policies.data.loadbalancer.LocalBrokerData;
 
 /**
  * Represent a lookup result.
@@ -65,6 +68,62 @@ public class LookupResult {
         this.authoritativeRedirect = false;
         this.lookupData = new LookupData(nativeUrl, nativeUrlTls, namespaceEphemeralData.getHttpUrl(),
                 namespaceEphemeralData.getHttpUrlTls());
+    }
+
+    public static LookupResult create(BrokerLookupData selectedBroker, String advertisedListenerName,
+                                      boolean authoritativeRedirect) {
+        String httpUrl = selectedBroker.getWebServiceUrl();
+        String httpUrlTls = selectedBroker.getWebServiceUrlTls();
+        String brokerServiceUrl = selectedBroker.getPulsarServiceUrl();
+        String brokerServiceUrlTls = selectedBroker.getPulsarServiceUrlTls();
+
+        if (StringUtils.isNotBlank(advertisedListenerName)) {
+            var advertisedListener = selectedBroker.advertisedListeners().get(advertisedListenerName);
+            if (advertisedListener != null) {
+                if (advertisedListener.getBrokerHttpUrl() != null) {
+                    httpUrl = advertisedListener.getBrokerHttpUrl().toString();
+                }
+                if (advertisedListener.getBrokerHttpsUrl() != null) {
+                    httpUrlTls = advertisedListener.getBrokerHttpsUrl().toString();
+                }
+                if (advertisedListener.getBrokerServiceUrl() != null) {
+                    brokerServiceUrl = advertisedListener.getBrokerServiceUrl().toString();
+                }
+                if (advertisedListener.getBrokerServiceUrlTls() != null) {
+                    brokerServiceUrlTls = advertisedListener.getBrokerServiceUrlTls().toString();
+                }
+            }
+        }
+
+        return new LookupResult(httpUrl, httpUrlTls, brokerServiceUrl, brokerServiceUrlTls, authoritativeRedirect);
+    }
+
+    public static LookupResult create(LocalBrokerData selectedBroker, String advertisedListenerName,
+                                      boolean authoritativeRedirect) {
+        String httpUrl = selectedBroker.getWebServiceUrl();
+        String httpUrlTls = selectedBroker.getWebServiceUrlTls();
+        String brokerServiceUrl = selectedBroker.getPulsarServiceUrl();
+        String brokerServiceUrlTls = selectedBroker.getPulsarServiceUrlTls();
+
+        if (StringUtils.isNotBlank(advertisedListenerName)) {
+            var advertisedListener = selectedBroker.getAdvertisedListeners().get(advertisedListenerName);
+            if (advertisedListener != null) {
+                if (advertisedListener.getBrokerHttpUrl() != null) {
+                    httpUrl = advertisedListener.getBrokerHttpUrl().toString();
+                }
+                if (advertisedListener.getBrokerHttpsUrl() != null) {
+                    httpUrlTls = advertisedListener.getBrokerHttpsUrl().toString();
+                }
+                if (advertisedListener.getBrokerServiceUrl() != null) {
+                    brokerServiceUrl = advertisedListener.getBrokerServiceUrl().toString();
+                }
+                if (advertisedListener.getBrokerServiceUrlTls() != null) {
+                    brokerServiceUrlTls = advertisedListener.getBrokerServiceUrlTls().toString();
+                }
+            }
+        }
+
+        return new LookupResult(httpUrl, httpUrlTls, brokerServiceUrl, brokerServiceUrlTls, authoritativeRedirect);
     }
 
     public boolean isBrokerUrl() {

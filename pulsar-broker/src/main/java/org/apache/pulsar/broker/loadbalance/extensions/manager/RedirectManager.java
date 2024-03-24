@@ -36,7 +36,6 @@ import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLookupData;
 import org.apache.pulsar.broker.lookup.LookupResult;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.coordination.LockManager;
-import org.apache.pulsar.policies.data.loadbalancer.ServiceLookupData;
 
 @Slf4j
 public class RedirectManager {
@@ -75,7 +74,7 @@ public class RedirectManager {
         });
     }
 
-    public CompletableFuture<Optional<LookupResult>> findRedirectLookupResultAsync() {
+    public CompletableFuture<Optional<LookupResult>> findRedirectLookupResultAsync(String advertisedListenerName) {
         String currentLMClassName = pulsar.getConfiguration().getLoadManagerClassName();
         boolean debug = ExtensibleLoadManagerImpl.debug(pulsar.getConfiguration(), log);
         return getAvailableBrokerLookupDataAsync().thenApply(lookupDataMap -> {
@@ -84,7 +83,7 @@ public class RedirectManager {
                 log.warn(errorMsg);
                 throw new IllegalStateException(errorMsg);
             }
-            AtomicReference<ServiceLookupData> latestServiceLookupData = new AtomicReference<>();
+            AtomicReference<BrokerLookupData> latestServiceLookupData = new AtomicReference<>();
             AtomicLong lastStartTimestamp = new AtomicLong(0L);
             lookupDataMap.forEach((key, value) -> {
                 if (lastStartTimestamp.get() <= value.getStartTimestamp()) {
@@ -106,7 +105,7 @@ public class RedirectManager {
                 return Optional.empty();
             }
             var serviceLookupDataObj = latestServiceLookupData.get();
-            var candidateBrokers = new ArrayList<ServiceLookupData>();
+            var candidateBrokers = new ArrayList<BrokerLookupData>();
             lookupDataMap.forEach((key, value) -> {
                 if (Objects.equals(value.getLoadManagerClassName(), serviceLookupDataObj.getLoadManagerClassName())) {
                     candidateBrokers.add(value);
@@ -114,12 +113,7 @@ public class RedirectManager {
             });
             var selectedBroker = candidateBrokers.get((int) (Math.random() * candidateBrokers.size()));
 
-            return Optional.of(new LookupResult(selectedBroker.getWebServiceUrl(),
-                    selectedBroker.getWebServiceUrlTls(),
-                    selectedBroker.getPulsarServiceUrl(),
-                    selectedBroker.getPulsarServiceUrlTls(),
-                    true));
+            return Optional.of(LookupResult.create(selectedBroker, advertisedListenerName, true));
         });
     }
-
 }
