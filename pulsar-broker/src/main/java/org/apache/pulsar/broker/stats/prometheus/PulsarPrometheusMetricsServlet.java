@@ -21,31 +21,27 @@ package org.apache.pulsar.broker.stats.prometheus;
 import java.io.IOException;
 import javax.servlet.ServletOutputStream;
 import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.broker.ServiceConfiguration;
 
 public class PulsarPrometheusMetricsServlet extends PrometheusMetricsServlet {
 
     private static final long serialVersionUID = 1L;
 
     private final PulsarService pulsar;
-    private final boolean shouldExportTopicMetrics;
-    private final boolean shouldExportConsumerMetrics;
-    private final boolean shouldExportProducerMetrics;
-    private final boolean splitTopicAndPartitionLabel;
-
-    public PulsarPrometheusMetricsServlet(PulsarService pulsar, boolean includeTopicMetrics,
-                                          boolean includeConsumerMetrics, boolean shouldExportProducerMetrics,
-                                          boolean splitTopicAndPartitionLabel) {
+    private final ServiceConfiguration config;
+    public PulsarPrometheusMetricsServlet(PulsarService pulsar) {
         super(pulsar.getConfiguration().getMetricsServletTimeoutMs(), pulsar.getConfiguration().getClusterName());
         this.pulsar = pulsar;
-        this.shouldExportTopicMetrics = includeTopicMetrics;
-        this.shouldExportConsumerMetrics = includeConsumerMetrics;
-        this.shouldExportProducerMetrics = shouldExportProducerMetrics;
-        this.splitTopicAndPartitionLabel = splitTopicAndPartitionLabel;
+        this.config = pulsar.getConfiguration();
     }
 
     @Override
     protected void generateMetrics(String cluster, ServletOutputStream outputStream) throws IOException {
-        PrometheusMetricsGenerator.generate(pulsar, shouldExportTopicMetrics, shouldExportConsumerMetrics,
-                shouldExportProducerMetrics, splitTopicAndPartitionLabel, outputStream, metricsProviders);
+        PrometheusMetricsGenerator.generate(pulsar,
+            config.isExposeTopicLevelMetricsInPrometheus(),
+            config.isExposeConsumerLevelMetricsInPrometheus(),
+            config.isExposeProducerLevelMetricsInPrometheus(),
+            config.isSplitTopicAndPartitionLabelInPrometheus(),
+            outputStream, metricsProviders);
     }
 }
