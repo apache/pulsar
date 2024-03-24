@@ -86,7 +86,8 @@ public class ProxyAuthorizationTest extends MockedPulsarServiceBaseTest {
         assertFalse(auth.canLookup(TopicName.get("persistent://p1/c1/ns1/ds1"), "my-role", null));
 
         admin.clusters().createCluster(configClusterName, ClusterData.builder().build());
-        admin.tenants().createTenant("p1", new TenantInfoImpl(Sets.newHashSet("role1"), Sets.newHashSet("c1")));
+        String tenantAdmin = "role1";
+        admin.tenants().createTenant("p1", new TenantInfoImpl(Sets.newHashSet(tenantAdmin), Sets.newHashSet("c1")));
         waitForChange();
         admin.namespaces().createNamespace("p1/c1/ns1");
         waitForChange();
@@ -116,6 +117,10 @@ public class ProxyAuthorizationTest extends MockedPulsarServiceBaseTest {
 
         assertTrue(auth.canProduce(TopicName.get("persistent://p1/c1/ns1/ds1"), "my-role", null));
         assertTrue(auth.canConsume(TopicName.get("persistent://p1/c1/ns1/ds1"), "my-role", null, null));
+
+        // tenant admin can produce/consume all topics, even if SubscriptionAuthMode.Prefix mode
+        assertTrue(auth.canConsume(TopicName.get("persistent://p1/c1/ns1/ds1"), tenantAdmin, null, "sub1"));
+        assertTrue(auth.canProduce(TopicName.get("persistent://p1/c1/ns1/ds1"), tenantAdmin, null));
 
         admin.namespaces().deleteNamespace("p1/c1/ns1");
         admin.tenants().deleteTenant("p1");
