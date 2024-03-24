@@ -1227,7 +1227,6 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                         ServerError error = getErrorCodeWithErrorLog(existingConsumerFuture, true,
                                 String.format("Consumer subscribe failure. remoteAddress: %s, subscription: %s",
                                         remoteAddress, subscriptionName));
-                        consumers.remove(consumerId, existingConsumerFuture);
                         commandSender.sendErrorResponse(requestId, error,
                                 "Consumer that failed is already present on the connection");
                     } else {
