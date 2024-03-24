@@ -268,6 +268,39 @@ public class GetLastMessageIdCompactedTest extends ProducerConsumerBase {
     }
 
     @Test(dataProvider = "enabledBatch")
+    public void testGetLastMessageIdAfterCompactionAndExpire(boolean enabledBatch) throws Exception {
+        String topicName = "persistent://public/default/" + BrokerTestUtil.newUniqueName("tp");
+        Producer<String> producer = createProducer(enabledBatch, topicName);
+        // produce messages
+        producer.newMessage().key("k0").value("v0").sendAsync();
+        producer.newMessage().key("k0").value("v1").sendAsync();
+        producer.flush();
+
+        // trigger compaction
+        triggerCompactionAndWait(topicName);
+
+        triggerLedgerSwitch(topicName);
+        clearAllTheLedgersOutdated(topicName);
+
+        MessageIdImpl lastMessageIdByTopic = getLastMessageIdByTopic(topicName);
+        Consumer<String> consumer = createConsumer(topicName, "sub");
+        MessageIdImpl messageId = (MessageIdImpl) consumer.getLastMessageId();
+        assertEquals(messageId.getLedgerId(), lastMessageIdByTopic.getLedgerId());
+        assertEquals(messageId.getEntryId(), lastMessageIdByTopic.getEntryId());
+        if (enabledBatch) {
+            BatchMessageIdImpl lastBatchMessageIdByTopic = (BatchMessageIdImpl) lastMessageIdByTopic;
+            BatchMessageIdImpl batchMessageId = (BatchMessageIdImpl) messageId;
+            assertEquals(batchMessageId.getBatchSize(), lastBatchMessageIdByTopic.getBatchSize());
+            assertEquals(batchMessageId.getBatchIndex(), lastBatchMessageIdByTopic.getBatchIndex());
+        }
+
+        // cleanup.
+        consumer.close();
+        producer.close();
+        admin.topics().delete(topicName, false);
+    }
+
+    @Test(dataProvider = "enabledBatch")
     public void testGetLastMessageIdAfterCompactionWithCompression(boolean enabledBatch) throws Exception {
         String topicName = "persistent://public/default/" + BrokerTestUtil.newUniqueName("tp");
         String subName = "sub";
