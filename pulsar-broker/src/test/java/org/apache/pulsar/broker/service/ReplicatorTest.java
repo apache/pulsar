@@ -104,7 +104,9 @@ import org.apache.pulsar.common.policies.data.PartitionedTopicStats;
 import org.apache.pulsar.common.policies.data.ReplicatorStats;
 import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.policies.data.TopicStats;
+import org.apache.pulsar.common.policies.data.stats.ReplicatorStatsImpl;
 import org.apache.pulsar.common.protocol.Commands;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.schema.Schemas;
 import org.awaitility.Awaitility;
@@ -1873,5 +1875,46 @@ public class ReplicatorTest extends ReplicatorTestBase {
         }
 
         assertEquals(result, Lists.newArrayList("V1", "V2", "V3", "V4"));
+    }
+
+    @Test
+    public void testReplicatorProducerStats() throws Exception {
+        pulsar1.getConfiguration().setStatsUpdateFrequencyInSecs(5);
+
+        String namespace1 = "pulsar/" + UUID.randomUUID();
+        admin1.namespaces().createNamespace(namespace1);
+        admin1.namespaces().setNamespaceReplicationClusters(namespace1, Sets.newHashSet("r1", "r2"));
+        final TopicName dest = TopicName.get(
+                BrokerTestUtil.newUniqueName("persistent://" + namespace1 + "/test-producer-stats"));
+        admin1.topics().createPartitionedTopic(dest.toString(), 1);
+
+        @Cleanup
+        PulsarClient client = pulsar1.getClient();
+        @Cleanup
+        Producer<byte[]> producer = client.newProducer()
+                .topic(dest.toString())
+                .enableBatching(true)
+                .batchingMaxPublishDelay(2, TimeUnit.SECONDS)
+                .batchingMaxMessages(2)
+                .create();
+
+        List<CompletableFuture<MessageId>> list = new ArrayList<>();
+        for (int i = 0; i < 8; i++) {
+            list.add(producer.sendAsync(Integer.toString(i).getBytes(StandardCharsets.UTF_8)));
+        }
+
+        Awaitility.await().untilAsserted(FutureUtil.waitForAll(list)::get);
+
+        String referenceName = TopicName.getTopicPartitionNameString(dest.toString(), 0);
+        Optional<Topic> topicReferenceOpt = pulsar1.getBrokerService().getTopicReference(referenceName);
+        Assert.assertTrue(topicReferenceOpt.isPresent());
+        PersistentTopic topic = (PersistentTopic) topicReferenceOpt.get();
+        Replicator replicator = topic.getPersistentReplicator("r2");
+
+        Awaitility.await().untilAsserted(() -> {
+            ReplicatorStatsImpl stats = replicator.getStats();
+            assertNotEquals(stats.msgRateOut, 0D);
+            assertNotEquals(stats.msgThroughputOut, 0D);
+        });
     }
 }

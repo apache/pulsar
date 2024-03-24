@@ -93,7 +93,6 @@ public abstract class PersistentReplicator extends AbstractReplicator
                     .newUpdater(PersistentReplicator.class, "havePendingRead");
     private volatile int havePendingRead = FALSE;
 
-    protected final Rate msgOut = new Rate();
     protected final Rate msgExpired = new Rate();
 
     protected int messageTTLInSeconds = 0;
@@ -570,12 +569,9 @@ public abstract class PersistentReplicator extends AbstractReplicator
     }
 
     public void updateRates() {
-        msgOut.calculateRate();
         msgExpired.calculateRate();
         expiryMonitor.updateRates();
 
-        stats.msgRateOut = msgOut.getRate();
-        stats.msgThroughputOut = msgOut.getValueRate();
         stats.msgRateExpired = msgExpired.getRate() + expiryMonitor.getMessageExpiryRate();
     }
 
@@ -588,6 +584,8 @@ public abstract class PersistentReplicator extends AbstractReplicator
         if (producer != null) {
             stats.outboundConnection = producer.getConnectionId();
             stats.outboundConnectedSince = producer.getConnectedSince();
+            stats.msgRateOut = producer.getStats().getSendMsgsRate();
+            stats.msgThroughputOut = producer.getStats().getSendBytesRate();
         } else {
             stats.outboundConnection = null;
             stats.outboundConnectedSince = null;
