@@ -33,7 +33,6 @@ import com.google.common.collect.Sets;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
-import com.google.gson.JsonPrimitive;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.EventLoopGroup;
 import io.netty.util.concurrent.DefaultThreadFactory;
@@ -73,12 +72,14 @@ import org.apache.http.HttpResponse;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
+import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannelImpl;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.service.BrokerServiceException.PersistenceException;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusRawMetricsProvider;
 import org.apache.pulsar.client.admin.BrokerStats;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -114,6 +115,7 @@ import org.apache.pulsar.common.util.netty.EventLoopUtil;
 import org.apache.pulsar.compaction.Compactor;
 import org.awaitility.Awaitility;
 import org.mockito.Mockito;
+import org.mockito.internal.util.MockUtil;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -1318,7 +1320,7 @@ public class BrokerServiceTest extends BrokerTestBase {
 
         @Cleanup("shutdownNow")
         ExecutorService executor = Executors.newSingleThreadExecutor();
-        BrokerService service = spy(pulsar.getBrokerService());
+        BrokerService service = pulsar.getBrokerService();
         // create topic will fail to get managedLedgerConfig
         CompletableFuture<ManagedLedgerConfig> failedManagedLedgerConfig = new CompletableFuture<>();
         failedManagedLedgerConfig.completeExceptionally(new NullPointerException("failed to persistent policy"));
@@ -1360,7 +1362,7 @@ public class BrokerServiceTest extends BrokerTestBase {
 
         @Cleanup("shutdownNow")
         ExecutorService executor = Executors.newSingleThreadExecutor();
-        BrokerService service = spy(pulsar.getBrokerService());
+        BrokerService service = pulsar.getBrokerService();
         // create topic will fail to get managedLedgerConfig
         CompletableFuture<ManagedLedgerConfig> failedManagedLedgerConfig = new CompletableFuture<>();
         failedManagedLedgerConfig.complete(new ManagedLedgerConfig());
@@ -1587,82 +1589,38 @@ public class BrokerServiceTest extends BrokerTestBase {
         });
     }
 
-    // this test is disabled since it is flaky
-    @Test(enabled = false)
+    @Test
     public void testBrokerStatsTopicLoadFailed() throws Exception {
         admin.namespaces().createNamespace("prop/ns-test");
 
-        String persistentTopic = "persistent://prop/ns-test/topic1_" + UUID.randomUUID();
-        String nonPersistentTopic = "non-persistent://prop/ns-test/topic2_" + UUID.randomUUID();
+        String uuid = UUID.randomUUID().toString();
+        String persistentTopic = "persistent://prop/ns-test/topic1_" + uuid;
+        String nonPersistentTopic = "non-persistent://prop/ns-test/topic2_" + uuid;
 
         BrokerService brokerService = pulsar.getBrokerService();
-        brokerService = Mockito.spy(brokerService);
-        // mock create persistent topic failed
-        Mockito
-                .doAnswer(invocation -> {
-                    CompletableFuture<ManagedLedgerConfig> f = new CompletableFuture<>();
-                    f.completeExceptionally(new RuntimeException("This is an exception"));
-                    return f;
-                })
-                .when(brokerService).getManagedLedgerConfig(Mockito.eq(TopicName.get(persistentTopic)));
+        Mockito.doThrow(new PulsarServerException("This a an exception"))
+                .when(brokerService).newTopic(Mockito.endsWith(uuid), Mockito.any(), Mockito.any(), Mockito.any());
+        try {
+            admin.topics().createNonPartitionedTopic(nonPersistentTopic);
+        } catch (Exception ex) {
+            // ignore
+        }
+        try {
+            admin.topics().createNonPartitionedTopic(persistentTopic);
+        } catch (Exception ex) {
+            // ignore
+        }
 
-        // mock create non-persistent topic failed
-        Mockito
-                .doAnswer(inv -> {
-                    CompletableFuture<Void> f = new CompletableFuture<>();
-                    f.completeExceptionally(new RuntimeException("This is an exception"));
-                    return f;
-                })
-                .when(brokerService).checkTopicNsOwnership(Mockito.eq(nonPersistentTopic));
+        PrometheusMetricsClient client = new PrometheusMetricsClient("127.0.0.1", pulsar.getListenPortHTTP().get());
+        PrometheusMetricsClient.Metrics metrics = client.getMetrics();
+        List<PrometheusMetricsClient.Metric> metricList = metrics.findByNameAndLabels("pulsar_topic_load_failed_count", "cluster", "test");
+        assertEquals(metricList.size(), 1);
+        assertTrue(metricList.get(0).value >= 2.0F);
+    }
 
-
-        PulsarService pulsarService = pulsar;
-        Field field = PulsarService.class.getDeclaredField("brokerService");
-        field.setAccessible(true);
-        field.set(pulsarService, brokerService);
-
-        CompletableFuture<Producer<String>> producer = pulsarClient.newProducer(Schema.STRING)
-                .topic(persistentTopic)
-                .createAsync();
-        CompletableFuture<Producer<String>> producer1 = pulsarClient.newProducer(Schema.STRING)
-                .topic(nonPersistentTopic)
-                .createAsync();
-
-        producer.whenComplete((v, t) -> {
-            if (t == null) {
-                try {
-                    v.close();
-                } catch (PulsarClientException e) {
-                    // ignore
-                }
-            }
-        });
-        producer1.whenComplete((v, t) -> {
-            if (t == null) {
-                try {
-                    v.close();
-                } catch (PulsarClientException e) {
-                    // ignore
-                }
-            }
-        });
-
-        Awaitility.waitAtMost(2, TimeUnit.MINUTES).until(() -> {
-            String json = admin.brokerStats().getMetrics();
-            JsonArray metrics = new Gson().fromJson(json, JsonArray.class);
-            AtomicBoolean flag = new AtomicBoolean(false);
-
-            metrics.forEach(ele -> {
-                JsonObject obj = ((JsonObject) ele);
-                JsonObject metrics0 = (JsonObject) obj.get("metrics");
-                JsonPrimitive v = (JsonPrimitive) metrics0.get("brk_topic_load_failed_count");
-                if (null != v && v.getAsDouble() >= 2D) {
-                    flag.set(true);
-                }
-            });
-
-            return flag.get();
-        });
+    @Override
+    protected BrokerService customizeNewBrokerService(BrokerService brokerService) {
+        return MockUtil.isMock(brokerService) ? brokerService : Mockito.spy(brokerService);
     }
 
     @Test

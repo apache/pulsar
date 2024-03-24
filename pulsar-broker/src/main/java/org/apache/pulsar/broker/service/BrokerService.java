@@ -1241,8 +1241,9 @@ public class BrokerService implements Closeable {
             if (log.isDebugEnabled()) {
                 log.debug("Broker is unable to load non-persistent topic {}", topic);
             }
-            return FutureUtil.failedFuture(
+            topicFuture.completeExceptionally(
                     new NotAllowedException("Broker is not unable to load non-persistent topic"));
+            return topicFuture;
         }
         final long topicCreateTimeMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime());
         NonPersistentTopic nonPersistentTopic;
@@ -1250,7 +1251,8 @@ public class BrokerService implements Closeable {
             nonPersistentTopic = newTopic(topic, null, this, NonPersistentTopic.class);
         } catch (Throwable e) {
             log.warn("Failed to create topic {}", topic, e);
-            return FutureUtil.failedFuture(e);
+            topicFuture.completeExceptionally(e);
+            return topicFuture;
         }
         CompletableFuture<Void> isOwner = checkTopicNsOwnership(topic);
         isOwner.thenRun(() -> {
@@ -1637,7 +1639,6 @@ public class BrokerService implements Closeable {
                                        Map<String, String> properties, @Nullable TopicPolicies topicPolicies) {
         TopicName topicName = TopicName.get(topic);
         final long topicCreateTimeMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime());
-
         topicFuture.exceptionally(t -> {
             pulsarStats.recordTopicLoadFailed();
             return null;
