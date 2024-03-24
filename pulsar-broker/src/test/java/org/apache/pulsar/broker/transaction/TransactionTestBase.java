@@ -163,6 +163,7 @@ public abstract class TransactionTestBase extends TestRetrySupport {
             conf.setBrokerDeduplicationEnabled(true);
             conf.setTransactionBufferSnapshotMaxTransactionCount(2);
             conf.setTransactionBufferSnapshotMinTimeInMillis(2000);
+            conf.setTransactionMetaPersistCount(5);
             serviceConfigurationList.add(conf);
 
             PulsarTestContext.Builder testContextBuilder =

@@ -64,6 +64,7 @@ import org.apache.pulsar.common.api.proto.CommandCloseConsumer;
 import org.apache.pulsar.common.api.proto.CommandCloseProducer;
 import org.apache.pulsar.common.api.proto.CommandConnect;
 import org.apache.pulsar.common.api.proto.CommandConnected;
+import org.apache.pulsar.common.api.proto.CommandEndTxn;
 import org.apache.pulsar.common.api.proto.CommandEndTxnOnPartitionResponse;
 import org.apache.pulsar.common.api.proto.CommandEndTxnOnSubscriptionResponse;
 import org.apache.pulsar.common.api.proto.CommandEndTxnResponse;
@@ -77,6 +78,7 @@ import org.apache.pulsar.common.api.proto.CommandLookupTopic;
 import org.apache.pulsar.common.api.proto.CommandLookupTopicResponse;
 import org.apache.pulsar.common.api.proto.CommandLookupTopicResponse.LookupType;
 import org.apache.pulsar.common.api.proto.CommandMessage;
+import org.apache.pulsar.common.api.proto.CommandNewTxn;
 import org.apache.pulsar.common.api.proto.CommandNewTxnResponse;
 import org.apache.pulsar.common.api.proto.CommandPartitionedTopicMetadataResponse;
 import org.apache.pulsar.common.api.proto.CommandProducer;
@@ -1360,12 +1362,15 @@ public class Commands {
 
     // ---- transaction related ----
 
-    public static ByteBuf newTxn(long tcId, long requestId, long ttlSeconds) {
+    public static ByteBuf newTxn(long tcId, long requestId, long ttlSeconds, String clientName) {
         BaseCommand cmd = localCmd(Type.NEW_TXN);
-        cmd.setNewTxn()
+        CommandNewTxn commandNewTxn = cmd.setNewTxn()
                 .setTcId(tcId)
                 .setRequestId(requestId)
                 .setTxnTtlSeconds(ttlSeconds);
+        if (clientName != null) {
+            commandNewTxn.setClientName(clientName);
+        }
         return serializeWithSize(cmd);
     }
 
@@ -1464,12 +1469,16 @@ public class Commands {
         return serializeWithSize(cmd);
     }
 
-    public static BaseCommand newEndTxn(long requestId, long txnIdLeastBits, long txnIdMostBits, TxnAction txnAction) {
+    public static BaseCommand newEndTxn(long requestId, long txnIdLeastBits, long txnIdMostBits,
+                                        TxnAction txnAction, String clientName) {
         BaseCommand cmd = localCmd(Type.END_TXN);
-        cmd.setEndTxn()
+        CommandEndTxn commandEndTxn = cmd.setEndTxn()
                 .setRequestId(requestId)
                 .setTxnidLeastBits(txnIdLeastBits).setTxnidMostBits(txnIdMostBits)
                 .setTxnAction(txnAction);
+        if (clientName != null) {
+            commandEndTxn.setClientName(clientName);
+        }
         return cmd;
     }
 

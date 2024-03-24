@@ -229,6 +229,7 @@ enum ServerError {
                          // use this error to indicate that this producer is now permanently
                          // fenced. Applications are now supposed to close it and create a
                          // new producer
+    TransactionPreserverClosed = 26; // Transaction metadata preserver is closed
 }
 
 enum AuthMethod {
@@ -265,6 +266,7 @@ enum ProtocolVersion {
     v19 = 19; // Add CommandTcClientConnectRequest and CommandTcClientConnectResponse
     v20 = 20; // Add client support for topic migration redirection CommandTopicMigrated
     v21 = 21; // Carry the AUTO_CONSUME schema to the Broker after this version
+    v22 = 22; // Add support for client name in CommandNewTxn and CommandEndTxn
 }
 
 message CommandConnect {
@@ -865,6 +867,7 @@ message CommandNewTxn {
     required uint64 request_id = 1;
     optional uint64 txn_ttl_seconds = 2 [default = 0];
     optional uint64 tc_id = 3 [default = 0];
+    optional string client_name = 4;
 }
 
 message CommandNewTxnResponse {
@@ -914,6 +917,7 @@ message CommandEndTxn {
     optional uint64 txnid_least_bits = 2 [default = 0];
     optional uint64 txnid_most_bits = 3 [default = 0];
     optional TxnAction txn_action = 4;
+    optional string client_name = 5;
 }
 
 message CommandEndTxnResponse {

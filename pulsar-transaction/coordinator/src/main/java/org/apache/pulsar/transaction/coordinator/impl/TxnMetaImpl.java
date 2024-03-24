@@ -18,11 +18,14 @@
  */
 package org.apache.pulsar.transaction.coordinator.impl;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import lombok.Getter;
+import lombok.Setter;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.transaction.coordinator.TransactionSubscription;
 import org.apache.pulsar.transaction.coordinator.TxnMeta;
@@ -33,7 +36,12 @@ import org.apache.pulsar.transaction.coordinator.util.TransactionUtil;
 /**
  * A class represents the metadata of a transaction stored in
  * the {@link org.apache.pulsar.transaction.coordinator.TransactionMetadataStore}.
+* If serialized, only txnID, txnStatus will be serialized.
  */
+@JsonIgnoreProperties(value = {"producedPartitions", "ackedPartitions", "clientName"},
+        ignoreUnknown = true)
+@Setter
+@Getter
 class TxnMetaImpl implements TxnMeta {
 
     private final TxnID txnID;
@@ -43,13 +51,34 @@ class TxnMetaImpl implements TxnMeta {
     private final long openTimestamp;
     private final long timeoutAt;
     private final String owner;
+    private final String clientName;
+
+    // used for deserialize
+    public TxnMetaImpl() {
+        this.txnID = null;
+        this.openTimestamp = 0;
+        this.timeoutAt = 0;
+        this.owner = null;
+        this.clientName = null;
+    }
+
 
     TxnMetaImpl(TxnID txnID, long openTimestamp, long timeoutAt, String owner) {
         this.txnID = txnID;
         this.openTimestamp = openTimestamp;
         this.timeoutAt = timeoutAt;
         this.owner = owner;
+        this.clientName = null;
     }
+
+    TxnMetaImpl(TxnID txnID, long openTimestamp, long timeoutAt, String owner, String clientName) {
+        this.txnID = txnID;
+        this.openTimestamp = openTimestamp;
+        this.timeoutAt = timeoutAt;
+        this.owner = owner;
+        this.clientName = clientName;
+    }
+
 
     @Override
     public TxnID id() {
@@ -131,6 +160,18 @@ class TxnMetaImpl implements TxnMeta {
         return this;
     }
 
+    @Override
+    public TxnMeta clearProducedPartitions() {
+        this.producedPartitions.clear();
+        return this;
+    }
+
+    @Override
+    public TxnMeta clearAckedPartitions() {
+        this.ackedPartitions.clear();
+        return this;
+    }
+
     /**
      * Update the transaction stats from the <tt>newStatus</tt> only when
      * the current status is the expected <tt>expectedStatus</tt>.
@@ -153,18 +194,4 @@ class TxnMetaImpl implements TxnMeta {
         return this;
     }
 
-    @Override
-    public long getOpenTimestamp() {
-        return this.openTimestamp;
-    }
-
-    @Override
-    public long getTimeoutAt() {
-        return this.timeoutAt;
-    }
-
-    @Override
-    public String getOwner() {
-        return this.owner;
-    }
 }

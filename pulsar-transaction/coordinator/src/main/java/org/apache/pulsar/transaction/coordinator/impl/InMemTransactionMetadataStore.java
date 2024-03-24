@@ -63,6 +63,11 @@ class InMemTransactionMetadataStore implements TransactionMetadataStore {
 
     @Override
     public CompletableFuture<TxnMeta> getTxnMeta(TxnID txnid) {
+        return getTxnMeta(txnid, null);
+    }
+
+    @Override
+    public CompletableFuture<TxnMeta> getTxnMeta(TxnID txnid, String clientName) {
         CompletableFuture<TxnMeta> getFuture = new CompletableFuture<>();
         TxnMetaImpl txn = transactions.get(txnid);
         if (null == txn) {
@@ -74,17 +79,38 @@ class InMemTransactionMetadataStore implements TransactionMetadataStore {
     }
 
     @Override
+    public TxnMeta getTxnMetaFromPreserver(TxnID txnID, String clientName) {
+        return null;
+    }
+
+    @Override
+    public boolean transactionMetadataPreserverEnabled() {
+        return false;
+    }
+
+    @Override
+    public CompletableFuture<Void> appendTxnMetaToPreserver(TxnMeta txnMeta, String clientName) {
+        return null;
+    }
+
+    @Override
     public CompletableFuture<TxnID> newTransaction(long timeoutInMills, String owner) {
+        return newTransaction(timeoutInMills, owner, null);
+    }
+
+    @Override
+    public CompletableFuture<TxnID> newTransaction(long timeoutInMills, String owner, String clientName) {
         if (owner != null) {
             if (StringUtils.isBlank(owner)) {
                 return CompletableFuture.failedFuture(new IllegalArgumentException("Owner can't be blank"));
             }
         }
+
         TxnID txnID = new TxnID(
-            tcID.getId(),
-            localID.getAndIncrement()
+                tcID.getId(),
+                localID.getAndIncrement()
         );
-        TxnMetaImpl txn = new TxnMetaImpl(txnID, System.currentTimeMillis(), timeoutInMills, owner);
+        TxnMetaImpl txn = new TxnMetaImpl(txnID, System.currentTimeMillis(), timeoutInMills, owner, clientName);
         transactions.put(txnID, txn);
         return CompletableFuture.completedFuture(txnID);
     }
