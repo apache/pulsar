@@ -97,6 +97,12 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
         }
     }
 
+    @Override
+    protected synchronized void rewindCursor(){
+        super.rewindCursor();
+        recentlyJoinedConsumers.clear();
+    }
+
     @VisibleForTesting
     public StickyKeyConsumerSelector getSelector() {
         return selector;

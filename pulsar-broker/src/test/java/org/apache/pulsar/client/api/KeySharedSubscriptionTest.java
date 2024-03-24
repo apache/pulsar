@@ -26,6 +26,7 @@ import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import com.google.common.collect.Lists;
 import java.io.IOException;
+import java.lang.reflect.Field;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
@@ -48,13 +49,18 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import lombok.AllArgsConstructor;
 import lombok.Cleanup;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.nonpersistent.NonPersistentStickyKeyDispatcherMultipleConsumers;
+import org.apache.pulsar.broker.service.persistent.PersistentDispatcherMultipleConsumers;
 import org.apache.pulsar.broker.service.persistent.PersistentStickyKeyDispatcherMultipleConsumers;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
+import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.impl.ConsumerImpl;
+import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.api.proto.KeySharedMode;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
@@ -1189,6 +1195,77 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         });
 
         l.await();
+    }
+
+    private MockedThereHasPendingRead mockThereHasPendingRead(String topicName, String subName) throws Exception {
+        // Mock there has a pending read request.
+        PersistentTopic persistentTopic =
+                (PersistentTopic) pulsar.getBrokerService().getTopic(topicName, false).join().get();
+        PersistentSubscription persistentSubscription = persistentTopic.getSubscription(subName);
+        PersistentStickyKeyDispatcherMultipleConsumers dispatcher =
+                (PersistentStickyKeyDispatcherMultipleConsumers) persistentSubscription.getDispatcher();
+        Field fieldHavePendingRead = PersistentDispatcherMultipleConsumers.class.getDeclaredField("havePendingRead");
+        fieldHavePendingRead.setAccessible(true);
+        fieldHavePendingRead.set(dispatcher, true);
+        // Return a action to end the pending read request.
+        Runnable endPendingAckTrigger = () -> {
+            dispatcher.readEntriesComplete(Collections.emptyList(), null);
+        };
+        return new MockedThereHasPendingRead(dispatcher, endPendingAckTrigger);
+    }
+
+    @AllArgsConstructor
+    private static class MockedThereHasPendingRead {
+        public final PersistentStickyKeyDispatcherMultipleConsumers dispatcher;
+        public final Runnable endPendingAckTrigger;
+    }
+
+    @Test
+    public void testRecentJoinCorrectAfterAllConsumerClosed() throws Exception {
+        final String topicName = BrokerTestUtil.newUniqueName( "persistent://public/default/tp_");
+        final String subName = "sub";
+        final String consumerName = "name";
+
+        // Create consumer and producer, then send some messages.
+        ConsumerBuilder<String> consumerBuilder = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topicName)
+                .receiverQueueSize(50)
+                .subscriptionName(subName)
+                .consumerName(consumerName)
+                .subscriptionType(SubscriptionType.Key_Shared);
+        Consumer<String> c1 = consumerBuilder.subscribe();
+        Producer<String> p = pulsarClient.newProducer(Schema.STRING)
+                .topic(topicName)
+                .create();
+        for (int i = 0; i < 100; i++) {
+            p.newMessage().key(Integer.toString(i)).value("msg-" + i).send();
+        }
+        Message<String> firstMessage = c1.receive();
+        MessageIdImpl firstMessageId = (MessageIdImpl) firstMessage.getMessageId();
+
+        // Close the all consumers, and register 3 new.
+        MockedThereHasPendingRead mockedThereHasPendingRead = mockThereHasPendingRead(topicName, subName);
+        c1.close();
+        consumerBuilder.receiverQueueSize(0);
+        Consumer<String> c2 = consumerBuilder.subscribe();
+        Consumer<String> c3 = consumerBuilder.subscribe();
+        Consumer<String> c4 = consumerBuilder.subscribe();
+        mockedThereHasPendingRead.endPendingAckTrigger.run();
+        c2.close();
+
+        // Verify all info of recentJoinedConsumers is correct.
+        for (PositionImpl position : mockedThereHasPendingRead.dispatcher.getRecentlyJoinedConsumers().values()) {
+            assertEquals(position.getLedgerId(), firstMessageId.getLedgerId());
+            assertEquals(position.getEntryId(), firstMessageId.getEntryId());
+        }
+
+        // cleanup.
+        p.close();
+        c1.close();
+        c2.close();
+        c3.close();
+        c4.close();
+        admin.topics().delete(topicName, false);
     }
 
 
