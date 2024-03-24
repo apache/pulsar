@@ -20,9 +20,12 @@ package org.apache.pulsar.client.impl;
 
 import static org.apache.pulsar.common.util.Runnables.catchingAndLoggingThrowables;
 import com.google.common.base.Strings;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.Socket;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -34,6 +37,7 @@ import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AutoClusterFailoverBuilder;
+import org.apache.pulsar.client.api.AutoClusterFailoverCustomProbe;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.ServiceUrlProvider;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
@@ -62,11 +66,14 @@ public class AutoClusterFailover implements ServiceUrlProvider {
     private volatile long failedTimestamp;
     private final long intervalMs;
     private static final int TIMEOUT = 30_000;
-    private final PulsarServiceNameResolver resolver;
+    @SuppressFBWarnings(value = { "EI_EXPOSE_REP", "EI_EXPOSE_REP2" },
+            justification = "The default probe can be overwritten anyway")
+    private final Map<String, AutoClusterFailoverCustomProbe> probes;
 
     private AutoClusterFailover(AutoClusterFailoverBuilderImpl builder) {
         this.primary = builder.primary;
         this.secondary = builder.secondary;
+        this.probes = builder.probes;
         this.failoverPolicy = builder.failoverPolicy;
         this.secondaryAuthentications = builder.secondaryAuthentications;
         this.secondaryTlsTrustCertsFilePaths = builder.secondaryTlsTrustCertsFilePaths;
@@ -78,7 +85,6 @@ public class AutoClusterFailover implements ServiceUrlProvider {
         this.recoverTimestamp = -1;
         this.failedTimestamp = -1;
         this.intervalMs = builder.checkIntervalMs;
-        this.resolver = new PulsarServiceNameResolver();
         this.executor = Executors.newSingleThreadScheduledExecutor(
                 new ExecutorProvider.ExtendedThreadFactory("pulsar-service-provider"));
     }
@@ -124,20 +130,6 @@ public class AutoClusterFailover implements ServiceUrlProvider {
         this.executor.shutdown();
     }
 
-    boolean probeAvailable(String url) {
-        try {
-            resolver.updateServiceUrl(url);
-            InetSocketAddress endpoint = resolver.resolveHost();
-            Socket socket = new Socket();
-            socket.connect(new InetSocketAddress(endpoint.getHostName(), endpoint.getPort()), TIMEOUT);
-            socket.close();
-            return true;
-        } catch (Exception e) {
-            log.warn("Failed to probe available, url: {}", url, e);
-            return false;
-        }
-    }
-
     private static long nanosToMillis(long nanos) {
         return Math.max(0L, Math.round(nanos / 1_000_000.0d));
     }
@@ -174,7 +166,7 @@ public class AutoClusterFailover implements ServiceUrlProvider {
                                           Map<String, String> tlsTrustCertsFilePaths,
                                           Map<String, String> tlsTrustStorePaths,
                                           Map<String, String> tlsTrustStorePasswords) {
-        if (probeAvailable(currentPulsarServiceUrl)) {
+        if (probes.get(currentPulsarServiceUrl).execute()) {
             failedTimestamp = -1;
             return;
         }
@@ -184,7 +176,7 @@ public class AutoClusterFailover implements ServiceUrlProvider {
             failedTimestamp = currentTimestamp;
         } else if (currentTimestamp - failedTimestamp >= failoverDelayNs) {
             for (String targetServiceUrl : targetServiceUrls) {
-                if (probeAvailable(targetServiceUrl)) {
+                if (probes.get(targetServiceUrl).execute()) {
                     log.info("Current Pulsar service is {}, it has been down for {} ms, "
                                     + "switch to the service {}. The current service down at {}",
                             currentPulsarServiceUrl, nanosToMillis(currentTimestamp - failedTimestamp),
@@ -211,7 +203,7 @@ public class AutoClusterFailover implements ServiceUrlProvider {
                                           String tlsTrustCertsFilePath,
                                           String tlsTrustStorePath,
                                           String tlsTrustStorePassword) {
-        if (probeAvailable(currentPulsarServiceUrl)) {
+        if (probes.get(currentPulsarServiceUrl).execute()) {
             failedTimestamp = -1;
             return;
         }
@@ -220,7 +212,7 @@ public class AutoClusterFailover implements ServiceUrlProvider {
         if (failedTimestamp == -1) {
             failedTimestamp = currentTimestamp;
         } else if (currentTimestamp - failedTimestamp >= failoverDelayNs) {
-            if (probeAvailable(targetServiceUrl)) {
+            if (probes.get(targetServiceUrl).execute()) {
                 log.info("Current Pulsar service is {}, it has been down for {} ms, "
                                 + "switch to the service {}. The current service down at {}",
                         currentPulsarServiceUrl, nanosToMillis(currentTimestamp - failedTimestamp),
@@ -244,7 +236,7 @@ public class AutoClusterFailover implements ServiceUrlProvider {
                                          String tlsTrustStorePath,
                                          String tlsTrustStorePassword) {
         long currentTimestamp = System.nanoTime();
-        if (!probeAvailable(target)) {
+        if (!probes.get(primary).execute()) {
             recoverTimestamp = -1;
             return;
         }
@@ -272,16 +264,66 @@ public class AutoClusterFailover implements ServiceUrlProvider {
         private long failoverDelayNs;
         private long switchBackDelayNs;
         private long checkIntervalMs = 30_000;
+        private Map<String, AutoClusterFailoverCustomProbe> probes =
+                new HashMap<String, AutoClusterFailoverCustomProbe>();
+
+        private boolean defaultProbe(String url) {
+            try {
+                final PulsarServiceNameResolver resolver = new PulsarServiceNameResolver();
+                resolver.updateServiceUrl(url);
+                InetSocketAddress endpoint = resolver.resolveHost();
+                Socket socket = new Socket();
+                socket.connect(new InetSocketAddress(endpoint.getHostName(), endpoint.getPort()), TIMEOUT);
+                socket.close();
+                return true;
+            } catch (Exception e) {
+                log.warn("Failed to probe available, url: {}", primary, e);
+                return false;
+            }
+        }
 
         @Override
         public AutoClusterFailoverBuilder primary(@NonNull String primary) {
             this.primary = primary;
+            this.probes.put(primary, new AutoClusterFailoverCustomProbe() {
+                @Override
+                public boolean execute() {
+                   return defaultProbe(primary);
+                };
+            });
+            return this;
+        }
+
+        @Override
+        public AutoClusterFailoverBuilder primaryWithCustomProbe(@NonNull String primary,
+                @NonNull AutoClusterFailoverCustomProbe probe) {
+            this.primary = primary;
+            this.probes.put(primary, probe);
             return this;
         }
 
         @Override
         public AutoClusterFailoverBuilder secondary(@NonNull List<String> secondary) {
             this.secondary = secondary;
+            for (String secondaryUrl : secondary) {
+                probes.put(secondaryUrl, new AutoClusterFailoverCustomProbe() {
+                    @Override
+                    public boolean execute() {
+                        return defaultProbe(secondaryUrl);
+                    };
+                });
+            }
+            return this;
+        }
+
+        @Override
+        public AutoClusterFailoverBuilder secondaryWithCustomProbes(@NonNull
+                Map<String, AutoClusterFailoverCustomProbe> custom) {
+            this.secondary = new ArrayList<>();
+            for (String url : custom.keySet()) {
+                this.secondary.add(url);
+            }
+            this.probes.putAll(custom);
             return this;
         }
 
