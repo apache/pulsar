@@ -383,7 +383,7 @@
           "steppedLine": false,
           "targets": [
             {
-              "expr": "bookkeeper_server_ADD_ENTRY_REQUEST{cluster=~\"$cluster\", kubernetes_pod_name=~\"$bookie\", success=\"true\", quantile=\"0.5\"}",
+              "expr": "bookkeeper_server_ADD_ENTRY{cluster=~\"$cluster\", kubernetes_pod_name=~\"$bookie\", success=\"true\", quantile=\"0.5\"}",
               "format": "time_series",
               "interval": "",
               "intervalFactor": 2,
@@ -461,7 +461,7 @@
           "steppedLine": false,
           "targets": [
             {
-              "expr": "bookkeeper_server_READ_ENTRY_REQUEST{cluster=~\"$cluster\", kubernetes_pod_name=~\"$bookie\", success=\"true\", quantile=\"0.5\"}",
+              "expr": "bookkeeper_server_READ_ENTRY{cluster=~\"$cluster\", kubernetes_pod_name=~\"$bookie\", success=\"true\", quantile=\"0.5\"}",
               "format": "time_series",
               "interval": "",
               "intervalFactor": 2,
@@ -551,7 +551,7 @@
           "steppedLine": false,
           "targets": [
             {
-              "expr": "bookkeeper_server_ADD_ENTRY_REQUEST{cluster=~\"$cluster\", kubernetes_pod_name=~\"$bookie\", success=\"true\", quantile=\"0.99\"}",
+              "expr": "bookkeeper_server_ADD_ENTRY{cluster=~\"$cluster\", kubernetes_pod_name=~\"$bookie\", success=\"true\", quantile=\"0.99\"}",
               "format": "time_series",
               "interval": "",
               "intervalFactor": 2,
@@ -629,7 +629,7 @@
           "steppedLine": false,
           "targets": [
             {
-              "expr": "bookkeeper_server_READ_ENTRY_REQUEST{cluster=~\"$cluster\", kubernetes_pod_name=~\"$bookie\", success=\"true\", quantile=\"0.99\"}",
+              "expr": "bookkeeper_server_READ_ENTRY{cluster=~\"$cluster\", kubernetes_pod_name=~\"$bookie\", success=\"true\", quantile=\"0.99\"}",
               "format": "time_series",
               "interval": "",
               "intervalFactor": 2,
