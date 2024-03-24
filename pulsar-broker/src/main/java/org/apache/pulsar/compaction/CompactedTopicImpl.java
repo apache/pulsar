@@ -243,7 +243,7 @@ public class CompactedTopicImpl implements CompactedTopic {
 
     private static CompletableFuture<CompactedTopicContext> openCompactedLedger(BookKeeper bk, long id) {
         CompletableFuture<LedgerHandle> promise = new CompletableFuture<>();
-        bk.asyncOpenLedger(id,
+        bk.asyncOpenLedgerNoRecovery(id,
                            Compactor.COMPACTED_TOPIC_LEDGER_DIGEST_TYPE,
                            Compactor.COMPACTED_TOPIC_LEDGER_PASSWORD,
                            (rc, ledger, ctx) -> {
