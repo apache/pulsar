@@ -51,10 +51,12 @@ import java.util.Set;
 import java.util.TreeSet;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import javax.ws.rs.client.InvocationCallback;
 import javax.ws.rs.client.WebTarget;
@@ -3697,5 +3699,15 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
             admin.namespaces().setBacklogQuota(namespace, BacklogQuota.builder().limitTime(100 * 60).build());
         });
 
+    }
+
+    @Test
+    public void testCreateNonPersistentPartitionedTopicAndCheckExistsByGetListOfNonPersistentTopics()
+            throws PulsarAdminException, ExecutionException, InterruptedException, TimeoutException {
+        TopicName topicName = TopicName.get("non-persistent://prop-xyz/ns1/test-non-persistent-" + UUID.randomUUID());
+        admin.topics().createPartitionedTopic(topicName.toString(), 5);
+        List<String> nonPersistentTopics = pulsar.getNamespaceService().getListOfNonPersistentTopics(topicName.getNamespaceObject())
+                .get(5, TimeUnit.SECONDS);
+        assertTrue(nonPersistentTopics.contains(topicName.toString()));
     }
 }
