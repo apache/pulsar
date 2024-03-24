@@ -30,6 +30,7 @@ import org.apache.commons.lang.NotImplementedException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.MessageListener;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
@@ -46,14 +47,30 @@ public class ZeroQueueConsumerImpl<T> extends ConsumerImpl<T> {
     private volatile boolean waitingOnReceiveForZeroQueueSize = false;
     private volatile boolean waitingOnListenerForZeroQueueSize = false;
 
+    @Deprecated
     public ZeroQueueConsumerImpl(PulsarClientImpl client, String topic, ConsumerConfigurationData<T> conf,
              ExecutorProvider executorProvider, int partitionIndex, boolean hasParentConsumer,
              CompletableFuture<Consumer<T>> subscribeFuture, MessageId startMessageId, Schema<T> schema,
              ConsumerInterceptors<T> interceptors,
              boolean createTopicIfDoesNotExist) {
-        super(client, topic, conf, executorProvider, partitionIndex, hasParentConsumer, false, subscribeFuture,
-                startMessageId, 0 /* startMessageRollbackDurationInSec */, schema, interceptors,
+        this(client, topic, conf, executorProvider, partitionIndex, hasParentConsumer, subscribeFuture, startMessageId,
+                schema, interceptors, createTopicIfDoesNotExist, conf.getMessageListener());
+    }
+
+    public ZeroQueueConsumerImpl(PulsarClientImpl client, String topic, ConsumerConfigurationData<T> conf,
+                                 ExecutorProvider executorProvider, int partitionIndex, boolean hasParentConsumer,
+                                 CompletableFuture<Consumer<T>> subscribeFuture, MessageId startMessageId,
+                                 Schema<T> schema, ConsumerInterceptors<T> interceptors,
+                                 boolean createTopicIfDoesNotExist, MessageListener<T> listener) {
+        super(client, topic, withListener(conf, listener), executorProvider, partitionIndex, hasParentConsumer, false,
+                subscribeFuture, startMessageId, 0 /* startMessageRollbackDurationInSec */, schema, interceptors,
                 createTopicIfDoesNotExist);
+    }
+
+    private static <T> ConsumerConfigurationData<T> withListener(ConsumerConfigurationData<T> conf,
+                                                                 MessageListener<T> listener) {
+        conf.setMessageListener(listener);
+        return conf;
     }
 
     @Override
