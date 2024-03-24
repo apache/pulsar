@@ -466,7 +466,6 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
         category = CATEGORY_WORKER_SECURITY,
         doc = "Enable TLS"
     )
-    @Deprecated
     private boolean tlsEnabled = false;
     @FieldContext(
         category = CATEGORY_WORKER_SECURITY,
