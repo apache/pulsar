@@ -139,6 +139,10 @@ public class RuntimeUtils {
         final List<String> args = new LinkedList<>();
         GoInstanceConfig goInstanceConfig = new GoInstanceConfig();
 
+        // pass the raw functino details directly so that we don't need to assemble the `instanceConf.funcDetails` manually in Go instance
+        String functionDetails = "'" + JsonFormat.printer().omittingInsignificantWhitespace().print(instanceConfig.getFunctionDetails()) + "'";
+        goInstanceConfig.setFunctionDetails(functionDetails);
+
         if (instanceConfig.getClusterName() != null) {
             goInstanceConfig.setClusterName(instanceConfig.getClusterName());
         }
