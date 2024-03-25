@@ -117,7 +117,19 @@ func TestInstanceConf_Fail(t *testing.T) {
 
 func TestInstanceConf_WithDetails(t *testing.T) {
 	cfg := &cfg.Conf{
-		FunctionDetails: `{"tenant":"public","namespace":"default","name":"test-function","className":"process","logTopic":"test-logs","userConfig":"{\"key1\":\"value1\"}","runtime":"GO","autoAck":true,"parallelism":1,"source":{"configs":"{\"username\":\"admin\"}","typeClassName":"string","timeoutMs":"15000","subscriptionName":"test-subscription","inputSpecs":{"input":{"schemaType":"avro","receiverQueueSize":{"value":1000},"schemaProperties":{"schema_prop1":"schema1"},"consumerProperties":{"consumer_prop1":"consumer1"},"cryptoSpec":{"cryptoKeyReaderClassName":"key-reader","producerCryptoFailureAction":"SEND","consumerCryptoFailureAction":"CONSUME"}}},"negativeAckRedeliveryDelayMs":"15000"},"sink":{"configs":"{\"password\":\"admin\"}","topic":"test-output","typeClassName":"string","schemaType":"avro","producerSpec":{"maxPendingMessages":2000,"useThreadLocalProducers":true,"cryptoSpec":{"cryptoKeyReaderClassName":"key-reader","producerCryptoFailureAction":"DISCARD"},"batchBuilder":"DEFAULT"}},"resources":{"cpu":2.0,"ram":"1024","disk":"1024"},"packageUrl":"/path/to/package","retryDetails":{"maxMessageRetries":3,"deadLetterTopic":"test-dead-letter-topic"},"secretsMap":"{\"secret1\":\"secret-value1\"}","runtimeFlags":"flags","componentType":"FUNCTION","customRuntimeOptions":"options","retainOrdering":true,"retainKeyOrdering":true,"subscriptionPosition":"EARLIEST"}`,
+		FunctionDetails: `{"tenant":"public","namespace":"default","name":"test-function","className":"process",
+"logTopic":"test-logs","userConfig":"{\"key1\":\"value1\"}","runtime":"GO","autoAck":true,"parallelism":1,
+"source":{"configs":"{\"username\":\"admin\"}","typeClassName":"string","timeoutMs":"15000",
+"subscriptionName":"test-subscription","inputSpecs":{"input":{"schemaType":"avro","receiverQueueSize":{"value":1000},
+"schemaProperties":{"schema_prop1":"schema1"},"consumerProperties":{"consumer_prop1":"consumer1"},"cryptoSpec":
+{"cryptoKeyReaderClassName":"key-reader","producerCryptoFailureAction":"SEND","consumerCryptoFailureAction":"CONSUME"}}}
+,"negativeAckRedeliveryDelayMs":"15000"},"sink":{"configs":"{\"password\":\"admin\"}","topic":"test-output",
+"typeClassName":"string","schemaType":"avro","producerSpec":{"maxPendingMessages":2000,"useThreadLocalProducers":true,
+"cryptoSpec":{"cryptoKeyReaderClassName":"key-reader","producerCryptoFailureAction":"DISCARD"},
+"batchBuilder":"DEFAULT"}},"resources":{"cpu":2.0,"ram":"1024","disk":"1024"},"packageUrl":"/path/to/package",
+"retryDetails":{"maxMessageRetries":3,"deadLetterTopic":"test-dead-letter-topic"},"secretsMap":
+"{\"secret1\":\"secret-value1\"}","runtimeFlags":"flags","componentType":"FUNCTION","customRuntimeOptions":"options",
+"retainOrdering":true,"retainKeyOrdering":true,"subscriptionPosition":"EARLIEST"}`,
 	}
 	instanceConf := newInstanceConfWithConf(cfg)
 	assert.Equal(t, "public", instanceConf.funcDetails.Tenant)
@@ -246,7 +258,9 @@ func TestInstanceConf_WithEmptyOrInvalidDetails(t *testing.T) {
 				MaxMessageRetries:    3,
 				DeadLetterTopic:      "test-dead-letter-topic",
 				SourceInputSpecs: map[string]string{
-					"input": `{"schemaType":"avro","receiverQueueSize":{"value":1000},"schemaProperties":{"schema_prop1":"schema1"},"consumerProperties":{"consumer_prop1":"consumer1"},"cryptoSpec":{"cryptoKeyReaderClassName":"key-reader","producerCryptoFailureAction":"SEND","consumerCryptoFailureAction":"CONSUME"}}`,
+					"input": `{"schemaType":"avro","receiverQueueSize":{"value":1000},"schemaProperties":
+{"schema_prop1":"schema1"},"consumerProperties":{"consumer_prop1":"consumer1"},"cryptoSpec":{"cryptoKeyReaderClassName":
+"key-reader","producerCryptoFailureAction":"SEND","consumerCryptoFailureAction":"CONSUME"}}`,
 				},
 			}
 			instanceConf := newInstanceConfWithConf(cfg)
