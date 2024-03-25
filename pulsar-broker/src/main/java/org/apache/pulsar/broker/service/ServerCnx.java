@@ -1037,10 +1037,20 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                         commandSender.sendErrorResponse(requestId, ServerError.ServiceNotReady,
                                 "Consumer is already present on the connection");
                     } else if (existingConsumerFuture.isCompletedExceptionally()){
+                        log.warn("[{}][{}][{}] A failed consumer with id is already present on the connection,"
+                                + " consumerId={}", remoteAddress, topicName, subscriptionName, consumerId);
                         ServerError error = getErrorCodeWithErrorLog(existingConsumerFuture, true,
-                                String.format("Consumer subscribe failure. remoteAddress: %s, subscription: %s",
-                                        remoteAddress, subscriptionName));
-                        consumers.remove(consumerId, existingConsumerFuture);
+                                String.format("A failed consumer with id is already present on the connection."
+                                                + " consumerId: %s, remoteAddress: %s, subscription: %s",
+                                        consumerId, remoteAddress, subscriptionName));
+                        /**
+                         * This future may was failed due to the client closed a in-progress subscribing.
+                         * See {@link #handleCloseConsumer(CommandCloseConsumer)}
+                         * Do not remove the failed future at current line, it will be removed after the progress of
+                         * the previous subscribing is done.
+                         * Before the previous subscribing is done, the new subscribe request will always fail.
+                         * This mechanism is in order to prevent more complex logic to handle the race conditions.
+                         */
                         commandSender.sendErrorResponse(requestId, error,
                                 "Consumer that failed is already present on the connection");
                     } else {

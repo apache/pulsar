@@ -3130,8 +3130,9 @@ public class ServerCnxTest {
             };
             // assert error response
             assertTrue(responseAssert.test(responseAssert));
-            // assert consumer-delete event occur
-            assertEquals(1L,
+            // The delete event will only occur after the future is completed.
+            // assert consumer-delete event will not occur.
+            assertEquals(0L,
                     deleteTimesMark.getAllValues().stream().filter(f -> f == existingConsumerFuture).count());
             // Server will not close the connection
             assertTrue(channel.isOpen());
