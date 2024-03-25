@@ -259,8 +259,7 @@ func TestInstanceConf_WithEmptyOrInvalidDetails(t *testing.T) {
 				DeadLetterTopic:      "test-dead-letter-topic",
 				SourceInputSpecs: map[string]string{
 					"input": `{"schemaType":"avro","receiverQueueSize":{"value":1000},"schemaProperties":
-{"schema_prop1":"schema1"},"consumerProperties":{"consumer_prop1":"consumer1"},"cryptoSpec":{"cryptoKeyReaderClassName":
-"key-reader","producerCryptoFailureAction":"SEND","consumerCryptoFailureAction":"CONSUME"}}`,
+{"schema_prop1":"schema1"},"consumerProperties":{"consumer_prop1":"consumer1"}}`,
 				},
 			}
 			instanceConf := newInstanceConfWithConf(cfg)
@@ -294,11 +293,6 @@ func TestInstanceConf_WithEmptyOrInvalidDetails(t *testing.T) {
 						},
 						ReceiverQueueSize: &pb.ConsumerSpec_ReceiverQueueSize{
 							Value: 1000,
-						},
-						CryptoSpec: &pb.CryptoSpec{
-							CryptoKeyReaderClassName:    "key-reader",
-							ProducerCryptoFailureAction: pb.CryptoSpec_SEND,
-							ConsumerCryptoFailureAction: pb.CryptoSpec_CONSUME,
 						},
 					},
 				},

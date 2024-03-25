@@ -20,6 +20,7 @@
 package pf
 
 import (
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -66,7 +67,7 @@ func newInstanceConfWithConf(cfg *conf.Conf) *instanceConf {
 	}
 	for topic, value := range cfg.SourceInputSpecs {
 		spec := &pb.ConsumerSpec{}
-		if err := protojson.Unmarshal([]byte(value), spec); err != nil {
+		if err := json.Unmarshal([]byte(value), spec); err != nil {
 			panic(fmt.Sprintf("Failed to unmarshal consume specs: %v", err))
 		}
 		inputSpecs[topic] = spec
