@@ -71,45 +71,6 @@ func newInstanceConfWithConf(cfg *conf.Conf) *instanceConf {
 		}
 		inputSpecs[topic] = spec
 	}
-	functionDetails := pb.FunctionDetails{
-		Tenant:               cfg.Tenant,
-		Namespace:            cfg.NameSpace,
-		Name:                 cfg.Name,
-		LogTopic:             cfg.LogTopic,
-		ProcessingGuarantees: pb.ProcessingGuarantees(cfg.ProcessingGuarantees),
-		SecretsMap:           cfg.SecretsMap,
-		Runtime:              pb.FunctionDetails_Runtime(cfg.Runtime),
-		AutoAck:              cfg.AutoACK,
-		Parallelism:          cfg.Parallelism,
-		Source: &pb.SourceSpec{
-			SubscriptionType:     pb.SubscriptionType(cfg.SubscriptionType),
-			InputSpecs:           inputSpecs,
-			TimeoutMs:            cfg.TimeoutMs,
-			SubscriptionName:     cfg.SubscriptionName,
-			CleanupSubscription:  cfg.CleanupSubscription,
-			SubscriptionPosition: pb.SubscriptionPosition(cfg.SubscriptionPosition),
-		},
-		Sink: &pb.SinkSpec{
-			Topic:      cfg.SinkSpecTopic,
-			SchemaType: cfg.SinkSchemaType,
-		},
-		Resources: &pb.Resources{
-			Cpu:  cfg.Cpu,
-			Ram:  cfg.Ram,
-			Disk: cfg.Disk,
-		},
-		RetryDetails: &pb.RetryDetails{
-			MaxMessageRetries: cfg.MaxMessageRetries,
-			DeadLetterTopic:   cfg.DeadLetterTopic,
-		},
-		UserConfig: cfg.UserConfig,
-	}
-	// parse the raw function details and ignore the unmarshal error(fallback to original way)
-	if cfg.FunctionDetails != "" {
-		if err := protojson.Unmarshal([]byte(cfg.FunctionDetails), &functionDetails); err != nil {
-			log.Errorf("Failed to unmarshal function details: %v", err)
-		}
-	}
 	instanceConf := &instanceConf{
 		instanceID:                  cfg.InstanceID,
 		funcID:                      cfg.FuncID,
@@ -123,12 +84,53 @@ func newInstanceConfWithConf(cfg *conf.Conf) *instanceConf {
 		killAfterIdle:               cfg.KillAfterIdleMs,
 		expectedHealthCheckInterval: cfg.ExpectedHealthCheckInterval,
 		metricsPort:                 cfg.MetricsPort,
-		funcDetails:                 functionDetails,
-		authPlugin:                  cfg.ClientAuthenticationPlugin,
-		authParams:                  cfg.ClientAuthenticationParameters,
-		tlsTrustCertsPath:           cfg.TLSTrustCertsFilePath,
-		tlsAllowInsecure:            cfg.TLSAllowInsecureConnection,
-		tlsHostnameVerification:     cfg.TLSHostnameVerificationEnable,
+		funcDetails: pb.FunctionDetails{
+			Tenant:               cfg.Tenant,
+			Namespace:            cfg.NameSpace,
+			Name:                 cfg.Name,
+			LogTopic:             cfg.LogTopic,
+			ProcessingGuarantees: pb.ProcessingGuarantees(cfg.ProcessingGuarantees),
+			SecretsMap:           cfg.SecretsMap,
+			Runtime:              pb.FunctionDetails_Runtime(cfg.Runtime),
+			AutoAck:              cfg.AutoACK,
+			Parallelism:          cfg.Parallelism,
+			Source: &pb.SourceSpec{
+				SubscriptionType:     pb.SubscriptionType(cfg.SubscriptionType),
+				InputSpecs:           inputSpecs,
+				TimeoutMs:            cfg.TimeoutMs,
+				SubscriptionName:     cfg.SubscriptionName,
+				CleanupSubscription:  cfg.CleanupSubscription,
+				SubscriptionPosition: pb.SubscriptionPosition(cfg.SubscriptionPosition),
+			},
+			Sink: &pb.SinkSpec{
+				Topic:      cfg.SinkSpecTopic,
+				SchemaType: cfg.SinkSchemaType,
+			},
+			Resources: &pb.Resources{
+				Cpu:  cfg.Cpu,
+				Ram:  cfg.Ram,
+				Disk: cfg.Disk,
+			},
+			RetryDetails: &pb.RetryDetails{
+				MaxMessageRetries: cfg.MaxMessageRetries,
+				DeadLetterTopic:   cfg.DeadLetterTopic,
+			},
+			UserConfig: cfg.UserConfig,
+		},
+		authPlugin:              cfg.ClientAuthenticationPlugin,
+		authParams:              cfg.ClientAuthenticationParameters,
+		tlsTrustCertsPath:       cfg.TLSTrustCertsFilePath,
+		tlsAllowInsecure:        cfg.TLSAllowInsecureConnection,
+		tlsHostnameVerification: cfg.TLSHostnameVerificationEnable,
+	}
+	// parse the raw function details and ignore the unmarshal error(fallback to original way)
+	if cfg.FunctionDetails != "" {
+		functionDetails := pb.FunctionDetails{}
+		if err := protojson.Unmarshal([]byte(cfg.FunctionDetails), &functionDetails); err != nil {
+			log.Errorf("Failed to unmarshal function details: %v", err)
+		} else {
+			instanceConf.funcDetails = functionDetails
+		}
 	}
 
 	if instanceConf.funcDetails.ProcessingGuarantees == pb.ProcessingGuarantees_EFFECTIVELY_ONCE {

@@ -20,6 +20,7 @@
 package pf
 
 import (
+	"fmt"
 	"testing"
 
 	cfg "github.com/apache/pulsar/pulsar-function-go/conf"
@@ -202,93 +203,112 @@ func TestInstanceConf_WithDetails(t *testing.T) {
 	assert.Equal(t, pb.SubscriptionPosition_EARLIEST, instanceConf.funcDetails.SubscriptionPosition)
 }
 
-func TestInstanceConf_WithoutDetails(t *testing.T) {
-	cfg := &cfg.Conf{
-		FunctionDetails:      "",
-		Tenant:               "public",
-		NameSpace:            "default",
-		Name:                 "test-function",
-		LogTopic:             "test-logs",
-		ProcessingGuarantees: 0,
-		UserConfig:           `{"key1":"value1"}`,
-		SecretsMap:           `{"secret1":"secret-value1"}`,
-		Runtime:              3,
-		AutoACK:              true,
-		Parallelism:          1,
-		SubscriptionType:     1,
-		TimeoutMs:            15000,
-		SubscriptionName:     "test-subscription",
-		CleanupSubscription:  false,
-		SubscriptionPosition: 0,
-		SinkSpecTopic:        "test-output",
-		SinkSchemaType:       "avro",
-		Cpu:                  2.0,
-		Ram:                  1024,
-		Disk:                 1024,
-		MaxMessageRetries:    3,
-		DeadLetterTopic:      "test-dead-letter-topic",
-		SourceInputSpecs: map[string]string{
-			"input": `{"schemaType":"avro","receiverQueueSize":{"value":1000},"schemaProperties":{"schema_prop1":"schema1"},"consumerProperties":{"consumer_prop1":"consumer1"},"cryptoSpec":{"cryptoKeyReaderClassName":"key-reader","producerCryptoFailureAction":"SEND","consumerCryptoFailureAction":"CONSUME"}}`,
+func TestInstanceConf_WithEmptyOrInvalidDetails(t *testing.T) {
+	testCases := []struct {
+		name    string
+		details string
+	}{
+		{
+			name:    "empty details",
+			details: "",
+		},
+		{
+			name:    "invalid details",
+			details: "error",
 		},
 	}
-	instanceConf := newInstanceConfWithConf(cfg)
 
-	assert.Equal(t, "public", instanceConf.funcDetails.Tenant)
-	assert.Equal(t, "default", instanceConf.funcDetails.Namespace)
-	assert.Equal(t, "test-function", instanceConf.funcDetails.Name)
-	assert.Equal(t, "test-logs", instanceConf.funcDetails.LogTopic)
-	assert.Equal(t, pb.ProcessingGuarantees_ATLEAST_ONCE, instanceConf.funcDetails.ProcessingGuarantees)
-	assert.Equal(t, `{"key1":"value1"}`, instanceConf.funcDetails.UserConfig)
-	assert.Equal(t, `{"secret1":"secret-value1"}`, instanceConf.funcDetails.SecretsMap)
-	assert.Equal(t, pb.FunctionDetails_GO, instanceConf.funcDetails.Runtime)
+	for i, testCase := range testCases {
 
-	assert.Equal(t, true, instanceConf.funcDetails.AutoAck)
-	assert.Equal(t, int32(1), instanceConf.funcDetails.Parallelism)
+		t.Run(fmt.Sprintf("testCase[%d] %s", i, testCase.name), func(t *testing.T) {
+			cfg := &cfg.Conf{
+				FunctionDetails:      testCase.details,
+				Tenant:               "public",
+				NameSpace:            "default",
+				Name:                 "test-function",
+				LogTopic:             "test-logs",
+				ProcessingGuarantees: 0,
+				UserConfig:           `{"key1":"value1"}`,
+				SecretsMap:           `{"secret1":"secret-value1"}`,
+				Runtime:              3,
+				AutoACK:              true,
+				Parallelism:          1,
+				SubscriptionType:     1,
+				TimeoutMs:            15000,
+				SubscriptionName:     "test-subscription",
+				CleanupSubscription:  false,
+				SubscriptionPosition: 0,
+				SinkSpecTopic:        "test-output",
+				SinkSchemaType:       "avro",
+				Cpu:                  2.0,
+				Ram:                  1024,
+				Disk:                 1024,
+				MaxMessageRetries:    3,
+				DeadLetterTopic:      "test-dead-letter-topic",
+				SourceInputSpecs: map[string]string{
+					"input": `{"schemaType":"avro","receiverQueueSize":{"value":1000},"schemaProperties":{"schema_prop1":"schema1"},"consumerProperties":{"consumer_prop1":"consumer1"},"cryptoSpec":{"cryptoKeyReaderClassName":"key-reader","producerCryptoFailureAction":"SEND","consumerCryptoFailureAction":"CONSUME"}}`,
+				},
+			}
+			instanceConf := newInstanceConfWithConf(cfg)
 
-	sourceSpec := pb.SourceSpec{
-		SubscriptionType:     pb.SubscriptionType_FAILOVER,
-		TimeoutMs:            15000,
-		SubscriptionName:     "test-subscription",
-		CleanupSubscription:  false,
-		SubscriptionPosition: pb.SubscriptionPosition_LATEST,
-		InputSpecs: map[string]*pb.ConsumerSpec{
-			"input": {
+			assert.Equal(t, "public", instanceConf.funcDetails.Tenant)
+			assert.Equal(t, "default", instanceConf.funcDetails.Namespace)
+			assert.Equal(t, "test-function", instanceConf.funcDetails.Name)
+			assert.Equal(t, "test-logs", instanceConf.funcDetails.LogTopic)
+			assert.Equal(t, pb.ProcessingGuarantees_ATLEAST_ONCE, instanceConf.funcDetails.ProcessingGuarantees)
+			assert.Equal(t, `{"key1":"value1"}`, instanceConf.funcDetails.UserConfig)
+			assert.Equal(t, `{"secret1":"secret-value1"}`, instanceConf.funcDetails.SecretsMap)
+			assert.Equal(t, pb.FunctionDetails_GO, instanceConf.funcDetails.Runtime)
+
+			assert.Equal(t, true, instanceConf.funcDetails.AutoAck)
+			assert.Equal(t, int32(1), instanceConf.funcDetails.Parallelism)
+
+			sourceSpec := pb.SourceSpec{
+				SubscriptionType:     pb.SubscriptionType_FAILOVER,
+				TimeoutMs:            15000,
+				SubscriptionName:     "test-subscription",
+				CleanupSubscription:  false,
+				SubscriptionPosition: pb.SubscriptionPosition_LATEST,
+				InputSpecs: map[string]*pb.ConsumerSpec{
+					"input": {
+						SchemaType: "avro",
+						SchemaProperties: map[string]string{
+							"schema_prop1": "schema1",
+						},
+						ConsumerProperties: map[string]string{
+							"consumer_prop1": "consumer1",
+						},
+						ReceiverQueueSize: &pb.ConsumerSpec_ReceiverQueueSize{
+							Value: 1000,
+						},
+						CryptoSpec: &pb.CryptoSpec{
+							CryptoKeyReaderClassName:    "key-reader",
+							ProducerCryptoFailureAction: pb.CryptoSpec_SEND,
+							ConsumerCryptoFailureAction: pb.CryptoSpec_CONSUME,
+						},
+					},
+				},
+			}
+			assert.Equal(t, sourceSpec.String(), instanceConf.funcDetails.Source.String())
+
+			sinkSpec := pb.SinkSpec{
+				Topic:      "test-output",
 				SchemaType: "avro",
-				SchemaProperties: map[string]string{
-					"schema_prop1": "schema1",
-				},
-				ConsumerProperties: map[string]string{
-					"consumer_prop1": "consumer1",
-				},
-				ReceiverQueueSize: &pb.ConsumerSpec_ReceiverQueueSize{
-					Value: 1000,
-				},
-				CryptoSpec: &pb.CryptoSpec{
-					CryptoKeyReaderClassName:    "key-reader",
-					ProducerCryptoFailureAction: pb.CryptoSpec_SEND,
-					ConsumerCryptoFailureAction: pb.CryptoSpec_CONSUME,
-				},
-			},
-		},
-	}
-	assert.Equal(t, sourceSpec.String(), instanceConf.funcDetails.Source.String())
+			}
+			assert.Equal(t, sinkSpec.String(), instanceConf.funcDetails.Sink.String())
 
-	sinkSpec := pb.SinkSpec{
-		Topic:      "test-output",
-		SchemaType: "avro",
-	}
-	assert.Equal(t, sinkSpec.String(), instanceConf.funcDetails.Sink.String())
+			resource := pb.Resources{
+				Cpu:  2.0,
+				Ram:  1024,
+				Disk: 1024,
+			}
+			assert.Equal(t, resource.String(), instanceConf.funcDetails.Resources.String())
 
-	resource := pb.Resources{
-		Cpu:  2.0,
-		Ram:  1024,
-		Disk: 1024,
+			retryDetails := pb.RetryDetails{
+				MaxMessageRetries: 3,
+				DeadLetterTopic:   "test-dead-letter-topic",
+			}
+			assert.Equal(t, retryDetails.String(), instanceConf.funcDetails.RetryDetails.String())
+		})
 	}
-	assert.Equal(t, resource.String(), instanceConf.funcDetails.Resources.String())
-
-	retryDetails := pb.RetryDetails{
-		MaxMessageRetries: 3,
-		DeadLetterTopic:   "test-dead-letter-topic",
-	}
-	assert.Equal(t, retryDetails.String(), instanceConf.funcDetails.RetryDetails.String())
 }
