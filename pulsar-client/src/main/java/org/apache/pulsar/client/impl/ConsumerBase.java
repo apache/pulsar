@@ -461,9 +461,9 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
         }
         if (conf.getSubscriptionType() != SubscriptionType.Shared
                 && conf.getSubscriptionType() != SubscriptionType.Key_Shared) {
-            log.warn("[{}] Reconsume the message {} later for a no-shared subscription {} {} "
-                            + "that will caused message out of order.",
-                    this.topic, message, this.subscription, conf.getSubscriptionType());
+            log.warn("[{}] Message {} will be reconsumed after delay {} {}. This isn't recommended for "
+                            + "subscription {} with type {}.", this.topic, message, delayTime, unit.toString(),
+                    this.subscription, conf.getSubscriptionType());
         }
         try {
             reconsumeLaterAsync(message, customProperties, delayTime, unit).get();
