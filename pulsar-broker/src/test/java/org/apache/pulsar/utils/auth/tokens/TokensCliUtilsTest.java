@@ -19,12 +19,12 @@
 package org.apache.pulsar.utils.auth.tokens;
 
 import static org.testng.Assert.assertTrue;
-import com.beust.jcommander.Parameter;
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
 import java.lang.reflect.Field;
 import java.util.Arrays;
 import org.testng.annotations.Test;
+import picocli.CommandLine.Option;
 
 /**
  * TokensCliUtils Tests.
@@ -43,7 +43,7 @@ public class TokensCliUtilsTest {
             ByteArrayOutputStream baoStream = new ByteArrayOutputStream();
             System.setOut(new PrintStream(baoStream));
 
-            TokensCliUtils.main(new String[]{"gen-doc"});
+            new TokensCliUtils().execute(new String[]{"gen-doc"});
 
             String message = baoStream.toString();
 
@@ -68,9 +68,9 @@ public class TokensCliUtilsTest {
         Class argumentsClass = Class.forName(className);
         Field[] fields = argumentsClass.getDeclaredFields();
         for (Field field : fields) {
-            boolean fieldHasAnno = field.isAnnotationPresent(Parameter.class);
+            boolean fieldHasAnno = field.isAnnotationPresent(Option.class);
             if (fieldHasAnno) {
-                Parameter fieldAnno = field.getAnnotation(Parameter.class);
+                Option fieldAnno = field.getAnnotation(Option.class);
                 String[] names = fieldAnno.names();
                 if (names.length < 1) {
                     continue;

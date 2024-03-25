@@ -20,10 +20,6 @@ package org.apache.pulsar.proxy.socket.client;
 
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
-import com.beust.jcommander.JCommander;
-import com.beust.jcommander.Parameter;
-import com.beust.jcommander.ParameterException;
-import com.beust.jcommander.Parameters;
 import com.google.common.util.concurrent.RateLimiter;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import java.io.FileInputStream;
@@ -55,13 +51,18 @@ import org.apache.pulsar.client.api.AuthenticationFactory;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.testclient.IMessageFormatter;
 import org.apache.pulsar.testclient.PerfClientUtils;
-import org.apache.pulsar.testclient.PositiveNumberParameterValidator;
+import org.apache.pulsar.testclient.PositiveNumberParameterConvert;
 import org.apache.pulsar.testclient.utils.PaddingDecimalFormat;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
 import org.eclipse.jetty.websocket.client.ClientUpgradeRequest;
 import org.eclipse.jetty.websocket.client.WebSocketClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import picocli.CommandLine;
+import picocli.CommandLine.Command;
+import picocli.CommandLine.Option;
+import picocli.CommandLine.ParameterException;
+import picocli.CommandLine.Parameters;
 
 public class PerformanceClient {
 
@@ -70,87 +71,87 @@ public class PerformanceClient {
     private static final LongAdder totalMessagesSent = new LongAdder();
     private static final LongAdder totalBytesSent = new LongAdder();
     private static IMessageFormatter messageFormatter = null;
-    private JCommander jc;
+    private CommandLine commander;
 
-    @Parameters(commandDescription = "Test pulsar websocket producer performance.")
+    @Command(description = "Test pulsar websocket producer performance.")
     static class Arguments {
 
-        @Parameter(names = { "-h", "--help" }, description = "Help message", help = true)
+        @Option(names = { "-h", "--help" }, description = "Help message", help = true)
         boolean help;
 
-        @Parameter(names = { "-cf", "--conf-file" }, description = "Configuration file")
+        @Option(names = { "-cf", "--conf-file" }, description = "Configuration file")
         public String confFile;
 
-        @Parameter(names = { "-u", "--proxy-url" }, description = "Pulsar Proxy URL, e.g., \"ws://localhost:8080/\"")
+        @Option(names = { "-u", "--proxy-url" }, description = "Pulsar Proxy URL, e.g., \"ws://localhost:8080/\"")
         public String proxyURL;
 
-        @Parameter(description = "persistent://tenant/ns/my-topic", required = true)
+        @Parameters(description = "persistent://tenant/ns/my-topic", arity = "1")
         public List<String> topics;
 
-        @Parameter(names = { "-r", "--rate" }, description = "Publish rate msg/s across topics")
+        @Option(names = { "-r", "--rate" }, description = "Publish rate msg/s across topics")
         public int msgRate = 100;
 
-        @Parameter(names = { "-s", "--size" }, description = "Message size in byte")
+        @Option(names = { "-s", "--size" }, description = "Message size in byte")
         public int msgSize = 1024;
 
-        @Parameter(names = { "-t", "--num-topic" }, description = "Number of topics",
-                validateWith = PositiveNumberParameterValidator.class)
+        @Option(names = { "-t", "--num-topic" }, description = "Number of topics",
+                converter = PositiveNumberParameterConvert.class
+        )
         public int numTopics = 1;
 
-        @Parameter(names = { "--auth_plugin" }, description = "Authentication plugin class name", hidden = true)
+        @Option(names = { "--auth_plugin" }, description = "Authentication plugin class name", hidden = true)
         public String deprecatedAuthPluginClassName;
 
-        @Parameter(names = { "--auth-plugin" }, description = "Authentication plugin class name")
+        @Option(names = { "--auth-plugin" }, description = "Authentication plugin class name")
         public String authPluginClassName;
 
-        @Parameter(
+        @Option(
             names = { "--auth-params" },
             description = "Authentication parameters, whose format is determined by the implementation "
                     + "of method `configure` in authentication plugin class, for example \"key1:val1,key2:val2\" "
                     + "or \"{\"key1\":\"val1\",\"key2\":\"val2\"}\".")
         public String authParams;
 
-        @Parameter(names = { "-m",
+        @Option(names = { "-m",
                 "--num-messages" }, description = "Number of messages to publish in total. If <= 0, it will keep"
                 + " publishing")
         public long numMessages = 0;
 
-        @Parameter(names = { "-f", "--payload-file" }, description = "Use payload from a file instead of empty buffer")
+        @Option(names = { "-f", "--payload-file" }, description = "Use payload from a file instead of empty buffer")
         public String payloadFilename = null;
 
-        @Parameter(names = { "-e", "--payload-delimiter" },
+        @Option(names = { "-e", "--payload-delimiter" },
                 description = "The delimiter used to split lines when using payload from a file")
         // here escaping \n since default value will be printed with the help text
         public String payloadDelimiter = "\\n";
 
-        @Parameter(names = { "-fp", "--format-payload" },
+        @Option(names = { "-fp", "--format-payload" },
                 description = "Format %i as a message index in the stream from producer and/or %t as the timestamp"
                         + " nanoseconds")
         public boolean formatPayload = false;
 
-        @Parameter(names = {"-fc", "--format-class"}, description = "Custom Formatter class name")
+        @Option(names = {"-fc", "--format-class"}, description = "Custom Formatter class name")
         public String formatterClass = "org.apache.pulsar.testclient.DefaultMessageFormatter";
 
-        @Parameter(names = { "-time",
+        @Option(names = { "-time",
                 "--test-duration" }, description = "Test duration in secs. If <= 0, it will keep publishing")
         public long testTime = 0;
     }
 
     public Arguments loadArguments(String[] args) {
         Arguments arguments = new Arguments();
-        jc = new JCommander(arguments);
-        jc.setProgramName("pulsar-perf websocket-producer");
-
+        commander = new CommandLine(arguments);
+        commander.setCommandName("pulsar-perf websocket-producer");
         try {
-            jc.parse(args);
+            commander.parseArgs(args);
         } catch (ParameterException e) {
             System.out.println(e.getMessage());
-            jc.usage();
+            commander.usage(commander.getOut());
             PerfClientUtils.exit(1);
         }
 
         if (arguments.help) {
-            jc.usage();
+            commander.usage(commander.getOut());
             PerfClientUtils.exit(1);
         }
 
@@ -160,7 +161,7 @@ public class PerformanceClient {
 
         if (arguments.topics.size() != 1) {
             System.err.println("Only one topic name is allowed");
-            jc.usage();
+            commander.usage(commander.getOut());
             PerfClientUtils.exit(1);
         }
 
@@ -171,7 +172,7 @@ public class PerformanceClient {
                 prop.load(new FileInputStream(arguments.confFile));
             } catch (IOException e) {
                 log.error("Error in loading config file");
-                jc.usage();
+                commander.usage(commander.getOut());
                 PerfClientUtils.exit(1);
             }
 
