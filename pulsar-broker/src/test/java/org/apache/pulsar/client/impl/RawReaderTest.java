@@ -44,6 +44,9 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.RawMessage;
 import org.apache.pulsar.client.api.RawReader;
+import org.apache.pulsar.client.api.SubscriptionInitialPosition;
+import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.common.api.proto.BrokerEntryMetadata;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.policies.data.ClusterData;
@@ -55,6 +58,8 @@ import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
+
+import static org.apache.pulsar.client.impl.RawReaderImpl.DEFAULT_RECEIVER_QUEUE_SIZE;
 
 @Test(groups = "broker-impl")
 @Slf4j
@@ -196,6 +201,36 @@ public class RawReaderTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
+    public void testRawReaderWithConfigurationCreation() throws Exception {
+        int numKeys = 10;
+
+        String topic = "persistent://my-property/my-ns/" + BrokerTestUtil.newUniqueName("reader");
+
+        Set<String> keys = publishMessages(topic, numKeys);
+        ConsumerConfigurationData<byte[]> consumerConfiguration = new ConsumerConfigurationData<>();
+        consumerConfiguration.getTopicNames().add(topic);
+        consumerConfiguration.setSubscriptionName(subscription);
+        consumerConfiguration.setSubscriptionType(SubscriptionType.Exclusive);
+        consumerConfiguration.setReceiverQueueSize(DEFAULT_RECEIVER_QUEUE_SIZE);
+        consumerConfiguration.setReadCompacted(true);
+        consumerConfiguration.setSubscriptionInitialPosition(SubscriptionInitialPosition.Earliest);
+        consumerConfiguration.setAckReceiptEnabled(true);
+        RawReader reader = RawReader.create(pulsarClient, consumerConfiguration, true).get();
+
+        MessageId lastMessageId = reader.getLastMessageIdAsync().get();
+        while (true) {
+            try (RawMessage m = reader.readNextAsync().get()) {
+                Assert.assertTrue(keys.remove(extractKey(m)));
+                if (lastMessageId.compareTo(m.getMessageId()) == 0) {
+                    break;
+                }
+            }
+        }
+        Assert.assertTrue(keys.isEmpty());
+        reader.closeAsync().get(3, TimeUnit.SECONDS);
+    }
+
+    @Test
     public void testSeekToStart() throws Exception {
         int numKeys = 10;
         String topic = "persistent://my-property/my-ns/" + BrokerTestUtil.newUniqueName("reader");
@@ -279,7 +314,7 @@ public class RawReaderTest extends MockedPulsarServiceBaseTest {
      */
     @Test
     public void testFlowControl() throws Exception {
-        int numMessages = RawReaderImpl.DEFAULT_RECEIVER_QUEUE_SIZE * 5;
+        int numMessages = DEFAULT_RECEIVER_QUEUE_SIZE * 5;
         String topic = "persistent://my-property/my-ns/" + BrokerTestUtil.newUniqueName("reader");
 
         publishMessages(topic, numMessages);
@@ -311,7 +346,7 @@ public class RawReaderTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testFlowControlBatch() throws Exception {
-        int numMessages = RawReaderImpl.DEFAULT_RECEIVER_QUEUE_SIZE * 5;
+        int numMessages = DEFAULT_RECEIVER_QUEUE_SIZE * 5;
         String topic = "persistent://my-property/my-ns/" + BrokerTestUtil.newUniqueName("reader");
 
         publishMessages(topic, numMessages, true);

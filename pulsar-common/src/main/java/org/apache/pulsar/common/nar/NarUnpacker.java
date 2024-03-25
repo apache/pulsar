@@ -168,6 +168,7 @@ public class NarUnpacker {
      */
     private static byte[] calculateMd5sum(final File file) throws IOException {
         try (final FileInputStream inputStream = new FileInputStream(file)) {
+            // codeql[java/weak-cryptographic-algorithm] - md5 is sufficient for this use case
             final MessageDigest md5 = MessageDigest.getInstance("md5");
 
             final byte[] buffer = new byte[1024];

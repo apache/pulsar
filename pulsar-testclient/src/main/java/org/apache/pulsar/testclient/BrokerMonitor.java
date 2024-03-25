@@ -20,10 +20,6 @@ package org.apache.pulsar.testclient;
 
 import static org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl.BROKER_LOAD_DATA_STORE_TOPIC;
 import static org.apache.pulsar.broker.resources.LoadBalanceResources.BROKER_TIME_AVERAGE_BASE_PATH;
-import com.beust.jcommander.JCommander;
-import com.beust.jcommander.Parameter;
-import com.beust.jcommander.ParameterException;
-import com.beust.jcommander.Parameters;
 import com.google.gson.Gson;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -50,6 +46,11 @@ import org.apache.zookeeper.Watcher;
 import org.apache.zookeeper.ZooKeeper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import picocli.CommandLine;
+import picocli.CommandLine.Command;
+import picocli.CommandLine.Option;
+import picocli.CommandLine.ParameterException;
+import picocli.CommandLine.ScopeType;
 
 /**
  * Monitors brokers and prints to the console information about their system resource usages, their topic and bundle
@@ -434,17 +435,18 @@ public class BrokerMonitor {
         }
     }
 
-    // JCommander arguments class.
-    @Parameters(commandDescription = "Monitors brokers and prints to the console information about their system "
-            + "resource usages, \ntheir topic and bundle counts, their message rates, and other metrics.")
+    // picocli arguments class.
+    @Command(description = "Monitors brokers and prints to the console information about their system "
+            + "resource usages, \ntheir topic and bundle counts, their message rates, and other metrics.",
+            showDefaultValues = true, scope = ScopeType.INHERIT)
     private static class Arguments {
-        @Parameter(names = { "-h", "--help" }, description = "Help message", help = true)
+        @Option(names = { "-h", "--help" }, description = "Help message", help = true)
         boolean help;
 
-        @Parameter(names = { "--connect-string" }, description = "Zookeeper or broker connect string", required = true)
+        @Option(names = { "--connect-string" }, description = "Zookeeper or broker connect string", required = true)
         public String connectString = null;
 
-        @Parameter(names = { "--extensions" }, description = "true to monitor Load Balance Extensions.")
+        @Option(names = { "--extensions" }, description = "true to monitor Load Balance Extensions.")
         boolean extensions = false;
     }
 
@@ -546,14 +548,14 @@ public class BrokerMonitor {
      */
     public static void main(String[] args) throws Exception {
         final Arguments arguments = new Arguments();
-        final JCommander jc = new JCommander(arguments);
-        jc.setProgramName("pulsar-perf monitor-brokers");
+        final CommandLine commander = new CommandLine(arguments);
+        commander.setCommandName("pulsar-perf monitor-brokers");
 
         try {
-            jc.parse(args);
+            commander.parseArgs(args);
         } catch (ParameterException e) {
             System.out.println(e.getMessage());
-            jc.usage();
+            commander.usage(commander.getOut());
             PerfClientUtils.exit(1);
         }
 

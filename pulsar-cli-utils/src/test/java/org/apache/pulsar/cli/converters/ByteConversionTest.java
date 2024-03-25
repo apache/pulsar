@@ -21,6 +21,7 @@ package org.apache.pulsar.cli.converters;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertThrows;
 import org.apache.pulsar.cli.converters.picocli.ByteUnitToIntegerConverter;
+import org.apache.pulsar.cli.converters.picocli.ByteUnitToLongConverter;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 import picocli.CommandLine.TypeConversionException;
@@ -59,8 +60,8 @@ public class ByteConversionTest {
     }
 
     @Test(dataProvider = "successfulByteUnitUtilTestCases")
-    public void testSuccessfulByteUnitToLongConverter(String input, long expected) {
-        ByteUnitToLongConverter converter = new ByteUnitToLongConverter("optionName");
+    public void testSuccessfulByteUnitToLongConverter(String input, long expected) throws Exception{
+        ByteUnitToLongConverter converter = new ByteUnitToLongConverter();
         assertEquals(converter.convert(input), Long.valueOf(expected));
     }
 
@@ -78,8 +79,8 @@ public class ByteConversionTest {
 
     @Test(dataProvider = "failingByteUnitUtilTestCases")
     public void testFailedByteUnitToLongConverter(String input) {
-        ByteUnitToLongConverter converter = new ByteUnitToLongConverter("optionName");
-        assertThrows(IllegalArgumentException.class, () -> converter.convert(input));
+        ByteUnitToLongConverter converter = new ByteUnitToLongConverter();
+        assertThrows(TypeConversionException.class, () -> converter.convert(input));
     }
 
     @Test(dataProvider = "failingByteUnitUtilTestCases")
