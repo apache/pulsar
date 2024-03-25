@@ -694,8 +694,8 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                     ledgerInfo.ledgerId = pbLedgerInfo.getLedgerId();
                     ledgerInfo.entries = pbLedgerInfo.hasEntries() ? pbLedgerInfo.getEntries() : null;
                     ledgerInfo.size = pbLedgerInfo.hasSize() ? pbLedgerInfo.getSize() : null;
-                    ledgerInfo.isOffloaded = pbLedgerInfo.hasOffloadContext();
                     ledgerInfo.timestamp = pbLedgerInfo.hasTimestamp() ? pbLedgerInfo.getTimestamp() : null;
+                    ledgerInfo.isOffloaded = pbLedgerInfo.hasOffloadContext();
                     if (pbLedgerInfo.hasOffloadContext()) {
                         MLDataFormats.OffloadContext offloadContext = pbLedgerInfo.getOffloadContext();
                         UUID uuid = new UUID(offloadContext.getUidMsb(), offloadContext.getUidLsb());
