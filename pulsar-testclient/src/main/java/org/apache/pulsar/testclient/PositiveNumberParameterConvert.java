@@ -16,24 +16,18 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.cli.converters;
+package org.apache.pulsar.testclient;
 
-import static org.apache.pulsar.cli.ValueValidationUtil.emptyCheck;
-import com.beust.jcommander.converters.BaseConverter;
+import picocli.CommandLine.ITypeConverter;
+import picocli.CommandLine.TypeConversionException;
 
-public class ByteUnitToLongConverter extends BaseConverter<Long> {
-
-    public ByteUnitToLongConverter(String optionName) {
-        super(optionName);
-    }
-
+public class PositiveNumberParameterConvert implements ITypeConverter<Integer> {
     @Override
-    public Long convert(String argStr) {
-        return parseBytes(argStr);
-    }
-
-    Long parseBytes(String argStr) {
-        emptyCheck(getOptionName(), argStr);
-        return ByteUnitUtil.validateSizeString(argStr);
+    public Integer convert(String value) {
+        int result = Integer.parseInt(value);
+        if (result <= 0) {
+            throw new TypeConversionException("Parameter should be > 0 (found " + value + ")");
+        }
+        return result;
     }
 }
