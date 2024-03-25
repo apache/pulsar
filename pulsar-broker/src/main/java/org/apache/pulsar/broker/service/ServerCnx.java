@@ -1228,8 +1228,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                 + " consumerId={}", remoteAddress, topicName, subscriptionName, consumerId);
                         ServerError error = getErrorCodeWithErrorLog(existingConsumerFuture, true,
                                 String.format("A failed consumer with id is already present on the connection."
-                                                + " remoteAddress: %s, subscription: %s",
-                                        remoteAddress, subscriptionName));
+                                                + " consumerId: %s, remoteAddress: %s, subscription: %s",
+                                        consumerId, remoteAddress, subscriptionName));
                         /**
                          * This future may was failed due to the client closed a in-progress subscribing.
                          * See {@link #handleCloseConsumer(CommandCloseConsumer)}
