@@ -167,8 +167,14 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         }
 
         if (isConsumersExceededOnSubscription()) {
-            log.warn("[{}] Attempting to add consumer to subscription which reached max consumers limit", name);
+            log.warn("[{}] Attempting to add consumer to subscription which reached max consumers limit {}",
+                    name, consumer);
             throw new ConsumerBusyException("Subscription reached max consumers limit");
+        }
+        // This is not an expected scenario, it will never happen in expected. Just print a warn log if the unexpected
+        // scenario happens. See more detail: https://github.com/apache/pulsar/pull/22283.
+        if (consumerSet.contains(consumer)) {
+            log.warn("[{}] Attempting to add a consumer that already registered {}", name, consumer);
         }
 
         consumerList.add(consumer);
