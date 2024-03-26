@@ -52,7 +52,7 @@ public class TopicNameForInfiniteHttpCallGetSubscriptionsTest extends ProducerCo
     }
 
     @Test
-    public void testInfiniteHttpCallGetSubscriptions() throws Exception {
+    public void testInfiniteHttpCallGetOrCreateSubscriptions() throws Exception {
         final String randomStr = UUID.randomUUID().toString().replaceAll("-", "");
         final String partitionedTopicName = "persistent://my-property/my-ns/tp1_" + randomStr;
         final String topic_p0 = partitionedTopicName + TopicName.PARTITIONED_TOPIC_SUFFIX + "0";
@@ -64,6 +64,7 @@ public class TopicNameForInfiniteHttpCallGetSubscriptionsTest extends ProducerCo
         // Do test.
         ProducerAndConsumerEntry pcEntry = triggerDLQCreated(topic_p0, topicDLQ, subscriptionName);
         admin.topics().getSubscriptions(topicDLQ);
+        admin.topics().createSubscription(topicDLQ, "s1", MessageId.earliest);
 
         // cleanup.
         pcEntry.consumer.close();
@@ -72,7 +73,7 @@ public class TopicNameForInfiniteHttpCallGetSubscriptionsTest extends ProducerCo
     }
 
     @Test
-    public void testInfiniteHttpCallGetSubscriptions2() throws Exception {
+    public void testInfiniteHttpCallGetOrCreateSubscriptions2() throws Exception {
         final String randomStr = UUID.randomUUID().toString().replaceAll("-", "");
         final String topicName = "persistent://my-property/my-ns/tp1_" + randomStr + "-partition-0-abc";
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
@@ -81,13 +82,14 @@ public class TopicNameForInfiniteHttpCallGetSubscriptionsTest extends ProducerCo
 
         // Do test.
         admin.topics().getSubscriptions(topicName);
+        admin.topics().createSubscription(topicName, "s1", MessageId.earliest);
 
         // cleanup.
         producer.close();
     }
 
     @Test
-    public void testInfiniteHttpCallGetSubscriptions3() throws Exception {
+    public void testInfiniteHttpCallGetOrCreateSubscriptions3() throws Exception {
         final String randomStr = UUID.randomUUID().toString().replaceAll("-", "");
         final String topicName = "persistent://my-property/my-ns/tp1_" + randomStr + "-partition-0";
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
@@ -96,6 +98,7 @@ public class TopicNameForInfiniteHttpCallGetSubscriptionsTest extends ProducerCo
 
         // Do test.
         admin.topics().getSubscriptions(topicName);
+        admin.topics().createSubscription(topicName, "s1", MessageId.earliest);
 
         // cleanup.
         producer.close();
