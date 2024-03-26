@@ -46,7 +46,7 @@ public class MessageIdAdvUtilsTest {
     public void testAcknowledgeIndividualConcurrently() throws InterruptedException {
         ThreadFactory threadFactory = new ThreadFactoryBuilder().setNameFormat("pulsar-consumer-%d").build();
         @Cleanup("shutdown")
-        ExecutorService executorService = Executors.newFixedThreadPool(16, threadFactory);
+        ExecutorService executorService = Executors.newCachedThreadPool(threadFactory);
         for (int i = 0; i < 100; i++) {
             int batchSize = RandomUtils.nextInt(1, 32);
             BitSet bitSet = new BitSet(batchSize);
