@@ -1317,7 +1317,7 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
                 .thenCombine(isNamespaceMigrationEnabledAsync(pulsar, topic),
                         ((clusterData, isNamespaceMigrationEnabled) -> {
                             Optional<ClusterUrl> url = ((clusterData.isPresent() && clusterData.get().isMigrated())
-                                    || isNamespaceMigrationEnabled)
+                                    || (clusterData.isPresent() && isNamespaceMigrationEnabled))
                                             ? Optional.ofNullable(clusterData.get().getMigratedClusterUrl())
                                             : Optional.empty();
                             return url;

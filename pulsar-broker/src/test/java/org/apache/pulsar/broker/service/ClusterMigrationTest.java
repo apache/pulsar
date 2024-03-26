@@ -25,6 +25,7 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.expectThrows;
 import com.google.common.collect.Sets;
 import java.lang.reflect.Method;
 import java.net.URL;
@@ -37,6 +38,7 @@ import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
@@ -44,6 +46,7 @@ import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.ClusterPolicies.ClusterUrl;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
@@ -1054,6 +1057,72 @@ public class ClusterMigrationTest {
         client1.close();
         client2.close();
         client3.close();
+    }
+
+    @Test
+    public void testUpdateNamespaceMigrationState() throws Exception {
+        // trigger load namespace local policies
+        broker1.getPulsarService().getNamespaceService().getNamespaceBundleFactory()
+                .getBundles(NamespaceName.get(namespace));
+
+        // if the migrate cluster is not exist, allow update migration state to false
+        admin1.namespaces().updateMigrationState(namespace, false);
+        assertFalse(admin1.namespaces().getPolicies(namespace).migrated);
+
+        // if the migrate cluster is not exist, not update set migration state to true
+        expectThrows(PulsarAdminException.class, () -> admin1.namespaces().updateMigrationState(namespace, true));
+
+        ClusterUrl migratedUrl = new ClusterUrl(pulsar2.getWebServiceAddress(), pulsar2.getWebServiceAddressTls(),
+                pulsar2.getBrokerServiceUrl(), pulsar2.getBrokerServiceUrlTls());
+        admin1.clusters().updateClusterMigration("r1", false, migratedUrl);
+
+        // if the migrate cluster is exist, allow update migration state to true
+        admin1.namespaces().updateMigrationState(namespace, true);
+        assertTrue(admin1.namespaces().getPolicies(namespace).migrated);
+
+        // if the migrate cluster is exist, allow update migration state to false
+        admin1.namespaces().updateMigrationState(namespace, false);
+        assertFalse(admin1.namespaces().getPolicies(namespace).migrated);
+    }
+
+    @Test
+    public void testGetMigratedClusterUrlAsync() throws Exception {
+        // trigger load namespace local policies
+        broker1.getPulsarService().getNamespaceService().getNamespaceBundleFactory()
+                .getBundles(NamespaceName.get(namespace));
+
+        final String topicName = BrokerTestUtil
+                .newUniqueName("persistent://" + namespace + "/migrationTopic");
+
+        Optional<ClusterUrl> clusterUrlOptional = AbstractTopic
+                .getMigratedClusterUrlAsync(broker1.getPulsarService(), topicName).get();
+        assertFalse(clusterUrlOptional.isPresent());
+
+        // cluster migrated is true
+        ClusterUrl migratedUrl = new ClusterUrl(pulsar2.getWebServiceAddress(), pulsar2.getWebServiceAddressTls(),
+                pulsar2.getBrokerServiceUrl(), pulsar2.getBrokerServiceUrlTls());
+        admin1.clusters().updateClusterMigration("r1", true, migratedUrl);
+        clusterUrlOptional = AbstractTopic
+                .getMigratedClusterUrlAsync(broker1.getPulsarService(), topicName).get();
+        assertTrue(clusterUrlOptional.isPresent());
+
+        // cluster migrated is true and namespaces migrated is true
+        admin1.namespaces().updateMigrationState(namespace, true);
+        clusterUrlOptional = AbstractTopic
+                .getMigratedClusterUrlAsync(broker1.getPulsarService(), topicName).get();
+        assertTrue(clusterUrlOptional.isPresent());
+
+        // cluster migrated is false and namespaces migrated is true
+        admin1.clusters().updateClusterMigration("r1", false, migratedUrl);
+        clusterUrlOptional = AbstractTopic
+                .getMigratedClusterUrlAsync(broker1.getPulsarService(), topicName).get();
+        assertTrue(clusterUrlOptional.isPresent());
+
+        // cluster migrated is false and cluster url is null
+        admin1.clusters().updateClusterMigration("r1", false, null);
+        clusterUrlOptional = AbstractTopic
+                .getMigratedClusterUrlAsync(broker1.getPulsarService(), topicName).get();
+        assertFalse(clusterUrlOptional.isPresent());
     }
 
     static class TestBroker extends MockedPulsarServiceBaseTest {
