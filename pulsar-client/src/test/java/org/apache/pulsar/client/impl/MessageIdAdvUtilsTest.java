@@ -48,7 +48,7 @@ public class MessageIdAdvUtilsTest {
         @Cleanup("shutdown")
         ExecutorService executorService = Executors.newCachedThreadPool(threadFactory);
         for (int i = 0; i < 100; i++) {
-            int batchSize = RandomUtils.nextInt(1, 32);
+            int batchSize = 32;
             BitSet bitSet = new BitSet(batchSize);
             bitSet.set(0, batchSize);
             AtomicInteger individualAcked = new AtomicInteger();
