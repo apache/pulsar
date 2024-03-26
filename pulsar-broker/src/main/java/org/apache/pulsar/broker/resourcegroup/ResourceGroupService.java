@@ -686,7 +686,7 @@ public class ResourceGroupService implements AutoCloseable{
                         timeUnitScale);
             this.resourceUsagePublishPeriodInSeconds = newPeriodInSeconds;
             maxIntervalForSuppressingReportsMSecs =
-                    this.resourceUsagePublishPeriodInSeconds * MaxUsageReportSuppressRounds;
+                    TimeUnit.SECONDS.toMillis(this.resourceUsagePublishPeriodInSeconds) * MaxUsageReportSuppressRounds;
         }
     }
 
@@ -705,7 +705,7 @@ public class ResourceGroupService implements AutoCloseable{
                     periodInSecs,
                     this.timeUnitScale);
         maxIntervalForSuppressingReportsMSecs =
-                this.resourceUsagePublishPeriodInSeconds * MaxUsageReportSuppressRounds;
+                TimeUnit.SECONDS.toMillis(this.resourceUsagePublishPeriodInSeconds) * MaxUsageReportSuppressRounds;
 
     }
 
