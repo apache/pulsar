@@ -28,7 +28,6 @@ import java.util.concurrent.Phaser;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicInteger;
 import lombok.Cleanup;
-import org.apache.commons.lang3.RandomUtils;
 import org.apache.pulsar.client.api.MessageIdAdv;
 import org.testng.annotations.Test;
 
