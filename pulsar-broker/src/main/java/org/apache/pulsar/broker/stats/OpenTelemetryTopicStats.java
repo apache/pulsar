@@ -24,6 +24,7 @@ import io.opentelemetry.api.metrics.BatchCallback;
 import io.opentelemetry.api.metrics.ObservableLongMeasurement;
 import java.util.Optional;
 import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.broker.service.GetStatsOptions;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.opentelemetry.OpenTelemetryAttributes;
 
@@ -43,6 +44,8 @@ public class OpenTelemetryTopicStats implements AutoCloseable {
     private final ObservableLongMeasurement storageCounter;
 
     private final BatchCallback batchCallback;
+
+    private final GetStatsOptions getStatsOptions;
 
     public OpenTelemetryTopicStats(PulsarService pulsar) {
         var meter = pulsar.getOpenTelemetry().getMeter();
@@ -98,6 +101,14 @@ public class OpenTelemetryTopicStats implements AutoCloseable {
                 messageIncomingCounter,
                 messageOutgoingCounter,
                 publishRateLimitCounter);
+
+        getStatsOptions = GetStatsOptions.builder()
+                .getPreciseBacklog(true)
+                .subscriptionBacklogSize(true)
+                .getEarliestTimeInBacklog(true)
+                .excludePublishers(false)
+                .excludeConsumers(false)
+                .build();
     }
 
     @Override
@@ -110,6 +121,8 @@ public class OpenTelemetryTopicStats implements AutoCloseable {
                 .put(OpenTelemetryAttributes.PULSAR_TOPIC, topic.getName())
                 .build();
         subscriptionCounter.record(100, attributes);
+
+        var topicStatsImpl = topic.getStats(getStatsOptions);
 
         storageCounter.record(100, Attributes.builder()
                 .putAll(attributes)
@@ -125,6 +138,11 @@ public class OpenTelemetryTopicStats implements AutoCloseable {
                 .putAll(attributes)
                 .put(OpenTelemetryAttributes.PULSAR_STORAGE_TYPE, "offloaded")
                 .build());
+
+        subscriptionCounter.record(topicStatsImpl.getSubscriptions().size(), attributes);
+        producerCounter.record(topicStatsImpl.getPublishers().size(), attributes);
+        messageIncomingCounter.record(topicStatsImpl.msgInCounter, attributes);
+        messageOutgoingCounter.record(topicStatsImpl.msgOutCounter, attributes);
     }
 
 }
