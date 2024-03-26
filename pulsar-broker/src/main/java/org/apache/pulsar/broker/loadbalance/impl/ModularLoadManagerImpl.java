@@ -265,8 +265,11 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
                     executors.execute(
                             () -> LoadManagerShared.refreshBrokerToFailureDomainMap(pulsar, brokerToFailureDomainMap));
                 });
-
-        loadSheddingPipeline.add(createLoadSheddingStrategy());
+        if (placementStrategy instanceof LoadSheddingStrategy) {
+            loadSheddingPipeline.add((LoadSheddingStrategy) placementStrategy);
+        } else {
+            loadSheddingPipeline.add(createLoadSheddingStrategy());
+        }
     }
 
     public void handleDataNotification(Notification t) {
