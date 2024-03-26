@@ -18,20 +18,31 @@
  */
 package org.apache.pulsar.broker.resourcegroup;
 
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.mock;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertThrows;
 import com.google.common.collect.Sets;
+import java.util.ArrayList;
 import java.util.Random;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
+import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.broker.resources.ResourceGroupResources;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.ResourceGroup;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
+import org.apache.pulsar.metadata.api.MetadataStore;
 import org.awaitility.Awaitility;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -287,5 +298,42 @@ public class ResourceGroupConfigListenerTest extends MockedPulsarServiceBaseTest
         testAddRg.setDispatchRateInMsgs(20000);
         testAddRg.setDispatchRateInBytes(200L);
 
+    }
+
+    @Test
+    public void testNewResourceGroupNamespaceConfigListener() {
+        PulsarService pulsarService = mock(PulsarService.class);
+        PulsarResources pulsarResources = mock(PulsarResources.class);
+        doReturn(pulsarResources).when(pulsarService).getPulsarResources();
+        ScheduledExecutorService scheduledExecutorService = Executors.newSingleThreadScheduledExecutor();
+        doReturn(scheduledExecutorService).when(pulsarService).getExecutor();
+
+        ResourceGroupService resourceGroupService = mock(ResourceGroupService.class);
+        ResourceGroupResources resourceGroupResources = mock(ResourceGroupResources.class);
+        RuntimeException exception = new RuntimeException("listResourceGroupsAsync error");
+        doReturn(CompletableFuture.failedFuture(exception))
+                .when(resourceGroupResources).listResourceGroupsAsync();
+        doReturn(mock(MetadataStore.class))
+                .when(resourceGroupResources).getStore();
+        doReturn(resourceGroupResources).when(pulsarResources).getResourcegroupResources();
+
+        ServiceConfiguration ServiceConfiguration = new ServiceConfiguration();
+        doReturn(ServiceConfiguration).when(pulsarService).getConfiguration();
+
+        ResourceGroupConfigListener resourceGroupConfigListener =
+                new ResourceGroupConfigListener(resourceGroupService, pulsarService);
+
+        // getResourcegroupResources() returns an error, ResourceGroupNamespaceConfigListener doesn't be created.
+        Awaitility.await().pollDelay(3, TimeUnit.SECONDS).untilAsserted(() -> {
+            assertNull(resourceGroupConfigListener.getRgNamespaceConfigListener());
+        });
+
+        // ResourceGroupNamespaceConfigListener will be created, and uses real pulsar resource.
+        doReturn(CompletableFuture.completedFuture(new ArrayList<String>()))
+                .when(resourceGroupResources).listResourceGroupsAsync();
+        doReturn(pulsar.getPulsarResources()).when(pulsarService).getPulsarResources();
+        Awaitility.await().untilAsserted(() -> {
+            assertNotNull(resourceGroupConfigListener.getRgNamespaceConfigListener());
+        });
     }
 }
