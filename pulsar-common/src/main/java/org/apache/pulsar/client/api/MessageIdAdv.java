@@ -76,7 +76,7 @@ public interface MessageIdAdv extends MessageId {
      * size is 3, all message IDs of them should return "111" (i.e. a BitSet whose size is 3 and all bits are 1). If the
      * 1st message has been acknowledged, the returned BitSet should become "011" (i.e. the 1st bit become 0).
      * If the caller performs any read or write operations on the return value of this method, they should do so with
-     * lock protection. #22353
+     * lock protection.
      *
      * @return null if the message is a non-batched message
      */
