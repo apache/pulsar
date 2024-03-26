@@ -24,6 +24,7 @@ import java.util.BitSet;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Phaser;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicInteger;
 import lombok.Cleanup;
@@ -52,24 +53,23 @@ public class MessageIdAdvUtilsTest {
             BitSet bitSet = new BitSet(batchSize);
             bitSet.set(0, batchSize);
             AtomicInteger individualAcked = new AtomicInteger();
-            CountDownLatch startLatch = new CountDownLatch(1);
+            Phaser phaser = new Phaser(1);
             CountDownLatch finishLatch = new CountDownLatch(batchSize);
             for (int batchIndex = 0; batchIndex < batchSize; batchIndex++) {
+                phaser.register();
                 BatchMessageIdImpl messageId = new BatchMessageIdImpl(1, 0, 0, batchIndex, batchSize, bitSet);
                 executorService.execute(() -> {
                     try {
-                        startLatch.await();
+                        phaser.arriveAndAwaitAdvance();
                         if (MessageIdAdvUtils.acknowledge(messageId, true)) {
                             individualAcked.incrementAndGet();
                         }
-                    } catch (InterruptedException e) {
-                        Thread.currentThread().interrupt();
                     } finally {
                         finishLatch.countDown();
                     }
                 });
             }
-            startLatch.countDown();
+            phaser.arriveAndDeregister();
             finishLatch.await();
             assertEquals(individualAcked.get(), 1);
         }
