@@ -2753,7 +2753,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                     ledger.asyncMigrate();
                 }
                 if (log.isDebugEnabled()) {
-                    log.debug("{} has replication backlog and applied migraiton", topic);
+                    log.debug("{} has replication backlog and applied migration", topic);
                 }
                 return CompletableFuture.completedFuture(null);
             }
