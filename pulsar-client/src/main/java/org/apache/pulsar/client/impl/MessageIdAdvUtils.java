@@ -51,12 +51,14 @@ public class MessageIdAdvUtils {
             return false;
         }
         int batchIndex = msgId.getBatchIndex();
-        if (individual) {
-            ackSet.clear(batchIndex);
-        } else {
-            ackSet.clear(0, batchIndex + 1);
+        synchronized (ackSet) {
+            if (individual) {
+                ackSet.clear(batchIndex);
+            } else {
+                ackSet.clear(0, batchIndex + 1);
+            }
+            return ackSet.isEmpty();
         }
-        return ackSet.isEmpty();
     }
 
     static boolean isBatch(MessageIdAdv msgId) {
