@@ -21,12 +21,12 @@ package org.apache.pulsar.common.util.collections;
 import java.util.BitSet;
 import java.util.concurrent.locks.StampedLock;
 import java.util.stream.IntStream;
-import lombok.EqualsAndHashCode;
 
 /**
- * Safe multithreaded version of {@code BitSet}.
+ * A {@code BitSet} that is protected by a {@code StampedLock} to provide thread-safe access.
+ * The {@link #length()} method is not thread safe and is not overridden because StampedLock is not reentrant.
+ * Use the {@link #safeLength()} method to get the length of the bit set in a thread-safe manner.
  */
-@EqualsAndHashCode(callSuper = true)
 public class ConcurrentBitSet extends BitSet {
 
     private static final long serialVersionUID = 1L;
@@ -40,10 +40,8 @@ public class ConcurrentBitSet extends BitSet {
      * Creates a bit set whose initial size is large enough to explicitly represent bits with indices in the range
      * {@code 0} through {@code nbits-1}. All bits are initially {@code false}.
      *
-     * @param nbits
-     *            the initial size of the bit set
-     * @throws NegativeArraySizeException
-     *             if the specified initial size is negative
+     * @param nbits the initial size of the bit set
+     * @throws NegativeArraySizeException if the specified initial size is negative
      */
     public ConcurrentBitSet(int nbits) {
         super(nbits);
@@ -290,8 +288,14 @@ public class ConcurrentBitSet extends BitSet {
         return bitSet;
     }
 
-    @Override
-    public int length() {
+    /**
+     * Thread-safe version of {@code length()}.
+     * StampedLock is not reentrant and that's why the length() method is not overridden. Overriding length() method
+     * would require to use a reentrant lock which would be less performant.
+     *
+     * @return length of the bit set
+     */
+    public int safeLength() {
         long stamp = rwLock.tryOptimisticRead();
         int length = super.length();
         if (!rwLock.validate(stamp)) {
@@ -400,5 +404,41 @@ public class ConcurrentBitSet extends BitSet {
     @Override
     public IntStream stream() {
         throw new UnsupportedOperationException("stream is not supported");
+    }
+
+    public boolean equals(final Object o) {
+        if (o == this) {
+            return true;
+        }
+        if (!(o instanceof ConcurrentBitSet)) {
+            return false;
+        }
+        long stamp = rwLock.tryOptimisticRead();
+        boolean isEqual = super.equals(o);
+        if (!rwLock.validate(stamp)) {
+            // Fallback to read lock
+            stamp = rwLock.readLock();
+            try {
+                isEqual = super.equals(o);
+            } finally {
+                rwLock.unlockRead(stamp);
+            }
+        }
+        return isEqual;
+    }
+
+    public int hashCode() {
+        long stamp = rwLock.tryOptimisticRead();
+        int hashCode = super.hashCode();
+        if (!rwLock.validate(stamp)) {
+            // Fallback to read lock
+            stamp = rwLock.readLock();
+            try {
+                hashCode = super.hashCode();
+            } finally {
+                rwLock.unlockRead(stamp);
+            }
+        }
+        return hashCode;
     }
 }
