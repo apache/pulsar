@@ -42,6 +42,7 @@ import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.ResourceGroup;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.awaitility.Awaitility;
 import org.testng.annotations.AfterClass;
@@ -311,7 +312,7 @@ public class ResourceGroupConfigListenerTest extends MockedPulsarServiceBaseTest
         ResourceGroupService resourceGroupService = mock(ResourceGroupService.class);
         ResourceGroupResources resourceGroupResources = mock(ResourceGroupResources.class);
         RuntimeException exception = new RuntimeException("listResourceGroupsAsync error");
-        doReturn(CompletableFuture.failedFuture(exception))
+        doReturn(FutureUtil.failedFuture(exception))
                 .when(resourceGroupResources).listResourceGroupsAsync();
         doReturn(mock(MetadataStore.class))
                 .when(resourceGroupResources).getStore();
