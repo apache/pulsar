@@ -40,6 +40,13 @@ public class MessageIdAdvUtils {
                 && lhs.getBatchIndex() == rhs.getBatchIndex();
     }
 
+    /**
+     * Acknowledge batch message.
+     *
+     * @param msgId     the message id
+     * @param individual whether to acknowledge the batch message individually
+     * @return true if the batch message is fully acknowledged
+     */
     static boolean acknowledge(MessageIdAdv msgId, boolean individual) {
         if (!isBatch(msgId)) {
             return true;
