@@ -213,7 +213,6 @@ flexible messaging model and an intuitive client API.</description>
     <confluent.version>6.2.8</confluent.version>
     <aircompressor.version>0.20</aircompressor.version>
     <asynchttpclient.version>2.12.1</asynchttpclient.version>
-    <jcommander.version>1.82</jcommander.version>
     <commons-lang3.version>3.11</commons-lang3.version>
     <commons-configuration.version>1.10</commons-configuration.version>
     <commons-io.version>2.8.0</commons-io.version>
@@ -691,12 +690,6 @@ flexible messaging model and an intuitive client API.</description>
         <artifactId>netty-incubator-transport-native-io_uring</artifactId>
         <version>${netty-iouring.version}</version>
         <classifier>linux-aarch_64</classifier>
-      </dependency>
-
-      <dependency>
-        <groupId>com.beust</groupId>
-        <artifactId>jcommander</artifactId>
-        <version>${jcommander.version}</version>
       </dependency>
 
       <dependency>

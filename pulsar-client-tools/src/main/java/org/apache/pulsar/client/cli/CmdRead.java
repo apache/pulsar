@@ -19,7 +19,6 @@
 package org.apache.pulsar.client.cli;
 
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
-import com.beust.jcommander.ParameterException;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.util.concurrent.RateLimiter;
 import java.io.IOException;
@@ -114,7 +113,7 @@ public class CmdRead extends AbstractCmdConsume {
      */
     public int run() throws PulsarClientException, IOException {
         if (this.numMessagesToRead < 0) {
-            throw (new ParameterException("Number of messages should be zero or positive."));
+            throw (new IllegalArgumentException("Number of messages should be zero or positive."));
         }
 
 
