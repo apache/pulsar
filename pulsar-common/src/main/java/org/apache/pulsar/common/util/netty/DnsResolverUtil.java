@@ -71,7 +71,7 @@ public class DnsResolverUtil {
                     .filter(i -> i >= 0)
                     .orElse(DEFAULT_NEGATIVE_TTL);
         } catch (NumberFormatException e) {
-            log.warn("Cannot get DNS TTL settings from sun.net.InetAddressCachePolicy class", e);
+            log.warn("Cannot get DNS TTL settings", e);
         }
         TTL = ttl;
         NEGATIVE_TTL = negativeTtl;

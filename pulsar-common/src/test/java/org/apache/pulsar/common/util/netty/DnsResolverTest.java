@@ -38,17 +38,22 @@ public class DnsResolverTest {
     private static final String CACHE_POLICY_PROP = "networkaddress.cache.ttl";
     private static final String NEGATIVE_CACHE_POLICY_PROP = "networkaddress.cache.negative.ttl";
 
+    private String originalCachePolicy;
+    private String originalNegativeCachePolicy;
+
     @BeforeClass(alwaysRun = true)
     public void beforeClass() {
+        originalCachePolicy = Security.getProperty(CACHE_POLICY_PROP);
+        originalNegativeCachePolicy = Security.getProperty(NEGATIVE_CACHE_POLICY_PROP);
         Security.setProperty(CACHE_POLICY_PROP, Integer.toString(TTL));
         Security.setProperty(NEGATIVE_CACHE_POLICY_PROP, Integer.toString(NEGATIVE_TTL));
     }
 
     @AfterClass(alwaysRun = true)
     public void afterClass() {
-        // The current test cannot restore to its original settings; it has been modified to default values.
-        Security.setProperty(CACHE_POLICY_PROP, "60");
-        Security.setProperty(NEGATIVE_CACHE_POLICY_PROP, "10");
+        Security.setProperty(CACHE_POLICY_PROP, originalCachePolicy != null ? originalCachePolicy : "-1");
+        Security.setProperty(NEGATIVE_CACHE_POLICY_PROP,
+                originalNegativeCachePolicy != null ? originalNegativeCachePolicy : "-1");
     }
 
     @Test
