@@ -30,7 +30,8 @@ public class DnsResolverUtil {
     private static final String CACHE_POLICY_PROP_FALLBACK = "sun.net.inetaddr.ttl";
     private static final String NEGATIVE_CACHE_POLICY_PROP = "networkaddress.cache.negative.ttl";
     private static final String NEGATIVE_CACHE_POLICY_PROP_FALLBACK = "sun.net.inetaddr.negative.ttl";
-    /* default ttl value from sun.net.InetAddressCachePolicy.DEFAULT_POSITIVE， which is used when no security manager is used */
+    /* default ttl value from sun.net.InetAddressCachePolicy.DEFAULT_POSITIVE， which is used when no security manager
+     is used */
     private static final int JDK_DEFAULT_TTL = 30;
     private static final int MIN_TTL = 0;
     private static final int TTL;
