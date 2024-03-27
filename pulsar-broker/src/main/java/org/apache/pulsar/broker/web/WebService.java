@@ -268,9 +268,7 @@ public class WebService implements AutoCloseable {
         }
         filterInitializer.addFilters(servletContextHandler, requiresAuthentication);
 
-        GzipHandler gzipHandler = new GzipHandler();
-        gzipHandler.setHandler(servletContextHandler);
-        handlers.add(gzipHandler);
+        handlers.add(servletContextHandler);
     }
 
     public void addStaticResources(String basePath, String resourcePath) {
@@ -294,8 +292,9 @@ public class WebService implements AutoCloseable {
             ContextHandlerCollection contexts = new ContextHandlerCollection();
             contexts.setHandlers(handlers.toArray(new Handler[handlers.size()]));
 
+            Handler handlerForContexts = wrapWithGzipHandler(contexts);
             HandlerCollection handlerCollection = new HandlerCollection();
-            handlerCollection.setHandlers(new Handler[] { contexts, new DefaultHandler(), requestLogHandler });
+            handlerCollection.setHandlers(new Handler[] {handlerForContexts, new DefaultHandler(), requestLogHandler});
 
             // Metrics handler
             StatisticsHandler stats = new StatisticsHandler();
@@ -306,7 +305,6 @@ public class WebService implements AutoCloseable {
             } catch (IllegalArgumentException e) {
                 // Already registered. Eg: in unit tests
             }
-            handlers.add(stats);
 
             server.setHandler(stats);
             server.start();
@@ -328,6 +326,27 @@ public class WebService implements AutoCloseable {
         } catch (Exception e) {
             throw new PulsarServerException(e);
         }
+    }
+
+    private Handler wrapWithGzipHandler(ContextHandlerCollection contexts) {
+        Handler wrappedHandler;
+        List<String> gzipCompressionExcludedPaths =
+                pulsar.getConfig().getHttpServerGzipCompressionExcludedPaths();
+        if (gzipCompressionExcludedPaths != null && gzipCompressionExcludedPaths.size() == 1
+                && (gzipCompressionExcludedPaths.get(0).equals("^.*")
+                || gzipCompressionExcludedPaths.get(0).equals("^.*$"))) {
+            // no need to add GZIP handler if it's disabled by setting the excluded path to "^.*" or "^.*$"
+            wrappedHandler = contexts;
+        } else {
+            // add GZIP handler which is active when the request contains "Accept-Encoding: gzip" header
+            GzipHandler gzipHandler = new GzipHandler();
+            gzipHandler.setHandler(contexts);
+            if (gzipCompressionExcludedPaths != null && gzipCompressionExcludedPaths.size() > 0) {
+                gzipHandler.setExcludedPaths(gzipCompressionExcludedPaths.toArray(new String[0]));
+            }
+            wrappedHandler = gzipHandler;
+        }
+        return wrappedHandler;
     }
 
     @Override
