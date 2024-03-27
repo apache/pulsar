@@ -142,8 +142,7 @@ public class RuntimeUtils {
         // pass the raw functino details directly so that we don't need to assemble the `instanceConf.funcDetails`
         // manually in Go instance
         String functionDetails =
-                "'" + JsonFormat.printer().omittingInsignificantWhitespace().print(instanceConfig.getFunctionDetails())
-                        + "'";
+                JsonFormat.printer().omittingInsignificantWhitespace().print(instanceConfig.getFunctionDetails());
         goInstanceConfig.setFunctionDetails(functionDetails);
 
         if (instanceConfig.getClusterName() != null) {
