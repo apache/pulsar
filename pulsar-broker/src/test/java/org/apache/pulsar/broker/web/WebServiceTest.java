@@ -23,18 +23,17 @@ import static org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient.
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
 import com.google.common.collect.Multimap;
 import com.google.common.collect.Sets;
 import com.google.common.io.CharStreams;
 import com.google.common.io.Closeables;
 import io.netty.handler.ssl.util.InsecureTrustManagerFactory;
-
 import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.net.HttpURLConnection;
 import java.net.URL;
 import java.security.KeyStore;
 import java.security.PrivateKey;
@@ -361,18 +360,16 @@ public class WebServiceTest {
 
     @Test
     public void testCompressOutputMetricsInPrometheus() throws Exception {
-
         setupEnv(true, false, false, false, -1, false);
 
         String metricsUrl = pulsar.getWebServiceAddress() + "/metrics/";
 
-        String[] command = {"curl", "-H", "Accept-Encoding: gzip", metricsUrl};
+        URL url = new URL(metricsUrl);
+        HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+        connection.setRequestMethod("GET");
+        connection.setRequestProperty("Accept-Encoding", "gzip");
 
-        ProcessBuilder processBuilder = new ProcessBuilder(command);
-        Process process = processBuilder.start();
-
-        InputStream inputStream = process.getInputStream();
-
+        InputStream inputStream = connection.getInputStream();
         try {
             GZIPInputStream gzipInputStream = new GZIPInputStream(inputStream);
 
@@ -384,32 +381,30 @@ public class WebServiceTest {
             }
             log.info("Response Content: {}", content);
 
-            process.waitFor();
             assertTrue(content.toString().contains("process_cpu_seconds_total"));
         } catch (IOException e) {
             log.error("Failed to decompress the content, likely the content is not compressed ", e);
             fail();
+        } finally {
+            connection.disconnect();
         }
     }
 
     @Test
     public void testUnCompressOutputMetricsInPrometheus() throws Exception {
-
         setupEnv(true, false, false, false, -1, false);
 
         String metricsUrl = pulsar.getWebServiceAddress() + "/metrics/";
 
-        String[] command = {"curl", metricsUrl};
+        URL url = new URL(metricsUrl);
+        HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+        connection.setRequestMethod("GET");
 
-        ProcessBuilder processBuilder = new ProcessBuilder(command);
-        Process process = processBuilder.start();
-
-        InputStream inputStream = process.getInputStream();
+        InputStream inputStream = connection.getInputStream();
         try {
             GZIPInputStream gzipInputStream = new GZIPInputStream(inputStream);
             fail();
         } catch (IOException e) {
-            log.error("Failed to decompress the content, likely the content is not compressed ", e);
             assertTrue(e instanceof ZipException);
         }
 
@@ -422,7 +417,6 @@ public class WebServiceTest {
 
         log.info("Response Content: {}", content);
 
-        process.waitFor();
         assertTrue(content.toString().contains("process_cpu_seconds_total"));
     }
 
