@@ -261,7 +261,7 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
             }
         } else if (readOnActiveConsumerTask != null) {
             if (log.isDebugEnabled()) {
-                log.debug("[{}-{}] Ignoring flow control message since consumer is waiting for cursor to be rewinded",
+                log.debug("[{}-{}] Ignoring flow control message since consumer is waiting for cursor to be rewound",
                         name, consumer);
             }
         } else {
@@ -294,7 +294,7 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
         }
 
         if (readOnActiveConsumerTask != null) {
-            log.info("[{}-{}] Ignoring reDeliverUnAcknowledgedMessages: consumer is waiting for cursor to be rewinded",
+            log.info("[{}-{}] Ignoring reDeliverUnAcknowledgedMessages: consumer is waiting for cursor to be rewound",
                     name, consumer);
             return;
         }
@@ -302,7 +302,7 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
         havePendingRead = false;
         cursor.rewind(consumer.readCompacted());
         if (log.isDebugEnabled()) {
-            log.debug("[{}-{}] Cursor rewinded, redelivering unacknowledged messages. ", name, consumer);
+            log.debug("[{}-{}] Cursor rewound, redelivering unacknowledged messages. ", name, consumer);
         }
         readMoreEntries(consumer);
     }
