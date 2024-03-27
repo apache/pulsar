@@ -3803,6 +3803,16 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         this.waitingCursors.remove(cursor);
     }
 
+    public void addWaitingCursor(ManagedCursorImpl cursor) {
+        if (cursor instanceof NonDurableCursorImpl) {
+            if (cursor.isActive()) {
+                this.waitingCursors.add(cursor);
+            }
+        } else {
+            this.waitingCursors.add(cursor);
+        }
+    }
+
     public boolean isCursorActive(ManagedCursor cursor) {
         return activeCursors.get(cursor.getName()) != null;
     }
