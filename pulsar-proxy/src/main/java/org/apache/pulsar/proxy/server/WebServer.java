@@ -289,8 +289,19 @@ public class WebServer {
         ContextHandlerCollection contexts = new ContextHandlerCollection();
         contexts.setHandlers(handlers.toArray(new Handler[handlers.size()]));
 
-        Handler handlerForContexts = GzipHandlerUtil.wrapWithGzipHandler(contexts,
-                config.getHttpServerGzipCompressionExcludedPaths());
+        Handler handlerForContexts;
+        if (GzipHandlerUtil.isGzipCompressionCompletelyDisabled(config.getHttpServerGzipCompressionExcludedPaths())) {
+            handlerForContexts = contexts;
+        } else {
+            List<String> excludedPaths = new ArrayList<>();
+            if (config.getHttpServerGzipCompressionExcludedPaths() != null) {
+                excludedPaths.addAll(config.getHttpServerGzipCompressionExcludedPaths());
+            }
+            // exclude compression from /admin paths since they are passed through the proxy as is,
+            // without decompression
+            excludedPaths.add("^/admin/.*");
+            handlerForContexts = GzipHandlerUtil.wrapWithGzipHandler(contexts, excludedPaths);
+        }
         HandlerCollection handlerCollection = new HandlerCollection();
         handlerCollection.setHandlers(new Handler[] { handlerForContexts, new DefaultHandler(), requestLogHandler });
 

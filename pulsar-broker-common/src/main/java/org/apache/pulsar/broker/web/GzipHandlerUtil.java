@@ -25,9 +25,7 @@ import org.eclipse.jetty.server.handler.gzip.GzipHandler;
 public class GzipHandlerUtil {
     public static Handler wrapWithGzipHandler(Handler innerHandler, List<String> gzipCompressionExcludedPaths) {
         Handler wrappedHandler;
-        if (gzipCompressionExcludedPaths != null && gzipCompressionExcludedPaths.size() == 1
-                && (gzipCompressionExcludedPaths.get(0).equals("^.*")
-                || gzipCompressionExcludedPaths.get(0).equals("^.*$"))) {
+        if (isGzipCompressionCompletelyDisabled(gzipCompressionExcludedPaths)) {
             // no need to add GZIP handler if it's disabled by setting the excluded path to "^.*" or "^.*$"
             wrappedHandler = innerHandler;
         } else {
@@ -40,5 +38,11 @@ public class GzipHandlerUtil {
             wrappedHandler = gzipHandler;
         }
         return wrappedHandler;
+    }
+
+    public static boolean isGzipCompressionCompletelyDisabled(List<String> gzipCompressionExcludedPaths) {
+        return gzipCompressionExcludedPaths != null && gzipCompressionExcludedPaths.size() == 1
+                && (gzipCompressionExcludedPaths.get(0).equals("^.*")
+                || gzipCompressionExcludedPaths.get(0).equals("^.*$"));
     }
 }
