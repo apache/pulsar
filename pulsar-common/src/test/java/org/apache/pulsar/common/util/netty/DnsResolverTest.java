@@ -53,7 +53,7 @@ public class DnsResolverTest {
     public void afterClass() {
         Security.setProperty(CACHE_POLICY_PROP, originalCachePolicy != null ? originalCachePolicy : "-1");
         Security.setProperty(NEGATIVE_CACHE_POLICY_PROP,
-                originalNegativeCachePolicy != null ? originalNegativeCachePolicy : "-1");
+                originalNegativeCachePolicy != null ? originalNegativeCachePolicy : "0");
     }
 
     @Test
