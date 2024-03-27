@@ -109,8 +109,8 @@ public class PendingAckPersistentTest extends TransactionTestBase {
      * and get correct error with no-retryable exception.
      * @throws Exception
      */
-    @Test
-    public void testBuildConsumerEncouonterPendingAckInitFailure() throws Exception {
+    @Test(timeOut = 60000)
+    public void testBuildConsumerEncounterPendingAckInitFailure() throws Exception {
         // 1. Prepare and make sure the consumer can be built successfully.
         String topic = NAMESPACE1 + "/testUnloadSubscriptionWhenFailedInitPendingAck";
         @Cleanup
@@ -127,11 +127,11 @@ public class PendingAckPersistentTest extends TransactionTestBase {
                 (TransactionPendingAckStoreProvider) transactionPendingAckStoreProviderField
                         .get(pulsarServiceList.get(0));
         TransactionPendingAckStoreProvider mockProvider = mock(pendingAckStoreProvider.getClass());
-        // 3. Test retryable exception:
+        // 3. Test retryable exception when checkInitializedBefore:
         // The consumer will be built successfully after one time retry.
         when(mockProvider.checkInitializedBefore(any()))
                 // First, the method checkInitializedBefore will fail with a retryable exception.
-                .thenReturn(FutureUtil.failedFuture(new ManagedLedgerException("mock fail")))
+                .thenReturn(FutureUtil.failedFuture(new ManagedLedgerException("mock fail initialize")))
                 // Then, the method will be executed successfully.
                 .thenReturn(CompletableFuture.completedFuture(false));
         transactionPendingAckStoreProviderField.set(pulsarServiceList.get(0), mockProvider);
@@ -140,7 +140,25 @@ public class PendingAckPersistentTest extends TransactionTestBase {
                 .subscriptionName("subName2")
                 .topic(topic)
                 .subscribe();
-        // 4. Test no-retryable exception:
+
+        // 4. Test retryable exception when newPendingAckStore:
+        // The consumer will be built successfully after one time retry.
+        when(mockProvider.checkInitializedBefore(any()))
+                .thenReturn(CompletableFuture.completedFuture(true));
+
+        when(mockProvider.newPendingAckStore(any()))
+                // First, the method newPendingAckStore will fail with a retryable exception.
+                .thenReturn(FutureUtil.failedFuture(new ManagedLedgerException("mock fail new store")))
+                // Then, the method will be executed successfully.
+                .thenCallRealMethod();
+        transactionPendingAckStoreProviderField.set(pulsarServiceList.get(0), mockProvider);
+        @Cleanup
+        Consumer<byte[]> consumer3 = pulsarClient.newConsumer()
+                .subscriptionName("subName3")
+                .topic(topic)
+                .subscribe();
+
+        // 5. Test no-retryable exception:
         // The consumer building will be failed without retrying.
         when(mockProvider.checkInitializedBefore(any()))
                 // The method checkInitializedBefore will fail with a no-retryable exception without retrying.
@@ -149,8 +167,8 @@ public class PendingAckPersistentTest extends TransactionTestBase {
                 .thenReturn(CompletableFuture.completedFuture(false));
         try {
             @Cleanup
-            Consumer<byte[]> consumer3 = pulsarClient.newConsumer()
-                    .subscriptionName("subName3")
+            Consumer<byte[]> consumer4 = pulsarClient.newConsumer()
+                    .subscriptionName("subName4")
                     .topic(topic)
                     .subscribe();
             fail();
