@@ -5207,33 +5207,27 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     protected CompletableFuture<SchemaCompatibilityStrategy> internalGetSchemaCompatibilityStrategy(boolean applied) {
-        CompletableFuture<Void> future = validateTopicPolicyOperationAsync(topicName,
-                PolicyName.SCHEMA_COMPATIBILITY_STRATEGY, PolicyOperation.READ);
         if (applied) {
-            return future.thenCompose(__ -> getSchemaCompatibilityStrategyAsync());
+            return getSchemaCompatibilityStrategyAsync();
         }
-        return future
-                .thenCompose(n -> getTopicPoliciesAsyncWithRetry(topicName).thenApply(op -> {
+        return getTopicPoliciesAsyncWithRetry(topicName).thenApply(op -> {
                     if (!op.isPresent()) {
                         return null;
                     }
                     SchemaCompatibilityStrategy strategy = op.get().getSchemaCompatibilityStrategy();
                     return SchemaCompatibilityStrategy.isUndefined(strategy) ? null : strategy;
-                }));
+                });
     }
 
     protected CompletableFuture<Void> internalSetSchemaCompatibilityStrategy(SchemaCompatibilityStrategy strategy) {
-        return validateTopicPolicyOperationAsync(topicName,
-                PolicyName.SCHEMA_COMPATIBILITY_STRATEGY,
-                PolicyOperation.WRITE)
-                .thenCompose((__) -> getTopicPoliciesAsyncWithRetry(topicName)
+        return getTopicPoliciesAsyncWithRetry(topicName)
                         .thenCompose(op -> {
                             TopicPolicies topicPolicies = op.orElseGet(TopicPolicies::new);
                             topicPolicies.setSchemaCompatibilityStrategy(
                                     strategy == SchemaCompatibilityStrategy.UNDEFINED ? null : strategy);
                             return pulsar().getTopicPoliciesService()
                                     .updateTopicPoliciesAsync(topicName, topicPolicies);
-                        }));
+                        });
     }
 
     protected CompletableFuture<Boolean> internalGetSchemaValidationEnforced(boolean applied) {
@@ -5257,54 +5251,47 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     protected CompletableFuture<EntryFilters> internalGetEntryFilters(boolean applied, boolean isGlobal) {
-        return validateTopicPolicyOperationAsync(topicName, PolicyName.ENTRY_FILTERS, PolicyOperation.READ)
-                .thenCompose(__ -> {
-                    if (!applied) {
-                        return getTopicPoliciesAsyncWithRetry(topicName, isGlobal)
-                                .thenApply(op -> op.map(TopicPolicies::getEntryFilters).orElse(null));
+        if (!applied) {
+            return getTopicPoliciesAsyncWithRetry(topicName, isGlobal)
+                    .thenApply(op -> op.map(TopicPolicies::getEntryFilters).orElse(null));
+        }
+        if (!pulsar().getConfiguration().isAllowOverrideEntryFilters()) {
+            return CompletableFuture.completedFuture(new EntryFilters(String.join(",",
+                    pulsar().getConfiguration().getEntryFilterNames())));
+        }
+        return getTopicPoliciesAsyncWithRetry(topicName, isGlobal)
+                .thenApply(op -> op.map(TopicPolicies::getEntryFilters))
+                .thenCompose(policyEntryFilters -> {
+                    if (policyEntryFilters.isPresent()) {
+                        return CompletableFuture.completedFuture(policyEntryFilters.get());
                     }
-                    if (!pulsar().getConfiguration().isAllowOverrideEntryFilters()) {
-                        return CompletableFuture.completedFuture(new EntryFilters(String.join(",",
-                                pulsar().getConfiguration().getEntryFilterNames())));
-                    }
-                    return getTopicPoliciesAsyncWithRetry(topicName, isGlobal)
-                            .thenApply(op -> op.map(TopicPolicies::getEntryFilters))
-                            .thenCompose(policyEntryFilters -> {
-                                if (policyEntryFilters.isPresent()) {
-                                    return CompletableFuture.completedFuture(policyEntryFilters.get());
+                    return getNamespacePoliciesAsync(namespaceName)
+                            .thenApply(policies -> policies.entryFilters)
+                            .thenCompose(nsEntryFilters -> {
+                                if (nsEntryFilters != null) {
+                                    return CompletableFuture.completedFuture(nsEntryFilters);
                                 }
-                                return getNamespacePoliciesAsync(namespaceName)
-                                        .thenApply(policies -> policies.entryFilters)
-                                        .thenCompose(nsEntryFilters -> {
-                                            if (nsEntryFilters != null) {
-                                                return CompletableFuture.completedFuture(nsEntryFilters);
-                                            }
-                                            return CompletableFuture.completedFuture(new EntryFilters(String.join(",",
-                                                    pulsar().getConfiguration().getEntryFilterNames())));
-                                        });
+                                return CompletableFuture.completedFuture(new EntryFilters(String.join(",",
+                                        pulsar().getConfiguration().getEntryFilterNames())));
                             });
                 });
     }
 
     protected CompletableFuture<Void> internalSetEntryFilters(EntryFilters entryFilters,
                                                               boolean isGlobal) {
-
-        return validateTopicPolicyOperationAsync(topicName, PolicyName.ENTRY_FILTERS, PolicyOperation.WRITE)
-                .thenAccept(__ -> validateEntryFilters(entryFilters))
-                .thenCompose(__ -> getTopicPoliciesAsyncWithRetry(topicName, isGlobal)
+        validateEntryFilters(entryFilters);
+        return getTopicPoliciesAsyncWithRetry(topicName, isGlobal)
                 .thenCompose(op -> {
                     TopicPolicies topicPolicies = op.orElseGet(TopicPolicies::new);
                     topicPolicies.setEntryFilters(entryFilters);
                     topicPolicies.setIsGlobal(isGlobal);
                     return pulsar().getTopicPoliciesService()
                             .updateTopicPoliciesAsync(topicName, topicPolicies);
-                }));
+                });
     }
 
     protected CompletableFuture<Void> internalRemoveEntryFilters(boolean isGlobal) {
-        return validateTopicPolicyOperationAsync(topicName, PolicyName.ENTRY_FILTERS, PolicyOperation.WRITE)
-                .thenCompose(__ ->
-                        getTopicPoliciesAsyncWithRetry(topicName, isGlobal)
+        return getTopicPoliciesAsyncWithRetry(topicName, isGlobal)
                         .thenCompose(op -> {
                             if (!op.isPresent()) {
                                 return CompletableFuture.completedFuture(null);
@@ -5312,7 +5299,7 @@ public class PersistentTopicsBase extends AdminResource {
                             op.get().setEntryFilters(null);
                             op.get().setIsGlobal(isGlobal);
                             return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, op.get());
-                        }));
+                        });
     }
 
     protected CompletableFuture<Void> validateShadowTopics(List<String> shadowTopics) {
@@ -5348,8 +5335,7 @@ public class PersistentTopicsBase extends AdminResource {
             return FutureUtil.failedFuture(new RestException(Status.PRECONDITION_FAILED,
                     "Cannot specify empty shadow topics, please use remove command instead."));
         }
-        return validateTopicPolicyOperationAsync(topicName, PolicyName.SHADOW_TOPIC, PolicyOperation.WRITE)
-                .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
+        return validatePoliciesReadOnlyAccessAsync()
                 .thenCompose(__ -> validateShadowTopics(shadowTopics))
                 .thenCompose(__ -> getTopicPoliciesAsyncWithRetry(topicName))
                 .thenCompose(op -> {
@@ -5361,8 +5347,7 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     protected CompletableFuture<Void> internalDeleteShadowTopics() {
-        return validateTopicPolicyOperationAsync(topicName, PolicyName.SHADOW_TOPIC, PolicyOperation.WRITE)
-                .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
+        return validatePoliciesReadOnlyAccessAsync()
                 .thenCompose(shadowTopicName -> getTopicPoliciesAsyncWithRetry(topicName))
                 .thenCompose(op -> {
                     TopicPolicies topicPolicies = op.orElseGet(TopicPolicies::new);
