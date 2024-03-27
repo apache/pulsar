@@ -218,6 +218,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
     private final AtomicReference<ClientCnx> clientCnxUsedForConsumerRegistration = new AtomicReference<>();
     private final List<Throwable> previousExceptions = new CopyOnWriteArrayList<Throwable>();
+    private volatile boolean hasSoughtByTimestamp = false;
     static <T> ConsumerImpl<T> newConsumerImpl(PulsarClientImpl client,
                                                String topic,
                                                ConsumerConfigurationData<T> conf,
@@ -2252,7 +2253,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 new PulsarClientException("Only support seek by messageId or timestamp"));
     }
 
-    private CompletableFuture<Void> seekAsyncInternal(long requestId, ByteBuf seek, MessageId seekId, String seekBy) {
+    private CompletableFuture<Void> seekAsyncInternal(long requestId, ByteBuf seek, MessageId seekId,
+                                                      Long seekTimestamp, String seekBy) {
         AtomicLong opTimeoutMs = new AtomicLong(client.getConfiguration().getOperationTimeoutMs());
         Backoff backoff = new BackoffBuilder()
                 .setInitialTime(100, TimeUnit.MILLISECONDS)
@@ -2269,11 +2271,11 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             return FutureUtil.failedFuture(new IllegalStateException(message));
         }
         seekFuture = new CompletableFuture<>();
-        seekAsyncInternal(requestId, seek, seekId, seekBy, backoff, opTimeoutMs);
+        seekAsyncInternal(requestId, seek, seekId, seekTimestamp, seekBy, backoff, opTimeoutMs);
         return seekFuture;
     }
 
-    private void seekAsyncInternal(long requestId, ByteBuf seek, MessageId seekId, String seekBy,
+    private void seekAsyncInternal(long requestId, ByteBuf seek, MessageId seekId, Long seekTimestamp, String seekBy,
                                    final Backoff backoff, final AtomicLong remainingTime) {
         ClientCnx cnx = cnx();
         if (isConnected() && cnx != null) {
@@ -2281,6 +2283,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             seekMessageId = (MessageIdAdv) seekId;
             log.info("[{}][{}] Seeking subscription to {}", topic, subscription, seekBy);
 
+            final boolean originalHasSoughtByTimestamp = hasSoughtByTimestamp;
+            hasSoughtByTimestamp = (seekTimestamp != null);
             cnx.sendRequestWithId(seek, requestId).thenRun(() -> {
                 log.info("[{}][{}] Successfully reset subscription to {}", topic, subscription, seekBy);
                 acknowledgmentsGroupingTracker.flushAndClean();
@@ -2304,6 +2308,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 }
             }).exceptionally(e -> {
                 seekMessageId = originSeekMessageId;
+                hasSoughtByTimestamp = originalHasSoughtByTimestamp;
                 log.error("[{}][{}] Failed to reset subscription: {}", topic, subscription, e.getCause().getMessage());
 
                 failSeek(
@@ -2326,7 +2331,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 log.warn("[{}] [{}] Could not get connection while seek -- Will try again in {} ms",
                         topic, getHandlerName(), nextDelay);
                 remainingTime.addAndGet(-nextDelay);
-                seekAsyncInternal(requestId, seek, seekId, seekBy, backoff, remainingTime);
+                seekAsyncInternal(requestId, seek, seekId, seekTimestamp, seekBy, backoff, remainingTime);
             }, nextDelay, TimeUnit.MILLISECONDS);
         }
     }
@@ -2343,7 +2348,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         String seekBy = String.format("the timestamp %d", timestamp);
         long requestId = client.newRequestId();
         return seekAsyncInternal(requestId, Commands.newSeek(consumerId, requestId, timestamp),
-                MessageId.earliest, seekBy);
+                MessageId.earliest, timestamp, seekBy);
     }
 
     @Override
@@ -2369,7 +2374,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             }
             seek = Commands.newSeek(consumerId, requestId, msgId.getLedgerId(), msgId.getEntryId(), ackSetArr);
         }
-        return seekAsyncInternal(requestId, seek, messageId, seekBy);
+        return seekAsyncInternal(requestId, seek, messageId, null, seekBy);
     }
 
     public boolean hasMessageAvailable() throws PulsarClientException {
@@ -2389,13 +2394,15 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
         // we haven't read yet. use startMessageId for comparison
         if (lastDequeuedMessageId == MessageId.earliest) {
+            // If the last seek is called with timestamp, startMessageId cannot represent the position to start, so we
+            // have to get the mark-delete position from the GetLastMessageId response to compare as well.
             // if we are starting from latest, we should seek to the actual last message first.
             // allow the last one to be read when read head inclusively.
-            if (MessageId.latest.equals(startMessageId)) {
-
+            final boolean hasSoughtByTimestamp = this.hasSoughtByTimestamp;
+            if (MessageId.latest.equals(startMessageId) || hasSoughtByTimestamp) {
                 CompletableFuture<GetLastMessageIdResponse> future = internalGetLastMessageIdAsync();
                 // if the consumer is configured to read inclusive then we need to seek to the last message
-                if (resetIncludeHead) {
+                if (resetIncludeHead && !hasSoughtByTimestamp) {
                     future = future.thenCompose((lastMessageIdResponse) ->
                             seekAsync(lastMessageIdResponse.lastMessageId)
                                     .thenApply((ignore) -> lastMessageIdResponse));
