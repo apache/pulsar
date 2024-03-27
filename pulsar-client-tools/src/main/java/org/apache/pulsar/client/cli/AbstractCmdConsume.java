@@ -108,6 +108,9 @@ public abstract class AbstractCmdConsume extends AbstractCmd {
             data = value.toString();
         }
 
+        sb.append("publishTime:[").append(message.getPublishTime()).append("], ");
+        sb.append("eventTime:[").append(message.getEventTime()).append("], ");
+
         String key = null;
         if (message.hasKey()) {
             key = message.getKey();

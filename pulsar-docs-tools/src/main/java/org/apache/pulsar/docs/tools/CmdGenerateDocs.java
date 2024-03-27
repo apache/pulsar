@@ -18,144 +18,155 @@
  */
 package org.apache.pulsar.docs.tools;
 
-import com.beust.jcommander.JCommander;
-import com.beust.jcommander.Parameter;
-import com.beust.jcommander.ParameterDescription;
-import com.beust.jcommander.Parameters;
+import com.google.common.annotations.VisibleForTesting;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
-import java.util.Map;
+import java.util.concurrent.Callable;
 import lombok.Getter;
 import lombok.Setter;
+import picocli.CommandLine;
+import picocli.CommandLine.Command;
+import picocli.CommandLine.Model.ArgSpec;
+import picocli.CommandLine.Model.OptionSpec;
+import picocli.CommandLine.Option;
+import picocli.CommandLine.ScopeType;
 
 @Getter
 @Setter
-@Parameters(commandDescription = "Generate documentation automatically.")
-public class CmdGenerateDocs {
+@Command(showDefaultValues = true, scope = ScopeType.INHERIT)
+public class CmdGenerateDocs implements Callable<Integer> {
 
-    @Parameter(
+    @Option(
             names = {"-h", "--help"},
-            description = "Display help information"
+            description = "Display help information",
+            usageHelp = true
     )
     public boolean help;
 
-    @Parameter(
+    @Option(
             names = {"-n", "--command-names"},
             description = "List of command names"
     )
     private List<String> commandNames = new ArrayList<>();
 
     private static final String name = "gen-doc";
-    private final JCommander jcommander;
+    private final CommandLine commander;
 
     public CmdGenerateDocs(String cmdName) {
-        jcommander = new JCommander(this);
-        jcommander.setProgramName(cmdName);
+        commander = new CommandLine(this);
+        commander.setCommandName(cmdName);
     }
 
     public CmdGenerateDocs addCommand(String name, Object command) {
-        jcommander.addCommand(name, command);
+        commander.addSubcommand(name, command);
         return this;
     }
 
     public boolean run(String[] args) {
-        JCommander tmpCmd = new JCommander(this);
-        tmpCmd.setProgramName(jcommander.getProgramName() + " " + name);
-        try {
-            if (args == null) {
-                args = new String[]{};
-            }
-            tmpCmd.parse(args);
-        } catch (Exception e) {
-            System.err.println(e.getMessage());
-            System.err.println();
-            tmpCmd.usage();
-            return false;
+        if (args == null) {
+            args = new String[]{};
         }
-        if (help) {
-            tmpCmd.usage();
-            return true;
-        }
-
-        if (commandNames.size() == 0) {
-            for (Map.Entry<String, JCommander> cmd : jcommander.getCommands().entrySet()) {
-                if (cmd.getKey().equals(name)) {
-                    continue;
-                }
-                System.out.println(generateDocument(cmd.getKey(), jcommander));
-            }
-        } else {
-            for (String commandName : commandNames) {
-                if (commandName.equals(name)) {
-                    continue;
-                }
-                if (!jcommander.getCommands().keySet().contains(commandName)) {
-                    continue;
-                }
-                System.out.println(generateDocument(commandName, jcommander));
-            }
-        }
-        return true;
+        return commander.execute(args) == 0;
     }
 
-    private String generateDocument(String module, JCommander commander) {
-        JCommander cmd = commander.getCommands().get(module);
+    private static String getCommandDescription(CommandLine commandLine) {
+        String[] description = commandLine.getCommandSpec().usageMessage().description();
+        if (description != null && description.length != 0) {
+            return description[0];
+        }
+        return "";
+    }
+
+    private static String getArgDescription(ArgSpec argSpec) {
+        String[] description = argSpec.description();
+        if (description != null && description.length != 0) {
+            return description[0];
+        }
+        return "";
+    }
+
+    private String generateDocument(String module, CommandLine commander) {
         StringBuilder sb = new StringBuilder();
         sb.append("# ").append(module).append("\n\n");
-        String desc = commander.getUsageFormatter().getCommandDescription(module);
+        String desc = getCommandDescription(commander);
         if (null != desc && !desc.isEmpty()) {
             sb.append(desc).append("\n");
         }
         sb.append("\n\n```shell\n")
                 .append("$ ");
-        if (null != jcommander.getProgramName() && !jcommander.getProgramName().isEmpty()) {
-            sb.append(jcommander.getProgramName()).append(" ");
-        }
-        sb.append(module);
-        if (cmd.getObjects().size() > 0
-                && cmd.getObjects().get(0).getClass().getName().equals("com.beust.jcommander.JCommander")) {
-            JCommander cmdObj = (JCommander) cmd.getObjects().get(0);
+        String commandName = commander.getCommandName();
+        sb.append(this.commander.getCommandName() + " " + commandName);
+        if (!commander.getSubcommands().isEmpty()) {
             sb.append(" subcommand").append("\n```").append("\n\n");
-            cmdObj.getCommands().forEach((subK, subV) -> {
+            commander.getSubcommands().forEach((subK, subV) -> {
                 if (!subK.equals(name)) {
                     sb.append("\n\n## ").append(subK).append("\n\n");
-                    String subDesc = cmdObj.getUsageFormatter().getCommandDescription(subK);
+                    String subDesc = getCommandDescription(subV);
                     if (null != subDesc && !subDesc.isEmpty()) {
                         sb.append(subDesc).append("\n");
                     }
                     sb.append("```shell\n$ ");
-                    if (null != jcommander.getProgramName() && !jcommander.getProgramName().isEmpty()) {
-                        sb.append(jcommander.getProgramName()).append(" ");
-                    }
+                    sb.append(this.commander.getCommandName()).append(" ");
                     sb.append(module).append(" ").append(subK).append(" options").append("\n```\n\n");
-                    List<ParameterDescription> options = cmdObj.getCommands().get(subK).getParameters();
-                    if (options.size() > 0) {
+                    List<ArgSpec> argSpecs = subV.getCommandSpec().args();
+                    if (argSpecs.size() > 0) {
                         sb.append("|Flag|Description|Default|\n");
                         sb.append("|---|---|---|\n");
                     }
-                    options.forEach((option) ->
-                            sb.append("| `").append(option.getNames())
-                                    .append("` | ").append(option.getDescription().replace("\n", " "))
-                                    .append("|").append(option.getDefault()).append("|\n")
-                    );
+
+                    argSpecs.forEach(option -> {
+                        if (option.hidden() || !(option instanceof OptionSpec)) {
+                            return;
+                        }
+                        sb.append("| `").append(String.join(", ", ((OptionSpec) option).names()))
+                                .append("` | ").append(getArgDescription(option).replace("\n", " "))
+                                .append("|").append(option.defaultValueString()).append("|\n");
+                    });
                 }
             });
         } else {
             sb.append(" options").append("\n```").append("\n\n");
             sb.append("|Flag|Description|Default|\n");
             sb.append("|---|---|---|\n");
-            List<ParameterDescription> options = cmd.getParameters();
-            options.stream().sorted(Comparator.comparing(ParameterDescription::getLongestName))
-                    .forEach((option) ->
-                            sb.append("| `")
-                                    .append(option.getNames())
-                                    .append("` | ")
-                                    .append(option.getDescription().replace("\n", " "))
-                                    .append("|")
-                                    .append(option.getDefault()).append("|\n")
-                    );
+            List<ArgSpec> argSpecs = commander.getCommandSpec().args();
+            argSpecs.forEach(option -> {
+                if (option.hidden() || !(option instanceof OptionSpec)) {
+                    return;
+                }
+                sb.append("| `")
+                        .append(String.join(", ", ((OptionSpec) option).names()))
+                        .append("` | ")
+                        .append(getArgDescription(option).replace("\n", " "))
+                        .append("|")
+                        .append(option.defaultValueString()).append("|\n");
+            });
         }
         return sb.toString();
+    }
+
+    @Override
+    public Integer call() throws Exception {
+        if (commandNames.size() == 0) {
+            commander.getSubcommands().forEach((name, cmd) -> {
+                commander.getOut().println(generateDocument(name, cmd));
+            });
+        } else {
+            for (String commandName : commandNames) {
+                if (commandName.equals(name)) {
+                    continue;
+                }
+                CommandLine cmd = commander.getSubcommands().get(commandName);
+                if (cmd == null) {
+                    continue;
+                }
+                commander.getOut().println(generateDocument(commandName, cmd));
+            }
+        }
+        return 0;
+    }
+
+    @VisibleForTesting
+    CommandLine getCommander() {
+        return commander;
     }
 }

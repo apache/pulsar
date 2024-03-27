@@ -101,7 +101,7 @@ class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
                 lowestSequenceId = Commands.initBatchMessageMetadata(messageMetadata, msg.getMessageBuilder());
                 this.firstCallback = callback;
                 batchedMessageMetadataAndPayload = allocator.buffer(
-                        Math.min(maxBatchSize, ClientCnx.getMaxMessageSize()));
+                        Math.min(maxBatchSize, getMaxMessageSize()));
                 updateAndReserveBatchAllocatedSize(batchedMessageMetadataAndPayload.capacity());
                 if (msg.getMessageBuilder().hasTxnidMostBits() && currentTxnidMostBits == -1) {
                     currentTxnidMostBits = msg.getMessageBuilder().getTxnidMostBits();
@@ -272,12 +272,12 @@ class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
             op.setBatchSizeByte(encryptedPayload.readableBytes());
 
             // handle mgs size check as non-batched in `ProducerImpl.isMessageSizeExceeded`
-            if (op.getMessageHeaderAndPayloadSize() > ClientCnx.getMaxMessageSize()) {
+            if (op.getMessageHeaderAndPayloadSize() > getMaxMessageSize()) {
                 producer.semaphoreRelease(1);
                 producer.client.getMemoryLimitController().releaseMemory(
                         messages.get(0).getUncompressedSize() + batchAllocatedSizeBytes);
                 discard(new PulsarClientException.InvalidMessageException(
-                    "Message size is bigger than " + ClientCnx.getMaxMessageSize() + " bytes"));
+                    "Message size is bigger than " + getMaxMessageSize() + " bytes"));
                 return null;
             }
             lowestSequenceId = -1L;
@@ -285,13 +285,13 @@ class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
         }
         ByteBuf encryptedPayload = producer.encryptMessage(messageMetadata, getCompressedBatchMetadataAndPayload());
         updateAndReserveBatchAllocatedSize(encryptedPayload.capacity());
-        if (encryptedPayload.readableBytes() > ClientCnx.getMaxMessageSize()) {
+        if (encryptedPayload.readableBytes() > getMaxMessageSize()) {
             producer.semaphoreRelease(messages.size());
             messages.forEach(msg -> producer.client.getMemoryLimitController()
                     .releaseMemory(msg.getUncompressedSize()));
             producer.client.getMemoryLimitController().releaseMemory(batchAllocatedSizeBytes);
             discard(new PulsarClientException.InvalidMessageException(
-                    "Message size is bigger than " + ClientCnx.getMaxMessageSize() + " bytes"));
+                    "Message size is bigger than " + getMaxMessageSize() + " bytes"));
             return null;
         }
         messageMetadata.setNumMessagesInBatch(numMessagesInBatch);
