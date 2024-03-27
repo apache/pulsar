@@ -369,18 +369,18 @@ public class WebServiceTest {
         connection.setRequestMethod("GET");
         connection.setRequestProperty("Accept-Encoding", "gzip");
 
-        InputStream inputStream = connection.getInputStream();
-        try {
-            GZIPInputStream gzipInputStream = new GZIPInputStream(inputStream);
+        StringBuilder content = new StringBuilder();
 
-            // Process the decompressed content
-            StringBuilder content = new StringBuilder();
-            int data;
-            while ((data = gzipInputStream.read()) != -1) {
-                content.append((char) data);
+        try (InputStream inputStream = connection.getInputStream()) {
+            try (GZIPInputStream gzipInputStream = new GZIPInputStream(inputStream)) {
+                // Process the decompressed content
+                int data;
+                while ((data = gzipInputStream.read()) != -1) {
+                    content.append((char) data);
+                }
             }
-            log.info("Response Content: {}", content);
 
+            log.info("Response Content: {}", content);
             assertTrue(content.toString().contains("process_cpu_seconds_total"));
         } catch (IOException e) {
             log.error("Failed to decompress the content, likely the content is not compressed ", e);
@@ -400,19 +400,22 @@ public class WebServiceTest {
         HttpURLConnection connection = (HttpURLConnection) url.openConnection();
         connection.setRequestMethod("GET");
 
-        InputStream inputStream = connection.getInputStream();
-        try {
-            GZIPInputStream gzipInputStream = new GZIPInputStream(inputStream);
-            fail();
-        } catch (IOException e) {
-            assertTrue(e instanceof ZipException);
-        }
-
-        BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream));
         StringBuilder content = new StringBuilder();
-        String line;
-        while ((line = reader.readLine()) != null) {
-            content.append(line + "\n");
+
+        try (InputStream inputStream = connection.getInputStream()) {
+            try (GZIPInputStream gzipInputStream = new GZIPInputStream(inputStream)) {
+                fail();
+            } catch (IOException e) {
+                assertTrue(e instanceof ZipException);
+            }
+
+            BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream));
+            String line;
+            while ((line = reader.readLine()) != null) {
+                content.append(line + "\n");
+            }
+        } finally {
+            connection.disconnect();
         }
 
         log.info("Response Content: {}", content);
