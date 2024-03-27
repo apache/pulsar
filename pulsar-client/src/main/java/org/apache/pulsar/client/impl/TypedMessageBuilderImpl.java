@@ -62,6 +62,7 @@ public class TypedMessageBuilderImpl<T> implements TypedMessageBuilder<T> {
         this.schema = schema;
         this.content = EMPTY_CONTENT;
         this.txn = txn;
+        this.msgMetadata.setNullValue(true);
     }
 
     private long beforeSend() {
@@ -141,9 +142,9 @@ public class TypedMessageBuilderImpl<T> implements TypedMessageBuilder<T> {
     @Override
     public TypedMessageBuilder<T> value(T value) {
         if (value == null) {
-            msgMetadata.setNullValue(true);
             return this;
         }
+        msgMetadata.setNullValue(false);
 
         return getKeyValueSchema().map(keyValueSchema -> {
             if (keyValueSchema.getKeyValueEncodingType() == KeyValueEncodingType.SEPARATED) {
