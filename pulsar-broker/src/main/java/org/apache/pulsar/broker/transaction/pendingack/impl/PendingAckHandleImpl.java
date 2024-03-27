@@ -961,6 +961,7 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
 
     public void exceptionHandleFuture(Throwable t) {
         if (isRetryableException(t)) {
+            this.state = State.None;
             long retryTime = backoff.next();
             log.warn("[{}][{}] Failed to init transaction pending ack. It will be retried in {} Ms",
                     persistentSubscription.getTopic().getName(), subName, retryTime, t);
