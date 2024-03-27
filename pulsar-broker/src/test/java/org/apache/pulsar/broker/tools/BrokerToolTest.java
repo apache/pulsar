@@ -19,12 +19,12 @@
 package org.apache.pulsar.broker.tools;
 
 import static org.testng.Assert.assertTrue;
-import com.beust.jcommander.Parameter;
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
 import java.lang.reflect.Field;
 import java.util.Arrays;
 import org.testng.annotations.Test;
+import picocli.CommandLine.Option;
 
 /**
  * Broker Tool Tests.
@@ -47,12 +47,12 @@ public class BrokerToolTest {
 
             String message = baoStream.toString();
 
-            Class argumentsClass = Class.forName("org.apache.pulsar.broker.tools.LoadReportCommand$Flags");
+            Class argumentsClass = Class.forName("org.apache.pulsar.broker.tools.LoadReportCommand");
             Field[] fields = argumentsClass.getDeclaredFields();
             for (Field field : fields) {
-                boolean fieldHasAnno = field.isAnnotationPresent(Parameter.class);
+                boolean fieldHasAnno = field.isAnnotationPresent(Option.class);
                 if (fieldHasAnno) {
-                    Parameter fieldAnno = field.getAnnotation(Parameter.class);
+                    Option fieldAnno = field.getAnnotation(Option.class);
                     String[] names = fieldAnno.names();
                     String nameStr = Arrays.asList(names).toString();
                     nameStr = nameStr.substring(1, nameStr.length() - 1);

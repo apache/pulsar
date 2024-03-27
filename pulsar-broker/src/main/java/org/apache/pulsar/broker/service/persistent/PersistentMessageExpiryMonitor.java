@@ -121,8 +121,8 @@ public class PersistentMessageExpiryMonitor implements FindEntryCallback, Messag
                             managedLedger.getLedgersInfo().lastKey(), true);
             MLDataFormats.ManagedLedgerInfo.LedgerInfo info = null;
             for (MLDataFormats.ManagedLedgerInfo.LedgerInfo ledgerInfo : ledgerInfoSortedMap.values()) {
-                if (!ledgerInfo.hasTimestamp() || !MessageImpl.isEntryExpired(messageTTLInSeconds,
-                        ledgerInfo.getTimestamp())) {
+                if (!ledgerInfo.hasTimestamp() || ledgerInfo.getTimestamp() == 0L
+                        || !MessageImpl.isEntryExpired(messageTTLInSeconds, ledgerInfo.getTimestamp())) {
                     break;
                 }
                 info = ledgerInfo;

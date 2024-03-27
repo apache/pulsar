@@ -16,15 +16,18 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.cli.validators;
+package org.apache.pulsar.testclient;
 
-import com.beust.jcommander.IValueValidator;
-import com.beust.jcommander.ParameterException;
-import org.apache.pulsar.cli.ValueValidationUtil;
+import picocli.CommandLine.ITypeConverter;
+import picocli.CommandLine.TypeConversionException;
 
-public class MinNegativeOneValidator implements IValueValidator<Long> {
+public class PositiveNumberParameterConvert implements ITypeConverter<Integer> {
     @Override
-    public void validate(String name, Long value) throws ParameterException {
-        ValueValidationUtil.minValueCheck(name, value, -1L);
+    public Integer convert(String value) {
+        int result = Integer.parseInt(value);
+        if (result <= 0) {
+            throw new TypeConversionException("Parameter should be > 0 (found " + value + ")");
+        }
+        return result;
     }
 }
