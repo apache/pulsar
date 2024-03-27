@@ -992,7 +992,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                             name);
                 }
                 // Let the managed ledger know we want to be notified whenever a new entry is published
-                ledger.waitingCursors.add(this);
+                ledger.addWaitingCursor(this);
             } else {
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] [{}] Skip notification registering since we do have entries available",
