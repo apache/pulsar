@@ -36,11 +36,6 @@
 
   <dependencies>
     <dependency>
-      <groupId>com.beust</groupId>
-      <artifactId>jcommander</artifactId>
-      <scope>compile</scope>
-    </dependency>
-    <dependency>
       <groupId>info.picocli</groupId>
       <artifactId>picocli</artifactId>
       <scope>compile</scope>
