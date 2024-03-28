@@ -50,7 +50,6 @@ jobs:
           IMAGE_REF_CLEAN="$(echo $IMAGE_REF | sed 's/-/_/g; s/\./_/g; s/:/_/g; s/\//_/g')"
           echo "image_ref_clean=$IMAGE_REF_CLEAN" >> "$GITHUB_OUTPUT"
           echo "report_filename=trivy-scan-$IMAGE_REF_CLEAN.${{ inputs.report-format }}" >> "$GITHUB_OUTPUT"
-
       - name: Run Trivy container scan
         uses: aquasecurity/trivy-action@master
         with:
@@ -61,15 +60,6 @@ jobs:
           format: 'sarif'
           output: ${{ steps.prepare-vars.outputs.report_filename }}
           exit-code: 1
-
-      - name: Upload Trivy container scan report
-        uses: actions/upload-artifact@v4
-        if: ${{ failure() }}
-        with:
-          name: trivy-vuln-report-${{ steps.prepare-vars.outputs.image_ref_clean }}
-          path: '${{ github.workspace }}/${{ steps.prepare-vars.outputs.report_filename }}'
-          retention-days: 15
-
       - name: Upload Trivy scan results to GitHub Security tab
         uses: github/codeql-action/upload-sarif@v2
         if: ${{ failure() }}
