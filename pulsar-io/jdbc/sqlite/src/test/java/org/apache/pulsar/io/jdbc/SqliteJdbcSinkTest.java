@@ -48,6 +48,7 @@ import org.apache.pulsar.client.api.schema.GenericSchema;
 import org.apache.pulsar.client.api.schema.RecordSchemaBuilder;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.client.impl.MessageImpl;
+import org.apache.pulsar.client.impl.schema.AutoConsumeSchema;
 import org.apache.pulsar.client.impl.schema.AvroSchema;
 import org.apache.pulsar.client.impl.schema.generic.GenericAvroSchema;
 import org.apache.pulsar.common.schema.KeyValue;
@@ -282,9 +283,12 @@ public class SqliteJdbcSinkTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void TestUpdateAction() throws Exception {
 
         AvroSchema<Foo> schema = AvroSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
+        AutoConsumeSchema autoConsumeSchema = new AutoConsumeSchema();
+        autoConsumeSchema.setSchema(schema);
 
         Foo updateObj = new Foo();
         updateObj.setField1("ValueOfField3");
@@ -292,10 +296,11 @@ public class SqliteJdbcSinkTest {
         updateObj.setField3(4);
 
         byte[] updateBytes = schema.encode(updateObj);
-        Message<GenericObject> updateMessage = mock(MessageImpl.class);
+        Message<GenericRecord> updateMessage = mock(MessageImpl.class);
         CompletableFuture<Boolean> future = new CompletableFuture<>();
-        Record<GenericObject> updateRecord = PulsarRecord.<GenericObject>builder()
+        Record<? extends GenericObject> updateRecord = PulsarRecord.<GenericRecord>builder()
                 .message(updateMessage)
+                .schema(autoConsumeSchema)
                 .topicName("fake_topic_name")
                 .ackFunction(() -> future.complete(null))
                 .build();
@@ -312,7 +317,7 @@ public class SqliteJdbcSinkTest {
                 updateMessage.getValue().toString(),
                 updateRecord.getValue().toString());
 
-        jdbcSink.write(updateRecord);
+        jdbcSink.write((Record<GenericObject>) updateRecord);
         future.get(1, TimeUnit.SECONDS);
 
         // value has been written to db, read it out and verify.
@@ -325,18 +330,22 @@ public class SqliteJdbcSinkTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void TestDeleteAction() throws Exception {
 
         AvroSchema<Foo> schema = AvroSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
+        AutoConsumeSchema autoConsumeSchema = new AutoConsumeSchema();
+        autoConsumeSchema.setSchema(schema);
 
         Foo deleteObj = new Foo();
         deleteObj.setField3(5);
 
         byte[] deleteBytes = schema.encode(deleteObj);
-        Message<GenericObject> deleteMessage = mock(MessageImpl.class);
+        Message<GenericRecord> deleteMessage = mock(MessageImpl.class);
         CompletableFuture<Boolean> future = new CompletableFuture<>();
-        Record<GenericObject> deleteRecord = PulsarRecord.<GenericObject>builder()
+        Record<? extends GenericObject> deleteRecord = PulsarRecord.<GenericRecord>builder()
                 .message(deleteMessage)
+                .schema(autoConsumeSchema)
                 .topicName("fake_topic_name")
                 .ackFunction(() -> future.complete(null))
                 .build();
@@ -352,7 +361,7 @@ public class SqliteJdbcSinkTest {
                 deleteMessage.getValue().toString(),
                 deleteRecord.getValue().toString());
 
-        jdbcSink.write(deleteRecord);
+        jdbcSink.write((Record<GenericObject>) deleteRecord);
         future.get(1, TimeUnit.SECONDS);
 
         // value has been written to db, read it out and verify.
@@ -848,17 +857,21 @@ public class SqliteJdbcSinkTest {
         }
     }
 
+    @SuppressWarnings("unchecked")
     private Record<GenericObject> createMockFooRecord(Foo record, Map<String, String> actionProperties,
                                                         CompletableFuture<Boolean> future) {
-        Message<GenericObject> insertMessage = mock(MessageImpl.class);
+        Message<GenericRecord> insertMessage = mock(MessageImpl.class);
         GenericSchema<GenericRecord> genericAvroSchema;
         AvroSchema<Foo> schema = AvroSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).withAlwaysAllowNull(true).build());
+        AutoConsumeSchema autoConsumeSchema = new AutoConsumeSchema();
+        autoConsumeSchema.setSchema(schema);
 
         byte[] insertBytes = schema.encode(record);
 
-        Record<GenericObject> insertRecord = PulsarRecord.<GenericObject>builder()
+        Record<? extends GenericObject> insertRecord = PulsarRecord.<GenericRecord>builder()
                 .message(insertMessage)
                 .topicName("fake_topic_name")
+                .schema(autoConsumeSchema)
                 .ackFunction(() -> future.complete(true))
                 .failFunction(() -> future.complete(false))
                 .build();
@@ -866,7 +879,7 @@ public class SqliteJdbcSinkTest {
         genericAvroSchema = new GenericAvroSchema(schema.getSchemaInfo());
         when(insertMessage.getValue()).thenReturn(genericAvroSchema.decode(insertBytes));
         when(insertMessage.getProperties()).thenReturn(actionProperties);
-        return insertRecord;
+        return (Record<GenericObject>) insertRecord;
     }
 
 }

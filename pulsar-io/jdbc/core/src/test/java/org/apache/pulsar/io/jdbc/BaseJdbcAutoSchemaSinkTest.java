@@ -22,6 +22,10 @@ import java.util.function.Function;
 import org.apache.avro.Schema;
 import org.apache.avro.SchemaBuilder;
 import org.apache.avro.util.Utf8;
+import org.apache.pulsar.client.api.schema.GenericObject;
+import org.apache.pulsar.client.api.schema.GenericRecord;
+import org.apache.pulsar.client.impl.schema.AutoConsumeSchema;
+import org.apache.pulsar.functions.api.Record;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -141,6 +145,27 @@ public class BaseJdbcAutoSchemaSinkTest {
         final SchemaBuilder.FieldAssembler<Schema> record = SchemaBuilder.record("record")
                 .fields();
         return consumer.apply(record).endRecord().getFields().get(0).schema();
+    }
+
+    @Test(expectedExceptions = UnsupportedOperationException.class,
+            expectedExceptionsMessageRegExp = "Primitive schema is not supported.*")
+    @SuppressWarnings("unchecked")
+    public void testNotSupportPrimitiveSchema() {
+        BaseJdbcAutoSchemaSink baseJdbcAutoSchemaSink = new BaseJdbcAutoSchemaSink() {};
+        AutoConsumeSchema autoConsumeSchema = new AutoConsumeSchema();
+        autoConsumeSchema.setSchema(org.apache.pulsar.client.api.Schema.STRING);
+        Record<? extends GenericObject> record = new Record<GenericRecord>() {
+            @Override
+            public org.apache.pulsar.client.api.Schema<GenericRecord> getSchema() {
+                return autoConsumeSchema;
+            }
+
+            @Override
+            public GenericRecord getValue() {
+                return null;
+            }
+        };
+        baseJdbcAutoSchemaSink.createMutation((Record<GenericObject>) record);
     }
 
 
