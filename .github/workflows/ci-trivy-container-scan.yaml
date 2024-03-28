@@ -1,0 +1,66 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+
+name: CI - Trivy Container Scan
+on:
+  schedule:
+    - cron: '0 8 * * *' # Every day at 8am UTC
+  workflow_dispatch:
+    inputs:
+      severity:
+        description: "Severities to include (comma-separated or 'ALL' to include all)"
+        required: false
+        default: 'CRITICAL,HIGH'
+
+jobs:
+  container_scan:
+    if: ${{ github.repository == 'apache/pulsar' }}
+    name: Trivy Docker image vulnerability scan
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        docker-image:
+          - 'apachepulsar/pulsar'
+        docker-tag:
+          - 'latest'
+    env:
+      IMAGE_REF: '${{ matrix.docker-image }}:${{ matrix.docker-tag }}'
+    steps:
+      - id: prepare-vars
+        shell: bash
+        run: |
+          IMAGE_REF_CLEAN="$(echo $IMAGE_REF | sed 's/-/_/g; s/\./_/g; s/:/_/g; s/\//_/g')"
+          echo "image_ref_clean=$IMAGE_REF_CLEAN" >> "$GITHUB_OUTPUT"
+          echo "report_filename=trivy-scan-$IMAGE_REF_CLEAN.${{ inputs.report-format }}" >> "$GITHUB_OUTPUT"
+      - name: Run Trivy container scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.IMAGE_REF }}
+          scanners: vuln
+          severity: ${{ inputs.severity != 'ALL' && inputs.severity ||  'UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL'  }}
+          limit-severities-for-sarif: true
+          format: 'sarif'
+          output: ${{ steps.prepare-vars.outputs.report_filename }}
+          exit-code: 1
+      - name: Upload Trivy scan results to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v2
+        if: ${{ failure() }}
+        with:
+          sarif_file: '${{ github.workspace }}/${{ steps.prepare-vars.outputs.report_filename }}'
