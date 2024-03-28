@@ -44,6 +44,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import javax.ws.rs.client.InvocationCallback;
 import javax.ws.rs.client.WebTarget;
@@ -73,6 +74,8 @@ import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.TypedMessageBuilder;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
+import org.apache.pulsar.client.impl.ConsumerImpl;
+import org.apache.pulsar.client.impl.MultiTopicsConsumerImpl;
 import org.apache.pulsar.client.impl.schema.KeyValueSchemaImpl;
 import org.apache.pulsar.client.impl.schema.SchemaInfoImpl;
 import org.apache.pulsar.client.impl.schema.generic.GenericJsonRecord;
@@ -101,6 +104,7 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
     @BeforeMethod
     @Override
     public void setup() throws Exception {
+        isTcpLookup = true;
         super.internalSetup();
 
         // Setup namespaces
@@ -109,12 +113,41 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
                 .allowedClusters(Collections.singleton(CLUSTER_NAME))
                 .build();
         admin.tenants().createTenant(PUBLIC_TENANT, tenantInfo);
+        admin.namespaces().createNamespace(PUBLIC_TENANT + "/my-ns");
     }
 
     @AfterMethod(alwaysRun = true)
     @Override
     public void cleanup() throws Exception {
         super.internalCleanup();
+    }
+
+    @Test
+    public void testGetSchemaWithPatternTopic() throws Exception {
+        final String topicPrefix = "persistent://public/my-ns/test-getSchema";
+
+        int topicNums = 10;
+        for (int i = 0; i < topicNums; i++) {
+            String topic = topicPrefix + "-" + i;
+            admin.topics().createNonPartitionedTopic(topic);
+        }
+
+        Pattern pattern = Pattern.compile(topicPrefix + "-.*");
+        @Cleanup
+        Consumer<GenericRecord> consumer = pulsarClient.newConsumer(Schema.AUTO_CONSUME())
+                .topicsPattern(pattern)
+                .subscriptionName("sub")
+                .subscriptionType(SubscriptionType.Shared)
+                .subscribe();
+
+        List<ConsumerImpl<GenericRecord>> consumers =
+                ((MultiTopicsConsumerImpl<GenericRecord>) consumer).getConsumers();
+        Assert.assertEquals(topicNums, consumers.size());
+
+        for (int i = 0; i < topicNums; i++) {
+            String topic = topicPrefix + "-" + i;
+            admin.topics().delete(topic, true);
+        }
     }
 
     @Test
@@ -898,7 +931,7 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
         producer.newMessage(Schema.BYTES).value("test".getBytes(StandardCharsets.UTF_8)).send();
         producer.newMessage(Schema.BYTES).value("test".getBytes(StandardCharsets.UTF_8)).send();
         producer.newMessage(Schema.BOOL).value(true).send();
-        
+
         Schema<Schemas.PersonThree> personThreeSchema = Schema.AVRO(Schemas.PersonThree.class);
         byte[] personThreeSchemaBytes = personThreeSchema.getSchemaInfo().getSchema();
         org.apache.avro.Schema personThreeSchemaAvroNative = new Parser().parse(new ByteArrayInputStream(personThreeSchemaBytes));
