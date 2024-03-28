@@ -25,6 +25,10 @@ import lombok.SneakyThrows;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.auth.AuthenticationToken;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.AuthAction;
@@ -33,6 +37,7 @@ import org.apache.pulsar.security.MockedPulsarStandalone;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 import java.util.HashMap;
 import java.util.Map;
@@ -82,6 +87,14 @@ public class TopicAuthZTest extends MockedPulsarStandalone {
             tenantManagerAdmin.close();
         }
         close();
+    }
+
+    @DataProvider(name = "partitioned")
+    public static Object[][] partitioned() {
+        return new Object[][] {
+                {true},
+                {false}
+        };
     }
 
 
@@ -341,5 +354,751 @@ public class TopicAuthZTest extends MockedPulsarStandalone {
             superUserAdmin.topics().revokePermissions(topic, subject);
         }
         superUserAdmin.topics().deletePartitionedTopic(topic, true);
+    }
+
+    @Test(dataProvider = "partitioned")
+    @SneakyThrows
+    public void testPartitionedTopicMetadata(boolean partitioned) {
+        final String random = UUID.randomUUID().toString();
+        final String topic = "persistent://public/default/" + random;
+        final String subject =  UUID.randomUUID().toString();
+        final String token = Jwts.builder()
+                .claim("sub", subject).signWith(SECRET_KEY).compact();
+        createTopic(topic, partitioned);
+        @Cleanup
+        final PulsarAdmin subAdmin = PulsarAdmin.builder()
+                .serviceHttpUrl(getPulsarService().getWebServiceAddress())
+                .authentication(new AuthenticationToken(token))
+                .build();
+        //
+        superUserAdmin.topics().getPartitionedTopicMetadata(topic);
+
+        // test tenant manager
+        tenantManagerAdmin.topics().getPartitionedTopicMetadata(topic);
+
+        Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
+                () -> subAdmin.topics().getPartitionedTopicMetadata(topic));
+
+        for (AuthAction action : AuthAction.values()) {
+            superUserAdmin.topics().grantPermission(topic, subject, Set.of(action));
+            if (AuthAction.produce == action || AuthAction.consume == action) {
+                subAdmin.topics().getPartitionedTopicMetadata(topic);
+            } else {
+                Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
+                        () -> subAdmin.topics().getPartitionedTopicMetadata(topic));
+            }
+            superUserAdmin.topics().revokePermissions(topic, subject);
+        }
+        deleteTopic(topic, partitioned);
+    }
+
+    @Test(dataProvider = "partitioned")
+    @SneakyThrows
+    public void testGetProperties(boolean partitioned) {
+        final String random = UUID.randomUUID().toString();
+        final String topic = "persistent://public/default/" + random;
+        final String subject =  UUID.randomUUID().toString();
+        final String token = Jwts.builder()
+                .claim("sub", subject).signWith(SECRET_KEY).compact();
+        createTopic(topic, partitioned);
+        @Cleanup
+        final PulsarAdmin subAdmin = PulsarAdmin.builder()
+                .serviceHttpUrl(getPulsarService().getWebServiceAddress())
+                .authentication(new AuthenticationToken(token))
+                .build();
+        //
+        Map<String, String> properties = new HashMap<>();
+        properties.put("key1", "value1");
+        superUserAdmin.topics().getProperties(topic);
+
+        // test tenant manager
+        tenantManagerAdmin.topics().getProperties(topic);
+
+        Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
+                () -> subAdmin.topics().getProperties(topic));
+
+        for (AuthAction action : AuthAction.values()) {
+            superUserAdmin.topics().grantPermission(topic, subject, Set.of(action));
+            if (AuthAction.produce == action || AuthAction.consume == action) {
+                subAdmin.topics().getPartitionedTopicMetadata(topic);
+            } else {
+                Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
+                        () -> subAdmin.topics().getPartitionedTopicMetadata(topic));
+            }
+            superUserAdmin.topics().revokePermissions(topic, subject);
+        }
+        deleteTopic(topic, partitioned);
+    }
+
+    @Test(dataProvider = "partitioned")
+    @SneakyThrows
+    public void testUpdateProperties(boolean partitioned) {
+        final String random = UUID.randomUUID().toString();
+        final String topic = "persistent://public/default/" + random;
+        final String subject =  UUID.randomUUID().toString();
+        final String token = Jwts.builder()
+                .claim("sub", subject).signWith(SECRET_KEY).compact();
+        createTopic(topic, partitioned);
+        @Cleanup
+        final PulsarAdmin subAdmin = PulsarAdmin.builder()
+                .serviceHttpUrl(getPulsarService().getWebServiceAddress())
+                .authentication(new AuthenticationToken(token))
+                .build();
+        //
+        Map<String, String> properties = new HashMap<>();
+        properties.put("key1", "value1");
+        superUserAdmin.topics().updateProperties(topic, properties);
+
+        // test tenant manager
+        tenantManagerAdmin.topics().updateProperties(topic, properties);
+
+        Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
+                () -> subAdmin.topics().updateProperties(topic, properties));
+
+        for (AuthAction action : AuthAction.values()) {
+            superUserAdmin.topics().grantPermission(topic, subject, Set.of(action));
+            Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
+                    () -> subAdmin.topics().updateProperties(topic, properties));
+            superUserAdmin.topics().revokePermissions(topic, subject);
+        }
+        deleteTopic(topic, partitioned);
+    }
+
+    @Test(dataProvider = "partitioned")
+    @SneakyThrows
+    public void testRemoveProperties(boolean partitioned) {
+        final String random = UUID.randomUUID().toString();
+        final String topic = "persistent://public/default/" + random;
+        final String subject =  UUID.randomUUID().toString();
+        final String token = Jwts.builder()
+                .claim("sub", subject).signWith(SECRET_KEY).compact();
+        createTopic(topic, partitioned);
+        @Cleanup
+        final PulsarAdmin subAdmin = PulsarAdmin.builder()
+                .serviceHttpUrl(getPulsarService().getWebServiceAddress())
+                .authentication(new AuthenticationToken(token))
+                .build();
+        //
+        superUserAdmin.topics().removeProperties(topic, "key1");
+
+        // test tenant manager
+        tenantManagerAdmin.topics().removeProperties(topic, "key1");
+
+        Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
+                () -> subAdmin.topics().removeProperties(topic, "key1"));
+
+        for (AuthAction action : AuthAction.values()) {
+            superUserAdmin.topics().grantPermission(topic, subject, Set.of(action));
+            Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
+                    () -> subAdmin.topics().removeProperties(topic, "key1"));
+            superUserAdmin.topics().revokePermissions(topic, subject);
+        }
+        deleteTopic(topic, partitioned);
+    }
+
+    @Test
+    @SneakyThrows
+    public void testDeletePartitionedTopic() {
+        final String random = UUID.randomUUID().toString();
+        String ns = "public/default/";
+        final String topic = "persistent://" + ns + random;
+        final String subject =  UUID.randomUUID().toString();
+        final String token = Jwts.builder()
+                .claim("sub", subject).signWith(SECRET_KEY).compact();
+        @Cleanup
+        final PulsarAdmin subAdmin = PulsarAdmin.builder()
+                .serviceHttpUrl(getPulsarService().getWebServiceAddress())
+                .authentication(new AuthenticationToken(token))
+                .build();
+        //
+        createTopic(topic , true);
+        superUserAdmin.topics().deletePartitionedTopic(topic);
+
+        // test tenant manager
+        createTopic(topic, true);
+        tenantManagerAdmin.topics().deletePartitionedTopic(topic);
+
+        createTopic(topic, true);
+        Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
+                () -> subAdmin.topics().deletePartitionedTopic(topic));
+
+        for (AuthAction action : AuthAction.values()) {
+            superUserAdmin.namespaces().grantPermissionOnNamespace(ns, subject, Set.of(action));
+            Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
+                    () -> subAdmin.topics().deletePartitionedTopic(topic));
+            superUserAdmin.namespaces().revokePermissionsOnNamespace(ns, subject);
+        }
+        deleteTopic(topic, true);
+    }
+
+    @Test(dataProvider = "partitioned")
+    @SneakyThrows
+    public void testGetSubscription(boolean partitioned) {
+        final String random = UUID.randomUUID().toString();
+        final String topic = "persistent://public/default/" + random;
+        final String subject =  UUID.randomUUID().toString();
+        final String token = Jwts.builder()
+                .claim("sub", subject).signWith(SECRET_KEY).compact();
+        createTopic(topic, partitioned);
+        @Cleanup
+        final PulsarAdmin subAdmin = PulsarAdmin.builder()
+                .serviceHttpUrl(getPulsarService().getWebServiceAddress())
+                .authentication(new AuthenticationToken(token))
+                .build();
+        //
+        superUserAdmin.topics().getSubscriptions(topic);
+
+        // test tenant manager
+        tenantManagerAdmin.topics().getSubscriptions(topic);
+
+        Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
+                () -> subAdmin.topics().getSubscriptions(topic));
+
+        for (AuthAction action : AuthAction.values()) {
+            superUserAdmin.topics().grantPermission(topic, subject, Set.of(action));
+            if (AuthAction.consume == action) {
+                subAdmin.topics().getSubscriptions(topic);
+            } else {
+                Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
+                        () -> subAdmin.topics().getSubscriptions(topic));
+            }
+            superUserAdmin.topics().revokePermissions(topic, subject);
+        }
+        deleteTopic(topic, partitioned);
+    }
+
+    @Test(dataProvider = "partitioned")
+    @SneakyThrows
+    public void testGetInternalStats(boolean partitioned) {
+        final String random = UUID.randomUUID().toString();
+        final String topic = "persistent://public/default/" + random;
+        final String subject =  UUID.randomUUID().toString();
+        final String token = Jwts.builder()
+                .claim("sub", subject).signWith(SECRET_KEY).compact();
+        createTopic(topic, partitioned);
+        @Cleanup
+        final PulsarAdmin subAdmin = PulsarAdmin.builder()
+                .serviceHttpUrl(getPulsarService().getWebServiceAddress())
+                .authentication(new AuthenticationToken(token))
+                .build();
+        //
+        if (partitioned) {
+            superUserAdmin.topics().getPartitionedInternalStats(topic);
+        } else {
+            superUserAdmin.topics().getInternalStats(topic);
+        }
+
+        // test tenant manager
+        if (partitioned) {
+            tenantManagerAdmin.topics().getPartitionedInternalStats(topic);
+        } else {
+            tenantManagerAdmin.topics().getInternalStats(topic);
+
+        }
+
+        if (partitioned) {
+            Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
+                    () -> subAdmin.topics().getPartitionedInternalStats(topic));
+        } else {
+            Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
+                    () -> subAdmin.topics().getInternalStats(topic));
+        }
+
+        for (AuthAction action : AuthAction.values()) {
+            superUserAdmin.topics().grantPermission(topic, subject, Set.of(action));
+            if (AuthAction.produce == action || AuthAction.consume == action) {
+                if (partitioned) {
+                    subAdmin.topics().getPartitionedInternalStats(topic);
+                } else {
+                    subAdmin.topics().getInternalStats(topic);
+                }
+            } else {
+                if (partitioned) {
+                    Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
+                            () -> subAdmin.topics().getPartitionedInternalStats(topic));
+
+                } else {
+                    Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
+                            () -> subAdmin.topics().getInternalStats(topic));
+                }
+            }
+            superUserAdmin.topics().revokePermissions(topic, subject);
+        }
+        deleteTopic(topic, partitioned);
+    }
+
+    @Test(dataProvider = "partitioned")
+    @SneakyThrows
+    public void testDeleteSubscription(boolean partitioned) {
+        final String random = UUID.randomUUID().toString();
+        final String topic = "persistent://public/default/" + random;
+        final String subject =  UUID.randomUUID().toString();
+        final String token = Jwts.builder()
+                .claim("sub", subject).signWith(SECRET_KEY).compact();
+        createTopic(topic, partitioned);
+        @Cleanup
+        final PulsarAdmin subAdmin = PulsarAdmin.builder()
+                .serviceHttpUrl(getPulsarService().getWebServiceAddress())
+                .authentication(new AuthenticationToken(token))
+                .build();
+        //
+        String subName = "test-sub";
+        superUserAdmin.topics().createSubscription(topic, subName, MessageId.latest);
+        superUserAdmin.topics().deleteSubscription(topic, subName);
+
+        // test tenant manager
+        superUserAdmin.topics().createSubscription(topic, subName, MessageId.latest);
+        tenantManagerAdmin.topics().deleteSubscription(topic, subName);
+
+        superUserAdmin.topics().createSubscription(topic, subName, MessageId.latest);
+        Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
+                () -> subAdmin.topics().deleteSubscription(topic, subName));
+
+        for (AuthAction action : AuthAction.values()) {
+            superUserAdmin.topics().grantPermission(topic, subject, Set.of(action));
+            if (AuthAction.consume == action) {
+                subAdmin.topics().deleteSubscription(topic, "test-sub");
+            } else {
+                Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
+                        () -> subAdmin.topics().deleteSubscription(topic, "test-sub"));
+            }
+            superUserAdmin.topics().revokePermissions(topic, subject);
+        }
+        deleteTopic(topic, partitioned);
+    }
+
+    @Test(dataProvider = "partitioned")
+    @SneakyThrows
+    public void testSkipAllMessage(boolean partitioned) {
+        final String random = UUID.randomUUID().toString();
+        final String topic = "persistent://public/default/" + random;
+        final String subject =  UUID.randomUUID().toString();
+        final String token = Jwts.builder()
+                .claim("sub", subject).signWith(SECRET_KEY).compact();
+        createTopic(topic, partitioned);
+        @Cleanup
+        final PulsarAdmin subAdmin = PulsarAdmin.builder()
+                .serviceHttpUrl(getPulsarService().getWebServiceAddress())
+                .authentication(new AuthenticationToken(token))
+                .build();
+        //
+        String subName = "test-sub";
+        superUserAdmin.topics().createSubscription(topic, subName, MessageId.latest);
+        superUserAdmin.topics().skipAllMessages(topic, subName);
+
+        // test tenant manager
+        tenantManagerAdmin.topics().skipAllMessages(topic, subName);
+
+        Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
+                () -> subAdmin.topics().skipAllMessages(topic, subName));
+
+        for (AuthAction action : AuthAction.values()) {
+            superUserAdmin.topics().grantPermission(topic, subject, Set.of(action));
+            if (AuthAction.consume == action) {
+                subAdmin.topics().skipAllMessages(topic,subName);
+            } else {
+                Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
+                        () -> subAdmin.topics().skipAllMessages(topic, subName));
+            }
+            superUserAdmin.topics().revokePermissions(topic, subject);
+        }
+        deleteTopic(topic, partitioned);
+    }
+
+    @Test
+    @SneakyThrows
+    public void testSkipMessage() {
+        final String random = UUID.randomUUID().toString();
+        final String topic = "persistent://public/default/" + random;
+        final String subject =  UUID.randomUUID().toString();
+        final String token = Jwts.builder()
+                .claim("sub", subject).signWith(SECRET_KEY).compact();
+        createTopic(topic, false);
+        @Cleanup
+        final PulsarAdmin subAdmin = PulsarAdmin.builder()
+                .serviceHttpUrl(getPulsarService().getWebServiceAddress())
+                .authentication(new AuthenticationToken(token))
+                .build();
+        //
+        String subName = "test-sub";
+        superUserAdmin.topics().createSubscription(topic, subName, MessageId.latest);
+        superUserAdmin.topics().skipMessages(topic, subName, 1);
+
+        // test tenant manager
+        tenantManagerAdmin.topics().skipMessages(topic, subName, 1);
+
+        Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
+                () -> subAdmin.topics().skipMessages(topic, subName, 1));
+
+        for (AuthAction action : AuthAction.values()) {
+            superUserAdmin.topics().grantPermission(topic, subject, Set.of(action));
+            if (AuthAction.consume == action) {
+                subAdmin.topics().skipMessages(topic, subName, 1);
+            } else {
+                Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
+                        () -> subAdmin.topics().skipMessages(topic, subName, 1));
+            }
+            superUserAdmin.topics().revokePermissions(topic, subject);
+        }
+        deleteTopic(topic, false);
+    }
+
+    @Test(dataProvider = "partitioned")
+    @SneakyThrows
+    public void testExpireMessagesForAllSubscriptions(boolean partitioned) {
+        final String random = UUID.randomUUID().toString();
+        final String topic = "persistent://public/default/" + random;
+        final String subject =  UUID.randomUUID().toString();
+        final String token = Jwts.builder()
+                .claim("sub", subject).signWith(SECRET_KEY).compact();
+        createTopic(topic, partitioned);
+        @Cleanup
+        final PulsarAdmin subAdmin = PulsarAdmin.builder()
+                .serviceHttpUrl(getPulsarService().getWebServiceAddress())
+                .authentication(new AuthenticationToken(token))
+                .build();
+        //
+        superUserAdmin.topics().expireMessagesForAllSubscriptions(topic, 1);
+
+        // test tenant manager
+        tenantManagerAdmin.topics().expireMessagesForAllSubscriptions(topic, 1);
+
+        Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
+                () -> subAdmin.topics().expireMessagesForAllSubscriptions(topic, 1));
+
+        for (AuthAction action : AuthAction.values()) {
+            superUserAdmin.topics().grantPermission(topic, subject, Set.of(action));
+            if (AuthAction.consume == action) {
+                subAdmin.topics().expireMessagesForAllSubscriptions(topic, 1);
+            } else {
+                Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
+                        () -> subAdmin.topics().expireMessagesForAllSubscriptions(topic, 1));
+            }
+            superUserAdmin.topics().revokePermissions(topic, subject);
+        }
+        deleteTopic(topic, partitioned);
+    }
+
+    @Test(dataProvider = "partitioned")
+    @SneakyThrows
+    public void testResetCursor(boolean partitioned) {
+        final String random = UUID.randomUUID().toString();
+        final String topic = "persistent://public/default/" + random;
+        final String subject =  UUID.randomUUID().toString();
+        final String token = Jwts.builder()
+                .claim("sub", subject).signWith(SECRET_KEY).compact();
+        createTopic(topic, partitioned);
+        @Cleanup
+        final PulsarAdmin subAdmin = PulsarAdmin.builder()
+                .serviceHttpUrl(getPulsarService().getWebServiceAddress())
+                .authentication(new AuthenticationToken(token))
+                .build();
+        //
+        String subName = "test-sub";
+        superUserAdmin.topics().createSubscription(topic, subName, MessageId.latest);
+        superUserAdmin.topics().resetCursor(topic, subName, System.currentTimeMillis());
+
+        // test tenant manager
+        tenantManagerAdmin.topics().resetCursor(topic, subName, System.currentTimeMillis());
+
+        Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
+                () -> subAdmin.topics().resetCursor(topic, subName, System.currentTimeMillis()));
+
+        for (AuthAction action : AuthAction.values()) {
+            superUserAdmin.topics().grantPermission(topic, subject, Set.of(action));
+            if (AuthAction.consume == action) {
+                subAdmin.topics().resetCursor(topic, subName, System.currentTimeMillis());
+            } else {
+                Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
+                        () -> subAdmin.topics().resetCursor(topic, subName, System.currentTimeMillis()));
+            }
+            superUserAdmin.topics().revokePermissions(topic, subject);
+        }
+        deleteTopic(topic, partitioned);
+    }
+
+    @Test
+    @SneakyThrows
+    public void testResetCursorOnPosition() {
+        final String random = UUID.randomUUID().toString();
+        final String topic = "persistent://public/default/" + random;
+        final String subject =  UUID.randomUUID().toString();
+        final String token = Jwts.builder()
+                .claim("sub", subject).signWith(SECRET_KEY).compact();
+        createTopic(topic, false);
+        @Cleanup
+        final PulsarAdmin subAdmin = PulsarAdmin.builder()
+                .serviceHttpUrl(getPulsarService().getWebServiceAddress())
+                .authentication(new AuthenticationToken(token))
+                .build();
+        //
+        String subName = "test-sub";
+        superUserAdmin.topics().createSubscription(topic, subName, MessageId.latest);
+        superUserAdmin.topics().resetCursor(topic, subName, MessageId.latest);
+
+        // test tenant manager
+        tenantManagerAdmin.topics().resetCursor(topic, subName, MessageId.latest);
+
+        Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
+                () -> subAdmin.topics().resetCursor(topic, subName, MessageId.latest));
+
+        for (AuthAction action : AuthAction.values()) {
+            superUserAdmin.topics().grantPermission(topic, subject, Set.of(action));
+            if (AuthAction.consume == action) {
+                subAdmin.topics().resetCursor(topic, subName, MessageId.latest);
+            } else {
+                Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
+                        () -> subAdmin.topics().resetCursor(topic, subName, MessageId.latest));
+            }
+            superUserAdmin.topics().revokePermissions(topic, subject);
+        }
+        deleteTopic(topic, false);
+    }
+
+    @Test
+    @SneakyThrows
+    public void testGetMessageById() {
+        final String random = UUID.randomUUID().toString();
+        final String topic = "persistent://public/default/" + random;
+        final String subject =  UUID.randomUUID().toString();
+        final String token = Jwts.builder()
+                .claim("sub", subject).signWith(SECRET_KEY).compact();
+        createTopic(topic, false);
+        @Cleanup
+        final PulsarAdmin subAdmin = PulsarAdmin.builder()
+                .serviceHttpUrl(getPulsarService().getWebServiceAddress())
+                .authentication(new AuthenticationToken(token))
+                .build();
+        //
+        @Cleanup
+        final PulsarClient pulsarClient = PulsarClient.builder()
+                .serviceUrl(getPulsarService().getBrokerServiceUrl())
+                .authentication(new AuthenticationToken(TENANT_ADMIN_TOKEN))
+                .build();
+        @Cleanup
+        final Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topic).create();
+        final MessageIdImpl messageId = (MessageIdImpl) producer.send("test");
+        superUserAdmin.topics().getMessagesById(topic, messageId.getLedgerId(), messageId.getEntryId());
+
+        // test tenant manager
+        tenantManagerAdmin.topics().getMessagesById(topic, messageId.getLedgerId(), messageId.getEntryId());
+
+        Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
+                () -> subAdmin.topics().getMessagesById(topic, messageId.getLedgerId(), messageId.getEntryId()));
+
+        for (AuthAction action : AuthAction.values()) {
+            superUserAdmin.topics().grantPermission(topic, subject, Set.of(action));
+            if (AuthAction.consume == action) {
+                subAdmin.topics().getMessagesById(topic, messageId.getLedgerId(), messageId.getEntryId());
+            } else {
+                Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
+                        () -> subAdmin.topics().getMessagesById(topic, messageId.getLedgerId(), messageId.getEntryId()));
+            }
+            superUserAdmin.topics().revokePermissions(topic, subject);
+        }
+        deleteTopic(topic, false);
+    }
+
+    @Test
+    @SneakyThrows
+    public void testPeekNthMessage() {
+        final String random = UUID.randomUUID().toString();
+        final String topic = "persistent://public/default/" + random;
+        final String subject =  UUID.randomUUID().toString();
+        final String token = Jwts.builder()
+                .claim("sub", subject).signWith(SECRET_KEY).compact();
+        createTopic(topic, false);
+        @Cleanup
+        final PulsarAdmin subAdmin = PulsarAdmin.builder()
+                .serviceHttpUrl(getPulsarService().getWebServiceAddress())
+                .authentication(new AuthenticationToken(token))
+                .build();
+        //
+        @Cleanup
+        final PulsarClient pulsarClient = PulsarClient.builder()
+                .serviceUrl(getPulsarService().getBrokerServiceUrl())
+                .authentication(new AuthenticationToken(TENANT_ADMIN_TOKEN))
+                .build();
+        String subName = "test-sub";
+        @Cleanup
+        final Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topic).create();
+        producer.send("test");
+        superUserAdmin.topics().peekMessages(topic, subName, 1);
+
+        // test tenant manager
+        tenantManagerAdmin.topics().peekMessages(topic, subName, 1);
+
+        Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
+                () -> subAdmin.topics().peekMessages(topic, subName, 1));
+
+        for (AuthAction action : AuthAction.values()) {
+            superUserAdmin.topics().grantPermission(topic, subject, Set.of(action));
+            if (AuthAction.consume == action) {
+                subAdmin.topics().peekMessages(topic, subName, 1);
+            } else {
+                Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
+                        () -> subAdmin.topics().peekMessages(topic, subName, 1));
+            }
+            superUserAdmin.topics().revokePermissions(topic, subject);
+        }
+        deleteTopic(topic, false);
+    }
+
+    @Test
+    @SneakyThrows
+    public void testExamineMessage() {
+        final String random = UUID.randomUUID().toString();
+        final String topic = "persistent://public/default/" + random;
+        final String subject =  UUID.randomUUID().toString();
+        final String token = Jwts.builder()
+                .claim("sub", subject).signWith(SECRET_KEY).compact();
+        createTopic(topic, false);
+        @Cleanup
+        final PulsarAdmin subAdmin = PulsarAdmin.builder()
+                .serviceHttpUrl(getPulsarService().getWebServiceAddress())
+                .authentication(new AuthenticationToken(token))
+                .build();
+        //
+        @Cleanup
+        final PulsarClient pulsarClient = PulsarClient.builder()
+                .serviceUrl(getPulsarService().getBrokerServiceUrl())
+                .authentication(new AuthenticationToken(TENANT_ADMIN_TOKEN))
+                .build();
+        @Cleanup
+        final Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topic).create();
+        producer.send("test");
+        superUserAdmin.topics().examineMessage(topic, "latest", 1);
+
+        // test tenant manager
+        tenantManagerAdmin.topics().examineMessage(topic, "latest", 1);
+
+        Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
+                () -> subAdmin.topics().examineMessage(topic, "latest", 1));
+
+        for (AuthAction action : AuthAction.values()) {
+            superUserAdmin.topics().grantPermission(topic, subject, Set.of(action));
+            if (AuthAction.consume == action) {
+                subAdmin.topics().examineMessage(topic, "latest", 1);
+            } else {
+                Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
+                        () -> subAdmin.topics().examineMessage(topic, "latest", 1));
+            }
+            superUserAdmin.topics().revokePermissions(topic, subject);
+        }
+        deleteTopic(topic, false);
+    }
+
+    @Test(dataProvider = "partitioned")
+    @SneakyThrows
+    public void testExpireMessage(boolean partitioned) {
+        final String random = UUID.randomUUID().toString();
+        final String topic = "persistent://public/default/" + random;
+        final String subject =  UUID.randomUUID().toString();
+        final String token = Jwts.builder()
+                .claim("sub", subject).signWith(SECRET_KEY).compact();
+        createTopic(topic, partitioned);
+        @Cleanup
+        final PulsarAdmin subAdmin = PulsarAdmin.builder()
+                .serviceHttpUrl(getPulsarService().getWebServiceAddress())
+                .authentication(new AuthenticationToken(token))
+                .build();
+        //
+        @Cleanup
+        final PulsarClient pulsarClient = PulsarClient.builder()
+                .serviceUrl(getPulsarService().getBrokerServiceUrl())
+                .authentication(new AuthenticationToken(TENANT_ADMIN_TOKEN))
+                .build();
+        String subName = "test-sub";
+        superUserAdmin.topics().createSubscription(topic, subName, MessageId.latest);
+        @Cleanup
+        final Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topic).create();
+        producer.send("test1");
+        producer.send("test2");
+        producer.send("test3");
+        producer.send("test4");
+        superUserAdmin.topics().expireMessages(topic, subName, 1);
+
+        // test tenant manager
+        tenantManagerAdmin.topics().expireMessages(topic, subName, 1);
+
+        Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
+                () -> subAdmin.topics().expireMessages(topic, subName, 1));
+
+        for (AuthAction action : AuthAction.values()) {
+            superUserAdmin.topics().grantPermission(topic, subject, Set.of(action));
+            if (AuthAction.consume == action) {
+                subAdmin.topics().expireMessages(topic, subName, 1);
+            } else {
+                Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
+                        () -> subAdmin.topics().expireMessages(topic, subName, 1));
+            }
+            superUserAdmin.topics().revokePermissions(topic, subject);
+        }
+        deleteTopic(topic, partitioned);
+    }
+
+    @Test
+    @SneakyThrows
+    public void testExpireMessageByPosition() {
+        final String random = UUID.randomUUID().toString();
+        final String topic = "persistent://public/default/" + random;
+        final String subject =  UUID.randomUUID().toString();
+        final String token = Jwts.builder()
+                .claim("sub", subject).signWith(SECRET_KEY).compact();
+        createTopic(topic, false);
+        @Cleanup
+        final PulsarAdmin subAdmin = PulsarAdmin.builder()
+                .serviceHttpUrl(getPulsarService().getWebServiceAddress())
+                .authentication(new AuthenticationToken(token))
+                .build();
+        //
+        @Cleanup
+        final PulsarClient pulsarClient = PulsarClient.builder()
+                .serviceUrl(getPulsarService().getBrokerServiceUrl())
+                .authentication(new AuthenticationToken(TENANT_ADMIN_TOKEN))
+                .build();
+        String subName = "test-sub";
+        superUserAdmin.topics().createSubscription(topic, subName, MessageId.latest);
+        @Cleanup
+        final Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topic).create();
+        producer.send("test1");
+        producer.send("test2");
+        producer.send("test3");
+        producer.send("test4");
+        superUserAdmin.topics().expireMessages(topic, subName, MessageId.earliest, false);
+
+        // test tenant manager
+        tenantManagerAdmin.topics().expireMessages(topic, subName, MessageId.earliest, false);
+
+        Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
+                () -> subAdmin.topics().expireMessages(topic, subName, MessageId.earliest, false));
+
+        for (AuthAction action : AuthAction.values()) {
+            superUserAdmin.topics().grantPermission(topic, subject, Set.of(action));
+            if (AuthAction.consume == action) {
+                subAdmin.topics().expireMessages(topic, subName, MessageId.earliest, false);
+            } else {
+                Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
+                        () -> subAdmin.topics().expireMessages(topic, subName, MessageId.earliest, false));
+            }
+            superUserAdmin.topics().revokePermissions(topic, subject);
+        }
+        deleteTopic(topic, false);
+    }
+
+    private void createTopic(String topic, boolean partitioned) throws Exception {
+        if (partitioned) {
+            superUserAdmin.topics().createPartitionedTopic(topic, 2);
+        } else {
+            superUserAdmin.topics().createNonPartitionedTopic(topic);
+        }
+    }
+
+    private void deleteTopic(String topic, boolean partitioned) throws Exception {
+        if (partitioned) {
+            superUserAdmin.topics().deletePartitionedTopic(topic, true);
+        } else {
+            superUserAdmin.topics().delete(topic, true);
+        }
     }
 }

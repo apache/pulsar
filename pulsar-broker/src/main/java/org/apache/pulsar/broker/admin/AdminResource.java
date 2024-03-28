@@ -480,9 +480,9 @@ public abstract class AdminResource extends PulsarWebResource {
         // validates global-namespace contains local/peer cluster: if peer/local cluster present then lookup can
         // serve/redirect request else fail partitioned-metadata-request so, client fails while creating
         // producer/consumer
-        return validateClusterOwnershipAsync(topicName.getCluster())
+        return validateTopicOperationAsync(topicName, TopicOperation.LOOKUP)
+                .thenCompose(__ -> validateClusterOwnershipAsync(topicName.getCluster()))
                 .thenCompose(__ -> validateGlobalNamespaceOwnershipAsync(topicName.getNamespaceObject()))
-                .thenCompose(__ -> validateTopicOperationAsync(topicName, TopicOperation.LOOKUP))
                 .thenCompose(__ -> {
                     if (checkAllowAutoCreation) {
                         return pulsar().getBrokerService()
