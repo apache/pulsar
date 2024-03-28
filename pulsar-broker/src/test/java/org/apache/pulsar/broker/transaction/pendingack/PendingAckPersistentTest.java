@@ -63,6 +63,7 @@ import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
@@ -165,6 +166,10 @@ public class PendingAckPersistentTest extends TransactionTestBase {
                 .thenReturn(FutureUtil.failedFuture(new ManagedLedgerException
                         .NonRecoverableLedgerException("mock fail")))
                 .thenReturn(CompletableFuture.completedFuture(false));
+        @Cleanup PulsarClient pulsarClient = PulsarClient.builder()
+                .serviceUrl(pulsarServiceList.get(0).getBrokerServiceUrl())
+                .operationTimeout(3, TimeUnit.SECONDS)
+                .build();
         try {
             @Cleanup
             Consumer<byte[]> consumer4 = pulsarClient.newConsumer()
