@@ -1681,7 +1681,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
                     .key(String.valueOf(random.nextInt(NUMBER_OF_KEYS)))
                     .value(100 + i)
                     .send();
-            log.info("Published delayed message :{}", messageId);
+            log.info("Published message :{}", messageId);
         }
         producer.close();
 
