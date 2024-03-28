@@ -126,8 +126,10 @@ import org.apache.bookkeeper.mledger.proto.MLDataFormats.OffloadContext;
 import org.apache.bookkeeper.mledger.util.CallbackMutex;
 import org.apache.bookkeeper.mledger.util.Futures;
 import org.apache.bookkeeper.net.BookieId;
+import org.apache.commons.lang3.mutable.MutableBoolean;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition;
+import org.apache.pulsar.common.mutable.AtomicMutableBoolean;
 import org.apache.pulsar.common.policies.data.EnsemblePlacementPolicyConfig;
 import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats;
 import org.apache.pulsar.common.policies.data.OffloadPolicies;
@@ -239,6 +241,9 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
     protected volatile long lastAddEntryTimeMs = 0;
     private long inactiveLedgerRollOverTimeMs = 0;
+
+    /** A signal that may trigger all the subsequent OpAddEntry of current ledger to be failed due to timeout. **/
+    private volatile MutableBoolean currentLedgerTimeoutTriggered;
 
     protected static final int DEFAULT_LEDGER_DELETE_RETRIES = 3;
     protected static final int DEFAULT_LEDGER_DELETE_BACKOFF_TIME_SEC = 60;
@@ -774,7 +779,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
         // Jump to specific thread to avoid contention from writers writing from different threads
         executor.execute(() -> {
-            OpAddEntry addOperation = OpAddEntry.createNoRetainBuffer(this, buffer, callback, ctx);
+            OpAddEntry addOperation = OpAddEntry.createNoRetainBuffer(this, buffer, callback, ctx,
+                    currentLedgerTimeoutTriggered);
             internalAsyncAddEntry(addOperation);
         });
     }
@@ -790,7 +796,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
         // Jump to specific thread to avoid contention from writers writing from different threads
         executor.execute(() -> {
-            OpAddEntry addOperation = OpAddEntry.createNoRetainBuffer(this, buffer, numberOfMessages, callback, ctx);
+            OpAddEntry addOperation = OpAddEntry.createNoRetainBuffer(this, buffer, numberOfMessages, callback, ctx,
+                    currentLedgerTimeoutTriggered);
             internalAsyncAddEntry(addOperation);
         });
     }
@@ -1586,6 +1593,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                         currentLedger = lh;
                         currentLedgerEntries = 0;
                         currentLedgerSize = 0;
+                        currentLedgerTimeoutTriggered = createTimeoutTriggeredMarker();
                         updateLedgersIdsComplete(originalCurrentLedger);
                         mbean.addLedgerSwitchLatencySample(System.currentTimeMillis()
                                 - lastLedgerCreationInitiationTimestamp, TimeUnit.MILLISECONDS);
@@ -1667,9 +1675,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             if (existsOp != null) {
                 // If op is used by another ledger handle, we need to close it and create a new one
                 if (existsOp.ledger != null) {
-                    existsOp.close();
-                    existsOp = OpAddEntry.createNoRetainBuffer(existsOp.ml, existsOp.data,
-                            existsOp.getNumberOfMessages(), existsOp.callback, existsOp.ctx);
+                    existsOp = existsOp.duplicateAndClose(currentLedgerTimeoutTriggered);
                 }
                 existsOp.setLedger(currentLedger);
                 pendingAddEntries.add(existsOp);
@@ -4160,13 +4166,14 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
         OpAddEntry opAddEntry = pendingAddEntries.peek();
         if (opAddEntry != null) {
-            final long finalAddOpCount = opAddEntry.addOpCount;
             boolean isTimedOut = opAddEntry.lastInitTime != -1
                     && TimeUnit.NANOSECONDS.toSeconds(System.nanoTime() - opAddEntry.lastInitTime) >= timeoutSec;
             if (isTimedOut) {
-                log.error("Failed to add entry for ledger {} in time-out {} sec",
-                        (opAddEntry.ledger != null ? opAddEntry.ledger.getId() : -1), timeoutSec);
-                opAddEntry.handleAddTimeoutFailure(opAddEntry.ledger, finalAddOpCount);
+                log.warn("[{}] Failed to add entry {}:{} in time-out {} sec", this.name,
+                        opAddEntry.ledger != null ? opAddEntry.ledger.getId() : -1,
+                        opAddEntry.entryId, timeoutSec);
+                currentLedgerTimeoutTriggered.setTrue();
+                opAddEntry.handleAddFailure(opAddEntry.ledger);
             }
         }
     }
@@ -4556,5 +4563,17 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             }
         }
         return theSlowestNonDurableReadPosition;
+    }
+
+    /**
+     * If timeout checking is not enabled, use non-atomic objects to improve performance.
+     * Note: once {@link ManagedLedgerConfig#getAddEntryTimeoutSeconds} can be turned on dynamically, then this method
+     *       needs to always return {@link AtomicMutableBoolean}.
+     */
+    private MutableBoolean createTimeoutTriggeredMarker() {
+        if (config.getAddEntryTimeoutSeconds() > 0) {
+            return new AtomicMutableBoolean();
+        }
+        return new MutableBoolean();
     }
 }
