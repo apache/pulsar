@@ -458,6 +458,12 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
         if (!conf.isRetryEnable()) {
             throw new PulsarClientException(RECONSUME_LATER_ERROR_MSG);
         }
+        if (conf.getSubscriptionType() != SubscriptionType.Shared
+                && conf.getSubscriptionType() != SubscriptionType.Key_Shared) {
+            log.warn("[{}] Message {} will be reconsumed after delay {} {}. This isn't recommended for "
+                            + "subscription {} with type {}.", this.topic, message, delayTime, unit.toString(),
+                    this.subscription, conf.getSubscriptionType());
+        }
         try {
             reconsumeLaterAsync(message, customProperties, delayTime, unit).get();
         } catch (InterruptedException e) {
