@@ -233,6 +233,7 @@ public class NamespaceStatsAggregator {
                 stats.producersCount++;
                 stats.rateIn += producer.getStats().msgRateIn;
                 stats.throughputIn += producer.getStats().msgThroughputIn;
+                stats.requestRateIn += producer.getStats().requestRateIn;
 
                 if (includeProducerMetrics) {
                     AggregatedProducerStats producerStats = stats.producerStats.computeIfAbsent(
@@ -241,9 +242,12 @@ public class NamespaceStatsAggregator {
                     producerStats.msgRateIn = producer.getStats().msgRateIn;
                     producerStats.msgThroughputIn = producer.getStats().msgThroughputIn;
                     producerStats.averageMsgSize = producer.getStats().averageMsgSize;
+                    producerStats.requestRateIn = producer.getStats().requestRateIn;
+                    producerStats.averageMsgPerRequest = producer.getStats().averageMsgPerRequest;
                 }
             }
         });
+        stats.averageMsgPerRequest = stats.rateIn / stats.requestRateIn;
 
         if (topic instanceof PersistentTopic) {
             tStatus.subscriptions.forEach((subName, subscriptionStats) -> {

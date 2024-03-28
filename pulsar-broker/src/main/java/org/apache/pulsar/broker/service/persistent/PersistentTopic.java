@@ -2381,6 +2381,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             PublisherStatsImpl publisherStats = producer.getStats();
             stats.msgRateIn += publisherStats.msgRateIn;
             stats.msgThroughputIn += publisherStats.msgThroughputIn;
+            stats.requestRateIn += publisherStats.requestRateIn;
 
             if (producer.isRemote()) {
                 remotePublishersStats.put(producer.getRemoteCluster(), publisherStats);
@@ -2390,6 +2391,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             }
         });
 
+        stats.averageMsgPerRequest = stats.msgRateIn == 0.0 ? 0.0 : (stats.msgRateIn / stats.requestRateIn);
         stats.averageMsgSize = stats.msgRateIn == 0.0 ? 0.0 : (stats.msgThroughputIn / stats.msgRateIn);
         stats.msgInCounter = getMsgInCounter();
         stats.bytesInCounter = getBytesInCounter();

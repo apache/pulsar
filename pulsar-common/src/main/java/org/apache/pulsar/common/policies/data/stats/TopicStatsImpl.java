@@ -51,6 +51,12 @@ public class TopicStatsImpl implements TopicStats {
     /** Total rate of messages published on the topic (msg/s). */
     public double msgRateIn;
 
+    /** Total rate of request published on the topic (request/s). */
+    public double requestRateIn;
+
+    /** Average number of messages per entry on the topic (msg/request). */
+    public double averageMsgPerRequest;
+
     /** Total throughput of messages published on the topic (byte/s). */
     public double msgThroughputIn;
 
@@ -217,6 +223,8 @@ public class TopicStatsImpl implements TopicStats {
     public void reset() {
         this.count = 0;
         this.msgRateIn = 0;
+        this.requestRateIn = 0;
+        this.averageMsgPerRequest = 0;
         this.msgThroughputIn = 0;
         this.msgRateOut = 0;
         this.msgThroughputOut = 0;
@@ -269,6 +277,10 @@ public class TopicStatsImpl implements TopicStats {
         this.waitingPublishers += stats.waitingPublishers;
         double newAverageMsgSize = (this.averageMsgSize * (this.count - 1) + stats.averageMsgSize) / this.count;
         this.averageMsgSize = newAverageMsgSize;
+        this.requestRateIn = stats.requestRateIn;
+        double newAverageMsgPerRequest = (this.averageMsgPerRequest * (this.count - 1) + stats.averageMsgPerRequest)
+                / this.count;
+        this.averageMsgPerRequest = newAverageMsgPerRequest;
         this.storageSize += stats.storageSize;
         this.backlogSize += stats.backlogSize;
         this.publishRateLimitedTimes += stats.publishRateLimitedTimes;
