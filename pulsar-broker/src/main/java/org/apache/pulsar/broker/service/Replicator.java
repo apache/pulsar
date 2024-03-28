@@ -29,9 +29,9 @@ public interface Replicator {
 
     ReplicatorStatsImpl getStats();
 
-    CompletableFuture<Void> disconnect();
+    CompletableFuture<Void> terminate();
 
-    CompletableFuture<Void> disconnect(boolean b);
+    CompletableFuture<Void> disconnect(boolean failIfHasBacklog, boolean closeTheStartingProducer);
 
     void updateRates();
 
