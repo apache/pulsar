@@ -66,6 +66,7 @@ import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.commons.lang3.RandomUtils;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.service.BrokerServiceException.NamingException;
@@ -1802,5 +1803,60 @@ public class ReplicatorTest extends ReplicatorTestBase {
         producer2.produce(1);
 
         Assert.assertThrows(PulsarClientException.ProducerBusyException.class, () -> new MessageProducer(url2, dest2));
+    }
+
+    @Test
+    public void testEnableReplicationWithNamespaceAllowedClustersPolices() throws Exception {
+        log.info("--- testEnableReplicationWithNamespaceAllowedClustersPolices ---");
+        String namespace1 = "pulsar/ns" + RandomUtils.nextLong();
+        admin1.namespaces().createNamespace(namespace1);
+        admin2.namespaces().createNamespace(namespace1 + "init_cluster_node");
+        admin1.namespaces().setNamespaceAllowedClusters(namespace1, Sets.newHashSet("r1", "r2"));
+        final TopicName topicName = TopicName.get(
+                BrokerTestUtil.newUniqueName("persistent://" + namespace1 + "/testReplicatorProducerNotExceed1"));
+
+        @Cleanup PulsarClient client1 = PulsarClient
+                .builder()
+                .serviceUrl(pulsar1.getBrokerServiceUrl())
+                .build();
+        @Cleanup Producer<byte[]> producer = client1
+                .newProducer()
+                .topic(topicName.toString())
+                .create();
+        producer.newMessage().send();
+        // Enable replication at the topic level in the cluster1.
+        admin1.topics().setReplicationClusters(topicName.toString(), List.of("r1", "r2"));
+
+        PersistentTopic persistentTopic1 = (PersistentTopic) pulsar1.getBrokerService().getTopic(topicName.toString(),
+                false)
+                .get()
+                .get();
+        // Verify the replication from cluster1 to cluster2 is ready, but the replication form the cluster2 to cluster1
+        // is not ready.
+        Awaitility.await().untilAsserted(() -> {
+            ConcurrentOpenHashMap<String, Replicator> replicatorMap = persistentTopic1.getReplicators();
+            assertEquals(replicatorMap.size(), 1);
+            Replicator replicator = replicatorMap.get(replicatorMap.keys().get(0));
+            assertTrue(replicator.isConnected());
+        });
+
+        PersistentTopic persistentTopic2 = (PersistentTopic) pulsar2.getBrokerService().getTopic(topicName.toString(),
+                        false)
+                .get()
+                .get();
+
+        Awaitility.await().untilAsserted(() -> {
+            ConcurrentOpenHashMap<String, Replicator> replicatorMap = persistentTopic2.getReplicators();
+            assertEquals(replicatorMap.size(), 0);
+        });
+        // Enable replication at the topic level in the cluster2.
+        admin2.topics().setReplicationClusters(topicName.toString(), List.of("r1", "r2"));
+        //  Verify the replication between cluster1 and cluster2  is ready.
+        Awaitility.await().untilAsserted(() -> {
+            ConcurrentOpenHashMap<String, Replicator> replicatorMap = persistentTopic2.getReplicators();
+            assertEquals(replicatorMap.size(), 1);
+            Replicator replicator = replicatorMap.get(replicatorMap.keys().get(0));
+            assertTrue(replicator.isConnected());
+        });
     }
 }
