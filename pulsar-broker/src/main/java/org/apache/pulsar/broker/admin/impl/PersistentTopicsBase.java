@@ -3397,10 +3397,33 @@ public class PersistentTopicsBase extends AdminResource {
                 });
     }
 
-    protected CompletableFuture<Void> internalSetReplicationClusters(List<String> clusterIds) {
+    protected CompletableFuture<Void> internalSetReplicationClusters(List<String> clusterIds, boolean authoritative) {
 
         return validateTopicPolicyOperationAsync(topicName, PolicyName.REPLICATION, PolicyOperation.WRITE)
                 .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
+                .thenCompose(__ -> {
+                    if (topicName.isPartitioned()) {
+                        throw new RestException(Status.PRECONDITION_FAILED, "Topic name is not valid. "
+                                + "Replication can not be configured to a single partition");
+                    } else {
+                        return getPartitionedTopicMetadataAsync(topicName, authoritative, false);
+                    }
+                })
+                .thenCompose(partitionedTopicMetadata -> {
+                    if (partitionedTopicMetadata.partitions <= 0) {
+                        return CompletableFuture.completedFuture(null);
+                    }
+                    // The partitions must be created before updating polices.
+                    // Otherwise, the partitions may be created as non-partition topics in the remote clusters.
+                    List<CompletableFuture<Void>> futureList = new ArrayList<>();
+                    for (String cluster : clusterIds) {
+                        if (!cluster.equals(pulsar().getConfiguration().getClusterName())) {
+                            futureList.add(internalCreatePartitionedTopicForRemoteCluster(cluster,
+                                    partitionedTopicMetadata.partitions));
+                        }
+                    }
+                    return FutureUtil.waitForAll(futureList);
+                })
                 .thenCompose(__ -> {
                     if (CollectionUtils.isEmpty(clusterIds)) {
                         throw new RestException(Status.PRECONDITION_FAILED, "ClusterIds should not be null or empty");
