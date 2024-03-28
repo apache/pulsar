@@ -66,7 +66,7 @@ public class LocalBrokerData implements LoadManagerReport {
     // The stats given in the most recent invocation of update.
     private Map<String, NamespaceBundleStats> lastStats;
 
-    private int numTopics;
+    private long numTopics;
     private int numBundles;
     private int numConsumers;
     private int numProducers;
@@ -202,7 +202,7 @@ public class LocalBrokerData implements LoadManagerReport {
         msgRateOut = 0;
         msgThroughputIn = 0;
         msgThroughputOut = 0;
-        int totalNumTopics = 0;
+        long totalNumTopics = 0;
         int totalNumBundles = 0;
         int totalNumConsumers = 0;
         int totalNumProducers = 0;
