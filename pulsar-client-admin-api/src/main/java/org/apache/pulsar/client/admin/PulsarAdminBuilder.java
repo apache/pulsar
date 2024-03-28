@@ -327,4 +327,11 @@ public interface PulsarAdminBuilder {
      */
     PulsarAdminBuilder setContextClassLoader(ClassLoader clientBuilderClassLoader);
 
+    /**
+     * Allow to control the gzip compression of the HTTP response payload.
+     * By default, "Accept-Encoding: gzip" is added to HTTP requests.
+     *
+     * @param gzipCompressionEnabled whether to enable gzip compression
+     */
+    PulsarAdminBuilder acceptGzipCompression(boolean gzipCompressionEnabled);
 }

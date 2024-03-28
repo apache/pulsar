@@ -106,6 +106,12 @@ public class PulsarAdminImpl implements PulsarAdmin {
 
     public PulsarAdminImpl(String serviceUrl, ClientConfigurationData clientConfigData,
                            ClassLoader clientBuilderClassLoader) throws PulsarClientException {
+        this(serviceUrl, clientConfigData, clientBuilderClassLoader, true);
+    }
+
+    public PulsarAdminImpl(String serviceUrl, ClientConfigurationData clientConfigData,
+                           ClassLoader clientBuilderClassLoader, boolean gzipCompressionEnabled)
+            throws PulsarClientException {
         checkArgument(StringUtils.isNotBlank(serviceUrl), "Service URL needs to be specified");
 
         this.clientConfigData = clientConfigData;
@@ -119,7 +125,7 @@ public class PulsarAdminImpl implements PulsarAdmin {
         }
 
         AsyncHttpConnectorProvider asyncConnectorProvider = new AsyncHttpConnectorProvider(clientConfigData,
-                clientConfigData.getAutoCertRefreshSeconds());
+                clientConfigData.getAutoCertRefreshSeconds(), gzipCompressionEnabled);
 
         ClientConfig httpConfig = new ClientConfig();
         httpConfig.property(ClientProperties.FOLLOW_REDIRECTS, true);

@@ -32,16 +32,19 @@ public class AsyncHttpConnectorProvider implements ConnectorProvider {
     private final ClientConfigurationData conf;
     private Connector connector;
     private final int autoCertRefreshTimeSeconds;
+    private final boolean gzipCompressionEnabled;
 
-    public AsyncHttpConnectorProvider(ClientConfigurationData conf, int autoCertRefreshTimeSeconds) {
+    public AsyncHttpConnectorProvider(ClientConfigurationData conf, int autoCertRefreshTimeSeconds,
+                                      boolean gzipCompressionEnabled) {
         this.conf = conf;
         this.autoCertRefreshTimeSeconds = autoCertRefreshTimeSeconds;
+        this.gzipCompressionEnabled = gzipCompressionEnabled;
     }
 
     @Override
     public Connector getConnector(Client client, Configuration runtimeConfig) {
         if (connector == null) {
-            connector = new AsyncHttpConnector(client, conf, autoCertRefreshTimeSeconds);
+            connector = new AsyncHttpConnector(client, conf, autoCertRefreshTimeSeconds, gzipCompressionEnabled);
         }
         return connector;
     }
@@ -50,6 +53,6 @@ public class AsyncHttpConnectorProvider implements ConnectorProvider {
     public AsyncHttpConnector getConnector(int connectTimeoutMs, int readTimeoutMs, int requestTimeoutMs,
             int autoCertRefreshTimeSeconds) {
         return new AsyncHttpConnector(connectTimeoutMs, readTimeoutMs, requestTimeoutMs, autoCertRefreshTimeSeconds,
-                conf);
+                conf, gzipCompressionEnabled);
     }
 }
