@@ -38,9 +38,8 @@ jobs:
       matrix:
         docker-image:
           - 'apachepulsar/pulsar'
-          - 'apachepulsar/pulsar-all'
         docker-tag:
-          - '3.2.1'
+          - 'latest'
     env:
       IMAGE_REF: '${{ matrix.docker-image }}:${{ matrix.docker-tag }}'
     steps:
