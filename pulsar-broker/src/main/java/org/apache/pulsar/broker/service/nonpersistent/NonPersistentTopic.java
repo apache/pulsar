@@ -159,7 +159,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
                 .getPoliciesAsync(TopicName.get(topic).getNamespaceObject())
                 .thenAccept(optPolicies -> {
                     final Policies policies;
-                    if (!optPolicies.isPresent()) {
+                    if (optPolicies.isEmpty()) {
                         log.warn("[{}] Policies not present and isEncryptionRequired will be set to false", topic);
                         isEncryptionRequired = false;
                         policies = new Policies();
@@ -1151,5 +1151,10 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
     @Override
     public boolean isPersistent() {
         return false;
+    }
+
+    @Override
+    public long getBestEffortOldestUnacknowledgedMessageAgeSeconds() {
+        return -1;
     }
 }

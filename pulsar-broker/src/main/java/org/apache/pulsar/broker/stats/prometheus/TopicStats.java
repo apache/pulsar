@@ -25,6 +25,8 @@ import java.util.Optional;
 import org.apache.bookkeeper.mledger.util.StatsBuckets;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.pulsar.broker.service.Consumer;
+import org.apache.pulsar.broker.stats.prometheus.metrics.PrometheusLabels;
+import org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType;
 import org.apache.pulsar.compaction.CompactionRecord;
 import org.apache.pulsar.compaction.CompactorMXBean;
 
@@ -51,6 +53,7 @@ class TopicStats {
 
     long backlogQuotaLimit;
     long backlogQuotaLimitTime;
+    long backlogAgeSeconds;
 
     ManagedLedgerStats managedLedgerStats = new ManagedLedgerStats();
 
@@ -70,6 +73,11 @@ class TopicStats {
     StatsBuckets compactionLatencyBuckets = new StatsBuckets(CompactionRecord.WRITE_LATENCY_BUCKETS_USEC);
     public int delayedTrackerMemoryUsage;
 
+    public long sizeBasedBacklogQuotaExceededEvictionCount;
+    public long timeBasedBacklogQuotaExceededEvictionCount;
+
+
+    @SuppressWarnings("DuplicatedCode")
     public void reset() {
         subscriptionsCount = 0;
         producersCount = 0;
@@ -106,9 +114,12 @@ class TopicStats {
         compactionCompactedEntriesCount = 0;
         compactionCompactedEntriesSize = 0;
         compactionLatencyBuckets.reset();
-        delayedTrackerMemoryUsage = 0;
+        timeBasedBacklogQuotaExceededEvictionCount = 0;
+        sizeBasedBacklogQuotaExceededEvictionCount = 0;
+        backlogAgeSeconds = -1;
     }
 
+    @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
     public static void printTopicStats(PrometheusMetricStreams stream, TopicStats stats,
                                        Optional<CompactorMXBean> compactorMXBean, String cluster, String namespace,
                                        String topic, boolean splitTopicAndPartitionIndexLabel) {
@@ -158,6 +169,14 @@ class TopicStats {
                 cluster, namespace, topic, splitTopicAndPartitionIndexLabel);
         writeMetric(stream, "pulsar_storage_backlog_quota_limit_time", stats.backlogQuotaLimitTime,
                 cluster, namespace, topic, splitTopicAndPartitionIndexLabel);
+        writeMetric(stream, "pulsar_storage_backlog_age_seconds", stats.backlogAgeSeconds,
+                cluster, namespace, topic, splitTopicAndPartitionIndexLabel);
+        writeBacklogQuotaMetric(stream, "pulsar_storage_backlog_quota_exceeded_evictions_total",
+                stats.sizeBasedBacklogQuotaExceededEvictionCount, cluster, namespace, topic,
+                splitTopicAndPartitionIndexLabel, BacklogQuotaType.destination_storage);
+        writeBacklogQuotaMetric(stream, "pulsar_storage_backlog_quota_exceeded_evictions_total",
+                stats.timeBasedBacklogQuotaExceededEvictionCount, cluster, namespace, topic,
+                splitTopicAndPartitionIndexLabel, BacklogQuotaType.message_age);
 
         writeMetric(stream, "pulsar_delayed_message_index_size_bytes", stats.delayedTrackerMemoryUsage,
                 cluster, namespace, topic, splitTopicAndPartitionIndexLabel);
@@ -412,6 +431,17 @@ class TopicStats {
     private static void writeMetric(PrometheusMetricStreams stream, String metricName, Number value, String cluster,
                                     String namespace, String topic, boolean splitTopicAndPartitionIndexLabel) {
         writeTopicMetric(stream, metricName, value, cluster, namespace, topic, splitTopicAndPartitionIndexLabel);
+    }
+
+    @SuppressWarnings("SameParameterValue")
+    private static void writeBacklogQuotaMetric(PrometheusMetricStreams stream, String metricName, Number value,
+                                                String cluster, String namespace, String topic,
+                                                boolean splitTopicAndPartitionIndexLabel,
+                                                BacklogQuotaType backlogQuotaType) {
+
+        String quotaTypeLabelValue = PrometheusLabels.backlogQuotaTypeLabel(backlogQuotaType);
+        writeTopicMetric(stream, metricName, value, cluster, namespace, topic, splitTopicAndPartitionIndexLabel,
+                "quota_type", quotaTypeLabelValue);
     }
 
     private static void writeMetric(PrometheusMetricStreams stream, String metricName, Number value, String cluster,

@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.service;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
@@ -127,6 +128,29 @@ public class SubscriptionSeekTest extends BrokerTestBase {
         Awaitility.await().until(consumer::isConnected);
         consumer.seek(afterLatest);
         assertEquals(sub.getNumberOfEntriesInBacklog(false), 0);
+    }
+
+    @Test
+    public void testSeekIsByReceive() throws PulsarClientException {
+        final String topicName = "persistent://prop/use/ns-abc/testSeek";
+
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
+
+        String subscriptionName = "my-subscription";
+        org.apache.pulsar.client.api.Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName)
+                .subscriptionName(subscriptionName)
+                .subscribe();
+
+        List<MessageId> messageIds = new ArrayList<>();
+        for (int i = 0; i < 10; i++) {
+            String message = "my-message-" + i;
+            MessageId msgId = producer.send(message.getBytes());
+            messageIds.add(msgId);
+        }
+
+        consumer.seek(messageIds.get(5));
+        Message<byte[]> message = consumer.receive();
+        assertThat(message.getMessageId()).isEqualTo(messageIds.get(6));
     }
 
     @Test
