@@ -142,6 +142,7 @@ public class TypedMessageBuilderImpl<T> implements TypedMessageBuilder<T> {
     @Override
     public TypedMessageBuilder<T> value(T value) {
         if (value == null) {
+            msgMetadata.setNullValue(true);
             return this;
         }
         msgMetadata.setNullValue(false);
