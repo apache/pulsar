@@ -18,6 +18,7 @@
  */
 package org.apache.bookkeeper.mledger.impl;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertEquals;
@@ -46,7 +47,6 @@ import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedCursorMXBean;
 import org.apache.bookkeeper.mledger.ManagedLedger;
-import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.Position;
 import org.testng.annotations.Test;
 
@@ -90,7 +90,7 @@ public class ManagedCursorContainerTest {
         }
 
         @Override
-        public List<Entry> readEntries(int numberOfEntriesToRead) throws ManagedLedgerException {
+        public List<Entry> readEntries(int numberOfEntriesToRead) {
             return new ArrayList();
         }
 
@@ -122,14 +122,14 @@ public class ManagedCursorContainerTest {
         }
 
         @Override
-        public void markDelete(Position position) throws ManagedLedgerException {
+        public void markDelete(Position position) {
             markDelete(position, Collections.emptyMap());
         }
 
         @Override
-        public void markDelete(Position position, Map<String, Long> properties) throws ManagedLedgerException {
+        public void markDelete(Position position, Map<String, Long> properties) {
             this.position = position;
-            container.cursorUpdated(this, (PositionImpl) position);
+            container.cursorUpdated(this, position);
         }
 
         @Override
@@ -194,7 +194,7 @@ public class ManagedCursorContainerTest {
         }
 
         @Override
-        public void delete(Position position) throws InterruptedException, ManagedLedgerException {
+        public void delete(Position position) {
         }
 
         @Override
@@ -202,7 +202,7 @@ public class ManagedCursorContainerTest {
         }
 
         @Override
-        public void delete(Iterable<Position> positions) throws InterruptedException, ManagedLedgerException {
+        public void delete(Iterable<Position> positions) {
         }
 
         @Override
@@ -210,7 +210,7 @@ public class ManagedCursorContainerTest {
         }
 
         @Override
-        public void clearBacklog() throws InterruptedException, ManagedLedgerException {
+        public void clearBacklog() {
         }
 
         @Override
@@ -218,8 +218,7 @@ public class ManagedCursorContainerTest {
         }
 
         @Override
-        public void skipEntries(int numEntriesToSkip, IndividualDeletedEntries deletedEntries)
-                throws InterruptedException, ManagedLedgerException {
+        public void skipEntries(int numEntriesToSkip, IndividualDeletedEntries deletedEntries) {
         }
 
         @Override
@@ -228,13 +227,12 @@ public class ManagedCursorContainerTest {
         }
 
         @Override
-        public Position findNewestMatching(Predicate<Entry> condition)
-                throws InterruptedException, ManagedLedgerException {
+        public Position findNewestMatching(Predicate<Entry> condition) {
             return null;
         }
 
         @Override
-        public Position findNewestMatching(FindPositionConstraint constraint, Predicate<Entry> condition) throws InterruptedException, ManagedLedgerException {
+        public Position findNewestMatching(FindPositionConstraint constraint, Predicate<Entry> condition) {
             return null;
         }
 
@@ -255,7 +253,7 @@ public class ManagedCursorContainerTest {
         }
 
         @Override
-        public void resetCursor(final Position position) throws ManagedLedgerException, InterruptedException {
+        public void resetCursor(final Position position) {
 
         }
 
@@ -269,8 +267,7 @@ public class ManagedCursorContainerTest {
         }
 
         @Override
-        public List<Entry> replayEntries(Set<? extends Position> positions)
-                throws InterruptedException, ManagedLedgerException {
+        public List<Entry> replayEntries(Set<? extends Position> positions) {
             return null;
         }
 
@@ -285,8 +282,7 @@ public class ManagedCursorContainerTest {
         }
 
         @Override
-        public List<Entry> readEntriesOrWait(int numberOfEntriesToRead)
-                throws InterruptedException, ManagedLedgerException {
+        public List<Entry> readEntriesOrWait(int numberOfEntriesToRead) {
             return null;
         }
 
@@ -307,8 +303,7 @@ public class ManagedCursorContainerTest {
         }
 
         @Override
-        public Entry getNthEntry(int N, IndividualDeletedEntries deletedEntries)
-                throws InterruptedException, ManagedLedgerException {
+        public Entry getNthEntry(int N, IndividualDeletedEntries deletedEntries) {
             return null;
         }
 
@@ -384,13 +379,8 @@ public class ManagedCursorContainerTest {
             return null;
         }
 
-        public void asyncReadEntriesOrWait(int maxEntries, long maxSizeBytes, ReadEntriesCallback callback,
-                Object ctx) {
-        }
-
         @Override
-        public List<Entry> readEntriesOrWait(int maxEntries, long maxSizeBytes)
-                throws InterruptedException, ManagedLedgerException {
+        public List<Entry> readEntriesOrWait(int maxEntries, long maxSizeBytes) {
             return null;
         }
 
@@ -406,7 +396,7 @@ public class ManagedCursorContainerTest {
     }
 
     @Test
-    public void testSlowestReadPositionForActiveCursors() throws Exception {
+    public void testSlowestReadPositionForActiveCursors() {
         ManagedCursorContainer container = new ManagedCursorContainer();
         assertNull(container.getSlowestReaderPosition());
 
@@ -451,14 +441,20 @@ public class ManagedCursorContainerTest {
         ManagedCursor cursor1 = new MockManagedCursor(container, "test1", new PositionImpl(5, 5));
         container.add(cursor1, cursor1.getMarkDeletedPosition());
         assertEquals(container.getSlowestReaderPosition(), new PositionImpl(5, 5));
+        assertEqualsCursorAndPosition(container.getCursorWithOldestPosition(),
+                cursor1, new PositionImpl(5, 5));
 
         ManagedCursor cursor2 = new MockManagedCursor(container, "test2", new PositionImpl(2, 2));
         container.add(cursor2, cursor2.getMarkDeletedPosition());
         assertEquals(container.getSlowestReaderPosition(), new PositionImpl(2, 2));
+        assertEqualsCursorAndPosition(container.getCursorWithOldestPosition(),
+                cursor2, new PositionImpl(2, 2));
 
         ManagedCursor cursor3 = new MockManagedCursor(container, "test3", new PositionImpl(2, 0));
         container.add(cursor3, cursor3.getMarkDeletedPosition());
         assertEquals(container.getSlowestReaderPosition(), new PositionImpl(2, 0));
+        assertEqualsCursorAndPosition(container.getCursorWithOldestPosition(),
+                cursor3, new PositionImpl(2, 0));
 
         assertEquals(container.toString(), "[test1=5:5, test2=2:2, test3=2:0]");
 
@@ -472,6 +468,8 @@ public class ManagedCursorContainerTest {
 
         cursor3.markDelete(new PositionImpl(3, 0));
         assertEquals(container.getSlowestReaderPosition(), new PositionImpl(2, 2));
+        assertEqualsCursorAndPosition(container.getCursorWithOldestPosition(),
+                cursor2, new PositionImpl(2, 2));
 
         cursor2.markDelete(new PositionImpl(10, 5));
         assertEquals(container.getSlowestReaderPosition(), new PositionImpl(3, 0));
@@ -483,6 +481,8 @@ public class ManagedCursorContainerTest {
         container.removeCursor(cursor5.getName());
         container.removeCursor(cursor1.getName());
         assertEquals(container.getSlowestReaderPosition(), new PositionImpl(4, 0));
+        assertEqualsCursorAndPosition(container.getCursorWithOldestPosition(),
+                cursor4, new PositionImpl(4, 0));
 
         assertTrue(container.hasDurableCursors());
 
@@ -499,7 +499,7 @@ public class ManagedCursorContainerTest {
     }
 
     @Test
-    public void updatingCursorOutsideContainer() throws Exception {
+    public void updatingCursorOutsideContainer() {
         ManagedCursorContainer container = new ManagedCursorContainer();
 
         ManagedCursor cursor1 = new MockManagedCursor(container, "test1", new PositionImpl(5, 5));
@@ -518,10 +518,19 @@ public class ManagedCursorContainerTest {
         container.cursorUpdated(cursor2, cursor2.position);
 
         assertEquals(container.getSlowestReaderPosition(), new PositionImpl(5, 5));
+        assertEqualsCursorAndPosition(container.getCursorWithOldestPosition(),
+                cursor1, new PositionImpl(5, 5));
+    }
+
+    private void assertEqualsCursorAndPosition(ManagedCursorContainer.CursorInfo cursorInfo,
+                                               ManagedCursor expectedCursor,
+                                               PositionImpl expectedPosition) {
+        assertThat(cursorInfo.getCursor().getName()).isEqualTo(expectedCursor.getName());
+        assertThat(cursorInfo.getPosition()).isEqualTo(expectedPosition);
     }
 
     @Test
-    public void removingCursor() throws Exception {
+    public void removingCursor() {
         ManagedCursorContainer container = new ManagedCursorContainer();
 
         ManagedCursor cursor1 = new MockManagedCursor(container, "test1", new PositionImpl(5, 5));
@@ -592,7 +601,7 @@ public class ManagedCursorContainerTest {
     }
 
     @Test
-    public void orderingWithUpdates() throws Exception {
+    public void orderingWithUpdates() {
         ManagedCursorContainer container = new ManagedCursorContainer();
 
         MockManagedCursor c1 = new MockManagedCursor(container, "test1", new PositionImpl(5, 5));
@@ -657,7 +666,7 @@ public class ManagedCursorContainerTest {
     }
 
     @Test
-    public void orderingWithUpdatesAndReset() throws Exception {
+    public void orderingWithUpdatesAndReset() {
         ManagedCursorContainer container = new ManagedCursorContainer();
 
         MockManagedCursor c1 = new MockManagedCursor(container, "test1", new PositionImpl(5, 5));
@@ -719,5 +728,57 @@ public class ManagedCursorContainerTest {
         container.removeCursor("test3");
 
         assertFalse(container.hasDurableCursors());
+    }
+
+    @Test
+    public void testDataVersion() {
+        assertThat(ManagedCursorContainer.DataVersion.compareVersions(1L, 3L)).isNegative();
+        assertThat(ManagedCursorContainer.DataVersion.compareVersions(3L, 1L)).isPositive();
+        assertThat(ManagedCursorContainer.DataVersion.compareVersions(3L, 3L)).isZero();
+
+        long v1 = Long.MAX_VALUE - 1;
+        long v2 = ManagedCursorContainer.DataVersion.getNextVersion(v1);
+
+        assertThat(ManagedCursorContainer.DataVersion.compareVersions(v1, v2)).isNegative();
+
+        v2 = ManagedCursorContainer.DataVersion.getNextVersion(v2);
+        assertThat(ManagedCursorContainer.DataVersion.compareVersions(v1, v2)).isNegative();
+
+        v1 = ManagedCursorContainer.DataVersion.getNextVersion(v1);
+        assertThat(ManagedCursorContainer.DataVersion.compareVersions(v1, v2)).isNegative();
+
+        v1 = ManagedCursorContainer.DataVersion.getNextVersion(v1);
+        assertThat(ManagedCursorContainer.DataVersion.compareVersions(v1, v2)).isZero();
+
+        v1 = ManagedCursorContainer.DataVersion.getNextVersion(v1);
+        assertThat(ManagedCursorContainer.DataVersion.compareVersions(v1, v2)).isPositive();
+    }
+
+    @Test
+    public void testVersions() {
+        ManagedCursorContainer container = new ManagedCursorContainer();
+
+        MockManagedCursor c1 = new MockManagedCursor(container, "test1", new PositionImpl(5, 5));
+        MockManagedCursor c2 = new MockManagedCursor(container, "test2", new PositionImpl(5, 1));
+
+        container.add(c1, c1.getMarkDeletedPosition());
+        long version = container.getCursorWithOldestPosition().getVersion();
+
+        container.add(c2, c2.getMarkDeletedPosition());
+        long newVersion = container.getCursorWithOldestPosition().getVersion();
+        // newVersion > version
+        assertThat(ManagedCursorContainer.DataVersion.compareVersions(newVersion, version)).isPositive();
+        version = newVersion;
+
+        container.cursorUpdated(c2, new PositionImpl(5, 8));
+        newVersion = container.getCursorWithOldestPosition().getVersion();
+        // newVersion > version
+        assertThat(ManagedCursorContainer.DataVersion.compareVersions(newVersion, version)).isPositive();
+        version = newVersion;
+
+        container.removeCursor("test2");
+        newVersion = container.getCursorWithOldestPosition().getVersion();
+        // newVersion > version
+        assertThat(ManagedCursorContainer.DataVersion.compareVersions(newVersion, version)).isPositive();
     }
 }

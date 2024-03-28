@@ -40,6 +40,7 @@ public class ManagedLedgerMBeanImpl implements ManagedLedgerMXBean {
     private final Rate readEntriesOps = new Rate();
     private final Rate readEntriesOpsFailed = new Rate();
     private final Rate markDeleteOps = new Rate();
+    private final Rate entriesRead = new Rate();
 
     private final LongAdder dataLedgerOpenOp = new LongAdder();
     private final LongAdder dataLedgerCloseOp = new LongAdder();
@@ -78,6 +79,7 @@ public class ManagedLedgerMBeanImpl implements ManagedLedgerMXBean {
         ledgerAddEntryLatencyStatsUsec.refresh();
         ledgerSwitchLatencyStatsUsec.refresh();
         entryStats.refresh();
+        entriesRead.calculateRate(seconds);
     }
 
     public void addAddEntrySample(long size) {
@@ -112,6 +114,10 @@ public class ManagedLedgerMBeanImpl implements ManagedLedgerMXBean {
 
     public void addReadEntriesSample(int count, long totalSize) {
         readEntriesOps.recordMultipleEvents(count, totalSize);
+    }
+
+    public void addEntriesRead(int count) {
+        entriesRead.recordEvent(count);
     }
 
     public void startDataLedgerOpenOp() {
@@ -181,6 +187,11 @@ public class ManagedLedgerMBeanImpl implements ManagedLedgerMXBean {
     @Override
     public String getName() {
         return managedLedger.getName();
+    }
+
+    @Override
+    public long getEntriesReadTotalCount() {
+        return entriesRead.getTotalCount();
     }
 
     @Override
@@ -322,5 +333,4 @@ public class ManagedLedgerMBeanImpl implements ManagedLedgerMXBean {
         result.cursorLedgerDeleteOp = cursorLedgerDeleteOp.longValue();
         return result;
     }
-
 }

@@ -694,6 +694,9 @@ public interface Consumer<T> extends Closeable {
      * <li><code>MessageId.earliest</code> : Reset the subscription on the earliest message available in the topic
      * <li><code>MessageId.latest</code> : Reset the subscription on the latest message in the topic
      * </ul>
+     * <p>
+     * This effectively resets the acknowledgement state of the subscription: all messages up to and
+     * <b>including</b> <code>messageId</code> will be marked as acknowledged and the rest unacknowledged.
      *
      * <p>Note: this operation can only be done on non-partitioned topics. For these, one can rather perform
      * the seek() on the individual partitions.
