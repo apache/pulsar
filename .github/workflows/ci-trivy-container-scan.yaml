@@ -23,14 +23,6 @@ on:
     - cron: '0 8 * * *' # Every day at 8am UTC
   workflow_dispatch:
     inputs:
-      report-format:
-        description: 'Format of the report'
-        type: choice
-        default: table
-        options:
-          - table
-          - json
-          - sarif
       severity:
         description: "Severities to include (comma-separated or 'ALL' to include all)"
         required: false
@@ -48,7 +40,7 @@ jobs:
           - 'apachepulsar/pulsar'
           - 'apachepulsar/pulsar-all'
         docker-tag:
-          - '3.2.0'
+          - '3.2.1'
     env:
       IMAGE_REF: '${{ matrix.docker-image }}:${{ matrix.docker-tag }}'
     steps:
@@ -58,6 +50,7 @@ jobs:
           IMAGE_REF_CLEAN="$(echo $IMAGE_REF | sed 's/-/_/g; s/\./_/g; s/:/_/g; s/\//_/g')"
           echo "image_ref_clean=$IMAGE_REF_CLEAN" >> "$GITHUB_OUTPUT"
           echo "report_filename=trivy-scan-$IMAGE_REF_CLEAN.${{ inputs.report-format }}" >> "$GITHUB_OUTPUT"
+
       - name: Run Trivy container scan
         uses: aquasecurity/trivy-action@master
         with:
@@ -65,24 +58,10 @@ jobs:
           scanners: vuln
           severity: ${{ inputs.severity != 'ALL' && inputs.severity ||  'UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL'  }}
           limit-severities-for-sarif: true
-          format: ${{ inputs.report-format }}
+          format: 'sarif'
           output: ${{ steps.prepare-vars.outputs.report_filename }}
           exit-code: 1
-      - name: Email Trivy container scan report
-        uses: dawidd6/action-send-mail@v3
-        if: ${{ failure() }}
-        with:
-          server_address: smtp.gmail.com
-          server_port: 465
-          secure: true
-          username: ${{secrets.TRIVY_SCAN_MAIL_USERNAME}}
-          password: ${{secrets.TRIVY_SCAN_MAIL_PASSWORD}}
-          subject: Trivy container scan results for ${{ env.IMAGE_REF }}
-          to: dev@pulsar.apache.org
-          from: Github Trivy Container Scanner
-          body: Trivy reported vulnerabilities (${{ inputs.severity }}) for ${{ env.IMAGE_REF }}
-          ignore_cert: true
-          attachments: '${{ github.workspace }}/${{ steps.prepare-vars.outputs.report_filename }}'
+
       - name: Upload Trivy container scan report
         uses: actions/upload-artifact@v4
         if: ${{ failure() }}
@@ -90,8 +69,9 @@ jobs:
           name: trivy-vuln-report-${{ steps.prepare-vars.outputs.image_ref_clean }}
           path: '${{ github.workspace }}/${{ steps.prepare-vars.outputs.report_filename }}'
           retention-days: 15
+
       - name: Upload Trivy scan results to GitHub Security tab
         uses: github/codeql-action/upload-sarif@v2
-        if: ${{ failure() && inputs.report-format == 'sarif' }}
+        if: ${{ failure() }}
         with:
           sarif_file: '${{ github.workspace }}/${{ steps.prepare-vars.outputs.report_filename }}'
