@@ -3405,6 +3405,19 @@ public class ManagedCursorImpl implements ManagedCursor {
         return individualDeletedMessages;
     }
 
+    public PositionImpl processIndividuallyDeletedMessagesAndGetMarkDeletedPosition(
+            LongPairRangeSet.RangeProcessor<PositionImpl> processor) {
+        final PositionImpl mdp;
+        lock.readLock().lock();
+        try {
+            mdp = markDeletePosition;
+            individualDeletedMessages.forEach(processor);
+        } finally {
+            lock.readLock().unlock();
+        }
+        return mdp;
+    }
+
     public boolean isMessageDeleted(Position position) {
         checkArgument(position instanceof PositionImpl);
         return ((PositionImpl) position).compareTo(markDeletePosition) <= 0
