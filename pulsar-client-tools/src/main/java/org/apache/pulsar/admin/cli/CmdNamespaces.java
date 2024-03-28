@@ -2630,6 +2630,35 @@ public class CmdNamespaces extends CmdBase {
         }
     }
 
+    @Parameters(commandDescription = "Set allowed clusters for a namespace")
+    private class SetAllowedClusters extends CliCommand {
+        @Parameter(description = "tenant/namespace", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = { "--clusters",
+                "-c" }, description = "Allowed Cluster Ids list (comma separated values)", required = true)
+        private String clusterIds;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+            List<String> clusters = Lists.newArrayList(clusterIds.split(","));
+            getAdmin().namespaces().setNamespaceAllowedClusters(namespace, Sets.newHashSet(clusters));
+        }
+    }
+
+    @Parameters(commandDescription = "Get allowed clusters for a namespace")
+    private class GetAllowedClusters extends CliCommand {
+        @Parameter(description = "tenant/namespace", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+            print(getAdmin().namespaces().getNamespaceAllowedClusters(namespace));
+        }
+    }
+
     public CmdNamespaces(Supplier<PulsarAdmin> admin) {
         super("namespaces", admin);
         addCommand("list", new GetNamespacesPerProperty());
@@ -2656,6 +2685,9 @@ public class CmdNamespaces extends CmdBase {
         addCommand("set-subscription-types-enabled", new SetSubscriptionTypesEnabled());
         addCommand("get-subscription-types-enabled", new GetSubscriptionTypesEnabled());
         addCommand("remove-subscription-types-enabled", new RemoveSubscriptionTypesEnabled());
+
+        addCommand("set-allowed-clusters", new SetAllowedClusters());
+        addCommand("get-allowed-clusters", new GetAllowedClusters());
 
         addCommand("get-backlog-quotas", new GetBacklogQuotaMap());
         addCommand("set-backlog-quota", new SetBacklogQuota());
