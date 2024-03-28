@@ -1694,6 +1694,7 @@ public class BrokerService implements Closeable {
                                 persistentTopic
                                         .initialize()
                                         .thenCompose(__ -> persistentTopic.preCreateSubscriptionForCompactionIfNeeded())
+                                        .thenCompose(__ -> checkAllowedCluster(persistentTopic))
                                         .thenCompose(__ -> persistentTopic.checkReplication())
                                         .thenCompose(v -> {
                                             // Also check dedup status
@@ -1768,6 +1769,30 @@ public class BrokerService implements Closeable {
             topicFuture.completeExceptionally(exception);
             return null;
         });
+    }
+
+    protected CompletableFuture<Void> checkAllowedCluster(PersistentTopic persistentTopic) {
+        List<String> replicationClusters = persistentTopic.topicPolicies.getReplicationClusters().get();
+        String localCluster = this.pulsar().getConfiguration().getClusterName();
+        String topic = persistentTopic.topic;
+        return getPulsar().getPulsarResources().getNamespaceResources()
+                .getPoliciesAsync(TopicName.get(topic).getNamespaceObject()).thenCompose(policiesOptional -> {
+                    Set<String> allowedClusters = Set.of();
+                    if (policiesOptional.isPresent()) {
+                        allowedClusters = policiesOptional.get().allowed_clusters;
+                    }
+                    // if local cluster is removed from global namespace cluster-list : then delete topic forcefully
+                    // because pulsar doesn't serve global topic without local repl-cluster configured.
+                    if (TopicName.get(topic).isGlobal() && !replicationClusters.contains(localCluster)
+                            && !allowedClusters.contains(localCluster)) {
+                        log.warn("Deleting topic [{}] because local cluster is not part of "
+                                        + " global namespace repl list {} and allowed list {}", topic,
+                                replicationClusters, allowedClusters);
+                        return persistentTopic.deleteForcefully();
+                    } else {
+                        return CompletableFuture.completedFuture(null);
+                    }
+                });
     }
 
     private CompletableFuture<Void> checkTopicAlreadyMigrated(TopicName topicName) {

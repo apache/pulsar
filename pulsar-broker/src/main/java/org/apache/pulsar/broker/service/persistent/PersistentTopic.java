@@ -1609,17 +1609,20 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         }
 
         List<String> configuredClusters = topicPolicies.getReplicationClusters().get();
+
+        // The replication clusters at namespace level will get local cluster when creating a namespace.
+        // If there only is a cluster in the replication clusters, it means the replication is not enable.
+        // If the cluster 1 and cluster 2 use the same configuration store and the namespace is created in cluster1
+        // without enabling geo-replication, then the replication clusters always has cluster1. When a topic under the
+        // namespace is load in the cluster2, the `cluster1` may be identified as remote cluster and
+        // start geo-replication. So the check for the size of `configuredClusters` is necessary.
+        if (configuredClusters.size() == 1) {
+            return CompletableFuture.completedFuture(null);
+        }
+
         int newMessageTTLInSeconds = topicPolicies.getMessageTTLInSeconds().get();
 
         String localCluster = brokerService.pulsar().getConfiguration().getClusterName();
-
-        // if local cluster is removed from global namespace cluster-list : then delete topic forcefully
-        // because pulsar doesn't serve global topic without local repl-cluster configured.
-        if (TopicName.get(topic).isGlobal() && !configuredClusters.contains(localCluster)) {
-            log.info("Deleting topic [{}] because local cluster is not part of "
-                    + " global namespace repl list {}", topic, configuredClusters);
-            return deleteForcefully();
-        }
 
         List<CompletableFuture<Void>> futures = new ArrayList<>();
 
