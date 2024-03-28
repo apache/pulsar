@@ -19,8 +19,6 @@
 package org.apache.pulsar;
 
 import static org.apache.commons.lang3.StringUtils.isBlank;
-import com.beust.jcommander.JCommander;
-import com.beust.jcommander.Parameter;
 import com.google.common.base.Strings;
 import java.io.FileInputStream;
 import java.util.Arrays;
@@ -30,24 +28,26 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.docs.tools.CmdGenerateDocs;
+import picocli.CommandLine;
+import picocli.CommandLine.Option;
 
 @Slf4j
 public class PulsarStandaloneStarter extends PulsarStandalone {
 
     private static final String PULSAR_CONFIG_FILE = "pulsar.config.file";
 
-    @Parameter(names = {"-g", "--generate-docs"}, description = "Generate docs")
+    @Option(names = {"-g", "--generate-docs"}, description = "Generate docs")
     private boolean generateDocs = false;
 
     public PulsarStandaloneStarter(String[] args) throws Exception {
 
-        JCommander jcommander = new JCommander();
+        CommandLine commander = new CommandLine(this);
+
         try {
-            jcommander.addObject(this);
-            jcommander.parse(args);
+            commander.parseArgs(args);
             if (this.isHelp()) {
-                jcommander.usage();
-                System.exit(0);
+                commander.usage(commander.getOut());
+                exit(0);
             }
             if (Strings.isNullOrEmpty(this.getConfigFile())) {
                 String configFile = System.getProperty(PULSAR_CONFIG_FILE);
@@ -62,18 +62,18 @@ public class PulsarStandaloneStarter extends PulsarStandalone {
                 CmdGenerateDocs cmd = new CmdGenerateDocs("pulsar");
                 cmd.addCommand("standalone", this);
                 cmd.run(null);
-                System.exit(0);
+                exit(0);
             }
 
             if (this.isNoBroker() && this.isOnlyBroker()) {
                 log.error("Only one option is allowed between '--no-broker' and '--only-broker'");
-                jcommander.usage();
+                commander.usage(commander.getOut());
                 return;
             }
         } catch (Exception e) {
-            jcommander.usage();
+            commander.usage(commander.getOut());
             log.error(e.getMessage());
-            System.exit(1);
+            exit(1);
         }
 
         try (FileInputStream inputStream = new FileInputStream(this.getConfigFile())) {
@@ -109,6 +109,10 @@ public class PulsarStandaloneStarter extends PulsarStandalone {
             }
         }
 
+        registerShutdownHook();
+    }
+
+    protected void registerShutdownHook() {
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             try {
                 if (fnWorkerService != null) {
@@ -128,6 +132,10 @@ public class PulsarStandaloneStarter extends PulsarStandalone {
                 LogManager.shutdown();
             }
         }));
+    }
+
+    protected void exit(int status) {
+        System.exit(status);
     }
 
     private static boolean argsContains(String[] args, String arg) {

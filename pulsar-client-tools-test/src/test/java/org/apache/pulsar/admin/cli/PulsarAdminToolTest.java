@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.admin.cli;
 
+import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.longThat;
@@ -33,14 +35,13 @@ import static org.testng.Assert.assertSame;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import static org.testng.AssertJUnit.assertNotNull;
-
-import com.beust.jcommander.JCommander;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.PrintStream;
+import java.io.PrintWriter;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.nio.charset.StandardCharsets;
@@ -54,6 +55,7 @@ import java.util.Optional;
 import java.util.Properties;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.admin.cli.extensions.CustomCommandFactory;
 import org.apache.pulsar.admin.cli.utils.SchemaExtractor;
@@ -121,6 +123,7 @@ import org.mockito.ArgumentMatcher;
 import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.Test;
+import picocli.CommandLine;
 
 @Slf4j
 public class PulsarAdminToolTest {
@@ -166,6 +169,8 @@ public class PulsarAdminToolTest {
         brokers.run(split("version"));
         verify(mockBrokers).getVersion();
 
+        doReturn(CompletableFuture.completedFuture(null)).when(mockBrokers)
+                .shutDownBrokerGracefully(anyInt(), anyBoolean());
         brokers.run(split("shutdown -m 10 -f"));
         verify(mockBrokers).shutDownBrokerGracefully(10,true);
     }
@@ -178,15 +183,19 @@ public class PulsarAdminToolTest {
 
         CmdBrokerStats brokerStats = new CmdBrokerStats(() -> admin);
 
+        doReturn("null").when(mockBrokerStats).getTopics();
         brokerStats.run(split("topics"));
         verify(mockBrokerStats).getTopics();
 
+        doReturn(null).when(mockBrokerStats).getLoadReport();
         brokerStats.run(split("load-report"));
         verify(mockBrokerStats).getLoadReport();
 
+        doReturn("null").when(mockBrokerStats).getMBeans();
         brokerStats.run(split("mbeans"));
         verify(mockBrokerStats).getMBeans();
 
+        doReturn("null").when(mockBrokerStats).getMetrics();
         brokerStats.run(split("monitoring-metrics"));
         verify(mockBrokerStats).getMetrics();
     }
@@ -475,6 +484,11 @@ public class PulsarAdminToolTest {
         namespaces.run(split("remove-replicator-dispatch-rate myprop/clust/ns1"));
         verify(mockNamespaces).removeReplicatorDispatchRate("myprop/clust/ns1");
 
+
+        assertFalse(namespaces.run(split("unload myprop/clust/ns1 -d broker")));
+        verify(mockNamespaces, times(0)).unload("myprop/clust/ns1");
+
+        namespaces = new CmdNamespaces(() -> admin);
         namespaces.run(split("unload myprop/clust/ns1"));
         verify(mockNamespaces).unload("myprop/clust/ns1");
 
@@ -490,6 +504,10 @@ public class PulsarAdminToolTest {
 
         namespaces.run(split("unload myprop/clust/ns1 -b 0x80000000_0xffffffff"));
         verify(mockNamespaces).unloadNamespaceBundle("myprop/clust/ns1", "0x80000000_0xffffffff", null);
+
+        namespaces = new CmdNamespaces(() -> admin);
+        namespaces.run(split("unload myprop/clust/ns1 -b 0x80000000_0xffffffff -d broker"));
+        verify(mockNamespaces).unloadNamespaceBundle("myprop/clust/ns1", "0x80000000_0xffffffff", "broker");
 
         namespaces.run(split("split-bundle myprop/clust/ns1 -b 0x00000000_0xffffffff"));
         verify(mockNamespaces).splitNamespaceBundle("myprop/clust/ns1", "0x00000000_0xffffffff", false, null);
@@ -678,9 +696,9 @@ public class PulsarAdminToolTest {
         namespaces.run(split("remove-retention myprop/clust/ns1"));
         verify(mockNamespaces).removeRetention("myprop/clust/ns1");
 
-        namespaces.run(split("set-delayed-delivery myprop/clust/ns1 -e -t 1s"));
+        namespaces.run(split("set-delayed-delivery myprop/clust/ns1 -e -t 1s -md 5s"));
         verify(mockNamespaces).setDelayedDeliveryMessages("myprop/clust/ns1",
-                DelayedDeliveryPolicies.builder().tickTime(1000).active(true).build());
+                DelayedDeliveryPolicies.builder().tickTime(1000).active(true).maxDeliveryDelayInMillis(5000).build());
 
         namespaces.run(split("get-delayed-delivery myprop/clust/ns1"));
         verify(mockNamespaces).getDelayedDelivery("myprop/clust/ns1");
@@ -880,6 +898,15 @@ public class PulsarAdminToolTest {
         verify(mockNamespaces).getDeduplicationSnapshotInterval("myprop/clust/ns1");
         namespaces.run(split("remove-deduplication-snapshot-interval myprop/clust/ns1"));
         verify(mockNamespaces).removeDeduplicationSnapshotInterval("myprop/clust/ns1");
+
+        namespaces.run(split("set-dispatcher-pause-on-ack-state-persistent myprop/clust/ns1"));
+        verify(mockNamespaces).setDispatcherPauseOnAckStatePersistent("myprop/clust/ns1");
+
+        namespaces.run(split("get-dispatcher-pause-on-ack-state-persistent myprop/clust/ns1"));
+        verify(mockNamespaces).getDispatcherPauseOnAckStatePersistent("myprop/clust/ns1");
+
+        namespaces.run(split("remove-dispatcher-pause-on-ack-state-persistent myprop/clust/ns1"));
+        verify(mockNamespaces).removeDispatcherPauseOnAckStatePersistent("myprop/clust/ns1");
 
     }
 
@@ -1199,9 +1226,9 @@ public class PulsarAdminToolTest {
 
         cmdTopics.run(split("get-delayed-delivery persistent://myprop/clust/ns1/ds1"));
         verify(mockTopicsPolicies).getDelayedDeliveryPolicy("persistent://myprop/clust/ns1/ds1", false);
-        cmdTopics.run(split("set-delayed-delivery persistent://myprop/clust/ns1/ds1 -t 10s --enable"));
+        cmdTopics.run(split("set-delayed-delivery persistent://myprop/clust/ns1/ds1 -t 10s --enable --maxDelay 5s"));
         verify(mockTopicsPolicies).setDelayedDeliveryPolicy("persistent://myprop/clust/ns1/ds1",
-                DelayedDeliveryPolicies.builder().tickTime(10000).active(true).build());
+                DelayedDeliveryPolicies.builder().tickTime(10000).active(true).maxDeliveryDelayInMillis(5000).build());
         cmdTopics.run(split("remove-delayed-delivery persistent://myprop/clust/ns1/ds1"));
         verify(mockTopicsPolicies).removeDelayedDeliveryPolicy("persistent://myprop/clust/ns1/ds1") ;
 
@@ -1366,9 +1393,9 @@ public class PulsarAdminToolTest {
 
         cmdTopics.run(split("get-delayed-delivery persistent://myprop/clust/ns1/ds1 -g"));
         verify(mockGlobalTopicsPolicies).getDelayedDeliveryPolicy("persistent://myprop/clust/ns1/ds1", false);
-        cmdTopics.run(split("set-delayed-delivery persistent://myprop/clust/ns1/ds1 -t 10s --enable -g"));
+        cmdTopics.run(split("set-delayed-delivery persistent://myprop/clust/ns1/ds1 -t 10s --enable -md 5s -g"));
         verify(mockGlobalTopicsPolicies).setDelayedDeliveryPolicy("persistent://myprop/clust/ns1/ds1",
-                DelayedDeliveryPolicies.builder().tickTime(10000).active(true).build());
+                DelayedDeliveryPolicies.builder().tickTime(10000).active(true).maxDeliveryDelayInMillis(5000).build());
         cmdTopics.run(split("remove-delayed-delivery persistent://myprop/clust/ns1/ds1 -g"));
         verify(mockGlobalTopicsPolicies).removeDelayedDeliveryPolicy("persistent://myprop/clust/ns1/ds1") ;
 
@@ -1558,7 +1585,7 @@ public class PulsarAdminToolTest {
         verify(mockLookup).lookupPartitionedTopic("persistent://myprop/clust/ns1/ds1");
 
         cmdTopics.run(split("partitioned-lookup persistent://myprop/clust/ns1/ds1 --sort-by-broker"));
-        verify(mockLookup).lookupPartitionedTopic("persistent://myprop/clust/ns1/ds1");
+        verify(mockLookup, times(2)).lookupPartitionedTopic("persistent://myprop/clust/ns1/ds1");
 
         cmdTopics.run(split("bundle-range persistent://myprop/clust/ns1/ds1"));
         verify(mockLookup).getBundleRange("persistent://myprop/clust/ns1/ds1");
@@ -1795,9 +1822,9 @@ public class PulsarAdminToolTest {
 
         cmdTopics.run(split("get-delayed-delivery persistent://myprop/clust/ns1/ds1"));
         verify(mockTopics).getDelayedDeliveryPolicy("persistent://myprop/clust/ns1/ds1", false);
-        cmdTopics.run(split("set-delayed-delivery persistent://myprop/clust/ns1/ds1 -t 10s --enable"));
+        cmdTopics.run(split("set-delayed-delivery persistent://myprop/clust/ns1/ds1 -t 10s -md 5s --enable"));
         verify(mockTopics).setDelayedDeliveryPolicy("persistent://myprop/clust/ns1/ds1",
-                DelayedDeliveryPolicies.builder().tickTime(10000).active(true).build());
+                DelayedDeliveryPolicies.builder().tickTime(10000).active(true).maxDeliveryDelayInMillis(5000).build());
         cmdTopics.run(split("remove-delayed-delivery persistent://myprop/clust/ns1/ds1"));
         verify(mockTopics).removeDelayedDeliveryPolicy("persistent://myprop/clust/ns1/ds1") ;
 
@@ -2262,7 +2289,9 @@ public class PulsarAdminToolTest {
             //Ok
         }
 
-        ClientConfigurationData conf =  ((PulsarAdminImpl)tool.getPulsarAdminSupplier().get()).getClientConfigData();
+        @Cleanup
+        PulsarAdminImpl pulsarAdmin = (PulsarAdminImpl) tool.getPulsarAdminSupplier().get();
+        ClientConfigurationData conf =  pulsarAdmin.getClientConfigData();
 
         assertEquals(1000, conf.getRequestTimeoutMs());
     }
@@ -2272,7 +2301,6 @@ public class PulsarAdminToolTest {
         Properties properties = new Properties();
         properties.put("webServiceUrl", "http://localhost:2181");
         PulsarAdminTool tool = new PulsarAdminTool(properties);
-
         assertFalse(tool.run("sources create --source-config-file doesnotexist.yaml".split(" ")));
     }
 
@@ -2306,8 +2334,9 @@ public class PulsarAdminToolTest {
         }
 
         // validate Authentication-tls has been configured
-        ClientConfigurationData conf = ((PulsarAdminImpl)tool.getPulsarAdminSupplier().get())
-                .getClientConfigData();
+        @Cleanup
+        PulsarAdminImpl pulsarAdmin = (PulsarAdminImpl) tool.getPulsarAdminSupplier().get();
+        ClientConfigurationData conf =  pulsarAdmin.getClientConfigData();
         AuthenticationTls atuh = (AuthenticationTls) conf.getAuthentication();
         assertEquals(atuh.getCertFilePath(), certFilePath);
         assertEquals(atuh.getKeyFilePath(), keyFilePath);
@@ -2320,8 +2349,9 @@ public class PulsarAdminToolTest {
             // Ok
         }
 
-        conf = conf = ((PulsarAdminImpl)tool.getPulsarAdminSupplier().get())
-                .getClientConfigData();
+        @Cleanup
+        PulsarAdminImpl pulsarAdmin2 = (PulsarAdminImpl) tool.getPulsarAdminSupplier().get();
+        conf =  pulsarAdmin2.getClientConfigData();
         atuh = (AuthenticationTls) conf.getAuthentication();
         assertEquals(atuh.getCertFilePath(), certFilePath);
         assertEquals(atuh.getKeyFilePath(), keyFilePath);
@@ -2410,6 +2440,10 @@ public class PulsarAdminToolTest {
         cmdTransactions = new CmdTransactions(() -> admin);
         cmdTransactions.run(split("coordinators-list"));
         verify(transactions).listTransactionCoordinators();
+
+        cmdTransactions = new CmdTransactions(() -> admin);
+        cmdTransactions.run(split("abort-transaction -m 1 -l 2"));
+        verify(transactions).abortTransaction(new TxnID(1, 2));
     }
 
     @Test
@@ -2478,21 +2512,20 @@ public class PulsarAdminToolTest {
         assertTrue(logs.contains("customgroup"));
         assertTrue(logs.contains("Custom group 1 description"));
 
+        // missing subcommand
         logs = runCustomCommand(new String[]{"customgroup"});
-        assertTrue(logs.contains("command1"));
+        assertTrue(logs.contains("Missing required subcommand"));
         assertTrue(logs.contains("Command 1 description"));
-        assertTrue(logs.contains("command2"));
         assertTrue(logs.contains("Command 2 description"));
 
-        logs = runCustomCommand(new String[]{"customgroup", "command1"});
-        assertTrue(logs.contains("Command 1 description"));
-        assertTrue(logs.contains("Usage: command1 [options] Topic"));
-
         // missing required parameter
+        logs = runCustomCommand(new String[]{"customgroup", "command1"});
+        assertTrue(logs.contains("Missing required options and parameters"));
+        assertTrue(logs.contains("Command 1 description"));
+
         logs = runCustomCommand(new String[]{"customgroup", "command1", "mytopic"});
         assertTrue(logs.contains("Command 1 description"));
-        assertTrue(logs.contains("Usage: command1 [options] Topic"));
-        assertTrue(logs.contains("The following option is required"));
+        assertTrue(logs.contains("Missing required option"));
 
         // run a comand that uses PulsarAdmin API
         logs = runCustomCommand(new String[]{"customgroup", "command1", "--type", "stats", "mytopic"});
@@ -2560,39 +2593,26 @@ public class PulsarAdminToolTest {
     }
 
     @Test
-    public void testHelpFlag() {
-        PulsarAdmin admin = Mockito.mock(PulsarAdmin.class);
+    public void testHelpFlag() throws Exception {
+        Properties properties = new Properties();
+        properties.put("webServiceUrl", "http://localhost:8080");
+
+        PulsarAdminTool pulsarAdminTool = new PulsarAdminTool(properties);
 
         {
-            CmdSchemas cmdSchemas = new CmdSchemas(() -> admin);
-            cmdSchemas.run(split("-h"));
-            assertTrue(cmdSchemas.isHelp());
+            assertTrue(pulsarAdminTool.run(split("schemas -h")));
         }
 
         {
-            CmdSchemas cmdSchemas = new CmdSchemas(() -> admin);
-            cmdSchemas.run(split("--help"));
-            assertTrue(cmdSchemas.isHelp());
+            assertTrue(pulsarAdminTool.run(split("schemas --help")));
         }
 
         {
-            CmdSchemas cmdSchemas = new CmdSchemas(() -> admin);
-            cmdSchemas.run(split("delete --help"));
-            assertFalse(cmdSchemas.isHelp());
-            JCommander commander = cmdSchemas.getJcommander();
-            JCommander subCommander = commander.getCommands().get("delete");
-            CliCommand subcommand = (CliCommand) subCommander.getObjects().get(0);
-            assertTrue(subcommand.isHelp());
+            assertTrue(pulsarAdminTool.run(split("schemas delete -h")));
         }
 
         {
-            CmdSchemas cmdSchemas = new CmdSchemas(() -> admin);
-            cmdSchemas.run(split("delete -h"));
-            assertFalse(cmdSchemas.isHelp());
-            JCommander commander = cmdSchemas.getJcommander();
-            JCommander subCommander = commander.getCommands().get("delete");
-            CliCommand subcommand = (CliCommand) subCommander.getObjects().get(0);
-            assertTrue(subcommand.isHelp());
+            assertTrue(pulsarAdminTool.run(split("schemas delete --help")));
         }
     }
 
@@ -2615,11 +2635,9 @@ public class PulsarAdminToolTest {
         properties.put("cliExtensionsDirectory", narFile.getParentFile().getAbsolutePath());
         properties.put("customCommandFactories", "dummy");
         PulsarAdminTool tool = new PulsarAdminTool(properties);
-        tool.setPulsarAdminSupplier(new PulsarAdminSupplier(builder, tool.getRootParams()));
-
-        // see the custom command help in the main help
+        tool.getPulsarAdminSupplier().setAdminBuilder(builder);
         StringBuilder logs = new StringBuilder();
-        try (CaptureStdOut capture = new CaptureStdOut(logs)){
+        try (CaptureStdOut capture = new CaptureStdOut(tool.commander, logs)) {
             tool.run(args);
         }
         log.info("Captured out: {}", logs);
@@ -2629,13 +2647,18 @@ public class PulsarAdminToolTest {
     private static class CaptureStdOut implements AutoCloseable {
         final PrintStream currentOut = System.out;
         final PrintStream currentErr = System.err;
-        final ByteArrayOutputStream logs = new ByteArrayOutputStream();
-        final PrintStream capturedOut = new PrintStream(logs, true);
+        final ByteArrayOutputStream logs;
+        final PrintStream capturedOut;
         final StringBuilder receiver;
-        public CaptureStdOut(StringBuilder receiver) {
+        public CaptureStdOut(CommandLine commandLine, StringBuilder receiver) {
+            logs = new ByteArrayOutputStream();
+            capturedOut = new PrintStream(logs, true);
             this.receiver = receiver;
-            System.setOut(capturedOut);
-            System.setErr(capturedOut);
+            PrintWriter printWriter = new PrintWriter(logs);
+            commandLine.setErr(printWriter);
+            commandLine.setOut(printWriter);
+            System.setOut(new PrintStream(logs));
+            System.setErr(new PrintStream(logs));
         }
         public void close() {
             capturedOut.flush();

@@ -22,6 +22,7 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import lombok.Getter;
 import org.apache.pulsar.common.naming.NamespaceName;
+import org.apache.pulsar.common.policies.data.ResourceQuota;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.policies.data.loadbalancer.BundleData;
 import org.apache.pulsar.policies.data.loadbalancer.TimeAverageBrokerData;
@@ -30,13 +31,16 @@ import org.apache.pulsar.policies.data.loadbalancer.TimeAverageBrokerData;
 public class LoadBalanceResources {
     public static final String BUNDLE_DATA_BASE_PATH = "/loadbalance/bundle-data";
     public static final String BROKER_TIME_AVERAGE_BASE_PATH = "/loadbalance/broker-time-average";
+    public static final String RESOURCE_QUOTA_BASE_PATH = "/loadbalance/resource-quota";
 
     private final BundleDataResources bundleDataResources;
     private final BrokerTimeAverageDataResources brokerTimeAverageDataResources;
+    private final QuotaResources quotaResources;
 
     public LoadBalanceResources(MetadataStore store, int operationTimeoutSec) {
         bundleDataResources = new BundleDataResources(store, operationTimeoutSec);
         brokerTimeAverageDataResources = new BrokerTimeAverageDataResources(store, operationTimeoutSec);
+        quotaResources = new QuotaResources(store, operationTimeoutSec);
     }
 
     public static class BundleDataResources extends BaseResources<BundleData> {
@@ -90,6 +94,40 @@ public class LoadBalanceResources {
 
         private String getTimeAverageBrokerDataPath(final String brokerLookupAddress) {
             return BROKER_TIME_AVERAGE_BASE_PATH + "/" + brokerLookupAddress;
+        }
+    }
+
+    public static class QuotaResources extends BaseResources<ResourceQuota> {
+        public QuotaResources(MetadataStore store, int operationTimeoutSec) {
+            super(store, ResourceQuota.class, operationTimeoutSec);
+        }
+
+        public CompletableFuture<Optional<ResourceQuota>> getQuota(String bundle) {
+            return getAsync(getBundleQuotaPath(bundle));
+        }
+
+        public CompletableFuture<Optional<ResourceQuota>> getDefaultQuota() {
+            return getAsync(getDefaultBundleQuotaPath());
+        }
+
+        public CompletableFuture<Void> setWithCreateQuotaAsync(String bundle, ResourceQuota quota) {
+            return setWithCreateAsync(getBundleQuotaPath(bundle), __ -> quota);
+        }
+
+        public CompletableFuture<Void> setWithCreateDefaultQuotaAsync(ResourceQuota quota) {
+            return setWithCreateAsync(getDefaultBundleQuotaPath(), __ -> quota);
+        }
+
+        public CompletableFuture<Void> deleteQuota(String bundle) {
+            return deleteAsync(getBundleQuotaPath(bundle));
+        }
+
+        private String getBundleQuotaPath(String bundle) {
+            return String.format("%s/%s", RESOURCE_QUOTA_BASE_PATH, bundle);
+        }
+
+        private String getDefaultBundleQuotaPath() {
+            return getBundleQuotaPath("default");
         }
     }
 }

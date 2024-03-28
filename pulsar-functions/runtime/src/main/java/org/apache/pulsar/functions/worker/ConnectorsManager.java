@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.functions.worker;
 
+import com.google.common.annotations.VisibleForTesting;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.List;
@@ -27,18 +28,35 @@ import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.common.io.ConfigFieldDefinition;
 import org.apache.pulsar.common.io.ConnectorDefinition;
+import org.apache.pulsar.functions.runtime.thread.ThreadRuntimeFactory;
 import org.apache.pulsar.functions.utils.io.Connector;
 import org.apache.pulsar.functions.utils.io.ConnectorUtils;
 
 @Slf4j
-public class ConnectorsManager {
+public class ConnectorsManager implements AutoCloseable {
 
     @Getter
     private volatile TreeMap<String, Connector> connectors;
 
+    @VisibleForTesting
+    public ConnectorsManager() {
+        this.connectors = new TreeMap<>();
+    }
+
     public ConnectorsManager(WorkerConfig workerConfig) throws IOException {
-        this.connectors = ConnectorUtils
-                .searchForConnectors(workerConfig.getConnectorsDirectory(), workerConfig.getNarExtractionDirectory());
+        this.connectors = createConnectors(workerConfig);
+    }
+
+    private static TreeMap<String, Connector> createConnectors(WorkerConfig workerConfig) throws IOException {
+        boolean enableClassloading = workerConfig.getEnableClassloadingOfBuiltinFiles()
+                || ThreadRuntimeFactory.class.getName().equals(workerConfig.getFunctionRuntimeFactoryClassName());
+        return ConnectorUtils.searchForConnectors(workerConfig.getConnectorsDirectory(),
+                workerConfig.getNarExtractionDirectory(), enableClassloading);
+    }
+
+    @VisibleForTesting
+    public void addConnector(String connectorType, Connector connector) {
+        connectors.put(connectorType, connector);
     }
 
     public Connector getConnector(String connectorType) {
@@ -71,7 +89,25 @@ public class ConnectorsManager {
     }
 
     public void reloadConnectors(WorkerConfig workerConfig) throws IOException {
-        connectors = ConnectorUtils
-                .searchForConnectors(workerConfig.getConnectorsDirectory(), workerConfig.getNarExtractionDirectory());
+        TreeMap<String, Connector> oldConnectors = connectors;
+        this.connectors = createConnectors(workerConfig);
+        closeConnectors(oldConnectors);
     }
+
+    @Override
+    public void close() {
+        closeConnectors(connectors);
+    }
+
+    private void closeConnectors(TreeMap<String, Connector> connectorMap) {
+        connectorMap.values().forEach(connector -> {
+            try {
+                connector.close();
+            } catch (Exception e) {
+                log.warn("Failed to close connector", e);
+            }
+        });
+        connectorMap.clear();
+    }
+
 }

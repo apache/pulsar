@@ -130,6 +130,8 @@ public class Policies {
 
     public boolean migrated;
 
+    public Boolean dispatcherPauseOnAckStatePersistentEnabled;
+
     public enum BundleType {
         LARGEST, HOT;
     }
@@ -160,7 +162,8 @@ public class Policies {
                 offload_policies,
                 subscription_types_enabled,
                 properties,
-                resource_group_name, entryFilters, migrated);
+                resource_group_name, entryFilters, migrated,
+                dispatcherPauseOnAckStatePersistentEnabled);
     }
 
     @Override
@@ -209,7 +212,9 @@ public class Policies {
                     && Objects.equals(properties, other.properties)
                     && Objects.equals(migrated, other.migrated)
                     && Objects.equals(resource_group_name, other.resource_group_name)
-                    && Objects.equals(entryFilters, other.entryFilters);
+                    && Objects.equals(entryFilters, other.entryFilters)
+                    && Objects.equals(dispatcherPauseOnAckStatePersistentEnabled,
+                    other.dispatcherPauseOnAckStatePersistentEnabled);
         }
 
         return false;

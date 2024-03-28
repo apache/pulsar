@@ -16,6 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+
 package org.apache.pulsar.proxy.server;
 
 import static com.google.common.base.Preconditions.checkArgument;
@@ -23,14 +24,10 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Objects.requireNonNull;
 import static org.mockito.Mockito.doReturn;
 import static org.testng.Assert.assertEquals;
-
 import io.netty.channel.EventLoopGroup;
 import io.netty.util.concurrent.DefaultThreadFactory;
-
 import java.util.Optional;
-import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
-
 import lombok.Cleanup;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
@@ -74,16 +71,18 @@ public class ProxyParserTest extends MockedPulsarServiceBaseTest {
         proxyConfig.setBrokerProxyAllowedTargetPorts("*");
         proxyConfig.setMetadataStoreUrl(DUMMY_VALUE);
         proxyConfig.setConfigurationMetadataStoreUrl(GLOBAL_DUMMY_VALUE);
+        proxyConfig.setClusterName(configClusterName);
         //enable full parsing feature
         proxyConfig.setProxyLogLevel(Optional.ofNullable(2));
 
         proxyService = Mockito.spy(new ProxyService(proxyConfig, new AuthenticationService(
-                                                            PulsarConfigurationLoader.convertFrom(proxyConfig))));
-        doReturn(new ZKMetadataStore(mockZooKeeper)).when(proxyService).createLocalMetadataStore();
-        doReturn(new ZKMetadataStore(mockZooKeeperGlobal)).when(proxyService).createConfigurationMetadataStore();
+                PulsarConfigurationLoader.convertFrom(proxyConfig))));
+        doReturn(registerCloseable(new ZKMetadataStore(mockZooKeeper))).when(proxyService).createLocalMetadataStore();
+        doReturn(registerCloseable(new ZKMetadataStore(mockZooKeeperGlobal))).when(proxyService)
+                .createConfigurationMetadataStore();
 
         Optional<Integer> proxyLogLevel = Optional.of(2);
-        assertEquals( proxyLogLevel, proxyService.getConfiguration().getProxyLogLevel());
+        assertEquals(proxyLogLevel, proxyService.getConfiguration().getProxyLogLevel());
         proxyService.start();
     }
 
@@ -100,8 +99,9 @@ public class ProxyParserTest extends MockedPulsarServiceBaseTest {
         @Cleanup
         PulsarClient client = PulsarClient.builder().serviceUrl(proxyService.getServiceUrl())
                 .build();
-        Producer<byte[]> producer = client.newProducer(Schema.BYTES).topic("persistent://sample/test/local/producer-topic")
-                .create();
+        Producer<byte[]> producer =
+                client.newProducer(Schema.BYTES).topic("persistent://sample/test/local/producer-topic")
+                        .create();
 
         for (int i = 0; i < 10; i++) {
             producer.send("test".getBytes());
@@ -114,10 +114,10 @@ public class ProxyParserTest extends MockedPulsarServiceBaseTest {
         PulsarClient client = PulsarClient.builder().serviceUrl(proxyService.getServiceUrl())
                 .build();
         Producer<byte[]> producer = client.newProducer(Schema.BYTES)
-            .topic("persistent://sample/test/local/producer-consumer-topic")
-            .enableBatching(false)
-            .messageRoutingMode(MessageRoutingMode.SinglePartition)
-            .create();
+                .topic("persistent://sample/test/local/producer-consumer-topic")
+                .enableBatching(false)
+                .messageRoutingMode(MessageRoutingMode.SinglePartition)
+                .create();
 
         // Create a consumer directly attached to broker
         Consumer<byte[]> consumer = pulsarClient.newConsumer()
@@ -149,9 +149,9 @@ public class ProxyParserTest extends MockedPulsarServiceBaseTest {
         admin.topics().createPartitionedTopic("persistent://sample/test/local/partitioned-topic", 2);
 
         Producer<byte[]> producer = client.newProducer(Schema.BYTES)
-            .topic("persistent://sample/test/local/partitioned-topic")
-            .enableBatching(false)
-            .messageRoutingMode(MessageRoutingMode.RoundRobinPartition).create();
+                .topic("persistent://sample/test/local/partitioned-topic")
+                .enableBatching(false)
+                .messageRoutingMode(MessageRoutingMode.RoundRobinPartition).create();
 
         // Create a consumer directly attached to broker
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic("persistent://sample/test/local/partitioned-topic")
@@ -171,18 +171,18 @@ public class ProxyParserTest extends MockedPulsarServiceBaseTest {
     public void testRegexSubscription() throws Exception {
         @Cleanup
         PulsarClient client = PulsarClient.builder().serviceUrl(proxyService.getServiceUrl())
-            .connectionsPerBroker(5).ioThreads(5).build();
+                .connectionsPerBroker(5).ioThreads(5).build();
 
         // create two topics by subscribing to a topic and closing it
         try (Consumer<byte[]> ignored = client.newConsumer()
-            .topic("persistent://sample/test/local/topic1")
-            .subscriptionName("ignored")
-            .subscribe()) {
+                .topic("persistent://sample/test/local/topic1")
+                .subscriptionName("ignored")
+                .subscribe()) {
         }
         try (Consumer<byte[]> ignored = client.newConsumer()
-            .topic("persistent://sample/test/local/topic2")
-            .subscriptionName("ignored")
-            .subscribe()) {
+                .topic("persistent://sample/test/local/topic2")
+                .subscriptionName("ignored")
+                .subscribe()) {
         }
         String subName = "regex-sub-proxy-parser-test-" + System.currentTimeMillis();
 
@@ -190,16 +190,16 @@ public class ProxyParserTest extends MockedPulsarServiceBaseTest {
         String regexSubscriptionPattern = "persistent://sample/test/local/topic.*";
         log.info("Regex subscribe to topics {}", regexSubscriptionPattern);
         try (Consumer<byte[]> consumer = client.newConsumer()
-            .topicsPattern(regexSubscriptionPattern)
-            .subscriptionName(subName)
-            .subscribe()) {
+                .topicsPattern(regexSubscriptionPattern)
+                .subscriptionName(subName)
+                .subscribe()) {
             log.info("Successfully subscribe to topics using regex {}", regexSubscriptionPattern);
 
             final int numMessages = 20;
 
             try (Producer<byte[]> producer = client.newProducer(Schema.BYTES)
-                .topic("persistent://sample/test/local/topic1")
-                .create()) {
+                    .topic("persistent://sample/test/local/topic1")
+                    .create()) {
                 for (int i = 0; i < numMessages; i++) {
                     producer.send(("message-" + i).getBytes(UTF_8));
                 }
@@ -219,8 +219,12 @@ public class ProxyParserTest extends MockedPulsarServiceBaseTest {
 
         ClientConfigurationData conf = new ClientConfigurationData();
         conf.setServiceUrl(proxyService.getServiceUrl());
+        @Cleanup("shutdownNow")
+        EventLoopGroup eventLoopGroup = EventLoopUtil.newEventLoopGroup(conf.getNumIoThreads(), false,
+                new DefaultThreadFactory("pulsar-client-io", Thread.currentThread().isDaemon()));
         @Cleanup
-        PulsarClient client = getClientActiveConsumerChangeNotSupported(conf);
+        PulsarClient client = getClientActiveConsumerChangeNotSupported(conf,
+                eventLoopGroup);
 
         Producer<byte[]> producer = client.newProducer().topic(topic).create();
         Consumer<byte[]> consumer = client.newConsumer().topic(topic).subscriptionName(sub)
@@ -243,10 +247,9 @@ public class ProxyParserTest extends MockedPulsarServiceBaseTest {
         ((PulsarClientImpl) client).getCnxPool().close();
     }
 
-    private static PulsarClient getClientActiveConsumerChangeNotSupported(ClientConfigurationData conf)
+    private static PulsarClient getClientActiveConsumerChangeNotSupported(ClientConfigurationData conf,
+                                                                          final EventLoopGroup eventLoopGroup)
             throws Exception {
-        ThreadFactory threadFactory = new DefaultThreadFactory("pulsar-client-io", Thread.currentThread().isDaemon());
-        EventLoopGroup eventLoopGroup = EventLoopUtil.newEventLoopGroup(conf.getNumIoThreads(), false, threadFactory);
 
         ConnectionPool cnxPool = new ConnectionPool(conf, eventLoopGroup, () -> {
             return new ClientCnx(conf, eventLoopGroup, ProtocolVersion.v11_VALUE) {

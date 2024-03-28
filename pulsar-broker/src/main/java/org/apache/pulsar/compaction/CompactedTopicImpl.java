@@ -32,6 +32,7 @@ import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.function.Predicate;
 import javax.annotation.Nullable;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
@@ -61,7 +62,7 @@ import org.slf4j.LoggerFactory;
 public class CompactedTopicImpl implements CompactedTopic {
     static final long NEWER_THAN_COMPACTED = -0xfeed0fbaL;
     static final long COMPACT_LEDGER_EMPTY = -0xfeed0fbbL;
-    static final int DEFAULT_STARTPOINT_CACHE_SIZE = 100;
+    static final int DEFAULT_MAX_CACHE_SIZE = 100;
 
     private final BookKeeper bk;
 
@@ -96,10 +97,15 @@ public class CompactedTopicImpl implements CompactedTopic {
     public void asyncReadEntriesOrWait(ManagedCursor cursor,
                                        int maxEntries,
                                        long bytesToRead,
+                                       PositionImpl maxReadPosition,
                                        boolean isFirstRead,
                                        ReadEntriesCallback callback, Consumer consumer) {
             PositionImpl cursorPosition;
-            if (isFirstRead && MessageId.earliest.equals(consumer.getStartMessageId())){
+            boolean readFromEarliest = isFirstRead && MessageId.earliest.equals(consumer.getStartMessageId())
+                && (!cursor.isDurable() || cursor.getName().equals(Compactor.COMPACTION_SUBSCRIPTION)
+                || cursor.getMarkDeletedPosition() == null
+                || cursor.getMarkDeletedPosition().getEntryId() == -1L);
+            if (readFromEarliest){
                 cursorPosition = PositionImpl.EARLIEST;
             } else {
                 cursorPosition = (PositionImpl) cursor.getReadPosition();
@@ -112,7 +118,7 @@ public class CompactedTopicImpl implements CompactedTopic {
 
             if (currentCompactionHorizon == null
                 || currentCompactionHorizon.compareTo(cursorPosition) < 0) {
-                cursor.asyncReadEntriesOrWait(maxEntries, bytesToRead, callback, readEntriesCtx, PositionImpl.LATEST);
+                cursor.asyncReadEntriesOrWait(maxEntries, bytesToRead, callback, readEntriesCtx, maxReadPosition);
             } else {
                 ManagedCursorImpl managedCursor = (ManagedCursorImpl) cursor;
                 int numberOfEntriesToRead = managedCursor.applyMaxSizeCap(maxEntries, bytesToRead);
@@ -248,7 +254,7 @@ public class CompactedTopicImpl implements CompactedTopic {
                                }
                            }, null);
         return promise.thenApply((ledger) -> new CompactedTopicContext(
-                                         ledger, createCache(ledger, DEFAULT_STARTPOINT_CACHE_SIZE)));
+                                         ledger, createCache(ledger, DEFAULT_MAX_CACHE_SIZE)));
     }
 
     private static CompletableFuture<Void> tryDeleteCompactedLedger(BookKeeper bk, long id) {
@@ -319,6 +325,55 @@ public class CompactedTopicImpl implements CompactedTopic {
         });
     }
 
+    CompletableFuture<Entry> findFirstMatchEntry(final Predicate<Entry> predicate) {
+        var compactedTopicContextFuture = this.getCompactedTopicContextFuture();
+
+        if (compactedTopicContextFuture == null) {
+            return CompletableFuture.completedFuture(null);
+        }
+        return compactedTopicContextFuture.thenCompose(compactedTopicContext -> {
+            LedgerHandle lh = compactedTopicContext.getLedger();
+            CompletableFuture<Long> promise = new CompletableFuture<>();
+            findFirstMatchIndexLoop(predicate, 0L, lh.getLastAddConfirmed(), promise, null, lh);
+            return promise.thenCompose(index -> {
+                if (index == null) {
+                    return CompletableFuture.completedFuture(null);
+                }
+                return readEntries(lh, index, index).thenApply(entries -> entries.get(0));
+            });
+        });
+    }
+    private static void findFirstMatchIndexLoop(final Predicate<Entry> predicate,
+                                                final long start, final long end,
+                                                final CompletableFuture<Long> promise,
+                                                final Long lastMatchIndex,
+                                                final LedgerHandle lh) {
+        if (start > end) {
+            promise.complete(lastMatchIndex);
+            return;
+        }
+
+        long mid = (start + end) / 2;
+        readEntries(lh, mid, mid).thenAccept(entries -> {
+            Entry entry = entries.get(0);
+            final boolean isMatch;
+            try {
+                isMatch = predicate.test(entry);
+            } finally {
+                entry.release();
+            }
+
+            if (isMatch) {
+                findFirstMatchIndexLoop(predicate, start, mid - 1, promise, mid, lh);
+            } else {
+                findFirstMatchIndexLoop(predicate, mid + 1, end, promise, lastMatchIndex, lh);
+            }
+        }).exceptionally(ex -> {
+            promise.completeExceptionally(ex);
+            return null;
+        });
+    }
+
     private static int comparePositionAndMessageId(PositionImpl p, MessageIdData m) {
         return ComparisonChain.start()
             .compare(p.getLedgerId(), m.getLedgerId())
@@ -327,6 +382,11 @@ public class CompactedTopicImpl implements CompactedTopic {
 
     public Optional<Position> getCompactionHorizon() {
         return Optional.ofNullable(this.compactionHorizon);
+    }
+
+    public void reset() {
+        this.compactionHorizon = null;
+        this.compactedTopicContext = null;
     }
 
     @Nullable

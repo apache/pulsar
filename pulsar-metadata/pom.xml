@@ -25,9 +25,14 @@
   <parent>
     <groupId>org.apache.pulsar</groupId>
     <artifactId>pulsar</artifactId>
-    <version>3.2.0-SNAPSHOT</version>
+    <version>3.3.0-SNAPSHOT</version>
     <relativePath>..</relativePath>
   </parent>
+
+  <properties>
+    <!-- workaround for OOM error 134 in CI -->
+    <testForkCount>2</testForkCount>
+  </properties>
 
   <artifactId>pulsar-metadata</artifactId>
   <name>Pulsar Metadata</name>
@@ -55,6 +60,18 @@
           <artifactId>netty-tcnative</artifactId>
         </exclusion>
       </exclusions>
+    </dependency>
+
+    <dependency>
+      <groupId>io.streamnative.oxia</groupId>
+      <artifactId>oxia-client</artifactId>
+      <classifier>shaded</classifier>
+    </dependency>
+
+    <dependency>
+      <groupId>io.streamnative.oxia</groupId>
+      <artifactId>oxia-testcontainers</artifactId>
+      <scope>test</scope>
     </dependency>
 
     <dependency>
@@ -149,7 +166,7 @@
           </execution>
         </executions>
       </plugin>
-      
+
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-jar-plugin</artifactId>
@@ -194,4 +211,20 @@
       </plugin>
     </plugins>
   </build>
+  <profiles>
+    <profile>
+      <id>skipTestsForUnitGroupOther</id>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-surefire-plugin</artifactId>
+            <configuration>
+              <skipTests>true</skipTests>
+            </configuration>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+  </profiles>
 </project>

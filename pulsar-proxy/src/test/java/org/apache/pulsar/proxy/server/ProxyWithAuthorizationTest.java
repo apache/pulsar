@@ -64,6 +64,7 @@ import org.testng.collections.Maps;
 
 public class ProxyWithAuthorizationTest extends ProducerConsumerBase {
     private static final Logger log = LoggerFactory.getLogger(ProxyWithAuthorizationTest.class);
+    private static final String CLUSTER_NAME = "proxy-authorization";
 
     private final SecretKey SECRET_KEY = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
     private final String CLIENT_TOKEN = AuthTokenUtils.createToken(SECRET_KEY, "Client", Optional.empty());
@@ -189,7 +190,7 @@ public class ProxyWithAuthorizationTest extends ProducerConsumerBase {
         properties.setProperty("tokenSecretKey", AuthTokenUtils.encodeKeyBase64(SECRET_KEY));
         conf.setProperties(properties);
 
-        conf.setClusterName("proxy-authorization");
+        conf.setClusterName(CLUSTER_NAME);
         conf.setNumExecutorThreadPoolSize(5);
     }
 
@@ -206,6 +207,7 @@ public class ProxyWithAuthorizationTest extends ProducerConsumerBase {
         proxyConfig.setBrokerServiceURLTLS(pulsar.getBrokerServiceUrlTls());
         proxyConfig.setBrokerWebServiceURLTLS(pulsar.getWebServiceAddressTls());
         proxyConfig.setAdvertisedAddress(null);
+        proxyConfig.setClusterName(CLUSTER_NAME);
 
         proxyConfig.setBrokerProxyAllowedTargetPorts("*");
         proxyConfig.setServicePortTls(Optional.of(0));
@@ -229,6 +231,7 @@ public class ProxyWithAuthorizationTest extends ProducerConsumerBase {
         AuthenticationService authService =
                 new AuthenticationService(PulsarConfigurationLoader.convertFrom(proxyConfig));
         proxyService = Mockito.spy(new ProxyService(proxyConfig, authService));
+        proxyService.setGracefulShutdown(false);
         webServer = new WebServer(proxyConfig, authService);
     }
 
@@ -431,6 +434,7 @@ public class ProxyWithAuthorizationTest extends ProducerConsumerBase {
         proxyConfig.setBrokerServiceURL(pulsar.getBrokerServiceUrl());
         proxyConfig.setBrokerServiceURLTLS(pulsar.getBrokerServiceUrlTls());
         proxyConfig.setAdvertisedAddress(null);
+        proxyConfig.setClusterName(CLUSTER_NAME);
 
         proxyConfig.setServicePort(Optional.of(0));
         proxyConfig.setBrokerProxyAllowedTargetPorts("*");
@@ -455,9 +459,11 @@ public class ProxyWithAuthorizationTest extends ProducerConsumerBase {
         proxyConfig.setTlsProtocols(tlsProtocols);
         proxyConfig.setTlsCiphers(tlsCiphers);
 
+        @Cleanup
         ProxyService proxyService = Mockito.spy(new ProxyService(proxyConfig,
                                                         new AuthenticationService(
                                                                 PulsarConfigurationLoader.convertFrom(proxyConfig))));
+        proxyService.setGracefulShutdown(false);
         try {
             proxyService.start();
         } catch (Exception ex) {

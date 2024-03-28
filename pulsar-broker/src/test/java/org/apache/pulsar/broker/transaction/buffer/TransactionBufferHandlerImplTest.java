@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.transaction.buffer;
 
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.namespace.NamespaceEphemeralData;
@@ -57,9 +58,9 @@ public class TransactionBufferHandlerImplTest {
         when(namespaceService.getBundleAsync(any())).thenReturn(CompletableFuture.completedFuture(mock(NamespaceBundle.class)));
         Optional<NamespaceEphemeralData> opData = Optional.empty();
         when(namespaceService.getOwnerAsync(any())).thenReturn(CompletableFuture.completedFuture(opData));
-        when(((PulsarClientImpl)pulsarClient).getConnection(anyString(), anyInt()))
-                .thenReturn(CompletableFuture.completedFuture(mock(ClientCnx.class)));
-        when(((PulsarClientImpl)pulsarClient).getConnection(anyString()))
+        when(pulsarClient.getConnection(anyString(), anyInt()))
+                .thenReturn(CompletableFuture.completedFuture(Pair.of(mock(ClientCnx.class), false)));
+        when(pulsarClient.getConnection(anyString()))
                 .thenReturn(CompletableFuture.completedFuture(mock(ClientCnx.class)));
         TransactionBufferHandlerImpl handler = spy(new TransactionBufferHandlerImpl(pulsarService, null, 1000, 3000));
         doNothing().when(handler).endTxn(any());

@@ -84,6 +84,7 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.RawMessage;
 import org.apache.pulsar.client.api.RawReader;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.TypedMessageBuilder;
 import org.apache.pulsar.client.api.schema.GenericRecord;
@@ -239,16 +240,14 @@ public class ReplicatorTest extends ReplicatorTestBase {
         pulsar1.getConfiguration().setAuthorizationEnabled(true);
         //init clusterData
 
-        String cluster2ServiceUrls = String.format("%s,localhost:1234,localhost:5678,localhost:5677,localhost:5676",
-                pulsar2.getWebServiceAddress());
-        ClusterData cluster2Data = ClusterData.builder().serviceUrl(cluster2ServiceUrls).build();
+        ClusterData cluster2Data = ClusterData.builder().serviceUrl(pulsar2.getWebServiceAddress()).build();
         String cluster2 = "activeCLuster2";
         admin2.clusters().createCluster(cluster2, cluster2Data);
         Awaitility.await().until(()
                 -> admin2.clusters().getCluster(cluster2) != null);
 
         List<String> list = admin1.brokers().getActiveBrokers(cluster2);
-        assertEquals(list.get(0), urlTls2.toString().replace("https://", ""));
+        assertEquals(list.get(0), pulsar2.getBrokerId());
         //restore configuration
         pulsar1.getConfiguration().setAuthorizationEnabled(false);
     }
@@ -667,8 +666,8 @@ public class ReplicatorTest extends ReplicatorTestBase {
                     .get(BrokerTestUtil.newUniqueName("persistent://pulsar/ns/res-cons-id-"));
 
             // Create another consumer using replication prefix as sub id
+            @Cleanup
             MessageConsumer consumer = new MessageConsumer(url2, dest, "pulsar.repl.");
-            consumer.close();
 
         } catch (Exception e) {
             // SUCCESS
@@ -1715,13 +1714,15 @@ public class ReplicatorTest extends ReplicatorTestBase {
 
         MessageIdImpl lastMessageId = (MessageIdImpl) topic.getLastMessageId().get();
         Position lastPosition = PositionImpl.get(lastMessageId.getLedgerId(), lastMessageId.getEntryId());
-        ConcurrentOpenHashMap<String, Replicator> replicators = topic.getReplicators();
-        PersistentReplicator replicator = (PersistentReplicator) replicators.get("r2");
 
         Awaitility.await().pollInterval(1, TimeUnit.SECONDS).timeout(30, TimeUnit.SECONDS)
-                .untilAsserted(() -> assertEquals(org.apache.pulsar.broker.service.AbstractReplicator.State.Started,
-                        replicator.getState()));
-        assertEquals(replicator.getState(), org.apache.pulsar.broker.service.AbstractReplicator.State.Started);
+                .ignoreExceptions()
+                .untilAsserted(() -> {
+                    ConcurrentOpenHashMap<String, Replicator> replicators = topic.getReplicators();
+                    PersistentReplicator replicator = (PersistentReplicator) replicators.get("r2");
+                    assertEquals(org.apache.pulsar.broker.service.AbstractReplicator.State.Started,
+                            replicator.getState());
+                });
 
         // Make sure all the data has replicated to the remote cluster before close the cursor.
         Awaitility.await().untilAsserted(() -> assertEquals(cursor.getMarkDeletedPosition(), lastPosition));
@@ -1803,6 +1804,76 @@ public class ReplicatorTest extends ReplicatorTestBase {
         producer2.produce(1);
 
         Assert.assertThrows(PulsarClientException.ProducerBusyException.class, () -> new MessageProducer(url2, dest2));
+    }
+
+    @Test
+    public void testReplicatorWithTTL() throws Exception {
+        log.info("--- Starting ReplicatorTest::testReplicatorWithTTL ---");
+
+        final String cluster1 = pulsar1.getConfig().getClusterName();
+        final String cluster2 = pulsar2.getConfig().getClusterName();
+        final String namespace = BrokerTestUtil.newUniqueName("pulsar/ns");
+        final TopicName topic = TopicName
+                .get(BrokerTestUtil.newUniqueName("persistent://" + namespace + "/testReplicatorWithTTL"));
+        admin1.namespaces().createNamespace(namespace, Sets.newHashSet(cluster1, cluster2));
+        admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet(cluster1, cluster2));
+        admin1.topics().createNonPartitionedTopic(topic.toString());
+        admin1.topicPolicies().setMessageTTL(topic.toString(), 1);
+
+        @Cleanup
+        PulsarClient client1 = PulsarClient.builder().serviceUrl(url1.toString()).statsInterval(0, TimeUnit.SECONDS)
+                .build();
+
+        @Cleanup
+        Producer<byte[]> persistentProducer1 = client1.newProducer().topic(topic.toString()).create();
+        persistentProducer1.send("V1".getBytes());
+
+        waitReplicateFinish(topic, admin1);
+
+        PersistentTopic persistentTopic =
+                (PersistentTopic) pulsar1.getBrokerService().getTopicReference(topic.toString()).get();
+        persistentTopic.getReplicators().forEach((cluster, replicator) -> {
+            PersistentReplicator persistentReplicator = (PersistentReplicator) replicator;
+            // Pause replicator
+            persistentReplicator.disconnect();
+        });
+
+        persistentProducer1.send("V2".getBytes());
+        persistentProducer1.send("V3".getBytes());
+
+        Thread.sleep(1000);
+
+        admin1.topics().expireMessagesForAllSubscriptions(topic.toString(), 1);
+
+        persistentTopic.getReplicators().forEach((cluster, replicator) -> {
+            PersistentReplicator persistentReplicator = (PersistentReplicator) replicator;
+            persistentReplicator.startProducer();
+        });
+
+        waitReplicateFinish(topic, admin1);
+
+        persistentProducer1.send("V4".getBytes());
+
+        waitReplicateFinish(topic, admin1);
+
+        @Cleanup
+        PulsarClient client2 = PulsarClient.builder().serviceUrl(url2.toString()).statsInterval(0, TimeUnit.SECONDS)
+                .build();
+
+        @Cleanup
+        Consumer<byte[]> consumer = client2.newConsumer().topic(topic.toString())
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest).subscriptionName("sub").subscribe();
+
+        List<String> result = new ArrayList<>();
+        while (true) {
+            Message<byte[]> receive = consumer.receive(2, TimeUnit.SECONDS);
+            if (receive == null) {
+                break;
+            }
+            result.add(new String(receive.getValue()));
+        }
+
+        assertEquals(result, Lists.newArrayList("V1", "V2", "V3", "V4"));
     }
 
     @Test

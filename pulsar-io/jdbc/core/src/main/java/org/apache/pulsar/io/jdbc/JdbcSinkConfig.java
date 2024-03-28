@@ -26,6 +26,8 @@ import java.io.Serializable;
 import java.util.Map;
 import lombok.Data;
 import lombok.experimental.Accessors;
+import org.apache.pulsar.io.common.IOConfigUtils;
+import org.apache.pulsar.io.core.SinkContext;
 import org.apache.pulsar.io.core.annotations.FieldDoc;
 
 @Data
@@ -145,9 +147,8 @@ public class JdbcSinkConfig implements Serializable {
         return mapper.readValue(new File(yamlFile), JdbcSinkConfig.class);
     }
 
-    public static JdbcSinkConfig load(Map<String, Object> map) throws IOException {
-        ObjectMapper mapper = new ObjectMapper();
-        return mapper.readValue(mapper.writeValueAsString(map), JdbcSinkConfig.class);
+    public static JdbcSinkConfig load(Map<String, Object> map, SinkContext sinkContext) throws IOException {
+        return IOConfigUtils.loadWithSecrets(map, JdbcSinkConfig.class, sinkContext);
     }
 
     public void validate() {

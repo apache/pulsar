@@ -25,6 +25,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.common.api.proto.CompressionType;
 import org.apache.pulsar.common.compression.CompressionCodec;
 import org.apache.pulsar.common.compression.CompressionCodecProvider;
+import org.apache.pulsar.common.protocol.Commands;
 
 /**
  * Batch message container framework.
@@ -53,19 +54,24 @@ public abstract class AbstractBatchMessageContainer implements BatchMessageConta
     // allocate a new buffer that can hold the entire batch without needing costly reallocations
     protected int maxBatchSize = INITIAL_BATCH_BUFFER_SIZE;
     protected int maxMessagesNum = INITIAL_MESSAGES_NUM;
+    private volatile long firstAddedTimestamp = 0L;
 
     @Override
     public boolean haveEnoughSpace(MessageImpl<?> msg) {
         int messageSize = msg.getDataBuffer().readableBytes();
         return (
-            (maxBytesInBatch <= 0 && (messageSize + currentBatchSizeBytes) <= ClientCnx.getMaxMessageSize())
+            (maxBytesInBatch <= 0 && (messageSize + currentBatchSizeBytes) <= getMaxMessageSize())
             || (maxBytesInBatch > 0 && (messageSize + currentBatchSizeBytes) <= maxBytesInBatch)
         ) && (maxNumMessagesInBatch <= 0 || numMessagesInBatch < maxNumMessagesInBatch);
+    }
+    protected int getMaxMessageSize() {
+        return producer != null && producer.getConnectionHandler() != null
+                ? producer.getConnectionHandler().getMaxMessageSize() : Commands.DEFAULT_MAX_MESSAGE_SIZE;
     }
 
     protected boolean isBatchFull() {
         return (maxBytesInBatch > 0 && currentBatchSizeBytes >= maxBytesInBatch)
-            || (maxBytesInBatch <= 0 && currentBatchSizeBytes >= ClientCnx.getMaxMessageSize())
+            || (maxBytesInBatch <= 0 && currentBatchSizeBytes >= getMaxMessageSize())
             || (maxNumMessagesInBatch > 0 && numMessagesInBatch >= maxNumMessagesInBatch);
     }
 
@@ -126,5 +132,20 @@ public abstract class AbstractBatchMessageContainer implements BatchMessageConta
         }
         return currentTxnidMostBits == msg.getMessageBuilder().getTxnidMostBits()
                 && currentTxnidLeastBits == msg.getMessageBuilder().getTxnidLeastBits();
+    }
+
+    @Override
+    public long getFirstAddedTimestamp() {
+        return firstAddedTimestamp;
+    }
+
+    protected void tryUpdateTimestamp() {
+        if (numMessagesInBatch == 1) {
+            firstAddedTimestamp = System.nanoTime();
+        }
+    }
+
+    protected void clearTimestamp() {
+        firstAddedTimestamp = 0L;
     }
 }

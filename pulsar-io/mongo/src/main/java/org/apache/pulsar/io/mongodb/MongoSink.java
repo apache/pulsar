@@ -86,7 +86,7 @@ public class MongoSink implements Sink<byte[]> {
     public void open(Map<String, Object> config, SinkContext sinkContext) throws Exception {
         log.info("Open MongoDB Sink");
 
-        mongoSinkConfig = MongoSinkConfig.load(config);
+        mongoSinkConfig = MongoSinkConfig.load(config, sinkContext);
         mongoSinkConfig.validate();
 
         if (clientProvider != null) {

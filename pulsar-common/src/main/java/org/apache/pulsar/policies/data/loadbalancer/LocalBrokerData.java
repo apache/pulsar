@@ -389,7 +389,7 @@ public class LocalBrokerData implements LoadManagerReport {
     }
 
     @Override
-    public int getNumTopics() {
+    public long getNumTopics() {
         return numTopics;
     }
 

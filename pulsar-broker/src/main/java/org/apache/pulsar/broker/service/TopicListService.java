@@ -31,6 +31,7 @@ import org.apache.pulsar.broker.resources.TopicResources;
 import org.apache.pulsar.common.api.proto.CommandWatchTopicListClose;
 import org.apache.pulsar.common.api.proto.ServerError;
 import org.apache.pulsar.common.naming.NamespaceName;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.topics.TopicList;
 import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
 import org.apache.pulsar.metadata.api.NotificationType;
@@ -42,11 +43,16 @@ public class TopicListService {
 
     public static class TopicListWatcher implements BiConsumer<String, NotificationType> {
 
+        /** Topic names which are matching, the topic name contains the partition suffix. **/
         private final List<String> matchingTopics;
         private final TopicListService topicListService;
         private final long id;
+        /** The regexp for the topic name(not contains partition suffix). **/
         private final Pattern topicsPattern;
 
+        /***
+         * @param topicsPattern The regexp for the topic name(not contains partition suffix).
+         */
         public TopicListWatcher(TopicListService topicListService, long id,
                                 Pattern topicsPattern, List<String> topics) {
             this.topicListService = topicListService;
@@ -59,9 +65,12 @@ public class TopicListService {
             return matchingTopics;
         }
 
+        /***
+         * @param topicName topic name which contains partition suffix.
+         */
         @Override
         public void accept(String topicName, NotificationType notificationType) {
-            if (topicsPattern.matcher(topicName).matches()) {
+            if (topicsPattern.matcher(TopicName.get(topicName).getPartitionedTopicName()).matches()) {
                 List<String> newTopics;
                 List<String> deletedTopics;
                 if (notificationType == NotificationType.Deleted) {
@@ -109,6 +118,9 @@ public class TopicListService {
         }
     }
 
+    /***
+     * @param topicsPattern The regexp for the topic name(not contains partition suffix).
+     */
     public void handleWatchTopicList(NamespaceName namespaceName, long watcherId, long requestId, Pattern topicsPattern,
                                      String topicsHash, Semaphore lookupSemaphore) {
 
@@ -184,7 +196,9 @@ public class TopicListService {
                 });
     }
 
-
+    /***
+     * @param topicsPattern The regexp for the topic name(not contains partition suffix).
+     */
     public void initializeTopicsListWatcher(CompletableFuture<TopicListWatcher> watcherFuture,
             NamespaceName namespace, long watcherId, Pattern topicsPattern) {
         namespaceService.getListOfPersistentTopics(namespace).
@@ -246,6 +260,10 @@ public class TopicListService {
         log.info("[{}] Closed watcher, watcherId={}", connection.getRemoteAddress(), watcherId);
     }
 
+    /**
+     * @param deletedTopics topic names deleted(contains the partition suffix).
+     * @param newTopics topics names added(contains the partition suffix).
+     */
     public void sendTopicListUpdate(long watcherId, String topicsHash, List<String> deletedTopics,
                                     List<String> newTopics) {
         connection.getCommandSender().sendWatchTopicListUpdate(watcherId, newTopics, deletedTopics, topicsHash);

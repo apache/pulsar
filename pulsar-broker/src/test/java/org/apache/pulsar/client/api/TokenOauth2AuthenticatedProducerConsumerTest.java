@@ -22,6 +22,7 @@ import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotEquals;
 import com.google.common.collect.Sets;
+import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URL;
 import java.nio.file.Path;
@@ -112,21 +113,22 @@ public class TokenOauth2AuthenticatedProducerConsumerTest extends ProducerConsum
         Path path = Paths.get(CREDENTIALS_FILE).toAbsolutePath();
         log.info("Credentials File path: {}", path.toString());
 
-        // AuthenticationOAuth2
-        Authentication authentication = AuthenticationFactoryOAuth2.clientCredentials(
-                new URL(server.getIssuer()),
-                path.toUri().toURL(),  // key file path
-                audience
-        );
-
         closeAdmin();
         admin = spy(PulsarAdmin.builder().serviceHttpUrl(brokerUrl.toString())
-                .authentication(authentication)
+                .authentication(createAuthentication(path))
                 .build());
 
         replacePulsarClient(PulsarClient.builder().serviceUrl(new URI(pulsar.getBrokerServiceUrl()).toString())
                 .statsInterval(0, TimeUnit.SECONDS)
-                .authentication(authentication));
+                .authentication(createAuthentication(path)));
+    }
+
+    private Authentication createAuthentication(Path path) throws MalformedURLException {
+        return AuthenticationFactoryOAuth2.clientCredentials(
+                new URL(server.getIssuer()),
+                path.toUri().toURL(),  // key file path
+                audience
+        );
     }
 
     @AfterMethod(alwaysRun = true)

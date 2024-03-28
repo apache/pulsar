@@ -55,6 +55,14 @@ public class IOConfigUtilsTest {
         protected String testRequired;
 
         @FieldDoc(
+                required = true,
+                defaultValue = "defaultRequired",
+                sensitive = true,
+                help = "testRequired"
+        )
+        protected String testDefaultRequired;
+
+        @FieldDoc(
                 required = false,
                 defaultValue = "defaultStr",
                 sensitive = false,
@@ -304,6 +312,9 @@ public class IOConfigUtilsTest {
         configMap.put("testRequired", "test");
         TestDefaultConfig testDefaultConfig =
                 IOConfigUtils.loadWithSecrets(configMap, TestDefaultConfig.class, new TestSinkContext());
+        // if there is default value for a required field and no value provided when load config,
+        // it should not throw exception but use the default value.
+        Assert.assertEquals(testDefaultConfig.getTestDefaultRequired(), "defaultRequired");
         Assert.assertEquals(testDefaultConfig.getDefaultStr(), "defaultStr");
         Assert.assertEquals(testDefaultConfig.isDefaultBool(), true);
         Assert.assertEquals(testDefaultConfig.getDefaultInt(), 100);

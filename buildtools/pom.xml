@@ -31,12 +31,12 @@
 
   <groupId>org.apache.pulsar</groupId>
   <artifactId>buildtools</artifactId>
-  <version>3.2.0-SNAPSHOT</version>
+  <version>3.3.0-SNAPSHOT</version>
   <packaging>jar</packaging>
   <name>Pulsar Build Tools</name>
 
   <properties>
-    <project.build.outputTimestamp>2023-09-08T03:29:19Z</project.build.outputTimestamp>
+    <project.build.outputTimestamp>2023-12-28T19:33:08Z</project.build.outputTimestamp>
     <maven.compiler.source>1.8</maven.compiler.source>
     <maven.compiler.target>1.8</maven.compiler.target>
     <surefire.version>3.1.0</surefire.version>
@@ -45,9 +45,9 @@
     <testng.version>7.7.1</testng.version>
     <commons-lang3.version>3.11</commons-lang3.version>
     <license-maven-plugin.version>4.1</license-maven-plugin.version>
-    <puppycrawl.checkstyle.version>8.37</puppycrawl.checkstyle.version>
+    <puppycrawl.checkstyle.version>10.14.2</puppycrawl.checkstyle.version>
     <maven-checkstyle-plugin.version>3.1.2</maven-checkstyle-plugin.version>
-    <netty.version>4.1.100.Final</netty.version>
+    <netty.version>4.1.104.Final</netty.version>
     <guice.version>4.2.3</guice.version>
     <guava.version>32.1.2-jre</guava.version>
     <ant.version>1.10.12</ant.version>

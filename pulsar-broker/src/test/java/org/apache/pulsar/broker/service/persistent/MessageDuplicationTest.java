@@ -32,6 +32,7 @@ import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertTrue;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.EventLoopGroup;
 import java.lang.reflect.Field;
@@ -47,16 +48,24 @@ import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.broker.service.BacklogQuotaManager;
 import org.apache.pulsar.broker.service.BrokerService;
+import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.broker.service.Topic;
+import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.protocol.Commands;
+import org.apache.pulsar.broker.qos.AsyncTokenBucket;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.compaction.CompactionServiceFactory;
+import org.awaitility.Awaitility;
+import org.testng.Assert;
+import org.testng.annotations.AfterMethod;
+import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 @Slf4j
 @Test(groups = "broker")
-public class MessageDuplicationTest {
+public class MessageDuplicationTest extends BrokerTestBase {
 
     private static final int BROKER_DEDUPLICATION_ENTRIES_INTERVAL = 10;
     private static final int BROKER_DEDUPLICATION_MAX_NUMBER_PRODUCERS = 10;
@@ -255,7 +264,9 @@ public class MessageDuplicationTest {
         BrokerService brokerService = mock(BrokerService.class);
         doReturn(eventLoopGroup).when(brokerService).executor();
         doReturn(pulsarService).when(brokerService).pulsar();
+        doReturn(pulsarService).when(brokerService).getPulsar();
         doReturn(new BacklogQuotaManager(pulsarService)).when(brokerService).getBacklogQuotaManager();
+        doReturn(AsyncTokenBucket.DEFAULT_SNAPSHOT_CLOCK).when(pulsarService).getMonotonicSnapshotClock();
 
         PersistentTopic persistentTopic = spyWithClassAndConstructorArgs(PersistentTopic.class, "topic-1", brokerService, managedLedger, messageDeduplication);
 
@@ -439,5 +450,44 @@ public class MessageDuplicationTest {
 
             }
         });
+    }
+
+    @BeforeMethod(alwaysRun = true)
+    @Override
+    protected void setup() throws Exception {
+        this.conf.setBrokerDeduplicationEnabled(true);
+        super.baseSetup();
+    }
+
+    @AfterMethod(alwaysRun = true)
+    @Override
+    protected void cleanup() throws Exception {
+        super.internalCleanup();
+    }
+
+    @Test
+    public void testMessageDeduplication() throws Exception {
+        String topicName = "persistent://prop/ns-abc/testMessageDeduplication";
+        String producerName = "test-producer";
+        Producer<String> producer = pulsarClient
+                .newProducer(Schema.STRING)
+                .producerName(producerName)
+                .topic(topicName)
+                .create();
+        final PersistentTopic persistentTopic = (PersistentTopic) pulsar.getBrokerService()
+                .getTopicIfExists(topicName).get().orElse(null);
+        assertNotNull(persistentTopic);
+        final MessageDeduplication messageDeduplication = persistentTopic.getMessageDeduplication();
+        assertFalse(messageDeduplication.getInactiveProducers().containsKey(producerName));
+        producer.close();
+        Awaitility.await().untilAsserted(() -> assertTrue(messageDeduplication.getInactiveProducers().containsKey(producerName)));
+        admin.topicPolicies().setDeduplicationStatus(topicName, false);
+        Awaitility.await().untilAsserted(() -> {
+                    final Boolean deduplicationStatus = admin.topicPolicies().getDeduplicationStatus(topicName);
+                    Assert.assertNotNull(deduplicationStatus);
+                    Assert.assertFalse(deduplicationStatus);
+                });
+        messageDeduplication.purgeInactiveProducers();
+        assertTrue(messageDeduplication.getInactiveProducers().isEmpty());
     }
 }

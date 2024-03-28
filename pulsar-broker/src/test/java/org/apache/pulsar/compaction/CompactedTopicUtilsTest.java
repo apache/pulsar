@@ -69,8 +69,8 @@ public class CompactedTopicUtilsTest {
             }
         };
 
-        CompactedTopicUtils.asyncReadCompactedEntries(service, cursor, 1, 100, false,
-                readEntriesCallback, false, null);
+        CompactedTopicUtils.asyncReadCompactedEntries(service, cursor, 1, 100,
+                PositionImpl.LATEST, false, readEntriesCallback, false, null);
 
         List<Entry> entries = completableFuture.get();
         Assert.assertTrue(entries.isEmpty());

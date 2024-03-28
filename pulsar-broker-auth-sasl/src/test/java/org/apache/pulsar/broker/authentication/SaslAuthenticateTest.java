@@ -29,6 +29,7 @@ import com.github.benmanes.caffeine.cache.Cache;
 import com.google.common.collect.ImmutableSet;
 import java.io.File;
 import java.io.FileWriter;
+import java.io.IOException;
 import java.lang.reflect.Field;
 import java.net.URI;
 import java.nio.file.Files;
@@ -43,6 +44,7 @@ import java.util.concurrent.TimeUnit;
 import javax.security.auth.login.Configuration;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.FileUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -77,7 +79,7 @@ public class SaslAuthenticateTest extends ProducerConsumerBase {
     private static Properties properties;
 
     private static String localHostname = "localhost";
-    private static Authentication authSasl;
+    private Authentication authSasl;
 
     @BeforeClass
     public static void startMiniKdc() throws Exception {
@@ -146,17 +148,11 @@ public class SaslAuthenticateTest extends ProducerConsumerBase {
         System.setProperty("java.security.krb5.conf", krb5file.getAbsolutePath());
         Configuration.getConfiguration().refresh();
 
-        // Client config
-        Map<String, String> clientSaslConfig = new HashMap<>();
-        clientSaslConfig.put("saslJaasClientSectionName", "PulsarClient");
-        clientSaslConfig.put("serverType", "broker");
-        log.info("set client jaas section name: PulsarClient");
-        authSasl = AuthenticationFactory.create(AuthenticationSasl.class.getName(), clientSaslConfig);
-        log.info("created AuthenticationSasl");
+
     }
 
     @AfterClass(alwaysRun = true)
-    public static void stopMiniKdc() {
+    public static void stopMiniKdc() throws IOException {
         System.clearProperty("java.security.auth.login.config");
         System.clearProperty("java.security.krb5.conf");
         if (kdc != null) {
@@ -175,6 +171,14 @@ public class SaslAuthenticateTest extends ProducerConsumerBase {
         // use http lookup to verify HttpClient works well.
         isTcpLookup = false;
 
+        // Client config
+        Map<String, String> clientSaslConfig = new HashMap<>();
+        clientSaslConfig.put("saslJaasClientSectionName", "PulsarClient");
+        clientSaslConfig.put("serverType", "broker");
+        log.info("set client jaas section name: PulsarClient");
+        authSasl = AuthenticationFactory.create(AuthenticationSasl.class.getName(), clientSaslConfig);
+        log.info("created AuthenticationSasl");
+
         conf.setAdvertisedAddress(localHostname);
         conf.setAuthenticationEnabled(true);
         conf.setSaslJaasClientAllowedIds(".*" + "client" + ".*");
@@ -187,9 +191,6 @@ public class SaslAuthenticateTest extends ProducerConsumerBase {
         conf.setAuthenticationProviders(providers);
         conf.setClusterName("test");
         conf.setSuperUserRoles(ImmutableSet.of("client" + "@" + kdc.getRealm()));
-        Map<String, String> clientSaslConfig = new HashMap<>();
-        clientSaslConfig.put("saslJaasClientSectionName", "PulsarClient");
-        clientSaslConfig.put("serverType", "broker");
         conf.setBrokerClientAuthenticationPlugin(AuthenticationSasl.class.getName());
         conf.setBrokerClientAuthenticationParameters(ObjectMapperFactory
                 .getMapper().getObjectMapper().writeValueAsString(clientSaslConfig));
@@ -307,8 +308,11 @@ public class SaslAuthenticateTest extends ProducerConsumerBase {
 
     @Test
     public void testSaslOnlyAuthFirstStage() throws Exception {
-        AuthenticationProviderSasl saslServer = (AuthenticationProviderSasl) pulsar.getBrokerService()
-                .getAuthenticationService().getAuthenticationProvider(SaslConstants.AUTH_METHOD_NAME);
+        @Cleanup
+        AuthenticationProviderSasl saslServer = new AuthenticationProviderSasl();
+        // The cache expiration time is set to 50ms. Residual auth info should be cleaned up
+        conf.setInflightSaslContextExpiryMs(50);
+        saslServer.initialize(conf);
 
         HttpServletRequest servletRequest = mock(HttpServletRequest.class);
         doReturn("Init").when(servletRequest).getHeader("State");
@@ -325,9 +329,6 @@ public class SaslAuthenticateTest extends ProducerConsumerBase {
         field.setAccessible(true);
         Cache<Long, AuthenticationState> cache = (Cache<Long, AuthenticationState>) field.get(saslServer);
         assertEquals(cache.asMap().size(), 10);
-        // The cache expiration time is set to 1ms. Residual auth info should be cleaned up
-        conf.setInflightSaslContextExpiryMs(1);
-        saslServer.initialize(conf);
         // Add more auth info into memory
         for (int i = 0; i < 10; i++) {
             AuthenticationDataProvider dataProvider =  authSasl.getAuthData("localhost");
@@ -339,7 +340,7 @@ public class SaslAuthenticateTest extends ProducerConsumerBase {
         }
         long start = System.currentTimeMillis();
         while (true) {
-            if (System.currentTimeMillis() - start > 10_00) {
+            if (System.currentTimeMillis() - start > 1000) {
                 fail();
             }
             cache = (Cache<Long, AuthenticationState>) field.get(saslServer);
@@ -347,14 +348,14 @@ public class SaslAuthenticateTest extends ProducerConsumerBase {
             if (CollectionUtils.hasElements(cache.asMap())) {
                 break;
             }
-            Thread.yield();
+            Thread.sleep(5);
         }
     }
 
     @Test
     public void testMaxInflightContext() throws Exception {
-        AuthenticationProviderSasl saslServer = (AuthenticationProviderSasl) pulsar.getBrokerService()
-                .getAuthenticationService().getAuthenticationProvider(SaslConstants.AUTH_METHOD_NAME);
+        @Cleanup
+        AuthenticationProviderSasl saslServer = new AuthenticationProviderSasl();
         HttpServletRequest servletRequest = mock(HttpServletRequest.class);
         doReturn("Init").when(servletRequest).getHeader("State");
         conf.setInflightSaslContextExpiryMs(Integer.MAX_VALUE);
@@ -375,5 +376,4 @@ public class SaslAuthenticateTest extends ProducerConsumerBase {
         //only 1 context was left in the memory
         assertEquals(cache.asMap().size(), 1);
     }
-
 }

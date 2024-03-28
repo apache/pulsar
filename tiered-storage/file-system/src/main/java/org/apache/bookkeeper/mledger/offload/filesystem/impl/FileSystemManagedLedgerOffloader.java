@@ -21,6 +21,7 @@ package org.apache.bookkeeper.mledger.offload.filesystem.impl;
 import static org.apache.bookkeeper.mledger.offload.OffloadUtils.buildLedgerMetadataFormat;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.util.concurrent.MoreExecutors;
 import io.netty.util.Recycler;
 import java.io.IOException;
 import java.util.Iterator;
@@ -401,6 +402,9 @@ public class FileSystemManagedLedgerOffloader implements LedgerOffloader {
             } catch (Exception e) {
                 log.error("FileSystemManagedLedgerOffloader close failed!", e);
             }
+        }
+        if (assignmentScheduler != null) {
+            MoreExecutors.shutdownAndAwaitTermination(assignmentScheduler, 5, TimeUnit.SECONDS);
         }
     }
 }

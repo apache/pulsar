@@ -168,7 +168,7 @@ public class AdminApiGetLastMessageIdTest extends MockedPulsarServiceBaseTest {
                     testNamespace, "my-topic", true);
         } catch (Exception e) {
             //System.out.println(e.getMessage());
-            Assert.assertEquals("Topic not found", e.getMessage());
+            Assert.assertTrue(e.getMessage().contains("Topic not found"));
         }
 
         String key = "legendtkl";

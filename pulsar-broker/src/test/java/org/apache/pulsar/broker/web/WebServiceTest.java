@@ -18,14 +18,19 @@
  */
 package org.apache.pulsar.broker.web;
 
+import static org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient.Metric;
+import static org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient.parseMetrics;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
+
 import com.google.common.collect.Multimap;
 import com.google.common.collect.Sets;
 import com.google.common.io.CharStreams;
 import com.google.common.io.Closeables;
 import io.netty.handler.ssl.util.InsecureTrustManagerFactory;
+
+import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -42,6 +47,8 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.zip.GZIPInputStream;
+import java.util.zip.ZipException;
 import javax.net.ssl.HttpsURLConnection;
 import javax.net.ssl.KeyManager;
 import javax.net.ssl.KeyManagerFactory;
@@ -51,7 +58,6 @@ import lombok.Cleanup;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.broker.stats.PrometheusMetricsTest;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsGenerator;
 import org.apache.pulsar.broker.testcontext.PulsarTestContext;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -104,31 +110,31 @@ public class WebServiceTest {
         ByteArrayOutputStream statsOut = new ByteArrayOutputStream();
         PrometheusMetricsGenerator.generate(pulsar, false, false, false, statsOut);
         String metricsStr = statsOut.toString();
-        Multimap<String, PrometheusMetricsTest.Metric> metrics = PrometheusMetricsTest.parseMetrics(metricsStr);
+        Multimap<String, Metric> metrics = parseMetrics(metricsStr);
 
-        Collection<PrometheusMetricsTest.Metric> maxThreads = metrics.get("pulsar_web_executor_max_threads");
-        Collection<PrometheusMetricsTest.Metric> minThreads = metrics.get("pulsar_web_executor_min_threads");
-        Collection<PrometheusMetricsTest.Metric> activeThreads = metrics.get("pulsar_web_executor_active_threads");
-        Collection<PrometheusMetricsTest.Metric> idleThreads = metrics.get("pulsar_web_executor_idle_threads");
-        Collection<PrometheusMetricsTest.Metric> currentThreads = metrics.get("pulsar_web_executor_current_threads");
+        Collection<Metric> maxThreads = metrics.get("pulsar_web_executor_max_threads");
+        Collection<Metric> minThreads = metrics.get("pulsar_web_executor_min_threads");
+        Collection<Metric> activeThreads = metrics.get("pulsar_web_executor_active_threads");
+        Collection<Metric> idleThreads = metrics.get("pulsar_web_executor_idle_threads");
+        Collection<Metric> currentThreads = metrics.get("pulsar_web_executor_current_threads");
 
-        for (PrometheusMetricsTest.Metric metric : maxThreads) {
+        for (Metric metric : maxThreads) {
             Assert.assertNotNull(metric.tags.get("cluster"));
             Assert.assertTrue(metric.value > 0);
         }
-        for (PrometheusMetricsTest.Metric metric : minThreads) {
+        for (Metric metric : minThreads) {
             Assert.assertNotNull(metric.tags.get("cluster"));
             Assert.assertTrue(metric.value > 0);
         }
-        for (PrometheusMetricsTest.Metric metric : activeThreads) {
+        for (Metric metric : activeThreads) {
             Assert.assertNotNull(metric.tags.get("cluster"));
             Assert.assertTrue(metric.value >= 0);
         }
-        for (PrometheusMetricsTest.Metric metric : idleThreads) {
+        for (Metric metric : idleThreads) {
             Assert.assertNotNull(metric.tags.get("cluster"));
             Assert.assertTrue(metric.value >= 0);
         }
-        for (PrometheusMetricsTest.Metric metric : currentThreads) {
+        for (Metric metric : currentThreads) {
             Assert.assertNotNull(metric.tags.get("cluster"));
             Assert.assertTrue(metric.value > 0);
         }
@@ -351,6 +357,73 @@ public class WebServiceTest {
         Response res = client.prepareGet(url).execute().get();
         assertEquals(res.getStatusCode(), 200);
         assertEquals(res.getResponseBody(), "ok");
+    }
+
+    @Test
+    public void testCompressOutputMetricsInPrometheus() throws Exception {
+
+        setupEnv(true, false, false, false, -1, false);
+
+        String metricsUrl = pulsar.getWebServiceAddress() + "/metrics/";
+
+        String[] command = {"curl", "-H", "Accept-Encoding: gzip", metricsUrl};
+
+        ProcessBuilder processBuilder = new ProcessBuilder(command);
+        Process process = processBuilder.start();
+
+        InputStream inputStream = process.getInputStream();
+
+        try {
+            GZIPInputStream gzipInputStream = new GZIPInputStream(inputStream);
+
+            // Process the decompressed content
+            StringBuilder content = new StringBuilder();
+            int data;
+            while ((data = gzipInputStream.read()) != -1) {
+                content.append((char) data);
+            }
+            log.info("Response Content: {}", content);
+
+            process.waitFor();
+            assertTrue(content.toString().contains("process_cpu_seconds_total"));
+        } catch (IOException e) {
+            log.error("Failed to decompress the content, likely the content is not compressed ", e);
+            fail();
+        }
+    }
+
+    @Test
+    public void testUnCompressOutputMetricsInPrometheus() throws Exception {
+
+        setupEnv(true, false, false, false, -1, false);
+
+        String metricsUrl = pulsar.getWebServiceAddress() + "/metrics/";
+
+        String[] command = {"curl", metricsUrl};
+
+        ProcessBuilder processBuilder = new ProcessBuilder(command);
+        Process process = processBuilder.start();
+
+        InputStream inputStream = process.getInputStream();
+        try {
+            GZIPInputStream gzipInputStream = new GZIPInputStream(inputStream);
+            fail();
+        } catch (IOException e) {
+            log.error("Failed to decompress the content, likely the content is not compressed ", e);
+            assertTrue(e instanceof ZipException);
+        }
+
+        BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream));
+        StringBuilder content = new StringBuilder();
+        String line;
+        while ((line = reader.readLine()) != null) {
+            content.append(line + "\n");
+        }
+
+        log.info("Response Content: {}", content);
+
+        process.waitFor();
+        assertTrue(content.toString().contains("process_cpu_seconds_total"));
     }
 
     private String makeHttpRequest(boolean useTls, boolean useAuth) throws Exception {

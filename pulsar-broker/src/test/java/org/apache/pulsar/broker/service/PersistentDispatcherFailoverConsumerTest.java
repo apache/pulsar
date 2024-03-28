@@ -51,6 +51,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
+import lombok.Cleanup;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.AddEntryCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteCursorCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteLedgerCallback;
@@ -157,8 +158,7 @@ public class PersistentDispatcherFailoverConsumerTest {
         doReturn(new PulsarCommandSenderImpl(null, serverCnxWithOldVersion))
                 .when(serverCnxWithOldVersion).getCommandSender();
 
-        NamespaceService nsSvc = mock(NamespaceService.class);
-        doReturn(nsSvc).when(pulsarTestContext.getPulsarService()).getNamespaceService();
+        NamespaceService nsSvc = pulsarTestContext.getPulsarService().getNamespaceService();
         doReturn(true).when(nsSvc).isServiceUnitOwned(any(NamespaceBundle.class));
         doReturn(true).when(nsSvc).isServiceUnitActive(any(TopicName.class));
         doReturn(CompletableFuture.completedFuture(true)).when(nsSvc).checkTopicOwnership(any(TopicName.class));
@@ -462,6 +462,7 @@ public class PersistentDispatcherFailoverConsumerTest {
         log.info("--- Starting PersistentDispatcherFailoverConsumerTest::testAddRemoveConsumerNonPartitionedTopic ---");
         String[] sortedConsumerNameByHashSelector = sortConsumerNameByHashSelector("Cons1", "Cons2");
         BrokerService spyBrokerService = pulsarTestContext.getBrokerService();
+        @Cleanup("shutdownNow")
         final EventLoopGroup singleEventLoopGroup = EventLoopUtil.newEventLoopGroup(1,
                 pulsarTestContext.getBrokerService().getPulsar().getConfig().isEnableBusyWait(),
                 new DefaultThreadFactory("pulsar-io"));

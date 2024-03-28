@@ -32,7 +32,6 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import org.apache.commons.lang3.mutable.MutableObject;
-import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespace.Mode;
@@ -58,7 +57,7 @@ public class BinaryProtoLookupService implements LookupService {
     private final String listenerName;
     private final int maxLookupRedirects;
 
-    private final ConcurrentHashMap<TopicName, CompletableFuture<Pair<InetSocketAddress, InetSocketAddress>>>
+    private final ConcurrentHashMap<TopicName, CompletableFuture<LookupTopicResult>>
             lookupInProgress = new ConcurrentHashMap<>();
 
     private final ConcurrentHashMap<TopicName, CompletableFuture<PartitionedTopicMetadata>>
@@ -99,11 +98,11 @@ public class BinaryProtoLookupService implements LookupService {
      *            topic-name
      * @return broker-socket-address that serves given topic
      */
-    public CompletableFuture<Pair<InetSocketAddress, InetSocketAddress>> getBroker(TopicName topicName) {
+    public CompletableFuture<LookupTopicResult> getBroker(TopicName topicName) {
         final MutableObject<CompletableFuture> newFutureCreated = new MutableObject<>();
         try {
             return lookupInProgress.computeIfAbsent(topicName, tpName -> {
-                CompletableFuture<Pair<InetSocketAddress, InetSocketAddress>> newFuture =
+                CompletableFuture<LookupTopicResult> newFuture =
                         findBroker(serviceNameResolver.resolveHost(), false, topicName, 0);
                 newFutureCreated.setValue(newFuture);
                 return newFuture;
@@ -139,9 +138,9 @@ public class BinaryProtoLookupService implements LookupService {
         }
     }
 
-    private CompletableFuture<Pair<InetSocketAddress, InetSocketAddress>> findBroker(InetSocketAddress socketAddress,
+    private CompletableFuture<LookupTopicResult> findBroker(InetSocketAddress socketAddress,
             boolean authoritative, TopicName topicName, final int redirectCount) {
-        CompletableFuture<Pair<InetSocketAddress, InetSocketAddress>> addressFuture = new CompletableFuture<>();
+        CompletableFuture<LookupTopicResult> addressFuture = new CompletableFuture<>();
 
         if (maxLookupRedirects > 0 && redirectCount > maxLookupRedirects) {
             addressFuture.completeExceptionally(
@@ -159,7 +158,6 @@ public class BinaryProtoLookupService implements LookupService {
                     if (log.isDebugEnabled()) {
                         log.debug("[{}] Lookup response exception: {}", topicName, t);
                     }
-
                     addressFuture.completeExceptionally(t);
                 } else {
                     URI uri = null;
@@ -198,10 +196,12 @@ public class BinaryProtoLookupService implements LookupService {
                             // (3) received correct broker to connect
                             if (r.proxyThroughServiceUrl) {
                                 // Connect through proxy
-                                addressFuture.complete(Pair.of(responseBrokerAddress, socketAddress));
+                                addressFuture.complete(
+                                        new LookupTopicResult(responseBrokerAddress, socketAddress, true));
                             } else {
                                 // Normal result with direct connection to broker
-                                addressFuture.complete(Pair.of(responseBrokerAddress, responseBrokerAddress));
+                                addressFuture.complete(
+                                        new LookupTopicResult(responseBrokerAddress, responseBrokerAddress, false));
                             }
                         }
 

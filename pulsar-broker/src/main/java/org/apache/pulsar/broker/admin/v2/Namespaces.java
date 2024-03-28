@@ -466,7 +466,8 @@ public class Namespaces extends NamespacesBase {
                                                  @PathParam("tenant") String tenant,
                                                  @PathParam("namespace") String namespace) {
         validateNamespaceName(tenant, namespace);
-        validateAdminAccessForTenantAsync(tenant)
+        validateNamespacePolicyOperationAsync(namespaceName, PolicyName.SUBSCRIPTION_EXPIRATION_TIME,
+                PolicyOperation.READ)
                 .thenCompose(__ -> getNamespacePoliciesAsync(namespaceName))
                 .thenAccept(policies -> asyncResponse.resume(policies.subscription_expiration_time_minutes))
                 .exceptionally(ex -> {
@@ -2774,6 +2775,67 @@ public class Namespaces extends NamespacesBase {
                                 boolean migrated) {
         validateNamespaceName(tenant, namespace);
         internalEnableMigration(migrated);
+    }
+
+    @POST
+    @Path("/{tenant}/{namespace}/dispatcherPauseOnAckStatePersistent")
+    @ApiOperation(value = "Set dispatcher pause on ack state persistent configuration for specified namespace.")
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Tenant or cluster or namespace doesn't exist"),
+            @ApiResponse(code = 409, message = "Concurrent modification")})
+    public void setDispatcherPauseOnAckStatePersistent(@Suspended final AsyncResponse asyncResponse,
+                                                       @PathParam("tenant") String tenant,
+                                                       @PathParam("namespace") String namespace) {
+        validateNamespaceName(tenant, namespace);
+        internalSetDispatcherPauseOnAckStatePersistentAsync(true)
+                .thenRun(() -> {
+                    log.info("[{}] Successfully enabled dispatcherPauseOnAckStatePersistent: namespace={}",
+                            clientAppId(), namespaceName);
+                    asyncResponse.resume(Response.noContent().build());
+                })
+                .exceptionally(ex -> {
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
+    }
+
+    @DELETE
+    @Path("/{tenant}/{namespace}/dispatcherPauseOnAckStatePersistent")
+    @ApiOperation(value = "Remove dispatcher pause on ack state persistent configuration for specified namespace.")
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Tenant or cluster or namespace doesn't exist"),
+            @ApiResponse(code = 409, message = "Concurrent modification")})
+    public void removeDispatcherPauseOnAckStatePersistent(@Suspended final AsyncResponse asyncResponse,
+                                                          @PathParam("tenant") String tenant,
+                                                          @PathParam("namespace") String namespace) {
+        validateNamespaceName(tenant, namespace);
+        internalSetDispatcherPauseOnAckStatePersistentAsync(false)
+                .thenRun(() -> {
+                    log.info("[{}] Successfully remove dispatcherPauseOnAckStatePersistent: namespace={}",
+                            clientAppId(), namespaceName);
+                    asyncResponse.resume(Response.noContent().build());
+                })
+                .exceptionally(ex -> {
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
+    }
+
+    @GET
+    @Path("/{tenant}/{namespace}/dispatcherPauseOnAckStatePersistent")
+    @ApiOperation(value = "Get dispatcher pause on ack state persistent config on a namespace.")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Tenant or cluster or namespace doesn't exist") })
+    public void getDispatcherPauseOnAckStatePersistent(@Suspended final AsyncResponse asyncResponse,
+                                                       @PathParam("tenant") String tenant,
+                                                       @PathParam("namespace") String namespace) {
+        validateNamespaceName(tenant, namespace);
+        internalGetDispatcherPauseOnAckStatePersistentAsync()
+                .thenApply(asyncResponse::resume)
+                .exceptionally(ex -> {
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
     }
 
 

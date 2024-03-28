@@ -125,6 +125,10 @@ public class AuthenticationProviderSasl implements AuthenticationProvider {
 
     @Override
     public void close() throws IOException {
+        if (jaasCredentialsContainer != null) {
+            jaasCredentialsContainer.close();
+            jaasCredentialsContainer = null;
+        }
     }
 
     @Override

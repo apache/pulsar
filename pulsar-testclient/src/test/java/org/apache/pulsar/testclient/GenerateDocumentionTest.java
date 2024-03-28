@@ -18,7 +18,9 @@
  */
 package org.apache.pulsar.testclient;
 
+import org.testng.Assert;
 import org.testng.annotations.Test;
+import picocli.CommandLine;
 
 public class GenerateDocumentionTest {
 
@@ -31,5 +33,40 @@ public class GenerateDocumentionTest {
     public void testSpecifyModuleName() throws Exception {
         String[] args = new String[]{"-n", "produce", "-n", "consume"};
         CmdGenerateDocumentation.main(args);
+    }
+
+    private static final String DESC = "desc";
+    @Test
+    public void testGetCommandOptionDescription(){
+        Arguments arguments = new Arguments();
+        CommandLine commander = new CommandLine(arguments);
+        String desc = CmdGenerateDocumentation.getCommandDescription(commander);
+        Assert.assertEquals(desc, DESC);
+
+        commander.getCommandSpec().options().forEach(option -> {
+            String desc1 = CmdGenerateDocumentation.getOptionDescription(option);
+            Assert.assertEquals(desc1, DESC);
+        });
+
+        ArgumentsWithoutDesc argumentsWithoutDesc = new ArgumentsWithoutDesc();
+        commander = new CommandLine(argumentsWithoutDesc);
+        desc = CmdGenerateDocumentation.getCommandDescription(commander);
+        Assert.assertEquals(desc, "");
+
+        commander.getCommandSpec().options().forEach(option -> {
+            String desc1 = CmdGenerateDocumentation.getOptionDescription(option);
+            Assert.assertEquals(desc1, "");
+        });
+    }
+
+    @CommandLine.Command(description = DESC)
+    static class Arguments {
+        @CommandLine.Option(names = {"-h", "--help"}, description = DESC, help = true)
+        boolean help;
+    }
+    @CommandLine.Command()
+    static class ArgumentsWithoutDesc {
+        @CommandLine.Option(names = {"-h", "--help"}, help = true)
+        boolean help;
     }
 }

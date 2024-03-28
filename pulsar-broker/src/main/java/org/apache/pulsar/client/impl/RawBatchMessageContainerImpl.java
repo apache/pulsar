@@ -187,6 +187,7 @@ public class RawBatchMessageContainerImpl extends BatchMessageContainerImpl {
         idData.writeTo(buf);
         buf.writeInt(metadataAndPayload.readableBytes());
         buf.writeBytes(metadataAndPayload);
+        metadataAndPayload.release();
         encryptedPayload.release();
         clear();
         return buf;

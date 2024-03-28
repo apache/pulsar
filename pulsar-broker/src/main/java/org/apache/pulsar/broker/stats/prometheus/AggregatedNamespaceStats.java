@@ -51,6 +51,9 @@ public class AggregatedNamespaceStats {
     long backlogQuotaLimit;
     long backlogQuotaLimitTime;
 
+    public long sizeBasedBacklogQuotaExceededEvictionCount;
+    public long timeBasedBacklogQuotaExceededEvictionCount;
+
     public Map<String, AggregatedReplicationStats> replicationStats = new HashMap<>();
 
     public Map<String, AggregatedSubscriptionStats> subscriptionStats = new HashMap<>();
@@ -68,6 +71,7 @@ public class AggregatedNamespaceStats {
 
     Map<String, TopicMetricBean> bucketDelayedIndexStats = new HashMap<>();
 
+    @SuppressWarnings("DuplicatedCode")
     void updateStats(TopicStats stats) {
         topicsCount++;
 
@@ -104,6 +108,9 @@ public class AggregatedNamespaceStats {
         managedLedgerStats.offloadedStorageUsed += stats.managedLedgerStats.offloadedStorageUsed;
         backlogQuotaLimit = Math.max(backlogQuotaLimit, stats.backlogQuotaLimit);
         backlogQuotaLimitTime = Math.max(backlogQuotaLimitTime, stats.backlogQuotaLimitTime);
+
+        sizeBasedBacklogQuotaExceededEvictionCount += stats.sizeBasedBacklogQuotaExceededEvictionCount;
+        timeBasedBacklogQuotaExceededEvictionCount += stats.timeBasedBacklogQuotaExceededEvictionCount;
 
         managedLedgerStats.storageWriteRate += stats.managedLedgerStats.storageWriteRate;
         managedLedgerStats.storageReadRate += stats.managedLedgerStats.storageReadRate;
@@ -172,6 +179,7 @@ public class AggregatedNamespaceStats {
         compactionLatencyBuckets.addAll(stats.compactionLatencyBuckets);
     }
 
+    @SuppressWarnings("DuplicatedCode")
     public void reset() {
         managedLedgerStats.reset();
         topicsCount = 0;
@@ -200,6 +208,9 @@ public class AggregatedNamespaceStats {
 
         replicationStats.clear();
         subscriptionStats.clear();
+
+        sizeBasedBacklogQuotaExceededEvictionCount = 0;
+        timeBasedBacklogQuotaExceededEvictionCount = 0;
 
         compactionRemovedEventCount = 0;
         compactionSucceedCount = 0;

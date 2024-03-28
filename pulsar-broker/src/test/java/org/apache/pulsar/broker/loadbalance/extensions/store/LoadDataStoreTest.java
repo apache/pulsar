@@ -20,7 +20,6 @@ package org.apache.pulsar.broker.loadbalance.extensions.store;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
-import static org.testng.Assert.assertNotNull;
 import static org.testng.AssertJUnit.assertTrue;
 
 import com.google.common.collect.Sets;
@@ -28,6 +27,7 @@ import lombok.AllArgsConstructor;
 import lombok.Cleanup;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.apache.commons.lang.reflect.FieldUtils;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicDomain;
@@ -74,7 +74,8 @@ public class LoadDataStoreTest extends MockedPulsarServiceBaseTest {
 
         @Cleanup
         LoadDataStore<MyClass> loadDataStore =
-                LoadDataStoreFactory.create(pulsar.getClient(), topic, MyClass.class);
+                LoadDataStoreFactory.create(pulsar, topic, MyClass.class);
+        loadDataStore.startProducer();
         loadDataStore.startTableView();
         MyClass myClass1 = new MyClass("1", 1);
         loadDataStore.pushAsync("key1", myClass1).get();
@@ -107,7 +108,8 @@ public class LoadDataStoreTest extends MockedPulsarServiceBaseTest {
 
         @Cleanup
         LoadDataStore<Integer> loadDataStore =
-                LoadDataStoreFactory.create(pulsar.getClient(), topic, Integer.class);
+                LoadDataStoreFactory.create(pulsar, topic, Integer.class);
+        loadDataStore.startProducer();
         loadDataStore.startTableView();
 
         Map<String, Integer> map = new HashMap<>();
@@ -131,7 +133,8 @@ public class LoadDataStoreTest extends MockedPulsarServiceBaseTest {
     public void testTableViewRestart() throws Exception {
         String topic = TopicDomain.persistent + "://" + NamespaceName.SYSTEM_NAMESPACE + "/" + UUID.randomUUID();
         LoadDataStore<Integer> loadDataStore =
-                LoadDataStoreFactory.create(pulsar.getClient(), topic, Integer.class);
+                LoadDataStoreFactory.create(pulsar, topic, Integer.class);
+        loadDataStore.startProducer();
 
         loadDataStore.startTableView();
         loadDataStore.pushAsync("1", 1).get();
@@ -140,15 +143,26 @@ public class LoadDataStoreTest extends MockedPulsarServiceBaseTest {
         loadDataStore.closeTableView();
 
         loadDataStore.pushAsync("1", 2).get();
-        Exception ex = null;
-        try {
-            loadDataStore.get("1");
-        } catch (IllegalStateException e) {
-            ex = e;
-        }
-        assertNotNull(ex);
-        loadDataStore.startTableView();
         Awaitility.await().untilAsserted(() -> assertEquals(loadDataStore.get("1").get(), 2));
+
+        loadDataStore.pushAsync("1", 3).get();
+        FieldUtils.writeField(loadDataStore, "tableViewLastUpdateTimestamp", 0 , true);
+        Awaitility.await().untilAsserted(() -> assertEquals(loadDataStore.get("1").get(), 3));
+    }
+
+    @Test
+    public void testProducerStop() throws Exception {
+        String topic = TopicDomain.persistent + "://" + NamespaceName.SYSTEM_NAMESPACE + "/" + UUID.randomUUID();
+        LoadDataStore<Integer> loadDataStore =
+                LoadDataStoreFactory.create(pulsar, topic, Integer.class);
+        loadDataStore.startProducer();
+        loadDataStore.pushAsync("1", 1).get();
+        loadDataStore.removeAsync("1").get();
+
+        loadDataStore.close();
+
+        loadDataStore.pushAsync("2", 2).get();
+        loadDataStore.removeAsync("2").get();
     }
 
 }

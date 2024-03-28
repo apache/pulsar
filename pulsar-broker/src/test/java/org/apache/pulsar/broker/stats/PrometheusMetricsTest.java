@@ -19,22 +19,22 @@
 package org.apache.pulsar.broker.stats;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient.Metric;
+import static org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient.parseMetrics;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-import com.google.common.base.MoreObjects;
 import com.google.common.base.Splitter;
-import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Multimap;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.prometheus.client.Collector;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.lang.reflect.Field;
+import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.nio.charset.StandardCharsets;
-import java.text.NumberFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -49,7 +49,6 @@ import java.util.Optional;
 import java.util.Properties;
 import java.util.Random;
 import java.util.Set;
-import java.util.TreeMap;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
@@ -66,6 +65,8 @@ import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.authentication.AuthenticationProviderToken;
 import org.apache.pulsar.broker.authentication.utils.AuthTokenUtils;
+import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateData;
+import org.apache.pulsar.broker.loadbalance.extensions.manager.UnloadManager;
 import org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerWrapper;
 import org.apache.pulsar.broker.service.AbstractTopic;
 import org.apache.pulsar.broker.service.BrokerTestBase;
@@ -120,25 +121,12 @@ public class PrometheusMetricsTest extends BrokerTestBase {
 
     @Test
     public void testPublishRateLimitedTimes() throws Exception {
-        checkPublishRateLimitedTimes(true);
-        checkPublishRateLimitedTimes(false);
-    }
-
-    private void checkPublishRateLimitedTimes(boolean preciseRateLimit) throws Exception {
         cleanup();
-        if (preciseRateLimit) {
-            conf.setBrokerPublisherThrottlingTickTimeMillis(10000000);
-            conf.setMaxPublishRatePerTopicInMessages(1);
-            conf.setMaxPublishRatePerTopicInBytes(1);
-            conf.setBrokerPublisherThrottlingMaxMessageRate(100000);
-            conf.setBrokerPublisherThrottlingMaxByteRate(10000000);
-        } else {
-            conf.setBrokerPublisherThrottlingTickTimeMillis(1);
-            conf.setBrokerPublisherThrottlingMaxMessageRate(1);
-            conf.setBrokerPublisherThrottlingMaxByteRate(1);
-        }
+        conf.setMaxPublishRatePerTopicInMessages(1);
+        conf.setMaxPublishRatePerTopicInBytes(1);
+        conf.setBrokerPublisherThrottlingMaxMessageRate(100000);
+        conf.setBrokerPublisherThrottlingMaxByteRate(10000000);
         conf.setStatsUpdateFrequencyInSecs(100000000);
-        conf.setPreciseTopicPublishRateLimiterEnable(preciseRateLimit);
         setup();
         String ns1 = "prop/ns-abc1" + UUID.randomUUID();
         admin.namespaces().createNamespace(ns1, 1);
@@ -180,15 +168,9 @@ public class PrometheusMetricsTest extends BrokerTestBase {
                     assertEquals(item.value, 1);
                     return;
                 } else if (item.tags.get("topic").equals(topicName3)) {
-                    //When using precise rate limiting, we only trigger the rate limiting of the topic,
-                    // so if the topic is not using the same connection, the rate limiting times will be 0
-                    //When using asynchronous rate limiting, we will trigger the broker-level rate limiting,
-                    // and all connections will be limited at this time.
-                    if (preciseRateLimit) {
-                        assertEquals(item.value, 0);
-                    } else {
-                        assertEquals(item.value, 1);
-                    }
+                    // We only trigger the rate limiting of the topic, so if the topic is not using
+                    // the same connection, the rate limiting times will be 0
+                    assertEquals(item.value, 0);
                     return;
                 }
                 fail("should not fail");
@@ -745,14 +727,13 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         //check value
         field = PersistentSubscription.class.getDeclaredField("expiryMonitor");
         field.setAccessible(true);
-        NumberFormat nf = NumberFormat.getNumberInstance();
-        nf.setMaximumFractionDigits(3);
-        nf.setRoundingMode(RoundingMode.DOWN);
         for (int i = 0; i < topicList.size(); i++) {
             PersistentSubscription subscription = (PersistentSubscription) pulsar.getBrokerService()
                     .getTopicIfExists(topicList.get(i)).get().get().getSubscription(subName);
             PersistentMessageExpiryMonitor monitor = (PersistentMessageExpiryMonitor) field.get(subscription);
-            assertEquals(Double.valueOf(nf.format(monitor.getMessageExpiryRate())).doubleValue(), cm.get(i).value);
+            BigDecimal bigDecimal = BigDecimal.valueOf(monitor.getMessageExpiryRate());
+            bigDecimal = bigDecimal.setScale(3, RoundingMode.DOWN);
+            assertEquals(bigDecimal.doubleValue(), cm.get(i).value);
         }
 
         cm = (List<Metric>) metrics.get("pulsar_subscription_total_msg_expired");
@@ -792,9 +773,19 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         mockZooKeeper.create(mockedBroker, new byte[]{0}, Collections.emptyList(), CreateMode.EPHEMERAL);
 
         pulsar.getBrokerService().updateRates();
-        Awaitility.await().untilAsserted(() -> assertTrue(pulsar.getBrokerService().getBundleStats().size() > 0));
+        Awaitility.await().until(() -> !pulsar.getBrokerService().getBundleStats().isEmpty());
         ModularLoadManagerWrapper loadManager = (ModularLoadManagerWrapper)pulsar.getLoadManager().get();
         loadManager.getLoadManager().updateLocalBrokerData();
+        // Force registration of UnloadManager load balance stats
+        for (var latencyMetric : UnloadManager.LatencyMetric.values()) {
+            var serviceUnit = "serviceUnit";
+            var brokerLookupAddress = "lookupAddress";
+            var serviceUnitStateData = Mockito.mock(ServiceUnitStateData.class);
+            Mockito.when(serviceUnitStateData.sourceBroker()).thenReturn(brokerLookupAddress);
+            Mockito.when(serviceUnitStateData.dstBroker()).thenReturn(brokerLookupAddress);
+            latencyMetric.beginMeasurement(serviceUnit, brokerLookupAddress, serviceUnitStateData);
+            latencyMetric.endMeasurement(serviceUnit);
+        }
 
         ByteArrayOutputStream statsOut = new ByteArrayOutputStream();
         PrometheusMetricsGenerator.generate(pulsar, false, false, false, statsOut);
@@ -815,6 +806,11 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         assertTrue(metrics.containsKey("pulsar_lb_bandwidth_out_usage"));
 
         assertTrue(metrics.containsKey("pulsar_lb_bundles_split_total"));
+
+        assertTrue(metrics.containsKey("brk_lb_unload_latency_ms_bucket"));
+        assertTrue(metrics.containsKey("brk_lb_release_latency_ms_bucket"));
+        assertTrue(metrics.containsKey("brk_lb_assign_latency_ms_bucket"));
+        assertTrue(metrics.containsKey("brk_lb_disconnect_latency_ms_bucket"));
 
         // cleanup.
         mockZooKeeper.delete(mockedBroker, 0);
@@ -1908,62 +1904,6 @@ public class PrometheusMetricsTest extends BrokerTestBase {
 
         p1.close();
         p2.close();
-    }
-
-    /**
-     * Hacky parsing of Prometheus text format. Should be good enough for unit tests
-     */
-    public static Multimap<String, Metric> parseMetrics(String metrics) {
-        Multimap<String, Metric> parsed = ArrayListMultimap.create();
-
-        // Example of lines are
-        // jvm_threads_current{cluster="standalone",} 203.0
-        // or
-        // pulsar_subscriptions_count{cluster="standalone", namespace="public/default",
-        // topic="persistent://public/default/test-2"} 0.0
-        Pattern pattern = Pattern.compile("^(\\w+)\\{([^\\}]+)\\}\\s([+-]?[\\d\\w\\.-]+)$");
-        Pattern tagsPattern = Pattern.compile("(\\w+)=\"([^\"]+)\"(,\\s?)?");
-
-        Splitter.on("\n").split(metrics).forEach(line -> {
-            if (line.isEmpty() || line.startsWith("#")) {
-                return;
-            }
-
-            Matcher matcher = pattern.matcher(line);
-            assertTrue(matcher.matches(), "line " + line + " does not match pattern " + pattern);
-            String name = matcher.group(1);
-
-            Metric m = new Metric();
-            String numericValue = matcher.group(3);
-            if (numericValue.equalsIgnoreCase("-Inf")) {
-                m.value = Double.NEGATIVE_INFINITY;
-            } else if (numericValue.equalsIgnoreCase("+Inf")) {
-                m.value = Double.POSITIVE_INFINITY;
-            } else {
-                m.value = Double.parseDouble(numericValue);
-            }
-            String tags = matcher.group(2);
-            Matcher tagsMatcher = tagsPattern.matcher(tags);
-            while (tagsMatcher.find()) {
-                String tag = tagsMatcher.group(1);
-                String value = tagsMatcher.group(2);
-                m.tags.put(tag, value);
-            }
-
-            parsed.put(name, m);
-        });
-
-        return parsed;
-    }
-
-    public static class Metric {
-        public Map<String, String> tags = new TreeMap<>();
-        public double value;
-
-        @Override
-        public String toString() {
-            return MoreObjects.toStringHelper(this).add("tags", tags).add("value", value).toString();
-        }
     }
 
     @Test
