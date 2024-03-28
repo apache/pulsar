@@ -2638,12 +2638,12 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
 
         // trigger ledger rollover and wait for the new ledger created
         Awaitility.await().untilAsserted(() -> {
-           assertEquals("LedgerOpened", WhiteboxImpl.getInternalState(managedLedger, "state").toString());
+           assertEquals(managedLedger.getState(), ManagedLedgerImpl.State.ClosedLedger);
         });
         managedLedger.rollCurrentLedgerIfFull();
         Awaitility.await().untilAsserted(() -> {
-            assertEquals(managedLedger.getLedgersInfo().size(), 3);
-            assertEquals(managedLedger.getState(), ManagedLedgerImpl.State.LedgerOpened);
+            assertEquals(managedLedger.getLedgersInfo().size(), 2);
+            assertEquals(managedLedger.getState(), ManagedLedgerImpl.State.ClosedLedger);
         });
         assertEquals(5, managedLedger.getLedgersInfoAsList().get(0).getEntries());
         assertEquals(5, managedLedger.getLedgersInfoAsList().get(1).getEntries());
