@@ -29,11 +29,11 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.NavigableSet;
-import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.Position;
@@ -168,6 +168,14 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
                 }
             };
 
+    private static final FastThreadLocal<Map<Consumer, List<PositionImpl>>> localGroupedPositions =
+            new FastThreadLocal<Map<Consumer, List<PositionImpl>>>() {
+                @Override
+                protected Map<Consumer, List<PositionImpl>> initialValue() throws Exception {
+                    return new HashMap<>();
+                }
+            };
+
     @Override
     protected synchronized boolean trySendMessagesToConsumers(ReadType readType, List<Entry> entries) {
         long totalMessagesSent = 0;
@@ -252,8 +260,8 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
             List<Entry> entriesWithSameKey = current.getValue();
             int entriesWithSameKeyCount = entriesWithSameKey.size();
             int availablePermits = getAvailablePermits(consumer);
-            int maxMessagesForC = Math.min(entriesWithSameKeyCount, availablePermits);
-            int messagesForC = getRestrictedMaxEntriesForConsumer(consumer, entriesWithSameKey, maxMessagesForC,
+            int messagesForC = getRestrictedMaxEntriesForConsumer(consumer,
+                    entriesWithSameKey.stream().map(Entry::getPosition).collect(Collectors.toList()), availablePermits,
                     readType, consumerStickyKeyHashesMap.get(consumer));
             if (log.isDebugEnabled()) {
                 log.debug("[{}] select consumer {} with messages num {}, read type is {}",
@@ -328,8 +336,9 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
         return false;
     }
 
-    private int getRestrictedMaxEntriesForConsumer(Consumer consumer, List<Entry> entries, int maxMessages,
-            ReadType readType, Set<Integer> stickyKeyHashes) {
+    private int getRestrictedMaxEntriesForConsumer(Consumer consumer, List<? extends Position> entries,
+           int availablePermits, ReadType readType, Set<Integer> stickyKeyHashes) {
+        int maxMessages = Math.min(entries.size(), availablePermits);
         if (maxMessages == 0) {
             return 0;
         }
@@ -374,7 +383,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
         // Here, the consumer is one that has recently joined, so we can only send messages that were
         // published before it has joined.
         for (int i = 0; i < maxMessages; i++) {
-            if (((PositionImpl) entries.get(i).getPosition()).compareTo(maxReadPosition) >= 0) {
+            if (((PositionImpl) entries.get(i)).compareTo(maxReadPosition) >= 0) {
                 // We have already crossed the divider line. All messages in the list are now
                 // newer than what we can currently dispatch to this consumer
                 return i;
@@ -447,20 +456,14 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
     }
 
     @Override
-    protected NavigableSet<PositionImpl> filterOutEntriesWillBeDiscarded(NavigableSet<PositionImpl> src) {
-        // Remove invalid items.
-        removeConsumersFromRecentJoinedConsumers();
-        if (MapUtils.isEmpty(recentlyJoinedConsumers) || src.isEmpty()) {
-            return src;
-        }
-        PositionImpl firstMaxReadPos = null;
-        try {
-            firstMaxReadPos = recentlyJoinedConsumers.values().iterator().next();
-        } catch (NoSuchElementException noSuchElementException) {
-            // Avoid error due to concurrent modifying.
+    protected synchronized NavigableSet<PositionImpl> filterOutEntriesWillBeDiscarded(NavigableSet<PositionImpl> src) {
+        if (src.isEmpty()) {
             return src;
         }
         NavigableSet<PositionImpl> res = new TreeSet<>();
+        // Group positions.
+        final Map<Consumer, List<PositionImpl>> groupedPositions = localGroupedPositions.get();
+        groupedPositions.clear();
         for (PositionImpl pos : src) {
             Long stickyKeyHash = redeliveryMessages.getHash(pos.getLedgerId(), pos.getEntryId());
             if (stickyKeyHash == null) {
@@ -472,18 +475,18 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
                 // Maybe using HashRangeExclusiveStickyKeyConsumerSelector.
                 continue;
             }
-            if (getAvailablePermits(c) == 0) {
+            groupedPositions.computeIfAbsent(c, k -> new ArrayList<>()).add(pos);
+        }
+        // Filter positions by the Recently Joined Position rule.
+        for (Map.Entry<Consumer, List<PositionImpl>> item : groupedPositions.entrySet()) {
+            int availablePermits = getAvailablePermits(item.getKey());
+            if (availablePermits == 0) {
                 continue;
             }
-            PositionImpl currentMaxReadPosition = recentlyJoinedConsumers.get(c);
-            if (currentMaxReadPosition == null) {
-                res.add(pos);
-            } else if (pos.compareTo(firstMaxReadPos) < 0 && pos.compareTo(currentMaxReadPosition) < 0) {
-                res.add(pos);
-            } else {
-                // The subsequent positions will also be larger than "firstMaxReadPos", why need to check continuous.
-                // Because the subsequent positions may be delivered to a consumer which does not in the
-                // "recentlyJoinedConsumers".
+            int posCountToRead = getRestrictedMaxEntriesForConsumer(item.getKey(), item.getValue(), availablePermits,
+                    ReadType.Replay, null);
+            for (int i = 0; i < posCountToRead; i++) {
+                res.add(item.getValue().get(i));
             }
         }
         return res;
