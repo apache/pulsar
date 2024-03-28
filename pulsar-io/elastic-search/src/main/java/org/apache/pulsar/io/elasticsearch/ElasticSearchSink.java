@@ -83,7 +83,7 @@ public class ElasticSearchSink implements Sink<GenericObject> {
         if (elasticSearchConfig.isCanonicalKeyFields()) {
             sortedObjectMapper = JsonMapper
                     .builder()
-                            .configure(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS, true)
+                        .configure(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS, true)
                     .nodeFactory(new JsonNodeFactory() {
                         @Override
                         public ObjectNode objectNode() {
