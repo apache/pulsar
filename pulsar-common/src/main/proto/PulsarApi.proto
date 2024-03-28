@@ -413,6 +413,7 @@ message CommandPartitionedTopicMetadata {
     // to the proxy.
     optional string original_auth_data = 4;
     optional string original_auth_method = 5;
+    optional bool metadata_auto_creation_enabled = 6 [default = true];
 }
 
 message CommandPartitionedTopicMetadataResponse {
