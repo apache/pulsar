@@ -37,7 +37,6 @@ import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
-import org.apache.pulsar.common.policies.data.TopicType;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.BeforeMethod;
@@ -65,18 +64,11 @@ public abstract class ExtensibleLoadManagerImplBaseTest extends MockedPulsarServ
     }
 
     protected ServiceConfiguration initConfig(ServiceConfiguration conf) {
-        // Set the inflight state waiting time and ownership monitor delay time to 5 seconds to avoid
-        // stuck when doing unload.
-        conf.setLoadBalancerInFlightServiceUnitStateWaitingTimeInMillis(5 * 1000);
-        conf.setLoadBalancerServiceUnitStateMonitorIntervalInSeconds(1);
         conf.setForceDeleteNamespaceAllowed(true);
-        conf.setAllowAutoTopicCreationType(TopicType.NON_PARTITIONED);
-        conf.setAllowAutoTopicCreation(true);
         conf.setLoadManagerClassName(ExtensibleLoadManagerImpl.class.getName());
         conf.setLoadBalancerLoadSheddingStrategy(TransferShedder.class.getName());
         conf.setLoadBalancerSheddingEnabled(false);
         conf.setLoadBalancerDebugModeEnabled(true);
-        conf.setTopicLevelPoliciesEnabled(true);
         return conf;
     }
 
