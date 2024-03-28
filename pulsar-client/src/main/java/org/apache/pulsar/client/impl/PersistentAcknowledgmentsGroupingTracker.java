@@ -231,8 +231,8 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
             case Individual:
                 return addIndividualAcknowledgment(msgId,
                         batchMessageId,
-                        __ -> doIndividualAck(__, properties),
-                        __ -> doIndividualBatchAck(__, properties));
+                        __ -> doIndividualAck(__, properties, false),
+                        __ -> doIndividualBatchAck(__, properties, false));
             case Cumulative:
                 if (batchMessageId != null) {
                     consumer.onAcknowledgeCumulative(batchMessageId, null);
@@ -240,11 +240,11 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
                     consumer.onAcknowledgeCumulative(msgId, null);
                 }
                 if (batchMessageId == null || MessageIdAdvUtils.acknowledge(batchMessageId, false)) {
-                    return doCumulativeAck(msgId, properties, null);
+                    return doCumulativeAck(msgId, properties, null, false);
                 } else if (batchIndexAckEnabled) {
-                    return doCumulativeBatchIndexAck(batchMessageId, properties);
+                    return doCumulativeBatchIndexAck(batchMessageId, properties, false);
                 } else {
-                    doCumulativeAck(MessageIdAdvUtils.prevMessageId(batchMessageId), properties, null);
+                    doCumulativeAck(MessageIdAdvUtils.prevMessageId(batchMessageId), properties, null, false);
                     return CompletableFuture.completedFuture(null);
                 }
             default:
@@ -252,8 +252,10 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
         }
     }
 
-    private CompletableFuture<Void> doIndividualAck(MessageIdAdv messageId, Map<String, Long> properties) {
-        if (acknowledgementGroupTimeMicros == 0 || (properties != null && !properties.isEmpty())) {
+    private CompletableFuture<Void> doIndividualAck(MessageIdAdv messageId, Map<String, Long> properties,
+                                                    boolean queueDueToConnecting) {
+        if (!queueDueToConnecting
+                && (acknowledgementGroupTimeMicros == 0 || (properties != null && !properties.isEmpty()))) {
             // We cannot group acks if the delay is 0 or when there are properties attached to it. Fortunately that's an
             // uncommon condition since it's only used for the compaction subscription.
             return doImmediateAck(messageId, AckType.Individual, properties, null);
@@ -279,8 +281,10 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
     }
 
     private CompletableFuture<Void> doIndividualBatchAck(MessageIdAdv batchMessageId,
-                                                         Map<String, Long> properties) {
-        if (acknowledgementGroupTimeMicros == 0 || (properties != null && !properties.isEmpty())) {
+                                                         Map<String, Long> properties,
+                                                         boolean queueDueToConnecting) {
+        if (!queueDueToConnecting
+                && (acknowledgementGroupTimeMicros == 0 || (properties != null && !properties.isEmpty()))) {
             return doImmediateBatchIndexAck(batchMessageId, batchMessageId.getBatchIndex(),
                     batchMessageId.getBatchSize(), AckType.Individual, properties);
         } else {
@@ -302,9 +306,10 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
     }
 
     private CompletableFuture<Void> doCumulativeAck(MessageIdAdv messageId, Map<String, Long> properties,
-                                                    BitSetRecyclable bitSet) {
+                                                    BitSetRecyclable bitSet, boolean queueDueToConnecting) {
         consumer.getStats().incrementNumAcksSent(consumer.getUnAckedMessageTracker().removeMessagesTill(messageId));
-        if (acknowledgementGroupTimeMicros == 0 || (properties != null && !properties.isEmpty())) {
+        if (!queueDueToConnecting
+                && (acknowledgementGroupTimeMicros == 0 || (properties != null && !properties.isEmpty()))) {
             // We cannot group acks if the delay is 0 or when there are properties attached to it. Fortunately that's an
             // uncommon condition since it's only used for the compaction subscription.
             return doImmediateAck(messageId, AckType.Cumulative, properties, bitSet);
@@ -349,15 +354,17 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
     }
 
     private CompletableFuture<Void> doCumulativeBatchIndexAck(MessageIdAdv batchMessageId,
-                                                              Map<String, Long> properties) {
-        if (acknowledgementGroupTimeMicros == 0 || (properties != null && !properties.isEmpty())) {
+                                                              Map<String, Long> properties,
+                                                              boolean queueDueToConnecting) {
+        if (!queueDueToConnecting
+                && (acknowledgementGroupTimeMicros == 0 || (properties != null && !properties.isEmpty()))) {
             return doImmediateBatchIndexAck(batchMessageId, batchMessageId.getBatchIndex(),
                     batchMessageId.getBatchSize(), AckType.Cumulative, properties);
         } else {
             BitSetRecyclable bitSet = BitSetRecyclable.create();
             bitSet.set(0, batchMessageId.getBatchSize());
             bitSet.clear(0, batchMessageId.getBatchIndex() + 1);
-            return doCumulativeAck(batchMessageId, null, bitSet);
+            return doCumulativeAck(batchMessageId, null, bitSet, false);
         }
     }
 
@@ -365,6 +372,13 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
                                                    BitSetRecyclable bitSet) {
         ClientCnx cnx = consumer.getClientCnx();
 
+        if (cnx == null && consumer.getState() == HandlerState.State.Connecting) {
+            if (ackType == AckType.Cumulative) {
+                return doCumulativeAck(msgId, properties, bitSet, true);
+            } else {
+                return doIndividualAck(msgId, properties, true);
+            }
+        }
         if (cnx == null) {
             return FutureUtil.failedFuture(new PulsarClientException
                     .ConnectException("Consumer connect fail! consumer state:" + consumer.getState()));
@@ -375,6 +389,14 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
     private CompletableFuture<Void> doImmediateBatchIndexAck(MessageIdAdv msgId, int batchIndex, int batchSize,
                                                              AckType ackType, Map<String, Long> properties) {
         ClientCnx cnx = consumer.getClientCnx();
+
+        if (cnx == null && consumer.getState() == HandlerState.State.Connecting) {
+            if (ackType == AckType.Cumulative) {
+                return doCumulativeBatchIndexAck(msgId, properties, true);
+            } else {
+                return doIndividualBatchAck(msgId, properties, true);
+            }
+        }
 
         if (cnx == null) {
             return FutureUtil.failedFuture(new PulsarClientException
