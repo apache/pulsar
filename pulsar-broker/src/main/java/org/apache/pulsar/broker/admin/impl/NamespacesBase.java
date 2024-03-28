@@ -85,6 +85,7 @@ import org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType;
 import org.apache.pulsar.common.policies.data.BookieAffinityGroupData;
 import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.ClusterPoliciesImpl;
 import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
 import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.EntryFilters;
@@ -2665,6 +2666,14 @@ public abstract class NamespacesBase extends AdminResource {
     protected void internalEnableMigration(boolean migrated) {
         validateSuperUserAccess();
         try {
+            if (migrated) {
+                // If migrated is true, we should check if exist migratedClusterUrl.
+                Optional<ClusterPoliciesImpl> clusterPolicies = clusterResources().getClusterPoliciesResources()
+                        .getClusterPolicies(pulsar().getConfig().getClusterName());
+                if (clusterPolicies.isEmpty() || clusterPolicies.get().getMigratedClusterUrl() == null) {
+                    throw new RestException(Status.FORBIDDEN, "Not found migrated cluster url");
+                }
+            }
             getLocalPolicies().setLocalPolicies(namespaceName, (policies) -> {
                 policies.migrated = migrated;
                 return policies;
