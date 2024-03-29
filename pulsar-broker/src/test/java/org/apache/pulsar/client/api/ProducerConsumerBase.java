@@ -21,9 +21,14 @@ package org.apache.pulsar.client.api;
 import com.google.common.collect.Sets;
 
 import java.lang.reflect.Method;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Random;
 import java.util.Set;
 
+import java.util.concurrent.TimeUnit;
+import java.util.function.BiFunction;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
@@ -68,4 +73,65 @@ public abstract class ProducerConsumerBase extends MockedPulsarServiceBaseTest {
         return "my-property/my-ns/topic-" + Long.toHexString(random.nextLong());
     }
 
+    protected <T> ReceivedMessages<T> receiveAndAckMessages(
+            BiFunction<MessageId, T, Boolean> ackPredicate,
+            Consumer<T>...consumers) throws Exception {
+        ReceivedMessages receivedMessages = new ReceivedMessages();
+        while (true) {
+            int receivedMsgCount = 0;
+            for (int i = 0; i < consumers.length; i++) {
+                Consumer<T> consumer = consumers[i];
+                while (true) {
+                    Message<T> msg = consumer.receive(2, TimeUnit.SECONDS);
+                    if (msg != null) {
+                        receivedMsgCount++;
+                        T v = msg.getValue();
+                        MessageId messageId = msg.getMessageId();
+                        receivedMessages.messagesReceived.add(Pair.of(msg.getMessageId(), v));
+                        if (ackPredicate.apply(messageId, v)) {
+                            consumer.acknowledge(msg);
+                            receivedMessages.messagesAcked.add(Pair.of(msg.getMessageId(), v));
+                        }
+                    } else {
+                        break;
+                    }
+                }
+            }
+            // Because of the possibility of consumers getting stuck with each other, only jump out of the loop if all
+            // consumers could not receive messages.
+            if (receivedMsgCount == 0) {
+                break;
+            }
+        }
+        return receivedMessages;
+    }
+
+    protected <T> ReceivedMessages<T> ackAllMessages(Consumer<T>...consumers) throws Exception {
+        return receiveAndAckMessages((msgId, msgV) -> true, consumers);
+    }
+
+    protected static class ReceivedMessages<T> {
+
+        List<Pair<MessageId, T>> messagesReceived = new ArrayList<>();
+
+        List<Pair<MessageId, T>> messagesAcked = new ArrayList<>();
+
+        public boolean hasReceivedMessage(T v) {
+            for (Pair<MessageId, T> pair : messagesReceived) {
+                if (pair.getRight().equals(v)) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        public boolean hasAckedMessage(T v) {
+            for (Pair<MessageId, T> pair : messagesAcked) {
+                if (pair.getRight().equals(v)) {
+                    return true;
+                }
+            }
+            return false;
+        }
+    }
 }

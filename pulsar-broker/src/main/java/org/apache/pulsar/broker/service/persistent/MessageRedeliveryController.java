@@ -94,6 +94,14 @@ public class MessageRedeliveryController {
         }
     }
 
+    public Long getHash(long ledgerId, long entryId) {
+        LongPair value = hashesToBeBlocked.get(ledgerId, entryId);
+        if (value == null) {
+            return null;
+        }
+        return value.first;
+    }
+
     public void removeAllUpTo(long markDeleteLedgerId, long markDeleteEntryId) {
         if (!allowOutOfOrderDelivery) {
             List<LongPair> keysToRemove = new ArrayList<>();
