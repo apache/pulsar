@@ -485,8 +485,8 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
             }
             int posCountToRead = getRestrictedMaxEntriesForConsumer(item.getKey(), item.getValue(), availablePermits,
                     ReadType.Replay, null);
-            for (int i = 0; i < posCountToRead; i++) {
-                res.add(item.getValue().get(i));
+            if (posCountToRead > 0) {
+                res.addAll(item.getValue().subList(0, posCountToRead));
             }
         }
         return res;
