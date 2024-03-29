@@ -19,4 +19,4 @@
 /**
  * Benchmarks for Pulsar broker Quality of Service (QoS) related classes.
  */
-package org.apache.pulsar.broker.qos;
+package org.apache.pulsar.common.util.qos;

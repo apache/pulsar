@@ -94,7 +94,7 @@
     </dependency>
     <dependency>
       <groupId>${project.groupId}</groupId>
-      <artifactId>pulsar-broker</artifactId>
+      <artifactId>pulsar-common</artifactId>
       <version>${project.version}</version>
     </dependency>
   </dependencies>

@@ -17,12 +17,9 @@
  * under the License.
  */
 
-package org.apache.pulsar.broker.qos;
+package org.apache.pulsar.common.util.qos;
 
 import java.util.concurrent.TimeUnit;
-
-import org.apache.pulsar.common.util.qos.AsyncTokenBucket;
-import org.apache.pulsar.common.util.qos.DefaultMonotonicSnapshotClock;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
 import org.openjdk.jmh.annotations.Fork;
