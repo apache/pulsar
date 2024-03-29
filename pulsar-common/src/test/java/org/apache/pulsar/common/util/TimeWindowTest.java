@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.stats;
+package org.apache.pulsar.common.util;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;

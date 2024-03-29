@@ -85,6 +85,7 @@ public class ManagedLedgerConfig {
     private int minimumBacklogCursorsForCaching = 0;
     private int minimumBacklogEntriesForCaching = 1000;
     private int maxBacklogBetweenCursorsForCaching = 1000;
+    private long managedLedgerOffloadFlowPermitsPerSecond = -1;
 
     @Getter
     @Setter
@@ -750,6 +751,24 @@ public class ManagedLedgerConfig {
 
     public String getShadowSource() {
         return MapUtils.getString(properties, PROPERTY_SOURCE_TOPIC_KEY);
+    }
+
+    /**
+     * Set permitted size to offload on the broker.
+     *
+     * @param managedLedgerOffloadBrokerFlowPermit
+     */
+    public void setManagedLedgerOffloadFlowPermitsPerSecond(long managedLedgerOffloadBrokerFlowPermit) {
+        this.managedLedgerOffloadFlowPermitsPerSecond = managedLedgerOffloadBrokerFlowPermit;
+    }
+
+    /**
+     * Get permitted size to offload on the broker.
+     *
+     * @return
+     */
+    public long getManagedLedgerOffloadFlowPermitsPerSecond() {
+        return managedLedgerOffloadFlowPermitsPerSecond;
     }
 
     public static final String PROPERTY_SOURCE_TOPIC_KEY = "PULSAR.SHADOW_SOURCE";

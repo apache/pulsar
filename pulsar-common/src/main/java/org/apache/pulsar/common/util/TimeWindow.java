@@ -16,9 +16,11 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.stats;
+package org.apache.pulsar.common.util;
 
 import java.util.concurrent.atomic.AtomicReferenceArray;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Function;
 
 public final class TimeWindow<T> {
@@ -26,11 +28,19 @@ public final class TimeWindow<T> {
     private final int sampleCount;
     private final AtomicReferenceArray<WindowWrap<T>> array;
 
+    private final Lock updateLock = new ReentrantLock();
+
     public TimeWindow(int sampleCount, int interval) {
         this.sampleCount = sampleCount;
         this.interval = interval;
         this.array = new AtomicReferenceArray<>(sampleCount);
     }
+
+
+    public WindowWrap<T> current(Function<T, T> function) {
+        return current(function, System.currentTimeMillis());
+    }
+
 
     /**
      * return current time window data.
@@ -38,37 +48,69 @@ public final class TimeWindow<T> {
      * @param function generate data.
      * @return
      */
-    public synchronized WindowWrap<T> current(Function<T, T> function) {
-        long millis = System.currentTimeMillis();
-
-        if (millis < 0) {
+    public WindowWrap<T> current(Function<T, T> function, long timeMillis) {
+        if (timeMillis < 0) {
             return null;
         }
-        int idx = calculateTimeIdx(millis);
-        long windowStart = calculateWindowStart(millis);
+
+        int idx = calculateTimeIdx(timeMillis);
+        // Calculate current bucket start time.
+        long windowStart = calculateWindowStart(timeMillis);
         while (true) {
             WindowWrap<T> old = array.get(idx);
             if (old == null) {
-                WindowWrap<T> window = new WindowWrap<>(interval, windowStart, null);
+                WindowWrap<T> window = new WindowWrap<>(interval, windowStart, function.apply(null));
                 if (array.compareAndSet(idx, null, window)) {
-                    T value = null == function ? null : function.apply(null);
-                    window.value(value);
                     return window;
                 } else {
+                    // Contention failed, the thread will yield its time slice to wait for bucket available.
                     Thread.yield();
                 }
             } else if (windowStart == old.start()) {
                 return old;
             } else if (windowStart > old.start()) {
-                T value = null == function ? null : function.apply(old.value());
-                old.value(value);
-                old.resetWindowStart(windowStart);
-                return old;
+                if (updateLock.tryLock()) {
+                    try {
+                        // Successfully get the update lock, now we reset the bucket.
+                        T value = null == function ? null : function.apply(old.value());
+                        old.value(value);
+                        old.resetWindowStart(windowStart);
+                        return old;
+                    } finally {
+                        updateLock.unlock();
+                    }
+                } else {
+                    // Contention failed, the thread will yield its time slice to wait for bucket available.
+                    Thread.yield();
+                }
             } else {
-                //it should never goes here
+                //when windowStart < old.value()
+                // Should not go through here, as the provided time is already behind.
                 throw new IllegalStateException();
             }
         }
+    }
+
+    /**
+     * return next time window data.
+     *
+     * @param function generate data.
+     */
+    public WindowWrap<T> next(Function<T, T> function, long timeMillis) {
+        if (this.sampleCount <= 1) {
+            throw new IllegalStateException("Argument sampleCount cannot less than 2");
+        }
+        return this.current(function, timeMillis + interval);
+    }
+
+
+    /**
+     * return next time window data.
+     *
+     * @param function generate data.
+     */
+    public WindowWrap<T> next(Function<T, T> function) {
+        return this.next(function, System.currentTimeMillis());
     }
 
     private int calculateTimeIdx(long timeMillis) {
