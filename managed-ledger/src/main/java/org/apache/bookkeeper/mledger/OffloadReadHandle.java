@@ -19,17 +19,17 @@
 package org.apache.bookkeeper.mledger;
 
 import com.google.common.annotations.VisibleForTesting;
-import java.util.Objects;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicLong;
 import org.apache.bookkeeper.client.api.LastConfirmedAndEntry;
 import org.apache.bookkeeper.client.api.LedgerEntries;
 import org.apache.bookkeeper.client.api.LedgerMetadata;
 import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats;
-import org.apache.pulsar.common.util.TimeWindow;
-import org.apache.pulsar.common.util.WindowWrap;
+import org.apache.pulsar.common.util.qos.AsyncTokenBucket;
+
+import java.util.Objects;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * OffloadReadHandle is a wrapper of ReadHandle to offload read operations.
@@ -37,7 +37,7 @@ import org.apache.pulsar.common.util.WindowWrap;
 public final class OffloadReadHandle implements ReadHandle {
     private static final AtomicBoolean INITIALIZED = new AtomicBoolean(false);
     private static volatile long flowPermits = -1L;
-    private static volatile TimeWindow<AtomicLong> window;
+    private static volatile AsyncTokenBucket tokenBucket;
 
     private final ReadHandle delegate;
     private final long averageEntrySize;
@@ -57,7 +57,10 @@ public final class OffloadReadHandle implements ReadHandle {
     private static void initialize(ManagedLedgerConfig config) {
         if (INITIALIZED.compareAndSet(false, true)) {
             flowPermits = config.getManagedLedgerOffloadFlowPermitsPerSecond();
-            window = new TimeWindow<>(2, 1000);
+            if (flowPermits > 0) {
+                tokenBucket = AsyncTokenBucket.builder().initialTokens(0).capacity(2 * flowPermits)
+                        .rate(flowPermits).build();
+            }
         }
     }
 
@@ -144,30 +147,22 @@ public final class OffloadReadHandle implements ReadHandle {
             return 0;
         }
 
-        WindowWrap<AtomicLong> wrap = window.current(__ -> new AtomicLong(0));
-        if (wrap == null) {
-            // it should never goes here
-            return 0;
+        if (tokenBucket.containsTokens(true)) {
+            long token = tokenBucket.getTokens();
+            if (token > 0) {
+                // To prevent flowPermits is less than each batch size.
+                tokenBucket.consumeTokens(numBytes);
+                return 0;
+            }
         }
-        AtomicLong counter = wrap.value();
 
-        long delayMillis = 0;
-        // Cannot use `counter.addAndGet(bytes) >= flowPermits` directly.
-        // If flowPermits is less than the bytes of a single entry or a read request,
-        // the read request will be blocked forever.
-        if (counter.get() >= flowPermits) {
-            // park until next window start
-            long end = wrap.start() + wrap.interval();
-            delayMillis = end - System.currentTimeMillis();
-        }
-        counter.addAndGet(numBytes);
-        return delayMillis;
+        return TimeUnit.NANOSECONDS.toMillis(tokenBucket.calculateThrottlingDuration());
     }
 
     @VisibleForTesting
     public void reset() {
         INITIALIZED.set(false);
         flowPermits = -1L;
-        window = null;
+        tokenBucket = null;
     }
 }

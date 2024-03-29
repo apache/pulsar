@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package org.apache.pulsar.broker.qos;
+package org.apache.pulsar.common.util.qos;
 
 /**
  * A subclass of {@link AsyncTokenBucket} that represents a token bucket with a rate which is final.

@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package org.apache.pulsar.broker.qos;
+package org.apache.pulsar.common.util.qos;
 
 /**
  * An interface representing a clock that provides a monotonic counter in nanoseconds.

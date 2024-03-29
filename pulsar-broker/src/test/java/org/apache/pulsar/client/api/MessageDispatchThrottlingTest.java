@@ -49,7 +49,7 @@ import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.impl.DispatchRateImpl;
-import org.apache.pulsar.broker.qos.AsyncTokenBucket;
+import org.apache.pulsar.common.util.qos.AsyncTokenBucket;
 import org.awaitility.Awaitility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

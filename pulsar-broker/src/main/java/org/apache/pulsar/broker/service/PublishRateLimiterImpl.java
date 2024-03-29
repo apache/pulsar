@@ -25,10 +25,10 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
-import org.apache.pulsar.broker.qos.AsyncTokenBucket;
-import org.apache.pulsar.broker.qos.MonotonicSnapshotClock;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.PublishRate;
+import org.apache.pulsar.common.util.qos.AsyncTokenBucket;
+import org.apache.pulsar.common.util.qos.MonotonicSnapshotClock;
 import org.jctools.queues.MessagePassingQueue;
 import org.jctools.queues.MpscUnboundedArrayQueue;
 

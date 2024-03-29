@@ -16,10 +16,13 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.common.util;
+package org.apache.pulsar.broker.stats;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
+
+import org.apache.pulsar.broker.stats.TimeWindow;
+import org.apache.pulsar.broker.stats.WindowWrap;
 import org.testng.annotations.Test;
 
 public class TimeWindowTest {

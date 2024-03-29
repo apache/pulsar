@@ -26,7 +26,7 @@ import static org.mockito.Mockito.withSettings;
 import static org.testng.Assert.assertEquals;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.broker.qos.AsyncTokenBucket;
+import org.apache.pulsar.common.util.qos.AsyncTokenBucket;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;

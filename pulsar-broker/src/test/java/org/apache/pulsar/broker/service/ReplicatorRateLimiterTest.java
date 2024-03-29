@@ -33,7 +33,7 @@ import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.common.policies.data.DispatchRate;
-import org.apache.pulsar.broker.qos.AsyncTokenBucket;
+import org.apache.pulsar.common.util.qos.AsyncTokenBucket;
 import org.awaitility.Awaitility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

@@ -16,30 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
-package org.apache.pulsar.broker.qos;
-
-// CHECKSTYLE.OFF: ClassTypeParameterName
-public abstract class AsyncTokenBucketBuilder<SELF extends AsyncTokenBucketBuilder<SELF>> {
-    protected MonotonicSnapshotClock clock = AsyncTokenBucket.DEFAULT_SNAPSHOT_CLOCK;
-    protected long resolutionNanos = AsyncTokenBucket.defaultResolutionNanos;
-
-    protected AsyncTokenBucketBuilder() {
-    }
-
-    protected SELF self() {
-        return (SELF) this;
-    }
-
-    public SELF clock(MonotonicSnapshotClock clock) {
-        this.clock = clock;
-        return self();
-    }
-
-    public SELF resolutionNanos(long resolutionNanos) {
-        this.resolutionNanos = resolutionNanos;
-        return self();
-    }
-
-    public abstract AsyncTokenBucket build();
-}
+/**
+ * Pulsar broker Quality of Service (QoS) related classes.
+ */
+package org.apache.pulsar.common.util.qos;

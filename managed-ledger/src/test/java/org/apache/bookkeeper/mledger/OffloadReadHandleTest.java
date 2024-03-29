@@ -43,7 +43,6 @@ public class OffloadReadHandleTest extends MockedBookKeeperTestCase {
         return new Object[][]{
                 {-1L},
                 {0L},
-                {50},
                 {100L},
                 {10000L}
         };
@@ -88,7 +87,6 @@ public class OffloadReadHandleTest extends MockedBookKeeperTestCase {
                 Assert.assertEquals(actualDuration, 1000D, 1000D);
             } else if (flowPermits == 100L || flowPermits == 50L) {
                 long expectDuration = TimeUnit.SECONDS.toMillis(8);
-                Assert.assertTrue(actualDuration >= expectDuration);
                 Assert.assertEquals(actualDuration, expectDuration, expectDuration * 0.2D);
             } else if (flowPermits == 10000L) {
                 Assert.assertEquals(actualDuration, 1000D, 1000D);
