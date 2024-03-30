@@ -79,9 +79,8 @@ public record BrokerLookupData (String webServiceUrl,
         return this.startTimestamp;
     }
 
-    public LookupResult toLookupResult() {
-        return new LookupResult(webServiceUrl, webServiceUrlTls, pulsarServiceUrl, pulsarServiceUrlTls,
-                LookupResult.Type.BrokerUrl, false);
+    public LookupResult toLookupResult(String advertisedListenerName) {
+        return LookupResult.create(this, advertisedListenerName, false);
     }
 
     public NamespaceEphemeralData toNamespaceEphemeralData() {
