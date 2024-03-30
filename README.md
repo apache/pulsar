@@ -196,12 +196,16 @@ Check https://pulsar.apache.org for documentation and examples.
 * Java 11 is the recommended JDK version in `branch-2.8`, `branch-2.9` and `branch-2.10`.
 * Java 17 is the recommended JDK version in `master`.
 
-The following command builds the docker images `apachepulsar/pulsar-all:latest` and `apachepulsar/pulsar:latest`:
+The following command builds the docker images `apachepulsar/pulsar-all` and `apachepulsar/pulsar`:
 
 ```bash
-mvn clean install -DskipTests
-mvn package -Pdocker,-main -am -pl docker/pulsar-all -DskipTests
+gitrev=$(git rev-parse HEAD | colrm 10)
+mvn clean install -DskipTests -Dgit.commit.id.abbrev=${gitrev}
+mvn package -Pdocker,-main -am -pl docker/pulsar-all -DskipTests -Dgit.commit.id.abbrev=${gitrev}
 ```
+
+The images will be tagged with `latest` and `${pulsar_version}-${gitrev}` tags.
+
 
 After the images are built, they can be tagged and pushed to your custom repository. Here's an example of a bash script that tags the docker images with the current version and git revision and pushes them to `localhost:32000/apachepulsar`.
 
