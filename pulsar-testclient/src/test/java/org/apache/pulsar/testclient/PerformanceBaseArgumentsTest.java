@@ -39,7 +39,12 @@ public class PerformanceBaseArgumentsTest {
 
         AtomicBoolean called = new AtomicBoolean();
 
-        final PerformanceBaseArguments args = new PerformanceBaseArguments() {
+        final PerformanceBaseArguments args = new PerformanceBaseArguments("") {
+            @Override
+            public void run() throws Exception {
+
+            }
+
             @Override
             public void fillArgumentsFromProperties(Properties prop) {
                 called.set(true);
@@ -64,7 +69,12 @@ public class PerformanceBaseArgumentsTest {
 
         AtomicBoolean called = new AtomicBoolean();
 
-        final PerformanceBaseArguments args = new PerformanceBaseArguments() {
+        final PerformanceBaseArguments args = new PerformanceBaseArguments("") {
+            @Override
+            public void run() throws Exception {
+
+            }
+
             @Override
             public void fillArgumentsFromProperties(Properties prop) {
                 called.set(true);
@@ -77,13 +87,13 @@ public class PerformanceBaseArgumentsTest {
         }
         try {
             Properties props = new Properties();
-            
-            Map<String, String> configs = Map.of("brokerServiceUrl","https://my-pulsar:8443/",
-            "authPlugin","org.apache.pulsar.testclient.PerfClientUtilsTest.MyAuth",
-            "authParams", "myparams",
-            "tlsTrustCertsFilePath", "./path",
-                    "tlsAllowInsecureConnection","true",
-            "tlsEnableHostnameVerification", "true"
+
+            Map<String, String> configs = Map.of("brokerServiceUrl", "https://my-pulsar:8443/",
+                    "authPlugin", "org.apache.pulsar.testclient.PerfClientUtilsTest.MyAuth",
+                    "authParams", "myparams",
+                    "tlsTrustCertsFilePath", "./path",
+                    "tlsAllowInsecureConnection", "true",
+                    "tlsEnableHostnameVerification", "true"
             );
             props.putAll(configs);
             FileOutputStream out = new FileOutputStream(tempConfigFile);
@@ -100,7 +110,7 @@ public class PerformanceBaseArgumentsTest {
             Assert.assertEquals(args.tlsTrustCertsFilePath, "./path");
             Assert.assertTrue(args.tlsAllowInsecureConnection);
             Assert.assertTrue(args.tlsHostnameVerificationEnable);
-            
+
         } catch (IOException e) {
             e.printStackTrace();
             fail("Error while updating/reading config file");
@@ -115,7 +125,12 @@ public class PerformanceBaseArgumentsTest {
         AtomicBoolean calledVar1 = new AtomicBoolean();
         AtomicBoolean calledVar2 = new AtomicBoolean();
 
-        final PerformanceBaseArguments args = new PerformanceBaseArguments() {
+        final PerformanceBaseArguments args = new PerformanceBaseArguments("") {
+            @Override
+            public void run() throws Exception {
+
+            }
+
             @Override
             public void fillArgumentsFromProperties(Properties prop) {
                 calledVar1.set(true);
@@ -128,11 +143,11 @@ public class PerformanceBaseArgumentsTest {
         try {
             Properties props = new Properties();
 
-            Map<String, String> configs = Map.of("brokerServiceUrl","https://my-pulsar:8443/",
-                    "authPlugin","org.apache.pulsar.testclient.PerfClientUtilsTest.MyAuth",
+            Map<String, String> configs = Map.of("brokerServiceUrl", "https://my-pulsar:8443/",
+                    "authPlugin", "org.apache.pulsar.testclient.PerfClientUtilsTest.MyAuth",
                     "authParams", "myparams",
                     "tlsTrustCertsFilePath", "./path",
-                    "tlsAllowInsecureConnection","true",
+                    "tlsAllowInsecureConnection", "true",
                     "tlsEnableHostnameVerification", "true",
                     "proxyServiceURL", "https://my-proxy-pulsar:4443/",
                     "proxyProtocol", "TEST"
@@ -161,10 +176,10 @@ public class PerformanceBaseArgumentsTest {
 
     @DataProvider(name = "memoryLimitCliArgumentProvider")
     public Object[][] memoryLimitCliArgumentProvider() {
-        return new Object[][] { 
-                { new String[]{"-ml","1"}, 1L},
-                { new String[]{"-ml","1K"}, 1024L},
-                { new String[]{"--memory-limit", "1G"}, 1024 * 1024 * 1024}
+        return new Object[][]{
+                {new String[]{"-ml", "1"}, 1L},
+                {new String[]{"-ml", "1K"}, 1024L},
+                {new String[]{"--memory-limit", "1G"}, 1024 * 1024 * 1024}
         };
     }
 
@@ -178,7 +193,12 @@ public class PerformanceBaseArgumentsTest {
         )) {
             // Arrange
             AtomicBoolean called = new AtomicBoolean();
-            final PerformanceBaseArguments baseArgument = new PerformanceBaseArguments() {
+            final PerformanceBaseArguments baseArgument = new PerformanceBaseArguments("") {
+                @Override
+                public void run() throws Exception {
+
+                }
+
                 @Override
                 public void fillArgumentsFromProperties(Properties prop) {
                     called.set(true);
@@ -187,7 +207,8 @@ public class PerformanceBaseArgumentsTest {
             baseArgument.confFile = "./src/test/resources/perf_client1.conf";
 
             // Act
-            baseArgument.parseCLI(cmd, cliArgs);
+            baseArgument.parseCLI();
+            baseArgument.getCommander().execute(cliArgs);
 
             // Assert 
             assertEquals(baseArgument.memoryLimit, expectedMemoryLimit);
@@ -196,10 +217,10 @@ public class PerformanceBaseArgumentsTest {
 
     @DataProvider(name = "invalidMemoryLimitCliArgumentProvider")
     public Object[][] invalidMemoryLimitCliArgumentProvider() {
-        return new Object[][] {
-                { new String[]{"-ml","-1"}},
-                { new String[]{"-ml","1C"}},
-                { new String[]{"--memory-limit", "1Q"}}
+        return new Object[][]{
+                {new String[]{"-ml", "-1"}},
+                {new String[]{"-ml", "1C"}},
+                {new String[]{"--memory-limit", "1Q"}}
         };
     }
 
@@ -213,7 +234,12 @@ public class PerformanceBaseArgumentsTest {
         )) {
             // Arrange
             AtomicBoolean called = new AtomicBoolean();
-            final PerformanceBaseArguments baseArgument = new PerformanceBaseArguments() {
+            final PerformanceBaseArguments baseArgument = new PerformanceBaseArguments("") {
+                @Override
+                public void run() throws Exception {
+
+                }
+
                 @Override
                 public void fillArgumentsFromProperties(Properties prop) {
                     called.set(true);
@@ -222,7 +248,7 @@ public class PerformanceBaseArgumentsTest {
             baseArgument.confFile = "./src/test/resources/perf_client1.conf";
 
             // Act
-            baseArgument.parseCLI(cmd, new String[]{});
+            baseArgument.parseCLI();
 
             // Assert 
             assertEquals(baseArgument.memoryLimit, 0L);

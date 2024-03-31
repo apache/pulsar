@@ -29,18 +29,17 @@ import org.apache.pulsar.cli.converters.picocli.ByteUnitToLongConverter;
 import org.apache.pulsar.client.api.ProxyProtocol;
 import picocli.CommandLine;
 import picocli.CommandLine.Option;
-import picocli.CommandLine.ParameterException;
 
 /**
  * PerformanceBaseArguments contains common CLI arguments and parsing logic available to all sub-commands.
  * Sub-commands should create Argument subclasses and override the `validate` method as necessary.
  */
-public abstract class PerformanceBaseArguments {
+public abstract class PerformanceBaseArguments extends CmdBase{
 
     @Option(names = { "-h", "--help" }, description = "Print help message", help = true)
     boolean help;
 
-    @Option(names = { "-cf", "--conf-file" }, description = "Pulsar configuration file")
+//    @Option(names = { "-cf", "--conf-file" }, description = "Pulsar configuration file")
     public String confFile;
 
     @Option(names = { "-u", "--service-url" }, description = "Pulsar Service URL")
@@ -107,6 +106,15 @@ public abstract class PerformanceBaseArguments {
     @Option(names = { "-ml", "--memory-limit", }, description = "Configure the Pulsar client memory limit "
             + "(eg: 32M, 64M)", converter = ByteUnitToLongConverter.class)
     public long memoryLimit;
+
+    public PerformanceBaseArguments(String cmdName, String configFile) {
+        super(cmdName);
+        this.confFile = configFile;
+    }
+    public PerformanceBaseArguments(String cmdName) {
+        super(cmdName);
+        this.confFile = null;
+    }
 
     public abstract void fillArgumentsFromProperties(Properties prop);
 
@@ -198,21 +206,10 @@ public abstract class PerformanceBaseArguments {
 
     /**
      * Parse the command line args.
-     * @param cmdName used for the help message
-     * @param args String[] of CLI args
      * @throws ParameterException If there is a problem parsing the arguments
      */
-    public void parseCLI(String cmdName, String[] args) {
-        CommandLine commander = new CommandLine(this);
-        commander.setCommandName(cmdName);
-        try {
-            commander.parseArgs(args);
-        } catch (ParameterException e) {
-            System.out.println(e.getMessage());
-            commander.usage(commander.getOut());
-            PerfClientUtils.exit(1);
-        }
-
+    public void parseCLI() {
+        CommandLine commander = super.getCommander();
         if (help) {
             commander.usage(commander.getOut());
             PerfClientUtils.exit(0);

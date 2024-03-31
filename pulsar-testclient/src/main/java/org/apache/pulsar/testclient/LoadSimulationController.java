@@ -62,44 +62,39 @@ import picocli.CommandLine.ScopeType;
 /**
  * This class provides a shell for the user to dictate how simulation clients should incur load.
  */
-public class LoadSimulationController {
+@Command(description = "Provides a shell for the user to dictate how simulation clients should "
+        + "incur load.", showDefaultValues = true, scope = ScopeType.INHERIT)
+public class LoadSimulationController extends CmdBase{
     private static final Logger log = LoggerFactory.getLogger(LoadSimulationController.class);
 
     // Input streams for each client to send commands through.
-    private final DataInputStream[] inputStreams;
+    private DataInputStream[] inputStreams;
 
     // Output streams for each client to receive information from.
-    private final DataOutputStream[] outputStreams;
+    private DataOutputStream[] outputStreams;
 
     // client host names.
-    private final String[] clients;
+    private String[] clients;
 
-    // Port clients are listening on.
-    private final int clientPort;
-
-    // The ZooKeeper cluster to run on.
-    private final String cluster;
-
-    private final Random random;
+    private Random random;
 
     private static final ExecutorService threadPool = Executors.newCachedThreadPool();
 
     // picocli arguments for starting a controller via main.
-    @Command(description = "Provides a shell for the user to dictate how simulation clients should "
-            + "incur load.", showDefaultValues = true, scope = ScopeType.INHERIT)
-    private static class MainArguments {
-        @Option(names = { "-h", "--help" }, description = "Help message", help = true)
-        boolean help;
 
-        @Option(names = { "--cluster" }, description = "Cluster to test on", required = true)
-        String cluster;
 
-        @Option(names = { "--clients" }, description = "Comma separated list of client hostnames", required = true)
-        String clientHostNames;
+    @Option(names = { "-h", "--help" }, description = "Help message", help = true)
+    boolean help;
 
-        @Option(names = { "--client-port" }, description = "Port that the clients are listening on", required = true)
-        int clientPort;
-    }
+    @Option(names = { "--cluster" }, description = "Cluster to test on", required = true)
+    String cluster;
+
+    @Option(names = { "--clients" }, description = "Comma separated list of client hostnames", required = true)
+    String clientHostNames;
+
+    @Option(names = { "--client-port" }, description = "Port that the clients are listening on", required = true)
+    int clientPort;
+
 
     // picocli arguments for accepting user input.
     private static class ShellArguments {
@@ -216,24 +211,9 @@ public class LoadSimulationController {
     /**
      * Create a LoadSimulationController with the given picocli arguments.
      *
-     * @param arguments
-     *            Arguments to create from.
      */
-    public LoadSimulationController(final MainArguments arguments) throws Exception {
-        random = new Random();
-        clientPort = arguments.clientPort;
-        cluster = arguments.cluster;
-        clients = arguments.clientHostNames.split(",");
-        final Socket[] sockets = new Socket[clients.length];
-        inputStreams = new DataInputStream[clients.length];
-        outputStreams = new DataOutputStream[clients.length];
-        log.info("Found {} clients:", clients.length);
-        for (int i = 0; i < clients.length; ++i) {
-            sockets[i] = new Socket(clients[i], clientPort);
-            inputStreams[i] = new DataInputStream(sockets[i].getInputStream());
-            outputStreams[i] = new DataOutputStream(sockets[i].getOutputStream());
-            log.info("Connected to {}", clients[i]);
-        }
+    public LoadSimulationController() throws Exception {
+        super("simulation-controller");
     }
 
     // Check that the expected number of application arguments matches the
@@ -700,7 +680,7 @@ public class LoadSimulationController {
     /**
      * Create a shell for the user to send commands to clients.
      */
-    public void run() throws Exception {
+    public void start() throws Exception {
         BufferedReader inReader = new BufferedReader(new InputStreamReader(System.in));
         while (true) {
             // Print the very simple prompt.
@@ -713,20 +693,26 @@ public class LoadSimulationController {
     /**
      * Start a controller with command line arguments.
      *
-     * @param args
-     *            Arguments to pass in.
      */
-    public static void main(String[] args) throws Exception {
-        final MainArguments arguments = new MainArguments();
-        final CommandLine commander = new CommandLine(arguments);
-        commander.setCommandName("pulsar-perf simulation-controller");
-        try {
-            commander.parseArgs(args);
-        } catch (ParameterException e) {
-            System.out.println(e.getMessage());
+    @Override
+    public void run() throws Exception {
+        CommandLine commander = super.getCommander();
+        if (help) {
             commander.usage(commander.getOut());
-            PerfClientUtils.exit(1);
+            PerfClientUtils.exit(0);
         }
-        (new LoadSimulationController(arguments)).run();
+        random = new Random();
+        clients = this.clientHostNames.split(",");
+        final Socket[] sockets = new Socket[clients.length];
+        inputStreams = new DataInputStream[clients.length];
+        outputStreams = new DataOutputStream[clients.length];
+        log.info("Found {} clients:", clients.length);
+        for (int i = 0; i < clients.length; ++i) {
+            sockets[i] = new Socket(clients[i], clientPort);
+            inputStreams[i] = new DataInputStream(sockets[i].getInputStream());
+            outputStreams[i] = new DataOutputStream(sockets[i].getOutputStream());
+            log.info("Connected to {}", clients[i]);
+        }
+        start();
     }
 }

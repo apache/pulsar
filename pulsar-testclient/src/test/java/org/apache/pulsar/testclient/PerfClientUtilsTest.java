@@ -55,7 +55,7 @@ public class PerfClientUtilsTest {
     @Test
     public void testClientCreation() throws Exception {
 
-        final PerformanceBaseArguments args = new PerformanceArgumentsTestDefault();
+        final PerformanceBaseArguments args = new PerformanceArgumentsTestDefault("");
 
         args.tlsHostnameVerificationEnable = true;
         args.authPluginClassName = MyAuth.class.getName();
@@ -97,7 +97,7 @@ public class PerfClientUtilsTest {
     @Test
     public void testClientCreationWithProxy() throws Exception {
 
-        final PerformanceBaseArguments args = new PerformanceArgumentsTestDefault();
+        final PerformanceBaseArguments args = new PerformanceArgumentsTestDefault("");
 
         args.serviceURL = "pulsar+ssl://my-pulsar:6651";
         args.proxyServiceURL = "pulsar+ssl://my-proxy-pulsar:4443";
@@ -120,7 +120,7 @@ public class PerfClientUtilsTest {
                     + "proxyServiceUrl=pulsar+ssl://my-proxy-pulsar:4443\n"
                     + "proxyProtocol=SNI");
 
-            final PerformanceBaseArguments args = new PerformanceArgumentsTestDefault();
+            final PerformanceBaseArguments args = new PerformanceArgumentsTestDefault("");
 
             args.confFile = testConf.toString();
             args.fillArgumentsFromProperties();
@@ -145,7 +145,7 @@ public class PerfClientUtilsTest {
                     + "proxyServiceUrl=\n"
                     + "proxyProtocol=");
 
-            final PerformanceBaseArguments args = new PerformanceArgumentsTestDefault();
+            final PerformanceBaseArguments args = new PerformanceArgumentsTestDefault("");
 
             args.confFile = testConf.toString();
             args.fillArgumentsFromProperties();
@@ -163,7 +163,16 @@ public class PerfClientUtilsTest {
 }
 
 class PerformanceArgumentsTestDefault extends PerformanceBaseArguments {
+    public PerformanceArgumentsTestDefault(String cmdName) {
+        super(cmdName);
+    }
+
     @Override
     public void fillArgumentsFromProperties(Properties prop) {
+    }
+
+    @Override
+    public void run() throws Exception {
+
     }
 }
