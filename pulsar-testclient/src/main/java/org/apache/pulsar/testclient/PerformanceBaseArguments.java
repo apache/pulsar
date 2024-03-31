@@ -39,7 +39,6 @@ public abstract class PerformanceBaseArguments extends CmdBase{
     @Option(names = { "-h", "--help" }, description = "Print help message", help = true)
     boolean help;
 
-//    @Option(names = { "-cf", "--conf-file" }, description = "Pulsar configuration file")
     public String confFile;
 
     @Option(names = { "-u", "--service-url" }, description = "Pulsar Service URL")
