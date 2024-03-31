@@ -62,7 +62,7 @@ public class PulsarPerfTestTool {
                 Constructor<?> constructor = c.getValue().getDeclaredConstructor(String.class);
                 constructor.setAccessible(true);
                 commander.addSubcommand(c.getKey(), constructor.newInstance(configFile));
-            }else {
+            } else {
                 Constructor<?> constructor = c.getValue().getDeclaredConstructor();
                 constructor.setAccessible(true);
                 addCommand(c.getKey(), constructor.newInstance());

@@ -28,7 +28,6 @@ import org.apache.pulsar.proxy.socket.client.PerformanceClient;
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
-import picocli.CommandLine.ParameterException;
 import picocli.CommandLine.ScopeType;
 
 @Slf4j

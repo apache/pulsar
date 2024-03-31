@@ -439,7 +439,7 @@ public class PerformanceProducer extends PerformanceTopicListArguments{
     }
 
     public PerformanceProducer() {
-        super("produce", null);;
+        super("produce", null);
     }
 
     private static void executorShutdownNow() {

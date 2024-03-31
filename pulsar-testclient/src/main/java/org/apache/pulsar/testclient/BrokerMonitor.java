@@ -49,7 +49,6 @@ import org.slf4j.LoggerFactory;
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
-import picocli.CommandLine.ParameterException;
 import picocli.CommandLine.ScopeType;
 
 /**
@@ -439,7 +438,6 @@ public class BrokerMonitor extends CmdBase {
             log.info("\nBroker Data for {}:\n{}\n", broker, table);
         }
     }
-    
     @Option(names = {"-h", "--help"}, description = "Help message", help = true)
     boolean help;
 
