@@ -711,4 +711,9 @@ public abstract class PersistentReplicator extends AbstractReplicator
     public ManagedCursor getCursor() {
         return cursor;
     }
+
+    protected void handleThrottling(int numOfMessages, long msgSizeInBytes) {
+        dispatchRateLimiter.ifPresent(
+                rateLimiter -> rateLimiter.consumeDispatchQuota(numOfMessages, msgSizeInBytes));
+    }
 }
