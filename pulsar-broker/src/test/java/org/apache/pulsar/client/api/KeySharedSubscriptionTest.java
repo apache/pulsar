@@ -1627,6 +1627,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
             sum++;
         }
 
+
         log.info("Got {} other messages...", sum);
         Assert.assertEquals(sum, delayedMessages + messages);
     }
