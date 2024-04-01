@@ -2277,9 +2277,18 @@ public class BrokerService implements Closeable {
                 }
                 closeFutures.add(topicFuture
                         .thenCompose(t -> t.isPresent() ? t.get().close(closeWithoutWaitingClientDisconnect)
-                                : CompletableFuture.completedFuture(null)));
+                                : CompletableFuture.completedFuture(null))
+                        .exceptionally(e -> {
+                            if (e.getCause() instanceof BrokerServiceException.ServiceUnitNotReadyException
+                                    && e.getMessage().contains("Please redo the lookup")) {
+                                log.warn("[{}] Topic ownership check failed. Skipping it", topicName);
+                                return null;
+                            }
+                            throw FutureUtil.wrapToCompletionException(e);
+                        }));
             }
         });
+
         if (getPulsar().getConfig().isTransactionCoordinatorEnabled()
                 && serviceUnit.getNamespaceObject().equals(NamespaceName.SYSTEM_NAMESPACE)) {
             TransactionMetadataStoreService metadataStoreService =

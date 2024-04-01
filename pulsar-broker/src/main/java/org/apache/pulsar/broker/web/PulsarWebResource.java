@@ -610,12 +610,17 @@ public abstract class PulsarWebResource {
         NamespaceBundle nsBundle = validateNamespaceBundleRange(fqnn, bundles, bundleRange);
         NamespaceService nsService = pulsar().getNamespaceService();
 
+        if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(pulsar)) {
+            return nsService.checkOwnershipPresentAsync(nsBundle);
+        }
+
         LookupOptions options = LookupOptions.builder()
                 .authoritative(false)
                 .requestHttps(isRequestHttps())
                 .readOnly(true)
                 .loadTopicsInBundle(false).build();
-        return nsService.getWebServiceUrlAsync(nsBundle, options).thenApply(optionUrl -> optionUrl.isPresent());
+
+        return nsService.getWebServiceUrlAsync(nsBundle, options).thenApply(Optional::isPresent);
     }
 
     protected NamespaceBundle validateNamespaceBundleOwnership(NamespaceName fqnn, BundlesData bundles,
