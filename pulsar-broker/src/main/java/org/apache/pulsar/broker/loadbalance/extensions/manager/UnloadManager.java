@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.broker.loadbalance.extensions.manager;
 
+import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Assigning;
+import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Owned;
 import static org.apache.pulsar.broker.loadbalance.extensions.models.UnloadDecision.Label.Failure;
 import static org.apache.pulsar.broker.loadbalance.extensions.models.UnloadDecision.Reason.Unknown;
 import java.util.Map;
@@ -25,6 +27,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState;
 import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateData;
 import org.apache.pulsar.broker.loadbalance.extensions.models.UnloadCounter;
@@ -88,14 +91,27 @@ public class UnloadManager implements StateChangeListener {
 
     @Override
     public void handleEvent(String serviceUnit, ServiceUnitStateData data, Throwable t) {
-        if (t != null && inFlightUnloadRequest.containsKey(serviceUnit)) {
+        ServiceUnitState state = ServiceUnitStateData.state(data);
+
+        if (StringUtils.isBlank(data.sourceBroker()) && (state == Owned || state == Assigning)) {
+            if (log.isDebugEnabled()) {
+                log.debug("Skipping {} for service unit {} from the assignment command.", data, serviceUnit);
+            }
+            return;
+        }
+
+        if (t != null) {
             if (log.isDebugEnabled()) {
                 log.debug("Handling {} for service unit {} with exception.", data, serviceUnit, t);
             }
             this.complete(serviceUnit, t);
             return;
         }
-        ServiceUnitState state = ServiceUnitStateData.state(data);
+
+        if (log.isDebugEnabled()) {
+            log.debug("Handling {} for service unit {}", data, serviceUnit);
+        }
+
         switch (state) {
             case Free, Owned -> this.complete(serviceUnit, t);
             default -> {
