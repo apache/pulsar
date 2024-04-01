@@ -155,7 +155,7 @@ flexible messaging model and an intuitive client API.</description>
     <rocksdb.version>7.9.2</rocksdb.version>
     <slf4j.version>1.7.32</slf4j.version>
     <commons.collections4.version>4.4</commons.collections4.version>
-    <log4j2.version>2.18.0</log4j2.version>
+    <log4j2.version>2.23.1</log4j2.version>
     <bouncycastle.version>1.75</bouncycastle.version>
     <bouncycastle.bcpkix-fips.version>1.0.6</bouncycastle.bcpkix-fips.version>
     <bouncycastle.bc-fips.version>1.0.2.4</bouncycastle.bc-fips.version>
