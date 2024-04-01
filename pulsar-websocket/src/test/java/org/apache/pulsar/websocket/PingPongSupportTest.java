@@ -26,6 +26,7 @@ import java.util.List;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.Future;
 import javax.servlet.http.HttpServletRequest;
+import lombok.Cleanup;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.web.WebExecutorThreadPool;
@@ -56,12 +57,13 @@ import org.testng.annotations.Test;
  */
 public class PingPongSupportTest {
 
-    private static Server server;
+    private Server server;
 
-    private static final WebExecutorThreadPool executor = new WebExecutorThreadPool(6, "pulsar-websocket-web-test");
+    private WebExecutorThreadPool executor;
 
     @BeforeClass
-    public static void setup() throws Exception {
+    public void setup() throws Exception {
+        executor = new WebExecutorThreadPool(6, "pulsar-websocket-web-test");
         server = new Server(executor);
         List<ServerConnector> connectors = new ArrayList<>();
         ServerConnector connector = new ServerConnector(server);
@@ -90,7 +92,7 @@ public class PingPongSupportTest {
     }
 
     @AfterClass(alwaysRun = true)
-    public static void tearDown() throws Exception {
+    public void tearDown() throws Exception {
         if (server != null) {
             server.stop();
         }
@@ -108,6 +110,7 @@ public class PingPongSupportTest {
 
     @Test(dataProvider = "endpoint")
     public void testPingPong(String endpoint) throws Exception {
+        @Cleanup("stop")
         HttpClient httpClient = new HttpClient();
         WebSocketClient webSocketClient = new WebSocketClient(httpClient);
         webSocketClient.start();

@@ -227,6 +227,7 @@ public class ConcurrentOpenHashMapTest {
                 .build();
         assertEquals(map.capacity(), 4);
 
+        @Cleanup("shutdownNow")
         ExecutorService executor = Executors.newCachedThreadPool();
         final int readThreads = 16;
         final int writeThreads = 1;
@@ -242,7 +243,7 @@ public class ConcurrentOpenHashMapTest {
                 } catch (Exception e) {
                     throw new RuntimeException(e);
                 }
-                while (true) {
+                while (!Thread.currentThread().isInterrupted()) {
                     try {
                         map.get("k2");
                     } catch (Exception e) {

@@ -109,6 +109,7 @@ public class AntiAffinityNamespaceGroupExtensionTest extends AntiAffinityNamespa
         final String antiAffinityEnabledNameSpace = namespace + nsSuffix;
         admin.namespaces().createNamespace(antiAffinityEnabledNameSpace);
         admin.namespaces().setNamespaceAntiAffinityGroup(antiAffinityEnabledNameSpace, namespaceAntiAffinityGroup);
+        @Cleanup
         PulsarClient pulsarClient = PulsarClient.builder().serviceUrl(pulsar.getSafeWebServiceAddress()).build();
         @Cleanup
         Producer<byte[]> producer = pulsarClient.newProducer().topic(

@@ -49,32 +49,29 @@ import org.awaitility.Awaitility;
 import org.testcontainers.containers.Network;
 import org.testcontainers.elasticsearch.ElasticsearchContainer;
 import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 @Slf4j
 public abstract class ElasticSearchClientTests extends ElasticSearchTestBase {
     public final static String INDEX = "myindex";
 
-    static ElasticsearchContainer container;
-    static Network network;
+    private ElasticsearchContainer container;
+    private Network network;
 
     public ElasticSearchClientTests(String elasticImageName) {
         super(elasticImageName);
     }
 
-    @BeforeMethod(alwaysRun = true)
+    @BeforeClass(alwaysRun = true)
     public void initBeforeClass() throws IOException {
-        if (container != null) {
-            return;
-        }
         network = Network.newNetwork();
         container = createElasticsearchContainer().withNetwork(network);
         container.start();
     }
 
     @AfterClass(alwaysRun = true)
-    public static void closeAfterClass() {
+    public void closeAfterClass() {
         container.close();
         container = null;
         network.close();

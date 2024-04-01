@@ -22,6 +22,7 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import lombok.Cleanup;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.ServiceUrlProvider;
 import org.asynchttpclient.Request;
@@ -47,6 +48,7 @@ public class ControlledClusterFailoverTest {
         Map<String, String> header = new HashMap<>();
         header.put(keyA, valueA);
         header.put(keyB, valueB);
+        @Cleanup
         ServiceUrlProvider provider = ControlledClusterFailover.builder()
             .defaultServiceUrl(defaultServiceUrl)
             .urlProvider(urlProvider)
@@ -81,6 +83,7 @@ public class ControlledClusterFailoverTest {
         controlledConfiguration.setAuthPluginClassName(authPluginClassName);
         controlledConfiguration.setAuthParamsString(authParamsString);
 
+        @Cleanup
         ServiceUrlProvider provider = ControlledClusterFailover.builder()
             .defaultServiceUrl(defaultServiceUrl)
             .urlProvider(urlProvider)

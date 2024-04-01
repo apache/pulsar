@@ -57,12 +57,11 @@ import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.EntryFilters;
+import org.apache.pulsar.common.policies.data.LocalPolicies;
 import org.apache.pulsar.common.policies.data.NamespaceOperation;
 import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.Policies;
-import org.apache.pulsar.common.policies.data.PolicyName;
-import org.apache.pulsar.common.policies.data.PolicyOperation;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
@@ -304,7 +303,9 @@ public abstract class AdminResource extends PulsarWebResource {
             // fetch bundles from LocalZK-policies
             BundlesData bundleData = pulsar().getNamespaceService().getNamespaceBundleFactory()
                     .getBundles(namespaceName).getBundlesData();
+            Optional<LocalPolicies> localPolicies = getLocalPolicies().getLocalPolicies(namespaceName);
             policies.bundles = bundleData != null ? bundleData : policies.bundles;
+            policies.migrated = localPolicies.isPresent() ? localPolicies.get().migrated : false;
             if (policies.is_allow_auto_update_schema == null) {
                 // the type changed from boolean to Boolean. return broker value here for keeping compatibility.
                 policies.is_allow_auto_update_schema = pulsar().getConfig().isAllowAutoUpdateSchemaEnabled();
@@ -321,32 +322,31 @@ public abstract class AdminResource extends PulsarWebResource {
     }
 
     protected CompletableFuture<Policies> getNamespacePoliciesAsync(NamespaceName namespaceName) {
-        return namespaceResources().getPoliciesAsync(namespaceName).thenCompose(policies -> {
-            if (policies.isPresent()) {
-                return pulsar()
-                        .getNamespaceService()
-                        .getNamespaceBundleFactory()
-                        .getBundlesAsync(namespaceName)
-                        .thenCompose(bundles -> {
-                    BundlesData bundleData = null;
-                    try {
-                        bundleData = bundles.getBundlesData();
-                    } catch (Exception e) {
-                        log.error("[{}] Failed to get namespace policies {}", clientAppId(), namespaceName, e);
-                        return FutureUtil.failedFuture(new RestException(e));
+        CompletableFuture<Policies> result = new CompletableFuture<>();
+        namespaceResources().getPoliciesAsync(namespaceName)
+                .thenCombine(getLocalPolicies().getLocalPoliciesAsync(namespaceName), (pl, localPolicies) -> {
+                    if (pl.isPresent()) {
+                        Policies policies = pl.get();
+                        if (localPolicies.isPresent()) {
+                            policies.bundles = localPolicies.get().bundles;
+                            policies.migrated = localPolicies.get().migrated;
+                        }
+                        if (policies.is_allow_auto_update_schema == null) {
+                            // the type changed from boolean to Boolean. return
+                            // broker value here for keeping compatibility.
+                            policies.is_allow_auto_update_schema = pulsar().getConfig()
+                                    .isAllowAutoUpdateSchemaEnabled();
+                        }
+                        result.complete(policies);
+                    } else {
+                        result.completeExceptionally(new RestException(Status.NOT_FOUND, "Namespace does not exist"));
                     }
-                    policies.get().bundles = bundleData != null ? bundleData : policies.get().bundles;
-                    if (policies.get().is_allow_auto_update_schema == null) {
-                        // the type changed from boolean to Boolean. return broker value here for keeping compatibility.
-                        policies.get().is_allow_auto_update_schema = pulsar().getConfig()
-                                .isAllowAutoUpdateSchemaEnabled();
-                    }
-                    return CompletableFuture.completedFuture(policies.get());
+                    return null;
+                }).exceptionally(ex -> {
+                    result.completeExceptionally(ex.getCause());
+                    return null;
                 });
-            } else {
-                return FutureUtil.failedFuture(new RestException(Status.NOT_FOUND, "Namespace does not exist"));
-            }
-        });
+        return result;
     }
 
     protected BacklogQuota namespaceBacklogQuota(NamespaceName namespace,
@@ -393,7 +393,7 @@ public abstract class AdminResource extends PulsarWebResource {
     }
 
     protected void checkTopicLevelPolicyEnable() {
-        if (!config().isTopicLevelPoliciesEnabled()) {
+        if (!config().isSystemTopicAndTopicLevelPoliciesEnabled()) {
             throw new RestException(Status.METHOD_NOT_ALLOWED,
                     "Topic level policies is disabled, to enable the topic level policy and retry.");
         }
@@ -712,10 +712,7 @@ public abstract class AdminResource extends PulsarWebResource {
     }
 
     protected CompletableFuture<SchemaCompatibilityStrategy> getSchemaCompatibilityStrategyAsync() {
-        return validateTopicPolicyOperationAsync(topicName,
-                PolicyName.SCHEMA_COMPATIBILITY_STRATEGY,
-                PolicyOperation.READ)
-                .thenCompose((__) -> getSchemaCompatibilityStrategyAsyncWithoutAuth()).whenComplete((__, ex) -> {
+        return getSchemaCompatibilityStrategyAsyncWithoutAuth().whenComplete((__, ex) -> {
                     if (ex != null) {
                         log.error("[{}] Failed to get schema compatibility strategy of topic {} {}",
                                 clientAppId(), topicName, ex);
@@ -725,7 +722,7 @@ public abstract class AdminResource extends PulsarWebResource {
 
     protected CompletableFuture<SchemaCompatibilityStrategy> getSchemaCompatibilityStrategyAsyncWithoutAuth() {
         CompletableFuture<SchemaCompatibilityStrategy> future = CompletableFuture.completedFuture(null);
-        if (config().isTopicLevelPoliciesEnabled()) {
+        if (config().isSystemTopicAndTopicLevelPoliciesEnabled()) {
             future = getTopicPoliciesAsyncWithRetry(topicName)
                     .thenApply(op -> op.map(TopicPolicies::getSchemaCompatibilityStrategy).orElse(null));
         }
@@ -830,6 +827,10 @@ public abstract class AdminResource extends PulsarWebResource {
         return realCause instanceof WebApplicationException
                 && ((WebApplicationException) realCause).getResponse().getStatus()
                 == Status.NOT_FOUND.getStatusCode();
+    }
+
+    protected static boolean isNot307And404Exception(Throwable ex) {
+        return !isRedirectException(ex) && !isNotFoundException(ex);
     }
 
     protected static String getTopicNotFoundErrorMessage(String topic) {

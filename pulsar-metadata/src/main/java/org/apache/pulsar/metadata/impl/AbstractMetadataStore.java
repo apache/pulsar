@@ -89,7 +89,9 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
     protected abstract CompletableFuture<Boolean> existsFromStore(String path);
 
     protected AbstractMetadataStore(String metadataStoreName) {
-        this.executor = new ScheduledThreadPoolExecutor(1, new DefaultThreadFactory(metadataStoreName));
+        this.executor = new ScheduledThreadPoolExecutor(1,
+                new DefaultThreadFactory(
+                        StringUtils.isNotBlank(metadataStoreName) ? metadataStoreName : getClass().getSimpleName()));
         registerListener(this);
 
         this.childrenCache = Caffeine.newBuilder()
@@ -173,6 +175,14 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
             return result;
         });
         return result;
+    }
+
+    /**
+     *  @deprecated Use {@link #registerSyncListener(Optional)} instead.
+     */
+    @Deprecated
+    protected void registerSyncLister(Optional<MetadataEventSynchronizer> synchronizer) {
+        this.registerSyncListener(synchronizer);
     }
 
     protected void registerSyncListener(Optional<MetadataEventSynchronizer> synchronizer) {

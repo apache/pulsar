@@ -23,6 +23,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
+import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.ReadOnlyCursor;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.PositionBound;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats;
@@ -69,5 +70,10 @@ public class ReadOnlyCursorImpl extends ManagedCursorImpl implements ReadOnlyCur
     @Override
     public long getNumberOfEntries(Range<PositionImpl> range) {
         return this.ledger.getNumberOfEntries(range);
+    }
+
+    @Override
+    public boolean isMessageDeleted(Position position) {
+        return false;
     }
 }

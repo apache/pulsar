@@ -82,4 +82,11 @@ public interface BatchMessageContainerBase extends BatchMessageContainer {
      * @return belong to the same txn or not
      */
     boolean hasSameTxn(MessageImpl<?> msg);
+
+    /**
+     * Get the timestamp in nanoseconds when the 1st message is added into the batch container.
+     *
+     * @return the timestamp in nanoseconds or 0L if the batch container is empty
+     */
+    long getFirstAddedTimestamp();
 }

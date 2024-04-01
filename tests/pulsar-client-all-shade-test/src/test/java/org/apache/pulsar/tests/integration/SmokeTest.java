@@ -81,6 +81,7 @@ public class SmokeTest extends TestRetrySupport {
 
     @Test
     public void checkAdmin() throws PulsarClientException, PulsarAdminException {
+        @Cleanup
         PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(pulsarContainer.getPulsarAdminUrl()).build();
         List<String> expectedNamespacesList = new ArrayList<>();
         expectedNamespacesList.add("public/default");

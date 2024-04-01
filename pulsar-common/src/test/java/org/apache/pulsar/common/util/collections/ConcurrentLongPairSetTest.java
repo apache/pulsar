@@ -223,6 +223,7 @@ public class ConcurrentLongPairSetTest {
                 .build();
         assertEquals(set.capacity(), 4);
 
+        @Cleanup("shutdownNow")
         ExecutorService executor = Executors.newCachedThreadPool();
         final int readThreads = 16;
         final int writeThreads = 1;
@@ -238,7 +239,7 @@ public class ConcurrentLongPairSetTest {
                 } catch (Exception e) {
                     throw new RuntimeException(e);
                 }
-                while (true) {
+                while (!Thread.currentThread().isInterrupted()) {
                     try {
                         set.contains(1, 1);
                     } catch (Exception e) {

@@ -108,6 +108,7 @@ public class TokenAuthenticatedProducerConsumerTest extends ProducerConsumerBase
 
     // setup both admin and pulsar client
     protected final void clientSetup() throws Exception {
+        closeAdmin();
         admin = spy(PulsarAdmin.builder().serviceHttpUrl(brokerUrl.toString())
                 .authentication(AuthenticationFactory.token(ADMIN_TOKEN))
                 .build());

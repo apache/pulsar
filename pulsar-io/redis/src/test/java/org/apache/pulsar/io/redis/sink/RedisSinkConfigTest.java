@@ -18,7 +18,9 @@
  */
 package org.apache.pulsar.io.redis.sink;
 
+import org.apache.pulsar.io.core.SinkContext;
 import org.apache.pulsar.io.redis.RedisAbstractConfig;
+import org.mockito.Mockito;
 import org.testng.annotations.Test;
 
 import java.io.File;
@@ -62,7 +64,34 @@ public class RedisSinkConfigTest {
         map.put("batchTimeMs", "1000");
         map.put("connectTimeout", "3000");
 
-        RedisSinkConfig config = RedisSinkConfig.load(map);
+        SinkContext sinkContext = Mockito.mock(SinkContext.class);
+        RedisSinkConfig config = RedisSinkConfig.load(map, sinkContext);
+        assertNotNull(config);
+        assertEquals(config.getRedisHosts(), "localhost:6379");
+        assertEquals(config.getRedisPassword(), "fake@123");
+        assertEquals(config.getRedisDatabase(), Integer.parseInt("1"));
+        assertEquals(config.getClientMode(), "Standalone");
+        assertEquals(config.getOperationTimeout(), Long.parseLong("2000"));
+        assertEquals(config.getBatchSize(), Integer.parseInt("100"));
+        assertEquals(config.getBatchTimeMs(), Long.parseLong("1000"));
+        assertEquals(config.getConnectTimeout(), Long.parseLong("3000"));
+    }
+
+    @Test
+    public final void loadFromMapCredentialsFromSecretTest() throws IOException {
+        Map<String, Object> map = new HashMap<String, Object>();
+        map.put("redisHosts", "localhost:6379");
+        map.put("redisDatabase", "1");
+        map.put("clientMode", "Standalone");
+        map.put("operationTimeout", "2000");
+        map.put("batchSize", "100");
+        map.put("batchTimeMs", "1000");
+        map.put("connectTimeout", "3000");
+
+        SinkContext sinkContext = Mockito.mock(SinkContext.class);
+        Mockito.when(sinkContext.getSecret("redisPassword"))
+                .thenReturn("fake@123");
+        RedisSinkConfig config = RedisSinkConfig.load(map, sinkContext);
         assertNotNull(config);
         assertEquals(config.getRedisHosts(), "localhost:6379");
         assertEquals(config.getRedisPassword(), "fake@123");
@@ -86,12 +115,13 @@ public class RedisSinkConfigTest {
         map.put("batchTimeMs", "1000");
         map.put("connectTimeout", "3000");
 
-        RedisSinkConfig config = RedisSinkConfig.load(map);
+        SinkContext sinkContext = Mockito.mock(SinkContext.class);
+        RedisSinkConfig config = RedisSinkConfig.load(map, sinkContext);
         config.validate();
     }
 
-    @Test(expectedExceptions = NullPointerException.class,
-        expectedExceptionsMessageRegExp = "redisHosts property not set.")
+    @Test(expectedExceptions = IllegalArgumentException.class,
+        expectedExceptionsMessageRegExp = "redisHosts cannot be null")
     public final void missingValidValidateTableNameTest() throws IOException {
         Map<String, Object> map = new HashMap<String, Object>();
         map.put("redisPassword", "fake@123");
@@ -102,7 +132,8 @@ public class RedisSinkConfigTest {
         map.put("batchTimeMs", "1000");
         map.put("connectTimeout", "3000");
 
-        RedisSinkConfig config = RedisSinkConfig.load(map);
+        SinkContext sinkContext = Mockito.mock(SinkContext.class);
+        RedisSinkConfig config = RedisSinkConfig.load(map, sinkContext);
         config.validate();
     }
 
@@ -119,7 +150,8 @@ public class RedisSinkConfigTest {
         map.put("batchTimeMs", "-100");
         map.put("connectTimeout", "3000");
 
-        RedisSinkConfig config = RedisSinkConfig.load(map);
+        SinkContext sinkContext = Mockito.mock(SinkContext.class);
+        RedisSinkConfig config = RedisSinkConfig.load(map, sinkContext);
         config.validate();
     }
 
@@ -136,7 +168,8 @@ public class RedisSinkConfigTest {
         map.put("batchTimeMs", "1000");
         map.put("connectTimeout", "3000");
 
-        RedisSinkConfig config = RedisSinkConfig.load(map);
+        SinkContext sinkContext = Mockito.mock(SinkContext.class);
+        RedisSinkConfig config = RedisSinkConfig.load(map, sinkContext);
         config.validate();
 
         RedisAbstractConfig.ClientMode.valueOf(config.getClientMode().toUpperCase());

@@ -407,7 +407,7 @@ public class SchemaCompatibilityCheckTest extends MockedPulsarServiceBaseTest {
         assertEquals(admin.namespaces().getSchemaCompatibilityStrategy(namespaceName.toString()),
                 SchemaCompatibilityStrategy.UNDEFINED);
         byte[] changeSchemaBytes = (new String(Schema.AVRO(Schemas.PersonOne.class)
-                .getSchemaInfo().getSchema(), UTF_8) + "/n   /n   /n").getBytes();
+                .getSchemaInfo().getSchema(), UTF_8) + "\n   \n   \n").getBytes();
         SchemaInfo schemaInfo = SchemaInfo.builder().type(SchemaType.AVRO).schema(changeSchemaBytes).build();
         admin.schemas().createSchema(fqtn, schemaInfo);
 

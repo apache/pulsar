@@ -22,13 +22,16 @@ import static org.apache.pulsar.broker.BrokerTestUtil.spyWithoutRecordingInvocat
 import static org.testng.Assert.assertEquals;
 import com.google.common.collect.Sets;
 import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.URL;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Date;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -53,7 +56,9 @@ import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.impl.ConnectionPool;
 import org.apache.pulsar.client.impl.ProducerImpl;
+import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.auth.AuthenticationDisabled;
 import org.apache.pulsar.client.impl.auth.AuthenticationTls;
 import org.apache.pulsar.common.policies.data.ClusterData;
@@ -140,6 +145,8 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
 
     protected boolean enableBrokerInterceptor = false;
 
+    private final List<AutoCloseable> closeables = new ArrayList<>();
+
     public MockedPulsarServiceBaseTest() {
         resetConfig();
     }
@@ -159,7 +166,6 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
     }
 
     protected final void internalSetup() throws Exception {
-        incrementSetupNumber();
         init();
         lookupUrl = new URI(brokerUrl.toString());
         if (isTcpLookup) {
@@ -237,6 +243,7 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
     }
 
     protected final void init() throws Exception {
+        incrementSetupNumber();
         doInitConf();
         // trying to config the broker internal client
         if (conf.getWebServicePortTls().isPresent()
@@ -261,13 +268,7 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
         markCurrentSetupNumberCleaned();
         // if init fails, some of these could be null, and if so would throw
         // an NPE in shutdown, obscuring the real error
-        if (admin != null) {
-            admin.close();
-            if (MockUtil.isMock(admin)) {
-                Mockito.reset(admin);
-            }
-            admin = null;
-        }
+        closeAdmin();
         if (pulsarClient != null) {
             pulsarClient.shutdown();
             pulsarClient = null;
@@ -280,11 +281,38 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
             pulsarTestContext = null;
         }
         resetConfig();
+        callCloseables(closeables);
+        closeables.clear();
         onCleanup();
+    }
+
+    protected void closeAdmin() {
+        if (admin != null) {
+            admin.close();
+            if (MockUtil.isMock(admin)) {
+                Mockito.reset(admin);
+            }
+            admin = null;
+        }
     }
 
     protected void onCleanup() {
 
+    }
+
+    protected <T extends AutoCloseable> T registerCloseable(T closeable) {
+        closeables.add(closeable);
+        return closeable;
+    }
+
+    private static void callCloseables(List<AutoCloseable> closeables) {
+        for (int i = closeables.size() - 1; i >= 0; i--) {
+            try {
+                closeables.get(i).close();
+            } catch (Exception e) {
+                log.error("Failure in calling close method", e);
+            }
+        }
     }
 
     protected abstract void setup() throws Exception;
@@ -420,19 +448,27 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
         return builder;
     }
 
+    protected PulsarTestContext createAdditionalPulsarTestContext(ServiceConfiguration conf) throws Exception {
+        return createAdditionalPulsarTestContext(conf, null);
+    }
     /**
      * This method can be used in test classes for creating additional PulsarTestContext instances
      * that share the same mock ZooKeeper and BookKeeper instances as the main PulsarTestContext instance.
      *
      * @param conf the ServiceConfiguration instance to use
+     * @param builderCustomizer a consumer that can be used to customize the builder configuration
      * @return the PulsarTestContext instance
      * @throws Exception if an error occurs
      */
-    protected PulsarTestContext createAdditionalPulsarTestContext(ServiceConfiguration conf) throws Exception {
-        return createPulsarTestContextBuilder(conf)
+    protected PulsarTestContext createAdditionalPulsarTestContext(ServiceConfiguration conf,
+                                              Consumer<PulsarTestContext.Builder> builderCustomizer) throws Exception {
+        var builder = createPulsarTestContextBuilder(conf)
                 .reuseMockBookkeeperAndMetadataStores(pulsarTestContext)
-                .reuseSpyConfig(pulsarTestContext)
-                .build();
+                .reuseSpyConfig(pulsarTestContext);
+        if (builderCustomizer != null) {
+            builderCustomizer.accept(builder);
+        }
+        return builder.build();
     }
 
     protected void waitForZooKeeperWatchers() {
@@ -681,6 +717,26 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
     public static class ServiceProducer {
         private org.apache.pulsar.broker.service.Producer serviceProducer;
         private PersistentTopic persistentTopic;
+    }
+
+    protected void sleepSeconds(int seconds){
+        try {
+            Thread.sleep(1000 * seconds);
+        } catch (InterruptedException e) {
+            log.warn("This thread has been interrupted", e);
+            Thread.currentThread().interrupt();
+        }
+    }
+
+    private static void reconnectAllConnections(PulsarClientImpl c) throws Exception {
+        ConnectionPool pool = c.getCnxPool();
+        Method closeAllConnections = ConnectionPool.class.getDeclaredMethod("closeAllConnections", new Class[]{});
+        closeAllConnections.setAccessible(true);
+        closeAllConnections.invoke(pool, new Object[]{});
+    }
+
+    protected void reconnectAllConnections() throws Exception {
+        reconnectAllConnections((PulsarClientImpl) pulsarClient);
     }
 
     private static final Logger log = LoggerFactory.getLogger(MockedPulsarServiceBaseTest.class);

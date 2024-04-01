@@ -24,7 +24,6 @@
         <suite-file path="./pulsar-cli.xml" />
         <suite-file path="./pulsar-schema.xml" />
         <suite-file path="./pulsar-process.xml" />
-        <suite-file path="./pulsar-sql.xml" />
         <suite-file path="./pulsar-thread.xml" />
         <suite-file path="./tiered-jcloud-storage.xml" />
         <suite-file path="./tiered-filesystem-storage.xml"/>
@@ -38,5 +37,6 @@
         <suite-file path="./pulsar-python.xml" />
         <suite-file path="./pulsar-semantics.xml" />
         <suite-file path="./pulsar-upgrade.xml" />
+        <suite-file path="./pulsar-metrics.xml" />
     </suite-files>
 </suite>

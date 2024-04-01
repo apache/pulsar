@@ -66,7 +66,7 @@ public abstract class KafkaAbstractSource<V> extends PushSource<V> {
 
     @Override
     public void open(Map<String, Object> config, SourceContext sourceContext) throws Exception {
-        kafkaSourceConfig = KafkaSourceConfig.load(config);
+        kafkaSourceConfig = KafkaSourceConfig.load(config, sourceContext);
         Objects.requireNonNull(kafkaSourceConfig.getTopic(), "Kafka topic is not set");
         Objects.requireNonNull(kafkaSourceConfig.getBootstrapServers(), "Kafka bootstrapServers is not set");
         Objects.requireNonNull(kafkaSourceConfig.getGroupId(), "Kafka consumer group id is not set");

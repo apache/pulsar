@@ -126,6 +126,10 @@ public class Policies {
     @SuppressWarnings("checkstyle:MemberName")
     public String resource_group_name = null;
 
+    public boolean migrated;
+
+    public Boolean dispatcherPauseOnAckStatePersistentEnabled;
+
     public enum BundleType {
         LARGEST, HOT;
     }
@@ -156,7 +160,8 @@ public class Policies {
                 offload_policies,
                 subscription_types_enabled,
                 properties,
-                resource_group_name, entryFilters);
+                resource_group_name, entryFilters, migrated,
+                dispatcherPauseOnAckStatePersistentEnabled);
     }
 
     @Override
@@ -202,8 +207,11 @@ public class Policies {
                     && Objects.equals(offload_policies, other.offload_policies)
                     && Objects.equals(subscription_types_enabled, other.subscription_types_enabled)
                     && Objects.equals(properties, other.properties)
+                    && Objects.equals(migrated, other.migrated)
                     && Objects.equals(resource_group_name, other.resource_group_name)
-                    && Objects.equals(entryFilters, other.entryFilters);
+                    && Objects.equals(entryFilters, other.entryFilters)
+                    && Objects.equals(dispatcherPauseOnAckStatePersistentEnabled,
+                    other.dispatcherPauseOnAckStatePersistentEnabled);
         }
 
         return false;

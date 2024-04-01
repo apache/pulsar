@@ -205,7 +205,7 @@ public class IsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePlac
                     log.debug("The bookies rack config is not available at now.");
                     return excludedBookies;
                 }
-                Set<String> allBookies = allGroupsBookieMapping.keySet();
+                Set<String> allGroups = allGroupsBookieMapping.keySet();
                 int totalAvailableBookiesInPrimaryGroup = 0;
                 Set<String> primaryIsolationGroup = Collections.emptySet();
                 Set<String> secondaryIsolationGroup = Collections.emptySet();
@@ -214,7 +214,7 @@ public class IsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePlac
                     primaryIsolationGroup = isolationGroups.getLeft();
                     secondaryIsolationGroup = isolationGroups.getRight();
                 }
-                for (String group : allBookies) {
+                for (String group : allGroups) {
                     Set<String> bookiesInGroup = allGroupsBookieMapping.get(group).keySet();
                     if (!primaryIsolationGroup.contains(group)) {
                         for (String bookieAddress : bookiesInGroup) {

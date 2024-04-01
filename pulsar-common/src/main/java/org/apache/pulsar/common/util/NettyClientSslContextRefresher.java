@@ -55,7 +55,7 @@ public class NettyClientSslContextRefresher extends SslContextAutoRefreshBuilder
         this.tlsTrustCertsFilePath = new FileModifiedTimeUpdater(trustCertsFilePath);
         this.authData = authData;
         this.tlsCertsFilePath = new FileModifiedTimeUpdater(
-                authData != null ? authData.getTlsCerificateFilePath() : null);
+                authData != null ? authData.getTlsCertificateFilePath() : null);
         this.tlsPrivateKeyFilePath = new FileModifiedTimeUpdater(
                 authData != null ? authData.getTlsPrivateKeyFilePath() : null);
         this.sslProvider = sslProvider;

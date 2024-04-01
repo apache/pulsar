@@ -21,11 +21,14 @@ package org.apache.pulsar.broker.testcontext;
 
 import com.google.common.util.concurrent.MoreExecutors;
 import io.netty.channel.EventLoopGroup;
+import io.opentelemetry.sdk.autoconfigure.AutoConfiguredOpenTelemetrySdkBuilder;
+import io.opentelemetry.sdk.testing.exporter.InMemoryMetricReader;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -54,6 +57,7 @@ import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.ServerCnx;
 import org.apache.pulsar.broker.storage.ManagedLedgerStorage;
 import org.apache.pulsar.common.util.GracefulExecutorServicesShutdown;
+import org.apache.pulsar.common.util.PortManager;
 import org.apache.pulsar.compaction.CompactionServiceFactory;
 import org.apache.pulsar.compaction.Compactor;
 import org.apache.pulsar.compaction.PulsarCompactionServiceFactory;
@@ -63,6 +67,7 @@ import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.metadata.impl.MetadataStoreFactoryImpl;
 import org.apache.pulsar.metadata.impl.ZKMetadataStore;
+import org.apache.pulsar.opentelemetry.OpenTelemetryService;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.MockZooKeeper;
 import org.apache.zookeeper.MockZooKeeperSession;
@@ -157,6 +162,10 @@ public class PulsarTestContext implements AutoCloseable {
 
     private final boolean startable;
 
+    private final boolean preallocatePorts;
+
+    private final boolean enableOpenTelemetry;
+    private final InMemoryMetricReader openTelemetryMetricReader;
 
     public ManagedLedgerFactory getManagedLedgerFactory() {
         return managedLedgerClientFactory.getManagedLedgerFactory();
@@ -193,6 +202,10 @@ public class PulsarTestContext implements AutoCloseable {
      * @throws Exception if there is an error closing the resources
      */
     public void close() throws Exception {
+        callCloseables(closeables);
+    }
+
+    private static void callCloseables(List<AutoCloseable> closeables) {
         for (int i = closeables.size() - 1; i >= 0; i--) {
             try {
                 closeables.get(i).close();
@@ -224,8 +237,11 @@ public class PulsarTestContext implements AutoCloseable {
         protected SpyConfig.Builder spyConfigBuilder = SpyConfig.builder(SpyConfig.SpyType.NONE);
         protected Consumer<PulsarService> pulsarServiceCustomizer;
         protected ServiceConfiguration svcConfig = initializeConfig();
-        protected Consumer<ServiceConfiguration> configOverrideCustomizer = this::defaultOverrideServiceConfiguration;
+        protected Consumer<ServiceConfiguration> configOverrideCustomizer;
+
+        protected boolean configOverrideCalled = false;
         protected Function<BrokerService, BrokerService> brokerServiceCustomizer = Function.identity();
+        protected PulsarTestContext otherContextToClose;
 
         /**
          * Initialize the ServiceConfiguration with default values.
@@ -315,7 +331,17 @@ public class PulsarTestContext implements AutoCloseable {
          * @return the builder
          */
         public Builder spyByDefault() {
-            spyConfigBuilder = SpyConfig.builder(SpyConfig.SpyType.SPY);
+            spyConfigDefault(SpyConfig.SpyType.SPY);
+            return this;
+        }
+
+        public Builder spyNoneByDefault() {
+            spyConfigDefault(SpyConfig.SpyType.NONE);
+            return this;
+        }
+
+        public Builder spyConfigDefault(SpyConfig.SpyType spyType) {
+            spyConfigBuilder = SpyConfig.builder(spyType);
             return this;
         }
 
@@ -349,6 +375,7 @@ public class PulsarTestContext implements AutoCloseable {
          */
         public Builder configOverride(Consumer<ServiceConfiguration> configOverrideCustomizer) {
             this.configOverrideCustomizer = configOverrideCustomizer;
+            this.configOverrideCalled = true;
             return this;
         }
 
@@ -401,7 +428,15 @@ public class PulsarTestContext implements AutoCloseable {
          * The other PulsarTestContext will be closed when this one is closed.
          */
         public Builder chainClosing(PulsarTestContext otherContext) {
-            registerCloseable(otherContext);
+            otherContextToClose = otherContext;
+            return this;
+        }
+
+        /**
+         * Registers a closeable to close as the last one by prepending it to the closeables list.
+         */
+        public Builder prependCloseable(AutoCloseable closeable) {
+            closeables.add(0, closeable);
             return this;
         }
 
@@ -525,6 +560,12 @@ public class PulsarTestContext implements AutoCloseable {
             if (super.config == null) {
                 config(svcConfig);
             }
+            handlePreallocatePorts(super.config);
+            if (configOverrideCustomizer != null || !configOverrideCalled) {
+                // call defaultOverrideServiceConfiguration if configOverrideCustomizer
+                // isn't explicitly set to null with `.configOverride(null)` call
+                defaultOverrideServiceConfiguration(super.config);
+            }
             if (configOverrideCustomizer != null) {
                 configOverrideCustomizer.accept(super.config);
             }
@@ -537,11 +578,47 @@ public class PulsarTestContext implements AutoCloseable {
                 try {
                     super.pulsarService.start();
                 } catch (Exception e) {
+                    callCloseables(super.closeables);
+                    super.closeables.clear();
                     throw new RuntimeException(e);
                 }
             }
+            if (otherContextToClose != null) {
+                prependCloseable(otherContextToClose);
+            }
             brokerService(super.pulsarService.getBrokerService());
             return super.build();
+        }
+
+        protected void handlePreallocatePorts(ServiceConfiguration config) {
+            if (super.preallocatePorts) {
+                config.getBrokerServicePort().ifPresent(portNumber -> {
+                    if (portNumber == 0) {
+                        config.setBrokerServicePort(Optional.of(PortManager.nextLockedFreePort()));
+                    }
+                });
+                config.getBrokerServicePortTls().ifPresent(portNumber -> {
+                    if (portNumber == 0) {
+                        config.setBrokerServicePortTls(Optional.of(PortManager.nextLockedFreePort()));
+                    }
+                });
+                config.getWebServicePort().ifPresent(portNumber -> {
+                    if (portNumber == 0) {
+                        config.setWebServicePort(Optional.of(PortManager.nextLockedFreePort()));
+                    }
+                });
+                config.getWebServicePortTls().ifPresent(portNumber -> {
+                    if (portNumber == 0) {
+                        config.setWebServicePortTls(Optional.of(PortManager.nextLockedFreePort()));
+                    }
+                });
+                registerCloseable(() -> {
+                    config.getBrokerServicePort().ifPresent(PortManager::releaseLockedPort);
+                    config.getBrokerServicePortTls().ifPresent(PortManager::releaseLockedPort);
+                    config.getWebServicePort().ifPresent(PortManager::releaseLockedPort);
+                    config.getWebServicePortTls().ifPresent(PortManager::releaseLockedPort);
+                });
+            }
         }
 
         private void initializeCommonPulsarServices(SpyConfig spyConfig) {
@@ -589,7 +666,8 @@ public class PulsarTestContext implements AutoCloseable {
                 } else {
                     try {
                         MetadataStoreExtended store = MetadataStoreFactoryImpl.createExtended("memory:local",
-                                MetadataStoreConfig.builder().build());
+                                MetadataStoreConfig.builder()
+                                        .metadataStoreName(MetadataStoreConfig.METADATA_STORE).build());
                         registerCloseable(() -> {
                             store.close();
                             resetSpyOrMock(store);
@@ -665,11 +743,25 @@ public class PulsarTestContext implements AutoCloseable {
                     .equals(PulsarCompactionServiceFactory.class.getName())) {
                 compactionServiceFactory = new MockPulsarCompactionServiceFactory(spyConfig, builder.compactor);
             }
+            Consumer<AutoConfiguredOpenTelemetrySdkBuilder> openTelemetrySdkBuilderCustomizer;
+            if (builder.enableOpenTelemetry) {
+                var reader = InMemoryMetricReader.create();
+                openTelemetrySdkBuilderCustomizer = sdkBuilder -> {
+                    sdkBuilder.addMeterProviderCustomizer(
+                            (meterProviderBuilder, __) -> meterProviderBuilder.registerMetricReader(reader));
+                    sdkBuilder.addPropertiesSupplier(
+                            () -> Map.of(OpenTelemetryService.OTEL_SDK_DISABLED_KEY, "false"));
+                };
+                openTelemetryMetricReader(reader);
+            } else {
+                openTelemetrySdkBuilderCustomizer = null;
+            }
             PulsarService pulsarService = spyConfig.getPulsarService()
                     .spy(StartableTestPulsarService.class, spyConfig, builder.config, builder.localMetadataStore,
                             builder.configurationMetadataStore, compactionServiceFactory,
                             builder.brokerInterceptor,
-                            bookKeeperClientFactory, builder.brokerServiceCustomizer);
+                            bookKeeperClientFactory, builder.brokerServiceCustomizer,
+                            openTelemetrySdkBuilderCustomizer);
             if (compactionServiceFactory != null) {
                 compactionServiceFactory.initialize(pulsarService);
             }

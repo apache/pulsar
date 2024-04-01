@@ -40,6 +40,13 @@ public class MessageIdAdvUtils {
                 && lhs.getBatchIndex() == rhs.getBatchIndex();
     }
 
+    /**
+     * Acknowledge batch message.
+     *
+     * @param msgId     the message id
+     * @param individual whether to acknowledge the batch message individually
+     * @return true if the batch message is fully acknowledged
+     */
     static boolean acknowledge(MessageIdAdv msgId, boolean individual) {
         if (!isBatch(msgId)) {
             return true;
@@ -51,12 +58,14 @@ public class MessageIdAdvUtils {
             return false;
         }
         int batchIndex = msgId.getBatchIndex();
-        if (individual) {
-            ackSet.clear(batchIndex);
-        } else {
-            ackSet.clear(0, batchIndex + 1);
+        synchronized (ackSet) {
+            if (individual) {
+                ackSet.clear(batchIndex);
+            } else {
+                ackSet.clear(0, batchIndex + 1);
+            }
+            return ackSet.isEmpty();
         }
-        return ackSet.isEmpty();
     }
 
     static boolean isBatch(MessageIdAdv msgId) {

@@ -197,7 +197,7 @@ public class AdminApiMaxUnackedMessagesTest extends MockedPulsarServiceBaseTest 
     private List<Message> consumeMsg(Consumer<?> consumer, int msgNum) throws Exception {
         List<Message> list = new ArrayList<>();
         for (int i = 0; i <msgNum; i++) {
-            Message message = consumer.receive(500, TimeUnit.MILLISECONDS);
+            Message message = consumer.receive(1500, TimeUnit.MILLISECONDS);
             if (message == null) {
                 break;
             }

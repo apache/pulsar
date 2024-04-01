@@ -34,6 +34,7 @@ import io.netty.channel.socket.SocketChannel;
 import io.netty.resolver.dns.DnsAddressResolverGroup;
 import io.netty.resolver.dns.DnsNameResolverBuilder;
 import io.netty.util.concurrent.DefaultThreadFactory;
+import io.netty.util.concurrent.Future;
 import io.prometheus.client.Counter;
 import io.prometheus.client.Gauge;
 import java.io.Closeable;
@@ -72,6 +73,7 @@ import org.apache.pulsar.common.util.netty.EventLoopUtil;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.proxy.extensions.ProxyExtensions;
+import org.apache.pulsar.proxy.stats.PulsarProxyOpenTelemetry;
 import org.apache.pulsar.proxy.stats.TopicStats;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -147,9 +149,13 @@ public class ProxyService implements Closeable {
 
     private PrometheusMetricsServlet metricsServlet;
     private List<PrometheusRawMetricsProvider> pendingMetricsProviders;
+    @Getter
+    private PulsarProxyOpenTelemetry openTelemetry;
 
     @Getter
     private final ConnectionController connectionController;
+
+    private boolean gracefulShutdown = true;
 
     public ProxyService(ProxyConfiguration proxyConfig,
                         AuthenticationService authenticationService) throws Exception {
@@ -281,6 +287,7 @@ public class ProxyService implements Closeable {
         }
 
         createMetricsServlet();
+        openTelemetry = new PulsarProxyOpenTelemetry(proxyConfig);
 
         // Initialize the message protocol handlers.
         // start the protocol handlers only after the broker is ready,
@@ -373,7 +380,7 @@ public class ProxyService implements Closeable {
 
         // Don't accept any new connections
         try {
-            acceptorGroup.shutdownGracefully().sync();
+            shutdownEventLoop(acceptorGroup).sync();
         } catch (InterruptedException e) {
             LOG.info("Shutdown of acceptorGroup interrupted");
             Thread.currentThread().interrupt();
@@ -388,7 +395,7 @@ public class ProxyService implements Closeable {
         }
 
         if (statsExecutor != null) {
-            statsExecutor.shutdown();
+            statsExecutor.shutdownNow();
         }
 
         if (proxyAdditionalServlets != null) {
@@ -396,6 +403,9 @@ public class ProxyService implements Closeable {
             proxyAdditionalServlets = null;
         }
 
+        if (openTelemetry != null) {
+            openTelemetry.close();
+        }
         resetMetricsServlet();
 
         if (localMetadataStore != null) {
@@ -413,14 +423,14 @@ public class ProxyService implements Closeable {
             }
         }
         try {
-            workerGroup.shutdownGracefully().sync();
+            shutdownEventLoop(workerGroup).sync();
         } catch (InterruptedException e) {
             LOG.info("Shutdown of workerGroup interrupted");
             Thread.currentThread().interrupt();
         }
         for (EventLoopGroup group : extensionsWorkerGroups) {
             try {
-                group.shutdownGracefully().sync();
+                shutdownEventLoop(group).sync();
             } catch (InterruptedException e) {
                 LOG.info("Shutdown of {} interrupted", group);
                 Thread.currentThread().interrupt();
@@ -531,5 +541,25 @@ public class ProxyService implements Closeable {
 
     protected LookupProxyHandler newLookupProxyHandler(ProxyConnection proxyConnection) {
         return new LookupProxyHandler(this, proxyConnection);
+    }
+
+    // Shutdown the event loop.
+    // If graceful is true, will wait for the current requests to be completed, up to 15 seconds.
+    // Graceful shutdown can be disabled by setting the gracefulShutdown flag to false. This is used in tests
+    // to speed up the shutdown process.
+    private Future<?> shutdownEventLoop(EventLoopGroup eventLoop) {
+        if (gracefulShutdown) {
+            return eventLoop.shutdownGracefully();
+        } else {
+            return eventLoop.shutdownGracefully(0, 0, TimeUnit.SECONDS);
+        }
+    }
+
+    public boolean isGracefulShutdown() {
+        return gracefulShutdown;
+    }
+
+    public void setGracefulShutdown(boolean gracefulShutdown) {
+        this.gracefulShutdown = gracefulShutdown;
     }
 }

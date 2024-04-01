@@ -20,7 +20,6 @@ package org.apache.pulsar;
 
 import static org.apache.pulsar.common.naming.NamespaceName.SYSTEM_NAMESPACE;
 import static org.apache.pulsar.common.naming.SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN;
-import com.beust.jcommander.Parameter;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Sets;
 import io.netty.util.internal.PlatformDependent;
@@ -52,8 +51,12 @@ import org.apache.pulsar.metadata.bookkeeper.BKCluster;
 import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 import org.apache.pulsar.packages.management.storage.filesystem.FileSystemPackagesStorageProvider;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
+import picocli.CommandLine.Command;
+import picocli.CommandLine.Option;
+import picocli.CommandLine.ScopeType;
 
 @Slf4j
+@Command(name = "standalone", showDefaultValues = true, scope = ScopeType.INHERIT)
 public class PulsarStandalone implements AutoCloseable {
 
     private static final String PULSAR_STANDALONE_USE_ZOOKEEPER = "PULSAR_STANDALONE_USE_ZOOKEEPER";
@@ -211,60 +214,60 @@ public class PulsarStandalone implements AutoCloseable {
         return help;
     }
 
-    @Parameter(names = { "-c", "--config" }, description = "Configuration file path")
+    @Option(names = { "-c", "--config" }, description = "Configuration file path")
     private String configFile;
 
-    @Parameter(names = { "--wipe-data" }, description = "Clean up previous ZK/BK data")
+    @Option(names = { "--wipe-data" }, description = "Clean up previous ZK/BK data")
     private boolean wipeData = false;
 
-    @Parameter(names = { "--num-bookies" }, description = "Number of local Bookies")
+    @Option(names = { "--num-bookies" }, description = "Number of local Bookies")
     private int numOfBk = 1;
 
-    @Parameter(names = { "--metadata-dir" },
+    @Option(names = { "--metadata-dir" },
             description = "Directory for storing metadata")
     private String metadataDir = "data/metadata";
 
-    @Parameter(names = { "--metadata-url" },
+    @Option(names = { "--metadata-url" },
             description = "Metadata store url")
     private String metadataStoreUrl = "";
 
-    @Parameter(names = {"--zookeeper-port"}, description = "Local zookeeper's port",
+    @Option(names = {"--zookeeper-port"}, description = "Local zookeeper's port",
             hidden = true)
     private int zkPort = 2181;
 
-    @Parameter(names = { "--bookkeeper-port" }, description = "Local bookies base port")
+    @Option(names = { "--bookkeeper-port" }, description = "Local bookies base port")
     private int bkPort = 3181;
 
-    @Parameter(names = { "--zookeeper-dir" },
+    @Option(names = { "--zookeeper-dir" },
             description = "Local zooKeeper's data directory",
             hidden = true)
     private String zkDir = "data/standalone/zookeeper";
 
-    @Parameter(names = { "--bookkeeper-dir" }, description = "Local bookies base data directory")
+    @Option(names = { "--bookkeeper-dir" }, description = "Local bookies base data directory")
     private String bkDir = "data/standalone/bookkeeper";
 
-    @Parameter(names = { "--no-broker" }, description = "Only start ZK and BK services, no broker")
+    @Option(names = { "--no-broker" }, description = "Only start ZK and BK services, no broker")
     private boolean noBroker = false;
 
-    @Parameter(names = { "--only-broker" }, description = "Only start Pulsar broker service (no ZK, BK)")
+    @Option(names = { "--only-broker" }, description = "Only start Pulsar broker service (no ZK, BK)")
     private boolean onlyBroker = false;
 
-    @Parameter(names = {"-nfw", "--no-functions-worker"}, description = "Run functions worker with Broker")
+    @Option(names = {"-nfw", "--no-functions-worker"}, description = "Run functions worker with Broker")
     private boolean noFunctionsWorker = false;
 
-    @Parameter(names = {"-fwc", "--functions-worker-conf"}, description = "Configuration file for Functions Worker")
+    @Option(names = {"-fwc", "--functions-worker-conf"}, description = "Configuration file for Functions Worker")
     private String fnWorkerConfigFile = "conf/functions_worker.yml";
 
-    @Parameter(names = {"-nss", "--no-stream-storage"}, description = "Disable stream storage")
+    @Option(names = {"-nss", "--no-stream-storage"}, description = "Disable stream storage")
     private boolean noStreamStorage = false;
 
-    @Parameter(names = { "--stream-storage-port" }, description = "Local bookies stream storage port")
+    @Option(names = { "--stream-storage-port" }, description = "Local bookies stream storage port")
     private int streamStoragePort = 4181;
 
-    @Parameter(names = { "-a", "--advertised-address" }, description = "Standalone broker advertised address")
+    @Option(names = { "-a", "--advertised-address" }, description = "Standalone broker advertised address")
     private String advertisedAddress = null;
 
-    @Parameter(names = { "-h", "--help" }, description = "Show this help message")
+    @Option(names = { "-h", "--help" }, description = "Show this help message")
     private boolean help = false;
 
     private boolean usingNewDefaultsPIP117;

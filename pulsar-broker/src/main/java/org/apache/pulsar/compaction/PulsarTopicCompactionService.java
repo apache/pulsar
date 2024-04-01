@@ -28,12 +28,15 @@ import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
 import javax.annotation.Nonnull;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.pulsar.common.api.proto.BrokerEntryMetadata;
+import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.FutureUtil;
 
 
@@ -104,6 +107,26 @@ public class PulsarTopicCompactionService implements TopicCompactionService {
     @Override
     public CompletableFuture<Position> getLastCompactedPosition() {
         return CompletableFuture.completedFuture(compactedTopic.getCompactionHorizon().orElse(null));
+    }
+
+    @Override
+    public CompletableFuture<Entry> findEntryByPublishTime(long publishTime) {
+        final Predicate<Entry> predicate = entry -> {
+            return Commands.parseMessageMetadata(entry.getDataBuffer()).getPublishTime() >= publishTime;
+        };
+        return compactedTopic.findFirstMatchEntry(predicate);
+    }
+
+    @Override
+    public CompletableFuture<Entry> findEntryByEntryIndex(long entryIndex) {
+        final Predicate<Entry> predicate = entry -> {
+            BrokerEntryMetadata brokerEntryMetadata = Commands.parseBrokerEntryMetadataIfExist(entry.getDataBuffer());
+            if (brokerEntryMetadata == null || !brokerEntryMetadata.hasIndex()) {
+                return false;
+            }
+            return brokerEntryMetadata.getIndex() >= entryIndex;
+        };
+        return compactedTopic.findFirstMatchEntry(predicate);
     }
 
     public CompactedTopicImpl getCompactedTopic() {

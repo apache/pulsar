@@ -37,6 +37,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicReference;
 
+import lombok.Cleanup;
 import org.apache.pulsar.common.util.collections.ConcurrentLongLongPairHashMap.LongPair;
 import org.testng.annotations.Test;
 
@@ -186,6 +187,7 @@ public class ConcurrentLongLongPairHashMapTest {
                 .build();
         assertEquals(map.capacity(), 4);
 
+        @Cleanup("shutdownNow")
         ExecutorService executor = Executors.newCachedThreadPool();
         final int readThreads = 16;
         final int writeThreads = 1;
@@ -201,7 +203,7 @@ public class ConcurrentLongLongPairHashMapTest {
                 } catch (Exception e) {
                     throw new RuntimeException(e);
                 }
-                while (true) {
+                while (!Thread.currentThread().isInterrupted()) {
                     try {
                         map.get(1, 1);
                     } catch (Exception e) {
@@ -335,6 +337,7 @@ public class ConcurrentLongLongPairHashMapTest {
     public void concurrentInsertions() throws Throwable {
         ConcurrentLongLongPairHashMap map = ConcurrentLongLongPairHashMap.newBuilder()
                 .build();
+        @Cleanup("shutdownNow")
         ExecutorService executor = Executors.newCachedThreadPool();
 
         final int nThreads = 16;
@@ -375,6 +378,7 @@ public class ConcurrentLongLongPairHashMapTest {
     public void concurrentInsertionsAndReads() throws Throwable {
         ConcurrentLongLongPairHashMap map = ConcurrentLongLongPairHashMap.newBuilder()
                 .build();
+        @Cleanup("shutdownNow")
         ExecutorService executor = Executors.newCachedThreadPool();
 
         final int nThreads = 16;

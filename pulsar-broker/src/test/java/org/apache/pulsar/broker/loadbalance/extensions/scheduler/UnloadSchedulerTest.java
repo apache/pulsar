@@ -28,6 +28,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 import com.google.common.collect.Lists;
+import lombok.Cleanup;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.loadbalance.extensions.BrokerRegistry;
@@ -127,6 +128,8 @@ public class UnloadSchedulerTest {
         PulsarService pulsar = mock(PulsarService.class);
         NamespaceUnloadStrategy unloadStrategy = mock(NamespaceUnloadStrategy.class);
         doReturn(CompletableFuture.completedFuture(true)).when(channel).isChannelOwnerAsync();
+        @Cleanup("shutdownNow")
+        ExecutorService executor = Executors.newFixedThreadPool(1);
         doAnswer(__ -> CompletableFuture.supplyAsync(() -> {
                 try {
                     // Delay 5 seconds to finish.
@@ -135,9 +138,10 @@ public class UnloadSchedulerTest {
                     throw new RuntimeException(e);
                 }
                 return Lists.newArrayList("broker-1", "broker-2");
-            }, Executors.newFixedThreadPool(1))).when(registry).getAvailableBrokersAsync();
+            }, executor)).when(registry).getAvailableBrokersAsync();
         UnloadScheduler scheduler = new UnloadScheduler(pulsar, loadManagerExecutor, unloadManager, context,
                 channel, unloadStrategy, counter, reference);
+        @Cleanup("shutdownNow")
         ExecutorService executorService = Executors.newFixedThreadPool(5);
         CountDownLatch latch = new CountDownLatch(5);
         for (int i = 0; i < 5; i++) {

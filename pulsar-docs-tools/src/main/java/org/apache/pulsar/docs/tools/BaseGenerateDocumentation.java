@@ -18,8 +18,6 @@
  */
 package org.apache.pulsar.docs.tools;
 
-import com.beust.jcommander.JCommander;
-import com.beust.jcommander.Parameter;
 import io.swagger.annotations.ApiModelProperty;
 import java.io.Serializable;
 import java.lang.annotation.Annotation;
@@ -28,6 +26,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
+import java.util.concurrent.Callable;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import lombok.SneakyThrows;
@@ -35,49 +34,44 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.reflect.MethodUtils;
 import org.apache.commons.lang3.tuple.Pair;
+import picocli.CommandLine;
+import picocli.CommandLine.Command;
+import picocli.CommandLine.Option;
+import picocli.CommandLine.ScopeType;
 
 @Slf4j
-public abstract class BaseGenerateDocumentation {
+@Command(name = "gen-doc", showDefaultValues = true, scope = ScopeType.INHERIT)
+public abstract class BaseGenerateDocumentation implements Callable<Integer> {
 
-    JCommander jcommander;
+    CommandLine commander;
 
-    @Parameter(names = {"-c", "--class-names"}, description =
+    @Option(names = {"-c", "--class-names"}, description =
             "List of class names, generate documentation based on the annotations in the Class")
     private List<String> classNames = new ArrayList<>();
 
-    @Parameter(names = {"-h", "--help"}, help = true, description = "Show this help.")
+    @Option(names = {"-h", "--help"}, usageHelp = true, description = "Show this help.")
     boolean help;
 
     public BaseGenerateDocumentation() {
-        jcommander = new JCommander();
-        jcommander.setProgramName("pulsar-generateDocumentation");
-        jcommander.addObject(this);
+        commander = new CommandLine(this);
     }
 
-    public boolean run(String[] args) throws Exception {
-        if (args.length == 0) {
-            jcommander.usage();
-            return false;
-        }
-
-        if (help) {
-            jcommander.usage();
-            return true;
-        }
-
-        try {
-            jcommander.parse(Arrays.copyOfRange(args, 0, args.length));
-        } catch (Exception e) {
-            System.err.println(e.getMessage());
-            jcommander.usage();
-            return false;
-        }
+    @Override
+    public Integer call() throws Exception {
         if (classNames != null) {
             for (String className : classNames) {
                 System.out.println(generateDocumentByClassName(className));
             }
         }
-        return true;
+        return 0;
+    }
+
+    public boolean run(String[] args) throws Exception {
+        if (args.length == 0) {
+            commander.usage(commander.getOut());
+            return false;
+        }
+        return commander.execute(args) == 0;
     }
 
     protected abstract String generateDocumentByClassName(String className) throws Exception;

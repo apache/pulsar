@@ -282,7 +282,7 @@ func (stat *StatWithLabelValues) addUserException(err error) {
 	stat.reportUserExceptionPrometheus(err)
 }
 
-//@limits(calls=5, period=60)
+// @limits(calls=5, period=60)
 func (stat *StatWithLabelValues) reportUserExceptionPrometheus(exception error) {
 	errorTS := []string{exception.Error()}
 	exceptionMetricLabels := append(stat.metricsLabels, errorTS...)
@@ -312,7 +312,7 @@ func (stat *StatWithLabelValues) addSysException(exception error) {
 	stat.reportSystemExceptionPrometheus(exception)
 }
 
-//@limits(calls=5, period=60)
+// @limits(calls=5, period=60)
 func (stat *StatWithLabelValues) reportSystemExceptionPrometheus(exception error) {
 	errorTS := []string{exception.Error()}
 	exceptionMetricLabels := append(stat.metricsLabels, errorTS...)

@@ -143,7 +143,7 @@ public class AuthenticationDataTls implements AuthenticationDataProvider {
     }
 
     @Override
-    public String getTlsCerificateFilePath() {
+    public String getTlsCertificateFilePath() {
         return certFile != null ? certFile.getFileName() : null;
     }
 

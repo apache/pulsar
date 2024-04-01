@@ -24,6 +24,7 @@ import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.EventLoop;
 import io.netty.util.Timer;
@@ -33,12 +34,18 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.util.ExecutorProvider;
 import org.mockito.Mockito;
 
 class ClientTestFixtures {
-    public static ScheduledExecutorService SCHEDULER = Executors.newSingleThreadScheduledExecutor();
+    public static ScheduledExecutorService SCHEDULER =
+            Executors.newSingleThreadScheduledExecutor(
+                    new ThreadFactoryBuilder()
+                            .setNameFormat("ClientTestFixtures-SCHEDULER-%d")
+                            .setDaemon(true)
+                            .build());
 
 //    static <T> PulsarClientImpl createPulsarClientMock() {
 //        return createPulsarClientMock(mock(ExecutorService.class));
@@ -76,7 +83,7 @@ class ClientTestFixtures {
         when(clientMock.getConnection(any())).thenReturn(CompletableFuture.completedFuture(clientCnxMock));
         when(clientMock.getConnection(anyString())).thenReturn(CompletableFuture.completedFuture(clientCnxMock));
         when(clientMock.getConnection(anyString(), anyInt()))
-                .thenReturn(CompletableFuture.completedFuture(clientCnxMock));
+                .thenReturn(CompletableFuture.completedFuture(Pair.of(clientCnxMock, false)));
         when(clientMock.getConnection(any(), any(), anyInt()))
                 .thenReturn(CompletableFuture.completedFuture(clientCnxMock));
         ConnectionPool connectionPoolMock = mock(ConnectionPool.class);

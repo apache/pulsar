@@ -183,6 +183,7 @@ public class FutureUtilTest {
 
     public void testSequencer() {
         int concurrentNum = 1000;
+        @Cleanup("shutdownNow")
         final ScheduledExecutorService executor = Executors.newScheduledThreadPool(concurrentNum);
         final FutureUtil.Sequencer<Void> sequencer = FutureUtil.Sequencer.create();
         // normal case -- allowExceptionBreakChain=false

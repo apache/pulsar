@@ -20,7 +20,6 @@ package org.apache.pulsar.io.kafka;
 
 import java.io.IOException;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Properties;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -79,10 +78,7 @@ public abstract class KafkaAbstractSink<K, V> implements Sink<byte[]> {
 
     @Override
     public void open(Map<String, Object> config, SinkContext sinkContext) throws Exception {
-        kafkaSinkConfig = KafkaSinkConfig.load(config);
-        Objects.requireNonNull(kafkaSinkConfig.getTopic(), "Kafka topic is not set");
-        Objects.requireNonNull(kafkaSinkConfig.getBootstrapServers(), "Kafka bootstrapServers is not set");
-        Objects.requireNonNull(kafkaSinkConfig.getAcks(), "Kafka acks mode is not set");
+        kafkaSinkConfig = KafkaSinkConfig.load(config, sinkContext);
         if (kafkaSinkConfig.getBatchSize() <= 0) {
             throw new IllegalArgumentException("Invalid Kafka Producer batchSize : "
                 + kafkaSinkConfig.getBatchSize());

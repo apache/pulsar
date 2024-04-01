@@ -18,6 +18,15 @@
  */
 package org.apache.pulsar.io.elasticsearch;
 
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+import static org.testng.Assert.fail;
+import java.nio.charset.StandardCharsets;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Optional;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import org.apache.pulsar.client.api.Message;
@@ -31,24 +40,14 @@ import org.mockito.stubbing.Answer;
 import org.testcontainers.elasticsearch.ElasticsearchContainer;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.AfterMethod;
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-import java.nio.charset.StandardCharsets;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Optional;
-
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
-import static org.testng.Assert.fail;
-
 public abstract class ElasticSearchSinkRawDataTests extends ElasticSearchTestBase {
 
-    private static ElasticsearchContainer container;
+    private ElasticsearchContainer container;
 
     public ElasticSearchSinkRawDataTests(String elasticImageName) {
         super(elasticImageName);
@@ -67,18 +66,15 @@ public abstract class ElasticSearchSinkRawDataTests extends ElasticSearchTestBas
 
     static Schema<byte[]> schema;
 
-    @BeforeMethod(alwaysRun = true)
+    @BeforeClass(alwaysRun = true)
     public final void initBeforeClass() {
-        if (container != null) {
-            return;
-        }
         container = createElasticsearchContainer();
         container.start();
         schema = Schema.BYTES;
     }
 
     @AfterClass(alwaysRun = true)
-    public static void closeAfterClass() {
+    public void closeAfterClass() {
         container.close();
         container = null;
     }

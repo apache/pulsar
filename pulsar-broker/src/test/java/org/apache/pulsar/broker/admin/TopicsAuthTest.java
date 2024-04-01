@@ -91,6 +91,7 @@ public class TopicsAuthTest extends MockedPulsarServiceBaseTest {
                 ? brokerUrl.toString() : brokerUrlTls.toString())
                 .authentication(AuthenticationToken.class.getName(),
                         ADMIN_TOKEN);
+        closeAdmin();
         admin = Mockito.spy(pulsarAdminBuilder.build());
         admin.clusters().createCluster(testLocalCluster, new ClusterDataImpl());
         admin.tenants().createTenant(testTenant, new TenantInfoImpl(Set.of("role1", "role2"),
