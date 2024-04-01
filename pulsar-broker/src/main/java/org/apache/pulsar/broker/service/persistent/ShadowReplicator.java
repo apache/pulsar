@@ -88,8 +88,8 @@ public class ShadowReplicator extends PersistentReplicator {
                     msg.recycle();
                     continue;
                 }
-                int msgCount = msg.getMessageBuilder().hasNumMessagesInBatch() ?
-                        msg.getMessageBuilder().getNumMessagesInBatch() : 1;
+                int msgCount = msg.getMessageBuilder().hasNumMessagesInBatch()
+                        ? msg.getMessageBuilder().getNumMessagesInBatch() : 1;
                 handleThrottling(msgCount, length);
 
                 msgOut.recordMultipleEvents(msgCount, length);
