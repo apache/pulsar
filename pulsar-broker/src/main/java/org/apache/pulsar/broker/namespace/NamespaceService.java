@@ -25,6 +25,9 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.pulsar.common.naming.NamespaceName.SYSTEM_NAMESPACE;
 import com.google.common.hash.Hashing;
+import io.opentelemetry.api.common.AttributeKey;
+import io.opentelemetry.api.common.Attributes;
+import io.opentelemetry.api.metrics.DoubleHistogram;
 import io.prometheus.client.Counter;
 import java.net.URI;
 import java.net.URL;
@@ -97,10 +100,12 @@ import org.apache.pulsar.common.policies.data.NamespaceOwnershipStatus;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.stats.TopicStatsImpl;
 import org.apache.pulsar.common.policies.impl.NamespaceIsolationPolicies;
+import org.apache.pulsar.common.stats.MetricsUtil;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.metadata.api.MetadataCache;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
+import org.apache.pulsar.opentelemetry.annotations.PulsarDeprecatedMetric;
 import org.apache.pulsar.policies.data.loadbalancer.AdvertisedListener;
 import org.apache.pulsar.policies.data.loadbalancer.LocalBrokerData;
 import org.slf4j.Logger;
@@ -146,18 +151,37 @@ public class NamespaceService implements AutoCloseable {
 
     private final RedirectManager redirectManager;
 
+    public static final String LOOKUP_REQUEST_DURATION_METRIC_NAME = "pulsar.broker.request.topic.lookup.duration";
 
+    private static final AttributeKey<String> PULSAR_LOOKUP_RESPONSE_ATTRIBUTE =
+            AttributeKey.stringKey("pulsar.lookup.response");
+    public static final Attributes PULSAR_LOOKUP_RESPONSE_BROKER_ATTRIBUTES = Attributes.builder()
+            .put(PULSAR_LOOKUP_RESPONSE_ATTRIBUTE, "broker")
+            .build();
+    public static final Attributes PULSAR_LOOKUP_RESPONSE_REDIRECT_ATTRIBUTES = Attributes.builder()
+            .put(PULSAR_LOOKUP_RESPONSE_ATTRIBUTE, "redirect")
+            .build();
+    public static final Attributes PULSAR_LOOKUP_RESPONSE_FAILURE_ATTRIBUTES = Attributes.builder()
+            .put(PULSAR_LOOKUP_RESPONSE_ATTRIBUTE, "failure")
+            .build();
+
+    @PulsarDeprecatedMetric(newMetricName = LOOKUP_REQUEST_DURATION_METRIC_NAME)
     private static final Counter lookupRedirects = Counter.build("pulsar_broker_lookup_redirects", "-").register();
+
+    @PulsarDeprecatedMetric(newMetricName = LOOKUP_REQUEST_DURATION_METRIC_NAME)
     private static final Counter lookupFailures = Counter.build("pulsar_broker_lookup_failures", "-").register();
+
+    @PulsarDeprecatedMetric(newMetricName = LOOKUP_REQUEST_DURATION_METRIC_NAME)
     private static final Counter lookupAnswers = Counter.build("pulsar_broker_lookup_answers", "-").register();
 
+    @PulsarDeprecatedMetric(newMetricName = LOOKUP_REQUEST_DURATION_METRIC_NAME)
     private static final Summary lookupLatency = Summary.build("pulsar_broker_lookup", "-")
             .quantile(0.50)
             .quantile(0.99)
             .quantile(0.999)
             .quantile(1.0)
             .register();
-
+    private final DoubleHistogram lookupLatencyHistogram;
 
     /**
      * Default constructor.
@@ -175,6 +199,12 @@ public class NamespaceService implements AutoCloseable {
         this.bundleSplitListeners = new CopyOnWriteArrayList<>();
         this.localBrokerDataCache = pulsar.getLocalMetadataStore().getMetadataCache(LocalBrokerData.class);
         this.redirectManager = new RedirectManager(pulsar);
+
+        this.lookupLatencyHistogram = pulsar.getOpenTelemetry().getMeter()
+                .histogramBuilder(LOOKUP_REQUEST_DURATION_METRIC_NAME)
+                .setDescription("The duration of topic lookup requests (either binary or HTTP)")
+                .setUnit("s")
+                .build();
     }
 
     public void initialize() {
@@ -192,7 +222,7 @@ public class NamespaceService implements AutoCloseable {
                     return findRedirectLookupResultAsync(bundle).thenCompose(optResult -> {
                         if (optResult.isPresent()) {
                             LOG.info("[{}] Redirect lookup request to {} for topic {}",
-                                    pulsar.getSafeWebServiceAddress(), optResult.get(), topic);
+                                    pulsar.getBrokerId(), optResult.get(), topic);
                             return CompletableFuture.completedFuture(optResult);
                         }
                         if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(config)) {
@@ -204,18 +234,28 @@ public class NamespaceService implements AutoCloseable {
                     });
                 });
 
-        future.thenAccept(optResult -> {
-            lookupLatency.observe(System.nanoTime() - startTime, TimeUnit.NANOSECONDS);
-            if (optResult.isPresent()) {
-                if (optResult.get().isRedirect()) {
-                    lookupRedirects.inc();
+        future.whenComplete((lookupResult, throwable) -> {
+            var latencyNs = System.nanoTime() - startTime;
+            lookupLatency.observe(latencyNs, TimeUnit.NANOSECONDS);
+            Attributes attributes;
+            if (throwable == null) {
+                if (lookupResult.isPresent()) {
+                    if (lookupResult.get().isRedirect()) {
+                        lookupRedirects.inc();
+                        attributes = PULSAR_LOOKUP_RESPONSE_REDIRECT_ATTRIBUTES;
+                    } else {
+                        lookupAnswers.inc();
+                        attributes = PULSAR_LOOKUP_RESPONSE_BROKER_ATTRIBUTES;
+                    }
                 } else {
-                    lookupAnswers.inc();
+                    // No lookup result, default to reporting as failure.
+                    attributes = PULSAR_LOOKUP_RESPONSE_FAILURE_ATTRIBUTES;
                 }
+            } else {
+                lookupFailures.inc();
+                attributes = PULSAR_LOOKUP_RESPONSE_FAILURE_ATTRIBUTES;
             }
-        }).exceptionally(ex -> {
-            lookupFailures.inc();
-            return null;
+            lookupLatencyHistogram.record(MetricsUtil.convertToSeconds(latencyNs, TimeUnit.NANOSECONDS), attributes);
         });
 
         return future;
@@ -298,7 +338,7 @@ public class NamespaceService implements AutoCloseable {
         return findRedirectLookupResultAsync(bundle).thenCompose(optResult -> {
             if (optResult.isPresent()) {
                 LOG.info("[{}] Redirect lookup request to {} for topic {}",
-                        pulsar.getSafeWebServiceAddress(), optResult.get(), topic);
+                        pulsar.getBrokerId(), optResult.get(), topic);
                 try {
                     LookupData lookupData = optResult.get().getLookupData();
                     final String redirectUrl = options.isRequestHttps()
@@ -338,17 +378,17 @@ public class NamespaceService implements AutoCloseable {
      * @throws PulsarServerException if an unexpected error occurs
      */
     public void registerBootstrapNamespaces() throws PulsarServerException {
-        String lookupServiceAddress = pulsar.getLookupServiceAddress();
+        String brokerId = pulsar.getBrokerId();
         // ensure that we own the heartbeat namespace
-        if (registerNamespace(getHeartbeatNamespace(lookupServiceAddress, config), true)) {
+        if (registerNamespace(getHeartbeatNamespace(brokerId, config), true)) {
             LOG.info("added heartbeat namespace name in local cache: ns={}",
-                    getHeartbeatNamespace(lookupServiceAddress, config));
+                    getHeartbeatNamespace(brokerId, config));
         }
 
         // ensure that we own the heartbeat namespace
-        if (registerNamespace(getHeartbeatNamespaceV2(lookupServiceAddress, config), true)) {
+        if (registerNamespace(getHeartbeatNamespaceV2(brokerId, config), true)) {
             LOG.info("added heartbeat namespace name in local cache: ns={}",
-                    getHeartbeatNamespaceV2(lookupServiceAddress, config));
+                    getHeartbeatNamespaceV2(brokerId, config));
         }
 
         // we may not need strict ownership checking for bootstrap names for now
@@ -506,7 +546,6 @@ public class NamespaceService implements AutoCloseable {
             return;
         }
         String candidateBroker;
-        String candidateBrokerAdvertisedAddr = null;
 
         LeaderElectionService les = pulsar.getLeaderElectionService();
         if (les == null) {
@@ -541,14 +580,14 @@ public class NamespaceService implements AutoCloseable {
 
                 if (options.isAuthoritative()) {
                     // leader broker already assigned the current broker as owner
-                    candidateBroker = pulsar.getSafeWebServiceAddress();
+                    candidateBroker = pulsar.getBrokerId();
                 } else {
                     LoadManager loadManager = this.loadManager.get();
                     boolean makeLoadManagerDecisionOnThisBroker = !loadManager.isCentralized() || les.isLeader();
                     if (!makeLoadManagerDecisionOnThisBroker) {
                         // If leader is not active, fallback to pick the least loaded from current broker loadmanager
                         boolean leaderBrokerActive = currentLeader.isPresent()
-                                && isBrokerActive(currentLeader.get().getServiceUrl());
+                                && isBrokerActive(currentLeader.get().getBrokerId());
                         if (!leaderBrokerActive) {
                             makeLoadManagerDecisionOnThisBroker = true;
                             if (currentLeader.isEmpty()) {
@@ -567,7 +606,7 @@ public class NamespaceService implements AutoCloseable {
                         }
                     }
                     if (makeLoadManagerDecisionOnThisBroker) {
-                        Optional<Pair<String, String>> availableBroker = getLeastLoadedFromLoadManager(bundle);
+                        Optional<String> availableBroker = getLeastLoadedFromLoadManager(bundle);
                         if (availableBroker.isEmpty()) {
                             LOG.warn("Load manager didn't return any available broker. "
                                             + "Returning empty result to lookup. NamespaceBundle[{}]",
@@ -575,12 +614,11 @@ public class NamespaceService implements AutoCloseable {
                             lookupFuture.complete(Optional.empty());
                             return;
                         }
-                        candidateBroker = availableBroker.get().getLeft();
-                        candidateBrokerAdvertisedAddr = availableBroker.get().getRight();
+                        candidateBroker = availableBroker.get();
                         authoritativeRedirect = true;
                     } else {
                         // forward to leader broker to make assignment
-                        candidateBroker = currentLeader.get().getServiceUrl();
+                        candidateBroker = currentLeader.get().getBrokerId();
                     }
                 }
             }
@@ -593,7 +631,7 @@ public class NamespaceService implements AutoCloseable {
         try {
             Objects.requireNonNull(candidateBroker);
 
-            if (candidateBroker.equals(pulsar.getSafeWebServiceAddress())) {
+            if (candidateBroker.equals(pulsar.getBrokerId())) {
                 // Load manager decided that the local broker should try to become the owner
                 ownershipCache.tryAcquiringOwnership(bundle).thenAccept(ownerInfo -> {
                     if (ownerInfo.isDisabled()) {
@@ -644,8 +682,7 @@ public class NamespaceService implements AutoCloseable {
                 }
 
                 // Now setting the redirect url
-                createLookupResult(candidateBrokerAdvertisedAddr == null ? candidateBroker
-                        : candidateBrokerAdvertisedAddr, authoritativeRedirect, options.getAdvertisedListenerName())
+                createLookupResult(candidateBroker, authoritativeRedirect, options.getAdvertisedListenerName())
                         .thenAccept(lookupResult -> lookupFuture.complete(Optional.of(lookupResult)))
                         .exceptionally(ex -> {
                             lookupFuture.completeExceptionally(ex);
@@ -665,7 +702,7 @@ public class NamespaceService implements AutoCloseable {
         CompletableFuture<LookupResult> lookupFuture = new CompletableFuture<>();
         try {
             checkArgument(StringUtils.isNotBlank(candidateBroker), "Lookup broker can't be null %s", candidateBroker);
-            String path = LoadManager.LOADBALANCE_BROKERS_ROOT + "/" + parseHostAndPort(candidateBroker);
+            String path = LoadManager.LOADBALANCE_BROKERS_ROOT + "/" + candidateBroker;
 
             localBrokerDataCache.get(path).thenAccept(reportData -> {
                 if (reportData.isPresent()) {
@@ -702,27 +739,17 @@ public class NamespaceService implements AutoCloseable {
     }
 
     public boolean isBrokerActive(String candidateBroker) {
-        String candidateBrokerHostAndPort = parseHostAndPort(candidateBroker);
         Set<String> availableBrokers = getAvailableBrokers();
-        if (availableBrokers.contains(candidateBrokerHostAndPort)) {
+        if (availableBrokers.contains(candidateBroker)) {
             if (LOG.isDebugEnabled()) {
-                LOG.debug("Broker {} ({}) is available for.", candidateBroker, candidateBrokerHostAndPort);
+                LOG.debug("Broker {} is available for.", candidateBroker);
             }
             return true;
         } else {
-            LOG.warn("Broker {} ({}) couldn't be found in available brokers {}",
-                    candidateBroker, candidateBrokerHostAndPort,
-                    String.join(",", availableBrokers));
+            LOG.warn("Broker {} couldn't be found in available brokers {}",
+                    candidateBroker, String.join(",", availableBrokers));
             return false;
         }
-    }
-
-    private static String parseHostAndPort(String candidateBroker) {
-        int uriSeparatorPos = candidateBroker.indexOf("://");
-        if (uriSeparatorPos == -1) {
-            throw new IllegalArgumentException("'" + candidateBroker + "' isn't an URI.");
-        }
-        return candidateBroker.substring(uriSeparatorPos + 3);
     }
 
     private Set<String> getAvailableBrokers() {
@@ -740,7 +767,7 @@ public class NamespaceService implements AutoCloseable {
      * @return the least loaded broker addresses
      * @throws Exception if an error occurs
      */
-    private Optional<Pair<String, String>> getLeastLoadedFromLoadManager(ServiceUnitId serviceUnit) throws Exception {
+    private Optional<String> getLeastLoadedFromLoadManager(ServiceUnitId serviceUnit) throws Exception {
         Optional<ResourceUnit> leastLoadedBroker = loadManager.get().getLeastLoaded(serviceUnit);
         if (leastLoadedBroker.isEmpty()) {
             LOG.warn("No broker is available for {}", serviceUnit);
@@ -748,15 +775,13 @@ public class NamespaceService implements AutoCloseable {
         }
 
         String lookupAddress = leastLoadedBroker.get().getResourceId();
-        String advertisedAddr = (String) leastLoadedBroker.get()
-                .getProperty(ResourceUnit.PROPERTY_KEY_BROKER_ZNODE_NAME);
 
         if (LOG.isDebugEnabled()) {
             LOG.debug("{} : redirecting to the least loaded broker, lookup address={}",
-                    pulsar.getSafeWebServiceAddress(),
+                    pulsar.getBrokerId(),
                     lookupAddress);
         }
-        return Optional.of(Pair.of(lookupAddress, advertisedAddr));
+        return Optional.of(lookupAddress);
     }
 
     public CompletableFuture<Void> unloadNamespaceBundle(NamespaceBundle bundle) {
@@ -1447,6 +1472,9 @@ public class NamespaceService implements AutoCloseable {
         });
     }
 
+    /***
+     * List persistent topics names under a namespace, the topic name contains the partition suffix.
+     */
     public CompletableFuture<List<String>> getListOfPersistentTopics(NamespaceName namespaceName) {
         return pulsar.getPulsarResources().getTopicResources().listPersistentTopicsAsync(namespaceName);
     }
@@ -1564,7 +1592,7 @@ public class NamespaceService implements AutoCloseable {
     }
 
     public void unloadSLANamespace() throws Exception {
-        NamespaceName namespaceName = getSLAMonitorNamespace(pulsar.getLookupServiceAddress(), config);
+        NamespaceName namespaceName = getSLAMonitorNamespace(pulsar.getBrokerId(), config);
 
         LOG.info("Checking owner for SLA namespace {}", namespaceName);
 
@@ -1597,7 +1625,7 @@ public class NamespaceService implements AutoCloseable {
         Matcher m = HEARTBEAT_NAMESPACE_PATTERN.matcher(ns.getNamespaceObject().toString());
         if (m.matches()) {
             LOG.debug("Heartbeat namespace matched the lookup namespace {}", ns.getNamespaceObject().toString());
-            return String.format("http://%s", m.group(1));
+            return m.group(1);
         } else {
             return null;
         }
@@ -1607,7 +1635,7 @@ public class NamespaceService implements AutoCloseable {
         Matcher m = HEARTBEAT_NAMESPACE_PATTERN_V2.matcher(ns.getNamespaceObject().toString());
         if (m.matches()) {
             LOG.debug("Heartbeat namespace v2 matched the lookup namespace {}", ns.getNamespaceObject().toString());
-            return String.format("http://%s", m.group(1));
+            return m.group(1);
         } else {
             return null;
         }
@@ -1616,7 +1644,7 @@ public class NamespaceService implements AutoCloseable {
     public static String getSLAMonitorBrokerName(ServiceUnitId ns) {
         Matcher m = SLA_NAMESPACE_PATTERN.matcher(ns.getNamespaceObject().toString());
         if (m.matches()) {
-            return String.format("http://%s", m.group(1));
+            return m.group(1);
         } else {
             return null;
         }
@@ -1647,16 +1675,16 @@ public class NamespaceService implements AutoCloseable {
     }
 
     public boolean registerSLANamespace() throws PulsarServerException {
-        String lookupServiceAddress = pulsar.getLookupServiceAddress();
-        boolean isNameSpaceRegistered = registerNamespace(getSLAMonitorNamespace(lookupServiceAddress, config), false);
+        String brokerId = pulsar.getBrokerId();
+        boolean isNameSpaceRegistered = registerNamespace(getSLAMonitorNamespace(brokerId, config), false);
         if (isNameSpaceRegistered) {
             if (LOG.isDebugEnabled()) {
                 LOG.debug("Added SLA Monitoring namespace name in local cache: ns={}",
-                        getSLAMonitorNamespace(lookupServiceAddress, config));
+                        getSLAMonitorNamespace(brokerId, config));
             }
         } else if (LOG.isDebugEnabled()) {
             LOG.debug("SLA Monitoring not owned by the broker: ns={}",
-                    getSLAMonitorNamespace(lookupServiceAddress, config));
+                    getSLAMonitorNamespace(brokerId, config));
         }
         return isNameSpaceRegistered;
     }

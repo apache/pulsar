@@ -49,7 +49,7 @@ public class TestFileSystemOffload extends TestBaseOffload {
         result.put("managedLedgerMaxEntriesPerLedger", String.valueOf(getNumEntriesPerLedger()));
         result.put("managedLedgerMinLedgerRolloverTimeMinutes", "0");
         result.put("managedLedgerOffloadDriver", "filesystem");
-        result.put("fileSystemURI", "file:///");
+        result.put("fileSystemURI", "file:///tmp");
 
         return result;
     }

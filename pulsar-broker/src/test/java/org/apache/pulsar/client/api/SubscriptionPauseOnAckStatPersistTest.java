@@ -21,13 +21,10 @@ package org.apache.pulsar.client.api;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
-import java.util.function.BiFunction;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.Position;
-import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.service.Dispatcher;
 import org.apache.pulsar.broker.service.SystemTopicBasedTopicPoliciesService;
@@ -148,82 +145,22 @@ public class SubscriptionPauseOnAckStatPersistTest extends ProducerConsumerBase 
         RESET_CURSOR;
     }
 
-    private ReceivedMessages receiveAndAckMessages(BiFunction<MessageId, String, Boolean> ackPredicate,
-                                                Consumer<String>...consumers) throws Exception {
-        ReceivedMessages receivedMessages = new ReceivedMessages();
-        while (true) {
-            int receivedMsgCount = 0;
-            for (int i = 0; i < consumers.length; i++) {
-                Consumer<String> consumer = consumers[i];
-                while (true) {
-                    Message<String> msg = consumer.receive(2, TimeUnit.SECONDS);
-                    if (msg != null) {
-                        receivedMsgCount++;
-                        String v = msg.getValue();
-                        MessageId messageId = msg.getMessageId();
-                        receivedMessages.messagesReceived.add(Pair.of(msg.getMessageId(), v));
-                        if (ackPredicate.apply(messageId, v)) {
-                            consumer.acknowledge(msg);
-                            receivedMessages.messagesAcked.add(Pair.of(msg.getMessageId(), v));
-                        }
-                    } else {
-                        break;
-                    }
-                }
-            }
-            // Because of the possibility of consumers getting stuck with each other, only jump out of the loop if all
-            // consumers could not receive messages.
-            if (receivedMsgCount == 0) {
-                break;
-            }
-        }
-        return receivedMessages;
-    }
-
-    private ReceivedMessages ackAllMessages(Consumer<String>...consumers) throws Exception {
-        return receiveAndAckMessages((msgId, msgV) -> true, consumers);
-    }
-
-    private ReceivedMessages ackOddMessagesOnly(Consumer<String>...consumers) throws Exception {
+    private ReceivedMessages<String> ackOddMessagesOnly(Consumer<String>...consumers) throws Exception {
         return receiveAndAckMessages((msgId, msgV) -> Integer.valueOf(msgV) % 2 == 1, consumers);
-    }
-
-    private static class ReceivedMessages {
-
-        List<Pair<MessageId,String>> messagesReceived = new ArrayList<>();
-
-        List<Pair<MessageId,String>> messagesAcked = new ArrayList<>();
-
-        public boolean hasReceivedMessage(String v) {
-            for (Pair<MessageId,String> pair : messagesReceived) {
-                if (pair.getRight().equals(v)) {
-                    return true;
-                }
-            }
-            return false;
-        }
-
-        public boolean hasAckedMessage(String v) {
-            for (Pair<MessageId,String> pair : messagesAcked) {
-                if (pair.getRight().equals(v)) {
-                    return true;
-                }
-            }
-            return false;
-        }
     }
 
     @DataProvider(name = "typesOfSetDispatcherPauseOnAckStatePersistent")
     public Object[][] typesOfSetDispatcherPauseOnAckStatePersistent() {
         return new Object[][]{
           {TypeOfUpdateTopicConfig.BROKER_CONF},
-          //{TypeOfUpdateTopicConfig.NAMESPACE_LEVEL_POLICY},
+          {TypeOfUpdateTopicConfig.NAMESPACE_LEVEL_POLICY},
           {TypeOfUpdateTopicConfig.TOPIC_LEVEL_POLICY}
         };
     }
 
     public enum TypeOfUpdateTopicConfig {
         BROKER_CONF,
+        NAMESPACE_LEVEL_POLICY,
         TOPIC_LEVEL_POLICY;
     }
 
@@ -235,6 +172,9 @@ public class SubscriptionPauseOnAckStatPersistTest extends ProducerConsumerBase 
         } else if (type == TypeOfUpdateTopicConfig.TOPIC_LEVEL_POLICY) {
             admin.topics().createNonPartitionedTopic(tpName);
             admin.topicPolicies().setDispatcherPauseOnAckStatePersistent(tpName).join();
+        } else if (type == TypeOfUpdateTopicConfig.NAMESPACE_LEVEL_POLICY) {
+            admin.topics().createNonPartitionedTopic(tpName);
+            admin.namespaces().setDispatcherPauseOnAckStatePersistent(TopicName.get(tpName).getNamespace());
         }
         Awaitility.await().untilAsserted(() -> {
             PersistentTopic persistentTopic =
@@ -256,6 +196,8 @@ public class SubscriptionPauseOnAckStatPersistTest extends ProducerConsumerBase 
             admin.brokers().updateDynamicConfiguration("dispatcherPauseOnAckStatePersistentEnabled", "false");
         } else if (type == TypeOfUpdateTopicConfig.TOPIC_LEVEL_POLICY) {
             admin.topicPolicies().removeDispatcherPauseOnAckStatePersistent(tpName).join();
+        } else if (type == TypeOfUpdateTopicConfig.NAMESPACE_LEVEL_POLICY) {
+            admin.namespaces().removeDispatcherPauseOnAckStatePersistent(TopicName.get(tpName).getNamespace());
         }
         Awaitility.await().untilAsserted(() -> {
             PersistentTopic persistentTopic =
@@ -361,7 +303,7 @@ public class SubscriptionPauseOnAckStatPersistTest extends ProducerConsumerBase 
 
         // Verify: after ack messages, will unpause the dispatcher.
         c1.acknowledge(messageIdsSent);
-        ReceivedMessages receivedMessagesAfterPause = ackAllMessages(c1);
+        ReceivedMessages<String> receivedMessagesAfterPause = ackAllMessages(c1);
         Assert.assertTrue(receivedMessagesAfterPause.hasReceivedMessage(specifiedMessage));
         Assert.assertTrue(receivedMessagesAfterPause.hasAckedMessage(specifiedMessage));
 
@@ -411,7 +353,7 @@ public class SubscriptionPauseOnAckStatPersistTest extends ProducerConsumerBase 
         final String specifiedMessage2 = "9876543211";
         p1.send(specifiedMessage2);
 
-        ReceivedMessages receivedMessagesAfterPause = ackAllMessages(c1);
+        ReceivedMessages<String> receivedMessagesAfterPause = ackAllMessages(c1);
         Assert.assertTrue(receivedMessagesAfterPause.hasReceivedMessage(specifiedMessage2));
         Assert.assertTrue(receivedMessagesAfterPause.hasAckedMessage(specifiedMessage2));
 
@@ -514,7 +456,7 @@ public class SubscriptionPauseOnAckStatPersistTest extends ProducerConsumerBase 
             messageIdsSent.add(messageId);
         }
         // Make ack holes.
-        ReceivedMessages receivedMessagesC1 = ackOddMessagesOnly(c1);
+        ReceivedMessages<String> receivedMessagesC1 = ackOddMessagesOnly(c1);
         verifyAckHolesIsMuchThanLimit(tpName, subscription);
 
         cancelPendingRead(tpName, subscription);
@@ -534,7 +476,7 @@ public class SubscriptionPauseOnAckStatPersistTest extends ProducerConsumerBase 
 
         // Verify: close the previous consumer, the new one could receive all messages.
         c1.close();
-        ReceivedMessages receivedMessagesC2 = ackAllMessages(c2);
+        ReceivedMessages<String> receivedMessagesC2 = ackAllMessages(c2);
         int messageCountAckedByC1 = receivedMessagesC1.messagesAcked.size();
         int messageCountAckedByC2 = receivedMessagesC2.messagesAcked.size();
         Assert.assertEquals(messageCountAckedByC2, msgSendCount - messageCountAckedByC1 + specifiedMessageCount);
@@ -571,7 +513,7 @@ public class SubscriptionPauseOnAckStatPersistTest extends ProducerConsumerBase 
             messageIdsSent.add(messageId);
         }
         // Make ack holes.
-        ReceivedMessages receivedMessagesC1AndC2 = ackOddMessagesOnly(c1, c2);
+        ReceivedMessages<String> receivedMessagesC1AndC2 = ackOddMessagesOnly(c1, c2);
         verifyAckHolesIsMuchThanLimit(tpName, subscription);
 
         cancelPendingRead(tpName, subscription);
@@ -595,7 +537,7 @@ public class SubscriptionPauseOnAckStatPersistTest extends ProducerConsumerBase 
         // Verify: close the previous consumer, the new one could receive all messages.
         c1.close();
         c2.close();
-        ReceivedMessages receivedMessagesC3AndC4 = ackAllMessages(c3, c4);
+        ReceivedMessages<String> receivedMessagesC3AndC4 = ackAllMessages(c3, c4);
         int messageCountAckedByC1AndC2 = receivedMessagesC1AndC2.messagesAcked.size();
         int messageCountAckedByC3AndC4 = receivedMessagesC3AndC4.messagesAcked.size();
         Assert.assertEquals(messageCountAckedByC3AndC4,

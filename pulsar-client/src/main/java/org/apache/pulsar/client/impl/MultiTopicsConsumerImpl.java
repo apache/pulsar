@@ -49,6 +49,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+import javax.annotation.Nullable;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.client.api.BatchReceivePolicy;
 import org.apache.pulsar.client.api.Consumer;
@@ -101,7 +102,8 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
     private final MultiTopicConsumerStatsRecorderImpl stats;
     private final ConsumerConfigurationData<T> internalConfig;
 
-    private volatile MessageIdAdv startMessageId;
+    private final MessageIdAdv startMessageId;
+    private volatile boolean duringSeek = false;
     private final long startMessageRollbackDurationInSec;
     MultiTopicsConsumerImpl(PulsarClientImpl client, ConsumerConfigurationData<T> conf,
             ExecutorProvider executorProvider, CompletableFuture<Consumer<T>> subscribeFuture, Schema<T> schema,
@@ -163,7 +165,8 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
             return;
         }
 
-        checkArgument(topicNamesValid(conf.getTopicNames()), "Topics is invalid.");
+        checkArgument(topicNamesValid(conf.getTopicNames()), "Subscription topics include duplicate items"
+                + " or invalid names.");
 
         List<CompletableFuture<Void>> futures = conf.getTopicNames().stream()
                 .map(t -> subscribeAsync(t, createTopicIfDoesNotExist))
@@ -200,21 +203,21 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         checkState(topics != null && topics.size() >= 1,
             "topics should contain more than 1 topic");
 
-        Optional<String> result = topics.stream()
-                .filter(topic -> !TopicName.isValid(topic))
-                .findFirst();
+        Set<TopicName> topicNames = new HashSet<>();
 
-        if (result.isPresent()) {
-            log.warn("Received invalid topic name: {}", result.get());
-            return false;
+        for (String topic : topics) {
+            if (!TopicName.isValid(topic)) {
+                log.warn("Received invalid topic name: {}", topic);
+                return false;
+            }
+            topicNames.add(TopicName.get(topic));
         }
 
         // check topic names are unique
-        HashSet<String> set = new HashSet<>(topics);
-        if (set.size() == topics.size()) {
+        if (topicNames.size() == topics.size()) {
             return true;
         } else {
-            log.warn("Topic names not unique. unique/all : {}/{}", set.size(), topics.size());
+            log.warn("Topic names not unique. unique/all : {}/{}", topicNames.size(), topics.size());
             return false;
         }
     }
@@ -235,6 +238,10 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
     }
 
     private void receiveMessageFromConsumer(ConsumerImpl<T> consumer, boolean batchReceive) {
+        if (duringSeek) {
+            log.info("[{}] Pause receiving messages for topic {} due to seek", subscription, consumer.getTopic());
+            return;
+        }
         CompletableFuture<List<Message<T>>> messagesFuture;
         if (batchReceive) {
             messagesFuture = consumer.batchReceiveAsync().thenApply(msgs -> ((MessagesImpl<T>) msgs).getMessageList());
@@ -252,8 +259,12 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
             }
             // Process the message, add to the queue and trigger listener or async callback
             messages.forEach(msg -> {
-                if (isValidConsumerEpoch((MessageImpl<T>) msg)) {
+                final boolean skipDueToSeek = duringSeek;
+                if (isValidConsumerEpoch((MessageImpl<T>) msg) && !skipDueToSeek) {
                     messageReceived(consumer, msg);
+                } else if (skipDueToSeek) {
+                    log.info("[{}] [{}] Skip processing message {} received during seek", topic, subscription,
+                            msg.getMessageId());
                 }
             });
 
@@ -748,17 +759,12 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
 
     @Override
     public CompletableFuture<Void> seekAsync(Function<String, Object> function) {
-        List<CompletableFuture<Void>> futures = new ArrayList<>(consumers.size());
-        consumers.values().forEach(consumer -> futures.add(consumer.seekAsync(function)));
-        unAckedMessageTracker.clear();
-        incomingMessages.clear();
-        resetIncomingMessageSize();
-        return FutureUtil.waitForAll(futures);
+        return seekAllAsync(consumer -> consumer.seekAsync(function));
     }
 
     @Override
     public CompletableFuture<Void> seekAsync(MessageId messageId) {
-        final Consumer<T> internalConsumer;
+        final ConsumerImpl<T> internalConsumer;
         if (messageId instanceof TopicMessageId) {
             TopicMessageId topicMessageId = (TopicMessageId) messageId;
             internalConsumer = consumers.get(topicMessageId.getOwnerTopic());
@@ -775,25 +781,46 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
             );
         }
 
-        final CompletableFuture<Void> seekFuture;
         if (internalConsumer == null) {
-            List<CompletableFuture<Void>> futures = new ArrayList<>(consumers.size());
-            consumers.values().forEach(consumerImpl -> futures.add(consumerImpl.seekAsync(messageId)));
-            seekFuture = FutureUtil.waitForAll(futures);
+            return seekAllAsync(consumer -> consumer.seekAsync(messageId));
         } else {
-            seekFuture = internalConsumer.seekAsync(messageId);
+            return seekAsyncInternal(Collections.singleton(internalConsumer), __ -> __.seekAsync(messageId));
         }
-
-        unAckedMessageTracker.clear();
-        clearIncomingMessages();
-        return seekFuture;
     }
 
     @Override
     public CompletableFuture<Void> seekAsync(long timestamp) {
-        List<CompletableFuture<Void>> futures = new ArrayList<>(consumers.size());
-        consumers.values().forEach(consumer -> futures.add(consumer.seekAsync(timestamp)));
-        return FutureUtil.waitForAll(futures);
+        return seekAllAsync(consumer -> consumer.seekAsync(timestamp));
+    }
+
+    private CompletableFuture<Void> seekAsyncInternal(Collection<ConsumerImpl<T>> consumers,
+                                                      Function<ConsumerImpl<T>, CompletableFuture<Void>> seekFunc) {
+        beforeSeek();
+        final CompletableFuture<Void> future = new CompletableFuture<>();
+        FutureUtil.waitForAll(consumers.stream().map(seekFunc).collect(Collectors.toList()))
+                .whenComplete((__, e) -> afterSeek(future, e));
+        return future;
+    }
+
+    private CompletableFuture<Void> seekAllAsync(Function<ConsumerImpl<T>, CompletableFuture<Void>> seekFunc) {
+        return seekAsyncInternal(consumers.values(), seekFunc);
+    }
+
+    private void beforeSeek() {
+        duringSeek = true;
+        unAckedMessageTracker.clear();
+        clearIncomingMessages();
+    }
+
+    private void afterSeek(CompletableFuture<Void> seekFuture, @Nullable Throwable throwable) {
+        duringSeek = false;
+        log.info("[{}] Resume receiving messages for {} since seek is done", subscription, consumers.keySet());
+        startReceivingMessages(new ArrayList<>(consumers.values()));
+        if (throwable == null) {
+            seekFuture.complete(null);
+        } else {
+            seekFuture.completeExceptionally(throwable);
+        }
     }
 
     @Override
@@ -903,7 +930,10 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         }
     }
 
-    // subscribe one more given topic
+    /***
+     * Subscribe one more given topic.
+     * @param topicName topic name without the partition suffix.
+     */
     public CompletableFuture<Void> subscribeAsync(String topicName, boolean createTopicIfDoesNotExist) {
         TopicName topicNameInstance = getTopicName(topicName);
         if (topicNameInstance == null) {
@@ -999,13 +1029,13 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
 
     private void subscribeTopicPartitions(CompletableFuture<Void> subscribeResult, String topicName, int numPartitions,
             boolean createIfDoesNotExist) {
-        client.preProcessSchemaBeforeSubscribe(client, schema, topicName).whenComplete((schema, cause) -> {
-            if (null == cause) {
-                doSubscribeTopicPartitions(schema, subscribeResult, topicName, numPartitions, createIfDoesNotExist);
-            } else {
-                subscribeResult.completeExceptionally(cause);
-            }
-        });
+        client.preProcessSchemaBeforeSubscribe(client, schema, topicName)
+                .thenAccept(schema -> {
+                    doSubscribeTopicPartitions(schema, subscribeResult, topicName, numPartitions, createIfDoesNotExist);
+                }).exceptionally(cause -> {
+                    subscribeResult.completeExceptionally(cause);
+                    return null;
+                });
     }
 
     private void doSubscribeTopicPartitions(Schema<T> schema,
@@ -1225,7 +1255,10 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         return unsubscribeFuture;
     }
 
-    // Remove a consumer for a topic
+    /***
+     * Remove a consumer for a topic.
+     * @param topicName topic name contains the partition suffix.
+     */
     public CompletableFuture<Void> removeConsumerAsync(String topicName) {
         checkArgument(TopicName.isValid(topicName), "Invalid topic name:" + topicName);
 

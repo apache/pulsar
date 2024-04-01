@@ -57,11 +57,13 @@ class BatchMessageKeyBasedContainer extends AbstractBatchMessageContainer {
             numMessagesInBatch++;
             currentBatchSizeBytes += msg.getDataBuffer().readableBytes();
         }
+        tryUpdateTimestamp();
         return isBatchFull();
     }
 
     @Override
     public void clear() {
+        clearTimestamp();
         numMessagesInBatch = 0;
         currentBatchSizeBytes = 0;
         batches.clear();

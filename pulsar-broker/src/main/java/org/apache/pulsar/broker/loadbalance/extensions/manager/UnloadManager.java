@@ -41,7 +41,7 @@ public class UnloadManager implements StateChangeListener {
 
     private final UnloadCounter counter;
     private final Map<String, CompletableFuture<Void>> inFlightUnloadRequest;
-    private final String lookupServiceAddress;
+    private final String brokerId;
 
     @VisibleForTesting
     public enum LatencyMetric {
@@ -73,9 +73,9 @@ public class UnloadManager implements StateChangeListener {
             this.isDestinationBrokerMetric = isDestinationBrokerMetric;
         }
 
-        public void beginMeasurement(String serviceUnit, String lookupServiceAddress, ServiceUnitStateData data) {
-            if ((isSourceBrokerMetric && lookupServiceAddress.equals(data.sourceBroker()))
-                    || (isDestinationBrokerMetric && lookupServiceAddress.equals(data.dstBroker()))) {
+        public void beginMeasurement(String serviceUnit, String brokerId, ServiceUnitStateData data) {
+            if ((isSourceBrokerMetric && brokerId.equals(data.sourceBroker()))
+                    || (isDestinationBrokerMetric && brokerId.equals(data.dstBroker()))) {
                 var startTimeNs = System.nanoTime();
                 futures.computeIfAbsent(serviceUnit, ignore -> {
                     var future = new CompletableFuture<Void>();
@@ -83,7 +83,7 @@ public class UnloadManager implements StateChangeListener {
                             thenAccept(__ -> {
                                 var durationMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startTimeNs);
                                 log.info("Operation {} for service unit {} took {} ms", this, serviceUnit, durationMs);
-                                histogram.labels(lookupServiceAddress, "bundleUnloading").observe(durationMs);
+                                histogram.labels(brokerId, "bundleUnloading").observe(durationMs);
                             }).whenComplete((__, throwable) -> futures.remove(serviceUnit, future));
                     return future;
                 });
@@ -98,9 +98,9 @@ public class UnloadManager implements StateChangeListener {
         }
     }
 
-    public UnloadManager(UnloadCounter counter, String lookupServiceAddress) {
+    public UnloadManager(UnloadCounter counter, String brokerId) {
         this.counter = counter;
-        this.lookupServiceAddress = Objects.requireNonNull(lookupServiceAddress);
+        this.brokerId = Objects.requireNonNull(brokerId);
         inFlightUnloadRequest = new ConcurrentHashMap<>();
     }
 
@@ -159,12 +159,12 @@ public class UnloadManager implements StateChangeListener {
         }
         ServiceUnitState state = ServiceUnitStateData.state(data);
         switch (state) {
-            case Free, Owned -> LatencyMetric.DISCONNECT.beginMeasurement(serviceUnit, lookupServiceAddress, data);
+            case Free, Owned -> LatencyMetric.DISCONNECT.beginMeasurement(serviceUnit, brokerId, data);
             case Releasing -> {
-                LatencyMetric.RELEASE.beginMeasurement(serviceUnit, lookupServiceAddress, data);
-                LatencyMetric.UNLOAD.beginMeasurement(serviceUnit, lookupServiceAddress, data);
+                LatencyMetric.RELEASE.beginMeasurement(serviceUnit, brokerId, data);
+                LatencyMetric.UNLOAD.beginMeasurement(serviceUnit, brokerId, data);
             }
-            case Assigning -> LatencyMetric.ASSIGN.beginMeasurement(serviceUnit, lookupServiceAddress, data);
+            case Assigning -> LatencyMetric.ASSIGN.beginMeasurement(serviceUnit, brokerId, data);
         }
     }
 

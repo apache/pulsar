@@ -524,8 +524,7 @@ public class MLTransactionMetadataStoreTest extends MockedBookKeeperTestCase {
     public class TransactionTimeoutTrackerImpl implements TransactionTimeoutTracker {
 
         @Override
-        public CompletableFuture<Boolean> addTransaction(long sequenceId, long timeout) {
-            return null;
+        public void addTransaction(long sequenceId, long timeout) {
         }
 
         @Override

@@ -353,14 +353,14 @@ public class NamespaceServiceTest extends BrokerTestBase {
     @Test
     public void testLoadReportDeserialize() throws Exception {
 
-        final String candidateBroker1 = "http://localhost:8000";
-        final String candidateBroker2 = "http://localhost:3000";
-        LoadReport lr = new LoadReport(null, null, candidateBroker1, null);
-        LocalBrokerData ld = new LocalBrokerData(null, null, candidateBroker2, null);
-        URI uri1 = new URI(candidateBroker1);
-        URI uri2 = new URI(candidateBroker2);
-        String path1 = String.format("%s/%s:%s", LoadManager.LOADBALANCE_BROKERS_ROOT, uri1.getHost(), uri1.getPort());
-        String path2 = String.format("%s/%s:%s", LoadManager.LOADBALANCE_BROKERS_ROOT, uri2.getHost(), uri2.getPort());
+        final String candidateBroker1 = "localhost:8000";
+        String broker1Url = "pulsar://localhost:6650";
+        final String candidateBroker2 = "localhost:3000";
+        String broker2Url = "pulsar://localhost:6660";
+        LoadReport lr = new LoadReport("http://" + candidateBroker1, null, broker1Url, null);
+        LocalBrokerData ld = new LocalBrokerData("http://" + candidateBroker2, null, broker2Url, null);
+        String path1 = String.format("%s/%s", LoadManager.LOADBALANCE_BROKERS_ROOT, candidateBroker1);
+        String path2 = String.format("%s/%s", LoadManager.LOADBALANCE_BROKERS_ROOT, candidateBroker2);
 
         pulsar.getLocalMetadataStore().put(path1,
                 ObjectMapperFactory.getMapper().writer().writeValueAsBytes(lr),
@@ -379,23 +379,23 @@ public class NamespaceServiceTest extends BrokerTestBase {
                 .getAndSet(new ModularLoadManagerWrapper(new ModularLoadManagerImpl()));
         oldLoadManager.stop();
         LookupResult result2 = pulsar.getNamespaceService().createLookupResult(candidateBroker2, false, null).get();
-        Assert.assertEquals(result1.getLookupData().getBrokerUrl(), candidateBroker1);
-        Assert.assertEquals(result2.getLookupData().getBrokerUrl(), candidateBroker2);
+        Assert.assertEquals(result1.getLookupData().getBrokerUrl(), broker1Url);
+        Assert.assertEquals(result2.getLookupData().getBrokerUrl(), broker2Url);
         System.out.println(result2);
     }
 
     @Test
     public void testCreateLookupResult() throws Exception {
 
-        final String candidateBroker = "pulsar://localhost:6650";
+        final String candidateBroker = "localhost:8080";
+        final String brokerUrl = "pulsar://localhost:6650";
         final String listenerUrl = "pulsar://localhost:7000";
         final String listenerUrlTls = "pulsar://localhost:8000";
         final String listener = "listenerName";
         Map<String, AdvertisedListener> advertisedListeners = new HashMap<>();
         advertisedListeners.put(listener, AdvertisedListener.builder().brokerServiceUrl(new URI(listenerUrl)).brokerServiceUrlTls(new URI(listenerUrlTls)).build());
-        LocalBrokerData ld = new LocalBrokerData(null, null, candidateBroker, null, advertisedListeners);
-        URI uri = new URI(candidateBroker);
-        String path = String.format("%s/%s:%s", LoadManager.LOADBALANCE_BROKERS_ROOT, uri.getHost(), uri.getPort());
+        LocalBrokerData ld = new LocalBrokerData("http://" + candidateBroker, null, brokerUrl, null, advertisedListeners);
+        String path = String.format("%s/%s", LoadManager.LOADBALANCE_BROKERS_ROOT, candidateBroker);
 
         pulsar.getLocalMetadataStore().put(path,
                 ObjectMapperFactory.getMapper().writer().writeValueAsBytes(ld),
@@ -405,7 +405,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
         LookupResult noListener = pulsar.getNamespaceService().createLookupResult(candidateBroker, false, null).get();
         LookupResult withListener = pulsar.getNamespaceService().createLookupResult(candidateBroker, false, listener).get();
 
-        Assert.assertEquals(noListener.getLookupData().getBrokerUrl(), candidateBroker);
+        Assert.assertEquals(noListener.getLookupData().getBrokerUrl(), brokerUrl);
         Assert.assertEquals(withListener.getLookupData().getBrokerUrl(), listenerUrl);
         Assert.assertEquals(withListener.getLookupData().getBrokerUrlTls(), listenerUrlTls);
         System.out.println(withListener);
@@ -687,7 +687,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
 
     @Test
     public void testHeartbeatNamespaceMatch() throws Exception {
-        NamespaceName namespaceName = NamespaceService.getHeartbeatNamespace(pulsar.getLookupServiceAddress(), conf);
+        NamespaceName namespaceName = NamespaceService.getHeartbeatNamespace(pulsar.getBrokerId(), conf);
         NamespaceBundle namespaceBundle = pulsar.getNamespaceService().getNamespaceBundleFactory().getFullBundle(namespaceName);
         assertTrue(NamespaceService.isSystemServiceNamespace(
                         NamespaceBundle.getBundleNamespace(namespaceBundle.toString())));
@@ -707,7 +707,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
         Field loadManagerField = NamespaceService.class.getDeclaredField("loadManager");
         loadManagerField.setAccessible(true);
         doReturn(true).when(loadManager).isCentralized();
-        SimpleResourceUnit resourceUnit = new SimpleResourceUnit(pulsar.getSafeWebServiceAddress(), null);
+        SimpleResourceUnit resourceUnit = new SimpleResourceUnit(pulsar.getBrokerId(), null);
         Optional<ResourceUnit> res = Optional.of(resourceUnit);
         doReturn(res).when(loadManager).getLeastLoaded(any(ServiceUnitId.class));
         loadManagerField.set(pulsar.getNamespaceService(), new AtomicReference<>(loadManager));
@@ -860,10 +860,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
 
     public CompletableFuture<Void> registryBrokerDataChangeNotice() {
         CompletableFuture<Void> completableFuture = new CompletableFuture<>();
-        String lookupServiceAddress = pulsar.getAdvertisedAddress() + ":"
-                + (conf.getWebServicePort().isPresent() ? conf.getWebServicePort().get()
-                : conf.getWebServicePortTls().get());
-        String brokerDataPath = LoadManager.LOADBALANCE_BROKERS_ROOT + "/" + lookupServiceAddress;
+        String brokerDataPath = LoadManager.LOADBALANCE_BROKERS_ROOT + "/" + pulsar.getBrokerId();
         pulsar.getLocalMetadataStore().registerListener(notice -> {
             if (brokerDataPath.equals(notice.getPath())){
                 if (!completableFuture.isDone()) {

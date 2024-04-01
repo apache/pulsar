@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.resourcegroup;
 
+import com.google.common.annotations.VisibleForTesting;
 import io.prometheus.client.Counter;
 import java.util.HashMap;
 import java.util.Set;
@@ -218,24 +219,28 @@ public class ResourceGroup {
         resourceUsage.setOwner(this.getID());
 
         p = resourceUsage.setPublish();
-        this.setUsageInMonitoredEntity(ResourceGroupMonitoringClass.Publish, p);
+        if (!this.setUsageInMonitoredEntity(ResourceGroupMonitoringClass.Publish, p)) {
+            resourceUsage.clearPublish();
+        }
 
         p = resourceUsage.setDispatch();
-        this.setUsageInMonitoredEntity(ResourceGroupMonitoringClass.Dispatch, p);
+        if (!this.setUsageInMonitoredEntity(ResourceGroupMonitoringClass.Dispatch, p)) {
+            resourceUsage.clearDispatch();
+        }
 
         // Punt storage for now.
     }
 
     // Transport manager mandated op.
     public void rgResourceUsageListener(String broker, ResourceUsage resourceUsage) {
-        NetworkUsage p;
+        if (resourceUsage.hasPublish()) {
+            this.getUsageFromMonitoredEntity(ResourceGroupMonitoringClass.Publish, resourceUsage.getPublish(), broker);
+        }
 
-        p = resourceUsage.getPublish();
-        this.getUsageFromMonitoredEntity(ResourceGroupMonitoringClass.Publish, p, broker);
-
-        p = resourceUsage.getDispatch();
-        this.getUsageFromMonitoredEntity(ResourceGroupMonitoringClass.Dispatch, p, broker);
-
+        if (resourceUsage.hasDispatch()) {
+            this.getUsageFromMonitoredEntity(ResourceGroupMonitoringClass.Dispatch, resourceUsage.getDispatch(),
+                    broker);
+        }
         // Punt storage for now.
     }
 
@@ -325,8 +330,10 @@ public class ResourceGroup {
             retval.bytes = pbus.usedValues.bytes;
             retval.messages = pbus.usedValues.messages;
         } else {
-            log.info("getLocalUsageStatsFromBrokerReports: no usage report found for broker={} and monClass={}",
-                    myBrokerId, monClass);
+            if (log.isDebugEnabled()) {
+                log.debug("getLocalUsageStatsFromBrokerReports: no usage report found for broker={} and monClass={}",
+                        myBrokerId, monClass);
+            }
         }
 
         return retval;
@@ -406,8 +413,8 @@ public class ResourceGroup {
     }
 
     // Visibility for unit testing
-    protected static double getRgUsageReportedCount (String rgName, String monClassName) {
-        return rgLocalUsageReportCount.labels(rgName, monClassName).get();
+    protected static long getRgUsageReportedCount (String rgName, String monClassName) {
+        return (long) rgLocalUsageReportCount.labels(rgName, monClassName).get();
     }
 
     // Visibility for unit testing
@@ -451,12 +458,6 @@ public class ResourceGroup {
 
             bytesUsed = monEntity.usedLocallySinceLastReport.bytes;
             messagesUsed = monEntity.usedLocallySinceLastReport.messages;
-            monEntity.usedLocallySinceLastReport.bytes = monEntity.usedLocallySinceLastReport.messages = 0;
-
-            monEntity.totalUsedLocally.bytes += bytesUsed;
-            monEntity.totalUsedLocally.messages += messagesUsed;
-
-            monEntity.lastResourceUsageFillTimeMSecsSinceEpoch = System.currentTimeMillis();
 
             if (sendReport) {
                 p.setBytesPerPeriod(bytesUsed);
@@ -464,6 +465,10 @@ public class ResourceGroup {
                 monEntity.lastReportedValues.bytes = bytesUsed;
                 monEntity.lastReportedValues.messages = messagesUsed;
                 monEntity.numSuppressedUsageReports = 0;
+                monEntity.usedLocallySinceLastReport.bytes = monEntity.usedLocallySinceLastReport.messages = 0;
+                monEntity.totalUsedLocally.bytes += bytesUsed;
+                monEntity.totalUsedLocally.messages += messagesUsed;
+                monEntity.lastResourceUsageFillTimeMSecsSinceEpoch = System.currentTimeMillis();
             } else {
                 numSuppressions = monEntity.numSuppressedUsageReports++;
             }
@@ -594,6 +599,11 @@ public class ResourceGroup {
                 ResourceGroup.this.rgResourceUsageListener(broker, resourceUsage);
             }
         };
+    }
+
+    @VisibleForTesting
+    PerMonitoringClassFields getMonitoredEntity(ResourceGroupMonitoringClass monClass) {
+        return this.monitoringClassFields[monClass.ordinal()];
     }
 
     public final String resourceGroupName;

@@ -19,22 +19,22 @@
 package org.apache.pulsar.broker.stats;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient.Metric;
+import static org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient.parseMetrics;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-import com.google.common.base.MoreObjects;
 import com.google.common.base.Splitter;
-import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Multimap;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.prometheus.client.Collector;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.lang.reflect.Field;
+import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.nio.charset.StandardCharsets;
-import java.text.NumberFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -49,7 +49,6 @@ import java.util.Optional;
 import java.util.Properties;
 import java.util.Random;
 import java.util.Set;
-import java.util.TreeMap;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
@@ -728,14 +727,13 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         //check value
         field = PersistentSubscription.class.getDeclaredField("expiryMonitor");
         field.setAccessible(true);
-        NumberFormat nf = NumberFormat.getNumberInstance();
-        nf.setMaximumFractionDigits(3);
-        nf.setRoundingMode(RoundingMode.DOWN);
         for (int i = 0; i < topicList.size(); i++) {
             PersistentSubscription subscription = (PersistentSubscription) pulsar.getBrokerService()
                     .getTopicIfExists(topicList.get(i)).get().get().getSubscription(subName);
             PersistentMessageExpiryMonitor monitor = (PersistentMessageExpiryMonitor) field.get(subscription);
-            assertEquals(Double.valueOf(nf.format(monitor.getMessageExpiryRate())).doubleValue(), cm.get(i).value);
+            BigDecimal bigDecimal = BigDecimal.valueOf(monitor.getMessageExpiryRate());
+            bigDecimal = bigDecimal.setScale(3, RoundingMode.DOWN);
+            assertEquals(bigDecimal.doubleValue(), cm.get(i).value);
         }
 
         cm = (List<Metric>) metrics.get("pulsar_subscription_total_msg_expired");
@@ -1906,62 +1904,6 @@ public class PrometheusMetricsTest extends BrokerTestBase {
 
         p1.close();
         p2.close();
-    }
-
-    /**
-     * Hacky parsing of Prometheus text format. Should be good enough for unit tests
-     */
-    public static Multimap<String, Metric> parseMetrics(String metrics) {
-        Multimap<String, Metric> parsed = ArrayListMultimap.create();
-
-        // Example of lines are
-        // jvm_threads_current{cluster="standalone",} 203.0
-        // or
-        // pulsar_subscriptions_count{cluster="standalone", namespace="public/default",
-        // topic="persistent://public/default/test-2"} 0.0
-        Pattern pattern = Pattern.compile("^(\\w+)\\{([^\\}]+)\\}\\s([+-]?[\\d\\w\\.-]+)$");
-        Pattern tagsPattern = Pattern.compile("(\\w+)=\"([^\"]+)\"(,\\s?)?");
-
-        Splitter.on("\n").split(metrics).forEach(line -> {
-            if (line.isEmpty() || line.startsWith("#")) {
-                return;
-            }
-
-            Matcher matcher = pattern.matcher(line);
-            assertTrue(matcher.matches(), "line " + line + " does not match pattern " + pattern);
-            String name = matcher.group(1);
-
-            Metric m = new Metric();
-            String numericValue = matcher.group(3);
-            if (numericValue.equalsIgnoreCase("-Inf")) {
-                m.value = Double.NEGATIVE_INFINITY;
-            } else if (numericValue.equalsIgnoreCase("+Inf")) {
-                m.value = Double.POSITIVE_INFINITY;
-            } else {
-                m.value = Double.parseDouble(numericValue);
-            }
-            String tags = matcher.group(2);
-            Matcher tagsMatcher = tagsPattern.matcher(tags);
-            while (tagsMatcher.find()) {
-                String tag = tagsMatcher.group(1);
-                String value = tagsMatcher.group(2);
-                m.tags.put(tag, value);
-            }
-
-            parsed.put(name, m);
-        });
-
-        return parsed;
-    }
-
-    public static class Metric {
-        public Map<String, String> tags = new TreeMap<>();
-        public double value;
-
-        @Override
-        public String toString() {
-            return MoreObjects.toStringHelper(this).add("tags", tags).add("value", value).toString();
-        }
     }
 
     @Test

@@ -108,6 +108,7 @@ public class PulsarWorkerService implements WorkerService {
     private PulsarAdmin brokerAdmin;
     private PulsarAdmin functionAdmin;
     private MetricsGenerator metricsGenerator;
+    private PulsarWorkerOpenTelemetry openTelemetry;
     @VisibleForTesting
     private URI dlogUri;
     private LeaderService leaderService;
@@ -118,7 +119,8 @@ public class PulsarWorkerService implements WorkerService {
     private Sinks<PulsarWorkerService> sinks;
     private Sources<PulsarWorkerService> sources;
     private Workers<PulsarWorkerService> workers;
-
+    @Getter
+    private PackageUrlValidator packageUrlValidator;
     private final PulsarClientCreator clientCreator;
     private StateStoreProvider stateStoreProvider;
 
@@ -188,6 +190,7 @@ public class PulsarWorkerService implements WorkerService {
         this.statsUpdater = Executors
             .newSingleThreadScheduledExecutor(new DefaultThreadFactory("worker-stats-updater"));
         this.metricsGenerator = new MetricsGenerator(this.statsUpdater, workerConfig);
+        this.openTelemetry = new PulsarWorkerOpenTelemetry(workerConfig);
         this.workerConfig = workerConfig;
         this.dlogUri = dlogUri;
         this.workerStatsManager = new WorkerStatsManager(workerConfig, runAsStandalone);
@@ -196,6 +199,7 @@ public class PulsarWorkerService implements WorkerService {
         this.sinks = new SinksImpl(() -> PulsarWorkerService.this);
         this.sources = new SourcesImpl(() -> PulsarWorkerService.this);
         this.workers = new WorkerImpl(() -> PulsarWorkerService.this);
+        this.packageUrlValidator = new PackageUrlValidator(workerConfig);
     }
 
     @Override
@@ -222,7 +226,7 @@ public class PulsarWorkerService implements WorkerService {
                 log.warn("Retry to connect to Pulsar service at {}", workerConfig.getPulsarWebServiceUrl());
                 if (retries >= maxRetries) {
                     log.error("Failed to connect to Pulsar service at {} after {} attempts",
-                            workerConfig.getPulsarFunctionsNamespace(), maxRetries);
+                            workerConfig.getPulsarFunctionsNamespace(), maxRetries, e);
                     throw e;
                 }
                 retries++;
@@ -658,6 +662,18 @@ public class PulsarWorkerService implements WorkerService {
 
         if (null != stateStoreProvider) {
             stateStoreProvider.close();
+        }
+
+        if (null != openTelemetry) {
+            openTelemetry.close();
+        }
+
+        if (null != functionsManager) {
+            functionsManager.close();
+        }
+
+        if (null != connectorsManager) {
+            connectorsManager.close();
         }
     }
 

@@ -52,6 +52,7 @@ import org.testng.annotations.Test;
 
 @Slf4j
 public class ProxyRefreshAuthTest extends ProducerConsumerBase {
+    private static final String CLUSTER_NAME = "proxy-authorization";
     private final SecretKey SECRET_KEY = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
 
     private ProxyService proxyService;
@@ -84,7 +85,7 @@ public class ProxyRefreshAuthTest extends ProducerConsumerBase {
         properties.setProperty("tokenAllowedClockSkewSeconds", "2");
         conf.setProperties(properties);
 
-        conf.setClusterName("proxy-authorization");
+        conf.setClusterName(CLUSTER_NAME);
         conf.setNumExecutorThreadPoolSize(5);
 
         conf.setAuthenticationRefreshCheckSeconds(1);
@@ -116,6 +117,7 @@ public class ProxyRefreshAuthTest extends ProducerConsumerBase {
         proxyConfig.setServicePort(Optional.of(0));
         proxyConfig.setBrokerProxyAllowedTargetPorts("*");
         proxyConfig.setWebServicePort(Optional.of(0));
+        proxyConfig.setClusterName(CLUSTER_NAME);
 
         proxyConfig.setBrokerClientAuthenticationPlugin(AuthenticationToken.class.getName());
         proxyConfig.setBrokerClientAuthenticationParameters(

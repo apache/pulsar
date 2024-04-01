@@ -99,6 +99,7 @@ import org.apache.pulsar.client.impl.ConnectionPool;
 import org.apache.pulsar.client.impl.PulsarServiceNameResolver;
 import org.apache.pulsar.client.impl.auth.AuthenticationTls;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
+import org.apache.pulsar.client.impl.metrics.InstrumentProvider;
 import org.apache.pulsar.common.api.proto.CommandLookupTopicResponse;
 import org.apache.pulsar.common.api.proto.CommandPartitionedTopicMetadataResponse;
 import org.apache.pulsar.common.naming.NamespaceBundle;
@@ -997,7 +998,8 @@ public class BrokerServiceTest extends BrokerTestBase {
         // Using an AtomicReference in order to reset a new CountDownLatch
         AtomicReference<CountDownLatch> latchRef = new AtomicReference<>();
         latchRef.set(new CountDownLatch(1));
-        try (ConnectionPool pool = new ConnectionPool(conf, eventLoop, () -> new ClientCnx(conf, eventLoop) {
+        try (ConnectionPool pool = new ConnectionPool(InstrumentProvider.NOOP, conf, eventLoop,
+                () -> new ClientCnx(InstrumentProvider.NOOP, conf, eventLoop) {
             @Override
             protected void handleLookupResponse(CommandLookupTopicResponse lookupResult) {
                 try {
@@ -1534,9 +1536,9 @@ public class BrokerServiceTest extends BrokerTestBase {
         assertTrue(brokerService.isSystemTopic(TRANSACTION_COORDINATOR_ASSIGN));
         assertTrue(brokerService.isSystemTopic(TRANSACTION_COORDINATOR_LOG));
         NamespaceName heartbeatNamespaceV1 = NamespaceService
-                .getHeartbeatNamespace(pulsar.getLookupServiceAddress(), pulsar.getConfig());
+                .getHeartbeatNamespace(pulsar.getBrokerId(), pulsar.getConfig());
         NamespaceName heartbeatNamespaceV2 = NamespaceService
-                .getHeartbeatNamespaceV2(pulsar.getLookupServiceAddress(), pulsar.getConfig());
+                .getHeartbeatNamespaceV2(pulsar.getBrokerId(), pulsar.getConfig());
         assertTrue(brokerService.isSystemTopic("persistent://" + heartbeatNamespaceV1.toString() + "/healthcheck"));
         assertTrue(brokerService.isSystemTopic(heartbeatNamespaceV2.toString() + "/healthcheck"));
     }
@@ -1723,14 +1725,5 @@ public class BrokerServiceTest extends BrokerTestBase {
         } catch (Exception ex) {
             fail("Unsubscribe failed");
         }
-    }
-
-    @Test
-    public void testGetLookupServiceAddress() throws Exception {
-        cleanup();
-        setup();
-        conf.setWebServicePortTls(Optional.of(8081));
-        assertEquals(pulsar.getLookupServiceAddress(), "localhost:8081");
-        resetState();
     }
 }

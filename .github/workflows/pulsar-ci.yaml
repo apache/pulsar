@@ -22,6 +22,8 @@ on:
   pull_request:
     branches:
       - master
+      - branch-*
+      - pulsar-*
   schedule:
     # scheduled job with JDK 17
     - cron: '0 12 * * *'
@@ -68,6 +70,7 @@ env:
   # it's possible to rerun individual failed jobs when the build artifacts are available
   # if the artifacts have already been expired, the complete workflow can be rerun by closing and reopening the PR or by rebasing the PR
   ARTIFACT_RETENTION_DAYS: 3
+  JDK_DISTRIBUTION: corretto
 
 jobs:
   preconditions:
@@ -79,7 +82,7 @@ jobs:
       need_owasp: ${{ steps.changes.outputs.need_owasp }}
       collect_coverage: ${{ steps.check_coverage.outputs.collect_coverage }}
       jdk_major_version: ${{ steps.jdk_major_version.outputs.jdk_major_version }}
-
+      java_non_tests: ${{ steps.changes.outputs.java_non_tests }}
     steps:
       - name: Cancel scheduled jobs in forks by default
         if: ${{ github.repository != 'apache/pulsar' && github.event_name == 'schedule' }}
@@ -102,7 +105,7 @@ jobs:
 
       - name: checkout
         if: ${{ github.event_name == 'pull_request' }}
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Detect changed files
         if: ${{ github.event_name == 'pull_request' }}
@@ -151,7 +154,7 @@ jobs:
     if: ${{ needs.preconditions.outputs.docs_only != 'true' }}
     steps:
       - name: checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Tune Runner VM
         uses: ./.github/actions/tune-runner-vm
@@ -165,7 +168,7 @@ jobs:
           limit-access-to-actor: true
 
       - name: Cache local Maven repository
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         timeout-minutes: 5
         with:
           path: |
@@ -176,9 +179,9 @@ jobs:
             ${{ runner.os }}-m2-dependencies-core-modules-
 
       - name: Set up JDK ${{ env.CI_JDK_MAJOR_VERSION }}
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
-          distribution: 'temurin'
+          distribution: ${{ env.JDK_DISTRIBUTION }}
           java-version: ${{ env.CI_JDK_MAJOR_VERSION }}
 
       - name: Check source code license headers
@@ -266,7 +269,7 @@ jobs:
 
     steps:
       - name: checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Tune Runner VM
         uses: ./.github/actions/tune-runner-vm
@@ -284,7 +287,7 @@ jobs:
           limit-access-to-actor: true
 
       - name: Cache Maven dependencies
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         timeout-minutes: 5
         with:
           path: |
@@ -295,9 +298,9 @@ jobs:
             ${{ runner.os }}-m2-dependencies-core-modules-
 
       - name: Set up JDK ${{ matrix.jdk || env.CI_JDK_MAJOR_VERSION }}
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
-          distribution: 'temurin'
+          distribution: ${{ env.JDK_DISTRIBUTION }}
           java-version: ${{ matrix.jdk || env.CI_JDK_MAJOR_VERSION }}
 
       - name: Install gh-actions-artifact-client.js
@@ -386,7 +389,7 @@ jobs:
 
     steps:
       - name: checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Tune Runner VM
         uses: ./.github/actions/tune-runner-vm
@@ -400,7 +403,7 @@ jobs:
           limit-access-to-actor: true
 
       - name: Cache Maven dependencies
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         timeout-minutes: 5
         with:
           path: |
@@ -411,9 +414,9 @@ jobs:
             ${{ runner.os }}-m2-dependencies-core-modules-
 
       - name: Set up JDK ${{ matrix.jdk || env.CI_JDK_MAJOR_VERSION }}
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
-          distribution: 'temurin'
+          distribution: ${{ env.JDK_DISTRIBUTION }}
           java-version: ${{ matrix.jdk || env.CI_JDK_MAJOR_VERSION }}
 
       - name: Install gh-actions-artifact-client.js
@@ -468,7 +471,7 @@ jobs:
       IMAGE_JDK_MAJOR_VERSION: ${{ needs.preconditions.outputs.jdk_major_version }}
     steps:
       - name: checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Tune Runner VM
         uses: ./.github/actions/tune-runner-vm
@@ -482,7 +485,7 @@ jobs:
           limit-access-to-actor: true
 
       - name: Cache Maven dependencies
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         timeout-minutes: 5
         with:
           path: |
@@ -493,9 +496,9 @@ jobs:
             ${{ runner.os }}-m2-dependencies-core-modules-
 
       - name: Set up JDK ${{ env.CI_JDK_MAJOR_VERSION }}
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
-          distribution: 'temurin'
+          distribution: ${{ env.JDK_DISTRIBUTION }}
           java-version: ${{ env.CI_JDK_MAJOR_VERSION }}
 
       - name: Install gh-actions-artifact-client.js
@@ -506,15 +509,10 @@ jobs:
           cd $HOME
           $GITHUB_WORKSPACE/build/pulsar_ci_tool.sh restore_tar_from_github_actions_artifacts pulsar-maven-repository-binaries
 
-      - name: Pick ubuntu mirror for the docker image build
-        run: |
-          # pick the closest ubuntu mirror and set it to UBUNTU_MIRROR environment variable
-          $GITHUB_WORKSPACE/build/pulsar_ci_tool.sh pick_ubuntu_mirror
-
       - name: Build java-test-image docker image
         run: |
           # build docker image
-          mvn -B -am -pl tests/docker-images/java-test-image install -Pcore-modules,-main,integrationTests,docker \
+          mvn -B -am -pl docker/pulsar,tests/docker-images/java-test-image install -Pcore-modules,-main,integrationTests,docker \
           -Dmaven.test.skip=true -Ddocker.squash=true -DskipSourceReleaseAssembly=true \
           -Dspotbugs.skip=true  -Dlicense.skip=true -Dcheckstyle.skip=true -Drat.skip=true
 
@@ -589,9 +587,12 @@ jobs:
           - name: Transaction
             group: TRANSACTION
 
+          - name: Metrics
+            group: METRICS
+
     steps:
       - name: checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Tune Runner VM
         uses: ./.github/actions/tune-runner-vm
@@ -605,7 +606,7 @@ jobs:
           limit-access-to-actor: true
 
       - name: Cache Maven dependencies
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         timeout-minutes: 5
         with:
           path: |
@@ -616,9 +617,9 @@ jobs:
             ${{ runner.os }}-m2-dependencies-core-modules-
 
       - name: Set up JDK ${{ env.CI_JDK_MAJOR_VERSION }}
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
-          distribution: 'temurin'
+          distribution: ${{ env.JDK_DISTRIBUTION }}
           java-version: ${{ env.CI_JDK_MAJOR_VERSION }}
 
       - name: Install gh-actions-artifact-client.js
@@ -640,10 +641,10 @@ jobs:
           ${{ matrix.setup }}
 
       - name: Set up runtime JDK ${{ matrix.runtime_jdk }}
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         if: ${{ matrix.runtime_jdk }}
         with:
-          distribution: 'temurin'
+          distribution: ${{ env.JDK_DISTRIBUTION }}
           java-version: ${{ matrix.runtime_jdk }}
 
       - name: Run integration test group '${{ matrix.group }}'
@@ -708,7 +709,7 @@ jobs:
       CI_JDK_MAJOR_VERSION: ${{ needs.preconditions.outputs.jdk_major_version }}
     steps:
       - name: checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Tune Runner VM
         uses: ./.github/actions/tune-runner-vm
@@ -722,7 +723,7 @@ jobs:
           limit-access-to-actor: true
 
       - name: Cache Maven dependencies
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         timeout-minutes: 5
         with:
           path: |
@@ -733,9 +734,9 @@ jobs:
             ${{ runner.os }}-m2-dependencies-core-modules-
 
       - name: Set up JDK ${{ env.CI_JDK_MAJOR_VERSION }}
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
-          distribution: 'temurin'
+          distribution: ${{ env.JDK_DISTRIBUTION }}
           java-version: ${{ env.CI_JDK_MAJOR_VERSION }}
 
       - name: Install gh-actions-artifact-client.js
@@ -795,7 +796,7 @@ jobs:
     if: ${{ needs.preconditions.outputs.docs_only != 'true' }}
     steps:
       - name: checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Tune Runner VM
         uses: ./.github/actions/tune-runner-vm
@@ -819,7 +820,7 @@ jobs:
       IMAGE_JDK_MAJOR_VERSION: ${{ needs.preconditions.outputs.jdk_major_version }}
     steps:
       - name: checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Tune Runner VM
         uses: ./.github/actions/tune-runner-vm
@@ -838,7 +839,7 @@ jobs:
           mode: full
 
       - name: Cache local Maven repository
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         timeout-minutes: 5
         with:
           path: |
@@ -850,9 +851,9 @@ jobs:
             ${{ runner.os }}-m2-dependencies-core-modules-
 
       - name: Set up JDK ${{ env.CI_JDK_MAJOR_VERSION }}
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
-          distribution: 'temurin'
+          distribution: ${{ env.JDK_DISTRIBUTION }}
           java-version: ${{ env.CI_JDK_MAJOR_VERSION }}
 
       - name: Install gh-actions-artifact-client.js
@@ -863,17 +864,11 @@ jobs:
           cd $HOME
           $GITHUB_WORKSPACE/build/pulsar_ci_tool.sh restore_tar_from_github_actions_artifacts pulsar-maven-repository-binaries
 
-      - name: Pick ubuntu mirror for the docker image build
-        run: |
-          # pick the closest ubuntu mirror and set it to UBUNTU_MIRROR environment variable
-          $GITHUB_WORKSPACE/build/pulsar_ci_tool.sh pick_ubuntu_mirror
-
       - name: Build latest-version-image docker image
         run: |
           # build docker image
           # include building of Connectors, Offloaders and server distros
           mvn -B -am -pl distribution/io,distribution/offloaders,distribution/server,distribution/shell,tests/docker-images/latest-version-image install \
-          -DUBUNTU_MIRROR="${UBUNTU_MIRROR}" -DUBUNTU_SECURITY_MIRROR="${UBUNTU_SECURITY_MIRROR}" -DIMAGE_JDK_MAJOR_VERSION="${IMAGE_JDK_MAJOR_VERSION}" \
           -Pmain,docker -Dmaven.test.skip=true -Ddocker.squash=true \
           -Dspotbugs.skip=true -Dlicense.skip=true -Dcheckstyle.skip=true -Drat.skip=true
 
@@ -956,7 +951,7 @@ jobs:
 
     steps:
       - name: checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Tune Runner VM
         uses: ./.github/actions/tune-runner-vm
@@ -974,7 +969,7 @@ jobs:
           limit-access-to-actor: true
 
       - name: Cache local Maven repository
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         timeout-minutes: 5
         with:
           path: |
@@ -986,9 +981,9 @@ jobs:
             ${{ runner.os }}-m2-dependencies-core-modules-
 
       - name: Set up JDK ${{ env.CI_JDK_MAJOR_VERSION }}
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
-          distribution: 'temurin'
+          distribution: ${{ env.JDK_DISTRIBUTION }}
           java-version: ${{ env.CI_JDK_MAJOR_VERSION }}
 
       - name: Install gh-actions-artifact-client.js
@@ -1072,7 +1067,7 @@ jobs:
 
     steps:
       - name: checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Tune Runner VM
         uses: ./.github/actions/tune-runner-vm
@@ -1086,7 +1081,7 @@ jobs:
           limit-access-to-actor: true
 
       - name: Cache local Maven repository
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         timeout-minutes: 5
         with:
           path: |
@@ -1098,9 +1093,9 @@ jobs:
             ${{ runner.os }}-m2-dependencies-core-modules-
 
       - name: Set up JDK ${{ env.CI_JDK_MAJOR_VERSION }}
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
-          distribution: 'temurin'
+          distribution: ${{ env.JDK_DISTRIBUTION }}
           java-version: ${{ env.CI_JDK_MAJOR_VERSION }}
 
       - name: Install gh-actions-artifact-client.js
@@ -1171,7 +1166,7 @@ jobs:
 
     steps:
       - name: checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Tune Runner VM
         uses: ./.github/actions/tune-runner-vm
@@ -1189,7 +1184,7 @@ jobs:
           limit-access-to-actor: true
 
       - name: Cache local Maven repository
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         timeout-minutes: 5
         with:
           path: |
@@ -1201,9 +1196,9 @@ jobs:
             ${{ runner.os }}-m2-dependencies-core-modules-
 
       - name: Set up JDK ${{ env.CI_JDK_MAJOR_VERSION }}
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
-          distribution: 'temurin'
+          distribution: ${{ env.JDK_DISTRIBUTION }}
           java-version: ${{ env.CI_JDK_MAJOR_VERSION }}
 
       - name: Install gh-actions-artifact-client.js
@@ -1280,7 +1275,7 @@ jobs:
     if: ${{ needs.preconditions.outputs.docs_only != 'true' }}
     steps:
       - name: checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Tune Runner VM
         uses: ./.github/actions/tune-runner-vm
@@ -1303,13 +1298,13 @@ jobs:
       CI_JDK_MAJOR_VERSION: ${{ needs.preconditions.outputs.jdk_major_version }}
     steps:
       - name: checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Tune Runner VM
         uses: ./.github/actions/tune-runner-vm
 
       - name: Cache Maven dependencies
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         timeout-minutes: 5
         with:
           path: |
@@ -1320,13 +1315,78 @@ jobs:
             ${{ runner.os }}-m2-dependencies-all-
 
       - name: Set up JDK ${{ env.CI_JDK_MAJOR_VERSION }}
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
-          distribution: 'temurin'
+          distribution: ${{ env.JDK_DISTRIBUTION }}
           java-version: ${{ env.CI_JDK_MAJOR_VERSION }}
 
       - name: build package
         run: mvn -B clean package -DskipTests -T 1C -ntp
+
+  codeql:
+    name: Run CodeQL Analysis
+    runs-on: ubuntu-22.04
+    timeout-minutes: 60
+    needs: ['preconditions', 'unit-tests']
+    if: ${{ (needs.preconditions.outputs.java_non_tests == 'true' || github.event_name != 'pull_request') && ((github.event_name == 'pull_request' && github.base_ref == 'master') || (github.event_name != 'pull_request' && github.ref_name == 'master')) }}
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+    env:
+      GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
+      CI_JDK_MAJOR_VERSION: ${{ needs.preconditions.outputs.jdk_major_version }}
+      CODEQL_LANGUAGE: java-kotlin
+    steps:
+      - name: checkout
+        uses: actions/checkout@v4
+
+      - name: Tune Runner VM
+        uses: ./.github/actions/tune-runner-vm
+
+      - name: Clean Disk when needed
+        if: ${{ matrix.clean_disk }}
+        uses: ./.github/actions/clean-disk
+
+      - name: Setup ssh access to build runner VM
+        # ssh access is enabled for builds in own forks
+        if: ${{ github.repository != 'apache/pulsar' && github.event_name == 'pull_request' }}
+        uses: ./.github/actions/ssh-access
+        continue-on-error: true
+        with:
+          limit-access-to-actor: true
+
+      - name: Cache local Maven repository
+        uses: actions/cache@v4
+        timeout-minutes: 5
+        with:
+          path: |
+            ~/.m2/repository/*/*/*
+            !~/.m2/repository/org/apache/pulsar
+          key: ${{ runner.os }}-m2-dependencies-all-${{ hashFiles('**/pom.xml') }}
+          restore-keys: |
+            ${{ runner.os }}-m2-dependencies-core-modules-${{ hashFiles('**/pom.xml') }}
+            ${{ runner.os }}-m2-dependencies-core-modules-
+
+      - name: Set up JDK ${{ env.CI_JDK_MAJOR_VERSION }}
+        uses: actions/setup-java@v4
+        with:
+          distribution: ${{ env.JDK_DISTRIBUTION }}
+          java-version: ${{ env.CI_JDK_MAJOR_VERSION }}
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: ${{ env.CODEQL_LANGUAGE }}
+
+      - name: Build Java code
+        run: |
+          mvn -B -ntp -Pcore-modules,-main install -DskipTests -Dlicense.skip=true -Drat.skip=true -Dcheckstyle.skip=true
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:${{ env.CODEQL_LANGUAGE }}"
 
   owasp-dep-check:
     name: OWASP dependency check
@@ -1339,7 +1399,7 @@ jobs:
       CI_JDK_MAJOR_VERSION: ${{ needs.preconditions.outputs.jdk_major_version }}
     steps:
       - name: checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Tune Runner VM
         uses: ./.github/actions/tune-runner-vm
@@ -1353,7 +1413,7 @@ jobs:
           limit-access-to-actor: true
 
       - name: Cache Maven dependencies
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         timeout-minutes: 5
         with:
           path: |
@@ -1366,9 +1426,9 @@ jobs:
             ${{ runner.os }}-m2-dependencies-core-modules-
 
       - name: Set up JDK ${{ matrix.jdk || env.CI_JDK_MAJOR_VERSION }}
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
-          distribution: 'temurin'
+          distribution: ${{ env.JDK_DISTRIBUTION }}
           java-version: ${{ matrix.jdk || env.CI_JDK_MAJOR_VERSION }}
 
       - name: Clean Disk
@@ -1426,7 +1486,7 @@ jobs:
   # It cleans up the binaries in the same job in order to not spin up another runner for basically doing nothing.
   pulsar-ci-checks-completed:
     name: "Pulsar CI checks completed"
-    if: ${{ always() && ((github.event_name != 'schedule') || (github.repository == 'apache/pulsar')) }}
+    if: ${{ always() && needs.preconditions.result == 'success' }}
     runs-on: ubuntu-22.04
     timeout-minutes: 10
     needs: [
@@ -1439,7 +1499,8 @@ jobs:
       'unit-tests-upload-coverage',
       'integration-tests-upload-coverage',
       'system-tests-upload-coverage',
-      'owasp-dep-check'
+      'owasp-dep-check',
+      'codeql'
     ]
     steps:
       - name: Check that all required jobs were completed successfully
@@ -1450,6 +1511,7 @@ jobs:
                 && "${{ needs.integration-tests.result }}" == "success" \
                 && "${{ needs.system-tests.result }}" == "success" \
                 && "${{ needs.macos-build.result }}" == "success" \
+                && ( "${{ needs.codeql.result }}" == "success" || "${{ needs.codeql.result }}" == "skipped" ) \
                ) ]]; then
             echo "Required jobs haven't been completed successfully."
             exit 1
@@ -1457,7 +1519,7 @@ jobs:
 
       - name: checkout
         if: ${{ needs.preconditions.outputs.docs_only != 'true' }}
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Tune Runner VM
         if: ${{ needs.preconditions.outputs.docs_only != 'true' }}

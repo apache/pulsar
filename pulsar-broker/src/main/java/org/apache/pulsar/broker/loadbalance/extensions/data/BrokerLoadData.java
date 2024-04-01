@@ -56,8 +56,8 @@ public class BrokerLoadData {
     private double msgThroughputOut;  // bytes/sec
     private double msgRateIn; // messages/sec
     private double msgRateOut; // messages/sec
-    private int bundleCount;
-    private int topics;
+    private long bundleCount;
+    private long topics;
 
     // Load data features computed from the above resources.
     private double maxResourceUsage; // max of resource usages
@@ -115,8 +115,8 @@ public class BrokerLoadData {
                        double msgThroughputOut,
                        double msgRateIn,
                        double msgRateOut,
-                       int bundleCount,
-                       int topics,
+                       long bundleCount,
+                       long topics,
                        ServiceConfiguration conf) {
         updateSystemResourceUsage(usage.cpu, usage.memory, usage.directMemory, usage.bandwidthIn, usage.bandwidthOut);
         this.msgThroughputIn = msgThroughputIn;

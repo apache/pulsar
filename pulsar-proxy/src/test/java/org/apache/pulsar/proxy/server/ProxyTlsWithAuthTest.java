@@ -73,6 +73,7 @@ public class ProxyTlsWithAuthTest extends MockedPulsarServiceBaseTest {
             " \"issuerUrl\":\"" + server.getIssuer() + "\"," +
             " \"audience\": \"an-audience\"," +
             " \"privateKey\":\"file://" + tempFile.getAbsolutePath() + "\"}");
+        proxyConfig.setClusterName(configClusterName);
 
         proxyService = Mockito.spy(new ProxyService(proxyConfig, new AuthenticationService(
             PulsarConfigurationLoader.convertFrom(proxyConfig))));

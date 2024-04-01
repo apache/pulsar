@@ -23,8 +23,6 @@ import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isEmpty;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.pulsar.common.stats.JvmMetrics.getJvmDirectMemoryUsed;
-import com.beust.jcommander.JCommander;
-import com.beust.jcommander.Parameter;
 import com.google.common.annotations.VisibleForTesting;
 import io.prometheus.client.CollectorRegistry;
 import io.prometheus.client.Gauge;
@@ -61,40 +59,45 @@ import org.eclipse.jetty.servlet.ServletHolder;
 import org.eclipse.jetty.websocket.servlet.WebSocketServlet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import picocli.CommandLine;
+import picocli.CommandLine.Command;
+import picocli.CommandLine.Option;
+import picocli.CommandLine.ScopeType;
 
 /**
  * Starts an instance of the Pulsar ProxyService.
  */
+@Command(name = "proxy", showDefaultValues = true, scope = ScopeType.INHERIT)
 public class ProxyServiceStarter {
 
-    @Parameter(names = { "-c", "--config" }, description = "Configuration file path", required = true)
+    @Option(names = { "-c", "--config" }, description = "Configuration file path", required = true)
     private String configFile;
 
     @Deprecated
-    @Parameter(names = { "-zk", "--zookeeper-servers" },
+    @Option(names = { "-zk", "--zookeeper-servers" },
             description = "Local zookeeper connection string, please use --metadata-store instead")
     private String zookeeperServers = "";
-    @Parameter(names = { "-md", "--metadata-store" }, description = "Metadata Store service url. eg: zk:my-zk:2181")
+    @Option(names = { "-md", "--metadata-store" }, description = "Metadata Store service url. eg: zk:my-zk:2181")
     private String metadataStoreUrl = "";
 
     @Deprecated
-    @Parameter(names = { "-gzk", "--global-zookeeper-servers" },
+    @Option(names = { "-gzk", "--global-zookeeper-servers" },
             description = "Global zookeeper connection string, please use --configuration-metadata-store instead")
     private String globalZookeeperServers = "";
 
     @Deprecated
-    @Parameter(names = { "-cs", "--configuration-store-servers" },
+    @Option(names = { "-cs", "--configuration-store-servers" },
                     description = "Configuration store connection string, "
                             + "please use --configuration-metadata-store instead")
     private String configurationStoreServers = "";
-    @Parameter(names = { "-cms", "--configuration-metadata-store" },
+    @Option(names = { "-cms", "--configuration-metadata-store" },
             description = "The metadata store URL for the configuration data")
     private String configurationMetadataStoreUrl = "";
 
-    @Parameter(names = { "-h", "--help" }, description = "Show this help message")
+    @Option(names = { "-h", "--help" }, description = "Show this help message")
     private boolean help = false;
 
-    @Parameter(names = {"-g", "--generate-docs"}, description = "Generate docs")
+    @Option(names = {"-g", "--generate-docs"}, description = "Generate docs")
     private boolean generateDocs = false;
 
     private ProxyConfiguration config;
@@ -116,23 +119,22 @@ public class ProxyServiceStarter {
                 exception.printStackTrace(System.out);
             });
 
-            JCommander jcommander = new JCommander();
+            CommandLine commander = new CommandLine(this);
             try {
-                jcommander.addObject(this);
-                jcommander.parse(args);
+                commander.parseArgs(args);
                 if (help || isBlank(configFile)) {
-                    jcommander.usage();
+                    commander.usage(commander.getOut());
                     return;
                 }
 
                 if (this.generateDocs) {
                     CmdGenerateDocs cmd = new CmdGenerateDocs("pulsar");
-                    cmd.addCommand("proxy", this);
+                    cmd.addCommand("proxy", commander);
                     cmd.run(null);
                     System.exit(0);
                 }
             } catch (Exception e) {
-                jcommander.usage();
+                commander.getErr().println(e);
                 System.exit(1);
             }
 
@@ -162,11 +164,28 @@ public class ProxyServiceStarter {
             if (isNotBlank(config.getBrokerServiceURL())) {
                 checkArgument(config.getBrokerServiceURL().startsWith("pulsar://"),
                         "brokerServiceURL must start with pulsar://");
+                ensureUrlNotContainsComma("brokerServiceURL", config.getBrokerServiceURL());
             }
-
             if (isNotBlank(config.getBrokerServiceURLTLS())) {
                 checkArgument(config.getBrokerServiceURLTLS().startsWith("pulsar+ssl://"),
                         "brokerServiceURLTLS must start with pulsar+ssl://");
+                ensureUrlNotContainsComma("brokerServiceURLTLS", config.getBrokerServiceURLTLS());
+            }
+
+            if (isNotBlank(config.getBrokerWebServiceURL())) {
+                ensureUrlNotContainsComma("brokerWebServiceURL", config.getBrokerWebServiceURL());
+            }
+            if (isNotBlank(config.getBrokerWebServiceURLTLS())) {
+                ensureUrlNotContainsComma("brokerWebServiceURLTLS", config.getBrokerWebServiceURLTLS());
+            }
+
+            if (isNotBlank(config.getFunctionWorkerWebServiceURL())) {
+                ensureUrlNotContainsComma("functionWorkerWebServiceURLTLS",
+                        config.getFunctionWorkerWebServiceURL());
+            }
+            if (isNotBlank(config.getFunctionWorkerWebServiceURLTLS())) {
+                ensureUrlNotContainsComma("functionWorkerWebServiceURLTLS",
+                        config.getFunctionWorkerWebServiceURLTLS());
             }
 
             if ((isBlank(config.getBrokerServiceURL()) && isBlank(config.getBrokerServiceURLTLS()))
@@ -185,6 +204,11 @@ public class ProxyServiceStarter {
             log.error("Failed to start pulsar proxy service. error msg " + e.getMessage(), e);
             throw new PulsarServerException(e);
         }
+    }
+
+    private void ensureUrlNotContainsComma(String paramName, String paramValue) {
+        checkArgument(!paramValue.contains(","), paramName + " does not support multi urls yet,"
+                + " it should point to the discovery service provider.");
     }
 
     public static void main(String[] args) throws Exception {

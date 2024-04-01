@@ -19,6 +19,8 @@
 package org.apache.pulsar.broker.service.persistent;
 
 import static org.apache.bookkeeper.mledger.impl.ManagedCursorImpl.CURSOR_INTERNAL_PROPERTY_PREFIX;
+import static org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient.Metric;
+import static org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient.parseMetrics;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
@@ -41,7 +43,6 @@ import org.apache.commons.lang3.mutable.MutableInt;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.delayed.BucketDelayedDeliveryTrackerFactory;
 import org.apache.pulsar.broker.service.Dispatcher;
-import org.apache.pulsar.broker.stats.PrometheusMetricsTest;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsGenerator;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.MessageId;
@@ -219,9 +220,9 @@ public class BucketDelayedDeliveryTest extends DelayedDeliveryTest {
         ByteArrayOutputStream output = new ByteArrayOutputStream();
         PrometheusMetricsGenerator.generate(pulsar, true, true, true, output);
         String metricsStr = output.toString(StandardCharsets.UTF_8);
-        Multimap<String, PrometheusMetricsTest.Metric> metricsMap = PrometheusMetricsTest.parseMetrics(metricsStr);
+        Multimap<String, Metric> metricsMap = parseMetrics(metricsStr);
 
-        List<PrometheusMetricsTest.Metric> bucketsMetrics =
+        List<Metric> bucketsMetrics =
                 metricsMap.get("pulsar_delayed_message_index_bucket_total").stream()
                         .filter(metric -> metric.tags.get("topic").equals(topic)).toList();
         MutableInt bucketsSum = new MutableInt();
@@ -230,12 +231,12 @@ public class BucketDelayedDeliveryTest extends DelayedDeliveryTest {
             bucketsSum.add(metric.value);
         });
         assertEquals(6, bucketsSum.intValue());
-        Optional<PrometheusMetricsTest.Metric> bucketsTopicMetric =
+        Optional<Metric> bucketsTopicMetric =
                 bucketsMetrics.stream().filter(metric -> !metric.tags.containsKey("subscription")).findFirst();
         assertTrue(bucketsTopicMetric.isPresent());
         assertEquals(bucketsSum.intValue(), bucketsTopicMetric.get().value);
 
-        List<PrometheusMetricsTest.Metric> loadedIndexMetrics =
+        List<Metric> loadedIndexMetrics =
                 metricsMap.get("pulsar_delayed_message_index_loaded").stream()
                         .filter(metric -> metric.tags.get("topic").equals(topic)).toList();
         MutableInt loadedIndexSum = new MutableInt();
@@ -244,12 +245,12 @@ public class BucketDelayedDeliveryTest extends DelayedDeliveryTest {
             loadedIndexSum.add(metric.value);
         }).count();
         assertEquals(2, count);
-        Optional<PrometheusMetricsTest.Metric> loadedIndexTopicMetrics =
+        Optional<Metric> loadedIndexTopicMetrics =
                 bucketsMetrics.stream().filter(metric -> !metric.tags.containsKey("subscription")).findFirst();
         assertTrue(loadedIndexTopicMetrics.isPresent());
         assertEquals(loadedIndexSum.intValue(), loadedIndexTopicMetrics.get().value);
 
-        List<PrometheusMetricsTest.Metric> snapshotSizeBytesMetrics =
+        List<Metric> snapshotSizeBytesMetrics =
                 metricsMap.get("pulsar_delayed_message_index_bucket_snapshot_size_bytes").stream()
                         .filter(metric -> metric.tags.get("topic").equals(topic)).toList();
         MutableInt snapshotSizeBytesSum = new MutableInt();
@@ -259,12 +260,12 @@ public class BucketDelayedDeliveryTest extends DelayedDeliveryTest {
                     snapshotSizeBytesSum.add(metric.value);
                 }).count();
         assertEquals(2, count);
-        Optional<PrometheusMetricsTest.Metric> snapshotSizeBytesTopicMetrics =
+        Optional<Metric> snapshotSizeBytesTopicMetrics =
                 snapshotSizeBytesMetrics.stream().filter(metric -> !metric.tags.containsKey("subscription")).findFirst();
         assertTrue(snapshotSizeBytesTopicMetrics.isPresent());
         assertEquals(snapshotSizeBytesSum.intValue(), snapshotSizeBytesTopicMetrics.get().value);
 
-        List<PrometheusMetricsTest.Metric> opCountMetrics =
+        List<Metric> opCountMetrics =
                 metricsMap.get("pulsar_delayed_message_index_bucket_op_count").stream()
                         .filter(metric -> metric.tags.get("topic").equals(topic)).toList();
         MutableInt opCountMetricsSum = new MutableInt();
@@ -276,14 +277,14 @@ public class BucketDelayedDeliveryTest extends DelayedDeliveryTest {
                     opCountMetricsSum.add(metric.value);
                 }).count();
         assertEquals(2, count);
-        Optional<PrometheusMetricsTest.Metric> opCountTopicMetrics =
+        Optional<Metric> opCountTopicMetrics =
                 opCountMetrics.stream()
                         .filter(metric -> metric.tags.get("state").equals("succeed") && metric.tags.get("type")
                                 .equals("create") && !metric.tags.containsKey("subscription")).findFirst();
         assertTrue(opCountTopicMetrics.isPresent());
         assertEquals(opCountMetricsSum.intValue(), opCountTopicMetrics.get().value);
 
-        List<PrometheusMetricsTest.Metric> opLatencyMetrics =
+        List<Metric> opLatencyMetrics =
                 metricsMap.get("pulsar_delayed_message_index_bucket_op_latency_ms").stream()
                         .filter(metric -> metric.tags.get("topic").equals(topic)).toList();
         MutableInt opLatencyMetricsSum = new MutableInt();
@@ -295,7 +296,7 @@ public class BucketDelayedDeliveryTest extends DelayedDeliveryTest {
                     opLatencyMetricsSum.add(metric.value);
                 }).count();
         assertTrue(count >= 2);
-        Optional<PrometheusMetricsTest.Metric> opLatencyTopicMetrics =
+        Optional<Metric> opLatencyTopicMetrics =
                 opCountMetrics.stream()
                         .filter(metric -> metric.tags.get("type").equals("create")
                                 && !metric.tags.containsKey("subscription")).findFirst();
@@ -304,9 +305,9 @@ public class BucketDelayedDeliveryTest extends DelayedDeliveryTest {
 
         ByteArrayOutputStream namespaceOutput = new ByteArrayOutputStream();
         PrometheusMetricsGenerator.generate(pulsar, false, true, true, namespaceOutput);
-        Multimap<String, PrometheusMetricsTest.Metric> namespaceMetricsMap = PrometheusMetricsTest.parseMetrics(namespaceOutput.toString(StandardCharsets.UTF_8));
+        Multimap<String, Metric> namespaceMetricsMap = parseMetrics(namespaceOutput.toString(StandardCharsets.UTF_8));
 
-        Optional<PrometheusMetricsTest.Metric> namespaceMetric =
+        Optional<Metric> namespaceMetric =
                 namespaceMetricsMap.get("pulsar_delayed_message_index_bucket_total").stream().findFirst();
         assertTrue(namespaceMetric.isPresent());
         assertEquals(6, namespaceMetric.get().value);

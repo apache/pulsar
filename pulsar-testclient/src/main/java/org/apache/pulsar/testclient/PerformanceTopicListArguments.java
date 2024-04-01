@@ -18,10 +18,11 @@
  */
 package org.apache.pulsar.testclient;
 
-import com.beust.jcommander.Parameter;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.pulsar.common.naming.TopicName;
+import picocli.CommandLine.Option;
+import picocli.CommandLine.Parameters;
 
 /**
  * PerformanceTopicListArguments provides common topic list arguments which are used
@@ -29,12 +30,13 @@ import org.apache.pulsar.common.naming.TopicName;
  */
 public abstract class PerformanceTopicListArguments extends PerformanceBaseArguments {
 
-    @Parameter(description = "persistent://prop/ns/my-topic", required = true)
+    @Parameters(description = "persistent://prop/ns/my-topic", arity = "1")
     public List<String> topics;
 
-    @Parameter(names = { "-t", "--num-topics", "--num-topic" }, description = "Number of topics.  Must match"
+    @Option(names = { "-t", "--num-topics", "--num-topic" }, description = "Number of topics.  Must match"
             + "the given number of topic arguments.",
-            validateWith = PositiveNumberParameterValidator.class)
+            converter = PositiveNumberParameterConvert.class
+    )
     public int numTopics = 1;
 
     @Override

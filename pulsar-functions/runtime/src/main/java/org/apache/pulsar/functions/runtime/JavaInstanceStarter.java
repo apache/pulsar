@@ -20,9 +20,6 @@ package org.apache.pulsar.functions.runtime;
 
 import static org.apache.pulsar.functions.utils.FunctionCommon.getSinkType;
 import static org.apache.pulsar.functions.utils.FunctionCommon.getSourceType;
-import com.beust.jcommander.JCommander;
-import com.beust.jcommander.Parameter;
-import com.beust.jcommander.converters.StringConverter;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import com.google.protobuf.Empty;
@@ -38,6 +35,9 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
+import net.bytebuddy.description.type.TypeDefinition;
+import net.bytebuddy.dynamic.ClassFileLocator;
+import net.bytebuddy.pool.TypePool;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.common.functions.WindowConfig;
 import org.apache.pulsar.common.nar.NarClassLoader;
@@ -56,104 +56,104 @@ import org.apache.pulsar.functions.secretsprovider.SecretsProvider;
 import org.apache.pulsar.functions.utils.FunctionCommon;
 import org.apache.pulsar.functions.utils.functioncache.FunctionCacheManager;
 import org.apache.pulsar.functions.utils.functioncache.FunctionCacheManagerImpl;
+import picocli.CommandLine;
+import picocli.CommandLine.Option;
 
 
 @Slf4j
 public class JavaInstanceStarter implements AutoCloseable {
-    @Parameter(names = "--function_details", description = "Function details json\n", required = true)
+    @Option(names = "--function_details", description = "Function details json\n", required = true)
     public String functionDetailsJsonString;
-    @Parameter(
+    @Option(
             names = "--jar",
-            description = "Path to Jar\n",
-            listConverter = StringConverter.class)
+            description = "Path to Jar\n")
     public String jarFile;
 
-    @Parameter(
+    @Option(
             names = "--transform_function_jar",
-            description = "Path to Transform Function Jar\n",
-            listConverter = StringConverter.class)
+            description = "Path to Transform Function Jar\n")
     public String transformFunctionJarFile;
 
-    @Parameter(names = "--instance_id", description = "Instance Id\n", required = true)
+    @Option(names = "--instance_id", description = "Instance Id\n", required = true)
     public int instanceId;
 
-    @Parameter(names = "--function_id", description = "Function Id\n", required = true)
+    @Option(names = "--function_id", description = "Function Id\n", required = true)
     public String functionId;
 
-    @Parameter(names = "--function_version", description = "Function Version\n", required = true)
+    @Option(names = "--function_version", description = "Function Version\n", required = true)
     public String functionVersion;
 
-    @Parameter(names = "--pulsar_serviceurl", description = "Pulsar Service Url\n", required = true)
+    @Option(names = "--pulsar_serviceurl", description = "Pulsar Service Url\n", required = true)
     public String pulsarServiceUrl;
 
-    @Parameter(names = "--transform_function_id", description = "Transform Function Id\n")
+    @Option(names = "--transform_function_id", description = "Transform Function Id\n")
     public String transformFunctionId;
 
-    @Parameter(names = "--client_auth_plugin", description = "Client auth plugin name\n")
+    @Option(names = "--client_auth_plugin", description = "Client auth plugin name\n")
     public String clientAuthenticationPlugin;
 
-    @Parameter(names = "--client_auth_params", description = "Client auth param\n")
+    @Option(names = "--client_auth_params", description = "Client auth param\n")
     public String clientAuthenticationParameters;
 
-    @Parameter(names = "--use_tls", description = "Use tls connection\n")
+    @Option(names = "--use_tls", description = "Use tls connection\n")
     public String useTls = Boolean.FALSE.toString();
 
-    @Parameter(names = "--tls_allow_insecure", description = "Allow insecure tls connection\n")
+    @Option(names = "--tls_allow_insecure", description = "Allow insecure tls connection\n")
     public String tlsAllowInsecureConnection = Boolean.FALSE.toString();
 
-    @Parameter(names = "--hostname_verification_enabled", description = "Enable hostname verification")
+    @Option(names = "--hostname_verification_enabled", description = "Enable hostname verification")
     public String tlsHostNameVerificationEnabled = Boolean.FALSE.toString();
 
-    @Parameter(names = "--tls_trust_cert_path", description = "tls trust cert file path")
+    @Option(names = "--tls_trust_cert_path", description = "tls trust cert file path")
     public String tlsTrustCertFilePath;
 
-    @Parameter(names = "--state_storage_impl_class", description = "State Storage Service "
+    @Option(names = "--state_storage_impl_class", description = "State Storage Service "
             + "Implementation class\n", required = false)
     public String stateStorageImplClass;
 
-    @Parameter(names = "--state_storage_serviceurl", description = "State Storage Service Url\n", required = false)
+    @Option(names = "--state_storage_serviceurl", description = "State Storage Service Url\n", required = false)
     public String stateStorageServiceUrl;
 
-    @Parameter(names = "--port", description = "Port to listen on\n", required = true)
+    @Option(names = "--port", description = "Port to listen on\n", required = true)
     public int port;
 
-    @Parameter(names = "--metrics_port", description = "Port metrics will be exposed on\n", required = true)
+    @Option(names = "--metrics_port", description = "Port metrics will be exposed on\n", required = true)
     public int metricsPort;
 
-    @Parameter(names = "--max_buffered_tuples", description = "Maximum number of tuples to buffer\n", required = true)
+    @Option(names = "--max_buffered_tuples", description = "Maximum number of tuples to buffer\n", required = true)
     public int maxBufferedTuples;
 
-    @Parameter(names = "--expected_healthcheck_interval", description = "Expected interval in "
+    @Option(names = "--expected_healthcheck_interval", description = "Expected interval in "
             + "seconds between healtchecks", required = true)
     public int expectedHealthCheckInterval;
 
-    @Parameter(names = "--secrets_provider", description = "The classname of the secrets provider", required = false)
+    @Option(names = "--secrets_provider", description = "The classname of the secrets provider", required = false)
     public String secretsProviderClassName;
 
-    @Parameter(names = "--secrets_provider_config", description = "The config that needs to be "
+    @Option(names = "--secrets_provider_config", description = "The config that needs to be "
             + "passed to secrets provider", required = false)
     public String secretsProviderConfig;
 
-    @Parameter(names = "--cluster_name", description = "The name of the cluster this "
+    @Option(names = "--cluster_name", description = "The name of the cluster this "
             + "instance is running on", required = true)
     public String clusterName;
 
-    @Parameter(names = "--nar_extraction_directory", description = "The directory where "
+    @Option(names = "--nar_extraction_directory", description = "The directory where "
             + "extraction of nar packages happen", required = false)
     public String narExtractionDirectory = NarClassLoader.DEFAULT_NAR_EXTRACTION_DIR;
 
-    @Parameter(names = "--pending_async_requests", description = "Max pending async requests per instance",
+    @Option(names = "--pending_async_requests", description = "Max pending async requests per instance",
             required = false)
     public int maxPendingAsyncRequests = 1000;
 
-    @Parameter(names = "--web_serviceurl", description = "Pulsar Web Service Url", required = false)
+    @Option(names = "--web_serviceurl", description = "Pulsar Web Service Url", required = false)
     public String webServiceUrl = null;
 
-    @Parameter(names = "--expose_pulsaradmin", description = "Whether the pulsar admin client "
+    @Option(names = "--expose_pulsaradmin", description = "Whether the pulsar admin client "
             + "exposed to function context, default is disabled.", required = false)
     public Boolean exposePulsarAdminClientEnabled = false;
 
-    @Parameter(names = "--ignore_unknown_config_fields",
+    @Option(names = "--ignore_unknown_config_fields",
             description = "Whether to ignore unknown properties when deserializing the connector configuration.",
             required = false)
     public Boolean ignoreUnknownConfigFields = false;
@@ -173,9 +173,8 @@ public class JavaInstanceStarter implements AutoCloseable {
             throws Exception {
         Thread.currentThread().setContextClassLoader(functionInstanceClassLoader);
 
-        JCommander jcommander = new JCommander(this);
-        // parse args by JCommander
-        jcommander.parse(args);
+        CommandLine jcommander = new CommandLine(this);
+        jcommander.parseArgs(args);
 
         InstanceConfig instanceConfig = new InstanceConfig();
         instanceConfig.setFunctionId(functionId);
@@ -325,7 +324,8 @@ public class JavaInstanceStarter implements AutoCloseable {
     }
 
     private void inferringMissingTypeClassName(Function.FunctionDetails.Builder functionDetailsBuilder,
-                                               ClassLoader classLoader) throws ClassNotFoundException {
+                                               ClassLoader classLoader) {
+        TypePool typePool = TypePool.Default.of(ClassFileLocator.ForClassLoader.of(classLoader));
         switch (functionDetailsBuilder.getComponentType()) {
             case FUNCTION:
                 if ((functionDetailsBuilder.hasSource()
@@ -344,14 +344,13 @@ public class JavaInstanceStarter implements AutoCloseable {
                                 WindowConfig.class);
                         className = windowConfig.getActualWindowFunctionClassName();
                     }
-
-                    Class<?>[] typeArgs = FunctionCommon.getFunctionTypes(classLoader.loadClass(className),
+                    TypeDefinition[] typeArgs = FunctionCommon.getFunctionTypes(typePool.describe(className).resolve(),
                             isWindowConfigPresent);
                     if (functionDetailsBuilder.hasSource()
                             && functionDetailsBuilder.getSource().getTypeClassName().isEmpty()
                             && typeArgs[0] != null) {
                         Function.SourceSpec.Builder sourceBuilder = functionDetailsBuilder.getSource().toBuilder();
-                        sourceBuilder.setTypeClassName(typeArgs[0].getName());
+                        sourceBuilder.setTypeClassName(typeArgs[0].asErasure().getTypeName());
                         functionDetailsBuilder.setSource(sourceBuilder.build());
                     }
 
@@ -359,7 +358,7 @@ public class JavaInstanceStarter implements AutoCloseable {
                             && functionDetailsBuilder.getSink().getTypeClassName().isEmpty()
                             && typeArgs[1] != null) {
                         Function.SinkSpec.Builder sinkBuilder = functionDetailsBuilder.getSink().toBuilder();
-                        sinkBuilder.setTypeClassName(typeArgs[1].getName());
+                        sinkBuilder.setTypeClassName(typeArgs[1].asErasure().getTypeName());
                         functionDetailsBuilder.setSink(sinkBuilder.build());
                     }
                 }
@@ -368,7 +367,8 @@ public class JavaInstanceStarter implements AutoCloseable {
                 if ((functionDetailsBuilder.hasSink()
                         && functionDetailsBuilder.getSink().getTypeClassName().isEmpty())) {
                     String typeArg =
-                            getSinkType(functionDetailsBuilder.getSink().getClassName(), classLoader).getName();
+                            getSinkType(functionDetailsBuilder.getSink().getClassName(), typePool).asErasure()
+                                    .getTypeName();
 
                     Function.SinkSpec.Builder sinkBuilder =
                             Function.SinkSpec.newBuilder(functionDetailsBuilder.getSink());
@@ -387,7 +387,8 @@ public class JavaInstanceStarter implements AutoCloseable {
                 if ((functionDetailsBuilder.hasSource()
                         && functionDetailsBuilder.getSource().getTypeClassName().isEmpty())) {
                     String typeArg =
-                            getSourceType(functionDetailsBuilder.getSource().getClassName(), classLoader).getName();
+                            getSourceType(functionDetailsBuilder.getSource().getClassName(), typePool).asErasure()
+                                    .getTypeName();
 
                     Function.SourceSpec.Builder sourceBuilder =
                             Function.SourceSpec.newBuilder(functionDetailsBuilder.getSource());

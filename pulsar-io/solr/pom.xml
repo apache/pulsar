@@ -29,7 +29,7 @@
     </parent>
 
     <properties>
-        <solr.version>8.11.1</solr.version>
+        <solr.version>8.11.3</solr.version>
     </properties>
 
     <artifactId>pulsar-io-solr</artifactId>
