@@ -106,7 +106,7 @@ public class SchemasResourceBase extends AdminResource {
     }
 
     public CompletableFuture<SchemaVersion> deleteSchemaAsync(boolean authoritative, boolean force) {
-        return validateDestinationAndAdminOperationAsync(authoritative)
+        return validateOwnershipAndOperationAsync(authoritative, TopicOperation.PRODUCE)
                 .thenCompose(__ -> {
                     String schemaId = getSchemaId();
                     return pulsar().getSchemaRegistryService()
@@ -143,7 +143,7 @@ public class SchemasResourceBase extends AdminResource {
 
     public CompletableFuture<Pair<Boolean, SchemaCompatibilityStrategy>> testCompatibilityAsync(
             PostSchemaPayload payload, boolean authoritative) {
-        return validateDestinationAndAdminOperationAsync(authoritative)
+        return validateOwnershipAndOperationAsync(authoritative, TopicOperation.LOOKUP)
                 .thenCompose(__ -> getSchemaCompatibilityStrategyAsync())
                 .thenCompose(strategy -> {
                     String schemaId = getSchemaId();
