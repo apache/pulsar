@@ -1735,6 +1735,7 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         partitionedTopicMetadata = metaCaptor.getValue();
         Assert.assertEquals(partitionedTopicMetadata.partitions, 4);
 
+        // test for configuration maxNumPartitionsPerPartitionedTopic
         conf.setMaxNumPartitionsPerPartitionedTopic(4);
         response = mock(AsyncResponse.class);
         throwableCaptor = ArgumentCaptor.forClass(Throwable.class);
