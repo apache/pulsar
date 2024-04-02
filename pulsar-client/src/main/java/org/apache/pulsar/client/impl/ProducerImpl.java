@@ -419,7 +419,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                         stats.incrementNumAcksReceived(latencyNanos);
                     }
                 } finally {
-                    payloadInCurrentMsg.release();
+                    ReferenceCountUtil.safeRelease(payloadInCurrentMsg);
                 }
 
                 while (nextCallback != null) {
