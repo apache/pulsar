@@ -424,8 +424,8 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         }
 
         private void onSendComplete(Exception e, SendCallback sendCallback, MessageImpl<?> msg) {
-            long createdAt = (sendCallback instanceof ProducerImpl.DefaultSendMessageCallback) ?
-                    ((DefaultSendMessageCallback) sendCallback).createdAt : this.createdAt;
+            long createdAt = (sendCallback instanceof ProducerImpl.DefaultSendMessageCallback)
+                    ? ((DefaultSendMessageCallback) sendCallback).createdAt : this.createdAt;
             long latencyNanos = System.nanoTime() - createdAt;
             pendingMessagesUpDownCounter.decrement();
             pendingBytesUpDownCounter.subtract(msgSize);
