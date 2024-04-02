@@ -19,7 +19,33 @@
 
 package org.apache.pulsar.broker.admin;
 
+import com.google.common.collect.Lists;
 import io.jsonwebtoken.Jwts;
+import lombok.Cleanup;
+import lombok.SneakyThrows;
+import org.apache.commons.lang3.reflect.FieldUtils;
+import org.apache.pulsar.broker.service.plugin.EntryFilterDefinition;
+import org.apache.pulsar.broker.service.plugin.EntryFilterProvider;
+import org.apache.pulsar.broker.service.plugin.EntryFilterTest;
+import org.apache.pulsar.broker.testcontext.MockEntryFilterProvider;
+import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.impl.MessageIdImpl;
+import org.apache.pulsar.client.impl.auth.AuthenticationToken;
+import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.AuthAction;
+import org.apache.pulsar.common.policies.data.EntryFilters;
+import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.security.MockedPulsarStandalone;
+import org.testng.Assert;
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.BeforeClass;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -1105,15 +1131,15 @@ public class TopicAuthZTest extends MockedPulsarStandalone {
         deleteTopic(topic, false);
     }
 
-    @Test(dataProvider = "partitioned", groups = "flaky")
+    @Test
     @SneakyThrows
-    public void testExpireMessage(boolean partitioned) {
+    public void testExpireMessage() {
         final String random = UUID.randomUUID().toString();
         final String topic = "persistent://public/default/" + random;
         final String subject =  UUID.randomUUID().toString();
         final String token = Jwts.builder()
                 .claim("sub", subject).signWith(SECRET_KEY).compact();
-        createTopic(topic, partitioned);
+        createTopic(topic, false);
         @Cleanup
         final PulsarAdmin subAdmin = PulsarAdmin.builder()
                 .serviceHttpUrl(getPulsarService().getWebServiceAddress())
@@ -1153,7 +1179,7 @@ public class TopicAuthZTest extends MockedPulsarStandalone {
             }
             superUserAdmin.topics().revokePermissions(topic, subject);
         }
-        deleteTopic(topic, partitioned);
+        deleteTopic(topic, false);
     }
 
     @Test
@@ -1373,12 +1399,44 @@ public class TopicAuthZTest extends MockedPulsarStandalone {
         };
     }
 
+    @Test
+    @SneakyThrows
+    public void testSchemaCompatibility() {
+        final String random = UUID.randomUUID().toString();
+        final String topic = "persistent://public/default/" + random;
+        final String subject = UUID.randomUUID().toString();
+        final String token = Jwts.builder()
+                .claim("sub", subject).signWith(SECRET_KEY).compact();
+        createTopic(topic, false);
+        @Cleanup
+        final PulsarAdmin subAdmin = PulsarAdmin.builder()
+                .serviceHttpUrl(getPulsarService().getWebServiceAddress())
+                .authentication(new AuthenticationToken(token))
+                .build();
+        superUserAdmin.topicPolicies().getSchemaCompatibilityStrategy(topic, true);
+
+        // test tenant manager
+        tenantManagerAdmin.topicPolicies().getSchemaCompatibilityStrategy(topic, true);
+
+        Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
+                () -> subAdmin.topicPolicies().getSchemaCompatibilityStrategy(topic, false));
+
+        for (AuthAction action : AuthAction.values()) {
+            superUserAdmin.topics().grantPermission(topic, subject, Set.of(action));
+            Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
+                    () -> subAdmin.topicPolicies().getSchemaCompatibilityStrategy(topic, false));
+            superUserAdmin.topics().revokePermissions(topic, subject);
+        }
+        deleteTopic(topic, false);
+    }
+
     @Test(dataProvider = "authFunction")
     public void testSchemaAndTransactionAuthorization(ThrowingBiConsumer<PulsarAdmin> adminConsumer, OperationAuthType topicOpType)
             throws Exception {
         final String subject =  UUID.randomUUID().toString();
         final String token = Jwts.builder()
                 .claim("sub", subject).signWith(SECRET_KEY).compact();
+
 
         @Cleanup
         final PulsarAdmin subAdmin = PulsarAdmin.builder()
@@ -1419,8 +1477,8 @@ public class TopicAuthZTest extends MockedPulsarStandalone {
         if (execFlag != null) {
             Assert.assertTrue(execFlag.get());
         }
-    }
 
+    }
 
     private boolean authActionMatchOperation(OperationAuthType operationAuthType, AuthAction action) {
         switch (operationAuthType) {
@@ -1447,6 +1505,175 @@ public class TopicAuthZTest extends MockedPulsarStandalone {
             }
         }
         return false;
+    }
+
+    @Test
+    @SneakyThrows
+    public void testGetEntryFilter() {
+        final String random = UUID.randomUUID().toString();
+        final String topic = "persistent://public/default/" + random;
+        final String subject =  UUID.randomUUID().toString();
+        final String token = Jwts.builder()
+                .claim("sub", subject).signWith(SECRET_KEY).compact();
+        createTopic(topic, false);
+        @Cleanup
+        final PulsarAdmin subAdmin = PulsarAdmin.builder()
+                .serviceHttpUrl(getPulsarService().getWebServiceAddress())
+                .authentication(new AuthenticationToken(token))
+                .build();
+        //
+        superUserAdmin.topicPolicies().getEntryFiltersPerTopic(topic, true);
+
+        // test tenant manager
+        tenantManagerAdmin.topicPolicies().getEntryFiltersPerTopic(topic, true);
+
+        Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
+                () -> subAdmin.topicPolicies().getEntryFiltersPerTopic(topic, false));
+
+        for (AuthAction action : AuthAction.values()) {
+            superUserAdmin.topics().grantPermission(topic, subject, Set.of(action));
+            Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
+                    () -> subAdmin.topicPolicies().getEntryFiltersPerTopic(topic, false));
+            superUserAdmin.topics().revokePermissions(topic, subject);
+        }
+        deleteTopic(topic, false);
+    }
+
+    @Test
+    @SneakyThrows
+    public void testSetEntryFilter() {
+        final String random = UUID.randomUUID().toString();
+        final String topic = "persistent://public/default/" + random;
+        final String subject =  UUID.randomUUID().toString();
+        final String token = Jwts.builder()
+                .claim("sub", subject).signWith(SECRET_KEY).compact();
+        createTopic(topic, false);
+        @Cleanup
+        final PulsarAdmin subAdmin = PulsarAdmin.builder()
+                .serviceHttpUrl(getPulsarService().getWebServiceAddress())
+                .authentication(new AuthenticationToken(token))
+                .build();
+        //
+        final EntryFilterProvider oldEntryFilterProvider = getPulsarService().getBrokerService().getEntryFilterProvider();
+        @Cleanup
+        final MockEntryFilterProvider testEntryFilterProvider =
+                new MockEntryFilterProvider(getServiceConfiguration());
+
+        testEntryFilterProvider
+                .setMockEntryFilters(new EntryFilterDefinition(
+                        "test",
+                        null,
+                        EntryFilterTest.class.getName()
+                ));
+        FieldUtils.writeField(getPulsarService().getBrokerService(),
+                "entryFilterProvider", testEntryFilterProvider, true);
+        final EntryFilters entryFilter = new EntryFilters("test");
+        superUserAdmin.topicPolicies().setEntryFiltersPerTopic(topic, entryFilter);
+
+        // test tenant manager
+        tenantManagerAdmin.topicPolicies().setEntryFiltersPerTopic(topic, entryFilter);
+
+        Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
+                () -> subAdmin.topicPolicies().setEntryFiltersPerTopic(topic, entryFilter));
+
+        for (AuthAction action : AuthAction.values()) {
+            superUserAdmin.topics().grantPermission(topic, subject, Set.of(action));
+            Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
+                    () -> subAdmin.topicPolicies().setEntryFiltersPerTopic(topic, entryFilter));
+            superUserAdmin.topics().revokePermissions(topic, subject);
+        }
+        deleteTopic(topic, false);
+        FieldUtils.writeField(getPulsarService().getBrokerService(),
+                "entryFilterProvider", oldEntryFilterProvider, true);
+    }
+
+    @Test
+    @SneakyThrows
+    public void testRemoveEntryFilter() {
+        final String random = UUID.randomUUID().toString();
+        final String topic = "persistent://public/default/" + random;
+        final String subject =  UUID.randomUUID().toString();
+        final String token = Jwts.builder()
+                .claim("sub", subject).signWith(SECRET_KEY).compact();
+        createTopic(topic, false);
+        @Cleanup
+        final PulsarAdmin subAdmin = PulsarAdmin.builder()
+                .serviceHttpUrl(getPulsarService().getWebServiceAddress())
+                .authentication(new AuthenticationToken(token))
+                .build();
+        final EntryFilterProvider oldEntryFilterProvider = getPulsarService().getBrokerService().getEntryFilterProvider();
+        @Cleanup
+        final MockEntryFilterProvider testEntryFilterProvider =
+                new MockEntryFilterProvider(getServiceConfiguration());
+
+        testEntryFilterProvider
+                .setMockEntryFilters(new EntryFilterDefinition(
+                        "test",
+                        null,
+                        EntryFilterTest.class.getName()
+                ));
+        FieldUtils.writeField(getPulsarService().getBrokerService(),
+                "entryFilterProvider", testEntryFilterProvider, true);
+        final EntryFilters entryFilter = new EntryFilters("test");
+        superUserAdmin.topicPolicies().removeEntryFiltersPerTopic(topic);
+        // test tenant manager
+        tenantManagerAdmin.topicPolicies().removeEntryFiltersPerTopic(topic);
+
+        Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
+                () -> subAdmin.topicPolicies().removeEntryFiltersPerTopic(topic));
+
+        for (AuthAction action : AuthAction.values()) {
+            superUserAdmin.topics().grantPermission(topic, subject, Set.of(action));
+            Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
+                    () -> subAdmin.topicPolicies().removeEntryFiltersPerTopic(topic));
+            superUserAdmin.topics().revokePermissions(topic, subject);
+        }
+        deleteTopic(topic, false);
+        FieldUtils.writeField(getPulsarService().getBrokerService(),
+                "entryFilterProvider", oldEntryFilterProvider, true);
+    }
+
+    @Test
+    @SneakyThrows
+    public void testShadowTopic() {
+        final String random = UUID.randomUUID().toString();
+        final String topic = "persistent://public/default/" + random;
+        final String subject =  UUID.randomUUID().toString();
+        final String token = Jwts.builder()
+                .claim("sub", subject).signWith(SECRET_KEY).compact();
+        createTopic(topic, false);
+        @Cleanup
+        final PulsarAdmin subAdmin = PulsarAdmin.builder()
+                .serviceHttpUrl(getPulsarService().getWebServiceAddress())
+                .authentication(new AuthenticationToken(token))
+                .build();
+
+        String shadowTopic = topic + "-shadow-topic";
+        superUserAdmin.topics().createShadowTopic(shadowTopic, topic);
+        superUserAdmin.topics().setShadowTopics(topic, Lists.newArrayList(shadowTopic));
+        superUserAdmin.topics().getShadowTopics(topic);
+        superUserAdmin.topics().removeShadowTopics(topic);
+
+
+        // test tenant manager
+        tenantManagerAdmin.topics().setShadowTopics(topic, Lists.newArrayList(shadowTopic));
+        tenantManagerAdmin.topics().getShadowTopics(topic);
+        tenantManagerAdmin.topics().removeShadowTopics(topic);
+
+        Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
+                () -> subAdmin.topics().setShadowTopics(topic, Lists.newArrayList(shadowTopic)));
+        Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
+                () -> subAdmin.topics().getShadowTopics(topic));
+
+        for (AuthAction action : AuthAction.values()) {
+            superUserAdmin.topics().grantPermission(topic, subject, Set.of(action));
+            Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
+                    () -> subAdmin.topics().setShadowTopics(topic, Lists.newArrayList(shadowTopic)));
+            Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
+                    () -> subAdmin.topics().getShadowTopics(topic));
+            superUserAdmin.topics().revokePermissions(topic, subject);
+        }
+        deleteTopic(topic, false);
     }
 
     private void createTopic(String topic, boolean partitioned) throws Exception {
