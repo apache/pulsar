@@ -27,7 +27,6 @@ import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertTrue;
-import com.beust.jcommander.ParameterException;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.dataformat.yaml.YAMLMapper;
 import java.io.Closeable;
@@ -460,7 +459,7 @@ public class TestCmdSources {
     
     private void verifyNoSuchFileParameterException(org.apache.pulsar.admin.cli.CmdSources.SourceDetailsCommand command) {
         command.sourceConfigFile = UUID.randomUUID().toString();
-        ParameterException e = Assert.expectThrows(ParameterException.class, command::processArguments);
+        IllegalArgumentException e = Assert.expectThrows(IllegalArgumentException.class, command::processArguments);
         assertTrue(e.getMessage().endsWith("(No such file or directory)"));
     }
     

@@ -22,6 +22,7 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertThrows;
 import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.cli.converters.picocli.TimeUnitToMillisConverter;
+import org.apache.pulsar.cli.converters.picocli.TimeUnitToSecondsConverter;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
@@ -57,8 +58,8 @@ public class TimeConversionTest {
     }
 
     @Test(dataProvider = "successfulRelativeTimeUtilTestCases")
-    public void testSuccessfulTimeUnitToSecondsConverter(String input, long expected) {
-        TimeUnitToSecondsConverter secondsConverter = new TimeUnitToSecondsConverter("optionName");
+    public void testSuccessfulTimeUnitToSecondsConverter(String input, long expected) throws Exception {
+        TimeUnitToSecondsConverter secondsConverter = new TimeUnitToSecondsConverter();
         assertEquals(secondsConverter.convert(input), Long.valueOf(expected));
     }
 

@@ -309,7 +309,6 @@ pulsar-client-cpp/lib/checksum/crc32c_sw.cc
 This projects includes binary packages with the following licenses:
 
 The Apache Software License, Version 2.0
- * JCommander -- jcommander-1.82.jar
  * Picocli
      - picocli-4.7.5.jar
      - picocli-shell-jline3-4.7.5.jar
@@ -347,36 +346,36 @@ The Apache Software License, Version 2.0
     - commons-text-1.10.0.jar
     - commons-compress-1.26.0.jar
  * Netty
-    - netty-buffer-4.1.105.Final.jar
-    - netty-codec-4.1.105.Final.jar
-    - netty-codec-dns-4.1.105.Final.jar
-    - netty-codec-http-4.1.105.Final.jar
-    - netty-codec-socks-4.1.105.Final.jar
-    - netty-codec-haproxy-4.1.105.Final.jar
-    - netty-common-4.1.105.Final.jar
-    - netty-handler-4.1.105.Final.jar
-    - netty-handler-proxy-4.1.105.Final.jar
-    - netty-resolver-4.1.105.Final.jar
-    - netty-resolver-dns-4.1.105.Final.jar
-    - netty-transport-4.1.105.Final.jar
-    - netty-transport-classes-epoll-4.1.105.Final.jar
-    - netty-transport-native-epoll-4.1.105.Final-linux-aarch_64.jar
-    - netty-transport-native-epoll-4.1.105.Final-linux-x86_64.jar
-    - netty-transport-native-unix-common-4.1.105.Final.jar
-    - netty-transport-native-unix-common-4.1.105.Final-linux-x86_64.jar
-    - netty-tcnative-boringssl-static-2.0.61.Final.jar
-    - netty-tcnative-boringssl-static-2.0.61.Final-linux-aarch_64.jar
-    - netty-tcnative-boringssl-static-2.0.61.Final-linux-x86_64.jar
-    - netty-tcnative-boringssl-static-2.0.61.Final-osx-aarch_64.jar
-    - netty-tcnative-boringssl-static-2.0.61.Final-osx-x86_64.jar
-    - netty-tcnative-boringssl-static-2.0.61.Final-windows-x86_64.jar
-    - netty-tcnative-classes-2.0.61.Final.jar
+    - netty-buffer-4.1.108.Final.jar
+    - netty-codec-4.1.108.Final.jar
+    - netty-codec-dns-4.1.108.Final.jar
+    - netty-codec-http-4.1.108.Final.jar
+    - netty-codec-socks-4.1.108.Final.jar
+    - netty-codec-haproxy-4.1.108.Final.jar
+    - netty-common-4.1.108.Final.jar
+    - netty-handler-4.1.108.Final.jar
+    - netty-handler-proxy-4.1.108.Final.jar
+    - netty-resolver-4.1.108.Final.jar
+    - netty-resolver-dns-4.1.108.Final.jar
+    - netty-transport-4.1.108.Final.jar
+    - netty-transport-classes-epoll-4.1.108.Final.jar
+    - netty-transport-native-epoll-4.1.108.Final-linux-aarch_64.jar
+    - netty-transport-native-epoll-4.1.108.Final-linux-x86_64.jar
+    - netty-transport-native-unix-common-4.1.108.Final.jar
+    - netty-transport-native-unix-common-4.1.108.Final-linux-x86_64.jar
+    - netty-tcnative-boringssl-static-2.0.65.Final.jar
+    - netty-tcnative-boringssl-static-2.0.65.Final-linux-aarch_64.jar
+    - netty-tcnative-boringssl-static-2.0.65.Final-linux-x86_64.jar
+    - netty-tcnative-boringssl-static-2.0.65.Final-osx-aarch_64.jar
+    - netty-tcnative-boringssl-static-2.0.65.Final-osx-x86_64.jar
+    - netty-tcnative-boringssl-static-2.0.65.Final-windows-x86_64.jar
+    - netty-tcnative-classes-2.0.65.Final.jar
     - netty-incubator-transport-classes-io_uring-0.0.24.Final.jar
     - netty-incubator-transport-native-io_uring-0.0.24.Final-linux-aarch_64.jar
     - netty-incubator-transport-native-io_uring-0.0.24.Final-linux-x86_64.jar
-    - netty-resolver-dns-classes-macos-4.1.105.Final.jar
-    - netty-resolver-dns-native-macos-4.1.105.Final-osx-aarch_64.jar
-    - netty-resolver-dns-native-macos-4.1.105.Final-osx-x86_64.jar
+    - netty-resolver-dns-classes-macos-4.1.108.Final.jar
+    - netty-resolver-dns-native-macos-4.1.108.Final-osx-aarch_64.jar
+    - netty-resolver-dns-native-macos-4.1.108.Final-osx-x86_64.jar
  * Prometheus client
     - simpleclient-0.16.0.jar
     - simpleclient_log4j2-0.16.0.jar
@@ -384,10 +383,14 @@ The Apache Software License, Version 2.0
     - simpleclient_tracer_otel-0.16.0.jar
     - simpleclient_tracer_otel_agent-0.16.0.jar
  * Log4J
-    - log4j-api-2.18.0.jar
-    - log4j-core-2.18.0.jar
-    - log4j-slf4j-impl-2.18.0.jar
-    - log4j-web-2.18.0.jar
+    - log4j-api-2.23.1.jar
+    - log4j-core-2.23.1.jar
+    - log4j-slf4j-impl-2.23.1.jar
+    - log4j-web-2.23.1.jar
+ * OpenTelemetry
+    - opentelemetry-api-1.34.1.jar
+    - opentelemetry-context-1.34.1.jar
+    - opentelemetry-extension-incubator-1.34.1-alpha.jar
 
  * BookKeeper
     - bookkeeper-common-allocator-4.16.4.jar

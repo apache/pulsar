@@ -36,6 +36,7 @@ import java.util.concurrent.ExecutorService;
 import org.apache.pulsar.client.api.PulsarClientException.LookupException;
 import org.apache.pulsar.client.impl.BinaryProtoLookupService.LookupDataResult;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
+import org.apache.pulsar.client.impl.metrics.InstrumentProvider;
 import org.apache.pulsar.common.naming.TopicName;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -65,6 +66,7 @@ public class BinaryProtoLookupServiceTest {
         doReturn(0).when(clientConfig).getMaxLookupRedirects();
 
         PulsarClientImpl client = mock(PulsarClientImpl.class);
+        doReturn(InstrumentProvider.NOOP).when(client).instrumentProvider();
         doReturn(cnxPool).when(client).getCnxPool();
         doReturn(clientConfig).when(client).getConfiguration();
         doReturn(1L).when(client).newRequestId();

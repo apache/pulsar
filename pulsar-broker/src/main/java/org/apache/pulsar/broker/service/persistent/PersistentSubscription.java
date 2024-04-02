@@ -97,7 +97,7 @@ import org.apache.pulsar.common.util.FutureUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class PersistentSubscription extends AbstractSubscription implements Subscription {
+public class PersistentSubscription extends AbstractSubscription {
     protected final PersistentTopic topic;
     protected final ManagedCursor cursor;
     protected volatile Dispatcher dispatcher;

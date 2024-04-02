@@ -144,7 +144,7 @@ flexible messaging model and an intuitive client API.</description>
     <snappy.version>1.1.10.5</snappy.version> <!-- ZooKeeper server -->
     <dropwizardmetrics.version>4.1.12.1</dropwizardmetrics.version> <!-- ZooKeeper server -->
     <curator.version>5.1.0</curator.version>
-    <netty.version>4.1.105.Final</netty.version>
+    <netty.version>4.1.108.Final</netty.version>
     <netty-iouring.version>0.0.24.Final</netty-iouring.version>
     <jetty.version>9.4.54.v20240208</jetty.version>
     <conscrypt.version>2.5.2</conscrypt.version>
@@ -155,7 +155,7 @@ flexible messaging model and an intuitive client API.</description>
     <rocksdb.version>7.9.2</rocksdb.version>
     <slf4j.version>1.7.32</slf4j.version>
     <commons.collections4.version>4.4</commons.collections4.version>
-    <log4j2.version>2.18.0</log4j2.version>
+    <log4j2.version>2.23.1</log4j2.version>
     <bouncycastle.version>1.75</bouncycastle.version>
     <bouncycastle.bcpkix-fips.version>1.0.6</bouncycastle.bcpkix-fips.version>
     <bouncycastle.bc-fips.version>1.0.2.4</bouncycastle.bc-fips.version>
@@ -213,7 +213,6 @@ flexible messaging model and an intuitive client API.</description>
     <confluent.version>6.2.8</confluent.version>
     <aircompressor.version>0.20</aircompressor.version>
     <asynchttpclient.version>2.12.1</asynchttpclient.version>
-    <jcommander.version>1.82</jcommander.version>
     <commons-lang3.version>3.11</commons-lang3.version>
     <commons-configuration.version>1.10</commons-configuration.version>
     <commons-io.version>2.8.0</commons-io.version>
@@ -691,12 +690,6 @@ flexible messaging model and an intuitive client API.</description>
         <artifactId>netty-incubator-transport-native-io_uring</artifactId>
         <version>${netty-iouring.version}</version>
         <classifier>linux-aarch_64</classifier>
-      </dependency>
-
-      <dependency>
-        <groupId>com.beust</groupId>
-        <artifactId>jcommander</artifactId>
-        <version>${jcommander.version}</version>
       </dependency>
 
       <dependency>

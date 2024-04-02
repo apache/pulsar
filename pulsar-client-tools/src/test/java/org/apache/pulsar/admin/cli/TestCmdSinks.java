@@ -283,7 +283,7 @@ public class TestCmdSinks {
     }
 
     @Test(expectedExceptions = CliCommand.ParameterException.class,
-            expectedExceptionsMessageRegExp = "Sink archive not specfied")
+            expectedExceptionsMessageRegExp = "Sink archive not specified")
     public void testMissingArchive() throws Exception {
         SinkConfig sinkConfig = getSinkConfig();
         sinkConfig.setArchive(null);
@@ -503,7 +503,7 @@ public class TestCmdSinks {
         testCmdSinkConfigFile(testSinkConfig, expectedSinkConfig);
     }
 
-    @Test(expectedExceptions = CliCommand.ParameterException.class, expectedExceptionsMessageRegExp = "Sink archive not specfied")
+    @Test(expectedExceptions = CliCommand.ParameterException.class, expectedExceptionsMessageRegExp = "Sink archive not specified")
     public void testCmdSinkConfigFileMissingJar() throws Exception {
         SinkConfig testSinkConfig = getSinkConfig();
         testSinkConfig.setArchive(null);

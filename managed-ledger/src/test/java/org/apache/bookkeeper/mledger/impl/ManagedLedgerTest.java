@@ -2642,10 +2642,10 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
             managedLedger.addEntry(("entry-" + i).getBytes(Encoding));
         }
 
-        //trigger ledger rollover and wait for the new ledger created
-        Field stateUpdater = ManagedLedgerImpl.class.getDeclaredField("state");
-        stateUpdater.setAccessible(true);
-        stateUpdater.set(managedLedger, ManagedLedgerImpl.State.LedgerOpened);
+        // trigger ledger rollover and wait for the new ledger created
+        Awaitility.await().untilAsserted(() -> {
+           assertEquals("LedgerOpened", WhiteboxImpl.getInternalState(managedLedger, "state").toString());
+        });
         managedLedger.rollCurrentLedgerIfFull();
         Awaitility.await().untilAsserted(() -> {
             assertEquals(managedLedger.getLedgersInfo().size(), 3);
@@ -3932,6 +3932,30 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         config.setInactiveLedgerRollOverTime(inactiveLedgerRollOverTimeMs, TimeUnit.MILLISECONDS);
         ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("rollover_inactive", config);
         ManagedCursor cursor = ledger.openCursor("c1");
+
+        long ledgerId = ledger.currentLedger.getId();
+
+        Thread.sleep(inactiveLedgerRollOverTimeMs * 5);
+        ledger.checkInactiveLedgerAndRollOver();
+
+        Thread.sleep(inactiveLedgerRollOverTimeMs * 5);
+        ledger.checkInactiveLedgerAndRollOver();
+
+        assertEquals(ledger.currentLedger.getId(), ledgerId);
+
+        ledger.close();
+    }
+
+    @Test
+    public void testDontRollOverInactiveLedgersWhenMetadataServiceInvalid() throws Exception {
+        int inactiveLedgerRollOverTimeMs = 5;
+        @Cleanup("shutdown")
+        ManagedLedgerFactoryImpl factory = spy(new ManagedLedgerFactoryImpl(metadataStore, bkc));
+        // mock metadata service invalid
+        when(factory.isMetadataServiceAvailable()).thenReturn(false);
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setInactiveLedgerRollOverTime(inactiveLedgerRollOverTimeMs, TimeUnit.MILLISECONDS);
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("rollover_inactive", config);
 
         long ledgerId = ledger.currentLedger.getId();
 

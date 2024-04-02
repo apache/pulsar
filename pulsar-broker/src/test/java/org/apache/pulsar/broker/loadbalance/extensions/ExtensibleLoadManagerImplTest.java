@@ -67,6 +67,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
@@ -263,6 +264,32 @@ public class ExtensibleLoadManagerImplTest extends ExtensibleLoadManagerImplBase
         Optional<BrokerLookupData> brokerLookupData = primaryLoadManager.assign(Optional.empty(), bundle).get();
         assertTrue(brokerLookupData.isPresent());
     }
+
+    @Test(timeOut = 30 * 1000)
+    public void testUnloadUponTopicLookupFailure() throws Exception {
+        TopicName topicName =
+                TopicName.get("public/test/testUnloadUponTopicLookupFailure");
+        NamespaceBundle bundle = pulsar1.getNamespaceService().getBundle(topicName);
+        primaryLoadManager.assign(Optional.empty(), bundle).get();
+
+        CompletableFuture future1 = new CompletableFuture();
+        CompletableFuture future2 = new CompletableFuture();
+        try {
+            pulsar1.getBrokerService().getTopics().put(topicName.toString(), future1);
+            pulsar2.getBrokerService().getTopics().put(topicName.toString(), future2);
+            CompletableFuture.delayedExecutor(2, TimeUnit.SECONDS).execute(() -> {
+                future1.completeExceptionally(new CompletionException(
+                        new BrokerServiceException.ServiceUnitNotReadyException("Please redo the lookup")));
+                future2.completeExceptionally(new CompletionException(
+                        new BrokerServiceException.ServiceUnitNotReadyException("Please redo the lookup")));
+            });
+            admin.namespaces().unloadNamespaceBundle(bundle.getNamespaceObject().toString(), bundle.getBundleRange());
+        } finally {
+            pulsar1.getBrokerService().getTopics().remove(topicName.toString());
+            pulsar2.getBrokerService().getTopics().remove(topicName.toString());
+        }
+    }
+
 
     @Test(timeOut = 30 * 1000)
     public void testUnloadAdminAPI() throws Exception {

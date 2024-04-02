@@ -16,15 +16,44 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.cli.validators;
 
-import com.beust.jcommander.IValueValidator;
-import com.beust.jcommander.ParameterException;
-import org.apache.pulsar.cli.ValueValidationUtil;
+package org.apache.pulsar.client.impl.metrics;
 
-public class MinNegativeOneValidator implements IValueValidator<Long> {
-    @Override
-    public void validate(String name, Long value) throws ParameterException {
-        ValueValidationUtil.minValueCheck(name, value, -1L);
+public enum Unit {
+    Bytes,
+
+    Messages,
+
+    Seconds,
+
+    Connections,
+
+    Sessions,
+
+    None,
+
+    ;
+
+    public String toString() {
+        switch (this) {
+            case Bytes:
+                return "By";
+
+            case Messages:
+                return "{message}";
+
+            case Seconds:
+                return "s";
+
+            case Connections:
+                return "{connection}";
+
+            case Sessions:
+                return "{session}";
+
+            case None:
+            default:
+                return "1";
+        }
     }
 }
