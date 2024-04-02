@@ -51,6 +51,7 @@ import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.SnapshotSystemTopicInternalStats;
+import org.apache.pulsar.common.policies.data.TopicOperation;
 import org.apache.pulsar.common.policies.data.TransactionBufferInternalStats;
 import org.apache.pulsar.common.policies.data.TransactionBufferStats;
 import org.apache.pulsar.common.policies.data.TransactionCoordinatorInfo;
@@ -498,7 +499,7 @@ public abstract class TransactionsBase extends AdminResource {
     }
 
     protected CompletableFuture<PersistentTopic> getExistingPersistentTopicAsync(boolean authoritative) {
-        return validateTopicOwnershipAsync(topicName, authoritative).thenCompose(__ -> {
+        return validateOwnershipAndOperationAsync(topicName, authoritative, TopicOperation.LOOKUP).thenCompose(__ -> {
             CompletableFuture<Optional<Topic>> topicFuture = pulsar().getBrokerService()
                     .getTopics().get(topicName.toString());
             if (topicFuture == null) {
@@ -570,4 +571,11 @@ public abstract class TransactionsBase extends AdminResource {
                 .thenCompose(__ -> pulsar().getTransactionMetadataStoreService()
                         .endTransaction(new TxnID(mostSigBits, leastSigBits), TxnAction.ABORT_VALUE, false));
     }
+
+    private CompletableFuture<Void> validateOwnershipAndOperationAsync(TopicName topicName, boolean authoritative,
+                                                                       TopicOperation operation) {
+        return validateTopicOwnershipAsync(topicName, authoritative)
+                .thenCompose(__ -> validateTopicOperationAsync(topicName, operation));
+    }
+
 }
