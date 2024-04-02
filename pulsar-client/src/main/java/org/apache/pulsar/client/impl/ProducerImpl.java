@@ -425,10 +425,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 while (nextCallback != null) {
                     SendCallback sendCallback = nextCallback;
                     MessageImpl<?> msg = nextMsg;
-                    // Retain the buffer used by interceptors callback to get message. Buffer will release after
-                    // complete interceptors.
                     ByteBuf payloadInNextMsg = msg.getDataBuffer();
-                    payloadInNextMsg.retain();
                     try {
                         if (e != null) {
                             stats.incrementSendFailed();

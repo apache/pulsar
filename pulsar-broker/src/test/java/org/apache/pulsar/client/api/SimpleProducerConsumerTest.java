@@ -69,6 +69,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
@@ -4695,11 +4696,49 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         admin.topics().delete(topic, false);
     }
 
-    @Test
-    public void testPublishWithCreateMessageManually() throws Exception {
+    @DataProvider(name = "enableBatchSend")
+    public Object[][] enableBatchSend() {
+        return new Object[][]{
+                {true},
+                {false}
+        };
+    }
+
+    @Test(dataProvider = "enableBatchSend")
+    public void testPublishWithCreateMessageManually(boolean enableBatchSend) throws Exception {
+        // Create an interceptor to verify the ref count of Message.payload is as expected.
+        AtomicBoolean payloadWasReleasedWhenIntercept = new AtomicBoolean(false);
+        ProducerInterceptor interceptor = new ProducerInterceptor(){
+
+            @Override
+            public void close() {
+
+            }
+            @Override
+            public Message beforeSend(Producer producer, Message message) {
+                MessageImpl msgImpl = (MessageImpl) message;
+                log.info("payload.refCnf before send: {}", msgImpl.getDataBuffer().refCnt());
+                if (msgImpl.getDataBuffer().refCnt() < 1) {
+                    payloadWasReleasedWhenIntercept.set(true);
+                }
+                return message;
+            }
+
+            @Override
+            public void onSendAcknowledgement(Producer producer, Message message, MessageId msgId,
+                                              Throwable exception) {
+                MessageImpl msgImpl = (MessageImpl) message;
+                log.info("payload.refCnf on send acknowledgement: {}", msgImpl.getDataBuffer().refCnt());
+                if (msgImpl.getDataBuffer().refCnt() < 1) {
+                    payloadWasReleasedWhenIntercept.set(true);
+                }
+            }
+        };
+
         final String topic = BrokerTestUtil.newUniqueName("persistent://my-property/my-ns/tp");
         admin.topics().createNonPartitionedTopic(topic);
-        ProducerBase producerBase = (ProducerBase) pulsarClient.newProducer().topic(topic).enableBatching(false).create();
+        ProducerBase producerBase = (ProducerBase) pulsarClient.newProducer().topic(topic).intercept(interceptor)
+                .enableBatching(enableBatchSend).create();
 
         // Create message payload, refCnf = 1 now.
         ByteBuf payload1 = PulsarByteBufAllocator.DEFAULT.heapBuffer(1);
@@ -4731,6 +4770,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         log.info("payload_2.refCnf 3rd: {}", payload2.refCnt());
         assertEquals(payload1.refCnt(), 1);
         assertEquals(payload2.refCnt(), 1);
+        assertFalse(payloadWasReleasedWhenIntercept.get());
 
         // cleanup.
         payload1.release();
