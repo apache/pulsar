@@ -404,6 +404,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 pendingMessagesUpDownCounter.decrement();
                 pendingBytesUpDownCounter.subtract(msgSize);
 
+                ByteBuf payloadInCurrentMsg = interceptorMessage.getDataBuffer();
                 try {
                     if (e != null) {
                         latencyHistogram.recordFailure(latencyNanos);
@@ -418,7 +419,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                         stats.incrementNumAcksReceived(latencyNanos);
                     }
                 } finally {
-                    interceptorMessage.getDataBuffer().release();
+                    payloadInCurrentMsg.release();
                 }
 
                 while (nextCallback != null) {
@@ -426,8 +427,9 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                     MessageImpl<?> msg = nextMsg;
                     // Retain the buffer used by interceptors callback to get message. Buffer will release after
                     // complete interceptors.
+                    ByteBuf payloadInNextMsg = msg.getDataBuffer();
+                    payloadInNextMsg.retain();
                     try {
-                        msg.getDataBuffer().retain();
                         if (e != null) {
                             stats.incrementSendFailed();
                             onSendAcknowledgement(msg, null, e);
@@ -440,7 +442,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                         nextMsg = nextCallback.getNextMessage();
                         nextCallback = nextCallback.getNextSendCallback();
                     } finally {
-                        msg.getDataBuffer().release();
+                        ReferenceCountUtil.safeRelease(payloadInNextMsg);
                     }
                 }
             }

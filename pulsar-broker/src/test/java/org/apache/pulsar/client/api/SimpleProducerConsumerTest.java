@@ -99,11 +99,13 @@ import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.client.impl.MultiTopicsConsumerImpl;
 import org.apache.pulsar.client.impl.PartitionedProducerImpl;
+import org.apache.pulsar.client.impl.ProducerBase;
 import org.apache.pulsar.client.impl.ProducerImpl;
 import org.apache.pulsar.client.impl.TopicMessageImpl;
 import org.apache.pulsar.client.impl.TypedMessageBuilderImpl;
 import org.apache.pulsar.client.impl.crypto.MessageCryptoBc;
 import org.apache.pulsar.client.impl.schema.writer.AvroWriter;
+import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.api.EncryptionContext;
 import org.apache.pulsar.common.api.EncryptionContext.EncryptionKey;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
@@ -4690,6 +4692,50 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
         producer.close();
         consumer.close();
+        admin.topics().delete(topic, false);
+    }
+
+    @Test
+    public void testPublishWithCreateMessageManually() throws Exception {
+        final String topic = BrokerTestUtil.newUniqueName("persistent://my-property/my-ns/tp");
+        admin.topics().createNonPartitionedTopic(topic);
+        ProducerBase producerBase = (ProducerBase) pulsarClient.newProducer().topic(topic).enableBatching(false).create();
+
+        // Create message payload, refCnf = 1 now.
+        ByteBuf payload1 = PulsarByteBufAllocator.DEFAULT.heapBuffer(1);
+        payload1.writeByte(1);
+        ByteBuf payload2 = PulsarByteBufAllocator.DEFAULT.heapBuffer(1);
+        payload1.writeByte(2);
+        log.info("payload_1.refCnf 1st: {}", payload1.refCnt());
+        log.info("payload_2.refCnf 1st: {}", payload2.refCnt());
+        // refCnf = 2 now.
+        payload1.retain();
+        payload2.retain();
+        log.info("payload_1.refCnf 2nd: {}", payload1.refCnt());
+        log.info("payload_2.refCnf 2nd: {}", payload2.refCnt());
+        MessageMetadata messageMetadata = new MessageMetadata();
+        messageMetadata.setUncompressedSize(1);
+
+        // Publish message.
+        // Note: "ProducerBase.sendAsync" is not equals to "Producer.sendAsync".
+        MessageImpl<byte[]> message1 = MessageImpl.create(topic, null, messageMetadata, payload1, Optional.empty(),
+                null, Schema.BYTES, 0, true, 0);
+        MessageImpl<byte[]> message2 = MessageImpl.create(topic, null, messageMetadata, payload2, Optional.empty(),
+                null, Schema.BYTES, 0, true, 0);
+        // Release ByteBuf the first time, refCnf = 1 now.
+        producerBase.sendAsync(message1).thenAccept(ignore_ -> message1.release());
+        producerBase.sendAsync(message2).thenAccept(ignore_ -> message2.release()).join();
+
+        // Assert payload's refCnf.
+        log.info("payload_1.refCnf 3rd: {}", payload1.refCnt());
+        log.info("payload_2.refCnf 3rd: {}", payload2.refCnt());
+        assertEquals(payload1.refCnt(), 1);
+        assertEquals(payload2.refCnt(), 1);
+
+        // cleanup.
+        payload1.release();
+        payload2.release();
+        producerBase.close();
         admin.topics().delete(topic, false);
     }
 }
