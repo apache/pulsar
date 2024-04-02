@@ -51,6 +51,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -93,6 +94,7 @@ import org.apache.pulsar.broker.service.ServerCnx;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.schema.GenericRecord;
+import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.ClientBuilderImpl;
 import org.apache.pulsar.client.impl.ConsumerBase;
 import org.apache.pulsar.client.impl.ConsumerImpl;
@@ -4706,6 +4708,9 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
     @Test(dataProvider = "enableBatchSend")
     public void testPublishWithCreateMessageManually(boolean enableBatchSend) throws Exception {
+        final int messageCount = 10;
+        final List<MessageImpl> messageArrayBeforeSend = Collections.synchronizedList(new ArrayList<>());
+        final List<MessageImpl> messageArrayOnSendAcknowledgement = Collections.synchronizedList(new ArrayList<>());
         // Create an interceptor to verify the ref count of Message.payload is as expected.
         AtomicBoolean payloadWasReleasedWhenIntercept = new AtomicBoolean(false);
         ProducerInterceptor interceptor = new ProducerInterceptor(){
@@ -4721,6 +4726,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
                 if (msgImpl.getDataBuffer().refCnt() < 1) {
                     payloadWasReleasedWhenIntercept.set(true);
                 }
+                messageArrayBeforeSend.add(msgImpl);
                 return message;
             }
 
@@ -4732,6 +4738,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
                 if (msgImpl.getDataBuffer().refCnt() < 1) {
                     payloadWasReleasedWhenIntercept.set(true);
                 }
+                messageArrayOnSendAcknowledgement.add(msgImpl);
             }
         };
 
@@ -4740,42 +4747,93 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         ProducerBase producerBase = (ProducerBase) pulsarClient.newProducer().topic(topic).intercept(interceptor)
                 .enableBatching(enableBatchSend).create();
 
-        // Create message payload, refCnf = 1 now.
-        ByteBuf payload1 = PulsarByteBufAllocator.DEFAULT.heapBuffer(1);
-        payload1.writeByte(1);
-        ByteBuf payload2 = PulsarByteBufAllocator.DEFAULT.heapBuffer(1);
-        payload1.writeByte(2);
-        log.info("payload_1.refCnf 1st: {}", payload1.refCnt());
-        log.info("payload_2.refCnf 1st: {}", payload2.refCnt());
-        // refCnf = 2 now.
-        payload1.retain();
-        payload2.retain();
-        log.info("payload_1.refCnf 2nd: {}", payload1.refCnt());
-        log.info("payload_2.refCnf 2nd: {}", payload2.refCnt());
-        MessageMetadata messageMetadata = new MessageMetadata();
-        messageMetadata.setUncompressedSize(1);
-
         // Publish message.
         // Note: "ProducerBase.sendAsync" is not equals to "Producer.sendAsync".
-        MessageImpl<byte[]> message1 = MessageImpl.create(topic, null, messageMetadata, payload1, Optional.empty(),
-                null, Schema.BYTES, 0, true, 0);
-        MessageImpl<byte[]> message2 = MessageImpl.create(topic, null, messageMetadata, payload2, Optional.empty(),
-                null, Schema.BYTES, 0, true, 0);
-        // Release ByteBuf the first time, refCnf = 1 now.
-        producerBase.sendAsync(message1).thenAccept(ignore_ -> message1.release());
-        producerBase.sendAsync(message2).thenAccept(ignore_ -> message2.release()).join();
+        final MessageImpl[] messageArraySent = new MessageImpl[messageCount];
+        final ByteBuf[] payloads = new ByteBuf[messageCount];
+        List<CompletableFuture<MessageId>> sendFutureList = new ArrayList<>();
+        List<CompletableFuture> releaseFutureList = new ArrayList<>();
+        for (int i = 0; i < messageCount; i++) {
+            // Create message payload, refCnf = 1 now.
+            ByteBuf payload = PulsarByteBufAllocator.DEFAULT.heapBuffer(1);
+            payloads[i] = payload;
+            log.info("payload_{}.refCnf 1st: {}", i,  payload.refCnt());
+            payload.writeByte(i);
+            // refCnf = 2 now.
+            payload.retain();
+            log.info("payload_{}.refCnf 2nd: {}", i,  payload.refCnt());
+            MessageMetadata messageMetadata = new MessageMetadata();
+            messageMetadata.setUncompressedSize(1);
+            MessageImpl<byte[]> message1 = MessageImpl.create(topic, null, messageMetadata, payload, Optional.empty(),
+                    null, Schema.BYTES, 0, true, 0);
+            messageArraySent[i] = message1;
+            // Release ByteBuf the first time, refCnf = 1 now.
+            CompletableFuture<MessageId> future = producerBase.sendAsync(message1);
+            sendFutureList.add(future);
+            final int indexForLog = i;
+            future.whenComplete((v, ex) -> {
+                message1.release();
+                log.info("payload_{}.refCnf 3rd after_complete_refCnf: {}, ex: {}", indexForLog, payload.refCnt(),
+                        ex == null ? "null" : ex.getMessage());
+            });
+        }
+        sendFutureList.get(messageCount - 1).join();
 
-        // Assert payload's refCnf.
-        log.info("payload_1.refCnf 3rd: {}", payload1.refCnt());
-        log.info("payload_2.refCnf 3rd: {}", payload2.refCnt());
-        assertEquals(payload1.refCnt(), 1);
-        assertEquals(payload2.refCnt(), 1);
+        // Left 2 seconds to wait the code in the finally-block, which is using to avoid this test to be flaky.
+        Thread.sleep(1000 * 2);
+
+        // Verify: payload's refCnf.
+        for (int i = 0; i < messageCount; i++) {
+            log.info("payload_{}.refCnf 4th: {}", i, payloads[i].refCnt());
+            assertEquals(payloads[i].refCnt(), 1);
+        }
+
+        // Verify: the messages has not been released when calling interceptor.
         assertFalse(payloadWasReleasedWhenIntercept.get());
 
+        // Verify: the order of send complete event.
+        MessageIdImpl messageIdPreviousOne = null;
+        for (int i = 0; i < messageCount; i++) {
+            MessageIdImpl messageId = (MessageIdImpl) sendFutureList.get(i).get();
+            if (messageIdPreviousOne != null) {
+                assertTrue(compareMessageIds(messageIdPreviousOne, messageId) > 0);
+            }
+            messageIdPreviousOne = messageId;
+        }
+
+        // Verify: the order of interceptor events.
+        for (int i = 0; i < messageCount; i++) {
+            assertTrue(messageArraySent[i] == messageArrayBeforeSend.get(i));
+            assertTrue(messageArraySent[i] == messageArrayOnSendAcknowledgement.get(i));
+        }
+
         // cleanup.
-        payload1.release();
-        payload2.release();
+        for (int i = 0; i < messageCount; i++) {
+            payloads[i].release();
+        }
         producerBase.close();
         admin.topics().delete(topic, false);
+    }
+
+    private int compareMessageIds(MessageIdImpl messageId1, MessageIdImpl messageId2) {
+        if (messageId2.getLedgerId() < messageId1.getLedgerId()) {
+            return -1;
+        }
+        if (messageId2.getLedgerId() > messageId1.getLedgerId()) {
+            return 1;
+        }
+        if (messageId2.getEntryId() < messageId1.getEntryId()) {
+            return -1;
+        }
+        if (messageId2.getEntryId() > messageId1.getEntryId()) {
+            return 1;
+        }
+        if (messageId2 instanceof BatchMessageIdImpl && messageId1 instanceof BatchMessageIdImpl) {
+            BatchMessageIdImpl batchMessageId1 = (BatchMessageIdImpl) messageId1;
+            BatchMessageIdImpl batchMessageId2 = (BatchMessageIdImpl) messageId2;
+            return batchMessageId2.getBatchIndex() - batchMessageId1.getBatchIndex();
+        } else {
+            return 0;
+        }
     }
 }

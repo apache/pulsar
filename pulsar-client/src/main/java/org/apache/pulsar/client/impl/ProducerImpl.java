@@ -400,46 +400,46 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
             @Override
             public void sendComplete(Exception e) {
+                SendCallback loopingCallback = this;
+                MessageImpl<?> loopingMsg = interceptorMessage;
+                while (loopingCallback != null) {
+                    onSendComplete(e, loopingCallback, loopingMsg);
+                    loopingMsg = loopingCallback.getNextMessage();
+                    loopingCallback = loopingCallback.getNextSendCallback();
+                }
+            }
+
+            private void onSendComplete(Exception e, SendCallback sendCallback, MessageImpl<?> msg) {
                 long latencyNanos = System.nanoTime() - createdAt;
                 pendingMessagesUpDownCounter.decrement();
                 pendingBytesUpDownCounter.subtract(msgSize);
-
-                ByteBuf payloadInCurrentMsg = interceptorMessage.getDataBuffer();
-                try {
-                    if (e != null) {
-                        latencyHistogram.recordFailure(latencyNanos);
-                        stats.incrementSendFailed();
-                        onSendAcknowledgement(interceptorMessage, null, e);
-                        future.completeExceptionally(e);
-                    } else {
-                        latencyHistogram.recordSuccess(latencyNanos);
-                        publishedBytesCounter.add(msgSize);
-                        onSendAcknowledgement(interceptorMessage, interceptorMessage.getMessageId(), null);
-                        future.complete(interceptorMessage.getMessageId());
-                        stats.incrementNumAcksReceived(latencyNanos);
-                    }
-                } finally {
-                    ReferenceCountUtil.safeRelease(payloadInCurrentMsg);
-                }
-
-                while (nextCallback != null) {
-                    SendCallback sendCallback = nextCallback;
-                    MessageImpl<?> msg = nextMsg;
-                    ByteBuf payloadInNextMsg = msg.getDataBuffer();
+                ByteBuf payload = msg.getDataBuffer();
+                if (e != null) {
+                    latencyHistogram.recordFailure(latencyNanos);
+                    stats.incrementSendFailed();
                     try {
-                        if (e != null) {
-                            stats.incrementSendFailed();
-                            onSendAcknowledgement(msg, null, e);
-                            sendCallback.getFuture().completeExceptionally(e);
-                        } else {
-                            onSendAcknowledgement(msg, msg.getMessageId(), null);
-                            sendCallback.getFuture().complete(msg.getMessageId());
-                            stats.incrementNumAcksReceived(System.nanoTime() - createdAt);
-                        }
-                        nextMsg = nextCallback.getNextMessage();
-                        nextCallback = nextCallback.getNextSendCallback();
+                        onSendAcknowledgement(msg, null, e);
+                        sendCallback.getFuture().completeExceptionally(e);
                     } finally {
-                        ReferenceCountUtil.safeRelease(payloadInNextMsg);
+                        if (payload == null) {
+                            log.error("[{}] [{}] Payload is null when calling a failed onSendComplete, which is not"
+                                            + " expected.", topic, producerName);
+                        }
+                        ReferenceCountUtil.safeRelease(payload);
+                    }
+                } else {
+                    latencyHistogram.recordSuccess(latencyNanos);
+                    publishedBytesCounter.add(msgSize);
+                    stats.incrementNumAcksReceived(latencyNanos);
+                    try {
+                        onSendAcknowledgement(msg, msg.getMessageId(), null);
+                        sendCallback.getFuture().complete(msg.getMessageId());
+                    } finally {
+                        if (payload == null) {
+                            log.error("[{}] [{}] Payload is null when calling onSendComplete, which is not expected.",
+                                    topic, producerName);
+                        }
+                        ReferenceCountUtil.safeRelease(payload);
                     }
                 }
             }
