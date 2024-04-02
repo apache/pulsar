@@ -33,6 +33,8 @@ import org.apache.pulsar.client.impl.auth.AuthenticationToken;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.schema.SchemaInfo;
+import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.security.MockedPulsarStandalone;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
@@ -1084,6 +1086,118 @@ public class TopicAuthZTest extends MockedPulsarStandalone {
             superUserAdmin.topics().revokePermissions(topic, subject);
         }
         deleteTopic(topic, false);
+    }
+
+    public enum TopicOperationType {
+        Lookup,
+        Produce,
+        Consume
+    }
+
+    @FunctionalInterface
+    public interface ThrowingBiConsumer<T, U> {
+        void accept(T t, U u) throws PulsarAdminException;
+    }
+
+    @DataProvider(name = "authFunction")
+    public static Object[][] authFunction () {
+        return new Object[][]{
+                // The following tests are for testing schema authorization
+               new Object[] {
+                       (ThrowingBiConsumer<PulsarAdmin, String>) (admin, topic) -> admin.schemas().getSchemaInfo(topic),
+                       TopicOperationType.Lookup
+               },
+                new Object[] {
+                        (ThrowingBiConsumer<PulsarAdmin, String>) (admin, topic) -> admin.schemas().getSchemaInfo(
+                                topic, 0),
+                        TopicOperationType.Lookup
+                },
+                new Object[] {
+                        (ThrowingBiConsumer<PulsarAdmin, String>) (admin, topic) -> admin.schemas().getAllSchemas(
+                                topic),
+                        TopicOperationType.Lookup
+                },
+                new Object[] {
+                        (ThrowingBiConsumer<PulsarAdmin, String>) (admin, topic) -> admin.schemas().createSchema(topic,
+                                SchemaInfo.builder().type(SchemaType.STRING).build()),
+                        TopicOperationType.Produce
+                },
+                new Object[] {
+                        (ThrowingBiConsumer<PulsarAdmin, String>) (admin, topic) -> admin.schemas().testCompatibility(
+                                topic, SchemaInfo.builder().type(SchemaType.STRING).build()),
+                        TopicOperationType.Lookup
+                },
+                new Object[] {
+                        (ThrowingBiConsumer<PulsarAdmin, String>) (admin, topic) -> admin.schemas().deleteSchema(
+                                topic),
+                        TopicOperationType.Produce
+                },
+        };
+    }
+
+    @Test(dataProvider = "authFunction")
+    public void testGetSchema(ThrowingBiConsumer<PulsarAdmin, String> adminConsumer, TopicOperationType topicOpType) throws Exception {
+        final String random = UUID.randomUUID().toString();
+        final String topic = "persistent://public/default/" + random;
+        final String subject =  UUID.randomUUID().toString();
+        final String token = Jwts.builder()
+                .claim("sub", subject).signWith(SECRET_KEY).compact();
+        createTopic(topic, false);
+        @Cleanup
+        final PulsarAdmin subAdmin = PulsarAdmin.builder()
+                .serviceHttpUrl(getPulsarService().getWebServiceAddress())
+                .authentication(new AuthenticationToken(token))
+                .build();
+        @Cleanup
+        final PulsarClient pulsarClient = PulsarClient.builder()
+                .serviceUrl(getPulsarService().getBrokerServiceUrl())
+                .authentication(new AuthenticationToken(TENANT_ADMIN_TOKEN))
+                .build();
+        @Cleanup
+        final Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topic).create();
+
+        // test tenant manager
+        adminConsumer.accept(tenantManagerAdmin, topic);
+
+
+        Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
+                () -> adminConsumer.accept(subAdmin, topic));
+
+
+        for (AuthAction action : AuthAction.values()) {
+            superUserAdmin.topics().grantPermission(topic, subject, Set.of(action));
+
+            if (authActionMatchOperation(topicOpType, action)) {
+                adminConsumer.accept(subAdmin, topic);
+            } else {
+                Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
+                        () -> adminConsumer.accept(subAdmin, topic));
+            }
+            superUserAdmin.topics().revokePermissions(topic, subject);
+        }
+        deleteTopic(topic, false);
+    }
+
+
+    private boolean authActionMatchOperation(TopicOperationType topicOperationType, AuthAction action) {
+        switch (topicOperationType) {
+            case Lookup -> {
+                if (AuthAction.consume == action || AuthAction.produce == action) {
+                    return true;
+                }
+            }
+            case Consume -> {
+                if (AuthAction.consume == action) {
+                    return true;
+                }
+            }
+            case Produce -> {
+                if (AuthAction.produce == action) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     private void createTopic(String topic, boolean partitioned) throws Exception {
