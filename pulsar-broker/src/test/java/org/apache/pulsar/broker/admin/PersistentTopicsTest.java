@@ -73,11 +73,7 @@ import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.Topics;
 import org.apache.pulsar.client.admin.internal.TopicsImpl;
-import org.apache.pulsar.client.api.CompressionType;
-import org.apache.pulsar.client.api.Message;
-import org.apache.pulsar.client.api.MessageId;
-import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.*;
 import org.apache.pulsar.client.api.interceptor.ProducerInterceptor;
 import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
@@ -1785,5 +1781,26 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
     public void testCreateMissingPartitions() throws Exception {
         String topicName = "persistent://" + testTenant + "/" + testNamespaceLocal + "/testCreateMissingPartitions";
         assertThrows(PulsarAdminException.NotFoundException.class, () -> admin.topics().createMissedPartitions(topicName));
+    }
+
+    @Test
+    public void testUpdatePropertiesOnNonDurableSub() throws Exception {
+        String topic = "persistent://" + testTenant + "/" + testNamespaceLocal + "/testUpdatePropertiesOnNonDurableSub";
+        String subscription = "sub";
+        admin.topics().createNonPartitionedTopic(topic);
+
+        @Cleanup
+        Reader<String> __ = pulsarClient.newReader(Schema.STRING)
+                .startMessageId(MessageId.earliest)
+                .subscriptionName(subscription)
+                .topic(topic)
+                .create();
+
+        Map<String, String> properties = admin.topics().getSubscriptionProperties(topic, subscription);
+        assertEquals(properties.size(), 0);
+        admin.topics().updateSubscriptionProperties(topic, subscription, Map.of("foo", "bar"));
+        properties = admin.topics().getSubscriptionProperties(topic, subscription);
+        assertEquals(properties.size(), 1);
+        assertEquals(properties.get("foo"), "bar");
     }
 }

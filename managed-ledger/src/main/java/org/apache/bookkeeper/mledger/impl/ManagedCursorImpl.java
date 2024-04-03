@@ -354,6 +354,10 @@ public class ManagedCursorImpl implements ManagedCursor {
     private CompletableFuture<Void> computeCursorProperties(
             final Function<Map<String, String>, Map<String, String>> updateFunction) {
         CompletableFuture<Void> updateCursorPropertiesResult = new CompletableFuture<>();
+        if (!isDurable()) {
+            updateCursorPropertiesResult.complete(null);
+            return updateCursorPropertiesResult;
+        }
 
         final Stat lastCursorLedgerStat = ManagedCursorImpl.this.cursorLedgerStat;
 
