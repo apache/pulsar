@@ -23,8 +23,11 @@ import io.opentelemetry.api.metrics.BatchCallback;
 import io.opentelemetry.api.metrics.ObservableLongMeasurement;
 import java.util.Optional;
 import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.broker.service.AbstractTopic;
 import org.apache.pulsar.broker.service.GetStatsOptions;
 import org.apache.pulsar.broker.service.Topic;
+import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.opentelemetry.OpenTelemetryAttributes;
 
 public class OpenTelemetryTopicStats implements AutoCloseable {
@@ -348,29 +351,70 @@ public class OpenTelemetryTopicStats implements AutoCloseable {
         var dummyValue = 0L;
         var topicStatsImpl = topic.getStats(getStatsOptions);
 
-        subscriptionCounter.record(dummyValue, attributes);
-        producerCounter.record(dummyValue, attributes);
-        consumerCounter.record(dummyValue, attributes);
-        messageInCounter.record(dummyValue, attributes);
-        messageOutCounter.record(dummyValue, attributes);
-        bytesInCounter.record(dummyValue, attributes);
-        bytesOutCounter.record(dummyValue, attributes);
-        publishRateLimitHitCounter.record(dummyValue, attributes);
-        consumerMsgAckCounter.record(dummyValue, attributes);
-        storageCounter.record(dummyValue, attributes);
-        storageLogicalCounter.record(dummyValue, attributes);
-        storageBacklogCounter.record(dummyValue, attributes);
-        storageOffloadedCounter.record(dummyValue, attributes);
-        backlogQuotaLimit.record(dummyValue, attributes);
-        backlogEvictionCounter.record(dummyValue, attributes);
-        backlogQuotaAge.record(dummyValue, attributes);
+        if (topic instanceof AbstractTopic abstractTopic) {
+            subscriptionCounter.record(abstractTopic.getSubscriptions().size(), attributes);
+            producerCounter.record(abstractTopic.getProducers().size(), attributes);
+            consumerCounter.record(abstractTopic.getNumberOfConsumers(), attributes);
+
+            messageInCounter.record(abstractTopic.getMsgInCounter(), attributes);
+            messageOutCounter.record(abstractTopic.getMsgOutCounter(), attributes);
+            bytesInCounter.record(abstractTopic.getBytesInCounter(), attributes);
+            bytesOutCounter.record(abstractTopic.getBytesOutCounter(), attributes);
+
+            publishRateLimitHitCounter.record(abstractTopic.getTotalPublishRateLimitCounter(), attributes);
+        }
+
+        consumerMsgAckCounter.record(dummyValue, attributes); // FIXME: not implemented?
+
+        if (topic instanceof PersistentTopic persistentTopic) {
+            var managedLedger = persistentTopic.getManagedLedger();
+            var managedLedgerStats = persistentTopic.getManagedLedger().getStats();
+
+            storageCounter.record(managedLedgerStats.getStoredMessagesSize(), attributes);
+            storageLogicalCounter.record(managedLedgerStats.getStoredMessagesLogicalSize(), attributes);
+            storageBacklogCounter.record(managedLedger.getEstimatedBacklogSize(), attributes);
+            storageOffloadedCounter.record(managedLedger.getOffloadedSize(), attributes);
+
+            backlogQuotaLimit.record(
+                    topic.getBacklogQuota(BacklogQuota.BacklogQuotaType.destination_storage).getLimitSize(),
+                    attributes);
+            var backlogQuotaLimitTime = topic
+                    .getBacklogQuota(BacklogQuota.BacklogQuotaType.message_age).getLimitTime();
+            backlogQuotaAge.record(topic.getBestEffortOldestUnacknowledgedMessageAgeSeconds(), attributes);
+            var backlogQuotaMetrics = persistentTopic.getPersistentTopicMetrics().getBacklogQuotaMetrics();
+            backlogEvictionCounter.record(backlogQuotaMetrics.getSizeBasedBacklogQuotaExceededEvictionCount(),
+                    Attributes.builder()
+                            .putAll(attributes)
+                            .put(OpenTelemetryAttributes.PULSAR_BACKLOG_QUOTA_TYPE, "size")
+                            .build());
+            backlogEvictionCounter.record(backlogQuotaMetrics.getTimeBasedBacklogQuotaExceededEvictionCount(),
+                    Attributes.builder()
+                            .putAll(attributes)
+                            .put(OpenTelemetryAttributes.PULSAR_BACKLOG_QUOTA_TYPE, "time")
+                            .build());
+
+            var txnBuffer = persistentTopic.getTransactionBuffer();
+            transactionCounter.record(txnBuffer.getOngoingTxnCount(), Attributes.builder()
+                    .putAll(attributes)
+                    .put(OpenTelemetryAttributes.PULSAR_TRANSACTION_STATUS, "active")
+                    .build());
+            transactionCounter.record(txnBuffer.getCommittedTxnCount(), Attributes.builder()
+                    .putAll(attributes)
+                    .put(OpenTelemetryAttributes.PULSAR_TRANSACTION_STATUS, "committed")
+                    .build());
+            transactionCounter.record(txnBuffer.getAbortedTxnCount(), Attributes.builder()
+                    .putAll(attributes)
+                    .put(OpenTelemetryAttributes.PULSAR_TRANSACTION_STATUS, "aborted")
+                    .build());
+        }
+
         storageOutCounter.record(dummyValue, attributes);
         storageInCounter.record(dummyValue, attributes);
+
         compactionRemovedCounted.record(dummyValue, attributes);
         compactionSucceededCounter.record(dummyValue, attributes);
         compactionFailedCounter.record(dummyValue, attributes);
-        transactionCounter.record(dummyValue, attributes);
-        delayedSubscriptionCounter.record(dummyValue, attributes);
 
+        delayedSubscriptionCounter.record(dummyValue, attributes);
     }
 }
