@@ -25,33 +25,118 @@ import java.util.Optional;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.service.GetStatsOptions;
 import org.apache.pulsar.broker.service.Topic;
-import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.opentelemetry.OpenTelemetryAttributes;
 
 public class OpenTelemetryTopicStats implements AutoCloseable {
 
-    private static final String INSTRUMENT_PREFIX = "pulsar.broker.messaging.topic.";
-    public static final String CONSUMER_COUNTER = INSTRUMENT_PREFIX + "consumer";
-    public static final String PRODUCER_COUNTER = INSTRUMENT_PREFIX + "producer";
-
-    public static final String SUBSCRIPTION_COUNTER = INSTRUMENT_PREFIX + "subscription";
+    public static final String SUBSCRIPTION_COUNTER = "pulsar_subscriptions_count";
     private final ObservableLongMeasurement subscriptionCounter;
+
+    public static final String PRODUCER_COUNTER = "pulsar_producers_count";
     private final ObservableLongMeasurement producerCounter;
+
+    public static final String CONSUMER_COUNTER = "pulsar_consumers_count";
     private final ObservableLongMeasurement consumerCounter;
-    private final ObservableLongMeasurement messageIncomingCounter;
-    private final ObservableLongMeasurement messageOutgoingCounter;
-    private final ObservableLongMeasurement publishRateLimitCounter;
-    private final ObservableLongMeasurement bytesIncomingCounter;
-    private final ObservableLongMeasurement bytesOutgoingCounter;
+
+    public static final String MESSAGE_IN_COUNTER = "pulsar_rate_in";
+    private final ObservableLongMeasurement messageInCounter;
+
+    public static final String MESSAGE_OUT_COUNTER = "pulsar_rate_out";
+    private final ObservableLongMeasurement messageOutCounter;
+
+    // Omitted: pulsar_publish_rate_limit_times
+
+    public static final String BYTES_IN_COUNTER = "pulsar_throughput_in";
+    private final ObservableLongMeasurement bytesInCounter;
+
+    public static final String BYTES_OUT_COUNTER = "pulsar_throughput_out";
+    private final ObservableLongMeasurement bytesOutCounter;
+
+    public static final String CONSUMER_MSG_ACK_COUNTER = "pulsar_consumer_msg_ack_rate";
+    private final ObservableLongMeasurement consumerMsgAckCounter;
+
+    public static final String STORAGE_COUNTER = "pulsar_storage_size";
     private final ObservableLongMeasurement storageCounter;
-    private final ObservableLongMeasurement activeTransactionCounter;
-    private final ObservableLongMeasurement committedTransactionCounter;
-    private final ObservableLongMeasurement abortedTransactionCounter;
+
+    public static final String STORAGE_LOGICAL_COUNTER = "pulsar_storage_logical_size";
+    private final ObservableLongMeasurement storageLogicalCounter;
+
+    public static final String STORAGE_BACKLOG_COUNTER = "pulsar_storage_backlog_size";
+    private final ObservableLongMeasurement storageBacklogCounter;
+
+    public static final String STORAGE_OFFLOADED_COUNTER = "pulsar_storage_offloaded_size";
+    private final ObservableLongMeasurement storageOffloadedCounter;
+
+    // Omitted: pulsar_storage_backlog_quota_limit
+
+    // Omitted: pulsar_storage_backlog_age_seconds
+
+    // Omitted: pulsar_storage_backlog_quota_exceeded_evictions_total
+
+    // Omitted: pulsar_storage_write_rate
+
+    // Omitted: pulsar_storage_read_rate
+
+    public static final String DELAYED_SUBSCRIPTION_COUNTER = "pulsar_subscription_delayed";
+    private final ObservableLongMeasurement delayedSubscriptionCounter;
+
+    // Omitted: pulsar_storage_write_latency_le_*
+
+    // Omitted: pulsar_entry_size_le_*
+
+    // Omitted: pulsar_in_bytes_total
+
+    // Omitted: pulsar_in_messages_total
+
+    // Omitted: pulsar_out_bytes_total
+
+    // Omitted: pulsar_out_messages_total
+
+    public static final String COMPACTION_REMOVED_COUNTED = "pulsar_compaction_removed_event_count";
+    private final ObservableLongMeasurement compactionRemovedCounted;
+
+    public static final String COMPACTION_SUCCEEDED_COUNTER = "pulsar_compaction_succeed_count";
+    private final ObservableLongMeasurement compactionSucceededCounter;
+
+    public static final String COMPACTION_FAILED_COUNTER = "pulsar_compaction_failed_count";
+    private final ObservableLongMeasurement compactionFailedCounter;
+
+    // Omitted: pulsar_compaction_duration_time_in_mills
+
+    // Omitted: pulsar_compaction_read_throughput
+
+    // Omitted: pulsar_compaction_write_throughput
+
+    // Omitted: pulsar_compaction_latency_le_*
+
+    // Omitted: pulsar_compaction_compacted_entries_count
+
+    // Omitted: pulsar_compaction_compacted_entries_size
+
+    public static final String TRANSACTION_ACTIVE_COUNTER = "pulsar_txn_tb_active_total";
+    private final ObservableLongMeasurement transactionActiveCounter;
+
+    public static final String TRANSACTION_ABORTED_COUNTER = "pulsar_txn_tb_aborted_total";
+    private final ObservableLongMeasurement transactionAbortedCounter;
+
+    public static final String TRANSACTION_COMMITTED_COUNTER = "pulsar_txn_tb_committed_total";
+    private final ObservableLongMeasurement transactionCommittedCounter;
+
+    // Omitted: pulsar_delayed_message_index_size_bytes
+
+    // Omitted: pulsar_delayed_message_index_bucket_total
+
+    // Omitted: pulsar_delayed_message_index_loaded
+
+    // Omitted: pulsar_delayed_message_index_bucket_snapshot_size_bytes
+
+    // Omitted: pulsar_delayed_message_index_bucket_op_count
+
+    // Omitted: pulsar_delayed_message_index_bucket_op_latency_ms
+
 
     private final BatchCallback batchCallback;
-
     private final GetStatsOptions getStatsOptions;
-
     private final PulsarService pulsar;
 
     public OpenTelemetryTopicStats(PulsarService pulsar) {
@@ -61,89 +146,117 @@ public class OpenTelemetryTopicStats implements AutoCloseable {
         subscriptionCounter = meter
                 .upDownCounterBuilder(SUBSCRIPTION_COUNTER)
                 .setUnit("{subscription}")
+                .setDescription("The number of Pulsar subscriptions of the topic served by this broker.")
                 .buildObserver();
 
         producerCounter = meter
                 .upDownCounterBuilder(PRODUCER_COUNTER)
                 .setUnit("{producer}")
+                .setDescription("The number of active producers of the topic connected to this broker.")
                 .buildObserver();
 
         consumerCounter = meter
                 .upDownCounterBuilder(CONSUMER_COUNTER)
                 .setUnit("{consumer}")
+                .setDescription("The number of active consumers of the topic connected to this broker.")
                 .buildObserver();
 
-        messageIncomingCounter = meter.counterBuilder(INSTRUMENT_PREFIX + "message.incoming")
+        messageInCounter = meter
+                .upDownCounterBuilder(MESSAGE_IN_COUNTER)
                 .setUnit("{message}")
+                .setDescription("The total message rate of the topic coming into this broker (message per second).")
                 .buildObserver();
 
-        messageOutgoingCounter = meter.counterBuilder(INSTRUMENT_PREFIX + "message.outgoing")
+        messageOutCounter = meter
+                .upDownCounterBuilder(MESSAGE_OUT_COUNTER)
                 .setUnit("{message}")
+                .setDescription("The total message rate of the topic going out from this broker (message per second).")
                 .buildObserver();
 
-        publishRateLimitCounter = meter.counterBuilder(INSTRUMENT_PREFIX + "publish.rate.limit.exceeded")
-                .setUnit("{operation}")
-                .buildObserver();
-
-        bytesIncomingCounter = meter.counterBuilder(INSTRUMENT_PREFIX + "byte.incoming")
+        bytesInCounter = meter
+                .upDownCounterBuilder(BYTES_IN_COUNTER)
                 .setUnit("{byte}")
+                .setDescription("The total throughput of the topic coming into this broker (byte per second).")
                 .buildObserver();
 
-        bytesOutgoingCounter = meter.counterBuilder(INSTRUMENT_PREFIX + "byte.outgoing")
+        bytesOutCounter = meter
+                .upDownCounterBuilder(BYTES_OUT_COUNTER)
                 .setUnit("{byte}")
+                .setDescription("The total throughput of the topic going out from this broker (byte per second).")
                 .buildObserver();
 
-        storageCounter = meter.counterBuilder(INSTRUMENT_PREFIX + "storage")
+        consumerMsgAckCounter = meter
+                .upDownCounterBuilder(CONSUMER_MSG_ACK_COUNTER)
+                .setUnit("{ack}")
+                .setDescription("The total message acknowledgment rate of the topic connected to this broker (message per second).")
+                .buildObserver();
+
+        storageCounter = meter
+                .upDownCounterBuilder(STORAGE_COUNTER)
                 .setUnit("{byte}")
+                .setDescription("The total storage size of the topics in this topic owned by this broker (bytes).")
                 .buildObserver();
 
-        // Compaction (persistent topic only).
-        meter.counterBuilder(INSTRUMENT_PREFIX + "compaction.removed.event.count")
+        storageLogicalCounter = meter
+                .upDownCounterBuilder(STORAGE_LOGICAL_COUNTER)
+                .setUnit("{byte}")
+                .setDescription("The storage size of topics in the namespace owned by the broker without replicas (in bytes).")
+                .buildObserver();
+
+        storageBacklogCounter = meter
+                .upDownCounterBuilder(STORAGE_BACKLOG_COUNTER)
+                .setUnit("{byte}")
+                .setDescription("The total backlog size of the topics of this topic owned by this broker (in bytes).")
+                .buildObserver();
+
+        storageOffloadedCounter = meter
+                .upDownCounterBuilder(STORAGE_OFFLOADED_COUNTER)
+                .setUnit("{byte}")
+                .setDescription("The total amount of the data in this topic offloaded to the tiered storage (bytes).")
+                .buildObserver();
+
+        delayedSubscriptionCounter = meter
+                .upDownCounterBuilder(DELAYED_SUBSCRIPTION_COUNTER)
+                .setUnit("{subscription}")
+                .setDescription("The total message batches (entries) are delayed for dispatching.")
+                .buildObserver();
+
+        compactionRemovedCounted = meter
+                .upDownCounterBuilder(COMPACTION_REMOVED_COUNTED)
+                .setUnit("{event}")
                 .setDescription("The total number of removed events of the compaction.")
-                .setUnit("{event}")
-                .buildObserver();
-        meter.counterBuilder(INSTRUMENT_PREFIX + "pulsar_compaction_removed_event_count")
-                .setDescription(" The total number of removed events of the compaction.")
-                .setUnit("{event}")
-                .buildObserver();
-        meter.counterBuilder(INSTRUMENT_PREFIX + "pulsar_compaction_succeed_count")
-                .setDescription(" The total number of successes of the compaction.")
-                .buildObserver();
-        meter.counterBuilder(INSTRUMENT_PREFIX + "pulsar_compaction_failed_count")
-                .setDescription(" The total number of failures of the compaction.")
-                .buildObserver();
-        meter.counterBuilder(INSTRUMENT_PREFIX + "pulsar_compaction_duration_time_in_mills")
-                .setDescription(" The duration time of the compaction.")
-                .buildObserver();
-        meter.counterBuilder(INSTRUMENT_PREFIX + "pulsar_compaction_read_throughput")
-                .setDescription(" The read throughput of the compaction.")
-                .buildObserver();
-        meter.counterBuilder(INSTRUMENT_PREFIX + "pulsar_compaction_write_throughput")
-                .setDescription(" The write throughput of the compaction.")
-                .buildObserver();
-        meter.counterBuilder(INSTRUMENT_PREFIX + "pulsar_compaction_compacted_entries_count")
-                .setDescription(" The total number of the compacted entries.")
-                .buildObserver();
-        meter.counterBuilder(INSTRUMENT_PREFIX + "pulsar_compaction_compacted_entries_size")
-                .setDescription(" The total size of the compacted entries.")
                 .buildObserver();
 
-        // Transaction metrics (persistent topic only).
-        activeTransactionCounter = meter.counterBuilder(INSTRUMENT_PREFIX + "active_transaction")
-                .setDescription("The number of active transactions on the topic.")
-                .setUnit("{transaction}")
+        compactionSucceededCounter = meter
+                .upDownCounterBuilder(COMPACTION_SUCCEEDED_COUNTER)
+                .setUnit("{event}")
+                .setDescription("The total number of successes of the compaction.")
                 .buildObserver();
-        committedTransactionCounter = meter.counterBuilder(INSTRUMENT_PREFIX + "committed_transaction")
-                .setDescription("The number of committed transactions on the topic.")
-                .setUnit("{transaction}")
+
+        compactionFailedCounter = meter
+                .upDownCounterBuilder(COMPACTION_FAILED_COUNTER)
+                .setUnit("{event}")
+                .setDescription("The total number of failures of the compaction.")
                 .buildObserver();
-        abortedTransactionCounter = meter.counterBuilder(INSTRUMENT_PREFIX + "aborted_transaction")
+
+        transactionActiveCounter = meter
+                .upDownCounterBuilder(TRANSACTION_ACTIVE_COUNTER)
+                .setUnit("{transaction}")
+                .setDescription("The number of active transactions on this topic.")
+                .buildObserver();
+
+        transactionAbortedCounter = meter
+                .upDownCounterBuilder(TRANSACTION_ABORTED_COUNTER)
+                .setUnit("{transaction}")
                 .setDescription("The number of aborted transactions on the topic.")
-                .setUnit("{transaction}")
                 .buildObserver();
-        /*
-         meter.counterBuilder(INSTRUMENT_PREFIX + "pulsar_compaction_latency_le_*                          | Histogram | The compaction latency with given quantile. <br /> Available thresholds: <br /><ul><li>pulsar_compaction_latency_le_0_5: <= 0.5ms </li><li>pulsar_compaction_latency_le_1: <= 1ms</li><li>pulsar_compaction_latency_le_5: <= 5ms</li><li>pulsar_compaction_latency_le_10: <= 10ms</li><li>pulsar_compaction_latency_le_20: <= 20ms</li><li>pulsar_compaction_latency_le_50: <= 50ms</li><li>pulsar_compaction_latency_le_100: <= 100ms</li><li>pulsar_compaction_latency_le_200: <= 200ms</li><li>pulsar_compaction_latency_le_1000: <= 1s</li><li>pulsar_compaction_latency_le_overflow: > 1s</li></ul>                                                                                                                                 |
-         */
+
+        transactionCommittedCounter = meter
+                .upDownCounterBuilder(TRANSACTION_COMMITTED_COUNTER)
+                .setUnit("{transaction}")
+                .setDescription("The number of committed transactions on the topic.")
+                .buildObserver();
+
         batchCallback = meter.batchCallback(() -> pulsar.getBrokerService()
                         .getTopics()
                         .values()
@@ -153,9 +266,22 @@ public class OpenTelemetryTopicStats implements AutoCloseable {
                 subscriptionCounter,
                 producerCounter,
                 consumerCounter,
-                messageIncomingCounter,
-                messageOutgoingCounter,
-                publishRateLimitCounter);
+                messageInCounter,
+                messageOutCounter,
+                bytesInCounter,
+                bytesOutCounter,
+                consumerMsgAckCounter,
+                storageCounter,
+                storageLogicalCounter,
+                storageBacklogCounter,
+                storageOffloadedCounter,
+                delayedSubscriptionCounter,
+                compactionRemovedCounted,
+                compactionSucceededCounter,
+                compactionFailedCounter,
+                transactionActiveCounter,
+                transactionAbortedCounter,
+                transactionCommittedCounter);
 
         getStatsOptions = GetStatsOptions.builder()
                 .getPreciseBacklog(true)
@@ -175,77 +301,29 @@ public class OpenTelemetryTopicStats implements AutoCloseable {
         var attributes = Attributes.builder()
                 .put(OpenTelemetryAttributes.PULSAR_TOPIC, topic.getName())
                 .build();
-        subscriptionCounter.record(100, attributes);
 
+        var dummyValue = 0L;
         var topicStatsImpl = topic.getStats(getStatsOptions);
 
-        storageCounter.record(100, Attributes.builder()
-                .putAll(attributes)
-                .put(OpenTelemetryAttributes.PULSAR_STORAGE_TYPE, "logical")
-                .build());
+        subscriptionCounter.record(dummyValue, attributes);
+        producerCounter.record(dummyValue, attributes);
+        consumerCounter.record(dummyValue, attributes);
+        messageInCounter.record(dummyValue, attributes);
+        messageOutCounter.record(dummyValue, attributes);
+        bytesInCounter.record(dummyValue, attributes);
+        bytesOutCounter.record(dummyValue, attributes);
+        consumerMsgAckCounter.record(dummyValue, attributes);
+        storageCounter.record(dummyValue, attributes);
+        storageLogicalCounter.record(dummyValue, attributes);
+        storageBacklogCounter.record(dummyValue, attributes);
+        storageOffloadedCounter.record(dummyValue, attributes);
+        delayedSubscriptionCounter.record(dummyValue, attributes);
+        compactionRemovedCounted.record(dummyValue, attributes);
+        compactionSucceededCounter.record(dummyValue, attributes);
+        compactionFailedCounter.record(dummyValue, attributes);
+        transactionActiveCounter.record(dummyValue, attributes);
+        transactionAbortedCounter.record(dummyValue, attributes);
+        transactionCommittedCounter.record(dummyValue, attributes);
 
-        storageCounter.record(100, Attributes.builder()
-                .putAll(attributes)
-                .put(OpenTelemetryAttributes.PULSAR_STORAGE_TYPE, "backlog")
-                .build());
-
-        storageCounter.record(100, Attributes.builder()
-                .putAll(attributes)
-                .put(OpenTelemetryAttributes.PULSAR_STORAGE_TYPE, "offloaded")
-                .build());
-
-        subscriptionCounter.record(topicStatsImpl.getSubscriptions().size(), attributes);
-        producerCounter.record(topicStatsImpl.getPublishers().size(), attributes);
-        messageIncomingCounter.record(topicStatsImpl.msgInCounter, attributes);
-        messageOutgoingCounter.record(topicStatsImpl.msgOutCounter, attributes);
-
-        if (topic instanceof PersistentTopic persistentTopic) {
-            activeTransactionCounter.record(topicStatsImpl.getOngoingTxnCount(), attributes);
-            committedTransactionCounter.record(topicStatsImpl.getCommittedTxnCount(), attributes);
-            abortedTransactionCounter.record(topicStatsImpl.getAbortedTxnCount(), attributes);
-        }
-
-        if (topic.isPersistent() && pulsar.getNullableCompactor() != null) {
-            pulsar.getNullableCompactor().getStats().getCompactionRecordForTopic(topic.getName()).ifPresent(
-                    compactionRecord -> {
-                        compactionRecord.writeRate.getTotalCount();
-                    });
-        }
-
-        topicStatsImpl.getAbortedTxnCount();
-
-        /*
-        | pulsar_throughput_in                                    | Gauge     | The total throughput of the topic coming into this broker (byte per second).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
-        | pulsar_throughput_out                                   | Gauge     | The total throughput of the topic going out from this broker (byte per second).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
-
-        | pulsar_consumer_msg_ack_rate                            | Gauge     | The total message acknowledgment rate of the topic connected to this broker (message per second).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
-
-        | pulsar_storage_size                                     | Gauge     | The total storage size of the topics in this topic owned by this broker (bytes).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
-        | pulsar_storage_logical_size                             | Gauge     | The storage size of topics in the namespace owned by the broker without replicas (in bytes).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
-        | pulsar_storage_backlog_size                             | Gauge     | The total backlog size of the topics of this topic owned by this broker (in bytes).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
-        | pulsar_storage_offloaded_size                           | Gauge     | The total amount of the data in this topic offloaded to the tiered storage (bytes).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
-        | pulsar_storage_backlog_quota_limit                      | Gauge     | The total amount of the data in this topic that limit the backlog quota (bytes).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
-        | pulsar_storage_backlog_age_seconds                      | Gauge     | The age of the oldest unacknowledged message (backlog).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
-        | pulsar_storage_backlog_quota_exceeded_evictions_total   | Counter   | The number of times a backlog was evicted since it has exceeded its quota. Includes label `quota_type = (time \| size)`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
-        | pulsar_storage_write_rate                               | Gauge     | The total message batches (entries) written to the storage for this topic (message batch per second).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
-        | pulsar_storage_read_rate                                | Gauge     | The total message batches (entries) read from the storage for this topic (message batch per second).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
-
-        | pulsar_subscription_delayed                             | Gauge     | The total message batches (entries) are delayed for dispatching.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
-        | pulsar_storage_write_latency_le_*                       | Histogram | The entry rate of a topic that the storage write latency is smaller with a given threshold.<br /> Available thresholds: <br /><ul><li>pulsar_storage_write_latency_le_0_5: <= 0.5ms </li><li>pulsar_storage_write_latency_le_1: <= 1ms</li><li>pulsar_storage_write_latency_le_5: <= 5ms</li><li>pulsar_storage_write_latency_le_10: <= 10ms</li><li>pulsar_storage_write_latency_le_20: <= 20ms</li><li>pulsar_storage_write_latency_le_50: <= 50ms</li><li>pulsar_storage_write_latency_le_100: <= 100ms</li><li>pulsar_storage_write_latency_le_200: <= 200ms</li><li>pulsar_storage_write_latency_le_1000: <= 1s</li><li>pulsar_storage_write_latency_le_overflow: > 1s</li></ul>                                                    |
-        | pulsar_entry_size_le_*                                  | Histogram | The entry rate of a topic that the entry size is smaller with a given threshold.<br /> Available thresholds: <br /><ul><li>pulsar_entry_size_le_128: <= 128 bytes </li><li>pulsar_entry_size_le_512: <= 512 bytes</li><li>pulsar_entry_size_le_1_kb: <= 1 KB</li><li>pulsar_entry_size_le_2_kb: <= 2 KB</li><li>pulsar_entry_size_le_4_kb: <= 4 KB</li><li>pulsar_entry_size_le_16_kb: <= 16 KB</li><li>pulsar_entry_size_le_100_kb: <= 100 KB</li><li>pulsar_entry_size_le_1_mb: <= 1 MB</li><li>pulsar_entry_size_le_overflow: > 1 MB</li></ul>                                                                                                                                                                                        |
-
-        | pulsar_in_bytes_total                                   | Counter   | The total number of messages in bytes received for this topic.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
-        | pulsar_in_messages_total                                | Counter   | The total number of messages received for this topic.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
-        | pulsar_out_bytes_total                                  | Counter   | The total number of messages in bytes read from this topic.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
-        | pulsar_out_messages_total                               | Counter   | The total number of messages read from this topic.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
-
-        | pulsar_delayed_message_index_size_bytes                 | Gauge     | The total memory size allocated by `DelayedDeliveryTracker` of the topic owned by this broker (in bytes).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
-        | pulsar_delayed_message_index_bucket_total               | Gauge     | The number of delayed message index buckets (immutable buckets + LastMutableBucket )                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
-        | pulsar_delayed_message_index_loaded                     | Gauge     | The total number of delayed message indexes for in the memory.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
-        | pulsar_delayed_message_index_bucket_snapshot_size_bytes | Gauge     | The total size of delayed message index bucket snapshot (in bytes).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
-        | pulsar_delayed_message_index_bucket_op_count            | Counter   | The total number of operation delayed message index bucket snapshots. The `state` label can be `succeed`,`failed`, and`all` (`all` means the total number of all states) and the `type` label can be `create`,`load`,`delete`, and `merge`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
-        | pulsar_delayed_message_index_bucket_op_latency_ms       | Histogram | The latency of delayed message index bucket snapshot operation with a given quantile (threshold). The label`type` label can be `create`,`load`,`delete`, and `merge`<br/>The label `quantile` can be:<ul><li>quantile="50" is operation latency between (0ms, 50ms]</li><li>quantile="100" is operation latency between (50ms, 100ms]</li><li>quantile="500" is operation latency between (100ms, 500ms]</li><li>quantile="1000" is operation latency between (500ms, 1s]</li><li>quantile="5000" is operation latency between (1s, 5s]</li><li>quantile="30000" is operation latency between (5s, 30s]</li><li>quantile="60000" is operation latency between (30s, 60s]</li><li>quantile="overflow" is operation latency > 1m</li></ul> |
-        */
     }
-
 }
