@@ -263,10 +263,6 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
         this.brokerSelectionStrategy = new LeastResourceUsageWithWeight();
     }
 
-    public static boolean isLoadManagerExtensionEnabled(ServiceConfiguration conf) {
-        return ExtensibleLoadManagerImpl.class.getName().equals(conf.getLoadManagerClassName());
-    }
-
     public static boolean isLoadManagerExtensionEnabled(PulsarService pulsar) {
         return pulsar.getLoadManager().get() instanceof ExtensibleLoadManagerWrapper;
     }
