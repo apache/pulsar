@@ -430,35 +430,23 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             pendingMessagesUpDownCounter.decrement();
             pendingBytesUpDownCounter.subtract(msgSize);
             ByteBuf payload = msg.getDataBuffer();
+            if (payload == null) {
+                log.error("[{}] [{}] Payload is null when calling onSendComplete, which is not expected.",
+                        topic, producerName);
+            } else {
+                ReferenceCountUtil.safeRelease(payload);
+            }
             if (e != null) {
                 latencyHistogram.recordFailure(latencyNanos);
                 stats.incrementSendFailed();
-                try {
-                    onSendAcknowledgement(msg, null, e);
-                    sendCallback.getFuture().completeExceptionally(e);
-                } finally {
-                    if (payload == null) {
-                        log.error("[{}] [{}] Payload is null when calling a failed onSendComplete, which is not"
-                                + " expected.", topic, producerName);
-                        return;
-                    }
-                    ReferenceCountUtil.safeRelease(payload);
-                }
+                onSendAcknowledgement(msg, null, e);
+                sendCallback.getFuture().completeExceptionally(e);
             } else {
                 latencyHistogram.recordSuccess(latencyNanos);
                 publishedBytesCounter.add(msgSize);
                 stats.incrementNumAcksReceived(latencyNanos);
-                try {
-                    onSendAcknowledgement(msg, msg.getMessageId(), null);
-                    sendCallback.getFuture().complete(msg.getMessageId());
-                } finally {
-                    if (payload == null) {
-                        log.error("[{}] [{}] Payload is null when calling onSendComplete, which is not expected.",
-                                topic, producerName);
-                        return;
-                    }
-                    ReferenceCountUtil.safeRelease(payload);
-                }
+                onSendAcknowledgement(msg, msg.getMessageId(), null);
+                sendCallback.getFuture().complete(msg.getMessageId());
             }
         }
 
