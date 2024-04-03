@@ -29,76 +29,90 @@ import org.apache.pulsar.opentelemetry.OpenTelemetryAttributes;
 
 public class OpenTelemetryTopicStats implements AutoCloseable {
 
-    public static final String SUBSCRIPTION_COUNTER = "pulsar_subscriptions_count";
+    // Replaces pulsar_subscriptions_count
+    public static final String SUBSCRIPTION_COUNTER = "pulsar.broker.topic.subscription.count";
     private final ObservableLongMeasurement subscriptionCounter;
 
-    public static final String PRODUCER_COUNTER = "pulsar_producers_count";
+    // Replaces pulsar_producers_count
+    public static final String PRODUCER_COUNTER = "pulsar.broker.topic.producer.count";
     private final ObservableLongMeasurement producerCounter;
 
-    public static final String CONSUMER_COUNTER = "pulsar_consumers_count";
+    // Replaces pulsar_consumers_count
+    public static final String CONSUMER_COUNTER = "pulsar.broker.topic.consumer.count";
     private final ObservableLongMeasurement consumerCounter;
 
-    public static final String MESSAGE_IN_COUNTER = "pulsar_rate_in";
+    // Replaces ['pulsar_rate_in', 'pulsar_in_messages_total']
+    public static final String MESSAGE_IN_COUNTER = "pulsar.broker.topic.message.incoming.count";
     private final ObservableLongMeasurement messageInCounter;
 
-    public static final String MESSAGE_OUT_COUNTER = "pulsar_rate_out";
+    // Replaces ['pulsar_rate_out', 'pulsar_out_messages_total']
+    public static final String MESSAGE_OUT_COUNTER = "pulsar.broker.topic.message.outgoing.count";
     private final ObservableLongMeasurement messageOutCounter;
+
+    // Replaces ['pulsar_throughput_in', 'pulsar_in_bytes_total']
+    public static final String BYTES_IN_COUNTER = "pulsar.broker.topic.message.incoming.size";
+    private final ObservableLongMeasurement bytesInCounter;
+
+    // Replaces ['pulsar_throughput_out', 'pulsar_out_bytes_total']
+    public static final String BYTES_OUT_COUNTER = "pulsar.broker.topic.message.outgoing.size";
+    private final ObservableLongMeasurement bytesOutCounter;
 
     // Omitted: pulsar_publish_rate_limit_times
 
-    public static final String BYTES_IN_COUNTER = "pulsar_throughput_in";
-    private final ObservableLongMeasurement bytesInCounter;
-
-    public static final String BYTES_OUT_COUNTER = "pulsar_throughput_out";
-    private final ObservableLongMeasurement bytesOutCounter;
-
-    public static final String CONSUMER_MSG_ACK_COUNTER = "pulsar_consumer_msg_ack_rate";
+    // Replaces pulsar_consumer_msg_ack_rate
+    public static final String CONSUMER_MSG_ACK_COUNTER = "pulsar.broker.topic.consumer.msg.ack.rate";
     private final ObservableLongMeasurement consumerMsgAckCounter;
 
-    public static final String STORAGE_COUNTER = "pulsar_storage_size";
+    // Replaces pulsar_storage_size
+    public static final String STORAGE_COUNTER = "pulsar.broker.topic.storage.size";
     private final ObservableLongMeasurement storageCounter;
 
-    public static final String STORAGE_LOGICAL_COUNTER = "pulsar_storage_logical_size";
+    // Replaces pulsar_storage_logical_size
+    public static final String STORAGE_LOGICAL_COUNTER = "pulsar.broker.topic.storage.logical.size";
     private final ObservableLongMeasurement storageLogicalCounter;
 
-    public static final String STORAGE_BACKLOG_COUNTER = "pulsar_storage_backlog_size";
+    // Replaces pulsar_storage_backlog_size
+    public static final String STORAGE_BACKLOG_COUNTER = "pulsar.broker.topic.storage.backlog.size";
     private final ObservableLongMeasurement storageBacklogCounter;
 
-    public static final String STORAGE_OFFLOADED_COUNTER = "pulsar_storage_offloaded_size";
+    // Replaces pulsar_storage_offloaded_size
+    public static final String STORAGE_OFFLOADED_COUNTER = "pulsar.broker.topic.storage.offloaded.size";
     private final ObservableLongMeasurement storageOffloadedCounter;
 
-    // Omitted: pulsar_storage_backlog_quota_limit
+    // Replaces pulsar_storage_backlog_quota_limit
+    public static final String BACKLOG_QUOTA_LIMIT = "pulsar.broker.topic.storage.backlog.quota.limit";
+    private final ObservableLongMeasurement backlogQuotaLimit;
 
-    // Omitted: pulsar_storage_backlog_age_seconds
+    // Replaces pulsar_storage_backlog_quota_exceeded_evictions_total
+    public static final String BACKLOG_EVICTION_COUNTER = "pulsar.broker.topic.storage.backlog.quota.exceeded.eviction.count";
+    private final ObservableLongMeasurement backlogEvictionCounter;
 
-    // Omitted: pulsar_storage_backlog_quota_exceeded_evictions_total
+    // Replaces pulsar_storage_backlog_age_seconds
+    public static final String BACKLOG_QUOTA_AGE = "pulsar.broker.topic.storage.backlog.age";
+    private final ObservableLongMeasurement backlogQuotaAge;
 
-    // Omitted: pulsar_storage_write_rate
+    // Replaces pulsar_storage_write_rate
+    public static final String STORAGE_OUT_COUNTER = "pulsar.broker.topic.storage.outgoing";
+    private final ObservableLongMeasurement storageOutCounter;
 
-    // Omitted: pulsar_storage_read_rate
-
-    public static final String DELAYED_SUBSCRIPTION_COUNTER = "pulsar_subscription_delayed";
-    private final ObservableLongMeasurement delayedSubscriptionCounter;
+    // Replaces pulsar_storage_read_rate
+    public static final String STORAGE_IN_COUNTER = "pulsar.broker.topic.storage.incoming";
+    private final ObservableLongMeasurement storageInCounter;
 
     // Omitted: pulsar_storage_write_latency_le_*
 
     // Omitted: pulsar_entry_size_le_*
 
-    // Omitted: pulsar_in_bytes_total
-
-    // Omitted: pulsar_in_messages_total
-
-    // Omitted: pulsar_out_bytes_total
-
-    // Omitted: pulsar_out_messages_total
-
-    public static final String COMPACTION_REMOVED_COUNTED = "pulsar_compaction_removed_event_count";
+    // Replaces pulsar_compaction_removed_event_count
+    public static final String COMPACTION_REMOVED_COUNTED = "pulsar.broker.topic.compaction.removed.event.count";
     private final ObservableLongMeasurement compactionRemovedCounted;
 
-    public static final String COMPACTION_SUCCEEDED_COUNTER = "pulsar_compaction_succeed_count";
+    // Replaces pulsar_compaction_succeed_count
+    public static final String COMPACTION_SUCCEEDED_COUNTER = "pulsar.broker.topic.compaction.succeed.count";
     private final ObservableLongMeasurement compactionSucceededCounter;
 
-    public static final String COMPACTION_FAILED_COUNTER = "pulsar_compaction_failed_count";
+    // Replaces pulsar_compaction_failed_count
+    public static final String COMPACTION_FAILED_COUNTER = "pulsar.broker.topic.compaction.failed.count";
     private final ObservableLongMeasurement compactionFailedCounter;
 
     // Omitted: pulsar_compaction_duration_time_in_mills
@@ -113,14 +127,13 @@ public class OpenTelemetryTopicStats implements AutoCloseable {
 
     // Omitted: pulsar_compaction_compacted_entries_size
 
-    public static final String TRANSACTION_ACTIVE_COUNTER = "pulsar_txn_tb_active_total";
-    private final ObservableLongMeasurement transactionActiveCounter;
+    // Replaces ['pulsar_txn_tb_active_total', 'pulsar_txn_tb_aborted_total', 'pulsar_txn_tb_committed_total']
+    public static final String TRANSACTION_COUNTER = "pulsar.broker.topic.transaction";
+    private final ObservableLongMeasurement transactionCounter;
 
-    public static final String TRANSACTION_ABORTED_COUNTER = "pulsar_txn_tb_aborted_total";
-    private final ObservableLongMeasurement transactionAbortedCounter;
-
-    public static final String TRANSACTION_COMMITTED_COUNTER = "pulsar_txn_tb_committed_total";
-    private final ObservableLongMeasurement transactionCommittedCounter;
+    // Replaces pulsar_subscription_delayed
+    public static final String DELAYED_SUBSCRIPTION_COUNTER = "pulsar.broker.topic.subscription.delayed";
+    private final ObservableLongMeasurement delayedSubscriptionCounter;
 
     // Omitted: pulsar_delayed_message_index_size_bytes
 
@@ -164,25 +177,25 @@ public class OpenTelemetryTopicStats implements AutoCloseable {
         messageInCounter = meter
                 .upDownCounterBuilder(MESSAGE_IN_COUNTER)
                 .setUnit("{message}")
-                .setDescription("The total message rate of the topic coming into this broker (message per second).")
+                .setDescription("The total number of messages received for this topic.")
                 .buildObserver();
 
         messageOutCounter = meter
                 .upDownCounterBuilder(MESSAGE_OUT_COUNTER)
                 .setUnit("{message}")
-                .setDescription("The total message rate of the topic going out from this broker (message per second).")
+                .setDescription("The total number of messages read from this topic.")
                 .buildObserver();
 
         bytesInCounter = meter
                 .upDownCounterBuilder(BYTES_IN_COUNTER)
                 .setUnit("{byte}")
-                .setDescription("The total throughput of the topic coming into this broker (byte per second).")
+                .setDescription("The total number of messages bytes received for this topic.")
                 .buildObserver();
 
         bytesOutCounter = meter
                 .upDownCounterBuilder(BYTES_OUT_COUNTER)
                 .setUnit("{byte}")
-                .setDescription("The total throughput of the topic going out from this broker (byte per second).")
+                .setDescription("The total number of messages bytes read from this topic.")
                 .buildObserver();
 
         consumerMsgAckCounter = meter
@@ -215,10 +228,34 @@ public class OpenTelemetryTopicStats implements AutoCloseable {
                 .setDescription("The total amount of the data in this topic offloaded to the tiered storage (bytes).")
                 .buildObserver();
 
-        delayedSubscriptionCounter = meter
-                .upDownCounterBuilder(DELAYED_SUBSCRIPTION_COUNTER)
-                .setUnit("{subscription}")
-                .setDescription("The total message batches (entries) are delayed for dispatching.")
+        backlogQuotaLimit = meter
+                .upDownCounterBuilder(BACKLOG_QUOTA_LIMIT)
+                .setUnit("{byte}")
+                .setDescription("The total amount of the data in this topic that limit the backlog quota.")
+                .buildObserver();
+
+        backlogEvictionCounter = meter
+                .upDownCounterBuilder(BACKLOG_EVICTION_COUNTER)
+                .setUnit("{eviction}")
+                .setDescription("The number of times a backlog was evicted since it has exceeded its quota. Includes label `quota_type = (time \| size)`")
+                .buildObserver();
+
+        backlogQuotaAge = meter
+                .upDownCounterBuilder(BACKLOG_QUOTA_AGE)
+                .setUnit("{second}")
+                .setDescription("The age of the oldest unacknowledged message (backlog).")
+                .buildObserver();
+
+        storageOutCounter = meter
+                .upDownCounterBuilder(STORAGE_OUT_COUNTER)
+                .setUnit("{message batch}")
+                .setDescription("The total message batches (entries) written to the storage for this topic.")
+                .buildObserver();
+
+        storageInCounter = meter
+                .upDownCounterBuilder(STORAGE_IN_COUNTER)
+                .setUnit("{message batch}")
+                .setDescription("The total message batches (entries) read from the storage for this topic.")
                 .buildObserver();
 
         compactionRemovedCounted = meter
@@ -239,22 +276,16 @@ public class OpenTelemetryTopicStats implements AutoCloseable {
                 .setDescription("The total number of failures of the compaction.")
                 .buildObserver();
 
-        transactionActiveCounter = meter
-                .upDownCounterBuilder(TRANSACTION_ACTIVE_COUNTER)
+        transactionCounter = meter
+                .upDownCounterBuilder(TRANSACTION_COUNTER)
                 .setUnit("{transaction}")
-                .setDescription("The number of active transactions on this topic.")
+                .setDescription("The number of transactions on this topic.")
                 .buildObserver();
 
-        transactionAbortedCounter = meter
-                .upDownCounterBuilder(TRANSACTION_ABORTED_COUNTER)
-                .setUnit("{transaction}")
-                .setDescription("The number of aborted transactions on the topic.")
-                .buildObserver();
-
-        transactionCommittedCounter = meter
-                .upDownCounterBuilder(TRANSACTION_COMMITTED_COUNTER)
-                .setUnit("{transaction}")
-                .setDescription("The number of committed transactions on the topic.")
+        delayedSubscriptionCounter = meter
+                .upDownCounterBuilder(DELAYED_SUBSCRIPTION_COUNTER)
+                .setUnit("{message batch}")
+                .setDescription("The total message batches (entries) are delayed for dispatching.")
                 .buildObserver();
 
         batchCallback = meter.batchCallback(() -> pulsar.getBrokerService()
@@ -275,13 +306,16 @@ public class OpenTelemetryTopicStats implements AutoCloseable {
                 storageLogicalCounter,
                 storageBacklogCounter,
                 storageOffloadedCounter,
-                delayedSubscriptionCounter,
+                backlogQuotaLimit,
+                backlogEvictionCounter,
+                backlogQuotaAge,
+                storageOutCounter,
+                storageInCounter,
                 compactionRemovedCounted,
                 compactionSucceededCounter,
                 compactionFailedCounter,
-                transactionActiveCounter,
-                transactionAbortedCounter,
-                transactionCommittedCounter);
+                transactionCounter,
+                delayedSubscriptionCounter);
 
         getStatsOptions = GetStatsOptions.builder()
                 .getPreciseBacklog(true)
@@ -317,13 +351,16 @@ public class OpenTelemetryTopicStats implements AutoCloseable {
         storageLogicalCounter.record(dummyValue, attributes);
         storageBacklogCounter.record(dummyValue, attributes);
         storageOffloadedCounter.record(dummyValue, attributes);
-        delayedSubscriptionCounter.record(dummyValue, attributes);
+        backlogQuotaLimit.record(dummyValue, attributes);
+        backlogEvictionCounter.record(dummyValue, attributes);
+        backlogQuotaAge.record(dummyValue, attributes);
+        storageOutCounter.record(dummyValue, attributes);
+        storageInCounter.record(dummyValue, attributes);
         compactionRemovedCounted.record(dummyValue, attributes);
         compactionSucceededCounter.record(dummyValue, attributes);
         compactionFailedCounter.record(dummyValue, attributes);
-        transactionActiveCounter.record(dummyValue, attributes);
-        transactionAbortedCounter.record(dummyValue, attributes);
-        transactionCommittedCounter.record(dummyValue, attributes);
+        transactionCounter.record(dummyValue, attributes);
+        delayedSubscriptionCounter.record(dummyValue, attributes);
 
     }
 }
