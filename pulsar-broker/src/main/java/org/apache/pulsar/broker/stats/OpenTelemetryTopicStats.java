@@ -57,10 +57,12 @@ public class OpenTelemetryTopicStats implements AutoCloseable {
     public static final String BYTES_OUT_COUNTER = "pulsar.broker.topic.message.outgoing.size";
     private final ObservableLongMeasurement bytesOutCounter;
 
-    // Omitted: pulsar_publish_rate_limit_times
+    // Replaces pulsar_publish_rate_limit_times
+    public static final String PUBLISH_RATE_LIMIT_HIT_COUNTER = "pulsar.broker.topic.publish.rate.limit";
+    private final ObservableLongMeasurement publishRateLimitHitCounter;
 
     // Replaces pulsar_consumer_msg_ack_rate
-    public static final String CONSUMER_MSG_ACK_COUNTER = "pulsar.broker.topic.consumer.msg.ack.rate";
+    public static final String CONSUMER_MSG_ACK_COUNTER = "pulsar.broker.topic.consumer.msg.ack";
     private final ObservableLongMeasurement consumerMsgAckCounter;
 
     // Replaces pulsar_storage_size
@@ -198,28 +200,34 @@ public class OpenTelemetryTopicStats implements AutoCloseable {
                 .setDescription("The total number of messages bytes read from this topic.")
                 .buildObserver();
 
+        publishRateLimitHitCounter = meter
+                .upDownCounterBuilder(PUBLISH_RATE_LIMIT_HIT_COUNTER)
+                .setUnit("{event}")
+                .setDescription("The number of times the publish rate limit is triggered.")
+                .buildObserver();
+
         consumerMsgAckCounter = meter
                 .upDownCounterBuilder(CONSUMER_MSG_ACK_COUNTER)
                 .setUnit("{ack}")
-                .setDescription("The total message acknowledgment rate of the topic connected to this broker (message per second).")
+                .setDescription("The total number of message acknowledgments received for this topic.")
                 .buildObserver();
 
         storageCounter = meter
                 .upDownCounterBuilder(STORAGE_COUNTER)
                 .setUnit("{byte}")
-                .setDescription("The total storage size of the topics in this topic owned by this broker (bytes).")
+                .setDescription("The total storage size of the messages in this topic.")
                 .buildObserver();
 
         storageLogicalCounter = meter
                 .upDownCounterBuilder(STORAGE_LOGICAL_COUNTER)
                 .setUnit("{byte}")
-                .setDescription("The storage size of topics in the namespace owned by the broker without replicas (in bytes).")
+                .setDescription("The storage size of topics in the namespace owned by the broker without replicas.")
                 .buildObserver();
 
         storageBacklogCounter = meter
                 .upDownCounterBuilder(STORAGE_BACKLOG_COUNTER)
                 .setUnit("{byte}")
-                .setDescription("The total backlog size of the topics of this topic owned by this broker (in bytes).")
+                .setDescription("The total backlog size of the topics of this topic owned by this broker.")
                 .buildObserver();
 
         storageOffloadedCounter = meter
@@ -237,7 +245,7 @@ public class OpenTelemetryTopicStats implements AutoCloseable {
         backlogEvictionCounter = meter
                 .upDownCounterBuilder(BACKLOG_EVICTION_COUNTER)
                 .setUnit("{eviction}")
-                .setDescription("The number of times a backlog was evicted since it has exceeded its quota. Includes label `quota_type = (time \| size)`")
+                .setDescription("The number of times a backlog was evicted since it has exceeded its quota. FIXME Includes attribute quota_type = (time|size).")
                 .buildObserver();
 
         backlogQuotaAge = meter
@@ -301,6 +309,7 @@ public class OpenTelemetryTopicStats implements AutoCloseable {
                 messageOutCounter,
                 bytesInCounter,
                 bytesOutCounter,
+                publishRateLimitHitCounter,
                 consumerMsgAckCounter,
                 storageCounter,
                 storageLogicalCounter,
@@ -346,6 +355,7 @@ public class OpenTelemetryTopicStats implements AutoCloseable {
         messageOutCounter.record(dummyValue, attributes);
         bytesInCounter.record(dummyValue, attributes);
         bytesOutCounter.record(dummyValue, attributes);
+        publishRateLimitHitCounter.record(dummyValue, attributes);
         consumerMsgAckCounter.record(dummyValue, attributes);
         storageCounter.record(dummyValue, attributes);
         storageLogicalCounter.record(dummyValue, attributes);
