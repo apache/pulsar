@@ -498,7 +498,7 @@ public class NonPersistentTopics extends PersistentTopics {
                     }
                     asyncResponse.resume(topicList);
                 } catch (Exception e) {
-                    if (!isNot307And404Exception(e)) {
+                    if (isNot307And404Exception(e)) {
                         log.error("[{}] Failed to list topics on namespace bundle {}/{}", clientAppId(),
                                 namespaceName, bundleRange, e);
                     }
@@ -506,7 +506,7 @@ public class NonPersistentTopics extends PersistentTopics {
                 }
             }
         }).exceptionally(ex -> {
-            if (!isNot307And404Exception(ex)) {
+            if (isNot307And404Exception(ex)) {
                 log.error("[{}] Failed to list topics on namespace bundle {}/{}", clientAppId(),
                         namespaceName, bundleRange, ex);
             }

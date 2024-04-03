@@ -90,7 +90,7 @@ public class Transactions extends TransactionsBase {
                     Long.parseLong(leastSigBits))
                     .thenAccept(stat -> asyncResponse.resume(stat))
                     .exceptionally(ex -> {
-                        if (!isNot307And404Exception(ex)) {
+                        if (isNot307And404Exception(ex)) {
                             log.error("[{}] Failed to get transaction state in transaction buffer {}",
                                     clientAppId(), topicName, ex);
                         }
@@ -128,7 +128,7 @@ public class Transactions extends TransactionsBase {
                     Long.parseLong(leastSigBits), subName)
                     .thenAccept(stat -> asyncResponse.resume(stat))
                     .exceptionally(ex -> {
-                        if (!isNot307And404Exception(ex)) {
+                        if (isNot307And404Exception(ex)) {
                             log.error("[{}] Failed to get transaction state in pending ack {}",
                                     clientAppId(), topicName, ex);
                         }
@@ -162,7 +162,7 @@ public class Transactions extends TransactionsBase {
             internalGetTransactionBufferStats(authoritative)
                     .thenAccept(stat -> asyncResponse.resume(stat))
                     .exceptionally(ex -> {
-                        if (!isNot307And404Exception(ex)) {
+                        if (isNot307And404Exception(ex)) {
                             log.error("[{}] Failed to get transaction buffer stats in topic {}",
                                     clientAppId(), topicName, ex);
                         }
@@ -197,7 +197,7 @@ public class Transactions extends TransactionsBase {
             internalGetPendingAckStats(authoritative, subName)
                     .thenAccept(stats -> asyncResponse.resume(stats))
                     .exceptionally(ex -> {
-                        if (!isNot307And404Exception(ex)) {
+                        if (isNot307And404Exception(ex)) {
                             log.error("[{}] Failed to get transaction pending ack stats in topic {}",
                                     clientAppId(), topicName, ex);
                         }
