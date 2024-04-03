@@ -27,6 +27,7 @@ import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import java.nio.ByteBuffer;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.impl.metrics.LatencyHistogram;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.mockito.Mockito;
 import org.testng.annotations.Test;
@@ -42,6 +43,7 @@ public class ProducerImplTest {
         for (int i = 0; i < totalChunks; i++) {
             ProducerImpl.OpSendMsg opSendMsg =
                     ProducerImpl.OpSendMsg.create(
+                            LatencyHistogram.NOOP,
                             MessageImpl.create(new MessageMetadata(), ByteBuffer.allocate(0), Schema.STRING, null),
                             null, 0, null);
             opSendMsg.chunkedMessageCtx = ctx;

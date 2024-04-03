@@ -32,6 +32,7 @@ import io.netty.resolver.dns.DnsNameResolverBuilder;
 import io.netty.resolver.dns.SequentialDnsServerAddressStreamProvider;
 import io.netty.util.concurrent.Future;
 import io.netty.util.concurrent.ScheduledFuture;
+import io.opentelemetry.api.common.Attributes;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -54,6 +55,9 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.PulsarClientException.InvalidServiceURL;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
+import org.apache.pulsar.client.impl.metrics.Counter;
+import org.apache.pulsar.client.impl.metrics.InstrumentProvider;
+import org.apache.pulsar.client.impl.metrics.Unit;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.netty.DnsResolverUtil;
@@ -88,6 +92,8 @@ public class ConnectionPool implements AutoCloseable {
     /** Async release useless connections task. **/
     private ScheduledFuture asyncReleaseUselessConnectionsTask;
 
+    private final Counter connectionsTcpFailureCounter;
+    private final Counter connectionsHandshakeFailureCounter;
 
     @Value
     private static class Key {
@@ -96,16 +102,19 @@ public class ConnectionPool implements AutoCloseable {
         int randomKey;
     }
 
-    public ConnectionPool(ClientConfigurationData conf, EventLoopGroup eventLoopGroup) throws PulsarClientException {
-        this(conf, eventLoopGroup, () -> new ClientCnx(conf, eventLoopGroup));
+    public ConnectionPool(InstrumentProvider instrumentProvider,
+                          ClientConfigurationData conf, EventLoopGroup eventLoopGroup) throws PulsarClientException {
+        this(instrumentProvider, conf, eventLoopGroup, () -> new ClientCnx(instrumentProvider, conf, eventLoopGroup));
     }
 
-    public ConnectionPool(ClientConfigurationData conf, EventLoopGroup eventLoopGroup,
+    public ConnectionPool(InstrumentProvider instrumentProvider,
+                          ClientConfigurationData conf, EventLoopGroup eventLoopGroup,
                           Supplier<ClientCnx> clientCnxSupplier) throws PulsarClientException {
-        this(conf, eventLoopGroup, clientCnxSupplier, Optional.empty());
+        this(instrumentProvider, conf, eventLoopGroup, clientCnxSupplier, Optional.empty());
     }
 
-    public ConnectionPool(ClientConfigurationData conf, EventLoopGroup eventLoopGroup,
+    public ConnectionPool(InstrumentProvider instrumentProvider,
+                          ClientConfigurationData conf, EventLoopGroup eventLoopGroup,
                           Supplier<ClientCnx> clientCnxSupplier,
                           Optional<AddressResolver<InetSocketAddress>> addressResolver)
             throws PulsarClientException {
@@ -155,6 +164,14 @@ public class ConnectionPool implements AutoCloseable {
                 }
             }, idleDetectionIntervalSeconds, idleDetectionIntervalSeconds, TimeUnit.SECONDS);
         }
+
+        connectionsTcpFailureCounter =
+                instrumentProvider.newCounter("pulsar.client.connection.failed", Unit.Connections,
+                        "The number of failed connection attempts", null,
+                        Attributes.builder().put("pulsar.failure.type", "tcp-failed").build());
+        connectionsHandshakeFailureCounter = instrumentProvider.newCounter("pulsar.client.connection.failed",
+                Unit.Connections, "The number of failed connection attempts", null,
+                Attributes.builder().put("pulsar.failure.type", "handshake").build());
     }
 
     private static AddressResolver<InetSocketAddress> createAddressResolver(ClientConfigurationData conf,
@@ -295,6 +312,7 @@ public class ConnectionPool implements AutoCloseable {
                 }
                 cnxFuture.complete(cnx);
             }).exceptionally(exception -> {
+                connectionsHandshakeFailureCounter.increment();
                 log.warn("[{}] Connection handshake failed: {}", cnx.channel(), exception.getMessage());
                 cnxFuture.completeExceptionally(exception);
                 // this cleanupConnection may happen before that the
@@ -306,6 +324,7 @@ public class ConnectionPool implements AutoCloseable {
                 return null;
             });
         }).exceptionally(exception -> {
+            connectionsTcpFailureCounter.increment();
             eventLoopGroup.execute(() -> {
                 log.warn("Failed to open connection to {} : {}", key.physicalAddress, exception.getMessage());
                 pool.remove(key, cnxFuture);

@@ -150,6 +150,12 @@
     </dependency>
 
     <dependency>
+      <groupId>io.opentelemetry</groupId>
+      <artifactId>opentelemetry-sdk-testing</artifactId>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
       <groupId>${project.groupId}</groupId>
       <artifactId>pulsar-io-batch-discovery-triggerers</artifactId>
       <version>${project.version}</version>

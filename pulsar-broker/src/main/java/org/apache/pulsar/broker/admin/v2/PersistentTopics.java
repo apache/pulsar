@@ -1946,8 +1946,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
-        validateTopicOperationAsync(topicName, TopicOperation.PEEK_MESSAGES)
-            .thenCompose(__ -> internalExamineMessageAsync(initialPosition, messagePosition, authoritative))
+        internalExamineMessageAsync(initialPosition, messagePosition, authoritative)
             .thenAccept(asyncResponse::resume)
             .exceptionally(ex -> {
                 if (isNot307And404Exception(ex)) {

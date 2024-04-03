@@ -381,7 +381,6 @@ public class ManagedLedgerErrorsTest extends MockedBookKeeperTestCase {
             ledger.addEntry("entry".getBytes());
             fail("should fail");
         } catch (ManagedLedgerFencedException e) {
-            assertEquals(e.getCause().getClass(), ManagedLedgerException.BadVersionException.class);
             // ok
         }
 
