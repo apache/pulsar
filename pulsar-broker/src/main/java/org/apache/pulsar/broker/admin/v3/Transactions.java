@@ -93,7 +93,7 @@ public class Transactions extends TransactionsBase {
                     Long.parseLong(leastSigBits))
                     .thenAccept(asyncResponse::resume)
                     .exceptionally(ex -> {
-                        if (!isNot307And404Exception(ex)) {
+                        if (isNot307And404Exception(ex)) {
                             log.error("[{}] Failed to get transaction state in transaction buffer {}",
                                     clientAppId(), topicName, ex);
                         }
@@ -131,7 +131,7 @@ public class Transactions extends TransactionsBase {
                     Long.parseLong(leastSigBits), subName)
                     .thenAccept(asyncResponse::resume)
                     .exceptionally(ex -> {
-                        if (!isNot307And404Exception(ex)) {
+                        if (isNot307And404Exception(ex)) {
                             log.error("[{}] Failed to get transaction state in pending ack {}",
                                     clientAppId(), topicName, ex);
                         }
@@ -167,7 +167,7 @@ public class Transactions extends TransactionsBase {
             internalGetTransactionBufferStats(authoritative, lowWaterMarks)
                     .thenAccept(asyncResponse::resume)
                     .exceptionally(ex -> {
-                        if (!isNot307And404Exception(ex)) {
+                        if (isNot307And404Exception(ex)) {
                             log.error("[{}] Failed to get transaction buffer stats in topic {}",
                                     clientAppId(), topicName, ex);
                         }
@@ -203,7 +203,7 @@ public class Transactions extends TransactionsBase {
             internalGetPendingAckStats(authoritative, subName, lowWaterMarks)
                     .thenAccept(asyncResponse::resume)
                     .exceptionally(ex -> {
-                        if (!isNot307And404Exception(ex)) {
+                        if (isNot307And404Exception(ex)) {
                             log.error("[{}] Failed to get transaction pending ack stats in topic {}",
                                     clientAppId(), topicName, ex);
                         }
@@ -300,7 +300,7 @@ public class Transactions extends TransactionsBase {
             internalGetPendingAckInternalStats(authoritative, subName, metadata)
                     .thenAccept(asyncResponse::resume)
                     .exceptionally(ex -> {
-                        if (!isNot307And404Exception(ex)) {
+                        if (isNot307And404Exception(ex)) {
                             log.error("[{}] Failed to get pending ack internal stats {}",
                                     clientAppId(), topicName, ex);
                         }
