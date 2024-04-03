@@ -42,11 +42,27 @@ call %UNZIP_CMD%
 cd /d %TMP_DIR%/%FILE_PREFIX%
 
 :: Loop through the number of groups
-SET Obj_Length=2
+SET Obj_Length=10
 SET Obj[0].FROM=libnetty_transport_native_epoll_x86_64.so
 SET Obj[0].TO=liborg_apache_pulsar_shade_netty_transport_native_epoll_x86_64.so
-SET Obj[1].FROM=libnetty_tcnative_linux_x86_64.so
-SET Obj[1].TO=liborg_apache_pulsar_shade_netty_tcnative_linux_x86_64.so
+SET Obj[1].FROM=libnetty_transport_native_epoll_aarch_64.so
+SET Obj[1].TO=liborg_apache_pulsar_shade_netty_transport_native_epoll_aarch_64.so
+SET Obj[2].FROM=libnetty_tcnative_linux_x86_64.so
+SET Obj[2].TO=liborg_apache_pulsar_shade_netty_tcnative_linux_x86_64.so
+SET Obj[3].FROM=libnetty_tcnative_linux_aarch_64.so
+SET Obj[3].TO=liborg_apache_pulsar_shade_netty_tcnative_linux_aarch_64.so
+SET Obj[4].FROM=libnetty_tcnative_osx_x86_64.jnilib
+SET Obj[4].TO=liborg_apache_pulsar_shade_netty_tcnative_osx_x86_64.jnilib
+SET Obj[5].FROM=libnetty_tcnative_osx_aarch_64.jnilib
+SET Obj[5].TO=liborg_apache_pulsar_shade_netty_tcnative_osx_aarch_64.jnilib
+SET Obj[6].FROM=libnetty_transport_native_io_uring_x86_64.so
+SET Obj[6].TO=liborg_apache_pulsar_shade_netty_transport_native_io_uring_x86_64.so
+SET Obj[7].FROM=libnetty_transport_native_io_uring_aarch_64.so
+SET Obj[7].TO=liborg_apache_pulsar_shade_netty_transport_native_io_uring_aarch_64.so
+SET Obj[8].FROM=libnetty_resolver_dns_native_macos_aarch_64.jnilib
+SET Obj[8].TO=liborg_apache_pulsar_shade_netty_resolver_dns_native_macos_aarch_64.jnilib
+SET Obj[9].FROM=libnetty_resolver_dns_native_macos_x86_64.jnilib
+SET Obj[9].TO=liborg_apache_pulsar_shade_netty_resolver_dns_native_macos_x86_64.jnilibSET Obj_Index=0
 SET Obj_Index=0
 
 :LoopStart
