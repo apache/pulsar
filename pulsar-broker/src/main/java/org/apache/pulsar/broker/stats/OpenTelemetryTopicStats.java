@@ -251,7 +251,7 @@ public class OpenTelemetryTopicStats implements AutoCloseable {
         storageOffloadedCounter = meter
                 .upDownCounterBuilder(STORAGE_OFFLOADED_COUNTER)
                 .setUnit("{byte}")
-                .setDescription("The total amount of the data in this topic offloaded to the tiered storage (bytes).")
+                .setDescription("The total amount of the data in this topic offloaded to the tiered storage.")
                 .buildObserver();
 
         backlogQuotaLimit = meter
@@ -324,7 +324,7 @@ public class OpenTelemetryTopicStats implements AutoCloseable {
         compactionEntriesCounter = meter
                 .upDownCounterBuilder(COMPACTION_ENTRIES_COUNTER)
                 .setUnit("{entry}")
-                .setDescription("The total number of the compacted entries.")
+                .setDescription("The total number of compacted entries.")
                 .buildObserver();
 
         compactionBytesCounter = meter
