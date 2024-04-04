@@ -58,7 +58,7 @@ public class TopicAuthZTest extends MockedPulsarStandalone {
             .claim("sub", TENANT_ADMIN_SUBJECT).signWith(SECRET_KEY).compact();
 
     @SneakyThrows
-    @BeforeClass
+    @BeforeClass(alwaysRun = true)
     public void before() {
         configureTokenAuthentication();
         configureDefaultAuthorization();
@@ -78,7 +78,7 @@ public class TopicAuthZTest extends MockedPulsarStandalone {
 
 
     @SneakyThrows
-    @AfterClass
+    @AfterClass(alwaysRun = true)
     public void after() {
         if (superUserAdmin != null) {
             superUserAdmin.close();

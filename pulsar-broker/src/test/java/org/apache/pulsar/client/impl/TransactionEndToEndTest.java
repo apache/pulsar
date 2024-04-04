@@ -98,7 +98,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
     protected static final int NUM_PARTITIONS = 16;
     private static final int waitTimeForCanReceiveMsgInSec = 5;
     private static final int waitTimeForCannotReceiveMsgInSec = 5;
-    @BeforeClass
+    @BeforeClass(alwaysRun = true)
     protected void setup() throws Exception {
         conf.setAcknowledgmentAtBatchIndexLevelEnabled(true);
         setUpBase(1, NUM_PARTITIONS, TOPIC_OUTPUT, TOPIC_PARTITION);
