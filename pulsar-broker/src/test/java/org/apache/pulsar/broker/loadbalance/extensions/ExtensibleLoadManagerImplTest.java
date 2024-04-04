@@ -317,7 +317,6 @@ public class ExtensibleLoadManagerImplTest extends ExtensibleLoadManagerImplBase
             assertEquals(unloadCount.get(), 1);
         });
 
-
         String dstBrokerUrl = pulsar1.getBrokerId();
         String dstBrokerServiceUrl;
         if (broker.equals(pulsar1.getBrokerServiceUrl())) {
