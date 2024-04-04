@@ -91,11 +91,15 @@ public class OpenTelemetryTopicStats implements AutoCloseable {
     private final ObservableLongMeasurement storageOffloadedCounter;
 
     // Replaces pulsar_storage_backlog_quota_limit
-    public static final String BACKLOG_QUOTA_LIMIT = "pulsar.broker.topic.storage.backlog.quota.limit";
-    private final ObservableLongMeasurement backlogQuotaLimit;
+    public static final String BACKLOG_QUOTA_LIMIT_SIZE = "pulsar.broker.topic.storage.backlog.quota.limit.size";
+    private final ObservableLongMeasurement backlogQuotaLimitSize;
+
+    // Replaces pulsar_storage_backlog_quota_limit_time
+    public static final String BACKLOG_QUOTA_LIMIT_TIME = "pulsar.broker.topic.storage.backlog.quota.limit.time";
+    private final ObservableLongMeasurement backlogQuotaLimitTime;
 
     // Replaces pulsar_storage_backlog_quota_exceeded_evictions_total
-    public static final String BACKLOG_EVICTION_COUNTER = "pulsar.broker.topic.storage.backlog.quota.exceeded.eviction.count";
+    public static final String BACKLOG_EVICTION_COUNTER = "pulsar.broker.topic.storage.backlog.quota.eviction.count";
     private final ObservableLongMeasurement backlogEvictionCounter;
 
     // Replaces pulsar_storage_backlog_age_seconds
@@ -254,10 +258,16 @@ public class OpenTelemetryTopicStats implements AutoCloseable {
                 .setDescription("The total amount of the data in this topic offloaded to the tiered storage.")
                 .buildObserver();
 
-        backlogQuotaLimit = meter
-                .upDownCounterBuilder(BACKLOG_QUOTA_LIMIT)
+        backlogQuotaLimitSize = meter
+                .upDownCounterBuilder(BACKLOG_QUOTA_LIMIT_SIZE)
                 .setUnit("{byte}")
-                .setDescription("The total amount of the data in this topic that limit the backlog quota.")
+                .setDescription("The size based backlog quota limit for this topic.")
+                .buildObserver();
+
+        backlogQuotaLimitTime = meter
+                .upDownCounterBuilder(BACKLOG_QUOTA_LIMIT_TIME)
+                .setUnit("{second}")
+                .setDescription("The time based backlog quota limit for this topic.")
                 .buildObserver();
 
         backlogEvictionCounter = meter
@@ -364,7 +374,8 @@ public class OpenTelemetryTopicStats implements AutoCloseable {
                 storageLogicalCounter,
                 storageBacklogCounter,
                 storageOffloadedCounter,
-                backlogQuotaLimit,
+                backlogQuotaLimitSize,
+                backlogQuotaLimitTime,
                 backlogEvictionCounter,
                 backlogQuotaAge,
                 storageOutCounter,
@@ -422,11 +433,12 @@ public class OpenTelemetryTopicStats implements AutoCloseable {
             storageInCounter.record(managedLedgerStats.getReadEntriesSucceededTotal(), attributes);
             storageOutCounter.record(managedLedgerStats.getAddEntrySucceedTotal(), attributes);
 
-            backlogQuotaLimit.record(
+            backlogQuotaLimitSize.record(
                     topic.getBacklogQuota(BacklogQuota.BacklogQuotaType.destination_storage).getLimitSize(),
                     attributes);
-            var backlogQuotaLimitTime = topic
-                    .getBacklogQuota(BacklogQuota.BacklogQuotaType.message_age).getLimitTime();
+            backlogQuotaLimitTime.record(
+                    topic.getBacklogQuota(BacklogQuota.BacklogQuotaType.message_age).getLimitTime(),
+                    attributes);
             backlogQuotaAge.record(topic.getBestEffortOldestUnacknowledgedMessageAgeSeconds(), attributes);
             var backlogQuotaMetrics = persistentTopic.getPersistentTopicMetrics().getBacklogQuotaMetrics();
             backlogEvictionCounter.record(backlogQuotaMetrics.getSizeBasedBacklogQuotaExceededEvictionCount(),
