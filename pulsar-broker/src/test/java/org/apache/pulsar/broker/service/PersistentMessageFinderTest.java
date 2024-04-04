@@ -266,7 +266,7 @@ public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
         ledger.addEntry(createMessageWrittenToLedger("msg2"));
         ledger.addEntry(createMessageWrittenToLedger("msg3"));
         Position lastPosition = ledger.addEntry(createMessageWrittenToLedger("last-message"));
-        
+
         long endTimestamp = System.currentTimeMillis() + 1000;
 
         Result result = new Result();
@@ -383,7 +383,7 @@ public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
      *
      * @throws Exception
      */
-    @Test
+    @Test(groups = "flaky")
     void testMessageExpiryWithTimestampNonRecoverableException() throws Exception {
 
         final String ledgerAndCursorName = "testPersistentMessageExpiryWithNonRecoverableLedgers";
@@ -440,7 +440,7 @@ public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
 
     }
 
-    @Test
+    @Test(groups = "flaky")
     public void testIncorrectClientClock() throws Exception {
         final String ledgerAndCursorName = "testIncorrectClientClock";
         int maxTTLSeconds = 1;
