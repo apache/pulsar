@@ -151,7 +151,7 @@ function test_group_broker_flaky() {
     perl -0777 -p -e 's/\n(\S)/,$1/g')
   if [ -n "${modules_with_flaky_tests}" ]; then
     echo "::group::Running flaky tests in modules '${modules_with_flaky_tests}'"
-    mvn_test --no-fail-fast -pl "${modules_with_flaky_tests}" -Dgroups='flaky' -DexcludedGroups='quarantine'
+    mvn_test --no-fail-fast -pl "${modules_with_flaky_tests}" -Dgroups='flaky' -DexcludedGroups='quarantine' -DfailIfNoTests=false
     echo "::endgroup::"
   fi
 }
