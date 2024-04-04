@@ -23,12 +23,18 @@ import io.opentelemetry.api.metrics.BatchCallback;
 import io.opentelemetry.api.metrics.ObservableDoubleMeasurement;
 import io.opentelemetry.api.metrics.ObservableLongMeasurement;
 import java.util.Optional;
+import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.service.AbstractTopic;
+import org.apache.pulsar.broker.service.Dispatcher;
 import org.apache.pulsar.broker.service.GetStatsOptions;
+import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
+import org.apache.pulsar.common.stats.MetricsUtil;
+import org.apache.pulsar.compaction.CompactedTopicContext;
 import org.apache.pulsar.compaction.Compactor;
 import org.apache.pulsar.opentelemetry.OpenTelemetryAttributes;
 
@@ -397,7 +403,6 @@ public class OpenTelemetryTopicStats implements AutoCloseable {
                 .build();
 
         var dummyValue = 0L;
-        var topicStatsImpl = topic.getStats(getStatsOptions);
 
         if (topic instanceof AbstractTopic abstractTopic) {
             subscriptionCounter.record(abstractTopic.getSubscriptions().size(), attributes);
@@ -415,9 +420,14 @@ public class OpenTelemetryTopicStats implements AutoCloseable {
         consumerMsgAckCounter.record(dummyValue, attributes); // FIXME: not implemented?
 
         if (topic instanceof PersistentTopic persistentTopic) {
+            var delayedMessages = topic.getSubscriptions().values().stream()
+                    .map(Subscription::getDispatcher)
+                    .mapToLong(Dispatcher::getNumberOfDelayedMessages)
+                    .sum();
+            delayedSubscriptionCounter.record(delayedMessages, attributes);
+
             var managedLedger = persistentTopic.getManagedLedger();
             var managedLedgerStats = persistentTopic.getManagedLedger().getStats();
-
             storageCounter.record(managedLedgerStats.getStoredMessagesSize(), attributes);
             storageLogicalCounter.record(managedLedgerStats.getStoredMessagesLogicalSize(), attributes);
             storageBacklogCounter.record(managedLedger.getEstimatedBacklogSize(), attributes);
@@ -464,17 +474,17 @@ public class OpenTelemetryTopicStats implements AutoCloseable {
                         compactionRemovedCounted.record(compactionRecord.getCompactionRemovedEventCount(), attributes);
                         compactionSucceededCounter.record(compactionRecord.getCompactionSucceedCount(), attributes);
                         compactionFailedCounter.record(compactionRecord.getCompactionFailedCount(), attributes);
+                        compactionDurationSeconds.record(MetricsUtil.convertToSeconds(
+                            compactionRecord.getCompactionDurationTimeInMills(), TimeUnit.MILLISECONDS), attributes);
+                        compactionBytesInCounter.record(compactionRecord.readRate.getTotalCount(), attributes);
+                        compactionBytesOutCounter.record(compactionRecord.writeRate.getTotalCount(), attributes);
+
+                        persistentTopic.getCompactedTopicContext().map(CompactedTopicContext::getLedger)
+                                .ifPresent(ledger -> {
+                                    compactionEntriesCounter.record(ledger.getLastAddConfirmed() + 1, attributes);
+                                    compactionBytesCounter.record(ledger.getLength(), attributes);
+                                });
                     });
         }
-
-        compactionRemovedCounted.record(dummyValue, attributes);
-        compactionSucceededCounter.record(dummyValue, attributes);
-        compactionFailedCounter.record(dummyValue, attributes);
-        compactionDurationSeconds.record(dummyValue, attributes);
-        compactionBytesInCounter.record(dummyValue, attributes);
-        compactionBytesOutCounter.record(dummyValue, attributes);
-        compactionEntriesCounter.record(dummyValue, attributes);
-        compactionBytesCounter.record(dummyValue, attributes);
-        delayedSubscriptionCounter.record(dummyValue, attributes);
     }
 }
