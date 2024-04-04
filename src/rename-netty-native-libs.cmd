@@ -62,7 +62,7 @@ SET Obj[7].TO=liborg_apache_pulsar_shade_netty_transport_native_io_uring_aarch_6
 SET Obj[8].FROM=libnetty_resolver_dns_native_macos_aarch_64.jnilib
 SET Obj[8].TO=liborg_apache_pulsar_shade_netty_resolver_dns_native_macos_aarch_64.jnilib
 SET Obj[9].FROM=libnetty_resolver_dns_native_macos_x86_64.jnilib
-SET Obj[9].TO=liborg_apache_pulsar_shade_netty_resolver_dns_native_macos_x86_64.jnilibSET Obj_Index=0
+SET Obj[9].TO=liborg_apache_pulsar_shade_netty_resolver_dns_native_macos_x86_64.jnilib
 SET Obj_Index=0
 
 :LoopStart
