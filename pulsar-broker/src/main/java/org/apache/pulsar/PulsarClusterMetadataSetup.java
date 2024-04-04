@@ -161,7 +161,7 @@ public class PulsarClusterMetadataSetup {
                 "--proxy-url"}, description = "Proxy-server URL to which to connect.", required = false)
         private String clusterProxyUrl;
 
-        @Option(names = {"-h", "--help"}, description = "Show this help message")
+        @Option(names = {"-h", "--help"}, usageHelp = true, description = "Show this help message")
         private boolean help = false;
 
         @Option(names = {"-g", "--generate-docs"}, description = "Generate docs")
