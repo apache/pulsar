@@ -116,7 +116,7 @@ public class ProducerConsumerInternalTest extends ProducerConsumerBase {
         });
     }
 
-    @Test
+    @Test(groups = "flaky")
     public void testExclusiveConsumerWillAlwaysRetryEvenIfReceivedConsumerBusyError() throws Exception {
         final String topicName = BrokerTestUtil.newUniqueName("persistent://my-property/my-ns/tp_");
         final String subscriptionName = "subscription1";
