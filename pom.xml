@@ -88,7 +88,7 @@ flexible messaging model and an intuitive client API.</description>
     <include>**/Test*.java,**/*Test.java,**/*Tests.java,**/*TestCase.java</include>
     <exclude/>
     <groups/>
-    <excludedGroups>quarantine</excludedGroups>
+    <excludedGroups>quarantine,flaky</excludedGroups>
 
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>

@@ -96,7 +96,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
     protected static final String TOPIC_OUTPUT = NAMESPACE1 + "/output";
     protected static final String TOPIC_MESSAGE_ACK_TEST = NAMESPACE1 + "/message-ack-test";
     protected static final int NUM_PARTITIONS = 16;
-    @BeforeClass
+    @BeforeClass(alwaysRun = true)
     protected void setup() throws Exception {
         conf.setAcknowledgmentAtBatchIndexLevelEnabled(true);
         setUpBase(1, NUM_PARTITIONS, TOPIC_OUTPUT, TOPIC_PARTITION);
@@ -1624,7 +1624,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
         admin.topics().delete(topic, true);
     }
 
-    @Test
+    @Test(groups = "flaky")
     public void testDelayedTransactionMessages() throws Exception {
         String topic = NAMESPACE1 + "/testDelayedTransactionMessages";
 

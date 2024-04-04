@@ -135,13 +135,21 @@ function print_testng_failures() {
 function test_group_broker_flaky() {
   echo "::endgroup::"
   echo "::group::Running quarantined tests"
-  mvn_test --no-fail-fast -pl pulsar-broker -Dgroups='quarantine' -DexcludedGroups='' -DfailIfNoTests=false \
+  mvn_test --no-fail-fast -pl pulsar-broker -Dgroups='quarantine' -DexcludedGroups='flaky' -DfailIfNoTests=false \
     -DtestForkCount=2 ||
     print_testng_failures pulsar-broker/target/surefire-reports/testng-failed.xml "Quarantined test failure in" "Quarantined test failures"
   echo "::endgroup::"
   echo "::group::Running flaky tests"
-  mvn_test --no-fail-fast -pl pulsar-broker -Dgroups='flaky' -DtestForkCount=2
+  mvn_test --no-fail-fast -pl pulsar-broker -Dgroups='flaky' -DexcludedGroups='quarantine' -DtestForkCount=2
   echo "::endgroup::"
+  local modules_with_flaky_tests=$(git grep -l '@Test.*"flaky"' | grep '/src/test/java/' | \
+    awk -F '/src/test/java/' '{ print $1 }' | grep -v -E 'pulsar-broker' | sort | uniq | \
+    perl -0777 -p -e 's/\n(\S)/,$1/g')
+  if [ -n "${modules_with_flaky_tests}" ]; then
+    echo "::group::Running flaky tests in modules '${modules_with_flaky_tests}'"
+    mvn_test --no-fail-fast -pl "${modules_with_flaky_tests}" -Dgroups='flaky' -DexcludedGroups='quarantine' -DfailIfNoTests=false
+    echo "::endgroup::"
+  fi
 }
 
 function test_group_proxy() {
@@ -175,7 +183,7 @@ function test_group_other() {
     perl -0777 -p -e 's/\n(\S)/,$1/g')
   if [ -n "${modules_with_quarantined_tests}" ]; then
     echo "::group::Running quarantined tests outside of pulsar-broker & pulsar-proxy (if any)"
-    mvn_test --no-fail-fast -pl "${modules_with_quarantined_tests}" test -Dgroups='quarantine' -DexcludedGroups='' \
+    mvn_test --no-fail-fast -pl "${modules_with_quarantined_tests}" test -Dgroups='quarantine' -DexcludedGroups='flaky' \
       -DfailIfNoTests=false || \
         echo "::warning::There were test failures in the 'quarantine' test group."
     echo "::endgroup::"
