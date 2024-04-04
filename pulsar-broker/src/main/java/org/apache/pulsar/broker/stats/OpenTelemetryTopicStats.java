@@ -24,11 +24,9 @@ import io.opentelemetry.api.metrics.ObservableDoubleMeasurement;
 import io.opentelemetry.api.metrics.ObservableLongMeasurement;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
-import java.util.function.Function;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.service.AbstractTopic;
 import org.apache.pulsar.broker.service.Dispatcher;
-import org.apache.pulsar.broker.service.GetStatsOptions;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
@@ -172,7 +170,6 @@ public class OpenTelemetryTopicStats implements AutoCloseable {
 
 
     private final BatchCallback batchCallback;
-    private final GetStatsOptions getStatsOptions;
     private final PulsarService pulsar;
 
     public OpenTelemetryTopicStats(PulsarService pulsar) {
@@ -266,7 +263,7 @@ public class OpenTelemetryTopicStats implements AutoCloseable {
         backlogEvictionCounter = meter
                 .upDownCounterBuilder(BACKLOG_EVICTION_COUNTER)
                 .setUnit("{eviction}")
-                .setDescription("The number of times a backlog was evicted since it has exceeded its quota. FIXME Includes attribute quota_type = (time|size).")
+                .setDescription("The number of times a backlog was evicted since it has exceeded its quota.")
                 .buildObserver();
 
         backlogQuotaAge = meter
@@ -382,14 +379,6 @@ public class OpenTelemetryTopicStats implements AutoCloseable {
                 compactionBytesCounter,
                 transactionCounter,
                 delayedSubscriptionCounter);
-
-        getStatsOptions = GetStatsOptions.builder()
-                .getPreciseBacklog(true)
-                .subscriptionBacklogSize(true)
-                .getEarliestTimeInBacklog(true)
-                .excludePublishers(false)
-                .excludeConsumers(false)
-                .build();
     }
 
     @Override
@@ -402,8 +391,6 @@ public class OpenTelemetryTopicStats implements AutoCloseable {
                 .put(OpenTelemetryAttributes.PULSAR_TOPIC, topic.getName())
                 .build();
 
-        var dummyValue = 0L;
-
         if (topic instanceof AbstractTopic abstractTopic) {
             subscriptionCounter.record(abstractTopic.getSubscriptions().size(), attributes);
             producerCounter.record(abstractTopic.getProducers().size(), attributes);
@@ -415,9 +402,9 @@ public class OpenTelemetryTopicStats implements AutoCloseable {
             bytesOutCounter.record(abstractTopic.getBytesOutCounter(), attributes);
 
             publishRateLimitHitCounter.record(abstractTopic.getTotalPublishRateLimitCounter(), attributes);
-        }
 
-        consumerMsgAckCounter.record(dummyValue, attributes); // FIXME: not implemented?
+            // Omitted: consumerMsgAckCounter
+        }
 
         if (topic instanceof PersistentTopic persistentTopic) {
             var delayedMessages = topic.getSubscriptions().values().stream()
@@ -476,8 +463,8 @@ public class OpenTelemetryTopicStats implements AutoCloseable {
                         compactionFailedCounter.record(compactionRecord.getCompactionFailedCount(), attributes);
                         compactionDurationSeconds.record(MetricsUtil.convertToSeconds(
                             compactionRecord.getCompactionDurationTimeInMills(), TimeUnit.MILLISECONDS), attributes);
-                        compactionBytesInCounter.record(compactionRecord.readRate.getTotalCount(), attributes);
-                        compactionBytesOutCounter.record(compactionRecord.writeRate.getTotalCount(), attributes);
+                        compactionBytesInCounter.record(compactionRecord.getCompactionReadBytes(), attributes);
+                        compactionBytesOutCounter.record(compactionRecord.getCompactionWriteBytes(), attributes);
 
                         persistentTopic.getCompactedTopicContext().map(CompactedTopicContext::getLedger)
                                 .ifPresent(ledger -> {

@@ -38,16 +38,18 @@ public class CompactionRecord {
     @Getter
     private volatile long lastCompactionDurationTimeInMills = 0L;
 
-    private LongAdder lastCompactionRemovedEventCountOp = new LongAdder();
+    private final LongAdder lastCompactionRemovedEventCountOp = new LongAdder();
     private volatile long lastCompactionStartTimeOp;
 
     private final LongAdder compactionRemovedEventCount = new LongAdder();
     private final LongAdder compactionSucceedCount = new LongAdder();
     private final LongAdder compactionFailedCount = new LongAdder();
     private final LongAdder compactionDurationTimeInMills = new LongAdder();
-    public final StatsBuckets writeLatencyStats = new StatsBuckets(WRITE_LATENCY_BUCKETS_USEC);
-    public final Rate writeRate = new Rate();
-    public final Rate readRate = new Rate();
+    private final LongAdder compactionReadBytes = new LongAdder();
+    private final LongAdder compactionWriteBytes = new LongAdder();
+    private final StatsBuckets writeLatencyStats = new StatsBuckets(WRITE_LATENCY_BUCKETS_USEC);
+    private final Rate writeRate = new Rate();
+    private final Rate readRate = new Rate();
 
     public void addCompactionRemovedEvent() {
         lastCompactionRemovedEventCountOp.increment();
@@ -75,10 +77,12 @@ public class CompactionRecord {
 
     public void addCompactionReadOp(long readableBytes) {
         readRate.recordEvent(readableBytes);
+        compactionReadBytes.add(readableBytes);
     }
 
     public void addCompactionWriteOp(long writeableBytes) {
         writeRate.recordEvent(writeableBytes);
+        compactionWriteBytes.add(writeableBytes);
     }
 
     public void addCompactionLatencyOp(long latency, TimeUnit unit) {
@@ -115,8 +119,16 @@ public class CompactionRecord {
         return readRate.getValueRate();
     }
 
+    public long getCompactionReadBytes() {
+        return compactionReadBytes.sum();
+    }
+
     public double getCompactionWriteThroughput() {
         writeRate.calculateRate();
         return writeRate.getValueRate();
+    }
+
+    public long getCompactionWriteBytes() {
+        return compactionWriteBytes.sum();
     }
 }
